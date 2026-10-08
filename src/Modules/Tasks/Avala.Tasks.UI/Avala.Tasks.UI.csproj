@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AvalaPlugin>true</AvalaPlugin>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Avala.Tasks\Avala.Tasks.csproj" />
+    <ProjectReference Include="..\..\..\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />
+  </ItemGroup>
+</Project>

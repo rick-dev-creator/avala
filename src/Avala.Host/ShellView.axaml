@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="using:Avala.Shell"
+        xmlns:sdk="using:Avala.Sdk"
+        x:Class="Avala.Host.ShellView"
+        x:ClassModifier="internal"
+        x:DataType="shell:ShellViewModel"
+        Title="Avala"
+        Width="1200"
+        Height="760"
+        TransparencyLevelHint="Mica, AcrylicBlur, Blur"
+        Background="{DynamicResource ShellBackgroundBrush}">
+  <Grid ColumnDefinitions="240,*">
+    <ListBox ItemsSource="{Binding Pages}"
+             SelectedItem="{Binding SelectedPage}"
+             Background="Transparent"
+             Margin="8">
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="sdk:IPage">
+          <TextBlock Text="{Binding Title}" />
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+    <Border Grid.Column="1"
+            Background="{DynamicResource ContentBackgroundBrush}"
+            CornerRadius="10,0,0,0">
+      <ContentControl Content="{Binding SelectedPage}" />
+    </Border>
+  </Grid>
+</Window>
