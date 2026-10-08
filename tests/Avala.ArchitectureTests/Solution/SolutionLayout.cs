@@ -4,7 +4,7 @@ namespace Avala.ArchitectureTests.Solution;
 
 internal static class SolutionLayout
 {
-    private static readonly string[] BuildOutputFolders = ["bin", "obj"];
+    private static readonly string[] BuildOutputFolders = ["bin", "obj", "artifacts", "TestResults", ".git"];
 
     public static DirectoryInfo Root { get; } = FindRoot(new DirectoryInfo(AppContext.BaseDirectory));
 

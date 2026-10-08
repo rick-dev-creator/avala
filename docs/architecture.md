@@ -30,9 +30,11 @@ Enforced by `tests/Avala.ArchitectureTests`:
 - View models live in assemblies that do not reference Avalonia.
 - Every `XViewModel` has an `XView` and the other way around. Views are resolved view-model-first through the view registry.
 - Code-behind holds nothing but a constructor calling `InitializeComponent()`.
+- Every constructor parameter of a view model is an interface: view models delegate their commands to injected services that tests can replace.
 - Every class is `sealed`. Only Avalonia types may be inherited, so views and the application are the sole subclasses.
 - No comments, in C# or in XAML.
 - No type spans more than 600 lines, counting every part of a partial type.
+- Every script is C#, and CI steps only invoke `dotnet`.
 - The SDK, the runtime, the shell and every module core have a unit test project.
 - The DDD and layer rules of the [core design](design/core.md#architecture-rules-to-add).
 - The architecture tests reference every source project, so no project escapes the rules.

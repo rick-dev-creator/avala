@@ -12,6 +12,7 @@
     <File Path="dotnet-tools.json" />
     <File Path=".github/workflows/ci.yml" />
     <File Path="scripts/metrics.cs" />
+    <File Path="scripts/publish-summary.cs" />
     <File Path="scripts/session-cost.cs" />
   </Folder>
   <Folder Name="/src/">

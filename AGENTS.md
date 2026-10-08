@@ -53,6 +53,7 @@ The rules are enforced by `tests/Avala.ArchitectureTests` and by the compiler. D
 - **Modular monolith.** The host knows no module. Every module is internal and loaded as a plugin. A module depends only on the SDK, its own projects and other modules' `Contracts`.
 - **Layers.** Module cores are organized in `Domain`, `Application`, `Infrastructure` and `ViewModels`. Dependencies point inward: view models use `Application`, never `Domain` or `Infrastructure`.
 - **MVVM, view model first.** CommunityToolkit.Mvvm, with `[INotifyPropertyChanged]` instead of a base class. Every `XViewModel` has an `XView`. View code-behind contains only the constructor calling `InitializeComponent()`. No fat view models: split them into child view models.
+- **View models are a thin application layer.** They expose state to the view and delegate the work of every command to services injected through their constructor. Every constructor parameter is an interface, so tests replace it with a double, and a view model never knows infrastructure.
 - **Composition over inheritance.** Every class is `sealed`. Only Avalonia types may be inherited.
 
 ## Domain
@@ -72,6 +73,7 @@ The rules are enforced by `tests/Avala.ArchitectureTests` and by the compiler. D
 - No type longer than 600 lines.
 - Nothing blocks a thread: no `Thread.Sleep`, `Wait`, `Result`, `GetResult` or synchronous file I/O. Everything is asynchronous.
 - Warnings are errors. An analyzer exception is allowed only with a reason recorded in [docs/architecture.md](docs/architecture.md#analyzer-exceptions).
+- Every script is C#: .NET file-based apps in `scripts/`, run with `dotnet run`. No Python, shell, PowerShell, JavaScript or any other language, and CI steps only invoke `dotnet`. The architecture tests enforce both.
 
 ## What to avoid
 
