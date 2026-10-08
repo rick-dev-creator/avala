@@ -4,5 +4,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Avala.Runtime\Avala.Runtime.csproj" />
+    <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
   </ItemGroup>
 </Project>

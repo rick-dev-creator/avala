@@ -13,6 +13,8 @@
     <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents\Avala.Agents.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Avala.Jobs\Avala.Jobs.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Avala.Jobs.UI\Avala.Jobs.UI.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces\Avala.Workspaces.csproj" />
     <ProjectReference Include="..\Avala.ArchitectureTests.Fixtures\Avala.ArchitectureTests.Fixtures.csproj" />
   </ItemGroup>
 </Project>

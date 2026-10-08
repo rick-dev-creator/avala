@@ -49,6 +49,9 @@ public sealed class Result<TValue, TError>
     public Result<TNext, TError> Bind<TNext>(Func<TValue, Result<TNext, TError>> bind) =>
         IsSuccess ? bind(value!) : Result<TNext, TError>.Failure(error);
 
+    public async Task<Result<TNext, TError>> BindAsync<TNext>(Func<TValue, Task<Result<TNext, TError>>> bind) =>
+        IsSuccess ? await bind(value!) : Result<TNext, TError>.Failure(error);
+
     public Result<TValue, TNextError> MapError<TNextError>(Func<TError, TNextError> map)
         where TNextError : struct, Enum =>
         IsSuccess ? Result<TValue, TNextError>.Success(value!) : Result<TValue, TNextError>.Failure(map(error));
