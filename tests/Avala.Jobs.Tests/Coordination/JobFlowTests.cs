@@ -165,4 +165,19 @@ public sealed class JobFlowTests
         Assert.Equal([AttemptOrigin.Initial, AttemptOrigin.Recovery], running.Attempts.Select(attempt => attempt.Origin));
         Assert.Equal(3, flow.Agents.Sessions.Count);
     }
+
+    [Fact]
+    public async Task EverySessionAJobStartsIsAnnouncedAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.RunningAsync();
+        var first = Assert.Single(flow.Agents.Sessions).Key;
+
+        await flow.Recovery.RunAsync(Cancellation);
+
+        var second = Assert.Single(flow.Agents.Sessions.Keys, session => session != first);
+        Assert.Equal(
+            [new JobSessionStarted(job.Id, first), new JobSessionStarted(job.Id, second)],
+            flow.Bus.Published.OfType<JobSessionStarted>());
+    }
 }

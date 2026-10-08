@@ -67,6 +67,19 @@ public sealed class AgentSessionsTests
     }
 
     [Fact]
+    public async Task OpeningASessionAnnouncesItWithItsProviderBeforeAnyActivityAsync()
+    {
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
+        var bus = new RecordingBus();
+        await using var agents = Agents(bus, provider);
+
+        var turn = await StartAsync(agents, "Add GitHub login");
+        await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
+
+        Assert.Equal(new SessionOpened(turn.Session, provider.Info), bus.Published[0]);
+    }
+
+    [Fact]
     public async Task CannotOpenASessionWithoutAProviderAsync()
     {
         await using var agents = Agents(new RecordingBus());

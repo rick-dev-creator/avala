@@ -6,6 +6,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
+using Avala.Observability.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workspaces.Contracts;
@@ -26,6 +27,7 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         Assert.NotNull(root.Services.GetRequiredService<IAgents>());
         Assert.NotNull(root.Services.GetRequiredService<IWorkspaces>());
         Assert.NotNull(root.Services.GetRequiredService<IJobs>());
+        Assert.NotNull(root.Services.GetRequiredService<IUsage>());
         Assert.Equal("simulator", Assert.Single(root.Services.GetServices<IAgentProvider>()).Info.Id);
         Assert.Empty(AssemblyLoadContext.All
             .SelectMany(context => context.Assemblies)
@@ -103,6 +105,24 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         Assert.True(usage.Tokens.Input > 0 && usage.Tokens.Output > 0);
         Assert.True(usage.Cost.Match(cost => cost is { Amount: > 0, Currency: "USD" }, () => false));
         Assert.InRange(Assert.Single(turn.OfType<LimitReported>()).Limit.UsedFraction, double.Epsilon, 1);
+    }
+
+    [Fact]
+    public async Task ASimulatedJobShowsItsUsageCostAndLimitInTheAggregatesAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+
+        var usage = run.Get<IUsage>();
+        var job = Outcomes.Present(usage.OfJob(run.Job));
+        Assert.Equal(new TokenUsage(1_200, 80, 600, 120, 20), job.Tokens);
+        Assert.Equal([new Cost(0.0042m, "USD")], job.Costs);
+        Assert.Equal(1, job.Turns.Finished);
+        Assert.Equal([new UsageLimit("5h", 0.12, Option<DateTimeOffset>.None)], job.Limits);
+        var provider = Assert.Single(usage.ByProvider());
+        Assert.Equal("simulator", provider.Provider.Id);
+        Assert.Equal(job.Tokens, provider.Usage.Tokens);
     }
 
     private static string Canvas(IReadOnlyList<CanvasSnapshot> snapshots, string item, string mediaType)
