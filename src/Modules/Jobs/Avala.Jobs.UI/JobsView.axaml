@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:jobs="using:Avala.Jobs.ViewModels"
+             xmlns:jobs="using:Avala.Jobs.JobList"
              x:Class="Avala.Jobs.UI.JobsView"
              x:ClassModifier="internal"
              x:DataType="jobs:JobsViewModel">

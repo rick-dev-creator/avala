@@ -2,22 +2,11 @@ namespace Avala.ArchitectureTests.Scopes;
 
 internal static class Layers
 {
-    private static readonly Layer[] Known =
-        [Layer.Domain, Layer.Application, Layer.Infrastructure, Layer.ViewModels, Layer.Contracts];
+    public static Layer Of(string? ns) => Find(ns)?.Layer ?? Layer.None;
 
-    public static Layer Of(string? ns) =>
-        Segments(ns).Select(Parse).FirstOrDefault(layer => layer != Layer.None);
+    public static string ModuleOf(string? ns) => Find(ns)?.Module ?? ns ?? string.Empty;
 
-    public static string ModuleOf(string? ns)
-    {
-        var segments = Segments(ns);
-        var boundary = Array.FindIndex(segments, segment => Parse(segment) != Layer.None);
+    public static bool IsDeclared(string? ns) => Find(ns) is not null;
 
-        return string.Join('.', boundary < 0 ? segments : segments[..boundary]);
-    }
-
-    private static string[] Segments(string? ns) => (ns ?? string.Empty).Split('.');
-
-    private static Layer Parse(string segment) =>
-        Known.FirstOrDefault(layer => layer.ToString() == segment, Layer.None);
+    private static Placement? Find(string? ns) => ns is not null ? LayerMap.Placements.GetValueOrDefault(ns) : null;
 }

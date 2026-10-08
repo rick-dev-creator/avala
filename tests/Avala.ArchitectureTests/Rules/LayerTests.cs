@@ -22,6 +22,16 @@ public sealed class LayerTests
     [Theory]
     [InlineData(Scope.Production)]
     [InlineData(Scope.Compliant)]
+    public void EveryNamespaceHasADeclaredLayer(Scope scope) =>
+        Assert.Empty(LayerRules.UndeclaredNamespaces(CodeScopes.Of(scope)));
+
+    [Fact]
+    public void DetectsNamespacesMissingFromTheLayerMap() =>
+        Assert.Equal(["Avala.Fixtures.Violating.Reporting"], LayerRules.UndeclaredNamespaces(Violating));
+
+    [Theory]
+    [InlineData(Scope.Production)]
+    [InlineData(Scope.Compliant)]
     public void ContractsHoldNoLogic(Scope scope) =>
         Assert.Empty(LayerRules.ContractsWithLogic(CodeScopes.Of(scope)));
 

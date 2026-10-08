@@ -1,6 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
-using Avala.Agents.Domain;
+using Avala.Agents.Turns;
 
 namespace Avala.Agents.Tests.Conformance;
 

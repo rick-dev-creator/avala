@@ -1,5 +1,5 @@
-using Avala.Agents.Application;
 using Avala.Agents.Contracts;
+using Avala.Agents.Sessions;
 using Avala.Sdk;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
