@@ -11,14 +11,16 @@ Throwaway experiments that answer questions the design depends on. Results are w
 | How well does each agent implement ACP? | Sizes the Agents module and the first providers | Claude Code, Codex and Gemini tried through ACP, gaps listed |
 | Which agents stream partial output? | Decides how the canvas streams | Partial output observed or ruled out per agent |
 | Does Avalonia's WebView work on Linux, and under which license? | Decides how the canvas renders | Renders on Hyprland, license confirmed |
-| Does Stateless export Mermaid diagrams? | Decides whether diagrams are generated | Export tried |
+| Does Stateless export Mermaid diagrams? | Decides whether diagrams are generated | Answered: yes, through `Stateless.Graph.MermaidGraph` |
 
 ## Phase 1: Foundations
 
+Status: done, except the rule on provider names, which arrives with the first provider.
+
 1. Rename the sample module from Tasks to Jobs.
 2. Add `Result<TValue, TError>` with `Match` and `TryGetValue` to the SDK, with unit tests.
-3. Add `IIntegrationEvent`, `IEventBus`, `IEventHandler<T>`, `IEventStream` and `IUiDispatcher` to the SDK.
-4. Implement the bus and the stream in the host with `System.Threading.Channels`, with unit tests for ordering, isolation of failing handlers and cancellation.
+3. Add `IIntegrationEvent`, `IEventBus`, `IHandle<T>`, `IEventFeed` and `IUiDispatcher` to the SDK.
+4. Implement the bus and the feed in `Avala.Runtime` with `System.Threading.Channels`, with unit tests for ordering, isolation of failing handlers and cancellation.
 5. Add the marker interfaces `IAggregateRoot` and `IDomainEvent` to the SDK.
 6. Add Stateless to central package management, with the guarded transition helper, and ban direct `Fire` calls.
 7. Add ArchUnitNET and the DDD and boundary rules listed in the [core design](../design/core.md#architecture-rules-to-add).
@@ -60,7 +62,8 @@ Done when: a workspace is created, checkpointed and disposed on Linux and Window
 1. The job flow coordinator as event handlers.
 2. `ICompletionGate`, with every attempt passing when no gate is registered.
 3. Recovery on startup from stored state.
-4. Persistence for Jobs and Workspaces.
+4. Persistence for Jobs and Workspaces with EF Core and SQLite, one `DbContext` per module.
+5. Keep database work off the UI thread, with an architecture rule that verifies it.
 
 Done when: a job goes from submitted to awaiting review with the fake provider, survives a restart midway, and handlers stay idempotent.
 
@@ -68,6 +71,7 @@ Done when: a job goes from submitted to awaiting review with the fake provider, 
 
 1. The Claude Code provider plugin.
 2. It passes the conformance kit with recorded sessions.
+3. The architecture rule that keeps provider names inside their own plugin.
 
 Done when: a real job runs end to end with Claude Code.
 
@@ -81,5 +85,4 @@ Done when: the harness replaces a terminal for daily work.
 
 ## Open questions
 
-- Persistence library: plain `Microsoft.Data.Sqlite` or EF Core.
 - Completion gates as the extension point for Verification: proposed, pending confirmation.

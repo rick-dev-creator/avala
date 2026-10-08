@@ -1,13 +1,11 @@
 <Project>
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
-  <PropertyGroup>
+  <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Fixtures'))">
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="!$(MSBuildProjectName.EndsWith('.Fixtures'))">
     <PackageReference Include="xunit.v3" />
-  </ItemGroup>
-  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

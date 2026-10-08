@@ -82,7 +82,7 @@ State machines use the [Stateless](https://github.com/dotnet-state-machine/state
 - Several small machines are composed instead of one large one. This is the statechart equivalent of orthogonal regions.
 - Machines decide transitions only. Their actions perform no I/O. Side effects belong to the application layer.
 - The aggregate never calls `Fire` blindly. It asks `CanFire` first, guards included, and returns a typed error when the trigger is not allowed. `Fire` therefore never throws.
-- Diagrams in this folder are generated from the machines, and a test fails when a diagram is out of date. **Proposed**
+- Diagrams in this folder are generated from the machines with Stateless's `MermaidGraph`, and a test fails when a diagram is out of date. **Accepted**
 
 | Machine | Module | States |
 | --- | --- | --- |
@@ -168,32 +168,32 @@ var outcome = job.Approve().Match(
 ```csharp
 public interface IEventBus
 {
-    ValueTask PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken)
+    ValueTask PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
         where TEvent : IIntegrationEvent;
 }
 
-public interface IEventHandler<in TEvent>
+public interface IHandle<in TEvent>
     where TEvent : IIntegrationEvent
 {
-    ValueTask HandleAsync(TEvent @event, CancellationToken cancellationToken);
+    ValueTask HandleAsync(TEvent integrationEvent, CancellationToken cancellationToken);
 }
 ```
 
-- Plugins subscribe by composition: they register `IEventHandler<T>` implementations and the bus discovers them.
-- The host implements the bus with `System.Threading.Channels`: one asynchronous queue and one dispatcher, which preserves event order and never blocks the publisher.
+- Plugins subscribe by composition: they register `IHandle<T>` implementations and the bus discovers them.
+- `Avala.Runtime` implements the bus with `System.Threading.Channels`: one asynchronous queue and one dispatcher, which preserves event order and never blocks the publisher.
 - A failing handler is isolated and logged. The other handlers still run.
 - Unit tests use an in-memory bus that records what was published.
 
-### Event stream for view models
+### Event feed for view models
 
 **Accepted**
 
 View models do not implement handlers. They subscribe to a stream while they are active.
 
 ```csharp
-public interface IEventStream
+public interface IEventFeed
 {
-    IAsyncEnumerable<TEvent> Subscribe<TEvent>(CancellationToken cancellationToken)
+    IAsyncEnumerable<TEvent> SubscribeAsync<TEvent>(CancellationToken cancellationToken)
         where TEvent : IIntegrationEvent;
 }
 ```
@@ -281,11 +281,20 @@ Every provider plugin must pass the same test suite, replaying recorded sessions
 
 ## Persistence
 
-**Proposed**
+**Accepted**
 
-- One SQLite database, with its own tables per module. No module reads another module's tables.
-- Repositories are internal interfaces of each module.
-- The library is an open question: plain `Microsoft.Data.Sqlite` or EF Core.
+- EF Core with the SQLite provider: a local database file next to the application, with no server.
+- One `DbContext` per module. Each module owns its tables, prefixed with the module name, since SQLite has no schemas. No module reads another module's tables.
+- Migrations per module.
+- Repositories are internal interfaces of each module's `Application` layer, implemented in `Infrastructure`.
+- The domain stays persistence-ignorant: EF Core maps private constructors, private setters and collections backed by private fields. Strongly typed identifiers use value converters.
+- EF Core is referenced only from `Infrastructure`, enforced by the layer rules.
+
+### SQLite and blocking
+
+SQLite has no asynchronous I/O. The asynchronous methods of its provider, such as `SaveChangesAsync`, run synchronously, and the banned API analyzer cannot see it because their signatures are asynchronous. Called from the UI thread, they freeze it.
+
+Database work therefore never runs on the UI thread. The mechanism, and an architecture rule that verifies it, are designed with the job flow in phase 5. **Proposed**
 
 ## Architecture rules to add
 
@@ -325,8 +334,8 @@ Every provider plugin must pass the same test suite, replaying recorded sessions
 16. `InternalsVisibleTo` targets only the module's own projects and its test project.
 17. `Contracts` hold no logic: only interfaces, records, enums and structs.
 18. No plugin references the host.
-19. No provider name appears outside its own plugin.
-20. "Every module ships exactly one UI plugin project" becomes "every module has exactly one plugin entry", so modules without UI, such as providers, fit.
+19. No provider name appears outside its own plugin. Added with the first provider, since it has nothing to check before.
+20. Every module exposes exactly one plugin entry, in its core or its UI, so modules without UI, such as providers, fit.
 
 ### Rules that cannot pass vacuously
 

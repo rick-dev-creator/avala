@@ -16,6 +16,8 @@ internal sealed partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var composition = CompositionRoot.Create(PluginDirectory.Resolve());
+            composition.Start();
+            desktop.Exit += (_, _) => _ = composition.DisposeAsync().AsTask();
             DataTemplates.Add(composition.Views);
             desktop.MainWindow = new ShellView
             {

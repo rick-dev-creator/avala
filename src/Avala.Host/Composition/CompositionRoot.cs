@@ -1,18 +1,35 @@
+using Avala.Runtime;
+using Avala.Runtime.Events;
+using Avala.Sdk;
 using Avala.Sdk.UI;
 using Avala.Shell;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.Host.Composition;
 
-internal sealed class CompositionRoot(ServiceProvider services, ViewRegistry views)
+internal sealed class CompositionRoot : IAsyncDisposable
 {
-    public ServiceProvider Services { get; } = services;
+    private readonly CancellationTokenSource lifetime = new();
 
-    public ViewRegistry Views { get; } = views;
+    private CompositionRoot(ServiceProvider services, ViewRegistry views)
+    {
+        Services = services;
+        Views = views;
+    }
+
+    public ServiceProvider Services { get; }
+
+    public ViewRegistry Views { get; }
+
+    public Task Running { get; private set; } = Task.CompletedTask;
 
     public static CompositionRoot Create(string pluginDirectory)
     {
-        var services = new ServiceCollection().AddShell();
+        var services = new ServiceCollection()
+            .AddLogging()
+            .AddRuntime()
+            .AddShell()
+            .AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         var views = new ViewRegistry();
         var registrar = new PluginRegistrar(services);
 
@@ -27,5 +44,15 @@ internal sealed class CompositionRoot(ServiceProvider services, ViewRegistry vie
         }
 
         return new CompositionRoot(services.BuildServiceProvider(), views);
+    }
+
+    public void Start() => Running = Services.GetRequiredService<EventBus>().RunAsync(lifetime.Token);
+
+    public async ValueTask DisposeAsync()
+    {
+        await lifetime.CancelAsync();
+        await Running;
+        await Services.DisposeAsync();
+        lifetime.Dispose();
     }
 }

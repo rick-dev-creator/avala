@@ -9,10 +9,12 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Avala.Sdk\Avala.Sdk.csproj" />
     <ProjectReference Include="..\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />
+    <ProjectReference Include="..\Avala.Runtime\Avala.Runtime.csproj" />
     <ProjectReference Include="..\Avala.Shell\Avala.Shell.csproj" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RunAnalyzers>false</RunAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Avala.Sdk\Avala.Sdk.csproj" />
+  </ItemGroup>
+</Project>
