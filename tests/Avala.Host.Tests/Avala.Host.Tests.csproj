@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Avala.Host\Avala.Host.csproj" />
+    <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\Avala.Jobs.Contracts\Avala.Jobs.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
+  </ItemGroup>
+</Project>

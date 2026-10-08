@@ -8,10 +8,6 @@ namespace Avala.Host.Composition;
 
 internal sealed class CompositionRoot : IAsyncDisposable
 {
-    private static readonly string DataDirectory = Environment.GetEnvironmentVariable("AVALA_DATA_PATH") is { Length: > 0 } configured
-        ? configured
-        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Avala");
-
     private readonly CancellationTokenSource lifetime = new();
 
     private CompositionRoot(ServiceProvider services, ViewRegistry views)
@@ -26,11 +22,11 @@ internal sealed class CompositionRoot : IAsyncDisposable
 
     public Task Running { get; private set; } = Task.CompletedTask;
 
-    public static CompositionRoot Create(string pluginDirectory)
+    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths)
     {
         var services = new ServiceCollection()
             .AddLogging()
-            .AddRuntime(new AvalaPaths(DataDirectory))
+            .AddRuntime(paths)
             .AddShell()
             .AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         var views = new ViewRegistry();
