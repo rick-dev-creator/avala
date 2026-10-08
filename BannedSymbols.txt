@@ -1,6 +1,17 @@
-M:System.Diagnostics.Process.WaitForExit;Blocks the thread. Use await WaitForExitAsync.
+M:Stateless.StateMachine`2.Fire(Stateless.StateMachine{`0,`1}.TriggerWithParameters,System.Object[]);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.Fire(`1);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.FireAsync(Stateless.StateMachine{`0,`1}.TriggerWithParameters,System.Object[]);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.FireAsync(`1);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.FireAsync(`1,System.Object[]);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.FireAsync``1(Stateless.StateMachine{`0,`1}.TriggerWithParameters{``0},``0);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.FireAsync``2(Stateless.StateMachine{`0,`1}.TriggerWithParameters{``0,``1},``0,``1);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.FireAsync``3(Stateless.StateMachine{`0,`1}.TriggerWithParameters{``0,``1,``2},``0,``1,``2);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.Fire``1(Stateless.StateMachine{`0,`1}.TriggerWithParameters{``0},``0);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.Fire``2(Stateless.StateMachine{`0,`1}.TriggerWithParameters{``0,``1},``0,``1);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
+M:Stateless.StateMachine`2.Fire``3(Stateless.StateMachine{`0,`1}.TriggerWithParameters{``0,``1,``2},``0,``1,``2);Throws on a rejected trigger. Use the guarded TryFire transition, which returns a Result.
 M:System.Diagnostics.Process.WaitForExit(System.Int32);Blocks the thread. Use await WaitForExitAsync.
 M:System.Diagnostics.Process.WaitForExit(System.TimeSpan);Blocks the thread. Use await WaitForExitAsync.
+M:System.Diagnostics.Process.WaitForExit;Blocks the thread. Use await WaitForExitAsync.
 M:System.IO.File.AppendAllLines(System.String,System.Collections.Generic.IEnumerable{System.String});Synchronous I/O. Use AppendAllLinesAsync.
 M:System.IO.File.AppendAllLines(System.String,System.Collections.Generic.IEnumerable{System.String},System.Text.Encoding);Synchronous I/O. Use AppendAllLinesAsync.
 M:System.IO.File.AppendAllText(System.String,System.ReadOnlySpan{System.Char});Synchronous I/O. Use AppendAllTextAsync.
@@ -22,22 +33,28 @@ M:System.IO.File.WriteAllText(System.String,System.ReadOnlySpan{System.Char});Sy
 M:System.IO.File.WriteAllText(System.String,System.ReadOnlySpan{System.Char},System.Text.Encoding);Synchronous I/O. Use WriteAllTextAsync.
 M:System.IO.File.WriteAllText(System.String,System.String);Synchronous I/O. Use WriteAllTextAsync.
 M:System.IO.File.WriteAllText(System.String,System.String,System.Text.Encoding);Synchronous I/O. Use WriteAllTextAsync.
-M:System.Runtime.CompilerServices.TaskAwaiter`1.GetResult;Blocks the thread. Use await.
 M:System.Runtime.CompilerServices.TaskAwaiter.GetResult;Blocks the thread. Use await.
-M:System.Runtime.CompilerServices.ValueTaskAwaiter`1.GetResult;Blocks the thread. Use await.
+M:System.Runtime.CompilerServices.TaskAwaiter`1.GetResult;Blocks the thread. Use await.
 M:System.Runtime.CompilerServices.ValueTaskAwaiter.GetResult;Blocks the thread. Use await.
-M:System.Threading.ManualResetEventSlim.Wait;Blocks the thread.
+M:System.Runtime.CompilerServices.ValueTaskAwaiter`1.GetResult;Blocks the thread. Use await.
 M:System.Threading.ManualResetEventSlim.Wait(System.Int32);Blocks the thread.
 M:System.Threading.ManualResetEventSlim.Wait(System.Int32,System.Threading.CancellationToken);Blocks the thread.
 M:System.Threading.ManualResetEventSlim.Wait(System.Threading.CancellationToken);Blocks the thread.
 M:System.Threading.ManualResetEventSlim.Wait(System.TimeSpan);Blocks the thread.
 M:System.Threading.ManualResetEventSlim.Wait(System.TimeSpan,System.Threading.CancellationToken);Blocks the thread.
-M:System.Threading.SemaphoreSlim.Wait;Blocks the thread. Use await WaitAsync.
+M:System.Threading.ManualResetEventSlim.Wait;Blocks the thread.
 M:System.Threading.SemaphoreSlim.Wait(System.Int32);Blocks the thread. Use await WaitAsync.
 M:System.Threading.SemaphoreSlim.Wait(System.Int32,System.Threading.CancellationToken);Blocks the thread. Use await WaitAsync.
 M:System.Threading.SemaphoreSlim.Wait(System.Threading.CancellationToken);Blocks the thread. Use await WaitAsync.
 M:System.Threading.SemaphoreSlim.Wait(System.TimeSpan);Blocks the thread. Use await WaitAsync.
 M:System.Threading.SemaphoreSlim.Wait(System.TimeSpan,System.Threading.CancellationToken);Blocks the thread. Use await WaitAsync.
+M:System.Threading.SemaphoreSlim.Wait;Blocks the thread. Use await WaitAsync.
+M:System.Threading.Tasks.Task.Wait(System.Int32);Blocks the thread. Use await.
+M:System.Threading.Tasks.Task.Wait(System.Int32,System.Threading.CancellationToken);Blocks the thread. Use await.
+M:System.Threading.Tasks.Task.Wait(System.Threading.CancellationToken);Blocks the thread. Use await.
+M:System.Threading.Tasks.Task.Wait(System.TimeSpan);Blocks the thread. Use await.
+M:System.Threading.Tasks.Task.Wait(System.TimeSpan,System.Threading.CancellationToken);Blocks the thread. Use await.
+M:System.Threading.Tasks.Task.Wait;Blocks the thread. Use await.
 M:System.Threading.Tasks.Task.WaitAll(System.Collections.Generic.IEnumerable{System.Threading.Tasks.Task},System.Threading.CancellationToken);Blocks the thread. Use await Task.WhenAll.
 M:System.Threading.Tasks.Task.WaitAll(System.ReadOnlySpan{System.Threading.Tasks.Task});Blocks the thread. Use await Task.WhenAll.
 M:System.Threading.Tasks.Task.WaitAll(System.Threading.Tasks.Task[]);Blocks the thread. Use await Task.WhenAll.
@@ -50,15 +67,9 @@ M:System.Threading.Tasks.Task.WaitAny(System.Threading.Tasks.Task[],System.Int32
 M:System.Threading.Tasks.Task.WaitAny(System.Threading.Tasks.Task[],System.Int32,System.Threading.CancellationToken);Blocks the thread. Use await Task.WhenAny.
 M:System.Threading.Tasks.Task.WaitAny(System.Threading.Tasks.Task[],System.Threading.CancellationToken);Blocks the thread. Use await Task.WhenAny.
 M:System.Threading.Tasks.Task.WaitAny(System.Threading.Tasks.Task[],System.TimeSpan);Blocks the thread. Use await Task.WhenAny.
-M:System.Threading.Tasks.Task.Wait;Blocks the thread. Use await.
-M:System.Threading.Tasks.Task.Wait(System.Int32);Blocks the thread. Use await.
-M:System.Threading.Tasks.Task.Wait(System.Int32,System.Threading.CancellationToken);Blocks the thread. Use await.
-M:System.Threading.Tasks.Task.Wait(System.Threading.CancellationToken);Blocks the thread. Use await.
-M:System.Threading.Tasks.Task.Wait(System.TimeSpan);Blocks the thread. Use await.
-M:System.Threading.Tasks.Task.Wait(System.TimeSpan,System.Threading.CancellationToken);Blocks the thread. Use await.
-M:System.Threading.Thread.Join;Blocks the thread.
 M:System.Threading.Thread.Join(System.Int32);Blocks the thread.
 M:System.Threading.Thread.Join(System.TimeSpan);Blocks the thread.
+M:System.Threading.Thread.Join;Blocks the thread.
 M:System.Threading.Thread.Sleep(System.Int32);Blocks the thread. Use await Task.Delay.
 M:System.Threading.Thread.Sleep(System.TimeSpan);Blocks the thread. Use await Task.Delay.
 M:System.Threading.WaitHandle.WaitAll(System.Threading.WaitHandle[]);Blocks the thread.
@@ -71,9 +82,9 @@ M:System.Threading.WaitHandle.WaitAny(System.Threading.WaitHandle[],System.Int32
 M:System.Threading.WaitHandle.WaitAny(System.Threading.WaitHandle[],System.Int32,System.Boolean);Blocks the thread.
 M:System.Threading.WaitHandle.WaitAny(System.Threading.WaitHandle[],System.TimeSpan);Blocks the thread.
 M:System.Threading.WaitHandle.WaitAny(System.Threading.WaitHandle[],System.TimeSpan,System.Boolean);Blocks the thread.
-M:System.Threading.WaitHandle.WaitOne;Blocks the thread.
 M:System.Threading.WaitHandle.WaitOne(System.Int32);Blocks the thread.
 M:System.Threading.WaitHandle.WaitOne(System.Int32,System.Boolean);Blocks the thread.
 M:System.Threading.WaitHandle.WaitOne(System.TimeSpan);Blocks the thread.
 M:System.Threading.WaitHandle.WaitOne(System.TimeSpan,System.Boolean);Blocks the thread.
+M:System.Threading.WaitHandle.WaitOne;Blocks the thread.
 P:System.Threading.Tasks.Task`1.Result;Blocks the thread. Use await.

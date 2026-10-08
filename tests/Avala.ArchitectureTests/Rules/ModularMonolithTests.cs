@@ -5,12 +5,14 @@ namespace Avala.ArchitectureTests.Rules;
 
 public sealed class ModularMonolithTests
 {
-    private static readonly string[] HostDependencies = ["Avala.Sdk", "Avala.Sdk.UI", "Avala.Shell"];
+    private static readonly string[] HostDependencies = ["Avala.Runtime", "Avala.Sdk", "Avala.Sdk.UI", "Avala.Shell"];
+
+    private static readonly string[] ProjectsWithLogic = ["Avala.Runtime", "Avala.Sdk", "Avala.Shell"];
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task HostProjectReferencesOnlyTheSdkAndTheShellAsync()
+    public async Task HostProjectReferencesOnlyTheCoreProjectsAsync()
     {
         var references = await SolutionLayout.ProjectReferencesAsync(
             SolutionLayout.Project("Avala.Host").Path,
@@ -41,6 +43,10 @@ public sealed class ModularMonolithTests
     }
 
     [Fact]
+    public void RuntimeDependsOnlyOnTheSdk() =>
+        Assert.Empty(AvalaAssemblies.Load("Avala.Runtime").ReferencedAvalaAssemblies.Except(["Avala.Sdk"]));
+
+    [Fact]
     public void SdkUiDependsOnlyOnTheSdk() =>
         Assert.Empty(AvalaAssemblies.Load("Avala.Sdk.UI").ReferencedAvalaAssemblies.Except(["Avala.Sdk"]));
 
@@ -68,37 +74,46 @@ public sealed class ModularMonolithTests
     }
 
     [Fact]
-    public void ModuleCoresExposeNoPublicType()
+    public void EveryModuleExposesOnlyItsPluginEntry()
     {
         var violations = SolutionLayout.ModuleProjects
-            .Where(project => project.Kind == ProjectKind.Core)
-            .SelectMany(project => AvalaAssemblies.Load(project.Name).ExportedAvalaTypes)
-            .Select(type => type.FullName);
-
-        Assert.Empty(violations);
-    }
-
-    [Fact]
-    public void ModuleUisExposeOnlyTheirPluginEntry()
-    {
-        var violations = SolutionLayout.ModuleProjects
-            .Where(project => project.Kind == ProjectKind.UI)
-            .Select(project => (project.Name, Exported: AvalaAssemblies.Load(project.Name).ExportedAvalaTypes))
-            .Where(entry => entry.Exported is not [var single] || !typeof(IPlugin).IsAssignableFrom(single))
-            .Select(entry => $"{entry.Name} exposes [{string.Join(", ", entry.Exported.Select(type => type.Name))}]");
-
-        Assert.Empty(violations);
-    }
-
-    [Fact]
-    public void EveryModuleShipsExactlyOnePluginProject()
-    {
-        var violations = SolutionLayout.ModuleProjects
+            .Where(project => project.Kind != ProjectKind.Contracts)
             .GroupBy(project => project.Module)
-            .Where(module => module.Count(project => project.Kind == ProjectKind.UI) != 1)
-            .Select(module => module.Key);
+            .Select(module => (Module: module.Key, Exported: module.SelectMany(project => AvalaAssemblies.Load(project.Name).ExportedAvalaTypes).ToList()))
+            .Where(module => module.Exported is not [var single] || !typeof(IPlugin).IsAssignableFrom(single))
+            .Select(module => $"{module.Module} exposes [{string.Join(", ", module.Exported.Select(type => type.Name))}]");
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void InternalsAreVisibleOnlyWithinTheirModuleAndTests()
+    {
+        var violations = SolutionLayout.SourceProjects.SelectMany(project =>
+            InternalsVisibility.Violations(
+                project,
+                InternalsVisibility.Targets(AvalaAssemblies.Load(project.Name)),
+                SolutionLayout.SourceProjects));
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void DetectsInternalsExposedToAnotherModule()
+    {
+        SourceProject[] projects =
+        [
+            new("Avala.Jobs", "Avala.Jobs.csproj", "Jobs"),
+            new("Avala.Jobs.UI", "Avala.Jobs.UI.csproj", "Jobs"),
+            new("Avala.Agents", "Avala.Agents.csproj", "Agents"),
+        ];
+
+        var violations = InternalsVisibility.Violations(
+            projects[0],
+            ["Avala.Jobs.UI", "Avala.Jobs.Tests", "Avala.Agents", "Avala.Host"],
+            projects);
+
+        Assert.Equal(["Avala.Jobs -> Avala.Agents", "Avala.Jobs -> Avala.Host"], violations);
     }
 
     [Fact]
@@ -112,10 +127,10 @@ public sealed class ModularMonolithTests
     }
 
     [Fact]
-    public void ShellAndModuleCoresHaveUnitTestProjects()
+    public void ProjectsWithLogicHaveUnitTestProjects()
     {
         var missing = SolutionLayout.SourceProjects
-            .Where(project => project.Name == "Avala.Shell" || project is { Module: not null, Kind: ProjectKind.Core })
+            .Where(project => ProjectsWithLogic.Contains(project.Name) || project is { Module: not null, Kind: ProjectKind.Core })
             .Select(project => $"{project.Name}.Tests")
             .Where(name => !File.Exists(Path.Combine(SolutionLayout.TestsDirectory, name, $"{name}.csproj")));
 

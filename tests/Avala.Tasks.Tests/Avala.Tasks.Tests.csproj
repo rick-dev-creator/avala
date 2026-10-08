@@ -1,5 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Modules\Tasks\Avala.Tasks\Avala.Tasks.csproj" />
-  </ItemGroup>
-</Project>
