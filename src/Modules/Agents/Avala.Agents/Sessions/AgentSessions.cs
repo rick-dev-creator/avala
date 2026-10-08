@@ -26,12 +26,15 @@ internal sealed partial class AgentSessions(
 
         var options = new SessionOptions(request.WorkingDirectory, PermissionMode.AllowEdits);
 
-        return (await provider.StartAsync(options, cancellationToken)).Map(session =>
+        if (!(await provider.StartAsync(options, cancellationToken)).TryGetValue(out var session, out var error))
         {
-            live.TryAdd(session.Id, new LiveSession(session, PumpAsync));
+            return error;
+        }
 
-            return session.Id;
-        });
+        await bus.PublishAsync(new SessionOpened(session.Id, provider.Info), cancellationToken);
+        live.TryAdd(session.Id, new LiveSession(session, PumpAsync));
+
+        return session.Id;
     }
 
     public async ValueTask<Result<AgentTurn, AgentError>> SendAsync(

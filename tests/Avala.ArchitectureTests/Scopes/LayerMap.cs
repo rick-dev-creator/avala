@@ -26,6 +26,14 @@ internal static class LayerMap
             ["Storage"] = Layer.Infrastructure,
             ["JobList"] = Layer.ViewModels,
         }),
+        .. Module("Avala.Observability", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Usage"] = Layer.Domain,
+            ["Tracking"] = Layer.Application,
+            ["Metrics"] = Layer.Infrastructure,
+        }),
         .. Module("Avala.Simulator", new()
         {
             [""] = Layer.None,

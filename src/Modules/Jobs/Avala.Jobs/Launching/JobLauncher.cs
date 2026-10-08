@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Ledger;
 using Avala.Workspaces.Contracts;
@@ -28,7 +29,7 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
 
         if (job.Start(workspace.Id, session).IsSuccess)
         {
-            await BeginAsync(job, cancellationToken);
+            await BeginAsync(job, session, cancellationToken);
         }
     }
 
@@ -53,13 +54,13 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
 
         if (job.Recover(session).IsSuccess)
         {
-            await BeginAsync(job, cancellationToken);
+            await BeginAsync(job, session, cancellationToken);
         }
     }
 
-    private async Task BeginAsync(Job job, CancellationToken cancellationToken)
+    private async Task BeginAsync(Job job, SessionId session, CancellationToken cancellationToken)
     {
-        await ledger.RecordAsync(job, cancellationToken);
+        await ledger.RecordSessionAsync(job, session, cancellationToken);
 
         if ((await agents.TellAsync(job, job.Instruction.Text, cancellationToken)).IsFailure)
         {

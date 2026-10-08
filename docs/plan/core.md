@@ -88,9 +88,12 @@ Done when: a real job runs end to end with Claude Code.
 
 ## Phase 7: Observability
 
-1. The Observability module: aggregates tokens, cost and limits by provider, account, session and job.
-2. Metrics through `System.Diagnostics.Metrics`.
-3. View models for the usage dashboards.
+Status: done with the fake provider and the simulator. Two items wait for the real Claude Code provider of phase 6: aggregating by account, since no event carries the account yet, and checking that its turns show up in the aggregates. The view models of the usage dashboards moved to phase 9.
+
+1. `SessionOpened` from Agents and `JobSessionStarted` from Jobs, so a session's activity can be tied to its provider and its job.
+2. The Observability module: aggregates tokens, cost per currency, unpriced reports, limits and turns by outcome with their durations, by provider, session and job, behind `IUsage` in its contracts.
+3. Metrics through `System.Diagnostics.Metrics`: the `Avala.Observability` meter with tokens, cost, turns, turn durations and limits.
+4. A simulation test of the real application: a simulated job's tokens, cost, turn and limit show up in the aggregates of its job and its provider.
 
 Done when: every turn of the fake and real providers shows up in the aggregates, with unit tests.
 
@@ -109,6 +112,7 @@ The whole application works through view models, with no user interface.
 1. Job list, new job and job detail.
 2. Timeline projection and the activity view: messages, reasoning, tools and canvases.
 3. Diff review: approve, send back or discard.
+4. Usage dashboards over `IUsage`: by provider, by job and by session.
 
 Done when: the full job flow runs end to end through view models in tests.
 
