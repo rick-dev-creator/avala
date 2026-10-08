@@ -36,6 +36,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     public TemporaryRepository Repository => repository;
 
     public ICanvases Canvases => root.Services.GetRequiredService<ICanvases>();
+    public JobId Job { get; private set; }
 
     public string Worktree => Assert.Single(Directory.GetDirectories(new AvalaPaths(data.Path).Folder("worktrees")));
 
@@ -52,6 +53,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         return run;
     }
+
+    public T Get<T>()
+        where T : notnull =>
+        root.Services.GetRequiredService<T>();
 
     public async Task<JobStatus> SettledAsync() =>
         (await progress.UntilAsync(update => Settled.Contains(update.Status))).Status;
@@ -80,7 +85,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     }
 
     private async Task SubmitAsync(string scenario) =>
-        Outcomes.Succeeds(await root.Services.GetRequiredService<IJobs>()
+        Job = Outcomes.Succeeds(await Get<IJobs>()
             .SubmitAsync(new JobRequest(repository.Path, $"[simulate: {scenario}] Greet the team"), Cancellation));
 
     private EventWatch<TEvent> Watch<TEvent>()

@@ -65,7 +65,7 @@ The rules are enforced by `tests/Avala.ArchitectureTests` and by the compiler. D
 - Aggregates have private constructors and factory methods, no public setters, no exposed mutable collections, and reference other aggregates by identifier only.
 - Every public operation returns `Result<TEvent, TError>`. Results never throw: read them through `Match` or `TryGetValue`.
 - Absence is an `Option<T>` handled with `Match`, never `null` in a signature. Turn nullable values from frameworks into an `Option` at the edge with `ToOption()`.
-- Each module has exactly one error enum. No magic strings: error codes are enum values, and the presentation layer turns them into text.
+- A module that can reject an operation has exactly one error enum; a pure projection such as Observability has none. No magic strings: error codes are enum values, and the presentation layer turns them into text.
 - The domain performs no I/O, has no async methods and never throws.
 - State machines use Stateless, inside the domain only, through `TryFire`. Direct `Fire` calls do not compile.
 - Diagrams in `docs/diagrams` are generated from the code. Refresh them with `AVALA_UPDATE_DIAGRAMS=1 dotnet test --solution Avala.slnx`.

@@ -43,6 +43,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Workspaces | Working copies, branches, checkpoints | `IWorkspaces`, integration events |
 | Canvas | Accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
+| Observability | Tokens, cost, limits and turns by provider, session and job, and their metrics | `IUsage` and its summaries |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
 
@@ -228,7 +229,7 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 | --- | --- |
 | `JobLedger` | Stores a job, then publishes `JobProgressed` with its status |
 | `SubmitJob` | Creates a job, submits it, stores it and publishes `JobSubmitted` |
-| `JobLauncher` | Prepares the workspace, opens the agent session, starts the job, stores it and only then sends the instruction. It also relaunches a job after a restart |
+| `JobLauncher` | Prepares the workspace, opens the agent session, starts the job, stores it, announces `JobSessionStarted` and only then sends the instruction. It also relaunches a job after a restart |
 | `PrepareJob` | Handles `JobSubmitted` by launching the job |
 | `CheckTurn` | Handles `TurnFinished`: checkpoints the workspace, evaluates the gates, then passes the job, retries with feedback to the same session, or asks for help when the budget is spent |
 | `CompletionGates` | Combines every registered gate into one verdict |
@@ -299,7 +300,7 @@ public interface IAgents
 
 - `OpenAsync` opens a session in the working directory of `AgentRequest` and returns its `SessionId`. `SendAsync` sends a message and returns the `AgentTurn` it started. Opening and sending are separate so the caller can store the session before any turn can finish: Jobs records it on the job first.
 - `RespondAsync` answers the permission request of a live session and returns the item it unblocked. A session that is not open returns `SessionClosed`.
-- `AgentSessions` implements `IAgents`. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends.
+- `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends.
 
 ### Agnostic events
 
@@ -405,8 +406,44 @@ The module subscribes to `AgentActivity` with an `IHandle<T>`, like every other 
 Everything the harnesses process goes through observability: tokens, cost, usage limits, durations and outcomes.
 
 - The agnostic events carry the raw facts, so observability works the same for every provider.
-- An Observability module subscribes to the events on the bus and aggregates them by provider, account, session and job.
-- It publishes metrics through `System.Diagnostics.Metrics`, the .NET standard that OpenTelemetry collects, and feeds view models for the in-app dashboards.
+- An Observability module subscribes to the events on the bus and aggregates them by provider, session and job. Aggregating by account waits until an event carries the account, which arrives with the real providers.
+- It publishes metrics through `System.Diagnostics.Metrics`, the .NET standard that OpenTelemetry collects, and later feeds view models for the in-app dashboards.
+
+### Correlation
+
+Agent events know only their session. Two integration events tie a session to the rest:
+
+| Event | Published by | Carries |
+| --- | --- | --- |
+| `SessionOpened` | `AgentSessions`, before it pumps the session's events | `SessionId`, `ProviderInfo` |
+| `JobSessionStarted` | `JobLauncher`, after storing the job and before sending the instruction, at launch and at recovery | `JobId`, `SessionId` |
+
+The bus dispatches in publishing order, so both arrive before the first activity of the session. Observability does not rely on it: it keeps everything per session and groups sessions by provider and job only when queried, so a late correlation still lands in the right aggregate.
+
+### The module
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Usage` | `SessionUsage`, an immutable record of one session: provider, job, tokens, cost per currency, unpriced reports, turns by outcome with their duration, and the latest reading of each limit window. The arithmetic on tokens and turns, and the rollup of several sessions into a summary | Domain |
+| `Tracking` | `UsageTracker`, the handler of `SessionOpened`, `JobSessionStarted` and `AgentActivity`; `UsageBook`, the in-memory book that implements `IUsage`; and the `IUsageMetrics` port | Application |
+| `Metrics` | `UsageMeter`, the `Avala.Observability` meter behind `IUsageMetrics` | Infrastructure |
+
+- The domain is a projection of facts that already happened, so it has no aggregate and nothing to reject: records that return their next version, no error enum.
+- Each `UsageReported` adds to the totals. A report without a cost adds its tokens and counts as unpriced, so a dashboard can tell a partial cost from a complete one. Costs add up per currency.
+- A turn lasts from its `TurnStarted` to its `TurnCompleted`, measured with `TimeProvider` when the tracker receives each event. A turn counts once: a repeated start or end changes nothing.
+- A limit belongs to the provider, not to a session: each window keeps its latest reading.
+- `IUsage` in `Avala.Observability.Contracts` answers by provider, by session and by job, with a `UsageSummary`: tokens, costs, unpriced reports, a `TurnTally` and limits. A job adds up every session it ran, recovery included.
+- The aggregates live in memory and start empty with the application. Persisting them, or rebuilding them from stored history, is left for when the dashboards need history across restarts.
+
+| Instrument | Kind | Unit | Tags |
+| --- | --- | --- | --- |
+| `avala.agent.tokens` | Counter | `{token}` | `avala.provider`, `avala.token.type`: `input`, `output`, `cache_read`, `cache_write`, `reasoning` |
+| `avala.agent.cost` | Counter | `{currency}` | `avala.provider`, `avala.currency` |
+| `avala.agent.turns` | Counter | `{turn}` | `avala.provider`, `avala.turn.outcome` |
+| `avala.agent.turn.duration` | Histogram | `s` | `avala.provider`, `avala.turn.outcome` |
+| `avala.agent.limit.used` | Gauge | `1` | `avala.provider`, `avala.limit.window` |
+
+The provider tag is the provider's identifier, and it is left out when the session's provider is unknown.
 
 ## Delivery
 

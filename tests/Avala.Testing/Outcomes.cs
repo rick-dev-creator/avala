@@ -21,6 +21,14 @@ public static class Outcomes
         return error;
     }
 
+    public static T Present<T>(Option<T> option)
+        where T : notnull
+    {
+        Assert.True(option.IsSome, "Expected a value, got none");
+
+        return option.Match(value => value, () => default!);
+    }
+
     public static TError? ErrorOf<T, TError>(Result<T, TError> result)
         where TError : struct, Enum =>
         result.Match<TError?>(_ => null, error => error);
