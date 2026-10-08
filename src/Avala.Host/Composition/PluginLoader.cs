@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using Avala.Sdk;
 
@@ -6,32 +7,26 @@ namespace Avala.Host.Composition;
 
 internal static class PluginLoader
 {
-    public static IEnumerable<IPlugin> Load(string directory) =>
-        Directory.Exists(directory)
-            ? Directory.EnumerateDirectories(directory).SelectMany(LoadFrom)
-            : [];
-
-    private static IEnumerable<IPlugin> LoadFrom(string pluginDirectory)
+    public static IReadOnlyList<IPlugin> Load(string directory)
     {
-        var assemblyPath = Path.Combine(pluginDirectory, $"{Path.GetFileName(pluginDirectory)}.dll");
-
-        return File.Exists(assemblyPath)
-            ? CreatePlugins(LoadIsolated(assemblyPath))
+        var folders = Directory.Exists(directory)
+            ? Directory.EnumerateDirectories(directory).Where(folder => File.Exists(EntryOf(folder))).Order(StringComparer.Ordinal).ToList()
             : [];
-    }
+        var resolvers = folders.Select(folder => new AssemblyDependencyResolver(EntryOf(folder))).ToList();
 
-    private static Assembly LoadIsolated(string assemblyPath)
-    {
-        var context = new AssemblyLoadContext(Path.GetFileNameWithoutExtension(assemblyPath));
-        var resolver = new AssemblyDependencyResolver(assemblyPath);
-
-        context.Resolving += (loadContext, name) =>
-            resolver.ResolveAssemblyToPath(name) is { } path
-                ? loadContext.LoadFromAssemblyPath(path)
+        AssemblyLoadContext.Default.Resolving += (context, name) =>
+            resolvers.Select(resolver => resolver.ResolveAssemblyToPath(name)).FirstOrDefault(path => path is not null) is { } path
+                ? context.LoadFromAssemblyPath(path)
                 : null;
+        AssemblyLoadContext.Default.ResolvingUnmanagedDll += (_, name) =>
+            resolvers.Select(resolver => resolver.ResolveUnmanagedDllToPath(name)).FirstOrDefault(path => path is not null) is { } path
+                ? NativeLibrary.Load(path)
+                : IntPtr.Zero;
 
-        return context.LoadFromAssemblyPath(assemblyPath);
+        return [.. folders.SelectMany(folder => CreatePlugins(AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName(Path.GetFileName(folder)))))];
     }
+
+    private static string EntryOf(string folder) => Path.Combine(folder, $"{Path.GetFileName(folder)}.dll");
 
     private static IEnumerable<IPlugin> CreatePlugins(Assembly assembly) =>
         assembly.GetExportedTypes()

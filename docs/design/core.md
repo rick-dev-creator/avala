@@ -350,6 +350,7 @@ Every provider plugin must pass the same check: start a session, send a turn and
 - File edits write real files into the session's working directory through an `Infrastructure` port.
 - Events can be spaced by a delay measured with `TimeProvider`. It is zero by default and in tests; the plugin entry uses a short pace for in-app demos, and a constructor overload takes another.
 - It declares every capability, and an interruption ends the running turn as `Interrupted`.
+- `tests/Avala.Host.Tests` plays its scenarios inside the application composed from the published plugin folder, with its in-app pace, and observes the jobs through the event feed.
 
 | Scenario | Behavior |
 | --- | --- |
@@ -418,7 +419,7 @@ Database work therefore never runs on the UI thread. Each store keeps one long-l
 
 ### Data folder
 
-The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PATH` when set, otherwise `Avala` under the local application data folder. It locates the database files and the worktree root.
+The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PATH` when set, otherwise `Avala` under the local application data folder. It locates the database files and the worktree root. The composition root receives it, so the host tests point it at a temporary folder.
 
 ### Startup tasks
 

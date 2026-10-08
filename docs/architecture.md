@@ -17,9 +17,10 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `src/Modules/Simulator/Avala.Simulator` | A provider plugin that plays scripted Claude Code sessions through the public agent contracts only, for demos and tests without tokens. Its plugin entry lives in the core, since it has no views. |
 | `tests/Avala.ArchitectureTests` | The rules below, enforced on every build. |
 | `tests/Avala.ArchitectureTests.Fixtures` | A compliant sample module and a module that breaks every rule on purpose. |
-| `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider, temporary folders and git repositories, generated diagrams. |
+| `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider, temporary folders and git repositories, event watches with a safety timeout, generated diagrams. |
 | `tests/Avala.<Project>.Tests` | Unit tests. |
 | `tests/Avala.Integration.Tests` | End-to-end tests that compose the real modules through their public plugin entries, over a real git repository and SQLite. Not part of `Avala.UnitTests.slnf`. |
+| `tests/Avala.Host.Tests` | Simulation tests of the real application: the composition root built from the published plugin folder, driven by the simulator over a real git repository. Not part of `Avala.UnitTests.slnf`. |
 
 ## Rules
 
@@ -68,7 +69,17 @@ Comments are banned, so every exception to an analyzer is recorded here.
 
 ## Plugins
 
-A project becomes a plugin with `<AvalaPlugin>true</AvalaPlugin>`. Its build output is copied to `artifacts/plugins/<AssemblyName>`. The host loads every folder there, or the folder named by `AVALA_PLUGINS_PATH`, each in its own load context, while sharing the SDK and Avalonia with the host.
+A project becomes a plugin with `<AvalaPlugin>true</AvalaPlugin>` and `<EnableDynamicLoading>true</EnableDynamicLoading>`. Every module entry is one: Agents, Workspaces, the Jobs UI and the simulator. Its build output is copied to `artifacts/plugins/<AssemblyName>`. The host loads every folder there, or the folder named by `AVALA_PLUGINS_PATH`, in folder name order.
+
+All plugins share the host's default load context, so every assembly is loaded once:
+
+- An assembly the host already ships, such as the SDK, the runtime, dependency injection or Avalonia, comes from the host.
+- Any other assembly, such as a module's `Contracts`, EF Core or a native library like SQLite, is resolved from the plugin folders through each plugin's `.deps.json`, the first time anyone asks for it.
+- A contract therefore has one type identity for every module: the `IAgentProvider` the simulator implements is the one Agents asks for.
+
+Isolating each plugin in its own load context would load a `Contracts` assembly once per plugin and break every cross-module contract. Isolation can come back, as one shared context for module contracts plus private contexts, if a third-party plugin ever needs a dependency that conflicts with another plugin.
+
+The host knows no module: the loader only scans folders and instantiates the `IPlugin` types it finds. `tests/Avala.Host.Tests` composes the application from the published folder exactly as the host does at startup. Like the host, it does not ship the module contracts it compiles against, so they come from the plugin folder, which its assembly fixture loads before any test runs.
 
 ## Testing
 

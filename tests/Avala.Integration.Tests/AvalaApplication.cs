@@ -4,6 +4,7 @@ using Avala.Jobs.UI;
 using Avala.Runtime;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Testing;
 using Avala.Workspaces;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -38,7 +39,7 @@ internal sealed class AvalaApplication : IAsyncDisposable
 
     public EventWatch<TEvent> Watch<TEvent>()
         where TEvent : IIntegrationEvent =>
-        new(Get<IEventFeed>().SubscribeAsync<TEvent>(lifetime.Token));
+        new(Get<IEventFeed>().SubscribeAsync<TEvent>(lifetime.Token), TestContext.Current.CancellationToken);
 
     public void Start() => running = services.RunAsync(lifetime.Token);
 

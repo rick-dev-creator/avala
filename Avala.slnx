@@ -45,6 +45,7 @@
     <Project Path="tests/Avala.Agents.Tests/Avala.Agents.Tests.csproj" />
     <Project Path="tests/Avala.ArchitectureTests/Avala.ArchitectureTests.csproj" />
     <Project Path="tests/Avala.ArchitectureTests.Fixtures/Avala.ArchitectureTests.Fixtures.csproj" />
+    <Project Path="tests/Avala.Host.Tests/Avala.Host.Tests.csproj" />
     <Project Path="tests/Avala.Shell.Tests/Avala.Shell.Tests.csproj" />
     <Project Path="tests/Avala.Integration.Tests/Avala.Integration.Tests.csproj" />
     <Project Path="tests/Avala.Jobs.Tests/Avala.Jobs.Tests.csproj" />

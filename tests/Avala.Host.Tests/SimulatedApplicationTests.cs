@@ -1,0 +1,123 @@
+using System.Runtime.Loader;
+using System.Xml.Linq;
+using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
+using Avala.Host.Composition;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
+using Avala.Testing;
+using Avala.Workspaces.Contracts;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Avala.Host.Tests;
+
+public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task ThePublishedPluginsComposeEveryModuleWithOneIdentityPerAssemblyAsync()
+    {
+        using var data = new TemporaryFolder();
+        await using var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
+
+        Assert.NotNull(root.Services.GetRequiredService<IAgents>());
+        Assert.NotNull(root.Services.GetRequiredService<IWorkspaces>());
+        Assert.NotNull(root.Services.GetRequiredService<IJobs>());
+        Assert.Equal("simulator", Assert.Single(root.Services.GetServices<IAgentProvider>()).Info.Id);
+        Assert.Empty(AssemblyLoadContext.All
+            .SelectMany(context => context.Assemblies)
+            .Select(assembly => assembly.GetName().Name)
+            .Where(name => name?.StartsWith("Avala.", StringComparison.Ordinal) == true)
+            .GroupBy(name => name)
+            .Where(copies => copies.Count() > 1)
+            .Select(copies => copies.Key));
+    }
+
+    [Fact]
+    public async Task AReplyJobAwaitsReviewAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task AnEditLandsInTheWorktreeAndInItsCheckpointAsync()
+    {
+        const string Greeting = "# Hello\n\nWritten by the simulator.\n";
+        await using var run = await SimulatedRun.StartAsync(plugins, "edit");
+
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        Assert.Equal(Greeting, await File.ReadAllTextAsync(Path.Combine(run.Worktree, "GREETING.md"), Cancellation));
+        Assert.Equal("Attempt 1", await run.Repository.GitInAsync(run.Worktree, Cancellation, "log", "-1", "--format=%s"));
+        Assert.Equal(Greeting.Trim(), await run.Repository.GitInAsync(run.Worktree, Cancellation, "show", "HEAD:GREETING.md"));
+    }
+
+    [Fact]
+    public async Task ACrashingAgentFailsTheJobAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "crash");
+
+        Assert.Equal(JobStatus.Failed, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task AnItemLeftOpenIsAbandonedBeforeTheTurnFinishesAndTheJobAwaitsReviewAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "left-open");
+
+        var turn = await run.TurnAsync();
+
+        Assert.Equal(TurnOutcome.Finished, Assert.IsType<TurnCompleted>(turn[^1]).Outcome);
+        Assert.Contains(turn.SkipLast(1), update => update is ItemCompleted { Outcome: ItemOutcome.Abandoned, Item.Value: "build" });
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task CanvasesStreamTheirChunksInOrderAsAgentActivityAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "canvas");
+
+        var turn = await run.TurnAsync();
+
+        Assert.Equal("svg", XDocument.Parse(Canvas(turn, "diagram", "image/svg+xml")).Root?.Name.LocalName);
+        Assert.Equal(
+            "flowchart LR\n  Submitted --> Running\n  Running --> Checking --> AwaitingReview\n",
+            Canvas(turn, "flow", "text/vnd.mermaid"));
+    }
+
+    [Fact]
+    public async Task UsageWithCostAndAUsageLimitReachTheBusAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+
+        var turn = await run.TurnAsync();
+
+        var usage = Assert.Single(turn.OfType<UsageReported>());
+        Assert.True(usage.Tokens.Input > 0 && usage.Tokens.Output > 0);
+        Assert.True(usage.Cost.Match(cost => cost is { Amount: > 0, Currency: "USD" }, () => false));
+        Assert.InRange(Assert.Single(turn.OfType<LimitReported>()).Limit.UsedFraction, double.Epsilon, 1);
+    }
+
+    private static string Canvas(IReadOnlyList<IAgentEvent> turn, string item, string mediaType)
+    {
+        var events = turn.Where(update => ItemOf(update) == new ItemId(item)).ToList();
+
+        Assert.Equal(mediaType, Assert.IsType<CanvasStarted>(events[0]).MediaType);
+        Assert.Equal(ItemOutcome.Succeeded, Assert.IsType<ItemCompleted>(events[^1]).Outcome);
+        Assert.True(events.Count > 3);
+
+        return string.Concat(events[1..^1].Select(update => Assert.IsType<ItemProgressed>(update).Text));
+    }
+
+    private static ItemId? ItemOf(IAgentEvent update) => update switch
+    {
+        CanvasStarted started => started.Item,
+        ItemStarted started => started.Item,
+        ItemProgressed progressed => progressed.Item,
+        ItemCompleted completed => completed.Item,
+        _ => null,
+    };
+}
