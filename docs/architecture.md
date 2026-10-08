@@ -28,6 +28,7 @@ Enforced by `tests/Avala.ArchitectureTests`:
 
 - The host references only the SDK, the runtime and the shell, and depends on no module.
 - A module depends only on the SDK, its own projects and other modules' `Contracts`.
+- A module's `Contracts` depend only on the SDK and other modules' `Contracts`: identifiers such as `JobId` or `SessionId` are a vocabulary the modules share, never their internals.
 - A module exposes exactly one public type outside its `Contracts`: its `IPlugin` entry.
 - `InternalsVisibleTo` targets only the project's own module and its test project. The shell and the runtime may also open to the host.
 - View models live in assemblies that do not reference Avalonia.
