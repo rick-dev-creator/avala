@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup Condition="!$(MSBuildProjectName.EndsWith('.Fixtures'))">
     <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

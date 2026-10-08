@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: dotnet build Avala.slnx
+      - name: Test
+        run: dotnet test --solution Avala.slnx --no-build
+
+  quality:
+    name: Coverage and lines of code
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Restore tools
+        run: dotnet tool restore
+      - name: Unit tests with coverage
+        run: >-
+          dotnet test --solution Avala.UnitTests.slnf
+          --coverage --coverage-output-format cobertura
+          --results-directory TestResults
+      - name: Coverage report
+        run: >-
+          dotnet tool run reportgenerator
+          -reports:"TestResults/*.cobertura.xml"
+          -targetdir:TestResults/report
+          -reporttypes:"MarkdownSummaryGithub;Html"
+          -assemblyfilters:"+Avala.*;-*.Tests"
+          -filefilters:"-*.g.cs"
+      - name: Publish coverage summary
+        run: cat TestResults/report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Lines of code
+        run: dotnet run scripts/metrics.cs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: TestResults/report
