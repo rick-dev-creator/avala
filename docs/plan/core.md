@@ -31,9 +31,11 @@ Done when: the SDK contracts exist, the bus is tested, and every rule detects it
 
 ## Phase 2: Jobs domain
 
+Status: done. Attempts turned out to need no state machine of their own, see the [core design](../design/core.md#state-machines).
+
 1. `JobId`, `AttemptBudget` and the other value objects.
 2. `JobError` and the error codes.
-3. `JobLifecycle` and `AttemptLifecycle` with Stateless, guarded by `CanFire`.
+3. `JobLifecycle` with Stateless, guarded by `CanFire`, and its diagram generated from the code.
 4. The `Job` aggregate returning events inside results.
 5. Unit tests for every transition, every guard and every error code.
 

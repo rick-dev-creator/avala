@@ -1,0 +1,16 @@
+namespace Avala.Jobs.Domain;
+
+internal enum JobTrigger
+{
+    Submit,
+    Start,
+    CompleteTurn,
+    Pass,
+    Retry,
+    RequestHelp,
+    Hint,
+    SendBack,
+    Approve,
+    Discard,
+    Fail,
+}

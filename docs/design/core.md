@@ -66,9 +66,18 @@ internal sealed class Job
     public JobId Id { get; }
     public JobState State { get; private set; }
 
-    public Result<AttemptStarted, JobError> StartAttempt(SessionId session);
-    public Result<AttemptCompleted, JobError> CompleteAttempt(GateVerdict verdict);
+    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget);
+    public Result<JobSubmitted, JobError> Submit();
+    public Result<AttemptStarted, JobError> Start();
+    public Result<AttemptCompleted, JobError> CompleteTurn();
+    public Result<AttemptPassed, JobError> Pass();
+    public Result<AttemptRetried, JobError> Retry(Feedback feedback);
+    public Result<HelpRequested, JobError> RequestHelp();
+    public Result<AttemptStarted, JobError> Hint(Feedback guidance);
+    public Result<AttemptStarted, JobError> SendBack(Feedback feedback);
     public Result<JobApproved, JobError> Approve();
+    public Result<JobDiscarded, JobError> Discard();
+    public Result<JobFailed, JobError> Fail(FailureReason reason);
 }
 ```
 
@@ -86,32 +95,17 @@ State machines use the [Stateless](https://github.com/dotnet-state-machine/state
 
 | Machine | Module | States |
 | --- | --- | --- |
-| `JobLifecycle` | Jobs | Draft, Preparing, Running, Checking, AwaitingReview, NeedsHelp, Approved, Discarded, Failed |
-| `AttemptLifecycle` | Jobs | Started, Completed, Passed, Rejected |
+| `JobLifecycle` | Jobs | Draft, Preparing, Running, Checking, AwaitingReview, NeedsHelp, Approved, Discarded, Failed, inside the superstates Open and Active |
 | `TurnLifecycle` | Agents | Idle, Working, AwaitingPermission, Completed, Interrupted, Failed |
 | `WorkspaceLifecycle` | Workspaces | Creating, Ready, Disposed |
 
-```mermaid
-stateDiagram-v2
-    [*] --> Draft
-    Draft --> Preparing: Submit
-    Preparing --> Running: WorkspaceReady
-    Running --> Checking: TurnCompleted
-    Checking --> Running: Retry
-    Checking --> AwaitingReview: Pass
-    Checking --> NeedsHelp: BudgetExhausted
-    NeedsHelp --> Running: Hint
-    AwaitingReview --> Running: SendBack
-    AwaitingReview --> Approved: Approve
-    Draft --> Discarded: Discard
-    AwaitingReview --> Discarded: Discard
-    NeedsHelp --> Discarded: Discard
-    Preparing --> Failed: Fail
-    Running --> Failed: Fail
-    Approved --> [*]
-    Discarded --> [*]
-    Failed --> [*]
-```
+The generated [job lifecycle diagram](../diagrams/job-lifecycle.md) is the reference. A test fails when it no longer matches the code.
+
+Attempts have no state machine of their own. The job lifecycle already decides when an attempt starts, completes, passes or is rejected, so a second machine would be a second source of truth for the same facts. An attempt is an entity inside the `Job` aggregate, and only the job changes it.
+
+### Attempt budget
+
+The budget limits automatic retries, not human involvement. It counts the attempts of the current round, and a round starts with the first attempt, a hint or a job sent back from review. When the round is spent, `Retry` returns `AttemptBudgetExhausted` and the job can only ask for help.
 
 ### Result pattern
 
