@@ -1,8 +1,12 @@
 using Avala.Agents.Contracts;
-using Avala.Jobs.Application;
 using Avala.Jobs.Contracts;
-using Avala.Jobs.Infrastructure;
-using Avala.Jobs.ViewModels;
+using Avala.Jobs.JobList;
+using Avala.Jobs.Launching;
+using Avala.Jobs.Ledger;
+using Avala.Jobs.Recovery;
+using Avala.Jobs.Storage;
+using Avala.Jobs.Submission;
+using Avala.Jobs.TurnChecks;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Sdk.UI;

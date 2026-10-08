@@ -20,6 +20,13 @@ internal static class LayerRules
             .Select(type => type.FullName)
             .Distinct();
 
+    public static IEnumerable<string> UndeclaredNamespaces(CodeScope scope) =>
+        scope.Types
+            .Select(type => type.Namespace ?? string.Empty)
+            .Where(ns => !Layers.IsDeclared(ns))
+            .Distinct()
+            .Order(StringComparer.Ordinal);
+
     public static IEnumerable<string> ContractsWithLogic(CodeScope scope) =>
         scope.Types
             .Where(type => Layers.Of(type.Namespace) == Layer.Contracts

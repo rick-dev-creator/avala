@@ -220,7 +220,7 @@ public interface IEventFeed
 
 ## Job flow coordinator
 
-The coordinator replaces the orchestrator. It is a set of small stateless classes in the `Application` layer of Jobs: the state of the flow is the `Job` aggregate itself. Each class keeps four or fewer dependencies. **Accepted**
+The coordinator replaces the orchestrator. It is a set of small stateless classes in the application layer of Jobs, grouped by use case in the folders `Submission`, `Launching`, `TurnChecks`, `Recovery` and `Ledger`: the state of the flow is the `Job` aggregate itself. Each class keeps four or fewer dependencies. **Accepted**
 
 | Class | Role |
 | --- | --- |
@@ -345,9 +345,9 @@ Every provider plugin must pass the same check: start a session, send a turn and
 
 `Avala.Simulator` is a provider plugin that plays a Claude Code session without a model, so the harness runs end to end for demos and for catching bugs without spending tokens. It depends only on `Agents.Contracts` and the SDK, the same contracts a real provider uses, and registers itself as an `IAgentProvider`.
 
-- Scenarios are declarative data in its domain: one ordered script per turn, made of reasoning, message deltas, file edits, commands with output, permission requests, plan updates, usage with cost, a usage limit, streamed canvases and the end of the turn. A session advances to the next script with every turn, so a scenario can change its behavior after feedback.
+- Scenarios are declarative data in its domain, the `Scenarios` folder: one ordered script per turn, made of reasoning, message deltas, file edits, commands with output, permission requests, plan updates, usage with cost, a usage limit, streamed canvases and the end of the turn. A session advances to the next script with every turn, so a scenario can change its behavior after feedback.
 - The first message of a session chooses the scenario with a tag such as `[simulate: fix-after-feedback]`. Without a tag, or with an unknown name, the scenario is `reply`. Later messages never change it.
-- File edits write real files into the session's working directory through an `Infrastructure` port.
+- File edits write real files into the session's working directory through a port of `Playback`, implemented in `FileSystem`.
 - Events can be spaced by a delay measured with `TimeProvider`. It is zero by default and in tests; the plugin entry uses a short pace for in-app demos, and a constructor overload takes another.
 - It declares every capability, and an interruption ends the running turn as `Interrupted`.
 - `tests/Avala.Host.Tests` plays its scenarios inside the application composed from the published plugin folder, with its in-app pace, and observes the jobs through the event feed.
@@ -399,8 +399,8 @@ The application is built view model first: every screen is built and tested as v
 - EF Core with the SQLite provider, with no server.
 - One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
 - The schema is created with `EnsureCreated`. Migrations arrive with the first schema change.
-- Stores are internal interfaces of each module's `Application` layer, implemented in `Infrastructure`.
-- EF Core is referenced only from `Infrastructure`, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.
+- Stores are internal interfaces of each module's application layer, implemented in its `Storage` folder.
+- EF Core is referenced only from the infrastructure layer, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.
 - Connection pooling is off.
 
 ### Mapping without changing the domain
@@ -432,7 +432,7 @@ Modules register `IStartupTask` implementations, such as `JobRecovery`. The runt
 ### Markers and layers
 
 - The SDK defines marker interfaces: `IAggregateRoot`, `IDomainEvent` and `IIntegrationEvent`. They identify building blocks without base classes.
-- Every module core is organized in the namespaces `Domain`, `Application`, `Infrastructure` and `ViewModels`.
+- Every module core is organized in folders named after what the code does, never after layers. The layer map of the architecture tests assigns each of its namespaces to `Domain`, `Application`, `Infrastructure` or `ViewModels`, and the rules below speak of those layers. See [the architecture](../architecture.md#screaming-architecture).
 
 ### Domain encapsulation
 

@@ -1,7 +1,8 @@
 using Avala.Sdk;
-using Avala.Workspaces.Application;
 using Avala.Workspaces.Contracts;
-using Avala.Workspaces.Infrastructure;
+using Avala.Workspaces.Git;
+using Avala.Workspaces.Provisioning;
+using Avala.Workspaces.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.Workspaces;

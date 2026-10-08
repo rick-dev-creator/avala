@@ -1,7 +1,7 @@
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
-using Avala.Simulator.Application;
-using Avala.Simulator.Infrastructure;
+using Avala.Simulator.FileSystem;
+using Avala.Simulator.Playback;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 

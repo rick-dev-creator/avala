@@ -11,7 +11,7 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `src/Avala.Shell` | Shell view models. Depends only on the SDK. |
 | `src/Avala.Runtime` | Runtime services shared by every module, such as the event bus. Depends only on the SDK. |
 | `src/Avala.Host` | Avalonia application, composition root and plugin loader. References only the SDK, the runtime and the shell. |
-| `src/Modules/<Module>/Avala.<Module>` | Module core: domain, application and view models. Everything is `internal`. |
+| `src/Modules/<Module>/Avala.<Module>` | Module core: domain, use cases, infrastructure and view models, in feature folders. Everything is `internal`. |
 | `src/Modules/<Module>/Avala.<Module>.UI` | Module views and its single public type: the plugin entry. |
 | `src/Modules/<Module>/Avala.<Module>.Contracts` | Optional public contracts other modules may depend on. |
 | `src/Modules/Simulator/Avala.Simulator` | A provider plugin that plays scripted Claude Code sessions through the public agent contracts only, for demos and tests without tokens. Its plugin entry lives in the core, since it has no views. |
@@ -21,6 +21,29 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `tests/Avala.<Project>.Tests` | Unit tests. |
 | `tests/Avala.Integration.Tests` | End-to-end tests that compose the real modules through their public plugin entries, over a real git repository and SQLite. Not part of `Avala.UnitTests.slnf`. |
 | `tests/Avala.Host.Tests` | Simulation tests of the real application: the composition root built from the published plugin folder, driven by the simulator over a real git repository. Not part of `Avala.UnitTests.slnf`. |
+
+## Screaming architecture
+
+Inside a module, folders and namespaces are named after what the code does: its domain model, its use cases and the infrastructure they reach. Never after technical layers. Namespaces follow folders. The Jobs core reads like this:
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Jobs` | The `Job` aggregate, its attempts, lifecycle, value objects, error enum and domain events | Domain |
+| `Submission` | Creating and submitting a job, and the `IJobs` entry other modules call | Application |
+| `Launching` | Preparing the workspace, opening the agent session and sending the instruction | Application |
+| `TurnChecks` | Checking a finished turn against the completion gates | Application |
+| `Recovery` | Resuming active jobs at startup | Application |
+| `Ledger` | Storing a job and announcing its progress, with the `IJobStore` port | Application |
+| `Storage` | The EF Core store behind `IJobStore` | Infrastructure |
+| `JobList` | The jobs page view model | ViewModels |
+
+The other cores follow the same idea: Agents has `Turns` and `Sessions`; Workspaces has `Workspaces`, `Provisioning`, `Git` and `Storage`; the simulator has `Scenarios`, `Playback` and `FileSystem`. Plugin entries stay at the root of their project, and `Contracts` projects keep their own names.
+
+### Layer map
+
+The layers still exist, and the rules still enforce them, but no folder name carries them. `tests/Avala.ArchitectureTests/Scopes/LayerMap.cs` is the single place that assigns every namespace of every module assembly to a module and a layer: `Domain`, `Application`, `Infrastructure`, `ViewModels`, `Contracts`, or `None` for plugin entries and views. Every layer rule asks the map. The fixture modules keep their layer-named folders and are declared in the map as well.
+
+A namespace missing from the map fails the architecture tests. A new folder therefore needs a conscious decision about its layer, recorded in the map in the same change.
 
 ## Rules
 
@@ -41,9 +64,10 @@ Enforced by `tests/Avala.ArchitectureTests`:
 - No type spans more than 600 lines, counting every part of a partial type.
 - Every script is C#, and CI steps only invoke `dotnet`.
 - The SDK, the runtime, the shell and every module core have a unit test project.
-- The DDD and layer rules of the [core design](design/core.md#architecture-rules-to-add).
-- Only `Infrastructure` types of the modules depend on `Microsoft.EntityFrameworkCore`.
-- Database work never runs on the UI thread. Every `Infrastructure` type that declares a field whose type derives from `DbContext` must be declared in a source file that calls `Task.Run`. The rule checks that the call is present in that file, not that every database operation goes through it; the stores route every operation through a single `RunAsync` that awaits `Task.Run`, as the [core design](design/core.md#sqlite-and-blocking) requires.
+- Every namespace of a module assembly is declared in the [layer map](#layer-map).
+- The DDD and layer rules of the [core design](design/core.md#architecture-rules-to-add), with each type's layer taken from the layer map.
+- Only infrastructure types of the modules depend on `Microsoft.EntityFrameworkCore`.
+- Database work never runs on the UI thread. Every infrastructure type that declares a field whose type derives from `DbContext` must be declared in a source file that calls `Task.Run`. The rule checks that the call is present in that file, not that every database operation goes through it; the stores route every operation through a single `RunAsync` that awaits `Task.Run`, as the [core design](design/core.md#sqlite-and-blocking) requires.
 - The architecture tests reference every source project, so no project escapes the rules.
 
 Enforced by the compiler through `BannedSymbols.txt` and the threading analyzers:
