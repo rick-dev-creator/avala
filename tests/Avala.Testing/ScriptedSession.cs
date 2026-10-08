@@ -1,21 +1,30 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 
-namespace Avala.Agents.Tests.Conformance;
+namespace Avala.Testing;
 
-internal sealed class ScriptedSession(Func<SessionId, TurnId, IEnumerable<IAgentEvent>> script) : IAgentSession
+public sealed class ScriptedSession(Func<SessionId, TurnId, IEnumerable<IAgentEvent>> script, SessionOptions options) : IAgentSession
 {
     private readonly Channel<IAgentEvent> events = Channel.CreateUnbounded<IAgentEvent>();
+    private readonly ConcurrentQueue<string> received = new();
 
     public SessionId Id { get; } = SessionId.New();
+
+    public SessionOptions Options { get; } = options;
+
+    public IReadOnlyList<string> Received => [.. received];
+
+    public bool IsDisposed { get; private set; }
 
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
     public async ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken)
     {
         var id = TurnId.New();
+        received.Enqueue(turn.Text);
 
         foreach (var agentEvent in script(Id, id))
         {
@@ -33,6 +42,7 @@ internal sealed class ScriptedSession(Func<SessionId, TurnId, IEnumerable<IAgent
 
     public ValueTask DisposeAsync()
     {
+        IsDisposed = true;
         events.Writer.TryComplete();
 
         return ValueTask.CompletedTask;

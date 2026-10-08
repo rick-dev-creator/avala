@@ -1,7 +1,6 @@
 using Avala.Testing;
 using Avala.Workspaces.Application;
 using Avala.Workspaces.Contracts;
-using Avala.Workspaces.Infrastructure;
 
 namespace Avala.Workspaces.Tests.Application;
 
@@ -22,6 +21,15 @@ public sealed class WorkspaceServiceTests
         Assert.Equal($"avala/{info.Id.Value:N}", info.Branch);
         Assert.Equal([info.Path], git.Worktrees.Select(worktree => worktree.Path));
         Assert.Equal("/repos/shop", Assert.Single(git.Worktrees).Repository);
+    }
+
+    [Fact]
+    public async Task FindsAPreparedWorkspaceAsync()
+    {
+        var service = Service(new FakeGit());
+        var prepared = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest("/repos/shop"), Cancellation));
+
+        Assert.Equal(prepared, Outcomes.Succeeds(await service.FindAsync(prepared.Id, Cancellation)));
     }
 
     [Fact]
@@ -73,6 +81,7 @@ public sealed class WorkspaceServiceTests
         var service = Service(new FakeGit());
         var unknown = WorkspaceId.New();
 
+        Assert.Equal(WorkspaceFailure.UnknownWorkspace, Outcomes.FailsWith(await service.FindAsync(unknown, Cancellation)));
         Assert.Equal(WorkspaceFailure.UnknownWorkspace, Outcomes.FailsWith(await service.CheckpointAsync(unknown, "turn 1", Cancellation)));
         Assert.Equal(WorkspaceFailure.UnknownWorkspace, Outcomes.FailsWith(await service.RemoveAsync(unknown, Cancellation)));
     }

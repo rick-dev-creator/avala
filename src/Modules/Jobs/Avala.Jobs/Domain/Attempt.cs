@@ -1,12 +1,14 @@
+using Avala.Sdk;
+
 namespace Avala.Jobs.Domain;
 
-internal sealed class Attempt(AttemptNumber number, AttemptOrigin origin, Feedback? guidance)
+internal sealed class Attempt(AttemptNumber number, AttemptOrigin origin, Option<Feedback> guidance)
 {
     public AttemptNumber Number { get; } = number;
 
     public AttemptOrigin Origin { get; } = origin;
 
-    public Feedback? Guidance { get; } = guidance;
+    public Option<Feedback> Guidance { get; } = guidance;
 
     public AttemptOutcome Outcome { get; private set; } = AttemptOutcome.Running;
 

@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Testing;
 
 namespace Avala.Agents.Tests.Conformance;
 
@@ -10,15 +11,7 @@ public sealed class AgentConformanceTests
     [Fact]
     public async Task AWellBehavedProviderConformsAsync()
     {
-        var provider = new ScriptedAgentProvider((session, turn) =>
-        [
-            new TurnStarted(session, turn),
-            new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"),
-            new ItemProgressed(session, turn, new ItemId("reply"), "Done."),
-            new ItemCompleted(session, turn, new ItemId("reply"), ItemOutcome.Succeeded),
-            new UsageReported(session, turn, new TokenUsage(900, 120, 0, 0, 0), null),
-            new TurnCompleted(session, turn, TurnOutcome.Finished),
-        ]);
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
 
         Assert.Empty(await AgentConformance.CheckTurnAsync(provider, Deadline));
     }

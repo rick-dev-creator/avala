@@ -1,9 +1,9 @@
 using Avala.Sdk.Processes;
-using Avala.Testing;
+using Xunit;
 
-namespace Avala.Workspaces.Tests.Infrastructure;
+namespace Avala.Testing;
 
-internal sealed class TemporaryRepository : IAsyncDisposable
+public sealed class TemporaryRepository : IAsyncDisposable
 {
     private static readonly string[] Identity = ["-c", "user.name=Test", "-c", "user.email=test@localhost", "-c", "commit.gpgsign=false"];
 

@@ -28,10 +28,12 @@ internal static class JobLifecycle
 
         machine.Configure(JobState.Running)
             .SubstateOf(JobState.Active)
-            .Permit(JobTrigger.CompleteTurn, JobState.Checking);
+            .Permit(JobTrigger.CompleteTurn, JobState.Checking)
+            .PermitReentry(JobTrigger.Recover);
 
         machine.Configure(JobState.Checking)
             .SubstateOf(JobState.Active)
+            .Permit(JobTrigger.Recover, JobState.Running)
             .Permit(JobTrigger.Pass, JobState.AwaitingReview)
             .PermitIf(JobTrigger.Retry, JobState.Running, hasRetriesLeft, "retries left")
             .PermitIf(JobTrigger.RequestHelp, JobState.NeedsHelp, () => !hasRetriesLeft(), "budget exhausted");

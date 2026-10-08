@@ -1,3 +1,4 @@
+using Avala.Jobs.Contracts;
 using Avala.Jobs.Domain;
 using Avala.Testing;
 
@@ -5,6 +6,12 @@ namespace Avala.Jobs.Tests.Domain;
 
 public sealed class ValueObjectTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ARepositoryPathNeedsText(string path) =>
+        Assert.Equal(JobError.EmptyRepository, Outcomes.FailsWith(RepositoryPath.Create(path)));
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

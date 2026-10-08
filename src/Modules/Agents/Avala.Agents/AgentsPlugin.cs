@@ -1,4 +1,8 @@
+using Avala.Agents.Application;
+using Avala.Agents.Contracts;
 using Avala.Sdk;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Avala.Agents;
 
@@ -8,5 +12,7 @@ public sealed class AgentsPlugin : IPlugin
 
     public void Register(IPluginRegistrar registrar)
     {
+        registrar.Services.TryAddSingleton(TimeProvider.System);
+        registrar.Services.AddSingleton<IAgents, AgentSessions>();
     }
 }

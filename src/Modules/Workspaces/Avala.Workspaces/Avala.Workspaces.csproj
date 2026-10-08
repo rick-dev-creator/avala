@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>

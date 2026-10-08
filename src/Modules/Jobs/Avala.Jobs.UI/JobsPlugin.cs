@@ -1,7 +1,13 @@
+using Avala.Agents.Contracts;
+using Avala.Jobs.Application;
+using Avala.Jobs.Contracts;
+using Avala.Jobs.Infrastructure;
 using Avala.Jobs.ViewModels;
 using Avala.Sdk;
+using Avala.Sdk.Events;
 using Avala.Sdk.UI;
 using Microsoft.Extensions.DependencyInjection;
+using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
 namespace Avala.Jobs.UI;
 
@@ -10,7 +16,17 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
     public PluginInfo Info { get; } = new("avala.jobs", "Jobs");
 
     public void Register(IPluginRegistrar registrar) =>
-        registrar.Services.AddSingleton<IPage, JobsViewModel>();
+        registrar.Services
+            .AddSingleton<IJobStore, SqliteJobStore>()
+            .AddSingleton<JobLedger>()
+            .AddSingleton<JobLauncher>()
+            .AddSingleton<CompletionGates>()
+            .AddSingleton<SubmitJob>()
+            .AddSingleton<IJobs, JobSubmissions>()
+            .AddSingleton<IHandle<JobAnnouncement>, PrepareJob>()
+            .AddSingleton<IHandle<TurnFinished>, CheckTurn>()
+            .AddSingleton<IStartupTask, JobRecovery>()
+            .AddSingleton<IPage, JobsViewModel>();
 
     public void RegisterViews(IViewRegistrar views) =>
         views.Register<JobsViewModel, JobsView>();

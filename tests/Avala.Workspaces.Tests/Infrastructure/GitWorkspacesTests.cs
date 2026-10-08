@@ -1,9 +1,11 @@
 using Avala.Runtime;
+using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Avala.Testing;
 using Avala.Workspaces.Application;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Infrastructure;
+using Avala.Workspaces.Tests.Application;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.Workspaces.Tests.Infrastructure;
@@ -11,7 +13,7 @@ namespace Avala.Workspaces.Tests.Infrastructure;
 public sealed class GitWorkspacesTests
 {
     private static readonly IProcessRunner Processes =
-        new ServiceCollection().AddRuntime().BuildServiceProvider().GetRequiredService<IProcessRunner>();
+        new ServiceCollection().AddRuntime(new AvalaPaths(Path.GetTempPath())).BuildServiceProvider().GetRequiredService<IProcessRunner>();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 

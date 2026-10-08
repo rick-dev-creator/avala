@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 
 namespace Avala.Agents.Contracts.Events;
 
@@ -18,7 +19,7 @@ public sealed record PermissionResolved(SessionId Session, TurnId Turn, ItemId I
 
 public sealed record PlanUpdated(SessionId Session, TurnId Turn, IReadOnlyList<PlanStep> Steps) : IAgentEvent;
 
-public sealed record UsageReported(SessionId Session, TurnId Turn, TokenUsage Tokens, Cost? Cost) : IAgentEvent;
+public sealed record UsageReported(SessionId Session, TurnId Turn, TokenUsage Tokens, Option<Cost> Cost) : IAgentEvent;
 
 public sealed record LimitReported(SessionId Session, TurnId Turn, UsageLimit Limit) : IAgentEvent;
 

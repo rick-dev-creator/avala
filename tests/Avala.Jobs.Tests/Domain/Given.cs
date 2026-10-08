@@ -1,5 +1,8 @@
+using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
 using Avala.Jobs.Domain;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Tests.Domain;
 
@@ -9,11 +12,18 @@ internal static class Given
 
     public static Feedback Feedback { get; } = Outcomes.Succeeds(Avala.Jobs.Domain.Feedback.Create("Two tests fail"));
 
+    public static RepositoryPath Repository { get; } = Outcomes.Succeeds(RepositoryPath.Create("/repos/shop"));
+
+    public static WorkspaceId Workspace { get; } = WorkspaceId.New();
+
+    public static SessionId Session { get; } = SessionId.New();
+
     public static Job Job(int attemptsPerRound = 3) =>
         Outcomes.Succeeds(Avala.Jobs.Domain.Job.Create(
             JobId.New(),
             Instruction,
-            Outcomes.Succeeds(AttemptBudget.Create(attemptsPerRound))));
+            Outcomes.Succeeds(AttemptBudget.Create(attemptsPerRound)),
+            Repository));
 
     public static Job JobIn(JobState state, int attemptsPerRound = 3)
     {
@@ -43,7 +53,7 @@ internal static class Given
 
     private static void Submit(Job job) => Outcomes.Succeeds(job.Submit());
 
-    private static void Start(Job job) => Outcomes.Succeeds(job.Start());
+    private static void Start(Job job) => Outcomes.Succeeds(job.Start(Workspace, Session));
 
     private static void CompleteTurn(Job job) => Outcomes.Succeeds(job.CompleteTurn());
 

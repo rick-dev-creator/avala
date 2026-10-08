@@ -54,6 +54,18 @@ public sealed class EventBusTests
     }
 
     [Fact]
+    public async Task IgnoresEventsPublishedAfterTheBusStopsAsync()
+    {
+        var handler = new RecordingHandler(expected: 1);
+        var running = Run(handler);
+        await running.DisposeAsync();
+
+        await running.Bus.PublishAsync(new Pinged(1), Cancellation);
+
+        Assert.Empty(handler.Received);
+    }
+
+    [Fact]
     public async Task StreamsEventsToASubscriberAsync()
     {
         await using var running = Run();

@@ -1,5 +1,8 @@
+using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Domain;
+using Avala.Workspaces.Contracts;
 using Stateless;
 
 namespace Avala.Jobs.Domain;
@@ -9,11 +12,12 @@ internal sealed class Job : IAggregateRoot<JobId>
     private readonly List<Attempt> attempts = [];
     private readonly StateMachine<JobState, JobTrigger> machine;
 
-    private Job(JobId id, Instruction instruction, AttemptBudget budget)
+    private Job(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository)
     {
         Id = id;
         Instruction = instruction;
         Budget = budget;
+        Repository = repository;
         machine = JobLifecycle.Create(() => State, state => State = state, HasRetriesLeft);
     }
 
@@ -23,20 +27,42 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public AttemptBudget Budget { get; }
 
+    public RepositoryPath Repository { get; }
+
     public JobState State { get; private set; } = JobState.Draft;
+
+    public Option<WorkspaceId> Workspace { get; private set; }
+
+    public Option<SessionId> Session { get; private set; }
 
     public IReadOnlyList<Attempt> Attempts => attempts;
 
-    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget) =>
-        new Job(id, instruction, budget);
+    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository) =>
+        new Job(id, instruction, budget, repository);
 
     public Result<JobSubmitted, JobError> Submit() =>
         machine.TryFire(JobTrigger.Submit, JobError.CannotSubmit)
             .Map(_ => new JobSubmitted(Id));
 
-    public Result<AttemptStarted, JobError> Start() =>
+    public Result<AttemptStarted, JobError> Start(WorkspaceId workspace, SessionId session) =>
         machine.TryFire(JobTrigger.Start, JobError.CannotStart)
-            .Map(_ => Begin(AttemptOrigin.Initial, guidance: null));
+            .Map(_ =>
+            {
+                Workspace = workspace;
+                Session = session;
+
+                return Begin(AttemptOrigin.Initial, Option<Feedback>.None);
+            });
+
+    public Result<AttemptStarted, JobError> Recover(SessionId session) =>
+        machine.TryFire(JobTrigger.Recover, JobError.CannotRecover)
+            .Map(_ =>
+            {
+                Session = session;
+                InterruptUnderwayAttempt();
+
+                return Begin(AttemptOrigin.Recovery, Option<Feedback>.None);
+            });
 
     public Result<AttemptCompleted, JobError> CompleteTurn() =>
         machine.TryFire(JobTrigger.CompleteTurn, JobError.CannotCompleteTurn)
@@ -71,17 +97,27 @@ internal sealed class Job : IAggregateRoot<JobId>
         var from = State;
 
         return machine.TryFire(JobTrigger.Discard, JobError.CannotDiscard)
-            .Map(_ => Interrupt(new JobDiscarded(Id, from)));
+            .Map(_ =>
+            {
+                InterruptUnderwayAttempt();
+
+                return new JobDiscarded(Id, from);
+            });
     }
 
     public Result<JobFailed, JobError> Fail(FailureReason reason) =>
         machine.TryFire(JobTrigger.Fail, JobError.CannotFail)
-            .Map(_ => Interrupt(new JobFailed(Id, reason)));
+            .Map(_ =>
+            {
+                InterruptUnderwayAttempt();
+
+                return new JobFailed(Id, reason);
+            });
 
     private bool HasRetriesLeft() =>
         attempts.Count - attempts.FindLastIndex(attempt => attempt.Origin != AttemptOrigin.Retry) < Budget.AttemptsPerRound;
 
-    private AttemptStarted Begin(AttemptOrigin origin, Feedback? guidance)
+    private AttemptStarted Begin(AttemptOrigin origin, Option<Feedback> guidance)
     {
         var number = attempts.Count == 0 ? AttemptNumber.First : attempts[^1].Number.Next;
         attempts.Add(new Attempt(number, origin, guidance));
@@ -97,13 +133,11 @@ internal sealed class Job : IAggregateRoot<JobId>
         return current.Number;
     }
 
-    private TEvent Interrupt<TEvent>(TEvent domainEvent)
+    private void InterruptUnderwayAttempt()
     {
         if (attempts is [.., { IsUnderway: true } current])
         {
             current.Conclude(AttemptOutcome.Interrupted);
         }
-
-        return domainEvent;
     }
 }
