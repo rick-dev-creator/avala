@@ -4,6 +4,7 @@ internal enum Operation
 {
     Submit,
     Start,
+    Recover,
     CompleteTurn,
     Pass,
     Retry,

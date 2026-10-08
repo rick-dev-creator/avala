@@ -42,7 +42,7 @@ internal sealed class ProcessRunner : IProcessRunner
     {
         var info = new ProcessStartInfo(request.FileName)
         {
-            WorkingDirectory = request.WorkingDirectory ?? string.Empty,
+            WorkingDirectory = request.WorkingDirectory.Match(directory => directory, () => string.Empty),
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,

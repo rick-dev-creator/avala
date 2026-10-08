@@ -56,13 +56,14 @@ The rules are enforced by `tests/Avala.ArchitectureTests` and by the compiler. D
 - **View models are a thin application layer.** They expose state to the view and delegate the work of every command to services injected through their constructor. They never know infrastructure: it reaches them only through the ports of the application layer.
 - **Interfaces only where they earn their place:** for infrastructure and for what must be replaceable, such as the ports a test replaces with a double. Everything else stays concrete and domain-centric; prefer extension members and plain domain code over an interface with a single implementation.
 - **No fat constructors.** More than four dependencies is a smell that calls for a refactoring, and the architecture tests reject it. Records holding data are exempt.
-- **Composition over inheritance.** Every class is `sealed`. Only Avalonia types may be inherited.
+- **Composition over inheritance.** Every class is `sealed`. Only framework types may be inherited: Avalonia types and EF Core's `DbContext`.
 
 ## Domain
 
 - DDD without base classes: aggregates implement `IAggregateRoot<TId>`, events implement `IDomainEvent`.
 - Aggregates have private constructors and factory methods, no public setters, no exposed mutable collections, and reference other aggregates by identifier only.
 - Every public operation returns `Result<TEvent, TError>`. Results never throw: read them through `Match` or `TryGetValue`.
+- Absence is an `Option<T>` handled with `Match`, never `null` in a signature. Turn nullable values from frameworks into an `Option` at the edge with `ToOption()`.
 - Each module has exactly one error enum. No magic strings: error codes are enum values, and the presentation layer turns them into text.
 - The domain performs no I/O, has no async methods and never throws.
 - State machines use Stateless, inside the domain only, through `TryFire`. Direct `Fire` calls do not compile.

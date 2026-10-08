@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Domain;
+using Avala.Sdk;
 using Avala.Testing;
 
 namespace Avala.Agents.Tests.Domain;
@@ -83,12 +84,12 @@ public sealed class TurnTests
         var turn = Given.Turn(Given.Started("deploy"), Given.PermissionFor("deploy"));
 
         Assert.Equal(TurnState.AwaitingPermission, turn.State);
-        Assert.Equal(Given.Item("deploy"), turn.PendingPermission);
+        Assert.Equal(Option<ItemId>.Some(Given.Item("deploy")), turn.PendingPermission);
 
         Outcomes.Succeeds(turn.Apply(Given.Resolved("deploy"), Given.Now));
 
         Assert.Equal(TurnState.Working, turn.State);
-        Assert.Null(turn.PendingPermission);
+        Assert.Equal(Option<ItemId>.None, turn.PendingPermission);
     }
 
     [Fact]

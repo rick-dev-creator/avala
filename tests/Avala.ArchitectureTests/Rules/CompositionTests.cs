@@ -15,11 +15,12 @@ public sealed class CompositionTests
     }
 
     [Fact]
-    public void OnlyAvaloniaTypesMayBeInherited()
+    public void OnlyFrameworkBaseTypesMayBeInherited()
     {
         var violations = Classes
             .Where(type => type.BaseType is { } baseType
                 && baseType != typeof(object)
+                && baseType != typeof(Microsoft.EntityFrameworkCore.DbContext)
                 && baseType.Assembly.GetName().Name?.StartsWith("Avalonia", StringComparison.Ordinal) != true)
             .Select(type => $"{type.FullName} : {type.BaseType}");
 

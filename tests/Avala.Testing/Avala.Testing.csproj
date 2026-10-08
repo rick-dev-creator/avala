@@ -4,5 +4,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Avala.Sdk\Avala.Sdk.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" />
   </ItemGroup>
 </Project>

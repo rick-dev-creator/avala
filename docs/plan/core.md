@@ -54,7 +54,7 @@ Done when: `TurnLifecycle` rejects every malformed sequence in its tests, and th
 
 ## Phase 4: Workspaces
 
-Status: done. Persistence stays in memory until phase 5 brings EF Core.
+Status: done. Persistence with EF Core arrived in phase 5.
 
 1. An asynchronous process runner for git, with no blocking calls.
 2. `WorkspaceLifecycle` and the `Workspace` aggregate.
@@ -65,10 +65,12 @@ Done when: a workspace is created, checkpointed and disposed on Linux and Window
 
 ## Phase 5: Job flow
 
+Status: items 1 to 5 are done, with `Option<T>`, the rule that keeps nullable types out of signatures and the persistence rules that keep EF Core in `Infrastructure` and database work off the UI thread. An end-to-end integration test of the flow is being finished.
+
 1. The job flow coordinator as event handlers.
 2. `ICompletionGate`, with every attempt passing when no gate is registered.
 3. Recovery on startup from stored state.
-4. Persistence for Jobs and Workspaces with EF Core and SQLite, one `DbContext` per module.
+4. Persistence for Jobs and Workspaces with EF Core and SQLite, one `DbContext` and one database file per module.
 5. Keep database work off the UI thread, with an architecture rule that verifies it.
 
 Done when: a job goes from submitted to awaiting review with the fake provider, survives a restart midway, and handlers stay idempotent.
@@ -113,7 +115,3 @@ Done when: the full job flow runs end to end through view models in tests.
 2. The canvas surface for each media type.
 
 Done when: the harness replaces a terminal for daily work.
-
-## Open questions
-
-- Completion gates as the extension point for Verification: proposed, pending confirmation.

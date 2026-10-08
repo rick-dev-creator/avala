@@ -13,13 +13,18 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
             .BindAsync(Plan)
             .BindAsync(workspace => EnsureBranchIsFreeAsync(workspace, cancellationToken))
             .BindAsync(workspace => OpenAsync(workspace, request.BaseRef, cancellationToken))
-            .MapAsync(workspace => new WorkspaceInfo(workspace.Id, workspace.Location.Path, workspace.Branch.Value));
+            .MapAsync(Describe);
+
+    public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> FindAsync(
+        WorkspaceId workspace,
+        CancellationToken cancellationToken) =>
+        await LoadAsync(workspace, cancellationToken).MapAsync(Describe);
 
     public async ValueTask<Result<CheckpointInfo, WorkspaceFailure>> CheckpointAsync(
         WorkspaceId workspace,
         string label,
         CancellationToken cancellationToken) =>
-        await FindAsync(workspace, cancellationToken)
+        await LoadAsync(workspace, cancellationToken)
             .BindAsync(found => git.CommitAllAsync(found.Location, label, cancellationToken)
                 .BindAsync(commit => Valid(found.RecordCheckpoint(commit, label)))
                 .BindAsync(recorded => SaveAsync(found, recorded, cancellationToken)))
@@ -32,7 +37,7 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
     public async ValueTask<Result<WorkspaceId, WorkspaceFailure>> RemoveAsync(
         WorkspaceId workspace,
         CancellationToken cancellationToken) =>
-        await FindAsync(workspace, cancellationToken)
+        await LoadAsync(workspace, cancellationToken)
             .BindAsync(found => git.RemoveWorktreeAsync(found.Location, found.Branch, cancellationToken)
                 .BindAsync(_ => Valid(found.Remove())))
             .BindAsync(async removed =>
@@ -75,10 +80,8 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
         return await SaveAsync(workspace, workspace, cancellationToken);
     }
 
-    private async Task<Result<Workspace, WorkspaceFailure>> FindAsync(WorkspaceId id, CancellationToken cancellationToken) =>
-        await store.FindAsync(id, cancellationToken) is { } workspace
-            ? workspace
-            : WorkspaceFailure.UnknownWorkspace;
+    private async Task<Result<Workspace, WorkspaceFailure>> LoadAsync(WorkspaceId id, CancellationToken cancellationToken) =>
+        (await store.FindAsync(id, cancellationToken)).ToResult(WorkspaceFailure.UnknownWorkspace);
 
     private async Task<Result<T, WorkspaceFailure>> SaveAsync<T>(Workspace workspace, T value, CancellationToken cancellationToken)
     {
@@ -86,6 +89,9 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
 
         return Result<T, WorkspaceFailure>.Success(value!);
     }
+
+    private static WorkspaceInfo Describe(Workspace workspace) =>
+        new(workspace.Id, workspace.Location.Path, workspace.Branch.Value);
 
     private static Result<T, WorkspaceFailure> Valid<T>(Result<T, WorkspaceError> result) =>
         result.MapError(_ => WorkspaceFailure.InvalidState);

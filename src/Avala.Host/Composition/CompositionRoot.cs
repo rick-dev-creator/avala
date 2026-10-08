@@ -1,5 +1,4 @@
 using Avala.Runtime;
-using Avala.Runtime.Events;
 using Avala.Sdk;
 using Avala.Sdk.UI;
 using Avala.Shell;
@@ -9,6 +8,10 @@ namespace Avala.Host.Composition;
 
 internal sealed class CompositionRoot : IAsyncDisposable
 {
+    private static readonly string DataDirectory = Environment.GetEnvironmentVariable("AVALA_DATA_PATH") is { Length: > 0 } configured
+        ? configured
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Avala");
+
     private readonly CancellationTokenSource lifetime = new();
 
     private CompositionRoot(ServiceProvider services, ViewRegistry views)
@@ -27,7 +30,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
     {
         var services = new ServiceCollection()
             .AddLogging()
-            .AddRuntime()
+            .AddRuntime(new AvalaPaths(DataDirectory))
             .AddShell()
             .AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         var views = new ViewRegistry();
@@ -46,7 +49,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
         return new CompositionRoot(services.BuildServiceProvider(), views);
     }
 
-    public void Start() => Running = Services.GetRequiredService<EventBus>().RunAsync(lifetime.Token);
+    public void Start() => Running = Services.RunAsync(lifetime.Token);
 
     public async ValueTask DisposeAsync()
     {

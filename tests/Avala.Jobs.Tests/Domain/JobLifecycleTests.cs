@@ -1,4 +1,6 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Domain;
+using Avala.Sdk;
 using Avala.Testing;
 
 namespace Avala.Jobs.Tests.Domain;
@@ -24,14 +26,30 @@ public sealed class JobLifecycleTests
     }
 
     [Fact]
-    public void StartingOpensTheFirstAttempt()
+    public void StartingOpensTheFirstAttemptInItsWorkspaceAndSession()
     {
         var job = Given.JobIn(JobState.Preparing);
 
-        var started = Outcomes.Succeeds(job.Start());
+        var started = Outcomes.Succeeds(job.Start(Given.Workspace, Given.Session));
 
-        Assert.Equal(new AttemptStarted(job.Id, AttemptNumber.First, AttemptOrigin.Initial, null), started);
+        Assert.Equal(new AttemptStarted(job.Id, AttemptNumber.First, AttemptOrigin.Initial, Option<Feedback>.None), started);
         Assert.Equal(AttemptOutcome.Running, Assert.Single(job.Attempts).Outcome);
+        Assert.Equal(Given.Workspace, job.Workspace);
+        Assert.Equal(Given.Session, job.Session);
+    }
+
+    [Fact]
+    public void RecoveringInterruptsTheAttemptAndResumesInANewSession()
+    {
+        var job = Given.JobIn(JobState.Running);
+        var session = SessionId.New();
+
+        var resumed = Outcomes.Succeeds(job.Recover(session));
+
+        Assert.Equal(new AttemptStarted(job.Id, new AttemptNumber(2), AttemptOrigin.Recovery, Option<Feedback>.None), resumed);
+        Assert.Equal([AttemptOutcome.Interrupted, AttemptOutcome.Running], job.Attempts.Select(attempt => attempt.Outcome));
+        Assert.Equal(session, job.Session);
+        Assert.Equal(JobState.Running, job.State);
     }
 
     [Fact]

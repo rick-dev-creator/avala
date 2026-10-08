@@ -15,8 +15,15 @@ internal sealed partial class EventBus(IServiceProvider services, ILogger<EventB
         ImmutableDictionary<Type, ImmutableList<object>>.Empty;
 
     public ValueTask PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
-        where TEvent : IIntegrationEvent =>
-        queue.Writer.WriteAsync(token => DispatchAsync(integrationEvent, token), cancellationToken);
+        where TEvent : IIntegrationEvent
+    {
+        if (!queue.Writer.TryWrite(token => DispatchAsync(integrationEvent, token)))
+        {
+            LogPublishedAfterStop(typeof(TEvent).Name);
+        }
+
+        return ValueTask.CompletedTask;
+    }
 
     public IAsyncEnumerable<TEvent> SubscribeAsync<TEvent>(CancellationToken cancellationToken)
         where TEvent : IIntegrationEvent
@@ -86,4 +93,7 @@ internal sealed partial class EventBus(IServiceProvider services, ILogger<EventB
 
     [LoggerMessage(Level = LogLevel.Error, Message = "{Handler} failed to handle {Event}")]
     private partial void LogHandlerFailed(string handler, string @event, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "{Event} was published after the event bus stopped and is ignored")]
+    private partial void LogPublishedAfterStop(string @event);
 }

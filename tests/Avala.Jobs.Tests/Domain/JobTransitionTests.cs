@@ -15,6 +15,7 @@ public sealed class JobTransitionTests
     {
         [Operation.Submit] = ([JobState.Draft], JobError.CannotSubmit),
         [Operation.Start] = ([JobState.Preparing], JobError.CannotStart),
+        [Operation.Recover] = ([JobState.Running, JobState.Checking], JobError.CannotRecover),
         [Operation.CompleteTurn] = ([JobState.Running], JobError.CannotCompleteTurn),
         [Operation.Pass] = ([JobState.Checking], JobError.CannotPass),
         [Operation.Retry] = ([JobState.Checking], JobError.CannotRetry),
@@ -57,7 +58,8 @@ public sealed class JobTransitionTests
     private static JobError? Apply(Job job, Operation operation) => operation switch
     {
         Operation.Submit => Outcomes.ErrorOf(job.Submit()),
-        Operation.Start => Outcomes.ErrorOf(job.Start()),
+        Operation.Start => Outcomes.ErrorOf(job.Start(Given.Workspace, Given.Session)),
+        Operation.Recover => Outcomes.ErrorOf(job.Recover(Given.Session)),
         Operation.CompleteTurn => Outcomes.ErrorOf(job.CompleteTurn()),
         Operation.Pass => Outcomes.ErrorOf(job.Pass()),
         Operation.Retry => Outcomes.ErrorOf(job.Retry(Given.Feedback)),

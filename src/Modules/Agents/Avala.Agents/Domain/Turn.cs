@@ -25,7 +25,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
     public TurnState State { get; private set; } = TurnState.Working;
 
-    public ItemId? PendingPermission { get; private set; }
+    public Option<ItemId> PendingPermission { get; private set; }
 
     public IReadOnlyCollection<ItemId> OpenItems => openItems.Keys;
 
@@ -65,7 +65,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         }
 
         var stale = openItems
-            .Where(item => item.Key != PendingPermission && now - item.Value >= patience)
+            .Where(item => PendingPermission != Option<ItemId>.Some(item.Key) && now - item.Value >= patience)
             .OrderBy(item => item.Value)
             .Select(item => item.Key)
             .ToList();
@@ -130,14 +130,14 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
     private Result<TurnProgress, TurnError> ResolvePermission(PermissionResolved resolved, DateTimeOffset at)
     {
-        if (PendingPermission != resolved.Item)
+        if (PendingPermission != Option<ItemId>.Some(resolved.Item))
         {
             return TurnError.NoPendingPermission;
         }
 
         return machine.TryFire(TurnTrigger.ResolvePermission, TurnError.NoPendingPermission).Bind(_ =>
         {
-            PendingPermission = null;
+            PendingPermission = Option<ItemId>.None;
 
             return Touch(resolved, resolved.Item, at);
         });
@@ -155,7 +155,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         return machine.TryFire(trigger, TurnError.TurnEnded).Map(_ =>
         {
             var abandoned = openItems.OrderBy(item => item.Value).Select(item => item.Key).ToList();
-            PendingPermission = null;
+            PendingPermission = Option<ItemId>.None;
 
             return new TurnProgress([.. abandoned.Select(item => Conclude(item, ItemOutcome.Abandoned)), completed]);
         });

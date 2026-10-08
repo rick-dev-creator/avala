@@ -8,17 +8,12 @@ namespace Avala.Workspaces;
 
 public sealed class WorkspacesPlugin : IPlugin
 {
-    private static readonly string Root = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Avala",
-        "worktrees");
-
     public PluginInfo Info { get; } = new("avala.workspaces", "Workspaces");
 
     public void Register(IPluginRegistrar registrar) =>
         registrar.Services
-            .AddSingleton(new WorkspaceSettings(Root))
+            .AddSingleton(provider => new WorkspaceSettings(provider.GetRequiredService<AvalaPaths>().Folder("worktrees")))
             .AddSingleton<IGit, GitCli>()
-            .AddSingleton<IWorkspaceStore, InMemoryWorkspaceStore>()
+            .AddSingleton<IWorkspaceStore, SqliteWorkspaceStore>()
             .AddSingleton<IWorkspaces, WorkspaceService>();
 }

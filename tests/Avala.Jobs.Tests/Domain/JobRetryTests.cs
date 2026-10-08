@@ -63,4 +63,17 @@ public sealed class JobRetryTests
         Assert.Equal(JobError.AttemptBudgetExhausted, Outcomes.FailsWith(job.Retry(Given.Feedback)));
         Assert.True(job.RequestHelp().IsSuccess);
     }
+
+    [Fact]
+    public void RecoveryStartsAFreshRoundOfRetries()
+    {
+        var job = Given.JobIn(JobState.Checking, attemptsPerRound: 2);
+        Outcomes.Succeeds(job.Retry(Given.Feedback));
+        Outcomes.Succeeds(job.CompleteTurn());
+
+        Outcomes.Succeeds(job.Recover(Given.Session));
+        Outcomes.Succeeds(job.CompleteTurn());
+
+        Assert.True(job.Retry(Given.Feedback).IsSuccess);
+    }
 }

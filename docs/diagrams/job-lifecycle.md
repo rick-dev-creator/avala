@@ -20,6 +20,8 @@ stateDiagram-v2
 	Draft --> Preparing : Submit
 	Preparing --> Running : Start
 	Running --> Checking : CompleteTurn
+	Running --> Running : Recover
+	Checking --> Running : Recover
 	Checking --> AwaitingReview : Pass
 	Checking --> Running : Retry [retries left]
 	Checking --> NeedsHelp : RequestHelp [budget exhausted]

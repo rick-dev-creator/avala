@@ -1,3 +1,4 @@
+using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Avala.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,7 +8,7 @@ namespace Avala.Runtime.Tests.Processes;
 public sealed class ProcessRunnerTests
 {
     private static readonly IProcessRunner Runner =
-        new ServiceCollection().AddRuntime().BuildServiceProvider().GetRequiredService<IProcessRunner>();
+        new ServiceCollection().AddRuntime(new AvalaPaths(Path.GetTempPath())).BuildServiceProvider().GetRequiredService<IProcessRunner>();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 

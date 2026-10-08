@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Avala.Runtime\Avala.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents\Avala.Agents.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces\Avala.Workspaces.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Jobs\Avala.Jobs.UI\Avala.Jobs.UI.csproj" />
+    <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+  </ItemGroup>
+</Project>

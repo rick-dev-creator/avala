@@ -1,10 +1,12 @@
+using Avala.Sdk;
+using Avala.Jobs.Contracts;
 using Avala.Sdk.Domain;
 
 namespace Avala.Jobs.Domain;
 
 internal sealed record JobSubmitted(JobId Job) : IDomainEvent;
 
-internal sealed record AttemptStarted(JobId Job, AttemptNumber Attempt, AttemptOrigin Origin, Feedback? Guidance) : IDomainEvent;
+internal sealed record AttemptStarted(JobId Job, AttemptNumber Attempt, AttemptOrigin Origin, Option<Feedback> Guidance) : IDomainEvent;
 
 internal sealed record AttemptCompleted(JobId Job, AttemptNumber Attempt) : IDomainEvent;
 

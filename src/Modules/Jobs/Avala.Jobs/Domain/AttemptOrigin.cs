@@ -6,4 +6,5 @@ internal enum AttemptOrigin
     Retry,
     Hint,
     SendBack,
+    Recovery,
 }

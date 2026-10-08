@@ -1,9 +1,10 @@
 using System.Collections.Concurrent;
+using Avala.Sdk;
 using Avala.Workspaces.Application;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Domain;
 
-namespace Avala.Workspaces.Infrastructure;
+namespace Avala.Workspaces.Tests.Application;
 
 internal sealed class InMemoryWorkspaceStore : IWorkspaceStore
 {
@@ -18,8 +19,8 @@ internal sealed class InMemoryWorkspaceStore : IWorkspaceStore
         return Task.CompletedTask;
     }
 
-    public Task<Workspace?> FindAsync(WorkspaceId id, CancellationToken cancellationToken) =>
-        Task.FromResult(workspaces.GetValueOrDefault(id));
+    public Task<Option<Workspace>> FindAsync(WorkspaceId id, CancellationToken cancellationToken) =>
+        Task.FromResult(workspaces.GetValueOrDefault(id).ToOption());
 
     public Task RemoveAsync(WorkspaceId id, CancellationToken cancellationToken)
     {

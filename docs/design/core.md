@@ -39,7 +39,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
 | Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator | `JobId`, integration events, `IJobs`, `ICompletionGate` |
-| Agents | Sessions, turn integrity, provider registry | `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities` |
+| Agents | Sessions, turn integrity, provider registry | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, integration events |
 | Workspaces | Working copies, branches, checkpoints | `IWorkspaces`, integration events |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
 
@@ -65,10 +65,14 @@ internal sealed class Job
 {
     public JobId Id { get; }
     public JobState State { get; private set; }
+    public RepositoryPath Repository { get; }
+    public Option<WorkspaceId> Workspace { get; private set; }
+    public Option<SessionId> Session { get; private set; }
 
-    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget);
+    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository);
     public Result<JobSubmitted, JobError> Submit();
-    public Result<AttemptStarted, JobError> Start();
+    public Result<AttemptStarted, JobError> Start(WorkspaceId workspace, SessionId session);
+    public Result<AttemptStarted, JobError> Recover(SessionId session);
     public Result<AttemptCompleted, JobError> CompleteTurn();
     public Result<AttemptPassed, JobError> Pass();
     public Result<AttemptRetried, JobError> Retry(Feedback feedback);
@@ -101,11 +105,13 @@ State machines use the [Stateless](https://github.com/dotnet-state-machine/state
 
 The generated [job lifecycle diagram](../diagrams/job-lifecycle.md) is the reference. A test fails when it no longer matches the code.
 
+The job references its workspace and its agent session by identifier only. Both are absent until the job starts. `Recover` brings a job that was `Running` or `Checking` when the application stopped back to `Running`: it interrupts the attempt that was underway, records the new session and starts a `Recovery` attempt with a fresh round of retries.
+
 Attempts have no state machine of their own. The job lifecycle already decides when an attempt starts, completes, passes or is rejected, so a second machine would be a second source of truth for the same facts. An attempt is an entity inside the `Job` aggregate, and only the job changes it.
 
 ### Attempt budget
 
-The budget limits automatic retries, not human involvement. It counts the attempts of the current round, and a round starts with the first attempt, a hint or a job sent back from review. When the round is spent, `Retry` returns `AttemptBudgetExhausted` and the job can only ask for help.
+The budget limits automatic retries, not human involvement. It counts the attempts of the current round, and a round starts with the first attempt, a hint, a job sent back from review or a recovery. When the round is spent, `Retry` returns `AttemptBudgetExhausted` and the job can only ask for help.
 
 ### Result pattern
 
@@ -136,6 +142,15 @@ var outcome = job.Approve().Match(
         JobError.AttemptBudgetExhausted => …,
     });
 ```
+
+### Absence
+
+**Accepted**
+
+- A value that may be missing is an `Option<T>`, never a nullable type. Absence is explicit and handled with `Match`, like a `Result`.
+- `Option<T>` lives in the SDK: a `readonly record struct` whose default is `None`, with `Match`, `Map`, `Bind` and `ToResult`, an implicit conversion from `T`, and `MatchAsync` on `Task<Option<T>>`.
+- Nullable values coming from outside, such as a framework query, become an `Option` at the edge through the `ToOption()` extension members of `Optional`.
+- No non-private member exposes a nullable type in its signature, enforced by an architecture rule listed in [docs/architecture.md](../architecture.md#rules).
 
 ## Events
 
@@ -200,25 +215,31 @@ public interface IEventFeed
 **Accepted**
 
 - Stored state is the truth. Events are notifications.
-- On startup the job flow coordinator inspects every job that is not finished and resumes it from its state, so a lost event is recovered.
+- On startup `JobRecovery` inspects every active job and resumes it from its state, so a lost event is recovered.
 - Handlers are idempotent: receiving an event twice has the effect of receiving it once.
 
 ## Job flow coordinator
 
-The coordinator replaces the orchestrator. It is a stateless table of reactions inside Jobs: the state of the flow is the `Job` aggregate itself. **Accepted**
+The coordinator replaces the orchestrator. It is a set of small stateless classes in the `Application` layer of Jobs: the state of the flow is the `Job` aggregate itself. Each class keeps four or fewer dependencies. **Accepted**
 
-| When | Then |
+| Class | Role |
 | --- | --- |
-| `JobSubmitted` | `IWorkspaces.PrepareAsync` |
-| `WorkspaceReady` | `job.StartAttempt`, then `IAgentSession.StartAsync` |
-| `TurnCompleted` | Evaluate every completion gate, then `job.CompleteAttempt(verdict)` |
-| Verdict `Retry` | `IAgentSession.SendAsync(feedback)` |
-| Verdict `Pass` | The job moves to `AwaitingReview` |
-| Budget exhausted | The job moves to `NeedsHelp` |
+| `JobLedger` | Stores a job, then publishes `JobProgressed` with its status |
+| `SubmitJob` | Creates a job, submits it, stores it and publishes `JobSubmitted` |
+| `JobLauncher` | Prepares the workspace, opens the agent session, starts the job, stores it and only then sends the instruction. It also relaunches a job after a restart |
+| `PrepareJob` | Handles `JobSubmitted` by launching the job |
+| `CheckTurn` | Handles `TurnFinished`: checkpoints the workspace, evaluates the gates, then passes the job, retries with feedback to the same session, or asks for help when the budget is spent |
+| `CompletionGates` | Combines every registered gate into one verdict |
+| `JobRecovery` | An `IStartupTask` that launches `Preparing` jobs and recovers `Running` or `Checking` jobs |
+
+- The job stores its session before the instruction is sent, so a fast agent cannot finish a turn the job does not know yet.
+- A turn that ends interrupted or failed fails the job.
+- Handlers are idempotent. `CheckTurn` acts only on a job that is still `Running`, so a repeated `TurnFinished` changes nothing.
+- Recovery opens a new session in the existing workspace and calls `job.Recover`, which interrupts the attempt that was underway and starts a `Recovery` attempt.
 
 ### Completion gates
 
-**Proposed**
+**Accepted**
 
 Plugins join the flow through gates, without touching the core.
 
@@ -230,6 +251,7 @@ public interface ICompletionGate
 ```
 
 - With no gate registered, every attempt passes, so the core works on its own.
+- Gates run in registration order, and the first `Retry` wins: its feedback goes back to the agent.
 - Verification registers a gate that runs the checks. Future plugins, such as security policy or a review by a second agent, are further gates.
 
 ## Agents
@@ -260,6 +282,20 @@ public interface IAgentSession : IAsyncDisposable
 
 - `SessionOptions` holds harness concepts only: working directory and permission mode. Paths, tokens and protocols belong to each provider's own settings.
 - Behavior depends on `AgentCapabilities`, never on a provider's name: partial output, reasoning, interruption, resumption, usage, cost and limits.
+
+Other modules use agents through `IAgents`, in two steps:
+
+```csharp
+public interface IAgents
+{
+    ValueTask<Result<SessionId, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken);
+    ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken);
+    ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken);
+}
+```
+
+- `OpenAsync` opens a session in the working directory of `AgentRequest` and returns its `SessionId`. `SendAsync` sends a message and returns the `AgentTurn` it started. Opening and sending are separate so the caller can store the session before any turn can finish: Jobs records it on the job first.
+- `AgentSessions` implements `IAgents`. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends.
 
 ### Agnostic events
 
@@ -332,18 +368,34 @@ The application is built view model first: every screen is built and tested as v
 
 **Accepted**
 
-- EF Core with the SQLite provider: a local database file next to the application, with no server.
-- One `DbContext` per module. Each module owns its tables, prefixed with the module name, since SQLite has no schemas. No module reads another module's tables.
-- Migrations per module.
-- Repositories are internal interfaces of each module's `Application` layer, implemented in `Infrastructure`.
-- The domain stays persistence-ignorant: EF Core maps private constructors, private setters and collections backed by private fields. Strongly typed identifiers use value converters.
-- EF Core is referenced only from `Infrastructure`, enforced by the layer rules.
+- EF Core with the SQLite provider, with no server.
+- One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
+- The schema is created with `EnsureCreated`. Migrations arrive with the first schema change.
+- Stores are internal interfaces of each module's `Application` layer, implemented in `Infrastructure`.
+- EF Core is referenced only from `Infrastructure`, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.
+- Connection pooling is off.
+
+### Mapping without changing the domain
+
+- EF Core rebuilds aggregates through their private constructors, private setters and collections backed by private fields.
+- Identifiers and single-value objects use value converters.
+- A value object with several fields, such as `WorkspaceLocation`, is stored as one JSON column.
+- Owned collections, such as attempts and checkpoints, get a generated technical key that exists only in persistence.
+- An absent `Option` is stored as a sentinel that can never be a real value, such as `Guid.Empty` or empty text, so the database holds no nulls.
 
 ### SQLite and blocking
 
 SQLite has no asynchronous I/O. The asynchronous methods of its provider, such as `SaveChangesAsync`, run synchronously, and the banned API analyzer cannot see it because their signatures are asynchronous. Called from the UI thread, they freeze it.
 
-Database work therefore never runs on the UI thread. The mechanism, and an architecture rule that verifies it, are designed with the job flow in phase 5. **Proposed**
+Database work therefore never runs on the UI thread. Each store keeps one long-lived `DbContext`, used by one operation at a time behind a `SemaphoreSlim`, and runs every operation through `Task.Run`.
+
+### Data folder
+
+The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PATH` when set, otherwise `Avala` under the local application data folder. It locates the database files and the worktree root.
+
+### Startup tasks
+
+Modules register `IStartupTask` implementations, such as `JobRecovery`. The runtime runs them in `RuntimeHost.RunAsync`, after the event bus has started, so the events they publish are dispatched.
 
 ## Architecture rules to add
 
