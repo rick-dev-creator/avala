@@ -41,6 +41,21 @@ public sealed class SourceCodeTests
     }
 
     [Fact]
+    public void TheRepositoryHoldsNoScriptsInOtherLanguages() =>
+        Assert.Empty(ScriptLanguages.ForeignScripts(SolutionLayout.FilesUnder(SolutionLayout.Root.FullName, "*")));
+
+    [Fact]
+    public async Task WorkflowsOnlyRunDotnetAsync()
+    {
+        var workflows = await SourceFile.ReadAllAsync(
+            SolutionLayout.FilesUnder(Path.Combine(SolutionLayout.Root.FullName, ".github", "workflows"), "*.yml"),
+            Cancellation);
+
+        Assert.Empty(workflows.SelectMany(workflow =>
+            ScriptLanguages.NonDotnetCommands(workflow.Text).Select(command => $"{workflow.Path}: {command}")));
+    }
+
+    [Fact]
     public async Task NoTypeExceedsTheLineLimitAsync()
     {
         var files = await SourceFile.ReadAllAsync(CSharpFiles, Cancellation);

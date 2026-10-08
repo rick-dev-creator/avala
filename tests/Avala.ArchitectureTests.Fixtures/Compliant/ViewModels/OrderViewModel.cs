@@ -2,7 +2,7 @@ using Avala.Fixtures.Compliant.Application;
 
 namespace Avala.Fixtures.Compliant.ViewModels;
 
-public sealed class OrderViewModel(StartOrder startOrder)
+public sealed class OrderViewModel(IStartOrder startOrder)
 {
     public string Summary { get; private set; } = string.Empty;
 
