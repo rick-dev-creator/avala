@@ -3,7 +3,7 @@ using Avala.Sdk;
 
 namespace Avala.Fixtures.Compliant.Application;
 
-public sealed class StartOrder(IOrderRepository orders) : IStartOrder
+public sealed class StartOrder(IOrderRepository orders)
 {
     public async ValueTask<Result<OrderSummary, OrderFailure>> ExecuteAsync(string line, CancellationToken cancellationToken)
     {

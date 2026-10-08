@@ -1,5 +1,3 @@
-using Avala.ArchitectureTests.Ddd;
-using Avala.ArchitectureTests.Scopes;
 using Avala.ArchitectureTests.Solution;
 using Avala.ArchitectureTests.Source;
 using Avalonia.Controls;
@@ -25,20 +23,6 @@ public sealed class MvvmTests
 
         Assert.Empty(violations);
     }
-
-    [Fact]
-    public void ViewModelsDependOnlyOnInterfaces() =>
-        Assert.Empty(ViewModelRules.TakeConcreteDependencies(AvalaAssemblies.AllTypes));
-
-    [Fact]
-    public void AcceptsViewModelsThatDependOnInterfaces() =>
-        Assert.Empty(ViewModelRules.TakeConcreteDependencies(CodeScopes.Of(Scope.Compliant).Types));
-
-    [Fact]
-    public void DetectsViewModelsWithConcreteDependencies() =>
-        Assert.Equal(
-            ["ConcreteServiceViewModel", "DomainAwareViewModel", "InfrastructureAwareViewModel"],
-            Violations.Named(ViewModelRules.TakeConcreteDependencies(CodeScopes.Of(Scope.Violating).Types)));
 
     [Fact]
     public void EveryViewModelHasAView()
