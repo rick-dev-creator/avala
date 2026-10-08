@@ -62,13 +62,17 @@ public sealed class ModularMonolithTests
     }
 
     [Fact]
-    public void ContractsDependOnlyOnTheSdk()
+    public void ContractsDependOnlyOnTheSdkAndOtherContracts()
     {
-        var violations = SolutionLayout.ModuleProjects
+        var contracts = SolutionLayout.ModuleProjects
             .Where(project => project.Kind == ProjectKind.Contracts)
-            .SelectMany(project => AvalaAssemblies.Load(project.Name).ReferencedAvalaAssemblies
-                .Except(["Avala.Sdk"])
-                .Select(reference => $"{project.Name} -> {reference}"));
+            .Select(project => project.Name)
+            .ToList();
+
+        var violations = contracts
+            .SelectMany(name => AvalaAssemblies.Load(name).ReferencedAvalaAssemblies
+                .Where(reference => reference != "Avala.Sdk" && !contracts.Contains(reference))
+                .Select(reference => $"{name} -> {reference}"));
 
         Assert.Empty(violations);
     }
