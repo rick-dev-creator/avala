@@ -13,6 +13,15 @@ internal static class LayerMap
             ["Turns"] = Layer.Domain,
             ["Sessions"] = Layer.Application,
         }),
+        .. Module("Avala.Canvas", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Canvases"] = Layer.Domain,
+            ["Gallery"] = Layer.Application,
+            ["Streaming"] = Layer.Application,
+            ["Throttling"] = Layer.Application,
+        }),
         .. Module("Avala.Jobs", new()
         {
             ["UI"] = Layer.None,

@@ -17,6 +17,8 @@
     <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces\Avala.Workspaces.csproj" />
     <ProjectReference Include="..\..\src\Modules\Simulator\Avala.Simulator\Avala.Simulator.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Canvas\Avala.Canvas.Contracts\Avala.Canvas.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Canvas\Avala.Canvas\Avala.Canvas.csproj" />
     <ProjectReference Include="..\Avala.ArchitectureTests.Fixtures\Avala.ArchitectureTests.Fixtures.csproj" />
   </ItemGroup>
 </Project>
