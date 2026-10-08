@@ -1,4 +1,5 @@
 using Avala.Jobs.Domain;
+using Avala.Testing;
 
 namespace Avala.Jobs.Tests.Domain;
 

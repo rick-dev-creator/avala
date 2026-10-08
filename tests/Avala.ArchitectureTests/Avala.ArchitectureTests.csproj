@@ -9,6 +9,8 @@
     <ProjectReference Include="..\..\src\Avala.Shell\Avala.Shell.csproj" />
     <ProjectReference Include="..\..\src\Avala.Host\Avala.Host.csproj" />
     <ProjectReference Include="..\..\src\Avala.Runtime\Avala.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents\Avala.Agents.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Avala.Jobs\Avala.Jobs.csproj" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Avala.Jobs.UI\Avala.Jobs.UI.csproj" />
     <ProjectReference Include="..\Avala.ArchitectureTests.Fixtures\Avala.ArchitectureTests.Fixtures.csproj" />

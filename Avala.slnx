@@ -21,17 +21,23 @@
     <Project Path="src/Avala.Shell/Avala.Shell.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Agents/">
+    <Project Path="src/Modules/Agents/Avala.Agents.Contracts/Avala.Agents.Contracts.csproj" />
+    <Project Path="src/Modules/Agents/Avala.Agents/Avala.Agents.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Jobs/">
     <Project Path="src/Modules/Jobs/Avala.Jobs/Avala.Jobs.csproj" />
     <Project Path="src/Modules/Jobs/Avala.Jobs.UI/Avala.Jobs.UI.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <File Path="tests/Directory.Build.props" />
+    <Project Path="tests/Avala.Agents.Tests/Avala.Agents.Tests.csproj" />
     <Project Path="tests/Avala.ArchitectureTests/Avala.ArchitectureTests.csproj" />
     <Project Path="tests/Avala.ArchitectureTests.Fixtures/Avala.ArchitectureTests.Fixtures.csproj" />
     <Project Path="tests/Avala.Shell.Tests/Avala.Shell.Tests.csproj" />
     <Project Path="tests/Avala.Jobs.Tests/Avala.Jobs.Tests.csproj" />
     <Project Path="tests/Avala.Runtime.Tests/Avala.Runtime.Tests.csproj" />
     <Project Path="tests/Avala.Sdk.Tests/Avala.Sdk.Tests.csproj" />
+    <Project Path="tests/Avala.Testing/Avala.Testing.csproj" />
   </Folder>
 </Solution>

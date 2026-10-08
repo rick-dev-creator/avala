@@ -16,6 +16,7 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `src/Modules/<Module>/Avala.<Module>.Contracts` | Optional public contracts other modules may depend on. |
 | `tests/Avala.ArchitectureTests` | The rules below, enforced on every build. |
 | `tests/Avala.ArchitectureTests.Fixtures` | A compliant sample module and a module that breaks every rule on purpose. |
+| `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, generated diagrams. |
 | `tests/Avala.<Project>.Tests` | Unit tests. |
 
 ## Rules

@@ -238,6 +238,8 @@ public interface ICompletionGate
 
 **Accepted**
 
+`Avala.Agents.Contracts` is the only thing a provider plugin depends on.
+
 ```csharp
 public interface IAgentProvider
 {
@@ -248,30 +250,83 @@ public interface IAgentProvider
 
 public interface IAgentSession : IAsyncDisposable
 {
-    IAsyncEnumerable<AgentEvent> Events { get; }
-    ValueTask<Result<TurnAccepted, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken);
-    ValueTask<Result<PermissionAnswered, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken);
-    ValueTask<Result<TurnInterrupted, AgentError>> InterruptAsync(CancellationToken cancellationToken);
+    SessionId Id { get; }
+    IAsyncEnumerable<IAgentEvent> Events { get; }
+    ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken);
+    ValueTask<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken);
+    ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken);
 }
 ```
 
-- `SessionOptions` holds harness concepts only: working directory, tools the harness injects through MCP, permission policy. Paths, tokens and protocols belong to each provider's own settings.
-- `AgentEvent` is a closed set: turn started and completed, message and reasoning deltas and completions, tool started, updated and completed, permission requested, plan updated, subagent started and completed, usage reported, session failed.
-- Behavior depends on `AgentCapabilities`, never on a provider's name. An architecture test forbids provider names outside their plugin. **Proposed**
+- `SessionOptions` holds harness concepts only: working directory and permission mode. Paths, tokens and protocols belong to each provider's own settings.
+- Behavior depends on `AgentCapabilities`, never on a provider's name: partial output, reasoning, interruption, resumption, usage, cost and limits.
+
+### Agnostic events
+
+**Accepted**
+
+Every provider translates its protocol into one closed set of events. Each event carries its `SessionId` and `TurnId`.
+
+| Event | Meaning |
+| --- | --- |
+| `TurnStarted`, `TurnCompleted` | A turn begins, and ends as finished, interrupted or failed |
+| `ItemStarted` | Work begins: a message, reasoning, a file edit, a command, a search, a web request, an MCP call, a subagent |
+| `CanvasStarted` | A canvas begins, with a title and a media type such as `text/html`, `image/svg+xml`, `text/vnd.mermaid` or `text/markdown` |
+| `ItemProgressed` | More content for an open item or canvas, appended in order |
+| `ItemCompleted` | An item or canvas ends as succeeded, failed, cancelled, abandoned or expired |
+| `PermissionRequested`, `PermissionResolved` | An open item waits for a decision, and gets it |
+| `PlanUpdated` | The agent's plan and the status of each step |
+| `UsageReported` | Tokens used: input, output, cache reads, cache writes and reasoning, plus the cost when the provider reports it |
+| `LimitReported` | A usage limit: its window, the fraction used and when it resets |
+
+All work inside a turn shares one lifecycle: started, progressed, completed. Messages, tools and canvases therefore get the same integrity guarantees and the same rendering pipeline.
 
 ### Turn integrity
 
 **Accepted**
 
-- `TurnLifecycle` applies every incoming `AgentEvent` and returns a `Result`. It enforces that every started item completes, that nothing arrives after the turn ends, and that an item left open expires and is marked as failed.
-- Time comes from `TimeProvider`, so tests advance time without waiting and without blocking.
-- These rules are written once for every provider.
+The `Turn` aggregate applies every incoming event and returns a `Result`:
+
+- Every started item completes, and no item starts twice or progresses before it starts or after it ends.
+- Events from another session or turn are rejected, and nothing is accepted after the turn ends.
+- When a turn ends with items still open, the turn closes them as `Abandoned` before forwarding the end, so the stream stays consistent for every consumer.
+- An item silent for longer than the allowed patience expires. An item waiting for permission never expires: that is human time.
+- Time is passed in by the caller, so the domain stays pure and tests never wait.
+
+The generated [turn lifecycle diagram](../diagrams/turn-lifecycle.md) shows the states.
 
 ### Conformance kit
 
 **Accepted**
 
-Every provider plugin must pass the same test suite, replaying recorded sessions of its provider. A plugin that leaves a turn open or emits events out of order fails before it reaches anyone.
+Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. A scripted provider exercises the kit today. It lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
+
+## Canvas
+
+**Accepted**
+
+The harness can paint charts, diagrams, screens and designs while the agent writes them, for every provider.
+
+- A canvas is an item of the turn: `CanvasStarted` opens it with its media type, `ItemProgressed` streams its content and `ItemCompleted` closes it. It inherits every integrity rule of items.
+- The harness offers the canvas to every agent as a tool it injects through MCP. Providers that stream partial output deliver the canvas in chunks; the others deliver it at once.
+- A Canvas module accumulates each canvas, throttles updates and hands snapshots to its view model. Renderers are plugins registered by media type.
+- Canvas content is untrusted: it renders in an isolated surface with no network access by default.
+
+## Observability
+
+**Accepted**
+
+Everything the harnesses process goes through observability: tokens, cost, usage limits, durations and outcomes.
+
+- The agnostic events carry the raw facts, so observability works the same for every provider.
+- An Observability module subscribes to the events on the bus and aggregates them by provider, account, session and job.
+- It publishes metrics through `System.Diagnostics.Metrics`, the .NET standard that OpenTelemetry collects, and feeds view models for the in-app dashboards.
+
+## Delivery
+
+**Accepted**
+
+The application is built view model first: every screen is built and tested as view models with no user interface. Avalonia views come last, as a thin layer bound to view models that already work.
 
 ## Persistence
 

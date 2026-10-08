@@ -43,7 +43,9 @@ Done when: every allowed and forbidden transition is covered by a test, and no t
 
 ## Phase 3: Agents core
 
-1. `Agents.Contracts`: `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, `AgentError`.
+Status: done. The agnostic events also carry telemetry and streaming canvases.
+
+1. `Agents.Contracts`: `IAgentProvider`, `IAgentSession`, the agnostic events, `AgentCapabilities`, `AgentError`.
 2. `TurnLifecycle` with expiry driven by `TimeProvider`.
 3. A fake provider for tests that replays scripted events.
 4. The skeleton of the conformance kit.
@@ -77,11 +79,36 @@ Done when: a job goes from submitted to awaiting review with the fake provider, 
 
 Done when: a real job runs end to end with Claude Code.
 
-## Phase 7: Minimal usable UI
+## Phase 7: Observability
 
-1. Job list and new job.
-2. Timeline projection and the activity view: messages, reasoning, tool calls.
-3. Diff review: approve or discard.
+1. The Observability module: aggregates tokens, cost and limits by provider, account, session and job.
+2. Metrics through `System.Diagnostics.Metrics`.
+3. View models for the usage dashboards.
+
+Done when: every turn of the fake and real providers shows up in the aggregates, with unit tests.
+
+## Phase 8: Canvas
+
+1. The canvas tool the harness injects through MCP.
+2. The Canvas module: accumulates each canvas and throttles snapshots.
+3. The canvas view model, and renderer plugins by media type.
+
+Done when: a canvas streamed by the fake provider reaches its view model in order, with unit tests.
+
+## Phase 9: View models of the usable core
+
+The whole application works through view models, with no user interface.
+
+1. Job list, new job and job detail.
+2. Timeline projection and the activity view: messages, reasoning, tools and canvases.
+3. Diff review: approve, send back or discard.
+
+Done when: the full job flow runs end to end through view models in tests.
+
+## Phase 10: Views
+
+1. Avalonia views for every view model, semi-transparent with themes, Inter for the interface and JetBrains Mono for code.
+2. The canvas surface for each media type.
 
 Done when: the harness replaces a terminal for daily work.
 

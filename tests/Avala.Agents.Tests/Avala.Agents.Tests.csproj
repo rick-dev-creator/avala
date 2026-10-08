@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Modules\Jobs\Avala.Jobs\Avala.Jobs.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents\Avala.Agents.csproj" />
     <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
   </ItemGroup>
 </Project>
