@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Avala.Sdk\Avala.Sdk.csproj" />
+    <ProjectReference Include="..\..\src\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />
+    <ProjectReference Include="..\..\src\Avala.Shell\Avala.Shell.csproj" />
+    <ProjectReference Include="..\..\src\Avala.Host\Avala.Host.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Tasks\Avala.Tasks\Avala.Tasks.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Tasks\Avala.Tasks.UI\Avala.Tasks.UI.csproj" />
+  </ItemGroup>
+</Project>

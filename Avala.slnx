@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="BannedSymbols.txt" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Avala.Host/Avala.Host.csproj" />
+    <Project Path="src/Avala.Sdk/Avala.Sdk.csproj" />
+    <Project Path="src/Avala.Sdk.UI/Avala.Sdk.UI.csproj" />
+    <Project Path="src/Avala.Shell/Avala.Shell.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Tasks/">
+    <Project Path="src/Modules/Tasks/Avala.Tasks/Avala.Tasks.csproj" />
+    <Project Path="src/Modules/Tasks/Avala.Tasks.UI/Avala.Tasks.UI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <File Path="tests/Directory.Build.props" />
+    <Project Path="tests/Avala.ArchitectureTests/Avala.ArchitectureTests.csproj" />
+    <Project Path="tests/Avala.Shell.Tests/Avala.Shell.Tests.csproj" />
+    <Project Path="tests/Avala.Tasks.Tests/Avala.Tasks.Tests.csproj" />
+  </Folder>
+</Solution>

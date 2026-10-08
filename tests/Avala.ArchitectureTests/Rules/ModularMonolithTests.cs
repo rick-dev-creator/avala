@@ -1,0 +1,129 @@
+using Avala.ArchitectureTests.Solution;
+using Avala.Sdk;
+
+namespace Avala.ArchitectureTests.Rules;
+
+public sealed class ModularMonolithTests
+{
+    private static readonly string[] HostDependencies = ["Avala.Sdk", "Avala.Sdk.UI", "Avala.Shell"];
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task HostProjectReferencesOnlyTheSdkAndTheShellAsync()
+    {
+        var references = await SolutionLayout.ProjectReferencesAsync(
+            SolutionLayout.Project("Avala.Host").Path,
+            Cancellation);
+
+        Assert.Empty(references.Except(HostDependencies));
+    }
+
+    [Fact]
+    public void HostAssemblyKnowsNoModule()
+    {
+        var modules = SolutionLayout.ModuleProjects.Select(project => project.Name);
+
+        Assert.Empty(AvalaAssemblies.Load("Avala.Host").ReferencedAvalaAssemblies.Intersect(modules));
+    }
+
+    [Fact]
+    public void ShellDependsOnlyOnTheSdk() =>
+        Assert.Empty(AvalaAssemblies.Load("Avala.Shell").ReferencedAvalaAssemblies.Except(["Avala.Sdk"]));
+
+    [Fact]
+    public void SdkDependsOnNothingFromAvalaNorAvalonia()
+    {
+        var sdk = AvalaAssemblies.Load("Avala.Sdk");
+
+        Assert.Empty(sdk.ReferencedAvalaAssemblies);
+        Assert.False(sdk.ReferencesAvalonia);
+    }
+
+    [Fact]
+    public void SdkUiDependsOnlyOnTheSdk() =>
+        Assert.Empty(AvalaAssemblies.Load("Avala.Sdk.UI").ReferencedAvalaAssemblies.Except(["Avala.Sdk"]));
+
+    [Fact]
+    public void ModulesDependOnlyOnTheSdkTheirOwnProjectsAndOtherContracts()
+    {
+        var violations = SolutionLayout.ModuleProjects
+            .SelectMany(project => AvalaAssemblies.Load(project.Name).ReferencedAvalaAssemblies
+                .Where(reference => !IsAllowedModuleDependency(project, reference))
+                .Select(reference => $"{project.Name} -> {reference}"));
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void ContractsDependOnlyOnTheSdk()
+    {
+        var violations = SolutionLayout.ModuleProjects
+            .Where(project => project.Kind == ProjectKind.Contracts)
+            .SelectMany(project => AvalaAssemblies.Load(project.Name).ReferencedAvalaAssemblies
+                .Except(["Avala.Sdk"])
+                .Select(reference => $"{project.Name} -> {reference}"));
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void ModuleCoresExposeNoPublicType()
+    {
+        var violations = SolutionLayout.ModuleProjects
+            .Where(project => project.Kind == ProjectKind.Core)
+            .SelectMany(project => AvalaAssemblies.Load(project.Name).ExportedAvalaTypes)
+            .Select(type => type.FullName);
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void ModuleUisExposeOnlyTheirPluginEntry()
+    {
+        var violations = SolutionLayout.ModuleProjects
+            .Where(project => project.Kind == ProjectKind.UI)
+            .Select(project => (project.Name, Exported: AvalaAssemblies.Load(project.Name).ExportedAvalaTypes))
+            .Where(entry => entry.Exported is not [var single] || !typeof(IPlugin).IsAssignableFrom(single))
+            .Select(entry => $"{entry.Name} exposes [{string.Join(", ", entry.Exported.Select(type => type.Name))}]");
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void EveryModuleShipsExactlyOnePluginProject()
+    {
+        var violations = SolutionLayout.ModuleProjects
+            .GroupBy(project => project.Module)
+            .Where(module => module.Count(project => project.Kind == ProjectKind.UI) != 1)
+            .Select(module => module.Key);
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public async Task ArchitectureTestsCoverEverySourceProjectAsync()
+    {
+        var covered = await SolutionLayout.ProjectReferencesAsync(
+            Path.Combine(SolutionLayout.TestsDirectory, "Avala.ArchitectureTests", "Avala.ArchitectureTests.csproj"),
+            Cancellation);
+
+        Assert.Empty(SolutionLayout.SourceProjects.Select(project => project.Name).Except(covered));
+    }
+
+    [Fact]
+    public void ShellAndModuleCoresHaveUnitTestProjects()
+    {
+        var missing = SolutionLayout.SourceProjects
+            .Where(project => project.Name == "Avala.Shell" || project is { Module: not null, Kind: ProjectKind.Core })
+            .Select(project => $"{project.Name}.Tests")
+            .Where(name => !File.Exists(Path.Combine(SolutionLayout.TestsDirectory, name, $"{name}.csproj")));
+
+        Assert.Empty(missing);
+    }
+
+    private static bool IsAllowedModuleDependency(SourceProject project, string reference) =>
+        reference is "Avala.Sdk" or "Avala.Sdk.UI"
+        || SolutionLayout.ModuleProjects.Any(other =>
+            other.Name == reference && (other.Module == project.Module || other.Kind == ProjectKind.Contracts));
+}
