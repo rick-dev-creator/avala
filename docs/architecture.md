@@ -37,7 +37,7 @@ Inside a module, folders and namespaces are named after what the code does: its 
 | `Storage` | The EF Core store behind `IJobStore` | Infrastructure |
 | `JobList` | The jobs page view model | ViewModels |
 
-The other cores follow the same idea: Agents has `Turns` and `Sessions`; Workspaces has `Workspaces`, `Provisioning`, `Git` and `Storage`; the simulator has `Scenarios`, `Playback` and `FileSystem`. Plugin entries stay at the root of their project, and `Contracts` projects keep their own names.
+The other cores follow the same idea: Agents has `Turns` and `Sessions`; Workspaces has `Workspaces`, `Provisioning`, `Git` and `Storage`; Canvas has `Canvases`, `Gallery`, `Streaming` and `Throttling`; the simulator has `Scenarios`, `Playback` and `FileSystem`. Plugin entries stay at the root of their project, and `Contracts` projects keep their own names.
 
 ### Layer map
 
@@ -94,7 +94,7 @@ Comments are banned, so every exception to an analyzer is recorded here.
 
 ## Plugins
 
-A project becomes a plugin with `<AvalaPlugin>true</AvalaPlugin>` and `<EnableDynamicLoading>true</EnableDynamicLoading>`. Every module entry is one: Agents, Workspaces, the Jobs UI and the simulator. Its build output is copied to `artifacts/plugins/<AssemblyName>`. The host loads every folder there, or the folder named by `AVALA_PLUGINS_PATH`, in folder name order.
+A project becomes a plugin with `<AvalaPlugin>true</AvalaPlugin>` and `<EnableDynamicLoading>true</EnableDynamicLoading>`. Every module entry is one: Agents, Workspaces, the Jobs UI, Canvas and the simulator. Its build output is copied to `artifacts/plugins/<AssemblyName>`. The host loads every folder there, or the folder named by `AVALA_PLUGINS_PATH`, in folder name order.
 
 All plugins share the host's default load context, so every assembly is loaded once:
 

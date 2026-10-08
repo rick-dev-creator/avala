@@ -41,6 +41,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator | `JobId`, integration events, `IJobs`, `ICompletionGate` |
 | Agents | Sessions, turn integrity, provider registry | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, integration events |
 | Workspaces | Working copies, branches, checkpoints | `IWorkspaces`, integration events |
+| Canvas | Accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
@@ -102,6 +103,7 @@ State machines use the [Stateless](https://github.com/dotnet-state-machine/state
 | `JobLifecycle` | Jobs | Draft, Preparing, Running, Checking, AwaitingReview, NeedsHelp, Approved, Discarded, Failed, inside the superstates Open and Active |
 | `TurnLifecycle` | Agents | Idle, Working, AwaitingPermission, Completed, Interrupted, Failed |
 | `WorkspaceLifecycle` | Workspaces | Creating, Ready, Disposed |
+| `CanvasLifecycle` | Canvas | Streaming, then Completed, Failed, Cancelled, Abandoned or Expired inside the superstate Closed |
 
 The generated [job lifecycle diagram](../diagrams/job-lifecycle.md) is the reference. A test fails when it no longer matches the code.
 
@@ -350,7 +352,7 @@ Every provider plugin must pass the same check: start a session, send a turn and
 - File edits write real files into the session's working directory through a port of `Playback`, implemented in `FileSystem`.
 - Events can be spaced by a delay measured with `TimeProvider`. It is zero by default and in tests; the plugin entry uses a short pace for in-app demos, and a constructor overload takes another.
 - It declares every capability, and an interruption ends the running turn as `Interrupted`.
-- `tests/Avala.Host.Tests` plays its scenarios inside the application composed from the published plugin folder, with its in-app pace, and observes the jobs through the event feed.
+- `tests/Avala.Host.Tests` plays its scenarios inside the application composed from the published plugin folder, with its in-app pace, and observes the jobs and the canvas snapshots through the event feed.
 
 | Scenario | Behavior |
 | --- | --- |
@@ -372,9 +374,29 @@ Every scenario that reaches its end reports usage with cost and a usage limit, s
 The harness can paint charts, diagrams, screens and designs while the agent writes them, for every provider.
 
 - A canvas is an item of the turn: `CanvasStarted` opens it with its media type, `ItemProgressed` streams its content and `ItemCompleted` closes it. It inherits every integrity rule of items.
-- The harness offers the canvas to every agent as a tool it injects through MCP. Providers that stream partial output deliver the canvas in chunks; the others deliver it at once.
-- A Canvas module accumulates each canvas, throttles updates and hands snapshots to its view model. Renderers are plugins registered by media type.
+- The harness offers the canvas to every agent as a tool it injects through MCP. Providers that stream partial output deliver the canvas in chunks; the others deliver it at once. The tool arrives with the real Claude Code provider; until then the simulator's `canvas` scenario streams canvases through the same agnostic events.
+- The Canvas module accumulates each canvas, throttles updates and publishes snapshots. View models and renderers, plugins registered by media type, arrive with the user interface.
 - Canvas content is untrusted: it renders in an isolated surface with no network access by default.
+
+### Canvas module
+
+**Accepted**
+
+The module subscribes to `AgentActivity` with an `IHandle<T>`, like every other consumer of agent events, so it receives only events the `Turn` aggregate has already accepted. It works for every provider without knowing any.
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Canvases` | The `CanvasDocument` aggregate, `CanvasLifecycle`, the error enum and the domain events | Domain |
+| `Gallery` | The documents of every session behind one lock, and the `ICanvases` query | Application |
+| `Streaming` | `CanvasFeed`, the handler that applies canvas events to the gallery | Application |
+| `Throttling` | `SnapshotThrottle`, which decides when a snapshot is published | Application |
+
+- A `CanvasDocument` is identified by its `CanvasId`, the turn and the item that carry it. It opens from `CanvasStarted`, which needs a media type, appends every `ItemProgressed` chunk in arrival order and closes on `ItemCompleted` in the state of its outcome: completed, failed, cancelled, abandoned or expired. It rejects content and completions of another item with `ForeignItem`, and anything after it closed with `AlreadyClosed`. The gallery rejects a canvas that starts twice with `AlreadyOpen`, and reports content for an item that never started as a canvas as `UnknownCanvas`, which is how the feed ignores messages, reasoning and tools.
+- The generated [canvas lifecycle diagram](../diagrams/canvas-lifecycle.md) shows the states: `Streaming`, then one of the closed states inside the superstate `Closed`.
+- `CanvasUpdated` carries a `CanvasSnapshot`: the canvas, its session, title, media type, the full content so far and its status. A snapshot holds the full content rather than a delta, so a consumer that misses one loses nothing.
+- Snapshots are throttled per canvas with `TimeProvider`: a change publishes at once when the last snapshot of that canvas is older than the interval, 100 ms in the plugin; otherwise one flush is scheduled for the end of the interval and carries every change made meanwhile. A canvas therefore gets at most one streaming snapshot per interval, its start is visible at once and a pause never hides content. Completion cancels the pending flush and publishes the final snapshot at once, whatever the interval. A flush that comes due after the canvas closed publishes nothing, so no streaming snapshot follows the final one.
+- `ICanvases.InSession` returns the current snapshot of every canvas of a session in start order, for view models that open after the canvases started.
+- The canvases live in memory for the life of the application. They are not persisted, since the agent can redraw them; dropping a session's canvases when it closes arrives with the view models that decide when a session is no longer shown.
 
 ## Observability
 

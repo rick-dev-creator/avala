@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
+using Avala.Canvas.Contracts;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -20,6 +21,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private readonly TemporaryRepository repository;
     private readonly EventWatch<JobProgressed> progress;
     private readonly EventWatch<AgentActivity> activity;
+    private readonly EventWatch<CanvasUpdated> canvases;
 
     private SimulatedRun(TemporaryFolder data, CompositionRoot root, TemporaryRepository repository)
     {
@@ -28,9 +30,12 @@ internal sealed class SimulatedRun : IAsyncDisposable
         this.repository = repository;
         progress = Watch<JobProgressed>();
         activity = Watch<AgentActivity>();
+        canvases = Watch<CanvasUpdated>();
     }
 
     public TemporaryRepository Repository => repository;
+
+    public ICanvases Canvases => root.Services.GetRequiredService<ICanvases>();
 
     public string Worktree => Assert.Single(Directory.GetDirectories(new AvalaPaths(data.Path).Folder("worktrees")));
 
@@ -53,6 +58,17 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task<IReadOnlyList<IAgentEvent>> TurnAsync() =>
         [.. (await activity.CollectUntilAsync(update => update.Event is TurnCompleted)).Select(update => update.Event)];
+
+    public async Task<IReadOnlyList<CanvasSnapshot>> CanvasSnapshotsAsync(int canvasCount)
+    {
+        var closed = 0;
+
+        return
+        [
+            .. (await canvases.CollectUntilAsync(update => update.Snapshot.Status != CanvasStatus.Streaming && ++closed == canvasCount))
+                .Select(update => update.Snapshot),
+        ];
+    }
 
     public async ValueTask DisposeAsync()
     {

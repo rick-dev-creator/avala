@@ -83,6 +83,7 @@ Status: item 1 is done.
 2. The Claude Code provider plugin.
 3. It passes the conformance kit with recorded sessions.
 4. The architecture rule that keeps provider names inside their own plugin.
+5. The canvas tool the harness injects through MCP, translated into the canvas events the Canvas module already consumes.
 
 Done when: a real job runs end to end with Claude Code.
 
@@ -96,18 +97,21 @@ Done when: every turn of the fake and real providers shows up in the aggregates,
 
 ## Phase 8: Canvas
 
-1. The canvas tool the harness injects through MCP.
-2. The Canvas module: accumulates each canvas and throttles snapshots.
-3. The canvas view model, and renderer plugins by media type.
+Status: done. The MCP canvas tool moved to phase 6, with the real provider; the canvas view model to phase 9 and the renderers to phase 10, with the rest of the user interface.
 
-Done when: a canvas streamed by the fake provider reaches its view model in order, with unit tests.
+1. The Canvas module, a plugin of its own: the `CanvasDocument` aggregate with `CanvasLifecycle` and its generated diagram, accumulating each canvas from `CanvasStarted`, `ItemProgressed` and `ItemCompleted` and rejecting foreign, repeated and late content with typed errors.
+2. Snapshots throttled per canvas with `TimeProvider`, published as `CanvasUpdated` with the full content so far and flushed at once on completion.
+3. `Canvas.Contracts`: `CanvasId`, `CanvasSnapshot`, `CanvasUpdated` and the `ICanvases` query of a session's current canvases.
+4. A host simulation test: the simulator's `canvas` scenario delivers its SVG and Mermaid canvases as snapshots that grow in order and end complete.
+
+Done when: a canvas streamed by the simulator reaches the bus as snapshots in order, with unit tests. Met.
 
 ## Phase 9: View models of the usable core
 
 The whole application works through view models, with no user interface.
 
 1. Job list, new job and job detail.
-2. Timeline projection and the activity view: messages, reasoning, tools and canvases.
+2. Timeline projection and the activity view: messages, reasoning, tools and canvases, the canvas view model reading `ICanvases` and following `CanvasUpdated`.
 3. Diff review: approve, send back or discard.
 
 Done when: the full job flow runs end to end through view models in tests.
@@ -115,6 +119,6 @@ Done when: the full job flow runs end to end through view models in tests.
 ## Phase 10: Views
 
 1. Avalonia views for every view model, semi-transparent with themes, Inter for the interface and JetBrains Mono for code.
-2. The canvas surface for each media type.
+2. The canvas surface for each media type, with renderer plugins registered by media type.
 
 Done when: the harness replaces a terminal for daily work.

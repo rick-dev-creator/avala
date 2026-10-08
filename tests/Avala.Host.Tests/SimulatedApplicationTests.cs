@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Canvas.Contracts;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -76,16 +77,19 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task CanvasesStreamTheirChunksInOrderAsAgentActivityAsync()
+    public async Task StreamedCanvasesArriveInOrderAsSnapshotsThatEndCompleteAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "canvas");
 
-        var turn = await run.TurnAsync();
+        var snapshots = await run.CanvasSnapshotsAsync(canvasCount: 2);
 
-        Assert.Equal("svg", XDocument.Parse(Canvas(turn, "diagram", "image/svg+xml")).Root?.Name.LocalName);
+        Assert.Equal("svg", XDocument.Parse(Canvas(snapshots, "diagram", "image/svg+xml")).Root?.Name.LocalName);
         Assert.Equal(
             "flowchart LR\n  Submitted --> Running\n  Running --> Checking --> AwaitingReview\n",
-            Canvas(turn, "flow", "text/vnd.mermaid"));
+            Canvas(snapshots, "flow", "text/vnd.mermaid"));
+        Assert.Equal(
+            [("diagram", CanvasStatus.Completed), ("flow", CanvasStatus.Completed)],
+            run.Canvases.InSession(snapshots[0].Session).Select(canvas => (canvas.Canvas.Item.Value, canvas.Status)));
     }
 
     [Fact]
@@ -101,23 +105,15 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         Assert.InRange(Assert.Single(turn.OfType<LimitReported>()).Limit.UsedFraction, double.Epsilon, 1);
     }
 
-    private static string Canvas(IReadOnlyList<IAgentEvent> turn, string item, string mediaType)
+    private static string Canvas(IReadOnlyList<CanvasSnapshot> snapshots, string item, string mediaType)
     {
-        var events = turn.Where(update => ItemOf(update) == new ItemId(item)).ToList();
+        var canvas = snapshots.Where(snapshot => snapshot.Canvas.Item == new ItemId(item)).ToList();
 
-        Assert.Equal(mediaType, Assert.IsType<CanvasStarted>(events[0]).MediaType);
-        Assert.Equal(ItemOutcome.Succeeded, Assert.IsType<ItemCompleted>(events[^1]).Outcome);
-        Assert.True(events.Count > 3);
+        Assert.All(canvas, snapshot => Assert.Equal(mediaType, snapshot.MediaType));
+        Assert.All(canvas.SkipLast(1), snapshot => Assert.Equal(CanvasStatus.Streaming, snapshot.Status));
+        Assert.Equal(CanvasStatus.Completed, canvas[^1].Status);
+        Assert.All(canvas.Zip(canvas.Skip(1)), pair => Assert.StartsWith(pair.First.Content, pair.Second.Content, StringComparison.Ordinal));
 
-        return string.Concat(events[1..^1].Select(update => Assert.IsType<ItemProgressed>(update).Text));
+        return canvas[^1].Content;
     }
-
-    private static ItemId? ItemOf(IAgentEvent update) => update switch
-    {
-        CanvasStarted started => started.Item,
-        ItemStarted started => started.Item,
-        ItemProgressed progressed => progressed.Item,
-        ItemCompleted completed => completed.Item,
-        _ => null,
-    };
 }
