@@ -42,6 +42,14 @@ internal sealed partial class AgentSessions(
             ? (await running.Session.SendAsync(new UserTurn(message), cancellationToken)).Map(turn => new AgentTurn(session, turn))
             : AgentError.SessionClosed;
 
+    public async ValueTask<Result<ItemId, AgentError>> RespondAsync(
+        SessionId session,
+        PermissionDecision decision,
+        CancellationToken cancellationToken) =>
+        live.TryGetValue(session, out var running)
+            ? await running.Session.RespondAsync(decision, cancellationToken)
+            : AgentError.SessionClosed;
+
     public async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)
     {
         if (!live.TryRemove(session, out var running))

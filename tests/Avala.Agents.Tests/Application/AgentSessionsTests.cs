@@ -101,6 +101,31 @@ public sealed class AgentSessionsTests
         Assert.Equal(AgentError.SessionClosed, Outcomes.FailsWith(await agents.SendAsync(turn.Session, "late", Cancellation)));
     }
 
+    [Fact]
+    public async Task APermissionDecisionReachesTheSessionThatAskedForItAsync()
+    {
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
+        await using var agents = Agents(new RecordingBus(), provider);
+        var turn = await StartAsync(agents, "Add GitHub login");
+        var decision = new PermissionDecision(new ItemId("migrate"), PermissionAnswer.Allow);
+
+        var answered = Outcomes.Succeeds(await agents.RespondAsync(turn.Session, decision, Cancellation));
+
+        Assert.Equal(new ItemId("migrate"), answered);
+        Assert.Equal([decision], Assert.Single(provider.Sessions).Decisions);
+    }
+
+    [Fact]
+    public async Task CannotAnswerAPermissionInASessionThatIsNotOpenAsync()
+    {
+        await using var agents = Agents(new RecordingBus(), new ScriptedAgentProvider(ScriptedAgentProvider.Reply));
+        var decision = new PermissionDecision(new ItemId("migrate"), PermissionAnswer.Allow);
+
+        Assert.Equal(
+            AgentError.SessionClosed,
+            Outcomes.FailsWith(await agents.RespondAsync(SessionId.New(), decision, Cancellation)));
+    }
+
     private static async Task<AgentTurn> StartAsync(AgentSessions agents, string instruction)
     {
         var session = Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));
