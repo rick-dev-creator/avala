@@ -85,5 +85,6 @@ Avala exists partly as an answer to harnesses whose code grew out of control. Do
 ## Documentation
 
 - Repository content is written in English.
+- At the end of every session, record it in `docs/sessions` with its token usage and cost, following [docs/sessions/README.md](docs/sessions/README.md).
 - Update the design and the plan in the same change when a decision changes.
 - Record every analyzer exception and its reason in `docs/architecture.md`.

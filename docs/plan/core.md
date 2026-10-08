@@ -54,6 +54,8 @@ Done when: `TurnLifecycle` rejects every malformed sequence in its tests, and th
 
 ## Phase 4: Workspaces
 
+Status: done. Persistence stays in memory until phase 5 brings EF Core.
+
 1. An asynchronous process runner for git, with no blocking calls.
 2. `WorkspaceLifecycle` and the `Workspace` aggregate.
 3. Worktree creation and disposal, plus a checkpoint per turn.

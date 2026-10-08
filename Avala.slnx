@@ -12,6 +12,7 @@
     <File Path="dotnet-tools.json" />
     <File Path=".github/workflows/ci.yml" />
     <File Path="scripts/metrics.cs" />
+    <File Path="scripts/session-cost.cs" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Avala.Host/Avala.Host.csproj" />
@@ -24,6 +25,10 @@
   <Folder Name="/src/Modules/Agents/">
     <Project Path="src/Modules/Agents/Avala.Agents.Contracts/Avala.Agents.Contracts.csproj" />
     <Project Path="src/Modules/Agents/Avala.Agents/Avala.Agents.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Workspaces/">
+    <Project Path="src/Modules/Workspaces/Avala.Workspaces.Contracts/Avala.Workspaces.Contracts.csproj" />
+    <Project Path="src/Modules/Workspaces/Avala.Workspaces/Avala.Workspaces.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Jobs/">
     <Project Path="src/Modules/Jobs/Avala.Jobs/Avala.Jobs.csproj" />
@@ -39,5 +44,6 @@
     <Project Path="tests/Avala.Runtime.Tests/Avala.Runtime.Tests.csproj" />
     <Project Path="tests/Avala.Sdk.Tests/Avala.Sdk.Tests.csproj" />
     <Project Path="tests/Avala.Testing/Avala.Testing.csproj" />
+    <Project Path="tests/Avala.Workspaces.Tests/Avala.Workspaces.Tests.csproj" />
   </Folder>
 </Solution>

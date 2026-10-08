@@ -6,3 +6,4 @@
 | [Core design](design/core.md) | Modules, domain model, state machines, result pattern, events and agent contract |
 | [Core action plan](plan/core.md) | Phases, steps and completion criteria for the core |
 | [Job lifecycle](diagrams/job-lifecycle.md) | State diagram generated from the code |
+| [Sessions](sessions/README.md) | Every working session with its token usage and cost at API prices |

@@ -3,6 +3,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces\Avala.Workspaces.csproj" />
     <ProjectReference Include="..\..\src\Avala.Runtime\Avala.Runtime.csproj" />
     <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
   </ItemGroup>
