@@ -77,9 +77,12 @@ Done when: a job goes from submitted to awaiting review with the fake provider, 
 
 ## Phase 6: First provider
 
-1. The Claude Code provider plugin.
-2. It passes the conformance kit with recorded sessions.
-3. The architecture rule that keeps provider names inside their own plugin.
+Status: item 1 is done.
+
+1. A simulated Claude Code provider that uses only the public agent contracts: declarative scenarios chosen by a tag in the first message, real file edits, permission requests answered through `IAgents.RespondAsync`, and failure scenarios that the conformance kit must report.
+2. The Claude Code provider plugin.
+3. It passes the conformance kit with recorded sessions.
+4. The architecture rule that keeps provider names inside their own plugin.
 
 Done when: a real job runs end to end with Claude Code.
 

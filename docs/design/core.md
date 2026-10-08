@@ -290,11 +290,13 @@ public interface IAgents
 {
     ValueTask<Result<SessionId, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken);
     ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken);
+    ValueTask<Result<ItemId, AgentError>> RespondAsync(SessionId session, PermissionDecision decision, CancellationToken cancellationToken);
     ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken);
 }
 ```
 
 - `OpenAsync` opens a session in the working directory of `AgentRequest` and returns its `SessionId`. `SendAsync` sends a message and returns the `AgentTurn` it started. Opening and sending are separate so the caller can store the session before any turn can finish: Jobs records it on the job first.
+- `RespondAsync` answers the permission request of a live session and returns the item it unblocked. A session that is not open returns `SessionClosed`.
 - `AgentSessions` implements `IAgents`. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends.
 
 ### Agnostic events
@@ -335,7 +337,32 @@ The generated [turn lifecycle diagram](../diagrams/turn-lifecycle.md) shows the 
 
 **Accepted**
 
-Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. A scripted provider exercises the kit today. It lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
+Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
+
+### Simulator
+
+**Accepted**
+
+`Avala.Simulator` is a provider plugin that plays a Claude Code session without a model, so the harness runs end to end for demos and for catching bugs without spending tokens. It depends only on `Agents.Contracts` and the SDK, the same contracts a real provider uses, and registers itself as an `IAgentProvider`.
+
+- Scenarios are declarative data in its domain: one ordered script per turn, made of reasoning, message deltas, file edits, commands with output, permission requests, plan updates, usage with cost, a usage limit, streamed canvases and the end of the turn. A session advances to the next script with every turn, so a scenario can change its behavior after feedback.
+- The first message of a session chooses the scenario with a tag such as `[simulate: fix-after-feedback]`. Without a tag, or with an unknown name, the scenario is `reply`. Later messages never change it.
+- File edits write real files into the session's working directory through an `Infrastructure` port.
+- Events can be spaced by a delay measured with `TimeProvider`. It is zero by default and in tests; the plugin entry uses a short pace for in-app demos, and a constructor overload takes another.
+- It declares every capability, and an interruption ends the running turn as `Interrupted`.
+
+| Scenario | Behavior |
+| --- | --- |
+| `reply` | Reasoning and a streamed reply |
+| `edit` | A plan, a file written into the working directory, a test command and a reply |
+| `fix-after-feedback` | The first turn writes a file marked `BROKEN`; the turn after feedback rewrites it fixed |
+| `permission` | Asks permission for a command and waits for `RespondAsync`. Allowed, it runs the command and goes on; denied, it cancels the command and finishes the turn |
+| `crash` | The event stream throws in the middle of the turn |
+| `left-open` | Starts an item and finishes the turn without closing it |
+| `hang` | `TurnStarted` and nothing else, until interrupted |
+| `canvas` | Streams an SVG and a Mermaid diagram in chunks |
+
+Every scenario that reaches its end reports usage with cost and a usage limit, so observability can be exercised.
 
 ## Canvas
 

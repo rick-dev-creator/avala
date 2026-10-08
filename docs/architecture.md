@@ -14,6 +14,7 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `src/Modules/<Module>/Avala.<Module>` | Module core: domain, application and view models. Everything is `internal`. |
 | `src/Modules/<Module>/Avala.<Module>.UI` | Module views and its single public type: the plugin entry. |
 | `src/Modules/<Module>/Avala.<Module>.Contracts` | Optional public contracts other modules may depend on. |
+| `src/Modules/Simulator/Avala.Simulator` | A provider plugin that plays scripted Claude Code sessions through the public agent contracts only, for demos and tests without tokens. Its plugin entry lives in the core, since it has no views. |
 | `tests/Avala.ArchitectureTests` | The rules below, enforced on every build. |
 | `tests/Avala.ArchitectureTests.Fixtures` | A compliant sample module and a module that breaks every rule on purpose. |
 | `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider, temporary folders and git repositories, generated diagrams. |

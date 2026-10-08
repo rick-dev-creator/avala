@@ -41,6 +41,14 @@ internal sealed class FakeAgents : IAgents
         return ValueTask.FromResult(Result<AgentTurn, AgentError>.Success(new AgentTurn(session, TurnId.New())));
     }
 
+    public ValueTask<Result<ItemId, AgentError>> RespondAsync(
+        SessionId session,
+        PermissionDecision decision,
+        CancellationToken cancellationToken) =>
+        ValueTask.FromResult(sessions.ContainsKey(session)
+            ? Result<ItemId, AgentError>.Success(decision.Item)
+            : Result<ItemId, AgentError>.Failure(AgentError.SessionClosed));
+
     public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) =>
         ValueTask.FromResult(sessions.TryRemove(session, out _)
             ? Result<SessionId, AgentError>.Success(session)

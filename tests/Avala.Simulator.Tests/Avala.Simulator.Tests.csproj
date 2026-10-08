@@ -1,9 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents\Avala.Agents.csproj" />
     <ProjectReference Include="..\..\src\Modules\Simulator\Avala.Simulator\Avala.Simulator.csproj" />
     <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
   </ItemGroup>
