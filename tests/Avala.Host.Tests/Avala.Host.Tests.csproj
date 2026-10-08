@@ -5,5 +5,6 @@
     <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Jobs\Avala.Jobs.Contracts\Avala.Jobs.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>

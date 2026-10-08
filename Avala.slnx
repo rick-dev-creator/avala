@@ -37,6 +37,10 @@
     <Project Path="src/Modules/Jobs/Avala.Jobs.Contracts/Avala.Jobs.Contracts.csproj" />
     <Project Path="src/Modules/Jobs/Avala.Jobs.UI/Avala.Jobs.UI.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Observability/">
+    <Project Path="src/Modules/Observability/Avala.Observability.Contracts/Avala.Observability.Contracts.csproj" />
+    <Project Path="src/Modules/Observability/Avala.Observability/Avala.Observability.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Simulator/">
     <Project Path="src/Modules/Simulator/Avala.Simulator/Avala.Simulator.csproj" />
   </Folder>
@@ -49,6 +53,7 @@
     <Project Path="tests/Avala.Shell.Tests/Avala.Shell.Tests.csproj" />
     <Project Path="tests/Avala.Integration.Tests/Avala.Integration.Tests.csproj" />
     <Project Path="tests/Avala.Jobs.Tests/Avala.Jobs.Tests.csproj" />
+    <Project Path="tests/Avala.Observability.Tests/Avala.Observability.Tests.csproj" />
     <Project Path="tests/Avala.Runtime.Tests/Avala.Runtime.Tests.csproj" />
     <Project Path="tests/Avala.Sdk.Tests/Avala.Sdk.Tests.csproj" />
     <Project Path="tests/Avala.Simulator.Tests/Avala.Simulator.Tests.csproj" />
