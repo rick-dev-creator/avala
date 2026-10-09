@@ -22,13 +22,16 @@ internal sealed class Tracked : IDisposable
 
     public Tracked()
     {
+        Book = new UsageBook(Store);
         Measurements = new MeterRecorder(meter.Meter);
         tracker = new UsageTracker(Book, meter, Clock, Bus);
     }
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 9, 0, 0, TimeSpan.Zero));
 
-    public UsageBook Book { get; } = new();
+    public InMemoryUsageStore Store { get; } = new();
+
+    public UsageBook Book { get; }
 
     public RecordingBus Bus { get; } = new();
 

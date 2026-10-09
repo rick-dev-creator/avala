@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -8,56 +7,44 @@ using Avala.Sdk;
 
 namespace Avala.Observability.Tracking;
 
-internal sealed class UsageBook : IUsage
+internal sealed class UsageBook(IUsageStore store) : IUsage
 {
-    private ImmutableDictionary<SessionId, SessionUsage> sessions = ImmutableDictionary<SessionId, SessionUsage>.Empty;
+    private ImmutableDictionary<SessionId, SessionUsage> earlier = ImmutableDictionary<SessionId, SessionUsage>.Empty;
+    private ImmutableDictionary<SessionId, SessionUsage> live = ImmutableDictionary<SessionId, SessionUsage>.Empty;
 
-    private ImmutableDictionary<SessionId, SessionUsage> Sessions => Volatile.Read(ref sessions);
+    private IEnumerable<SessionUsage> Sessions => Volatile.Read(ref earlier).Values.Concat(Volatile.Read(ref live).Values);
 
-    public SessionUsage Of(SessionId session) => Sessions.GetValueOrDefault(session) ?? new SessionUsage(session);
+    public SessionUsage Of(SessionId session) => Volatile.Read(ref live).GetValueOrDefault(session) ?? new SessionUsage(session);
 
-    public void Keep(SessionUsage usage) => ImmutableInterlocked.AddOrUpdate(ref sessions, usage.Session, usage, (_, _) => usage);
+    public void Keep(SessionUsage usage) => ImmutableInterlocked.AddOrUpdate(ref live, usage.Session, usage, (_, _) => usage);
 
-    public IReadOnlyList<ProviderUsage> ByProvider() =>
-    [
-        .. Sessions.Values
-            .SelectMany(usage => usage.Provider.Match<ProviderInfo[]>(provider => [provider], () => []), (usage, provider) => (usage, provider))
-            .GroupBy(pair => pair.provider, pair => pair.usage)
-            .OrderBy(provider => provider.Key.Id, StringComparer.Ordinal)
-            .Select(provider => new ProviderUsage(provider.Key, provider.ToList().Summary)),
-    ];
+    public async Task AttributeAsync(SessionUsage usage, CancellationToken cancellationToken)
+    {
+        Keep(usage);
+        await store.KeepSessionAsync(usage, cancellationToken);
+    }
 
-    public IReadOnlyList<AccountUsage> ByAccount() =>
-    [
-        .. Sessions.Values
-            .SelectMany(
-                usage => usage.Provider.Bind(provider => usage.Account.Map(account => (provider, account)))
-                    .Match<(ProviderInfo Provider, AgentAccount Account)[]>(owner => [owner], () => []),
-                (usage, owner) => (usage, owner))
-            .GroupBy(pair => pair.owner, pair => pair.usage)
-            .OrderBy(owner => owner.Key.Provider.Id, StringComparer.Ordinal)
-            .ThenBy(owner => owner.Key.Account.Id, StringComparer.Ordinal)
-            .Select(owner => new AccountUsage(owner.Key.Provider, owner.Key.Account, owner.ToList().Summary)),
-    ];
+    public async Task RecordAsync(SessionUsage usage, UsageFact fact, CancellationToken cancellationToken)
+    {
+        Keep(usage);
+        await store.RecordAsync(fact, cancellationToken);
+    }
 
-    public IReadOnlyList<ConnectionUsage> ByConnection() =>
-    [
-        .. Sessions.Values
-            .SelectMany(
-                usage => usage.Connection.Bind(connection => usage.Provider.Map(provider => (connection, provider)))
-                    .Match<(ConnectionName Connection, ProviderInfo Provider)[]>(owner => [owner], () => []),
-                (usage, owner) => (usage, owner))
-            .GroupBy(pair => pair.owner, pair => pair.usage)
-            .OrderBy(owner => owner.Key.Connection.Value, StringComparer.Ordinal)
-            .Select(owner => new ConnectionUsage(owner.Key.Connection, owner.Key.Provider, owner.ToList().Summary)),
-    ];
+    public void Restore(StoredUsage stored) =>
+        Volatile.Write(ref earlier, stored.Sessions.Recording(stored.Facts).ToImmutableDictionary(usage => usage.Session));
+
+    public IReadOnlyList<ProviderUsage> ByProvider() => Sessions.ByProvider();
+
+    public IReadOnlyList<AccountUsage> ByAccount() => Sessions.ByAccount();
+
+    public IReadOnlyList<ConnectionUsage> ByConnection() => Sessions.ByConnection();
 
     public Option<UsageSummary> OfSession(SessionId session) =>
-        Sessions.TryGetValue(session, out var usage) ? new[] { usage }.Summary : Option<UsageSummary>.None;
+        Sessions.Where(usage => usage.Session == session).ToList() is { Count: > 0 } found ? found.Summary : Option<UsageSummary>.None;
 
     public Option<UsageSummary> OfJob(JobId job)
     {
-        var worked = Sessions.Values.Where(usage => usage.Job == Option<JobId>.Some(job)).ToList();
+        var worked = Sessions.Where(usage => usage.Job == Option<JobId>.Some(job)).ToList();
 
         return worked.Count == 0 ? Option<UsageSummary>.None : worked.Summary;
     }
