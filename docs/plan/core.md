@@ -452,3 +452,8 @@ Each item has its acceptance criteria as unit tests, view model scripts, headles
    - AC7 Given queued messages, when the job next needs help they continue it, when it awaits review they send it back, all at once; a withdrawn message is never delivered; a job that ends drops them.
    - AC8 The simulator's `steer` scenario waits for a message mid-turn and answers it in the same turn; Claude Code writes the message to the CLI and keeps the turn open until the result of the queued message.
    - AC9 End to end in `SteeringTests`: on the default simulator connection a message sent from the composer joins the running turn and is answered before the single turn end; on a connection without the component it is queued, and after an interruption it continues the job as "You".
+2. **Choose a usage window and see it day by day.** The usage page offers Today, 7 days and 30 days.
+   - AC1 Given a window, `UsageWindows` reads its whole from the local midnight of its first day to now and each local calendar day of it, 1, 7 or 30.
+   - AC2 Given the page shows the last 7 days, when 30 days is chosen, then the page reads again and shows 30 days newest first, today marked, the total labelled "Last 30 days" with its tokens by type, and the caption names the first day; choosing today shows one day and the total "Today".
+   - AC3 Each day shows its tokens, its cost, a bar against the busiest day of the window and, on hover, its tokens by type; choosing the window already shown reads nothing again; a range read for another window is not shown.
+   - AC4 End to end in `UsageWindowTests`: after a simulated job reports usage, the week shows today's tokens on its first day and none on the day before, and choosing today shows the same tokens as its total.

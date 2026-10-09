@@ -1,6 +1,7 @@
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Overview;
 using Avala.Workbench.Presenting;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Usage;
 
@@ -52,6 +53,47 @@ internal sealed record DesignUsageWindowViewModel(string Label, string Cost, lon
     public string Turns => "37 turns finished, 2 interrupted, 0 failed";
 }
 
+internal sealed record DesignUsageDayViewModel(string Day, string Tokens, string Cost, double Share, bool IsToday) : IUsageDayViewModel
+{
+    public DesignUsageDayViewModel()
+        : this("Sat 10 Oct · today", "1,686,520 tokens", "4.054 USD", 0.82, true)
+    {
+    }
+
+    public string Types => "input 310,400 · output 58,120 · cache read 1,204,300 · cache write 92,000 · reasoning 21,700";
+}
+
+internal sealed class DesignUsageRangeViewModel : IUsageRangeViewModel
+{
+    public bool ShowsToday => false;
+
+    public bool ShowsWeek => true;
+
+    public bool ShowsMonth => false;
+
+    public string Caption => "Since Sun 4 Oct, in this computer's time zone · newest first";
+
+    public IUsageWindowViewModel? Total { get; } =
+        new DesignUsageWindowViewModel("Last 7 days", "14.07 USD", 588_000, 157_000, 1_020_000, 78_000, 118_000, "2 usage reports had no cost");
+
+    public IReadOnlyList<IUsageDayViewModel> Days { get; } =
+    [
+        new DesignUsageDayViewModel(),
+        new DesignUsageDayViewModel("Fri 9 Oct", "2,051,300 tokens", "4.92 USD", 1, false),
+        new DesignUsageDayViewModel("Thu 8 Oct", "880,140 tokens", "2.11 USD", 0.43, false),
+        new DesignUsageDayViewModel("Wed 7 Oct", "0 tokens", "no cost", 0, false),
+        new DesignUsageDayViewModel("Tue 6 Oct", "1,204,000 tokens", "2.98 USD", 0.59, false),
+        new DesignUsageDayViewModel("Mon 5 Oct", "0 tokens", "no cost", 0, false),
+        new DesignUsageDayViewModel("Sun 4 Oct", "12,060 tokens", "0.03 USD", 0.01, false),
+    ];
+
+    public IRelayCommand ShowTodayCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand ShowWeekCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand ShowMonthCommand { get; } = new RelayCommand(() => { });
+}
+
 internal sealed record DesignJobMeterViewModel(JobId Job, string Title, JobStatus Status, string Connection, string Cost, double Used, string Cap, int Interventions) : IJobMeterViewModel
 {
     public DesignJobMeterViewModel()
@@ -99,11 +141,7 @@ internal sealed class DesignUsageViewModel : IUsageViewModel
             ]),
     ];
 
-    public IReadOnlyList<IUsageWindowViewModel> Windows { get; } =
-    [
-        new DesignUsageWindowViewModel(),
-        new DesignUsageWindowViewModel("Last 7 days", "14.0700 USD", 588_000, 157_000, 1_020_000, 78_000, 118_000, "2 usage reports had no cost"),
-    ];
+    public IUsageRangeViewModel Range { get; } = new DesignUsageRangeViewModel();
 
     public IReadOnlyList<IJobMeterViewModel> Jobs { get; } =
     [

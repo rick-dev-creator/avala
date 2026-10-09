@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:usage="using:Avala.Workbench.Usage"
+             x:Class="Avala.Workbench.UI.UsageRangeView"
+             x:ClassModifier="internal"
+             x:DataType="usage:IUsageRangeViewModel">
+  <Design.DataContext>
+    <usage:DesignUsageRangeViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="10">
+    <DockPanel>
+      <Border DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal">
+          <Button x:Name="ShowToday"
+                  Classes="segment"
+                  Classes.selected="{Binding ShowsToday}"
+                  Content="Today"
+                  Command="{Binding ShowTodayCommand}" />
+          <Button x:Name="ShowWeek"
+                  Classes="segment"
+                  Classes.selected="{Binding ShowsWeek}"
+                  Content="7 days"
+                  Command="{Binding ShowWeekCommand}" />
+          <Button x:Name="ShowMonth"
+                  Classes="segment"
+                  Classes.selected="{Binding ShowsMonth}"
+                  Content="30 days"
+                  Command="{Binding ShowMonthCommand}" />
+        </StackPanel>
+      </Border>
+      <StackPanel Spacing="2" VerticalAlignment="Center">
+        <TextBlock Classes="section" Text="Usage by day" />
+        <TextBlock x:Name="Caption" Classes="caption" Text="{Binding Caption}" />
+      </StackPanel>
+    </DockPanel>
+    <ContentControl x:Name="Total" Content="{Binding Total}" />
+    <ItemsControl x:Name="Days" ItemsSource="{Binding Days}" />
+  </StackPanel>
+</UserControl>
