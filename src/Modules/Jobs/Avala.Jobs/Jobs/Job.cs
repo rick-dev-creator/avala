@@ -84,6 +84,10 @@ internal sealed class Job : IAggregateRoot<JobId>
                 return Begin(AttemptOrigin.Recovery, Option<Feedback>.None);
             });
 
+    public Result<ChecksResumed, JobError> Recheck() =>
+        machine.TryFire(JobTrigger.Recheck, JobError.CannotRecheck)
+            .Map(_ => new ChecksResumed(Id, attempts[^1].Number));
+
     public Result<ResumeRecorded, JobError> RecordResume(SessionId session, ResumeToken token)
     {
         if (Session != Option<SessionId>.Some(session))
@@ -107,6 +111,16 @@ internal sealed class Job : IAggregateRoot<JobId>
     public Result<AttemptRetried, JobError> Retry(Feedback feedback) =>
         machine.TryFire(JobTrigger.Retry, State == JobState.Checking ? JobError.AttemptBudgetExhausted : JobError.CannotRetry)
             .Map(_ => new AttemptRetried(Id, Conclude(AttemptOutcome.Rejected), Begin(AttemptOrigin.Retry, feedback).Attempt, feedback));
+
+    public Result<AttemptRetried, JobError> Retry(Feedback feedback, SessionId session, bool resumed) =>
+        machine.TryFire(JobTrigger.Retry, State == JobState.Checking ? JobError.AttemptBudgetExhausted : JobError.CannotRetry)
+            .Map(_ =>
+            {
+                var rejected = Conclude(AttemptOutcome.Rejected);
+                Join(session, resumed);
+
+                return new AttemptRetried(Id, rejected, Begin(AttemptOrigin.Retry, feedback).Attempt, feedback);
+            });
 
     public Result<HelpRequested, JobError> RequestHelp() =>
         machine.TryFire(JobTrigger.RequestHelp, JobError.CannotRequestHelp)
