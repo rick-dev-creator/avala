@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Avala.Sdk\Avala.Sdk.csproj" />
+    <ProjectReference Include="..\..\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" />
+    <ProjectReference Include="..\..\Jobs\Avala.Jobs.Contracts\Avala.Jobs.Contracts.csproj" />
+    <ProjectReference Include="..\..\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
+  </ItemGroup>
+</Project>
