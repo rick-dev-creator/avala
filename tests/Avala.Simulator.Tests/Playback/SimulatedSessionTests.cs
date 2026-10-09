@@ -23,6 +23,27 @@ public sealed class SimulatedSessionTests
     }
 
     [Fact]
+    public async Task TheProcessesScenarioBuildsThenLeavesAServerListeningOnTheLeasedPortPastItsSessionAsync()
+    {
+        var port = Testing.Workloads.FreePort().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await using var trees = new RecordingProcessTrees(new Dictionary<string, string> { ["AVALA_PORT"] = port });
+        var tree = Assert.IsType<RecordingTree>(await trees.OpenAsync(".", Cancellation));
+        var stage = new Stage(tree, PermissionMode.AllowAll);
+        await stage.SendAsync("[simulate: processes] Try the service", Cancellation);
+
+        var output = (await stage.ReadTurnAsync(Cancellation)).OfType<ItemProgressed>()
+            .GroupBy(progressed => progressed.Item.Value)
+            .ToDictionary(item => item.Key, item => string.Concat(item.Select(progressed => progressed.Text)));
+        await stage.DisposeAsync();
+
+        Assert.StartsWith("done", output["build"], StringComparison.Ordinal);
+        Assert.Equal($"listening {port}", output["serve"]);
+        var build = await Testing.Workloads.IsGoneAsync(tree.Started[0]);
+        var server = await Testing.Workloads.IsGoneAsync(tree.Started[1]);
+        Assert.Equal((true, false), (build, server));
+    }
+
+    [Fact]
     public async Task FixAfterFeedbackWritesABrokenFileFirstAndFixesItAfterFeedbackAsync()
     {
         await using var stage = new Stage(PermissionMode.AllowAll);

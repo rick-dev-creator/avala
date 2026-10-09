@@ -208,8 +208,20 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario Processes { get; } = new("processes",
+    [
+        [
+            Thought("I will build the service ", "and start it to try it out."),
+            new Spawn(new ItemId("build"), "dotnet build", Workload.Build),
+            new Spawn(new ItemId("serve"), "dotnet run", Workload.Server),
+            Message("The service is running ", "on the port this worktree was given."),
+            .. Bill(2_900, 210, 0.0130m, 0.29),
+            new Finish(),
+        ],
+    ]);
+
     public static IReadOnlyList<Scenario> All { get; } =
-        [Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas];
+        [Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas, Processes];
 
     public static string NameIn(string firstMessage) =>
         Tagged(firstMessage, ReplayRequest.TimedTag).Match(

@@ -26,7 +26,7 @@ internal sealed partial class AgentSessions(
 
         var session = started.Session;
         await bus.PublishAsync(
-            new SessionOpened(session.Id, started.Provider.Info, request.WorkingDirectory, started.Connection) { Account = session.Account },
+            new SessionOpened(session.Id, started.Provider.Info, request.WorkingDirectory, started.Connection) { Account = session.Account, ProcessTree = started.Tree },
             cancellationToken);
         ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, started.Provider.Capabilities, PumpAsync));
 
@@ -76,6 +76,7 @@ internal sealed partial class AgentSessions(
         }
 
         await running.DisposeAsync();
+        await bus.PublishAsync(new SessionStopped(session), cancellationToken);
 
         return session;
     }

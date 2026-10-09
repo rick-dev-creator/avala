@@ -82,6 +82,7 @@ internal static class LayerMap
             ["Playback"] = Layer.Application,
             ["FileSystem"] = Layer.Infrastructure,
             ["Recordings"] = Layer.Infrastructure,
+            ["Workloads"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Recording", new()
         {
