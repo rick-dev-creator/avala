@@ -7,8 +7,47 @@ namespace Avala.Runtime.Containment;
 
 internal sealed class WindowsContainment : IContainment
 {
-    public ValueTask<IContainer> CreateAsync(ProcessTreeId tree, CancellationToken cancellationToken) =>
-        ValueTask.FromResult<IContainer>(WindowsJob.Create());
+    public ValueTask<IContainer> CreateAsync(ProcessTreeId tree, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return ValueTask.FromResult<IContainer>(WindowsJob.Create());
+        }
+        catch (Win32Exception)
+        {
+            return ValueTask.FromResult<IContainer>(new RootsContainer());
+        }
+    }
+}
+
+internal sealed class RootsContainer : IContainer
+{
+    private System.Collections.Immutable.ImmutableHashSet<int> roots = [];
+
+    public ProcessStartInfo Prepare(ProcessStartInfo info) => info;
+
+    public void Adopt(Process process) => System.Collections.Immutable.ImmutableInterlocked.Update(ref roots, known => known.Add(process.Id));
+
+    public ValueTask<IReadOnlyList<int>> MemberIdsAsync(CancellationToken cancellationToken) =>
+        ValueTask.FromResult<IReadOnlyList<int>>([.. Volatile.Read(ref roots).Where(Alive)]);
+
+    public void Dispose()
+    {
+    }
+
+    private static bool Alive(int root)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(root);
+
+            return !process.HasExited;
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or Win32Exception)
+        {
+            return false;
+        }
+    }
 }
 
 internal sealed class WindowsJob : IContainer

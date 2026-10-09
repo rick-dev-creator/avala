@@ -106,6 +106,21 @@ public sealed class ProcessTreeTests
         Assert.Contains(new Listener(port, server.Id), listeners);
     }
 
+    [Fact]
+    public async Task WithoutContainmentATreeStillKnowsTheProcessesItStartedWhileTheyRunAsync()
+    {
+        using var container = new Containment.RootsContainer();
+        using var held = Outcomes.Succeeds(ProcessStarts.Start(container.Prepare(Workloads.Holding("hold"))));
+        container.Adopt(held);
+
+        var running = await container.MemberIdsAsync(Cancellation);
+        held.Kill();
+        await held.WaitForExitAsync(Cancellation);
+
+        Assert.Equal([held.Id], running);
+        Assert.Empty(await container.MemberIdsAsync(Cancellation));
+    }
+
     private static ServiceProvider Runtime(params IProcessEnvironment[] environments)
     {
         var services = new ServiceCollection().AddRuntime(new AvalaPaths(Path.GetTempPath()));
