@@ -97,7 +97,7 @@ public sealed class GitChangesTests
         var merged = Outcomes.Succeeds(await job.Changes.MergeAsync(job.Workspace.Id, Message, Cancellation));
 
         var commit = Outcomes.Present(merged.Commit);
-        Assert.Equal(("main", Option<string>.Some(job.Repository.Path)), (merged.BaseBranch, merged.Checkout.Map(Path.GetFullPath)));
+        Assert.Equal(("main", Option<string>.Some(job.Repository.Path.Canonical())), (merged.BaseBranch, merged.Checkout.Map(Path.GetFullPath)));
         Assert.Equal(commit, await job.Repository.GitAsync(Cancellation, "rev-parse", "main"));
         Assert.Equal(tip, await job.Repository.GitAsync(Cancellation, "rev-parse", $"{commit}^"));
         Assert.Equal(Message, await job.Repository.GitAsync(Cancellation, "log", "-1", "--format=%B", commit));

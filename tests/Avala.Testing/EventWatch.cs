@@ -15,7 +15,7 @@ public sealed class EventWatch<TEvent>(IAsyncEnumerable<TEvent> events, Cancella
     {
         var seen = new List<TEvent>();
 
-        while (await pending.MoveNextAsync().AsTask().WaitAsync(Patience, cancellationToken))
+        while (await NextAsync(seen))
         {
             seen.Add(pending.Current);
 
@@ -26,5 +26,19 @@ public sealed class EventWatch<TEvent>(IAsyncEnumerable<TEvent> events, Cancella
         }
 
         throw new InvalidOperationException($"The feed of {typeof(TEvent).Name} ended before the expected event.");
+    }
+
+    private async Task<bool> NextAsync(List<TEvent> seen)
+    {
+        try
+        {
+            return await pending.MoveNextAsync().AsTask().WaitAsync(Patience, cancellationToken);
+        }
+        catch (TimeoutException timeout)
+        {
+            var last = seen.Count > 0 ? $"the last was {seen[^1]}" : "none arrived";
+
+            throw new TimeoutException($"No {typeof(TEvent).Name} came within {Patience.TotalSeconds:0} seconds after {seen.Count} that did not match; {last}.", timeout);
+        }
     }
 }

@@ -27,7 +27,7 @@ public sealed class WorkspacesPluginTests
 
         Assert.Same(composition.Get<SqliteWorkspaceStore>(), composition.Get<IWorkspaceStore>());
         Assert.Same(composition.Get<SqliteWorkspaceStore>(), composition.Get<IStartupTask>());
-        Assert.Equal(new AvalaPaths(data.Path).Folder("worktrees"), composition.Get<WorkspaceSettings>().Root);
+        Assert.Equal(new AvalaPaths(data.Path).Folder("worktrees").Canonical(), composition.Get<WorkspaceSettings>().Root);
     }
 
     private static PluginComposition Compose(TemporaryFolder data) =>
