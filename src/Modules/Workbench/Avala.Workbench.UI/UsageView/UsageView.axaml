@@ -20,7 +20,7 @@
       <ItemsControl x:Name="Jobs" ItemsSource="{Binding Jobs}" />
       <StackPanel x:Name="InterventionsGroup" Spacing="6" IsVisible="{Binding !!Interventions.Count}">
         <TextBlock Classes="section" Text="Interventions" />
-        <ItemsControl x:Name="Interventions" ItemsSource="{Binding Interventions}" />
+        <ItemsControl x:Name="InterventionList" ItemsSource="{Binding Interventions}" />
       </StackPanel>
     </StackPanel>
   </ScrollViewer>

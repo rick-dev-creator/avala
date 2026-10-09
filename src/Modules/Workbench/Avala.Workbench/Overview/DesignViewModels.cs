@@ -22,7 +22,7 @@ internal sealed class DesignAgentViewModel(JobId job, string title, JobStatus st
     public string Fact { get; } = fact;
 }
 
-internal sealed class DesignConnectionCardViewModel(string name, string account, bool isDefault, string cost, ILimitViewModel limit, IReadOnlyList<IAgentViewModel> agents) : IConnectionCardViewModel
+internal sealed record DesignConnectionCardViewModel(string Name, string Account, bool IsDefault, string Cost, IReadOnlyList<ILimitViewModel> Limits, IReadOnlyList<IAgentViewModel> Agents) : IConnectionCardViewModel
 {
     public DesignConnectionCardViewModel()
         : this(
@@ -30,24 +30,12 @@ internal sealed class DesignConnectionCardViewModel(string name, string account,
             "rick@acme.dev",
             true,
             "3.2140 USD",
-            new DesignLimitViewModel(),
+            [new DesignLimitViewModel()],
             [new DesignAgentViewModel(), new DesignAgentViewModel(SampleJobs.FlakyCheckout, "Fix flaky CheckoutForm test", JobStatus.Running, "wants to run a command")])
     {
     }
 
-    public string Name { get; } = name;
-
     public string Provider => "Claude Code";
-
-    public string Account { get; } = account;
-
-    public bool IsDefault { get; } = isDefault;
-
-    public string Cost { get; } = cost;
-
-    public IReadOnlyList<ILimitViewModel> Limits { get; } = [limit];
-
-    public IReadOnlyList<IAgentViewModel> Agents { get; } = agents;
 }
 
 internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
@@ -60,7 +48,7 @@ internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
             "rick@hey.com",
             false,
             "0.8400 USD",
-            new DesignLimitViewModel("5h", 0.31, "31% used", "resets 2026-10-09 17:05", string.Empty, false),
+            [new DesignLimitViewModel("5h", 0.31, "31% used", "resets 2026-10-09 17:05", string.Empty, false)],
             [new DesignAgentViewModel(SampleJobs.LodashUpdate, "Update lodash to 4.17.21", JobStatus.Checking, "verifying")]),
     ];
 
@@ -97,7 +85,7 @@ internal sealed class DesignOrchestratorViewModel(JobId job, string title, JobSt
     public JobStatus Status { get; } = status;
 }
 
-internal sealed class DesignDelegationNodeViewModel(string title, int depth, JobStatus status, string connection, string activity, string spent) : IDelegationNodeViewModel
+internal sealed record DesignDelegationNodeViewModel(string Title, int Depth, JobStatus Status, string Connection, string Activity, string Spent) : IDelegationNodeViewModel
 {
     public DesignDelegationNodeViewModel()
         : this("Extract the address step", 1, JobStatus.Approved, "claude-work", "integrated into its parent", "0.3100 USD")
@@ -106,19 +94,7 @@ internal sealed class DesignDelegationNodeViewModel(string title, int depth, Job
 
     public JobId Job => SampleJobs.InvoicePdf;
 
-    public string Title { get; } = title;
-
-    public int Depth { get; } = depth;
-
-    public JobStatus Status { get; } = status;
-
-    public string Connection { get; } = connection;
-
     public string Harness => "Claude Code";
-
-    public string Activity { get; } = activity;
-
-    public string Spent { get; } = spent;
 
     public string Carve => "1 USD";
 }

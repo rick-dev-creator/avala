@@ -6,28 +6,18 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Sidebar;
 
-internal sealed class DesignJobRowViewModel(JobId job, string title, JobStatus status, string fact, StatusKind kind, int pendingDecisions) : IJobRowViewModel
+internal sealed record DesignJobRowViewModel(JobId Job, string Title, JobStatus Status, string Fact, StatusKind Kind, int PendingDecisions) : IJobRowViewModel
 {
     public DesignJobRowViewModel()
         : this(SampleJobs.InvoicePdf, "Add invoice PDF endpoint", JobStatus.Running, "asks a question", StatusKind.NeedsYou, 1)
     {
     }
 
-    public JobId Job { get; } = job;
-
-    public string Title { get; } = title;
-
-    public JobStatus Status { get; } = status;
-
-    public string Fact { get; } = fact;
-
-    public int PendingDecisions { get; } = pendingDecisions;
-
     public bool HasPendingDecisions => PendingDecisions > 0;
 
-    public bool IsSelected { get; } = job == SampleJobs.JpyRounding;
+    public bool IsSelected => Job == SampleJobs.JpyRounding;
 
-    public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(kind);
+    public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
 }
 
 internal sealed class DesignSidebarViewModel : ISidebarViewModel
