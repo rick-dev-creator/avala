@@ -1,5 +1,7 @@
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Testing;
+using Avala.Transcripts.Contracts;
 
 namespace Avala.Host.Tests;
 
@@ -42,6 +44,26 @@ public sealed class ConversationRestartTests(PublishedPlugins plugins)
         Assert.Contains(before, entry => entry.StartsWith("ReasoningViewModel | The schema changed, so the database needs a migration.", StringComparison.Ordinal));
         Assert.Equal([.. before, KeptNote], after.Take(before.Count + 1));
         Assert.Contains(after.Skip(before.Count + 1), entry => entry.StartsWith("MessageViewModel | I left the migration for you to run.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ADiscardedJobsConversationIsReleasedWithItsWorktreeSoAfterARestartItShowsOnlyItsPromptAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var before = await ConversationAsync(run, entries => entries.Contains("TurnEndViewModel"));
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, TestContext.Current.CancellationToken));
+        Assert.Equal(run.Job, (await run.ReclaimedAsync()).Job);
+        await run.DeliveredAsync();
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        var kept = await run.Get<ITranscripts>().EarlierRunsAsync(run.Job, TestContext.Current.CancellationToken);
+        var after = await ConversationAsync(run, entries => entries.Contains("RestartViewModel"));
+        Assert.Contains(before, entry => entry.StartsWith("MessageViewModel | ", StringComparison.Ordinal));
+        Assert.Equal([new AttemptBegan(1)], kept.Select(fact => fact.Fact));
+        Assert.Equal([before[0], KeptNote], after);
     }
 
     private static async Task<IReadOnlyList<string>> ConversationAsync(SimulatedRun run, Func<IReadOnlyList<string>, bool> shown)

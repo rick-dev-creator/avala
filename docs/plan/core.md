@@ -659,10 +659,12 @@ R1  Given a job left Checking by an earlier run, when recovery runs, then its ch
 R2  Given that rerun asks for a retry with retries left, then the retry starts in a new session that resumes the conversation and the agent is told the feedback; when it cannot resume, the instruction and the feedback.
 R3  Given that rerun asks for a retry with no retry left, then the job needs help and no session opens.
 R4  Given the composed application restarted while a check waits, then after the restart the check runs again, the job reaches review with one attempt and one session, and the evidence reads "Verified on attempt 1 of 1".
+R5  Given a workspace whose latest checkpoint has a label, when a checkpoint with that label is asked while nothing changed since, then it is that checkpoint and no commit is made; after a change, a new checkpoint commits it; so the restarted job's branch holds one "Attempt 1".
 T1  Given a job's sessions, then the agent events the conversation shows, canvas snapshots and policy decisions are kept in order with their time; limits, resume tokens and sessions of no job are not.
 T2  Given a job that progresses, then each attempt is marked once, across restarts too.
 T3  Given an item that streams more than the cap, then its text is kept up to the cap, then a line says the rest was not kept; tool inputs and results are cut the same way.
 T4  Given kept facts of earlier runs, then the board shows them in order, a restart note between runs and at the end, open requests closed and open items abandoned; with nothing kept, prompts and a note saying the job ran before conversations were kept.
 T5  Given the composed application, a finished job and a job waiting for permission read the same after a restart, entry by entry, followed by the restart note.
+T6  Given a job whose worktree retention reclaims, then its kept facts but its attempt marks are deleted, in order with the writes before and after, other jobs untouched; after a restart it shows its prompt and the restart note.
 E1  Given an attempt without a report, then the evidence lists it with why: working, checks running, interrupted by a restart, interrupted, or no checks ran; the verdict counts the same attempts the list shows.
 ```

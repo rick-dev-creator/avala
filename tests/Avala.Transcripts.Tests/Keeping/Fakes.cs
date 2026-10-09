@@ -18,6 +18,10 @@ internal sealed class FakeLog : ITranscriptLog
 
     public void Keep(JobId job, DateTimeOffset at, ITranscriptFact fact) => kept.Enqueue((job, at, fact));
 
+    public List<JobId> Released { get; } = [];
+
+    public void Release(JobId job) => Released.Add(job);
+
     public Task<int> AttemptsAsync(JobId job, CancellationToken cancellationToken) =>
         Task.FromResult(Earlier.GetValueOrDefault(job));
 

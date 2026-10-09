@@ -54,7 +54,7 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
 
     private async Task<Result<Checkpoint, WorkspaceFailure>> CheckpointAsync(Workspace workspace, string label, CancellationToken cancellationToken)
     {
-        var latest = workspace.Latest(label);
+        var latest = workspace.Checkpoints is [.., var last] && last.Label == label ? last : Option<Checkpoint>.None;
 
         if (await latest.Match(taken => UnchangedSinceAsync(workspace, taken, cancellationToken), () => Task.FromResult(false)))
         {

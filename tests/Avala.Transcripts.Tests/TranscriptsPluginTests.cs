@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Testing;
@@ -40,6 +41,7 @@ public sealed class TranscriptsPluginTests
                 composition.Get<IHandle<CanvasUpdated>>(),
                 composition.Get<IHandle<PermissionDecided>>(),
                 composition.Get<IHandle<FormDecided>>(),
+                composition.Get<IHandle<WorktreeReclaimed>>(),
             },
             handler => Assert.Same(composition.Get<TranscriptKeeper>(), handler));
     }

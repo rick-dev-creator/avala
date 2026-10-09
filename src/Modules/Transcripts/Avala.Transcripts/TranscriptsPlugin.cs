@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Transcripts.Contracts;
@@ -30,6 +31,7 @@ public sealed class TranscriptsPlugin : IPlugin
             .AddForwarded<IHandle<AgentActivity>, TranscriptKeeper>()
             .AddForwarded<IHandle<CanvasUpdated>, TranscriptKeeper>()
             .AddForwarded<IHandle<PermissionDecided>, TranscriptKeeper>()
-            .AddForwarded<IHandle<FormDecided>, TranscriptKeeper>();
+            .AddForwarded<IHandle<FormDecided>, TranscriptKeeper>()
+            .AddForwarded<IHandle<WorktreeReclaimed>, TranscriptKeeper>();
     }
 }

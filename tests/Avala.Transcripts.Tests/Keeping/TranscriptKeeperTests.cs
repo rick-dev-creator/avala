@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Transcripts.Contracts;
 using Avala.Transcripts.Keeping;
@@ -93,6 +94,14 @@ public sealed class TranscriptKeeperTests
         await keeper.HandleAsync(new JobProgressed(job, JobStatus.Running), Cancellation);
 
         Assert.Equal([new AttemptBegan(3)], log.Facts);
+    }
+
+    [Fact]
+    public async Task AJobsConversationIsReleasedWhenRetentionReclaimsItsWorktreeAsync()
+    {
+        await keeper.HandleAsync(new WorktreeReclaimed(new ReclaimedWorktree(job, "/worktrees/job", JobStatus.Discarded, clock.GetUtcNow())), Cancellation);
+
+        Assert.Equal([job], log.Released);
     }
 
     [Fact]

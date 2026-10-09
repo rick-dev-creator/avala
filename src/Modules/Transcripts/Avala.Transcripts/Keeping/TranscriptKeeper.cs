@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Transcripts.Contracts;
@@ -15,7 +16,8 @@ internal sealed class TranscriptKeeper(IJobCatalog catalog, ITranscriptLog log, 
     IHandle<AgentActivity>,
     IHandle<CanvasUpdated>,
     IHandle<PermissionDecided>,
-    IHandle<FormDecided>
+    IHandle<FormDecided>,
+    IHandle<WorktreeReclaimed>
 {
     private readonly Dictionary<SessionId, JobId> sessions = [];
     private readonly Dictionary<JobId, int> marked = [];
@@ -53,6 +55,13 @@ internal sealed class TranscriptKeeper(IJobCatalog catalog, ITranscriptLog log, 
 
     public ValueTask HandleAsync(FormDecided integrationEvent, CancellationToken cancellationToken) =>
         KeepAsync(integrationEvent.Decision.Session, new FormRuled(integrationEvent.Decision));
+
+    public ValueTask HandleAsync(WorktreeReclaimed integrationEvent, CancellationToken cancellationToken)
+    {
+        log.Release(integrationEvent.Reclaimed.Job);
+
+        return ValueTask.CompletedTask;
+    }
 
     private ValueTask KeepAsync(SessionId session, Option<ITranscriptFact> fact)
     {

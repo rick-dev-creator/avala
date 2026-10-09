@@ -29,6 +29,8 @@ internal sealed partial class SqliteTranscriptLog : ITranscriptLog, IStartupTask
 
     public void Keep(JobId job, DateTimeOffset at, ITranscriptFact fact) => _ = pending.Writer.TryWrite(new PendingFact(job, at, fact));
 
+    public void Release(JobId job) => _ = pending.Writer.TryWrite(new PendingFact(job, default, new Released()));
+
     public Task<int> AttemptsAsync(JobId job, CancellationToken cancellationToken) =>
         owner.RunAsync(
             async database => await database.Facts.AsNoTracking().Where(row => row.Job == job.Value).MaxAsync(row => (int?)row.Attempt, cancellationToken) ?? 0,
@@ -59,7 +61,14 @@ internal sealed partial class SqliteTranscriptLog : ITranscriptLog, IStartupTask
 
         foreach (var next in batch)
         {
-            if (next.Fact is CanvasDrawn drawn)
+            if (next.Fact is Released)
+            {
+                foreach (var slot in canvases.Keys.Where(slot => slot.Item1 == next.Job).ToList())
+                {
+                    canvases.Remove(slot);
+                }
+            }
+            else if (next.Fact is CanvasDrawn drawn)
             {
                 var slot = (next.Job, StoredFact.SlotOf(drawn.Snapshot.Canvas));
 
@@ -120,8 +129,20 @@ internal sealed partial class SqliteTranscriptLog : ITranscriptLog, IStartupTask
 
     private async Task<int> SaveAsync(TranscriptsDbContext database, List<PendingFact> facts)
     {
-        foreach (var row in facts.Select(fact => StoredFact.Of(Run, fact)))
+        var saved = 0;
+
+        foreach (var fact in facts)
         {
+            if (fact.Fact is Released)
+            {
+                saved += await database.SaveChangesAsync();
+                database.ChangeTracker.Clear();
+                saved += await database.Facts.Where(row => row.Job == fact.Job.Value && row.Kind != nameof(AttemptBegan)).ExecuteDeleteAsync();
+                continue;
+            }
+
+            var row = StoredFact.Of(Run, fact);
+
             if (row.Slot.Length > 0 && await database.Facts.FirstOrDefaultAsync(stored => stored.Job == row.Job && stored.Slot == row.Slot) is { } stored)
             {
                 database.Entry(stored).Property(fact => fact.Fact).CurrentValue = row.Fact;
@@ -132,7 +153,7 @@ internal sealed partial class SqliteTranscriptLog : ITranscriptLog, IStartupTask
             }
         }
 
-        var saved = await database.SaveChangesAsync();
+        saved += await database.SaveChangesAsync();
         database.ChangeTracker.Clear();
 
         return saved;

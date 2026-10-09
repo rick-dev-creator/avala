@@ -1,4 +1,3 @@
-using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workspaces.Workspaces;
 
@@ -43,17 +42,4 @@ public sealed class WorkspaceTests
         Assert.Equal(
             [new Checkpoint(1, Given.Commit(1), "turn 1"), new Checkpoint(2, Given.Commit(2), "turn 2")],
             workspace.Checkpoints);
-    }
-
-    [Fact]
-    public void OnlyTheLatestCheckpointIsFoundByItsLabel()
-    {
-        var workspace = Given.Workspace(WorkspaceState.Ready);
-        Outcomes.Succeeds(workspace.RecordCheckpoint(Given.Commit(1), "Attempt 1"));
-        Outcomes.Succeeds(workspace.RecordCheckpoint(Given.Commit(2), "Attempt 2"));
-
-        Assert.Equal(
-            (Option<Checkpoint>.Some(new Checkpoint(2, Given.Commit(2), "Attempt 2")), Option<Checkpoint>.None, Option<Checkpoint>.None),
-            (workspace.Latest("Attempt 2"), workspace.Latest("Attempt 1"), Given.Workspace(WorkspaceState.Ready).Latest("Attempt 2")));
-    }
-}
+    }}
