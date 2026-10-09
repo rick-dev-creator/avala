@@ -5,6 +5,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Host.Composition;
 using Avala.Sdk;
+using Avala.Sdk.Processes;
 using Avala.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -97,6 +98,98 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
         Assert.Equal(AgentError.CannotResume, foreign.Match(_ => default, error => error));
     }
 
+    [Fact]
+    public async Task TheRepositorysAllowRuleAndHooksNeverAnswerForAvalaAsync()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
+        using var data = new TemporaryFolder();
+        using var repository = new TemporaryFolder();
+        using var markers = new TemporaryFolder();
+        var marker = Path.Combine(markers.Path, "hook-ran");
+        Directory.CreateDirectory(Path.Combine(repository.Path, ".claude"));
+        await File.WriteAllTextAsync(
+            Path.Combine(repository.Path, ".claude", "settings.json"),
+            new JsonObject
+            {
+                ["permissions"] = new JsonObject { ["allow"] = new JsonArray("Bash(ls:*)"), ["defaultMode"] = "bypassPermissions" },
+                ["hooks"] = new JsonObject
+                {
+                    ["PreToolUse"] = new JsonArray(new JsonObject
+                    {
+                        ["matcher"] = "*",
+                        ["hooks"] = new JsonArray(new JsonObject { ["type"] = "command", ["command"] = $"touch '{marker}'" }),
+                    }),
+                },
+            }.ToJsonString(),
+            Cancellation);
+        await using var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
+        var provider = root.Services.GetServices<IAgentProvider>().Single(candidate => candidate.Info.Id == "claude-code");
+        var transcripts = Path.Combine(data.Path, "transcripts");
+        const string Instruction = "Run the command `ls` with the Bash tool, then say done. Be brief.";
+
+        var hooksOff = await TalkAsync(provider, new SessionOptions(repository.Path, PermissionMode.AskEveryTime) { Connection = Connection(Login, Path.Combine(transcripts, "hooks-off")) }, Instruction);
+        var ranWithHooksOff = File.Exists(marker);
+        var hooksOn = await TalkAsync(
+            provider,
+            new SessionOptions(repository.Path, PermissionMode.AskEveryTime) { Connection = Connection(Login, Path.Combine(transcripts, "hooks-on"), ("userHooks", "true")) },
+            Instruction);
+
+        await SaveTranscriptsAsync(transcripts, "user-configuration", repository.Path);
+        await SaveCostAsync("user-configuration", [.. hooksOff, .. hooksOn]);
+
+        Assert.All(new[] { hooksOff, hooksOn }, events => Assert.Contains(events, agentEvent => agentEvent is PermissionRequested { Kind: ItemKind.Command } asked && asked.Target.StartsWith("ls", StringComparison.Ordinal)));
+        Assert.False(ranWithHooksOff);
+        Assert.True(File.Exists(marker));
+    }
+
+    [Fact]
+    public async Task TheUsersMcpServersRunInTheSessionsProcessTreeAndEndWithItAsync()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to start the real Claude Code CLI.");
+        using var data = new TemporaryFolder();
+        using var repository = new TemporaryFolder();
+        using var login = new TemporaryFolder();
+        var started = Path.Combine(login.Path, "server.pid");
+        await File.WriteAllTextAsync(
+            Path.Combine(login.Path, ".claude.json"),
+            new JsonObject
+            {
+                ["mcpServers"] = new JsonObject
+                {
+                    ["sleeper"] = new JsonObject
+                    {
+                        ["type"] = "stdio",
+                        ["command"] = "sh",
+                        ["args"] = new JsonArray("-c", $"echo $$ > '{started}.tmp' && mv '{started}.tmp' '{started}' && exec sleep 600"),
+                    },
+                },
+            }.ToJsonString(),
+            Cancellation);
+        using var watcher = new FileSystemWatcher(login.Path, "server.pid") { NotifyFilter = NotifyFilters.FileName };
+        var serverStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        watcher.Renamed += (_, _) => serverStarted.TrySetResult();
+        watcher.EnableRaisingEvents = true;
+        await using var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
+        var provider = root.Services.GetServices<IAgentProvider>().Single(candidate => candidate.Info.Id == "claude-code");
+        var trees = root.Services.GetRequiredService<IProcessTrees>();
+        var tree = await trees.OpenAsync(repository.Path, Cancellation);
+
+        var session = (await provider.StartAsync(
+                new SessionOptions(repository.Path, PermissionMode.AskEveryTime) { Connection = new ConnectionEnvironment { ConfigurationDirectory = login.Path }, Processes = tree },
+                Cancellation))
+            .Match(opened => opened, error => throw new InvalidOperationException(error.ToString()));
+        await session.SendAsync(new UserTurn("Say hello."), Cancellation);
+        await serverStarted.Task.WaitAsync(TimeSpan.FromMinutes(1), Cancellation);
+        var server = int.Parse((await File.ReadAllTextAsync(started, Cancellation)).Trim(), System.Globalization.CultureInfo.InvariantCulture);
+        var members = await tree.MembersAsync(Cancellation);
+        await session.DisposeAsync();
+        var survivors = await trees.CloseAsync(tree.Id, Cancellation);
+
+        Assert.Contains(members, member => member.Id == server);
+        Assert.Empty(survivors);
+        Assert.False(Directory.Exists($"/proc/{server}"));
+    }
+
     private async Task JobAsync(string name, string instruction, string permissions, IReadOnlyList<string> files)
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
@@ -163,11 +256,11 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
         return events;
     }
 
-    private static ConnectionEnvironment Connection(string login, string transcripts) =>
+    private static ConnectionEnvironment Connection(string login, string transcripts, params (string Name, string Value)[] settings) =>
         new()
         {
             ConfigurationDirectory = login,
-            Settings = new Dictionary<string, string> { ["model"] = Model, ["transcripts"] = transcripts },
+            Settings = new Dictionary<string, string>(settings.Select(setting => KeyValuePair.Create(setting.Name, setting.Value))) { ["model"] = Model, ["transcripts"] = transcripts },
         };
 
     private static string Expectations(RegressionFixture fixture, Outcome outcome) =>

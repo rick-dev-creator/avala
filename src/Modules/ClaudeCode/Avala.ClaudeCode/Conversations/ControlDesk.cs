@@ -119,11 +119,11 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, string wo
             ? prompts[0]
             : form ? AgentError.NoPendingForm : AgentError.NoPendingPermission;
 
-    private static JsonNode Gate(JsonObject input)
+    private JsonNode Gate(JsonObject input)
     {
         var use = new ToolUse(input.TextOr("tool_use_id", string.Empty), input.TextOr("tool_name", string.Empty), input.Members("tool_input"));
 
-        return use.Gated && CommandLine.Unqualified(use.Name).IsNone ? Messages.Ask() : new JsonObject();
+        return use.Gated && CommandLine.Unqualified(use.Name).IsNone || use.ReadsOutside(workingDirectory) ? Messages.Ask() : new JsonObject();
     }
 
     private Reaction Called(ToolCall call, Option<Stamp> turn) =>

@@ -69,19 +69,26 @@ public sealed class PermissionTests
     }
 
     [Theory]
-    [InlineData("Bash", true)]
-    [InlineData("Write", true)]
-    [InlineData("Edit", true)]
-    [InlineData("WebFetch", true)]
-    [InlineData("RemoteTrigger", true)]
-    [InlineData("Read", false)]
-    [InlineData("Grep", false)]
-    [InlineData("TodoWrite", false)]
-    [InlineData("Agent", false)]
-    [InlineData("mcp__avala__canvas", false)]
-    public void ThePreToolUseHookSendsEveryActingToolToThePermissionPrompt(string tool, bool asks)
+    [InlineData("Bash", "{}", true)]
+    [InlineData("Write", "{}", true)]
+    [InlineData("Edit", "{}", true)]
+    [InlineData("WebFetch", "{}", true)]
+    [InlineData("RemoteTrigger", "{}", true)]
+    [InlineData("mcp__github__create_issue", "{}", true)]
+    [InlineData("Read", "{}", false)]
+    [InlineData("Read", """{ "file_path": "/work/src/a.cs" }""", false)]
+    [InlineData("Read", """{ "file_path": "src/a.cs" }""", false)]
+    [InlineData("Read", """{ "file_path": "/etc/passwd" }""", true)]
+    [InlineData("Read", """{ "file_path": "../secrets.txt" }""", true)]
+    [InlineData("Grep", """{ "pattern": "x" }""", false)]
+    [InlineData("Grep", """{ "pattern": "x", "path": "/home" }""", true)]
+    [InlineData("Glob", """{ "pattern": "*", "path": "/work-other" }""", true)]
+    [InlineData("TodoWrite", "{}", false)]
+    [InlineData("Agent", "{}", false)]
+    [InlineData("mcp__avala__canvas", "{}", false)]
+    public void ThePreToolUseHookSendsEveryActingToolAndEveryReadOutsideTheWorkingDirectoryToThePermissionPrompt(string tool, string input, bool asks)
     {
-        var talk = new Talk().Begin().Receive(Cli.Hook("h1", tool, "{}"));
+        var talk = new Talk().Begin().Receive(Cli.Hook("h1", tool, input));
 
         Assert.Equal(asks ? "ask" : null, (string?)talk.HookAnswer("h1")["hookSpecificOutput"]?["permissionDecision"]);
     }

@@ -28,6 +28,10 @@ internal static class CommandLine
 
     public const string TranscriptsSetting = "transcripts";
 
+    public const string UserConfigurationSetting = "userConfiguration";
+
+    public const string UserHooksSetting = "userHooks";
+
     public const string ConfigurationVariable = "CLAUDE_CONFIG_DIR";
 
     public const string KeyVariable = "ANTHROPIC_API_KEY";
@@ -46,9 +50,9 @@ internal static class CommandLine
         tool.StartsWith($"mcp__{Server}__", StringComparison.Ordinal) ? tool[$"mcp__{Server}__".Length..] : Option<string>.None;
 
     public static CliLaunch For(string workingDirectory, ConnectionEnvironment connection, Option<ConversationMark> resume, UserHome home) =>
-        new(workingDirectory, Arguments(connection, resume), Inherited, Variables(connection, home));
+        new(workingDirectory, Arguments(connection, resume, home), Inherited, Variables(connection, home));
 
-    private static List<string> Arguments(ConnectionEnvironment connection, Option<ConversationMark> resume)
+    private static List<string> Arguments(ConnectionEnvironment connection, Option<ConversationMark> resume, UserHome home)
     {
         var servers = new JsonObject { ["mcpServers"] = new JsonObject { [Server] = new JsonObject { ["type"] = "sdk", ["name"] = Server } } };
 
@@ -62,8 +66,7 @@ internal static class CommandLine
             "--permission-mode", "default",
             "--permission-prompt-tool", Qualified(PermissionTool),
             "--mcp-config", servers.ToJsonString(),
-            "--strict-mcp-config",
-            "--setting-sources", string.Empty,
+            .. Configuration(connection, home),
             .. Setting(connection, ModelSetting, "--model"),
             .. Setting(connection, EffortSetting, "--effort"),
             .. resume.Match<string[]>(mark => ["--resume", mark.Session.ToString("D")], () => []),
@@ -90,6 +93,31 @@ internal static class CommandLine
 
         return environment;
     }
+
+    private static string[] Configuration(ConnectionEnvironment connection, UserHome home)
+    {
+        if (!Switch(connection, UserConfigurationSetting, true) || connection.ApiKey.IsSome && connection.ConfigurationDirectory.IsNone)
+        {
+            return ["--strict-mcp-config", "--setting-sources", string.Empty];
+        }
+
+        var settings = new JsonObject();
+
+        if (!Switch(connection, UserHooksSetting, false))
+        {
+            settings["disableAllHooks"] = true;
+        }
+
+        if (!connection.ConfigurationDirectory.Match(home.IsDefault, () => true))
+        {
+            settings["claudeMdExcludes"] = new JsonArray($"{home.DefaultFolder.Replace('\\', '/')}/**");
+        }
+
+        return ["--setting-sources", "user,project,local", .. settings.Count > 0 ? ["--settings", settings.ToJsonString()] : Array.Empty<string>()];
+    }
+
+    private static bool Switch(ConnectionEnvironment connection, string name, bool fallback) =>
+        connection.Settings.TryGetValue(name, out var value) && bool.TryParse(value, out var on) ? on : fallback;
 
     private static string[] Setting(ConnectionEnvironment connection, string name, string flag) =>
         connection.Settings.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value) ? [flag, value] : [];
