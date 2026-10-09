@@ -1,0 +1,329 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T16:38:08.1871522+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "streamsPartialOutput": true,
+    "exposesReasoning": true,
+    "canInterrupt": true,
+    "canResume": true,
+    "acceptsTools": true,
+    "reportsUsage": true,
+    "reportsCost": true,
+    "reportsLimits": true,
+    "asksQuestions": true
+  },
+  "account": {
+    "id": "claude:[redacted]",
+    "label": "[redacted]"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Create a file GREETING.md containing exactly one line: # Hello. Then show it with `cat GREETING.md`. Then draw a tiny SVG circle with the canvas tool. Be brief."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "55b38bb3-18d5-4252-b059-1fd0383fc7ef/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_011hYcFW7Nixvf3Szy1LKKag",
+        "kind": "command",
+        "title": "Run printf '# Hello\\n' > GREETING.md && cat GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_011hYcFW7Nixvf3Szy1LKKag",
+        "title": "Run printf '# Hello\\n' > GREETING.md && cat GREETING.md",
+        "kind": "command",
+        "target": "printf '# Hello\\n' > GREETING.md && cat GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_013iz58iorTNWu9R8zNmpxDi",
+        "kind": "other",
+        "title": "ToolSearch"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.44,
+          "resetsAt": "2026-10-09T19:20:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.4,
+          "resetsAt": "2026-10-14T07:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_011hYcFW7Nixvf3Szy1LKKag",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_011hYcFW7Nixvf3Szy1LKKag",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_011hYcFW7Nixvf3Szy1LKKag",
+        "text": "# Hello"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_011hYcFW7Nixvf3Szy1LKKag",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_013iz58iorTNWu9R8zNmpxDi",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "canvasStarted",
+        "turn": 1,
+        "item": "toolu_01LYbgdxXugxVASiATwfdk32",
+        "title": "Tiny circle",
+        "mediaType": "image/svg+xml"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01LYbgdxXugxVASiATwfdk32",
+        "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"50\" r=\"40\" fill=\"#4a90d9\"/></svg>"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01LYbgdxXugxVASiATwfdk32",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "text": "Done. `GREETING."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "text": "md` contains `# H"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "text": "ello`, and `cat G"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "text": "REETING.md` print"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "text": "ed it."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "text": " I also"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "text": " drew a small blue S"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "text": "VG circle on the canv"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "text": "as."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_011CfrzUUcchFbmm2LnsGi7K:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 6,
+          "output": 424,
+          "cacheRead": 51545,
+          "cacheWrite": 7755,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.0022790500000000003,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "55b38bb3-18d5-4252-b059-1fd0383fc7ef/0.0022790500000000003"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

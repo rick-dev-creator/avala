@@ -1,0 +1,316 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T16:40:19.2097524+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "streamsPartialOutput": true,
+    "exposesReasoning": true,
+    "canInterrupt": true,
+    "canResume": true,
+    "acceptsTools": true,
+    "reportsUsage": true,
+    "reportsCost": true,
+    "reportsLimits": true,
+    "asksQuestions": true
+  },
+  "account": {
+    "id": "claude:[redacted]",
+    "label": "[redacted]"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Use the AskUserQuestion tool to ask me which greeting to use, with the options 'Hello (Recommended)' and 'Hi'. Then use the Write tool to write only the chosen word into GREETING.md. Be brief."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "18332109-62a9-4391-abea-7d282c7ed051/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.45,
+          "resetsAt": "2026-10-09T19:20:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.41,
+          "resetsAt": "2026-10-14T07:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "formRequested",
+        "turn": 1,
+        "item": "toolu_01TsP28DsnW6iMee8ZkCGb2i",
+        "form": {
+          "purpose": "question",
+          "title": "Which greeting should I write into GREETING.md?",
+          "context": "",
+          "fields": [
+            {
+              "id": "q1",
+              "header": "Greeting",
+              "prompt": "Which greeting should I write into GREETING.md?",
+              "kind": "singleChoice",
+              "options": [
+                {
+                  "label": "Hello (Recommended)",
+                  "description": "Write 'Hello' into GREETING.md",
+                  "recommended": true
+                },
+                {
+                  "label": "Hi",
+                  "description": "Write 'Hi' into GREETING.md",
+                  "recommended": false
+                }
+              ],
+              "acceptsFreeText": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "at": 0,
+      "answer": {
+        "item": "toolu_01TsP28DsnW6iMee8ZkCGb2i",
+        "fields": [
+          {
+            "field": "q1",
+            "chosen": [
+              "Hello (Recommended)"
+            ],
+            "confirmed": false
+          }
+        ],
+        "declined": false
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "formAnswered",
+        "turn": 1,
+        "item": "toolu_01TsP28DsnW6iMee8ZkCGb2i",
+        "answer": {
+          "item": "toolu_01TsP28DsnW6iMee8ZkCGb2i",
+          "fields": [
+            {
+              "field": "q1",
+              "chosen": [
+                "Hello (Recommended)"
+              ],
+              "confirmed": false
+            }
+          ],
+          "declined": false
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01TsP28DsnW6iMee8ZkCGb2i",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01YEFMy1ZB4zpjBQGeByBtza",
+        "kind": "fileEdit",
+        "title": "Write GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01YEFMy1ZB4zpjBQGeByBtza",
+        "title": "Write GREETING.md",
+        "kind": "fileEdit",
+        "target": "${workingDirectory}/GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01YEFMy1ZB4zpjBQGeByBtza",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01YEFMy1ZB4zpjBQGeByBtza",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01YEFMy1ZB4zpjBQGeByBtza",
+        "text": "File created successfully at: ${workingDirectory}/GREETING.md (file state is current in your context — no need to Read it back)"
+      }
+    },
+    {
+      "at": 0,
+      "file": {
+        "item": "toolu_01YEFMy1ZB4zpjBQGeByBtza",
+        "path": "GREETING.md",
+        "content": "Hello"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01YEFMy1ZB4zpjBQGeByBtza",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_011CfrzeGXd2dVT6QCmHjX6w:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeGXd2dVT6QCmHjX6w:0",
+        "text": "I wrote \"Hello"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeGXd2dVT6QCmHjX6w:0",
+        "text": "\" into `"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeGXd2dVT6QCmHjX6w:0",
+        "text": "GREETING.md`."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_011CfrzeGXd2dVT6QCmHjX6w:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 6,
+          "output": 302,
+          "cacheRead": 51270,
+          "cacheWrite": 7461,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.0021565,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "18332109-62a9-4391-abea-7d282c7ed051/0.0021565"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

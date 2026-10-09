@@ -56,7 +56,7 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
         JobAsync(
             "claude-code-question",
             "Use the AskUserQuestion tool to ask me which greeting to use, with the options 'Hello (Recommended)' and 'Hi'. "
-            + "Then write only the chosen word into GREETING.md. Be brief.",
+            + "Then use the Write tool to write only the chosen word into GREETING.md. Be brief.",
             Autonomous,
             ["GREETING.md"]);
 

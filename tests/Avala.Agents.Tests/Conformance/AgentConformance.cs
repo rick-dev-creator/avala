@@ -34,6 +34,14 @@ internal static class AgentConformance
         CancellationToken deadline) =>
         (await RunAsync(provider, options, instruction, deadline)).Violations;
 
+    public static async Task<IReadOnlyList<string>> CheckTurnAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
+        Func<PermissionRequested, PermissionDecision> permission,
+        CancellationToken deadline) =>
+        (await RunAsync(provider, options, instruction, Allowing with { Permission = permission }, deadline)).Violations;
+
     public static async Task<IReadOnlyList<string>> CheckResumeAsync(
         IAgentProvider provider,
         SessionOptions options,
