@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
+using Avala.Sdk;
 using Avala.Testing;
 
 namespace Avala.Host.Tests;
@@ -142,6 +143,55 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
                 $"inspector: {section["Fact"].Text}",
                 .. section["Children"].Value<IReadOnlyList<string>>().Select(child => $"inspected: {child}").Order(StringComparer.Ordinal),
             ];
+        });
+    }
+
+    [Fact]
+    public async Task AReadingWhoseWindowResetIsShownAsResetLiveAndAfterARestartAndCapacityTreatsItsConnectionAsFreshAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/budget.json", """{ "holdAtLimit": 0.9 }""")]);
+        var recorded = run.Watch<UsageRecorded>();
+        var near = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("near-limit")) { Connection = new ConnectionName("simulator-one") }));
+        var reports = 0;
+        _ = await recorded.UntilAsync(_ => ++reports == 2);
+        _ = await run.SettledAsync(near);
+        var usage = await ActivatedAsync(run, "Usage");
+        await run.Ui.PresentedAsync(usage.Presentation, () => LimitOf(usage) == "95%", () => $"limit {LimitOf(usage)}");
+
+        run.Clock.Advance(TimeSpan.FromSeconds(3));
+
+        await run.Ui.PresentedAsync(usage.Presentation, () => LimitOf(usage) == "reset", () => $"limit {LimitOf(usage)}");
+        Assert.Equal(("5h · reset", false), await CardAsync(run));
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        var restarted = await ActivatedAsync(run, "Usage");
+        await run.Ui.PresentedAsync(restarted.Presentation, () => LimitOf(restarted) == "reset", () => $"limit {LimitOf(restarted)}");
+        Assert.Equal(("5h · reset", false), await CardAsync(run));
+        var fresh = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(fresh));
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(fresh, TestContext.Current.CancellationToken));
+        Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("simulator-one")), history.Summary.Connection);
+        Assert.All(Outcomes.Present(history.Choice).Compared, candidate => Assert.Equal((0d, true), (candidate.Used, candidate.Available)));
+    }
+
+    private static string LimitOf(Bound usage) =>
+        usage["Connections"].Items.Where(connection => connection["Name"].Text == "simulator-one").SelectMany(connection => connection["Limits"].Items).Select(limit => limit["UsedText"].Text).FirstOrDefault() ?? "none";
+
+    private static async Task<(string Use, bool IsNearLimit)> CardAsync(SimulatedRun run)
+    {
+        var overview = (await ActivatedAsync(run, "Overview"))["Connections"];
+        await run.Ui.PresentedAsync(
+            overview.Presentation,
+            () => overview["Connections"].Items.Any(card => card["Name"].Text == "simulator-one"),
+            () => $"cards {overview["Connections"].Items.Count}");
+
+        return await run.Ui.ReadAsync(() =>
+        {
+            var card = overview["Connections"].Items.Single(found => found["Name"].Text == "simulator-one");
+
+            return (card["Use"].Text, card["IsNearLimit"].Value<bool>());
         });
     }
 

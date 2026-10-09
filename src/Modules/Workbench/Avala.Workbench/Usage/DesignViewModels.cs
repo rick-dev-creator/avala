@@ -16,6 +16,8 @@ internal sealed record DesignLimitViewModel(string Window, string Label, double 
     public bool HasHold => Hold > 0;
 
     public bool IsNear => HasHold && Used >= Hold - 0.1;
+
+    public bool IsExpired => UsedText == "reset";
 }
 
 internal sealed class DesignConnectionMeterViewModel(string name, string cost, string tokens, IReadOnlyList<ILimitViewModel> limits) : IConnectionMeterViewModel

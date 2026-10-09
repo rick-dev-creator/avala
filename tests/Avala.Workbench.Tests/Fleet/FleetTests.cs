@@ -33,7 +33,7 @@ public sealed class FleetTests
         usage.Connections.Add(new ConnectionUsage(new ConnectionName("work"), Pages.Simulator, Pages.Used(1.5m, limit)));
         usage.Connections.Add(new ConnectionUsage(new ConnectionName("simulator"), Pages.Simulator, Pages.Used(0m)));
 
-        var fleet = await new FleetReader(new FakeConnections("work", "personal"), usage, sessions, Pages.Board(fixing, adding, ended, reviewing)).ReadAsync(Cancellation);
+        var fleet = await new FleetReader(new FakeConnections("work", "personal"), Pages.Readings(usage), sessions, Pages.Board(fixing, adding, ended, reviewing)).ReadAsync(Cancellation);
 
         Assert.Equal(
             [

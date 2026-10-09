@@ -67,7 +67,7 @@ public sealed class UsageViewModelScripts : IDisposable
 
     private UsageViewModel Page(JobBoard board) =>
         new(
-            new UsageReader(usage, new JobSpending(usage, budgets, supervision, sessions), board),
+            new UsageReader(Pages.Readings(usage), new JobSpending(usage, budgets, supervision, sessions), board),
             new UsageWindows(new FakeUsageHistory(), TimeProvider.System),
             new LiveFeed(new Pulse(board), ui));
 }
@@ -76,18 +76,18 @@ public sealed class LimitViewModelScripts
 {
     [Fact]
     public void ALimitNearItsHoldThresholdSaysJobsAreHeldThere() =>
-        ViewModelScript.Given(new LimitViewModel(new UsageLimit("5h", 0.88, Option<DateTimeOffset>.None), 0.9))
+        ViewModelScript.Given(new LimitViewModel(Pages.Current(new UsageLimit("5h", 0.88, Option<DateTimeOffset>.None)), 0.9))
             .Then(limit => Assert.Equal(("5h", "5-hour window", 0.88, "88%", "no reset reported", "Jobs on this connection hold at the 90% threshold.", false), (limit.Window, limit.Label, limit.Used, limit.UsedText, limit.Resets, limit.HoldAt, limit.ReachesHold)))
             .Then(limit => Assert.Equal((true, 0.9, true), (limit.HasHold, limit.Hold, limit.IsNear)));
 
     [Fact]
     public void ALimitPastItsThresholdReachesTheHoldAndItsBarStopsAtFull() =>
-        ViewModelScript.Given(new LimitViewModel(new UsageLimit("5h", 1.04, Option<DateTimeOffset>.None), 0.9))
+        ViewModelScript.Given(new LimitViewModel(Pages.Current(new UsageLimit("5h", 1.04, Option<DateTimeOffset>.None)), 0.9))
             .Then(limit => Assert.Equal((true, true, 1d, "104%"), (limit.ReachesHold, limit.IsNear, limit.Used, limit.UsedText)));
 
     [Fact]
     public void ALimitFarFromItsThresholdIsNotNear() =>
-        ViewModelScript.Given(new LimitViewModel(new UsageLimit("7d", 0.43, Option<DateTimeOffset>.None), 0.9))
+        ViewModelScript.Given(new LimitViewModel(Pages.Current(new UsageLimit("7d", 0.43, Option<DateTimeOffset>.None)), 0.9))
             .Then(limit => Assert.Equal((false, false, "7-day window"), (limit.IsNear, limit.ReachesHold, limit.Label)));
 
     [Theory]
@@ -100,13 +100,20 @@ public sealed class LimitViewModelScripts
 
     [Fact]
     public void ALimitAtItsThresholdReachesTheHold() =>
-        ViewModelScript.Given(new LimitViewModel(new UsageLimit("5h", 0.9, Option<DateTimeOffset>.None), 0.9))
+        ViewModelScript.Given(new LimitViewModel(Pages.Current(new UsageLimit("5h", 0.9, Option<DateTimeOffset>.None)), 0.9))
             .Then(limit => Assert.True(limit.ReachesHold));
 
     [Fact]
     public void ALimitWithoutCapsHasNoThreshold() =>
-        ViewModelScript.Given(new LimitViewModel(new UsageLimit("week", 0.31, DateTimeOffset.UnixEpoch), Option<double>.None))
+        ViewModelScript.Given(new LimitViewModel(Pages.Current(new UsageLimit("week", 0.31, DateTimeOffset.UnixEpoch)), Option<double>.None))
             .Then(limit => Assert.Equal((string.Empty, false, false, true), (limit.HoldAt, limit.HasHold, limit.ReachesHold, limit.Resets.StartsWith("resets ", StringComparison.Ordinal))));
+
+    [Fact]
+    public void AReadingWhoseWindowHasResetIsShownAsResetAndNeitherCountsNorWarns() =>
+        ViewModelScript.Given(new LimitViewModel(new LimitReading(new UsageLimit("5h", 0.95, DateTimeOffset.UnixEpoch), Expired: true), 0.9))
+            .Then(limit => Assert.Equal(
+                (true, "reset", 0d, false, false, true),
+                (limit.IsExpired, limit.UsedText, limit.Used, limit.IsNear, limit.ReachesHold, limit.Resets.EndsWith(", no reading since", StringComparison.Ordinal))));
 }
 
 public sealed class ConnectionMeterViewModelScripts
@@ -115,7 +122,10 @@ public sealed class ConnectionMeterViewModelScripts
     public void AConnectionMeterShowsItsSpendAndTheCapsOfItsLatestSession() =>
         ViewModelScript.Given(new ConnectionMeterViewModel(new ConnectionSpend(
                 new ConnectionUsage(new ConnectionName("claude-work"), Pages.Simulator, Pages.Used(3.214m, new UsageLimit("5h", 0.88, Option<DateTimeOffset>.None)) with { UnpricedReports = 1 }),
-                new BudgetCaps([new Cost(5m, "USD")], Option<long>.None, 0.9))))
+                new BudgetCaps([new Cost(5m, "USD")], Option<long>.None, 0.9))
+            {
+                Limits = [Pages.Current(new UsageLimit("5h", 0.88, Option<DateTimeOffset>.None))],
+            }))
             .Then(meter =>
             {
                 Assert.Equal(("claude-work", "Simulator", "3.214 USD", "159 tokens", "1 usage report had no cost"), (meter.Name, meter.Provider, meter.Cost, meter.Tokens, meter.Unpriced));
