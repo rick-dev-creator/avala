@@ -9,6 +9,7 @@ using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Verification.Contracts;
 using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,6 +29,7 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         Assert.NotNull(root.Services.GetRequiredService<IWorkspaces>());
         Assert.NotNull(root.Services.GetRequiredService<IJobs>());
         Assert.NotNull(root.Services.GetRequiredService<IUsage>());
+        Assert.NotNull(root.Services.GetRequiredService<IVerifications>());
         Assert.Equal("simulator", Assert.Single(root.Services.GetServices<IAgentProvider>()).Info.Id);
         Assert.Empty(AssemblyLoadContext.All
             .SelectMany(context => context.Assemblies)
@@ -123,6 +125,37 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         var provider = Assert.Single(usage.ByProvider());
         Assert.Equal("simulator", provider.Provider.Id);
         Assert.Equal(job.Tokens, provider.Usage.Tokens);
+    }
+
+    [Fact]
+    public async Task AJobReachesReviewOnlyAfterItsDeclaredCheckPassesWithTheEvidenceOfEveryAttemptAsync()
+    {
+        const string Checks = """
+            {
+              "checks": [
+                { "name": "git", "command": "git", "arguments": ["--version"] },
+                { "name": "calculator", "command": "git", "arguments": ["grep", "--quiet", "--fixed-strings", "add(2, 2) = 4", "--", "calculator.txt"], "timeoutSeconds": 60 }
+              ]
+            }
+            """;
+        await using var run = await SimulatedRun.StartAsync(plugins, "fix-after-feedback", (".avala/checks.json", Checks));
+
+        var journey = await run.JourneyAsync();
+
+        Assert.Equal(
+            [JobStatus.Running, JobStatus.Checking, JobStatus.Running, JobStatus.Checking, JobStatus.AwaitingReview],
+            journey.SkipWhile(status => status != JobStatus.Running));
+        var reports = run.Get<IVerifications>().OfJob(run.Job);
+        Assert.Equal(
+            ["1 Failed Retry: git Passed 0, calculator Failed 1", "2 Passed Pass: git Passed 0, calculator Passed 0"],
+            reports.Select(report => $"{report.Attempt} {report.Outcome} {report.Verdict.Decision}: "
+                + string.Join(", ", report.Checks.Select(check => $"{check.Name} {check.Status} {check.ExitCode.Match(code => code, () => -1)}"))));
+        Assert.StartsWith("git version", reports[0].Checks[0].OutputTail, StringComparison.Ordinal);
+        Assert.Contains(
+            "\"calculator\" did not pass: `git grep --quiet --fixed-strings \"add(2, 2) = 4\" -- calculator.txt` exited with code 1",
+            reports[0].Verdict.Feedback,
+            StringComparison.Ordinal);
+        Assert.Equal("add(2, 2) = 4\n", await File.ReadAllTextAsync(Path.Combine(run.Worktree, "calculator.txt"), Cancellation));
     }
 
     private static string Canvas(IReadOnlyList<CanvasSnapshot> snapshots, string item, string mediaType)

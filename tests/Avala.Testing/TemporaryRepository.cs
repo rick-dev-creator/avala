@@ -33,6 +33,15 @@ public sealed class TemporaryRepository : IAsyncDisposable
         return repository;
     }
 
+    public async Task CommitAsync(string relativePath, string content, CancellationToken cancellationToken)
+    {
+        var file = System.IO.Path.Combine(Path, relativePath);
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file) ?? Path);
+        await File.WriteAllTextAsync(file, content, cancellationToken);
+        await GitAsync(cancellationToken, "add", "--all");
+        await GitAsync(cancellationToken, [.. Identity, "commit", "--quiet", "--message", $"Add {relativePath}"]);
+    }
+
     public Task<string> GitAsync(CancellationToken cancellationToken, params string[] arguments) =>
         GitInAsync(Path, cancellationToken, arguments);
 

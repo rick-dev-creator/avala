@@ -42,11 +42,17 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    public static async Task<SimulatedRun> StartAsync(PublishedPlugins plugins, string scenario)
+    public static async Task<SimulatedRun> StartAsync(PublishedPlugins plugins, string scenario, params (string Path, string Content)[] committed)
     {
         var data = new TemporaryFolder();
         var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
+
+        foreach (var (path, content) in committed)
+        {
+            await repository.CommitAsync(path, content, Cancellation);
+        }
+
         var run = new SimulatedRun(data, root, repository);
         root.Start();
         await run.SubmitAsync(scenario);
@@ -60,6 +66,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task<JobStatus> SettledAsync() =>
         (await progress.UntilAsync(update => Settled.Contains(update.Status))).Status;
+
+    public async Task<IReadOnlyList<JobStatus>> JourneyAsync() =>
+        [.. (await progress.CollectUntilAsync(update => Settled.Contains(update.Status))).Select(update => update.Status)];
 
     public async Task<IReadOnlyList<IAgentEvent>> TurnAsync() =>
         [.. (await activity.CollectUntilAsync(update => update.Event is TurnCompleted)).Select(update => update.Event)];

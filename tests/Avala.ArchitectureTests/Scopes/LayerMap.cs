@@ -50,6 +50,15 @@ internal static class LayerMap
             ["Playback"] = Layer.Application,
             ["FileSystem"] = Layer.Infrastructure,
         }),
+        .. Module("Avala.Verification", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Checks"] = Layer.Domain,
+            ["Verifying"] = Layer.Application,
+            ["Evidence"] = Layer.Application,
+            ["FileSystem"] = Layer.Infrastructure,
+        }),
         .. Module("Avala.Workspaces", new()
         {
             [""] = Layer.None,

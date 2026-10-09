@@ -45,6 +45,10 @@
     <Project Path="src/Modules/Observability/Avala.Observability.Contracts/Avala.Observability.Contracts.csproj" />
     <Project Path="src/Modules/Observability/Avala.Observability/Avala.Observability.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Verification/">
+    <Project Path="src/Modules/Verification/Avala.Verification.Contracts/Avala.Verification.Contracts.csproj" />
+    <Project Path="src/Modules/Verification/Avala.Verification/Avala.Verification.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Simulator/">
     <Project Path="src/Modules/Simulator/Avala.Simulator/Avala.Simulator.csproj" />
   </Folder>
@@ -63,6 +67,7 @@
     <Project Path="tests/Avala.Sdk.Tests/Avala.Sdk.Tests.csproj" />
     <Project Path="tests/Avala.Simulator.Tests/Avala.Simulator.Tests.csproj" />
     <Project Path="tests/Avala.Testing/Avala.Testing.csproj" />
+    <Project Path="tests/Avala.Verification.Tests/Avala.Verification.Tests.csproj" />
     <Project Path="tests/Avala.Workspaces.Tests/Avala.Workspaces.Tests.csproj" />
   </Folder>
 </Solution>

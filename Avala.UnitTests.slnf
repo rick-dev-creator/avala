@@ -19,6 +19,8 @@
       "src/Modules/Canvas/Avala.Canvas/Avala.Canvas.csproj",
       "src/Modules/Observability/Avala.Observability.Contracts/Avala.Observability.Contracts.csproj",
       "src/Modules/Observability/Avala.Observability/Avala.Observability.csproj",
+      "src/Modules/Verification/Avala.Verification.Contracts/Avala.Verification.Contracts.csproj",
+      "src/Modules/Verification/Avala.Verification/Avala.Verification.csproj",
       "tests/Avala.Agents.Tests/Avala.Agents.Tests.csproj",
       "tests/Avala.Canvas.Tests/Avala.Canvas.Tests.csproj",
       "tests/Avala.Jobs.Tests/Avala.Jobs.Tests.csproj",
@@ -28,6 +30,7 @@
       "tests/Avala.Shell.Tests/Avala.Shell.Tests.csproj",
       "tests/Avala.Simulator.Tests/Avala.Simulator.Tests.csproj",
       "tests/Avala.Testing/Avala.Testing.csproj",
+      "tests/Avala.Verification.Tests/Avala.Verification.Tests.csproj",
       "tests/Avala.Workspaces.Tests/Avala.Workspaces.Tests.csproj"
     ]
   }
