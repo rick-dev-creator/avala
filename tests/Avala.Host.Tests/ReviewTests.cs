@@ -12,11 +12,11 @@ public sealed class ReviewTests(PublishedPlugins plugins)
 {
     private const string Fixed = "add(2, 2) = 4\n";
 
-    private const string MergeFile = """{ "approval": "merge" }""";
+    internal const string MergeFile = """{ "approval": "merge" }""";
 
-    private const string TestsPolicy = """{ "rules": [ { "name": "tests", "kind": "command", "target": "dotnet test*", "answer": "allow" } ] }""";
+    internal const string TestsPolicy = """{ "rules": [ { "name": "tests", "kind": "command", "target": "dotnet test*", "answer": "allow" } ] }""";
 
-    private const string CalculatorChecks = """
+    internal const string CalculatorChecks = """
         {
           "checks": [
             { "name": "calculator", "command": "git", "arguments": ["grep", "--quiet", "--fixed-strings", "add(2, 2) = 4", "--", "calculator.txt"], "timeoutSeconds": 60 }
