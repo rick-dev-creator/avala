@@ -12,7 +12,7 @@ internal sealed class BaseFileReader(IGit git, IWorkspaceStore store) : IBaseFil
     public async ValueTask<Result<BaseFile, WorkspaceFailure>> ReadAsync(string worktree, string path, CancellationToken cancellationToken) =>
         await (await store.FindAtAsync(worktree, cancellationToken))
             .ToResult(WorkspaceFailure.UnknownWorkspace)
-            .BindAsync(workspace => ReadAsync(workspace.Location, workspace.Base, path, cancellationToken));
+            .BindAsync(workspace => ReadAsync(workspace.Location, workspace.Rules, path, cancellationToken));
 
     public async ValueTask<Result<BaseFile, WorkspaceFailure>> ReadCurrentAsync(string repository, string path, CancellationToken cancellationToken)
     {

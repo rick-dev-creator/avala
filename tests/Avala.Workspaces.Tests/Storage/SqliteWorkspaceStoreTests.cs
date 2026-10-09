@@ -28,8 +28,9 @@ public sealed class SqliteWorkspaceStoreTests
         var found = (await reloaded.FindAsync(workspace.Id, Cancellation)).Match(stored => stored, () => throw new InvalidOperationException("Not stored"));
 
         Assert.Equal(
-            (workspace.Location, workspace.Branch, workspace.Base, workspace.BaseBranch, workspace.State),
-            (found.Location, found.Branch, found.Base, found.BaseBranch, found.State));
+            (workspace.Location, workspace.Branch, workspace.Base, workspace.BaseBranch, workspace.Rules, workspace.State),
+            (found.Location, found.Branch, found.Base, found.BaseBranch, found.Rules, found.State));
+        Assert.NotEqual(found.Base, found.Rules);
         Assert.Equal("main", found.BaseBranch.Match(branch => branch.Value, () => string.Empty));
         Assert.Equal(workspace.Checkpoints, found.Checkpoints);
     }

@@ -30,6 +30,43 @@ public sealed class GitWorkspacesTests
         Assert.True(File.Exists(Path.Combine(workspace.Path, "README.md")));
         Assert.Equal(workspace.Branch, await repository.GitInAsync(workspace.Path, Cancellation, "branch", "--show-current"));
         Assert.Equal(await repository.GitAsync(Cancellation, "rev-parse", "HEAD"), workspace.BaseCommit);
+        Assert.Equal(workspace.BaseCommit, workspace.RulesCommit);
+    }
+
+    [Fact]
+    public async Task AWorkspaceStartedFromAnotherWorkspacesCheckpointReadsItsRulesFromTheRulesCommitItWasGivenAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        await repository.CommitAsync(Rules, "committed", Cancellation);
+        var store = new InMemoryWorkspaceStore();
+        var service = Service(repository, store);
+        var parent = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+        await File.WriteAllTextAsync(Path.Combine(parent.Path, Rules), "loosened by the orchestrator", Cancellation);
+        await File.WriteAllTextAsync(Path.Combine(parent.Path, "PLAN.md"), "the plan", Cancellation);
+        var checkpoint = Outcomes.Succeeds(await service.CheckpointAsync(parent.Id, "Delegated", Cancellation));
+
+        var child = Outcomes.Succeeds(await service.PrepareAsync(
+            new WorkspaceRequest(repository.Path, parent.Branch) { Rules = parent.RulesCommit },
+            Cancellation));
+        var file = Outcomes.Succeeds(await BaseFiles(store).ReadAsync(child.Path, Rules, Cancellation));
+
+        Assert.Equal(
+            (checkpoint.Commit, parent.BaseCommit, Option<string>.Some(parent.Branch)),
+            (child.BaseCommit, child.RulesCommit, child.BaseBranch));
+        Assert.True(File.Exists(Path.Combine(child.Path, "PLAN.md")));
+        Assert.Equal(new BaseFile(Rules, new FileOrigin(parent.BaseCommit, EditedInWorktree: true), "committed"), file);
+    }
+
+    [Fact]
+    public async Task ARulesCommitThatDoesNotResolveIsRefusedAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+
+        var failure = Outcomes.FailsWith(await Service(repository).PrepareAsync(
+            new WorkspaceRequest(repository.Path) { Rules = new string('0', 40) },
+            Cancellation));
+
+        Assert.Equal(WorkspaceFailure.GitFailed, failure);
     }
 
     [Fact]
