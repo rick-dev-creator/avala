@@ -34,12 +34,14 @@ public sealed class SimulatedSessionTests
         var output = (await stage.ReadTurnAsync(Cancellation)).OfType<ItemProgressed>()
             .GroupBy(progressed => progressed.Item.Value)
             .ToDictionary(item => item.Key, item => string.Concat(item.Select(progressed => progressed.Text)));
+        await stage.CloseSessionAsync();
+        var build = await Testing.Workloads.IsGoneAsync(tree.Started[0]);
+        var server = await Testing.Workloads.IsGoneAsync(tree.Started[1]);
+        await trees.DisposeAsync();
         await stage.DisposeAsync();
 
         Assert.StartsWith("done", output["build"], StringComparison.Ordinal);
         Assert.Equal($"listening {port}", output["serve"]);
-        var build = await Testing.Workloads.IsGoneAsync(tree.Started[0]);
-        var server = await Testing.Workloads.IsGoneAsync(tree.Started[1]);
         Assert.Equal((true, false), (build, server));
     }
 

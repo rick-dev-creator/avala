@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Avala.Sdk;
 using Avala.Sdk.Processes;
 
 namespace Avala.Runtime.Containment;
@@ -47,6 +48,41 @@ internal sealed class RootsContainer : IContainer
         {
             return false;
         }
+    }
+}
+
+internal static class WindowsProcesses
+{
+    private const int BasicInformation = 0;
+
+    public static Option<int> ParentOf(int member)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(member);
+
+            return NtQueryInformationProcess(process.Handle, BasicInformation, out var information, Marshal.SizeOf<ProcessInformation>(), out _) == 0
+                ? (int)information.InheritedFromUniqueProcessId.ToInt64()
+                : Option<int>.None;
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            return Option<int>.None;
+        }
+    }
+
+    [DllImport("ntdll.dll")]
+    private static extern int NtQueryInformationProcess(IntPtr process, int informationClass, out ProcessInformation information, int length, out int returned);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ProcessInformation
+    {
+        public IntPtr ExitStatus;
+        public IntPtr PebBaseAddress;
+        public IntPtr AffinityMask;
+        public IntPtr BasePriority;
+        public IntPtr UniqueProcessId;
+        public IntPtr InheritedFromUniqueProcessId;
     }
 }
 

@@ -133,6 +133,8 @@ The host knows no module: the loader only scans folders and instantiates the `IP
 
 Unit tests are the default. Integration tests are added only when a behavior cannot be verified otherwise.
 
+A test that starts real processes reaps them before it deletes the folders they ran in: on Windows a running process's current directory cannot be deleted. Even then, Windows releases a killed process's handles, and its console host's, a moment after the process the test waited for has exited, with nothing to await, so `TemporaryFolder.DisposeAsync` retries a failed deletion every 100 ms for up to five seconds. Tests whose processes ran in a temporary folder dispose it with `await using`.
+
 ```
 dotnet build Avala.slnx
 dotnet test --solution Avala.slnx

@@ -1,6 +1,8 @@
+using Avala.Agents.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Resources.Settings;
+using Avala.Sdk.Processes;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Resources.Tests.Housekeeping;
@@ -24,6 +26,24 @@ public sealed class WorktreeHousekeeperTests
         Assert.Equal([workspace.Id], resources.Workspaces.Removed);
         Assert.Equal(reclaimed, Assert.Single(resources.Bus.Published.OfType<WorktreeReclaimed>()).Reclaimed);
         Assert.Equal([reclaimed], resources.Housekeeper.Reclaimed());
+    }
+
+    [Fact]
+    public async Task ReclaimingAWorktreeFirstReapsTheProcessesItsJobLeftRunningAsync()
+    {
+        await using var resources = new Resourced(ResourceSettingsParser.Defaults with { Orphans = OrphanPolicy.Report });
+        var job = JobId.New();
+        var home = Resourced.Home("one");
+        _ = resources.Workspaces.Add(home);
+        var (session, tree) = await resources.OpenAsync(job, home, members: new TreeProcess(41, "dotnet", 2_048, TimeSpan.FromSeconds(1)));
+        await resources.Tracker.HandleAsync(new SessionStopped(session), Cancellation);
+
+        await resources.Tracker.HandleAsync(new JobProgressed(job, JobStatus.Discarded), Cancellation);
+
+        Assert.Equal([tree.Id], resources.Trees.Closed);
+        Assert.Equal(
+            [typeof(OrphansReaped), typeof(WorktreeReclaimed)],
+            resources.Bus.Published.Where(published => published is OrphansReaped or WorktreeReclaimed).Select(published => published.GetType()));
     }
 
     [Fact]
@@ -57,7 +77,7 @@ public sealed class WorktreeHousekeeperTests
 
         await resources.Tracker.HandleAsync(new JobProgressed(job, JobStatus.Approved), Cancellation);
         resources.Clock.Advance(TimeSpan.FromDays(3650));
-        await resources.Housekeeper.SweepAsync(Cancellation);
+        await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
 
         Assert.Empty(resources.Workspaces.Removed);
     }
@@ -74,8 +94,8 @@ public sealed class WorktreeHousekeeperTests
 
         await resources.Tracker.HandleAsync(new JobProgressed(job, JobStatus.Discarded), Cancellation);
         resources.Workspaces.Failure = null;
-        await resources.Housekeeper.SweepAsync(Cancellation);
-        await resources.Housekeeper.SweepAsync(Cancellation);
+        await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
+        await resources.Housekeeper.SweepAsync(resources.Reaper, Cancellation);
 
         Assert.Single(resources.Workspaces.Removed);
         Assert.Single(resources.Housekeeper.Reclaimed());

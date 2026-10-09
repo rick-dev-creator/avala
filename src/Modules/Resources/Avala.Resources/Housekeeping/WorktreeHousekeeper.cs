@@ -45,7 +45,7 @@ internal sealed class WorktreeHousekeeper(IWorkspaces workspaces, IResourceSetti
         return cleaned;
     }
 
-    public async Task RetainAsync(JobId job, JobStatus status, IReadOnlyList<string> worktrees, CancellationToken cancellationToken)
+    public async Task RetainAsync(JobId job, JobStatus status, IReadOnlyList<string> worktrees, IOrphans orphans, CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
         var kept = (await settings.LoadAsync(cancellationToken)).Retention.KeptFor(status);
@@ -54,15 +54,16 @@ internal sealed class WorktreeHousekeeper(IWorkspaces workspaces, IResourceSetti
             span => worktrees.Select(worktree => new Retained(job, worktree, status, now + span)),
             () => []));
 
-        await SweepAsync(cancellationToken);
+        await SweepAsync(orphans, cancellationToken);
     }
 
-    public async Task SweepAsync(CancellationToken cancellationToken)
+    public async Task SweepAsync(IOrphans orphans, CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
 
         foreach (var due in retained.Where(kept => kept.Due <= now).ToList())
         {
+            _ = await orphans.ReapAsync(due.Job, cancellationToken);
             var removed = await workspaces.FindAtAsync(due.Worktree, cancellationToken).AsTask()
                 .BindAsync(found => workspaces.RemoveAsync(found.Id, cancellationToken).AsTask());
 
