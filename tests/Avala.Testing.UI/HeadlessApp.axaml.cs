@@ -10,10 +10,17 @@ public sealed partial class HeadlessApp : Application
 {
     public static ViewRegistry Views { get; } = CreateViews();
 
+    public static bool Renders { get; } = Environment.GetEnvironmentVariable("AVALA_HEADLESS_RENDER") == "1";
+
     public static AppBuilder BuildAvaloniaApp() =>
-        AppBuilder.Configure<HeadlessApp>()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = true })
-            .WithInterFont();
+        Renders
+            ? AppBuilder.Configure<HeadlessApp>()
+                .UseSkia()
+                .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
+                .WithInterFont()
+            : AppBuilder.Configure<HeadlessApp>()
+                .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = true })
+                .WithInterFont();
 
     public override void Initialize()
     {
