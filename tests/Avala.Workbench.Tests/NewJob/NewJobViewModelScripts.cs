@@ -13,6 +13,7 @@ public sealed class NewJobViewModelScripts
     private readonly SubmittingJobs jobs = new();
     private readonly FakeConnections connections = new FakeConnections("work", "personal").Automatic();
     private readonly FakePreview preview = new();
+    private readonly FakePolicies policies = new();
     private readonly IMessenger messenger = new StrongReferenceMessenger();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -38,6 +39,19 @@ public sealed class NewJobViewModelScripts
         await page.LoadAsync(Cancellation);
 
         Assert.Equal(("Auto → personal · 41% of the 5-hour window used · the most capacity left", false), (page.Route, page.IsRouteAttention));
+    }
+
+    [Fact]
+    public async Task WithoutAnyReadingAutoSaysThereIsNoCapacityToCompareInsteadOfClaimingTheMostCapacityAsync()
+    {
+        preview.Answer = FakePreview.ByCapacity("work", ChoiceReason.MostCapacity, ("work", 0, true), ("personal", 0, true));
+        var page = Page();
+
+        await page.LoadAsync(Cancellation);
+
+        Assert.Equal(
+            ("Auto → work · no connection has reported usage yet, so there is no capacity to compare: the first usable connection", false),
+            (page.Route, page.IsRouteAttention));
     }
 
     [Fact]
@@ -138,7 +152,7 @@ public sealed class NewJobViewModelScripts
         page.Repository = " /repositories/shop ";
         page.Instruction = " Add an endpoint ";
         page.Connection = "personal";
-        page.Supervised = true;
+        page.Autonomy = NewJobPhrases.Supervised;
 
         await page.SubmitCommand.ExecuteAsync(null);
 
@@ -160,6 +174,48 @@ public sealed class NewJobViewModelScripts
 
         var request = Assert.Single(jobs.Requests);
         Assert.Equal((true, true), (request.Connection.IsNone, request.Autonomy.IsNone));
+    }
+
+    [Fact]
+    public async Task TheAutonomyShowsTheRepositorysLevelAndOffersSupervisedOnlyWhenItTightensItAsync()
+    {
+        var page = Page(Pages.Summary("Fix the failing test", JobStatus.Running));
+
+        await page.LoadAsync(Cancellation);
+        var autonomous = (string.Join(" | ", page.Autonomies), page.Autonomy, page.AutonomyNote);
+        page.Autonomy = NewJobPhrases.Supervised;
+        var tightened = page.AutonomyNote;
+        policies.Policy = FakePolicies.Declaring(Autonomy.Supervised);
+        page.Repository = "/repositories/other";
+        await page.Previewing;
+
+        Assert.Equal(
+            ("Repository's level: autonomous | Supervised", "Repository's level: autonomous", "Autonomous, as the repository's .avala/permissions.json declares: edits and commands inside the worktree run without asking, anything else is denied, forms are answered by policy."),
+            autonomous);
+        Assert.Equal("Supervised for this job only: whatever the rules leave open asks you first.", tightened);
+        Assert.Equal(["Repository's level: supervised"], page.Autonomies);
+        Assert.Equal(
+            ("Repository's level: supervised", "Supervised, as the repository declares: whatever the rules leave open asks you first. A job can tighten its autonomy, never loosen it."),
+            (page.Autonomy, page.AutonomyNote));
+        Assert.Equal(("/repositories/shop", "/repositories/other"), (policies.Asked[0], policies.Asked[^1]));
+    }
+
+    [Fact]
+    public async Task ARejectedPermissionsFileSaysTheJobRunsSupervisedUnderTheBuiltInRulesAsync()
+    {
+        policies.Policy = new Avala.Permissions.Contracts.RepositoryPolicy(
+            Avala.Permissions.Contracts.PolicyFileStatus.Rejected,
+            Avala.Permissions.Contracts.PolicyError.Malformed,
+            [],
+            Option<Avala.Workspaces.Contracts.FileOrigin>.None);
+        var page = Page(Pages.Summary("Fix the failing test", JobStatus.Running));
+
+        await page.LoadAsync(Cancellation);
+
+        Assert.Equal(["Repository's level: supervised"], page.Autonomies);
+        Assert.Equal(
+            "Supervised: the repository's .avala/permissions.json is rejected (Malformed), so the built-in rules apply and whatever they leave open asks you.",
+            page.AutonomyNote);
     }
 
     [Fact]
@@ -293,5 +349,5 @@ public sealed class NewJobViewModelScripts
     private NewJobViewModel Page(params JobSummary[] known) => Page(connections, known);
 
     private NewJobViewModel Page(FakeConnections machine, params JobSummary[] known) =>
-        new(new JobLaunch(jobs, machine, preview), Pages.Board(known), messenger);
+        new(new JobLaunch(jobs, machine, preview, policies), Pages.Board(known), messenger);
 }
