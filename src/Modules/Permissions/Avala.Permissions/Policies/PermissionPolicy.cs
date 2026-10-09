@@ -42,9 +42,8 @@ internal sealed record PermissionPolicy(IReadOnlyList<PolicyRule> Repository, Au
 
     public Verdict Decide(PermissionRequest request, IReadOnlyList<PolicyRule> session)
     {
-        var verdict = Ordered(session).FirstOrDefault(rule => rule.Matches(request)) is { } rule
-            ? new Verdict(rule.Answer, rule)
-            : new Verdict(PolicyAnswer.Ask, Option<PolicyRule>.None);
+        var rules = Ordered(session);
+        var verdict = request.Kind == ItemKind.Command ? rules.Commanded(request) : rules.First(rule => rule.Matches(request));
 
         return Autonomy == Autonomy.Autonomous && verdict.Answer == PolicyAnswer.Ask ? verdict with { Answer = PolicyAnswer.Deny } : verdict;
     }

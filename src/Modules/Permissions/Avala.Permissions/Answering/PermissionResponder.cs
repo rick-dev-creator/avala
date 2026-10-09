@@ -7,7 +7,7 @@ using Avala.Sdk;
 
 namespace Avala.Permissions.Answering;
 
-internal sealed class PermissionResponder(IAgents agents, TimeProvider clock)
+internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, TimeProvider clock)
 {
     public async Task<PolicyDecision> DecideAsync(
         GovernedSession session,
@@ -15,7 +15,7 @@ internal sealed class PermissionResponder(IAgents agents, TimeProvider clock)
         IReadOnlyList<PolicyRule> sessionRules,
         CancellationToken cancellationToken)
     {
-        var request = requested.Facts(session.WorkingDirectory);
+        var request = requested.Facts(session.WorkingDirectory, paths);
         var verdict = session.Policy.Decide(request, sessionRules);
         var delivery = verdict.Answer switch
         {
