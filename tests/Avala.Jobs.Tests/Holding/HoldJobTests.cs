@@ -87,6 +87,20 @@ public sealed class HoldJobTests
     }
 
     [Fact]
+    public async Task TheEndOfTheTurnAHoldInterruptedArrivingAfterThePersonContinuedTheJobLeavesItRunningAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.HeldAsync(HoldReason.Interrupted);
+        var interrupted = Assert.Single(flow.Agents.InterruptedTurns);
+        Outcomes.Succeeds(await flow.Jobs.ContinueAsync(job.Id, "Carry on where you stopped.", Cancellation));
+
+        await flow.HandTurnAsync(job, interrupted, TurnOutcome.Interrupted);
+        await flow.SettledAsync(job);
+
+        Assert.Equal((JobState.Running, AttemptOrigin.Hint), (job.State, job.Attempts[^1].Origin));
+    }
+
+    [Fact]
     public async Task ASessionThatEndsOnItsOwnHoldsItsJobAsSessionLostBeforeItsFailedTurnIsCheckedAsync()
     {
         var flow = JobFlow.With();
