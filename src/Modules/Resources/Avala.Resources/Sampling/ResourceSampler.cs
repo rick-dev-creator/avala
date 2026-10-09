@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Avala.Resources.Contracts;
 using Avala.Resources.Tracking;
 using Avala.Sdk;
@@ -15,9 +16,10 @@ internal sealed partial class ResourceSampler(IResourceSettings settings, Sample
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         var chosen = await settings.LoadAsync(cancellationToken);
-        var timer = new PeriodicTimer(chosen.Sampling, clock);
+        var ticks = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
+        var timer = clock.CreateTimer(_ => ticks.Writer.TryWrite(true), null, chosen.Sampling, chosen.Sampling);
         var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopping.Token);
-        loop = Task.Run(() => LoopAsync(chosen, timer, lifetime), CancellationToken.None);
+        loop = Task.Run(() => LoopAsync(chosen, timer, ticks.Reader, lifetime), CancellationToken.None);
     }
 
     public async ValueTask DisposeAsync()
@@ -32,16 +34,16 @@ internal sealed partial class ResourceSampler(IResourceSettings settings, Sample
         stopping.Dispose();
     }
 
-    private async Task LoopAsync(ResourceSettings chosen, PeriodicTimer timer, CancellationTokenSource lifetime)
+    private async Task LoopAsync(ResourceSettings chosen, ITimer timer, ChannelReader<bool> ticks, CancellationTokenSource lifetime)
     {
         using (lifetime)
-        using (timer)
+        await using (timer)
         {
             try
             {
                 var measured = DateTimeOffset.MinValue;
 
-                while (await timer.WaitForNextTickAsync(lifetime.Token))
+                await foreach (var _ in ticks.ReadAllAsync(lifetime.Token))
                 {
                     var now = clock.GetUtcNow();
                     var disks = now - measured >= chosen.DiskSampling;

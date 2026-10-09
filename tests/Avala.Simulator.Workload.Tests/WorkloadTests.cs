@@ -45,6 +45,22 @@ public sealed class WorkloadTests
     }
 
     [Fact]
+    public async Task AHeldProcessEndsWhenItsRunningHarnessExitsAsync()
+    {
+        using var harness = (await Workloads.StartAsync(UncontainedProcesses.Instance, Workloads.Holding("hold"), Cancellation)).Process;
+        var (held, line) = await Workloads.StartAsync(
+            UncontainedProcesses.Instance,
+            Workloads.Command("hold", harness.Id.ToString(CultureInfo.InvariantCulture)),
+            Cancellation);
+        using var _ = held;
+
+        harness.Kill();
+        await held.WaitForExitAsync(Cancellation);
+
+        Assert.Equal((0, $"holding {held.Id}"), (held.ExitCode, line));
+    }
+
+    [Fact]
     public async Task AnUnknownModeIsRefusedAsync()
     {
         var (refused, _) = await Workloads.StartAsync(UncontainedProcesses.Instance, Workloads.Command("unknown", "0"), Cancellation);
