@@ -38,9 +38,9 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
-| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, reviewing a job: approving it through its repository's approval strategy, sending it back or discarding it, stopping the session of a job that ended, admitting launches, the job's resume token, the autonomy a job asks for and the connection it runs on, and the catalog of jobs for the views | `JobId`, `Autonomy`, integration events, `IJobs`, `IJobCatalog`, `ICompletionGate`, `IJobAdmission`, `IApprovalStrategy` |
+| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, reviewing a job: approving it through its repository's approval strategy, or into its parent's worktree for a child job, sending it back or discarding it, stopping the session of a job that ended, admitting launches, the job's resume token, the autonomy a job asks for and the connection it runs on, the tree of parent and child jobs, and the catalog of jobs for the views | `JobId`, `Autonomy`, integration events, `IJobs`, `IJobCatalog`, `JobTree`, `ICompletionGate`, `IJobAdmission`, `IApprovalStrategy` |
 | Agents | Sessions, turn integrity, provider registry, the connections sessions open on and their credential sources, the harness tools and resume tokens handed to providers by capability, the results of the harness tools the harness executes, the process tree each session's processes run in, the forms agents ask humans to fill, and the decorators every provider is started through | `IAgents`, `IAgentProvider`, `IAgentSession`, `IAgentProviderDecorator`, `IConnections`, `ICredentialSource`, `ConnectionName`, `ConnectionEnvironment`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ToolResult`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
-| Workspaces | Working copies, branches, checkpoints, the files of the commit a job started from, the diff of a workspace against that commit, merging a workspace's work into its base branch, and the reconciliation of worktrees on disk with the store | `IWorkspaces`, `IBaseFiles`, `IWorkspaceChanges`, `WorktreeReconciliation`, integration events |
+| Workspaces | Working copies, branches, checkpoints, the files of the commit a job's rules come from, the diff of a workspace against the commit it started from, merging a workspace's work into its base branch, and the reconciliation of worktrees on disk with the store | `IWorkspaces`, `IBaseFiles`, `IWorkspaceChanges`, `WorktreeReconciliation`, integration events |
 | Resources | Samples the processes, ports and disk every job uses, reaps the processes a session leaves behind, leases ports per worktree and reclaims worktrees by retention | `IResources`, `IOrphans`, `IWorktreeHousekeeping`, integration events |
 | Canvas | Offers the canvas tool, accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
@@ -48,9 +48,10 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
 | Permissions | Answers permission requests and forms through an explicit policy at the job's level of autonomy, takes a human's answers with their session rules, and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `AutonomyApplied`, `FormDecided`, `PermissionAnswered`, `IPermissionAudit`, `IPermissionAnswers` |
 | Supervision | Holds a job whose agent stays silent, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
-| Budgets | Holds a job that reaches a cap on cost, tokens or memory, or a provider limit threshold, records every intervention, and admits launches up to the machine's limit of running jobs | `BudgetLoaded`, `BudgetIntervened`, `JobQueued`, `JobAdmitted`, `IBudgets` |
+| Budgets | Holds a job that reaches a cap on cost, tokens or memory, or a provider limit threshold, carves a child job's budget out of its parent's, records every intervention and carve, and admits launches up to the machine's limit of running jobs | `BudgetLoaded`, `BudgetIntervened`, `BudgetCarved`, `JobQueued`, `JobAdmitted`, `IBudgets` |
 | Recording | Records every provider session, when the data folder asks for it, as a file the simulator replays | None: it implements `IAgentProviderDecorator`, and its files are the [recording format](#session-recording-and-replay) |
 | Autopilot | Runs a repository's tasks one job after another, unattended: approves a job automatically only on clean evidence, takes its tasks from job sources, stops on its circuit breakers, pauses across a usage limit window, and keeps the digest of what it did | `IAutopilot`, `IJobSource`, `LoopId`, the loop's events and digest |
+| Delegation | Offers orchestrating agents the `delegate` tool, decides each call by the repository's delegation rules, routes the child job to a connection, inherits its autonomy, and reports each child's verified work back to its parent as the call's result | `IDelegations`, `DelegationRecord`, `ChildReport`, `DelegationError`, `ChildOutcome`, the delegation events |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
 
@@ -79,9 +80,10 @@ internal sealed class Job
     public Option<SessionId> Session { get; private set; }
     public Option<ResumeToken> Resume { get; private set; }
     public Option<ConnectionName> Connection { get; private set; }
+    public Option<JobId> Parent { get; private init; }
     public DateTimeOffset Submitted { get; private init; }
 
-    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository, DateTimeOffset submitted, Option<Autonomy> autonomy, Option<ConnectionName> connection);
+    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository, DateTimeOffset submitted, Option<Autonomy> autonomy, Option<ConnectionName> connection, Option<JobId> parent);
     public Result<JobSubmitted, JobError> Submit();
     public Result<AttemptStarted, JobError> Start(WorkspaceId workspace, SessionId session, ConnectionName connection);
     public Result<AttemptStarted, JobError> Recover(SessionId session, bool resumed);
@@ -264,15 +266,16 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 | `JobQueues` | One serial queue per job: every piece of work on a job loads it and runs in that queue, in the order it was queued |
 | `SubmitJob` | Creates a job, submits it, stores it and publishes `JobSubmitted` |
 | `JobLauncher` | Prepares the workspace, opens the agent session, starts the job, stores it, announces `JobSessionStarted` and only then sends the instruction. It also relaunches a job after a restart, and continues a held job, or a job sent back from review, when a human sends it a message, resuming the job's conversation when it can |
-| `PrepareJob` | Handles `JobSubmitted` by queueing the launch of the job |
+| `WorkspacePlanner` | Prepares the workspace a job starts in, from its repository's `HEAD`, or for a child job from a checkpoint of its parent taken in the parent's queue, with the parent's rules commit; and finds the connection a job opens on |
+| `PrepareJob` | Handles `JobSubmitted` by queueing the launch of the job, once every admission let a root job through |
 | `CheckTurn` | Handles `TurnFinished` by queueing the evaluation of the turn, `SessionEnded` by queueing a hold as `SessionLost`, and `SessionResumable` by queueing the record of the job's resume token, then returns at once |
 | `EvaluateTurn` | Runs in the job's queue: checkpoints the workspace, evaluates the gates, then passes the job, retries with feedback to the same session, or asks for help when the budget is spent |
 | `CompletionGates` | Combines every registered gate into one verdict |
 | `JobRecovery` | An `IStartupTask` that launches `Preparing` jobs and recovers `Running` or `Checking` jobs, each in its queue, leaving alone every job the ledger already recorded since the application started |
 | `HoldJob` | Behind `IJobs.HoldAsync`, in the job's queue: holds a running job for a typed reason, stores it, halts its agent session and publishes `JobHeld`, see [Holding a job](#holding-a-job) |
 | `ReviewJob` | Behind `IJobs.ContinueAsync`, `ApproveAsync`, `SendBackAsync` and `DiscardAsync`, in the job's queue: the commands a human gives a job that waits for them, see [Review and approval](#review-and-approval) |
-| `Approvals` | Finds the job's workspace, reads the approval strategy its repository names in `.avala/jobs.json` at the base commit, and delivers the job's work through it |
-| `JobCatalog` | Behind `IJobCatalog`: the jobs and each job's history of sessions and attempts, from snapshots of the store |
+| `Approvals` | Finds the job's workspace, reads the approval strategy its repository names in `.avala/jobs.json` at the base commit, and delivers the job's work through it; a child job's work goes into its parent's worktree instead, in the parent's queue |
+| `JobCatalog` | Behind `IJobCatalog`: the jobs, each job's history of sessions and attempts, and its children and tree, from snapshots of the store |
 
 - **One queue per job.** Evaluating a turn runs real builds and tests through the gates and can take minutes, so it never runs inside a handler. `CheckTurn` only finds the job of the session and queues the work, so the bus keeps delivering while the checks run. Different jobs proceed in parallel; the work on one job runs one piece at a time, in the order it was queued: its launch, the evaluation of each turn and every hold. A hold that arrives while a turn of the same job is being checked waits for that check and then finds a job that is no longer `Running`.
 - The job stores its session before the instruction is sent, so a fast agent cannot finish a turn the job does not know yet.
@@ -284,6 +287,7 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 - Recovery opens a new session in the existing workspace and calls `job.Recover`, which interrupts the attempt that was underway and starts a `Recovery` attempt. It asks to resume the job's conversation with its stored resume token: when the session resumed it, the agent is told that the harness restarted and to continue where it left off; otherwise the new session starts over with the instruction, as before.
 - **Resume tokens.** `SessionResumable` reaches `CheckTurn` in the same mailbox as `SessionEnded`, and both are queued on the job in that order, so a session that issues a token and then dies has its token stored before the job is held. The token is stored with the job and announced with `JobResumable`.
 - **Connection.** `JobRequest.Connection` optionally names the [connection](#connections) a job runs on. `SubmitJob` checks a named connection through `IConnections.CheckAsync` and rejects the request with `UnknownConnection` or `UnusableConnection`, storing and announcing nothing. A job that names none takes its repository's default: `JobLauncher` reads `.avala/jobs.json` from the job's [base commit](#rules-from-the-base-commit) once the workspace exists, `{ "connection": "work" }`, through the `IRepositoryDefaults` port that `JobFileReader` implements in the `JobFiles` folder; without the file, or without the field, the session opens on the machine's default connection. The file is parsed strictly, at most 16 KiB with no other field, and a file that is invalid or cannot be read fails the job as `ConnectionUnavailable` before any session opens, as does a connection that turns out unknown or unusable when the session opens, since the repository's preference is only known after submission. `Job.Start` records the connection the session actually opened on, so the job keeps it even if the default changes later: it is stored with the job, and recovery and `IJobs.ContinueAsync` open their new session on it. A recovery whose connection is gone fails the job as `ConnectionUnavailable`; a continuation whose connection is gone is rejected with `UnknownConnection` or `UnusableConnection` and the job stays held.
+- **Parent and child jobs.** `JobRequest.Parent` optionally names the job a new job is a child of, which is how [delegation](#delegation) submits its children; Jobs stores it with the job and never interprets why. `SubmitJob` refuses a parent that does not exist with `UnknownParent`, one that is not `Running` with `ParentNotRunning`, and a child in another repository with `InvalidRequest`, storing and announcing nothing. `JobSubmitted` carries the parent, so `PrepareJob` asks no admission for a child: it runs inside its parent's slot, which already holds one. A child's workspace starts from its parent's current state: `WorkspacePlanner`, in `Launching`, runs in the parent's queue, checkpoints the parent's workspace as `Delegated to job <child>` and prepares the child's workspace from the parent's branch, whose tip is that checkpoint, with the parent's rules commit, see [Rules from the base commit](#rules-from-the-base-commit); running in the parent's queue serializes it with the parent's own checkpoints and with its other children. The tree is a column of the job, and `IJobCatalog` answers a job's children and its whole tree.
 - **Autonomy.** `JobRequest.Autonomy` is the optional [level of autonomy](#autonomy-levels) a job asks for. Jobs stores it with the job, never interprets it, and announces it with every `JobSessionStarted` of the job, at launch, recovery and continuation alike, so Permissions applies it before the session's first instruction is sent. Whether it may apply is Permissions' decision: a job can be stricter than its repository, never looser.
 
 ### Completion gates
@@ -338,7 +342,7 @@ public interface IJobs
 
 **An ended job stops its session.** Whenever `JobLedger` stores a job that ended, `Approved`, `Discarded` or `Failed`, it stops the job's session through `IAgents.StopAsync` before it publishes the job's `JobProgressed`, so the agent's process does not outlive its job and Resources reaps what the session left behind before it reclaims the worktree.
 
-**Admitting launches.** `IJobAdmission` is an extension point in `Jobs.Contracts`: `PrepareJob` awaits every registered admission before it queues the launch of a submitted job, in its own mailbox, so submitted jobs start in submission order as admissions let them. With no admission registered, every job launches at once. Budgets registers the first one, the [limit of running jobs](#running-jobs). Recovery at startup and continuations are not admitted: they resume jobs that already held a slot.
+**Admitting launches.** `IJobAdmission` is an extension point in `Jobs.Contracts`: `PrepareJob` awaits every registered admission before it queues the launch of a submitted job, in its own mailbox, so submitted jobs start in submission order as admissions let them. With no admission registered, every job launches at once. Budgets registers the first one, the [limit of running jobs](#running-jobs). Recovery at startup and continuations are not admitted: they resume jobs that already held a slot. Nor is a child job: it works for a parent that holds a slot and waits for it, so admitting it could only deadlock the parent; the [delegation](#delegation) fan-out cap bounds how many children run at once.
 
 ### Review and approval
 
@@ -348,7 +352,8 @@ A job that passed its gates waits for a human as `AwaitingReview`. The human rea
 
 **Queries for the views.** `IJobCatalog` in `Jobs.Contracts` answers from snapshots of the store, read without tracking, so a query never sees, nor disturbs, a job its queue is changing, and never waits for a turn being checked.
 
-- `ListAsync` lists every job as a `JobSummary`: repository, instruction, submission time, status, connection, autonomy and workspace, in submission order.
+- `ListAsync` lists every job as a `JobSummary`: repository, instruction, submission time, status, connection, autonomy, workspace and parent, in submission order.
+- `ChildrenAsync(job)` lists a job's children in submission order, and `TreeAsync(job)` the job with its children and theirs, as a `JobTree` of summaries; an unknown job has no tree.
 - `HistoryAsync(job)` adds the job's attempts, each with its number, origin, outcome, guidance and session, and its sessions in the order they started, each with the attempts it ran. An unknown job has none.
 
 **The diff.** `IWorkspaceChanges` in `Workspaces.Contracts` compares the job's branch, its latest checkpoint, with its base commit, through git and `IProcessRunner`: `DiffAsync` lists the files changed, added, modified or deleted, with the lines added and removed, absent for a binary file; `FileDiffAsync(path)` gives the hunks of one file on demand, each with its ranges, its section header and its context, added and removed lines. Renames count as a deletion and an addition, and the worktree's uncommitted edits are not part of it: the diff is exactly what approval delivers. An unknown workspace is `UnknownWorkspace`, a file the job did not change `FileUnchanged`, a git failure `GitFailed`.
@@ -372,7 +377,7 @@ public interface IApprovalStrategy
 public sealed record ApprovalRequest(JobId Job, string Instruction, int Attempts, WorkspaceInfo Workspace);
 ```
 
-- Strategies are registered through DI. The repository names one in `.avala/jobs.json` at the job's [base commit](#rules-from-the-base-commit), `{ "approval": "merge" }`, next to its preferred connection; without the file or the field the strategy is `keep`. The file is parsed strictly, as for the connection: at most 16 KiB, only `connection` and `approval`, each a non-empty string, and `autopilot`, an object Jobs does not read and the [Autopilot](#autopilot) module parses strictly. A file that is invalid or cannot be read is `InvalidJobFile`, and a name no registered strategy has is `UnknownApprovalStrategy`; either leaves the job awaiting review. When two strategies share a name, the first registered wins.
+- Strategies are registered through DI. The repository names one in `.avala/jobs.json` at the job's [base commit](#rules-from-the-base-commit), `{ "approval": "merge" }`, next to its preferred connection; without the file or the field the strategy is `keep`. The file is parsed strictly, as for the connection: at most 16 KiB, only `connection` and `approval`, each a non-empty string, `autopilot`, an object of plain values Jobs does not read and the [Autopilot](#autopilot) module parses strictly, and `delegation`, an object of plain values and lists of them that the [Delegation](#delegation) module parses strictly. A file that is invalid or cannot be read is `InvalidJobFile`, and a name no registered strategy has is `UnknownApprovalStrategy`; either leaves the job awaiting review. When two strategies share a name, the first registered wins.
 - The core registers two. `keep`: nothing is touched; the delivery names the job's branch, ready to be merged by hand or by a later strategy. `merge`: the job's checkpoints are squashed into one commit and land on the base branch, see below. Opening a pull request arrives as a strategy of a GitHub plugin, without touching the core.
 
 **The merge.** `MergeStrategy` composes the commit message and asks `IWorkspaceChanges.MergeAsync`, which never forces anything:
@@ -387,6 +392,15 @@ public sealed record ApprovalRequest(JobId Job, string Instruction, int Attempts
 8. The job's branch keeps its checkpoints; the delivery names the base branch, the new commit and the checkout it updated.
 
 Git 2.40 or later is required, for `merge-tree --merge-base`. Plumbing runs no hooks, so neither the user's commit hooks nor the merge hooks run on the squashed commit.
+
+**Approving a child job.** A child's work belongs to its parent, never to the repository's base branch, so `Approvals` ignores the repository's `approval` for a job with a parent and delivers it into the parent's worktree with the same merge, whatever the strategy the repository names:
+
+1. The child's workspace was prepared from the parent's branch, so its `BaseBranch` is the parent's branch, checked out in the parent's worktree, and its base commit the checkpoint the child started from.
+2. In the parent's queue, so nothing else touches the parent's worktree meanwhile: a parent that is neither `Running` nor `NeedsHelp` is `ParentNotRunning`, since a parent waiting for review, being checked or ended must not change under its reviewer; an unknown parent is `UnknownParent`.
+3. The parent's workspace is checkpointed as `Before integrating job <child>`, which commits whatever the parent's agent wrote meanwhile, so the dirty-checkout rule of step 4 of the merge holds by construction and nothing the parent wrote is lost.
+4. The `merge` strategy then squashes the child's checkpoints into one commit on the parent's branch and brings the parent's worktree to it with the two-tree fast-forward, refusing to overwrite anything: a conflict is `MergeConflict`, and the child stays `AwaitingReview`.
+
+The delivery names the strategy `merge`, the parent's branch and the new commit, or none when the parent already held the work.
 
 ## Agents
 
@@ -531,7 +545,8 @@ public sealed record ToolResult(ItemId Item, string Content) { bool IsError; }
 - **`Executed`: the harness runs the call and answers it.** The minimal version of the delegation plan's harness-executed tools, which [Autopilot's follow-ups](#follow-ups) needed first. The adapter reports a call as `ToolCalled`, with the call's item, the tool's name and its input as JSON text; it opens an item of the turn, as `CanvasStarted` does. The harness answers with `IAgents.ReturnAsync(session, ToolResult)`, which reaches the provider through `IAgentSession.ReturnAsync`; the adapter hands the result to its agent, reports it with `ToolReturned` and closes the item with `ItemCompleted`, succeeded, or failed when the result `IsError`.
 - **Who answers.** The module that offers an executed tool handles `AgentActivity` of `ToolCalled` for its own tool's name and answers through `IAgents.ReturnAsync`, exactly as Permissions answers `PermissionRequested` through `RespondAsync`. Agents never runs a tool and never learns which module offered it.
 - **Integrity.** The `Turn` aggregate keeps every call waiting for its result: a `ToolReturned` for an item with no pending call, or whose result names another item, is `NoPendingCall`, and a pending call never expires, since the harness owes the answer. `IAgents.ReturnAsync` refuses a provider that does not declare `AcceptsTools` with `Unsupported`, an item with no pending call with `NoPendingCall` and a session that is not open with `SessionClosed`, without asking the provider; `LiveSession` keeps the pending calls from the accepted `ToolCalled` until `ToolReturned`, the item's completion or the end of its turn.
-- Supervision counts a call as activity and does not pause its silence window for it: the first executed tool answers at once. A tool that takes longer, such as delegation's, will pause it like a form.
+- **Long calls and calls at once.** A result may come long after its call: delegation answers when a child job ends, minutes or hours later. A turn may hold several pending calls at once, answered in any order, as an agent that issues parallel tool calls does; the `Turn` aggregate and `LiveSession` already keep a set of them. Supervision pauses the job's silence window while any call of its session is pending, like a form, and restarts it when the last one is answered or closed, or the turn ends.
+- **A call outlived by its turn.** A call has no result after its turn ended: an interrupted turn closes its pending calls as `Abandoned`, and `ReturnAsync` then answers `NoPendingCall` or `SessionClosed`. The module that offers the tool keeps the result in its own records anyway.
 
 ### Human-input forms
 
@@ -675,6 +690,7 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `CheckCanvasToolAsync` | A provider that declares `AcceptsTools`, given a canvas tool and an instruction that draws, reports the call as a canvas that completes. A provider that does not is given no tool, and runs the turn check |
 | `CheckProcessesAsync` | A provider given a launcher and an instruction that runs a process starts it through the session's launcher, so the process belongs to the session's tree. The kit's launcher records what it starts and kills it afterwards, so the check leaks nothing |
 | `CheckHarnessToolAsync` | A provider that declares `AcceptsTools`, given an executed tool and an instruction that calls it, reports the call as `ToolCalled`, refuses a result for an item with no pending call, accepts the kit's result and reports that same result with `ToolReturned`. A provider that does not declare it is given no tool and runs the turn check, which reports a call of a tool the session was not given |
+| `CheckParallelToolCallsAsync` | A provider that declares `AcceptsTools`, given an executed tool and an instruction that calls it twice at once, holds both calls pending: the kit answers neither until the second is reported, then answers the second before the first, and each result is reported with `ToolReturned` for its own call. A provider that does not declare it is given no tool and runs the turn check |
 | `CheckConnectionsAsync` | Two sessions of the same provider, started with the environments of two different [connections](#connections), stay isolated: each runs a conforming turn, they share no session, no account when both report one, and no resume token, and a token issued on the first connection is not accepted by a session started on the second |
 
 ### Simulator
@@ -692,7 +708,7 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 - It declares every capability, `AsksQuestions` included, and an interruption ends the running turn as `Interrupted`.
 - **Resume.** A session's conversation is its scenario and the number of turns it played. Every turn issues, right after `TurnStarted`, a resume token that encodes both with the conversation's identifier and a fingerprint of the session's account, so a token survives a restart of the application without any storage. A session started with it on the same account continues the same conversation with its next script; a token it never issued, or one issued on another account, is rejected with `CannotResume`, as a harness rejects a conversation its configuration folder does not hold.
 - **Canvas tool.** Given a tool whose surface is `Canvas`, a canvas of a scenario is a call of that tool, reported as the canvas events the contract defines. Without one, the simulator writes the same content as a message, like an agent that has no canvas.
-- **Executed tools.** A scenario step calls a tool by name; given a tool of that name on the `Executed` surface, the simulator reports `ToolCalled`, waits for `ReturnAsync`, refusing a result for any other item with `NoPendingCall`, then reports `ToolReturned`, closes the item and replies with the result. Without the tool it says in a message what it would have called. The replay of a recorded tool call is not supported yet: the recorder writes calls, results and `return` entries, and the simulator's reader ignores them.
+- **Executed tools.** A scenario step calls a tool by name; given a tool of that name on the `Executed` surface, the simulator reports `ToolCalled`, waits for `ReturnAsync`, refusing a result for any other item with `NoPendingCall`, then reports `ToolReturned`, closes the item and replies with the result. A step may call several tools at once, as an agent issues parallel calls: it reports every `ToolCalled`, then each `ToolReturned` and completion in the order the results arrive, and replies with all of them. Without the tool it says in a message what it would have called. The replay of a recorded tool call is not supported yet: the recorder writes calls, results and `return` entries, and the simulator's reader ignores them.
 - **Account.** The simulated equivalent of a login: a session reports the account of its connection's credential. A configuration folder is the account `simulated-login:<folder>`, labelled `Simulated account (<folder name>)`; an API key is `simulated-key:<fingerprint>`, labelled `Simulated API key`, and never shows the key; a connection without a credential reports the fixed account `simulated-account`, labelled `Simulated account`. Two connections of the simulator therefore run on distinct accounts.
 - **A recording on its own connection.** A simulator connection whose settings hold `replay`, such as `"settings": { "replay": "edit-allowed" }`, replays that recording in every session it opens, from the first message and whatever it says, and its sessions report the recorded account, so a recorded account's usage stays apart from the simulator's own.
 - `tests/Avala.Host.Tests` plays its scenarios inside the application composed from the published plugin folder, with its in-app pace, and observes the jobs and the canvas snapshots through the event feed.
@@ -715,6 +731,13 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `processes` | Runs `dotnet build`, a real process that works briefly and exits, then `dotnet run`, a real server that listens on the port in `AVALA_PORT` and replies with it, and finishes the turn leaving the server running past the session |
 | `follow-up` | Writes `CHANGELOG.md`, then calls the executed tool `propose_follow_up` with the follow-up `[simulate: reply] Announce the changelog to the team`, waits for the harness's result, replies with it as `The harness answered: …` and finishes. Without that tool it writes the proposal as a message |
 | `near-limit` | Replies, reports its usage and a `5h` limit window 95% used that resets two seconds after the report, measured with `TimeProvider`, and finishes |
+| `delegate` | An orchestrator: calls the executed tool `delegate` twice at once, `[simulate: notes] Write the release notes` and `[simulate: todo] Write the to-do list`, waits for both results, replies and finishes |
+| `delegate-conflict` | Like `delegate`, with the children `notes` and `notes-revised`, which both write `NOTES.md` |
+| `delegate-loosen` | Calls `delegate` for `notes` asking for `autonomous`, then again without asking, one after the other |
+| `delegate-expensive` | Calls `delegate` once for `expensive` |
+| `recursive` | Calls `delegate` with `[simulate: recursive]`, so each child delegates again, until the harness refuses |
+| `notes`, `notes-revised`, `todo` | Children: each writes its file, `NOTES.md` or `TODO.md`, replies and finishes |
+| `expensive` | A child: writes `INDEX.md` and reports 0.60 USD of usage, then waits until interrupted; the turn after replies and finishes |
 
 The processes of the `processes` scenario are the `Avala.Simulator.Workload` program, shipped beside the simulator in its plugin folder and started with the `dotnet` host through the session's launcher, so they run the same on Linux, Windows and macOS without a shell. It works (`work`), prints an environment variable (`env`), listens on `AVALA_PORT` (`serve`), starts a detached child and exits (`spawn`) or waits (`hold`); every waiting mode ends on its own once the process that started the harness is gone, or after ten minutes, so a test that fails never leaves one behind. The tests of the runtime and the conformance kit use the same program.
 
@@ -893,7 +916,7 @@ The provider tag is the provider's identifier and the connection tag the connect
 
 **Accepted**
 
-A repository declares the rules of its jobs in three files: its checks in `.avala/checks.json`, its permission policy in `.avala/permissions.json` and its budget in `.avala/budget.json`. A fourth, `.avala/jobs.json`, names the connection its jobs prefer and the strategy that delivers an approved job, read the same way by Jobs, see [the job flow coordinator](#job-flow-coordinator) and [review](#review-and-approval), and in its `autopilot` section whether a job may be approved automatically and whether follow-ups are accepted, read the same way by [Autopilot](#autopilot). The agent works in the job's worktree, so a rule read from the worktree is a rule the agent can rewrite. Every rule is therefore read from the job's base commit, the commit its worktree was created from, and nothing the agent changes during the job can loosen the rules that judge it.
+A repository declares the rules of its jobs in three files: its checks in `.avala/checks.json`, its permission policy in `.avala/permissions.json` and its budget in `.avala/budget.json`. A fourth, `.avala/jobs.json`, names the connection its jobs prefer and the strategy that delivers an approved job, read the same way by Jobs, see [the job flow coordinator](#job-flow-coordinator) and [review](#review-and-approval), and in its `autopilot` section whether a job may be approved automatically and whether follow-ups are accepted, read the same way by [Autopilot](#autopilot), and in its `delegation` section whether and how its jobs delegate, read the same way by [Delegation](#delegation). The agent works in the job's worktree, so a rule read from the worktree is a rule the agent can rewrite. Every rule is therefore read from the job's base commit, the commit its worktree was created from, and nothing the agent changes during the job can loosen the rules that judge it.
 
 ```csharp
 public interface IBaseFiles
@@ -911,6 +934,7 @@ public sealed record BaseFile(string Path, FileOrigin Origin, Option<string> Con
 - **Edits are ignored and reported.** `EditedInWorktree` says whether the worktree's copy differs from the committed one, compared by git object identity so line ending conversions do not count; a file the worktree added or deleted differs too. The rule stays the committed one, and each module surfaces the origin in its evidence: the verification report, the session's policy and the session's budget carry the commit and the flag, and the feedback of a failed verification tells the agent its changes to the checks do not apply to this job. An edit of a rule file is still an ordinary edit for review: approving the job is how a rule changes.
 - **Outside a workspace.** A folder that is no job's worktree has no base commit: `UnknownWorkspace`. Permissions and Budgets then apply no repository file, as if it were absent, so a session outside a job gets the built-in policy and no caps; Verification, which only ever judges a job, fails closed. A git failure is `GitFailed`, which each module treats as an unreadable file.
 - **Recovery.** A recovered session opens in the same worktree and reads the same base commit, so a restart cannot pick up a file the agent edited before it.
+- **The rules commit.** A workspace reads its rule files from its rules commit, `WorkspaceInfo.RulesCommit`, which is its base commit unless `WorkspaceRequest.Rules` named another when it was prepared. A [child job](#delegation) starts from its parent's checkpoint, which may hold rule files its parent's agent edited, so Jobs prepares it with its parent's rules commit: every job of a delegation tree is judged by the rules of the commit its root started from, and an orchestrator cannot loosen its children's checks, policy, budget or delegation rules by editing them. `EditedInWorktree` compares with the rules commit too, so a child that inherited such an edit reports it. The diff of a workspace stays against its base commit, the work it did.
 - **Before a job exists.** `IBaseFiles.ReadCurrentAsync(repository, path)` reads a file of the commit the repository's `HEAD` points at, the base the next job starts from, for any folder inside the repository, with the same commands; `EditedInWorktree` then says whether the checkout's copy differs. Autopilot reads the [backlog](#job-sources) this way each time it takes a task, so an uncommitted edit of the backlog is ignored like an agent's edit of a rule. A folder outside any repository is `NotAGitRepository`.
 
 ## Verification
@@ -1081,7 +1105,7 @@ An unattended agent must not hang forever or die silently. The Supervision modul
 ### Rules
 
 - **Silence.** A job is watched while it is `Running`, from its `JobProgressed`. Every accepted event of the job's current session, the one its latest `JobSessionStarted` named, restarts the silence; events of a session the job no longer uses do not. When the job stays silent for the whole window, it is held as `Stalled` with the silence measured and the window, and Jobs interrupts the turn.
-- **Human time.** While a permission request or a form of the job's session waits for an answer, the job is never silent: the watch pauses on `PermissionRequested` and `FormRequested`, and restarts the window on `PermissionResolved`, `FormAnswered` or the end of the turn. This is the same rule as the `Turn` aggregate's expiry, where an item waiting for permission never expires. Checks running in `Checking` are not watched either: Verification bounds them with its own timeouts.
+- **Human time and harness time.** While a permission request or a form of the job's session waits for an answer, or a call of a [harness tool](#harness-tools) waits for its result, the job is never silent: the watch pauses on `PermissionRequested`, `FormRequested` and `ToolCalled`, and restarts the window on `PermissionResolved`, `FormAnswered`, once the last pending call is answered by `ToolReturned` or closed by `ItemCompleted`, or at the end of the turn. An orchestrator waiting for its children is therefore not stalled; the children are watched as jobs of their own. This is the same rule as the `Turn` aggregate's expiry, where an item waiting for permission never expires. Checks running in `Checking` are not watched either: Verification bounds them with its own timeouts.
 - **Why a lost session is not Supervision's.** A lost session must be held before Jobs evaluates the failed turn that follows it. With one mailbox per handler, a hold decided in Supervision would race that evaluation, and the job would sometimes fail instead of asking a human. Jobs receives both events in one mailbox and queues both on the job, so the order is guaranteed without any module having to be faster than another.
 - **What it does not duplicate.** Sessions lost to a restart of the application are recovery's: stopping a session at shutdown publishes no `SessionEnded`, and `JobRecovery` resumes the job in a new session, continuing its conversation when the provider can resume it. A job held as `SessionLost` waits for a human, who continues it through `IJobs.ContinueAsync` in a new session that resumes the conversation when it can. Items left open when a turn ends are the `Turn` aggregate's: they are closed as `Abandoned`, the turn ends normally and the job goes on to its checks, so the `left-open` scenario needs no intervention.
 - **Only a running job.** Jobs rejects a hold of a job that is not `Running`; the module then records nothing. An intervention exists only when a job was actually held.
@@ -1138,6 +1162,17 @@ An unattended agent must not spend without limit. The Budgets module holds a job
 - **By connection.** The `connections` section of the file gives the jobs on a named connection their own caps, which replace the top-level ones for those jobs, so an API key billed per token can be capped while a subscription is not. The loader reads the caps of the connection `SessionOpened` names.
 - **Memory.** A cap in megabytes on the memory, the working sets, of every process of the job's trees, as `IResources.OfJob` measures it at the latest sample. A job is held as `MemoryExceeded` when its processes reach it, so parallel builds cannot exhaust the machine. Without the Resources plugin nothing is measured and the cap never holds.
 - A cap is reached when the measure is equal to it or above it. The first breach found holds the job, in that order: cost, tokens, limit, memory.
+- **What a job has committed.** Cost and tokens are measured as what the job has committed, not only what it spent: its own spending plus, for each of its [child jobs](#delegation), what the child reserves. A child that is still open reserves the larger of its carve and what it has committed itself, per currency and for tokens; a child that ended, approved, discarded or failed, reserves only what it committed. A job without children has committed exactly what it spent.
+
+### Carves
+
+Delegating must not multiply spending: a child's cost and token caps are carved out of its parent's.
+
+- **When.** On `JobSubmitted` with a parent, before the child can spend anything, the enforcer carves the child's allowance, records it in `budgets.db` and publishes `BudgetCarved`.
+- **How much.** The parent's allowance is its own caps, those of its session's budget file and connection, narrowed by its own carve if it is itself a child. For each cost cap and for the token cap of that allowance, the child receives `share × max(0, cap − committed)`, where `committed` is what the parent has committed just before this child, its earlier children's reservations included, and `share` is the parent's `carvePerChild`, 0.5 by default. Tokens are rounded down to a whole number. A parent without caps carves nothing, and its child is capped by its own budget file only. With the default share, a parent capped at 1.00 USD that spent 0.20 USD carves 0.40 USD for its first child and 0.20 USD for a second, and keeps 0.20 USD for itself.
+- **Enforced on the child.** A child's caps are its own, narrowed per currency and for tokens by its carve: the smaller of the two. Reaching them holds the child as `BudgetExceeded`, like any job.
+- **Enforced on the parent.** The parent's caps are measured against what it has committed, its running children's reservations included, so the parent and its children together can never be allowed more than the parent's cap. A usage report of a child is also checked against each of its ancestors, so a child that overshoots its carve with one report, as any job can overshoot a cap by one report, holds its ancestors once the tree reaches their cap.
+- **Restarts.** Carves are stored in `budgets.db` and restored at startup with the interventions. The status of the jobs is not: a child that ended in an earlier run counts as open, reserving at least its carve, the conservative side, until a later `JobProgressed` says otherwise.
 
 ### When it checks
 
@@ -1155,14 +1190,15 @@ A repository declares its caps in `.avala/budget.json`, read when the session op
   "tokensPerJob": 2000000,
   "holdAtLimit": 0.9,
   "memoryPerJobMegabytes": 4096,
+  "carvePerChild": 0.5,
   "connections": {
     "team-api": { "costPerJob": { "USD": 2.00 } }
   }
 }
 ```
 
-- Every field is optional. `costPerJob` maps a currency, as the provider reports it, to an amount greater than 0. `tokensPerJob` is a whole number greater than 0. `holdAtLimit` is greater than 0 and at most 1. `memoryPerJobMegabytes` is a whole number greater than 0.
-- `connections` maps a [connection](#connections) name to caps of the same four fields, which replace the top-level caps for the jobs on that connection; a connection it does not name gets the top-level caps. A section names a connection of the machine that runs the job, so a name no connection has caps nothing. A blank name is `Malformed`, and a section is validated like the top level, without a `connections` of its own.
+- Every field is optional. `costPerJob` maps a currency, as the provider reports it, to an amount greater than 0. `tokensPerJob` is a whole number greater than 0. `holdAtLimit` is greater than 0 and at most 1. `memoryPerJobMegabytes` is a whole number greater than 0. `carvePerChild` is the share of what a job has left that each of its children is [carved](#carves), greater than 0 and less than 1, so a parent always keeps part of its allowance; 0.5 without it.
+- `connections` maps a [connection](#connections) name to caps of the same five fields, which replace the top-level caps for the jobs on that connection; a connection it does not name gets the top-level caps. A section names a connection of the machine that runs the job, so a name no connection has caps nothing. A blank name is `Malformed`, and a section is validated like the top level, without a `connections` of its own.
 - The file is parsed strictly: unknown fields, duplicate fields, values of the wrong type, nesting deeper than the format needs and files over 64 KiB are rejected.
 - **Invalid file, safe behavior.** A rejected file is reported in `BudgetLoaded` with its `BudgetError`, and the job is held as `InvalidBudget` as soon as it runs. A repository that declared caps meant to limit spending, so a broken declaration stops the agent instead of letting it spend without limit.
 
@@ -1176,6 +1212,7 @@ A repository declares its caps in `.avala/budget.json`, read when the session op
 | `InvalidTokens` | A token cap that is not a whole number greater than 0 |
 | `InvalidThreshold` | A threshold not greater than 0 or over 1 |
 | `InvalidMemory` | A memory cap that is not a whole number greater than 0 |
+| `InvalidCarve` | A `carvePerChild` not greater than 0 or not less than 1 |
 | `InvalidRunningJobs` | Not a file error of the repository: a limit of running jobs in `budgets.json` that is not a whole number greater than 0 |
 
 ### Running jobs
@@ -1196,14 +1233,14 @@ The machine decides how many jobs run at once, never a repository: `budgets.json
 
 | Folder | Holds | Layer |
 | --- | --- | --- |
-| `Caps` | `Breaches`: the evaluation of a session's budget against a job's spending, its provider's limits and its memory, the reason each breach holds a job for, and the built-in caps | Domain |
-| `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `BudgetLoaded`, `JobSessionStarted`, `JobProgressed`, `UsageRecorded` and `ResourcesSampled`; `BudgetHolds`, which holds through `IJobs` and records; `BudgetBook`, the book behind `IBudgets`, which restores the interventions of earlier runs at startup; and the `IBudgetFiles` and `IInterventionStore` ports | Application |
+| `Caps` | `Breaches`: the evaluation of a session's budget against what a job has committed, its provider's limits and its memory, the reason each breach holds a job for, and the built-in caps; `Carves`: a job's allowance within its carve, the carve of a new child, `Commitment` and `Lineage`, what a job and its children have committed | Domain |
+| `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `BudgetLoaded`, `JobSubmitted`, `JobSessionStarted`, `JobProgressed`, `UsageRecorded` and `ResourcesSampled`; `BudgetActions`, which holds through `IJobs` and records, and records and announces carves; `BudgetBook`, the book behind `IBudgets`, which restores the interventions and carves of earlier runs at startup; and the `IBudgetFiles` and `IInterventionStore` ports | Application |
 | `Admission` | `RunningJobs`, the `IJobAdmission` and handler of `JobProgressed` that keeps the slots, and the `IMachineBudgetFile` port | Application |
 | `BudgetFiles` | `BudgetFileReader` behind `IBudgetFiles`, which reads the file through `IBaseFiles` from Workspaces, `BudgetFileParser`, and `MachineBudgetFile` behind `IMachineBudgetFile` | Infrastructure |
-| `Storage` | `SqliteInterventionStore` behind `IInterventionStore`, in `budgets.db` | Infrastructure |
+| `Storage` | `SqliteInterventionStore` behind `IInterventionStore`, the interventions and carves in `budgets.db` | Infrastructure |
 
 - The domain decides and rejects nothing, so it has no aggregate. `BudgetError` is the module's single error enum, in its contracts.
-- Session budgets live in memory: a recovered session reads its file again. Interventions are stored in `budgets.db` before `BudgetIntervened` is published and restored at startup like Supervision's. Spending comes from Observability, which stores it, so a job recovered after a restart goes on spending against what it had already spent.
+- Session budgets live in memory: a recovered session reads its file again. Interventions are stored in `budgets.db` before `BudgetIntervened` is published and restored at startup like Supervision's, and so are carves before `BudgetCarved`. Spending comes from Observability, which stores it, so a job recovered after a restart goes on spending against what it had already spent.
 - **Trust.** The budget file comes from the base commit, so an agent cannot raise its own caps: neither a running session nor a recovered one, which reads the same commit again, sees an edit made in the worktree. `BudgetLoaded` carries the file's origin, with whether the worktree's copy differs.
 - Budgets measures memory through `IEnumerable<IResources>`, so it works without the Resources plugin.
 
@@ -1419,6 +1456,88 @@ The **failure signature** comes from the verification evidence: the first check 
 - The domain decides and rejects nothing, so it has no aggregate; the runner refuses the commands that do not fit a loop's status. `AutopilotError` is the module's single error enum, in its contracts.
 - Loops, their digests and the approval decisions live in memory: a loop does not survive a restart, and its jobs go on through recovery like any job. The marks and the proposals are stored, so a new loop never takes a backlog task again. Verification reports live in memory too, so a job judged after a restart has no verification and waits for a person, the safe way round.
 
+## Delegation
+
+**Accepted**
+
+An orchestrating agent hands pieces of its work to sub-agents. Unlike a harness's native sub-agents, each one is a full Avala job, a child of the orchestrator's job: its own worktree, started from the orchestrator's current work, on a connection Avala chooses, governed, supervised, budgeted and verified like any job. When it ends, its verified work is brought into the orchestrator's worktree, and its summary, the files it changed and its verification evidence are the result of the orchestrator's call: the orchestrator receives evidence, not a sub-agent's word. The Delegation module is a plugin built on the contracts of Agents, Jobs, Workspaces, Verification, Permissions, Budgets and Observability; no module knows it.
+
+### The tool
+
+The module offers every agent that accepts tools the executed [harness tool](#harness-tools) `delegate`, whose input is an `instruction` and an optional `autonomy`, `supervised` or `autonomous`, and nothing else: the orchestrator never names a connection, a harness or a model. The input is malformed when it is not a JSON object with a non-blank `instruction` of at most 4,000 characters, has another field, or an autonomy outside the two. Several calls at once delegate in parallel; each call is answered when its child ends, which may take long, and Supervision does not count that wait as silence.
+
+### The rules file
+
+The `delegation` section of `.avala/jobs.json`, read from the [rules commit](#rules-from-the-base-commit) of the calling job's worktree by `DelegationRulesReader`, so a delegation tree is governed by the rules its root started from:
+
+```json
+{
+  "delegation": {
+    "connections": ["work", "personal"],
+    "routing": "roundRobin",
+    "maxDepth": 1,
+    "maxChildren": 2
+  }
+}
+```
+
+- Without the file or the section, the repository does not delegate: every call is refused as `NotDeclared`. Delegation is a choice a repository makes, like follow-ups.
+- `connections` is optional: 1 to 16 distinct, non-blank connection names of the machine, the [connections](#connections) children are routed to. Without it, a child runs on its parent's connection. Whether a name is a usable connection is checked when the child is submitted.
+- `routing` is `roundRobin`, the default, or `leastUsed`. Round robin gives a parent's n-th child, counted from the catalog so it holds across restarts, the connection at position n modulo the list's length. Least used gives the child the listed connection whose most used limit window, among those whose reset is still ahead, is the least used, as `IUsage.ByConnection` reports it; a connection with no reading counts as unused, and a tie goes to the first listed.
+- `maxDepth` is a whole number from 1 to 8, 1 by default: a root job is at depth 0 and its children at depth 1, so the default lets jobs delegate but not their children.
+- `maxChildren` is a whole number from 1 to 16, 2 by default: how many children of one parent may run at once, counted as the children whose result the parent still waits for.
+- Parsed strictly: at most 16 KiB, unknown fields, duplicate fields, values of the wrong type and nesting deeper than the format are rejected as `TooLarge`, `UnknownField`, `Malformed`, `InvalidConnections`, `UnknownRouting`, `InvalidDepth` or `InvalidChildren`; a file that cannot be read is `Unreadable`. Every call of a job whose rules are rejected is refused with that error.
+
+### Deciding a call
+
+`DelegationDesk`, the handler of `SessionOpened`, `JobSessionStarted`, `AgentActivity`, `JobProgressed` and `JobHeld`, receives every `ToolCalled` of `delegate` and has `DelegationPolicy` decide it, in this order; the first refusal is the call's result, an error, and nothing is submitted:
+
+| Refusal | When |
+| --- | --- |
+| `MalformedInput` | The input does not fit the tool's schema |
+| `NoJob` | The session runs no job, or the job is unknown |
+| A rules error, or `NotDeclared` | The job's rules cannot be read or declare no delegation |
+| `DepthExceeded` | The child would be deeper than `maxDepth`, which is how a recursion stops |
+| `TooManyChildren` | The parent already waits for `maxChildren` children |
+| `AutonomyLoosened` | The call asks for `autonomous` while the caller's effective autonomy, `IPermissionAudit.AutonomyOf`, is not autonomous |
+| `NotSubmitted` | `IJobs.SubmitAsync` rejected the child, such as a listed connection that is unknown or unusable; the rejection is kept with the refusal |
+
+- **Inherited autonomy.** The child is submitted with the autonomy the call asked for, or else the caller's effective autonomy, supervised when the caller has none. Permissions then caps the child at its repository's level, which comes from the same rules commit, so a child is never looser than its parent and may be stricter.
+- **The child job.** `IJobs.SubmitAsync` with the parent's repository, the instruction, the parent, the routed connection and the autonomy. Jobs [starts it](#job-flow-coordinator) from a checkpoint of the parent's worktree with the parent's rules, without an admission slot. Budgets [carves](#carves) its budget out of the parent's when it is submitted.
+- Every decision is published: `ChildDelegated` once the child is submitted, `DelegationRefused` with the refusal, which is also the call's error result.
+
+### Reporting back
+
+The desk keeps the children it waits for, the parent session's call each one answers, and the last message each child's agent wrote, its summary. When a child settles, `ChildReporter` takes over on its own serial executor, so the bus keeps delivering while it integrates and gathers:
+
+| The child | Outcome | What happens |
+| --- | --- | --- |
+| `AwaitingReview`: it passed its gates, verified | `Integrated` | `IJobs.ApproveAsync` brings its work into the parent's worktree, see [approving a child job](#review-and-approval); the child ends `Approved` |
+| The same, when the merge conflicts | `Conflict` | The child stays `AwaitingReview` for a person, and the conflicting files from `IWorkspaceChanges.ConflictsAsync` are reported |
+| The same, refused otherwise | `NotIntegrated` | The child stays `AwaitingReview`; the refusal is reported, such as `ParentNotRunning` |
+| `NeedsHelp` after a hold | `Held` | The `JobHeld` that follows names the reason, such as `BudgetExceeded`; the child waits for a person |
+| `NeedsHelp` with its retries spent | `RetriesExhausted` | The child waits for a person |
+| `Failed`, `Discarded` | `Failed`, `Discarded` | |
+
+The result of the call, a `ChildReport` written as JSON for the agent, is never an error: the job, the outcome and status, the connection and autonomy, the summary, the files changed with their counts, the last verification's outcome and checks with their exit codes, what the child spent and its carve, the commit that integrated it, the conflicting files, the hold reason and the refusal. It is returned through `IAgents.ReturnAsync`, kept in `DelegationBook` and published as `ChildReported`.
+
+- **A parent that ends** approved, discarded or failed has the children it still waits for discarded, so nothing keeps working for a job that is gone.
+- **A parent whose turn ended** before a child reported, such as one held meanwhile, no longer waits for the call: the result is kept and published, and `ReturnAsync` is refused. The child's work is not integrated into a parent that is not `Running` or `NeedsHelp`.
+- **Serial integration.** Integrations run one at a time on the reporter's executor, and each runs in the parent's job queue, so two children of one parent never write its worktree at once and a parent's own checkpoint never races them.
+
+### The module
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Policy` | `DelegationRules`: the declared connections, routing, depth and fan-out, the routing of a child to a connection and the refusals of depth, fan-out and autonomy | Domain |
+| `Delegating` | `DelegationTool`, the definition of `delegate`; `DelegationInput`, the parsed input; `DelegationPolicy`; `ConnectionGauge`, the limit windows of a connection; `Delegator`, which submits a child; `DelegationDesk`, the handler; and the `IDelegationRules` port | Application |
+| `Reporting` | `ChildReporter`, which integrates a settled child and reports it; `ChildEvidence`, its diff, verification and summary; `ChildSpending`, its spending and carve | Application |
+| `Records` | `DelegationBook`, behind `IDelegations`; `DelegationJournal`, which answers the call, keeps the record and publishes it; `ToolAnswers`, the results as JSON | Application |
+| `RepositoryFiles` | `DelegationRulesReader` behind `IDelegationRules`, through `IBaseFiles`, and `DelegationRulesParser` | Infrastructure |
+
+- The domain decides and rejects nothing, so it has no aggregate. `DelegationError` is the module's single error enum, in its contracts.
+- Delegation records live in memory: a delegation does not survive a restart. The tree survives in Jobs, the carves in Budgets, and the children go on through recovery like any job; their parent's new session is not told their results.
+
 ## Data the harness produces
 
 The user interface is designed from the data the harness produces, so every module that produces data lists it here: its integration events on the bus and its queries, with their shape, when and how often they are produced, and their cardinality.
@@ -1550,7 +1669,7 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | `BudgetIntervened` | Event | `Intervention`: a `BudgetIntervention` | After a hold succeeded, following the hold's `JobProgressed` and `JobHeld` | One per intervention |
 | `IBudgets.BudgetOf(SessionId)` | Query | `Option<SessionBudget>`; none until the session opened | Any time | One per session |
 | `IBudgets.OfJob(JobId)` | Query | `IReadOnlyList<BudgetIntervention>` in the order they happened | Any time, from memory; earlier runs restored at startup from `budgets.db` | Zero or more per job |
-| `budgets.db` | File in the data folder | `Interventions`: the job, the session, the hold reason and halt, the breach's measure, subject, measured value, cap and error (empty when none), and the time in UTC ticks | One row per intervention, written before `BudgetIntervened` | Zero or more per job |
+| `budgets.db` | File in the data folder | `Interventions`: the job, the session, the hold reason and halt, the breach's measure, subject, measured value, cap and error (empty when none), and the time in UTC ticks; `Carves`: the parent, the child, the carved costs as a JSON list of currency and amount, the carved tokens (`-1` when uncapped), the share and the time in UTC ticks | One row per intervention, written before `BudgetIntervened`; one row per child job, written before `BudgetCarved` | Zero or more per job |
 
 `BudgetCaps` has `CostPerJob`, a list of `Cost` caps, one per currency; `TokensPerJob`, an `Option<long>`; `HoldAtLimit`, an `Option<double>`; and `MemoryPerJobMegabytes`, an `Option<long>`. A session's `Caps` are those of its connection: the file's `connections` section for it when there is one, the top-level caps otherwise. `BudgetIntervention` carries `Hold`, the `JobHold`; `Breach`; and `At`. A `BudgetBreach` states the measured facts: `Measure` (`Cost`, `Tokens`, `Limit`, `Declaration` or `Memory`), `Subject` (the currency, `tokens`, the limit window, the budget file or `megabytes`), `Measured` and `Cap` as decimals (spent against cap, the limit fraction used against the threshold, or megabytes used, to one decimal, against the cap; both 0 for a declaration) and `Error`, the `Option<BudgetError>` of an invalid declaration.
 
@@ -1570,7 +1689,7 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
-| `IJobCatalog.ListAsync()` | Query | `IReadOnlyList<JobSummary>`: `Job`, `Repository`, `Instruction`, `Submitted`, `Status` (`JobStatus`), `Option<ConnectionName>` `Connection`, `Option<Autonomy>` `Autonomy` and `Option<WorkspaceId>` `Workspace`, in submission order | On demand, from a snapshot of `jobs.db` | One per job ever submitted |
+| `IJobCatalog.ListAsync()` | Query | `IReadOnlyList<JobSummary>`: `Job`, `Repository`, `Instruction`, `Submitted`, `Status` (`JobStatus`), `Option<ConnectionName>` `Connection`, `Option<Autonomy>` `Autonomy`, `Option<WorkspaceId>` `Workspace` and `Option<JobId>` `Parent`, in submission order | On demand, from a snapshot of `jobs.db` | One per job ever submitted |
 | `IJobCatalog.HistoryAsync(JobId)` | Query | `Option<JobHistory>`: `Summary`; `Sessions`, each a `SessionRecord` with `Session` and the numbers of its `Attempts`, in the order the sessions started; `Attempts`, each an `AttemptRecord` with `Number`, `Origin` (`AttemptOrigin`: `Initial`, `Retry`, `Hint`, `SendBack`, `Recovery`), `Outcome` (`AttemptOutcome`: `Running`, `AwaitingCheck`, `Passed`, `Rejected`, `Interrupted`), `Option<string>` `Guidance` and `Option<SessionId>` `Session`; none for an unknown job | On demand, from a snapshot of `jobs.db` | One per job |
 | `IJobs.ApproveAsync(JobId)` | Command answer | `Result<JobApproval, JobRejection>`: `Job` and `Delivery`, an `ApprovalDelivery` with `Strategy`, `Branch` and `Option<string>` `Commit`; or `NotAwaitingReview`, `UnknownJob`, `WorkspaceUnavailable`, `InvalidJobFile`, `UnknownApprovalStrategy`, `NoBaseBranch`, `MergeConflict`, `BaseCheckoutDirty`, `BaseMoved`, `DeliveryFailed`, or any rejection of a plugin's strategy | When a human approves. A success is followed by `SessionStopped` when the session was open, `JobProgressed` with `Approved`, then `JobApproved` | One per approval attempt |
 | `JobApproved` | Event | `Approval`: the `JobApproval` | Once the approved job is stored and announced | Zero or one per job |
@@ -1660,6 +1779,46 @@ The module publishes no event and answers no query: a recording is a file for pe
 | `.avala/jobs.json` `autopilot` | Field of a rule file | `approve` and `followUps` | Read from the base commit of each job judged and of each job that proposes a follow-up | One per repository |
 | `autopilot.db` | File in the data folder | `Tasks`: the repository, the source, the task's key and instruction, its `TaskState` (`Proposed`, `Taken`, `Approved`, `WaitingForPerson`, `Failed`), its job (an empty identifier when none), when it was last taken (`-1` when never) and when it last changed, in UTC ticks | One row per task a loop took and per follow-up proposed, updated by every mark | Grows with the backlogs; never compacted yet |
 
+### Jobs: parent and child jobs
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `JobRequest.Parent` | Field of a command | `Option<JobId>`, the job a new job is a child of; refused with `UnknownParent`, `ParentNotRunning`, or `InvalidRequest` for another repository | At submission | One per job |
+| `JobSubmitted.Parent` | Field of an event | `Option<JobId>`, the job's parent | With every `JobSubmitted` | One per job |
+| `JobSummary.Parent` | Field of a query answer | `Option<JobId>` | With every summary of `IJobCatalog` | One per job |
+| `IJobCatalog.ChildrenAsync(JobId)` | Query | `IReadOnlyList<JobSummary>`: the job's children in submission order, with their status, connection, autonomy and workspace | On demand, from a snapshot of `jobs.db` | Zero or more per job |
+| `IJobCatalog.TreeAsync(JobId)` | Query | `Option<JobTree>`: `Job`, the `JobSummary`, and `Children`, a `JobTree` each, in submission order; none for an unknown job | On demand, from a snapshot of `jobs.db` | One per job; a view of a delegation tree reads it from the root |
+| `IJobs.ApproveAsync(JobId)` of a child | Command answer | As for any job, delivered by the `merge` strategy into the parent's branch and worktree; or `ParentNotRunning`, `UnknownParent`, `MergeConflict`, `BaseCheckoutDirty`, `BaseMoved` | When Delegation integrates a verified child, or a person approves one | One per approval attempt |
+| `jobs.db` `Parent` | Column of `Jobs` | The parent's identifier, an empty identifier for a root job | Written with the job | One per job |
+
+A view follows each child's status through `JobProgressed`, its connection through the summary or `ChildDelegated`, and what it spent against its carve through `IUsage.OfJob` and `IBudgets.CarveOf`, updated by `UsageRecorded`.
+
+### Workspaces: rules commit
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `WorkspaceRequest.Rules` | Field of a command | `Option<string>`: a reference to the commit the workspace reads its rule files from; none for its base commit. A reference that does not resolve is `GitFailed` | When a workspace is prepared; Jobs names the parent's rules commit for a child | One per workspace |
+| `WorkspaceInfo.RulesCommit` | Field of `IWorkspaces` answers | The full SHA of the commit `IBaseFiles.ReadAsync` reads from and `FileOrigin.Commit` names; the base commit unless the request named another | Fixed when the workspace is prepared; stored as the `Rules` column of `workspaces.db` | One per workspace |
+
+### Budgets: carves
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `BudgetCarved` | Event | `Carve`: a `BudgetCarve` with `Parent`, `Child`, `Cost` (one `Cost` per currency the parent caps), `Option<long>` `Tokens`, `Share` and `At` | When a child job is submitted, once its carve is stored and before it can spend | One per child job |
+| `IBudgets.CarveOf(JobId)` | Query | `Option<BudgetCarve>` of a child; none for a root job | Any time; earlier runs restored at startup from `budgets.db` | One per child job |
+| `BudgetCaps.CarvePerChild` | Field of a session's caps | `Option<double>`, the share each child is carved, from `carvePerChild` | With `BudgetLoaded` | One per session |
+
+### Delegation
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `ChildDelegated` | Event | `Delegation`: a `DelegationRecord` with `Session` and `Item`, the call; `Instruction`; `At`; `Option<JobId>` `Parent`; `Depth`, the child's; `Option<JobId>` `Child`; `Option<ConnectionName>` `Connection`, the routed one; `Option<Autonomy>` `Autonomy`; and the options `Refusal` (`DelegationError`), `Rejection` (`JobRejection`) and `Report` (`ChildReport`), none yet | When a call's child job is submitted | One per child job |
+| `DelegationRefused` | Event | `Delegation`, with its `Refusal` and, for `NotSubmitted`, the `Rejection` | When a call is refused, once its error result was returned | Zero or more per job |
+| `ChildReported` | Event | `Delegation`, with its `Report`: a `ChildReport` with `Child`, `Outcome` (`ChildOutcome`: `Integrated`, `Conflict`, `NotIntegrated`, `Held`, `RetriesExhausted`, `Failed`, `Discarded`), `Status`, `At`, `Option<string>` `Summary`, `Files` (each a `FileChange`), `Option<VerificationReport>` `Verification`, `Spent` per currency, `Tokens`, `Option<BudgetCarve>` `Carve`, `Option<ApprovalDelivery>` `Delivery`, `Conflicts`, `Option<HoldReason>` `Hold` and `Option<JobRejection>` `Refusal` | When a child settled and was integrated or not, once the result was returned to its parent's call | One per child job that settled while the delegation was known |
+| `IDelegations.All()`, `OfParent(JobId)`, `OfChild(JobId)` | Query | The `DelegationRecord`s in the order the calls were made, the latest version of each | Any time, from memory | One per call since the application started |
+| The `delegate` call's result | Tool result | JSON: `job`, `outcome`, `status`, `connection`, `autonomy`, `summary`, `files` (`path`, `change`, `added`, `removed`, `binary`), `verification` (`outcome`, `checks` with `name`, `status`, `exitCode`), `spent`, `tokens`, `carve`, `integrated` (`branch`, `commit`), `conflicts`, `hold`, `refusal`; or, as an error, `refused` and `reason` | When the child settles, or at once when refused | One per call |
+| `.avala/jobs.json` `delegation` | Field of a rule file | `connections`, `routing`, `maxDepth`, `maxChildren`, see [Delegation](#the-rules-file-1) | Read from the rules commit of the caller's worktree at every call | One per repository |
+
 ## Delivery
 
 **Accepted**
@@ -1672,7 +1831,7 @@ The application is built view model first: every screen is built and tested as v
 
 - EF Core with the SQLite provider, with no server.
 - One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`, `observability.db`, `supervision.db`, `budgets.db` and `autopilot.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
-- The schema is created with `EnsureCreated`. The schema changes so far, the `Base` and `BaseBranch` columns of a workspace, the `Resume`, `Autonomy`, `Connection` and `Submitted` columns of a job and the `Session` column of its attempts, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted, or its `jobs.db` and `workspaces.db` at least. The new databases of Observability, Supervision and Budgets are created when missing. Migrations arrive with the first schema change after a release; with stored history now worth keeping, that release is the moment to start them.
+- The schema is created with `EnsureCreated`. The schema changes so far, the `Base`, `BaseBranch` and `Rules` columns of a workspace, the `Resume`, `Autonomy`, `Connection`, `Submitted` and `Parent` columns of a job, the `Session` column of its attempts and the `Carves` table of `budgets.db`, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted, or its `jobs.db`, `workspaces.db` and `budgets.db` at least, since `EnsureCreated` adds neither a column nor a table to a database that exists. The new databases of Observability, Supervision and Budgets are created when missing. Migrations arrive with the first schema change after a release; with stored history now worth keeping, that release is the moment to start them.
 - **Rows that are not aggregates.** A store of facts, such as usage facts and interventions, maps a plain row type in its `Storage` folder, converted to and from the module's records there, instead of an aggregate. Times are stored as UTC ticks, so SQLite compares and orders them as numbers.
 - Stores are internal interfaces of each module's application layer, implemented in its `Storage` folder.
 - EF Core is referenced only from the infrastructure layer, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.

@@ -39,7 +39,8 @@ Use only this data. Anything else must be marked "Proposed" with the real proble
 - **Evidence:** per attempt, verification checks with status (Passed, Failed, TimedOut, NotFound, Skipped), exit code, duration and output tail; the policy decisions and the rule that made each; the assumptions recorded when the policy answered for the user; whether the agent edited a rule file.
 - **Canvas:** SVG, Mermaid, HTML or Markdown drawn by the agent, streaming.
 - **Usage:** tokens by type, cost by currency, usage limit windows with their reset time, by provider, account, connection and job, kept across restarts and readable over any time window or per day; budget caps and the interventions that hit them, kept across restarts.
-- **Proposed** (not in the core yet, valuable): delegation trees of sub-agents; replay of a session. Resources per agent (memory, CPU, disk, ports, leftover processes, stale worktrees) are in the core since the resources step.
+- **Delegation:** an orchestrator's tree of child jobs, each with its status, the connection it was routed to, its autonomy, what it spent against the budget carved for it, and its outcome as reported back to the orchestrator: integrated into the orchestrator's work, a conflict, held, failed; refused delegations with their reason.
+- **Proposed** (not in the core yet, valuable): replay of a session. Resources per agent (memory, CPU, disk, ports, leftover processes, stale worktrees) are in the core since the resources step, and delegation trees since the delegation step.
 
 ## Screens, in this order
 
