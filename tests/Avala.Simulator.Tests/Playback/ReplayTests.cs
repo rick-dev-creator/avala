@@ -194,6 +194,74 @@ public sealed class ReplayTests
         Assert.Equal(gaps.Select(gap => TimeSpan.FromMilliseconds(gap)), clock.Waited);
     }
 
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, "Replay diverged: the harness answered edit, which the recording never answered.")]
+    public async Task AnAnswerGivenBeforeTheRecordedEventsThatPrecedeItIsHonoredOnlyWhenTheRecordingAnswersItLaterAsync(bool answered, string divergence)
+    {
+        string[] entries =
+        [
+            """{ "at": 0, "event": { "type": "turnStarted", "turn": 1 } }""",
+            """{ "at": 0, "event": { "type": "itemStarted", "turn": 1, "item": "edit", "kind": "command", "title": "Run printf" } }""",
+            """{ "at": 0, "event": { "type": "permissionRequested", "turn": 1, "item": "edit", "title": "Run printf", "kind": "command", "target": "printf" } }""",
+            """{ "at": 5, "event": { "type": "itemStarted", "turn": 1, "item": "search", "kind": "other", "title": "ToolSearch" } }""",
+            """{ "at": 5, "event": { "type": "itemCompleted", "turn": 1, "item": "search", "outcome": "succeeded" } }""",
+            .. answered
+                ? new[]
+                {
+                    """{ "at": 5, "respond": { "item": "edit", "answer": "allow" } }""",
+                    """{ "at": 5, "event": { "type": "permissionResolved", "turn": 1, "item": "edit", "answer": "allow" } }""",
+                    """{ "at": 5, "event": { "type": "itemCompleted", "turn": 1, "item": "edit", "outcome": "succeeded" } }""",
+                }
+                : [],
+            """{ "at": 5, "event": { "type": "turnCompleted", "turn": 1, "outcome": "finished" } }""",
+        ];
+        var clock = new HeldClock();
+        using var data = new TemporaryFolder();
+        using var folder = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(data.Path, RecordingFolder.FolderName));
+        await File.WriteAllTextAsync(Path.Combine(data.Path, RecordingFolder.FolderName, "recorded.json"), Recorded.Session(entries), Cancellation);
+        await using var session = new SimulatedSession(
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            Stage.Crafted(new AvalaPaths(data.Path)) with { Pacing = new Pacing(clock, TimeSpan.Zero) },
+            SimulatedAccounts.Default,
+            Option<Conversation>.None);
+        Outcomes.Succeeds(await session.SendAsync(new UserTurn("[replay as recorded: recorded] Go"), Cancellation));
+        var requested = Assert.IsType<PermissionRequested>((await Stage.ReadUntilAsync<PermissionRequested>(session, Cancellation))[^1]);
+
+        Outcomes.Succeeds(await session.RespondAsync(new PermissionDecision(requested.Item, PermissionAnswer.Allow), Cancellation));
+        clock.Release();
+        var rest = await Stage.ReadUntilAsync<TurnCompleted>(session, Cancellation);
+
+        Assert.Equal(answered ? TurnOutcome.Finished : TurnOutcome.Failed, Assert.IsType<TurnCompleted>(rest[^1]).Outcome);
+        Assert.Equal(answered ? [] : [divergence], rest.OfType<ItemProgressed>().Select(progressed => progressed.Text));
+    }
+
+    private sealed class HeldClock : TimeProvider
+    {
+        private readonly TaskCompletionSource released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Release() => released.TrySetResult();
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            _ = released.Task.ContinueWith(_ => callback(state), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+
+            return new Fired();
+        }
+
+        private sealed class Fired : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+            public void Dispose()
+            {
+            }
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class GapClock : TimeProvider
     {
         private readonly ConcurrentQueue<TimeSpan> waited = new();
