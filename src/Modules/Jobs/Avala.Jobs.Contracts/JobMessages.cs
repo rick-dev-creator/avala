@@ -33,6 +33,7 @@ public enum HoldReason
     MemoryExceeded,
     Interrupted,
     Stopped,
+    NotResumable,
 }
 
 public enum SessionHalt

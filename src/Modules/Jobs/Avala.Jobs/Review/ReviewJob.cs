@@ -3,13 +3,12 @@ using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Launching;
 using Avala.Jobs.Ledger;
+using Avala.Jobs.Recovery;
 using Avala.Sdk;
-using Avala.Sdk.Events;
-using ApprovalAnnouncement = Avala.Jobs.Contracts.JobApproved;
 
 namespace Avala.Jobs.Review;
 
-internal sealed class ReviewJob(JobLedger ledger, JobLauncher launcher, Approvals approvals, IEventBus bus)
+internal sealed class ReviewJob(JobLedger ledger, JobLauncher launcher, Approvals approvals, ResumeJob resume)
 {
     public Task<Result<JobContinuation, JobRejection>> ContinueAsync(Job job, Feedback guidance, CancellationToken cancellationToken) =>
         launcher.ContinueAsync(job, guidance, cancellationToken);
@@ -24,6 +23,9 @@ internal sealed class ReviewJob(JobLedger ledger, JobLauncher launcher, Approval
     public Task<Result<JobContinuation, JobRejection>> SendBackAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
         launcher.SendBackAsync(job, feedback, cancellationToken);
 
+    public Task<Result<JobContinuation, JobRejection>> ResumeAsync(Job job, CancellationToken cancellationToken) =>
+        resume.ExecuteAsync(job, cancellationToken);
+
     public async Task<Result<JobApproval, JobRejection>> ApproveAsync(Job job, CancellationToken cancellationToken)
     {
         if (job.State != JobState.AwaitingReview)
@@ -37,10 +39,8 @@ internal sealed class ReviewJob(JobLedger ledger, JobLauncher launcher, Approval
         }
 
         _ = job.Approve();
-        await ledger.RecordAsync(job, cancellationToken);
-
         var approval = new JobApproval(job.Id, delivery);
-        await bus.PublishAsync(new ApprovalAnnouncement(approval), cancellationToken);
+        await ledger.RecordApprovalAsync(job, approval, cancellationToken);
 
         return approval;
     }

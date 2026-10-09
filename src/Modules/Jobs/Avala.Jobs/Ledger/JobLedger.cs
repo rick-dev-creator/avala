@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using ApprovalAnnouncement = Avala.Jobs.Contracts.JobApproved;
 
 namespace Avala.Jobs.Ledger;
 
@@ -33,6 +34,12 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents)
         }
 
         await bus.PublishAsync(new JobProgressed(job.Id, job.State.Status), cancellationToken);
+    }
+
+    public async Task RecordApprovalAsync(Job job, JobApproval approval, CancellationToken cancellationToken)
+    {
+        await RecordAsync(job, cancellationToken);
+        await bus.PublishAsync(new ApprovalAnnouncement(approval), cancellationToken);
     }
 
     public async Task RecordResumeAsync(Job job, SessionId session, CancellationToken cancellationToken)

@@ -81,6 +81,9 @@ internal sealed class FakeJobs : IJobs
     public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         AnswerAsync($"send back {feedback}", new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession));
 
+    public ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) =>
+        AnswerAsync("resume", new JobContinuation(job, SessionId.New(), ContinuedIn.ResumedConversation));
+
     private ValueTask<Result<T, JobRejection>> AnswerAsync<T>(string call, T value)
         where T : notnull
     {

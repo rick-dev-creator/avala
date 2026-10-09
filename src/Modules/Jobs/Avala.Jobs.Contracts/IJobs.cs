@@ -19,11 +19,23 @@ public interface IJobs
     ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken);
 
     ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken);
+
+    ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken);
 }
 
 public interface IJobAdmission
 {
     ValueTask AdmitAsync(JobId job, CancellationToken cancellationToken);
+}
+
+public interface IRecoveryDeferral
+{
+    ValueTask<bool> DefersAsync(JobId job, CancellationToken cancellationToken);
+}
+
+public interface IJobBriefing
+{
+    ValueTask<Option<string>> BriefAsync(JobId job, CancellationToken cancellationToken);
 }
 
 public sealed record JobRequest(string RepositoryPath, string Instruction, int AttemptsPerRound = 3)
@@ -70,4 +82,6 @@ public enum JobRejection
     UnknownParent,
     ParentNotRunning,
     SameConnection,
+    NotDeferred,
+    NotResumable,
 }
