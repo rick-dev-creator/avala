@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Canvas.Contracts;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
@@ -22,6 +23,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private readonly EventWatch<JobProgressed> progress;
     private readonly EventWatch<AgentActivity> activity;
     private readonly EventWatch<CanvasUpdated> canvases;
+    private readonly EventWatch<PermissionDecided> decisions;
 
     private SimulatedRun(TemporaryFolder data, CompositionRoot root, TemporaryRepository repository)
     {
@@ -31,6 +33,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         progress = Watch<JobProgressed>();
         activity = Watch<AgentActivity>();
         canvases = Watch<CanvasUpdated>();
+        decisions = Watch<PermissionDecided>();
     }
 
     public TemporaryRepository Repository => repository;
@@ -42,11 +45,17 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    public static async Task<SimulatedRun> StartAsync(PublishedPlugins plugins, string scenario)
+    public static Task<SimulatedRun> StartAsync(PublishedPlugins plugins, string scenario) =>
+        StartAsync(plugins, scenario, Option<string>.None);
+
+    public static async Task<SimulatedRun> StartAsync(PublishedPlugins plugins, string scenario, Option<string> permissionPolicy)
     {
         var data = new TemporaryFolder();
         var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
+        await permissionPolicy.Match(
+            policy => repository.CommitAsync(".avala/permissions.json", policy, Cancellation),
+            () => Task.CompletedTask);
         var run = new SimulatedRun(data, root, repository);
         root.Start();
         await run.SubmitAsync(scenario);
@@ -63,6 +72,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task<IReadOnlyList<IAgentEvent>> TurnAsync() =>
         [.. (await activity.CollectUntilAsync(update => update.Event is TurnCompleted)).Select(update => update.Event)];
+
+    public async Task<PolicyDecision> DecisionAsync() => (await decisions.UntilAsync(_ => true)).Decision;
 
     public async Task<IReadOnlyList<CanvasSnapshot>> CanvasSnapshotsAsync(int canvasCount)
     {

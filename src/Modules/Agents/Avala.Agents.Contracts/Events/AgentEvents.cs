@@ -13,7 +13,7 @@ public sealed record ItemProgressed(SessionId Session, TurnId Turn, ItemId Item,
 
 public sealed record ItemCompleted(SessionId Session, TurnId Turn, ItemId Item, ItemOutcome Outcome) : IAgentEvent;
 
-public sealed record PermissionRequested(SessionId Session, TurnId Turn, ItemId Item, string Title) : IAgentEvent;
+public sealed record PermissionRequested(SessionId Session, TurnId Turn, ItemId Item, string Title, ItemKind Kind, string Target) : IAgentEvent;
 
 public sealed record PermissionResolved(SessionId Session, TurnId Turn, ItemId Item, PermissionAnswer Answer) : IAgentEvent;
 

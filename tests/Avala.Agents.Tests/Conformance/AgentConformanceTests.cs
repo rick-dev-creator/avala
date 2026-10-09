@@ -57,6 +57,24 @@ public sealed class AgentConformanceTests
     }
 
     [Fact]
+    public async Task ReportsAPermissionRequestThatNamesNoTargetAsync()
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => AskingPermission(session, turn, ItemKind.Command, " "));
+
+        Assert.Equal(["the permission for migrate names no target"], await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    [Fact]
+    public async Task ReportsAPermissionRequestOfAnotherKindThanItsItemAsync()
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => AskingPermission(session, turn, ItemKind.FileEdit, "dotnet ef database update"));
+
+        Assert.Equal(
+            ["the permission for migrate is for a FileEdit but its item is a Command"],
+            await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    [Fact]
     public async Task ReportsATurnThatNeverEndsAsync()
     {
         var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
@@ -66,5 +84,20 @@ public sealed class AgentConformanceTests
         await deadline.CancelAsync();
 
         Assert.Equal(["the turn did not complete before the deadline"], await check);
+    }
+
+    private static IEnumerable<IAgentEvent> AskingPermission(SessionId session, TurnId turn, ItemKind kind, string target)
+    {
+        var item = new ItemId("migrate");
+
+        return
+        [
+            new TurnStarted(session, turn),
+            new ItemStarted(session, turn, item, ItemKind.Command, "dotnet ef database update"),
+            new PermissionRequested(session, turn, item, "Run dotnet ef database update", kind, target),
+            new PermissionResolved(session, turn, item, PermissionAnswer.Allow),
+            new ItemCompleted(session, turn, item, ItemOutcome.Succeeded),
+            new TurnCompleted(session, turn, TurnOutcome.Finished),
+        ];
     }
 }

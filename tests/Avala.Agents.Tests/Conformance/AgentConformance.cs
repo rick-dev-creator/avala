@@ -40,6 +40,7 @@ internal static class AgentConformance
     private static async Task<IReadOnlyList<string>> AuditAsync(IAgentSession session, TurnId expected, CancellationToken deadline)
     {
         var violations = new List<string>();
+        var kinds = new Dictionary<ItemId, ItemKind>();
         Turn? turn = null;
 
         await foreach (var agentEvent in session.Events.WithCancellation(deadline))
@@ -48,8 +49,14 @@ internal static class AgentConformance
                 ? [$"{Name(agentEvent)} belongs to another turn"]
                 : Audit(ref turn, agentEvent));
 
+            if (agentEvent is ItemStarted started)
+            {
+                kinds[started.Item] = started.Kind;
+            }
+
             if (agentEvent is PermissionRequested requested)
             {
+                violations.AddRange(Describes(requested, kinds));
                 violations.AddRange(await AllowAsync(session, requested, deadline));
             }
 
@@ -60,6 +67,19 @@ internal static class AgentConformance
         }
 
         return [.. violations, "the event stream ended before TurnCompleted"];
+    }
+
+    private static IEnumerable<string> Describes(PermissionRequested requested, Dictionary<ItemId, ItemKind> kinds)
+    {
+        if (string.IsNullOrWhiteSpace(requested.Target))
+        {
+            yield return $"the permission for {requested.Item.Value} names no target";
+        }
+
+        if (kinds.TryGetValue(requested.Item, out var kind) && kind != requested.Kind)
+        {
+            yield return $"the permission for {requested.Item.Value} is for a {requested.Kind} but its item is a {kind}";
+        }
     }
 
     private static async Task<IReadOnlyList<string>> AllowAsync(IAgentSession session, PermissionRequested requested, CancellationToken deadline) =>
