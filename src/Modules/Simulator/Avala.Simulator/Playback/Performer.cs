@@ -1,11 +1,12 @@
 using System.Runtime.CompilerServices;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
 
-internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates gates)
+internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates gates, CapabilitySet declared)
 {
     private readonly Replayer replayer = new(options, craft.Files, gates, craft.Pacing);
 
@@ -43,6 +44,10 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
 
     private IAsyncEnumerable<IAgentEvent> PlayAsync(Cues cues, IStep step, CancellationToken cancellationToken) => step switch
     {
+        Ask ask when !declared.Has<AsksForms>() =>
+            cues.Of(Reply(ask.Item, $"I would ask: {ask.Form.Title}, but the harness takes no forms, so I stop here."))
+                .Append(cues.Ended(TurnOutcome.Finished))
+                .ToAsyncEnumerable(),
         Ask ask => AskAsync(cues, ask, cancellationToken),
         CallTool call => PlayAsync(cues, new CallTools([call]), cancellationToken),
         CallTools calls when calls.Calls.All(call => options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed)) =>

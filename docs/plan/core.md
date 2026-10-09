@@ -116,6 +116,7 @@ What was built:
 5. Done. The recorder writes the components of the session's connection, each named after its type with its data, a plugin's own component included; the committed recordings carry the new shape.
 6. Done. The conformance kit checks, on every turn, usage, cost and its currency, limits and their windows, reasoning and partial output against the declared components; `CheckReportsAsync` and `CheckInterruptAsync` check that what is declared happens. The simulator, on a login and on an API key, and Claude Code, through its recorded transcripts, pass them.
 7. Done. An architecture rule: every component is a sealed immutable record in a `Contracts` namespace.
+8. Done. End to end through the simulator: its connection settings `withoutCapabilities` and `toolSurfaces` play a harness that lacks a component, its sessions adapt to what they declare, and `CapabilityTests` in the host tests prove every component, and the API key refinement of `ReportsLimits`, inside the composed application; the conformance kit checks each of those connections.
 
 Deferred: whether Claude Code emits `rate_limit_event` on an API key, to be observed with a real key; a view of a connection's capabilities in the settings page, when a person needs it; and a reader of the recorded capabilities, which nothing interprets yet.
 

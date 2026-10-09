@@ -16,7 +16,7 @@ internal sealed class SimulatedSession : IAgentSession
     private readonly Performer performer;
     private readonly SessionOptions options;
     private readonly Stagecraft craft;
-    private readonly CapabilitySet capabilities;
+    private readonly Adaptation adaptation;
     private Option<Conversation> conversation;
     private Option<Act> act;
     private bool closed;
@@ -28,10 +28,11 @@ internal sealed class SimulatedSession : IAgentSession
             new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission),
             new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm),
             new ReplyGate<ToolResult>(stage, AgentError.NoPendingCall));
-        performer = new Performer(options, craft, gates);
+        var capabilities = SimulatedCapabilities.On(options.Connection);
+        performer = new Performer(options, craft, gates, capabilities);
+        adaptation = new Adaptation(capabilities);
         this.options = options;
         this.craft = craft;
-        capabilities = SimulatedCapabilities.On(options.Connection);
         this.conversation = conversation;
         Account = account;
     }
@@ -116,13 +117,11 @@ internal sealed class SimulatedSession : IAgentSession
         {
             await foreach (var cue in performer.PlayAsync(cues, played, interruption))
             {
-                if (!capabilities.Reports(cue))
+                foreach (var adapted in adaptation.Adapt(cue))
                 {
-                    continue;
+                    await craft.Pacing.WaitAsync(interruption);
+                    ended |= await PublishAsync(current, adapted);
                 }
-
-                await craft.Pacing.WaitAsync(interruption);
-                ended |= await PublishAsync(current, cue);
             }
 
             if (performer.Closing)
