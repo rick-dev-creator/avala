@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Avala.Agents.Connections;
 using Avala.Agents.Contracts.Connections;
 using Avala.Sdk;
@@ -8,9 +9,13 @@ namespace Avala.Agents.ConnectionFiles;
 
 internal static class ConnectionFileParser
 {
+    private const string Default = "default";
+
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 4, AllowDuplicateProperties = false };
 
-    private static readonly string[] Sections = ["default", "connections"];
+    private static readonly JsonSerializerOptions Written = new() { WriteIndented = true };
+
+    private static readonly string[] Sections = [Default, "connections"];
 
     private static readonly string[] Fields = ["name", "provider", "credential", "settings"];
 
@@ -43,24 +48,38 @@ internal static class ConnectionFileParser
         }
 
         if (!Connections(root).TryGetValue(out var connections, out var error)
-            || !Text(root, "default").TryGetValue(out var named, out error))
+            || !Text(root, Default).TryGetValue(out var named, out error))
         {
             return error;
         }
 
-        var fallback = connections[0].Name;
-        var chosen = named.Match(name => new ConnectionName(name), () => fallback);
+        return new ConnectionDeclarations(
+            connections,
+            named.Bind(name => name == ConnectionDeclarations.Auto ? Option<ConnectionName>.None : new ConnectionName(name)));
+    }
 
-        return connections.Any(connection => connection.Name == chosen)
-            ? new ConnectionDeclarations(connections, chosen)
-            : ConnectionError.UnknownDefault;
+    public static Result<string, ConnectionError> WithDefault(string text, Option<ConnectionName> connection)
+    {
+        if (!Parse(text).TryGetValue(out _, out var error))
+        {
+            return error;
+        }
+
+        if (JsonNode.Parse(text) is not JsonObject root)
+        {
+            return ConnectionError.Malformed;
+        }
+
+        root[Default] = connection.Match(name => name.Value, () => ConnectionDeclarations.Auto);
+
+        return root.ToJsonString(Written);
     }
 
     private static Result<IReadOnlyList<ConnectionDeclaration>, ConnectionError> Connections(JsonElement root)
     {
         if (!root.TryGetProperty("connections", out var connections))
         {
-            return ConnectionError.NoConnections;
+            return Result<IReadOnlyList<ConnectionDeclaration>, ConnectionError>.Success([]);
         }
 
         if (connections.ValueKind != JsonValueKind.Array)

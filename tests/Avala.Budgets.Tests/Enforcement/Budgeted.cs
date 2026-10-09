@@ -199,5 +199,8 @@ internal sealed class Budgeted
 
             return ValueTask.FromResult(new BudgetFile(CommittedFiles.Origin(), file));
         }
+
+        public ValueTask<BudgetFile> ReadCurrentAsync(string repository, ConnectionName connection, CancellationToken cancellationToken) =>
+            ReadAsync(repository, connection, cancellationToken);
     }
 }

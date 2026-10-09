@@ -13,6 +13,8 @@ namespace Avala.Workbench.Settings;
 
 internal interface IMachineSettingsViewModel
 {
+    IDefaultConnectionViewModel DefaultConnection { get; }
+
     IReadOnlyList<IMachineConnectionViewModel> Connections { get; }
 
     string ConnectionsFile { get; }
@@ -59,9 +61,21 @@ internal static class SilenceDial
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class MachineSettingsViewModel(MachineSettings settings, SettingsFiles files) : IMachineSettingsViewModel
+internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewModel
 {
     private readonly ObservableCollection<MachineConnectionViewModel> connections = [];
+    private readonly MachineSettings settings;
+    private readonly SettingsFiles files;
+
+    public MachineSettingsViewModel(MachineSettings settings, SettingsFiles files, IDefaultConnectionViewModel defaultConnection)
+    {
+        this.settings = settings;
+        this.files = files;
+        DefaultConnection = defaultConnection;
+        defaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
+    }
+
+    public IDefaultConnectionViewModel DefaultConnection { get; }
 
     public IReadOnlyList<IMachineConnectionViewModel> Connections => connections;
 
@@ -122,11 +136,17 @@ internal sealed partial class MachineSettingsViewModel(MachineSettings settings,
 
     private void Show(MachineState state)
     {
-        ConnectionsFile = SettingsPhrases.Status(state.Connections.File, state.Connections.Error);
-        connections.ShowOnly(state.Connections.Connections.Select(connection =>
-            new MachineConnectionViewModel(connection, state.Connections.Default == Option<ConnectionName>.Some(connection.Name))));
+        ShowConnections(state.Connections);
+        DefaultConnection.Show(state.Connections);
         ShowSupervision(state.Supervision);
         Resources = Describe(state.Resources);
+    }
+
+    private void ShowConnections(ConnectionCatalog catalog)
+    {
+        ConnectionsFile = SettingsPhrases.Status(catalog.File, catalog.Error);
+        connections.ShowOnly(catalog.Connections.Select(connection =>
+            new MachineConnectionViewModel(connection, catalog.DefaultMode == DefaultMode.Fixed && catalog.Default == Option<ConnectionName>.Some(connection.Name))));
     }
 
     private void ShowSupervision(SupervisionSettings supervision)

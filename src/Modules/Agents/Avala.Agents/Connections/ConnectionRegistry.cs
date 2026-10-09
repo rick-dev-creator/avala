@@ -14,16 +14,33 @@ internal sealed class ConnectionRegistry(
 {
     private Task<IReadOnlyList<ConnectionDeclaration>>? discovering;
 
-    public async ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken)
+    public async ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
+        (await MergedAsync(cancellationToken)).Match(
+            merged => Catalog(merged.Status, merged.Declarations),
+            error => new ConnectionCatalog(ConnectionFileStatus.Rejected, error, [], Option<ConnectionName>.None));
+
+    public async ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(
+        Option<ConnectionName> connection,
+        CancellationToken cancellationToken)
     {
+        if (connection == Option<ConnectionName>.Some(new ConnectionName(ConnectionDeclarations.Auto)))
+        {
+            return ConnectionError.InvalidName;
+        }
+
         var loaded = await file.LoadAsync(cancellationToken);
         var discovered = await DiscoveredAsync(cancellationToken);
+        var accepted = loaded
+            .Bind(found => (found.Match(declarations => declarations, () => ConnectionDeclarations.Nothing) with { Fixed = connection }).Merged(providers, discovered))
+            .MapError(error => error == ConnectionError.UnknownDefault ? ConnectionError.UnknownConnection : error);
 
-        return loaded.Match(
-            declared => declared.Match(
-                declarations => Catalog(ConnectionFileStatus.Applied, declarations.With(discovered)),
-                () => Catalog(ConnectionFileStatus.Absent, ConnectionDeclarations.Implicit(providers, discovered))),
-            error => new ConnectionCatalog(ConnectionFileStatus.Rejected, error, [], Option<ConnectionName>.None));
+        if (!accepted.TryGetValue(out _, out var refused)
+            || !(await file.ChangeDefaultAsync(connection, cancellationToken)).TryGetValue(out _, out refused))
+        {
+            return refused;
+        }
+
+        return await CatalogAsync(cancellationToken);
     }
 
     public async ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(
@@ -35,11 +52,7 @@ internal sealed class ConnectionRegistry(
         Option<ConnectionName> connection,
         CancellationToken cancellationToken)
     {
-        var loaded = await file.LoadAsync(cancellationToken);
-        var discovered = await DiscoveredAsync(cancellationToken);
-        var declared = loaded
-            .Map(found => found.Match(declarations => declarations.With(discovered), () => ConnectionDeclarations.Implicit(providers, discovered)))
-            .Bind(declarations => declarations.Named(connection));
+        var declared = (await MergedAsync(cancellationToken)).Bind(merged => merged.Declarations.Named(connection));
 
         if (!declared.TryGetValue(out var declaration, out var error))
         {
@@ -53,6 +66,16 @@ internal sealed class ConnectionRegistry(
 
         return (await CredentialAsync(declaration, cancellationToken)).Map(environment =>
             new ResolvedConnection(declaration.Name, registered, environment with { Settings = declaration.Settings }));
+    }
+
+    private async Task<Result<MergedConnections, ConnectionError>> MergedAsync(CancellationToken cancellationToken)
+    {
+        var loaded = await file.LoadAsync(cancellationToken);
+        var discovered = await DiscoveredAsync(cancellationToken);
+
+        return loaded.Bind(found => found.Match(
+            declarations => declarations.Merged(providers, discovered).Map(merged => new MergedConnections(ConnectionFileStatus.Applied, merged)),
+            () => new MergedConnections(ConnectionFileStatus.Absent, ConnectionDeclarations.Implicit(providers, discovered))));
     }
 
     private async Task<IReadOnlyList<ConnectionDeclaration>> DiscoveredAsync(CancellationToken cancellationToken) =>
@@ -92,5 +115,10 @@ internal sealed class ConnectionRegistry(
             status,
             Option<ConnectionError>.None,
             [.. declarations.Connections.Select(connection => connection.Declared)],
-            declarations.Connections.Count == 0 ? Option<ConnectionName>.None : declarations.Default);
+            declarations.Default)
+        {
+            DefaultMode = declarations.Mode,
+        };
+
+    private sealed record MergedConnections(ConnectionFileStatus Status, ConnectionDeclarations Declarations);
 }

@@ -72,6 +72,14 @@ internal sealed class DesignAutonomySectionViewModel : IAutonomySectionViewModel
     public string Autonomy => "Supervised, as the repository declares";
 
     public string Connection => "claude-personal";
+
+    public string Reason => "Chosen by capacity: claude-personal had the most left";
+
+    public IReadOnlyList<CapacityLine> Compared { get; } =
+    [
+        new("claude-work", "88% of 5h · holds at 90%", false, false),
+        new("claude-personal", "31% of 5h · holds at 90%", true, false),
+    ];
 }
 
 internal sealed class DesignWorktreeSectionViewModel : IWorktreeSectionViewModel

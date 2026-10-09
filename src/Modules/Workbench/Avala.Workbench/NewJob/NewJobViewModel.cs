@@ -3,10 +3,12 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
+using Avala.Workbench.Contracts.Presentation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.NewJob;
 
@@ -24,6 +26,10 @@ internal interface INewJobViewModel
 
     string Connection { get; set; }
 
+    string Route { get; }
+
+    bool IsRouteAttention { get; }
+
     bool Supervised { get; set; }
 
     string Error { get; }
@@ -34,12 +40,14 @@ internal interface INewJobViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board) : INewJobViewModel, IPage, IActivatable
+internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, IMessenger messenger)
+    : INewJobViewModel, IPage, IActivatable, IRecipient<DefaultConnectionChanged>
 {
-    public const string RepositoryDefault = "The repository's default";
-
     private readonly ObservableCollection<string> repositories = [];
-    private readonly ObservableCollection<string> connections = [RepositoryDefault];
+    private readonly ObservableCollection<string> connections = [NewJobPhrases.Auto];
+    private ConnectionCatalog catalog = new(ConnectionFileStatus.Absent, Option<ConnectionError>.None, [], Option<ConnectionName>.None);
+    private Option<Result<ConnectionPreview, JobRejection>> preview;
+    private int previews;
 
     public string Title => "New job";
 
@@ -58,7 +66,13 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board) 
     public partial string Instruction { get; set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string Connection { get; set; } = RepositoryDefault;
+    public partial string Connection { get; set; } = NewJobPhrases.Auto;
+
+    [ObservableProperty]
+    public partial string Route { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsRouteAttention { get; private set; }
 
     [ObservableProperty]
     public partial bool Supervised { get; set; }
@@ -73,33 +87,44 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board) 
 
     public Task Loading { get; private set; } = Task.CompletedTask;
 
-    public void Activate() => Loading = LoadAsync(CancellationToken.None);
+    public Task Previewing { get; private set; } = Task.CompletedTask;
 
-    public void Deactivate()
+    public void Activate()
     {
+        if (!messenger.IsRegistered<DefaultConnectionChanged>(this))
+        {
+            messenger.Register(this);
+        }
+
+        Loading = LoadAsync(CancellationToken.None);
     }
+
+    public void Deactivate() => messenger.Unregister<DefaultConnectionChanged>(this);
+
+    public void Receive(DefaultConnectionChanged message) => Loading = LoadAsync(CancellationToken.None);
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
         repositories.ShowOnly(board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct());
-        var chosen = Connection;
-        string[] named = [RepositoryDefault, .. (await launch.ConnectionsAsync(cancellationToken)).Select(name => name.Value)];
-        connections.ShowOnly(named);
-        Connection = connections.Contains(chosen) ? chosen : RepositoryDefault;
+        ShowConnections(await launch.CatalogAsync(cancellationToken));
 
         if (string.IsNullOrWhiteSpace(Repository) && repositories.Count > 0)
         {
             Repository = repositories[0];
         }
+
+        Previewing = PreviewAsync(cancellationToken);
+        await Previewing;
     }
+
+    partial void OnRepositoryChanged(string value) => Previewing = PreviewAsync(CancellationToken.None);
+
+    partial void OnConnectionChanged(string value) => ShowRoute();
 
     [RelayCommand(CanExecute = nameof(CanSubmit))]
     private async Task SubmitAsync(CancellationToken cancellationToken)
     {
-        var connection = string.IsNullOrEmpty(Connection) || Connection == RepositoryDefault
-            ? Option<ConnectionName>.None
-            : new ConnectionName(Connection);
-        var submitted = await launch.SubmitAsync(Repository, Instruction, connection, Supervised, cancellationToken);
+        var submitted = await launch.SubmitAsync(Repository, Instruction, Chosen(), Supervised, cancellationToken);
         Error = submitted.Match(_ => string.Empty, NewJobPhrases.Rejection);
 
         if (submitted.TryGetValue(out var job, out _))
@@ -111,20 +136,38 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board) 
     }
 
     private bool CanSubmit() => !string.IsNullOrWhiteSpace(Repository) && !string.IsNullOrWhiteSpace(Instruction);
-}
 
-internal static class NewJobPhrases
-{
-    public static string Rejection(JobRejection rejection) => rejection switch
+    private void ShowConnections(ConnectionCatalog shown)
     {
-        JobRejection.EmptyRepository => "Name the repository the job works in.",
-        JobRejection.EmptyInstruction => "Write what the agent should do.",
-        JobRejection.UnknownConnection => "No connection has that name.",
-        JobRejection.UnusableConnection => "That connection cannot be used: its credential or the repository's jobs.json is not usable.",
-        JobRejection.WorkspaceUnavailable => "The repository's worktree could not be prepared.",
-        JobRejection.AgentUnavailable => "The agent could not start.",
-        JobRejection.InvalidRequest => "The request is invalid.",
-        JobRejection.InvalidAttemptBudget => "The number of attempts is invalid.",
-        _ => "The job was refused.",
-    };
+        var chosen = Chosen();
+        catalog = shown;
+        var following = NewJobPhrases.Following(shown);
+        string[] named = [.. shown.Connections.Select(connection => connection.Name.Value)];
+        connections.ShowOnly([following, .. named]);
+        Connection = chosen.Match(name => named.Contains(name.Value, StringComparer.Ordinal) ? name.Value : following, () => following);
+    }
+
+    private Option<ConnectionName> Chosen() =>
+        string.IsNullOrEmpty(Connection) || connections.Count == 0 || Connection == connections[0]
+            ? Option<ConnectionName>.None
+            : new ConnectionName(Connection);
+
+    private async Task PreviewAsync(CancellationToken cancellationToken)
+    {
+        var ticket = ++previews;
+        var previewed = await launch.PreviewAsync(Repository, cancellationToken);
+
+        if (ticket == previews)
+        {
+            preview = previewed;
+            ShowRoute();
+        }
+    }
+
+    private void ShowRoute()
+    {
+        var (text, attention) = NewJobPhrases.Route(catalog, preview, Chosen());
+        Route = text;
+        IsRouteAttention = attention;
+    }
 }

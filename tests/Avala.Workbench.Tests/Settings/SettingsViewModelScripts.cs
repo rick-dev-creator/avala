@@ -34,6 +34,8 @@ public sealed class SettingsViewModelScripts
 
         public IReadOnlyList<string> Repositories => repository.Repositories;
 
+        public IDefaultConnectionViewModel DefaultConnection => machine.DefaultConnection;
+
         public IReadOnlyList<IRuleFileViewModel> Files => repository.Files;
 
         public IReadOnlyList<IRuleViewModel> Rules => repository.Rules;

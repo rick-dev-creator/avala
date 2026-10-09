@@ -13,9 +13,10 @@ internal sealed class BudgetFileReader(IBaseFiles files) : IBudgetFiles, IReposi
     public const int MaximumBytes = 64 * 1024;
 
     public async ValueTask<BudgetFile> ReadAsync(string workingDirectory, ConnectionName connection, CancellationToken cancellationToken) =>
-        (await files.ReadAsync(workingDirectory, Breaches.BudgetFile, cancellationToken)).Match(
-            file => new BudgetFile(file.Origin, file.Content.Match(Parse, Absent).Map(found => found.Map(declaration => declaration.For(connection)))),
-            failure => new BudgetFile(Option<FileOrigin>.None, Unread(failure).Map(_ => Option<BudgetCaps>.None)));
+        For(await files.ReadAsync(workingDirectory, Breaches.BudgetFile, cancellationToken), connection);
+
+    public async ValueTask<BudgetFile> ReadCurrentAsync(string repository, ConnectionName connection, CancellationToken cancellationToken) =>
+        For(await files.ReadCurrentAsync(repository, Breaches.BudgetFile, cancellationToken), connection);
 
     public async ValueTask<RepositoryBudget> OfRepositoryAsync(string repository, CancellationToken cancellationToken)
     {
@@ -34,6 +35,11 @@ internal sealed class BudgetFileReader(IBaseFiles files) : IBudgetFiles, IReposi
                 () => new RepositoryBudget(BudgetFileStatus.Absent, Option<BudgetError>.None, Breaches.Unlimited, [], origin)),
             error => new RepositoryBudget(BudgetFileStatus.Rejected, error, Breaches.Unlimited, [], origin));
     }
+
+    private static BudgetFile For(Result<BaseFile, WorkspaceFailure> read, ConnectionName connection) =>
+        read.Match(
+            file => new BudgetFile(file.Origin, file.Content.Match(Parse, Absent).Map(found => found.Map(declaration => declaration.For(connection)))),
+            failure => new BudgetFile(Option<FileOrigin>.None, Unread(failure).Map(_ => Option<BudgetCaps>.None)));
 
     private static Result<Option<BudgetDeclaration>, BudgetError> Parse(string text) =>
         Encoding.UTF8.GetByteCount(text) > MaximumBytes

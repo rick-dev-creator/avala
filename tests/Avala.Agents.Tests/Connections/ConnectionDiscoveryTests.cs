@@ -35,7 +35,7 @@ public sealed class ConnectionDiscoveryTests
         Assert.Equal(
             [("first-a", "first", ConnectionOrigin.Discovered), ("first-b", "first", ConnectionOrigin.Discovered), ("second", "second", ConnectionOrigin.Implicit)],
             catalog.Connections.Select(connection => (connection.Name.Value, connection.Provider, connection.Origin)));
-        Assert.Equal((ConnectionFileStatus.Absent, Option<ConnectionName>.Some(new ConnectionName("first-a"))), (catalog.File, catalog.Default));
+        Assert.Equal((ConnectionFileStatus.Absent, Option<ConnectionName>.Some(new ConnectionName("first-a")), DefaultMode.Auto), (catalog.File, catalog.Default, catalog.DefaultMode));
     }
 
     [Fact]

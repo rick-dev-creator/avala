@@ -40,6 +40,12 @@ internal sealed class LoopGauges(IUsage usage, IUsageHistory history, IConnectio
     private async Task<IReadOnlyList<Option<ConnectionName>>> CandidatesAsync(CancellationToken cancellationToken)
     {
         var catalog = await connections.CatalogAsync(cancellationToken);
+
+        if (catalog.DefaultMode == DefaultMode.Fixed)
+        {
+            return [catalog.Default];
+        }
+
         var provider = catalog.Default.Bind(named => catalog.Connections.FirstOrDefault(declared => declared.Name == named) is { } found
             ? Option<string>.Some(found.Provider)
             : Option<string>.None);
