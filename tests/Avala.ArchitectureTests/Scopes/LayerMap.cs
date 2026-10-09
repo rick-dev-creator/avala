@@ -217,6 +217,7 @@ internal static class LayerMap
             ["Delegating"] = Layer.Application,
             ["Reporting"] = Layer.Application,
             ["Records"] = Layer.Application,
+            ["Resuming"] = Layer.Application,
             ["RepositoryFiles"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,

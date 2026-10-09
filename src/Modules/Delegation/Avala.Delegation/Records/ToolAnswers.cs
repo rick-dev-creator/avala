@@ -35,6 +35,16 @@ internal static class ToolAnswers
         return new ToolResult(item, answer.ToJsonString());
     }
 
+    public static string Briefing(IReadOnlyList<DelegationRecord> reported) =>
+        string.Join(
+            '\n',
+            [
+                "These delegate calls of yours were answered while you could not receive their results; each result is what its call returns. Do not delegate this work again.",
+                .. reported.SelectMany(record => record.Report.Match<string[]>(
+                    report => [$"delegate call {record.Item.Value}: {Reported(record.Item, record, report).Content}"],
+                    () => [])),
+            ]);
+
     private static JsonArray Files(ChildReport report) =>
         new([.. report.Files.Select(file => Node(new JsonObject
         {

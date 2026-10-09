@@ -4,6 +4,7 @@ using Avala.Delegation.Delegating;
 using Avala.Delegation.Records;
 using Avala.Delegation.Reporting;
 using Avala.Delegation.RepositoryFiles;
+using Avala.Delegation.Resuming;
 using Avala.Delegation.Storage;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -41,6 +42,12 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton<IHandle<JobSessionStarted>>(services => services.GetRequiredService<DelegationDesk>())
             .AddSingleton<IHandle<AgentActivity>>(services => services.GetRequiredService<DelegationDesk>())
             .AddSingleton<IHandle<JobProgressed>>(services => services.GetRequiredService<DelegationDesk>())
-            .AddSingleton<IHandle<JobHeld>>(services => services.GetRequiredService<DelegationDesk>());
+            .AddSingleton<IHandle<JobHeld>>(services => services.GetRequiredService<DelegationDesk>())
+            .AddSingleton<IHandle<StartupCompleted>>(services => services.GetRequiredService<DelegationDesk>())
+            .AddSingleton<ParentResumption>()
+            .AddSingleton<IRecoveryDeferral>(services => services.GetRequiredService<ParentResumption>())
+            .AddSingleton<IHandle<ChildReported>>(services => services.GetRequiredService<ParentResumption>())
+            .AddSingleton<IHandle<StartupCompleted>>(services => services.GetRequiredService<ParentResumption>())
+            .AddSingleton<IJobBriefing, OwedReports>();
     }
 }

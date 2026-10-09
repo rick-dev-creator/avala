@@ -6,7 +6,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Avala.Delegation.Reporting;
 
-internal sealed record Settlement(JobStatus Status, Option<HoldReason> Hold);
+internal sealed record Settlement(JobStatus Status, Option<HoldReason> Hold)
+{
+    public bool Held { get; init; }
+}
 
 internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, DelegationJournal journal, ILogger<ChildReporter> logger) : IAsyncDisposable
 {
@@ -46,7 +49,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
         JobStatus.Approved => ChildOutcome.Integrated,
         JobStatus.Failed => ChildOutcome.Failed,
         JobStatus.Discarded => ChildOutcome.Discarded,
-        JobStatus.NeedsHelp when settlement.Hold.IsSome => ChildOutcome.Held,
+        JobStatus.NeedsHelp when settlement.Hold.IsSome || settlement.Held => ChildOutcome.Held,
         JobStatus.NeedsHelp => ChildOutcome.RetriesExhausted,
         _ => ChildOutcome.NotIntegrated,
     };
