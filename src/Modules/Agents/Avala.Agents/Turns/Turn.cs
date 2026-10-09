@@ -25,6 +25,8 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
     public TurnState State { get; private set; } = TurnState.Working;
 
+    public bool IsLive => machine.IsInState(TurnState.Live);
+
     public Option<ItemId> PendingPermission { get; private set; }
 
     public IReadOnlyCollection<ItemId> OpenItems => openItems.Keys;
@@ -38,7 +40,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
             return TurnError.ForeignEvent;
         }
 
-        if (!machine.IsInState(TurnState.Live))
+        if (!IsLive)
         {
             return TurnError.TurnEnded;
         }
@@ -59,7 +61,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
     public Result<TurnProgress, TurnError> Expire(DateTimeOffset now, TimeSpan patience)
     {
-        if (!machine.IsInState(TurnState.Live))
+        if (!IsLive)
         {
             return TurnError.TurnEnded;
         }

@@ -121,6 +121,25 @@ public sealed class UsageTrackingTests
         Assert.True(tracked.Book.OfJob(JobId.New()).IsNone);
     }
 
+    [Fact]
+    public async Task EveryUsageOrLimitRecordedIsAnnouncedWithTheJobOfItsSessionAsync()
+    {
+        using var tracked = new Tracked();
+        var job = JobId.New();
+        var working = await tracked.OpenAsync(Claude, job);
+        var loose = await tracked.OpenAsync(Codex);
+
+        await tracked.SeeAsync(
+            new TurnStarted(working, TurnId.New()),
+            Usage(working, new TokenUsage(100, 10, 0, 0, 0), new Cost(0.01m, "USD")),
+            Limit(working, "5h", 0.5),
+            Usage(loose, new TokenUsage(1, 1, 0, 0, 0), new Cost(0.01m, "USD")));
+
+        Assert.Equal(
+            [new UsageRecorded(working, job), new UsageRecorded(working, job), new UsageRecorded(loose, Option<JobId>.None)],
+            tracked.Bus.Published);
+    }
+
     private static async Task TurnAsync(Tracked tracked, SessionId session, TurnOutcome outcome, TimeSpan duration)
     {
         var turn = TurnId.New();

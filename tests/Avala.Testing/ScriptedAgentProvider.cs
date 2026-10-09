@@ -5,7 +5,7 @@ using Avala.Sdk;
 
 namespace Avala.Testing;
 
-public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IAgentEvent>> script) : IAgentProvider
+public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IAgentEvent>> script, bool canInterrupt = false) : IAgentProvider
 {
     private readonly ConcurrentQueue<ScriptedSession> sessions = new();
 
@@ -14,7 +14,7 @@ public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IA
     public AgentCapabilities Capabilities { get; } = new(
         StreamsPartialOutput: true,
         ExposesReasoning: true,
-        CanInterrupt: false,
+        CanInterrupt: canInterrupt,
         CanResume: false,
         ReportsUsage: true,
         ReportsCost: true,

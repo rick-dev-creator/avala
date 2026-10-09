@@ -3,12 +3,14 @@ using System.Xml.Linq;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
+using Avala.Supervision.Contracts;
 using Avala.Testing;
 using Avala.Verification.Contracts;
 using Avala.Workspaces.Contracts;
@@ -32,6 +34,8 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         Assert.NotNull(root.Services.GetRequiredService<IUsage>());
         Assert.NotNull(root.Services.GetRequiredService<IVerifications>());
         Assert.NotNull(root.Services.GetRequiredService<IPermissionAudit>());
+        Assert.NotNull(root.Services.GetRequiredService<ISupervision>());
+        Assert.NotNull(root.Services.GetRequiredService<IBudgets>());
         Assert.Equal("simulator", Assert.Single(root.Services.GetServices<IAgentProvider>()).Info.Id);
         Assert.Empty(AssemblyLoadContext.All
             .SelectMany(context => context.Assemblies)
@@ -63,11 +67,58 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ACrashingAgentFailsTheJobAsync()
+    public async Task ACrashingAgentHoldsItsJobAsSessionLostAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "crash");
 
-        Assert.Equal(JobStatus.Failed, await run.SettledAsync());
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+
+        var hold = Assert.Single(run.Get<ISupervision>().OfJob(run.Job));
+        Assert.Equal(
+            (HoldReason.SessionLost, SessionEnding.Crashed, SessionHalt.Stopped),
+            (hold.Hold.Reason, Outcomes.Present(hold.Ending), hold.Hold.Halt));
+    }
+
+    [Fact]
+    public async Task AHangingAgentIsInterruptedAndItsJobHeldAsStalledAsync()
+    {
+        var window = TimeSpan.FromSeconds(1);
+        await using var run = await SimulatedRun.SupervisedAsync(plugins, "hang", window);
+
+        var turn = await run.TurnAsync();
+
+        Assert.Equal(TurnOutcome.Interrupted, Assert.IsType<TurnCompleted>(turn[^1]).Outcome);
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        var hold = Assert.Single(run.Get<ISupervision>().OfJob(run.Job));
+        var silence = Outcomes.Present(hold.Silence);
+        Assert.Equal((HoldReason.Stalled, SessionHalt.Interrupted, window), (hold.Hold.Reason, hold.Hold.Halt, silence.Window));
+        Assert.True(silence.Silent >= window, $"Held after {silence.Silent} of silence");
+    }
+
+    [Fact]
+    public async Task AJobThatSpendsItsBudgetIsHeldWithWhatItSpentAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply", (".avala/budget.json", """{ "costPerJob": { "USD": 0.004 } }"""));
+
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+
+        var hold = Assert.Single(run.Get<IBudgets>().OfJob(run.Job));
+        Assert.Equal(HoldReason.BudgetExceeded, hold.Hold.Reason);
+        Assert.Equal(new BudgetBreach(BudgetMeasure.Cost, "USD", 0.0042m, 0.004m, Option<BudgetError>.None), hold.Breach);
+    }
+
+    [Fact]
+    public async Task AJobWhoseProviderLimitPassesTheThresholdIsInterruptedAndHeldAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "permission", (".avala/budget.json", """{ "holdAtLimit": 0.25 }"""));
+
+        var turn = await run.TurnAsync();
+
+        Assert.Equal(TurnOutcome.Interrupted, Assert.IsType<TurnCompleted>(turn[^1]).Outcome);
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        var hold = Assert.Single(run.Get<IBudgets>().OfJob(run.Job));
+        Assert.Equal((HoldReason.LimitNearlyReached, SessionHalt.Interrupted), (hold.Hold.Reason, hold.Hold.Halt));
+        Assert.Equal(new BudgetBreach(BudgetMeasure.Limit, "5h", 0.30m, 0.25m, Option<BudgetError>.None), hold.Breach);
     }
 
     [Fact]
@@ -80,6 +131,7 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         Assert.Equal(TurnOutcome.Finished, Assert.IsType<TurnCompleted>(turn[^1]).Outcome);
         Assert.Contains(turn.SkipLast(1), update => update is ItemCompleted { Outcome: ItemOutcome.Abandoned, Item.Value: "build" });
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        Assert.Empty(run.Get<ISupervision>().OfJob(run.Job));
     }
 
     [Fact]

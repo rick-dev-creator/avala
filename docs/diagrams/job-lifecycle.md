@@ -20,6 +20,7 @@ stateDiagram-v2
 	Draft --> Preparing : Submit
 	Preparing --> Running : Start
 	Running --> Checking : CompleteTurn
+	Running --> NeedsHelp : Hold
 	Running --> Running : Recover
 	Checking --> Running : Recover
 	Checking --> AwaitingReview : Pass

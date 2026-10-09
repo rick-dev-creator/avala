@@ -139,6 +139,95 @@ public sealed class AgentSessionsTests
             Outcomes.FailsWith(await agents.RespondAsync(SessionId.New(), decision, Cancellation)));
     }
 
+    [Fact]
+    public async Task InterruptingReachesTheAgentOfASessionWhoseProviderCanInterruptAsync()
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)], canInterrupt: true);
+        await using var agents = Agents(new RecordingBus(), provider);
+        var turn = await StartAsync(agents, "Add GitHub login");
+
+        Assert.Equal(turn.Turn, Outcomes.Succeeds(await agents.InterruptAsync(turn.Session, Cancellation)));
+        Assert.Equal(1, Assert.Single(provider.Sessions).Interruptions);
+    }
+
+    [Fact]
+    public async Task InterruptingIsUnsupportedWhenTheProviderCannotInterruptAsync()
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
+        await using var agents = Agents(new RecordingBus(), provider);
+        var turn = await StartAsync(agents, "Add GitHub login");
+
+        Assert.Equal(AgentError.Unsupported, Outcomes.FailsWith(await agents.InterruptAsync(turn.Session, Cancellation)));
+        Assert.Equal(0, Assert.Single(provider.Sessions).Interruptions);
+    }
+
+    [Fact]
+    public async Task CannotInterruptASessionThatIsNotOpenAsync()
+    {
+        await using var agents = Agents(new RecordingBus(), new ScriptedAgentProvider(ScriptedAgentProvider.Reply, canInterrupt: true));
+
+        Assert.Equal(AgentError.SessionClosed, Outcomes.FailsWith(await agents.InterruptAsync(SessionId.New(), Cancellation)));
+    }
+
+    [Fact]
+    public async Task ASessionWhoseStreamFailsIsReportedCrashedBeforeItsLiveTurnFailsAsync()
+    {
+        var bus = new RecordingBus();
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
+        await using var agents = Agents(bus, provider);
+        var turn = await StartAsync(agents, "Add GitHub login");
+
+        Assert.Single(provider.Sessions).Crash();
+
+        Assert.Equal(TurnOutcome.Failed, (await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation)).Outcome);
+        Assert.Equal(
+            [new SessionEnded(turn.Session, SessionEnding.Crashed), new TurnFinished(turn.Session, turn.Turn, TurnOutcome.Failed)],
+            bus.Published.Where(published => published is SessionEnded or TurnFinished));
+    }
+
+    [Fact]
+    public async Task ASessionWhoseStreamEndsMidTurnIsReportedClosedAndItsTurnFailsAsync()
+    {
+        var bus = new RecordingBus();
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
+        await using var agents = Agents(bus, provider);
+        var turn = await StartAsync(agents, "Add GitHub login");
+
+        Assert.Single(provider.Sessions).End();
+
+        await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
+        Assert.Equal(
+            [new SessionEnded(turn.Session, SessionEnding.Closed), new TurnFinished(turn.Session, turn.Turn, TurnOutcome.Failed)],
+            bus.Published.Where(published => published is SessionEnded or TurnFinished));
+    }
+
+    [Fact]
+    public async Task ASessionThatEndsBetweenTurnsIsReportedClosedWithoutEndingATurnAgainAsync()
+    {
+        var bus = new RecordingBus();
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
+        await using var agents = Agents(bus, provider);
+        var turn = await StartAsync(agents, "Add GitHub login");
+        await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
+
+        Assert.Single(provider.Sessions).End();
+
+        Assert.Equal(new SessionEnded(turn.Session, SessionEnding.Closed), await bus.WaitForAsync<SessionEnded>(_ => true, Cancellation));
+        Assert.Single(bus.Published.OfType<TurnFinished>());
+    }
+
+    [Fact]
+    public async Task StoppingASessionIsNotReportedAsItsEndAsync()
+    {
+        var bus = new RecordingBus();
+        await using var agents = Agents(bus, new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]));
+        var turn = await StartAsync(agents, "Add GitHub login");
+
+        Outcomes.Succeeds(await agents.StopAsync(turn.Session, Cancellation));
+
+        Assert.DoesNotContain(bus.Published, published => published is SessionEnded or TurnFinished);
+    }
+
     private static async Task<AgentTurn> StartAsync(AgentSessions agents, string instruction)
     {
         var session = Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));

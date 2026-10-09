@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
+using Avala.Jobs.Holding;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Launching;
 using Avala.Jobs.Ledger;
@@ -22,7 +23,8 @@ internal sealed class JobFlow
         var ledger = new JobLedger(Store, Bus);
         var launcher = new JobLauncher(ledger, workspaces, agents);
         Submit = new SubmitJob(ledger, Bus);
-        Jobs = new JobSubmissions(Submit);
+        Hold = new HoldJob(ledger, agents, Bus);
+        Jobs = new JobsEntry(Submit, Hold);
         Prepare = new PrepareJob(ledger, launcher);
         Check = new CheckTurn(ledger, workspaces, new CompletionGates(gates), agents);
         Recovery = new JobRecovery(ledger, launcher);
@@ -37,6 +39,8 @@ internal sealed class JobFlow
     public FakeAgents Agents { get; }
 
     public SubmitJob Submit { get; }
+
+    public HoldJob Hold { get; }
 
     public IJobs Jobs { get; }
 

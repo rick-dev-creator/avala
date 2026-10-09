@@ -25,6 +25,10 @@
     <ProjectReference Include="..\..\src\Modules\Verification\Avala.Verification.Contracts\Avala.Verification.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Permissions\Avala.Permissions\Avala.Permissions.csproj" />
     <ProjectReference Include="..\..\src\Modules\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Supervision\Avala.Supervision\Avala.Supervision.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Supervision\Avala.Supervision.Contracts\Avala.Supervision.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Budgets\Avala.Budgets\Avala.Budgets.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Budgets\Avala.Budgets.Contracts\Avala.Budgets.Contracts.csproj" />
     <ProjectReference Include="..\Avala.ArchitectureTests.Fixtures\Avala.ArchitectureTests.Fixtures.csproj" />
   </ItemGroup>
 </Project>

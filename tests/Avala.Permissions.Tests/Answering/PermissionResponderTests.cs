@@ -158,6 +158,9 @@ public sealed class PermissionResponderTests
         public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.Unsupported));
 
+        public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<TurnId, AgentError>.Failure(AgentError.Unsupported));
+
         public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<SessionId, AgentError>.Failure(AgentError.Unsupported));
     }

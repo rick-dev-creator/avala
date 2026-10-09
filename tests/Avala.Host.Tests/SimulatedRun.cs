@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Canvas.Contracts;
@@ -45,9 +46,25 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    public static async Task<SimulatedRun> StartAsync(PublishedPlugins plugins, string scenario, params (string Path, string Content)[] committed)
+    public static Task<SimulatedRun> StartAsync(PublishedPlugins plugins, string scenario, params (string Path, string Content)[] committed) =>
+        StartAsync(plugins, scenario, [], committed);
+
+    public static Task<SimulatedRun> SupervisedAsync(PublishedPlugins plugins, string scenario, TimeSpan silence) =>
+        StartAsync(plugins, scenario, [("supervision.json", $$"""{ "silenceSeconds": {{silence.TotalSeconds.ToString(CultureInfo.InvariantCulture)}} }""")], []);
+
+    private static async Task<SimulatedRun> StartAsync(
+        PublishedPlugins plugins,
+        string scenario,
+        IReadOnlyList<(string File, string Content)> settings,
+        IReadOnlyList<(string Path, string Content)> committed)
     {
         var data = new TemporaryFolder();
+
+        foreach (var (file, content) in settings)
+        {
+            await File.WriteAllTextAsync(Path.Combine(data.Path, file), content, Cancellation);
+        }
+
         var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 
