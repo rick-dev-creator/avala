@@ -12,14 +12,14 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Tests.Resources;
 
-public sealed class ResourcesTests : IDisposable
+public sealed class ResourcesViewModelScripts : IDisposable
 {
     private readonly FakeResources resources = new();
     private readonly FakeOrphans orphans = new();
     private readonly FakeHousekeeping worktrees = new();
     private readonly Leftovers leftovers = new();
     private readonly TestUiDispatcher ui = new();
-    private readonly JobSummary job = Pages.Summary("Fix the failing test", JobStatus.Discarded);
+    private readonly JobSummary job = Pages.Summary("Fix flaky CheckoutForm test", JobStatus.Discarded);
 
     [Fact]
     public async Task EachAgentTreeIsAttributedToItsJobConnectionAndProviderAndOnlyTheLatestReportOfATreeCountsAsync()
@@ -30,7 +30,7 @@ public sealed class ResourcesTests : IDisposable
             [new TreeUsage(tree, "/worktrees/1", [new ProcessUsage(41, "dotnet", 64L * 1024 * 1024, TimeSpan.FromSeconds(1), [24001])], 0.5)
             {
                 Job = job.Job,
-                Connection = new ConnectionName("work"),
+                Connection = new ConnectionName("claude-work"),
                 Provider = "simulator",
             }],
             [],
@@ -42,7 +42,7 @@ public sealed class ResourcesTests : IDisposable
         var state = Reader().Read();
 
         var shown = new AgentTreeViewModel(Assert.Single(state.Trees));
-        Assert.Equal(("Fix the failing test", "work", "simulator", 1, "64 MB", "50%", "24001"), (shown.Job, shown.Connection, shown.Provider, shown.Processes, shown.Memory, shown.Cpu, shown.Ports));
+        Assert.Equal(("Fix flaky CheckoutForm test", "claude-work", "simulator", 1, "64 MB", "50%", "24001"), (shown.Job, shown.Connection, shown.Provider, shown.Processes, shown.Memory, shown.Cpu, shown.Ports));
         Assert.Equal([OrphanDisposal.Killed, OrphanDisposal.LeftRunning], state.Orphans.Select(report => report.Disposal).Order());
         Assert.Equal(2, state.Leftovers);
     }
@@ -57,22 +57,48 @@ public sealed class ResourcesTests : IDisposable
     }
 
     [Fact]
+    public async Task WhileActiveThePageShowsTheMachineAndItsLeftoversAsync()
+    {
+        orphans.Reports.Add(Orphan(OrphanDisposal.LeftRunning));
+        await leftovers.HandleAsync(new WorktreesReconciled(new WorktreeReconciliation(["/worktrees/stray"], [new WorkspaceInfo(new WorkspaceId(Guid.NewGuid()), "/worktrees/gone", "b", "c")]), false), CancellationToken.None);
+        using var page = Page();
+
+        page.Activate();
+
+        await ui.PresentedAsync(page, () => page.Orphans.Count == 1, () => $"{page.Orphans.Count} orphans");
+        Assert.Equal(
+            [("/worktrees/stray", "not known to any job"), ("/worktrees/gone", "missing from the disk")],
+            await ui.ReadAsync(() => page.StaleWorktrees.Select(stale => (stale.Path, stale.Reason)).ToList()));
+        Assert.Equal(("Resources", "512 MB"), await ui.ReadAsync(() => (page.Title, page.Memory)));
+    }
+
+    [Fact]
     public async Task AnOrphanLeftRunningIsReapedByItsJobAndNothingLeftIsShownAsAReasonAsync()
     {
         orphans.Reports.Add(Orphan(OrphanDisposal.LeftRunning));
         using var page = Page();
         page.Activate();
-        await ui.UntilAsync(() => page.Orphans.Count == 1);
+        await ui.PresentedAsync(page, () => page.Orphans.Count == 1, () => $"{page.Orphans.Count} orphans");
         var orphan = await ui.ReadAsync(() => page.Orphans[0]);
 
-        await ui.InvokeAsync(() => page.ReapCommand.Execute(orphan), TestContext.Current.CancellationToken);
-        await ui.UntilAsync(() => !page.ReapCommand.IsRunning);
+        await page.ReapCommand.ExecuteAsync(orphan);
         orphans.Reports.Clear();
-        await ui.InvokeAsync(() => page.ReapCommand.Execute(orphan), TestContext.Current.CancellationToken);
-        await ui.UntilAsync(() => !page.ReapCommand.IsRunning);
+        await page.ReapCommand.ExecuteAsync(orphan);
 
         Assert.Equal([job.Job, job.Job], orphans.Reaped);
-        Assert.Equal((true, "Nothing of that job is left running."), (orphan.CanReap, await ui.ReadAsync(() => page.Error)));
+        Assert.Equal((true, "Nothing of that job is left running."), (orphan.CanReap, page.Error));
+    }
+
+    [Fact]
+    public void AnOrphanThatWasKilledOrHasNoJobCannotBeReaped()
+    {
+        using var page = Page();
+
+        Assert.Equal(
+            (false, false, false),
+            (page.ReapCommand.CanExecute(new OrphanViewModel(Orphan(OrphanDisposal.Killed))),
+                page.ReapCommand.CanExecute(new OrphanViewModel(Orphan(OrphanDisposal.LeftRunning) with { Job = Option<JobId>.None })),
+                page.ReapCommand.CanExecute(null)));
     }
 
     [Fact]
@@ -87,15 +113,19 @@ public sealed class ResourcesTests : IDisposable
     }
 
     [Fact]
-    public async Task TheIndicatorShowsTheMemoryInUseAndTheLeftoversAsync()
+    public async Task AfterDeactivationThePageNoLongerFollowsAsync()
     {
+        using var page = Page();
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.Memory.Length > 0, () => page.Memory);
+        page.Deactivate();
+        await page.Following;
         orphans.Reports.Add(Orphan(OrphanDisposal.LeftRunning));
-        using var indicator = new ResourceIndicatorViewModel(Reader(), new LiveFeed(new Pulse(new JobBoard()), ui));
 
-        indicator.Activate();
-        await ui.UntilAsync(() => indicator.HasLeftovers);
+        await page.ReconcileCommand.ExecuteAsync(null);
+        await ui.ReadAsync(() => true);
 
-        Assert.Equal(("512 MB", 1), await ui.ReadAsync(() => (indicator.Memory, indicator.Leftovers)));
+        Assert.Empty(await ui.ReadAsync(() => page.Orphans.ToList()));
     }
 
     public void Dispose() => ui.Dispose();

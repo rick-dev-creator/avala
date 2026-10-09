@@ -1,4 +1,5 @@
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Upkeep;
@@ -16,8 +17,16 @@ internal interface IResourceIndicatorViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class ResourceIndicatorViewModel(ResourceReader reader, LiveFeed feed) : IResourceIndicatorViewModel, IActivatable, IDisposable
+internal sealed partial class ResourceIndicatorViewModel(ResourceReader reader, LiveFeed feed) : IResourceIndicatorViewModel, IActivatable, IPresentation, IDisposable
 {
+    public event EventHandler<Presented>? Presented
+    {
+        add => feed.Presented += value;
+        remove => feed.Presented -= value;
+    }
+
+    public long Revision => feed.Revision;
+
     [ObservableProperty]
     public partial string Memory { get; private set; } = string.Empty;
 

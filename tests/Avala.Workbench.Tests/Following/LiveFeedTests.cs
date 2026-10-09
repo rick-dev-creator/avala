@@ -26,11 +26,11 @@ public sealed class LiveFeedTests : IDisposable
         var reads = 0;
         var shown = new List<int>();
         feed.Start(_ => ValueTask.FromResult(Interlocked.Increment(ref reads)), shown.Add);
-        await ui.UntilAsync(() => shown.Count == 1);
+        await ui.PresentedAsync(feed, () => shown.Count == 1, () => $"{shown.Count} shown");
 
         await pulse.HandleAsync(new UsageRecorded(SessionId.New(), Avala.Sdk.Option<JobId>.None), CancellationToken.None);
 
-        await ui.UntilAsync(() => shown.Count == 2);
+        await ui.PresentedAsync(feed, () => shown.Count == 2, () => $"{shown.Count} shown");
         Assert.Equal([1, 2], await ui.ReadAsync(() => shown.ToList()));
     }
 
@@ -39,11 +39,11 @@ public sealed class LiveFeedTests : IDisposable
     {
         var shown = 0;
         feed.Start(_ => ValueTask.FromResult(true), _ => shown++);
-        await ui.UntilAsync(() => shown == 1);
+        await ui.PresentedAsync(feed, () => shown == 1, () => $"{shown} shown");
 
         board.Publish(Pages.Board(Pages.Summary("Fix the failing test", JobStatus.Running)).Jobs);
 
-        await ui.UntilAsync(() => shown == 2);
+        await ui.PresentedAsync(feed, () => shown == 2, () => $"{shown} shown");
         Assert.Equal(2, await ui.ReadAsync(() => shown));
     }
 
