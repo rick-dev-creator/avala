@@ -43,7 +43,7 @@ Before writing a test for a criterion, verify that no existing test already cove
 
 - One test per acceptance criterion. The test name states the behavior: `ApprovingFinishesTheJob`, not `Test1` or `ApproveWorks`.
 - Unit tests by default. Integration tests only when a behavior cannot be verified otherwise, such as git or the file system.
-- No sleeps, no waits on real time. Use `TimeProvider` and awaitable signals.
+- No sleeps, no delays, no waits on time: `Thread.Sleep`, `Task.Delay`, spins and timers do not compile in tests either. Await the event or signal that states the thing happened, such as an integration event, a component's refreshed signal, a `TaskCompletionSource` or a channel, and drive behavior that is genuinely about time with `FakeTimeProvider`.
 - Prove that a new rule or guard can fail: break it on purpose, watch the test fail, then restore it.
 
 ## Architecture
@@ -93,6 +93,7 @@ The rules are enforced by `tests/Avala.ArchitectureTests` and by the compiler. D
 - No comments, anywhere: not in C#, not in XAML, not even XML documentation. Explanations belong in `docs/`.
 - No type longer than 600 lines.
 - Nothing blocks a thread: no `Thread.Sleep`, `Wait`, `Result`, `GetResult` or synchronous file I/O. Everything is asynchronous.
+- Nothing waits on time instead of an event: no `Thread.Sleep`, `Task.Delay`, `SpinWait`, `System.Threading.Timer`, `System.Timers.Timer` or `PeriodicTimer`. Await the event that states the thing happened (an integration event, a component's signal, a `TaskCompletionSource`, a channel, `UntilCancelledAsync` on a token); behavior genuinely about time uses `TimeProvider.CreateTimer`.
 - Warnings are errors. An analyzer exception is allowed only with a reason recorded in [docs/architecture.md](docs/architecture.md#analyzer-exceptions).
 - Every script is C#: .NET file-based apps in `scripts/`, run with `dotnet run`. No Python, shell, PowerShell, JavaScript or any other language, and CI steps only invoke `dotnet`. The architecture tests enforce both.
 

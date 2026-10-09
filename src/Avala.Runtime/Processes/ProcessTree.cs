@@ -9,6 +9,8 @@ internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictio
 {
     private const int KillRounds = 20;
 
+    private static readonly TimeSpan Settling = TimeSpan.FromMilliseconds(250);
+
     public ProcessTreeId Id { get; } = id;
 
     public string Home { get; } = home;
@@ -54,12 +56,19 @@ internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictio
                 return [];
             }
 
-            foreach (var member in members)
-            {
-                Kill(member);
-            }
+            var killed = members.Select(Kill).SelectMany(found => found.Match<Process[]>(process => [process], () => [])).ToList();
 
-            await Task.Delay(TimeSpan.FromMilliseconds(25), clock, cancellationToken);
+            try
+            {
+                await Task.WhenAll(killed.Select(process => process.WaitForExitAsync(cancellationToken))).WaitAsync(Settling, clock, cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+            }
+            finally
+            {
+                killed.ForEach(process => process.Dispose());
+            }
         }
 
         return await MembersAsync(cancellationToken);
@@ -81,15 +90,22 @@ internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictio
         }
     }
 
-    private static void Kill(int member)
+    private static Option<Process> Kill(int member)
     {
+        Process? process = null;
+
         try
         {
-            using var process = Process.GetProcessById(member);
+            process = Process.GetProcessById(member);
             process.Kill();
+
+            return process;
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
         {
+            process?.Dispose();
+
+            return Option<Process>.None;
         }
     }
 }
