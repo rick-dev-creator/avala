@@ -18,6 +18,10 @@ internal interface IRuleFileViewModel
     string Commit { get; }
 
     bool EditedInCheckout { get; }
+
+    bool IsRejected { get; }
+
+    string Summary { get; }
 }
 
 internal interface IRuleViewModel
@@ -33,6 +37,8 @@ internal interface IRuleViewModel
     RuleScope Scope { get; }
 
     PolicyAnswer Answer { get; }
+
+    int Order { get; }
 }
 
 internal interface ICapsViewModel
@@ -40,7 +46,11 @@ internal interface ICapsViewModel
     string Scope { get; }
 
     string Caps { get; }
+
+    IReadOnlyList<SettingLine> Lines { get; }
 }
+
+internal sealed record SettingLine(string Name, string Value);
 
 internal interface ICheckViewModel
 {
@@ -69,8 +79,12 @@ internal interface IMachineConnectionViewModel
     bool IsDefault { get; }
 }
 
-internal sealed class RuleFileViewModel(string path, string status, Option<FileOrigin> origin) : IRuleFileViewModel
+internal sealed class RuleFileViewModel(string path, string status, Option<FileOrigin> origin, string summary) : IRuleFileViewModel
 {
+    public bool IsRejected { get; } = status.StartsWith("Rejected", StringComparison.Ordinal);
+
+    public string Summary { get; } = summary;
+
     public string Path { get; } = path;
 
     public string Status { get; } = status;
@@ -80,8 +94,10 @@ internal sealed class RuleFileViewModel(string path, string status, Option<FileO
     public bool EditedInCheckout { get; } = origin.Match(found => found.EditedInWorktree, () => false);
 }
 
-internal sealed class RuleViewModel(PolicyRule rule) : IRuleViewModel
+internal sealed class RuleViewModel(PolicyRule rule, int order) : IRuleViewModel
 {
+    public int Order { get; } = order;
+
     public string Name { get; } = rule.Name;
 
     public string Origin { get; } = SettingsPhrases.Origin(rule.Origin);
@@ -95,8 +111,10 @@ internal sealed class RuleViewModel(PolicyRule rule) : IRuleViewModel
     public PolicyAnswer Answer { get; } = rule.Answer;
 }
 
-internal sealed class CapsViewModel(string scope, string caps) : ICapsViewModel
+internal sealed class CapsViewModel(string scope, string caps, IReadOnlyList<SettingLine> lines) : ICapsViewModel
 {
+    public IReadOnlyList<SettingLine> Lines { get; } = lines;
+
     public string Scope { get; } = scope;
 
     public string Caps { get; } = caps;
@@ -161,6 +179,35 @@ internal static class SettingsPhrases
     };
 
     public static string NotSeconds => "Enter the window in seconds.";
+
+    public static IReadOnlyList<SettingLine> Lines(Budgets.Contracts.BudgetCaps caps)
+    {
+        SettingLine[] lines =
+        [
+            .. caps.CostPerJob.Select(cost => new SettingLine("Cost per job", Amounts.Costs([cost]))),
+            .. caps.TokensPerJob.Match<SettingLine[]>(tokens => [new("Tokens per job", tokens.ToString("N0", CultureInfo.InvariantCulture))], () => []),
+            .. caps.HoldAtLimit.Match<SettingLine[]>(hold => [new("Hold when a usage window reaches", Amounts.Percent(hold))], () => []),
+            .. caps.MemoryPerJobMegabytes.Match<SettingLine[]>(megabytes => [new("Memory per job", string.Create(CultureInfo.InvariantCulture, $"{megabytes:N0} MB"))], () => []),
+            .. caps.CarvePerChild.Match<SettingLine[]>(share => [new("Carved for each sub-agent", Amounts.Percent(share))], () => []),
+        ];
+
+        return lines.Length == 0 ? [new SettingLine("No caps", "jobs run without a budget")] : lines;
+    }
+
+    public static string Name(string repository)
+    {
+        var trimmed = repository.Trim().TrimEnd('/', '\\');
+        var slash = trimmed.LastIndexOfAny(['/', '\\']);
+
+        return slash < 0 ? trimmed : trimmed[(slash + 1)..];
+    }
+
+    public static string Autonomy(string autonomy) => autonomy switch
+    {
+        "Autonomous" => "Inside the worktree is allowed, outside is denied, forms are answered by policy.",
+        "Supervised" => "Anything a rule does not allow asks you first.",
+        _ => "The repository declares no autonomy yet.",
+    };
 
     public static string Seconds(TimeSpan window) => window.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
 }

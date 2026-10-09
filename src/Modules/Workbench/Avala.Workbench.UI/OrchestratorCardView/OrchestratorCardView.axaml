@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:presenting="using:Avala.Workbench.Presenting"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:local="using:Avala.Workbench.UI"
+             x:Class="Avala.Workbench.UI.OrchestratorCardView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IOrchestratorCardViewModel">
+  <Design.DataContext>
+    <overview:DesignOrchestratorCardViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border.share">
+      <Setter Property="Height" Value="4" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Background" Value="{DynamicResource ShareMiddleBrush}" />
+    </Style>
+    <Style Selector="Border.share.kept">
+      <Setter Property="Background" Value="{DynamicResource ShareStrongBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Open"
+          Classes="bare"
+          Width="340"
+          AutomationProperties.Name="{Binding Title}"
+          Command="{Binding $parent[local:DelegationView].((overview:IDelegationViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"
+          CommandParameter="{Binding Job}">
+    <Border Classes="node"
+            CornerRadius="{DynamicResource RadiusOrchestrator}"
+            BoxShadow="{DynamicResource ShadowOrchestrator}"
+            Padding="18,16">
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border Classes="tag" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding Harness, Converter={x:Static graphs:Graph.Initials}}" />
+          </Border>
+          <TextBlock x:Name="Source" Classes="caption">
+            <Run Text="{Binding Harness}" />
+            <Run Text="{Binding Connection, StringFormat=' · {0} · orchestrator'}" />
+          </TextBlock>
+        </StackPanel>
+        <DockPanel>
+          <ContentControl DockPanel.Dock="Left" Content="{Binding Dot}" Width="7" Height="7" Margin="0,0,10,0" VerticalAlignment="Center" />
+          <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+        <TextBlock x:Name="Detail" Classes="caption secondary" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+        <StackPanel Spacing="5">
+          <DockPanel>
+            <TextBlock x:Name="Spent" DockPanel.Dock="Right" Classes="hint" Text="{Binding Spent}" />
+            <TextBlock x:Name="Budget" Classes="hint" Text="{Binding Budget}" />
+          </DockPanel>
+          <ItemsControl x:Name="Shares" ItemsSource="{Binding Shares}" IsVisible="{Binding HasBudget}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <graphs:ShareBar Gap="2" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="presenting:BudgetShare">
+                <Border Classes="share" Classes.kept="{Binding IsKept}" graphs:Graph.Weight="{Binding Weight}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock x:Name="ShareNote" Classes="hint" FontSize="{DynamicResource FontSizeSection}" Text="{Binding ShareNote}" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </Button>
+</UserControl>

@@ -1,39 +1,90 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:newjob="using:Avala.Workbench.NewJob"
+             xmlns:newJob="using:Avala.Workbench.NewJob"
              x:Class="Avala.Workbench.UI.NewJobView"
              x:ClassModifier="internal"
-             x:DataType="newjob:INewJobViewModel">
+             x:DataType="newJob:INewJobViewModel">
   <Design.DataContext>
-    <newjob:DesignNewJobViewModel />
+    <newJob:DesignNewJobViewModel />
   </Design.DataContext>
-  <StackPanel Margin="24,16" Spacing="8" MaxWidth="{DynamicResource ReadingWidth}" HorizontalAlignment="Left">
-    <TextBlock Classes="title" Text="{Binding Title}" Margin="0,0,0,8" />
-    <TextBlock Classes="section" Text="Repository" />
-    <AutoCompleteBox x:Name="Repository" Text="{Binding Repository}" ItemsSource="{Binding Repositories}" />
-    <TextBlock Classes="section" Text="Instruction" />
-    <TextBox x:Name="Instruction"
-             Text="{Binding Instruction}"
-             AcceptsReturn="True"
-             MinHeight="120"
-             TextWrapping="Wrap"
-             PlaceholderText="What should the agent do?">
-      <TextBox.KeyBindings>
-        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SubmitCommand}" />
-      </TextBox.KeyBindings>
-    </TextBox>
-    <TextBlock Classes="section" Text="Connection" />
-    <ComboBox x:Name="Connection" ItemsSource="{Binding Connections}" SelectedItem="{Binding Connection}" />
-    <CheckBox x:Name="Supervised" Content="Supervised, even if the repository declares more autonomy" IsChecked="{Binding Supervised}" />
-    <Button x:Name="Submit" Classes="primary" Content="Submit" Command="{Binding SubmitCommand}" HorizontalAlignment="Left" />
-    <TextBlock x:Name="Error"
-               Classes="caption failure"
-               Text="{Binding Error}"
-               TextWrapping="Wrap"
-               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-    <TextBlock x:Name="Submitted"
-               Classes="caption"
-               Text="{Binding Submitted}"
-               IsVisible="{Binding Submitted, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-  </StackPanel>
+  <UserControl.Styles>
+    <Style Selector="AutoCompleteBox, ComboBox">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="pageHeader">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Right" Classes="caption" Text="Ctrl+Enter submits" VerticalAlignment="Center" />
+        <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+    <ScrollViewer>
+      <StackPanel Margin="24,36,24,48" Spacing="16" MaxWidth="640">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="title" Text="What should the agent do?" />
+          <TextBlock Classes="caption" TextWrapping="Wrap"
+                     Text="The job runs in its own worktree of the repository, under the repository's rules, and comes back to you for review." />
+        </StackPanel>
+        <Border Classes="float arrive-snappy">
+          <StackPanel Spacing="14">
+            <StackPanel Spacing="6">
+              <TextBlock Classes="section" Text="Repository" />
+              <AutoCompleteBox x:Name="Repository"
+                               Text="{Binding Repository}"
+                               ItemsSource="{Binding Repositories}"
+                               FilterMode="ContainsOrdinal"
+                               PlaceholderText="~/code/repository" />
+            </StackPanel>
+            <StackPanel Spacing="6">
+              <TextBlock Classes="section" Text="Instruction" />
+              <TextBox x:Name="Instruction"
+                       Text="{Binding Instruction}"
+                       AcceptsReturn="True"
+                       MinHeight="132"
+                       TextWrapping="Wrap"
+                       FontSize="{DynamicResource FontSizeReading}"
+                       PlaceholderText="Fix the failing test in money/minor_test.go without changing the public API.">
+                <TextBox.KeyBindings>
+                  <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SubmitCommand}" />
+                </TextBox.KeyBindings>
+              </TextBox>
+            </StackPanel>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="section" Text="Connection" />
+                <ComboBox x:Name="Connection" ItemsSource="{Binding Connections}" SelectedItem="{Binding Connection}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Classes="section" Text="Autonomy" />
+                <CheckBox x:Name="Supervised" IsChecked="{Binding Supervised}">
+                  <TextBlock Classes="caption secondary" TextWrapping="Wrap" Text="Supervised: ask me before anything a rule does not allow" />
+                </CheckBox>
+              </StackPanel>
+            </Grid>
+            <Border x:Name="Error"
+                    Classes="quiet"
+                    BorderBrush="{DynamicResource FailureBorderBrush}"
+                    Padding="12,8"
+                    IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+              <TextBlock x:Name="ErrorText" Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
+            </Border>
+            <DockPanel>
+              <Button x:Name="Submit" DockPanel.Dock="Right" Classes="primary" Content="Start the job" Command="{Binding SubmitCommand}" />
+              <TextBlock x:Name="Submitted"
+                         Classes="caption fade-in"
+                         VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis"
+                         Text="{Binding Submitted}"
+                         IsVisible="{Binding Submitted, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </DockPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
 </UserControl>

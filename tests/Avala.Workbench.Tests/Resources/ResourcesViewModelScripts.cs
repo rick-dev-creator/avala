@@ -69,7 +69,7 @@ public sealed class ResourcesViewModelScripts : IDisposable
         Assert.Equal(
             [("/worktrees/stray", "not known to any job"), ("/worktrees/gone", "missing from the disk")],
             await ui.ReadAsync(() => page.StaleWorktrees.Select(stale => (stale.Path, stale.Reason)).ToList()));
-        Assert.Equal(("Resources", "512 MB"), await ui.ReadAsync(() => (page.Title, page.Memory)));
+        Assert.Equal(("Resources", "512 MB", 3), await ui.ReadAsync(() => (page.Title, page.Memory, page.LeftBehind)));
     }
 
     [Fact]

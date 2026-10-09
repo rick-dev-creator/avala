@@ -7,19 +7,15 @@
   <Design.DataContext>
     <resources:DesignAgentTreeViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-    <StackPanel Spacing="1">
-      <TextBlock x:Name="Job" Text="{Binding Job}" TextTrimming="CharacterEllipsis" />
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <TextBlock x:Name="Connection" Classes="caption mono" Text="{Binding Connection}" />
-        <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" />
-        <TextBlock x:Name="Ports" Classes="caption mono" Text="{Binding Ports}" />
-      </StackPanel>
-    </StackPanel>
-    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="12,0,0,0">
-      <TextBlock x:Name="Processes" Classes="caption" Text="{Binding Processes, StringFormat='{}{0} processes'}" />
-      <TextBlock x:Name="Memory" Text="{Binding Memory}" />
-      <TextBlock x:Name="Cpu" Text="{Binding Cpu}" />
-    </StackPanel>
-  </Grid>
+  <Border BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+    <Grid ColumnDefinitions="14,*,120,90,56,70,110" ColumnSpacing="14">
+      <ContentControl x:Name="Dot" Content="{Binding Dot}" Width="7" Height="7" HorizontalAlignment="Left" VerticalAlignment="Center" />
+      <TextBlock x:Name="Job" Grid.Column="1" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Job}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      <TextBlock x:Name="Connection" Grid.Column="2" Classes="caption" Text="{Binding Connection}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      <TextBlock x:Name="Memory" Grid.Column="3" FontSize="{DynamicResource FontSizeMono}" HorizontalAlignment="Right" Text="{Binding Memory}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Cpu" Grid.Column="4" Classes="secondary" FontSize="{DynamicResource FontSizeMono}" HorizontalAlignment="Right" Text="{Binding Cpu}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Processes" Grid.Column="5" Classes="secondary" FontSize="{DynamicResource FontSizeMono}" HorizontalAlignment="Right" Text="{Binding Processes}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Ports" Grid.Column="6" Classes="hint mono" HorizontalAlignment="Right" Text="{Binding Ports}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+    </Grid>
+  </Border>
 </UserControl>

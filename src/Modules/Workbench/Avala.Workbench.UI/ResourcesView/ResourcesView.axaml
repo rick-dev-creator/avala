@@ -7,62 +7,132 @@
   <Design.DataContext>
     <resources:DesignResourcesViewModel />
   </Design.DataContext>
-  <ScrollViewer>
-    <StackPanel Margin="24,16" Spacing="12" MaxWidth="{DynamicResource ReadingWidth}" HorizontalAlignment="Left">
-      <TextBlock Classes="title" Text="{Binding Title}" />
-      <WrapPanel>
-        <TextBlock x:Name="Memory" Margin="0,0,16,0" Text="{Binding Memory, StringFormat='Memory {0}'}" />
-        <TextBlock x:Name="Cpu" Margin="0,0,16,0" Text="{Binding Cpu, StringFormat='CPU {0}'}" />
-        <TextBlock x:Name="Processes" Margin="0,0,16,0" Text="{Binding Processes, StringFormat='{}{0} processes'}" />
-        <TextBlock x:Name="Disk" Margin="0,0,16,0" Text="{Binding Disk, StringFormat='Disk {0}'}" />
-        <TextBlock x:Name="Ports" Classes="mono" Text="{Binding Ports, StringFormat='Ports {0}'}" />
-      </WrapPanel>
-      <TextBlock x:Name="Error"
-                 Classes="caption failure"
-                 Text="{Binding Error}"
-                 IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Classes="section" Text="Agents" />
-      <TextBlock x:Name="NoAgents" Classes="caption" Text="No agent is running." IsVisible="{Binding !Trees.Count}" />
-      <ItemsControl x:Name="Trees" ItemsSource="{Binding Trees}" />
-      <TextBlock Classes="section" Text="Leftover processes" />
-      <TextBlock x:Name="NoOrphans" Classes="caption" Text="Nothing was left behind." IsVisible="{Binding !Orphans.Count}" />
-      <ItemsControl x:Name="Orphans" ItemsSource="{Binding Orphans}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="resources:IOrphanViewModel">
-            <Grid ColumnDefinitions="*,Auto">
-              <ContentControl Content="{Binding}" />
-              <Button Grid.Column="1"
-                      Classes="ghost"
-                      Content="Clean up"
-                      IsVisible="{Binding CanReap}"
-                      Command="{Binding $parent[UserControl].((resources:IResourcesViewModel)DataContext).ReapCommand}"
-                      CommandParameter="{Binding}" />
-            </Grid>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <Grid ColumnDefinitions="*,Auto,Auto">
-        <TextBlock Classes="section" Text="Stale worktrees" VerticalAlignment="Center" />
-        <Button x:Name="Reconcile" Grid.Column="1" Classes="ghost" Content="Look again" Command="{Binding ReconcileCommand}" />
-        <Button x:Name="Clean" Grid.Column="2" Classes="ghost" Content="Clean up" Command="{Binding CleanCommand}" />
-      </Grid>
-      <TextBlock x:Name="NoStale" Classes="caption" Text="No stale worktree." IsVisible="{Binding !StaleWorktrees.Count}" />
-      <ItemsControl x:Name="StaleWorktrees" ItemsSource="{Binding StaleWorktrees}" />
-      <TextBlock Classes="section" Text="Port leases" />
-      <ItemsControl x:Name="Leases" ItemsSource="{Binding Leases}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="mono" Text="{Binding}" />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <ItemsControl x:Name="Conflicts" ItemsSource="{Binding Conflicts}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="mono failure" Text="{Binding}" />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </StackPanel>
-  </ScrollViewer>
+  <UserControl.Styles>
+    <Style Selector="ItemsControl.rows > ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+    <Style Selector="ItemsControl.rows.first > ContentPresenter:nth-child(1)">
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Ellipse.ring">
+      <Setter Property="Width" Value="7" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="StrokeThickness" Value="1.5" />
+      <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Path.done">
+      <Setter Property="Width" Value="18" />
+      <Setter Property="Height" Value="18" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="pageHeader">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Right" Classes="caption" Text="This computer" VerticalAlignment="Center" />
+        <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+    <ScrollViewer>
+      <StackPanel Margin="24,36,24,48" Spacing="34" MaxWidth="772">
+        <Border x:Name="Error" Classes="quiet" Padding="12,8" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
+        </Border>
+
+        <UniformGrid Columns="4" ColumnSpacing="12">
+          <Border Classes="grouped" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="caption" Text="Memory" />
+              <TextBlock x:Name="Memory" Classes="figure" Text="{Binding Memory}" TextTrimming="CharacterEllipsis" />
+              <TextBlock x:Name="Processes" Classes="caption" Text="{Binding Processes, StringFormat='{}{0} processes'}" />
+            </StackPanel>
+          </Border>
+          <Border Classes="grouped" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="caption" Text="CPU" />
+              <TextBlock x:Name="Cpu" Classes="figure" Text="{Binding Cpu}" />
+              <TextBlock Classes="caption" Text="across agents" />
+            </StackPanel>
+          </Border>
+          <Border Classes="grouped" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="caption" Text="Disk" />
+              <TextBlock x:Name="Disk" Classes="figure" Text="{Binding Disk}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="caption" Text="in worktrees" />
+            </StackPanel>
+          </Border>
+          <Border Classes="grouped" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="caption" Text="Ports" />
+              <TextBlock x:Name="LeaseCount" Classes="figure" Text="{Binding Leases.Count, StringFormat='{}{0} leased'}" />
+              <TextBlock x:Name="Ports" Classes="caption" Text="{Binding Ports}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Ports}" />
+            </StackPanel>
+          </Border>
+        </UniformGrid>
+
+        <StackPanel Spacing="8">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+              <Button x:Name="Reconcile" Classes="ghost" Content="Look again" Command="{Binding ReconcileCommand}" />
+              <Button x:Name="Clean" Classes="primary" Content="Clean up worktrees" Command="{Binding CleanCommand}" IsVisible="{Binding !!StaleWorktrees.Count}" />
+            </StackPanel>
+            <TextBlock x:Name="LeftBehind" Classes="section" VerticalAlignment="Center" Text="{Binding LeftBehind, StringFormat='Left behind · {0}'}" />
+          </DockPanel>
+          <Border x:Name="NothingLeft" Classes="empty" Padding="18,16" IsVisible="{Binding !LeftBehind}">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <Path Classes="icon done" Data="{StaticResource IconCheck}" />
+              <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="Nothing left behind. Branches were kept; checkpoint commits stay reachable." />
+            </StackPanel>
+          </Border>
+          <Border Classes="grouped" IsVisible="{Binding LeftBehind}">
+            <StackPanel Margin="16,0">
+              <ItemsControl x:Name="Orphans" Classes="rows first" ItemsSource="{Binding Orphans}" />
+              <ItemsControl x:Name="Conflicts" Classes="rows" ItemsSource="{Binding Conflicts}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <DockPanel Margin="0,11">
+                      <Ellipse DockPanel.Dock="Left" Classes="ring" Margin="0,0,12,0" />
+                      <StackPanel>
+                        <TextBlock Text="A leased port is taken outside Avala" />
+                        <TextBlock Classes="caption" Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ItemsControl x:Name="StaleWorktrees" Classes="rows" ItemsSource="{Binding StaleWorktrees}" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Right" Classes="hint" Text="each agent's process tree, attributed to its job and connection" />
+            <TextBlock Classes="section" Text="Running agents" />
+          </DockPanel>
+          <TextBlock x:Name="NoAgents" Classes="caption" Margin="0,8,0,0" Text="No agent is running." IsVisible="{Binding !Trees.Count}" />
+          <ItemsControl x:Name="Trees" ItemsSource="{Binding Trees}" />
+          <Grid ColumnDefinitions="14,*,120,90,56,70,110" ColumnSpacing="14" Margin="0,6,0,0" IsVisible="{Binding !!Trees.Count}">
+            <TextBlock Grid.Column="2" Classes="hint" Text="connection" />
+            <TextBlock Grid.Column="3" Classes="hint" HorizontalAlignment="Right" Text="memory" />
+            <TextBlock Grid.Column="4" Classes="hint" HorizontalAlignment="Right" Text="CPU" />
+            <TextBlock Grid.Column="5" Classes="hint" HorizontalAlignment="Right" Text="processes" />
+            <TextBlock Grid.Column="6" Classes="hint" HorizontalAlignment="Right" Text="ports" />
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="6" IsVisible="{Binding !!Leases.Count}">
+          <TextBlock Classes="section" Text="Port leases" />
+          <ItemsControl x:Name="Leases" ItemsSource="{Binding Leases}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="caption mono" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
 </UserControl>

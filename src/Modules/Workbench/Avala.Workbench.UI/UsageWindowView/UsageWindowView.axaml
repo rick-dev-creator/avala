@@ -1,33 +1,44 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:usage="using:Avala.Workbench.Usage"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
              x:Class="Avala.Workbench.UI.UsageWindowView"
              x:ClassModifier="internal"
              x:DataType="usage:IUsageWindowViewModel">
   <Design.DataContext>
     <usage:DesignUsageWindowViewModel />
   </Design.DataContext>
-  <Border Classes="quiet" Padding="14,10" Margin="0,0,0,8">
-    <StackPanel Spacing="4">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock x:Name="Label" Classes="strong" Text="{Binding Label}" />
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-          <TextBlock x:Name="Cost" Text="{Binding Cost}" />
-          <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens}" VerticalAlignment="Center" />
-        </StackPanel>
-      </Grid>
-      <WrapPanel>
-        <TextBlock Classes="caption" Margin="0,0,12,0" Text="{Binding Input, StringFormat='input {0:N0}'}" />
-        <TextBlock Classes="caption" Margin="0,0,12,0" Text="{Binding Output, StringFormat='output {0:N0}'}" />
-        <TextBlock Classes="caption" Margin="0,0,12,0" Text="{Binding CacheRead, StringFormat='cache read {0:N0}'}" />
-        <TextBlock Classes="caption" Margin="0,0,12,0" Text="{Binding CacheWrite, StringFormat='cache write {0:N0}'}" />
-        <TextBlock Classes="caption" Text="{Binding Reasoning, StringFormat='reasoning {0:N0}'}" />
+  <UserControl.Styles>
+    <Style Selector="Border.token">
+      <Setter Property="Height" Value="6" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    </Style>
+  </UserControl.Styles>
+  <Expander x:Name="Disclosure" Classes="disclosure">
+    <Expander.Header>
+      <DockPanel>
+        <TextBlock x:Name="Tokens" DockPanel.Dock="Right" Classes="caption" Text="{Binding Tokens}" VerticalAlignment="Center" />
+        <TextBlock x:Name="Label" VerticalAlignment="Center" Text="{Binding Label, StringFormat='Tokens by type · {0}'}" />
+      </DockPanel>
+    </Expander.Header>
+    <StackPanel Spacing="10" Margin="20,0,0,4">
+      <graphs:ShareBar x:Name="Shares" Height="6" Gap="2">
+        <Border Classes="token" Background="{DynamicResource TextPrimaryBrush}" graphs:Graph.Weight="{Binding Input}" />
+        <Border Classes="token" Background="{DynamicResource TextSecondaryBrush}" graphs:Graph.Weight="{Binding Output}" />
+        <Border Classes="token" Background="{DynamicResource ShareFaintBrush}" graphs:Graph.Weight="{Binding CacheRead}" />
+        <Border Classes="token" Background="{DynamicResource TextTertiaryBrush}" graphs:Graph.Weight="{Binding CacheWrite}" />
+        <Border Classes="token" Background="{DynamicResource AccentBrush}" graphs:Graph.Weight="{Binding Reasoning}" />
+      </graphs:ShareBar>
+      <WrapPanel ItemSpacing="12">
+        <TextBlock Classes="caption secondary" Text="{Binding Input, StringFormat='input {0:N0}'}" />
+        <TextBlock Classes="caption secondary" Text="{Binding Output, StringFormat='output {0:N0}'}" />
+        <TextBlock Classes="caption secondary" Text="{Binding CacheRead, StringFormat='cache read {0:N0}'}" />
+        <TextBlock Classes="caption secondary" Text="{Binding CacheWrite, StringFormat='cache write {0:N0}'}" />
+        <TextBlock Classes="caption secondary" Text="{Binding Reasoning, StringFormat='reasoning {0:N0}'}" />
       </WrapPanel>
+      <TextBlock x:Name="Cost" Classes="caption" Text="{Binding Cost}" />
       <TextBlock x:Name="Turns" Classes="caption" Text="{Binding Turns}" />
-      <TextBlock x:Name="Unpriced"
-                 Classes="caption"
-                 Text="{Binding Unpriced}"
-                 IsVisible="{Binding Unpriced, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock x:Name="Unpriced" Classes="caption" Text="{Binding Unpriced}" IsVisible="{Binding Unpriced, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
-  </Border>
+  </Expander>
 </UserControl>

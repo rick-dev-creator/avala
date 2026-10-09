@@ -1,4 +1,5 @@
 using System.Globalization;
+using Avala.Components.Meters;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Sdk;
@@ -67,6 +68,16 @@ internal interface IJobMeterViewModel
     string Carve { get; }
 
     int Interventions { get; }
+
+    string Connection { get; }
+
+    bool HasCap { get; }
+
+    string Cap { get; }
+
+    double Used { get; }
+
+    bool IsNearCap { get; }
 }
 
 internal interface IInterventionViewModel
@@ -145,6 +156,16 @@ internal sealed class JobMeterViewModel(JobCost cost) : IJobMeterViewModel
     public string Carve { get; } = cost.Spend.Carve.Match(carve => $"carved {Amounts.Costs(carve.Cost)}", () => string.Empty);
 
     public int Interventions { get; } = cost.Interventions.Count;
+
+    public string Connection { get; } = cost.Spend.Session.Match(seen => seen.Connection.Value, () => cost.Job.Summary.Connection.Match(name => name.Value, () => string.Empty));
+
+    public bool HasCap { get; } = cost.Spend.Caps.Match(caps => caps.CostPerJob.Count > 0 && caps.CostPerJob[0].Amount > 0, () => false);
+
+    public string Cap { get; } = cost.Spend.Caps.Match(caps => caps.CostPerJob.Count > 0 ? Amounts.Costs([caps.CostPerJob[0]]) : "no cap", () => "no cap");
+
+    public double Used { get; } = cost.Spend.Caps.Match(caps => Math.Clamp(Shares.Of(cost.Spend.Spent, caps.CostPerJob), 0, 1), () => 0d);
+
+    public bool IsNearCap => HasCap && Used >= 1 - MeterViewModel.AttentionMargin;
 }
 
 internal sealed class InterventionViewModel(JobIntervention intervention, string instruction) : IInterventionViewModel

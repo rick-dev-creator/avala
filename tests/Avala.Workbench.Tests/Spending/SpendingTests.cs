@@ -35,7 +35,7 @@ public sealed class SpendingTests : IDisposable
         var meter = new ConnectionMeterViewModel(Assert.Single(Reader(job).Read().Connections));
 
         var limit = Assert.Single(meter.Limits);
-        Assert.Equal(("5h", "85% used", "jobs are held at 80%", true), (limit.Window, limit.UsedText, limit.HoldAt, limit.ReachesHold));
+        Assert.Equal(("5h", "85%", "Jobs on this connection hold at the 80% threshold.", true), (limit.Window, limit.UsedText, limit.HoldAt, limit.ReachesHold));
         Assert.StartsWith("resets ", limit.Resets, StringComparison.Ordinal);
     }
 

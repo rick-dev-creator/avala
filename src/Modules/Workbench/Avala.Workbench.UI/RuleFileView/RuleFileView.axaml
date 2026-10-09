@@ -1,16 +1,34 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.RuleFileView"
              x:ClassModifier="internal"
-             x:DataType="settings:IRuleFileViewModel">
+             x:DataType="settings:IRuleFileViewModel"
+             Classes.rejected="{Binding IsRejected}">
   <Design.DataContext>
     <settings:DesignRuleFileViewModel />
   </Design.DataContext>
-  <StackPanel Orientation="Horizontal" Spacing="8">
-    <TextBlock x:Name="Path" Classes="mono" Text="{Binding Path}" VerticalAlignment="Center" />
-    <TextBlock x:Name="Status" Text="{Binding Status}" VerticalAlignment="Center" />
-    <TextBlock x:Name="Commit" Classes="caption mono" Text="{Binding Commit}" VerticalAlignment="Center" />
-    <TextBlock x:Name="Edited" Classes="caption attention" Text="edited in the checkout" IsVisible="{Binding EditedInCheckout}" VerticalAlignment="Center" />
-  </StackPanel>
+  <UserControl.Styles>
+    <Style Selector=".rejected TextBlock#Status">
+      <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10" Margin="0,8">
+    <StackPanel VerticalAlignment="Center">
+      <TextBlock x:Name="Path" Classes="mono" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Edited" Classes="hint attention" Text="edited in this checkout, not committed yet" IsVisible="{Binding EditedInCheckout}" />
+    </StackPanel>
+    <TextBlock x:Name="Summary" Grid.Column="1" Classes="caption" Text="{Binding Summary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="220" />
+    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+      <TextBlock x:Name="Status" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Status}" TextTrimming="CharacterEllipsis" MaxWidth="240" />
+      <TextBlock x:Name="Commit" Classes="hint mono" Margin="6,0,0,0" Text="{Binding Commit}" VerticalAlignment="Center" />
+    </StackPanel>
+    <Button x:Name="Edit"
+            Grid.Column="3"
+            Classes="link"
+            Content="Edit in repository"
+            Command="{Binding $parent[local:RepositorySettingsView].((settings:IRepositorySettingsViewModel)DataContext).EditCommand, FallbackValue={x:Null}}"
+            CommandParameter="{Binding}" />
+  </Grid>
 </UserControl>

@@ -1,14 +1,21 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:resources="using:Avala.Workbench.Resources"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.StaleWorktreeView"
              x:ClassModifier="internal"
              x:DataType="resources:IStaleWorktreeViewModel">
   <Design.DataContext>
     <resources:DesignStaleWorktreeViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-    <TextBlock x:Name="Path" Classes="mono" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
-    <TextBlock x:Name="Reason" Grid.Column="1" Classes="caption" Text="{Binding Reason}" Margin="12,0,0,0" />
-  </Grid>
+  <DockPanel Margin="0,11">
+    <Ellipse DockPanel.Dock="Left" Width="7" Height="7" Margin="0,0,12,0" StrokeThickness="1.5" Stroke="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" />
+    <StackPanel>
+      <TextBlock x:Name="Worktree" Text="{Binding Path, Converter={x:Static states:Texts.Leaf}, StringFormat='Worktree · {0}'}" TextTrimming="CharacterEllipsis" />
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock x:Name="Reason" Classes="caption" Text="{Binding Reason}" />
+        <TextBlock x:Name="Path" Classes="caption mono" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+      </StackPanel>
+    </StackPanel>
+  </DockPanel>
 </UserControl>

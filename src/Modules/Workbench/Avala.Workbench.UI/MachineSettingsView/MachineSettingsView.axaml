@@ -1,33 +1,99 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.MachineSettingsView"
              x:ClassModifier="internal"
              x:DataType="settings:IMachineSettingsViewModel">
   <Design.DataContext>
     <settings:DesignMachineSettingsViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="10">
-    <TextBlock x:Name="Error"
-               Classes="caption failure"
-               Text="{Binding Error}"
-               TextWrapping="Wrap"
-               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-    <Grid ColumnDefinitions="*,Auto">
-      <TextBlock x:Name="ConnectionsFile" Text="{Binding ConnectionsFile, StringFormat='connections.json: {0}'}" VerticalAlignment="Center" />
-      <Button x:Name="OpenConnections" Grid.Column="1" Classes="ghost" Content="Open connections.json" Command="{Binding OpenConnectionsCommand}" />
-    </Grid>
-    <ItemsControl x:Name="Connections" ItemsSource="{Binding Connections}" />
-    <TextBlock x:Name="SupervisionFile" Text="{Binding SupervisionFile, StringFormat='supervision.json: {0}'}" />
-    <Grid ColumnDefinitions="*,Auto,Auto">
-      <TextBlock x:Name="Silence" Text="{Binding Silence, StringFormat='Silence window: {0}'}" VerticalAlignment="Center" />
-      <TextBox x:Name="SilenceDraft" Grid.Column="1" Width="100" Text="{Binding SilenceDraft}">
-        <TextBox.KeyBindings>
-          <KeyBinding Gesture="Enter" Command="{Binding SaveSilenceCommand}" />
-        </TextBox.KeyBindings>
-      </TextBox>
-      <Button x:Name="SaveSilence" Grid.Column="2" Margin="8,0,0,0" Content="Save" Command="{Binding SaveSilenceCommand}" />
-    </Grid>
-    <TextBlock x:Name="ResourceSettings" Classes="caption" Text="{Binding Resources, StringFormat='resources.json: {0}'}" TextWrapping="Wrap" />
+  <UserControl.Styles>
+    <Style Selector="ItemsControl#Connections > ContentPresenter:not(:nth-child(1))">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+    <Style Selector="Path.add">
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Height" Value="12" />
+      <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="30">
+    <Border Classes="separator" />
+    <Border x:Name="Error"
+            Classes="quiet"
+            Padding="12,8"
+            IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock x:Name="ErrorText" Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
+    </Border>
+
+    <StackPanel Spacing="8">
+      <DockPanel>
+        <TextBlock x:Name="ConnectionsFile" DockPanel.Dock="Right" Classes="hint" Text="{Binding ConnectionsFile, StringFormat='connections.json: {0}'}" VerticalAlignment="Bottom" />
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Classes="section" Text="Connections" VerticalAlignment="Bottom" />
+          <TextBlock Classes="hint" Text="stored by Avala on this computer" VerticalAlignment="Bottom" />
+        </StackPanel>
+      </DockPanel>
+      <Border Classes="grouped">
+        <StackPanel>
+          <TextBlock x:Name="NoConnections" Classes="caption" Margin="16,12" Text="No connection is declared: jobs use each provider's own login." IsVisible="{Binding !Connections.Count}" />
+          <ItemsControl x:Name="Connections" Margin="16,0" ItemsSource="{Binding Connections}" />
+          <Border Classes="separator" Margin="16,0" />
+          <Button x:Name="OpenConnections" Classes="link" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,11" FontSize="{DynamicResource FontSizeBody}" Command="{Binding OpenConnectionsCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Path Classes="icon add" Data="{StaticResource IconPlus}" />
+              <TextBlock Text="Add a connection in connections.json" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <StackPanel Spacing="8">
+      <DockPanel>
+        <TextBlock x:Name="SupervisionFile" DockPanel.Dock="Right" Classes="hint" Text="{Binding SupervisionFile, StringFormat='supervision.json: {0}'}" VerticalAlignment="Bottom" />
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Classes="section" Text="Supervision" VerticalAlignment="Bottom" />
+          <TextBlock Classes="hint" Text="stored by Avala on this computer" VerticalAlignment="Bottom" />
+        </StackPanel>
+      </DockPanel>
+      <Border Classes="grouped" Padding="16,14">
+        <StackPanel Spacing="8">
+          <DockPanel>
+            <TextBlock x:Name="SilenceLabel" DockPanel.Dock="Right" Text="{Binding SilenceDraft, Converter={x:Static local:SilenceMinutes.Label}}" />
+            <TextBlock Text="Hold a job after silence of" />
+          </DockPanel>
+          <Slider x:Name="SilenceSlider"
+                  Minimum="1"
+                  Maximum="60"
+                  SmallChange="1"
+                  LargeChange="5"
+                  AutomationProperties.Name="Silence window in minutes"
+                  Value="{Binding SilenceMinutes}" />
+          <DockPanel>
+            <Button x:Name="SaveSilence"
+                    DockPanel.Dock="Right"
+                    Classes="primary"
+                    Margin="8,0,0,0"
+                    Content="Save"
+                    IsVisible="{Binding IsSilenceChanged}"
+                    Command="{Binding SaveSilenceCommand}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBox x:Name="SilenceDraft" Width="96" Text="{Binding SilenceDraft}" AutomationProperties.Name="Silence window in seconds">
+                <TextBox.KeyBindings>
+                  <KeyBinding Gesture="Enter" Command="{Binding SaveSilenceCommand}" />
+                </TextBox.KeyBindings>
+              </TextBox>
+              <TextBlock Classes="caption" Text="seconds" VerticalAlignment="Center" />
+              <TextBlock x:Name="Silence" Classes="caption" Text="{Binding Silence, StringFormat='· saved: {0}'}" VerticalAlignment="Center" />
+            </StackPanel>
+          </DockPanel>
+          <TextBlock Classes="caption" Text="Waiting for your answer never counts as silence." />
+        </StackPanel>
+      </Border>
+      <TextBlock x:Name="ResourceSettings" Classes="caption" Margin="4,0" Text="{Binding Resources, StringFormat='resources.json: {0}'}" TextWrapping="Wrap" />
+    </StackPanel>
   </StackPanel>
 </UserControl>

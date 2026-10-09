@@ -1,23 +1,53 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:resources="using:Avala.Workbench.Resources"
+             xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.OrphanView"
              x:ClassModifier="internal"
-             x:DataType="resources:IOrphanViewModel">
+             x:DataType="resources:IOrphanViewModel"
+             Classes.running="{Binding IsLeftRunning}">
   <Design.DataContext>
     <resources:DesignOrphanViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="2" Margin="0,2">
-    <StackPanel Orientation="Horizontal" Spacing="8">
-      <TextBlock x:Name="At" Classes="caption mono" Text="{Binding At}" />
-      <TextBlock x:Name="Disposal" Classes="caption" Classes.attention="{Binding IsLeftRunning}" Text="{Binding Disposal}" />
+  <UserControl.Styles>
+    <Style Selector="Ellipse#Mark">
+      <Setter Property="Fill" Value="{DynamicResource DotDoneBrush}" />
+    </Style>
+    <Style Selector=".running Ellipse#Mark">
+      <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel Margin="0,11">
+    <Ellipse x:Name="Mark" DockPanel.Dock="Left" Width="7" Height="7" Margin="0,0,12,0" VerticalAlignment="Center" />
+    <Button x:Name="Stop"
+            DockPanel.Dock="Right"
+            Margin="12,0,0,0"
+            Padding="12,5"
+            Content="Stop"
+            IsVisible="{Binding CanReap}"
+            Command="{Binding $parent[local:ResourcesView].((resources:IResourcesViewModel)DataContext).ReapCommand, FallbackValue={x:Null}}"
+            CommandParameter="{Binding}" />
+    <TextBlock x:Name="Memory" DockPanel.Dock="Right" Classes="caption secondary" Margin="12,0,0,0" Text="{Binding Memory}" VerticalAlignment="Center" />
+    <StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Text="Processes" />
+        <TextBlock x:Name="Disposal" Classes.attention="{Binding IsLeftRunning}" Text="{Binding Disposal}" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <ItemsControl x:Name="Processes" ItemsSource="{Binding Processes}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Classes="caption mono" Text="{Binding}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock x:Name="At" Classes="caption" Text="{Binding At, StringFormat='· {0}'}" />
+      </StackPanel>
     </StackPanel>
-    <ItemsControl x:Name="Processes" ItemsSource="{Binding Processes}">
-      <ItemsControl.ItemTemplate>
-        <DataTemplate x:DataType="x:String">
-          <TextBlock Classes="mono" Text="{Binding}" />
-        </DataTemplate>
-      </ItemsControl.ItemTemplate>
-    </ItemsControl>
-  </StackPanel>
+  </DockPanel>
 </UserControl>
