@@ -13,6 +13,7 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     private readonly ConcurrentDictionary<JobId, JobHistory> histories = new();
     private readonly ConcurrentQueue<JobRequest> submitted = new();
     private readonly ConcurrentQueue<JobId> discarded = new();
+    private readonly ConcurrentQueue<JobId> resumed = new();
 
     public IReadOnlyList<JobRequest> Submitted => [.. submitted];
 
@@ -84,6 +85,18 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+
+    public IReadOnlyList<JobId> Resumed => [.. resumed];
+
+    public ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken)
+    {
+        resumed.Enqueue(job);
+
+        return ValueTask.FromResult(Result<JobContinuation, JobRejection>.Success(new JobContinuation(job, Agents.Contracts.Sessions.SessionId.New(), ContinuedIn.ResumedConversation)));
+    }
+
+    public void Is(JobId job, JobStatus status) =>
+        histories[job] = histories[job] with { Summary = histories[job].Summary with { Status = status } };
 
     private static JobSummary Summary(JobId job, JobStatus status, Option<ConnectionName> connection) =>
         new(job, Repository, "Ship the release", DateTimeOffset.UnixEpoch, status, connection, Option<Autonomy>.None, new WorkspaceId(job.Value));

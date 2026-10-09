@@ -40,8 +40,15 @@ internal sealed class ReturningAgents : IAgents
 
     public IReadOnlyList<(SessionId Session, ToolResult Result)> Results => [.. results];
 
+    public bool Closed { get; set; }
+
     public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken)
     {
+        if (Closed)
+        {
+            return ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.SessionClosed));
+        }
+
         results.Enqueue((session, result));
 
         return ValueTask.FromResult(Result<ItemId, AgentError>.Success(result.Item));

@@ -7,6 +7,7 @@ using Avala.Delegation.Delegating;
 using Avala.Delegation.Policy;
 using Avala.Delegation.Records;
 using Avala.Delegation.Reporting;
+using Avala.Delegation.Resuming;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
@@ -34,13 +35,33 @@ internal sealed class Desk : IAsyncDisposable
             new ChildEvidence(Changes, Verifications, Jobs, new ChildSpending(Usage, [Budgets])),
             journal,
             NullLogger<ChildReporter>.Instance);
-        desk = new DelegationDesk(new Delegator(policy, Jobs, journal), reporter, Jobs);
+        desk = new DelegationDesk(new Delegator(policy, Jobs, journal), reporter, Jobs, Book);
+        Resumption = new ParentResumption(Book, Jobs);
+        Briefing = new OwedReports(Book, journal);
         Parent = Jobs.Running();
     }
 
     public Desk()
         : this(Option<DelegationRules>.Some(Declared))
     {
+    }
+
+    public ParentResumption Resumption { get; }
+
+    public OwedReports Briefing { get; }
+
+    public async Task StartupCompletedAsync()
+    {
+        await desk.HandleAsync(new StartupCompleted(), Cancellation);
+        await Resumption.HandleAsync(new StartupCompleted(), Cancellation);
+    }
+
+    public async Task<DelegationRecord> ReportedToResumptionAsync(JobId child)
+    {
+        var reported = await ReportedAsync(child);
+        await Resumption.HandleAsync(new ChildReported(reported), Cancellation);
+
+        return reported;
     }
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 9, 0, 0, TimeSpan.Zero));

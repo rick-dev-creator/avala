@@ -8,6 +8,8 @@ namespace Avala.Delegation.Records;
 internal sealed class DelegationBook(IDelegationStore store) : IDelegations, IStartupTask
 {
     private ImmutableList<DelegationRecord> records = [];
+    private IReadOnlyList<DelegationRecord>? earlier;
+    private Task? restoring;
 
     public async Task KeepAsync(DelegationRecord record, CancellationToken cancellationToken)
     {
@@ -15,11 +17,11 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
         await store.RecordAsync(record, cancellationToken);
     }
 
-    public async Task RunAsync(CancellationToken cancellationToken)
-    {
-        var earlier = await store.EarlierRunsAsync(cancellationToken);
-        ImmutableInterlocked.Update(ref records, live => [.. earlier.Where(record => !live.Exists(other => Same(other, record))), .. live]);
-    }
+    public Task RunAsync(CancellationToken cancellationToken) => RestoreAsync(cancellationToken);
+
+    public Task RestoreAsync(CancellationToken cancellationToken) => restoring ??= LoadAsync(cancellationToken);
+
+    public Option<IReadOnlyList<DelegationRecord>> Earlier => Volatile.Read(ref earlier).ToOption();
 
     public IReadOnlyList<DelegationRecord> All() => Volatile.Read(ref records);
 
@@ -29,8 +31,19 @@ internal sealed class DelegationBook(IDelegationStore store) : IDelegations, ISt
     public Option<DelegationRecord> OfChild(JobId child) =>
         Volatile.Read(ref records).FirstOrDefault(record => record.Child == Option<JobId>.Some(child)).ToOption();
 
+    public IReadOnlyList<DelegationRecord> OwedTo(JobId parent) => [.. OfParent(parent).Where(Owed)];
+
+    public static bool Owed(DelegationRecord record) => record.Child.IsSome && record.Answered.IsNone;
+
+    private async Task LoadAsync(CancellationToken cancellationToken)
+    {
+        var restored = await store.EarlierRunsAsync(cancellationToken);
+        ImmutableInterlocked.Update(ref records, live => [.. restored.Where(record => !live.Exists(other => Same(other, record))), .. live]);
+        Volatile.Write(ref earlier, restored);
+    }
+
     private static ImmutableList<DelegationRecord> Kept(ImmutableList<DelegationRecord> kept, DelegationRecord record) =>
-        kept.FindIndex(earlier => Same(earlier, record)) is var at and >= 0 ? kept.SetItem(at, record) : kept.Add(record);
+        kept.FindIndex(existing => Same(existing, record)) is var at and >= 0 ? kept.SetItem(at, record) : kept.Add(record);
 
     private static bool Same(DelegationRecord one, DelegationRecord other) => one.Session == other.Session && one.Item == other.Item;
 }

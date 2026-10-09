@@ -82,9 +82,21 @@ public sealed record DelegationRecord(SessionId Session, ItemId Item, string Ins
     public Option<JobRejection> Rejection { get; init; }
 
     public Option<ChildReport> Report { get; init; }
+
+    public Option<CallAnswer> Answered { get; init; }
 }
 
+public enum AnswerRoute
+{
+    ToolResult,
+    Message,
+}
+
+public sealed record CallAnswer(AnswerRoute Route, DateTimeOffset At);
+
 public sealed record ChildDelegated(DelegationRecord Delegation) : IIntegrationEvent;
+
+public sealed record ReportDelivered(DelegationRecord Delegation) : IIntegrationEvent;
 
 public sealed record DelegationRefused(DelegationRecord Delegation) : IIntegrationEvent;
 

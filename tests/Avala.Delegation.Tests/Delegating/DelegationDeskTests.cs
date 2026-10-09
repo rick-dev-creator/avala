@@ -97,6 +97,9 @@ public sealed class DelegationDeskTests
                 root.GetProperty("integrated").GetProperty("commit").GetString()));
         Assert.Equal(reported, Outcomes.Present(desk.Book.OfChild(child)));
         Assert.Equal([reported], desk.Book.OfParent(desk.Parent));
+        Assert.Equal(AnswerRoute.ToolResult, Outcomes.Present(reported.Answered).Route);
+        Assert.Equal(reported, Assert.Single(desk.Bus.Published.OfType<ReportDelivered>()).Delegation);
+        Assert.True((await desk.Briefing.BriefAsync(desk.Parent, TestContext.Current.CancellationToken)).IsNone);
     }
 
     [Fact]
