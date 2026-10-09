@@ -103,17 +103,7 @@ internal sealed record Transcript
         ReasoningEntry reasoning => reasoning with { Outcome = outcome, Duration = now - reasoning.Started },
         ToolEntry tool => tool with { Outcome = outcome },
         FormEntry form => form with { Outcome = outcome },
-        CanvasEntry { Status: CanvasStatus.Streaming } canvas => canvas with { Status = Closed(outcome) },
         _ => entry,
-    };
-
-    private static CanvasStatus Closed(ItemOutcome outcome) => outcome switch
-    {
-        ItemOutcome.Succeeded => CanvasStatus.Completed,
-        ItemOutcome.Failed => CanvasStatus.Failed,
-        ItemOutcome.Cancelled => CanvasStatus.Cancelled,
-        ItemOutcome.Abandoned => CanvasStatus.Abandoned,
-        _ => CanvasStatus.Expired,
     };
 
     private Transcript Ended(TurnCompleted completed, DateTimeOffset now)
