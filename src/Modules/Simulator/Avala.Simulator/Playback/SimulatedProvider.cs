@@ -4,7 +4,7 @@ using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
 
-internal sealed class SimulatedProvider(IFileWriter files, Pacing pacing) : IAgentProvider
+internal sealed class SimulatedProvider(Stagecraft craft) : IAgentProvider
 {
     public ProviderInfo Info { get; } = new("simulator", "Simulated Claude Code");
 
@@ -19,13 +19,15 @@ internal sealed class SimulatedProvider(IFileWriter files, Pacing pacing) : IAge
         ReportsLimits: true,
         AsksQuestions: true);
 
-    public ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(options.Resume.Match(
-            token => Conversation.Resume(token).Match(
-                conversation => Start(options, conversation),
-                () => Result<IAgentSession, AgentError>.Failure(AgentError.CannotResume)),
-            () => Start(options, Option<Conversation>.None)));
+    public async ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken) =>
+        await options.Resume.Match(
+            token => Conversation.Mark(token).Match(
+                async mark => (await craft.Library.NamedAsync(mark.Scenario, options, cancellationToken)).Match(
+                    scenario => Start(options, mark.Resume(scenario)),
+                    () => AgentError.CannotResume),
+                () => Task.FromResult(Result<IAgentSession, AgentError>.Failure(AgentError.CannotResume))),
+            () => Task.FromResult(Start(options, Option<Conversation>.None)));
 
     private Result<IAgentSession, AgentError> Start(SessionOptions options, Option<Conversation> resumed) =>
-        Result<IAgentSession, AgentError>.Success(new SimulatedSession(options, files, pacing, resumed));
+        Result<IAgentSession, AgentError>.Success(new SimulatedSession(options, craft, resumed));
 }

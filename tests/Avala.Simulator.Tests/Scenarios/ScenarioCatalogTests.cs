@@ -10,8 +10,10 @@ public sealed class ScenarioCatalogTests
     [InlineData("[Simulate: Permission] Migrate the database", "permission")]
     [InlineData("Add GitHub login", "reply")]
     [InlineData("[simulate: unknown] Add GitHub login", "reply")]
+    [InlineData("[replay: edit-allowed] Greet the team", "replay:edit-allowed")]
+    [InlineData("Greet the team [Replay as recorded: edit-allowed]", "replay as recorded:edit-allowed")]
     public void TheTagOfTheFirstMessageChoosesTheScenario(string message, string expected) =>
-        Assert.Equal(expected, ScenarioCatalog.Choose(message).Name);
+        Assert.Equal(expected, ScenarioCatalog.NameIn(message));
 
     [Fact]
     public void EveryScenarioThatReachesItsEndReportsUsageWithCostAndALimit()

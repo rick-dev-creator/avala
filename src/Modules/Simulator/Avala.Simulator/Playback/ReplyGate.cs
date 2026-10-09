@@ -21,6 +21,18 @@ internal sealed class ReplyGate<TReply>(SerialExecutor stage, AgentError nothing
     public Task<Result<ItemId, AgentError>> RespondAsync(ItemId item, TReply reply, CancellationToken cancellationToken) =>
         stage.RunAsync(_ => Task.FromResult(Respond(item, reply)), cancellationToken);
 
+    public async Task<TReply> AwaitAsync(ItemId item, Task<TReply> reply, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await reply.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            await WithdrawAsync(item);
+        }
+    }
+
     public Task WithdrawAsync(ItemId item) =>
         stage.RunAsync(
             _ =>

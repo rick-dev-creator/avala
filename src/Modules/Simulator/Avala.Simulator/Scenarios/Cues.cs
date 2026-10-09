@@ -37,6 +37,36 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         _ => [],
     };
 
+    public IEnumerable<IAgentEvent> Diverged(string reason, bool started) =>
+    [
+        .. started ? [] : new IAgentEvent[] { Started },
+        Opened(DivergenceItem, ItemKind.Other, "Replay diverged"),
+        Progressed(DivergenceItem, $"Replay diverged: {reason}."),
+        Closed(DivergenceItem, ItemOutcome.Failed),
+        Ended(TurnOutcome.Failed),
+    ];
+
+    public IAgentEvent Readdress(IAgentEvent recorded, ResumeToken token) => recorded switch
+    {
+        TurnStarted => Started,
+        ResumeTokenIssued => Resumable(token),
+        TurnCompleted completed => Ended(completed.Outcome),
+        ItemStarted started => started with { Session = Session, Turn = Turn },
+        CanvasStarted canvas => canvas with { Session = Session, Turn = Turn },
+        ItemProgressed progressed => progressed with { Session = Session, Turn = Turn },
+        ItemCompleted completed => completed with { Session = Session, Turn = Turn },
+        PermissionRequested requested => requested with { Session = Session, Turn = Turn },
+        PermissionResolved resolved => resolved with { Session = Session, Turn = Turn },
+        FormRequested requested => requested with { Session = Session, Turn = Turn },
+        FormAnswered answered => answered with { Session = Session, Turn = Turn },
+        PlanUpdated plan => plan with { Session = Session, Turn = Turn },
+        UsageReported usage => usage with { Session = Session, Turn = Turn },
+        LimitReported limit => limit with { Session = Session, Turn = Turn },
+        _ => recorded,
+    };
+
+    public static ItemId DivergenceItem { get; } = new("replay-divergence");
+
     private IEnumerable<IAgentEvent> Stream(IAgentEvent opened, ItemId item, IReadOnlyList<string> chunks) =>
         [opened, .. chunks.Select(chunk => Progressed(item, chunk)), Closed(item, ItemOutcome.Succeeded)];
 }

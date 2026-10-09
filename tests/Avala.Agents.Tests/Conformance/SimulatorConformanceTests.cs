@@ -115,9 +115,11 @@ public sealed class SimulatorConformanceTests
             new UserTurn($"[simulate: {scenario}] conformance"),
             deadline);
 
-    private static ServiceProvider Simulated()
+    private static ServiceProvider Simulated() => Simulated(new AvalaPaths(Path.Combine(Path.GetTempPath(), "avala-conformance")));
+
+    private static ServiceProvider Simulated(AvalaPaths data)
     {
-        var services = new ServiceCollection();
+        var services = new ServiceCollection().AddSingleton(data);
         new SimulatorPlugin(TimeSpan.Zero).Register(new Registrar(services));
 
         return services.BuildServiceProvider();
