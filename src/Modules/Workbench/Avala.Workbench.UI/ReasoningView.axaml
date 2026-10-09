@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.ReasoningView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:ReasoningViewModel">
+  <StackPanel>
+    <Button Background="Transparent" Content="{Binding Summary}" Command="{Binding ToggleCommand}" />
+    <TextBlock Text="{Binding Text}" Opacity="0.7" TextWrapping="Wrap" IsVisible="{Binding IsExpanded}" />
+  </StackPanel>
+</UserControl>
