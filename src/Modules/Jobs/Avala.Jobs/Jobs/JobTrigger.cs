@@ -5,6 +5,7 @@ internal enum JobTrigger
     Submit,
     Start,
     Recover,
+    Recheck,
     CompleteTurn,
     Pass,
     Retry,

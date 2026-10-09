@@ -114,7 +114,7 @@ public sealed class ConversationViewModelScripts
     {
         var conversation = Open();
 
-        conversation.Show(Board(Job().WithPrompts("Fix JPY rounding in invoice totals", []).WithRestart()));
+        conversation.Show(Board(Job().WithPrompts("Fix JPY rounding in invoice totals", []).WithRestart(kept: false)));
 
         Assert.Equal([typeof(PromptViewModel), typeof(RestartViewModel)], conversation.Entries.Select(entry => entry.GetType()));
     }

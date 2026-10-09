@@ -88,6 +88,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IUsageSessions>(new FakeUsage())
             .AddSingleton<IUsageHistory>(new FakeUsageHistory())
             .AddSingleton<IVerifications>(audit)
+            .AddSingleton<Transcripts.Contracts.ITranscripts>(new FakeTranscripts())
             .AddSingleton<IPermissionAudit>(audit)
             .AddSingleton<IBudgets>(audit)
             .AddSingleton<IResources>(sources)
