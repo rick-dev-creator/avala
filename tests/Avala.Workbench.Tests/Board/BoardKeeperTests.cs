@@ -8,6 +8,8 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Verification.Contracts;
+using Avala.Workspaces.Contracts;
 using Avala.Workbench.Board;
 using Avala.Workbench.Timeline;
 using Microsoft.Extensions.Time.Testing;
@@ -21,7 +23,9 @@ public sealed class BoardKeeperTests
     private readonly FakeTimeProvider time = new(new DateTimeOffset(2026, 10, 9, 9, 0, 0, TimeSpan.Zero));
     private readonly BoardKeeper keeper;
 
-    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, board, time);
+    private readonly FakeAudit audit = new();
+
+    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, audit, board, time);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -103,15 +107,18 @@ public sealed class BoardKeeperTests
     }
 
     [Fact]
-    public async Task AtStartupTheJobsOfEarlierRunsJoinWithAMarkAfterTheirAttempts()
+    public async Task AtStartupTheJobsOfEarlierRunsJoinWithAMarkAfterTheirAttemptsAndTheirLastStoredVerification()
     {
         var earlier = catalog.Add("Update the dependency", JobStatus.AwaitingReview, Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Passed)).Summary.Job;
         var live = catalog.Add("Fix the failing test").Summary.Job;
+        var verified = new VerificationReport(earlier, 2, VerificationOutcome.Passed, Option<FileOrigin>.None, [], GateVerdict.Pass, time.GetUtcNow());
+        audit.Reports.AddRange([verified with { Attempt = 1, Outcome = VerificationOutcome.Failed }, verified]);
         await keeper.HandleAsync(new JobSubmitted(live), Cancellation);
 
         await keeper.HandleAsync(new StartupCompleted(), Cancellation);
 
         Assert.Equal([typeof(PromptEntry), typeof(RestartEntry)], Joined(earlier).Transcript.Entries.Select(entry => entry.GetType()));
+        Assert.Equal(Option<VerificationReport>.Some(verified), Joined(earlier).Verification);
         Assert.Equal([typeof(PromptEntry)], Joined(live).Transcript.Entries.Select(entry => entry.GetType()));
     }
 

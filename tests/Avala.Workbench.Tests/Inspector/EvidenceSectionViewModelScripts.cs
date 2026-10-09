@@ -12,7 +12,7 @@ public sealed class EvidenceSectionViewModelScripts : IDisposable
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task AJobInFocusShowsItsVerdictAndOneLinePerVerifiedAttempt()
+    public async Task AJobInFocusShowsItsVerdictAndOneLinePerVerifiedAttemptWithEachChecksExitAndDuration()
     {
         using var section = new EvidenceSectionViewModel(bench.Inspected());
         var job = InspectedJobs.Reviewed(bench);
@@ -21,7 +21,7 @@ public sealed class EvidenceSectionViewModelScripts : IDisposable
 
         Assert.True(section.IsLoaded);
         Assert.Equal("Verified on attempt 2 of 2", section.Summary);
-        Assert.Equal(["Attempt 1: failed · tests failed (exit 1)", "Attempt 2: passed · tests passed (exit 0)"], section.Attempts);
+        Assert.Equal(["Attempt 1: failed · tests failed (exit 1, 1 s)", "Attempt 2: passed · tests passed (exit 0, 1 s)"], section.Attempts);
     }
 
     [Fact]

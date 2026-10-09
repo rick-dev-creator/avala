@@ -1042,10 +1042,11 @@ A repository declares its checks in `.avala/checks.json`, at its root. The decla
 | --- | --- | --- |
 | `Checks` | `DeclaredCheck`, the parsing of the declaration with `JsonDocument`, the evidence of a check and its bounded tails, and `VerificationError` | Domain |
 | `Verifying` | `ChecksGate`, the `ICompletionGate`, which reads the declaration through `IBaseFiles` from Workspaces; `CheckRunner`, which runs one check with its timeout; and `AgentFeedback`, which writes the verdict | Application |
-| `Evidence` | `EvidenceBook`, the in-memory book behind `IVerifications`, and `EvidenceLedger`, which keeps a report and publishes it | Application |
+| `Evidence` | `EvidenceBook`, the book behind `IVerifications`, which restores the reports of earlier runs at startup, and `EvidenceLedger`, which keeps a report, stores it and publishes it | Application |
+| `Storage` | `SqliteEvidenceStore`, behind the `IEvidenceStore` port, over `verification.db` | Infrastructure |
 
 - The domain has no aggregate: it parses a declaration and describes facts. `VerificationError` is its single error enum, for the declaration it can reject: `MalformedDeclaration`, `MissingCommand`, `InvalidTimeout` and `UnreadableDeclaration`.
-- The reports live in memory and start empty with the application. Storing them arrives with the job's evidence, together with the decisions of Permissions, see [its module](#the-module-2).
+- **Durable evidence.** Every report is stored in `verification.db` before `AttemptVerified` is published: one row per report, looked up by job, holding the report as stored JSON with every check's status, exit code, duration and bounded output and error tails. `EvidenceBook` is a startup task that restores the reports of earlier runs, so the review's verdict, "Verified on attempt 2 of 2", its failed attempts with their tails, the inspector's evidence, which shows each check's exit code and duration, and the sidebar's "verified on attempt 2" read the same after a restart. The Workbench's board takes a restored job's last report from `IVerifications` when it joins.
 
 ## Permissions
 
@@ -2161,8 +2162,10 @@ The application is built view model first: every screen is built and tested as v
 Every module's schema is kept by EF Core migrations, generated, never written by hand:
 
 ```
-dotnet run scripts/migration.cs -- <Module> <MigrationName>
+dotnet run --no-cache scripts/migration.cs -- <Module> <MigrationName>
 ```
+
+`--no-cache` makes `dotnet run` build the modules again, since a file-based app otherwise reuses its last build while the script itself is unchanged and would scaffold against a stale model.
 
 - **Generated per database.** The script references every module that owns a database, builds it, scaffolds the migration of the module's `DbContext` against the migrations and snapshot already compiled into it, with EF Core's design-time services, and writes three files into the module's `Storage/Migrations` folder: the migration, its designer and the updated model snapshot. Nothing is installed: the design-time package is a dependency of the script only, never of a module.
 - **Generated code, conformed.** The files are named `.g.cs`, so the analyzers treat them as generated code, and the script makes every class `internal sealed` and drops EF Core's comments, so the architecture rules hold without exceptions for them, save the [allowed base types](../architecture.md#rules) `Migration` and `ModelSnapshot`.

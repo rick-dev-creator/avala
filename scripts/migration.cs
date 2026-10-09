@@ -19,7 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 if (args is not [var module, var name])
 {
-    await Console.Error.WriteLineAsync("Usage: dotnet run scripts/migration.cs -- <Module> <MigrationName>");
+    await Console.Error.WriteLineAsync("Usage: dotnet run --no-cache scripts/migration.cs -- <Module> <MigrationName>");
 
     return 1;
 }

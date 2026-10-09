@@ -139,5 +139,7 @@ internal static class InspectorPhrases
 
     private static string Check(CheckEvidence check) =>
         $"{check.Name} {check.Status.ToString().ToLowerInvariant()}"
-        + check.ExitCode.Match(code => string.Create(CultureInfo.InvariantCulture, $" (exit {code})"), () => string.Empty);
+        + (check.Status == CheckStatus.Skipped
+            ? string.Empty
+            : $" ({check.ExitCode.Match(code => string.Create(CultureInfo.InvariantCulture, $"exit {code}, "), () => string.Empty)}{Presenting.Amounts.Seconds(check.Duration)} s)");
 }
