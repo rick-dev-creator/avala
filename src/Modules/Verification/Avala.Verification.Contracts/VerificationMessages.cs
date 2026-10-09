@@ -22,6 +22,17 @@ public enum CheckStatus
     Skipped,
 }
 
+public enum ChecksFileStatus
+{
+    Absent,
+    Applied,
+    Rejected,
+}
+
+public sealed record CheckDeclared(string Name, string Command, TimeSpan Timeout);
+
+public sealed record RepositoryChecks(ChecksFileStatus File, IReadOnlyList<CheckDeclared> Checks, Option<FileOrigin> Origin);
+
 public sealed record CheckEvidence(
     string Name,
     string Command,

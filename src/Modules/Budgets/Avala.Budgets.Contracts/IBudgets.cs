@@ -14,3 +14,8 @@ public interface IBudgets
 
     ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken);
 }
+
+public interface IRepositoryBudgets
+{
+    ValueTask<RepositoryBudget> OfRepositoryAsync(string repository, CancellationToken cancellationToken);
+}

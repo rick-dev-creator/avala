@@ -20,6 +20,7 @@ public sealed class VerificationPlugin : IPlugin
             .AddSingleton<IVerifications>(services => services.GetRequiredService<EvidenceBook>())
             .AddSingleton<EvidenceLedger>()
             .AddSingleton<CheckRunner>()
-            .AddSingleton<ICompletionGate, ChecksGate>();
+            .AddSingleton<ICompletionGate, ChecksGate>()
+            .AddSingleton<IRepositoryChecks, DeclaredChecks>();
     }
 }

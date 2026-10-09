@@ -21,6 +21,9 @@ internal sealed class SupervisionBook(ISupervisionSettings settings, IInterventi
 
     public ValueTask<SupervisionSettings> SettingsAsync(CancellationToken cancellationToken) => settings.LoadAsync(cancellationToken);
 
+    public ValueTask<Result<SupervisionSettings, SupervisionError>> ChangeSilenceAsync(TimeSpan silence, CancellationToken cancellationToken) =>
+        settings.ChangeSilenceAsync(silence, cancellationToken);
+
     public IReadOnlyList<SupervisionIntervention> OfJob(JobId job) =>
         [.. Volatile.Read(ref earlier).Concat(Volatile.Read(ref interventions)).Where(intervention => intervention.Hold.Job == job)];
 }
