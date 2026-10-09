@@ -44,7 +44,7 @@ internal sealed record DesignConnectionCardViewModel(string Name, string Provide
             "account work",
             true,
             "9.86 USD",
-            [new DesignLimitViewModel()],
+            [new DesignLimitViewModel(), new DesignLimitViewModel("7d", "7-day window", 0.41, "41%", "resets 2026-10-15 21:00", 0.9, false)],
             [
                 new DesignAgentViewModel(),
                 new DesignAgentViewModel(SampleJobs.CheckoutSplit, "Migrate payments to stripe-go v79", StatusKind.Working, "3 sub-agents on Claude Code, Codex and Pi, waiting on 2"),

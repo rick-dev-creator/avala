@@ -81,7 +81,7 @@
               Grid.Column="2"
               Classes="icon small"
               VerticalAlignment="Center"
-              IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              IsVisible="{Binding HasText}" />
       </Grid>
     </Button>
     <Border x:Name="Thought"
