@@ -19,6 +19,8 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private const string Approval = "approval";
 
+    private const string Autopilot = "autopilot";
+
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 2, AllowDuplicateProperties = false };
 
     public async ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken) =>
@@ -60,9 +62,14 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
             return Rejected("it is not a JSON object");
         }
 
-        if (root.EnumerateObject().Any(property => property.Name is not (Connection or Approval)))
+        if (root.EnumerateObject().Any(property => property.Name is not (Connection or Approval or Autopilot)))
         {
             return Rejected("it has a field the format does not define");
+        }
+
+        if (root.TryGetProperty(Autopilot, out var autopilot) && autopilot.ValueKind != JsonValueKind.Object)
+        {
+            return Rejected($"its {Autopilot} is not an object");
         }
 
         return Named(root, Connection).Bind(connection => Named(root, Approval).Map(approval => new Declaration(connection, approval)));
