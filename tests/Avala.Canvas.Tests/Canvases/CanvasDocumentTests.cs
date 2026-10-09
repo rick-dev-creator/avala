@@ -35,8 +35,16 @@ public sealed class CanvasDocumentTests
     [Theory]
     [InlineData("", true)]
     [InlineData("  ", false)]
-    public void ACanvasWithoutAMediaTypeIsRejected(string mediaType, bool offered) =>
-        Assert.Equal(CanvasError.MissingMediaType, Outcomes.FailsWith(CanvasDocument.Open(sketch.Started(mediaType), offered)));
+    public void ACanvasWithoutAMediaTypeIsRejectedAsMissingItAndKeptAsPlainTextSource(string mediaType, bool offered)
+    {
+        var document = Outcomes.Succeeds(CanvasDocument.Open(sketch.Started(mediaType), offered));
+
+        _ = Outcomes.Succeeds(document.Append(sketch.Chunk("A -> B")));
+
+        Assert.Equal(
+            (false, Option<CanvasError>.Some(CanvasError.MissingMediaType), "text/plain", "A -> B"),
+            (document.IsOffered, document.Rejection, document.MediaType, document.Content));
+    }
 
     [Fact]
     public void ChunksAccumulateInTheOrderTheyArrive()
