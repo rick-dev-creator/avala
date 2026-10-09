@@ -4,5 +4,6 @@
     <ProjectReference Include="..\..\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" />
     <ProjectReference Include="..\..\Jobs\Avala.Jobs.Contracts\Avala.Jobs.Contracts.csproj" />
     <ProjectReference Include="..\..\Verification\Avala.Verification.Contracts\Avala.Verification.Contracts.csproj" />
+    <ProjectReference Include="..\..\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />
   </ItemGroup>
 </Project>

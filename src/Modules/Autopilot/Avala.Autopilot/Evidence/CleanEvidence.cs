@@ -11,6 +11,10 @@ internal static class CleanEvidence
 {
     public const string RuleFolder = ".avala/";
 
+    public const string CheckDeclaration = ".avala/checks.json";
+
+    public const string PolicyFile = ".avala/permissions.json";
+
     extension(JobEvidence evidence)
     {
         public IReadOnlyList<ExceptionReason> Exceptions =>
@@ -18,11 +22,16 @@ internal static class CleanEvidence
             .. evidence.Rules.Match<ExceptionReason[]>(
                 rules => rules.Approve == ApprovalRule.CleanEvidence ? [] : [ExceptionReason.NotDeclared],
                 () => [ExceptionReason.UnreadableRules]),
+            .. evidence.RunExceptions,
+        ];
+
+        public IReadOnlyList<ExceptionReason> RunExceptions =>
+        [
             .. When(!evidence.Latest.Match(report => report.Outcome == VerificationOutcome.Passed, () => false), ExceptionReason.VerificationNotPassed),
-            .. When(evidence.Denied, ExceptionReason.Denial),
-            .. When(evidence.Forms.Any(form => form.Assumptions.Count > 0), ExceptionReason.Assumption),
-            .. When(evidence.EditedARuleFile, ExceptionReason.RuleFileEdited),
-            .. When(evidence.Attempts.Any(attempt => attempt.Origin == AttemptOrigin.Hint), ExceptionReason.Held),
+            .. When(evidence.Denials.Count + evidence.DeniedAnswers.Count + evidence.Declined.Count > 0, ExceptionReason.Denial),
+            .. When(evidence.Assumed.Count > 0, ExceptionReason.Assumption),
+            .. When(evidence.RuleFiles.Count > 0, ExceptionReason.RuleFileEdited),
+            .. When(evidence.Holds.Count > 0, ExceptionReason.Held),
             .. When(evidence.ChangedFiles.IsNone, ExceptionReason.ChangesUnknown),
         ];
 
@@ -38,16 +47,35 @@ internal static class CleanEvidence
 
         public bool ChangedNothing => evidence.ChangedFiles.Match(files => files.Count == 0, () => false);
 
-        private bool Denied =>
-            evidence.Decisions.Any(decision => decision.Answer == PolicyAnswer.Deny)
-            || evidence.Answers.Any(answer => answer.Answer == PermissionAnswer.Deny)
-            || evidence.Forms.Any(form => form.Answer.Match(answer => answer.Declined, () => false));
+        public IReadOnlyList<PolicyDecision> Denials => [.. evidence.Decisions.Where(decision => decision.Answer == PolicyAnswer.Deny)];
 
-        private bool EditedARuleFile =>
-            evidence.ChangedFiles.Match(files => files.Any(file => file.StartsWith(RuleFolder, StringComparison.Ordinal)), () => false)
-            || evidence.RuleOrigins.Any(origin => origin.EditedInWorktree)
-            || evidence.Latest.Bind(report => report.Declaration).Match(origin => origin.EditedInWorktree, () => false);
+        public IReadOnlyList<HumanAnswer> DeniedAnswers => [.. evidence.Answers.Where(answer => answer.Answer == PermissionAnswer.Deny)];
+
+        public IReadOnlyList<FormDecision> Declined => [.. evidence.Forms.Where(form => form.Answer.Match(answer => answer.Declined, () => false))];
+
+        public IReadOnlyList<FormDecision> Assumed => [.. evidence.Forms.Where(form => form.Assumptions.Count > 0)];
+
+        public IReadOnlyList<AttemptRecord> Holds => [.. evidence.Attempts.Where(attempt => attempt.Origin == AttemptOrigin.Hint)];
+
+        public IReadOnlyList<string> RuleFiles =>
+        [
+            .. evidence.ChangedFiles.Match(files => files.Where(file => file.StartsWith(RuleFolder, StringComparison.Ordinal)), () => []),
+            .. When(evidence.Latest.Bind(report => report.Declaration).Match(origin => origin.EditedInWorktree, () => false), CheckDeclaration),
+            .. When(evidence.RuleOrigins.Any(origin => origin.EditedInWorktree), PolicyFile),
+        ];
+
+        public RunEvidence Run(JobId job) => new(job, evidence.Summary, evidence.RunExceptions)
+        {
+            Verifications = evidence.Verifications,
+            Denials = evidence.Denials,
+            DeniedAnswers = evidence.DeniedAnswers,
+            Declined = evidence.Declined,
+            Assumed = evidence.Assumed,
+            RuleFiles = [.. evidence.RuleFiles.Distinct(StringComparer.Ordinal)],
+            Holds = evidence.Holds,
+            AllowedByRules = evidence.Decisions.Count(decision => decision.Answer == PolicyAnswer.Allow),
+        };
     }
 
-    private static ExceptionReason[] When(bool found, ExceptionReason reason) => found ? [reason] : [];
+    private static T[] When<T>(bool found, T value) => found ? [value] : [];
 }

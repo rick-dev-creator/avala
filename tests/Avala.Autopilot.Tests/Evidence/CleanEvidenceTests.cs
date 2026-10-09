@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Autopilot.Approving;
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Evidence;
 using Avala.Autopilot.Tests.Looping;
@@ -51,6 +52,37 @@ public sealed class CleanEvidenceTests
     [Fact]
     public void AJobVerifiedAfterARetryIsStillCleanSinceOnlyItsLastVerificationCounts() =>
         Assert.Empty((Clean with { Verifications = [Report(VerificationOutcome.Failed), Report(VerificationOutcome.Passed, Tests)] }).Exceptions);
+
+    [Fact]
+    public void TheEvidenceOfARunNamesEveryExceptionalItemAndLeavesTheApprovalRuleToTheLoop()
+    {
+        var assumption = new Assumption("database", "Which database?", AssumptionBasis.RecommendedOption, ["PostgreSQL"]);
+        var evidence = Clean with
+        {
+            Rules = AutopilotRules.Default,
+            Verifications = [Report(VerificationOutcome.Passed, Tests) with { Declaration = new FileOrigin("ba5e", EditedInWorktree: true) }],
+            Attempts = [Pilot.Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted), Pilot.Attempt(2, AttemptOrigin.Hint, AttemptOutcome.Passed)],
+            Decisions = [Decision(PolicyAnswer.Allow), Decision(PolicyAnswer.Allow), Decision(PolicyAnswer.Deny)],
+            Forms = [Form(new FormAnswer(new ItemId("plan"), []), [assumption])],
+            ChangedFiles = Option<IReadOnlyList<string>>.Some(["GREETING.md", ".avala/checks.json"]),
+        };
+
+        var run = evidence.Run(Job);
+
+        Assert.Equal([ExceptionReason.Denial, ExceptionReason.Assumption, ExceptionReason.RuleFileEdited, ExceptionReason.Held], run.Exceptions);
+        Assert.Equal(
+            (PolicyAnswer.Deny, assumption, ".avala/checks.json", 2, 2),
+            (Assert.Single(run.Denials).Answer, Assert.Single(Assert.Single(run.Assumed).Assumptions), Assert.Single(run.RuleFiles), Assert.Single(run.Holds).Number, run.AllowedByRules));
+    }
+
+    [Fact]
+    public async Task AJobTheCatalogDoesNotKnowHasNoRunEvidence()
+    {
+        await using var pilot = new Pilot();
+        var query = new RunEvidenceQuery(new EvidenceGatherer(pilot.Evidence, pilot.Evidence, pilot.Jobs, new JobWork(pilot.Work, pilot.Work, pilot.Rules)));
+
+        Assert.True((await query.OfJobAsync(JobId.New(), TestContext.Current.CancellationToken)).IsNone);
+    }
 
     private static JobEvidence Clean { get; } = new JobEvidence(
         Pilot.Clean,

@@ -10,9 +10,14 @@ namespace Avala.Autopilot.Approving;
 internal sealed class EvidenceGatherer(IVerifications verifications, IPermissionAudit audit, IJobCatalog catalog, JobWork work)
 {
     public async Task<JobEvidence> GatherAsync(JobId job, CancellationToken cancellationToken) =>
+        (await FindAsync(job, cancellationToken)).Match(
+            found => found,
+            () => JobEvidence.None with { Verifications = verifications.OfJob(job) });
+
+    public async Task<Option<JobEvidence>> FindAsync(JobId job, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Match(
-            history => FromAsync(job, history, cancellationToken),
-            () => Task.FromResult(JobEvidence.None with { Verifications = verifications.OfJob(job) }));
+            async history => Option<JobEvidence>.Some(await FromAsync(job, history, cancellationToken)),
+            () => Task.FromResult(Option<JobEvidence>.None));
 
     private async Task<JobEvidence> FromAsync(JobId job, JobHistory history, CancellationToken cancellationToken)
     {
