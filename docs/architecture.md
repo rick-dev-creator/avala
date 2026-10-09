@@ -81,6 +81,21 @@ Enforced by the compiler through `BannedSymbols.txt` and the threading analyzers
 
 Every rule is checked against the production modules, a compliant fixture module and a violating fixture module. A rule must pass on the first two and find exactly the expected violations in the third, so it can never pass vacuously.
 
+## Extending Avala
+
+A new capability, such as GitHub, Linear or another way to isolate work than git worktrees, arrives as a new module under `src/Modules`, without touching the core. It talks to the rest of Avala in exactly three ways:
+
+| Mechanism | Use it to | Examples |
+| --- | --- | --- |
+| Integration events on the bus | React to what happened | A GitHub plugin opens a pull request when `JobProgressed` reports an approved job. A Linear plugin moves an issue when a job starts or reaches review. A notifier reacts to `JobHeld`. |
+| Contracts injected through DI | Ask for an answer or ask for an action | A GitHub plugin reads a job's branch through `IWorkspaces`. A Linear plugin submits a job through `IJobs.SubmitAsync`. |
+| Extension points the core defines and plugins implement | Let the core use something it does not know | `IAgentProvider` and `ICompletionGate` today: Jobs runs every registered gate, so a gate that waits for GitHub's CI needs no change in Jobs. Later, a source of jobs and other isolation strategies, chosen by declared capabilities. |
+
+- Events state facts. Never ask for something over the bus and wait for a reply: that hides a dependency a contract would make explicit.
+- A plugin depends only on the SDK and other modules' `Contracts`, never on their internals, as the [rules](#rules) enforce.
+- A plugin owns its data, in its own database. The mapping between a Linear issue and its job lives in the Linear plugin; the core never learns what an issue is.
+- A new extension point follows the agent contract's discipline: the interface in a `Contracts` project, a simulated or fake implementation, and tests every implementation must pass.
+
 ## Analyzer exceptions
 
 Comments are banned, so every exception to an analyzer is recorded here.
