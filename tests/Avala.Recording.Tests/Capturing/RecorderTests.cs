@@ -80,6 +80,33 @@ public sealed class RecorderTests
         Assert.DoesNotContain(store.Of(recorded.Id).Entries, entry => entry.Fact is FileCaptured);
     }
 
+    [Theory]
+    [InlineData(ItemOutcome.Succeeded, new[] { "file run notes.md # Changed\n" })]
+    [InlineData(ItemOutcome.Failed, new string[0])]
+    public async Task ASucceededCommandRecordsTheContentOfEveryFileItChangedAndNamesAndAFailedOneNothingAsync(ItemOutcome outcome, string[] captured)
+    {
+        var work = HostPaths.Rooted("/work");
+        var notes = Path.Combine(work, "notes.md");
+        var other = Path.Combine(work, "other.md");
+        var files = new SteppedFiles(
+            [Stamps((notes, 8)), Stamps((notes, 10), (other, 3))],
+            new Dictionary<string, string> { [notes] = "# Changed\n", [other] = "new" });
+        var store = new MemoryStore();
+        var provider = new ScriptedAgentProvider((session, turn) =>
+        [
+            new TurnStarted(session, turn),
+            new ItemStarted(session, turn, new ItemId("run"), ItemKind.Command, "Run sed") { Input = "sed -i s/a/b/ notes.md" },
+            new ItemCompleted(session, turn, new ItemId("run"), outcome),
+            new TurnCompleted(session, turn, TurnOutcome.Finished),
+        ]);
+        await using var recorded = Outcomes.Succeeds(await Recorder(new RecordingSettings(true, []), store, files).Decorate(provider).StartAsync(Options(work), Cancellation));
+
+        Outcomes.Succeeds(await recorded.SendAsync(new UserTurn("Fix the notes"), Cancellation));
+        await ReadTurnAsync(recorded);
+
+        Assert.Equal(captured, store.Of(recorded.Id).Entries.Where(entry => entry.Fact is FileCaptured).Select(entry => Describe(entry.Fact)));
+    }
+
     [Fact]
     public async Task AnInputTheProviderRefusesIsRecordedWithItsRefusalAsync()
     {
@@ -133,8 +160,11 @@ public sealed class RecorderTests
         Assert.Equal(["stopped"], store.Of(recorded.Id).Entries.Select(entry => Describe(entry.Fact)));
     }
 
-    private static ProviderRecorder Recorder(RecordingSettings settings, MemoryStore store) =>
-        new(new FixedSettings(settings), store, new EditedFiles(), TimeProvider.System);
+    private static ProviderRecorder Recorder(RecordingSettings settings, MemoryStore store, IEditedFiles? files = null) =>
+        new(new FixedSettings(settings), store, files ?? new EditedFiles(), TimeProvider.System);
+
+    private static FolderStamps Stamps(params (string Path, long Length)[] files) =>
+        new(files.ToDictionary(file => file.Path, file => new FileStamp(file.Length, DateTime.UnixEpoch), StringComparer.Ordinal));
 
     private static SessionOptions Options(string folder) => new(folder, PermissionMode.AskEveryTime) { Tools = [Canvas] };
 
@@ -176,6 +206,16 @@ public sealed class RecorderTests
         Stopped => "stopped",
         _ => fact.GetType().Name,
     };
+
+    private sealed class SteppedFiles(IEnumerable<FolderStamps> stamps, IReadOnlyDictionary<string, string> contents) : IEditedFiles
+    {
+        private readonly Queue<FolderStamps> stamps = new(stamps);
+
+        public ValueTask<Option<string>> ReadAsync(string path, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(contents.TryGetValue(path, out var content) ? Option<string>.Some(content) : Option<string>.None);
+
+        public Task<FolderStamps> StampAsync(string folder, CancellationToken cancellationToken) => Task.FromResult(stamps.Dequeue());
+    }
 
     private sealed class FixedSettings(RecordingSettings settings) : IRecordingSettings
     {
