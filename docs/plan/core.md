@@ -283,6 +283,25 @@ Status: planned, after resources and before delegation, which brings a child's v
 
 Done when: a simulated job is reviewed through the contracts alone, from its diff to its approval, with both strategies and the conflict proven.
 
+### Autopilot
+
+Status: planned, after review and approval, whose `merge` strategy it needs.
+
+Developers love to leave an agent looping on its own: take a task, finish it, take the next, all night. Done naively, such a loop burns quota, compounds its errors and lands work nobody would have approved. Autopilot runs the loop with the guarantees Avala already has, plus three pieces.
+
+- **Approval without a person, only on clean evidence.** A repository declares in `.avala/jobs.json`, read from the base commit, that a job may be approved automatically when its verification passed and its run had no exception: no denial, no assumption, no edited rule file, no hold. A job with any exception waits for a person, and the loop moves on to the next.
+- **Where the next task comes from.** Job sources are an extension point: a backlog file in the repository, recurring tasks, and follow-up tasks the agent proposes through an injected tool, accepted or refused by the policy. Linear or GitHub issues arrive later as plugins.
+- **When to stop.** Circuit breakers: a cap on spending per loop and per time window, a number of failures in a row or the same failure repeated, attempts that change nothing, and a maximum number of iterations. When a connection reaches its usage limit, the loop pauses until the window resets and then continues, instead of stopping.
+- **The digest on return.** What was approved on its own with its evidence, what waits and why, what it cost, and which breaker fired; replay holds the detail of any job.
+
+1. The automatic approval rule and its audit.
+2. The job source extension point with the backlog, recurring and proposed sources.
+3. The loop: one job after another per repository, within the concurrency limit, with every breaker and the pause until a limit window resets.
+4. The digest as data: events and a query of what a loop did.
+5. Host simulation tests: a backlog runs unattended with clean jobs merged and an exceptional one left for review; a repeated failure trips the breaker; a limit near its cap pauses the loop until the reset and resumes it.
+
+Done when: a simulated backlog runs to its end unattended, merging only clean jobs, stopping on a repeated failure and pausing across a limit reset.
+
 ## Phase 9: View models of the usable core
 
 The whole application works through view models, with no user interface.
