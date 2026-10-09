@@ -171,14 +171,24 @@ public sealed class AppearanceTests(HeadlessUi ui, PublishedPlugins plugins)
     {
         var processes = new AnsweringProcesses();
 
-        var reduced = await new SystemMotion(processes).PrefersReducedAsync(Cancellation);
+        var reduced = await new SystemMotion(processes, () => false).PrefersReducedAsync(Cancellation);
 
-        Assert.Equal(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(), reduced);
+        Assert.True(reduced);
         Assert.Equal(
             OperatingSystem.IsLinux() ? ["gsettings get org.gnome.desktop.interface enable-animations"]
             : OperatingSystem.IsMacOS() ? ["defaults read com.apple.universalaccess reduceMotion"]
             : [],
             processes.Asked);
+    }
+
+    [Fact]
+    public void WindowsAnswersWhetherItAnimatesWithoutFailing()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Only Windows has SPI_GETCLIENTAREAANIMATION.");
+
+        var exception = Record.Exception(() => WindowsAnimation.IsOn());
+
+        Assert.Null(exception);
     }
 
     private sealed class ReadAppearance(AppearancePreference stored, TaskCompletionSource? gate = null) : IAppearance
