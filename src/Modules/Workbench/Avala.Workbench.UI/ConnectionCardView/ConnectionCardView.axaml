@@ -48,7 +48,7 @@
             CornerRadius="{DynamicResource RadiusPill}"
             BoxShadow="{DynamicResource ShadowHub}">
       <ToolTip.Tip>
-        <StackPanel x:Name="Detail" Spacing="10" Width="260">
+        <StackPanel x:Name="Detail" Spacing="10" Width="320">
           <TextBlock x:Name="Summary" Text="{Binding Summary}" TextWrapping="Wrap" />
           <TextBlock x:Name="NoLimits" Classes="caption" Text="This connection reports no usage limit." IsVisible="{Binding !Limits.Count}" />
           <ItemsControl x:Name="LimitList" ItemsSource="{Binding Limits}">
