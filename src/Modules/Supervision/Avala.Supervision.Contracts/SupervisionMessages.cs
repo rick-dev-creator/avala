@@ -1,4 +1,3 @@
-using Avala.Agents.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -25,11 +24,7 @@ public sealed record SupervisionSettings(TimeSpan Silence, SettingsFileStatus Fi
 
 public readonly record struct SilenceMeasure(TimeSpan Silent, TimeSpan Window);
 
-public sealed record SupervisionIntervention(
-    JobHold Hold,
-    Option<SilenceMeasure> Silence,
-    Option<SessionEnding> Ending,
-    DateTimeOffset At);
+public sealed record SupervisionIntervention(JobHold Hold, SilenceMeasure Silence, DateTimeOffset At);
 
 public sealed record SilenceNoticed(JobId Job) : IIntegrationEvent;
 

@@ -1,0 +1,20 @@
+T:System.Threading.Lock;Coordinate through the event bus or a channel, never a lock.
+T:System.Threading.Monitor;Coordinate through the event bus or a channel, never a lock.
+T:System.Threading.SemaphoreSlim;Coordinate through the event bus or a channel, never a semaphore.
+T:System.Threading.Semaphore;Coordinate through the event bus or a channel, never a semaphore.
+T:System.Threading.Mutex;Coordinate through the event bus or a channel, never a mutex.
+T:System.Threading.ReaderWriterLock;Coordinate through the event bus or a channel, never a lock.
+T:System.Threading.ReaderWriterLockSlim;Coordinate through the event bus or a channel, never a lock.
+T:System.Threading.SpinLock;Coordinate through the event bus or a channel, never a lock.
+T:System.Threading.SpinWait;Coordinate through the event bus or a channel, never a spin.
+T:System.Threading.Barrier;Coordinate through the event bus or a channel, never a barrier.
+T:System.Threading.CountdownEvent;Coordinate through the event bus or a channel, never a wait handle.
+T:System.Threading.ManualResetEvent;Coordinate through the event bus or a channel, never a wait handle.
+T:System.Threading.ManualResetEventSlim;Coordinate through the event bus or a channel, never a wait handle.
+T:System.Threading.AutoResetEvent;Coordinate through the event bus or a channel, never a wait handle.
+T:System.Threading.EventWaitHandle;Coordinate through the event bus or a channel, never a wait handle.
+T:System.Collections.Concurrent.ConcurrentDictionary`2;Own the state in one reader and publish immutable snapshots.
+T:System.Collections.Concurrent.ConcurrentQueue`1;Own the state in one reader and publish immutable snapshots.
+T:System.Collections.Concurrent.ConcurrentStack`1;Own the state in one reader and publish immutable snapshots.
+T:System.Collections.Concurrent.ConcurrentBag`1;Own the state in one reader and publish immutable snapshots.
+T:System.Collections.Concurrent.BlockingCollection`1;Own the state in one reader and publish immutable snapshots.

@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
@@ -9,11 +9,12 @@ namespace Avala.Permissions.Governance;
 
 internal sealed class GovernanceBook : IPermissionAudit
 {
-    private readonly ConcurrentDictionary<SessionId, GovernedSession> sessions = new();
+    private ImmutableDictionary<SessionId, GovernedSession> sessions = ImmutableDictionary<SessionId, GovernedSession>.Empty;
 
-    public GovernedSession Of(SessionId session) => sessions.GetValueOrDefault(session) ?? new GovernedSession(session);
+    public GovernedSession Of(SessionId session) => Volatile.Read(ref sessions).GetValueOrDefault(session) ?? new GovernedSession(session);
 
-    public void Keep(GovernedSession session) => sessions[session.Session] = session;
+    public void Keep(GovernedSession session) =>
+        ImmutableInterlocked.AddOrUpdate(ref sessions, session.Session, session, (_, _) => session);
 
     public Option<SessionPolicy> PolicyOf(SessionId session) => Of(session).Report;
 
@@ -21,7 +22,7 @@ internal sealed class GovernanceBook : IPermissionAudit
 
     public IReadOnlyList<PolicyDecision> OfJob(JobId job) =>
     [
-        .. sessions.Values
+        .. Volatile.Read(ref sessions).Values
             .Where(session => session.Job == Option<JobId>.Some(job))
             .SelectMany(session => session.Decisions)
             .OrderBy(decision => decision.At),

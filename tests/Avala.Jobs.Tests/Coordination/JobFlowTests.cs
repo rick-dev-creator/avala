@@ -138,6 +138,24 @@ public sealed class JobFlowTests
     }
 
     [Fact]
+    public async Task ATurnBeingCheckedForOneJobDoesNotDelayTheChecksOfAnotherJobAsync()
+    {
+        var gate = new BlockingGate();
+        var flow = JobFlow.With(gate);
+        var slow = await flow.RunningAsync();
+        var fast = await flow.RunningAsync();
+
+        await flow.HandTurnAsync(slow);
+        await gate.Entered.WaitAsync(TimeSpan.FromSeconds(10), Cancellation);
+        await flow.FinishTurnAsync(fast);
+
+        Assert.Equal((JobState.Checking, JobState.AwaitingReview), (slow.State, fast.State));
+        gate.Release();
+        await flow.SettledAsync(slow);
+        Assert.Equal(JobState.AwaitingReview, slow.State);
+    }
+
+    [Fact]
     public async Task ATurnFromAnUnknownSessionIsIgnoredAsync()
     {
         var flow = JobFlow.With();

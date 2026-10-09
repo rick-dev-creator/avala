@@ -24,13 +24,17 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
         registrar.Services
             .AddSingleton<IJobStore, SqliteJobStore>()
             .AddSingleton<JobLedger>()
+            .AddSingleton<JobQueues>()
             .AddSingleton<JobLauncher>()
             .AddSingleton<CompletionGates>()
+            .AddSingleton<EvaluateTurn>()
             .AddSingleton<SubmitJob>()
             .AddSingleton<HoldJob>()
             .AddSingleton<IJobs, JobsEntry>()
             .AddSingleton<IHandle<JobAnnouncement>, PrepareJob>()
-            .AddSingleton<IHandle<TurnFinished>, CheckTurn>()
+            .AddSingleton<CheckTurn>()
+            .AddSingleton<IHandle<TurnFinished>>(services => services.GetRequiredService<CheckTurn>())
+            .AddSingleton<IHandle<SessionEnded>>(services => services.GetRequiredService<CheckTurn>())
             .AddSingleton<IStartupTask, JobRecovery>()
             .AddSingleton<IPage, JobsViewModel>();
 

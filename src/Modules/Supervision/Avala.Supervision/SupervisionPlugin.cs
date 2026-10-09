@@ -27,7 +27,6 @@ public sealed class SupervisionPlugin : IPlugin
             .AddSingleton<IHandle<JobProgressed>>(services => services.GetRequiredService<Watchdog>())
             .AddSingleton<IHandle<JobSessionStarted>>(services => services.GetRequiredService<Watchdog>())
             .AddSingleton<IHandle<AgentActivity>>(services => services.GetRequiredService<Watchdog>())
-            .AddSingleton<IHandle<SilenceNoticed>>(services => services.GetRequiredService<Watchdog>())
-            .AddSingleton<IHandle<SessionEnded>, LostSessions>();
+            .AddSingleton<IHandle<SilenceNoticed>>(services => services.GetRequiredService<Watchdog>());
     }
 }

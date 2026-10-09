@@ -22,9 +22,10 @@ public sealed class PermissionsPlugin : IPlugin
             .AddSingleton<GovernanceBook>()
             .AddSingleton<IPermissionAudit>(services => services.GetRequiredService<GovernanceBook>())
             .AddSingleton<IPolicyFiles, PolicyFileReader>()
+            .AddSingleton<PermissionResponder>()
             .AddSingleton<SessionGovernor>()
             .AddSingleton<IHandle<SessionOpened>>(services => services.GetRequiredService<SessionGovernor>())
             .AddSingleton<IHandle<JobSessionStarted>>(services => services.GetRequiredService<SessionGovernor>())
-            .AddSingleton<IHandle<AgentActivity>, PermissionResponder>();
+            .AddSingleton<IHandle<AgentActivity>>(services => services.GetRequiredService<SessionGovernor>());
     }
 }

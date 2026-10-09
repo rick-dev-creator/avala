@@ -1,3 +1,5 @@
+using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Storage;
 using Avala.Jobs.Tests.Jobs;
@@ -35,9 +37,29 @@ public sealed class SqliteJobStoreTests
         var job = Given.JobIn(JobState.Running);
         await SaveAsync(folder, job);
 
-        var reloaded = await ReloadAsync(folder, store => store.FindBySessionAsync(Given.Session, Cancellation));
+        await using var store = new SqliteJobStore(new AvalaPaths(folder.Path));
 
-        Assert.Equal(job.Id, reloaded.Id);
+        Assert.Equal(Option<JobId>.Some(job.Id), await store.JobOfSessionAsync(Given.Session, Cancellation));
+        Assert.Equal(Option<JobId>.None, await store.JobOfSessionAsync(SessionId.New(), Cancellation));
+    }
+
+    [Fact]
+    public async Task SavingAJobLeavesTheUnsavedChangesOfAnotherJobUnstoredAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var saved = Given.JobIn(JobState.Running);
+        var changing = Given.JobIn(JobState.Running);
+        await using (var store = new SqliteJobStore(new AvalaPaths(folder.Path)))
+        {
+            await store.SaveAsync(saved, Cancellation);
+            await store.SaveAsync(changing, Cancellation);
+            Outcomes.Succeeds(changing.CompleteTurn());
+            Outcomes.Succeeds(saved.CompleteTurn());
+            await store.SaveAsync(saved, Cancellation);
+        }
+
+        Assert.Equal(JobState.Checking, (await ReloadAsync(folder, store => store.FindAsync(saved.Id, Cancellation))).State);
+        Assert.Equal(JobState.Running, (await ReloadAsync(folder, store => store.FindAsync(changing.Id, Cancellation))).State);
     }
 
     [Fact]
@@ -71,8 +93,9 @@ public sealed class SqliteJobStoreTests
 
         var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
 
-        Assert.Equal(2, reloaded.Attempts.Count);
-        Assert.Equal(Option<Feedback>.Some(Given.Feedback), reloaded.Attempts[^1].Guidance);
+        Assert.Equal(
+            job.Attempts.Select(attempt => (attempt.Outcome, attempt.Guidance)),
+            reloaded.Attempts.Select(attempt => (attempt.Outcome, attempt.Guidance)));
     }
 
     private static async Task SaveAsync(TemporaryFolder folder, params Job[] jobs)

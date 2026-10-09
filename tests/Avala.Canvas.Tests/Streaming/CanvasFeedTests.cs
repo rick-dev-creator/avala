@@ -44,11 +44,11 @@ public sealed class CanvasFeedTests : IAsyncDisposable
     public async Task ChunksWithinTheIntervalArePublishedOnceTogetherWhenItElapsesAsync()
     {
         await FeedAsync(sketch.Started(), sketch.Chunk("<svg>"), sketch.Chunk("<rect/>"));
-        clock.Advance(Interval - TimeSpan.FromMilliseconds(1));
+        await AdvanceAsync(Interval - TimeSpan.FromMilliseconds(1));
 
         Assert.Single(Published);
 
-        clock.Advance(TimeSpan.FromMilliseconds(1));
+        await AdvanceAsync(TimeSpan.FromMilliseconds(1));
 
         Assert.Equal([string.Empty, "<svg><rect/>"], Published.Select(snapshot => snapshot.Content));
     }
@@ -57,7 +57,7 @@ public sealed class CanvasFeedTests : IAsyncDisposable
     public async Task AChunkAfterAQuietIntervalIsPublishedAtOnceAsync()
     {
         await FeedAsync(sketch.Started());
-        clock.Advance(Interval);
+        await AdvanceAsync(Interval);
 
         await FeedAsync(sketch.Chunk("<svg>"));
 
@@ -73,7 +73,7 @@ public sealed class CanvasFeedTests : IAsyncDisposable
     public async Task CompletionPublishesTheFinalStateAtOnceAndNothingAfterItAsync(ItemOutcome outcome, CanvasStatus status)
     {
         await FeedAsync(sketch.Started(), sketch.Chunk("<svg>"), sketch.Chunk("</svg>"), sketch.Completed(outcome));
-        clock.Advance(TimeSpan.FromSeconds(1));
+        await AdvanceAsync(TimeSpan.FromSeconds(1));
 
         Assert.Equal(
             [(string.Empty, CanvasStatus.Streaming), ("<svg></svg>", status)],
@@ -86,7 +86,7 @@ public sealed class CanvasFeedTests : IAsyncDisposable
         await FeedAsync(sketch.Started(), sketch.Chunk("<svg/>"));
         _ = gallery.Close(sketch.Completed());
 
-        clock.Advance(Interval);
+        await AdvanceAsync(Interval);
 
         Assert.Single(Published);
     }
@@ -101,7 +101,7 @@ public sealed class CanvasFeedTests : IAsyncDisposable
             new ItemProgressed(sketch.Session, sketch.Turn, reply, "Hello"),
             new ItemCompleted(sketch.Session, sketch.Turn, reply, ItemOutcome.Succeeded),
             new TurnCompleted(sketch.Session, sketch.Turn, TurnOutcome.Finished));
-        clock.Advance(TimeSpan.FromSeconds(1));
+        await AdvanceAsync(TimeSpan.FromSeconds(1));
 
         Assert.Empty(Published);
     }
@@ -112,12 +112,18 @@ public sealed class CanvasFeedTests : IAsyncDisposable
         await FeedAsync(sketch.Started(), sketch.Completed());
 
         await FeedAsync(sketch.Started(), sketch.Chunk("<late/>"), sketch.Completed());
-        clock.Advance(TimeSpan.FromSeconds(1));
+        await AdvanceAsync(TimeSpan.FromSeconds(1));
 
         Assert.Equal(2, Published.Count);
     }
 
     public async ValueTask DisposeAsync() => await throttle.DisposeAsync();
+
+    private async Task AdvanceAsync(TimeSpan elapsed)
+    {
+        clock.Advance(elapsed);
+        await throttle.IdleAsync(TestContext.Current.CancellationToken);
+    }
 
     private async Task FeedAsync(params IAgentEvent[] events)
     {

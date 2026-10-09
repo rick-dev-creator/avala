@@ -38,13 +38,21 @@ internal sealed class Budgeted
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    public async Task OpenAsync(Result<Option<BudgetCaps>, BudgetError> file) =>
+    public async Task OpenAsync(Result<Option<BudgetCaps>, BudgetError> file)
+    {
         await new BudgetLoader(Book, new FixedFiles(file), Bus)
             .HandleAsync(new SessionOpened(Session, Provider, "/worktrees/1"), Cancellation);
+        await enforcer.HandleAsync(Bus.Published.OfType<BudgetLoaded>().Last(), Cancellation);
+    }
 
     public async Task RunningAsync(Result<Option<BudgetCaps>, BudgetError> file)
     {
         await OpenAsync(file);
+        await TiedAsync();
+    }
+
+    public async Task TiedAsync()
+    {
         await ProgressAsync(JobStatus.Running);
         await enforcer.HandleAsync(new JobSessionStarted(Job, Session), Cancellation);
     }

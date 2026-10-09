@@ -22,9 +22,10 @@ public sealed class PermissionResponderTests
     private readonly AnsweringAgents agents = new();
     private readonly SessionId session = SessionId.New();
     private readonly TurnId turn = TurnId.New();
-    private readonly PermissionResponder responder;
+    private readonly SessionGovernor governor;
 
-    public PermissionResponderTests() => responder = new PermissionResponder(book, agents, bus, clock);
+    public PermissionResponderTests() =>
+        governor = new SessionGovernor(book, new NoPolicyFiles(), new PermissionResponder(agents, clock), bus);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -92,7 +93,7 @@ public sealed class PermissionResponderTests
     {
         Govern(PolicyAnswer.Allow);
 
-        await responder.HandleAsync(new AgentActivity(new ItemStarted(session, turn, new ItemId("migrate"), ItemKind.Command, "Run")), Cancellation);
+        await governor.HandleAsync(new AgentActivity(new ItemStarted(session, turn, new ItemId("migrate"), ItemKind.Command, "Run")), Cancellation);
 
         Assert.Empty(agents.Responses);
         Assert.Empty(bus.Published);
@@ -106,7 +107,7 @@ public sealed class PermissionResponderTests
         var recovered = SessionId.New();
         await RequestAsync(ItemKind.Command, "first");
         clock.Advance(TimeSpan.FromSeconds(1));
-        await responder.HandleAsync(Requested(recovered, ItemKind.Command, "second"), Cancellation);
+        await governor.HandleAsync(Requested(recovered, ItemKind.Command, "second"), Cancellation);
 
         book.Keep(book.Of(session).WorkingOn(job));
         book.Keep(book.Of(recovered).WorkingOn(job));
@@ -128,12 +129,18 @@ public sealed class PermissionResponderTests
     private SessionPolicy Report() => new(session, PolicyFileStatus.Applied, Option<PolicyError>.None, []);
 
     private Task RequestAsync(ItemKind kind, string target) =>
-        responder.HandleAsync(Requested(session, kind, target), Cancellation).AsTask();
+        governor.HandleAsync(Requested(session, kind, target), Cancellation).AsTask();
 
     private AgentActivity Requested(SessionId requester, ItemKind kind, string target) =>
         new(new PermissionRequested(requester, turn, new ItemId("migrate"), "Run", kind, target));
 
     private PolicyDecision Decided() => Assert.IsType<PermissionDecided>(Assert.Single(bus.Published)).Decision;
+
+    private sealed class NoPolicyFiles : IPolicyFiles
+    {
+        public ValueTask<Result<Option<IReadOnlyList<PolicyRule>>, PolicyError>> ReadAsync(string workingDirectory, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<Option<IReadOnlyList<PolicyRule>>, PolicyError>.Success(Option<IReadOnlyList<PolicyRule>>.None));
+    }
 
     private sealed class AnsweringAgents : IAgents
     {

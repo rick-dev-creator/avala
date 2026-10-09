@@ -11,7 +11,7 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IAsyncDispos
 {
     private static readonly JobState[] Active = [JobState.Preparing, JobState.Running, JobState.Checking];
 
-    private readonly SemaphoreSlim turn = new(1, 1);
+    private readonly SerialExecutor serial = new();
     private JobsDbContext? context;
 
     public Task SaveAsync(Job job, CancellationToken cancellationToken) =>
@@ -23,6 +23,13 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IAsyncDispos
                     await database.Jobs.AddAsync(job, cancellationToken);
                 }
 
+                database.Entry(job).DetectChanges();
+
+                foreach (var attempt in job.Attempts)
+                {
+                    database.Entry(attempt).DetectChanges();
+                }
+
                 return await database.SaveChangesAsync(cancellationToken);
             },
             cancellationToken);
@@ -30,13 +37,14 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IAsyncDispos
     public Task<Option<Job>> FindAsync(JobId id, CancellationToken cancellationToken) =>
         RunAsync(async database => (await database.Jobs.FirstOrDefaultAsync(job => job.Id == id, cancellationToken)).ToOption(), cancellationToken);
 
-    public Task<Option<Job>> FindBySessionAsync(SessionId session, CancellationToken cancellationToken) =>
+    public Task<Option<JobId>> JobOfSessionAsync(SessionId session, CancellationToken cancellationToken) =>
         RunAsync(
             async database =>
             {
                 var wanted = Option<SessionId>.Some(session);
+                var found = await database.Jobs.Where(job => job.Session == wanted).Select(job => job.Id).Take(1).ToListAsync(cancellationToken);
 
-                return (await database.Jobs.FirstOrDefaultAsync(job => job.Session == wanted, cancellationToken)).ToOption();
+                return found.Count == 0 ? Option<JobId>.None : found[0];
             },
             cancellationToken);
 
@@ -47,27 +55,16 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IAsyncDispos
 
     public async ValueTask DisposeAsync()
     {
+        await serial.DisposeAsync();
+
         if (context is not null)
         {
             await context.DisposeAsync();
         }
-
-        turn.Dispose();
     }
 
-    private async Task<T> RunAsync<T>(Func<JobsDbContext, Task<T>> work, CancellationToken cancellationToken)
-    {
-        await turn.WaitAsync(cancellationToken);
-
-        try
-        {
-            return await Task.Run(async () => await work(await OpenAsync(cancellationToken)), cancellationToken);
-        }
-        finally
-        {
-            turn.Release();
-        }
-    }
+    private Task<T> RunAsync<T>(Func<JobsDbContext, Task<T>> work, CancellationToken cancellationToken) =>
+        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
 
     private async Task<JobsDbContext> OpenAsync(CancellationToken cancellationToken)
     {
@@ -75,6 +72,7 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IAsyncDispos
         {
             Directory.CreateDirectory(paths.Data);
             context = new JobsDbContext(paths.Database("jobs"));
+            context.ChangeTracker.AutoDetectChangesEnabled = false;
             await context.Database.EnsureCreatedAsync(cancellationToken);
         }
 

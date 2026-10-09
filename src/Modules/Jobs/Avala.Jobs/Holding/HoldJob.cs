@@ -11,17 +11,12 @@ namespace Avala.Jobs.Holding;
 
 internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
 {
-    public async Task<Result<JobHold, JobRejection>> ExecuteAsync(JobId id, HoldReason reason, CancellationToken cancellationToken) =>
-        await (await ledger.FindAsync(id, cancellationToken)).Match(
-            job => job.Session.Match(
-                session => job.Hold(reason).IsSuccess
-                    ? HeldAsync(job, session, reason, cancellationToken)
-                    : RejectedAsync(JobRejection.NotRunning),
-                () => RejectedAsync(JobRejection.NotRunning)),
-            () => RejectedAsync(JobRejection.UnknownJob));
-
-    private static Task<Result<JobHold, JobRejection>> RejectedAsync(JobRejection rejection) =>
-        Task.FromResult(Result<JobHold, JobRejection>.Failure(rejection));
+    public async Task<Result<JobHold, JobRejection>> ExecuteAsync(Job job, HoldReason reason, CancellationToken cancellationToken) =>
+        await job.Session.Match(
+            session => job.Hold(reason).IsSuccess
+                ? HeldAsync(job, session, reason, cancellationToken)
+                : Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)),
+            () => Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)));
 
     private async Task<Result<JobHold, JobRejection>> HeldAsync(Job job, SessionId session, HoldReason reason, CancellationToken cancellationToken)
     {
