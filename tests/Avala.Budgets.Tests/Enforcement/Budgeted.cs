@@ -35,6 +35,8 @@ internal sealed class Budgeted
 
     public HoldingJobs Jobs { get; }
 
+    public List<ConnectionName> ReadFor { get; } = [];
+
     public JobId Job { get; } = JobId.New();
 
     public SessionId Session { get; } = SessionId.New();
@@ -43,7 +45,7 @@ internal sealed class Budgeted
 
     public async Task OpenAsync(Result<Option<BudgetCaps>, BudgetError> file)
     {
-        await new BudgetLoader(Book, new FixedFiles(file), Bus)
+        await new BudgetLoader(Book, new FixedFiles(file, ReadFor), Bus)
             .HandleAsync(new SessionOpened(Session, Provider, "/worktrees/1", Connection), Cancellation);
         await enforcer.HandleAsync(Bus.Published.OfType<BudgetLoaded>().Last(), Cancellation);
     }
@@ -118,9 +120,13 @@ internal sealed class Budgeted
         public Option<UsageSummary> OfJob(JobId job) => Job;
     }
 
-    private sealed class FixedFiles(Result<Option<BudgetCaps>, BudgetError> file) : IBudgetFiles
+    private sealed class FixedFiles(Result<Option<BudgetCaps>, BudgetError> file, List<ConnectionName> readFor) : IBudgetFiles
     {
-        public ValueTask<BudgetFile> ReadAsync(string workingDirectory, ConnectionName connection, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new BudgetFile(CommittedFiles.Origin(), file));
+        public ValueTask<BudgetFile> ReadAsync(string workingDirectory, ConnectionName connection, CancellationToken cancellationToken)
+        {
+            readFor.Add(connection);
+
+            return ValueTask.FromResult(new BudgetFile(CommittedFiles.Origin(), file));
+        }
     }
 }

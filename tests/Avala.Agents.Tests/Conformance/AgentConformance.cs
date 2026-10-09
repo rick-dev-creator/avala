@@ -118,6 +118,45 @@ internal static class AgentConformance
         ];
     }
 
+    public static async Task<IReadOnlyList<string>> CheckConnectionsAsync(
+        IAgentProvider provider,
+        SessionOptions first,
+        SessionOptions second,
+        UserTurn instruction,
+        CancellationToken deadline)
+    {
+        var one = await RunAsync(provider, first, instruction, deadline);
+        var other = await RunAsync(provider, second, instruction, deadline);
+
+        return
+        [
+            .. one.Violations,
+            .. other.Violations,
+            .. Shared(one.Session, other.Session, session => $"the two connections share the session {session.Value}"),
+            .. Shared(one.Account, other.Account, account => $"the two connections share the account {account.Id}"),
+            .. Shared(one.Token, other.Token, token => $"the two connections share the resume token {token.Value}"),
+            .. await one.Token.Match(
+                token => ForeignResumeAsync(provider, second with { Resume = token }, deadline),
+                () => Task.FromResult<IReadOnlyList<string>>([])),
+        ];
+    }
+
+    private static IEnumerable<string> Shared<T>(Option<T> one, Option<T> other, Func<T, string> violation)
+        where T : notnull =>
+        one.IsSome && one == other ? [one.Match(violation, () => string.Empty)] : [];
+
+    private static async Task<IReadOnlyList<string>> ForeignResumeAsync(IAgentProvider provider, SessionOptions options, CancellationToken deadline)
+    {
+        if (!provider.Capabilities.CanResume || !(await provider.StartAsync(options, deadline)).TryGetValue(out var session, out _))
+        {
+            return [];
+        }
+
+        await session.DisposeAsync();
+
+        return ["a resume token of one connection was accepted on another"];
+    }
+
     private static Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, CancellationToken deadline) =>
         RunAsync(provider, options, instruction, Allowing, deadline);
 
@@ -142,7 +181,12 @@ internal static class AgentConformance
                 }
 
                 var audit = await AuditAsync(session, turn, new Rules(options, provider.Capabilities), replies, deadline);
-                audit = audit with { Violations = [.. audit.Violations, .. await replies.AfterTurn(session, audit.Events, deadline)] };
+                audit = audit with
+                {
+                    Violations = [.. audit.Violations, .. await replies.AfterTurn(session, audit.Events, deadline)],
+                    Session = session.Id,
+                    Account = account,
+                };
 
                 return session.Account == account ? audit : audit with { Violations = [.. audit.Violations, "the account changed during the session"] };
             }
@@ -271,7 +315,14 @@ internal static class AgentConformance
 
     private static string Name(IAgentEvent agentEvent) => agentEvent.GetType().Name;
 
-    private sealed record Run(IReadOnlyList<string> Violations, IReadOnlyList<IAgentEvent> Events);
+    private sealed record Run(IReadOnlyList<string> Violations, IReadOnlyList<IAgentEvent> Events)
+    {
+        public Option<SessionId> Session { get; init; }
+
+        public Option<AgentAccount> Account { get; init; }
+
+        public Option<ResumeToken> Token => Events.OfType<ResumeTokenIssued>().LastOrDefault() is { } issued ? issued.Token : Option<ResumeToken>.None;
+    }
 
     private sealed record Rules(SessionOptions Options, AgentCapabilities Capabilities)
     {

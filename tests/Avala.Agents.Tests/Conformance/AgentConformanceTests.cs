@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Testing;
@@ -178,6 +179,31 @@ public sealed class AgentConformanceTests
 
         Assert.Equal(expected, string.Join('|', violations));
         Assert.Equal([AgentConformance.CanvasTool], Assert.Single(provider.Sessions).Options.Tools);
+    }
+
+    [Fact]
+    public async Task ReportsTwoConnectionsThatShareAnAccountAResumeTokenOrAConversationAsync()
+    {
+        var provider = new ScriptedAgentProvider(IssuingAToken)
+        {
+            Capabilities = Declared with { CanResume = true },
+            Account = () => new AgentAccount("shared", "Shared"),
+        };
+
+        var violations = await AgentConformance.CheckConnectionsAsync(
+            provider,
+            Options with { Connection = new ConnectionEnvironment { ConfigurationDirectory = "/logins/work" } },
+            Options with { Connection = new ConnectionEnvironment { ConfigurationDirectory = "/logins/personal" } },
+            new UserTurn("conformance"),
+            Deadline);
+
+        Assert.Equal(
+            [
+                "the two connections share the account shared",
+                "the two connections share the resume token conversation-1",
+                "a resume token of one connection was accepted on another",
+            ],
+            violations);
     }
 
     [Fact]
