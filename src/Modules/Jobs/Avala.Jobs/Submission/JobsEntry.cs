@@ -10,8 +10,7 @@ namespace Avala.Jobs.Submission;
 internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, JobLauncher launcher, JobQueues queues) : IJobs
 {
     public async ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
-        (await submit.ExecuteAsync(request.RepositoryPath, request.Instruction, request.AttemptsPerRound, request.Autonomy, cancellationToken))
-            .MapError(Rejection);
+        await submit.ExecuteAsync(request, cancellationToken);
 
     public async ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
         (await queues.RunAsync(job, (found, token) => hold.ExecuteAsync(found, reason, token), cancellationToken))
@@ -27,12 +26,4 @@ internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, JobLauncher laun
         return (await queues.RunAsync(job, (found, token) => launcher.ContinueAsync(found, guidance, token), cancellationToken))
             .Match(continued => continued, () => Result<JobContinuation, JobRejection>.Failure(JobRejection.UnknownJob));
     }
-
-    private static JobRejection Rejection(JobError error) => error switch
-    {
-        JobError.EmptyRepository => JobRejection.EmptyRepository,
-        JobError.EmptyInstruction => JobRejection.EmptyInstruction,
-        JobError.InvalidAttemptBudget => JobRejection.InvalidAttemptBudget,
-        _ => JobRejection.InvalidRequest,
-    };
 }

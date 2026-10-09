@@ -67,7 +67,10 @@ internal sealed class RecordingParser
             }
         }
 
-        return new RecordedSession(Enum<PermissionMode>(root.GetProperty("options").GetProperty("permissions")), steps);
+        return new RecordedSession(Enum<PermissionMode>(root.GetProperty("options").GetProperty("permissions")), steps)
+        {
+            Account = Property(root, "account").Map(account => new AgentAccount(Text(account.GetProperty("id")), Text(account.GetProperty("label")))),
+        };
     }
 
     private IEnumerable<IStep> Step(JsonElement entry, TimeSpan gap) =>

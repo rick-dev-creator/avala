@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
@@ -36,6 +37,9 @@ internal sealed class JobsDbContext(string database) : DbContext
             job.Property(entity => entity.Autonomy).HasConversion(
                 option => option.Match(level => level.ToString(), () => string.Empty),
                 text => text.Length == 0 ? Option<Autonomy>.None : Option<Autonomy>.Some(Enum.Parse<Autonomy>(text)));
+            job.Property(entity => entity.Connection).HasConversion(
+                option => option.Match(name => name.Value, () => string.Empty),
+                text => text.Length == 0 ? Option<ConnectionName>.None : Option<ConnectionName>.Some(new ConnectionName(text)));
             job.OwnsMany(entity => entity.Attempts, attempt =>
             {
                 attempt.ToTable("JobAttempts");

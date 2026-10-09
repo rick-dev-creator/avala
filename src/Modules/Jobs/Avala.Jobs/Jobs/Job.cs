@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -39,6 +40,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Option<Autonomy> Autonomy { get; private set; }
 
+    public Option<ConnectionName> Connection { get; private set; }
+
     public IReadOnlyList<Attempt> Attempts => attempts;
 
     public static Result<Job, JobError> Create(
@@ -46,19 +49,21 @@ internal sealed class Job : IAggregateRoot<JobId>
         Instruction instruction,
         AttemptBudget budget,
         RepositoryPath repository,
-        Option<Autonomy> autonomy = default) =>
-        new Job(id, instruction, budget, repository) { Autonomy = autonomy };
+        Option<Autonomy> autonomy = default,
+        Option<ConnectionName> connection = default) =>
+        new Job(id, instruction, budget, repository) { Autonomy = autonomy, Connection = connection };
 
     public Result<JobSubmitted, JobError> Submit() =>
         machine.TryFire(JobTrigger.Submit, JobError.CannotSubmit)
             .Map(_ => new JobSubmitted(Id));
 
-    public Result<AttemptStarted, JobError> Start(WorkspaceId workspace, SessionId session) =>
+    public Result<AttemptStarted, JobError> Start(WorkspaceId workspace, SessionId session, ConnectionName connection) =>
         machine.TryFire(JobTrigger.Start, JobError.CannotStart)
             .Map(_ =>
             {
                 Workspace = workspace;
                 Session = session;
+                Connection = connection;
 
                 return Begin(AttemptOrigin.Initial, Option<Feedback>.None);
             });

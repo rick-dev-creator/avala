@@ -41,7 +41,7 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
-    public async Task ALimitWindowOfTheJobsProviderAtTheThresholdHoldsTheJobAsLimitNearlyReachedAsync()
+    public async Task ALimitWindowOfTheJobsConnectionAtTheThresholdHoldsTheJobAsLimitNearlyReachedAsync()
     {
         var budgeted = new Budgeted();
         await budgeted.RunningAsync(Caps(threshold: 0.9));
@@ -55,7 +55,7 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
-    public async Task SpendingBelowEveryCapLeavesTheJobRunningAsync()
+    public async Task SpendingBelowEveryCapOfItsConnectionLeavesTheJobRunningWhateverAnotherConnectionReachedAsync()
     {
         var budgeted = new Budgeted();
         await budgeted.RunningAsync(Caps(cost: [new Cost(1m, "USD")], tokens: 1_000, threshold: 0.9));

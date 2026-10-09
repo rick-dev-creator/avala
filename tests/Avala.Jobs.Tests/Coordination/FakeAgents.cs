@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 
@@ -14,7 +15,11 @@ internal sealed class FakeAgents : IAgents
 
     private readonly ConcurrentQueue<AgentRequest> requests = new();
 
+    public static ConnectionName DefaultConnection { get; } = new("default");
+
     public bool OpeningFails { get; set; }
+
+    public ISet<string> UnknownConnections { get; } = new HashSet<string>(StringComparer.Ordinal);
 
     public bool Resumes { get; init; }
 
@@ -39,10 +44,17 @@ internal sealed class FakeAgents : IAgents
             return ValueTask.FromResult(Result<OpenedSession, AgentError>.Failure(AgentError.ProviderUnavailable));
         }
 
+        var connection = request.Connection.Match(named => named, () => DefaultConnection);
+
+        if (UnknownConnections.Contains(connection.Value))
+        {
+            return ValueTask.FromResult(Result<OpenedSession, AgentError>.Failure(AgentError.UnknownConnection));
+        }
+
         var session = SessionId.New();
         sessions[session] = request.WorkingDirectory;
 
-        return ValueTask.FromResult(Result<OpenedSession, AgentError>.Success(new OpenedSession(session, Resumes && request.Resume.IsSome)));
+        return ValueTask.FromResult(Result<OpenedSession, AgentError>.Success(new OpenedSession(session, Resumes && request.Resume.IsSome, connection)));
     }
 
     public bool IsOpen(SessionId session) => sessions.ContainsKey(session);

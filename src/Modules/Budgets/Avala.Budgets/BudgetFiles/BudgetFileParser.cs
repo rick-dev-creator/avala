@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avala.Agents.Contracts.Events;
+using Avala.Budgets.Caps;
 using Avala.Budgets.Contracts;
 using Avala.Sdk;
 
@@ -10,18 +11,21 @@ internal static class BudgetFileParser
     private const string CostPerJob = "costPerJob";
     private const string TokensPerJob = "tokensPerJob";
     private const string HoldAtLimit = "holdAtLimit";
+    private const string Connections = "connections";
 
-    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
+    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 4, AllowDuplicateProperties = false };
 
     private static readonly string[] Fields = [CostPerJob, TokensPerJob, HoldAtLimit];
 
-    public static Result<BudgetCaps, BudgetError> Parse(string text)
+    private static readonly string[] Sections = [.. Fields, Connections];
+
+    public static Result<BudgetDeclaration, BudgetError> Parse(string text)
     {
         try
         {
             using var document = JsonDocument.Parse(text, Options);
 
-            return Caps(document.RootElement);
+            return Declaration(document.RootElement);
         }
         catch (JsonException)
         {
@@ -29,14 +33,51 @@ internal static class BudgetFileParser
         }
     }
 
-    private static Result<BudgetCaps, BudgetError> Caps(JsonElement root)
+    private static Result<BudgetDeclaration, BudgetError> Declaration(JsonElement root)
+    {
+        if (!Caps(root, Sections).TryGetValue(out var caps, out var error))
+        {
+            return error;
+        }
+
+        if (!root.TryGetProperty(Connections, out var connections))
+        {
+            return new BudgetDeclaration(caps);
+        }
+
+        if (connections.ValueKind != JsonValueKind.Object)
+        {
+            return BudgetError.Malformed;
+        }
+
+        var parsed = new Dictionary<string, BudgetCaps>(StringComparer.Ordinal);
+
+        foreach (var connection in connections.EnumerateObject())
+        {
+            if (string.IsNullOrWhiteSpace(connection.Name))
+            {
+                return BudgetError.Malformed;
+            }
+
+            if (!Caps(connection.Value, Fields).TryGetValue(out var connectionCaps, out error))
+            {
+                return error;
+            }
+
+            parsed[connection.Name] = connectionCaps;
+        }
+
+        return new BudgetDeclaration(caps) { Connections = parsed };
+    }
+
+    private static Result<BudgetCaps, BudgetError> Caps(JsonElement root, string[] fields)
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
             return BudgetError.Malformed;
         }
 
-        if (root.EnumerateObject().Any(property => !Fields.Contains(property.Name, StringComparer.Ordinal)))
+        if (root.EnumerateObject().Any(property => !fields.Contains(property.Name, StringComparer.Ordinal)))
         {
             return BudgetError.UnknownField;
         }

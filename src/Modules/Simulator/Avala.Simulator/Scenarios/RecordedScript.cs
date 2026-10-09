@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 
 namespace Avala.Simulator.Scenarios;
 
@@ -11,7 +12,10 @@ internal enum ReplayError
     UnsupportedVersion,
 }
 
-internal sealed record RecordedSession(PermissionMode Permissions, IReadOnlyList<IStep> Steps);
+internal sealed record RecordedSession(PermissionMode Permissions, IReadOnlyList<IStep> Steps)
+{
+    public Option<AgentAccount> Account { get; init; }
+}
 
 internal static class RecordedScript
 {
@@ -22,7 +26,7 @@ internal static class RecordedScript
             ? [[new Diverge(Divergence.Permissions(recorded.Permissions, replayedIn))]]
             : [.. turns, [new Diverge(Divergence.ExtraTurn(turns.Count))]];
 
-        return new Scenario(request.Scenario, scripts) { Recorded = true, AsRecorded = request.AsRecorded };
+        return new Scenario(request.Scenario, scripts) { Recorded = true, AsRecorded = request.AsRecorded, Account = recorded.Account };
     }
 
     public static Scenario Unplayable(ReplayRequest request, ReplayError error) =>

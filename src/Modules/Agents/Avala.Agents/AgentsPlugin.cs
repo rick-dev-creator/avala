@@ -1,4 +1,8 @@
+using Avala.Agents.ConnectionFiles;
+using Avala.Agents.Connections;
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Credentials;
 using Avala.Agents.Sessions;
 using Avala.Sdk;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +18,11 @@ public sealed class AgentsPlugin : IPlugin
     {
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
+            .AddSingleton<IConnectionFile, ConnectionFileReader>()
+            .AddSingleton<ICredentialSource, LoginFolderSource>()
+            .AddSingleton<ICredentialSource, ApiKeySource>()
+            .AddSingleton<ConnectionRegistry>()
+            .AddSingleton<IConnections>(services => services.GetRequiredService<ConnectionRegistry>())
             .AddSingleton<SessionStarter>()
             .AddSingleton<IAgents, AgentSessions>();
     }

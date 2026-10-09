@@ -1,7 +1,10 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Connections;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Sessions;
+using Avala.Agents.Tests.Connections;
 using Avala.Sdk;
 using Avala.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -89,7 +92,9 @@ public sealed class AgentSessionsTests
         var turn = await StartAsync(agents, "Add GitHub login");
         await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
 
-        Assert.Equal(new SessionOpened(turn.Session, provider.Info, Request.WorkingDirectory) { Account = account }, bus.Published[0]);
+        Assert.Equal(
+            new SessionOpened(turn.Session, provider.Info, Request.WorkingDirectory, new ConnectionName("scripted")) { Account = account },
+            bus.Published[0]);
     }
 
     [Fact]
@@ -250,7 +255,7 @@ public sealed class AgentSessionsTests
     {
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { Capabilities = Declared with { AcceptsTools = accepts } };
         await using var agents = new AgentSessions(
-            new SessionStarter([provider], [Canvas], []),
+            Connected.Starter([provider], [Canvas], []),
             new RecordingBus(),
             TimeProvider.System,
             NullLogger<AgentSessions>.Instance);
@@ -369,7 +374,10 @@ public sealed class AgentSessionsTests
     }
 
     private static AgentSessions Agents(RecordingBus bus, params IAgentProvider[] providers) =>
-        new(new SessionStarter(providers, [], []), bus, TimeProvider.System, NullLogger<AgentSessions>.Instance);
+        Agents(bus, Connected.Registry(providers));
+
+    private static AgentSessions Agents(RecordingBus bus, ConnectionRegistry registry) =>
+        new(Connected.Starter(registry, [], []), bus, TimeProvider.System, NullLogger<AgentSessions>.Instance);
 
     [Fact]
     public async Task EverySessionStartsThroughTheRegisteredDecoratorsInRegistrationOrderAsync()
@@ -377,7 +385,7 @@ public sealed class AgentSessionsTests
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
         var bus = new RecordingBus();
         await using var agents = new AgentSessions(
-            new SessionStarter([provider], [], [new Tagging("inner"), new Tagging("outer")]),
+            Connected.Starter([provider], [], [new Tagging("inner"), new Tagging("outer")]),
             bus,
             TimeProvider.System,
             NullLogger<AgentSessions>.Instance);
