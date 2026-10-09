@@ -39,6 +39,8 @@ internal static class LayerMap
             ["Holding"] = Layer.Application,
             ["Ledger"] = Layer.Application,
             ["Catalog"] = Layer.Application,
+            ["Review"] = Layer.Application,
+            ["Delivery"] = Layer.Application,
             ["Storage"] = Layer.Infrastructure,
             ["JobFiles"] = Layer.Infrastructure,
             ["JobList"] = Layer.ViewModels,

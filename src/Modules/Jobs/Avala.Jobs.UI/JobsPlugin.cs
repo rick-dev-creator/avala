@@ -1,12 +1,14 @@
 using Avala.Agents.Contracts;
 using Avala.Jobs.Catalog;
 using Avala.Jobs.Contracts;
+using Avala.Jobs.Delivery;
 using Avala.Jobs.Holding;
 using Avala.Jobs.JobFiles;
 using Avala.Jobs.JobList;
 using Avala.Jobs.Launching;
 using Avala.Jobs.Ledger;
 using Avala.Jobs.Recovery;
+using Avala.Jobs.Review;
 using Avala.Jobs.Storage;
 using Avala.Jobs.Submission;
 using Avala.Jobs.TurnChecks;
@@ -36,6 +38,10 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
             .AddSingleton<EvaluateTurn>()
             .AddSingleton<SubmitJob>()
             .AddSingleton<HoldJob>()
+            .AddSingleton<IApprovalStrategy, KeepStrategy>()
+            .AddSingleton<IApprovalStrategy, MergeStrategy>()
+            .AddSingleton<Approvals>()
+            .AddSingleton<ReviewJob>()
             .AddSingleton<IJobs, JobsEntry>()
             .AddSingleton<IJobCatalog, JobCatalog>()
             .AddSingleton<IHandle<JobAnnouncement>, PrepareJob>()

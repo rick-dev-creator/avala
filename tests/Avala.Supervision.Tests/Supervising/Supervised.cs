@@ -93,6 +93,12 @@ internal sealed class Supervised : IAsyncDisposable
 
         public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobId, JobRejection>.Failure(JobRejection.NotDiscardable));
+
+        public ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<JobApproval, JobRejection>.Failure(JobRejection.NotAwaitingReview));
+
+        public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotAwaitingReview));
     }
 
     private sealed class FixedSettings : ISupervisionSettings
