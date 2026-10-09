@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Turns;
@@ -13,7 +14,7 @@ internal static class AgentConformance
     public static HarnessTool CanvasTool { get; } = new(
         "canvas",
         "Draw a canvas the user sees beside the conversation.",
-        """{ "type": "object", "properties": { "title": { "type": "string" }, "mediaType": { "type": "string" }, "content": { "type": "string" } } }""",
+        """{ "type": "object", "properties": { "title": { "type": "string" }, "mediaType": { "type": "string", "enum": ["image/svg+xml", "text/markdown"] }, "content": { "type": "string" } } }""",
         ToolSurface.Canvas);
 
     public static HarnessTool ExecutedTool { get; } = new(
@@ -451,11 +452,22 @@ internal static class AgentConformance
             ResumeTokenIssued when !Capabilities.CanResume => ["a resume token was issued although the provider does not declare CanResume"],
             CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
                 [$"the canvas {started.Item.Value} was drawn without the canvas tool"],
+            CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas && Offers(tool, started.MediaType)) =>
+                [$"the canvas {started.Item.Value} was drawn in {started.MediaType}, which the canvas tool does not offer"],
             FormRequested asked when !Capabilities.AsksQuestions => [$"the form {asked.Item.Value} was asked although the provider does not declare AsksQuestions"],
             ToolCalled called when !Options.Tools.Any(tool => tool.Name == called.Tool && tool.Surface == ToolSurface.Executed) =>
                 [$"the tool {called.Tool} was called although the session was not given it"],
             _ => [],
         };
+
+        private static bool Offers(HarnessTool tool, string mediaType)
+        {
+            using var schema = JsonDocument.Parse(tool.InputSchema);
+            var essence = mediaType.Split(';', 2)[0].Trim();
+
+            return schema.RootElement.GetProperty("properties").GetProperty("mediaType").TryGetProperty("enum", out var offered)
+                && offered.EnumerateArray().Any(type => string.Equals(type.GetString(), essence, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     private sealed record Replies(

@@ -5,7 +5,7 @@ namespace Avala.Components.UI.Canvases;
 
 public interface ICanvasRenderer
 {
-    bool Renders(string mediaType);
+    string MediaType { get; }
 
     Option<Control> Render(string content);
 }

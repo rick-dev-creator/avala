@@ -196,14 +196,37 @@ internal static class ScenarioCatalog
                 "<line x1=\"90\" y1=\"60\" x2=\"150\" y2=\"60\" stroke=\"#111827\" stroke-width=\"2\"/>",
                 "</svg>",
             ]),
+            new Draw(new ItemId("flow"), "Job flow", "image/svg+xml",
+            [
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 420 60\" font-size=\"12\">",
+                "<g fill=\"none\" stroke=\"#6b7280\"><rect x=\"5\" y=\"15\" width=\"100\" height=\"30\" rx=\"6\"/>",
+                "<rect x=\"160\" y=\"15\" width=\"100\" height=\"30\" rx=\"6\"/><rect x=\"315\" y=\"15\" width=\"100\" height=\"30\" rx=\"6\"/>",
+                "<path d=\"M105 30h55M260 30h55\"/></g>",
+                "<g fill=\"#111827\" text-anchor=\"middle\"><text x=\"55\" y=\"34\">Submitted</text><text x=\"210\" y=\"34\">Running</text><text x=\"365\" y=\"34\">Checking</text></g>",
+                "</svg>",
+            ]),
+            new Draw(new ItemId("notes"), "Notes", "text/markdown",
+            [
+                "# The host and its plugins\n\n",
+                "- The host knows no module.\n",
+                "- Every module is a **plugin**.\n",
+            ]),
+            Message("The diagrams show ", "the host and its plugins."),
+            .. Bill(5_200, 900, 0.0420m, 0.40),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario UnofferedCanvas { get; } = new("unoffered-canvas",
+    [
+        [
             new Draw(new ItemId("flow"), "Job flow", "text/vnd.mermaid",
             [
                 "flowchart LR\n",
                 "  Submitted --> Running\n",
-                "  Running --> Checking --> AwaitingReview\n",
             ]),
-            Message("The diagram shows ", "the host and its plugins."),
-            .. Bill(5_200, 900, 0.0420m, 0.40),
+            Message("I drew the job flow in Mermaid."),
+            .. Bill(1_200, 80, 0.0040m, 0.30),
             new Finish(),
         ],
     ]);
@@ -375,7 +398,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas,
+        Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas,
         Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedLoosely, DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
     ];
 

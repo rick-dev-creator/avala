@@ -21,6 +21,13 @@ public sealed class CanvasViewModelScripts
             .When(canvas => canvas.Update(new CanvasEntry("c", "Flow", "text/vnd.mermaid", "flowchart", CanvasStatus.Failed)))
             .Then(canvas => Assert.Equal((CanvasStatus.Failed, false, "flowchart"), (canvas.Status, canvas.IsStreaming, canvas.Content)));
 
+    [Fact]
+    public void ACanvasTheCanvasModuleDidNotOfferReachesItsSurfaceAsNotOffered() =>
+        ViewModelScript.Given(new CanvasViewModel(new CanvasEntry("c", "Flow", "image/svg+xml", "<svg/>", CanvasStatus.Streaming)))
+            .Then(canvas => Assert.True(canvas.Surface.Shown.IsOffered))
+            .When(canvas => canvas.Update(new CanvasEntry("c", "Flow", "text/vnd.mermaid", "flowchart LR", CanvasStatus.Completed) { IsOffered = false }))
+            .Then(canvas => Assert.Equal(("text/vnd.mermaid", false), (canvas.Surface.Shown.MediaType, canvas.Surface.Shown.IsOffered)));
+
     [Theory]
     [InlineData(CanvasStatus.Completed, "")]
     [InlineData(CanvasStatus.Failed, "Failed")]

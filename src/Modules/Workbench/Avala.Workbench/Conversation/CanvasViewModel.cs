@@ -60,7 +60,7 @@ internal sealed partial class CanvasViewModel : ICanvasViewModel, ITimelineItem
             MediaType = canvas.MediaType;
             Content = canvas.Content;
             Status = canvas.Status;
-            surface.Show(new CanvasDraft(canvas.Title, canvas.MediaType, canvas.Content, Phase(canvas.Status)));
+            surface.Show(new CanvasDraft(canvas.Title, canvas.MediaType, canvas.Content, Phase(canvas.Status)) { IsOffered = canvas.IsOffered });
         }
     }
 
