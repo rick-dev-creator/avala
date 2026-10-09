@@ -76,9 +76,9 @@ public sealed class RestartedDeskTests
         _ = Earlier(desk, "todo", out var told);
         desk.Store.Earlier = [owed, told with { Parent = answered, Answered = new CallAnswer(AnswerRoute.ToolResult, desk.Clock.GetUtcNow()) }];
 
-        Assert.True(await desk.Resumption.DefersAsync(desk.Parent, Cancellation));
-        Assert.False(await desk.Resumption.DefersAsync(answered, Cancellation));
-        Assert.False(await desk.Resumption.DefersAsync(JobId.New(), Cancellation));
+        Assert.True(await desk.Parents.DefersAsync(desk.Parent, Cancellation));
+        Assert.False(await desk.Parents.DefersAsync(answered, Cancellation));
+        Assert.False(await desk.Parents.DefersAsync(JobId.New(), Cancellation));
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class RestartedDeskTests
         var first = Earlier(desk, "notes", out var notes);
         var second = Earlier(desk, "todo", out var todo);
         desk.Store.Earlier = [notes, todo];
-        Assert.True(await desk.Resumption.DefersAsync(desk.Parent, Cancellation));
+        Assert.True(await desk.Parents.DefersAsync(desk.Parent, Cancellation));
         await desk.StartupCompletedAsync();
 
         await desk.ProgressAsync(first, JobStatus.Failed);
@@ -108,7 +108,7 @@ public sealed class RestartedDeskTests
         await using var desk = new Desk();
         var child = Earlier(desk, "notes", out var pending);
         desk.Store.Earlier = [pending with { Report = new ChildReport(child, ChildOutcome.Failed, JobStatus.Failed, desk.Clock.GetUtcNow()) }];
-        Assert.True(await desk.Resumption.DefersAsync(desk.Parent, Cancellation));
+        Assert.True(await desk.Parents.DefersAsync(desk.Parent, Cancellation));
 
         await desk.StartupCompletedAsync();
 

@@ -36,7 +36,8 @@ internal sealed class Desk : IAsyncDisposable
             journal,
             NullLogger<ChildReporter>.Instance);
         desk = new DelegationDesk(new Delegator(policy, Jobs, journal), reporter, Jobs, Book);
-        Resumption = new ParentResumption(Book, Jobs);
+        Parents = new DeferredParents(Book);
+        Resumption = new ParentResumption(Parents, Jobs);
         Briefing = new OwedReports(Book, journal);
         Parent = Jobs.Running();
     }
@@ -45,6 +46,8 @@ internal sealed class Desk : IAsyncDisposable
         : this(Option<DelegationRules>.Some(Declared))
     {
     }
+
+    public DeferredParents Parents { get; }
 
     public ParentResumption Resumption { get; }
 
