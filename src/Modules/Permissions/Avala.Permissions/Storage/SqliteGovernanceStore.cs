@@ -9,9 +9,8 @@ namespace Avala.Permissions.Storage;
 
 internal sealed class SqliteGovernanceStore(AvalaPaths paths) : IGovernanceStore, IStartupTask, IAsyncDisposable
 {
-    private readonly SerialExecutor serial = new();
+    private readonly DatabaseOwner<PermissionsDbContext> owner = new(paths.Database("permissions"), file => new PermissionsDbContext(file));
     private readonly HashSet<int> written = [];
-    private PermissionsDbContext? context;
 
     public Task RecordAsync(SessionPolicy policy, CancellationToken cancellationToken) =>
         AddAsync(StoredFact.Of(FactKind.Policy, policy.Session, Option<JobId>.None, DateTimeOffset.MinValue, policy), cancellationToken);
@@ -45,17 +44,9 @@ internal sealed class SqliteGovernanceStore(AvalaPaths paths) : IGovernanceStore
             },
             cancellationToken);
 
-    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+    public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await serial.DisposeAsync();
-
-        if (context is not null)
-        {
-            await context.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private Task<int> AddAsync(StoredFact row, CancellationToken cancellationToken) =>
         RunAsync(
@@ -71,17 +62,5 @@ internal sealed class SqliteGovernanceStore(AvalaPaths paths) : IGovernanceStore
             cancellationToken);
 
     private Task<T> RunAsync<T>(Func<PermissionsDbContext, Task<T>> work, CancellationToken cancellationToken) =>
-        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
-
-    private async Task<PermissionsDbContext> OpenAsync(CancellationToken cancellationToken)
-    {
-        if (context is null)
-        {
-            Directory.CreateDirectory(paths.Data);
-            context = new PermissionsDbContext(paths.Database("permissions"));
-            await ModuleDatabase.MigrateAsync(context, cancellationToken);
-        }
-
-        return context;
-    }
+        owner.RunAsync(work, cancellationToken);
 }

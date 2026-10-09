@@ -41,6 +41,55 @@ public sealed class ModuleDatabaseTests
     }
 
     [Fact]
+    public async Task ADatabaseHoldingOnlyTheTableOfAMigrationsLockIsMigratedInsteadOfAdoptedAsync()
+    {
+        await using var folder = new TemporaryFolder();
+        var path = Path.Combine(folder.Path, "notes.db");
+        await using (var stopped = new NotesContext(path, Before.Stopping(Before.TakingTheLock)))
+        {
+            await Assert.ThrowsAsync<IOException>(() => ModuleDatabase.MigrateAsync(stopped, Cancellation));
+        }
+
+        await using var context = new NotesContext(path);
+        await ModuleDatabase.MigrateAsync(context, Cancellation);
+
+        Assert.Equal(["20260101000000_Initial", "20260201000000_Tags"], await context.Database.GetAppliedMigrationsAsync(Cancellation));
+        Assert.Empty(await context.Notes.ToListAsync(Cancellation));
+    }
+
+    [Fact]
+    public async Task AMigrationWhoseCallerStopsHalfwayCompletesAndLeavesTheDatabaseFreeForTheNextAsync()
+    {
+        await using var folder = new TemporaryFolder();
+        var path = Path.Combine(folder.Path, "notes.db");
+        using var caller = new CancellationTokenSource();
+        await using (var stopped = new NotesContext(path, new Before(Before.CreatingTheHistory, caller.Cancel)))
+        {
+            await ModuleDatabase.MigrateAsync(stopped, caller.Token);
+        }
+
+        await using var context = new NotesContext(path);
+        await ModuleDatabase.MigrateAsync(context, Cancellation).WaitAsync(TimeSpan.FromSeconds(30), Cancellation);
+
+        Assert.Equal(["20260101000000_Initial", "20260201000000_Tags"], await context.Database.GetAppliedMigrationsAsync(Cancellation));
+        Assert.Empty(await context.Tags.ToListAsync(Cancellation));
+    }
+
+    [Fact]
+    public async Task AnOperationAfterAFailedOpeningRunsOnTheMigratedDatabaseAsync()
+    {
+        await using var folder = new TemporaryFolder();
+        var opened = 0;
+        await using var owner = new DatabaseOwner<NotesContext>(
+            Path.Combine(folder.Path, "data", "notes.db"),
+            file => ++opened == 1 ? new NotesContext(file, Before.Stopping(Before.TakingTheLock)) : new NotesContext(file));
+
+        await Assert.ThrowsAsync<IOException>(() => owner.OpenedAsync(Cancellation));
+
+        Assert.Empty(await owner.RunAsync(async database => await database.Notes.ToListAsync(Cancellation), Cancellation));
+    }
+
+    [Fact]
     public async Task MigratingAnUpToDateDatabaseAgainChangesNothingAsync()
     {
         await using var folder = new TemporaryFolder();
