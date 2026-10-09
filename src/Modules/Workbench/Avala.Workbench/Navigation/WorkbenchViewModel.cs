@@ -64,11 +64,19 @@ internal sealed partial class WorkbenchViewModel : IPage, IActivatable, IDisposa
         {
             await foreach (var _ in board.ChangesAsync(cancellationToken))
             {
-                await ui.InvokeAsync(Show, cancellationToken);
+                await ui.InvokeAsync(() => ShowWhileFollowing(cancellationToken), cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+        }
+    }
+
+    private void ShowWhileFollowing(CancellationToken following)
+    {
+        if (!following.IsCancellationRequested)
+        {
+            Show();
         }
     }
 
