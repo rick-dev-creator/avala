@@ -44,6 +44,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Canvas | Accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
 | Observability | Tokens, cost, limits and turns by provider, session and job, and their metrics | `IUsage` and its summaries |
+| Permissions | Answers permission requests through an explicit policy and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `IPermissionAudit` |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
 
@@ -300,7 +301,7 @@ public interface IAgents
 
 - `OpenAsync` opens a session in the working directory of `AgentRequest` and returns its `SessionId`. `SendAsync` sends a message and returns the `AgentTurn` it started. Opening and sending are separate so the caller can store the session before any turn can finish: Jobs records it on the job first.
 - `RespondAsync` answers the permission request of a live session and returns the item it unblocked. A session that is not open returns `SessionClosed`.
-- `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends.
+- `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider and the working directory, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends.
 
 ### Agnostic events
 
@@ -315,7 +316,7 @@ Every provider translates its protocol into one closed set of events. Each event
 | `CanvasStarted` | A canvas begins, with a title and a media type such as `text/html`, `image/svg+xml`, `text/vnd.mermaid` or `text/markdown` |
 | `ItemProgressed` | More content for an open item or canvas, appended in order |
 | `ItemCompleted` | An item or canvas ends as succeeded, failed, cancelled, abandoned or expired |
-| `PermissionRequested`, `PermissionResolved` | An open item waits for a decision, and gets it |
+| `PermissionRequested`, `PermissionResolved` | An open item waits for a decision, and gets it. The request names its item kind and its target: the path of a file edit, the command line of a command, the URL of a web request, the tool of an MCP call, the query of a search, a short description otherwise |
 | `PlanUpdated` | The agent's plan and the status of each step |
 | `UsageReported` | Tokens used: input, output, cache reads, cache writes and reasoning, plus the cost when the provider reports it |
 | `LimitReported` | A usage limit: its window, the fraction used and when it resets |
@@ -340,7 +341,7 @@ The generated [turn lifecycle diagram](../diagrams/turn-lifecycle.md) shows the 
 
 **Accepted**
 
-Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
+Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests. It reports items left open, rejected events, a missing `TurnStarted`, turns that never end, and permission requests that name no target or whose kind differs from the kind their item started with, since policies decide on both. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
 
 ### Simulator
 
@@ -415,7 +416,7 @@ Agent events know only their session. Two integration events tie a session to th
 
 | Event | Published by | Carries |
 | --- | --- | --- |
-| `SessionOpened` | `AgentSessions`, before it pumps the session's events | `SessionId`, `ProviderInfo` |
+| `SessionOpened` | `AgentSessions`, before it pumps the session's events | `SessionId`, `ProviderInfo`, working directory |
 | `JobSessionStarted` | `JobLauncher`, after storing the job and before sending the instruction, at launch and at recovery | `JobId`, `SessionId` |
 
 The bus dispatches in publishing order, so both arrive before the first activity of the session. Observability does not rely on it: it keeps everything per session and groups sessions by provider and job only when queried, so a late correlation still lands in the right aggregate.
@@ -444,6 +445,93 @@ The bus dispatches in publishing order, so both arrive before the first activity
 | `avala.agent.limit.used` | Gauge | `1` | `avala.provider`, `avala.limit.window` |
 
 The provider tag is the provider's identifier, and it is left out when the session's provider is unknown.
+
+## Permissions
+
+**Accepted**
+
+Agents ask before they act. For agents to work unattended, the harness must answer those requests itself, and for its answers to be trusted, it must say why it gave each one. The Permissions module answers through an explicit policy and records every decision, including the ones it leaves to a human.
+
+### Policy
+
+- A policy is an ordered list of rules. Each rule may name an item kind, a target pattern and a scope, and gives one answer: `Allow`, `Deny` or `Ask`, which leaves the request to a human exactly as if no policy existed.
+- The first rule that matches decides. When none matches, the answer is `Ask`: the safe default never grants anything.
+- A rule matches on the agnostic facts of `PermissionRequested`: its item kind and its target. A missing kind or target matches any. No rule knows a provider.
+- A target pattern matches the whole target, case-sensitively, with `*` for any run of characters, `/` included, and `?` for one character. The matcher is linear and backtracks only to the last `*`, so no pattern can make it slow.
+- A rule scoped to the `workspace` matches only file edits whose path lies inside the session's working directory. The path is resolved against the working directory, so `src/../x` and an absolute path inside both count, and `../x` does not; the target an inside edit is matched and recorded with is its path relative to the working directory, with `/` separators. Other kinds have no path to scope, so a policy file that scopes them is rejected.
+- The policy of a session is, in order: the built-in guards, the repository rules, the built-in defaults, then the default `Ask`.
+
+| Rule | Origin | Matches | Answer |
+| --- | --- | --- | --- |
+| `policy-file-goes-to-a-human` | Built-in guard | Edits of `.avala/permissions.json` inside the workspace | `Ask` |
+| Repository rules | `.avala/permissions.json` | Whatever they declare, in file order | Their own |
+| `edits-inside-the-workspace` | Built-in default | Edits inside the workspace | `Allow` |
+| Default | None | Anything else | `Ask` |
+
+The guard comes first so that no repository rule can let an agent rewrite the policy that governs it. Editing inside the workspace is allowed by default because the workspace is the job's own disposable worktree, reviewed before anything is approved; a repository can still deny or ask for it with a rule of its own.
+
+### Policy file
+
+A repository declares its rules in `.avala/permissions.json`, read from the session's working directory when the session opens. A job's worktree is a checkout of the repository, so the committed file governs every job of that repository.
+
+```json
+{
+  "rules": [
+    { "name": "run the tests", "kind": "command", "target": "dotnet test*", "answer": "allow" },
+    { "name": "no network", "kind": "web", "answer": "deny" },
+    { "kind": "fileEdit", "within": "workspace", "target": "docs/*", "answer": "ask" }
+  ]
+}
+```
+
+- `kind` is an `ItemKind` name, case-insensitive: `message`, `reasoning`, `fileEdit`, `command`, `search`, `web`, `mcp`, `subagent` or `other`. `within` is `anywhere`, the default, or `workspace`. `answer` is `allow`, `deny` or `ask`, and is required. A rule without a `name` is named by its position, such as `rule 3`.
+- The file is parsed strictly: unknown fields, duplicate fields, numbers for names, nesting deeper than the format needs and files over 64 KiB are rejected without being interpreted.
+- An invalid file is reported with a `PolicyError`, and the session falls back to the built-in policy. A broken file can therefore only make the harness ask more, never allow more.
+
+| `PolicyError` | Cause |
+| --- | --- |
+| `Unreadable` | The file exists but cannot be read |
+| `TooLarge` | Over 64 KiB |
+| `Malformed` | Not JSON, a value of the wrong type, a duplicate field or nesting too deep |
+| `UnknownField` | A field the format does not define |
+| `UnknownKind`, `UnknownScope`, `UnknownAnswer` | A value outside its list |
+| `MissingAnswer` | A rule without an answer |
+| `ScopeNeedsFileEdits` | A `workspace` scope on a kind other than `fileEdit` |
+
+### The module
+
+The module subscribes to the bus like every other consumer of agent events, so it receives only permission requests the `Turn` aggregate has already accepted, and answers through `IAgents.RespondAsync`.
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Policies` | `PermissionPolicy` with its built-in rules and first-match decision, rule matching as extension members on `PolicyRule`, `PermissionRequest`, `Verdict`, and `GovernedSession`, the immutable record of one session: working directory, policy, job and decisions | Domain |
+| `Governance` | `SessionGovernor`, the handler of `SessionOpened` and `JobSessionStarted`; `GovernanceBook`, the in-memory book that implements `IPermissionAudit`; and the `IPolicyFiles` port | Application |
+| `Answering` | `PermissionResponder`, the handler of `AgentActivity` that decides, answers and records; `RequestFacts`, which locates a request against the working directory | Application |
+| `PolicyFiles` | `PolicyFileReader` behind `IPolicyFiles`, and `PolicyFileParser` | Infrastructure |
+
+- The domain decides and has nothing to reject, so it has no aggregate. The single error enum of the module is `PolicyError`, in its contracts, since only reading a policy file can fail and its outcome is public.
+- On `SessionOpened` the governor reads the policy file once, keeps the session's policy and publishes `PolicyLoaded`. Later edits of the file in the worktree do not change the policy of a running session.
+- On `PermissionRequested` the responder decides with the session's policy, answers `Allow` or `Deny` through `IAgents.RespondAsync`, leaves `Ask` pending, and publishes `PermissionDecided` with the answer, the rule that decided and whether the answer reached the agent. A request from a session it never saw open is decided by the built-in policy with no workspace, so only the default applies.
+- Requests left to a human stay pending exactly as before the module existed: the turn waits in `AwaitingPermission`, never expires, and anyone may still answer through `IAgents.RespondAsync`.
+- Decisions live in memory for the life of the application, like the usage aggregates.
+
+## Data the harness produces
+
+**Accepted**
+
+The user interface will be designed from the data the harness produces, so modules expose that data as integration events and small queries rather than view models. This catalog lists it per module: what each event or query carries, when and how often it is produced, and its cardinality.
+
+### Permissions
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `PolicyLoaded` | Event | `SessionPolicy`: session, `PolicyFileStatus` (`Absent`, `Applied` or `Rejected`), `Option<PolicyError>`, and the effective rules in decision order | When a session opens, after its policy file was read and before any of its activity is handled | One per session |
+| `PermissionDecided` | Event | `PolicyDecision`: session, turn, item, `Option<JobId>`, item kind, target as matched, `PolicyAnswer`, `Option<PolicyRule>` that decided (none for the default), `DecisionDelivery` (`Answered`, `LeftToHuman` or `Undelivered`) and the time from `TimeProvider` | For every permission request the `Turn` aggregate accepted, after the answer was sent. It may follow the `PermissionResolved` that its answer caused | One per permission request |
+| `IPermissionAudit.PolicyOf` | Query | `Option<SessionPolicy>` | Any time; none until the session opened | One per session |
+| `IPermissionAudit.OfSession` | Query | The session's `PolicyDecision`s in decision order | Any time | Zero or more per session |
+| `IPermissionAudit.OfJob` | Query | The `PolicyDecision`s of every session of a job, recovery included, by time | Any time; a session counts once `JobSessionStarted` tied it to the job | Zero or more per job |
+
+A `PolicyRule` carries its origin (`BuiltIn` or `Repository`), name, `Option<ItemKind>`, `Option<string>` target pattern, `RuleScope` (`Anywhere` or `Workspace`) and answer, so a decision explains itself without another query.
 
 ## Delivery
 

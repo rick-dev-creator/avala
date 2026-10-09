@@ -8,7 +8,7 @@ public sealed record AgentRequest(string WorkingDirectory);
 
 public sealed record AgentTurn(SessionId Session, TurnId Turn);
 
-public sealed record SessionOpened(SessionId Session, ProviderInfo Provider) : IIntegrationEvent;
+public sealed record SessionOpened(SessionId Session, ProviderInfo Provider, string WorkingDirectory) : IIntegrationEvent;
 
 public sealed record AgentActivity(IAgentEvent Event) : IIntegrationEvent;
 

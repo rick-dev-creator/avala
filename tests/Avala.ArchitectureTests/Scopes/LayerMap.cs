@@ -43,6 +43,15 @@ internal static class LayerMap
             ["Tracking"] = Layer.Application,
             ["Metrics"] = Layer.Infrastructure,
         }),
+        .. Module("Avala.Permissions", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Policies"] = Layer.Domain,
+            ["Governance"] = Layer.Application,
+            ["Answering"] = Layer.Application,
+            ["PolicyFiles"] = Layer.Infrastructure,
+        }),
         .. Module("Avala.Simulator", new()
         {
             [""] = Layer.None,

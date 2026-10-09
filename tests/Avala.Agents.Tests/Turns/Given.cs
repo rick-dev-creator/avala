@@ -33,7 +33,7 @@ internal static class Given
 
     public static ItemCompleted Completed(string item) => new(Session, TurnId, Item(item), ItemOutcome.Succeeded);
 
-    public static PermissionRequested PermissionFor(string item) => new(Session, TurnId, Item(item), $"Run {item}");
+    public static PermissionRequested PermissionFor(string item) => new(Session, TurnId, Item(item), $"Run {item}", ItemKind.Command, item);
 
     public static PermissionResolved Resolved(string item) => new(Session, TurnId, Item(item), PermissionAnswer.Allow);
 
