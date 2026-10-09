@@ -39,8 +39,6 @@ internal sealed class OrchestratorCardViewModel : IOrchestratorCardViewModel
     {
         var root = tree.Root;
         var children = tree.Children.Where(node => node.Depth == 1).ToList();
-        var cap = tree.RootSpend.Caps.Match(caps => caps.CostPerJob, () => []);
-        var carves = children.Select(node => node.Spend.Carve.Match(carve => carve.Cost, () => [])).ToList();
         Job = root.Job;
         Title = FactPhrases.Title(root.Instruction);
         Harness = tree.RootSpend.Session.Match(seen => seen.Provider.Name, () => string.Empty);
@@ -50,15 +48,10 @@ internal sealed class OrchestratorCardViewModel : IOrchestratorCardViewModel
             " · ",
             new[] { OverviewPhrases.Repository(root.Repository), root.Autonomy.Match(autonomy => autonomy.ToString(), () => string.Empty), OverviewPhrases.Waiting(working) }
                 .Where(part => part.Length > 0));
-        HasBudget = cap.Count > 0 && cap[0].Amount > 0;
-        Budget = HasBudget ? $"Budget {Amounts.Costs([cap[0]])}" : "No budget cap";
         Spent = $"{Amounts.Costs(Presenting.Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent))))} spent across the tree";
-        var carved = carves.Select(costs => HasBudget ? (double)Presenting.Shares.In(costs, cap[0].Currency) : 0).ToList();
-        var kept = HasBudget ? Math.Max(0, (double)cap[0].Amount - carved.Sum()) : 0;
-        Shares = HasBudget ? [new BudgetShare(kept, true), .. carved.Select(weight => new BudgetShare(weight, false))] : [];
-        ShareNote = HasBudget
-            ? string.Join(" · ", new[] { $"kept {Amounts.Costs([new Cost((decimal)kept, cap[0].Currency)])}" }.Concat(carves.Select((costs, index) => (index == 0 ? "carved " : string.Empty) + Amounts.Costs(costs))))
-            : string.Create(CultureInfo.InvariantCulture, $"{OverviewPhrases.Count(children.Count, "sub-agent")}, no carve");
+        (HasBudget, Budget, Shares, ShareNote) = tree.RootSpend.Caps.Match(caps => caps.CostPerJob, () => []) is [{ Amount: > 0 } cap, ..]
+            ? Carved(cap, [.. children.Select(node => node.Spend.Carve.Match(carve => carve.Cost, () => []))])
+            : (false, "No budget cap", [], string.Create(CultureInfo.InvariantCulture, $"{OverviewPhrases.Count(children.Count, "sub-agent")}, no carve"));
         Dot = new StatusDotViewModel(tree.RootJob.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(root.Status)));
     }
 
@@ -83,4 +76,16 @@ internal sealed class OrchestratorCardViewModel : IOrchestratorCardViewModel
     public bool HasBudget { get; }
 
     public IStatusDotViewModel Dot { get; }
+
+    private static (bool HasBudget, string Budget, IReadOnlyList<BudgetShare> Shares, string ShareNote) Carved(Cost cap, IReadOnlyList<IReadOnlyList<Cost>> carves)
+    {
+        var carved = carves.Select(costs => (double)Presenting.Shares.In(costs, cap.Currency)).ToList();
+        var kept = Math.Max(0, (double)cap.Amount - carved.Sum());
+
+        return (
+            true,
+            $"Budget {Amounts.Costs([cap])}",
+            [new BudgetShare(kept, true), .. carved.Select(weight => new BudgetShare(weight, false))],
+            string.Join(" · ", [$"kept {Amounts.Costs([new Cost((decimal)kept, cap.Currency)])}", .. carves.Select((costs, index) => (index == 0 ? "carved " : string.Empty) + Amounts.Costs(costs))]));
+    }
 }
