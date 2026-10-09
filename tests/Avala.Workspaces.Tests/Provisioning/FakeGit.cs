@@ -79,6 +79,12 @@ internal sealed class FakeGit : IGit
         CancellationToken cancellationToken) =>
         Task.FromResult<Result<CommitSha, WorkspaceFailure>>(Given.Commit(++commits));
 
+    public Task<Result<bool, WorkspaceFailure>> UnchangedSinceAsync(
+        WorkspaceLocation location,
+        CommitSha commit,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<Result<bool, WorkspaceFailure>>(false);
+
     public IReadOnlyList<string> Pruned { get; private set; } = [];
 
     public Task<Result<string, WorkspaceFailure>> PruneWorktreesAsync(string repository, CancellationToken cancellationToken)

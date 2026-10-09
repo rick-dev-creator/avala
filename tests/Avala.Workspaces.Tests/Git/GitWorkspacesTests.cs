@@ -187,6 +187,37 @@ public sealed class GitWorkspacesTests
     }
 
     [Fact]
+    public async Task ACheckpointRepeatedWithNothingChangedSinceIsTheCheckpointAlreadyTakenAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var service = Service(repository);
+        var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "login.cs"), "class Login;\n", Cancellation);
+        var taken = Outcomes.Succeeds(await service.CheckpointAsync(workspace.Id, "Attempt 1", Cancellation));
+
+        var repeated = Outcomes.Succeeds(await service.CheckpointAsync(workspace.Id, "Attempt 1", Cancellation));
+
+        Assert.Equal(taken, repeated);
+        Assert.Equal("Attempt 1", await repository.GitInAsync(workspace.Path, Cancellation, "log", "--format=%s", $"{workspace.BaseCommit}..HEAD"));
+    }
+
+    [Fact]
+    public async Task ACheckpointRepeatedAfterAChangeCommitsTheChangeAsANewCheckpointAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var service = Service(repository);
+        var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+        _ = Outcomes.Succeeds(await service.CheckpointAsync(workspace.Id, "Attempt 1", Cancellation));
+        await File.WriteAllTextAsync(Path.Combine(workspace.Path, "login.cs"), "class Login;\n", Cancellation);
+
+        var repeated = Outcomes.Succeeds(await service.CheckpointAsync(workspace.Id, "Attempt 1", Cancellation));
+
+        Assert.Equal(2, repeated.Number);
+        Assert.Equal(repeated.Commit, await repository.GitInAsync(workspace.Path, Cancellation, "rev-parse", "HEAD"));
+        Assert.Equal("login.cs", await repository.GitInAsync(workspace.Path, Cancellation, "show", "--name-only", "--format=", "HEAD"));
+    }
+
+    [Fact]
     public async Task RemovingDeletesTheWorktreeAndItsBranchAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);

@@ -55,6 +55,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
         Assert.Contains("verdict: Verified on attempt 1 of 1", evidence);
         Assert.Contains("evidence: 1 of 1 check passed · Verified on attempt 1 of 1", evidence);
         Assert.StartsWith("attempt: Attempt 1: passed · verdict passed (exit 0, ", Assert.Single(evidence, line => line.StartsWith("attempt: ", StringComparison.Ordinal)), StringComparison.Ordinal);
+        Assert.Equal("Attempt 1", await run.Repository.GitInAsync(run.Worktree, Cancellation, "log", "--format=%s", "main..HEAD"));
     }
 
     [Fact]
