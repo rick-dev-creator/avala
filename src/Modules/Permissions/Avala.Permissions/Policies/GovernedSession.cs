@@ -44,4 +44,16 @@ internal sealed record GovernedSession(
     public GovernedSession Decided(PolicyDecision decision) => this with { Decisions = [.. Decisions, decision] };
 
     public GovernedSession Asked(FormDecision decision) => this with { Forms = [.. Forms, decision] };
+
+    public Option<PolicyDecision> WaitingPermission(ItemId item) =>
+        Decisions.LastOrDefault(decision => decision.Item == item) is { Delivery: DecisionDelivery.LeftToHuman or DecisionDelivery.Undelivered } waiting ? waiting : Option<PolicyDecision>.None;
+
+    public Option<FormDecision> WaitingForm(ItemId item) =>
+        Forms.LastOrDefault(decision => decision.Item == item) is { Answer.IsNone: true, Delivery: not DecisionDelivery.Withdrawn } waiting ? waiting : Option<FormDecision>.None;
+
+    public GovernedSession Withdrawn(PolicyDecision decision) =>
+        this with { Decisions = [.. Decisions.Select(kept => kept.Item == decision.Item ? decision : kept)] };
+
+    public GovernedSession Withdrawn(FormDecision decision) =>
+        this with { Forms = [.. Forms.Select(kept => kept.Item == decision.Item ? decision : kept)] };
 }

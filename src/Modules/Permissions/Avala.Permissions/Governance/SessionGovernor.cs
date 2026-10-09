@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Answering;
 using Avala.Permissions.Contracts;
@@ -51,6 +52,24 @@ internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, P
                 await book.AskedAsync(form, cancellationToken);
                 await bus.PublishAsync(new FormDecided(form), cancellationToken);
                 break;
+            case RequestWithdrawn withdrawn:
+                await WithdrawAsync(book.Of(withdrawn.Session), withdrawn.Item, cancellationToken);
+                break;
+        }
+    }
+
+    private async Task WithdrawAsync(GovernedSession session, ItemId item, CancellationToken cancellationToken)
+    {
+        foreach (var waiting in session.WaitingPermission(item).Match<PolicyDecision[]>(found => [found with { Delivery = DecisionDelivery.Withdrawn }], () => []))
+        {
+            await book.WithdrawnAsync(waiting, cancellationToken);
+            await bus.PublishAsync(new PermissionDecided(waiting), cancellationToken);
+        }
+
+        foreach (var waiting in session.WaitingForm(item).Match<FormDecision[]>(found => [found with { Delivery = DecisionDelivery.Withdrawn }], () => []))
+        {
+            await book.WithdrawnAsync(waiting, cancellationToken);
+            await bus.PublishAsync(new FormDecided(waiting), cancellationToken);
         }
     }
 }

@@ -35,6 +35,7 @@ public enum DecisionDelivery
     Answered,
     LeftToHuman,
     Undelivered,
+    Withdrawn,
 }
 
 public sealed record SessionPolicy(
