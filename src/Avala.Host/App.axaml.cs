@@ -50,7 +50,7 @@ internal sealed partial class App : Application
         var log = new LogFile(paths, TimeProvider.System);
         var crashes = new CrashLog(log);
         crashes.Watch();
-        crashes.Started($"Avala started on {RuntimeInformation.OSDescription}, data folder {paths.Data}");
+        crashes.Started($"Avala {CompositionRoot.Build.Version} ({CompositionRoot.Build.Commit.Match(commit => commit, () => AvalaBuild.Unknown)}) started on {RuntimeInformation.OSDescription}, data folder {paths.Data}");
         var composition = Composed(paths, log, crashes);
         var appearance = new AppearanceApplier(this);
         _ = appearance.FollowAsync(

@@ -1,3 +1,4 @@
+using System.Reflection;
 using Avala.Components.UI;
 using Avala.Runtime;
 using Avala.Runtime.Diagnostics;
@@ -25,6 +26,9 @@ internal sealed class CompositionRoot : IAsyncDisposable
     public Task Running { get; private set; } = Task.CompletedTask;
 
     public CancellationToken Lifetime => lifetime.Token;
+
+    public static AvalaBuild Build { get; } =
+        AvalaBuild.From(typeof(CompositionRoot).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.ToOption() ?? Option<string>.None);
 
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths) =>
         Create(pluginDirectory, paths, new AvaloniaUiDispatcher());
@@ -65,6 +69,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
         var services = new ServiceCollection().AddLogging();
         _ = surroundings.Log.Match(log => services.AddSingleton(log), () => services);
         services
+            .AddSingleton(Build)
             .AddSingleton(surroundings.Clock)
             .AddRuntime(paths)
             .AddShell()

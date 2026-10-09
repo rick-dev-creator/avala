@@ -419,6 +419,13 @@ internal sealed class FakeOpener : IFileOpener
 
         return ValueTask.FromResult(Refusal.Match(Result<OpenedFile, FileOpenError>.Failure, () => Result<OpenedFile, FileOpenError>.Success(new OpenedFile(path, created))));
     }
+
+    public ValueTask<Result<OpenedFile, FileOpenError>> OpenFolderAsync(string path, CancellationToken cancellationToken)
+    {
+        Opened.Add(path);
+
+        return ValueTask.FromResult(Refusal.Match(Result<OpenedFile, FileOpenError>.Failure, () => Result<OpenedFile, FileOpenError>.Success(new OpenedFile(path, false))));
+    }
 }
 
 internal sealed class FakeWorkingFiles : IWorkingFiles

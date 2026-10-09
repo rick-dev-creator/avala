@@ -71,6 +71,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IMessenger>(new StrongReferenceMessenger())
             .AddSingleton<IFileOpener>(new FakeOpener())
             .AddSingleton<ILinkOpener>(new FakeLinks())
+            .AddSingleton(new AvalaBuild("1.0.0", Option<string>.None))
             .AddSingleton<Sdk.Appearance.IAppearance>(new FakeAppearance())
             .AddSingleton<IJobCatalog>(new FakeCatalog())
             .AddSingleton<IJobs>(new FakeJobs())
