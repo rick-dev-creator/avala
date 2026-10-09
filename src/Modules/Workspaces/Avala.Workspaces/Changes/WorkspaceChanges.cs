@@ -32,26 +32,32 @@ internal sealed class WorkspaceChanges(IWorkspaceStore store, IGitChanges git) :
             return failure;
         }
 
-        if (plan.Merged.Conflicts.Count > 0)
-        {
-            return WorkspaceFailure.MergeConflict;
-        }
+        return plan.Merged.Conflicts.Count > 0
+            ? WorkspaceFailure.MergeConflict
+            : await ApplyAsync(new Merge(workspace, found.Location.Repository, plan, message), cancellationToken);
+    }
 
-        var repository = found.Location.Repository;
+    private async Task<Result<MergedWork, WorkspaceFailure>> ApplyAsync(Merge merge, CancellationToken cancellationToken)
+    {
+        var plan = merge.Plan;
 
-        if (!(await git.TreeOfAsync(repository, plan.Tip, cancellationToken)).TryGetValue(out var tipTree, out failure)
-            || !(await git.CheckoutOfAsync(repository, plan.Target, cancellationToken)).TryGetValue(out var checkout, out failure))
+        if (!(await git.TreeOfAsync(merge.Repository, plan.Tip, cancellationToken)).TryGetValue(out var tipTree, out var failure)
+            || !(await git.CheckoutOfAsync(merge.Repository, plan.Target, cancellationToken)).TryGetValue(out var checkout, out failure))
         {
             return failure;
         }
 
-        if (tipTree == plan.Merged.Tree)
-        {
-            return new MergedWork(workspace, plan.Target.Value, Option<string>.None, Option<string>.None);
-        }
+        return tipTree == plan.Merged.Tree
+            ? new MergedWork(merge.Workspace, plan.Target.Value, Option<string>.None, Option<string>.None)
+            : await CommitAsync(merge, checkout, cancellationToken);
+    }
 
-        if (!(await CleanAsync(checkout, cancellationToken)).TryGetValue(out _, out failure)
-            || !(await git.CommitTreeAsync(repository, plan.Merged.Tree, plan.Tip, message, cancellationToken)).TryGetValue(out var commit, out failure))
+    private async Task<Result<MergedWork, WorkspaceFailure>> CommitAsync(Merge merge, Option<string> checkout, CancellationToken cancellationToken)
+    {
+        var (repository, plan) = (merge.Repository, merge.Plan);
+
+        if (!(await CleanAsync(checkout, cancellationToken)).TryGetValue(out _, out var failure)
+            || !(await git.CommitTreeAsync(repository, plan.Merged.Tree, plan.Tip, merge.Message, cancellationToken)).TryGetValue(out var commit, out failure))
         {
             return failure;
         }
@@ -68,7 +74,7 @@ internal sealed class WorkspaceChanges(IWorkspaceStore store, IGitChanges git) :
             return WorkspaceFailure.BaseCheckoutDirty;
         }
 
-        return new MergedWork(workspace, plan.Target.Value, commit.Value, checkout);
+        return new MergedWork(merge.Workspace, plan.Target.Value, commit.Value, checkout);
     }
 
     private Task<Result<MergePlan, WorkspaceFailure>> PlanAsync(Workspace workspace, CancellationToken cancellationToken) =>
@@ -108,4 +114,6 @@ internal sealed class WorkspaceChanges(IWorkspaceStore store, IGitChanges git) :
         (await store.FindAsync(id, cancellationToken)).ToResult(WorkspaceFailure.UnknownWorkspace);
 
     private sealed record MergePlan(BranchName Target, CommitSha Tip, MergedTree Merged);
+
+    private sealed record Merge(WorkspaceId Workspace, string Repository, MergePlan Plan, string Message);
 }

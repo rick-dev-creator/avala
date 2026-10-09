@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
@@ -12,7 +13,7 @@ namespace Avala.Workbench.Overview;
 
 internal sealed record DelegationState(IReadOnlyList<JobSummary> Orchestrators, Option<DelegationTree> Tree);
 
-internal interface IDelegationViewModel : IActivatable
+internal interface IDelegationViewModel : IActivatable, IPresentation
 {
     IReadOnlyList<IOrchestratorViewModel> Orchestrators { get; }
 
@@ -41,6 +42,14 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
     private readonly ObservableCollection<DelegationNodeViewModel> children = [];
     private readonly ObservableCollection<DelegationRefusalViewModel> refused = [];
     private IOrchestratorViewModel? chosen;
+
+    public event EventHandler<Presented>? Presented
+    {
+        add => feed.Presented += value;
+        remove => feed.Presented -= value;
+    }
+
+    public long Revision => feed.Revision;
 
     public IReadOnlyList<IOrchestratorViewModel> Orchestrators => orchestrators;
 

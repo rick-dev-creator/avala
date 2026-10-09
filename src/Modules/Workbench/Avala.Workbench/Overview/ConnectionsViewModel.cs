@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Avala.Agents.Contracts.Connections;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
@@ -8,7 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Overview;
 
-internal interface IConnectionsViewModel : IActivatable
+internal interface IConnectionsViewModel : IActivatable, IPresentation
 {
     IReadOnlyList<IConnectionCardViewModel> Connections { get; }
 
@@ -19,6 +20,14 @@ internal interface IConnectionsViewModel : IActivatable
 internal sealed partial class ConnectionsViewModel(FleetReader reader, LiveFeed feed) : IConnectionsViewModel, IDisposable
 {
     private readonly ObservableCollection<ConnectionCardViewModel> connections = [];
+
+    public event EventHandler<Presented>? Presented
+    {
+        add => feed.Presented += value;
+        remove => feed.Presented -= value;
+    }
+
+    public long Revision => feed.Revision;
 
     public IReadOnlyList<IConnectionCardViewModel> Connections => connections;
 

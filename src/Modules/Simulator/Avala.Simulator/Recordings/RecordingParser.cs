@@ -89,13 +89,38 @@ internal sealed class RecordingParser
                                 end => [end.GetProperty("crashed").GetBoolean() ? new Crash(StreamFailed) : new Hangup()],
                                 () => [])))));
 
+    private static LimitReported Limit(JsonElement recorded)
+    {
+        var limit = recorded.GetProperty("limit");
+
+        return new LimitReported(default, default, new UsageLimit(
+            Plain(limit.GetProperty("window")),
+            limit.GetProperty("usedFraction").GetDouble(),
+            Property(limit, "resetsAt").Map(resets => resets.GetDateTimeOffset())));
+    }
+
     private IAgentEvent Event(JsonElement recorded) => recorded.GetProperty("type").GetString() switch
     {
         "turnStarted" => new TurnStarted(default, default),
+        "resumeTokenIssued" => new ResumeTokenIssued(default, default, new ResumeToken(Text(recorded.GetProperty("token")))),
+        "planUpdated" => Plan(recorded),
+        "usageReported" => Usage(recorded),
+        "limitReported" => Limit(recorded),
+        "turnCompleted" => new TurnCompleted(default, default, Enum<TurnOutcome>(recorded.GetProperty("outcome"))),
+        var type => ItemEvent(recorded, type),
+    };
+
+    private IAgentEvent ItemEvent(JsonElement recorded, string? type) => type switch
+    {
         "itemStarted" => new ItemStarted(default, default, Item(recorded), Enum<ItemKind>(recorded.GetProperty("kind")), Text(recorded.GetProperty("title"))),
         "canvasStarted" => new CanvasStarted(default, default, Item(recorded), Text(recorded.GetProperty("title")), Plain(recorded.GetProperty("mediaType"))),
         "itemProgressed" => new ItemProgressed(default, default, Item(recorded), Text(recorded.GetProperty("text"))),
         "itemCompleted" => new ItemCompleted(default, default, Item(recorded), Enum<ItemOutcome>(recorded.GetProperty("outcome"))),
+        _ => ExchangeEvent(recorded, type),
+    };
+
+    private IAgentEvent ExchangeEvent(JsonElement recorded, string? type) => type switch
+    {
         "permissionRequested" => new PermissionRequested(
             default,
             default,
@@ -106,17 +131,12 @@ internal sealed class RecordingParser
         "permissionResolved" => new PermissionResolved(default, default, Item(recorded), Enum<PermissionAnswer>(recorded.GetProperty("answer"))),
         "formRequested" => new FormRequested(default, default, Item(recorded), Form(recorded.GetProperty("form"))),
         "formAnswered" => new FormAnswered(default, default, Item(recorded), Answer(recorded.GetProperty("answer"))),
-        "planUpdated" => new PlanUpdated(default, default, [.. recorded.GetProperty("steps").EnumerateArray().Select(step =>
-            new PlanStep(Text(step.GetProperty("title")), Enum<PlanStepStatus>(step.GetProperty("status"))))]),
-        "usageReported" => Usage(recorded),
-        "limitReported" => new LimitReported(default, default, new UsageLimit(
-            Plain(recorded.GetProperty("limit").GetProperty("window")),
-            recorded.GetProperty("limit").GetProperty("usedFraction").GetDouble(),
-            Property(recorded.GetProperty("limit"), "resetsAt").Map(resets => resets.GetDateTimeOffset()))),
-        "resumeTokenIssued" => new ResumeTokenIssued(default, default, new ResumeToken(Text(recorded.GetProperty("token")))),
-        "turnCompleted" => new TurnCompleted(default, default, Enum<TurnOutcome>(recorded.GetProperty("outcome"))),
         var unknown => throw new FormatException($"{unknown} is not an agent event."),
     };
+
+    private PlanUpdated Plan(JsonElement recorded) =>
+        new(default, default, [.. recorded.GetProperty("steps").EnumerateArray().Select(step =>
+            new PlanStep(Text(step.GetProperty("title")), Enum<PlanStepStatus>(step.GetProperty("status"))))]);
 
     private static UsageReported Usage(JsonElement recorded)
     {

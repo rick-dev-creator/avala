@@ -134,6 +134,7 @@ internal static class LayerMap
             ["FileSystem"] = Layer.Infrastructure,
             ["Recordings"] = Layer.Infrastructure,
             ["Workloads"] = Layer.Infrastructure,
+            ["WorkloadModes"] = Layer.None,
         }),
         .. Module("Avala.Recording", new()
         {

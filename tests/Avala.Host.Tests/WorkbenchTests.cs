@@ -1,4 +1,5 @@
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 
 namespace Avala.Host.Tests;
 
@@ -6,17 +7,15 @@ public sealed class WorkbenchTests(PublishedPlugins plugins)
 {
     private const string Autonomous = """{ "autonomy": "autonomous" }""";
 
-    private static readonly string[] Groups = ["NeedsYou", "Running", "ReadyForReview", "Done"];
-
-    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
-
     [Fact]
     public async Task AJobStreamsIntoItsConversationInOrderWithItsThinkingAndToolRowsAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "edit", (".avala/permissions.json", Autonomous));
-        var conversation = await OpenAsync(run);
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
 
-        await run.Ui.UntilAsync(() => conversation["Entries"].Items.Any(entry => entry.Kind == "TurnEndViewModel"));
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "TurnEndViewModel") is not null);
 
         var entries = await run.Ui.ReadAsync(() => conversation["Entries"].Items);
         Assert.Equal(
@@ -40,16 +39,18 @@ public sealed class WorkbenchTests(PublishedPlugins plugins)
     public async Task APermissionCardAnsweredFromTheConversationUnblocksTheJobAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "permission");
-        var conversation = await OpenAsync(run);
-        await run.Ui.UntilAsync(() => Card(conversation, "PermissionCardViewModel") is { } card && card["AwaitsYou"].Value<bool>());
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        Assert.Equal(DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "PermissionCardViewModel") is { } card && card["AwaitsYou"].Value<bool>());
 
-        await run.Ui.InvokeAsync(() => Card(conversation, "PermissionCardViewModel")!.Value.Execute("AllowCommand"), Cancellation);
+        await run.Ui.RunAsync(() => OpenWorkbench.Entry(conversation, "PermissionCardViewModel")!.Value.ExecuteAsync("AllowCommand"));
 
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        await run.Ui.UntilAsync(() => Messages(conversation).Contains("The database is up to date."));
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains("The database is up to date."));
         Assert.Equal(
             ("Allowed", false, "dotnet ef database update"),
-            await run.Ui.ReadAsync(() => Card(conversation, "PermissionCardViewModel")!.Value is var card
+            await run.Ui.ReadAsync(() => OpenWorkbench.Entry(conversation, "PermissionCardViewModel")!.Value is var card
                 ? (card["Verdict"].Text, card["AwaitsYou"].Value<bool>(), card["Target"].Text)
                 : default));
     }
@@ -58,63 +59,42 @@ public sealed class WorkbenchTests(PublishedPlugins plugins)
     public async Task AFormIsAnsweredWithItsRecommendedOptionFromTheConversationAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "question");
-        var conversation = await OpenAsync(run);
-        await run.Ui.UntilAsync(() => Card(conversation, "FormCardViewModel") is { } card && card["AwaitsYou"].Value<bool>());
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        Assert.Equal(DecisionDelivery.LeftToHuman, (await run.FormDecisionAsync()).Delivery);
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "FormCardViewModel") is { } card && card["AwaitsYou"].Value<bool>());
 
-        await run.Ui.InvokeAsync(() => Card(conversation, "FormCardViewModel")!.Value.Execute("SubmitCommand"), Cancellation);
+        await run.Ui.RunAsync(() => OpenWorkbench.Entry(conversation, "FormCardViewModel")!.Value.ExecuteAsync("SubmitCommand"));
 
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        await run.Ui.UntilAsync(() => Messages(conversation).Contains("Going with Database: PostgreSQL"));
-        Assert.Equal("Answered: PostgreSQL", await run.Ui.ReadAsync(() => Card(conversation, "FormCardViewModel")!.Value["Verdict"].Text));
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains("Going with Database: PostgreSQL"));
+        Assert.Equal("Answered: PostgreSQL", await run.Ui.ReadAsync(() => OpenWorkbench.Entry(conversation, "FormCardViewModel")!.Value["Verdict"].Text));
     }
 
     [Fact]
     public async Task TheSidebarMovesAJobBetweenGroupsAsItIsInterruptedAndContinuedAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "hang");
-        var conversation = await OpenAsync(run);
-        await run.Ui.UntilAsync(() => GroupOf(run) == ("Running", "working"));
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await run.ResumableAsync();
+        await workbench.ShowsInGroupAsync(run.Job, "Running", "working");
 
-        await run.Ui.InvokeAsync(() => conversation["Composer"].Execute("InterruptCommand"), Cancellation);
-        await run.Ui.UntilAsync(() => GroupOf(run) == ("NeedsYou", "interrupted"));
+        await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
+        Assert.Equal(HoldReason.Interrupted, (await run.HoldAsync()).Reason);
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        await workbench.ShowsInGroupAsync(run.Job, "NeedsYou", "interrupted");
 
-        await run.Ui.InvokeAsync(
-            () =>
-            {
-                conversation["Composer"].Set("Draft", "Carry on where you stopped.");
-                conversation["Composer"].Execute("SendCommand");
-            },
-            Cancellation);
-        await run.Ui.UntilAsync(() => GroupOf(run).Group == "ReadyForReview");
+        await run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", "Carry on where you stopped.");
 
-        Assert.Equal(
-            ["Instruction", "You"],
-            await run.Ui.ReadAsync(() => conversation["Entries"].Items.Where(entry => entry.Kind == "PromptViewModel").Select(prompt => prompt["Origin"].Text).ToList()));
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await workbench.ShowsInGroupAsync(run.Job, "ReadyForReview");
+
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin").Count == 2);
+        Assert.Equal(["Instruction", "You"], await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin")));
     }
-
-    private static async Task<Bound> OpenAsync(SimulatedRun run)
-    {
-        var workbench = run.Workbench();
-        await run.Ui.UntilAsync(() => Row(workbench, run.Job) is not null);
-        await run.Ui.InvokeAsync(() => workbench["Sidebar"].Execute("SelectCommand", Row(workbench, run.Job)!.Value.Target), Cancellation);
-
-        return await run.Ui.ReadAsync(() => workbench["Conversation"]);
-    }
-
-    private static (string Group, string Fact) GroupOf(SimulatedRun run)
-    {
-        var sidebar = run.Workbench()["Sidebar"];
-        var group = Groups.Single(name => sidebar[name].Items.Any(row => row["Job"].Value<JobId>() == run.Job));
-
-        return (group, Row(run.Workbench(), run.Job)!.Value["Fact"].Text);
-    }
-
-    private static Bound? Row(Bound workbench, JobId job) =>
-        Groups.SelectMany(group => workbench["Sidebar"][group].Items).Cast<Bound?>().FirstOrDefault(row => row!.Value["Job"].Value<JobId>() == job);
-
-    private static Bound? Card(Bound conversation, string kind) =>
-        conversation["Entries"].Items.Cast<Bound?>().FirstOrDefault(entry => entry!.Value.Kind == kind);
-
-    private static List<string> Messages(Bound conversation) =>
-        [.. conversation["Entries"].Items.Where(entry => entry.Kind == "MessageViewModel").Select(message => message["Text"].Text)];
 }
