@@ -67,7 +67,9 @@ Enforced by `tests/Avala.ArchitectureTests`:
 - `InternalsVisibleTo` targets only the project's own module and its test project. The shell and the runtime may also open to the host.
 - View models live in assemblies that do not reference Avalonia.
 - Every `XViewModel` has an `XView` and the other way around. Views are resolved view-model-first through the view registry.
-- Code-behind holds nothing but a constructor calling `InitializeComponent()`.
+- Code-behind holds only presentation concerns: it references no service, module contract or other view model, takes no constructor dependencies, and stays under 400 lines. A XAML view stays under 800 lines and a view model under 400.
+- Every view model has an interface its view binds to with compiled bindings (`x:DataType`), and a design-time implementation the view declares as its design-time `DataContext`, so every view renders in the designer.
+- Pages are composed of named regions filled with components registered by plugins.
 - No class takes more than four constructor dependencies. Records holding data are exempt.
 - Every class is `sealed`. Only framework types may be inherited: Avalonia types for views and the application, and EF Core's `DbContext` for each module's database.
 - No non-private member exposes a nullable type in its signature: properties, fields, parameters and return types, generic arguments such as `Task<T?>` included. Absence is an `Option<T>`. Exempt: members that implement framework interfaces or override framework members, such as Avalonia's `IDataTemplate`; properties of view models, since an empty selection is `null` in Avalonia; the `Optional` bridge; unconstrained generic type parameters; and generated code.

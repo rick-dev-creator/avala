@@ -335,7 +335,14 @@ Done when: the full job flow runs end to end through view models in tests.
 
 ## Phase 10: Views
 
-1. Avalonia views for every view model, semi-transparent with themes, Inter for the interface and JetBrains Mono for code.
+0. The view rules, enforced before any view is designed, applied to the placeholder views and view models of phase 9:
+   - regions: named regions on pages, filled with components plugins register through the registrar, in `Avala.Sdk.UI`;
+   - an interface for every view model and a design-time implementation with realistic data, declared as each view's design-time `DataContext`, so every view renders in the designer;
+   - compiled bindings with `x:DataType` on every view;
+   - code-behind limited to presentation concerns, replacing the rule that allowed only `InitializeComponent()`;
+   - size limits: 800 lines per XAML file, 400 per code-behind, 400 per view model;
+   - architecture tests for each rule, checked against the production views and the compliant and violating fixtures.
+1. Avalonia views for every view model, following the approved [design brief](../design/ui-brief.md), semi-transparent with themes, Inter for the interface and JetBrains Mono for code.
 2. The canvas surface for each media type, with renderer plugins registered by media type.
 
 Done when: the harness replaces a terminal for daily work.
