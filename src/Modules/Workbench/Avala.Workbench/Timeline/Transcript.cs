@@ -41,16 +41,10 @@ internal sealed record Transcript
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
         ItemCompleted completed => Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
-        PermissionRequested requested => Add(new PermissionEntry(EntryKeys.Permission(requested.Turn, requested.Item), requested.Session, requested.Turn, requested.Item, requested.Kind, requested.Title, requested.Target)),
-        PermissionResolved resolved => Change(EntryKeys.Permission(resolved.Turn, resolved.Item), entry => entry is PermissionEntry permission ? permission with { Resolution = resolved.Answer } : entry),
-        FormRequested requested => Add(new FormEntry(EntryKeys.Item(requested.Turn, requested.Item), requested.Session, requested.Turn, requested.Item, requested.Form)),
-        FormAnswered answered => Change(EntryKeys.Item(answered.Turn, answered.Item), entry => entry is FormEntry form ? form with { Answer = answered.Answer } : entry),
-        ToolCalled called => Add(new ToolEntry(EntryKeys.Item(called.Turn, called.Item), ItemKind.Other, called.Tool, string.Empty, Option<ItemOutcome>.None) { Input = called.Input }),
-        ToolReturned returned => Change(EntryKeys.Item(returned.Turn, returned.Item), entry => entry is ToolEntry tool ? tool with { Output = returned.Result.Content } : entry),
         PlanUpdated plan => Put(new PlanEntry(EntryKeys.Plan(plan.Turn), plan.Steps)),
         UsageReported usage => Tally(usage.Turn, tally => tally.Add(usage.Tokens, usage.Cost)),
         TurnCompleted completed => Ended(completed, now),
-        _ => this,
+        _ => Exchange(activity),
     };
 
     public Transcript Apply(CanvasSnapshot snapshot) =>
@@ -63,6 +57,17 @@ internal sealed record Transcript
 
     public Transcript Apply(FormDecision decision) =>
         Change(EntryKeys.Item(decision.Turn, decision.Item), entry => entry is FormEntry form ? form with { Decision = decision } : entry);
+
+    private Transcript Exchange(IAgentEvent activity) => activity switch
+    {
+        PermissionRequested requested => Add(new PermissionEntry(EntryKeys.Permission(requested.Turn, requested.Item), requested.Session, requested.Turn, requested.Item, requested.Kind, requested.Title, requested.Target)),
+        PermissionResolved resolved => Change(EntryKeys.Permission(resolved.Turn, resolved.Item), entry => entry is PermissionEntry permission ? permission with { Resolution = resolved.Answer } : entry),
+        FormRequested requested => Add(new FormEntry(EntryKeys.Item(requested.Turn, requested.Item), requested.Session, requested.Turn, requested.Item, requested.Form)),
+        FormAnswered answered => Change(EntryKeys.Item(answered.Turn, answered.Item), entry => entry is FormEntry form ? form with { Answer = answered.Answer } : entry),
+        ToolCalled called => Add(new ToolEntry(EntryKeys.Item(called.Turn, called.Item), ItemKind.Other, called.Tool, string.Empty, Option<ItemOutcome>.None) { Input = called.Input }),
+        ToolReturned returned => Change(EntryKeys.Item(returned.Turn, returned.Item), entry => entry is ToolEntry tool ? tool with { Output = returned.Result.Content } : entry),
+        _ => this,
+    };
 
     private static PromptEntry Prompt(string instruction, AttemptRecord attempt) =>
         new(

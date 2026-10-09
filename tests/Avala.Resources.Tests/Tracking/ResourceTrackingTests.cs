@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
@@ -97,6 +98,7 @@ public sealed class ResourceTrackingTests
     private static TreeProcess Process(int id, long memory) => new(id, "dotnet", memory, TimeSpan.FromSeconds(1));
 
     private static string Described(ResourceUsage usage) =>
-        System.FormattableString.Invariant(
+        string.Create(
+            CultureInfo.InvariantCulture,
             $"{usage.Processes} processes, {usage.MemoryBytes} bytes, {usage.CpuTime} cpu, load {usage.CpuLoad}, ports {string.Join(',', usage.Ports)}, disk {usage.DiskBytes}");
 }

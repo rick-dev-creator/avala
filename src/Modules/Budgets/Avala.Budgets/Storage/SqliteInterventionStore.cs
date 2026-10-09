@@ -26,16 +26,6 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
             },
             cancellationToken);
 
-    public Task<IReadOnlyList<BudgetCarve>> EarlierCarvesAsync(CancellationToken cancellationToken) =>
-        RunAsync<IReadOnlyList<BudgetCarve>>(
-            async database =>
-            [
-                .. (await database.Carves.AsNoTracking().OrderBy(row => row.Key).ToListAsync(cancellationToken))
-                    .Where(row => !carved.Contains(row.Key))
-                    .Select(row => row.Carve()),
-            ],
-            cancellationToken);
-
     public Task RecordAsync(BudgetIntervention intervention, CancellationToken cancellationToken) =>
         RunAsync(
             async database =>
@@ -57,6 +47,16 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
                 .. (await database.Interventions.AsNoTracking().OrderBy(row => row.Key).ToListAsync(cancellationToken))
                     .Where(row => !written.Contains(row.Key))
                     .Select(row => row.Intervention()),
+            ],
+            cancellationToken);
+
+    public Task<IReadOnlyList<BudgetCarve>> EarlierCarvesAsync(CancellationToken cancellationToken) =>
+        RunAsync<IReadOnlyList<BudgetCarve>>(
+            async database =>
+            [
+                .. (await database.Carves.AsNoTracking().OrderBy(row => row.Key).ToListAsync(cancellationToken))
+                    .Where(row => !carved.Contains(row.Key))
+                    .Select(row => row.Carve()),
             ],
             cancellationToken);
 

@@ -8,8 +8,6 @@ namespace Avala.Resources.Tests.Leases;
 
 public sealed class PortBookTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 10, 9, 8, 0, 0, TimeSpan.Zero);
-
     [Fact]
     public void EachWorktreeLeasesItsOwnFreeBlockAndKeepsItUntilTheRangeRunsOut()
     {

@@ -8,7 +8,7 @@ namespace Avala.Agents.Tests.Conformance;
 
 internal static class AgentConformance
 {
-    private static readonly SessionOptions Options = new(".", PermissionMode.AllowAll);
+    private static readonly SessionOptions Unrestricted = new(".", PermissionMode.AllowAll);
 
     public static HarnessTool CanvasTool { get; } = new(
         "canvas",
@@ -25,7 +25,7 @@ internal static class AgentConformance
     public static ToolResult KitResult(ItemId item) => new(item, "Answered by the conformance kit.");
 
     public static Task<IReadOnlyList<string>> CheckTurnAsync(IAgentProvider provider, CancellationToken deadline) =>
-        CheckTurnAsync(provider, Options, new UserTurn("conformance"), deadline);
+        CheckTurnAsync(provider, Unrestricted, new UserTurn("conformance"), deadline);
 
     public static async Task<IReadOnlyList<string>> CheckTurnAsync(
         IAgentProvider provider,
@@ -323,22 +323,7 @@ internal static class AgentConformance
                 violations.AddRange(Unasked(agentEvent, kinds, asked));
             }
 
-            if (agentEvent is PermissionRequested requested)
-            {
-                asked.Add(requested.Item);
-                violations.AddRange(Describes(requested, kinds));
-                violations.AddRange(await RespondAsync(session, replies.Permission(requested), deadline));
-            }
-
-            if (agentEvent is FormRequested form)
-            {
-                violations.AddRange(await replies.Form(session, form, deadline));
-            }
-
-            if (agentEvent is ToolCalled called)
-            {
-                violations.AddRange(await replies.Tool(session, called, deadline));
-            }
+            violations.AddRange(await ReplyAsync(session, agentEvent, replies, kinds, asked, deadline));
 
             if (agentEvent is TurnCompleted completed)
             {
@@ -347,6 +332,29 @@ internal static class AgentConformance
         }
 
         return new Run([.. violations, "the event stream ended before TurnCompleted"], events);
+    }
+
+    private static async Task<IEnumerable<string>> ReplyAsync(
+        IAgentSession session,
+        IAgentEvent agentEvent,
+        Replies replies,
+        Dictionary<ItemId, ItemKind> kinds,
+        HashSet<ItemId> asked,
+        CancellationToken deadline)
+    {
+        switch (agentEvent)
+        {
+            case PermissionRequested requested:
+                asked.Add(requested.Item);
+
+                return [.. Describes(requested, kinds), .. await RespondAsync(session, replies.Permission(requested), deadline)];
+            case FormRequested form:
+                return await replies.Form(session, form, deadline);
+            case ToolCalled called:
+                return await replies.Tool(session, called, deadline);
+            default:
+                return [];
+        }
     }
 
     private static IEnumerable<string> Unasked(IAgentEvent agentEvent, Dictionary<ItemId, ItemKind> kinds, HashSet<ItemId> asked)
