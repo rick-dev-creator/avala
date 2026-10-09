@@ -58,6 +58,9 @@ internal sealed class Workspace : IAggregateRoot<WorkspaceId>
                 return new CheckpointRecorded(Id, checkpoint);
             });
 
+    public Option<Checkpoint> Latest(string label) =>
+        State == WorkspaceState.Ready && checkpoints is [.., var latest] && latest.Label == label ? latest : Option<Checkpoint>.None;
+
     public Result<WorkspaceFailed, WorkspaceError> Fail() =>
         machine.TryFire(WorkspaceTrigger.Fail, WorkspaceError.CannotFail)
             .Map(_ => new WorkspaceFailed(Id));

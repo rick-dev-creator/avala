@@ -80,6 +80,16 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
             .BindAsync(_ => RunAsync(["-C", location.Path, "rev-parse", "HEAD"], WorkspaceFailure.GitFailed, location.Path, cancellationToken))
             .BindAsync(output => CommitSha.Create(output).MapError(_ => WorkspaceFailure.GitFailed));
 
+    public Task<Result<bool, WorkspaceFailure>> UnchangedSinceAsync(
+        WorkspaceLocation location,
+        CommitSha commit,
+        CancellationToken cancellationToken) =>
+        RunAsync(["-C", location.Path, "rev-parse", "HEAD"], WorkspaceFailure.GitFailed, location.Path, cancellationToken)
+            .BindAsync(async head => head.Trim() == commit.Value
+                ? await RunAsync(["-C", location.Path, "status", "--porcelain"], WorkspaceFailure.GitFailed, location.Path, cancellationToken)
+                    .MapAsync(status => status.Trim().Length == 0)
+                : Result<bool, WorkspaceFailure>.Success(false));
+
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(
         WorkspaceLocation location,
         BranchName branch,

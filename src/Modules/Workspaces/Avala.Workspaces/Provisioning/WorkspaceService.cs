@@ -36,14 +36,8 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
         string label,
         CancellationToken cancellationToken) =>
         await LoadAsync(workspace, cancellationToken)
-            .BindAsync(found => git.CommitAllAsync(found.Location, label, cancellationToken)
-                .BindAsync(commit => Valid(found.RecordCheckpoint(commit, label)))
-                .BindAsync(recorded => SaveAsync(found, recorded, cancellationToken)))
-            .MapAsync(recorded => new CheckpointInfo(
-                workspace,
-                recorded.Checkpoint.Number,
-                recorded.Checkpoint.Commit.Value,
-                recorded.Checkpoint.Label));
+            .BindAsync(found => CheckpointAsync(found, label, cancellationToken))
+            .MapAsync(checkpoint => new CheckpointInfo(workspace, checkpoint.Number, checkpoint.Commit.Value, checkpoint.Label));
 
     public async ValueTask<Result<WorkspaceId, WorkspaceFailure>> RemoveAsync(
         WorkspaceId workspace,
@@ -57,6 +51,23 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
 
                 return Result<WorkspaceId, WorkspaceFailure>.Success(removed.Workspace);
             });
+
+    private async Task<Result<Checkpoint, WorkspaceFailure>> CheckpointAsync(Workspace workspace, string label, CancellationToken cancellationToken)
+    {
+        var latest = workspace.Latest(label);
+
+        if (await latest.Match(taken => UnchangedSinceAsync(workspace, taken, cancellationToken), () => Task.FromResult(false)))
+        {
+            return latest.ToResult(WorkspaceFailure.InvalidState);
+        }
+
+        return await git.CommitAllAsync(workspace.Location, label, cancellationToken)
+            .BindAsync(commit => Valid(workspace.RecordCheckpoint(commit, label)))
+            .BindAsync(recorded => SaveAsync(workspace, recorded.Checkpoint, cancellationToken));
+    }
+
+    private async Task<bool> UnchangedSinceAsync(Workspace workspace, Checkpoint taken, CancellationToken cancellationToken) =>
+        (await git.UnchangedSinceAsync(workspace.Location, taken.Commit, cancellationToken)).Match(unchanged => unchanged, _ => false);
 
     private Result<Workspace, WorkspaceFailure> Plan(string repository, CommitSha commit, Option<BranchName> baseBranch, Option<CommitSha> rules)
     {

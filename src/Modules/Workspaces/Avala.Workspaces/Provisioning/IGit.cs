@@ -18,6 +18,8 @@ internal interface IGit
 
     Task<Result<CommitSha, WorkspaceFailure>> CommitAllAsync(WorkspaceLocation location, string label, CancellationToken cancellationToken);
 
+    Task<Result<bool, WorkspaceFailure>> UnchangedSinceAsync(WorkspaceLocation location, CommitSha commit, CancellationToken cancellationToken);
+
     Task<Result<string, WorkspaceFailure>> PruneWorktreesAsync(string repository, CancellationToken cancellationToken);
 
     Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken);
