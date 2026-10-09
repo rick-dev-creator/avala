@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.SettingsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:SettingsViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="16">
+      <TextBlock Text="Repository" FontWeight="SemiBold" />
+      <ContentControl Content="{Binding Repository}" />
+      <TextBlock Text="This machine" FontWeight="SemiBold" />
+      <ContentControl Content="{Binding Machine}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
