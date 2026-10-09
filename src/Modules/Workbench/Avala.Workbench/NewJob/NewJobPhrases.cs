@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Usage;
@@ -11,6 +12,23 @@ internal static class NewJobPhrases
     public const string Auto = "Auto";
 
     public const string Unavailable = "No connection is available: add one in connections.json from Settings.";
+
+    public const string Supervised = "Supervised";
+
+    public static string RepositoryLevel(Option<RepositoryPolicy> policy) =>
+        policy.Match(found => $"Repository's level: {found.Autonomy.ToString().ToLowerInvariant()}", () => "Repository's level");
+
+    public static string AutonomyNote(Option<RepositoryPolicy> policy, bool supervised) =>
+        policy.Match(
+            found => found switch
+            {
+                { File: PolicyFileStatus.Rejected } => $"Supervised: the repository's .avala/permissions.json is rejected ({found.Error.Match(error => error.ToString(), () => "invalid")}), so the built-in rules apply and whatever they leave open asks you.",
+                { Autonomy: Autonomy.Autonomous } when supervised => "Supervised for this job only: whatever the rules leave open asks you first.",
+                { Autonomy: Autonomy.Autonomous } => "Autonomous, as the repository's .avala/permissions.json declares: edits and commands inside the worktree run without asking, anything else is denied, forms are answered by policy.",
+                { File: PolicyFileStatus.Absent } => "Supervised: the repository declares no autonomy, so whatever the rules leave open asks you first.",
+                _ => "Supervised, as the repository declares: whatever the rules leave open asks you first. A job can tighten its autonomy, never loosen it.",
+            },
+            () => "The repository's .avala/permissions.json decides; choose a repository to see its level.");
 
     public static string Following(ConnectionCatalog catalog) =>
         catalog.Error.IsNone && catalog.DefaultMode == DefaultMode.Fixed
@@ -77,8 +95,10 @@ internal static class NewJobPhrases
     {
         var reading = choice.Compared.FirstOrDefault(candidate => candidate.Connection == choice.Connection) is { } chosen ? Reading(chosen) : "no usage reported yet";
 
-        return choice.Reason == ChoiceReason.AllAtLimit
-            ? ($"Auto → {choice.Connection.Value} · all at their limit, least used: {reading} · the budget will hold the job", true)
+        return choice.Compared.All(candidate => candidate.Window.IsNone)
+            ? ($"Auto → {choice.Connection.Value} · no connection has reported usage yet, so there is no capacity to compare: the first usable connection", false)
+            : choice.Reason == ChoiceReason.AllAtLimit
+            ?($"Auto → {choice.Connection.Value} · all at their limit, least used: {reading} · the budget will hold the job", true)
             : ($"Auto → {choice.Connection.Value} · {reading} · the most capacity left", false);
     }
 
