@@ -1,4 +1,9 @@
-<h1><img src="docs/assets/brand/avala-icon.svg" alt="" width="44" align="center">&nbsp;Avala</h1>
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/avala-lockup-dark.png">
+    <img src="docs/assets/brand/avala-lockup-light.png" alt="Avala" width="200">
+  </picture>
+</h1>
 
 **Agents you can trust without watching.**
 
