@@ -6,6 +6,15 @@ internal sealed class Pacing(TimeProvider clock, TimeSpan delay)
 
     public Task WaitAsync(CancellationToken cancellationToken) => DelayAsync(delay, cancellationToken);
 
-    public Task DelayAsync(TimeSpan gap, CancellationToken cancellationToken) =>
-        gap > TimeSpan.Zero ? Task.Delay(gap, clock, cancellationToken) : Task.CompletedTask;
+    public async Task DelayAsync(TimeSpan gap, CancellationToken cancellationToken)
+    {
+        if (gap <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        var elapsed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var timer = clock.CreateTimer(_ => elapsed.TrySetResult(), null, gap, Timeout.InfiniteTimeSpan);
+        await elapsed.Task.WaitAsync(cancellationToken);
+    }
 }

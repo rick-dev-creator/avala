@@ -37,3 +37,6 @@ dotnet_diagnostic.RS0030.severity = none
 
 [src/Avala.Sdk/Domain/GuardedTransitions.cs]
 dotnet_diagnostic.RS0030.severity = none
+
+[tests/Avala.Testing/TemporaryFolder.cs]
+dotnet_diagnostic.RS0030.severity = none

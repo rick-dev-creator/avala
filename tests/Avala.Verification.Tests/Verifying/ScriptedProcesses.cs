@@ -39,7 +39,7 @@ internal sealed class ScriptedProcesses(FakeTimeProvider clock) : IProcessRunner
 
         if (script.Hangs)
         {
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            await cancellationToken.UntilCancelledAsync();
         }
 
         return script.Outcome;

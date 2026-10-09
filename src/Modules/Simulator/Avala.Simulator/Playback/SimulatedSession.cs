@@ -122,7 +122,7 @@ internal sealed class SimulatedSession : IAgentSession
             }
             else if (!ended)
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, interruption);
+                await interruption.UntilCancelledAsync();
             }
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
