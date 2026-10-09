@@ -68,6 +68,9 @@ internal static class Divergence
     public static string Answer(FormAnswer recorded, FormAnswer given) =>
         $"the recording answered the form {recorded.Item.Value} with {Describe(recorded)}, but the harness answered {Describe(given)}";
 
+    public static string Return(ToolResult recorded, ToolResult given) =>
+        $"the recording returned {recorded.Item.Value} {(recorded.IsError ? "as an error" : "as a success")}, but the harness returned it {(given.IsError ? "as an error" : "as a success")}";
+
     public static string NeverAsked(ItemId item) => $"the recording answers {item.Value}, which this replay never asked";
 
     public static string NeverAnswered(ItemId item) => $"the harness answered {item.Value}, which the recording never answered";

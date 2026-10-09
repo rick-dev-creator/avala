@@ -1,0 +1,621 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T19:18:06.4541617+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
+  },
+  "account": {
+    "id": "claude:[redacted]",
+    "label": "[redacted]"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Call the EnterPlanMode tool. Then call ExitPlanMode with the one-line plan 'Write GREETING.md containing # Hello'. Once it is approved, write that file with the Write tool. Be brief."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "537fcae6-771a-4d8e-8663-b4ec40239b47/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_011CfsCg2JK3hiuzJn4jffta:0",
+        "kind": "reasoning",
+        "title": "Thinking"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_011CfsCg2JK3hiuzJn4jffta:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01XSYRvHSxWvWs2nke65yu7Q",
+        "kind": "other",
+        "title": "Load EnterPlanMode,ExitPlanMode",
+        "input": "select:EnterPlanMode,ExitPlanMode"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01XSYRvHSxWvWs2nke65yu7Q",
+        "text": "EnterPlanMode\nExitPlanMode"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01XSYRvHSxWvWs2nke65yu7Q",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.92,
+          "resetsAt": "2026-10-09T19:20:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.53,
+          "resetsAt": "2026-10-14T07:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_011CfsCg817xQWYnwyxFZtPZ:0",
+        "kind": "reasoning",
+        "title": "Thinking"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_011CfsCg817xQWYnwyxFZtPZ:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_014ESUvp1ugZfzgpu6UrVp5L",
+        "kind": "other",
+        "title": "EnterPlanMode"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_014ESUvp1ugZfzgpu6UrVp5L",
+        "text": "Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach.\n\nIn plan mode, you should:\n1. Thoroughly explore the codebase to understand existing patterns\n2. Identify similar features and architectural approaches\n3. Consider multiple approaches and their trade-offs\n4. Use AskUserQuestion if you need to clarify the approach\n5. Design a concrete implementation strategy\n6. When ready, use ExitPlanMode to present your plan for approval\n\nRemember: DO NOT write or edit any files yet. This is a read-only exploration and planning phase."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_014ESUvp1ugZfzgpu6UrVp5L",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_011CfsCgFKQasuYQLaYSRqgm:0",
+        "kind": "reasoning",
+        "title": "Thinking"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_011CfsCgFKQasuYQLaYSRqgm:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01ALrA3rpeY9xQ3RQdxY6tfo",
+        "kind": "fileEdit",
+        "title": "Write ../../../..[redacted]/.claude-work/plans/gleaming-twirling-lemon.md",
+        "input": "Write GREETING.md containing # Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01ALrA3rpeY9xQ3RQdxY6tfo",
+        "title": "Write ../../../..[redacted]/.claude-work/plans/gleaming-twirling-lemon.md",
+        "kind": "fileEdit",
+        "target": "[redacted]/.claude-work/plans/gleaming-twirling-lemon.md"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01ALrA3rpeY9xQ3RQdxY6tfo",
+        "answer": "deny"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01ALrA3rpeY9xQ3RQdxY6tfo",
+        "answer": "deny"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01ALrA3rpeY9xQ3RQdxY6tfo",
+        "outcome": "cancelled"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "formRequested",
+        "turn": 1,
+        "item": "toolu_01QCp3EMqHZSEFR7C4NxYeKm",
+        "form": {
+          "purpose": "planApproval",
+          "title": "Approve the plan",
+          "context": "",
+          "fields": [
+            {
+              "id": "approve",
+              "header": "Plan",
+              "prompt": "Proceed with this plan?",
+              "kind": "confirmation",
+              "options": [],
+              "acceptsFreeText": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "at": 0,
+      "answer": {
+        "item": "toolu_01QCp3EMqHZSEFR7C4NxYeKm",
+        "fields": [
+          {
+            "field": "approve",
+            "chosen": [],
+            "confirmed": true
+          }
+        ],
+        "declined": false
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "formAnswered",
+        "turn": 1,
+        "item": "toolu_01QCp3EMqHZSEFR7C4NxYeKm",
+        "answer": {
+          "item": "toolu_01QCp3EMqHZSEFR7C4NxYeKm",
+          "fields": [
+            {
+              "field": "approve",
+              "chosen": [],
+              "confirmed": true
+            }
+          ],
+          "declined": false
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01QCp3EMqHZSEFR7C4NxYeKm",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01NbRvjNDnwUjnZzbiuV8xSv",
+        "kind": "fileEdit",
+        "title": "Write GREETING.md",
+        "input": "# Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01NbRvjNDnwUjnZzbiuV8xSv",
+        "title": "Write GREETING.md",
+        "kind": "fileEdit",
+        "target": "${workingDirectory}/GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01NbRvjNDnwUjnZzbiuV8xSv",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01NbRvjNDnwUjnZzbiuV8xSv",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01NbRvjNDnwUjnZzbiuV8xSv",
+        "text": "File created successfully at: ${workingDirectory}/GREETING.md (file state is current in your context — no need to Read it back)"
+      }
+    },
+    {
+      "at": 0,
+      "file": {
+        "item": "toolu_01NbRvjNDnwUjnZzbiuV8xSv",
+        "path": "GREETING.md",
+        "content": "# Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01NbRvjNDnwUjnZzbiuV8xSv",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": "Created `GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": "` in"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " the worktree with `#"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " Hello`.\n\nPlan"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " mode was entered and exited"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " as"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " requ"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": "ested."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " My"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " first att"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": "empt to"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " write the plan file was"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " denied by"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " the harness, but"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " the pl"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": "an it"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": "self was approved and"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": " the `GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "text": "` write succeeded."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_011CfsCgYmdNuQ7x6fQADzH8:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 12,
+          "output": 717,
+          "cacheRead": 132185,
+          "cacheWrite": 33911,
+          "reasoning": 249
+        },
+        "cost": {
+          "amount": 0.08204657,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "537fcae6-771a-4d8e-8663-b4ec40239b47/0.08204657"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

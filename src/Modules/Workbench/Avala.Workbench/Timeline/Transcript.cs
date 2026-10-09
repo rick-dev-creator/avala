@@ -85,7 +85,7 @@ internal sealed record Transcript
         {
             ItemKind.Message => new MessageEntry(key, string.Empty, Option<ItemOutcome>.None),
             ItemKind.Reasoning => new ReasoningEntry(key, string.Empty, now, Option<TimeSpan>.None, Option<ItemOutcome>.None),
-            _ => new ToolEntry(key, started.Kind, started.Title, string.Empty, Option<ItemOutcome>.None),
+            _ => new ToolEntry(key, started.Kind, started.Title, string.Empty, Option<ItemOutcome>.None) { Input = started.Input },
         };
     }
 

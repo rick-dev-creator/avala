@@ -16,8 +16,8 @@ internal static class Questions
 
     public static bool Asks(string tool) => tool is AskTool or PlanTool;
 
-    public static AgentForm Form(string tool, JsonObject input) =>
-        tool == PlanTool ? PlanForm(input) : QuestionForm(input);
+    public static AgentForm Form(string tool, JsonObject input, string plan) =>
+        tool == PlanTool ? PlanForm(input, plan) : QuestionForm(input);
 
     public static JsonObject Answered(string tool, JsonObject input, FormAnswer answer)
     {
@@ -66,11 +66,11 @@ internal static class Questions
             [.. fields.Select(field => field.Options.Count == 0 ? field with { Kind = FieldKind.FreeText, AcceptsFreeText = false } : field)]);
     }
 
-    private static AgentForm PlanForm(JsonObject input) =>
+    private static AgentForm PlanForm(JsonObject input, string plan) =>
         new(
             FormPurpose.PlanApproval,
             "Approve the plan",
-            input.TextOr("plan", string.Empty),
+            input.TextOr("plan", plan),
             [new FormField(ApprovalField, "Plan", "Proceed with this plan?", FieldKind.Confirmation, [], AcceptsFreeText: true)]);
 
     private static List<FormOption> Options(JsonNode question)
