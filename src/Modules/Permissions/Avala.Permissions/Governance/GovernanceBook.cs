@@ -43,6 +43,18 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
         await store.RecordAsync(decision, cancellationToken);
     }
 
+    public async Task WithdrawnAsync(PolicyDecision decision, CancellationToken cancellationToken)
+    {
+        Keep(Of(decision.Session).Withdrawn(decision));
+        await store.RecordAsync(decision, cancellationToken);
+    }
+
+    public async Task WithdrawnAsync(FormDecision decision, CancellationToken cancellationToken)
+    {
+        Keep(Of(decision.Session).Withdrawn(decision));
+        await store.RecordAsync(decision, cancellationToken);
+    }
+
     public async Task RecordAsync(HumanAnswer answer, CancellationToken cancellationToken)
     {
         ImmutableInterlocked.Update(ref answers, recorded => recorded.Add(answer));
@@ -97,8 +109,8 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
     private static GovernedSession Restored(GovernanceHistory history, SessionId session)
     {
         var autonomy = history.Autonomies.LastOrDefault(found => found.Session == session).ToOption();
-        var decisions = history.Decisions.Where(decision => decision.Session == session).ToList();
-        var forms = history.Forms.Where(form => form.Session == session).ToList();
+        var decisions = Latest(history.Decisions.Where(decision => decision.Session == session), decision => decision.Item);
+        var forms = Latest(history.Forms.Where(form => form.Session == session), form => form.Item);
 
         return new GovernedSession(session) with
         {
@@ -111,6 +123,9 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
             Forms = forms,
         };
     }
+
+    private static List<T> Latest<T>(IEnumerable<T> recorded, Func<T, ItemId> item) =>
+        [.. recorded.GroupBy(item).Select(kept => kept.Last())];
 
     private IEnumerable<GovernedSession> OfEverySession(JobId job) =>
         Volatile.Read(ref sessions).Values.Where(session => session.Job == Option<JobId>.Some(job));
