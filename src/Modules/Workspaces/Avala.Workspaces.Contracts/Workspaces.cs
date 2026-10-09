@@ -1,8 +1,13 @@
+using Avala.Sdk;
+
 namespace Avala.Workspaces.Contracts;
 
 public sealed record WorkspaceRequest(string RepositoryPath, string BaseRef = "HEAD");
 
-public sealed record WorkspaceInfo(WorkspaceId Id, string Path, string Branch, string BaseCommit);
+public sealed record WorkspaceInfo(WorkspaceId Id, string Path, string Branch, string BaseCommit)
+{
+    public Option<string> BaseBranch { get; init; }
+}
 
 public sealed record CheckpointInfo(WorkspaceId Workspace, int Number, string Commit, string Label);
 
@@ -13,4 +18,9 @@ public enum WorkspaceFailure
     GitFailed,
     UnknownWorkspace,
     InvalidState,
+    FileUnchanged,
+    NoBaseBranch,
+    MergeConflict,
+    BaseCheckoutDirty,
+    BaseMoved,
 }

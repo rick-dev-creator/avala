@@ -123,6 +123,7 @@ internal static class LayerMap
             ["Workspaces"] = Layer.Domain,
             ["Provisioning"] = Layer.Application,
             ["BaseFiles"] = Layer.Application,
+            ["Changes"] = Layer.Application,
             ["Git"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
         }),
