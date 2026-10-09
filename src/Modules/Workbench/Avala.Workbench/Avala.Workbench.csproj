@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" />
     <ProjectReference Include="..\..\Budgets\Avala.Budgets.Contracts\Avala.Budgets.Contracts.csproj" />
     <ProjectReference Include="..\..\Resources\Avala.Resources.Contracts\Avala.Resources.Contracts.csproj" />
+    <ProjectReference Include="..\..\Supervision\Avala.Supervision.Contracts\Avala.Supervision.Contracts.csproj" />
     <ProjectReference Include="..\..\Delegation\Avala.Delegation.Contracts\Avala.Delegation.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>

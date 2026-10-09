@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Avala.Sdk;
 using Avala.Supervision.Contracts;
@@ -47,8 +48,14 @@ internal static class SettingsParser
             return SupervisionError.Malformed;
         }
 
-        return value > 0 && value <= JobWatch.LongestSilence.TotalSeconds
-            ? TimeSpan.FromSeconds(value)
-            : SupervisionError.InvalidSilence;
+        return Window(value);
     }
+
+    public static Result<TimeSpan, SupervisionError> Window(double seconds) =>
+        seconds > 0 && seconds <= JobWatch.LongestSilence.TotalSeconds
+            ? TimeSpan.FromSeconds(seconds)
+            : SupervisionError.InvalidSilence;
+
+    public static string Text(TimeSpan silence) =>
+        string.Create(CultureInfo.InvariantCulture, $$"""{ "{{Silence}}": {{silence.TotalSeconds:R}} }""");
 }

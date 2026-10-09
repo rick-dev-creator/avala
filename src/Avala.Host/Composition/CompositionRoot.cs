@@ -25,13 +25,17 @@ internal sealed class CompositionRoot : IAsyncDisposable
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths) =>
         Create(pluginDirectory, paths, new AvaloniaUiDispatcher());
 
-    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher)
+    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher) =>
+        Create(pluginDirectory, paths, dispatcher, new AvaloniaFileOpener());
+
+    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher, IFileOpener opener)
     {
         var services = new ServiceCollection()
             .AddLogging()
             .AddRuntime(paths)
             .AddShell()
-            .AddSingleton(dispatcher);
+            .AddSingleton(dispatcher)
+            .AddSingleton(opener);
         var views = new ViewRegistry();
         var registrar = new PluginRegistrar(services);
 

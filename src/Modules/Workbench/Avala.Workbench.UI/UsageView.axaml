@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:usage="using:Avala.Workbench.Usage"
+             x:Class="Avala.Workbench.UI.UsageView"
+             x:ClassModifier="internal"
+             x:DataType="usage:UsageViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="8">
+      <TextBlock Text="Connections" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Connections}" />
+      <TextBlock Text="Over time" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Windows}" />
+      <TextBlock Text="Jobs" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Jobs}" />
+      <TextBlock Text="Interventions" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Interventions}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

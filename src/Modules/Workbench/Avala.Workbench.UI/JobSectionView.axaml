@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.JobSectionView"
+             x:ClassModifier="internal"
+             x:DataType="settings:JobSectionViewModel">
+  <StackPanel Spacing="2">
+    <TextBlock Text="{Binding Name}" Opacity="0.6" />
+    <TextBlock Text="{Binding Value}" FontFamily="monospace" TextWrapping="Wrap" />
+  </StackPanel>
+</UserControl>

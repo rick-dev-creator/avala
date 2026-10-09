@@ -35,7 +35,7 @@ internal sealed class Bench : IDisposable
 
     public FakeWorkspaces Workspaces { get; } = new();
 
-    public FakeResources Resources { get; } = new();
+    public FakeRecordSources Resources { get; } = new();
 
     public FakePermissionAnswers Permissions { get; } = new();
 

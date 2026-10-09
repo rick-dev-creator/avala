@@ -107,5 +107,8 @@ internal sealed class Supervised : IAsyncDisposable
     {
         public ValueTask<SupervisionSettings> LoadAsync(CancellationToken cancellationToken) =>
             ValueTask.FromResult(new SupervisionSettings(Window, SettingsFileStatus.Applied, Option<SupervisionError>.None));
+
+        public ValueTask<Result<SupervisionSettings, SupervisionError>> ChangeSilenceAsync(TimeSpan silence, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }
