@@ -34,7 +34,8 @@ internal sealed class JobFlow
         Jobs = new JobsEntry(Submit, Hold, new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies), Bus), Queues);
         Prepare = new PrepareJob(Queues, launcher, Admissions);
         Check = new CheckTurn(ledger, Queues, new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents), Hold);
-        Recovery = new JobRecovery(ledger, Queues, launcher);
+        Recovery = new JobRecovery(new JobLedger(Store, Bus, agents), Queues, launcher);
+        RecoveryInThisRun = new JobRecovery(ledger, Queues, launcher);
         Catalog = new JobCatalog(Store);
     }
 
@@ -71,6 +72,8 @@ internal sealed class JobFlow
     public CheckTurn Check { get; }
 
     public JobRecovery Recovery { get; }
+
+    public JobRecovery RecoveryInThisRun { get; }
 
     public static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 

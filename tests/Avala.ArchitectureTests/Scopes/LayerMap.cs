@@ -70,6 +70,7 @@ internal static class LayerMap
             ["Watching"] = Layer.Domain,
             ["Supervising"] = Layer.Application,
             ["Settings"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Budgets", new()
         {
@@ -79,6 +80,7 @@ internal static class LayerMap
             ["Enforcement"] = Layer.Application,
             ["Admission"] = Layer.Application,
             ["BudgetFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Resources", new()
         {
