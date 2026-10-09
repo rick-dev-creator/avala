@@ -92,6 +92,59 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
         Assert.Equal(before, await ChoiceAsync(run, job));
     }
 
+    [Fact]
+    public async Task AnOrchestratorsChildrenOutcomesHarnessAndRootCapShowTheSameAfterARestartAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [],
+            [
+                (".avala/checks.json", """{ "checks": [ { "name": "git", "command": "git", "arguments": ["--version"], "timeoutSeconds": 60 } ] }"""),
+                (".avala/permissions.json", """{ "autonomy": "autonomous" }"""),
+                (".avala/budget.json", """{ "costPerJob": { "USD": 1.00 }, "carvePerChild": 0.5 }"""),
+                (".avala/jobs.json", """{ "delegation": { "maxChildren": 2 } }"""),
+            ]);
+        var orchestrator = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate] Ship the release")));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(orchestrator));
+        var before = await DelegationAsync(run, orchestrator);
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        Assert.Contains(before, line => line.StartsWith("root: ", StringComparison.Ordinal) && line.Contains("Simulated Claude Code · simulator · Budget 1 USD", StringComparison.Ordinal));
+        Assert.Equal(2, before.Count(line => line.StartsWith("child: ", StringComparison.Ordinal) && line.Contains("integrated into its parent · Simulated Claude Code", StringComparison.Ordinal)));
+        Assert.Equal(2, before.Count(line => line.StartsWith("inspected: ", StringComparison.Ordinal) && line.EndsWith("Approved · simulator · Integrated", StringComparison.Ordinal)));
+        Assert.Equal(before, await DelegationAsync(run, orchestrator));
+    }
+
+    private static async Task<IReadOnlyList<string>> DelegationAsync(SimulatedRun run, JobId orchestrator)
+    {
+        var delegation = (await ActivatedAsync(run, "Overview"))["Delegation"];
+        await run.Ui.PresentedAsync(
+            delegation.Presentation,
+            () => delegation["Children"].Items.Count == 2 && delegation.Has("Root"),
+            () => string.Join(", ", delegation["Children"].Items.Select(child => child["Activity"].Text)));
+        var workbench = await run.WorkbenchAsync();
+        await workbench.ShowsInGroupAsync(orchestrator, "ReadyForReview");
+        var section = Assert.Single(await workbench.InspectAsync(orchestrator, "DelegationSectionViewModel"));
+
+        return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
+        {
+            var root = delegation["Root"];
+
+            return
+            [
+                $"root: {root["Title"].Text} ·{root["Harness"].Text} · {root["Connection"].Text} · {root["Budget"].Text} · {root["Spent"].Text} · {root["ShareNote"].Text}",
+                .. delegation["Children"].Items
+                    .Select(child => $"child: {child["Title"].Text} · {child["Activity"].Text} · {child["Harness"].Text} · {child["Connection"].Text} · {child["Spent"].Text} · {child["Carve"].Text}")
+                    .Order(StringComparer.Ordinal),
+                $"refused: {delegation["Refused"].Items.Count}",
+                $"inspector: {section["Fact"].Text}",
+                .. section["Children"].Value<IReadOnlyList<string>>().Select(child => $"inspected: {child}").Order(StringComparer.Ordinal),
+            ];
+        });
+    }
+
     private static readonly (string File, string Content)[] TwoAccounts =
     [
         ("simulated-logins/one/.login", string.Empty),

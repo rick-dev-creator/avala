@@ -217,6 +217,8 @@ internal static class LayerMap
             ["Reporting"] = Layer.Application,
             ["Records"] = Layer.Application,
             ["RepositoryFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Fixtures.Compliant", new()
         {
