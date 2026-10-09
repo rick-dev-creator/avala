@@ -73,6 +73,7 @@ internal static class LayerMap
             ["Contracts"] = Layer.Contracts,
             ["Caps"] = Layer.Domain,
             ["Enforcement"] = Layer.Application,
+            ["Admission"] = Layer.Application,
             ["BudgetFiles"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Resources", new()

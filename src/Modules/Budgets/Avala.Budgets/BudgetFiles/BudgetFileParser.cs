@@ -11,11 +11,12 @@ internal static class BudgetFileParser
     private const string CostPerJob = "costPerJob";
     private const string TokensPerJob = "tokensPerJob";
     private const string HoldAtLimit = "holdAtLimit";
+    private const string MemoryPerJob = "memoryPerJobMegabytes";
     private const string Connections = "connections";
 
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 4, AllowDuplicateProperties = false };
 
-    private static readonly string[] Fields = [CostPerJob, TokensPerJob, HoldAtLimit];
+    private static readonly string[] Fields = [CostPerJob, TokensPerJob, HoldAtLimit, MemoryPerJob];
 
     private static readonly string[] Sections = [.. Fields, Connections];
 
@@ -84,13 +85,20 @@ internal static class BudgetFileParser
 
         if (!Costs(root).TryGetValue(out var costs, out var error)
             || !Tokens(root).TryGetValue(out var tokens, out error)
-            || !Threshold(root).TryGetValue(out var threshold, out error))
+            || !Threshold(root).TryGetValue(out var threshold, out error)
+            || !Memory(root).TryGetValue(out var memory, out error))
         {
             return error;
         }
 
-        return new BudgetCaps(costs, tokens, threshold);
+        return new BudgetCaps(costs, tokens, threshold) { MemoryPerJobMegabytes = memory };
     }
+
+    private static Result<Option<long>, BudgetError> Memory(JsonElement root) =>
+        !root.TryGetProperty(MemoryPerJob, out var cap) ? Option<long>.None
+        : cap.ValueKind != JsonValueKind.Number ? BudgetError.Malformed
+        : cap.TryGetInt64(out var megabytes) && megabytes > 0 ? Option<long>.Some(megabytes)
+        : BudgetError.InvalidMemory;
 
     private static Result<IReadOnlyList<Cost>, BudgetError> Costs(JsonElement root)
     {
