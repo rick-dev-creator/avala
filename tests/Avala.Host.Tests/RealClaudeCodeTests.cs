@@ -70,6 +70,24 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
             []);
 
     [Fact]
+    public Task APlanApprovalJobRunsEndToEndAsync() =>
+        JobAsync(
+            "claude-code-real-plan-approval",
+            "Call the EnterPlanMode tool. Then call ExitPlanMode with the one-line plan 'Write GREETING.md containing # Hello'. "
+            + "Once it is approved, write that file with the Write tool. Be brief.",
+            Autonomous,
+            ["GREETING.md"]);
+
+    [Fact]
+    public Task ASubagentJobRunsEndToEndAsync() =>
+        JobAsync(
+            "claude-code-real-subagent",
+            "Use the Task tool with subagent_type general-purpose to read README.md and report its first line. Then say done in one word.",
+            Autonomous,
+            [],
+            ("README.md", "# A service that greets the team\n"));
+
+    [Fact]
     public async Task SessionsResumeCallHarnessToolsAndKeepTwoLoginsApartAsync()
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
@@ -190,10 +208,10 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
         Assert.False(Directory.Exists($"/proc/{server}"));
     }
 
-    private async Task JobAsync(string name, string instruction, string permissions, IReadOnlyList<string> files)
+    private async Task JobAsync(string name, string instruction, string permissions, IReadOnlyList<string> files, params (string Path, string Content)[] committed)
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
-        var fixture = new RegressionFixture(null, [(".avala/permissions.json", permissions)], files, new Outcome([], [], [], [], []));
+        var fixture = new RegressionFixture(null, [(".avala/permissions.json", permissions), .. committed], files, new Outcome([], [], [], [], []));
         var connections = new JsonObject
         {
             ["connections"] = new JsonArray(new JsonObject

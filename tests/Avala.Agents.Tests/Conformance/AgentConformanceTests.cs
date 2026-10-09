@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -131,24 +132,24 @@ public sealed class AgentConformanceTests
     }
 
     [Fact]
-    public async Task ReportsAResumeTokenFromAProviderThatDoesNotDeclareCanResumeAsync()
+    public async Task ReportsAResumeTokenFromAProviderThatIsNotResumableAsync()
     {
         var provider = new ScriptedAgentProvider(IssuingAToken);
 
         Assert.Equal(
-            ["a resume token was issued although the provider does not declare CanResume"],
+            ["a resume token was issued although the provider does not declare Resumable"],
             await AgentConformance.CheckTurnAsync(provider, Deadline));
     }
 
     [Theory]
     [InlineData(true, false, "")]
-    [InlineData(false, false, "no resume token was issued although the provider declares CanResume")]
+    [InlineData(false, false, "no resume token was issued although the provider declares Resumable")]
     [InlineData(true, true, "the resume token was not accepted: CannotResume")]
-    public async Task AProviderThatDeclaresCanResumeMustIssueATokenAndAcceptItAsync(bool issues, bool rejects, string expected)
+    public async Task AResumableProviderMustIssueATokenAndAcceptItAsync(bool issues, bool rejects, string expected)
     {
         var provider = new ScriptedAgentProvider(issues ? IssuingAToken : ScriptedAgentProvider.Reply)
         {
-            Capabilities = Declared with { CanResume = true },
+            Capabilities = Declared.With(new Resumable()),
             RejectsResume = rejects,
         };
 
@@ -174,7 +175,7 @@ public sealed class AgentConformanceTests
     {
         var provider = new ScriptedAgentProvider(DrawingIn(mediaType))
         {
-            Capabilities = Declared with { AcceptsTools = true },
+            Capabilities = Declared.With(new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed])),
         };
 
         var violations = await AgentConformance.CheckCanvasToolAsync(provider, Options, new UserTurn("conformance"), Deadline);
@@ -189,7 +190,7 @@ public sealed class AgentConformanceTests
     {
         var provider = new ScriptedAgentProvider(draws ? DrawingIn("image/svg+xml") : ScriptedAgentProvider.Reply)
         {
-            Capabilities = Declared with { AcceptsTools = true },
+            Capabilities = Declared.With(new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed])),
         };
 
         var violations = await AgentConformance.CheckCanvasToolAsync(provider, Options, new UserTurn("conformance"), Deadline);
@@ -213,7 +214,7 @@ public sealed class AgentConformanceTests
     {
         var provider = new ScriptedAgentProvider(calls ? Calling : ScriptedAgentProvider.Reply)
         {
-            Capabilities = Declared with { AcceptsTools = true },
+            Capabilities = Declared.With(new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed])),
         };
 
         var violations = await AgentConformance.CheckHarnessToolAsync(provider, Options, new UserTurn("conformance"), Deadline);
@@ -229,7 +230,7 @@ public sealed class AgentConformanceTests
     {
         var provider = new ScriptedAgentProvider(twice ? CallingTwiceReportingOne : Calling)
         {
-            Capabilities = Declared with { AcceptsTools = true },
+            Capabilities = Declared.With(new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed])),
         };
 
         var violations = await AgentConformance.CheckParallelToolCallsAsync(
@@ -247,7 +248,7 @@ public sealed class AgentConformanceTests
     {
         var provider = new ScriptedAgentProvider(IssuingAToken)
         {
-            Capabilities = Declared with { CanResume = true },
+            Capabilities = Declared.With(new Resumable()),
             Account = () => new AgentAccount("shared", "Shared"),
         };
 
@@ -281,7 +282,7 @@ public sealed class AgentConformanceTests
         string reference,
         string expected)
     {
-        var discovery = new ListedDiscovery([[new DiscoveredConnection(new ConnectionName(name), provider, new CredentialReference(source, reference))]]);
+        var discovery = new ListedDiscovery([[new DiscoveredConnection(new ConnectionName(name), provider, new CredentialReference(source, HostPaths.Rooted(reference)))]]);
 
         var violations = await AgentConformance.CheckDiscoveryAsync(Scripted, discovery, Deadline);
 
@@ -291,17 +292,17 @@ public sealed class AgentConformanceTests
     [Fact]
     public async Task ReportsADiscoveryThatRepeatsANameOrACredentialOrChangesBetweenTwoCallsAsync()
     {
-        var work = new DiscoveredConnection(new ConnectionName("work"), "scripted", new CredentialReference("login", "/logins/work"));
+        var work = new DiscoveredConnection(new ConnectionName("work"), "scripted", new CredentialReference("login", HostPaths.Rooted("/logins/work")));
         var discovery = new ListedDiscovery(
         [
-            [work, work with { Credential = new CredentialReference("login", "/logins/other") }, work with { Name = new ConnectionName("copy") }],
+            [work, work with { Credential = new CredentialReference("login", HostPaths.Rooted("/logins/other")) }, work with { Name = new ConnectionName("copy") }],
             [work],
         ]);
 
         var violations = await AgentConformance.CheckDiscoveryAsync(Scripted, discovery, Deadline);
 
         Assert.Equal(
-            ["the connection work is discovered twice", "the credential /logins/work is discovered twice", "two discoveries found different connections"],
+            ["the connection work is discovered twice", $"the credential {HostPaths.Rooted("/logins/work")} is discovered twice", "two discoveries found different connections"],
             violations);
     }
 
@@ -318,12 +319,12 @@ public sealed class AgentConformanceTests
     }
 
     [Fact]
-    public async Task ReportsAFormFromAProviderThatDoesNotDeclareAsksQuestionsAsync()
+    public async Task ReportsAFormFromAProviderThatDoesNotAskFormsAsync()
     {
         var provider = new ScriptedAgentProvider((session, turn) => Asking(session, turn, Question));
 
         Assert.Equal(
-            ["the form question was asked although the provider does not declare AsksQuestions"],
+            ["the form question was asked although the provider does not declare AsksForms"],
             await AgentConformance.CheckTurnAsync(provider, Deadline));
     }
 
@@ -332,7 +333,7 @@ public sealed class AgentConformanceTests
     {
         var provider = new ScriptedAgentProvider((session, turn) => Asking(session, turn, Question with { Fields = [] }))
         {
-            Capabilities = Declared with { AsksQuestions = true },
+            Capabilities = Declared.With(new AsksForms()),
         };
 
         Assert.Equal(
@@ -342,12 +343,12 @@ public sealed class AgentConformanceTests
 
     [Theory]
     [InlineData(true, "an answer to a form that is not open was accepted|an answer to a form that was already answered was accepted")]
-    [InlineData(false, "no form was asked although the provider declares AsksQuestions")]
-    public async Task AProviderThatAsksQuestionsMustAskAndRefuseAnswersToFormsThatAreNotOpenAsync(bool asks, string expected)
+    [InlineData(false, "no form was asked although the provider declares AsksForms")]
+    public async Task AProviderThatAsksFormsMustAskAndRefuseAnswersToFormsThatAreNotOpenAsync(bool asks, string expected)
     {
         var provider = new ScriptedAgentProvider(asks ? (session, turn) => Asking(session, turn, Question) : ScriptedAgentProvider.Reply)
         {
-            Capabilities = Declared with { AsksQuestions = true },
+            Capabilities = Declared.With(new AsksForms()),
         };
 
         var violations = await AgentConformance.CheckFormsAsync(provider, Options, new UserTurn("conformance"), Deadline);
@@ -410,7 +411,7 @@ public sealed class AgentConformanceTests
 
     private static readonly SessionOptions Options = new(".", PermissionMode.AllowAll);
 
-    private static AgentCapabilities Declared { get; } = new ScriptedAgentProvider(ScriptedAgentProvider.Reply).Capabilities;
+    private static CapabilitySet Declared => ScriptedAgentProvider.Declared;
 
     private static IEnumerable<IAgentEvent> IssuingAToken(SessionId session, TurnId turn) =>
     [

@@ -1,0 +1,158 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T19:10:15.8673218+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
+  },
+  "account": {
+    "id": "claude:account-work",
+    "label": "work@example.com"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Rewrite the whole parser module."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "8a0e2f44-3c5d-4e71-8f92-8c4d6e8f0a05/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_01InterruptA1b2C3d4E5f6G:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01InterruptA1b2C3d4E5f6G:0",
+        "text": "I will rewrite the whole module, "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01InterruptA1b2C3d4E5f6G:0",
+        "text": "starting with the parser"
+      }
+    },
+    {
+      "at": 1000,
+      "interrupt": {}
+    },
+    {
+      "at": 1000,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_01InterruptA1b2C3d4E5f6G:0",
+        "outcome": "cancelled"
+      }
+    },
+    {
+      "at": 1000,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 2,
+          "output": 14,
+          "cacheRead": 12339,
+          "cacheWrite": 4600,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.0012,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 1000,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "8a0e2f44-3c5d-4e71-8f92-8c4d6e8f0a05/0.0012"
+      }
+    },
+    {
+      "at": 1000,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "interrupted"
+      }
+    },
+    {
+      "at": 1000,
+      "stop": {}
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Turns;
@@ -26,9 +27,9 @@ internal sealed partial class AgentSessions(
 
         var session = started.Session;
         await bus.PublishAsync(
-            new SessionOpened(session.Id, started.Provider.Info, request.WorkingDirectory, started.Connection) { Account = session.Account, ProcessTree = started.Tree },
+            new SessionOpened(session.Id, started.Provider,request.WorkingDirectory, started.Connection) { Account = session.Account, ProcessTree = started.Tree },
             cancellationToken);
-        ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, started.Provider.Capabilities, PumpAsync));
+        ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, started.Capabilities, PumpAsync));
 
         return new OpenedSession(session.Id, started.Resumed, started.Connection);
     }
@@ -56,7 +57,7 @@ internal sealed partial class AgentSessions(
         FormAnswer answer,
         CancellationToken cancellationToken) =>
         !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
-        : !running.Capabilities.AsksQuestions ? AgentError.Unsupported
+        : !running.Capabilities.Has<AsksForms>() ? AgentError.Unsupported
         : await running.OpenForm(answer.Item).Match(
             async form => form.Accepts(answer)
                 ? await running.Session.AnswerAsync(answer, cancellationToken)
@@ -68,13 +69,13 @@ internal sealed partial class AgentSessions(
         ToolResult result,
         CancellationToken cancellationToken) =>
         !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
-        : !running.Capabilities.AcceptsTools ? AgentError.Unsupported
+        : !running.Capabilities.Get<AcceptsTools>().Match(accepted => accepted.Accepts(ToolSurface.Executed), () => false) ? AgentError.Unsupported
         : !running.AwaitsResult(result.Item) ? AgentError.NoPendingCall
         : await running.Session.ReturnAsync(result, cancellationToken);
 
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
         !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
-        : !running.Capabilities.CanInterrupt ? AgentError.Unsupported
+        : !running.Capabilities.Has<Interruptible>() ? AgentError.Unsupported
         : await running.Session.InterruptAsync(cancellationToken);
 
     public async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)
@@ -165,7 +166,7 @@ internal sealed partial class AgentSessions(
                 case TurnCompleted completed:
                     await bus.PublishAsync(new TurnFinished(completed.Session, completed.Turn, completed.Outcome), cancellationToken);
                     break;
-                case ResumeTokenIssued issued when running.Capabilities.CanResume:
+                case ResumeTokenIssued issued when running.Capabilities.Has<Resumable>():
                     await bus.PublishAsync(new SessionResumable(issued.Session, issued.Token), cancellationToken);
                     break;
             }

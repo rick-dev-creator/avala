@@ -41,6 +41,7 @@ internal static class Lines
                 .Split(Path.DirectorySeparatorChar)
                 .Intersect(["bin", "obj"])
                 .Any())
+            .Where(path => !path.EndsWith(".g.cs", StringComparison.Ordinal))
             .ToList();
         var lines = await Task.WhenAll(files.Select(async path => (await File.ReadAllLinesAsync(path)).Length));
 

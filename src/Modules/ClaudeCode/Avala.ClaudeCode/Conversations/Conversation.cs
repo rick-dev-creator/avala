@@ -18,12 +18,12 @@ internal sealed class Conversation
     private bool interrupting;
     private int interruptions;
 
-    public Conversation(SessionId session, SessionOptions options, string workingDirectory, Option<ConversationMark> resumed)
+    public Conversation(SessionId session, SessionOptions options, Places places, Option<ConversationMark> resumed)
     {
         var tools = new ToolBook(options.Tools);
         this.session = session;
-        translator = new StreamTranslator(tools, workingDirectory);
-        desk = new ControlDesk(tools, options.Permissions, workingDirectory);
+        translator = new StreamTranslator(tools, places);
+        desk = new ControlDesk(tools, options.Permissions, places);
         conversation = resumed.Map(mark => mark.Session);
         spent = resumed.Match(mark => mark.Spent, () => 0m);
     }
@@ -98,7 +98,7 @@ internal sealed class Conversation
     private Reaction Ended(JsonNode result, Stamp stamp)
     {
         var total = Telemetry.TotalCost(result);
-        var cost = total.Map(amount => new Cost(Math.Max(0m, amount - spent), "USD"));
+        var cost = total.Map(amount => new Cost(Math.Max(0m, amount - spent), Telemetry.Currency));
         spent = total.Match(amount => amount, () => spent);
         var outcome = interrupting
             ? TurnOutcome.Interrupted

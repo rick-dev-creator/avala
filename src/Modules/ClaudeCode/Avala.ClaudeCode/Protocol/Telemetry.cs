@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Sdk;
 
@@ -6,8 +7,6 @@ namespace Avala.ClaudeCode.Protocol;
 
 internal static class Telemetry
 {
-    public const string PlanTool = "TodoWrite";
-
     private const long LatestSecond = 253_402_300_799;
 
     private static readonly Dictionary<string, string> Windows = new(StringComparer.Ordinal)
@@ -17,6 +16,10 @@ internal static class Telemetry
         ["seven_day_opus"] = "7d opus",
         ["seven_day_sonnet"] = "7d sonnet",
     };
+
+    public const string Currency = "USD";
+
+    public static ValueSet<string> SubscriptionWindows { get; } = new(Windows.Values);
 
     public static TokenUsage Tokens(JsonNode result)
     {
@@ -45,12 +48,14 @@ internal static class Telemetry
     public static IReadOnlyList<PlanStep> Plan(JsonObject input) =>
         [.. input.Items("todos").Select(todo => new PlanStep(
             todo.TextOr("content", todo.TextOr("activeForm", string.Empty)),
-            todo.TextOr("status", string.Empty) switch
-            {
-                "completed" => PlanStepStatus.Done,
-                "in_progress" => PlanStepStatus.InProgress,
-                _ => PlanStepStatus.Pending,
-            }))];
+            Status(todo.TextOr("status", string.Empty))))];
+
+    public static PlanStepStatus Status(string status) => status switch
+    {
+        "completed" => PlanStepStatus.Done,
+        "in_progress" => PlanStepStatus.InProgress,
+        _ => PlanStepStatus.Pending,
+    };
 
     private static UsageLimit Limit(string type, JsonNode window, string utilization, string resetsAt)
     {

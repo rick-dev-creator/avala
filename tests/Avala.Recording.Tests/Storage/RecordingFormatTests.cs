@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -26,8 +27,9 @@ public sealed class RecordingFormatTests
         Assert.Equal(("avala-recording", 1), (root.GetProperty("format").GetString(), root.GetProperty("version").GetInt32()));
         Assert.Equal(new DateTimeOffset(2026, 10, 9, 8, 30, 0, TimeSpan.Zero), root.GetProperty("recordedAt").GetDateTimeOffset());
         Assert.Equal(("claude-code", "Claude Code"), (root.GetProperty("provider").GetProperty("id").GetString(), root.GetProperty("provider").GetProperty("name").GetString()));
-        Assert.True(root.GetProperty("capabilities").GetProperty("canResume").GetBoolean());
-        Assert.False(root.GetProperty("capabilities").GetProperty("asksQuestions").GetBoolean());
+        Assert.Equal(
+            """{"acceptsTools":{"surfaces":["canvas"]},"reportsLimits":{"windows":["5h","7d"]},"resumable":{},"speaksAloud":{"voice":"[redacted]"}}""",
+            JsonSerializer.Serialize(root.GetProperty("capabilities")));
         Assert.Equal(("account-1", "[redacted]"), (root.GetProperty("account").GetProperty("id").GetString(), root.GetProperty("account").GetProperty("label").GetString()));
         var options = root.GetProperty("options");
         Assert.Equal(("askEveryTime", true), (options.GetProperty("permissions").GetString(), options.GetProperty("resumed").GetBoolean()));
@@ -104,7 +106,7 @@ public sealed class RecordingFormatTests
                 new RecordingHeader(
                     new DateTimeOffset(2026, 10, 9, 8, 30, 0, TimeSpan.Zero),
                     new ProviderInfo("claude-code", "Claude Code"),
-                    new AgentCapabilities(true, true, true, CanResume: true, true, true, true, true, AsksQuestions: false),
+                    CapabilitySet.Of(new Resumable(), new AcceptsTools([ToolSurface.Canvas]), new ReportsLimits(["7d", "5h"]), new SpeaksAloud("ana@example.com")),
                     new AgentAccount("account-1", "ana@example.com"),
                     new SessionOptions(Folder, PermissionMode.AskEveryTime)
                     {
@@ -130,4 +132,6 @@ public sealed class RecordingFormatTests
             usage.GetProperty("tokens").GetProperty("reasoning").GetInt64(),
             usage.GetProperty("cost").GetProperty("amount").GetDecimal(),
             usage.GetProperty("cost").GetProperty("currency").GetString());
+
+    private sealed record SpeaksAloud(string Voice) : ICapability;
 }

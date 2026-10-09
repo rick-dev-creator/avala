@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Contracts.Presentation;
@@ -30,7 +31,11 @@ internal interface INewJobViewModel
 
     bool IsRouteAttention { get; }
 
-    bool Supervised { get; set; }
+    IReadOnlyList<string> Autonomies { get; }
+
+    string Autonomy { get; set; }
+
+    string AutonomyNote { get; }
 
     string Error { get; }
 
@@ -45,8 +50,10 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
 {
     private readonly ObservableCollection<string> repositories = [];
     private readonly ObservableCollection<string> connections = [NewJobPhrases.Auto];
+    private readonly ObservableCollection<string> autonomies = [NewJobPhrases.RepositoryLevel(Option<RepositoryPolicy>.None)];
     private ConnectionCatalog catalog = new(ConnectionFileStatus.Absent, Option<ConnectionError>.None, [], Option<ConnectionName>.None);
     private Option<Result<ConnectionPreview, JobRejection>> preview;
+    private Option<RepositoryPolicy> policy;
     private int previews;
 
     public string Title => "New job";
@@ -74,8 +81,15 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
     [ObservableProperty]
     public partial bool IsRouteAttention { get; private set; }
 
+    public IReadOnlyList<string> Autonomies => autonomies;
+
     [ObservableProperty]
-    public partial bool Supervised { get; set; }
+    public partial string Autonomy { get; set; } = NewJobPhrases.RepositoryLevel(Option<RepositoryPolicy>.None);
+
+    [ObservableProperty]
+    public partial string AutonomyNote { get; private set; } = NewJobPhrases.AutonomyNote(Option<RepositoryPolicy>.None, supervised: false);
+
+    public bool Supervised => Autonomy == NewJobPhrases.Supervised;
 
     [ObservableProperty]
     public partial string Error { get; private set; } = string.Empty;
@@ -121,6 +135,8 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
 
     partial void OnConnectionChanged(string value) => ShowRoute();
 
+    partial void OnAutonomyChanged(string value) => AutonomyNote = NewJobPhrases.AutonomyNote(policy, Supervised);
+
     [RelayCommand(CanExecute = nameof(CanSubmit))]
     private async Task SubmitAsync(CancellationToken cancellationToken)
     {
@@ -156,12 +172,25 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
     {
         var ticket = ++previews;
         var previewed = await launch.PreviewAsync(Repository, cancellationToken);
+        var declared = await launch.PolicyAsync(Repository, cancellationToken);
 
         if (ticket == previews)
         {
             preview = previewed;
             ShowRoute();
+            ShowAutonomy(declared);
         }
+    }
+
+    private void ShowAutonomy(Option<RepositoryPolicy> declared)
+    {
+        var supervised = Supervised;
+        policy = declared;
+        var level = NewJobPhrases.RepositoryLevel(declared);
+        var tightens = declared.Match(found => found.Autonomy != Jobs.Contracts.Autonomy.Supervised, () => true);
+        autonomies.ShowOnly(tightens ? [level, NewJobPhrases.Supervised] : [level]);
+        Autonomy = supervised && tightens ? NewJobPhrases.Supervised : level;
+        AutonomyNote = NewJobPhrases.AutonomyNote(policy, Supervised);
     }
 
     private void ShowRoute()

@@ -81,11 +81,29 @@ public sealed class RepositorySettingsViewModelScripts
         await settings.ReadCommand.ExecuteAsync(null);
 
         await settings.EditCommand.ExecuteAsync(settings.Files[0]);
-        opener.Refusal = FileOpenError.NotFound;
+        opener.Refusal = FileOpenError.Refused;
         await settings.EditCommand.ExecuteAsync(settings.Files[3]);
 
         Assert.Equal([Path.Combine(Repository, ".avala/permissions.json"), Path.Combine(Repository, ".avala/jobs.json")], opener.Opened);
-        Assert.Equal("The file does not exist in the checkout yet.", settings.Error);
+        Assert.Equal(($"The platform refused to open {Path.Combine(Repository, ".avala/jobs.json")}.", string.Empty), (settings.Error, settings.Notice));
+    }
+
+    [Fact]
+    public async Task EditingARuleFileTheRepositoryLacksCreatesItFromAMinimalTemplateAndSaysItAppliesOnceCommittedAsync()
+    {
+        var settings = RepositorySettings();
+        settings.Repository = Repository;
+        await settings.ReadCommand.ExecuteAsync(null);
+
+        await settings.EditCommand.ExecuteAsync(settings.Files[0]);
+        var created = (settings.Error, settings.Notice);
+        await settings.EditCommand.ExecuteAsync(settings.Files[0]);
+
+        Assert.Equal(
+            (string.Empty, ".avala/permissions.json did not exist, so it was created from a minimal template in the repository's working tree. Jobs read it once it is committed."),
+            created);
+        Assert.Equal("{\n  \"autonomy\": \"supervised\",\n  \"rules\": []\n}\n", opener.Created[Path.Combine(Repository, ".avala/permissions.json")]);
+        Assert.Equal(string.Empty, settings.Notice);
     }
 
     [Fact]

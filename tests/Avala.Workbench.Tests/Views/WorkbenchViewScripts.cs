@@ -248,6 +248,19 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task ARowWithDecisionsWaitingShowsTheirCountInABadgeAndARowWithoutShowsNoneAsync() =>
+        ui.RunAsync(() =>
+        {
+            var waiting = Screen.Show(new DesignJobRowViewModel(Presenting.SampleJobs.FlakyCheckout, "Fix flaky CheckoutForm test", JobStatus.Running, "wants to run a command", Components.Status.StatusKind.NeedsYou, 2));
+            var badge = (waiting.Shows("PendingBadge"), waiting.TextOf("Pending"));
+            var quiet = Screen.Show(new DesignJobRowViewModel(Presenting.SampleJobs.JpyRounding, "Fix JPY rounding in invoice totals", JobStatus.Running, "writing a fix", Components.Status.StatusKind.Working, 0));
+
+            Assert.Equal((true, "2"), badge);
+            Assert.False(quiet.Shows("PendingBadge"));
+            Assert.True(waiting.Find("PendingBadge").Bounds.Right <= waiting.Find("PendingBadge").GetVisualParent<Avalonia.Controls.Control>()!.Bounds.Width + 0.5);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AWorkingRowPulsesBeyondItsDotUnclippedAsync() =>
         ui.RunAsync(() =>
         {

@@ -46,13 +46,7 @@ internal sealed class LoopGauges(IUsage usage, IUsageHistory history, IConnectio
             return [catalog.Default];
         }
 
-        var provider = catalog.Default.Bind(named => catalog.Connections.FirstOrDefault(declared => declared.Name == named) is { } found
-            ? Option<string>.Some(found.Provider)
-            : Option<string>.None);
-
-        return [.. catalog.Connections
-            .Where(declared => provider == Option<string>.Some(declared.Provider))
-            .Select(declared => Option<ConnectionName>.Some(declared.Name))];
+        return [.. catalog.Connections.Select(declared => Option<ConnectionName>.Some(declared.Name))];
     }
 
     private IEnumerable<UsageLimit> LimitsOf(Option<ConnectionName> connection) =>

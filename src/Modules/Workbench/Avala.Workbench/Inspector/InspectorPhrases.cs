@@ -44,7 +44,7 @@ internal static class InspectorPhrases
 
     public static string Answer(HumanAnswer answer) =>
         $"You {(answer.Answer == PermissionAnswer.Allow ? "allowed" : "denied")} {answer.Kind} {answer.Target}"
-        + answer.SessionRule.Match(_ => " · don't ask again", () => string.Empty);
+        + answer.SessionRule.Match(_ => " · don't ask again this session",() => string.Empty);
 
     public static string Assumption(Assumption assumption) =>
         $"{assumption.Prompt}: {(assumption.Chosen.Count > 0 ? string.Join(", ", assumption.Chosen) : "the agent's judgment")}";

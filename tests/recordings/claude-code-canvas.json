@@ -1,0 +1,271 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T19:26:17.4300439+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
+  },
+  "account": {
+    "id": "claude:account-work",
+    "label": "work@example.com"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Draw the architecture on the canvas as an SVG diagram."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "6f8c0e33-2b4d-4f60-9e81-7b3c5d7e9f04/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01ToolSearchCanvas00001",
+        "kind": "other",
+        "title": "Load mcp__avala__canvas",
+        "input": "select:mcp__avala__canvas"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.24,
+          "resetsAt": "2026-10-10T17:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.38,
+          "resetsAt": "2026-10-15T05:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01ToolSearchCanvas00001",
+        "text": "mcp__avala__canvas"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01ToolSearchCanvas00001",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "canvasStarted",
+        "turn": 1,
+        "item": "toolu_01CanvasArchitecture002",
+        "title": "Architecture",
+        "mediaType": "image/svg+xml"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01CanvasArchitecture002",
+        "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"240\" height=\"120\">"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01CanvasArchitecture002",
+        "text": "<rect x=\"10\" y=\"40\" width=\"80\" height=\"40\" rx=\"6\" fill=\"#4f46e5\"/>"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01CanvasArchitecture002",
+        "text": "<rect x=\"150\" y=\"40\" width=\"80\" height=\"40\" rx=\"6\" fill=\"#0ea5e9\"/>"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01CanvasArchitecture002",
+        "text": "<line x1=\"90\" y1=\"60\" x2=\"150\" y2=\"60\" stroke=\"#111827\" stroke-width=\"2\"/>\n<text x=\"120\" y=\"30\">Caf"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01CanvasArchitecture002",
+        "text": "é</text></svg>"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01CanvasArchitecture002",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_01CanvasC1b2C3d4E5f6G7h8:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01CanvasC1b2C3d4E5f6G7h8:0",
+        "text": "The diagram shows the host "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01CanvasC1b2C3d4E5f6G7h8:0",
+        "text": "and its plugins."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_01CanvasC1b2C3d4E5f6G7h8:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 6,
+          "output": 402,
+          "cacheRead": 47278,
+          "cacheWrite": 4900,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.0071,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "6f8c0e33-2b4d-4f60-9e81-7b3c5d7e9f04/0.0071"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

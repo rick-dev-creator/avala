@@ -51,7 +51,7 @@ internal static class Recorded
           "version": 1,
           "recordedAt": "2026-10-09T08:30:00+00:00",
           "provider": { "id": "claude-code", "name": "Claude Code" },
-          "capabilities": { "streamsPartialOutput": true, "exposesReasoning": true, "canInterrupt": true, "canResume": true, "acceptsTools": true, "reportsUsage": true, "reportsCost": true, "reportsLimits": true, "asksQuestions": true },
+          "capabilities": { "acceptsTools": { "surfaces": ["canvas", "executed"] }, "asksForms": {}, "interruptible": {}, "reportsCost": { "currency": "USD" }, "reportsLimits": { "windows": ["5h", "7d"] }, "reportsUsage": {}, "resumable": {} },
           {{account}}
           "options": { "permissions": "{{permissions}}", "resumed": false, "tools": [] },
           "entries": [ {{string.Join(",\n", entries)}} ]

@@ -1,3 +1,5 @@
+using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Recording.Recordings;
 using Avala.Sdk;
@@ -25,9 +27,9 @@ internal sealed class ProviderRecorder(
 
     private RecordedSession Record(IAgentProvider provider, SessionOptions options, RecordingSettings current, IAgentSession session)
     {
-        store.Begin(session.Id, new RecordingHeader(clock.GetUtcNow(), provider.Info, provider.Capabilities, session.Account, options), current);
+        store.Begin(session.Id, new RecordingHeader(clock.GetUtcNow(), provider.Info, provider.CapabilitiesOn(options.Connection), session.Account, options), current);
 
-        return new RecordedSession(session, options.WorkingDirectory, new Journal(session.Id, store, clock), files);
+        return new RecordedSession(session, Path.GetFullPath(options.WorkingDirectory), new Journal(session.Id, store, clock), files);
     }
 }
 
@@ -35,7 +37,7 @@ internal sealed class RecordedProvider(IAgentProvider inner, ProviderRecorder re
 {
     public ProviderInfo Info => inner.Info;
 
-    public AgentCapabilities Capabilities => inner.Capabilities;
+    public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) => inner.CapabilitiesOn(connection);
 
     public ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken) =>
         recorder.StartAsync(inner, options, cancellationToken);

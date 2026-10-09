@@ -16,13 +16,7 @@ internal sealed class CanvasGallery(CanvasOffer offer) : ICanvases
     public Result<CanvasOpened, CanvasError> Open(CanvasStarted started) =>
         documents.ContainsKey(new CanvasId(started.Turn, started.Item))
             ? CanvasError.AlreadyOpen
-            : CanvasDocument.Open(started, offer.Offers(started.MediaType)).Map(document =>
-            {
-                documents.Add(document.Id, document);
-                Volatile.Write(ref snapshots, snapshots.Add(document.Snapshot));
-
-                return new CanvasOpened(document.Id, document.Rejection);
-            });
+            : CanvasDocument.Open(started, offer.Offers(started.MediaType)).Map(Opened);
 
     public Result<CanvasId, CanvasError> Append(ItemProgressed progressed) =>
         Find(new CanvasId(progressed.Turn, progressed.Item))
@@ -37,6 +31,14 @@ internal sealed class CanvasGallery(CanvasOffer offer) : ICanvases
 
     public IReadOnlyList<CanvasSnapshot> InSession(SessionId session) =>
         [.. Volatile.Read(ref snapshots).Where(snapshot => snapshot.Session == session)];
+
+    private CanvasOpened Opened(CanvasDocument document)
+    {
+        documents.Add(document.Id, document);
+        Volatile.Write(ref snapshots, snapshots.Add(document.Snapshot));
+
+        return new CanvasOpened(document.Id, document.Rejection);
+    }
 
     private CanvasId Published(CanvasDocument document, CanvasId canvas)
     {

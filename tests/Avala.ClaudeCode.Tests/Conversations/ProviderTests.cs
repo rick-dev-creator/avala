@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Conversations;
@@ -30,9 +31,25 @@ public sealed class ProviderTests
         Assert.Equal(folder.Path, cli.Launches.Single().WorkingDirectory);
         Assert.Contains("--include-partial-messages", arguments);
         Assert.Equal("mcp__avala__permission_prompt", After(arguments, "--permission-prompt-tool"));
-        Assert.Equal("""{"mcpServers":{"avala":{"type":"sdk","name":"avala"}}}""", After(arguments, "--mcp-config"));
+        Assert.Equal("""{"mcpServers":{"avala":{"type":"sdk","name":"avala","timeout":2147483647,"disableAutoBackground":true}}}""", After(arguments, "--mcp-config"));
         Assert.Equal("default", After(arguments, "--permission-mode"));
         Assert.Equal("initialize", (string?)JsonNode.Parse(await cli.Written.Reader.ReadAsync(Cancellation))!["request"]!["subtype"]);
+    }
+
+    [Fact]
+    public async Task ASessionAsksForSubagentTextAndLetsHarnessCallsWaitAsLongAsTheCliAllowsAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime), Cancellation));
+        var launch = cli.Launches.Single();
+
+        Assert.Contains("--forward-subagent-text", launch.Arguments);
+        Assert.Equal("2147483647", launch.Variables["MCP_TOOL_TIMEOUT"]);
+        Assert.Equal(2147483647, JsonNode.Parse(After(launch.Arguments, "--mcp-config")!)!["mcpServers"]!["avala"]!["timeout"]!.GetValue<int>());
+        Assert.Contains("CLAUDE_AUTO_BACKGROUND_TASKS", launch.Cleared);
+        Assert.Contains("CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS", launch.Cleared);
     }
 
     [Theory]
@@ -56,7 +73,7 @@ public sealed class ProviderTests
         Assert.Equal(sources, After(arguments, "--setting-sources"));
         Assert.Equal(sources.Length == 0, arguments.Contains("--strict-mcp-config"));
         Assert.Equal(hooksOff, Settings(arguments)?["disableAllHooks"]?.GetValue<bool>() ?? false);
-        Assert.Equal("""{"mcpServers":{"avala":{"type":"sdk","name":"avala"}}}""", After(arguments, "--mcp-config"));
+        Assert.Equal("""{"mcpServers":{"avala":{"type":"sdk","name":"avala","timeout":2147483647,"disableAutoBackground":true}}}""", After(arguments, "--mcp-config"));
     }
 
     [Fact]
@@ -183,6 +200,35 @@ public sealed class ProviderTests
             {
             }
         });
+    }
+
+    [Theory]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    public void ASubscriptionLoginReportsItsLimitWindowsAndAnApiKeyDoesNot(bool folder, bool key, bool limits)
+    {
+        var connection = new ConnectionEnvironment
+        {
+            ConfigurationDirectory = folder ? "/logins/work" : Option<string>.None,
+            ApiKey = key ? new Secret("sk-ant-1") : Option<Secret>.None,
+        };
+
+        var declared = Provider(new FakeCli()).CapabilitiesOn(connection);
+
+        Assert.Equal(limits ? new ReportsLimits(["5h", "7d", "7d opus", "7d sonnet"]) : Option<ReportsLimits>.None, declared.Get<ReportsLimits>());
+        Assert.Equal(
+            CapabilitySet.Of(
+                new StreamsPartialOutput(),
+                new ExposesReasoning(),
+                new Interruptible(),
+                new Resumable(),
+                new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
+                new AsksForms(),
+                new ReportsUsage(),
+                new ReportsCost("USD")),
+            declared.Without<ReportsLimits>());
     }
 
     private static ClaudeCodeProvider Provider(FakeCli cli, string? home = null) =>

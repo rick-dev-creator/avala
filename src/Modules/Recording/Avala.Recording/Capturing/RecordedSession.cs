@@ -55,20 +55,34 @@ internal sealed class RecordedSession(IAgentSession inner, string workingDirecto
     private async IAsyncEnumerable<IAgentEvent> RecordAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var edits = new Dictionary<ItemId, string>();
+        var commands = new Dictionary<ItemId, (string Line, FolderStamps Before)>();
         await using var events = inner.Events.GetAsyncEnumerator(cancellationToken);
 
         while (await NextAsync(events, cancellationToken))
         {
             var agentEvent = events.Current;
 
-            if (agentEvent is PermissionRequested { Kind: ItemKind.FileEdit } requested)
+            if (agentEvent is PermissionRequested { Kind: ItemKind.FileEdit } requested && !requested.Target.Contains('\0', StringComparison.Ordinal))
             {
                 edits[requested.Item] = requested.Target;
+            }
+
+            if (agentEvent is ItemStarted { Kind: ItemKind.Command } command)
+            {
+                commands[command.Item] = (command.Input.Match(input => input, () => command.Title), await files.StampAsync(workingDirectory, cancellationToken));
             }
 
             if (agentEvent is ItemCompleted completed && edits.Remove(completed.Item, out var target) && completed.Outcome == ItemOutcome.Succeeded)
             {
                 await CaptureAsync(completed.Item, target, cancellationToken);
+            }
+
+            if (agentEvent is ItemCompleted ran && commands.Remove(ran.Item, out var run) && ran.Outcome == ItemOutcome.Succeeded)
+            {
+                foreach (var written in (await files.StampAsync(workingDirectory, cancellationToken)).ChangedSince(run.Before).Where(path => Names(run.Line, path)))
+                {
+                    await CaptureAsync(ran.Item, written, cancellationToken);
+                }
             }
 
             journal.Note(new Observed(agentEvent));
@@ -96,6 +110,8 @@ internal sealed class RecordedSession(IAgentSession inner, string workingDirecto
             throw;
         }
     }
+
+    private static bool Names(string command, string path) => command.Contains(Path.GetFileName(path), StringComparison.Ordinal);
 
     private bool OnItsOwn(CancellationToken cancellationToken) => !cancellationToken.IsCancellationRequested && !Volatile.Read(ref stopped);
 

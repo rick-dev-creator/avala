@@ -80,6 +80,8 @@ internal static class ConversationPhrases
     public static string Thought(TimeSpan duration) =>
         string.Create(CultureInfo.InvariantCulture, $"Thought for {Duration(duration)}");
 
+    public static string ThoughtUnshared(TimeSpan duration) => $"{Thought(duration)} · content not shared by the harness";
+
     public static string Rejection(JobRejection rejection) => rejection switch
     {
         JobRejection.NotHeld => "The job takes a message only when it needs you or awaits review.",
