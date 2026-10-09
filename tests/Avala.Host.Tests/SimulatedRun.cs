@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Canvas.Contracts;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
@@ -22,6 +23,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private readonly EventWatch<JobProgressed> progress;
     private readonly EventWatch<AgentActivity> activity;
     private readonly EventWatch<CanvasUpdated> canvases;
+    private readonly EventWatch<PermissionDecided> decisions;
 
     private SimulatedRun(TemporaryFolder data, CompositionRoot root, TemporaryRepository repository)
     {
@@ -31,6 +33,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         progress = Watch<JobProgressed>();
         activity = Watch<AgentActivity>();
         canvases = Watch<CanvasUpdated>();
+        decisions = Watch<PermissionDecided>();
     }
 
     public TemporaryRepository Repository => repository;
@@ -72,6 +75,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task<IReadOnlyList<IAgentEvent>> TurnAsync() =>
         [.. (await activity.CollectUntilAsync(update => update.Event is TurnCompleted)).Select(update => update.Event)];
+
+    public async Task<PolicyDecision> DecisionAsync() => (await decisions.UntilAsync(_ => true)).Decision;
 
     public async Task<IReadOnlyList<CanvasSnapshot>> CanvasSnapshotsAsync(int canvasCount)
     {

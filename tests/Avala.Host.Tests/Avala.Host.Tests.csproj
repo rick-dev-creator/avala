@@ -8,5 +8,6 @@
     <ProjectReference Include="..\..\src\Modules\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Verification\Avala.Verification.Contracts\Avala.Verification.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>

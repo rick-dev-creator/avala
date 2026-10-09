@@ -7,6 +7,7 @@ using Avala.Canvas.Contracts;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Verification.Contracts;
@@ -30,6 +31,7 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         Assert.NotNull(root.Services.GetRequiredService<IJobs>());
         Assert.NotNull(root.Services.GetRequiredService<IUsage>());
         Assert.NotNull(root.Services.GetRequiredService<IVerifications>());
+        Assert.NotNull(root.Services.GetRequiredService<IPermissionAudit>());
         Assert.Equal("simulator", Assert.Single(root.Services.GetServices<IAgentProvider>()).Info.Id);
         Assert.Empty(AssemblyLoadContext.All
             .SelectMany(context => context.Assemblies)
@@ -157,6 +159,51 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
             StringComparison.Ordinal);
         Assert.Equal("add(2, 2) = 4\n", await File.ReadAllTextAsync(Path.Combine(run.Worktree, "calculator.txt"), Cancellation));
     }
+
+    [Fact]
+    public Task AnAllowingPolicyLetsThePermissionJobRunItsCommandAndFinishUnattendedAsync() =>
+        AnsweredByPolicyAsync("allow", PolicyAnswer.Allow, ItemOutcome.Succeeded);
+
+    [Fact]
+    public Task ADenyingPolicyCancelsTheCommandAndTheJobFinishesUnattendedAsync() =>
+        AnsweredByPolicyAsync("deny", PolicyAnswer.Deny, ItemOutcome.Cancelled);
+
+    private async Task AnsweredByPolicyAsync(string answer, PolicyAnswer expected, ItemOutcome command)
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "permission", (".avala/permissions.json", MigrationsPolicy(answer)));
+
+        var decision = await run.DecisionAsync();
+        var turn = await run.TurnAsync();
+
+        Assert.Equal(
+            (expected, DecisionDelivery.Answered, "migrations", "dotnet ef database update"),
+            (decision.Answer, decision.Delivery, Outcomes.Present(decision.Rule).Name, decision.Target));
+        Assert.Contains(turn, update => update is ItemCompleted { Item.Value: "migrate" } completed && completed.Outcome == command);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var audit = run.Get<IPermissionAudit>();
+        Assert.Equal([decision], audit.OfJob(run.Job));
+        Assert.Equal(PolicyFileStatus.Applied, Outcomes.Present(audit.PolicyOf(decision.Session)).File);
+    }
+
+    [Fact]
+    public async Task WithoutARepositoryPolicyThePermissionAwaitsAHumanAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "permission");
+
+        var decision = await run.DecisionAsync();
+
+        Assert.Equal((PolicyAnswer.Ask, DecisionDelivery.LeftToHuman, true), (decision.Answer, decision.Delivery, decision.Rule.IsNone));
+        Assert.Equal([decision], run.Get<IPermissionAudit>().OfJob(run.Job));
+        Assert.Equal(PolicyFileStatus.Absent, Outcomes.Present(run.Get<IPermissionAudit>().PolicyOf(decision.Session)).File);
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(
+            decision.Session,
+            new PermissionDecision(decision.Item, PermissionAnswer.Allow),
+            Cancellation));
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    private static string MigrationsPolicy(string answer) =>
+        $$"""{ "rules": [ { "name": "migrations", "kind": "command", "target": "dotnet ef *", "answer": "{{answer}}" } ] }""";
 
     private static string Canvas(IReadOnlyList<CanvasSnapshot> snapshots, string item, string mediaType)
     {

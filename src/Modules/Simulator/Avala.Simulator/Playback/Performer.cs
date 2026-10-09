@@ -63,7 +63,7 @@ internal sealed class Performer(string workingDirectory, IFileWriter files, Perm
         if (run.AsksPermission)
         {
             var decision = permissions.ExpectAsync(run.Item);
-            yield return cues.Asked(run.Item, $"Run {run.Command}");
+            yield return cues.Asked(run.Item, $"Run {run.Command}", ItemKind.Command, run.Command);
 
             var answer = await AwaitAsync(run, decision, cancellationToken);
             yield return cues.Answered(run.Item, answer);
