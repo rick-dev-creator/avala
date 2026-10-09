@@ -27,9 +27,10 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places pl
         };
     }
 
-    public Reaction Cancel(JsonNode cancel)
+    public Reaction Cancel(JsonNode cancel, Option<Stamp> turn)
     {
         var requestId = cancel.TextOr("request_id", string.Empty);
+        var withdrawn = prompts.Where(prompt => prompt.Call.RequestId == requestId && prompt.Announced).ToList();
         prompts.RemoveAll(prompt => prompt.Call.RequestId == requestId);
 
         foreach (var call in calls.Where(call => call.Value.RequestId == requestId).Select(call => call.Key).ToList())
@@ -37,7 +38,7 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places pl
             calls.Remove(call);
         }
 
-        return Reaction.None;
+        return turn.Match(stamp => Withdrawn(withdrawn, stamp).Then(Announce(stamp)), () => Reaction.None);
     }
 
     public Result<Reaction, AgentError> Respond(PermissionDecision decision, Stamp stamp)
@@ -211,6 +212,14 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places pl
 
         return opening.Then(Reaction.Of(new PermissionRequested(stamp.Session, stamp.Turn, tool.Item, use.Heading(places), use.Kind, use.Target(places.WorkingDirectory))));
     }
+
+    private static Reaction Withdrawn(IEnumerable<Prompt> withdrawn, Stamp stamp) =>
+        Reaction.Of([.. withdrawn.Select(prompt =>
+        {
+            prompt.Tool.Refused = true;
+
+            return new RequestWithdrawn(stamp.Session, stamp.Turn, prompt.Tool.Item);
+        })]);
 
     private sealed record Prompt(ToolCall Call, TrackedTool Tool, JsonObject Input, Option<AgentForm> Form)
     {

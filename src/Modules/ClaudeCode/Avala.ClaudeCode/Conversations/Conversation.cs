@@ -60,7 +60,7 @@ internal sealed class Conversation
     {
         "system" when message.TextOr("subtype", string.Empty) == "init" => Initialized(message),
         "control_request" => desk.Receive(message, live),
-        "control_cancel_request" => desk.Cancel(message),
+        "control_cancel_request" => desk.Cancel(message, live),
         "result" when stale > 0 => Swallowed(),
         var type => live.Match(stamp => During(type, message, stamp), () => Reaction.None),
     };

@@ -58,15 +58,33 @@ public sealed class PermissionTests
     }
 
     [Fact]
-    public void APromptTheCliCancelsCanNoLongerBeAnsweredAndSendsNothing()
+    public void APromptTheCliCancelsIsWithdrawnTheNextIsAnnouncedAndTheWithdrawnOneCanNoLongerBeAnswered()
     {
-        var talk = Asked().Receive(Cli.Parse("""{ "type": "control_cancel_request", "request_id": "r1" }"""));
+        var talk = Asked().Receive(Cli.ToolUse("t2", "Bash", Command), Cli.Prompt("r2", "Bash", Command, "t2"));
         talk.Drain();
 
+        talk.Receive(Cancelled("r1"));
+        var withdrawn = talk.Drain();
+        var refused = talk.Conversation.Respond(new PermissionDecision(Item, PermissionAnswer.Allow)).Match(_ => default, error => error);
+        talk.Receive(Cli.Result(0.001m));
+
         Assert.Equal(
-            AgentError.NoPendingPermission,
-            talk.Conversation.Respond(new PermissionDecision(Item, PermissionAnswer.Allow)).Match(_ => default, error => error));
-        Assert.Empty(talk.Sent);
+            [new RequestWithdrawn(talk.Session, talk.Turn, Item), new PermissionRequested(talk.Session, talk.Turn, new ItemId("t2"), "Run ls", ItemKind.Command, "ls")],
+            withdrawn.Where(agentEvent => agentEvent is RequestWithdrawn or PermissionRequested));
+        Assert.Equal(AgentError.NoPendingPermission, refused);
+        Assert.Contains(new ItemCompleted(talk.Session, talk.Turn, Item, ItemOutcome.Cancelled), talk.Events);
+    }
+
+    [Fact]
+    public void APromptTheCliCancelsBeforeItWasAnnouncedIsDroppedWithoutAWord()
+    {
+        var talk = Asked().Receive(Cli.ToolUse("t2", "Bash", Command), Cli.Prompt("r2", "Bash", Command, "t2"));
+        talk.Drain();
+
+        talk.Receive(Cancelled("r2"));
+        talk.Take(talk.Conversation.Respond(new PermissionDecision(Item, PermissionAnswer.Allow)));
+
+        Assert.DoesNotContain(talk.Events, agentEvent => agentEvent is RequestWithdrawn or PermissionRequested);
     }
 
     [Fact]
@@ -150,6 +168,9 @@ public sealed class PermissionTests
 
         Assert.Equal(["ItemStarted", "PermissionRequested"], talk.Events.Skip(1).Select(agentEvent => agentEvent.GetType().Name));
     }
+
+    private static System.Text.Json.Nodes.JsonNode Cancelled(string requestId) =>
+        Cli.Parse($$"""{ "type": "control_cancel_request", "request_id": "{{requestId}}" }""");
 
     private static Talk Asked() =>
         new Talk().Begin().Receive(Cli.ToolUse("t1", "Bash", Command), Cli.Hook("h1", "Bash", Command), Cli.Prompt("r1", "Bash", Command, "t1"));
