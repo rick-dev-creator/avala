@@ -8,20 +8,38 @@ internal static class RequestFacts
 {
     extension(PermissionRequested requested)
     {
-        public PermissionRequest Facts(Option<string> workingDirectory) =>
-            requested.Kind == ItemKind.FileEdit && IsPath(requested.Target)
-                ? workingDirectory.Match(
-                    root => Located(requested.Target, root),
-                    () => new PermissionRequest(ItemKind.FileEdit, requested.Target, InsideWorkspace: false))
-                : new PermissionRequest(requested.Kind, requested.Target, InsideWorkspace: false);
+        public PermissionRequest Facts(Option<string> workingDirectory, IRealPaths paths) => requested.Kind switch
+        {
+            ItemKind.FileEdit => Edit(requested.Target, workingDirectory, paths),
+            ItemKind.Command => new PermissionRequest(ItemKind.Command, requested.Target, InsideWorkspace: false)
+            {
+                Locate = written => Edit(written, workingDirectory, paths),
+            },
+            _ => new PermissionRequest(requested.Kind, requested.Target, InsideWorkspace: false),
+        };
     }
+
+    private static PermissionRequest Edit(string target, Option<string> workingDirectory, IRealPaths paths) =>
+        IsPath(target)
+            ? workingDirectory.Match(root => Located(target, root, paths), () => Outside(target))
+            : Outside(target);
+
+    private static PermissionRequest Outside(string target) => new(ItemKind.FileEdit, target, InsideWorkspace: false);
 
     private static bool IsPath(string target) => !string.IsNullOrWhiteSpace(target) && !target.Contains('\0', StringComparison.Ordinal);
 
-    private static PermissionRequest Located(string target, string root)
+    private static PermissionRequest Located(string target, string root, IRealPaths paths)
     {
         var workspace = Path.GetFullPath(root);
-        var full = Path.GetFullPath(target, workspace);
+        var lexical = Path.GetFullPath(target, workspace);
+
+        return paths.Resolve(workspace).Match(
+            real => paths.Resolve(Path.Combine(workspace, target)).Match(full => Within(real, full), () => Outside(lexical)),
+            () => Outside(lexical));
+    }
+
+    private static PermissionRequest Within(string workspace, string full)
+    {
         var relative = Path.GetRelativePath(workspace, full);
         var inside = relative != ".."
             && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
@@ -29,6 +47,6 @@ internal static class RequestFacts
 
         return inside
             ? new PermissionRequest(ItemKind.FileEdit, relative.Replace(Path.DirectorySeparatorChar, '/'), InsideWorkspace: true)
-            : new PermissionRequest(ItemKind.FileEdit, full, InsideWorkspace: false);
+            : Outside(full);
     }
 }

@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Answering;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
+using Avala.Permissions.Links;
 using Avala.Permissions.Policies;
 using Avala.Sdk;
 using Avala.Testing;
@@ -26,7 +27,7 @@ public sealed class PermissionResponderTests
     private readonly SessionGovernor governor;
 
     public PermissionResponderTests() =>
-        governor = new SessionGovernor(book, new NoPolicyFiles(), new PermissionResponder(agents, clock), bus);
+        governor = new SessionGovernor(book, new NoPolicyFiles(), new PermissionResponder(agents, new SymbolicLinks(), clock), bus);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 

@@ -57,6 +57,16 @@ public sealed class JobLifecycleTests
     }
 
     [Fact]
+    public void RecheckingKeepsTheAttemptAwaitingItsCheckInItsSession()
+    {
+        var job = Given.JobIn(JobState.Checking);
+
+        Assert.Equal(new ChecksResumed(job.Id, AttemptNumber.First), Outcomes.Succeeds(job.Recheck()));
+        Assert.Equal(AttemptOutcome.AwaitingCheck, Assert.Single(job.Attempts).Outcome);
+        Assert.Equal((JobState.Checking, Option<SessionId>.Some(Given.Session)), (job.State, job.Session));
+    }
+
+    [Fact]
     public void CompletingTheTurnAwaitsTheCheck()
     {
         var job = Given.JobIn(JobState.Running);

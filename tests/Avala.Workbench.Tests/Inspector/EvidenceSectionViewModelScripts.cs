@@ -1,6 +1,8 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Verification.Contracts;
 using Avala.Workbench.Inspector;
 
 namespace Avala.Workbench.Tests.Inspector;
@@ -97,7 +99,27 @@ public sealed class EvidenceSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
 
-        Assert.Equal(("no checks yet", "1 of 1 passed"), (running, section.Fact));
+        Assert.Equal(("no checks yet", "1 of 1 check passed"), (running, section.Fact));
+    }
+
+    [Fact]
+    public async Task AnAttemptWhoseChecksARestartCutIsListedWithoutEvidenceBesideTheVerifiedOnes()
+    {
+        using var section = new EvidenceSectionViewModel(bench.Inspected());
+        var job = bench.Job("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview).Job;
+        bench.Catalog.Attempted(
+            job,
+            new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted, Option<string>.None, Option<SessionId>.None),
+            new AttemptRecord(2, AttemptOrigin.Recovery, AttemptOutcome.Rejected, Option<string>.None, Option<SessionId>.None),
+            new AttemptRecord(3, AttemptOrigin.Retry, AttemptOutcome.Passed, Option<string>.None, Option<SessionId>.None));
+        bench.Audit.Reports.AddRange([InspectedJobs.Report(job, 2, VerificationOutcome.Failed, CheckStatus.Failed, 1), InspectedJobs.Report(job, 3, VerificationOutcome.Passed, CheckStatus.Passed, 0)]);
+
+        await section.FocusAsync(job, bench);
+
+        Assert.Equal(("1 of 1 check passed", "Verified on attempt 3 of 3"), (section.Fact, section.Summary));
+        Assert.Equal(
+            ["Attempt 1: interrupted by a restart, no checks completed", "Attempt 2: failed · tests failed (exit 1, 1 s)", "Attempt 3: passed · tests passed (exit 0, 1 s)"],
+            section.Attempts);
     }
 
     public void Dispose() => bench.Dispose();

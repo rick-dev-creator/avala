@@ -7,6 +7,8 @@ internal static class EntryKeys
 {
     public const string Restart = "restart";
 
+    public static string EarlierRestart(int number) => string.Create(CultureInfo.InvariantCulture, $"restart:{number}");
+
     public static string Attempt(int number) => string.Create(CultureInfo.InvariantCulture, $"attempt:{number}");
 
     public static string Item(TurnId turn, ItemId item) => $"item:{turn.Value}:{item.Value}";

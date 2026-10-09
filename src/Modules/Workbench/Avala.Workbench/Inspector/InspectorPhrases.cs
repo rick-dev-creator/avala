@@ -28,6 +28,30 @@ internal static class InspectorPhrases
             .. candidate.Available ? Array.Empty<string>() : ["at its limit"],
         ]);
 
+    public static IReadOnlyList<string> Attempts(IReadOnlyList<AttemptRecord> attempts, IReadOnlyList<VerificationReport> reports)
+    {
+        var verified = reports.GroupBy(report => report.Attempt).ToDictionary(group => group.Key, group => group.Last());
+
+        return
+        [
+            .. attempts.Select((attempt, index) => verified.TryGetValue(attempt.Number, out var report)
+                ? Attempt(report)
+                : Unverified(attempt, index + 1 < attempts.Count ? attempts[index + 1].Origin : Option<AttemptOrigin>.None)),
+            .. verified.Values.Where(report => attempts.All(attempt => attempt.Number != report.Attempt)).Select(Attempt),
+        ];
+    }
+
+    private static string Unverified(AttemptRecord attempt, Option<AttemptOrigin> next) =>
+        string.Create(CultureInfo.InvariantCulture, $"Attempt {attempt.Number}: ")
+        + attempt.Outcome switch
+        {
+            AttemptOutcome.Running => "the agent is working, no checks yet",
+            AttemptOutcome.AwaitingCheck => "checks running",
+            AttemptOutcome.Interrupted when next == Option<AttemptOrigin>.Some(AttemptOrigin.Recovery) => "interrupted by a restart, no checks completed",
+            AttemptOutcome.Interrupted => "interrupted, no checks ran",
+            _ => "no checks ran",
+        };
+
     public static string Attempt(VerificationReport report) =>
         string.Create(CultureInfo.InvariantCulture, $"Attempt {report.Attempt}: {Outcome(report.Outcome)}")
         + (report.Checks.Count == 0 ? string.Empty : $" · {string.Join(", ", report.Checks.Select(Check))}");
@@ -110,7 +134,7 @@ internal static class InspectorPhrases
                 { Outcome: VerificationOutcome.NoChecksDeclared } => "no checks declared",
                 { Outcome: VerificationOutcome.Passed or VerificationOutcome.Failed } last => string.Create(
                     CultureInfo.InvariantCulture,
-                    $"{last.Checks.Count(check => check.Status == CheckStatus.Passed)} of {last.Checks.Count} passed"),
+                    $"{last.Checks.Count(check => check.Status == CheckStatus.Passed)} of {last.Checks.Count} {(last.Checks.Count == 1 ? "check" : "checks")} passed"),
                 _ => "invalid declaration",
             };
 

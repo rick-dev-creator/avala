@@ -31,8 +31,24 @@ internal sealed record Transcript
             ? Positions.ContainsKey(EntryKeys.Attempt(1)) ? this : Add(new PromptEntry(EntryKeys.Attempt(1), 1, AttemptOrigin.Initial, instruction, Option<AttemptOutcome>.None))
             : attempts.Aggregate(this, (transcript, attempt) => transcript.Put(Prompt(instruction, attempt)));
 
-    public Transcript WithRestart() =>
-        Entries.IsEmpty || Positions.ContainsKey(EntryKeys.Restart) ? this : Add(new RestartEntry(EntryKeys.Restart));
+    public Transcript WithPrompt(string instruction, AttemptRecord attempt) => Put(Prompt(instruction, attempt));
+
+    public Transcript WithRestart(bool kept) =>
+        Entries.IsEmpty || Positions.ContainsKey(EntryKeys.Restart) ? this : Add(new RestartEntry(EntryKeys.Restart, kept));
+
+    public Transcript WithEarlierRestart(int number) => Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true));
+
+    public Transcript Stopped(DateTimeOffset at) =>
+        Entries.Aggregate(this, (transcript, entry) => entry switch
+        {
+            PermissionEntry { Closed: false } permission => transcript.Put(permission with { Closed = true }),
+            FormEntry { Closed: false } form => transcript.Put(form with { Closed = true }),
+            MessageEntry { Outcome.IsNone: true } message => transcript.Put(message with { Outcome = ItemOutcome.Abandoned }),
+            ReasoningEntry { Outcome.IsNone: true } reasoning => transcript.Put(reasoning with { Outcome = ItemOutcome.Abandoned, Duration = at - reasoning.Started }),
+            ToolEntry { Outcome.IsNone: true } tool => transcript.Put(tool with { Outcome = ItemOutcome.Abandoned }),
+            CanvasEntry { Status: CanvasStatus.Streaming } canvas => transcript.Put(canvas with { Status = CanvasStatus.Abandoned }),
+            _ => transcript,
+        });
 
     public Transcript Apply(IAgentEvent activity, DateTimeOffset now) => activity switch
     {

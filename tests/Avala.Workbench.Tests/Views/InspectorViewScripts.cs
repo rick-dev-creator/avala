@@ -34,7 +34,7 @@ public sealed class EvidenceSectionViewScripts(HeadlessUi ui)
 
             Sections.ClickHeader(view);
 
-            Assert.Equal((((object?)"Evidence", (string?)"4 of 4 passed", false), false), folded);
+            Assert.Equal((((object?)"Evidence", (string?)"4 of 4 checks passed", false), false), folded);
             Assert.Equal("Verified on attempt 2 of 2", view.TextOf("Summary"));
             Assert.Equal(2, view.Find<ItemsControl>("Attempts").ItemCount);
             Assert.False(view.Shows("Loading"));

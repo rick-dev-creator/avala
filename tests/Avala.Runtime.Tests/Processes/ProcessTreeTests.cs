@@ -1,9 +1,11 @@
 using System.Collections.Immutable;
 using System.Globalization;
+using Avala.Runtime.Processes;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Avala.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Runtime.Tests.Processes;
 
@@ -64,6 +66,32 @@ public sealed class ProcessTreeTests
         Assert.True(await Workloads.IsGoneAsync(orphan), $"Process {orphan} survived its tree");
         Assert.Equal([bystander.Id], (await other.MembersAsync(Cancellation)).Select(member => member.Id));
         Assert.Equal(Option<IProcessTree>.None, trees.Find(closing.Id));
+    }
+
+    [Fact]
+    public async Task ClosingATreeAsksItsProcessesToEndAndKillsThoseThatIgnoreItOnceTheGracePassesAsync()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Windows has no signal that asks a console process to end from outside its console.");
+        using var home = new TemporaryFolder();
+        var clock = new FakeTimeProvider();
+        await using var services = Runtime(clock);
+        var trees = Trees(services);
+        var tree = await trees.OpenAsync(home.Path, Cancellation);
+        var (polite, _) = await Workloads.StartAsync(tree, Workloads.Holding("hold"), Cancellation);
+        var (stubborn, _) = await Workloads.StartAsync(tree, Workloads.Holding("stubborn"), Cancellation);
+        using var ending = polite;
+        using var refusing = stubborn;
+
+        var closing = trees.CloseAsync(tree.Id, Cancellation).AsTask();
+        var refusal = await stubborn.StandardOutput.ReadLineAsync(Cancellation);
+        await polite.WaitForExitAsync(Cancellation);
+        var waiting = (closing.IsCompleted, stubborn.HasExited);
+        clock.Advance(ProcessTree.Grace);
+        var survivors = await closing;
+        await stubborn.WaitForExitAsync(Cancellation);
+
+        Assert.Equal(("ignored", (false, false)), (refusal, waiting));
+        Assert.Empty(survivors);
     }
 
     [Fact]
@@ -132,6 +160,9 @@ public sealed class ProcessTreeTests
 
         return services.BuildServiceProvider();
     }
+
+    private static ServiceProvider Runtime(TimeProvider clock) =>
+        new ServiceCollection().AddSingleton(clock).AddRuntime(new AvalaPaths(Path.GetTempPath())).BuildServiceProvider();
 
     private static IProcessTrees Trees(ServiceProvider services) => services.GetRequiredService<IProcessTrees>();
 

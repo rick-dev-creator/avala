@@ -29,13 +29,15 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
 
         _ = job.CompleteTurn();
         await ledger.RecordAsync(job, cancellationToken);
+        await JudgeAsync(job, RetryInSameSessionAsync, cancellationToken);
+    }
 
+    public async Task JudgeAsync(Job job, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken) =>
         await (await EvaluateAsync(job, cancellationToken)).Match(
             verdict => verdict.Decision == GateDecision.Pass
                 ? PassAsync(job, cancellationToken)
-                : RetryAsync(job, verdict.Feedback, cancellationToken),
+                : RetryAsync(job, verdict.Feedback, retry, cancellationToken),
             () => FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken));
-    }
 
     private async Task<Option<GateVerdict>> EvaluateAsync(Job job, CancellationToken cancellationToken)
     {
@@ -56,22 +58,29 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
         await ledger.RecordAsync(job, cancellationToken);
     }
 
-    private async Task RetryAsync(Job job, string reason, CancellationToken cancellationToken)
+    private async Task RetryAsync(Job job, string reason, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken)
     {
         if (!Feedback.Create(string.IsNullOrWhiteSpace(reason) ? DefaultFeedback : reason).TryGetValue(out var feedback, out _))
         {
             return;
         }
 
-        if (job.Retry(feedback).IsFailure)
+        if (job.RequestHelp().IsSuccess)
         {
-            _ = job.RequestHelp();
             await ledger.RecordAsync(job, cancellationToken);
             return;
         }
 
-        await ledger.RecordAsync(job, cancellationToken);
-        _ = await agents.TellAsync(job, feedback.Text, cancellationToken);
+        await retry(job, feedback, cancellationToken);
+    }
+
+    private async Task RetryInSameSessionAsync(Job job, Feedback feedback, CancellationToken cancellationToken)
+    {
+        if (job.Retry(feedback).IsSuccess)
+        {
+            await ledger.RecordAsync(job, cancellationToken);
+            _ = await agents.TellAsync(job, feedback.Text, cancellationToken);
+        }
     }
 
     private async Task FailAsync(Job job, FailureReason reason, CancellationToken cancellationToken)

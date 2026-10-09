@@ -265,6 +265,25 @@ public sealed class LoopTests
     }
 
     [Fact]
+    public async Task ACommandWhoseWorkFailsEndsTheLoopAsFailedAndAnswersThatItEndedAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Backlog.NextDue = pilot.Clock.GetUtcNow().AddHours(1);
+        var loop = await pilot.StartAsync();
+        _ = await pilot.Bus.WaitForAsync<LoopWaiting>(_ => true, Cancellation);
+        Assert.Equal(loop, Outcomes.Succeeds(await pilot.Registry.PauseAsync(loop, Cancellation)));
+        pilot.Backlog.Fault = new InvalidOperationException("The ledger is closed");
+
+        var answer = await pilot.Registry.ResumeAsync(loop, Cancellation);
+        var ended = await pilot.EndedAsync();
+
+        Assert.Equal(AutopilotError.LoopEnded, Outcomes.FailsWith(answer));
+        Assert.Equal(
+            (LoopStatus.Ended, Option<LoopEnding>.Some(LoopEnding.Failed), Option<string>.Some("InvalidOperationException: The ledger is closed")),
+            (ended.Status, ended.Ending, ended.Fault));
+    }
+
+    [Fact]
     public async Task APausedLoopTakesNoNewTaskUntilResumedAndAStoppedLoopTakesNoneAgainAsync()
     {
         await using var pilot = new Pilot();

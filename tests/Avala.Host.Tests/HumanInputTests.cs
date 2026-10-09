@@ -105,6 +105,24 @@ public sealed class HumanInputTests(PublishedPlugins plugins)
         Assert.False(File.Exists(Path.Combine(run.Worktree, "..", "avala-outside-note.txt")));
     }
 
+    [Fact]
+    public async Task APrefixRuleAllowsItsCommandButLeavesALineThatChainsAnotherToAHumanAsync()
+    {
+        const string ListFiles = """{ "rules": [ { "name": "list files", "kind": "command", "target": "ls*", "answer": "allow" } ] }""";
+        await using var run = await SimulatedRun.StartAsync(plugins, "chained-command", (".avala/permissions.json", ListFiles));
+
+        var decisions = await run.DecisionsAsync(count: 2);
+
+        Assert.Equal(
+            [
+                ("ls -la", PolicyAnswer.Allow, DecisionDelivery.Answered),
+                ("ls -la; git show --stat HEAD", PolicyAnswer.Ask, DecisionDelivery.LeftToHuman),
+            ],
+            decisions.Select(decision => (decision.Target, decision.Answer, decision.Delivery)));
+        Outcomes.Succeeds(await run.Get<IPermissionAnswers>().AnswerAsync(decisions[1].Session, new PermissionReply(decisions[1].Item, PermissionAnswer.Allow), Cancellation));
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
     [Theory]
     [InlineData(true, false)]
     [InlineData(false, true)]

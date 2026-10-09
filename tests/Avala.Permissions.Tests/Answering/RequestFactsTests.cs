@@ -1,14 +1,18 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Permissions.Answering;
+using Avala.Permissions.Links;
 using Avala.Permissions.Policies;
 using Avala.Sdk;
+using Avala.Testing;
 
 namespace Avala.Permissions.Tests.Answering;
 
 public sealed class RequestFactsTests
 {
     private static readonly string Workspace = Path.Combine(Path.GetTempPath(), "avala-workspace");
+
+    private static readonly SymbolicLinks Links = new();
 
     public static TheoryData<string, string, bool> Edits => new()
     {
@@ -24,7 +28,7 @@ public sealed class RequestFactsTests
     [MemberData(nameof(Edits))]
     public void AnEditIsLocatedAgainstTheWorkingDirectory(string target, string located, bool inside)
     {
-        var facts = Requested(ItemKind.FileEdit, target).Facts(Workspace);
+        var facts = Requested(ItemKind.FileEdit, target).Facts(Workspace, Links);
 
         Assert.Equal(new PermissionRequest(ItemKind.FileEdit, located, inside), facts);
     }
@@ -32,17 +36,49 @@ public sealed class RequestFactsTests
     [Fact]
     public void NothingIsInsideTheWorkspaceOfASessionWithoutAKnownWorkingDirectory()
     {
-        var facts = Requested(ItemKind.FileEdit, "src/app.cs").Facts(Option<string>.None);
+        var edit = Requested(ItemKind.FileEdit, "src/app.cs").Facts(Option<string>.None, Links);
+        var command = Requested(ItemKind.Command, "echo x > src/app.cs").Facts(Option<string>.None, Links);
 
-        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, "src/app.cs", InsideWorkspace: false), facts);
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, "src/app.cs", InsideWorkspace: false), edit);
+        Assert.Equal(edit, command.Locate("src/app.cs"));
     }
 
     [Fact]
-    public void ACommandIsNeverInsideTheWorkspaceAndKeepsItsTarget()
+    public void ACommandKeepsItsTargetAndLocatesWhatItWritesAgainstTheWorkingDirectory()
     {
-        var facts = Requested(ItemKind.Command, "rm -rf src").Facts(Workspace);
+        var facts = Requested(ItemKind.Command, "rm -rf src > ../log.txt").Facts(Workspace, Links);
 
-        Assert.Equal(new PermissionRequest(ItemKind.Command, "rm -rf src", InsideWorkspace: false), facts);
+        Assert.Equal((ItemKind.Command, "rm -rf src > ../log.txt", false), (facts.Kind, facts.Target, facts.InsideWorkspace));
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, "out/log.txt", InsideWorkspace: true), facts.Locate("out/log.txt"));
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, Path.GetFullPath(Path.Combine(Workspace, "..", "log.txt")), InsideWorkspace: false), facts.Locate("../log.txt"));
+    }
+
+    [Fact]
+    public void AnEditThroughASymbolicLinkIsLocatedWhereTheLinkLeads()
+    {
+        using var workspace = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(workspace.Path, "src"));
+        Directory.CreateSymbolicLink(Path.Combine(workspace.Path, "home"), elsewhere.Path);
+        Directory.CreateSymbolicLink(Path.Combine(workspace.Path, "src", "shared"), Path.Combine("..", "src"));
+
+        var escaping = Requested(ItemKind.FileEdit, "home/.bashrc").Facts(workspace.Path, Links);
+        var climbing = Requested(ItemKind.FileEdit, "home/../outside.txt").Facts(workspace.Path, Links);
+        var staying = Requested(ItemKind.FileEdit, "src/shared/app.cs").Facts(workspace.Path, Links);
+
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, Path.Combine(Outcomes.Present(Links.Resolve(elsewhere.Path)), ".bashrc"), InsideWorkspace: false), escaping);
+        Assert.False(climbing.InsideWorkspace);
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, "src/app.cs", InsideWorkspace: true), staying);
+    }
+
+    [Fact]
+    public void AnEditThroughALoopOfLinksIsNeverInsideTheWorkspace()
+    {
+        using var workspace = new TemporaryFolder();
+        File.CreateSymbolicLink(Path.Combine(workspace.Path, "a"), Path.Combine(workspace.Path, "b"));
+        File.CreateSymbolicLink(Path.Combine(workspace.Path, "b"), Path.Combine(workspace.Path, "a"));
+
+        Assert.False(Requested(ItemKind.FileEdit, "a/x.txt").Facts(workspace.Path, Links).InsideWorkspace);
     }
 
     private static PermissionRequested Requested(ItemKind kind, string target) =>

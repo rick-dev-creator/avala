@@ -113,6 +113,7 @@ internal static class LayerMap
             ["Policies"] = Layer.Domain,
             ["Governance"] = Layer.Application,
             ["Answering"] = Layer.Application,
+            ["Links"] = Layer.Infrastructure,
             ["PolicyFiles"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
@@ -229,6 +230,14 @@ internal static class LayerMap
             ["Records"] = Layer.Application,
             ["Resuming"] = Layer.Application,
             ["RepositoryFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.Transcripts", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Keeping"] = Layer.Application,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
         }),
