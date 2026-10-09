@@ -85,6 +85,25 @@ public sealed class ClaudeCodeConformanceTests
             Deadline));
     }
 
+    [Fact]
+    public async Task ClaudeCodeDiscoversItsLoginsAsReferencesAsync()
+    {
+        using var home = new TemporaryFolder();
+
+        foreach (var login in new[] { SecondLogin, WorkLogin, ".claude-personal" })
+        {
+            await File.WriteAllTextAsync(Path.Combine(Directory.CreateDirectory(Path.Combine(home.Path, login)).FullName, ".credentials.json"), "{}", Deadline);
+        }
+
+        await using var composition = PluginComposition.Of(
+            new ClaudeCodePlugin("claude", [], home.Path, [Path.Combine(home.Path, WorkLogin)]),
+            new AvalaPaths(home.Path),
+            _ => { });
+
+        Assert.Empty(await AgentConformance.CheckDiscoveryAsync(composition.Get<IAgentProvider>(), composition.Get<IConnectionDiscovery>(), Deadline));
+        Assert.Equal(3, (await composition.Get<IConnectionDiscovery>().DiscoverAsync(Deadline)).Count);
+    }
+
     private static async Task<Replay> ReplayAsync(string name)
     {
         var replay = new Replay(Transcripts(name));

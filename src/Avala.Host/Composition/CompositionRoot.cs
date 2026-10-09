@@ -33,7 +33,16 @@ internal sealed class CompositionRoot : IAsyncDisposable
         Create(pluginDirectory, paths, new Surroundings(dispatcher, opener, TimeProvider.System, []));
 
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher, TimeProvider clock, IReadOnlyList<IPlugin> replacements) =>
-        Create(pluginDirectory, paths, new Surroundings(dispatcher, new AvaloniaFileOpener(), clock, replacements));
+        Create(pluginDirectory, paths, dispatcher, clock, replacements, []);
+
+    public static CompositionRoot Create(
+        string pluginDirectory,
+        AvalaPaths paths,
+        IUiDispatcher dispatcher,
+        TimeProvider clock,
+        IReadOnlyList<IPlugin> replacements,
+        IReadOnlyList<Type> left) =>
+        Create(pluginDirectory, paths, new Surroundings(dispatcher, new AvaloniaFileOpener(), clock, replacements) { Left = left });
 
     private static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, Surroundings surroundings)
     {
@@ -48,7 +57,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
         views.AddComponentViews();
         var registrar = new PluginRegistrar(services);
 
-        foreach (var plugin in PluginLoader.Load(pluginDirectory).Select(surroundings.Replaced))
+        foreach (var plugin in PluginLoader.Load(pluginDirectory).Where(surroundings.Kept).Select(surroundings.Replaced))
         {
             plugin.Register(registrar);
 
@@ -73,6 +82,10 @@ internal sealed class CompositionRoot : IAsyncDisposable
 
     private sealed record Surroundings(IUiDispatcher Dispatcher, IFileOpener Opener, TimeProvider Clock, IReadOnlyList<IPlugin> Replacements)
     {
+        public IReadOnlyList<Type> Left { get; init; } = [];
+
+        public bool Kept(IPlugin loaded) => !Left.Contains(loaded.GetType());
+
         public IPlugin Replaced(IPlugin loaded) => Replacements.FirstOrDefault(replacement => replacement.GetType() == loaded.GetType()) ?? loaded;
     }
 }

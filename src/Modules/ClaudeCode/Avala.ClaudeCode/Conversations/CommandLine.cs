@@ -45,8 +45,8 @@ internal static class CommandLine
     public static Option<string> Unqualified(string tool) =>
         tool.StartsWith($"mcp__{Server}__", StringComparison.Ordinal) ? tool[$"mcp__{Server}__".Length..] : Option<string>.None;
 
-    public static CliLaunch For(string workingDirectory, ConnectionEnvironment connection, Option<ConversationMark> resume) =>
-        new(workingDirectory, Arguments(connection, resume), Inherited, Variables(connection));
+    public static CliLaunch For(string workingDirectory, ConnectionEnvironment connection, Option<ConversationMark> resume, UserHome home) =>
+        new(workingDirectory, Arguments(connection, resume), Inherited, Variables(connection, home));
 
     private static List<string> Arguments(ConnectionEnvironment connection, Option<ConversationMark> resume)
     {
@@ -70,7 +70,7 @@ internal static class CommandLine
         ];
     }
 
-    private static Dictionary<string, string> Variables(ConnectionEnvironment connection)
+    private static Dictionary<string, string> Variables(ConnectionEnvironment connection, UserHome home)
     {
         var environment = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -78,7 +78,7 @@ internal static class CommandLine
             ["DISABLE_AUTOUPDATER"] = "1",
         };
 
-        foreach (var folder in connection.ConfigurationDirectory.Match<string[]>(folder => [folder], () => []))
+        foreach (var folder in connection.ConfigurationDirectory.Match<string[]>(folder => home.IsDefault(folder) ? [] : [folder], () => []))
         {
             environment[ConfigurationVariable] = folder;
         }

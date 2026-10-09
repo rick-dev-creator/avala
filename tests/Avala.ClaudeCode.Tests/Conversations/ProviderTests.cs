@@ -56,6 +56,19 @@ public sealed class ProviderTests
     }
 
     [Fact]
+    public async Task TheDefaultConfigurationFolderLeavesTheCliOnItsOwnDefaultAsync()
+    {
+        using var home = await HomeAsync();
+        var cli = new FakeCli();
+        var connection = new ConnectionEnvironment { ConfigurationDirectory = Path.Combine(home.Path, ".claude") };
+
+        await using var session = Started(await Provider(cli, home.Path).StartAsync(new SessionOptions(home.Path, PermissionMode.AskEveryTime) { Connection = connection }, Cancellation));
+
+        Assert.False(cli.Launches.Single().Variables.ContainsKey("CLAUDE_CONFIG_DIR"));
+        Assert.Contains("CLAUDE_CONFIG_DIR", cli.Launches.Single().Cleared);
+    }
+
+    [Fact]
     public async Task AnApiKeyConnectionHandsTheKeyToTheCliAndNoConfigurationFolderAsync()
     {
         using var folder = new TemporaryFolder();
@@ -103,7 +116,7 @@ public sealed class ProviderTests
     public async Task TheAccountIsTheLoginOfTheConfigurationFolderAsync()
     {
         using var home = await HomeAsync();
-        var folders = new ConfigurationFolders(home.Path);
+        var folders = new ConfigurationFolders(new UserHome(home.Path, []));
 
         var account = await folders.AccountAsync(new ConnectionEnvironment { ConfigurationDirectory = Path.Combine(home.Path, ".claude") }, Cancellation);
         var none = await folders.AccountAsync(new ConnectionEnvironment { ConfigurationDirectory = Path.Combine(home.Path, "missing") }, Cancellation);
@@ -142,7 +155,9 @@ public sealed class ProviderTests
     }
 
     private static ClaudeCodeProvider Provider(FakeCli cli, string? home = null) =>
-        new(cli, new ConfigurationFolders(home ?? Path.Combine(Path.GetTempPath(), "avala-no-home")));
+        Provider(cli, new UserHome(home ?? Path.Combine(Path.GetTempPath(), "avala-no-home"), []));
+
+    private static ClaudeCodeProvider Provider(FakeCli cli, UserHome home) => new(cli, new ConfigurationFolders(home), home);
 
     private static IAgentSession Started(Result<IAgentSession, AgentError> started) =>
         started.Match(session => session, error => throw new InvalidOperationException(error.ToString()));
