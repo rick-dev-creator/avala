@@ -1,33 +1,44 @@
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Holding;
 using Avala.Jobs.Jobs;
-using Avala.Jobs.Launching;
 using Avala.Jobs.Ledger;
+using Avala.Jobs.Review;
 using Avala.Sdk;
 
 namespace Avala.Jobs.Submission;
 
-internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, JobLauncher launcher, JobQueues queues) : IJobs
+internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, ReviewJob review, JobQueues queues) : IJobs
 {
     public async ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
         await submit.ExecuteAsync(request, cancellationToken);
 
     public async ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
-        (await queues.RunAsync(job, (found, token) => hold.ExecuteAsync(found, reason, token), cancellationToken))
-            .Match(held => held, () => Result<JobHold, JobRejection>.Failure(JobRejection.UnknownJob));
+        await InQueueAsync(job, (found, token) => hold.ExecuteAsync(found, reason, token), cancellationToken);
 
-    public async ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken)
-    {
-        if (!Feedback.Create(message).TryGetValue(out var guidance, out _))
-        {
-            return JobRejection.EmptyMessage;
-        }
-
-        return (await queues.RunAsync(job, (found, token) => launcher.ContinueAsync(found, guidance, token), cancellationToken))
-            .Match(continued => continued, () => Result<JobContinuation, JobRejection>.Failure(JobRejection.UnknownJob));
-    }
+    public async ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
+        await WithFeedbackAsync(job, message, review.ContinueAsync, cancellationToken);
 
     public async ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
-        (await queues.RunAsync(job, hold.DiscardAsync, cancellationToken))
-            .Match(discarded => discarded, () => Result<JobId, JobRejection>.Failure(JobRejection.UnknownJob));
+        await InQueueAsync(job, review.DiscardAsync, cancellationToken);
+
+    public async ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) =>
+        await InQueueAsync(job, review.ApproveAsync, cancellationToken);
+
+    public async ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
+        await WithFeedbackAsync(job, feedback, review.SendBackAsync, cancellationToken);
+
+    private async Task<Result<JobContinuation, JobRejection>> WithFeedbackAsync(
+        JobId job,
+        string message,
+        Func<Job, Feedback, CancellationToken, Task<Result<JobContinuation, JobRejection>>> round,
+        CancellationToken cancellationToken) =>
+        Feedback.Create(message).TryGetValue(out var feedback, out _)
+            ? await InQueueAsync(job, (found, token) => round(found, feedback, token), cancellationToken)
+            : JobRejection.EmptyMessage;
+
+    private async Task<Result<T, JobRejection>> InQueueAsync<T>(
+        JobId job,
+        Func<Job, CancellationToken, Task<Result<T, JobRejection>>> work,
+        CancellationToken cancellationToken) =>
+        (await queues.RunAsync(job, work, cancellationToken)).Match(done => done, () => Result<T, JobRejection>.Failure(JobRejection.UnknownJob));
 }

@@ -38,6 +38,9 @@ internal static class LayerMap
             ["Recovery"] = Layer.Application,
             ["Holding"] = Layer.Application,
             ["Ledger"] = Layer.Application,
+            ["Catalog"] = Layer.Application,
+            ["Review"] = Layer.Application,
+            ["Delivery"] = Layer.Application,
             ["Storage"] = Layer.Infrastructure,
             ["JobFiles"] = Layer.Infrastructure,
             ["JobList"] = Layer.ViewModels,
@@ -49,6 +52,7 @@ internal static class LayerMap
             ["Usage"] = Layer.Domain,
             ["Tracking"] = Layer.Application,
             ["Metrics"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Permissions", new()
         {
@@ -66,6 +70,7 @@ internal static class LayerMap
             ["Watching"] = Layer.Domain,
             ["Supervising"] = Layer.Application,
             ["Settings"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Budgets", new()
         {
@@ -75,6 +80,7 @@ internal static class LayerMap
             ["Enforcement"] = Layer.Application,
             ["Admission"] = Layer.Application,
             ["BudgetFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Resources", new()
         {
@@ -122,6 +128,7 @@ internal static class LayerMap
             ["Workspaces"] = Layer.Domain,
             ["Provisioning"] = Layer.Application,
             ["BaseFiles"] = Layer.Application,
+            ["Changes"] = Layer.Application,
             ["Git"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
         }),

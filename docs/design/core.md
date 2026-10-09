@@ -38,13 +38,13 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
-| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, discarding a job, stopping the session of a job that ended, admitting launches, the job's resume token, the autonomy a job asks for and the connection it runs on | `JobId`, `Autonomy`, integration events, `IJobs`, `ICompletionGate`, `IJobAdmission` |
+| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, reviewing a job: approving it through its repository's approval strategy, sending it back or discarding it, stopping the session of a job that ended, admitting launches, the job's resume token, the autonomy a job asks for and the connection it runs on, and the catalog of jobs for the views | `JobId`, `Autonomy`, integration events, `IJobs`, `IJobCatalog`, `ICompletionGate`, `IJobAdmission`, `IApprovalStrategy` |
 | Agents | Sessions, turn integrity, provider registry, the connections sessions open on and their credential sources, the harness tools and resume tokens handed to providers by capability, the process tree each session's processes run in, the forms agents ask humans to fill, and the decorators every provider is started through | `IAgents`, `IAgentProvider`, `IAgentSession`, `IAgentProviderDecorator`, `IConnections`, `ICredentialSource`, `ConnectionName`, `ConnectionEnvironment`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
-| Workspaces | Working copies, branches, checkpoints, the files of the commit a job started from, and the reconciliation of worktrees on disk with the store | `IWorkspaces`, `IBaseFiles`, `WorktreeReconciliation`, integration events |
+| Workspaces | Working copies, branches, checkpoints, the files of the commit a job started from, the diff of a workspace against that commit, merging a workspace's work into its base branch, and the reconciliation of worktrees on disk with the store | `IWorkspaces`, `IBaseFiles`, `IWorkspaceChanges`, `WorktreeReconciliation`, integration events |
 | Resources | Samples the processes, ports and disk every job uses, reaps the processes a session leaves behind, leases ports per worktree and reclaims worktrees by retention | `IResources`, `IOrphans`, `IWorktreeHousekeeping`, integration events |
 | Canvas | Offers the canvas tool, accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
-| Observability | Tokens, cost, limits and turns by provider, account, connection, session and job, and their metrics | `IUsage` and its summaries |
+| Observability | Tokens, cost, limits and turns by provider, account, connection, session and job, stored as facts so they survive a restart and can be read over time windows, and their metrics | `IUsage`, `IUsageHistory` and their summaries |
 | Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
 | Permissions | Answers permission requests and forms through an explicit policy at the job's level of autonomy, takes a human's answers with their session rules, and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `AutonomyApplied`, `FormDecided`, `PermissionAnswered`, `IPermissionAudit`, `IPermissionAnswers` |
 | Supervision | Holds a job whose agent stays silent, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
@@ -78,8 +78,9 @@ internal sealed class Job
     public Option<SessionId> Session { get; private set; }
     public Option<ResumeToken> Resume { get; private set; }
     public Option<ConnectionName> Connection { get; private set; }
+    public DateTimeOffset Submitted { get; private init; }
 
-    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository, Option<Autonomy> autonomy, Option<ConnectionName> connection);
+    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository, DateTimeOffset submitted, Option<Autonomy> autonomy, Option<ConnectionName> connection);
     public Result<JobSubmitted, JobError> Submit();
     public Result<AttemptStarted, JobError> Start(WorkspaceId workspace, SessionId session, ConnectionName connection);
     public Result<AttemptStarted, JobError> Recover(SessionId session, bool resumed);
@@ -91,6 +92,7 @@ internal sealed class Job
     public Result<AttemptStarted, JobError> Hint(Feedback guidance);
     public Result<AttemptStarted, JobError> Hint(Feedback guidance, SessionId session, bool resumed);
     public Result<AttemptStarted, JobError> SendBack(Feedback feedback);
+    public Result<AttemptStarted, JobError> SendBack(Feedback feedback, SessionId session, bool resumed);
     public Result<JobApproved, JobError> Approve();
     public Result<JobDiscarded, JobError> Discard();
     public Result<JobFailed, JobError> Fail(FailureReason reason);
@@ -123,7 +125,7 @@ The job references its workspace and its agent session by identifier only. Both 
 
 The job also keeps the latest [resume token](#resuming-a-conversation) its current session issued: `RecordResume` accepts a token only from the job's current session and returns `ForeignSession` otherwise. When the job moves to a new session, through `Recover` or the `Hint` that names a session, it keeps the token only if that session resumed the conversation; a session that started over forgets it, since its conversation is a new one that will issue its own token.
 
-Attempts have no state machine of their own. The job lifecycle already decides when an attempt starts, completes, passes or is rejected, so a second machine would be a second source of truth for the same facts. An attempt is an entity inside the `Job` aggregate, and only the job changes it.
+Attempts have no state machine of their own. The job lifecycle already decides when an attempt starts, completes, passes or is rejected, so a second machine would be a second source of truth for the same facts. An attempt is an entity inside the `Job` aggregate, and only the job changes it. Each attempt records the session it ran in, so the job's history of sessions is the order of its attempts' sessions, and the job records the time it was submitted, from `TimeProvider` in `SubmitJob`. Their origin and outcome are the `AttemptOrigin` and `AttemptOutcome` enums of `Jobs.Contracts`, which the catalog reports as they are.
 
 ### Attempt budget
 
@@ -260,13 +262,16 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 | `JobLedger` | Stores a job, then publishes `JobProgressed` with its status |
 | `JobQueues` | One serial queue per job: every piece of work on a job loads it and runs in that queue, in the order it was queued |
 | `SubmitJob` | Creates a job, submits it, stores it and publishes `JobSubmitted` |
-| `JobLauncher` | Prepares the workspace, opens the agent session, starts the job, stores it, announces `JobSessionStarted` and only then sends the instruction. It also relaunches a job after a restart, and continues a held job when a human sends it a message, resuming the job's conversation when it can |
+| `JobLauncher` | Prepares the workspace, opens the agent session, starts the job, stores it, announces `JobSessionStarted` and only then sends the instruction. It also relaunches a job after a restart, and continues a held job, or a job sent back from review, when a human sends it a message, resuming the job's conversation when it can |
 | `PrepareJob` | Handles `JobSubmitted` by queueing the launch of the job |
 | `CheckTurn` | Handles `TurnFinished` by queueing the evaluation of the turn, `SessionEnded` by queueing a hold as `SessionLost`, and `SessionResumable` by queueing the record of the job's resume token, then returns at once |
 | `EvaluateTurn` | Runs in the job's queue: checkpoints the workspace, evaluates the gates, then passes the job, retries with feedback to the same session, or asks for help when the budget is spent |
 | `CompletionGates` | Combines every registered gate into one verdict |
-| `JobRecovery` | An `IStartupTask` that launches `Preparing` jobs and recovers `Running` or `Checking` jobs, each in its queue |
+| `JobRecovery` | An `IStartupTask` that launches `Preparing` jobs and recovers `Running` or `Checking` jobs, each in its queue, leaving alone every job the ledger already recorded since the application started |
 | `HoldJob` | Behind `IJobs.HoldAsync`, in the job's queue: holds a running job for a typed reason, stores it, halts its agent session and publishes `JobHeld`, see [Holding a job](#holding-a-job) |
+| `ReviewJob` | Behind `IJobs.ContinueAsync`, `ApproveAsync`, `SendBackAsync` and `DiscardAsync`, in the job's queue: the commands a human gives a job that waits for them, see [Review and approval](#review-and-approval) |
+| `Approvals` | Finds the job's workspace, reads the approval strategy its repository names in `.avala/jobs.json` at the base commit, and delivers the job's work through it |
+| `JobCatalog` | Behind `IJobCatalog`: the jobs and each job's history of sessions and attempts, from snapshots of the store |
 
 - **One queue per job.** Evaluating a turn runs real builds and tests through the gates and can take minutes, so it never runs inside a handler. `CheckTurn` only finds the job of the session and queues the work, so the bus keeps delivering while the checks run. Different jobs proceed in parallel; the work on one job runs one piece at a time, in the order it was queued: its launch, the evaluation of each turn and every hold. A hold that arrives while a turn of the same job is being checked waits for that check and then finds a job that is no longer `Running`.
 - The job stores its session before the instruction is sent, so a fast agent cannot finish a turn the job does not know yet.
@@ -274,6 +279,7 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 - A turn that ends interrupted or failed fails the job, unless the job was held first: a held job is no longer `Running`, so `EvaluateTurn` ignores the end of the turn the hold interrupted.
 - **A lost session holds the job.** When the current session of a running job ends on its own, `SessionEnded` reaches `CheckTurn` before the failed `TurnFinished` that `AgentSessions` publishes after it, and both go to the job's queue in that order. The job is held as `SessionLost` and its session stopped, so the failed turn finds a held job and a human decides. `SessionEnded` of a session the job no longer uses is ignored.
 - Handlers are idempotent. `EvaluateTurn` acts only on a job that is still `Running` in the session that finished, so a repeated `TurnFinished` changes nothing.
+- **Recovery recovers only what an earlier run left.** Startup tasks run one after the other, so recovery may run after a human already submitted a job, or after that job started. `JobLedger` remembers every job it stored since the application started, and recovery, in the job's queue, leaves those jobs to their own flow: a submitted job still waits for its admission, and a started job keeps its one session.
 - Recovery opens a new session in the existing workspace and calls `job.Recover`, which interrupts the attempt that was underway and starts a `Recovery` attempt. It asks to resume the job's conversation with its stored resume token: when the session resumed it, the agent is told that the harness restarted and to continue where it left off; otherwise the new session starts over with the instruction, as before.
 - **Resume tokens.** `SessionResumable` reaches `CheckTurn` in the same mailbox as `SessionEnded`, and both are queued on the job in that order, so a session that issues a token and then dies has its token stored before the job is held. The token is stored with the job and announced with `JobResumable`.
 - **Connection.** `JobRequest.Connection` optionally names the [connection](#connections) a job runs on. `SubmitJob` checks a named connection through `IConnections.CheckAsync` and rejects the request with `UnknownConnection` or `UnusableConnection`, storing and announcing nothing. A job that names none takes its repository's default: `JobLauncher` reads `.avala/jobs.json` from the job's [base commit](#rules-from-the-base-commit) once the workspace exists, `{ "connection": "work" }`, through the `IRepositoryDefaults` port that `JobFileReader` implements in the `JobFiles` folder; without the file, or without the field, the session opens on the machine's default connection. The file is parsed strictly, at most 16 KiB with no other field, and a file that is invalid or cannot be read fails the job as `ConnectionUnavailable` before any session opens, as does a connection that turns out unknown or unusable when the session opens, since the repository's preference is only known after submission. `Job.Start` records the connection the session actually opened on, so the job keeps it even if the default changes later: it is stored with the job, and recovery and `IJobs.ContinueAsync` open their new session on it. A recovery whose connection is gone fails the job as `ConnectionUnavailable`; a continuation whose connection is gone is rejected with `UnknownConnection` or `UnusableConnection` and the job stays held.
@@ -309,6 +315,8 @@ public interface IJobs
     ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken);
     ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken);
     ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken);
+    ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken);
+    ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken);
 }
 ```
 
@@ -325,11 +333,59 @@ public interface IJobs
 - `NewConversation`: the session is gone and the conversation could not be resumed: the provider cannot resume, there is no token, or the provider rejected it. The new session starts over, and gets the instruction followed by the message.
 - Jobs decides whether the session is open by asking `IAgents.IsOpen`, never by the hold reason, which is not stored. A new session is opened before the job changes, on the job's connection, so a job whose workspace is gone (`WorkspaceUnavailable`), whose connection is gone (`UnknownConnection`, `UnusableConnection`) or whose agent cannot start (`AgentUnavailable`) stays held. A job that is not `NeedsHelp` is `NotHeld`, an empty message `EmptyMessage`, an unknown job `UnknownJob`.
 
-**Discarding a job.** `IJobs.DiscardAsync` discards an open job in its queue, whatever it is doing: `Job.Discard` interrupts the attempt underway, and the job ends `Discarded`. A job that already ended is `NotDiscardable`, an unknown job `UnknownJob`. It is the first command of review; approving and sending back arrive with the review screens.
+**Discarding a job.** `IJobs.DiscardAsync` discards an open job in its queue, whatever it is doing: `Job.Discard` interrupts the attempt underway, and the job ends `Discarded`. A job that already ended is `NotDiscardable`, an unknown job `UnknownJob`. It is one of the commands of [review](#review-and-approval); Resources reclaims the worktree of a discarded job at once by default.
 
 **An ended job stops its session.** Whenever `JobLedger` stores a job that ended, `Approved`, `Discarded` or `Failed`, it stops the job's session through `IAgents.StopAsync` before it publishes the job's `JobProgressed`, so the agent's process does not outlive its job and Resources reaps what the session left behind before it reclaims the worktree.
 
 **Admitting launches.** `IJobAdmission` is an extension point in `Jobs.Contracts`: `PrepareJob` awaits every registered admission before it queues the launch of a submitted job, in its own mailbox, so submitted jobs start in submission order as admissions let them. With no admission registered, every job launches at once. Budgets registers the first one, the [limit of running jobs](#running-jobs). Recovery at startup and continuations are not admitted: they resume jobs that already held a slot.
+
+### Review and approval
+
+**Accepted**
+
+A job that passed its gates waits for a human as `AwaitingReview`. The human reads what it did, then approves it, sends it back with feedback or discards it. Approving delivers the work through an approval strategy that the repository chooses, an extension point plugins implement, like the gates.
+
+**Queries for the views.** `IJobCatalog` in `Jobs.Contracts` answers from snapshots of the store, read without tracking, so a query never sees, nor disturbs, a job its queue is changing, and never waits for a turn being checked.
+
+- `ListAsync` lists every job as a `JobSummary`: repository, instruction, submission time, status, connection, autonomy and workspace, in submission order.
+- `HistoryAsync(job)` adds the job's attempts, each with its number, origin, outcome, guidance and session, and its sessions in the order they started, each with the attempts it ran. An unknown job has none.
+
+**The diff.** `IWorkspaceChanges` in `Workspaces.Contracts` compares the job's branch, its latest checkpoint, with its base commit, through git and `IProcessRunner`: `DiffAsync` lists the files changed, added, modified or deleted, with the lines added and removed, absent for a binary file; `FileDiffAsync(path)` gives the hunks of one file on demand, each with its ranges, its section header and its context, added and removed lines. Renames count as a deletion and an addition, and the worktree's uncommitted edits are not part of it: the diff is exactly what approval delivers. An unknown workspace is `UnknownWorkspace`, a file the job did not change `FileUnchanged`, a git failure `GitFailed`.
+
+**Commands.** Each runs in the job's queue, so it never races the evaluation of a turn.
+
+- `ApproveAsync`: only a job `AwaitingReview`, otherwise `NotAwaitingReview`; an unknown job is `UnknownJob`. `Approvals` finds the job's workspace (`WorkspaceUnavailable`), reads its strategy and delivers through it. Only a delivery that succeeds approves the job: `Job.Approve` moves it to `Approved`, `JobLedger` stores it, stops its session and publishes `JobProgressed`, and `ReviewJob` then publishes `JobApproved` with the `JobApproval`: the job and the `ApprovalDelivery`, the strategy, the branch the work is on and the commit it created, if any. A delivery refused leaves the job `AwaitingReview`, its session open, nothing published, and returns the strategy's rejection.
+- `SendBackAsync(job, feedback)`: only a job `AwaitingReview`, otherwise `NotAwaitingReview`; blank feedback is `EmptyMessage`. It starts a new round through the same machinery as continuing a held job: `Job.SendBack` starts a `SendBack` attempt with a fresh round of retries, and the feedback goes to the job's session when it is still open, or to a new session that resumes the conversation, or starts over with the instruction followed by the feedback, exactly as `ContinueAsync` decides, with the same rejections when the workspace, the connection or the agent is gone. The job's gates judge the new round like any other.
+- `DiscardAsync`, unchanged, see [Holding a job](#holding-a-job).
+- After approval, the worktree follows the retention of [Resources](#worktrees): by default an approved job's worktree and branch are kept.
+
+**The approval strategy.** An extension point in `Jobs.Contracts`:
+
+```csharp
+public interface IApprovalStrategy
+{
+    string Name { get; }
+    ValueTask<Result<ApprovalDelivery, JobRejection>> DeliverAsync(ApprovalRequest request, CancellationToken cancellationToken);
+}
+
+public sealed record ApprovalRequest(JobId Job, string Instruction, int Attempts, WorkspaceInfo Workspace);
+```
+
+- Strategies are registered through DI. The repository names one in `.avala/jobs.json` at the job's [base commit](#rules-from-the-base-commit), `{ "approval": "merge" }`, next to its preferred connection; without the file or the field the strategy is `keep`. The file is parsed strictly, as for the connection: at most 16 KiB, only `connection` and `approval`, each a non-empty string. A file that is invalid or cannot be read is `InvalidJobFile`, and a name no registered strategy has is `UnknownApprovalStrategy`; either leaves the job awaiting review. When two strategies share a name, the first registered wins.
+- The core registers two. `keep`: nothing is touched; the delivery names the job's branch, ready to be merged by hand or by a later strategy. `merge`: the job's checkpoints are squashed into one commit and land on the base branch, see below. Opening a pull request arrives as a strategy of a GitHub plugin, without touching the core.
+
+**The merge.** `MergeStrategy` composes the commit message and asks `IWorkspaceChanges.MergeAsync`, which never forces anything:
+
+1. The base branch is the branch the repository's `HEAD`, or the requested base reference, named when the workspace was prepared, stored with the workspace as `WorkspaceInfo.BaseBranch`. A workspace prepared from a detached `HEAD` has none: `NoBaseBranch`, as when the branch no longer exists.
+2. `git merge-tree --write-tree --merge-base=<base commit> <base branch tip> <job branch tip>` applies the job's changes since its base commit onto the base branch's current tip, in memory, touching no working tree and no index. A conflict, whether the base moved or not, is `MergeConflict`; `IWorkspaceChanges.ConflictsAsync` lists the conflicting files with the same command. A base that moved without conflicting is fine: the job's changes land on top of it.
+3. When the resulting tree is the tip's own tree, the base already holds the work: the merge succeeds with no commit, so approving again after an interrupted approval delivers nothing twice.
+4. When the base branch is checked out in a worktree of the repository, typically the user's main checkout, found with `git worktree list --porcelain -z`, that checkout must have no staged or unstaged change to a tracked file, by `git status --porcelain --untracked-files=no`; otherwise `BaseCheckoutDirty` and nothing is touched.
+5. `git commit-tree` writes one commit whose tree is the merged tree and whose single parent is the tip, with the repository's configured identity, or `Avala <avala@localhost>` when it has none, unsigned. The message is the first line of the job's instruction, cut at 72 characters, then the whole instruction when it is longer, then `Squashed by Avala from the checkpoints of N attempts.` and the trailer `Avala-Job: <id>`.
+6. `git update-ref refs/heads/<base> <commit> <tip>` moves the branch only if it still points at the tip it was merged onto: an atomic compare and swap. A branch that moved meanwhile is `BaseMoved`, and approving again merges onto the new tip.
+7. In the checkout of the base branch, if any, `git read-tree -m -u <tip> <commit>` brings the index and the files to the new commit, a two-tree fast-forward that refuses to overwrite a local change or an untracked file. If it refuses, the branch is moved back to the tip with the same compare and swap and the result is `BaseCheckoutDirty`; the user's files are left exactly as they were.
+8. The job's branch keeps its checkpoints; the delivery names the base branch, the new commit and the checkout it updated.
+
+Git 2.40 or later is required, for `merge-tree --merge-base`. Plumbing runs no hooks, so neither the user's commit hooks nor the merge hooks run on the squashed commit.
 
 ## Agents
 
@@ -795,8 +851,9 @@ Each handler receives its events in publishing order, so both arrive at the trac
 | Folder | Holds | Layer |
 | --- | --- | --- |
 | `Usage` | `SessionUsage`, an immutable record of one session: provider, account, job, tokens, cost per currency, unpriced reports, turns by outcome with their duration, and the latest reading of each limit window. The arithmetic on tokens and turns, and the rollup of several sessions into a summary | Domain |
-| `Tracking` | `UsageTracker`, the handler of `SessionOpened`, `JobSessionStarted` and `AgentActivity`; `UsageBook`, the in-memory book that implements `IUsage`; and the `IUsageMetrics` port | Application |
+| `Tracking` | `UsageTracker`, the handler of `SessionOpened`, `JobSessionStarted` and `AgentActivity`; `UsageBook`, the book that implements `IUsage` and restores earlier runs at startup; `UsageHistory`, behind `IUsageHistory`; and the `IUsageMetrics` and `IUsageStore` ports | Application |
 | `Metrics` | `UsageMeter`, the `Avala.Observability` meter behind `IUsageMetrics` | Infrastructure |
+| `Storage` | `SqliteUsageStore` behind `IUsageStore`, in `observability.db` | Infrastructure |
 
 - The domain is a projection of facts that already happened, so it has no aggregate and nothing to reject: records that return their next version, no error enum.
 - Each `UsageReported` adds to the totals. A report without a cost adds its tokens and counts as unpriced, so a dashboard can tell a partial cost from a complete one. Costs add up per currency.
@@ -807,7 +864,9 @@ Each handler receives its events in publishing order, so both arrive at the trac
 - `ByConnection` groups sessions by the connection they opened on, with its provider, ordered by connection name, and leaves out sessions that were never announced.
 - After it records a `UsageReported` or a `LimitReported`, the tracker publishes `UsageRecorded` with the session and its job. A consumer that reacts to spending, such as Budgets, handles it and reads `IUsage`, which already includes the report. Handling `AgentActivity` directly would not do: handlers run concurrently, so such a consumer could read the aggregates before the tracker applied the report.
 - The tracker is the only writer of `UsageBook`. The book holds an immutable dictionary of sessions that the tracker replaces on every change, so `IUsage` answers from a consistent snapshot on any thread.
-- The aggregates live in memory and start empty with the application. Persisting them, or rebuilding them from stored history, is left for when the dashboards need history across restarts.
+- **Stored history.** Every usage report, limit reading and counted turn is also a `UsageFact`: its session, the time the tracker handled it, and its tokens and cost, its limit, or its outcome and duration. The tracker keeps each session's attribution, provider, account, connection and job, and each fact in `observability.db` before it publishes `UsageRecorded`, through the store's single `SerialExecutor`. The book holds two snapshots: the sessions of earlier runs, which it restores once, as a startup task, by folding the stored facts, and the live sessions of this run, which only the tracker writes. Session identifiers are new in every run, so the two never overlap; the store remembers the sessions it wrote itself and leaves them out of the restore, so a startup task that runs late cannot count a live session twice. `IUsage` therefore answers across restarts: a recovered job's spending goes on from where it was, and a connection's limit windows keep their latest reading.
+- **Time windows.** `IUsageHistory` reads the stored facts: `WithinAsync(from, to)` adds up the facts from `from`, included, to `to`, excluded, into a `UsagePeriod` with its summary by provider and by connection; `DailyAsync(first, last, zone)` gives one period per calendar day of the time zone, from local midnight to local midnight. A turn counts in the window it ended in, and a limit window keeps its latest reading within the period.
+- The history is kept whole; compacting old facts arrives when its size calls for it.
 
 | Instrument | Kind | Unit | Tags |
 | --- | --- | --- | --- |
@@ -823,7 +882,7 @@ The provider tag is the provider's identifier and the connection tag the connect
 
 **Accepted**
 
-A repository declares the rules of its jobs in three files: its checks in `.avala/checks.json`, its permission policy in `.avala/permissions.json` and its budget in `.avala/budget.json`. A fourth, `.avala/jobs.json`, names the connection its jobs prefer, read the same way by Jobs, see [the job flow coordinator](#job-flow-coordinator). The agent works in the job's worktree, so a rule read from the worktree is a rule the agent can rewrite. Every rule is therefore read from the job's base commit, the commit its worktree was created from, and nothing the agent changes during the job can loosen the rules that judge it.
+A repository declares the rules of its jobs in three files: its checks in `.avala/checks.json`, its permission policy in `.avala/permissions.json` and its budget in `.avala/budget.json`. A fourth, `.avala/jobs.json`, names the connection its jobs prefer and the strategy that delivers an approved job, read the same way by Jobs, see [the job flow coordinator](#job-flow-coordinator) and [review](#review-and-approval). The agent works in the job's worktree, so a rule read from the worktree is a rule the agent can rewrite. Every rule is therefore read from the job's base commit, the commit its worktree was created from, and nothing the agent changes during the job can loosen the rules that judge it.
 
 ```csharp
 public interface IBaseFiles
@@ -885,7 +944,7 @@ A repository declares its checks in `.avala/checks.json`, at its root. The decla
 | `Evidence` | `EvidenceBook`, the in-memory book behind `IVerifications`, and `EvidenceLedger`, which keeps a report and publishes it | Application |
 
 - The domain has no aggregate: it parses a declaration and describes facts. `VerificationError` is its single error enum, for the declaration it can reject: `MalformedDeclaration`, `MissingCommand`, `InvalidTimeout` and `UnreadableDeclaration`.
-- The reports live in memory and start empty with the application, like the usage aggregates. Persisting them arrives with the review screens that need them across restarts.
+- The reports live in memory and start empty with the application. Storing them arrives with the job's evidence, together with the decisions of Permissions, see [its module](#the-module-2).
 
 ## Permissions
 
@@ -999,7 +1058,7 @@ The module subscribes to the bus like every other consumer of agent events, so i
 - On `PermissionRequested` the responder decides with the session's policy and its session rules and answers `Allow` or `Deny` through `IAgents.RespondAsync`, leaving `Ask` pending; the governor keeps the decision and publishes `PermissionDecided` with the answer, the rule that decided, the level it was decided at and whether the answer reached the agent. A request from a session it never saw open is decided by the built-in policy with no workspace, so only the guards and the default apply.
 - On `FormRequested` the responder answers through `IAgents.AnswerAsync` when the session is autonomous and leaves the form to a human otherwise; the governor keeps the decision and publishes `FormDecided`.
 - Requests left to a human stay pending exactly as before the module existed: the turn waits in `AwaitingPermission`, never expires, and anyone may still answer through `IAgents.RespondAsync`, or through `IPermissionAnswers.AnswerAsync` to leave a message or a session rule and have the answer audited. Forms wait the same way in `AwaitingAnswer`. Without the module, every request and every form is left to a human that way.
-- Decisions live in memory for the life of the application, like the usage aggregates.
+- Decisions live in memory for the life of the application. Unlike usage and interventions, a decision is evidence of one session, read with the verification reports of the same attempts on the review screen; storing it alone would give the review half its evidence after a restart. Decisions, forms, assumptions and verification reports are stored together, as the job's evidence, in a later step.
 
 ## Supervision
 
@@ -1045,11 +1104,12 @@ The harness reads `supervision.json` from its data folder, the folder of `AVALA_
 | Folder | Holds | Layer |
 | --- | --- | --- |
 | `Watching` | `JobWatch`, the immutable record of one job: whether it runs, its current session, the permission it waits for and its last activity; it decides whether the job is armed, when its alarm is due and whether it is silent | Domain |
-| `Supervising` | `Watchdog`, the handler of `JobProgressed`, `JobSessionStarted`, `AgentActivity` and `SilenceNoticed`, which keeps the watch of every job; `SilenceAlarms`, the per-job timers; `Intervener`, which holds through `IJobs` and records; `SupervisionBook`, the in-memory book behind `ISupervision`; and the `ISupervisionSettings` port | Application |
+| `Supervising` | `Watchdog`, the handler of `JobProgressed`, `JobSessionStarted`, `AgentActivity` and `SilenceNoticed`, which keeps the watch of every job; `SilenceAlarms`, the per-job timers; `Intervener`, which holds through `IJobs` and records; `SupervisionBook`, the book behind `ISupervision`, which restores the interventions of earlier runs at startup; and the `ISupervisionSettings` and `IInterventionStore` ports | Application |
 | `Settings` | `SettingsFile` behind `ISupervisionSettings`, and `SettingsParser` | Infrastructure |
+| `Storage` | `SqliteInterventionStore` behind `IInterventionStore`, in `supervision.db` | Infrastructure |
 
 - The domain decides and rejects nothing, so it has no aggregate. `SupervisionError` is the module's single error enum, in its contracts, since only reading the settings can fail and its outcome is public.
-- Interventions live in memory for the life of the application, like the usage aggregates.
+- Every intervention is stored in `supervision.db` before `SupervisorIntervened` is published, and the book restores those of earlier runs as a startup task, leaving out what this run stored, so `ISupervision.OfJob` answers across restarts: earlier runs first, then this run, in the order they happened.
 
 ## Budgets
 
@@ -1125,12 +1185,13 @@ The machine decides how many jobs run at once, never a repository: `budgets.json
 | Folder | Holds | Layer |
 | --- | --- | --- |
 | `Caps` | `Breaches`: the evaluation of a session's budget against a job's spending, its provider's limits and its memory, the reason each breach holds a job for, and the built-in caps | Domain |
-| `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `BudgetLoaded`, `JobSessionStarted`, `JobProgressed`, `UsageRecorded` and `ResourcesSampled`; `BudgetHolds`, which holds through `IJobs` and records; `BudgetBook`, the in-memory book behind `IBudgets`; and the `IBudgetFiles` port | Application |
+| `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `BudgetLoaded`, `JobSessionStarted`, `JobProgressed`, `UsageRecorded` and `ResourcesSampled`; `BudgetHolds`, which holds through `IJobs` and records; `BudgetBook`, the book behind `IBudgets`, which restores the interventions of earlier runs at startup; and the `IBudgetFiles` and `IInterventionStore` ports | Application |
 | `Admission` | `RunningJobs`, the `IJobAdmission` and handler of `JobProgressed` that keeps the slots, and the `IMachineBudgetFile` port | Application |
 | `BudgetFiles` | `BudgetFileReader` behind `IBudgetFiles`, which reads the file through `IBaseFiles` from Workspaces, `BudgetFileParser`, and `MachineBudgetFile` behind `IMachineBudgetFile` | Infrastructure |
+| `Storage` | `SqliteInterventionStore` behind `IInterventionStore`, in `budgets.db` | Infrastructure |
 
 - The domain decides and rejects nothing, so it has no aggregate. `BudgetError` is the module's single error enum, in its contracts.
-- Budgets and interventions live in memory. Spending lives in Observability's memory too, so a restart starts every job's spending from zero; persisting usage is deferred with the dashboards.
+- Session budgets live in memory: a recovered session reads its file again. Interventions are stored in `budgets.db` before `BudgetIntervened` is published and restored at startup like Supervision's. Spending comes from Observability, which stores it, so a job recovered after a restart goes on spending against what it had already spent.
 - **Trust.** The budget file comes from the base commit, so an agent cannot raise its own caps: neither a running session nor a recovered one, which reads the same commit again, sees an edit made in the worktree. `BudgetLoaded` carries the file's origin, with whether the worktree's copy differs.
 - Budgets measures memory through `IEnumerable<IResources>`, so it works without the Resources plugin.
 
@@ -1278,9 +1339,9 @@ A `PolicyRule` carries its origin (`BuiltIn`, `Repository` or `Session`), name, 
 | `OpenedSession.Connection` | Field of a command answer | The `ConnectionName` the session opened on | With every `IAgents.OpenAsync` that succeeds | One per session |
 | `JobRequest.Connection` | Field of a command | `Option<ConnectionName>`, the connection the job asks for; none takes the repository's default from `.avala/jobs.json`, then the machine's | At submission; checked then, a rejection being `UnknownConnection` or `UnusableConnection` | One per job |
 | The job's connection | Stored with the job | The `ConnectionName` its first session opened on | Fixed when the job starts; reused by recovery and continuation | One per job |
-| `IUsage.ByConnection()` | Query | `IReadOnlyList<ConnectionUsage>`: `Connection`, its `Provider` and its `UsageSummary`, limits included, ordered by connection name | Any time, from memory | One per connection that opened a session since the application started |
+| `IUsage.ByConnection()` | Query | `IReadOnlyList<ConnectionUsage>`: `Connection`, its `Provider` and its `UsageSummary`, limits included, ordered by connection name | Any time, from memory, earlier runs restored at startup | One per connection that ever opened a session |
 
-The job's connection is not yet part of an event of Jobs: a view finds it through the `SessionOpened` of the job's sessions, which `JobSessionStarted` ties to the job.
+The job's connection is not part of an event of Jobs: a view reads it from `IJobCatalog`, or finds it through the `SessionOpened` of the job's sessions, which `JobSessionStarted` ties to the job.
 
 ### Workspaces: base files
 
@@ -1317,14 +1378,18 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
 | `UsageRecorded` | Event | `Session`, `Option<JobId>` of its job | After every `UsageReported` and `LimitReported` the tracker recorded, once `IUsage` includes it | One per usage or limit report |
-| `IUsage.ByAccount()` | Query | `IReadOnlyList<AccountUsage>`: `Provider`, `Account` and its `UsageSummary`, ordered by provider then account identifier | Any time, from memory | One per provider and account that reported usage since the application started; sessions without an account are left out |
+| `IUsage.ByAccount()` | Query | `IReadOnlyList<AccountUsage>`: `Provider`, `Account` and its `UsageSummary`, ordered by provider then account identifier | Any time, from memory, earlier runs restored at startup | One per provider and account that ever reported usage; sessions without an account are left out |
+| `IUsageHistory.WithinAsync(from, to)` | Query | `UsagePeriod`: `From`, `To`, `Usage` (a `UsageSummary`), `ByProvider` and `ByConnection`, of the facts recorded from `from`, included, to `to`, excluded | On demand, from `observability.db` | One answer per call |
+| `IUsageHistory.DailyAsync(first, last, zone)` | Query | `IReadOnlyList<UsagePeriod>`, one per calendar day of `zone` from `first` to `last`, each from local midnight to the next, empty days included | On demand, from `observability.db` | One per day asked |
+| `observability.db` | File in the data folder | `UsageSessions`: the session, its provider's identifier and name, its account's identifier and label, its connection and its job, empty text or an empty identifier when unknown; `UsageFacts`: the session, the time in UTC ticks, the kind (`Usage`, `Limit` or `Turn`), the five token counts, the cost's amount and currency, the limit's window, fraction used and reset time (`-1` when none), and the turn's outcome and duration in ticks | One session row when a session opens, updated when its job is known; one fact per usage report, limit reading and counted turn | Grows with the history; never compacted yet |
 ### Supervision
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
 | `SilenceNoticed` | Event | `Job` | When the silence alarm of a running job rings. It is how the alarm reaches the watchdog's mailbox, which confirms it after every event published before it, so it does not mean the job was held | At most one pending per job; a job active for a long run gets one each time its window elapses without its last activity having moved |
 | `SupervisorIntervened` | Event | `Intervention`: a `SupervisionIntervention` | After a hold succeeded, following the hold's `JobProgressed` and `JobHeld` | One per intervention |
-| `ISupervision.OfJob(JobId)` | Query | `IReadOnlyList<SupervisionIntervention>` in the order they happened; empty for an unknown job | Any time, from memory | Zero or more per job |
+| `ISupervision.OfJob(JobId)` | Query | `IReadOnlyList<SupervisionIntervention>` in the order they happened; empty for an unknown job | Any time, from memory; earlier runs restored at startup from `supervision.db` | Zero or more per job |
+| `supervision.db` | File in the data folder | `Interventions`: the job, the session, the hold reason and halt, the silence measured and the window in ticks, and the time in UTC ticks | One row per intervention, written before `SupervisorIntervened` | Zero or more per job |
 | `ISupervision.SettingsAsync` | Query | `SupervisionSettings`: `Silence` window, `File` (`SettingsFileStatus`: `Absent`, `Applied` or `Rejected`) and `Option<SupervisionError>` | Any time; reads the settings file the first time | One per application |
 
 `SupervisionIntervention` carries `Hold`, the `JobHold` Jobs returned, always `Stalled`; `Silence`, a `SilenceMeasure` with the measured `Silent` time and the `Window`; and `At`, from `TimeProvider`. A lost session is not an intervention of Supervision: it shows as the `JobHeld` with `SessionLost` that Jobs publishes.
@@ -1336,7 +1401,8 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | `BudgetLoaded` | Event | `Budget`: a `SessionBudget` with `Session`, `File` (`BudgetFileStatus`: `Absent`, `Applied` or `Rejected`), `Option<BudgetError>`, `Caps` and `Origin`, the `Option<FileOrigin>` of the budget file, as for the policy | When a session opens, after its budget file was read and before the session is tied to its job | One per session |
 | `BudgetIntervened` | Event | `Intervention`: a `BudgetIntervention` | After a hold succeeded, following the hold's `JobProgressed` and `JobHeld` | One per intervention |
 | `IBudgets.BudgetOf(SessionId)` | Query | `Option<SessionBudget>`; none until the session opened | Any time | One per session |
-| `IBudgets.OfJob(JobId)` | Query | `IReadOnlyList<BudgetIntervention>` in the order they happened | Any time, from memory | Zero or more per job |
+| `IBudgets.OfJob(JobId)` | Query | `IReadOnlyList<BudgetIntervention>` in the order they happened | Any time, from memory; earlier runs restored at startup from `budgets.db` | Zero or more per job |
+| `budgets.db` | File in the data folder | `Interventions`: the job, the session, the hold reason and halt, the breach's measure, subject, measured value, cap and error (empty when none), and the time in UTC ticks | One row per intervention, written before `BudgetIntervened` | Zero or more per job |
 
 `BudgetCaps` has `CostPerJob`, a list of `Cost` caps, one per currency; `TokensPerJob`, an `Option<long>`; `HoldAtLimit`, an `Option<double>`; and `MemoryPerJobMegabytes`, an `Option<long>`. A session's `Caps` are those of its connection: the file's `connections` section for it when there is one, the top-level caps otherwise. `BudgetIntervention` carries `Hold`, the `JobHold`; `Breach`; and `At`. A `BudgetBreach` states the measured facts: `Measure` (`Cost`, `Tokens`, `Limit`, `Declaration` or `Memory`), `Subject` (the currency, `tokens`, the limit window, the budget file or `megabytes`), `Measured` and `Cap` as decimals (spent against cap, the limit fraction used against the threshold, or megabytes used, to one decimal, against the cap; both 0 for a declaration) and `Error`, the `Option<BudgetError>` of an invalid declaration.
 
@@ -1351,6 +1417,33 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
 | `IJobs.DiscardAsync(JobId)` | Command answer | `Result<JobId, JobRejection>`: the job discarded, or `NotDiscardable`, `UnknownJob` | When a human discards a job. A success is followed by `SessionStopped` when the job had a session, then `JobProgressed` with `Discarded` | One per discard |
+
+### Jobs: review and catalog
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `IJobCatalog.ListAsync()` | Query | `IReadOnlyList<JobSummary>`: `Job`, `Repository`, `Instruction`, `Submitted`, `Status` (`JobStatus`), `Option<ConnectionName>` `Connection`, `Option<Autonomy>` `Autonomy` and `Option<WorkspaceId>` `Workspace`, in submission order | On demand, from a snapshot of `jobs.db` | One per job ever submitted |
+| `IJobCatalog.HistoryAsync(JobId)` | Query | `Option<JobHistory>`: `Summary`; `Sessions`, each a `SessionRecord` with `Session` and the numbers of its `Attempts`, in the order the sessions started; `Attempts`, each an `AttemptRecord` with `Number`, `Origin` (`AttemptOrigin`: `Initial`, `Retry`, `Hint`, `SendBack`, `Recovery`), `Outcome` (`AttemptOutcome`: `Running`, `AwaitingCheck`, `Passed`, `Rejected`, `Interrupted`), `Option<string>` `Guidance` and `Option<SessionId>` `Session`; none for an unknown job | On demand, from a snapshot of `jobs.db` | One per job |
+| `IJobs.ApproveAsync(JobId)` | Command answer | `Result<JobApproval, JobRejection>`: `Job` and `Delivery`, an `ApprovalDelivery` with `Strategy`, `Branch` and `Option<string>` `Commit`; or `NotAwaitingReview`, `UnknownJob`, `WorkspaceUnavailable`, `InvalidJobFile`, `UnknownApprovalStrategy`, `NoBaseBranch`, `MergeConflict`, `BaseCheckoutDirty`, `BaseMoved`, `DeliveryFailed`, or any rejection of a plugin's strategy | When a human approves. A success is followed by `SessionStopped` when the session was open, `JobProgressed` with `Approved`, then `JobApproved` | One per approval attempt |
+| `JobApproved` | Event | `Approval`: the `JobApproval` | Once the approved job is stored and announced | Zero or one per job |
+| `IJobs.SendBackAsync(JobId, feedback)` | Command answer | `Result<JobContinuation, JobRejection>`, as `ContinueAsync`; or `NotAwaitingReview`, `EmptyMessage`, `UnknownJob`, `WorkspaceUnavailable`, `UnknownConnection`, `UnusableConnection`, `AgentUnavailable` | When a human sends a job back. A success is followed by `JobProgressed` with `Running`, and by `JobSessionStarted` when the session is new | One per round asked for |
+| `.avala/jobs.json` `approval` | Field of a rule file | The name of the approval strategy, `keep` by default | Read from the base commit at each approval | One per repository |
+
+### Workspaces: changes
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `WorkspaceInfo.BaseBranch` | Field of `IWorkspaces` answers | `Option<string>`: the branch the base reference named when the workspace was prepared; none for a detached `HEAD` | Fixed when the workspace is prepared; stored with it | One per workspace |
+| `IWorkspaceChanges.DiffAsync(WorkspaceId)` | Query | `Result<WorkspaceDiff, WorkspaceFailure>`: `Workspace`, `BaseCommit`, `Head` (the branch's latest checkpoint) and `Files`, each a `FileChange` with `Path`, `Kind` (`Added`, `Modified`, `Deleted`), and `Option<int>` `Added` and `Removed`, absent for a binary file, in path order | On demand, two git commands | One answer per call |
+| `IWorkspaceChanges.FileDiffAsync(WorkspaceId, path)` | Query | `Result<FileDiff, WorkspaceFailure>`: `Path`, `Binary` and `Hunks`, each a `DiffHunk` with `OldStart`, `OldLines`, `NewStart`, `NewLines`, `Section` and `Lines`, each a `DiffLine` with `Kind` (`Context`, `Added`, `Removed`) and `Text`; `FileUnchanged` for a file the job did not change | On demand, one git command | One answer per call |
+| `IWorkspaceChanges.ConflictsAsync(WorkspaceId)` | Query | `Result<IReadOnlyList<string>, WorkspaceFailure>`: the files that conflict with the base branch's current tip, empty when it merges cleanly; `NoBaseBranch` without one | On demand | One answer per call |
+| `IWorkspaceChanges.MergeAsync(WorkspaceId, message)` | Command answer | `Result<MergedWork, WorkspaceFailure>`: `Workspace`, `BaseBranch`, `Option<string>` `Commit` (none when the base already held the work) and `Option<string>` `Checkout` updated; or `NoBaseBranch`, `MergeConflict`, `BaseCheckoutDirty`, `BaseMoved`, `UnknownWorkspace`, `GitFailed` | When the `merge` strategy delivers | One per approval |
+
+### Runtime: startup
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `StartupCompleted` | Event, in the SDK | No field | Once every startup task ran, recovery and the restores of stored history included | One per start of the application |
 
 ### Agents: process trees
 
@@ -1396,8 +1489,9 @@ The application is built view model first: every screen is built and tested as v
 **Accepted**
 
 - EF Core with the SQLite provider, with no server.
-- One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
-- The schema is created with `EnsureCreated`. The first schema changes, the `Base` column of a workspace and the `Resume`, `Autonomy` and `Connection` columns of a job, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted, or its `jobs.db` at least. Migrations arrive with the first schema change after a release.
+- One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`, `observability.db`, `supervision.db` and `budgets.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
+- The schema is created with `EnsureCreated`. The schema changes so far, the `Base` and `BaseBranch` columns of a workspace, the `Resume`, `Autonomy`, `Connection` and `Submitted` columns of a job and the `Session` column of its attempts, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted, or its `jobs.db` and `workspaces.db` at least. The new databases of Observability, Supervision and Budgets are created when missing. Migrations arrive with the first schema change after a release; with stored history now worth keeping, that release is the moment to start them.
+- **Rows that are not aggregates.** A store of facts, such as usage facts and interventions, maps a plain row type in its `Storage` folder, converted to and from the module's records there, instead of an aggregate. Times are stored as UTC ticks, so SQLite compares and orders them as numbers.
 - Stores are internal interfaces of each module's application layer, implemented in its `Storage` folder.
 - EF Core is referenced only from the infrastructure layer, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.
 - Connection pooling is off.
@@ -1424,7 +1518,7 @@ The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PAT
 
 ### Startup tasks
 
-Modules register `IStartupTask` implementations, such as `JobRecovery`. The runtime runs them in `RuntimeHost.RunAsync`, after the event bus has started, so the events they publish are dispatched.
+Modules register `IStartupTask` implementations, such as `JobRecovery` and the books that restore stored history. The runtime runs them in `RuntimeHost.RunAsync`, one after the other, after the event bus has started, so the events they publish are dispatched, and then publishes `StartupCompleted` from the SDK. Work submitted meanwhile is not held back, so a startup task never assumes it runs before the first request.
 
 ## Architecture rules to add
 

@@ -1,11 +1,14 @@
 using Avala.Agents.Contracts;
+using Avala.Jobs.Catalog;
 using Avala.Jobs.Contracts;
+using Avala.Jobs.Delivery;
 using Avala.Jobs.Holding;
 using Avala.Jobs.JobFiles;
 using Avala.Jobs.JobList;
 using Avala.Jobs.Launching;
 using Avala.Jobs.Ledger;
 using Avala.Jobs.Recovery;
+using Avala.Jobs.Review;
 using Avala.Jobs.Storage;
 using Avala.Jobs.Submission;
 using Avala.Jobs.TurnChecks;
@@ -13,6 +16,7 @@ using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Sdk.UI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
 namespace Avala.Jobs.UI;
@@ -21,7 +25,9 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
 {
     public PluginInfo Info { get; } = new("avala.jobs", "Jobs");
 
-    public void Register(IPluginRegistrar registrar) =>
+    public void Register(IPluginRegistrar registrar)
+    {
+        registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton<IJobStore, SqliteJobStore>()
             .AddSingleton<IRepositoryDefaults, JobFileReader>()
@@ -32,7 +38,12 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
             .AddSingleton<EvaluateTurn>()
             .AddSingleton<SubmitJob>()
             .AddSingleton<HoldJob>()
+            .AddSingleton<IApprovalStrategy, KeepStrategy>()
+            .AddSingleton<IApprovalStrategy, MergeStrategy>()
+            .AddSingleton<Approvals>()
+            .AddSingleton<ReviewJob>()
             .AddSingleton<IJobs, JobsEntry>()
+            .AddSingleton<IJobCatalog, JobCatalog>()
             .AddSingleton<IHandle<JobAnnouncement>, PrepareJob>()
             .AddSingleton<CheckTurn>()
             .AddSingleton<IHandle<TurnFinished>>(services => services.GetRequiredService<CheckTurn>())
@@ -40,6 +51,7 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
             .AddSingleton<IHandle<SessionResumable>>(services => services.GetRequiredService<CheckTurn>())
             .AddSingleton<IStartupTask, JobRecovery>()
             .AddSingleton<IPage, JobsViewModel>();
+    }
 
     public void RegisterViews(IViewRegistrar views) =>
         views.Register<JobsViewModel, JobsView>();

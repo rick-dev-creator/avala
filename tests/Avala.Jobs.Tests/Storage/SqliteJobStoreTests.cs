@@ -6,6 +6,7 @@ using Avala.Jobs.Storage;
 using Avala.Jobs.Tests.Jobs;
 using Avala.Sdk;
 using Avala.Testing;
+using AttemptOutcome = Avala.Jobs.Contracts.AttemptOutcome;
 
 namespace Avala.Jobs.Tests.Storage;
 
@@ -25,12 +26,31 @@ public sealed class SqliteJobStoreTests
         var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
 
         Assert.Equal(
-            (job.Id, job.State, job.Instruction, job.Budget, job.Repository, job.Workspace, job.Session, job.Resume, job.Autonomy, job.Connection),
-            (reloaded.Id, reloaded.State, reloaded.Instruction, reloaded.Budget, reloaded.Repository, reloaded.Workspace, reloaded.Session, reloaded.Resume, reloaded.Autonomy, reloaded.Connection));
+            (job.Id, job.State, job.Instruction, job.Budget, job.Repository, job.Workspace, job.Session, job.Resume, job.Autonomy, job.Connection, job.Submitted),
+            (reloaded.Id, reloaded.State, reloaded.Instruction, reloaded.Budget, reloaded.Repository, reloaded.Workspace, reloaded.Session, reloaded.Resume, reloaded.Autonomy, reloaded.Connection, reloaded.Submitted));
         Assert.Equal(Option<ConnectionName>.Some(Given.Connection), reloaded.Connection);
         Assert.Equal(
-            job.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance)),
-            reloaded.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance)));
+            job.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance, attempt.Session)),
+            reloaded.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance, attempt.Session)));
+        Assert.All(reloaded.Attempts, attempt => Assert.Equal(Option<SessionId>.Some(Given.Session), attempt.Session));
+    }
+
+    [Fact]
+    public async Task ASnapshotIsTheStoredJobAndNeverTheOneTheFlowIsChangingAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var job = Given.JobIn(JobState.Running);
+        await using var store = new SqliteJobStore(new AvalaPaths(folder.Path));
+        await store.SaveAsync(job, Cancellation);
+        Outcomes.Succeeds(job.CompleteTurn());
+
+        var snapshot = Outcomes.Present(await store.SnapshotAsync(job.Id, Cancellation));
+        var listed = Assert.Single(await store.SnapshotsAsync(Cancellation));
+
+        Assert.False(ReferenceEquals(job, snapshot) || ReferenceEquals(job, listed), "A snapshot is the job the flow is changing");
+        Assert.Equal((JobState.Running, AttemptOutcome.Running), (snapshot.State, snapshot.Attempts[^1].Outcome));
+        Assert.Equal(JobState.Running, listed.State);
+        Assert.Equal(Option<Job>.None, await store.SnapshotAsync(JobId.New(), Cancellation));
     }
 
     [Fact]

@@ -15,7 +15,10 @@ internal sealed class JobRecovery(JobLedger ledger, JobQueues queues, JobLaunche
                 active.Id,
                 async (job, token) =>
                 {
-                    await (job.State == JobState.Preparing ? launcher.LaunchAsync(job, token) : launcher.RelaunchAsync(job, token));
+                    if (!ledger.RecordedInThisRun(job.Id))
+                    {
+                        await (job.State == JobState.Preparing ? launcher.LaunchAsync(job, token) : launcher.RelaunchAsync(job, token));
+                    }
 
                     return true;
                 },

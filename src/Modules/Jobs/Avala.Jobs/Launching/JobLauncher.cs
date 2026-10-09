@@ -69,27 +69,33 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
         }
     }
 
-    public async Task<Result<JobContinuation, JobRejection>> ContinueAsync(Job job, Feedback guidance, CancellationToken cancellationToken)
-    {
-        if (job.State != JobState.NeedsHelp)
-        {
-            return JobRejection.NotHeld;
-        }
+    public async Task<Result<JobContinuation, JobRejection>> ContinueAsync(Job job, Feedback guidance, CancellationToken cancellationToken) =>
+        job.State == JobState.NeedsHelp
+            ? await NextRoundAsync(job, guidance, Round.Hint, cancellationToken)
+            : JobRejection.NotHeld;
 
+    public async Task<Result<JobContinuation, JobRejection>> SendBackAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
+        job.State == JobState.AwaitingReview
+            ? await NextRoundAsync(job, feedback, Round.SendBack, cancellationToken)
+            : JobRejection.NotAwaitingReview;
+
+    private async Task<Result<JobContinuation, JobRejection>> NextRoundAsync(Job job, Feedback guidance, Round round, CancellationToken cancellationToken)
+    {
         var live = job.Session.Bind(session => agents.IsOpen(session) ? Option<SessionId>.Some(session) : Option<SessionId>.None);
 
         return await live.Match(
-            session => ContinueInAsync(job, session, guidance, cancellationToken),
-            () => ContinueInNewSessionAsync(job, guidance, cancellationToken));
+            session => ContinueInAsync(job, session, guidance, round, cancellationToken),
+            () => ContinueInNewSessionAsync(job, guidance, round, cancellationToken));
     }
 
     private async Task<Result<JobContinuation, JobRejection>> ContinueInAsync(
         Job job,
         SessionId session,
         Feedback guidance,
+        Round round,
         CancellationToken cancellationToken)
     {
-        _ = job.Hint(guidance);
+        _ = round.InSameSession(job, guidance);
         await ledger.RecordAsync(job, cancellationToken);
         await TellAsync(job, guidance.Text, cancellationToken);
 
@@ -99,6 +105,7 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
     private async Task<Result<JobContinuation, JobRejection>> ContinueInNewSessionAsync(
         Job job,
         Feedback guidance,
+        Round round,
         CancellationToken cancellationToken)
     {
         if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
@@ -116,7 +123,7 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             };
         }
 
-        _ = job.Hint(guidance, opened.Session, opened.Resumed);
+        _ = round.InNewSession(job, guidance, opened.Session, opened.Resumed);
         await BeginAsync(
             job,
             opened.Session,

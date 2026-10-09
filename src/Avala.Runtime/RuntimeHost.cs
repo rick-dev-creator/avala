@@ -17,6 +17,7 @@ public static class RuntimeHost
                 await task.RunAsync(cancellationToken);
             }
 
+            await services.GetRequiredService<EventBus>().PublishAsync(new StartupCompleted(), cancellationToken);
             await loop;
         }
     }

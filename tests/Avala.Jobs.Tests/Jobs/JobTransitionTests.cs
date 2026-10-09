@@ -25,6 +25,7 @@ public sealed class JobTransitionTests
         [Operation.Hint] = ([JobState.NeedsHelp], JobError.CannotHint),
         [Operation.HintInNewSession] = ([JobState.NeedsHelp], JobError.CannotHint),
         [Operation.SendBack] = ([JobState.AwaitingReview], JobError.CannotSendBack),
+        [Operation.SendBackInNewSession] = ([JobState.AwaitingReview], JobError.CannotSendBack),
         [Operation.Approve] = ([JobState.AwaitingReview], JobError.CannotApprove),
         [Operation.Discard] =
             ([JobState.Draft, JobState.Preparing, JobState.Running, JobState.Checking, JobState.NeedsHelp, JobState.AwaitingReview], JobError.CannotDiscard),
@@ -71,6 +72,7 @@ public sealed class JobTransitionTests
         Operation.Hint => Outcomes.ErrorOf(job.Hint(Given.Feedback)),
         Operation.HintInNewSession => Outcomes.ErrorOf(job.Hint(Given.Feedback, SessionId.New(), resumed: true)),
         Operation.SendBack => Outcomes.ErrorOf(job.SendBack(Given.Feedback)),
+        Operation.SendBackInNewSession => Outcomes.ErrorOf(job.SendBack(Given.Feedback, SessionId.New(), resumed: true)),
         Operation.Approve => Outcomes.ErrorOf(job.Approve()),
         Operation.Discard => Outcomes.ErrorOf(job.Discard()),
         Operation.Fail => Outcomes.ErrorOf(job.Fail(FailureReason.AgentFailed)),

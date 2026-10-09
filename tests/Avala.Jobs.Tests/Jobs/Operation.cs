@@ -12,6 +12,7 @@ internal enum Operation
     Hint,
     HintInNewSession,
     SendBack,
+    SendBackInNewSession,
     Approve,
     Discard,
     Fail,

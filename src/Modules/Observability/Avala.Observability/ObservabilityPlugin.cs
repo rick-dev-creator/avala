@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Observability.Metrics;
+using Avala.Observability.Storage;
 using Avala.Observability.Tracking;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -18,8 +19,11 @@ public sealed class ObservabilityPlugin : IPlugin
     {
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
+            .AddSingleton<IUsageStore, SqliteUsageStore>()
             .AddSingleton<UsageBook>()
             .AddSingleton<IUsage>(services => services.GetRequiredService<UsageBook>())
+            .AddSingleton<IUsageHistory, UsageHistory>()
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<UsageBook>())
             .AddSingleton<IUsageMetrics, UsageMeter>()
             .AddSingleton<UsageTracker>()
             .AddSingleton<IHandle<SessionOpened>>(services => services.GetRequiredService<UsageTracker>())

@@ -24,6 +24,7 @@ internal sealed class JobsDbContext(string database) : DbContext
             job.Property(entity => entity.Instruction).HasConversion(instruction => instruction.Text, text => Stored.Instruction(text));
             job.Property(entity => entity.Budget).HasConversion(budget => budget.AttemptsPerRound, value => Stored.Budget(value));
             job.Property(entity => entity.Repository).HasConversion(repository => repository.Value, value => Stored.Repository(value));
+            job.Property(entity => entity.Submitted).HasConversion(at => at.UtcTicks, ticks => new DateTimeOffset(ticks, TimeSpan.Zero));
             job.Property(entity => entity.State).HasConversion<string>();
             job.Property(entity => entity.Workspace).HasConversion(
                 option => option.Match(id => id.Value, () => Guid.Empty),
@@ -52,6 +53,9 @@ internal sealed class JobsDbContext(string database) : DbContext
                 attempt.Property(entity => entity.Guidance).HasConversion(
                     option => option.Match(feedback => feedback.Text, () => string.Empty),
                     text => text.Length == 0 ? Option<Feedback>.None : Option<Feedback>.Some(Stored.Feedback(text)));
+                attempt.Property(entity => entity.Session).HasConversion(
+                    option => option.Match(id => id.Value, () => Guid.Empty),
+                    value => value == Guid.Empty ? Option<SessionId>.None : Option<SessionId>.Some(new SessionId(value)));
             });
         });
 }

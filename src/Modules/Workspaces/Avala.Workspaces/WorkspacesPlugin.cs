@@ -1,5 +1,6 @@
 using Avala.Sdk;
 using Avala.Workspaces.BaseFiles;
+using Avala.Workspaces.Changes;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Git;
 using Avala.Workspaces.Provisioning;
@@ -19,5 +20,7 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddSingleton<IWorkspaceStore, SqliteWorkspaceStore>()
             .AddSingleton<WorktreeReconciler>()
             .AddSingleton<IWorkspaces, WorkspaceService>()
-            .AddSingleton<IBaseFiles, BaseFileReader>();
+            .AddSingleton<IBaseFiles, BaseFileReader>()
+            .AddSingleton<IGitChanges, GitChangesCli>()
+            .AddSingleton<IWorkspaceChanges, WorkspaceChanges>();
 }

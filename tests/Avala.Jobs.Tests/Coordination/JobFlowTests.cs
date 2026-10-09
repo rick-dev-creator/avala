@@ -223,6 +223,21 @@ public sealed class JobFlowTests
     }
 
     [Fact]
+    public async Task RecoveryLeavesTheJobsThisRunAlreadySubmittedOrStartedToTheirOwnFlowAsync()
+    {
+        var flow = JobFlow.With();
+        var waiting = await flow.SubmittedAsync();
+        var running = await flow.RunningAsync();
+        var session = running.Session;
+
+        await flow.RecoveryInThisRun.RunAsync(Cancellation);
+
+        Assert.Equal((JobState.Preparing, JobState.Running), (waiting.State, running.State));
+        Assert.Equal(session, running.Session);
+        Assert.Single(flow.Agents.Sessions);
+    }
+
+    [Fact]
     public async Task EverySessionAJobStartsIsAnnouncedWithTheAutonomyTheJobAskedForAsync()
     {
         var flow = JobFlow.With();

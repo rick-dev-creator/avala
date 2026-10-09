@@ -25,6 +25,7 @@ internal sealed class Budgeted
     public Budgeted(Option<JobRejection> rejection = default)
     {
         Jobs = new HoldingJobs(rejection);
+        Book = new BudgetBook(new FixedMachine(), Store);
         enforcer = new BudgetEnforcer(Book, usage, [Resources], new BudgetHolds(Book, Jobs, Bus, Clock));
     }
 
@@ -34,7 +35,9 @@ internal sealed class Budgeted
 
     public RecordingBus Bus { get; } = new();
 
-    public BudgetBook Book { get; } = new(new FixedMachine());
+    public InMemoryInterventions Store { get; } = new();
+
+    public BudgetBook Book { get; }
 
     public HoldingJobs Jobs { get; }
 
@@ -138,6 +141,12 @@ internal sealed class Budgeted
 
         public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobId, JobRejection>.Failure(JobRejection.NotDiscardable));
+
+        public ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<JobApproval, JobRejection>.Failure(JobRejection.NotAwaitingReview));
+
+        public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotAwaitingReview));
     }
 
     private sealed class Usage : IUsage

@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Testing;
+using AttemptOrigin = Avala.Jobs.Contracts.AttemptOrigin;
 
 namespace Avala.Jobs.Tests.Jobs;
 
@@ -34,18 +35,25 @@ public sealed class JobResumeTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void HintingInANewSessionRunsTheJobThereAndKeepsTheResumeTokenOnlyWhenItResumed(bool resumed)
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public void ANewRoundInANewSessionRunsTheJobThereAndKeepsTheResumeTokenOnlyWhenItResumed(bool sentBack, bool resumed)
     {
-        var job = Given.JobIn(JobState.NeedsHelp);
+        var job = Given.JobIn(sentBack ? JobState.AwaitingReview : JobState.NeedsHelp);
         Outcomes.Succeeds(job.RecordResume(Given.Session, Token));
         var session = SessionId.New();
 
-        var hinted = Outcomes.Succeeds(job.Hint(Given.Feedback, session, resumed));
+        var started = Outcomes.Succeeds(sentBack
+            ? job.SendBack(Given.Feedback, session, resumed)
+            : job.Hint(Given.Feedback, session, resumed));
 
-        Assert.Equal((AttemptOrigin.Hint, Option<Feedback>.Some(Given.Feedback)), (hinted.Origin, hinted.Guidance));
+        Assert.Equal(
+            (sentBack ? AttemptOrigin.SendBack : AttemptOrigin.Hint, Option<Feedback>.Some(Given.Feedback)),
+            (started.Origin, started.Guidance));
         Assert.Equal((Option<SessionId>.Some(session), JobState.Running), (job.Session, job.State));
+        Assert.Equal(Option<SessionId>.Some(session), job.Attempts[^1].Session);
         Assert.Equal(resumed ? Option<ResumeToken>.Some(Token) : Option<ResumeToken>.None, job.Resume);
     }
 }
