@@ -95,9 +95,9 @@ Done when: a real job runs end to end with Claude Code.
 
 ## Phase 6b: Capabilities as components
 
-Status: planned, right after the Claude Code adapter and before any second real harness, so the contract changes while it has one real provider and the simulator.
+Status: done, with Claude Code and the simulator, before any second real harness. See [capability components](../design/core.md#capability-components).
 
-Today a provider declares its capabilities as a closed record of booleans: every new capability changes the contract and every provider, and nothing says how a capability works or lets it differ per connection. Capabilities become components, in the spirit of an entity component system:
+A provider declared its capabilities as a closed record of booleans: every new capability changed the contract and every provider, and nothing said how a capability works or let it differ per connection. Capabilities became components, in the spirit of an entity component system:
 
 - A component is an immutable record in the contracts that states a capability and its data, such as `Resumable(Scope)`, `ReportsLimits(Windows)`, `AcceptsTools(Surfaces)` or `StreamsPartialOutput(Granularity)`.
 - Providers attach the components they support; a connection may add or refine components, such as cost reporting for an API key or the limit windows of a subscription.
@@ -106,6 +106,18 @@ Today a provider declares its capabilities as a closed record of booleans: every
 - Components are listed in a documented catalog, like the data catalog, and are never a bag of strings.
 
 The components are designed from what the Claude Code adapter and the selection by capacity actually need.
+
+What was built:
+
+1. Done. `Avala.Agents.Contracts.Capabilities`: `ICapability`, the typed `CapabilitySet` keyed by component type, with `Get<T>()` as an `Option<T>`, `Has<T>()`, `With` to attach or refine and `Without<T>()`, and `ValueSet<T>`, a set with value equality for a component's data. `AgentCapabilities` is removed.
+2. Done. The catalog: `StreamsPartialOutput`, `ExposesReasoning`, `Interruptible`, `Resumable`, `AcceptsTools(Surfaces)`, `AsksForms`, `ReportsUsage`, `ReportsCost(Currency)` and `ReportsLimits(Windows)`, the nine booleans with the data the core and the kit read. Planning, a resume scope and a streaming granularity were left out: no system reads them.
+3. Done. Per connection: `IAgentProvider.CapabilitiesOn(ConnectionEnvironment)`. Claude Code and the simulator declare `ReportsLimits` with the subscription's windows on a login and none on an API key, and the simulator then leaves out the limits it would report.
+4. Done. Agents reads the set once per session, on its connection: `SessionStarter` gives a provider only the harness tools of the surfaces it accepts and a resume token only when it is `Resumable`, and `AgentSessions` decides interruption, forms, tool results and `SessionResumable` from the set kept with the live session.
+5. Done. The recorder writes the components of the session's connection, each named after its type with its data, a plugin's own component included; the committed recordings carry the new shape.
+6. Done. The conformance kit checks, on every turn, usage, cost and its currency, limits and their windows, reasoning and partial output against the declared components; `CheckReportsAsync` and `CheckInterruptAsync` check that what is declared happens. The simulator, on a login and on an API key, and Claude Code, through its recorded transcripts, pass them.
+7. Done. An architecture rule: every component is a sealed immutable record in a `Contracts` namespace.
+
+Deferred: whether Claude Code emits `rate_limit_event` on an API key, to be observed with a real key; a view of a connection's capabilities in the settings page, when a person needs it; and a reader of the recorded capabilities, which nothing interprets yet.
 
 ## Phase 7: Observability
 
