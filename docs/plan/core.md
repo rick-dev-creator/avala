@@ -199,6 +199,48 @@ Status: done.
 3. Every ordering between handlers made explicit: Permissions decides in the handler that loaded the policy, Budgets enforces again on `BudgetLoaded`, Jobs holds a lost session itself, and host tests wait for the event that follows a record before they query it.
 4. [No lock in production code](../design/core.md#concurrency): state owned by one reader, `SerialExecutor` in the SDK for channel consumers, immutable snapshots for queries, an architecture rule over `src/` and banned types for the compiler.
 
+## Phase 8c: Connections and delegation
+
+Status: planned. Both parts are built and proven with the simulator before the user interface and before the real Claude Code adapter, which then only translates its protocol.
+
+### Connections
+
+A user may hold several subscriptions of the same harness, such as a work and a personal Claude Code account, or an API key next to a subscription. Today Agents starts every session on the first registered provider, so it cannot tell them apart.
+
+- A provider is the adapter that speaks one harness's protocol, one per harness, inside its plugin. A connection is a configured instance of a provider: a name, a credential source and settings. A user has any number of connections per provider.
+- A connection is composed, never inherited: provider, plus credential source, plus settings. The provider receives the resolved environment when a session opens and never learns where it came from.
+- The credential source is an extension point. First implementations: a subscription login kept apart per connection through the harness's own configuration folder, and an API key held as a reference to an environment variable. Later ones, such as the operating system's keychain, Bedrock, Vertex or a corporate gateway, add an implementation without touching the core or an adapter.
+- Connections are declared in the data folder, never in a repository: they belong to the machine. Secrets are never stored in the file, only references to them.
+
+1. The connection model and the credential source extension point, with the strict, documented `connections.json` and its typed errors.
+2. Agents opens a session on a named connection, carries the connection on `SessionOpened`, and keeps the first registered provider as the default only when no connection is declared.
+3. A job names its connection at submission, or takes the repository's default; recovery and continuation reuse the job's connection.
+4. Observability and Budgets aggregate and cap by connection as well as by provider and account.
+5. The simulator offers several connections with distinct simulated accounts; a replayed recording plays on its own connection, which lifts the replay's identity limitation.
+6. The conformance kit checks that two connections of the same provider stay isolated: no shared session, resume token or account.
+7. Host simulation tests: two jobs on two connections of the simulator run side by side with their usage apart, and a job recovered after a restart keeps its connection.
+
+Done when: two connections of one provider run jobs side by side with their usage, limits and caps apart, proven with the simulator.
+
+### Delegation
+
+An orchestrating agent delegates work to sub-agents that may run on any connection: another Claude Code subscription, another harness. Unlike a harness's native sub-agents, each one is a full Avala job, governed like any other.
+
+- Avala injects a delegation tool into the orchestrator, like the canvas tool. A call creates a child job with its own worktree, started from the parent's current state, on a connection Avala chooses by policy, never by the orchestrator naming a harness.
+- When the child ends, its summary, diff and verification evidence return to the parent as the tool's result: the parent receives evidence, not a sub-agent's word.
+- A child inherits the parent's autonomy level and may only tighten it; its cap is carved out of the parent's budget, so delegating cannot multiply spending; supervision and verification apply to it as to any job.
+- Depth and the number of children running at once are capped, so delegation cannot recurse without end.
+- The audit keeps the whole tree: who delegated what, to which connection, at what cost, and what the policies decided.
+
+1. Harness tools the harness executes: a call to such a tool reaches Avala and its result returns to the agent, in the provider contract with the simulator implementing it and a conformance check. Claude Code receives them later through the MCP server of phase 6.
+2. Parent and child jobs in the Jobs domain, with the tree in its contracts and its persistence.
+3. The delegation tool and the routing policy that picks a child's connection, starting with the repository's declared rules.
+4. Inherited autonomy, budgets carved from the parent's cap, and the depth and fan-out caps.
+5. Bringing a child's work into the parent's worktree once the child is verified, and a typed outcome when it conflicts.
+6. A simulator scenario in which an orchestrator delegates to children on two connections, and host simulation tests: children run governed and in parallel, their evidence returns to the parent, a child cannot loosen autonomy or exceed its carved budget, and the depth cap stops a recursion.
+
+Done when: a simulated orchestrator delegates to simulated children on two connections and receives their verified results, with the tree audited.
+
 ## Phase 9: View models of the usable core
 
 The whole application works through view models, with no user interface.
