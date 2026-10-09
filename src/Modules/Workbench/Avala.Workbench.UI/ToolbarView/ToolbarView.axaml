@@ -44,13 +44,22 @@
            IsOpen="{Binding IsDecisionsOpen}"
            PlacementTarget="{Binding #ToggleDecisions}"
            Placement="BottomEdgeAlignedLeft"
-           VerticalOffset="8"
+           HorizontalOffset="-6"
+           VerticalOffset="2"
            IsLightDismissEnabled="False">
-      <ContentControl x:Name="DecisionsPopover" Width="420" Content="{Binding Decisions}" Classes="arrive-snappy">
-        <ContentControl.KeyBindings>
+      <StackPanel x:Name="DecisionsPopover" Width="420" Classes="arrive-snappy">
+        <StackPanel.KeyBindings>
           <KeyBinding Gesture="Escape" Command="{Binding CloseDecisionsCommand}" />
-        </ContentControl.KeyBindings>
-      </ContentControl>
+        </StackPanel.KeyBindings>
+        <Path x:Name="Arrow"
+              Margin="24,0,0,-1"
+              HorizontalAlignment="Left"
+              Data="M0 7L7 0L14 7Z"
+              Fill="{DynamicResource SurfaceFloatBrush}"
+              Stroke="{DynamicResource EdgeFloatBrush}"
+              StrokeThickness="1" />
+        <ContentControl Content="{Binding Decisions}" />
+      </StackPanel>
     </Popup>
   </StackPanel>
 </UserControl>

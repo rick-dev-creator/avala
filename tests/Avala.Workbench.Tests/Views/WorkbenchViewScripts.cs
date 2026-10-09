@@ -192,6 +192,7 @@ public sealed class ToolbarViewScripts(HeadlessUi ui)
             view.Press(Key.Escape);
 
             Assert.Equal((false, (true, true)), (closed, opened));
+            Assert.Equal(24, view.Find("Arrow").Margin.Left);
             Assert.False(toolbar.IsDecisionsOpen);
         }, Cancellation);
 
