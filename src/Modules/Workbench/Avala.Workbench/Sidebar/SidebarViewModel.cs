@@ -56,6 +56,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         Decisions = decisions;
         this.feed = feed;
         this.focus = focus;
+        decisions.CloseRequested += (_, _) => IsDecisionsOpen = false;
     }
 
     public IDecisionsViewModel Decisions { get; }

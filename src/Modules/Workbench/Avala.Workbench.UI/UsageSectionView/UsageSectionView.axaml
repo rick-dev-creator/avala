@@ -1,27 +1,49 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inspector="using:Avala.Workbench.Inspector"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.UsageSectionView"
              x:ClassModifier="internal"
              x:DataType="inspector:IUsageSectionViewModel">
   <Design.DataContext>
     <inspector:DesignUsageSectionViewModel />
   </Design.DataContext>
-  <Expander x:Name="Section">
-    <Expander.Header>
-      <TextBlock Classes="section" Text="Usage and caps" />
-    </Expander.Header>
-    <StackPanel Spacing="4">
+  <ui:Fold x:Name="Section"
+           Header="Usage &amp; caps"
+           Fact="{Binding Fact}"
+           IsExpanded="True"
+           Classes.attention="{Binding IsAttention}">
+    <StackPanel Margin="28,0,12,12" Spacing="7">
       <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
-      <TextBlock x:Name="Spent" Classes="strong" Text="{Binding Spent}" TextWrapping="Wrap" />
+      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Spent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Classes="caption secondary" Text="Spent" />
+        <TextBlock x:Name="Spent"
+                   Grid.Column="1"
+                   Classes="caption"
+                   Margin="12,0,0,0"
+                   Foreground="{DynamicResource TextPrimaryBrush}"
+                   TextAlignment="Right"
+                   TextWrapping="Wrap"
+                   Text="{Binding Spent}" />
+      </Grid>
       <ItemsControl x:Name="Caps" ItemsSource="{Binding Caps}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="7" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption secondary" Text="{Binding}" TextWrapping="Wrap" />
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
       <ItemsControl x:Name="Interventions" ItemsSource="{Binding Interventions}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="7" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="x:String">
             <TextBlock Classes="caption attention" Text="{Binding}" TextWrapping="Wrap" />
@@ -29,10 +51,14 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
       <TextBlock x:Name="Carve"
-                 Classes="caption"
+                 Classes="caption secondary"
                  Text="{Binding Carve}"
                  TextWrapping="Wrap"
                  IsVisible="{Binding Carve, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <ContentControl x:Name="Meter"
+                      Margin="0,2,0,0"
+                      Content="{Binding Meter}"
+                      IsVisible="{Binding Meter, Converter={x:Static ObjectConverters.IsNotNull}}" />
     </StackPanel>
-  </Expander>
+  </ui:Fold>
 </UserControl>

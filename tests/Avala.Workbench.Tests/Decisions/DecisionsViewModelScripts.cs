@@ -8,6 +8,7 @@ using Avala.Workbench.Board;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Decisions;
 using Avala.Workbench.Timeline;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Decisions;
 
@@ -27,7 +28,7 @@ public sealed class DecisionsViewModelScripts : IDisposable
 
         Assert.Equal((true, "Nothing needs you"), empty);
         Assert.Equal(
-            [("Fix flaky CheckoutForm test", "waiting 5m", typeof(PermissionCardViewModel)), ("Add invoice PDF endpoint", "waiting less than a minute", typeof(FormCardViewModel))],
+            [("Fix flaky CheckoutForm test", "5m", typeof(PermissionCardViewModel)), ("Add invoice PDF endpoint", "<1m", typeof(FormCardViewModel))],
             decisions.Items.Select(item => (item.JobTitle, item.Waiting, item.Card.GetType())));
         Assert.Equal((false, decisions.Items[0]), (decisions.IsEmpty, decisions.Selected));
     }
@@ -123,7 +124,7 @@ public sealed class DecisionsViewModelScripts : IDisposable
         bench.Time.Advance(TimeSpan.FromMinutes(70));
         decisions.Refresh();
 
-        Assert.Equal("waiting 1h 15m", decisions.Items[0].Waiting);
+        Assert.Equal("1h 15m", decisions.Items[0].Waiting);
     }
 
     [Fact]
@@ -131,6 +132,122 @@ public sealed class DecisionsViewModelScripts : IDisposable
         ViewModelScript.Given(bench.Decisions())
             .When(decisions => decisions.Show(Bench.Of(Bench.OnBoard(bench.Job("Update lodash to 4.17.21", JobStatus.Running)))))
             .Then(decisions => Assert.Equal((true, false, false), (decisions.IsEmpty, decisions.AnswerCommand.CanExecute(null), decisions.DenyCommand.CanExecute(null))));
+
+    [Fact]
+    public void TheHeaderCountsWhatIsPending()
+    {
+        var decisions = bench.Decisions();
+        var asking = Asking();
+        decisions.Show(Bench.Of(asking, Questioning()));
+        var pending = decisions.Pending;
+
+        decisions.Show(Bench.Of(asking with { Transcript = Transcript.Empty }));
+
+        Assert.Equal(("2 pending", "all answered", true), (pending, decisions.Pending, decisions.IsEmpty));
+    }
+
+    [Fact]
+    public void OnlyTheSelectedDecisionIsOpen()
+    {
+        var decisions = bench.Decisions();
+        decisions.Show(Bench.Of(Asking(), Questioning()));
+        var first = decisions.Items.Select(item => item.IsSelected).ToList();
+
+        decisions.MoveNextCommand.Execute(null);
+
+        Assert.Equal([true, false], first);
+        Assert.Equal([false, true], decisions.Items.Select(item => item.IsSelected));
+    }
+
+    [Fact]
+    public async Task ANoteBelongsToTheSelectedDecisionAndIsDroppedWhenMovingOn()
+    {
+        var decisions = bench.Decisions();
+        decisions.Show(Bench.Of(Asking(), Questioning()));
+        decisions.WriteNoteCommand.Execute(null);
+        decisions.Note = "Only the checkout tests";
+        var writing = decisions.IsWritingNote;
+
+        decisions.MoveNextCommand.Execute(null);
+        decisions.MovePreviousCommand.Execute(null);
+        await decisions.AnswerCommand.ExecuteAsync(null);
+
+        Assert.True(writing);
+        Assert.Equal((string.Empty, false), (decisions.Note, decisions.IsWritingNote));
+        Assert.Equal(Option<string>.None, Assert.Single(bench.Permissions.Replies).Reply.Message);
+    }
+
+    [Fact]
+    public async Task AnsweringWithANoteSendsItAndClosesTheNote()
+    {
+        var decisions = bench.Decisions();
+        decisions.Show(Bench.Of(Asking()));
+        decisions.WriteNoteCommand.Execute(null);
+        decisions.Note = "Pin the version";
+
+        await decisions.AnswerCommand.ExecuteAsync(null);
+
+        Assert.Equal(Option<string>.Some("Pin the version"), Assert.Single(bench.Permissions.Replies).Reply.Message);
+        Assert.Equal((string.Empty, false), (decisions.Note, decisions.IsWritingNote));
+    }
+
+    [Fact]
+    public void OpeningADecisionsConversationSelectsItsJobAndClosesThePopover()
+    {
+        var decisions = bench.Decisions();
+        var asking = Asking();
+        decisions.Show(Bench.Of(asking, Questioning()));
+        var selected = new List<JobId>();
+        bench.Messenger.Register<Contracts.Presentation.JobSelected>(this, (_, message) => selected.Add(message.Job));
+        var closed = 0;
+        decisions.CloseRequested += (_, _) => closed++;
+
+        decisions.Items[0].OpenCommand.Execute(null);
+
+        Assert.Equal([asking.Job], selected);
+        Assert.Equal(1, closed);
+    }
+
+    [Fact]
+    public void EscapeAsksToCloseThePopover()
+    {
+        var decisions = bench.Decisions();
+        var closed = 0;
+        decisions.CloseRequested += (_, _) => closed++;
+
+        decisions.CloseCommand.Execute(null);
+
+        Assert.Equal(1, closed);
+    }
+
+    [Fact]
+    public void TheHintsNameTheKeysThatAnswerTheSelectedDecision()
+    {
+        var decisions = bench.Decisions();
+        decisions.Show(Bench.Of(Asking(), Questioning()));
+        var onPermission = decisions.Hints.Select(hint => $"{hint.Keys} {hint.Action}").ToList();
+
+        decisions.MoveNextCommand.Execute(null);
+
+        Assert.Equal(["J K move", "⏎ allow", "⌫ deny", "⇧⏎ with a note"], onPermission);
+        Assert.Equal(["J K move", "1–2 choose", "⏎ answer", "⌫ deny", "⇧⏎ with a note"], decisions.Hints.Select(hint => $"{hint.Keys} {hint.Action}"));
+        Assert.Equal("esc close", $"{decisions.CloseHint.Keys} {decisions.CloseHint.Action}");
+    }
+
+    [Fact]
+    public void ADecisionArrivingWhileThePopoverIsOpenKeepsTheSelectionOnItsDecision()
+    {
+        var decisions = bench.Decisions();
+        var questioning = Questioning();
+        decisions.Show(Bench.Of(questioning));
+        var selected = decisions.Selected;
+
+        decisions.Show(Bench.Of(Asking(), questioning));
+
+        Assert.Equal(["Fix flaky CheckoutForm test", "Add invoice PDF endpoint"], decisions.Items.Select(item => item.JobTitle));
+        Assert.Same(selected, decisions.Selected);
+        Assert.Equal([false, true], decisions.Items.Select(item => item.IsSelected));
+    }
 
     public void Dispose() => bench.Dispose();
 

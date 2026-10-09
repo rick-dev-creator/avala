@@ -1,22 +1,45 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inspector="using:Avala.Workbench.Inspector"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.WorktreeSectionView"
              x:ClassModifier="internal"
              x:DataType="inspector:IWorktreeSectionViewModel">
   <Design.DataContext>
     <inspector:DesignWorktreeSectionViewModel />
   </Design.DataContext>
-  <Expander x:Name="Section">
-    <Expander.Header>
-      <TextBlock Classes="section" Text="Worktree" />
-    </Expander.Header>
-    <StackPanel Spacing="4">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.value, SelectableTextBlock.value">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="Margin" Value="12,0,0,0" />
+      <Setter Property="TextAlignment" Value="Right" />
+    </Style>
+  </UserControl.Styles>
+  <ui:Fold x:Name="Section" Header="Worktree" Fact="{Binding Fact}">
+    <StackPanel Margin="28,0,12,12" Spacing="7">
       <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
-      <TextBlock x:Name="Branch" Classes="mono" Text="{Binding Branch}" TextTrimming="CharacterEllipsis" />
-      <TextBlock x:Name="Base" Classes="mono tertiary" Text="{Binding Base}" />
-      <SelectableTextBlock x:Name="Path" Classes="mono tertiary" Text="{Binding Path}" TextWrapping="Wrap" />
-      <TextBlock x:Name="Ports" Classes="caption" Text="{Binding Ports}" />
+      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Base, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Classes="caption secondary" Text="Branch" />
+        <TextBlock x:Name="Branch" Grid.Column="1" Classes="value" TextTrimming="CharacterEllipsis" Text="{Binding Branch}" />
+      </Grid>
+      <TextBlock x:Name="NoWorktree"
+                 Classes="caption secondary"
+                 Text="{Binding Branch}"
+                 IsVisible="{Binding Base, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Base, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Classes="caption secondary" Text="Base" />
+        <TextBlock x:Name="Base" Grid.Column="1" Classes="value" Text="{Binding Base}" />
+      </Grid>
+      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Path, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Classes="caption secondary" Text="Path" />
+        <SelectableTextBlock x:Name="Path" Grid.Column="1" Classes="value" TextWrapping="Wrap" Text="{Binding Path}" />
+      </Grid>
+      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Ports, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Classes="caption secondary" Text="Ports" />
+        <TextBlock x:Name="Ports" Grid.Column="1" Classes="value" Text="{Binding Ports}" />
+      </Grid>
     </StackPanel>
-  </Expander>
+  </ui:Fold>
 </UserControl>

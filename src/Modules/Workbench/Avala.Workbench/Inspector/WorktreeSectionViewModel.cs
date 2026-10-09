@@ -13,6 +13,8 @@ internal interface IWorktreeSectionViewModel
 
     string Branch { get; }
 
+    string Fact { get; }
+
     string Base { get; }
 
     string Path { get; }
@@ -45,6 +47,9 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     public partial bool IsLoaded { get; private set; }
 
     [ObservableProperty]
+    public partial string Fact { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial string Branch { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -70,6 +75,7 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     {
         IsLoaded = facts.IsSome;
         var workspace = facts.Bind(found => found.Record.Workspace);
+        Fact = facts.IsNone ? string.Empty : workspace.Match(found => InspectorPhrases.Branch(found.Branch), () => "none");
         Branch = facts.IsNone ? string.Empty : workspace.Match(found => found.Branch, () => "No worktree");
         Base = workspace.Match(
             found => found.BaseBranch.Match(branch => $"{branch} at {Short(found.BaseCommit)}", () => Short(found.BaseCommit)),

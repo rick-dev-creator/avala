@@ -7,52 +7,44 @@
   <Design.DataContext>
     <navigation:DesignWorkbenchViewModel />
   </Design.DataContext>
-  <DockPanel>
-    <StackPanel x:Name="Actions"
-                DockPanel.Dock="Top"
-                Orientation="Horizontal"
-                HorizontalAlignment="Right"
-                Spacing="4"
-                Margin="16,12,16,0">
-      <Button x:Name="OpenReview"
-              Content="Review"
-              Command="{Binding OpenReviewCommand}"
-              HotKey="Ctrl+R" />
-      <Button x:Name="ToggleInspector"
-              Classes="ghost"
-              Classes.selected="{Binding IsInspectorOpen}"
-              Command="{Binding ToggleInspectorCommand}"
-              HotKey="Ctrl+I"
-              AutomationProperties.Name="Inspector">
-        <Path Classes="icon" Data="{StaticResource IconInspector}" />
-      </Button>
-    </StackPanel>
-    <Panel>
-      <ContentControl x:Name="Conversation" Content="{Binding Conversation}" />
-      <Border x:Name="NoJob"
-              Classes="empty"
-              HorizontalAlignment="Center"
-              VerticalAlignment="Center"
-              IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}">
-        <StackPanel Spacing="6">
-          <TextBlock Classes="strong" Text="No job selected" HorizontalAlignment="Center" />
-          <TextBlock Classes="caption" Text="Choose a job in the sidebar to follow its conversation." HorizontalAlignment="Center" />
-        </StackPanel>
-      </Border>
-      <Border x:Name="ReviewSheet"
-              Classes="float"
-              Margin="24"
-              IsVisible="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}">
-        <DockPanel>
-          <Button x:Name="CloseReview"
+  <Panel>
+    <DockPanel>
+      <StackPanel x:Name="Actions"
                   DockPanel.Dock="Top"
+                  Orientation="Horizontal"
                   HorizontalAlignment="Right"
-                  Classes="ghost"
-                  Content="Close"
-                  Command="{Binding CloseReviewCommand}" />
-          <ContentControl x:Name="Review" Content="{Binding Review}" />
-        </DockPanel>
-      </Border>
+                  Spacing="4"
+                  Margin="16,12,16,0">
+        <Button x:Name="OpenReview"
+                Content="Review"
+                Command="{Binding OpenReviewCommand}"
+                HotKey="Ctrl+R" />
+        <Button x:Name="ToggleInspector"
+                Classes="ghost"
+                Classes.selected="{Binding IsInspectorOpen}"
+                Command="{Binding ToggleInspectorCommand}"
+                HotKey="Ctrl+I"
+                AutomationProperties.Name="Inspector">
+          <Path Classes="icon" Data="{StaticResource IconInspector}" />
+        </Button>
+      </StackPanel>
+      <Panel>
+        <ContentControl x:Name="Conversation" Content="{Binding Conversation}" />
+        <Border x:Name="NoJob"
+                Classes="empty"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="strong" Text="No job selected" HorizontalAlignment="Center" />
+            <TextBlock Classes="caption" Text="Choose a job in the sidebar to follow its conversation." HorizontalAlignment="Center" />
+          </StackPanel>
+        </Border>
+      </Panel>
+    </DockPanel>
+    <Panel x:Name="ReviewSheet" IsVisible="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <Border x:Name="ReviewScrim" Background="{DynamicResource ScrimSheetBrush}" Classes.fade-in="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      <ContentControl x:Name="Review" Content="{Binding Review}" Margin="20,40,20,20" VerticalAlignment="Top" />
     </Panel>
-  </DockPanel>
+  </Panel>
 </UserControl>

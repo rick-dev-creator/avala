@@ -27,7 +27,14 @@ internal interface IHunkViewModel
 {
     string Header { get; }
 
-    IReadOnlyList<string> Lines { get; }
+    IReadOnlyList<HunkLine> Lines { get; }
+}
+
+internal sealed record HunkLine(string Text, DiffLineKind Kind)
+{
+    public bool IsAdded => Kind == DiffLineKind.Added;
+
+    public bool IsRemoved => Kind == DiffLineKind.Removed;
 }
 
 [INotifyPropertyChanged]
@@ -93,10 +100,12 @@ internal sealed class HunkViewModel(DiffHunk hunk) : IHunkViewModel
 {
     public string Header { get; } = $"@@ -{hunk.OldStart},{hunk.OldLines} +{hunk.NewStart},{hunk.NewLines} @@ {hunk.Section}".TrimEnd();
 
-    public IReadOnlyList<string> Lines { get; } = [.. hunk.Lines.Select(line => line.Kind switch
-    {
-        DiffLineKind.Added => $"+{line.Text}",
-        DiffLineKind.Removed => $"-{line.Text}",
-        _ => $" {line.Text}",
-    })];
+    public IReadOnlyList<HunkLine> Lines { get; } = [.. hunk.Lines.Select(line => new HunkLine(
+        line.Kind switch
+        {
+            DiffLineKind.Added => $"+{line.Text}",
+            DiffLineKind.Removed => $"-{line.Text}",
+            _ => $" {line.Text}",
+        },
+        line.Kind))];
 }

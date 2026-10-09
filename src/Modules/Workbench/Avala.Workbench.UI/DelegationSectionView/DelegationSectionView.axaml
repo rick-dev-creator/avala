@@ -1,30 +1,35 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inspector="using:Avala.Workbench.Inspector"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.DelegationSectionView"
              x:ClassModifier="internal"
              x:DataType="inspector:IDelegationSectionViewModel">
   <Design.DataContext>
     <inspector:DesignDelegationSectionViewModel />
   </Design.DataContext>
-  <Expander x:Name="Section">
-    <Expander.Header>
-      <TextBlock Classes="section" Text="Delegation" />
-    </Expander.Header>
-    <StackPanel Spacing="4">
+  <ui:Fold x:Name="Section" Header="Delegation" Fact="{Binding Fact}" IsExpanded="True">
+    <StackPanel Margin="28,0,12,12" Spacing="7">
       <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
-      <TextBlock x:Name="NoDelegation" Classes="caption" Text="No delegation" IsVisible="{Binding IsEmpty}" />
+      <TextBlock x:Name="NoDelegation" Classes="caption secondary" Text="This job delegates nothing and was not delegated." IsVisible="{Binding IsEmpty}" TextWrapping="Wrap" />
       <TextBlock x:Name="DelegatedBy"
+                 Classes="caption"
+                 Foreground="{DynamicResource TextPrimaryBrush}"
                  Text="{Binding Parent}"
                  TextWrapping="Wrap"
                  IsVisible="{Binding Parent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <ItemsControl x:Name="Children" ItemsSource="{Binding Children}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="7" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption secondary" Text="{Binding}" TextWrapping="Wrap" />
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
     </StackPanel>
-  </Expander>
+  </ui:Fold>
 </UserControl>

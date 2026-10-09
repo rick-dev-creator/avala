@@ -53,6 +53,9 @@
       <SolidColorBrush x:Key="FailureBrush" Color="#EF6461" />
       <SolidColorBrush x:Key="FailureBorderBrush" Color="#59EF6461" />
       <SolidColorBrush x:Key="ScrimBrush" Color="#6108080A" />
+      <SolidColorBrush x:Key="ScrimSheetBrush" Color="#9908080A" />
+      <SolidColorBrush x:Key="RingBrush" Color="#2EFFFFFF" />
+      <SolidColorBrush x:Key="SurfacePopoverBrush" Color="#282930" />
 
       <SolidColorBrush x:Key="SystemControlFocusVisualPrimaryBrush" Color="#8DA2FB" />
       <SolidColorBrush x:Key="SystemControlFocusVisualSecondaryBrush" Color="Transparent" />

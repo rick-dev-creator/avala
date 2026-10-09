@@ -68,7 +68,7 @@ internal sealed class Bench : IDisposable
 
     public BoardFeed Feed(IUiDispatcher ui) => new(Board, ui);
 
-    public DecisionsViewModel Decisions() => new(Replies, Time, Feed());
+    public DecisionsViewModel Decisions() => new(Replies, Time, Feed(), Focus);
 
     public SidebarViewModel Sidebar() => new(Decisions(), Feed(), Focus);
 

@@ -1,21 +1,52 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:review="using:Avala.Workbench.Review"
+             xmlns:workspaces="using:Avala.Workspaces.Contracts"
              x:Class="Avala.Workbench.UI.ChangedFileView"
              x:ClassModifier="internal"
-             x:DataType="review:IChangedFileViewModel">
+             x:DataType="review:IChangedFileViewModel"
+             Classes.open="{Binding IsExpanded}">
   <Design.DataContext>
     <review:DesignChangedFileViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#ShowHunks">
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="Margin" Value="-8,0" />
+    </Style>
+    <Style Selector="TextBlock#Path">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Button#ShowHunks:pointerover TextBlock#Path, .open TextBlock#Path">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+  </UserControl.Styles>
   <StackPanel Spacing="4">
     <Button x:Name="ShowHunks" Classes="row" Command="{Binding ShowHunksCommand}">
-      <Grid ColumnDefinitions="Auto,*,Auto">
-        <TextBlock x:Name="Kind" Classes="caption" Text="{Binding Kind}" Width="64" VerticalAlignment="Center" />
-        <TextBlock x:Name="Path" Grid.Column="1" Classes="mono" Text="{Binding Path}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-        <TextBlock x:Name="Counts" Grid.Column="2" Classes="caption" Text="{Binding Counts}" Margin="12,0,0,0" VerticalAlignment="Center" />
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBlock x:Name="Path" Classes="mono" Text="{Binding Path}" TextTrimming="PathSegmentEllipsis" VerticalAlignment="Center" />
+        <TextBlock x:Name="Kind"
+                   Grid.Column="1"
+                   Classes="caption"
+                   Margin="12,0,0,0"
+                   VerticalAlignment="Center"
+                   Text="{Binding Kind}"
+                   IsVisible="{Binding Kind, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter={x:Static workspaces:ChangeKind.Modified}}" />
+        <TextBlock x:Name="Counts" Grid.Column="2" Classes="mono secondary" Text="{Binding Counts}" Margin="12,0,0,0" VerticalAlignment="Center" />
       </Grid>
     </Button>
-    <ItemsControl x:Name="Hunks" ItemsSource="{Binding Hunks}" IsVisible="{Binding IsExpanded}" />
+    <ItemsControl x:Name="Hunks"
+                  ItemsSource="{Binding Hunks}"
+                  Margin="0,2,0,8"
+                  Classes.fold-in="{Binding IsExpanded}"
+                  RenderTransformOrigin="50%,0%"
+                  IsVisible="{Binding IsExpanded}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="8" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
     <TextBlock x:Name="Error"
                Classes="caption"
                Text="{Binding Error}"

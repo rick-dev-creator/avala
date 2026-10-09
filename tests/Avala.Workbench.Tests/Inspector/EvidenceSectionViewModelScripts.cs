@@ -88,5 +88,17 @@ public sealed class EvidenceSectionViewModelScripts : IDisposable
         Assert.Equal((true, false), (hooked.Hooked, await bench.Ui.ReadAsync(() => section.IsLoaded)));
     }
 
+    [Fact]
+    public async Task TheHeaderFactCountsTheChecksOfTheLastAttemptOrSaysNoneRanYet()
+    {
+        using var section = new EvidenceSectionViewModel(bench.Inspected());
+        await section.FocusAsync(bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running).Job, bench);
+        var running = section.Fact;
+
+        await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
+
+        Assert.Equal(("no checks yet", "1 of 1 passed"), (running, section.Fact));
+    }
+
     public void Dispose() => bench.Dispose();
 }

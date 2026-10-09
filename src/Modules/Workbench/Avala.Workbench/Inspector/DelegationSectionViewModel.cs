@@ -14,6 +14,8 @@ internal interface IDelegationSectionViewModel
 
     string Parent { get; }
 
+    string Fact { get; }
+
     IReadOnlyList<string> Children { get; }
 
     bool IsEmpty { get; }
@@ -42,6 +44,9 @@ internal sealed partial class DelegationSectionViewModel : IDelegationSectionVie
 
     [ObservableProperty]
     public partial bool IsLoaded { get; private set; }
+
+    [ObservableProperty]
+    public partial string Fact { get; private set; } = string.Empty;
 
     [ObservableProperty]
     public partial string Parent { get; private set; } = string.Empty;
@@ -73,5 +78,6 @@ internal sealed partial class DelegationSectionViewModel : IDelegationSectionVie
             ],
             () => []);
         IsEmpty = facts.IsSome && Parent.Length == 0 && Children.Count == 0;
+        Fact = record.Match(found => InspectorPhrases.Delegated(found.Children.Count, found.Parent.IsSome), () => string.Empty);
     }
 }

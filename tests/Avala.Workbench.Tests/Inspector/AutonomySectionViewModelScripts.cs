@@ -50,5 +50,17 @@ public sealed class AutonomySectionViewModelScripts : IDisposable
         Assert.Equal((string.Empty, string.Empty), (section.Autonomy, section.Connection));
     }
 
+    [Fact]
+    public async Task TheHeaderFactIsTheAutonomyTheJobRunsUnder()
+    {
+        using var section = new AutonomySectionViewModel(bench.Inspected());
+        await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
+        var reviewed = section.Fact;
+
+        await section.FocusAsync(bench.Job("Fix JPY rounding in invoice totals", JobStatus.Preparing).Job, bench);
+
+        Assert.Equal(("Supervised", "not started"), (reviewed, section.Fact));
+    }
+
     public void Dispose() => bench.Dispose();
 }

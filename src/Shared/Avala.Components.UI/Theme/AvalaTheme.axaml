@@ -6,6 +6,7 @@
         <ResourceInclude Source="avares://Avala.Components.UI/Theme/Tokens.axaml" />
         <ResourceInclude Source="avares://Avala.Components.UI/Theme/Metrics.axaml" />
         <ResourceInclude Source="avares://Avala.Components.UI/Theme/Icons.axaml" />
+        <ResourceInclude Source="avares://Avala.Components.UI/Theme/Fold.axaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Styles.Resources>

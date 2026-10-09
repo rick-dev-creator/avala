@@ -202,6 +202,22 @@ public sealed class WorkbenchViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task ClosingTheSheetFromInsideTheReviewReturnsToTheConversation()
+    {
+        var job = bench.Job("Rate-limit POST /login", JobStatus.AwaitingReview);
+        bench.Publish(Bench.OnBoard(job));
+        workbench.Activate();
+        await bench.Ui.InvokeAsync(() => Select(job), Cancellation);
+        await bench.Ui.InvokeAsync(() => workbench.OpenReviewCommand.Execute(null), Cancellation);
+        var review = await bench.Ui.ReadAsync(() => workbench.Review!);
+
+        await bench.Ui.InvokeAsync(() => review.CloseCommand.Execute(null), Cancellation);
+
+        Assert.Null(await bench.Ui.ReadAsync(() => workbench.Review));
+        Assert.NotNull(await bench.Ui.ReadAsync(() => workbench.Conversation));
+    }
+
+    [Fact]
     public async Task AnOpenReviewReloadsWhenItsJobsRevisionMoves()
     {
         var job = bench.Job("Rate-limit POST /login", JobStatus.AwaitingReview);

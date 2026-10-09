@@ -20,7 +20,7 @@ public sealed class ChangedFileViewModelScripts : IDisposable
         var shown = (file.IsExpanded, file.Hunks.Count);
         await file.ShowHunksCommand.ExecuteAsync(null);
 
-        Assert.Equal((false, 0, "+24 -3"), before);
+        Assert.Equal((false, 0, "+24 −3"), before);
         Assert.Equal((true, 1), shown);
         Assert.Equal((false, 0), (file.IsExpanded, file.Hunks.Count));
     }

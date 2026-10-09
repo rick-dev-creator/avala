@@ -15,6 +15,8 @@ internal interface IEvidenceSectionViewModel
 
     string Summary { get; }
 
+    string Fact { get; }
+
     IReadOnlyList<string> Attempts { get; }
 }
 
@@ -43,6 +45,9 @@ internal sealed partial class EvidenceSectionViewModel : IEvidenceSectionViewMod
     public partial bool IsLoaded { get; private set; }
 
     [ObservableProperty]
+    public partial string Fact { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial string Summary { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -59,6 +64,7 @@ internal sealed partial class EvidenceSectionViewModel : IEvidenceSectionViewMod
     private void Show(Option<InspectorFacts> facts)
     {
         IsLoaded = facts.IsSome;
+        Fact = facts.Match(found => InspectorPhrases.Checked(found.Audit.Verifications), () => string.Empty);
         Summary = facts.Match(
             found => ReviewPhrases.Verdict(ReviewExceptions.VerdictOf(found.Audit.Verifications, found.Record.History.Attempts.Count)),
             () => string.Empty);

@@ -2,12 +2,14 @@ using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
+using Avala.Components.Keycaps;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Board;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Conversation;
+using Avala.Workbench.Navigation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Replies;
 using Avala.Workbench.Sidebar;
@@ -19,7 +21,11 @@ namespace Avala.Workbench.Decisions;
 
 internal interface IDecisionsViewModel : IActivatable
 {
+    event EventHandler? CloseRequested;
+
     string Empty { get; }
+
+    string Pending { get; }
 
     IReadOnlyList<IDecisionViewModel> Items { get; }
 
@@ -28,6 +34,12 @@ internal interface IDecisionsViewModel : IActivatable
     IDecisionViewModel? Selected { get; set; }
 
     string Note { get; set; }
+
+    bool IsWritingNote { get; }
+
+    IReadOnlyList<IKeycapHintViewModel> Hints { get; }
+
+    IKeycapHintViewModel CloseHint { get; }
 
     IRelayCommand MoveNextCommand { get; }
 
@@ -39,6 +51,10 @@ internal interface IDecisionsViewModel : IActivatable
 
     IAsyncRelayCommand DenyCommand { get; }
 
+    IRelayCommand WriteNoteCommand { get; }
+
+    IRelayCommand CloseCommand { get; }
+
     void Refresh();
 }
 
@@ -48,21 +64,29 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
     private readonly HumanReplies replies;
     private readonly TimeProvider time;
     private readonly BoardFeed feed;
+    private readonly JobFocus focus;
     private readonly Dictionary<(JobId, string), DecisionViewModel> known = [];
     private readonly ObservableCollection<DecisionViewModel> items = [];
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
 
-    public DecisionsViewModel(HumanReplies replies, TimeProvider time, BoardFeed feed)
+    public DecisionsViewModel(HumanReplies replies, TimeProvider time, BoardFeed feed, JobFocus focus)
     {
         this.replies = replies;
         this.time = time;
         this.feed = feed;
+        this.focus = focus;
         Note = string.Empty;
+        Pending = "all answered";
+        Hints = DecisionHints.Idle;
     }
+
+    public event EventHandler? CloseRequested;
 
     public string Empty { get; } = "Nothing needs you";
 
     public IReadOnlyList<IDecisionViewModel> Items => items;
+
+    public IKeycapHintViewModel CloseHint { get; } = DecisionHints.Close;
 
     public Task Following => feed.Following;
 
@@ -78,11 +102,20 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
     public partial bool IsEmpty { get; private set; } = true;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ChooseCommand), nameof(AnswerCommand), nameof(DenyCommand), nameof(MoveNextCommand), nameof(MovePreviousCommand))]
+    public partial string Pending { get; private set; }
+
+    [ObservableProperty]
+    public partial IReadOnlyList<IKeycapHintViewModel> Hints { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ChooseCommand), nameof(AnswerCommand), nameof(DenyCommand), nameof(MoveNextCommand), nameof(MovePreviousCommand), nameof(WriteNoteCommand))]
     public partial IDecisionViewModel? Selected { get; set; }
 
     [ObservableProperty]
     public partial string Note { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsWritingNote { get; private set; }
 
     public void Activate() => feed.Start(Show);
 
@@ -103,6 +136,7 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
         foreach (var gone in known.Where(pair => !keys.Contains(pair.Key)).ToList())
         {
             known.Remove(gone.Key);
+            gone.Value.Opened -= OnOpened;
             items.Remove(gone.Value);
         }
 
@@ -116,20 +150,49 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
             {
                 if (at >= 0)
                 {
-                    items.RemoveAt(at);
+                    items.Move(at, position);
                 }
-
-                items.Insert(position, item);
+                else
+                {
+                    items.Insert(position, item);
+                }
             }
         }
 
         IsEmpty = items.Count == 0;
+        Pending = IsEmpty ? "all answered" : string.Create(CultureInfo.InvariantCulture, $"{items.Count} pending");
         Selected = Selected is DecisionViewModel selected && items.Contains(selected) ? selected : items.FirstOrDefault();
 
         return [];
     }
 
     public void Refresh() => Show(shown);
+
+    partial void OnSelectedChanged(IDecisionViewModel? oldValue, IDecisionViewModel? newValue)
+    {
+        if (oldValue is DecisionViewModel left)
+        {
+            left.IsSelected = false;
+            left.Note = string.Empty;
+        }
+
+        if (newValue is DecisionViewModel chosen)
+        {
+            chosen.IsSelected = true;
+        }
+
+        Note = string.Empty;
+        IsWritingNote = false;
+        Hints = newValue is null ? DecisionHints.Idle : DecisionHints.For(newValue);
+    }
+
+    partial void OnNoteChanged(string value)
+    {
+        if (Selected is DecisionViewModel selected)
+        {
+            selected.Note = value;
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(HasNext))]
     private void MoveNext() => Selected = items[Position + 1];
@@ -140,47 +203,47 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
     [RelayCommand(CanExecute = nameof(IsFormSelected))]
     private void Choose(string? number)
     {
-        var field = (Selected?.Card as IFormCardViewModel)?.Fields.FirstOrDefault(field => field.Choices.Count > 0);
+        var options = Selected?.Options ?? [];
 
-        if (field is not null && int.TryParse(number, NumberStyles.Integer, CultureInfo.InvariantCulture, out var chosen) && chosen >= 1 && chosen <= field.Choices.Count)
+        if (int.TryParse(number, NumberStyles.Integer, CultureInfo.InvariantCulture, out var chosen) && chosen >= 1 && chosen <= options.Count)
         {
-            field.Choices[chosen - 1].IsSelected = !field.Choices[chosen - 1].IsSelected || field.Kind == FieldKind.SingleChoice;
+            var choice = options[chosen - 1].Choice;
+            choice.IsSelected = !choice.IsSelected || Selected!.IsSingleChoice;
         }
     }
 
     [RelayCommand(CanExecute = nameof(HasSelected))]
-    private Task AnswerAsync() => Selected?.Card switch
-    {
-        IPermissionCardViewModel permission => WithNote(permission).AllowCommand.ExecuteAsync(null),
-        IFormCardViewModel form => form.SubmitCommand.CanExecute(null) ? form.SubmitCommand.ExecuteAsync(null) : Task.CompletedTask,
-        _ => Task.CompletedTask,
-    };
+    private Task AnswerAsync() => AnsweredAsync(Selected?.AnswerCommand);
 
     [RelayCommand(CanExecute = nameof(HasSelected))]
-    private Task DenyAsync() => Selected?.Card switch
+    private Task DenyAsync() => AnsweredAsync(Selected?.DenyCommand);
+
+    [RelayCommand(CanExecute = nameof(HasSelected))]
+    private void WriteNote() => IsWritingNote = true;
+
+    [RelayCommand]
+    private void Close() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
+    private async Task AnsweredAsync(IAsyncRelayCommand? command)
     {
-        IPermissionCardViewModel permission => WithNote(permission).DenyCommand.ExecuteAsync(null),
-        IFormCardViewModel form => WithNote(form).DeclineCommand.ExecuteAsync(null),
-        _ => Task.CompletedTask,
-    };
+        if (command is not null && command.CanExecute(null))
+        {
+            await command.ExecuteAsync(null);
+            Note = string.Empty;
+            IsWritingNote = false;
+        }
+    }
+
+    private void OnOpened(object? sender, EventArgs e)
+    {
+        if (sender is DecisionViewModel opened)
+        {
+            focus.Select(opened.Job);
+            Close();
+        }
+    }
 
     private int Position => Selected is DecisionViewModel selected ? items.IndexOf(selected) : -1;
-
-    private IPermissionCardViewModel WithNote(IPermissionCardViewModel card)
-    {
-        card.Note = Note;
-        Note = string.Empty;
-
-        return card;
-    }
-
-    private IFormCardViewModel WithNote(IFormCardViewModel card)
-    {
-        card.Note = Note;
-        Note = string.Empty;
-
-        return card;
-    }
 
     private bool HasSelected() => Selected is not null;
 
@@ -195,6 +258,7 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
         if (!known.TryGetValue((job.Job, entry.Key), out var item))
         {
             item = new DecisionViewModel(job.Job, FactPhrases.Title(job.Summary.Instruction), Card(entry), since);
+            item.Opened += OnOpened;
             known.Add((job.Job, entry.Key), item);
         }
 
@@ -213,4 +277,30 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
         FormEntry form => form.Decision.Match(decision => decision.At, () => DateTimeOffset.MinValue),
         _ => DateTimeOffset.MinValue,
     };
+}
+
+internal static class DecisionHints
+{
+    public static IKeycapHintViewModel Close { get; } = new KeycapHintViewModel("esc", "close");
+
+    public static IReadOnlyList<IKeycapHintViewModel> Idle { get; } = Of([], "answer");
+
+    public static IReadOnlyList<IKeycapHintViewModel> For(IDecisionViewModel selected) =>
+        Of(
+            selected.Options.Count switch
+            {
+                0 => [],
+                1 => [new KeycapHintViewModel("1", "choose")],
+                var count => [new KeycapHintViewModel(string.Create(CultureInfo.InvariantCulture, $"1–{count}"), "choose")],
+            },
+            selected.IsPermission ? "allow" : "answer");
+
+    private static IReadOnlyList<IKeycapHintViewModel> Of(IKeycapHintViewModel[] choose, string answer) =>
+    [
+        new KeycapHintViewModel("J K", "move"),
+        .. choose,
+        new KeycapHintViewModel("⏎", answer),
+        new KeycapHintViewModel("⌫", "deny"),
+        new KeycapHintViewModel("⇧⏎", "with a note"),
+    ];
 }

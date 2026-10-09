@@ -1,56 +1,275 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:review="using:Avala.Workbench.Review"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.ReviewView"
              x:ClassModifier="internal"
              x:DataType="review:IReviewViewModel">
   <Design.DataContext>
     <review:DesignReviewViewModel />
   </Design.DataContext>
-  <ScrollViewer>
-    <StackPanel Spacing="14" MaxWidth="{DynamicResource ReadingWidth}">
-      <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading the evidence…" IsVisible="{Binding !IsLoaded}" />
-      <StackPanel x:Name="Proof" Spacing="14" IsVisible="{Binding IsLoaded}">
-        <TextBlock x:Name="Verdict" Classes="title" Text="{Binding Verdict}" TextWrapping="Wrap" />
-        <ItemsControl x:Name="Exceptions" ItemsSource="{Binding Exceptions}" IsVisible="{Binding HasExceptions}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Spacing="8" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-        </ItemsControl>
-        <TextBlock x:Name="Quiet" Classes="caption" Text="{Binding Quiet}" TextWrapping="Wrap" />
-        <TextBlock x:Name="Changes" Classes="section" Text="{Binding Changes}" />
-        <ItemsControl x:Name="Files" ItemsSource="{Binding Files}" />
-      </StackPanel>
-      <TextBox x:Name="Feedback"
-               Text="{Binding Feedback}"
-               PlaceholderText="Feedback for another round"
-               AcceptsReturn="True"
-               TextWrapping="Wrap" />
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button x:Name="Approve" Classes="primary" Content="Approve" Command="{Binding ApproveCommand}" />
-        <Button x:Name="SendBack" Content="Send back" Command="{Binding SendBackCommand}" />
-        <Button x:Name="RequestDiscard" Classes="destructive" Content="Discard…" Command="{Binding RequestDiscardCommand}" />
-      </StackPanel>
-      <Border x:Name="DiscardConfirmation" Classes="quiet" Padding="12,10" IsVisible="{Binding ConfirmingDiscard}">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="Discard the job and its worktree?" VerticalAlignment="Center" />
-          <Button x:Name="ConfirmDiscard" Classes="destructive" Content="Discard" Command="{Binding ConfirmDiscardCommand}" />
-          <Button x:Name="CancelDiscard" Content="Keep it" Command="{Binding CancelDiscardCommand}" />
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CancelDiscardCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+  </UserControl.KeyBindings>
+  <UserControl.Styles>
+    <Style Selector="Border#Sheet">
+      <Setter Property="Background" Value="{DynamicResource SurfaceFloatBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusSheet}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowSheet}" />
+    </Style>
+    <Style Selector="TextBlock.verdict">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeHeading}" />
+      <Setter Property="LineHeight" Value="22" />
+    </Style>
+    <Style Selector="TextBlock.prose">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="LineHeight" Value="20" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="Path.glyph">
+      <Setter Property="Width" Value="16" />
+      <Setter Property="Height" Value="16" />
+      <Setter Property="Stretch" Value="Uniform" />
+      <Setter Property="StrokeThickness" Value="2" />
+      <Setter Property="StrokeLineCap" Value="Round" />
+      <Setter Property="StrokeJoin" Value="Round" />
+      <Setter Property="Stroke" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ToggleButton#WriteFeedback">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderControlBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="Padding" Value="14,7" />
+    </Style>
+    <Style Selector="ToggleButton#WriteFeedback:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillGhostHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderControlBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ToggleButton#WriteFeedback:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillSelectedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ToggleButton#WriteFeedback:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource TextDisabledBrush}" />
+    </Style>
+    <Style Selector="Button.link">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="4,2" />
+    </Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentHoverBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Sheet" Classes="sheet-in" MaxWidth="{DynamicResource ReadingWidth}">
+    <ScrollViewer x:Name="Scroll" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel x:Name="Body">
+        <Grid x:Name="Header" ColumnDefinitions="*,Auto" Margin="28,24,20,0">
+          <StackPanel Spacing="4">
+            <TextBlock x:Name="Heading" Classes="caption" Text="{Binding Heading}" />
+            <TextBlock x:Name="Title"
+                       Classes="title"
+                       Text="{Binding Title}"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding Title, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <TextBlock x:Name="Facts"
+                       Classes="caption"
+                       Text="{Binding Facts}"
+                       TextTrimming="CharacterEllipsis"
+                       IsVisible="{Binding Facts, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+          <Button x:Name="Close"
+                  Grid.Column="1"
+                  Classes="ghost"
+                  VerticalAlignment="Top"
+                  Padding="6"
+                  Command="{Binding CloseCommand}"
+                  AutomationProperties.Name="Close the review">
+            <Path Classes="icon" Data="{StaticResource IconCross}" />
+          </Button>
+        </Grid>
+
+        <TextBlock x:Name="Loading"
+                   Classes="caption pulse"
+                   Margin="28,24,28,0"
+                   Text="Reading the evidence…"
+                   IsVisible="{Binding !IsLoaded}" />
+
+        <StackPanel x:Name="Proof" IsVisible="{Binding IsLoaded}">
+          <Border x:Name="Verdict"
+                  Margin="28,20,28,0"
+                  Padding="20,18"
+                  CornerRadius="{DynamicResource RadiusCard}"
+                  Background="{DynamicResource FillSubtleBrush}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Panel x:Name="Glyph" Width="34" Height="34" Margin="0,0,16,0" VerticalAlignment="Center">
+                <Ellipse x:Name="Ring" Stroke="{DynamicResource RingBrush}" StrokeThickness="1.5" />
+                <Path x:Name="Check"
+                      Classes="glyph"
+                      Classes.draw="{Binding IsVerified}"
+                      Data="{StaticResource IconCheck}"
+                      IsVisible="{Binding IsVerified}" />
+                <Path x:Name="Unproven"
+                      Classes="glyph"
+                      Stroke="{DynamicResource AttentionBrush}"
+                      Data="{StaticResource IconCross}"
+                      Width="12"
+                      Height="12"
+                      IsVisible="{Binding !IsVerified}" />
+              </Panel>
+              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock x:Name="VerdictText" Classes="verdict strong" Text="{Binding Verdict}" TextWrapping="Wrap" />
+                <TextBlock x:Name="ProofText"
+                           Classes="prose"
+                           Text="{Binding Proof}"
+                           IsVisible="{Binding Proof, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <StackPanel x:Name="WorthALook" Margin="28,22,28,0" Spacing="2">
+            <TextBlock x:Name="ExceptionCount"
+                       Classes="section"
+                       Margin="0,0,0,6"
+                       Text="{Binding Exceptions.Count, StringFormat='Worth a look · {0}'}"
+                       IsVisible="{Binding HasExceptions}" />
+            <ItemsControl x:Name="Exceptions" ItemsSource="{Binding Exceptions}" IsVisible="{Binding HasExceptions}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="2" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+            <TextBlock x:Name="Quiet"
+                       Classes="caption"
+                       Margin="12,10,12,0"
+                       Text="{Binding Quiet}"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding Quiet, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+
+          <Border x:Name="Diff"
+                  Margin="28,20,28,0"
+                  Padding="0,12,0,0"
+                  BorderBrush="{DynamicResource SeparatorBrush}"
+                  BorderThickness="0,1,0,0">
+            <ui:Fold x:Name="Changes"
+                     Classes="code"
+                     Margin="-12,0"
+                     Padding="12,8"
+                     Header="{Binding Changes}"
+                     Fact="{Binding Totals}">
+              <ItemsControl x:Name="Files" ItemsSource="{Binding Files}" Margin="12,0,12,12" />
+            </ui:Fold>
+          </Border>
         </StackPanel>
-      </Border>
-      <TextBlock x:Name="Outcome"
-                 TextWrapping="Wrap"
-                 Text="{Binding Outcome}"
-                 IsVisible="{Binding Outcome, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-      <ItemsControl x:Name="Conflicts" ItemsSource="{Binding Conflicts}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="mono failure" Text="{Binding}" />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </StackPanel>
-  </ScrollViewer>
+
+        <StackPanel x:Name="FeedbackBox"
+                    Margin="28,16,28,0"
+                    Spacing="6"
+                    RenderTransformOrigin="50%,0%"
+                    Classes.fold-in="{Binding #WriteFeedback.IsChecked}">
+          <StackPanel.IsVisible>
+            <MultiBinding Converter="{x:Static BoolConverters.And}">
+              <Binding Path="#WriteFeedback.IsChecked" />
+              <Binding Path="!IsClosed" />
+            </MultiBinding>
+          </StackPanel.IsVisible>
+          <TextBlock Classes="caption" Text="Feedback for another round" />
+          <TextBox x:Name="Feedback"
+                   Text="{Binding Feedback}"
+                   PlaceholderText="What should the agent change?"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   MinHeight="64"
+                   CornerRadius="{DynamicResource RadiusRow}"
+                   FontSize="{DynamicResource FontSizeReading}">
+            <TextBox.KeyBindings>
+              <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SendBackCommand}" />
+            </TextBox.KeyBindings>
+          </TextBox>
+        </StackPanel>
+
+        <Border x:Name="Refused"
+                Margin="28,16,28,0"
+                Padding="14,12"
+                CornerRadius="{DynamicResource RadiusItem}"
+                Background="{DynamicResource FillQuietBrush}"
+                BorderBrush="{DynamicResource AttentionBorderBrush}"
+                BorderThickness="1"
+                Classes.fold-in="{Binding Refusal, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                RenderTransformOrigin="50%,0%"
+                IsVisible="{Binding Refusal, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <StackPanel Spacing="8">
+            <TextBlock x:Name="Refusal" Classes="attention" Text="{Binding Refusal}" TextWrapping="Wrap" LineHeight="20" />
+            <ItemsControl x:Name="Conflicts" ItemsSource="{Binding Conflicts}" IsVisible="{Binding !!Conflicts.Count}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock Classes="mono secondary" Text="{Binding}" TextWrapping="Wrap" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <Panel x:Name="Footer" Margin="28,20,28,24">
+          <StackPanel x:Name="Actions" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <StackPanel.IsVisible>
+              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                <Binding Path="!IsClosed" />
+                <Binding Path="!ConfirmingDiscard" />
+              </MultiBinding>
+            </StackPanel.IsVisible>
+            <Button x:Name="RequestDiscard" Classes="destructive" Content="Discard" Command="{Binding RequestDiscardCommand}" />
+            <ToggleButton x:Name="WriteFeedback"
+                          Content="Send back…"
+                          IsVisible="{Binding !#WriteFeedback.IsChecked}" />
+            <Button x:Name="SendBack"
+                    Content="Send feedback"
+                    Command="{Binding SendBackCommand}"
+                    IsVisible="{Binding #WriteFeedback.IsChecked}" />
+            <Button x:Name="Approve" Classes="primary" Content="Approve" Command="{Binding ApproveCommand}" />
+          </StackPanel>
+
+          <Grid x:Name="DiscardConfirmation"
+                ColumnDefinitions="*,Auto,Auto"
+                Classes.fold-in="{Binding ConfirmingDiscard}"
+                IsVisible="{Binding ConfirmingDiscard}">
+            <TextBlock Text="Discard the job, its branch and its worktree?" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <Button x:Name="CancelDiscard" Grid.Column="1" Margin="12,0,8,0" Content="Keep it" Command="{Binding CancelDiscardCommand}" />
+            <Button x:Name="ConfirmDiscard" Grid.Column="2" Classes="destructive" Content="Discard" Command="{Binding ConfirmDiscardCommand}" />
+          </Grid>
+
+          <Border x:Name="Stamp"
+                  Padding="14,12"
+                  CornerRadius="{DynamicResource RadiusItem}"
+                  Background="{DynamicResource FillHoverBrush}"
+                  Classes.stamp="{Binding IsClosed}"
+                  IsVisible="{Binding IsClosed}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Path Classes="glyph" Data="{StaticResource IconCheck}" Margin="0,0,10,0" />
+              <TextBlock x:Name="Outcome" Grid.Column="1" Text="{Binding Outcome}" VerticalAlignment="Center" TextWrapping="Wrap" />
+              <Button x:Name="BackToConversations"
+                      Grid.Column="2"
+                      Classes="link"
+                      Content="Back to conversations"
+                      Command="{Binding CloseCommand}" />
+            </Grid>
+          </Border>
+        </Panel>
+      </StackPanel>
+    </ScrollViewer>
+  </Border>
 </UserControl>
