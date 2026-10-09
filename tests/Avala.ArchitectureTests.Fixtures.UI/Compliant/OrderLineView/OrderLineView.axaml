@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewModels="using:Avala.Fixtures.Compliant.ViewModels"
+             x:Class="Avala.Fixtures.Compliant.Views.OrderLineView"
+             x:DataType="viewModels:IOrderLineViewModel">
+  <Design.DataContext>
+    <viewModels:DesignOrderLineViewModel />
+  </Design.DataContext>
+  <TextBlock Text="{Binding Text}" />
+</UserControl>

@@ -11,11 +11,11 @@
     <TextBlock x:Name="Keys"
                Text="{Binding Keys}"
                FontFamily="{DynamicResource MonoFont}"
-               FontSize="11.5"
+               FontSize="{DynamicResource FontSizeHint}"
                Foreground="{DynamicResource TextSecondaryBrush}" />
     <TextBlock x:Name="Action"
                Text="{Binding Action}"
-               FontSize="11.5"
+               FontSize="{DynamicResource FontSizeHint}"
                Foreground="{DynamicResource TextTertiaryBrush}" />
   </StackPanel>
 </UserControl>
