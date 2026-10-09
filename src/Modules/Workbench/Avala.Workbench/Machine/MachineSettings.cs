@@ -25,6 +25,14 @@ internal sealed class MachineSettings(IConnections connections, ISupervision sup
 
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
         connections.ChangeDefaultAsync(connection, cancellationToken);
+
+    public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) => connections.CatalogAsync(cancellationToken);
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken) =>
+        connections.DeclareAsync(replacing, connection, cancellationToken);
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken) =>
+        connections.RemoveAsync(connection, cancellationToken);
 }
 
 internal sealed class SettingsFiles(IFileOpener opener, AvalaPaths paths)

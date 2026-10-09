@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.InterjectionView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IInterjectionViewModel"
+             Classes="arrive-snappy"
+             Margin="0,10">
+  <Design.DataContext>
+    <conversation:DesignInterjectionViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Bubble">
+      <Setter Property="Background" Value="{DynamicResource FillBubbleBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusBubble}" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+    <Style Selector="SelectableTextBlock#Text">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
+      <Setter Property="LineHeight" Value="23" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="SelectionBrush" Value="{DynamicResource AccentSubtleBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="4">
+    <TextBlock x:Name="Note" Classes="caption" HorizontalAlignment="Right" Text="{Binding Note}" />
+    <Border x:Name="Bubble" MaxWidth="560" Padding="14,10">
+      <SelectableTextBlock x:Name="Text" Text="{Binding Text}" />
+    </Border>
+  </StackPanel>
+</UserControl>

@@ -187,6 +187,20 @@ public sealed class TranscriptTests
     }
 
     [Fact]
+    public void AMessageQueuedIntoTheTurnAppearsWhereItArrivedAndTwoAreKeptApart()
+    {
+        var transcript = Played(
+            new ItemStarted(Session, Turn, new ItemId("reply"), ItemKind.Message, "Reply"),
+            new MessageQueued(Session, Turn, "Keep the alias"),
+            new MessageQueued(Session, Turn, "Keep the alias"));
+
+        Assert.Equal(
+            [typeof(MessageEntry), typeof(InterjectionEntry), typeof(InterjectionEntry)],
+            transcript.Entries.Select(entry => entry.GetType()));
+        Assert.All(transcript.Entries.OfType<InterjectionEntry>(), entry => Assert.Equal("Keep the alias", entry.Text));
+    }
+
+    [Fact]
     public void ContentForAnItemThatNeverStartedIsIgnored()
     {
         var transcript = Played(

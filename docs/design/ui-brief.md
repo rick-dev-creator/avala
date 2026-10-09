@@ -17,7 +17,7 @@ A developer works by **talking to agents**. The conversation is the heart of the
 - **Restraint in color.** One neutral surface family, one accent, and at most two state colors: attention (amber) and failure (red). Everything else (running, done, idle) is neutral, told apart by a small dot, a label and motion. No colored cards, no rainbow badges.
 - **Motion that means something.** Spring physics. Streaming text that flows in smoothly. A living "thinking" animation while the agent reasons. A pulse while an agent works, and the pulse stopping when it is held: stillness is the alert. Nothing moves without a reason.
 - **Typography:** Inter for the interface, JetBrains Mono for code, paths and commands. A clear, small type scale.
-- **Dark first.** Light mode comes once the visual language is approved.
+- **Dark first, light too.** The visual language was designed dark; its light variant follows the same macOS direction (bright neutral surfaces, translucent black fills, softer shadows, a darker accent and state colors that keep their contrast). Avala follows the operating system unless the person forces light or dark in settings, and a person can reduce motion there too.
 
 ## The design system: Avala's own, inspired by macOS
 

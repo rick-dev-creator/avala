@@ -36,7 +36,7 @@
     <Panel x:Name="SidebarPane"
            Width="{DynamicResource ShellSidebarWidth}"
            IsVisible="{Binding HasSidebar}">
-      <ExperimentalAcrylicBorder Material="{StaticResource PanelMaterial}" IsHitTestVisible="False" />
+      <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
       <DockPanel>
         <Grid x:Name="Titlebar"
               DockPanel.Dock="Top"
@@ -132,7 +132,7 @@
            Width="{DynamicResource InspectorWidth}"
            IsVisible="{Binding IsInspectorShown}"
            Classes.arrive-gentle="{Binding IsInspectorShown}">
-      <ExperimentalAcrylicBorder Material="{StaticResource PanelMaterial}" IsHitTestVisible="False" />
+      <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
       <Border Classes="edge" HorizontalAlignment="Left" />
       <ScrollViewer>
         <StackPanel Margin="14,16" Spacing="6">

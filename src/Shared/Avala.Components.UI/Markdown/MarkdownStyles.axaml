@@ -39,6 +39,34 @@
     <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
   </Style>
+  <Style Selector="SelectableTextBlock.markdown-code">
+    <Setter Property="Margin" Value="0,0,56,0" />
+    <Setter Property="LineHeight" Value="19" />
+  </Style>
+  <Style Selector="Button.copy-code">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="8,2" />
+    <Setter Property="Margin" Value="0,-4,-8,0" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
+  </Style>
+  <Style Selector="Button.copy-code TextBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource InterfaceFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+  </Style>
+  <Style Selector="Button.copy-code:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+  </Style>
+  <Style Selector="Button.copy-code:pointerover TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="StackPanel.reading TextBlock.markdown-paragraph">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
+    <Setter Property="LineHeight" Value="23" />
+  </Style>
   <Style Selector="Run.markdown-code-inline">
     <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />

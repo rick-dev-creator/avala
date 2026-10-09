@@ -8,9 +8,8 @@ namespace Avala.Observability.Storage;
 
 internal sealed class SqliteUsageStore(AvalaPaths paths) : IUsageStore, IStartupTask, IAsyncDisposable
 {
-    private readonly SerialExecutor serial = new();
+    private readonly DatabaseOwner<ObservabilityDbContext> owner = new(paths.Database("observability"), file => new ObservabilityDbContext(file));
     private readonly HashSet<Guid> written = [];
-    private ObservabilityDbContext? context;
 
     public Task KeepSessionAsync(SessionUsage session, CancellationToken cancellationToken) =>
         RunAsync(
@@ -62,17 +61,9 @@ internal sealed class SqliteUsageStore(AvalaPaths paths) : IUsageStore, IStartup
             },
             cancellationToken);
 
-    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+    public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await serial.DisposeAsync();
-
-        if (context is not null)
-        {
-            await context.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private static StoredUsage Usage(IReadOnlyList<StoredSession> sessions, IReadOnlyList<StoredFact> facts) =>
         new([.. sessions.Select(row => row.Usage())], [.. facts.Select(row => row.Fact())]);
@@ -86,17 +77,5 @@ internal sealed class SqliteUsageStore(AvalaPaths paths) : IUsageStore, IStartup
     }
 
     private Task<T> RunAsync<T>(Func<ObservabilityDbContext, Task<T>> work, CancellationToken cancellationToken) =>
-        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
-
-    private async Task<ObservabilityDbContext> OpenAsync(CancellationToken cancellationToken)
-    {
-        if (context is null)
-        {
-            Directory.CreateDirectory(paths.Data);
-            context = new ObservabilityDbContext(paths.Database("observability"));
-            await ModuleDatabase.MigrateAsync(context, cancellationToken);
-        }
-
-        return context;
-    }
+        owner.RunAsync(work, cancellationToken);
 }

@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -30,7 +31,7 @@ internal sealed class LegacyNotesContext(string database) : DbContext
         modelBuilder.Entity<Note>().ToTable("Notes").HasKey(note => note.Key);
 }
 
-internal sealed class NotesContext(string database) : DbContext
+internal sealed class NotesContext(string database, params IInterceptor[] interceptors) : DbContext
 {
     public DbSet<Note> Notes => Set<Note>();
 
@@ -39,6 +40,7 @@ internal sealed class NotesContext(string database) : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder
             .UseSqlite($"Data Source={database};Pooling=False")
+            .AddInterceptors(interceptors)
             .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -76,4 +78,40 @@ internal sealed class TagsAdded : Migration
                 Name = table.Column<string>(type: "TEXT", nullable: false),
             },
             constraints: table => table.PrimaryKey("PK_Tags", tag => tag.Key));
+}
+
+internal sealed class Before(string statement, Action interruption) : IDbCommandInterceptor
+{
+    public const string TakingTheLock = "INSERT OR IGNORE INTO \"__EFMigrationsLock\"";
+
+    public const string CreatingTheHistory = "CREATE TABLE IF NOT EXISTS \"__EFMigrationsHistory\"";
+
+    private bool interrupted;
+
+    public static Before Stopping(string statement) => new(statement, () => throw new IOException($"Stopped before {statement}"));
+
+    public ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+        DbCommand command,
+        CommandEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(Interrupted(command, result));
+
+    public ValueTask<InterceptionResult<object>> ScalarExecutingAsync(
+        DbCommand command,
+        CommandEventData eventData,
+        InterceptionResult<object> result,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(Interrupted(command, result));
+
+    private T Interrupted<T>(DbCommand command, T result)
+    {
+        if (!interrupted && command.CommandText.Contains(statement, StringComparison.Ordinal))
+        {
+            interrupted = true;
+            interruption();
+        }
+
+        return result;
+    }
 }

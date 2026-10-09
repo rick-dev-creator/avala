@@ -2,6 +2,7 @@ using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
+using Avala.Workbench.Linking;
 
 namespace Avala.Workbench.Conversation;
 
@@ -41,14 +42,27 @@ internal static class ConversationPhrases
         _ => string.Create(CultureInfo.InvariantCulture, $"Failed after {Duration(duration)}"),
     };
 
-    public static string Placeholder(JobStatus status) => status switch
+    public static string Placeholder(JobStatus status, bool takesMessagesMidTurn) => status switch
     {
-        JobStatus.Running => "The agent is working · interrupt it to step in",
+        JobStatus.Running when takesMessagesMidTurn => "Message the agent while it works…",
+        JobStatus.Running => "This agent takes no message mid-turn · queue one for when it stops…",
         JobStatus.NeedsHelp => "Continue the job with a message…",
         JobStatus.AwaitingReview => "Send the agent more to do before you review…",
-        JobStatus.Checking => "The checks are running…",
-        JobStatus.Draft or JobStatus.Preparing => "The agent is starting…",
+        JobStatus.Checking => "The checks are running · queue a message for when they end…",
+        JobStatus.Draft or JobStatus.Preparing => "The agent is starting · queue a message for when it stops…",
         _ => "This job has ended",
+    };
+
+    public static string QueuedCaption(JobStatus status) =>
+        status == JobStatus.AwaitingReview
+            ? "Queued · waits in the review: send back with it, or withdraw it"
+            : "Queued · continues the job when it next needs you; at review, you decide";
+
+    public static string SendHint(JobStatus status, bool takesMessagesMidTurn) => status switch
+    {
+        JobStatus.Running when takesMessagesMidTurn => "Send into the running turn (Ctrl+Enter)",
+        JobStatus.Draft or JobStatus.Preparing or JobStatus.Running or JobStatus.Checking => "Queue for when the agent stops (Ctrl+Enter)",
+        _ => "Send (Ctrl+Enter)",
     };
 
     public static string Pill(BoardJob job) => job.Group switch
@@ -93,6 +107,7 @@ internal static class ConversationPhrases
         JobRejection.UnknownConnection or JobRejection.UnusableConnection => "The job's connection cannot be used.",
         JobRejection.AgentUnavailable => "The agent could not start.",
         JobRejection.NotAwaitingReview => "The job no longer awaits review.",
+        JobRejection.NotSteerable => "This agent takes no message while it works.",
         _ => "The job refused the command.",
     };
 
@@ -107,6 +122,13 @@ internal static class ConversationPhrases
         HoldReason.Stopped => "stopped",
         HoldReason.NotResumable => "its conversation cannot resume",
         _ => "interrupted",
+    };
+
+    public static string Link(LinkRefusal refusal, string link) => refusal switch
+    {
+        LinkRefusal.NotAWebLink => $"Avala opens only web links, so {link} was not opened.",
+        LinkRefusal.Unavailable => $"No browser is available to open {link}.",
+        _ => $"The platform refused to open {link}.",
     };
 
     private static string Duration(TimeSpan duration) =>

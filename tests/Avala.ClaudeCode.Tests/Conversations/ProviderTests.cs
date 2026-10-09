@@ -226,6 +226,7 @@ public sealed class ProviderTests
                 new Resumable(),
                 new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
                 new AsksForms(),
+                new AcceptsMessagesMidTurn(),
                 new ReportsUsage(),
                 new ReportsCost("USD")),
             declared.Without<ReportsLimits>());

@@ -6,6 +6,7 @@ using Avala.Supervision.Contracts;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Presenting;
 using Avala.Workspaces.Contracts;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Settings;
 
@@ -22,6 +23,8 @@ internal interface IRuleFileViewModel
     bool IsRejected { get; }
 
     string Summary { get; }
+
+    bool CanEditHere { get; }
 }
 
 internal interface IRuleViewModel
@@ -79,6 +82,14 @@ internal interface IMachineConnectionViewModel
     string Origin { get; }
 
     bool IsDefault { get; }
+
+    bool IsDeclared { get; }
+
+    string Reference { get; }
+
+    IRelayCommand EditCommand { get; }
+
+    IRelayCommand RemoveCommand { get; }
 }
 
 internal sealed class RuleFileViewModel(string path, string status, Option<FileOrigin> origin, string summary) : IRuleFileViewModel
@@ -94,6 +105,8 @@ internal sealed class RuleFileViewModel(string path, string status, Option<FileO
     public string Commit { get; } = Amounts.Commit(origin);
 
     public bool EditedInCheckout { get; } = origin.Match(found => found.EditedInWorktree, () => false);
+
+    public bool CanEditHere { get; init; }
 }
 
 internal sealed class RuleViewModel(PolicyRule rule, int order) : IRuleViewModel
@@ -138,8 +151,16 @@ internal sealed class JobSectionViewModel(string name, string value) : IJobSecti
     public string Value { get; } = value;
 }
 
-internal sealed class MachineConnectionViewModel(DeclaredConnection connection, bool isDefault) : IMachineConnectionViewModel
+internal sealed class MachineConnectionViewModel(DeclaredConnection connection, bool isDefault, IRelayCommand edit, IRelayCommand remove) : IMachineConnectionViewModel
 {
+    public bool IsDeclared { get; } = connection.Origin == ConnectionOrigin.Declared;
+
+    public string Reference { get; } = connection.Reference.Match(reference => reference, () => string.Empty);
+
+    public IRelayCommand EditCommand { get; } = edit;
+
+    public IRelayCommand RemoveCommand { get; } = remove;
+
     public string Name { get; } = connection.Name.Value;
 
     public string Provider { get; } = connection.Provider;

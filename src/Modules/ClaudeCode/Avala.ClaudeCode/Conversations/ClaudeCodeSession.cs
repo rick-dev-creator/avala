@@ -48,7 +48,7 @@ internal sealed class ClaudeCodeSession : IAgentSession
                 : await conversation.Begin(turn).Match(
                     async begun =>
                     {
-                        turnEnded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                        turnEnded = turn.MidTurn ? turnEnded : new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                         await ApplyAsync(begun.Reaction);
 
                         return Result<TurnId, AgentError>.Success(begun.Turn);

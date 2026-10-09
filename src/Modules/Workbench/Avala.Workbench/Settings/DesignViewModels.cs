@@ -1,4 +1,5 @@
 using Avala.Permissions.Contracts;
+using Avala.Sdk.Appearance;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -12,6 +13,27 @@ internal sealed record DesignRuleFileViewModel(string Path, string Status, strin
     }
 
     public bool IsRejected => Status.StartsWith("Rejected", StringComparison.Ordinal);
+
+    public bool CanEditHere => Path != ".avala/jobs.json";
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DesignRuleFileEditorViewModel : IRuleFileEditorViewModel
+{
+    public bool IsOpen { get; init; } = true;
+
+    public string Path => ".avala/budget.json";
+
+    [ObservableProperty]
+    public partial string Content { get; set; } = "{\n  \"costPerJob\": { \"USD\": 5.00 },\n  \"holdAtLimit\": 0.9\n}\n";
+
+    public string Note => RuleFilePhrases.Note(".avala/budget.json", exists: true);
+
+    public string Error { get; init; } = string.Empty;
+
+    public IAsyncRelayCommand SaveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand CancelCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed record DesignRuleViewModel(int Order, string Name, string Origin, string Kind, string Target, PolicyAnswer Answer) : IRuleViewModel
@@ -72,9 +94,59 @@ internal sealed class DesignMachineConnectionViewModel(string name, string sourc
 
     public string Source { get; } = source;
 
-    public string Origin { get; } = isDefault ? "declared in connections.json" : "discovered on this machine";
+    public string Origin => IsDeclared ? "declared in connections.json" : "discovered on this machine";
 
     public bool IsDefault { get; } = isDefault;
+
+    public bool IsDeclared { get; init; } = isDefault;
+
+    public string Reference => string.Empty;
+
+    public IRelayCommand EditCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand RemoveCommand { get; } = new RelayCommand(() => { });
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DesignConnectionEditorViewModel : IConnectionEditorViewModel
+{
+    public bool IsOpen { get; init; } = true;
+
+    public string Title => "New connection";
+
+    [ObservableProperty]
+    public partial string Name { get; set; } = "claude-team";
+
+    public IReadOnlyList<string> Providers { get; } = ["Claude Code · claude-code"];
+
+    [ObservableProperty]
+    public partial int Provider { get; set; }
+
+    public IReadOnlyList<string> Sources { get; } = [ConnectionPhrases.OwnLogin, ConnectionPhrases.Source("login"), ConnectionPhrases.Source("apiKey")];
+
+    [ObservableProperty]
+    public partial int Source { get; set; } = 2;
+
+    [ObservableProperty]
+    public partial string Reference { get; set; } = "TEAM_API_KEY";
+
+    public bool NeedsReference => true;
+
+    public string ReferenceHint => ConnectionPhrases.ReferenceHint("apiKey");
+
+    public string Error => string.Empty;
+
+    public string Removing { get; init; } = string.Empty;
+
+    public IRelayCommand NewCommand { get; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand SaveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand CancelCommand { get; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand RemoveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand KeepCommand { get; } = new RelayCommand(() => { });
 }
 
 [INotifyPropertyChanged]
@@ -137,6 +209,10 @@ internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySet
 
     public IAsyncRelayCommand<IRuleFileViewModel> EditCommand { get; } = new AsyncRelayCommand<IRuleFileViewModel>(_ => Task.CompletedTask);
 
+    public IAsyncRelayCommand<IRuleFileViewModel> EditHereCommand { get; } = new AsyncRelayCommand<IRuleFileViewModel>(_ => Task.CompletedTask);
+
+    public IRuleFileEditorViewModel Editor { get; init; } = new DesignRuleFileEditorViewModel { IsOpen = false };
+
     public IAsyncRelayCommand<string> OpenCommand { get; } = new AsyncRelayCommand<string>(_ => Task.CompletedTask);
 
     public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -147,9 +223,11 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 {
     public IDefaultConnectionViewModel DefaultConnection { get; } = new DesignDefaultConnectionViewModel();
 
+    public IConnectionEditorViewModel Editor { get; init; } = new DesignConnectionEditorViewModel { IsOpen = false };
+
     public IReadOnlyList<IMachineConnectionViewModel> Connections { get; } =
     [
-        new DesignMachineConnectionViewModel("claude-work", "keychain: claude-work", false),
+        new DesignMachineConnectionViewModel("claude-work", "keychain: claude-work", false) { IsDeclared = true },
         new DesignMachineConnectionViewModel("claude-personal", "the provider's own login", false),
     ];
 
@@ -223,4 +301,31 @@ internal sealed class DesignSettingsViewModel : ISettingsViewModel
     public IRepositorySettingsViewModel Repository { get; } = new DesignRepositorySettingsViewModel();
 
     public IMachineSettingsViewModel Machine { get; } = new DesignMachineSettingsViewModel();
+
+    public IAppearanceViewModel Appearance { get; } = new DesignAppearanceViewModel();
+}
+
+internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
+{
+    public string File => "Applied";
+
+    public bool FollowsSystem => true;
+
+    public bool IsLight => false;
+
+    public bool IsDark => false;
+
+    public bool MotionFollowsSystem => true;
+
+    public bool IsMotionReduced => false;
+
+    public bool IsMotionFull => false;
+
+    public string Error { get; init; } = string.Empty;
+
+    public IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; } = new AsyncRelayCommand<ThemeChoice>(_ => Task.CompletedTask);
+
+    public IAsyncRelayCommand<MotionChoice> ChooseMotionCommand { get; } = new AsyncRelayCommand<MotionChoice>(_ => Task.CompletedTask);
+
+    public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

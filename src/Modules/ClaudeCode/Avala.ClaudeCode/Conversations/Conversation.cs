@@ -17,6 +17,8 @@ internal sealed class Conversation
     private bool tokenIssued;
     private bool interrupting;
     private int interruptions;
+    private int queued;
+    private int stale;
 
     public Conversation(SessionId session, SessionOptions options, Places places, Option<ConversationMark> resumed)
     {
@@ -32,6 +34,16 @@ internal sealed class Conversation
 
     public Result<(TurnId Turn, Reaction Reaction), AgentError> Begin(UserTurn turn)
     {
+        if (turn.MidTurn)
+        {
+            return live.ToResult(AgentError.NoTurnInProgress).Map(running =>
+            {
+                queued++;
+
+                return (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text)], [Messages.User(turn)]));
+            });
+        }
+
         if (live.IsSome)
         {
             return AgentError.TurnInProgress;
@@ -47,11 +59,13 @@ internal sealed class Conversation
     public Reaction Receive(JsonNode message) => message.TextOr("type", string.Empty) switch
     {
         "system" when message.TextOr("subtype", string.Empty) == "init" => Initialized(message),
+        "stream_event" or "assistant" or "user" when stale > 0 => Reaction.None,
         "stream_event" or "assistant" or "user" => live.Match(stamp => translator.Receive(message, stamp), () => Reaction.None),
         "rate_limit_event" => live.Match(
             stamp => Reaction.Of([.. Telemetry.Limits(message).Select(limit => new LimitReported(session, stamp.Turn, limit))]),
             () => Reaction.None),
-        "result" => live.Match(stamp => Ended(message, stamp), () => Reaction.None),
+        "result" when stale > 0 => Swallowed(),
+        "result" => live.Match(stamp => queued > 0 && !interrupting ? Carried(message, stamp) : Ended(message, stamp), () => Reaction.None),
         "control_request" => desk.Receive(message, live),
         "control_cancel_request" => desk.Cancel(message),
         _ => Reaction.None,
@@ -95,11 +109,34 @@ internal sealed class Conversation
             () => Reaction.None);
     }
 
-    private Reaction Ended(JsonNode result, Stamp stamp)
+    private Reaction Carried(JsonNode result, Stamp stamp)
+    {
+        queued--;
+
+        return translator.Close(stamp, interrupted: false).Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), Spent(result))));
+    }
+
+    private Reaction Swallowed()
+    {
+        stale--;
+
+        return Reaction.None;
+    }
+
+    private Option<Cost> Spent(JsonNode result)
     {
         var total = Telemetry.TotalCost(result);
         var cost = total.Map(amount => new Cost(Math.Max(0m, amount - spent), Telemetry.Currency));
         spent = total.Match(amount => amount, () => spent);
+
+        return cost;
+    }
+
+    private Reaction Ended(JsonNode result, Stamp stamp)
+    {
+        var cost = Spent(result);
+        stale = interrupting ? queued : 0;
+        queued = 0;
         var outcome = interrupting
             ? TurnOutcome.Interrupted
             : result.TextOr("subtype", string.Empty) == "success" && !result.Flag("is_error") ? TurnOutcome.Finished : TurnOutcome.Failed;

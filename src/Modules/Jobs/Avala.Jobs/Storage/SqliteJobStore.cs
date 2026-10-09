@@ -12,8 +12,9 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IStartupTask
 {
     private static readonly JobState[] Active = [JobState.Preparing, JobState.Running, JobState.Checking];
 
-    private readonly SerialExecutor serial = new();
-    private JobsDbContext? context;
+    private readonly DatabaseOwner<JobsDbContext> owner = new(
+        paths.Database("jobs"),
+        file => new JobsDbContext(file) { ChangeTracker = { AutoDetectChangesEnabled = false } });
 
     public Task SaveAsync(Job job, CancellationToken cancellationToken) =>
         RunAsync(
@@ -86,31 +87,10 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IStartupTask
             },
             cancellationToken);
 
-    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+    public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await serial.DisposeAsync();
-
-        if (context is not null)
-        {
-            await context.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private Task<T> RunAsync<T>(Func<JobsDbContext, Task<T>> work, CancellationToken cancellationToken) =>
-        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
-
-    private async Task<JobsDbContext> OpenAsync(CancellationToken cancellationToken)
-    {
-        if (context is null)
-        {
-            Directory.CreateDirectory(paths.Data);
-            context = new JobsDbContext(paths.Database("jobs"));
-            context.ChangeTracker.AutoDetectChangesEnabled = false;
-            await ModuleDatabase.MigrateAsync(context, cancellationToken);
-        }
-
-        return context;
-    }
+        owner.RunAsync(work, cancellationToken);
 }

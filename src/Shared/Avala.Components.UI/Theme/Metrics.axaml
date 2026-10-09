@@ -42,11 +42,24 @@
   <x:Double x:Key="FontSizeCode">12</x:Double>
   <x:Double x:Key="FontSizeOutput">11.5</x:Double>
 
-  <BoxShadows x:Key="ShadowHairline">0 0 0 1 #0FFFFFFF</BoxShadows>
-  <BoxShadows x:Key="ShadowCard">inset 0 0.5 0 0 #0FFFFFFF, 0 1 2 0 #66000000, 0 8 20 -8 #80000000</BoxShadows>
-  <BoxShadows x:Key="ShadowFloat">inset 0 0.5 0 0 #14FFFFFF, 0 2 8 0 #4D000000, 0 24 48 -12 #A6000000</BoxShadows>
-  <BoxShadows x:Key="ShadowPopover">inset 0 0.5 0 0 #14FFFFFF, 0 2 10 0 #59000000, 0 32 64 -16 #BF000000</BoxShadows>
-  <BoxShadows x:Key="ShadowSheet">inset 0 0.5 0 0 #14FFFFFF, 0 4 16 0 #59000000, 0 40 80 -20 #BF000000</BoxShadows>
-  <BoxShadows x:Key="ShadowRaised">inset 0 0.5 0 0 #0FFFFFFF, 0 18 36 -16 #A6000000</BoxShadows>
-  <BoxShadows x:Key="ShadowComposer">inset 0 0.5 0 0 #14FFFFFF, 0 20 40 -16 #99000000</BoxShadows>
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Dark">
+      <BoxShadows x:Key="ShadowHairline">0 0 0 1 #0FFFFFFF</BoxShadows>
+      <BoxShadows x:Key="ShadowCard">inset 0 0.5 0 0 #0FFFFFFF, 0 1 2 0 #66000000, 0 8 20 -8 #80000000</BoxShadows>
+      <BoxShadows x:Key="ShadowFloat">inset 0 0.5 0 0 #14FFFFFF, 0 2 8 0 #4D000000, 0 24 48 -12 #A6000000</BoxShadows>
+      <BoxShadows x:Key="ShadowPopover">inset 0 0.5 0 0 #14FFFFFF, 0 2 10 0 #59000000, 0 32 64 -16 #BF000000</BoxShadows>
+      <BoxShadows x:Key="ShadowSheet">inset 0 0.5 0 0 #14FFFFFF, 0 4 16 0 #59000000, 0 40 80 -20 #BF000000</BoxShadows>
+      <BoxShadows x:Key="ShadowRaised">inset 0 0.5 0 0 #0FFFFFFF, 0 18 36 -16 #A6000000</BoxShadows>
+      <BoxShadows x:Key="ShadowComposer">inset 0 0.5 0 0 #14FFFFFF, 0 20 40 -16 #99000000</BoxShadows>
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Light">
+      <BoxShadows x:Key="ShadowHairline">0 0 0 1 #12000000</BoxShadows>
+      <BoxShadows x:Key="ShadowCard">0 0 0 1 #0A000000, 0 1 2 0 #0F000000, 0 8 20 -8 #1F000000</BoxShadows>
+      <BoxShadows x:Key="ShadowFloat">0 0 0 1 #0A000000, 0 2 8 0 #12000000, 0 24 48 -12 #2E000000</BoxShadows>
+      <BoxShadows x:Key="ShadowPopover">0 0 0 1 #0F000000, 0 2 10 0 #14000000, 0 32 64 -16 #38000000</BoxShadows>
+      <BoxShadows x:Key="ShadowSheet">0 0 0 1 #0F000000, 0 4 16 0 #14000000, 0 40 80 -20 #3D000000</BoxShadows>
+      <BoxShadows x:Key="ShadowRaised">0 0 0 1 #0A000000, 0 18 36 -16 #2E000000</BoxShadows>
+      <BoxShadows x:Key="ShadowComposer">0 0 0 1 #0F000000, 0 20 40 -16 #2E000000</BoxShadows>
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
 </ResourceDictionary>

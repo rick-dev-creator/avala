@@ -102,7 +102,7 @@ public sealed class AgentSessionsTests
         Assert.Equal(Request.WorkingDirectory, tree.Home);
         Assert.Same(tree, Assert.Single(provider.Sessions).Options.Processes);
         Assert.Equal(
-            new SessionOpened(turn.Session, provider.Info, Request.WorkingDirectory, new ConnectionName("scripted")) { Account = account, ProcessTree = tree.Id },
+            new SessionOpened(turn.Session, provider.Info, Request.WorkingDirectory, new ConnectionName("scripted")) { Account = account, ProcessTree = tree.Id, Capabilities = provider.Capabilities },
             bus.Published[0]);
     }
 
@@ -202,6 +202,30 @@ public sealed class AgentSessionsTests
 
         Assert.Equal(AgentError.Unsupported, Outcomes.FailsWith(await agents.InterruptAsync(turn.Session, Cancellation)));
         Assert.Equal(0, Assert.Single(provider.Sessions).Interruptions);
+    }
+
+    [Fact]
+    public async Task AMessageMidTurnReachesTheRunningTurnOfAProviderThatAcceptsItAsync()
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]) { Capabilities = Declared.With(new AcceptsMessagesMidTurn()) };
+        await using var agents = Agents(new RecordingBus(), provider);
+        var turn = await StartTurnAsync(agents, "Rename the orders module");
+
+        Assert.Equal(turn, Outcomes.Succeeds(await agents.SteerAsync(turn.Session, "Keep the alias", Cancellation)));
+        Assert.Equal(["Rename the orders module", "Keep the alias"], Assert.Single(provider.Sessions).Received);
+        Assert.Equal([false, true], Assert.Single(provider.Sessions).Turns.Select(sent => sent.MidTurn));
+    }
+
+    [Fact]
+    public async Task AMessageMidTurnIsUnsupportedWithoutAskingAProviderThatDoesNotAcceptItAsync()
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
+        await using var agents = Agents(new RecordingBus(), provider);
+        var turn = await StartTurnAsync(agents, "Rename the orders module");
+
+        Assert.Equal(AgentError.Unsupported, Outcomes.FailsWith(await agents.SteerAsync(turn.Session, "Keep the alias", Cancellation)));
+        Assert.Equal(AgentError.SessionClosed, Outcomes.FailsWith(await agents.SteerAsync(SessionId.New(), "Keep the alias", Cancellation)));
+        Assert.Equal(["Rename the orders module"], Assert.Single(provider.Sessions).Received);
     }
 
     [Fact]

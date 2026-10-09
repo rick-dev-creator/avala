@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
-using Avala.Components.UI.Streaming;
+using Avala.Components.UI.Markdown;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing.UI;
@@ -106,9 +106,9 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             view.Window.Width = 1400;
             view.Settle();
 
-            var text = view.Find<StreamingText>("Text");
+            var text = view.Find<MarkdownText>("Text");
             Assert.True(text.Bounds.Width <= 720);
-            Assert.True(text.Bounds.Height > 5 * text.LineHeight);
+            Assert.True(text.Bounds.Height > 5 * 23);
         }, Cancellation);
 
     private static IReadOnlyList<UserControl> Rows(ViewScript view) =>
@@ -122,7 +122,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
     private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript) Open(JobStatus status)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
-        var conversation = new Conversations(new JobSteering(new FakeJobs(), new JobBoard()), new(new FakePermissionAnswers(), new FakeAgents())).Open(summary.Job);
+        var conversation = new Conversations(new JobSteering(new FakeJobs(), new JobBoard(), new QueuedMessages(new FakeJobs())), new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening).Open(summary.Job);
         var transcript = Transcript.Empty.WithPrompts(summary.Instruction, []);
         conversation.Show(new BoardJob(summary, transcript));
 
@@ -135,14 +135,39 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task ARunningJobOffersInterruptAndStopButNotSendAndSaysHowToStepInAsync() =>
+    public Task ARunningJobOffersInterruptAndStopAndSaysAMessageJoinsTheTurnAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignComposerViewModel());
 
             Assert.Equal((false, true, true), (view.Find<Button>("Send").IsEffectivelyEnabled, view.Find<Button>("Interrupt").IsEffectivelyEnabled, view.Find<Button>("Stop").IsEffectivelyEnabled));
-            Assert.Equal("The agent is working · interrupt it to step in", view.Find<TextBox>("Draft").PlaceholderText);
+            Assert.Equal("Message the agent while it works…", view.Find<TextBox>("Draft").PlaceholderText);
+            Assert.Equal("Send into the running turn (Ctrl+Enter)", ToolTip.GetTip(view.Find<Button>("Send")));
             Assert.False(view.Shows("Error"));
+            Assert.False(view.Shows("QueuedNote"));
+        }, Cancellation);
+
+    [Fact]
+    public Task AQueuedMessageShowsAboveTheComposerWithAWayToWithdrawItAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var (composer, jobs) = Composer(JobStatus.Running);
+            var view = Screen.Show(composer);
+
+            view.Type("Draft", "Keep the old namespace as an alias");
+            view.Press(Key.Enter, RawInputModifiers.Control);
+            await (composer.SendCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.Empty(jobs.Calls);
+            Assert.True(view.Shows("QueuedNote"));
+            Assert.Equal("Keep the old namespace as an alias", view.TextOf("QueuedText"));
+            Assert.Equal("Queue for when the agent stops (Ctrl+Enter)", ToolTip.GetTip(view.Find<Button>("Send")));
+
+            view.Click("Withdraw");
+            view.Settle();
+
+            Assert.False(view.Shows("QueuedNote"));
         }, Cancellation);
 
     [Fact]
@@ -210,9 +235,10 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
         var jobs = new FakeJobs();
         var board = new JobBoard();
         var summary = new FakeCatalog().Add("Extract sync queue into a module", status).Summary;
-        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(summary.Job, new BoardJob(summary, Transcript.Empty)));
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, board));
-        composer.Track(status);
+        var shown = new BoardJob(summary, Transcript.Empty);
+        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(summary.Job, shown));
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, board, new QueuedMessages(jobs)));
+        composer.Track(shown);
 
         return (composer, jobs);
     }
@@ -258,43 +284,6 @@ public sealed class PromptViewScripts(HeadlessUi ui)
 
             Assert.True(view.Find("Bubble").Bounds.Width <= 560);
             Assert.True(view.Find<SelectableTextBlock>("Text").Bounds.Height > 46);
-        }, TestContext.Current.CancellationToken);
-}
-
-public sealed class MessageViewScripts(HeadlessUi ui)
-{
-    [Fact]
-    public Task AStreamingMessageGrowsGentlyWithACaretUntilItEndsAsync() =>
-        ui.RunAsync(() =>
-        {
-            var message = new MessageViewModel(new MessageEntry("m", "Totals now round", Option<ItemOutcome>.None));
-            var view = Screen.Show(message);
-            var text = view.Find<StreamingText>("Text");
-            var caret = text.ShowsCaret;
-
-            message.Update(new MessageEntry("m", "Totals now round to whole yen", Option<ItemOutcome>.None));
-            view.Settle();
-            var arriving = text.Arriving;
-            message.Update(new MessageEntry("m", "Totals now round to whole yen.", ItemOutcome.Succeeded));
-            view.Settle();
-
-            Assert.Equal((true, 1), (caret, arriving));
-            Assert.Equal((false, 0), (text.ShowsCaret, text.Arriving));
-            Assert.Equal("Totals now round to whole yen.", text.Stream);
-        }, TestContext.Current.CancellationToken);
-
-    [Fact]
-    public Task ARewrittenMessageShowsItsNewTextWholeAsync() =>
-        ui.RunAsync(() =>
-        {
-            var message = new MessageViewModel(new MessageEntry("m", "Totals round", Option<ItemOutcome>.None));
-            var view = Screen.Show(message);
-
-            message.Update(new MessageEntry("m", "Rounding moved to Money", Option<ItemOutcome>.None));
-            view.Settle();
-
-            var text = view.Find<StreamingText>("Text");
-            Assert.Equal((0, "Rounding moved to Money"), (text.Arriving, text.Stream));
         }, TestContext.Current.CancellationToken);
 }
 
@@ -480,6 +469,20 @@ public sealed class TurnEndViewScripts(HeadlessUi ui)
             var view = Screen.Show(new TurnEndViewModel(new TurnEndEntry("t", TurnOutcome.Failed, TimeSpan.FromSeconds(9), default, [])));
 
             Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Summary").Foreground).Color);
+        }, TestContext.Current.CancellationToken);
+}
+
+public sealed class InterjectionViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task AMessageSentMidTurnIsAPersonBubbleOnTheRightWithItsNoteAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignInterjectionViewModel());
+
+            Assert.Equal(HorizontalAlignment.Right, view.Find("Bubble").HorizontalAlignment);
+            Assert.Equal("You, while it worked · joined the turn", view.TextOf("Note"));
+            Assert.Contains("alias", view.Find<SelectableTextBlock>("Text").Text, StringComparison.Ordinal);
         }, TestContext.Current.CancellationToken);
 }
 

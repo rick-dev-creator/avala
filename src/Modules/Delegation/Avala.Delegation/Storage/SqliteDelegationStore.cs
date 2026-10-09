@@ -8,9 +8,8 @@ namespace Avala.Delegation.Storage;
 
 internal sealed class SqliteDelegationStore(AvalaPaths paths) : IDelegationStore, IStartupTask, IAsyncDisposable
 {
-    private readonly SerialExecutor serial = new();
+    private readonly DatabaseOwner<DelegationDbContext> owner = new(paths.Database("delegation"), file => new DelegationDbContext(file));
     private readonly HashSet<int> written = [];
-    private DelegationDbContext? context;
 
     public Task RecordAsync(DelegationRecord record, CancellationToken cancellationToken) =>
         RunAsync(
@@ -37,30 +36,10 @@ internal sealed class SqliteDelegationStore(AvalaPaths paths) : IDelegationStore
             ],
             cancellationToken);
 
-    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+    public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await serial.DisposeAsync();
-
-        if (context is not null)
-        {
-            await context.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private Task<T> RunAsync<T>(Func<DelegationDbContext, Task<T>> work, CancellationToken cancellationToken) =>
-        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
-
-    private async Task<DelegationDbContext> OpenAsync(CancellationToken cancellationToken)
-    {
-        if (context is null)
-        {
-            Directory.CreateDirectory(paths.Data);
-            context = new DelegationDbContext(paths.Database("delegation"));
-            await ModuleDatabase.MigrateAsync(context, cancellationToken);
-        }
-
-        return context;
-    }
+        owner.RunAsync(work, cancellationToken);
 }

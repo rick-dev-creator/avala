@@ -10,6 +10,7 @@ using Avala.Observability.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -34,6 +35,7 @@ public sealed class BudgetsPlugin : IPlugin
             .AddSingleton<IBudgets>(services => services.GetRequiredService<BudgetBook>())
             .AddSingleton<IStartupTask>(services => services.GetRequiredService<BudgetBook>())
             .AddSingleton<BudgetFileReader>()
+            .AddSingleton<IRuleFileFormat, BudgetFileFormat>()
             .AddSingleton<IBudgetFiles>(services => services.GetRequiredService<BudgetFileReader>())
             .AddSingleton<IRepositoryBudgets>(services => services.GetRequiredService<BudgetFileReader>())
             .AddSingleton<IConnectionSelector, CapacitySelector>()

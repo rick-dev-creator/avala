@@ -73,19 +73,22 @@ public sealed class MachineConnectionViewModelScripts
 {
     [Fact]
     public void AConnectionShowsItsProviderAndCredentialSource() =>
-        ViewModelScript.Given(new MachineConnectionViewModel(new DeclaredConnection(new ConnectionName("claude-work"), "claude-code", "keychain"), true))
+        ViewModelScript.Given(Row(new DeclaredConnection(new ConnectionName("claude-work"), "claude-code", "keychain"), true))
             .Then(connection => Assert.Equal(("claude-work", "claude-code", "keychain", true), (connection.Name, connection.Provider, connection.Source, connection.IsDefault)));
 
     [Fact]
     public void AConnectionWithoutASourceUsesTheProvidersOwnLogin() =>
-        ViewModelScript.Given(new MachineConnectionViewModel(new DeclaredConnection(new ConnectionName("claude-personal"), "claude-code", Option<string>.None), false))
+        ViewModelScript.Given(Row(new DeclaredConnection(new ConnectionName("claude-personal"), "claude-code", Option<string>.None), false))
             .Then(connection => Assert.Equal(("the provider's own login", false), (connection.Source, connection.IsDefault)));
 
     [Theory]
-    [InlineData(ConnectionOrigin.Declared, "declared in connections.json")]
-    [InlineData(ConnectionOrigin.Discovered, "discovered on this machine")]
-    [InlineData(ConnectionOrigin.Implicit, "implicit")]
-    public void AConnectionSaysWhetherItWasDeclaredDiscoveredOrImplicit(ConnectionOrigin origin, string expected) =>
-        ViewModelScript.Given(new MachineConnectionViewModel(new DeclaredConnection(new ConnectionName("simulator-work"), "simulator", "login") { Origin = origin }, false))
-            .Then(connection => Assert.Equal(expected, connection.Origin));
+    [InlineData(ConnectionOrigin.Declared, "declared in connections.json", true)]
+    [InlineData(ConnectionOrigin.Discovered, "discovered on this machine", false)]
+    [InlineData(ConnectionOrigin.Implicit, "implicit", false)]
+    public void AConnectionSaysWhetherItWasDeclaredDiscoveredOrImplicitAndOnlyADeclaredOneIsEditable(ConnectionOrigin origin, string expected, bool editable) =>
+        ViewModelScript.Given(Row(new DeclaredConnection(new ConnectionName("simulator-work"), "simulator", "login") { Origin = origin, Reference = "/logins/work" }, false))
+            .Then(connection => Assert.Equal((expected, editable, "/logins/work"), (connection.Origin, connection.IsDeclared, connection.Reference)));
+
+    private static MachineConnectionViewModel Row(DeclaredConnection connection, bool isDefault) =>
+        new(connection, isDefault, new CommunityToolkit.Mvvm.Input.RelayCommand(() => { }), new CommunityToolkit.Mvvm.Input.RelayCommand(() => { }));
 }
