@@ -37,6 +37,31 @@ public sealed class SqliteJobStoreTests
     }
 
     [Fact]
+    public async Task TheLatestConnectionChoiceOfAJobSurvivesAReloadWithItsReasonAndComparedReadingsAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var job = JobId.New();
+        var at = new DateTimeOffset(2026, 10, 9, 9, 0, 0, TimeSpan.Zero);
+        var limit = new Agents.Contracts.Events.UsageLimit("5h", 0.95, at.AddHours(2));
+        var earlier = new ConnectionChoice(new ConnectionName("work"), ChoiceReason.MostCapacity, [], at);
+        var latest = new ConnectionChoice(
+            new ConnectionName("personal"),
+            ChoiceReason.AllAtLimit,
+            [new CandidateCapacity(new ConnectionName("work"), 0.95, limit, 0.9, Available: false), new CandidateCapacity(new ConnectionName("personal"), 0.92, Option<Agents.Contracts.Events.UsageLimit>.None, 1, Available: false)],
+            at.AddMinutes(1));
+        await using (var store = new SqliteJobStore(new AvalaPaths(folder.Path)))
+        {
+            await store.RecordAsync(job, earlier, Cancellation);
+            await store.RecordAsync(job, latest, Cancellation);
+        }
+
+        var reloaded = await ReloadAsync(folder, store => store.ChoiceOfAsync(job, Cancellation));
+
+        Assert.Equal(latest.Compared, reloaded.Compared);
+        Assert.Equal(latest with { Compared = reloaded.Compared }, reloaded);
+    }
+
+    [Fact]
     public async Task ASnapshotIsTheStoredJobAndNeverTheOneTheFlowIsChangingAsync()
     {
         using var folder = new TemporaryFolder();
@@ -132,10 +157,11 @@ public sealed class SqliteJobStoreTests
         }
     }
 
-    private static async Task<Job> ReloadAsync(TemporaryFolder folder, Func<SqliteJobStore, Task<Option<Job>>> find)
+    private static async Task<T> ReloadAsync<T>(TemporaryFolder folder, Func<SqliteJobStore, Task<Option<T>>> find)
+        where T : notnull
     {
         await using var store = new SqliteJobStore(new AvalaPaths(folder.Path));
 
-        return (await find(store)).Match(job => job, () => throw new InvalidOperationException("The job was not stored"));
+        return Outcomes.Present(await find(store));
     }
 }

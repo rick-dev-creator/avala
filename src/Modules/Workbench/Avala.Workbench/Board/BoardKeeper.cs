@@ -146,6 +146,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, IVerifications verificati
         {
             Attempts = history.Attempts.Count,
             Verification = verified.Count > 0 ? verified[^1] : Option<VerificationReport>.None,
+            Choice = history.Choice,
         };
     }
 

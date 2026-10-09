@@ -65,6 +65,29 @@ namespace Avala.Jobs.Storage.Migrations
                     b.ToTable("Jobs", (string)null);
                 });
 
+            modelBuilder.Entity("Avala.Jobs.Storage.StoredChoice", b =>
+                {
+                    b.Property<int>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("At")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Choice")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("Job")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("Job");
+
+                    b.ToTable("ConnectionChoices", (string)null);
+                });
+
             modelBuilder.Entity("Avala.Jobs.Jobs.Job", b =>
                 {
                     b.OwnsMany("Avala.Jobs.Jobs.Attempt", "Attempts", b1 =>

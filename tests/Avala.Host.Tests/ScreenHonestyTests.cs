@@ -1,4 +1,7 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
+using Avala.Observability.Contracts;
+using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
@@ -61,6 +64,51 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
         Assert.Contains("card: simulator · Simulated account · 5h · 95% · near limit True", before);
         Assert.Contains(before, line => line.StartsWith("inspector: ", StringComparison.Ordinal) && line.Contains("Cost cap", StringComparison.Ordinal));
         Assert.Equal(before, await SpendingAsync(run));
+    }
+
+    [Fact]
+    public async Task TheReasonAndComparedReadingsOfAConnectionChosenByCapacityShowTheSameAfterARestartAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/budget.json", """{ "holdAtLimit": 0.9 }""")]);
+        var recorded = run.Watch<UsageRecorded>();
+        var near = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("near-limit")) { Connection = new ConnectionName("simulator-one") }));
+        var reports = 0;
+        _ = await recorded.UntilAsync(_ => ++reports == 2);
+        _ = await run.SettledAsync(near);
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        var before = await ChoiceAsync(run, job);
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        Assert.Equal(
+            [
+                "connection: simulator-two · Chosen by capacity: simulator-two had the most left",
+                "compared: simulator-one · 95% of 5h · holds at 90% · at its limit · chosen False",
+                "compared: simulator-two · no usage reported · holds at 90% · chosen True",
+            ],
+            before);
+        Assert.Equal(before, await ChoiceAsync(run, job));
+    }
+
+    private static readonly (string File, string Content)[] TwoAccounts =
+    [
+        ("simulated-logins/one/.login", string.Empty),
+        ("simulated-logins/two/.login", string.Empty),
+    ];
+
+    private static async Task<IReadOnlyList<string>> ChoiceAsync(SimulatedRun run, JobId job)
+    {
+        var workbench = await run.WorkbenchAsync();
+        await workbench.ShowsInGroupAsync(job, "ReadyForReview");
+        var section = Assert.Single(await workbench.InspectAsync(job, "AutonomySectionViewModel"));
+
+        return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
+        [
+            $"connection: {section["Connection"].Text} · {section["Reason"].Text}",
+            .. section["Compared"].Items.Select(line => $"compared: {line["Connection"].Text} · {line["Reading"].Text} · chosen {line["IsChosen"].Text}"),
+        ]);
     }
 
     private static async Task<IReadOnlyList<string>> SpendingAsync(SimulatedRun run)

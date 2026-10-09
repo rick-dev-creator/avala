@@ -51,6 +51,6 @@ internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.Jo
     public async Task<Option<InspectorFacts>> ReadAsync(JobId job, CancellationToken cancellationToken) =>
         (await records.ReadAsync(job, cancellationToken)).Map(record => new InspectorFacts(record, audit.Of(record.History))
         {
-            Choice = board.Find(job).Bind(found => found.Choice),
+            Choice = record.History.Choice.IsSome ? record.History.Choice : board.Find(job).Bind(found => found.Choice),
         });
 }

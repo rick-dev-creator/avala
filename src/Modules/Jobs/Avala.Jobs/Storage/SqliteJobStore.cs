@@ -62,6 +62,30 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IStartupTask
             async database => (await database.Jobs.AsNoTracking().FirstOrDefaultAsync(job => job.Id == id, cancellationToken)).ToOption(),
             cancellationToken);
 
+    public Task RecordAsync(JobId id, ConnectionChoice choice, CancellationToken cancellationToken) =>
+        RunAsync(
+            async database =>
+            {
+                var row = StoredChoice.Of(id, choice);
+                await database.Choices.AddAsync(row, cancellationToken);
+                var saved = await database.SaveChangesAsync(cancellationToken);
+                database.Entry(row).State = EntityState.Detached;
+
+                return saved;
+            },
+            cancellationToken);
+
+    public Task<Option<ConnectionChoice>> ChoiceOfAsync(JobId id, CancellationToken cancellationToken) =>
+        RunAsync(
+            async database =>
+            {
+                var wanted = id.Value;
+                var found = await database.Choices.AsNoTracking().Where(row => row.Job == wanted).OrderByDescending(row => row.Key).Take(1).ToListAsync(cancellationToken);
+
+                return found.Count == 0 ? Option<ConnectionChoice>.None : found[0].Read();
+            },
+            cancellationToken);
+
     public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
 
     public async ValueTask DisposeAsync()
