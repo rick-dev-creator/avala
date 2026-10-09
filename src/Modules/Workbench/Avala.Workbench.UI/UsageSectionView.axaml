@@ -1,0 +1,13 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inspector="using:Avala.Workbench.Inspector"
+             x:Class="Avala.Workbench.UI.UsageSectionView"
+             x:ClassModifier="internal"
+             x:DataType="inspector:UsageSectionViewModel">
+  <StackPanel Spacing="4">
+    <TextBlock Text="{Binding Spent}" FontWeight="SemiBold" />
+    <ItemsControl ItemsSource="{Binding Caps}" />
+    <ItemsControl ItemsSource="{Binding Interventions}" />
+    <TextBlock Text="{Binding Carve}" Opacity="0.7" />
+  </StackPanel>
+</UserControl>

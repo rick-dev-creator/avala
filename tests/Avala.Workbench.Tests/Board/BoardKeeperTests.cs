@@ -1,6 +1,8 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Budgets.Contracts;
+using Avala.Observability.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -100,6 +102,31 @@ public sealed class BoardKeeperTests
         await keeper.HandleAsync(new AgentActivity(new TurnCompleted(session, turn, TurnOutcome.Finished)), Cancellation);
 
         Assert.Equal(TimeSpan.FromSeconds(7), Assert.IsType<TurnEndEntry>(Joined(job).Transcript.Entries[^1]).Duration);
+    }
+
+    [Fact]
+    public async Task TheRevisionMovesOnEveryEventTheReviewAndTheInspectorReadButNotOnStreamedText()
+    {
+        var parent = catalog.Add("Split the work").Summary.Job;
+        var child = catalog.Add("Write the notes").Summary.Job;
+        var session = SessionId.New();
+        var turn = TurnId.New();
+        await keeper.HandleAsync(new JobSubmitted(parent), Cancellation);
+        await keeper.HandleAsync(new JobSubmitted(child), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(parent, session), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new TurnStarted(session, turn)), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply")), Cancellation);
+        var started = (Joined(parent).Revision, Joined(child).Revision);
+
+        await keeper.HandleAsync(new AgentActivity(new ItemProgressed(session, turn, new ItemId("reply"), "Working on it")), Cancellation);
+        var streamed = Joined(parent).Revision;
+        await keeper.HandleAsync(new UsageRecorded(session, parent), Cancellation);
+        await keeper.HandleAsync(new BudgetCarved(new BudgetCarve(parent, child, [], Option<long>.None, 0.5, time.GetUtcNow())), Cancellation);
+        await keeper.HandleAsync(new PermissionAnswered(new HumanAnswer(session, parent, new ItemId("edit"), ItemKind.FileEdit, "NOTES.md", PermissionAnswer.Allow, Option<string>.None, Option<PolicyRule>.None, time.GetUtcNow())), Cancellation);
+
+        Assert.Equal((1, 0), started);
+        Assert.Equal(1, streamed);
+        Assert.Equal((4, 1), (Joined(parent).Revision, Joined(child).Revision));
     }
 
     private BoardJob Joined(JobId job) => board.Find(job).Match(found => found, () => throw new InvalidOperationException("The job is not on the board."));

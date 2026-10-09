@@ -7,17 +7,34 @@
   <Grid ColumnDefinitions="260,*,Auto">
     <ContentControl Content="{Binding Sidebar}" />
     <DockPanel Grid.Column="1">
-      <Button DockPanel.Dock="Top"
-              HorizontalAlignment="Right"
-              Margin="8"
-              Content="Inspector"
-              Command="{Binding ToggleInspectorCommand}" />
-      <ContentControl Content="{Binding Conversation}" />
+      <StackPanel DockPanel.Dock="Top"
+                  Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Spacing="8"
+                  Margin="8">
+        <Button Content="Review" Command="{Binding OpenReviewCommand}" />
+        <Button Content="Inspector" Command="{Binding ToggleInspectorCommand}" />
+      </StackPanel>
+      <Panel>
+        <ContentControl Content="{Binding Conversation}" />
+        <Border IsVisible="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}"
+                Background="#EE1B1B1F"
+                Margin="24">
+          <DockPanel>
+            <Button DockPanel.Dock="Top"
+                    HorizontalAlignment="Right"
+                    Margin="8"
+                    Content="Close"
+                    Command="{Binding CloseReviewCommand}" />
+            <ContentControl Content="{Binding Review}" />
+          </DockPanel>
+        </Border>
+      </Panel>
     </DockPanel>
     <Border Grid.Column="2"
-            Width="300"
+            Width="320"
             IsVisible="{Binding IsInspectorOpen}">
-      <TextBlock Margin="16" Text="Inspector" />
+      <ContentControl Content="{Binding Inspector}" />
     </Border>
   </Grid>
 </UserControl>

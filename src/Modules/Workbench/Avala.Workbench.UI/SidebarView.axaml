@@ -16,8 +16,10 @@
   </UserControl.Resources>
   <ScrollViewer>
     <StackPanel Margin="8" Spacing="4">
-      <TextBlock Text="{Binding PendingDecisions, StringFormat='{}{0} pending decisions'}"
-                 IsVisible="{Binding HasPendingDecisions}" />
+      <Button Content="{Binding PendingDecisions, StringFormat='{}{0} pending decisions'}"
+              Command="{Binding ToggleDecisionsCommand}"
+              HotKey="Ctrl+D" />
+      <ContentControl Content="{Binding Decisions}" IsVisible="{Binding IsDecisionsOpen}" />
       <TextBlock Text="Needs you" FontWeight="SemiBold" />
       <ItemsControl ItemsSource="{Binding NeedsYou}" ItemTemplate="{StaticResource Row}" />
       <TextBlock Text="Running" FontWeight="SemiBold" />

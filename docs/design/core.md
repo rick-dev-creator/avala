@@ -328,9 +328,9 @@ public interface IJobs
 ```
 
 - `Job.Hold(reason)` moves a `Running` job to `NeedsHelp` and concludes its underway attempt as `Interrupted`. No new state: a held job needs a human exactly like one whose retries ran out, and a hint resumes either. Any other state returns `CannotHold`, which `IJobs` reports as `NotRunning`; an unknown job is `UnknownJob`.
-- `HoldReason` is `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`, `MemoryExceeded` or `Interrupted`, a person who interrupted the job from its conversation, see [Workbench](#the-composer).
+- `HoldReason` is `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`, `MemoryExceeded`, `Interrupted`, a person who interrupted the job from its conversation, or `Stopped`, a person who stopped it, see [Workbench](#the-composer).
 - `HoldJob` stores the held job first, which publishes `JobProgressed` with `NeedsHelp`, and only then halts the session, so the end of the interrupted turn finds a job that is no longer `Running`. It then publishes `JobHeld` with a `JobHold`: job, session, reason and how the session was halted.
-- Halting: `SessionLost` stops the session, since it is already gone. Every other reason interrupts the turn through `IAgents.InterruptAsync` and keeps the session open for a human: `Interrupted` when a turn was interrupted, `Idle` when none was running. A provider that cannot interrupt, or an interruption that fails otherwise, stops the session instead: `Stopped`. A session that is no longer open is `AlreadyClosed`.
+- Halting: `SessionLost` stops the session, since it is already gone, and `Stopped` stops it, since the person asked for the agent to end rather than pause; the worktree and the job's work stay, and a continuation opens a new session that resumes the conversation when the provider can. Every other reason interrupts the turn through `IAgents.InterruptAsync` and keeps the session open for a human: `Interrupted` when a turn was interrupted, `Idle` when none was running. A provider that cannot interrupt, or an interruption that fails otherwise, stops the session instead: `Stopped`. A session that is no longer open is `AlreadyClosed`.
 - The hold reason is not persisted: the stored job is `NeedsHelp` with an interrupted attempt, and the reason lives in `JobHeld` and in the audit of the module that held it. Persisting it arrives with the first schema migration.
 
 **Continuing a held job.** `IJobs.ContinueAsync` is how a human answers a job that needs help, whatever held it: it hints the job with the human's message, in the job's queue, and returns a `JobContinuation` with the session the job continues in and how (`ContinuedIn`).
@@ -1344,6 +1344,8 @@ A job of a loop that reaches `AwaitingReview` is approved automatically, through
 | `ChangesUnknown` | The job's diff cannot be read, so the rule files cannot be proven untouched |
 | `DeliveryRefused` | The evidence was clean but the strategy refused the delivery, such as `MergeConflict` or `BaseCheckoutDirty`; the refusal is kept with it |
 
+The exceptions of the run itself, every one above but `NotDeclared`, `UnreadableRules` and `DeliveryRefused`, are the same for any job, whether or not a loop took it, so `CleanEvidence` is the single definition of what is worth a person's look: Autopilot answers it for any job through `IRunEvidence.OfJobAsync` in its contracts, a `RunEvidence` with the summary, the run's exceptions and the items behind each, the verifications, the denials of the policy and of people, the declined forms, the forms with assumptions, the rule files edited (a path under `.avala/` in the diff, `.avala/checks.json` when the last declaration was edited in the worktree, `.avala/permissions.json` when a session's policy was) and the attempts that continued a hold, plus the number of decisions the rules allowed. The review sheet of the [Workbench](#review) reads it. A contract may hold no logic, so the definition cannot move into one, and computing it again in the Workbench would let the two drift; the query keeps it in one place.
+
 A job a person submitted is never approved automatically: only the jobs a loop took are judged, so a person who runs a job by hand reviews it. Every decision, approval or refusal, is published as `AutoApprovalDecided` with its `AutoApproval`: the loop, the job, whether it was approved, the `EvidenceSummary` (attempts, the last verification's outcome and the checks it passed, the permissions allowed, the forms decided and the files changed), the exceptions, the delivery or the refusal, and the time; and it is kept in the loop's digest.
 
 ### The rules file
@@ -1449,7 +1451,7 @@ The **failure signature** comes from the verification evidence: the first check 
 | `Evidence` | `JobEvidence`, the facts gathered about a job; `CleanEvidence`, the exceptions and the summary; `AutopilotRules` | Domain |
 | `Backlogs` | `BacklogDeclaration`, its tasks and recurring tasks, and `RecurringSchedule`, which says what is due | Domain |
 | `Looping` | `LoopRunner`; `LoopRegistry`, behind `IAutopilot`; `LoopFeed`, the handler of `JobProgressed`, `JobHeld`, `PermissionDecided` and `FormDecided`; `LoopSteps`, `LoopGauges`, which reads spending and limits, and `LoopJournal` with `LoopBook`, which keep the loops' snapshots and publish their events | Application |
-| `Approving` | `EvidenceGatherer`, `AutoApprover`, `JobWork`, and the `IAutopilotRules` port | Application |
+| `Approving` | `EvidenceGatherer`, `AutoApprover`, `JobWork`, `RunEvidenceQuery`, behind `IRunEvidence`, and the `IAutopilotRules` port | Application |
 | `Sourcing` | `TaskSources`, `BacklogSource`, `RecurringSource`, `FollowUpSource`, and the `IBacklogFile` and `ITaskLedger` ports | Application |
 | `FollowUps` | `FollowUpTool`, the definition of `propose_follow_up`; `FollowUpPolicy`; `FollowUpDesk`, the handler of `SessionOpened`, `JobSessionStarted` and `AgentActivity` | Application |
 | `RepositoryFiles` | `AutopilotRulesReader` behind `IAutopilotRules` and `BacklogFileReader` behind `IBacklogFile`, through `IBaseFiles` | Infrastructure |
@@ -1560,7 +1562,8 @@ The user interface is a module like any other, built view model first, see [Deli
 
 - **What it asks Jobs.** `IJobCatalog.HistoryAsync` when a job is submitted, when a job it has not seen yet progresses or starts a session, and on every `JobProgressed`, to read the job's attempts; `ListAsync` once, on `StartupCompleted`, for the jobs of earlier runs.
 - **What it publishes.** `JobBoard` holds the immutable dictionary of jobs the keeper replaces whole, read with `Volatile`. A view model watches it through `ChangesAsync`, a channel of one pending signal per watcher: a change while one is pending is dropped, and the watcher reads the latest board when it wakes, so a burst of streamed text costs the interface one update. No lock: the keeper's mailbox is the only writer.
-- **`BoardJob`.** The job's `JobSummary` with its latest status, the number of its attempts, its `HoldReason` until it runs again, its latest `VerificationReport`, its `ApprovalDelivery` and its `Transcript`. It derives the sidebar's group, its one secondary fact and its pending decisions.
+- **`BoardJob`.** The job's `JobSummary` with its latest status, the number of its attempts, its `HoldReason` until it runs again, its latest `VerificationReport`, its `ApprovalDelivery`, its `Transcript` and its `Revision`. It derives the sidebar's group, its one secondary fact and its pending decisions.
+- **The revision.** A counter the keeper moves on every event that changes what the review sheet or the inspector read about the job: `JobProgressed`, `JobHeld`, `JobApproved`, `JobSessionStarted`, `AttemptVerified`, `PermissionDecided`, `FormDecided`, `PermissionAnswered`, `AutonomyApplied`, `UsageRecorded`, `BudgetIntervened`, `BudgetCarved` for the parent and the child, and `ChildDelegated` and `ChildReported` for the parent and the child. Streamed text, tool output and canvases change the transcript but not the revision, so an open panel reloads its queries once per fact, not once per token. Each of these events is published after the query it concerns includes it, and the keeper sees them in order in its one mailbox.
 
 | Group | Jobs |
 | --- | --- |
@@ -1615,7 +1618,7 @@ The agent's events are not stored, so a job of an earlier run cannot be replayed
 
 - **Send.** To a job that needs a person, `IJobs.ContinueAsync`; to a job awaiting review, `IJobs.SendBackAsync`, a new round with the message as feedback. A running job takes no message, and `NotHeld` is returned without asking Jobs: steering an agent in the middle of a turn is not in the core, and a message sent straight to its session would start a turn Jobs does not count as an attempt.
 - **Interrupt.** `IJobs.HoldAsync` with `HoldReason.Interrupted`. Interrupting the agent directly through `IAgents.InterruptAsync` would fail the job, since an interrupted turn of a running job fails it. The hold interrupts the turn, keeps the session, and the job waits as `NeedsHelp` until a person continues it with a message.
-- **Stop.** `IJobs.DiscardAsync`: the job ends `Discarded`, its session stops, and Resources reclaims its worktree by its retention.
+- **Stop.** `IJobs.HoldAsync` with `HoldReason.Stopped`: the agent's session is stopped rather than interrupted, the job waits as `NeedsHelp` with its worktree and its work intact, and a message continues it, in a new session that resumes the conversation when the provider can. Only a running job can be stopped. Stop used to discard the job, which with the default retention deleted its worktree at once, too destructive for a button always in view; discarding now lives only in the [review sheet](#review), behind a confirmation.
 - A rejection is shown as text in the composer; the draft stays when sending was refused.
 
 ### Answering in place
@@ -1623,9 +1626,42 @@ The agent's events are not stored, so a job of an earlier run cannot be replayed
 - **A permission card** answers through `IPermissionAnswers.AnswerAsync`, `Allow` or `Deny`, with the optional note for the agent and "don't ask again". Its commands are enabled only while the request waits for a person; a refusal, such as `NotAwaitingAnswer`, is shown on the card.
 - **A form card** renders any `AgentForm`: one field view model per field, one choice view model per option. The recommended options start selected, so answering with them is one command; choosing another option of a single choice unselects the first, and text typed for a single choice that accepts it is sent in place of an option. Answering is enabled once every field is complete, by the rules `IAgents.AnswerAsync` checks; declining sends the note as the form's message.
 
+### Review
+
+The review sheet opens on demand for the selected job when it awaits review or is held, and closes when another job is selected. It answers one question, can this work be trusted, in this order:
+
+- **The verdict first**, from the job's verifications: verified on attempt N of M, no checks declared, not verified with the attempt that failed, or an invalid declaration.
+- **Then only the exceptions**, from `IRunEvidence`, so an exception means on the sheet exactly what it means to Autopilot's automatic approval: each earlier or last attempt that failed, with only its failing checks and the tail of their output; each denial by the policy or by a person and each declined form; each assumption the policy made; each continuation after a hold; each rule file edited; a diff that could not be read. An earlier attempt that failed and was fixed by a retry does not keep a job from automatic approval, but it is still worth a look, so the sheet lists it.
+- **One quiet line**: how many other decisions the rules allowed, the cost and the tokens, from `IUsage.OfJob`.
+- **The diff**: the files with their counts from `IWorkspaceChanges.DiffAsync`, and a file's hunks on demand from `FileDiffAsync`.
+- **The commands**: approve, send back with feedback, and discard, through `IJobs`. Approve and send back are enabled only while the job awaits review; discard takes two steps, a request and a confirmation, and works for any job that has not ended. A refusal is shown in place: a merge conflict lists the conflicting files, read from `ConflictsAsync`, a base checkout with uncommitted changes asks to commit or stash them.
+
+`ReviewReader` gathers the facts, `ReviewDesk` gives the commands, and `ReviewExceptions` turns the evidence into the verdict and the typed exceptions, which `ReviewPhrases` words.
+
+### Decisions
+
+The decisions popover, opened from the sidebar's count of pending decisions, lists every permission and form that waits for a person across all jobs, the same `Transcript.Awaiting` the sidebar counts, oldest first, with the job's title and how long it has waited since the policy left it to a person. Each item holds the card view model of the conversation, so an answer from the popover is the same answer, and a card answered elsewhere leaves the popover on the next board change. Keyboard first: move to the next or previous item, choose option 1 to n of a form's first choice field, answer (allow a permission, submit a form) or deny (deny a permission, decline a form), with an optional note for the agent. With nothing waiting it says "Nothing needs you".
+
+### Inspector
+
+The inspector, closed by default, shows the selected job in short sections, each a small view model loaded when the inspector opens and reloaded when the job's revision moves:
+
+| Section | From |
+| --- | --- |
+| Evidence | `IVerifications.OfJob`: the verdict and one line per verified attempt with its checks |
+| Decisions and assumptions | `IPermissionAudit.OfJob`, `AnswersOfJob` and `FormsOfJob`: what the rules allowed, what a person answered, what was denied, and each assumption |
+| Usage and caps | `IUsage.OfJob`, the caps of the latest session's `IBudgets.BudgetOf`, the interventions of `IBudgets.OfJob`, and the carve of a child job from `CarveOf` |
+| Autonomy and connection | The latest session's `IPermissionAudit.AutonomyOf`, and the connection of the catalog |
+| Worktree | The branch, the base branch and commit, and the path, from `IWorkspaces.FindAsync`, and the port lease of the worktree from `IResources.Leases` |
+| Delegation | The parent from the catalog, and each child from `IJobCatalog.ChildrenAsync` with its status, connection and the outcome its `IDelegations.OfParent` record reports, and the refused delegations |
+
+`JobRecords` reads the catalog, the worktree, the lease and the delegations, `JobAudit` the in-memory audits, and `JobInspection` joins them.
+
 ### Navigation
 
-The shell lists the pages plugins register, `IPage`, and activates the selected one through `IActivatable`. The Workbench's page is the main window: the sidebar, the conversation of the selected job, opened when the sidebar's selection changes, and the inspector, closed by default and toggled. While active it follows the board, and on every change it updates the sidebar and the open conversation on the UI thread through `IUiDispatcher`; the view models are touched on that thread only.
+The shell lists the pages plugins register, `IPage`, and activates the selected one through `IActivatable`. The Workbench's page is the main window: the sidebar, the conversation of the selected job, opened when the sidebar's selection changes, the inspector, closed by default and toggled, and the review sheet. While active it follows the board, and on every change it updates the sidebar, the decisions popover and the open conversation on the UI thread through `IUiDispatcher`; the view models are touched on that thread only.
+
+- **Loading the panels.** The review sheet and the inspector load their facts off the UI thread and apply them through `IUiDispatcher`. Each load is requested on the UI thread with the board revision it answers, and applies only if no newer request was made since and the page is still active: work queued for the UI thread before a deactivation is dropped, as the board updates are. Opening a panel loads it at once; the follow loop then reloads an open panel whose job's revision moved, one load after another, after the sidebar and conversation are shown.
 
 ### The module
 
@@ -1638,7 +1674,14 @@ The shell lists the pages plugins register, `IPage`, and activates the selected 
 | `Navigation` | `WorkbenchViewModel`, the main window's page | ViewModels |
 | `Sidebar` | `SidebarViewModel`, `JobRowViewModel` and the wording of the facts | ViewModels |
 | `Conversation` | `ConversationViewModel`, `ComposerViewModel`, one view model per kind of entry, and `Conversations`, which opens one per job | ViewModels |
-| `Cards` | `PermissionCardViewModel`, `FormCardViewModel`, `FormFieldViewModel` and `FormChoiceViewModel`, which the decisions popover can reuse | ViewModels |
+| `Cards` | `PermissionCardViewModel`, `FormCardViewModel`, `FormFieldViewModel` and `FormChoiceViewModel`, which the decisions popover reuses | ViewModels |
+| `Reviewing` | `ReviewReader`, `ReviewDesk`, `ReviewExceptions`, the verdict and the typed exceptions of a run | Application |
+| `Inspection` | `JobRecords`, `JobAudit` and `JobInspection`, the facts of the inspector | Application |
+| `Review` | `ReviewViewModel`, `ReviewExceptionViewModel`, `ChangedFileViewModel`, `HunkViewModel`, `ReviewPhrases` and `Amounts` | ViewModels |
+| `Decisions` | `DecisionsViewModel`, the popover, and `DecisionViewModel`, one waiting decision | ViewModels |
+| `Inspector` | `InspectorViewModel`, its six section view models and `InspectorPhrases` | ViewModels |
+
+`JobScreens`, in `Navigation`, opens a job's conversation, review sheet and inspector through the `Conversations`, `Reviews` and `Inspectors` factories, so the main window keeps four dependencies.
 
 - The module has no domain: the board and the projection are facts that already happened, like Observability's, so it has no aggregate and no error enum. It shows the errors of the modules it calls.
 - The board lives in memory, every job's transcript since startup. Dropping the transcripts of ended jobs, and the canvases of their sessions, arrives with the first measure of their size.
@@ -1730,7 +1773,7 @@ The job's connection is not part of an event of Jobs: a view reads it from `IJob
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
-| `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`, `MemoryExceeded`, `Interrupted`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, or Jobs holds one whose session ended on its own, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
+| `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`, `MemoryExceeded`, `Interrupted`, `Stopped`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, or Jobs holds one whose session ended on its own, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
 | `JobResumable` | Event | `Job`, `Session` whose resume token Jobs stored | Each time the job's current session issues a resume token, once the token is stored. Never for a session the job no longer uses | Zero or more per session; the simulator issues one per turn |
 | `IJobs.ContinueAsync(JobId, message)` | Command answer | `Result<JobContinuation, JobRejection>`: `Job`, the `Session` the job continues in and `Conversation` (`ContinuedIn`: `SameSession`, `ResumedConversation`, `NewConversation`); or `NotHeld`, `EmptyMessage`, `UnknownJob`, `WorkspaceUnavailable`, `UnknownConnection`, `UnusableConnection`, `AgentUnavailable` | When a human answers a job that needs help. A success is followed by `JobProgressed` with `Running`, and by `JobSessionStarted` when the session is new | One per human answer |
 
@@ -1872,6 +1915,7 @@ The module publishes no event and answers no query: a recording is a file for pe
 | `IAutopilot.PauseAsync`, `ResumeAsync`, `StopAsync(LoopId)` | Command answers | `Result<LoopId, AutopilotError>`: the loop, or `UnknownLoop`, `NotRunning`, `NotPaused`, `LoopEnded` | When a person pauses, resumes or stops a loop | One per command |
 | `IAutopilot.Loops()` | Query | `IReadOnlyList<LoopState>`: `Loop`, `Repository`, `Status` (`LoopStatus`: `Running`, `Waiting`, `Paused`, `Ended`), `Started`, `Iterations`, the `Option<JobId>` `Current` underway, and the options `Until`, `Pause` (`PauseReason`: `Command`, `UsageLimit`), `Ending` (`LoopEnding`: `Drained`, `Stopped`, `BreakerTripped`, `SourceFailed`), `Breaker` and `Error` | Any time, from memory, in start order | One per loop started since the application started |
 | `IAutopilot.DigestOf(LoopId)` | Query | `Option<LoopDigest>`: `State`, `Iterations` (each an `IterationRecord`: `Number`, `Task`, `Option<JobId>` `Job`, `Outcome`, `Ended`, `Exceptions`, `Option<HoldReason>` `Hold`, `Option<JobRejection>` `Rejection`, `Option<FailureSignature>` `Failure` with its `Source` and `Detail`, `ChangedNothing` and `Cost`), `Approvals` (each an `AutoApproval`), `Breakers` (each a `BreakerTrip`), `Pauses` (each a `LoopPause`) and `Spent` per currency | Any time, from memory | One per loop |
+| `IRunEvidence.OfJobAsync(JobId)` | Query | `Option<RunEvidence>`: `Job`, `Summary` (an `EvidenceSummary`), `Exceptions` of the run (`VerificationNotPassed`, `Denial`, `Assumption`, `RuleFileEdited`, `Held`, `ChangesUnknown`), `Verifications`, `Denials` (`PolicyDecision`s), `DeniedAnswers` (`HumanAnswer`s), `Declined` and `Assumed` (`FormDecision`s), `RuleFiles` (paths), `Holds` (the `Hint` attempts) and `AllowedByRules`; none for a job the catalog does not know | On demand, from the in-memory audits, the catalog and one diff | One answer per call, for any job |
 | `LoopStarted`, `LoopEnded` | Events | `State`: the `LoopState` | When a loop starts; when it drains, is stopped, trips a breaker or meets a source it cannot read | One of each per loop |
 | `LoopTaskTaken` | Event | `Loop`, `Iteration`, `Task` (a `SourcedTask`: `Source`, `Key`, `Repository`, `Instruction`) and the `Job` submitted for it | Once the job is submitted and the task marked taken | One per task taken |
 | `AutoApprovalDecided` | Event | `Decision`: an `AutoApproval` with `Loop`, `Job`, `Approved`, `Evidence` (an `EvidenceSummary`: `Attempts`, `Option<VerificationOutcome>` `Verification`, `ChecksPassed`, `PermissionsAllowed`, `FormsDecided`, `FilesChanged`), `Exceptions` (each an `ExceptionReason`), `At`, and the options `Delivery` (an `ApprovalDelivery`) and `Refusal` (a `JobRejection`) | When a loop's job reaches `AwaitingReview`, after the approval was delivered or refused | One per review of a loop's job |

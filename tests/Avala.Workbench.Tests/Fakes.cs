@@ -22,6 +22,10 @@ internal sealed class FakeCatalog : IJobCatalog
 
     public void Attempted(JobId job, params AttemptRecord[] attempts) => histories[job] = histories[job] with { Attempts = attempts };
 
+    public void Change(JobId job, Func<JobHistory, JobHistory> change) => histories[job] = change(histories[job]);
+
+    public JobSummary Summary(JobId job) => histories[job].Summary;
+
     public ValueTask<IReadOnlyList<JobSummary>> ListAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult<IReadOnlyList<JobSummary>>([.. histories.Values.Select(history => history.Summary)]);
 
@@ -29,7 +33,7 @@ internal sealed class FakeCatalog : IJobCatalog
         ValueTask.FromResult(histories.TryGetValue(job, out var history) ? Option<JobHistory>.Some(history) : Option<JobHistory>.None);
 
     public ValueTask<IReadOnlyList<JobSummary>> ChildrenAsync(JobId parent, CancellationToken cancellationToken) =>
-        ValueTask.FromResult<IReadOnlyList<JobSummary>>([]);
+        ValueTask.FromResult<IReadOnlyList<JobSummary>>([.. histories.Values.Select(history => history.Summary).Where(summary => summary.Parent == parent)]);
 
     public ValueTask<Option<JobTree>> TreeAsync(JobId root, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Option<JobTree>.None);
@@ -54,7 +58,7 @@ internal sealed class FakeJobs : IJobs
         AnswerAsync("discard", job);
 
     public ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) =>
-        throw new NotSupportedException();
+        AnswerAsync("approve", new JobApproval(job, new ApprovalDelivery("keep", "avala/fix-the-test", Option<string>.None)));
 
     public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         AnswerAsync($"send back {feedback}", new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession));
