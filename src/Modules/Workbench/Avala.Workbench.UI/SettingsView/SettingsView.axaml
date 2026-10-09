@@ -50,7 +50,22 @@
                           </MultiBinding>
                         </Border.IsVisible>
                       </Border>
-                      <TextBlock Margin="{DynamicResource PaddingRow}" Text="{Binding Converter={x:Static states:Texts.Leaf}}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Margin="{DynamicResource PaddingRow}" Text="{Binding Converter={x:Static states:Texts.Leaf}}" TextTrimming="CharacterEllipsis">
+                        <TextBlock.IsVisible>
+                          <MultiBinding Converter="{x:Static states:Texts.Same}">
+                            <Binding />
+                            <Binding Path="$parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.Shown" />
+                          </MultiBinding>
+                        </TextBlock.IsVisible>
+                      </TextBlock>
+                      <TextBlock Classes="secondary" Margin="{DynamicResource PaddingRow}" Text="{Binding Converter={x:Static states:Texts.Leaf}}" TextTrimming="CharacterEllipsis">
+                        <TextBlock.IsVisible>
+                          <MultiBinding Converter="{x:Static states:Texts.Differ}">
+                            <Binding />
+                            <Binding Path="$parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.Shown" />
+                          </MultiBinding>
+                        </TextBlock.IsVisible>
+                      </TextBlock>
                     </Panel>
                   </Button>
                 </DataTemplate>
