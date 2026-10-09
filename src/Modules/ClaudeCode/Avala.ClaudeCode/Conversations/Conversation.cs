@@ -59,16 +59,10 @@ internal sealed class Conversation
     public Reaction Receive(JsonNode message) => message.TextOr("type", string.Empty) switch
     {
         "system" when message.TextOr("subtype", string.Empty) == "init" => Initialized(message),
-        "stream_event" or "assistant" or "user" when stale > 0 => Reaction.None,
-        "stream_event" or "assistant" or "user" => live.Match(stamp => translator.Receive(message, stamp), () => Reaction.None),
-        "rate_limit_event" => live.Match(
-            stamp => Reaction.Of([.. Telemetry.Limits(message).Select(limit => new LimitReported(session, stamp.Turn, limit))]),
-            () => Reaction.None),
-        "result" when stale > 0 => Swallowed(),
-        "result" => live.Match(stamp => queued > 0 && !interrupting ? Carried(message, stamp) : Ended(message, stamp), () => Reaction.None),
         "control_request" => desk.Receive(message, live),
         "control_cancel_request" => desk.Cancel(message),
-        _ => Reaction.None,
+        "result" when stale > 0 => Swallowed(),
+        var type => live.Match(stamp => During(type, message, stamp), () => Reaction.None),
     };
 
     public Result<Reaction, AgentError> Respond(PermissionDecision decision) =>
@@ -87,6 +81,14 @@ internal sealed class Conversation
 
             return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send(Messages.Interrupt(++interruptions))));
         });
+
+    private Reaction During(string type, JsonNode message, Stamp stamp) => type switch
+    {
+        "stream_event" or "assistant" or "user" when stale == 0 => translator.Receive(message, stamp),
+        "rate_limit_event" => Reaction.Of([.. Telemetry.Limits(message).Select(limit => new LimitReported(session, stamp.Turn, limit))]),
+        "result" => queued > 0 && !interrupting ? Carried(message, stamp) : Ended(message, stamp),
+        _ => Reaction.None,
+    };
 
     private Reaction Initialized(JsonNode message)
     {
