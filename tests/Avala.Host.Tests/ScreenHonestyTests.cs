@@ -43,7 +43,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [], []);
         var resources = await ActivatedAsync(run, "Resources");
-        var indicator = new Bound(Assert.Single(run.Get<IEnumerable<RegionContribution>>(), contribution => contribution.Region == ShellRegions.SidebarFooter).ViewModel);
+        var indicator = new Bound(Assert.Single(run.Get<IEnumerable<RegionContribution>>(), contribution => contribution.Region == ShellRegions.SidebarFooter && contribution.Order == 0).ViewModel);
 
         Assert.Equal(
             ("Avala's agents and worktrees, not the whole computer", "Avala's agents"),

@@ -43,6 +43,7 @@ internal sealed class SettingsViewModel(
 
     private async Task LoadAsync(CancellationToken cancellationToken)
     {
+        About.Refresh();
         await Machine.LoadAsync(cancellationToken);
         await Appearance.LoadAsync(cancellationToken);
         await Repository.LoadAsync(cancellationToken);

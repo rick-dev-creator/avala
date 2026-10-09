@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:updates="using:Avala.Workbench.Updates"
+             x:Class="Avala.Workbench.UI.UpdateView"
+             x:ClassModifier="internal"
+             x:DataType="updates:IUpdateViewModel">
+  <Design.DataContext>
+    <updates:DesignUpdateViewModel />
+  </Design.DataContext>
+  <DockPanel Margin="16,12">
+    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
+      <Button x:Name="OpenRelease"
+              Classes="primary"
+              Content="Download"
+              IsVisible="{Binding IsAvailable}"
+              Command="{Binding OpenReleaseCommand}" />
+      <Button x:Name="Check" Content="Check now" Command="{Binding CheckCommand}" />
+    </StackPanel>
+    <StackPanel Spacing="2" VerticalAlignment="Center">
+      <TextBlock Text="Updates" />
+      <TextBlock x:Name="Status" Classes="caption" Text="{Binding Status}" TextWrapping="Wrap" />
+    </StackPanel>
+  </DockPanel>
+</UserControl>
