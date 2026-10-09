@@ -79,6 +79,23 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario WaitingPermission { get; } = new("waiting-permission",
+    [
+        [
+            Thought("The schema changed, ", "so the database needs a migration."),
+            .. Bill(2_400, 150, 0.0110m, 0.30),
+            new RunCommand(new ItemId("migrate"), "dotnet ef database update", "Applied 2 migrations.", AsksPermission: true),
+            Message("The database is up to date."),
+            new Finish(),
+        ],
+        [
+            Thought("The harness restarted ", "while I waited for permission to migrate."),
+            Message("I left the migration for you to run."),
+            .. Bill(1_200, 80, 0.0050m, 0.31),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario RepeatedPermission { get; } = new("repeated-permission",
     [
         [
@@ -395,7 +412,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, Governed, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas,
+        Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, WaitingPermission, RepeatedPermission, OutsideEdit, Question, Governed, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas,
         Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedLoosely, DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
     ];
 
