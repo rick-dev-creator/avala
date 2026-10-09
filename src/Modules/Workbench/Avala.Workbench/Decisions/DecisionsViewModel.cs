@@ -68,6 +68,9 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
     private readonly Dictionary<(JobId, string), DecisionViewModel> known = [];
     private readonly ObservableCollection<DecisionViewModel> items = [];
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
+    private ITimer? aging;
+
+    public static TimeSpan AgingPeriod { get; } = TimeSpan.FromSeconds(15);
 
     public DecisionsViewModel(HumanReplies replies, TimeProvider time, BoardFeed feed, JobFocus focus)
     {
@@ -117,9 +120,18 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
     [ObservableProperty]
     public partial bool IsWritingNote { get; private set; }
 
-    public void Activate() => feed.Start(Show);
+    public void Activate()
+    {
+        feed.Start(Show);
+        aging ??= time.CreateTimer(Aged, null, AgingPeriod, AgingPeriod);
+    }
 
-    public void Deactivate() => feed.Stop();
+    public void Deactivate()
+    {
+        aging?.Dispose();
+        aging = null;
+        feed.Stop();
+    }
 
     public void Dispose() => Deactivate();
 
@@ -129,7 +141,7 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
         var now = time.GetUtcNow();
         var waiting = jobs.Values
             .SelectMany(job => job.Transcript.Awaiting.Select(entry => (Job: job, Entry: entry, Since: Since(entry))))
-            .OrderBy(found => found.Since)
+            .OrderBy(found => found.Since.Match(since => since, () => DateTimeOffset.MaxValue))
             .ToList();
         var keys = waiting.Select(found => (found.Job.Job, found.Entry.Key)).ToHashSet();
 
@@ -167,6 +179,18 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
     }
 
     public void Refresh() => Show(shown);
+
+    private void Aged(object? state) => _ = feed.ShowAgainAsync(Age);
+
+    private void Age()
+    {
+        var now = time.GetUtcNow();
+
+        foreach (var item in items)
+        {
+            item.Age(now);
+        }
+    }
 
     partial void OnSelectedChanged(IDecisionViewModel? oldValue, IDecisionViewModel? newValue)
     {
@@ -253,7 +277,7 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
 
     private bool HasPrevious() => Position > 0;
 
-    private DecisionViewModel Item(BoardJob job, ITimelineEntry entry, DateTimeOffset since)
+    private DecisionViewModel Item(BoardJob job, ITimelineEntry entry, Option<DateTimeOffset> since)
     {
         if (!known.TryGetValue((job.Job, entry.Key), out var item))
         {
@@ -271,11 +295,11 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
         _ => new FormCardViewModel((FormEntry)entry, replies),
     };
 
-    private static DateTimeOffset Since(ITimelineEntry entry) => entry switch
+    private static Option<DateTimeOffset> Since(ITimelineEntry entry) => entry switch
     {
-        PermissionEntry permission => permission.Decision.Match(decision => decision.At, () => DateTimeOffset.MinValue),
-        FormEntry form => form.Decision.Match(decision => decision.At, () => DateTimeOffset.MinValue),
-        _ => DateTimeOffset.MinValue,
+        PermissionEntry permission => permission.Decision.Map(decision => decision.At),
+        FormEntry form => form.Decision.Map(decision => decision.At),
+        _ => Option<DateTimeOffset>.None,
     };
 }
 

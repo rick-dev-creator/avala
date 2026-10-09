@@ -26,6 +26,10 @@ internal interface IPermissionCardViewModel
 
     bool DontAskAgain { get; set; }
 
+    string DontAskAgainLabel { get; }
+
+    string DontAskAgainScope { get; }
+
     string Error { get; }
 
     IAsyncRelayCommand AllowCommand { get; }
@@ -56,6 +60,10 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
     public string Headline => CardPhrases.Headline(request.Kind);
 
     public string Target => request.Target;
+
+    public string DontAskAgainLabel => CardPhrases.DontAskAgain;
+
+    public string DontAskAgainScope => CardPhrases.DontAskAgainScope(request.Kind);
 
     [ObservableProperty]
     public partial bool IsShown { get; private set; }

@@ -414,3 +414,24 @@ Done when: the full job flow runs end to end through view models in tests.
    Done: the shared canvas surface, with versions, streaming without flicker and the focused view; `ICanvasRenderer`, registered through the view registry; the Rendering plugin, with Markdown and sanitized SVG. Done too, the [offer](../design/canvas-rendering.md#the-offer): renderer plugins declare the media types they draw as `CanvasFormat`, the canvas tool offers exactly those, a canvas in any other type is rejected as `NotOffered` and shown as source, highlighted for Mermaid and HTML, and the conformance kit reports a harness that draws outside the offer. [Decided](../design/canvas-rendering.md#mermaid-and-html-the-decision): Mermaid and HTML are not part of the offer; they remain possible as optional renderer plugins, which would appear in the offer once registered.
 
 Done when: the harness replaces a terminal for daily work.
+
+## Screen honesty
+
+Nothing on a screen may mislead: every label says exactly what its figure covers, every control says what it will do, and nothing offers an action that cannot be completed there without saying so.
+
+### A2: nothing misleading
+
+Done. Each item has its acceptance criteria as view model scripts, headless view scripts where the view changed, and a host simulation test in `ScreenHonestyTests` that drives the composed application on the simulator.
+
+1. **Usage over all time.** The usage page and each connection's meter show all recorded usage, earlier runs included; they say "All recorded usage, kept across restarts" and "… in total" instead of "since Avala started".
+2. **Resources of Avala's agents.** The resources page and the sidebar indicator measure the process trees and worktrees of Avala's agents, and say so instead of "This computer".
+3. **Don't ask again, for the session.** The session rule lasts as long as the agent session; the card, the decisions popover, which offers it too, and the inspector say "Don't ask again this session", with the exact scope in its hint.
+4. **The autonomy a new job runs at.** The New job page reads the repository's declared autonomy at its current commit, offers "Repository's level: …" and "Supervised" only when it tightens it, and says what the choice means.
+5. **The simulator outside developer mode.** A provider declares through `ProviderInfo.OffersImplicitConnection` whether it has an implicit connection; outside developer mode, `AVALA_DEVELOPER`, the simulator offers none and discovers none, and only a simulator connection declared in `connections.json` is listed.
+6. **Auto across providers.** Auto compares the usable connections of every provider, and Autopilot watches the same connections; the New job line says when there is no reading to compare. The simulator registers a second harness, `simulator-second`, reached only through a declared connection, to prove it end to end.
+7. **Edit a file that does not exist yet.** "Edit in repository" and "Open connections.json" create a missing file from a minimal valid template, then open it, and say what was created and when it applies; `IFileOpener` takes the template.
+8. **Every form answerable from the popover.** A form of one choice field without free text keeps its numbered options; any other form is filled in a box under the list with the conversation's own field components, where typing never moves the selection.
+9. **The wait of a decision.** The popover re-ages its decisions on a `TimeProvider` timer while open, and a decision without a timestamp shows no wait.
+10. **Thinking the harness did not share.** A thought that streamed no text reads "Thought for Ns · content not shared by the harness" and does not open; the simulator's `unshared-thought` scenario plays it.
+11. **The sidebar's decision badge.** Each row draws the count of decisions waiting on its job.
+12. **The overview's limits.** Hovering a connection's hub lists every limit window of the connection.

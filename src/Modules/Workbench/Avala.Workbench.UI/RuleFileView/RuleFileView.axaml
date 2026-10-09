@@ -17,7 +17,7 @@
   <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10" Margin="0,8">
     <StackPanel VerticalAlignment="Center">
       <TextBlock x:Name="Path" Classes="mono" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
-      <TextBlock x:Name="Edited" Classes="hint attention" Text="edited in this checkout, not committed yet" IsVisible="{Binding EditedInCheckout}" />
+      <TextBlock x:Name="Edited" Classes="hint attention" Text="changed in the repository's working tree, not committed yet" IsVisible="{Binding EditedInCheckout}" />
     </StackPanel>
     <TextBlock x:Name="Summary" Grid.Column="1" Classes="caption" Text="{Binding Summary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="220" />
     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">

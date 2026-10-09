@@ -53,12 +53,9 @@ internal sealed class ConnectionChooser(IConnections connections, IEnumerable<IC
 
     private async Task<IReadOnlyList<ConnectionName>> CandidatesAsync(ConnectionCatalog catalog, CancellationToken cancellationToken)
     {
-        var provider = catalog.Default.Bind(named => catalog.Connections.FirstOrDefault(connection => connection.Name == named) is { } found
-            ? Option<string>.Some(found.Provider)
-            : Option<string>.None);
         var usable = new List<ConnectionName>();
 
-        foreach (var name in catalog.Connections.Where(connection => provider == Option<string>.Some(connection.Provider)).Select(connection => connection.Name))
+        foreach (var name in catalog.Connections.Select(connection => connection.Name))
         {
             if ((await connections.CheckAsync(name, cancellationToken)).IsSuccess)
             {

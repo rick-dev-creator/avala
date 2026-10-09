@@ -129,11 +129,13 @@ internal sealed class FakeConnections : IConnections
 
     public Option<ConnectionName> Fixed { get; set; }
 
+    public Dictionary<ConnectionName, string> Providers { get; } = [];
+
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult(new ConnectionCatalog(
             ConnectionFileStatus.Absent,
             Option<ConnectionError>.None,
-            [.. Names.Select(name => new DeclaredConnection(name, "simulator", Option<string>.None))],
+            [.. Names.Select(name => new DeclaredConnection(name, Providers.GetValueOrDefault(name, "simulator"), Option<string>.None))],
             Fixed.IsSome ? Fixed : Names[0])
         {
             DefaultMode = Fixed.IsSome ? DefaultMode.Fixed : DefaultMode.Auto,

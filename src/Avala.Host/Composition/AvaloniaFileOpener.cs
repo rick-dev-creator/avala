@@ -8,11 +8,13 @@ namespace Avala.Host.Composition;
 
 internal sealed class AvaloniaFileOpener : IFileOpener
 {
-    public async ValueTask<Result<string, FileOpenError>> OpenAsync(string path, CancellationToken cancellationToken)
+    public async ValueTask<Result<OpenedFile, FileOpenError>> OpenAsync(string path, string template, CancellationToken cancellationToken)
     {
-        if (!File.Exists(path))
+        var created = await CreatedAsync(path, template, cancellationToken);
+
+        if (!created.TryGetValue(out var isNew, out var error))
         {
-            return FileOpenError.NotFound;
+            return error;
         }
 
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime { MainWindow: { } window })
@@ -25,6 +27,32 @@ internal sealed class AvaloniaFileOpener : IFileOpener
             DispatcherPriority.Normal,
             cancellationToken);
 
-        return launched ? path : FileOpenError.Refused;
+        return launched ? new OpenedFile(path, isNew) : FileOpenError.Refused;
+    }
+
+    private static async Task<Result<bool, FileOpenError>> CreatedAsync(string path, string template, CancellationToken cancellationToken)
+    {
+        if (File.Exists(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+            await using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true);
+            await using var writer = new StreamWriter(file);
+            await writer.WriteAsync(template.AsMemory(), cancellationToken);
+
+            return true;
+        }
+        catch (IOException) when (File.Exists(path))
+        {
+            return false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return FileOpenError.Uncreatable;
+        }
     }
 }

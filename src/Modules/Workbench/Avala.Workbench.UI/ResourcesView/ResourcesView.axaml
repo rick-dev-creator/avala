@@ -30,7 +30,7 @@
   <DockPanel>
     <Border DockPanel.Dock="Top" Classes="pageHeader">
       <DockPanel>
-        <TextBlock DockPanel.Dock="Right" Classes="caption" Text="This computer" VerticalAlignment="Center" />
+        <TextBlock x:Name="Scope" DockPanel.Dock="Right" Classes="caption" Text="{Binding Scope}" VerticalAlignment="Center" />
         <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
       </DockPanel>
     </Border>

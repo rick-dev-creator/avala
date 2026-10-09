@@ -12,6 +12,8 @@ namespace Avala.Workbench.Resources;
 
 internal interface IResourceIndicatorViewModel
 {
+    string Scope { get; }
+
     string Memory { get; }
 
     int Leftovers { get; }
@@ -36,6 +38,8 @@ internal sealed partial class ResourceIndicatorViewModel(ResourceReader reader, 
     }
 
     public long Revision => feed.Revision;
+
+    public string Scope => Scopes.Indicator;
 
     [ObservableProperty]
     public partial string Memory { get; private set; } = string.Empty;
