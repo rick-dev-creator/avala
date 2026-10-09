@@ -1,0 +1,282 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T16:40:28.0172949+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "streamsPartialOutput": true,
+    "exposesReasoning": true,
+    "canInterrupt": true,
+    "canResume": true,
+    "acceptsTools": true,
+    "reportsUsage": true,
+    "reportsCost": true,
+    "reportsLimits": true,
+    "asksQuestions": true
+  },
+  "account": {
+    "id": "claude:[redacted]",
+    "label": "[redacted]"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Run the command `ls` with the Bash tool and tell me what you see. If it is denied, stop and say so. Be brief."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "f4bd057c-3d1e-49d5-8a97-6c7e895f8daf/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01HVre86g3HBtsShDMJ3DAVH",
+        "kind": "command",
+        "title": "Run ls"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01HVre86g3HBtsShDMJ3DAVH",
+        "title": "Run ls",
+        "kind": "command",
+        "target": "ls"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01HVre86g3HBtsShDMJ3DAVH",
+        "answer": "deny"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01HVre86g3HBtsShDMJ3DAVH",
+        "answer": "deny"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.45,
+          "resetsAt": "2026-10-09T19:20:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.41,
+          "resetsAt": "2026-10-14T07:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01HVre86g3HBtsShDMJ3DAVH",
+        "outcome": "cancelled"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": "The `ls` command was den"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": "ied by the harness, so I"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": " stopped there"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": "."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": " I did"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": "n't ret"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": "ry it or try another"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": " way to list"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": " the direct"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "text": "ory."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_011CfrzeYqtjRZGGvkF8Dcko:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 4,
+          "output": 114,
+          "cacheRead": 31639,
+          "cacheWrite": 7078,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.00178939,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "f4bd057c-3d1e-49d5-8a97-6c7e895f8daf/0.00178939"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

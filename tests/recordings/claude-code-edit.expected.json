@@ -1,0 +1,9 @@
+{
+  "repository": {
+    ".avala/permissions.json": "{ \"autonomy\": \"autonomous\" }"
+  },
+  "journey": ["Running", "Checking", "AwaitingReview"],
+  "permissions": ["autonomous-commands-in-the-worktree Command printf '# Hello\\n' > GREETING.md && cat GREETING.md Allow Answered"],
+  "forms": [],
+  "verifications": ["1 NoChecksDeclared"]
+}

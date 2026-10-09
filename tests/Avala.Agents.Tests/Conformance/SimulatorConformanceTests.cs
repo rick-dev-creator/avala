@@ -1,4 +1,6 @@
+using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Simulator;
@@ -40,17 +42,39 @@ public sealed class SimulatorConformanceTests
         using var folder = new TemporaryFolder();
         using var data = new TemporaryFolder();
         var recordings = Directory.CreateDirectory(Path.Combine(data.Path, "recordings")).FullName;
-        await File.WriteAllTextAsync(
-            Path.Combine(recordings, $"{name}.json"),
-            await File.ReadAllTextAsync(RecordingFixtures.RecordingOf(name), Deadline),
-            Deadline);
+        var recording = await File.ReadAllTextAsync(RecordingFixtures.RecordingOf(name), Deadline);
+        await File.WriteAllTextAsync(Path.Combine(recordings, $"{name}.json"), recording, Deadline);
         await using var services = Simulated(new AvalaPaths(data.Path));
+        var recorded = JsonNode.Parse(recording)!;
 
         Assert.Empty(await AgentConformance.CheckTurnAsync(
             services.GetRequiredService<IAgentProvider>(),
-            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Tools = RecordedTools(recorded) },
             new UserTurn($"[replay: {name}] conformance"),
+            AsRecorded(recorded),
             Deadline));
+    }
+
+    private static HarnessTool[] RecordedTools(JsonNode recording) =>
+        [
+            .. recording["options"]!["tools"]!.AsArray().Select(tool => (string)tool!["surface"]! == "canvas"
+                ? AgentConformance.CanvasTool with { Name = (string)tool["name"]! }
+                : AgentConformance.ExecutedTool with { Name = (string)tool["name"]! }),
+        ];
+
+    private static Func<PermissionRequested, PermissionDecision> AsRecorded(JsonNode recording)
+    {
+        var answers = recording["entries"]!.AsArray()
+            .Select(entry => entry!["respond"])
+            .OfType<JsonNode>()
+            .ToDictionary(respond => (string)respond["item"]!, respond => respond);
+
+        return requested => answers.TryGetValue(requested.Item.Value, out var respond)
+            ? new PermissionDecision(requested.Item, (string)respond["answer"]! == "deny" ? PermissionAnswer.Deny : PermissionAnswer.Allow)
+            {
+                Message = respond["message"]?.GetValue<string>() is { } message ? message : Option<string>.None,
+            }
+            : new PermissionDecision(requested.Item, PermissionAnswer.Allow);
     }
 
     [Fact]

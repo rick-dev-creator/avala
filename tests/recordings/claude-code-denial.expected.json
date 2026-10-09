@@ -1,0 +1,9 @@
+{
+  "repository": {
+    ".avala/permissions.json": "{ \"rules\": [ { \"name\": \"no commands\", \"kind\": \"command\", \"answer\": \"deny\" } ] }"
+  },
+  "journey": ["Running", "Checking", "AwaitingReview"],
+  "permissions": ["no commands Command ls Deny Answered"],
+  "forms": [],
+  "verifications": ["1 NoChecksDeclared"]
+}
