@@ -145,6 +145,15 @@ internal static class LayerMap
             ["Workloads"] = Layer.Infrastructure,
             ["WorkloadModes"] = Layer.None,
         }),
+        .. Module("Avala.ClaudeCode", new()
+        {
+            [""] = Layer.None,
+            ["Protocol"] = Layer.Application,
+            ["Conversations"] = Layer.Application,
+            ["Cli"] = Layer.Infrastructure,
+            ["Folders"] = Layer.Infrastructure,
+            ["Discovery"] = Layer.Infrastructure,
+        }),
         .. Module("Avala.Recording", new()
         {
             [""] = Layer.None,

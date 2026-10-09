@@ -1,0 +1,171 @@
+using System.Text.Json.Nodes;
+using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
+using Avala.ClaudeCode.Protocol;
+
+namespace Avala.ClaudeCode.Conversations;
+
+internal sealed class StreamTranslator(ToolBook tools, string workingDirectory)
+{
+    private const int OutputLength = 16 * 1024;
+
+    private readonly Dictionary<int, ItemId> blocks = [];
+    private readonly HashSet<string> streamed = new(StringComparer.Ordinal);
+    private readonly List<ItemId> open = [];
+    private string message = string.Empty;
+
+    public Reaction Receive(JsonNode received, Stamp stamp) => received.TextOr("type", string.Empty) switch
+    {
+        "stream_event" => Streamed(received.Members("event"), stamp),
+        "assistant" => Said(received.Members("message"), stamp),
+        "user" => Returned(received.Members("message"), stamp),
+        _ => Reaction.None,
+    };
+
+    public Reaction Close(Stamp stamp, bool interrupted)
+    {
+        var closing = open.Select(item => new ItemCompleted(stamp.Session, stamp.Turn, item, interrupted ? ItemOutcome.Cancelled : ItemOutcome.Succeeded))
+            .Concat(tools.All.Where(tool => tool.Opened && !tool.Closed).Select(tool =>
+            {
+                tool.Closed = true;
+
+                return new ItemCompleted(stamp.Session, stamp.Turn, tool.Item, interrupted || tool.Refused ? ItemOutcome.Cancelled : ItemOutcome.Failed);
+            }))
+            .ToList<IAgentEvent>();
+        open.Clear();
+        blocks.Clear();
+        streamed.Clear();
+        tools.Forget();
+
+        return Reaction.Of(closing);
+    }
+
+    private Reaction Streamed(JsonObject streamEvent, Stamp stamp)
+    {
+        var index = (int)streamEvent.Number("index");
+
+        switch (streamEvent.TextOr("type", string.Empty))
+        {
+            case "message_start":
+                message = streamEvent.Members("message").TextOr("id", string.Empty);
+                streamed.Add(message);
+
+                return Reaction.None;
+            case "content_block_start":
+                return streamEvent.Members("content_block").TextOr("type", string.Empty) switch
+                {
+                    "text" => Open(index, ItemKind.Message, "Message", stamp),
+                    "thinking" => Open(index, ItemKind.Reasoning, "Thinking", stamp),
+                    _ => Reaction.None,
+                };
+            case "content_block_delta" when blocks.TryGetValue(index, out var item):
+                var delta = streamEvent.Members("delta");
+                var text = delta.TextOr("text", delta.TextOr("thinking", string.Empty));
+
+                return text.Length == 0 ? Reaction.None : Reaction.Of(new ItemProgressed(stamp.Session, stamp.Turn, item, text));
+            case "content_block_stop" when blocks.Remove(index, out var stopped):
+                open.Remove(stopped);
+
+                return Reaction.Of(new ItemCompleted(stamp.Session, stamp.Turn, stopped, ItemOutcome.Succeeded));
+            default:
+                return Reaction.None;
+        }
+    }
+
+    private Reaction Open(int index, ItemKind kind, string title, Stamp stamp)
+    {
+        var item = new ItemId($"{message}:{index}");
+        blocks[index] = item;
+        open.Add(item);
+
+        return Reaction.Of(new ItemStarted(stamp.Session, stamp.Turn, item, kind, title));
+    }
+
+    private Reaction Said(JsonObject said, Stamp stamp)
+    {
+        var id = said.TextOr("id", string.Empty);
+        var whole = !streamed.Contains(id);
+
+        return said.Items("content")
+            .Select((block, index) => block.TextOr("type", string.Empty) switch
+            {
+                "tool_use" => Used(new ToolUse(block.TextOr("id", string.Empty), block.TextOr("name", string.Empty), block.Members("input")), stamp),
+                "text" when whole => Whole(new ItemId($"{id}:said:{index}"), ItemKind.Message, "Message", block.TextOr("text", string.Empty), stamp),
+                "thinking" when whole => Whole(new ItemId($"{id}:said:{index}"), ItemKind.Reasoning, "Thinking", block.TextOr("thinking", string.Empty), stamp),
+                _ => Reaction.None,
+            })
+            .Aggregate(Reaction.None, (all, next) => all.Then(next));
+    }
+
+    private static Reaction Whole(ItemId item, ItemKind kind, string title, string text, Stamp stamp) =>
+        text.Length == 0
+            ? Reaction.None
+            : Reaction.Of(
+                new ItemStarted(stamp.Session, stamp.Turn, item, kind, title),
+                new ItemProgressed(stamp.Session, stamp.Turn, item, text),
+                new ItemCompleted(stamp.Session, stamp.Turn, item, ItemOutcome.Succeeded));
+
+    private Reaction Used(ToolUse use, Stamp stamp)
+    {
+        if (use.Id.Length == 0 || tools.Find(use.Id).IsSome)
+        {
+            return Reaction.None;
+        }
+
+        var tool = tools.Track(use);
+
+        switch (tool.Role)
+        {
+            case ToolRole.Work:
+                tool.Opened = true;
+
+                return Reaction.Of(new ItemStarted(stamp.Session, stamp.Turn, tool.Item, use.Kind, use.Title(workingDirectory)));
+            case ToolRole.Plan:
+                return Reaction.Of(new PlanUpdated(stamp.Session, stamp.Turn, Telemetry.Plan(use.Input)));
+            case ToolRole.Canvas:
+                tool.Opened = true;
+
+                return Reaction.Of(
+                    new CanvasStarted(stamp.Session, stamp.Turn, tool.Item, use.Input.TextOr("title", "Canvas"), use.Input.TextOr("mediaType", "text/plain")),
+                    new ItemProgressed(stamp.Session, stamp.Turn, tool.Item, use.Input.TextOr("content", string.Empty)));
+            default:
+                return Reaction.None;
+        }
+    }
+
+    private Reaction Returned(JsonObject returned, Stamp stamp) =>
+        returned.Items("content")
+            .Where(block => block.TextOr("type", string.Empty) == "tool_result")
+            .Select(block => tools.Find(block.TextOr("tool_use_id", string.Empty)).Match(
+                tool => Finished(tool, block, stamp),
+                () => Reaction.None))
+            .Aggregate(Reaction.None, (all, next) => all.Then(next));
+
+    private static Reaction Finished(TrackedTool tool, JsonNode result, Stamp stamp)
+    {
+        if (!tool.Opened || tool.Closed)
+        {
+            return Reaction.None;
+        }
+
+        tool.Closed = true;
+        var failed = result.Flag("is_error");
+        var outcome = tool.Refused ? ItemOutcome.Cancelled : failed || tool.Role == ToolRole.Executed ? ItemOutcome.Failed : ItemOutcome.Succeeded;
+        var output = tool.Role == ToolRole.Work && !tool.Refused ? Output(result) : string.Empty;
+
+        return Reaction.Of(
+        [
+            .. output.Length == 0 ? Array.Empty<IAgentEvent>() : [new ItemProgressed(stamp.Session, stamp.Turn, tool.Item, output)],
+            new ItemCompleted(stamp.Session, stamp.Turn, tool.Item, outcome),
+        ]);
+    }
+
+    private static string Output(JsonNode result)
+    {
+        var text = result.Text("content").Match(
+            content => content,
+            () => string.Join('\n', result.Items("content").Select(part => part.TextOr("text", string.Empty)).Where(part => part.Length > 0)));
+
+        return text.Length <= OutputLength ? text : $"{text[..OutputLength]}…";
+    }
+}
