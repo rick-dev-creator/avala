@@ -41,6 +41,19 @@ public sealed class SourceCodeTests
     }
 
     [Fact]
+    public async Task ProviderNamesStayInsideTheirPluginAsync()
+    {
+        var files = await SourceFile.ReadAllAsync(
+            [
+                .. SolutionLayout.FilesUnder(SolutionLayout.SourceDirectory, "*.cs"),
+                .. SolutionLayout.FilesUnder(SolutionLayout.SourceDirectory, "*.axaml"),
+            ],
+            Cancellation);
+
+        Assert.Empty(ProviderNames.Leaks(SolutionLayout.SourceDirectory, files));
+    }
+
+    [Fact]
     public void TheRepositoryHoldsNoScriptsInOtherLanguages() =>
         Assert.Empty(ScriptLanguages.ForeignScripts(SolutionLayout.FilesUnder(SolutionLayout.Root.FullName, "*")));
 
