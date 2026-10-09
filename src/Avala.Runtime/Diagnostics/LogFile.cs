@@ -38,10 +38,10 @@ internal sealed class LogFile : ILoggerProvider, IAsyncDisposable
 
     public ILogger CreateLogger(string categoryName) => new FileLogger(this, categoryName);
 
-    public void Write(LogLevel level, string category, string message, Exception? exception) =>
+    public void Write(LogLevel level, string category, string message, Option<Exception> exception) =>
         entries.Writer.TryWrite(Entered(level, category, message, exception));
 
-    public void WriteNow(LogLevel level, string category, string message, Exception? exception)
+    public void WriteNow(LogLevel level, string category, string message, Option<Exception> exception)
     {
         var entry = Entered(level, category, message, exception);
 
@@ -65,12 +65,12 @@ internal sealed class LogFile : ILoggerProvider, IAsyncDisposable
         await writing;
     }
 
-    private Entry Entered(LogLevel level, string category, string message, Exception? exception)
+    private Entry Entered(LogLevel level, string category, string message, Option<Exception> exception)
     {
         var at = clock.GetLocalNow();
         var text = string.Create(
             CultureInfo.InvariantCulture,
-            $"{at:yyyy-MM-dd HH:mm:ss.fff zzz} {level} {category}: {message}{(exception is null ? string.Empty : Environment.NewLine + exception)}{Environment.NewLine}");
+            $"{at:yyyy-MM-dd HH:mm:ss.fff zzz} {level} {category}: {message}{exception.Match(failure => Environment.NewLine + failure, () => string.Empty)}{Environment.NewLine}");
 
         return new Entry(at, redaction.Apply(text));
     }
@@ -161,7 +161,7 @@ internal sealed class LogFile : ILoggerProvider, IAsyncDisposable
         {
             if (IsEnabled(logLevel))
             {
-                file.Write(logLevel, category, formatter(state, exception), exception);
+                file.Write(logLevel, category, formatter(state, exception), exception.ToOption());
             }
         }
     }

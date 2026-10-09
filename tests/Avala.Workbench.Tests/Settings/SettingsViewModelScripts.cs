@@ -9,7 +9,7 @@ public sealed class SettingsViewModelScripts
     public async Task ActivatingThePageLoadsTheMachineTheAppearanceThenTheRepository()
     {
         var calls = new List<string>();
-        var page = new SettingsViewModel(new Loading("repository", calls), new Loading("machine", calls), new AppearanceLoading(calls));
+        var page = new SettingsViewModel(new Loading("repository", calls), new Loading("machine", calls), new AppearanceLoading(calls), new DesignAboutViewModel());
 
         page.Activate();
         await page.Loading;
@@ -24,7 +24,7 @@ public sealed class SettingsViewModelScripts
         var machine = new DesignMachineSettingsViewModel();
         var appearance = new DesignAppearanceViewModel();
 
-        ViewModelScript.Given(new SettingsViewModel(repository, machine, appearance))
+        ViewModelScript.Given(new SettingsViewModel(repository, machine, appearance, new DesignAboutViewModel()))
             .Then(page => Assert.Equal<(object, object, object)>((repository, machine, appearance), (page.Repository, page.Machine, page.Appearance)));
     }
 

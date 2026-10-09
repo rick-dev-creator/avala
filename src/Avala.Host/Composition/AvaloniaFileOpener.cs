@@ -30,6 +30,32 @@ internal sealed class AvaloniaFileOpener : IFileOpener
         return launched ? new OpenedFile(path, isNew) : FileOpenError.Refused;
     }
 
+    public async ValueTask<Result<OpenedFile, FileOpenError>> OpenFolderAsync(string path, CancellationToken cancellationToken)
+    {
+        var created = !Directory.Exists(path);
+
+        try
+        {
+            Directory.CreateDirectory(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return FileOpenError.Uncreatable;
+        }
+
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime { MainWindow: { } window })
+        {
+            return FileOpenError.Unavailable;
+        }
+
+        var launched = await await Dispatcher.UIThread.InvokeAsync(
+            () => window.Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path)),
+            DispatcherPriority.Normal,
+            cancellationToken);
+
+        return launched ? new OpenedFile(path, created) : FileOpenError.Refused;
+    }
+
     private static async Task<Result<bool, FileOpenError>> CreatedAsync(string path, string template, CancellationToken cancellationToken)
     {
         if (File.Exists(path))

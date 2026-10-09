@@ -31,11 +31,11 @@ public sealed class DiagnosticsTests(PublishedPlugins plugins)
         var log = new LogFile(data.Path, new FakeTimeProvider(), LogRedaction.From(new Dictionary<string, string>()), LogFile.Limit);
         var crashes = new CrashLog(log);
 
-        crashes.OnUnobservedTask(null, new UnobservedTaskExceptionEventArgs(new AggregateException(new InvalidOperationException("nobody awaited me"))));
-        crashes.OnDomainException(null, new UnhandledExceptionEventArgs(new InvalidOperationException("a background thread failed"), false));
+        crashes.Unobserved(new UnobservedTaskExceptionEventArgs(new AggregateException(new InvalidOperationException("nobody awaited me"))));
+        crashes.Unhandled(new UnhandledExceptionEventArgs(new InvalidOperationException("a background thread failed"), false));
         await crashes.ObserveAsync(Task.FromException(new InvalidOperationException("a startup task failed")));
         await log.DisposeAsync();
-        crashes.OnDomainException(null, new UnhandledExceptionEventArgs(new InvalidOperationException("the process dies"), true));
+        crashes.Unhandled(new UnhandledExceptionEventArgs(new InvalidOperationException("the process dies"), true));
         var text = await File.ReadAllTextAsync(Assert.Single(Directory.GetFiles(data.Path)), Cancellation);
 
         Assert.Contains("Error Avala: A task failed and nothing observed it", text, StringComparison.Ordinal);

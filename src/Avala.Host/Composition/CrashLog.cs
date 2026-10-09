@@ -1,4 +1,5 @@
 using Avala.Runtime.Diagnostics;
+using Avala.Sdk;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -22,11 +23,11 @@ internal sealed class CrashLog(LogFile log)
         Dispatcher.UIThread.UnhandledException -= OnDispatcherException;
     }
 
-    public void OnDomainException(object? sender, UnhandledExceptionEventArgs e)
+    public void Unhandled(UnhandledExceptionEventArgs unhandled)
     {
-        var exception = e.ExceptionObject as Exception;
+        var exception = (unhandled.ExceptionObject as Exception).ToOption();
 
-        if (e.IsTerminating)
+        if (unhandled.IsTerminating)
         {
             log.WriteNow(LogLevel.Critical, Category, "Avala stopped on an unhandled exception", exception);
         }
@@ -36,8 +37,8 @@ internal sealed class CrashLog(LogFile log)
         }
     }
 
-    public void OnUnobservedTask(object? sender, UnobservedTaskExceptionEventArgs e) =>
-        log.Write(LogLevel.Error, Category, "A task failed and nothing observed it", e.Exception);
+    public void Unobserved(UnobservedTaskExceptionEventArgs unobserved) =>
+        log.Write(LogLevel.Error, Category, "A task failed and nothing observed it", unobserved.Exception);
 
     public async Task ObserveAsync(Task startup)
     {
@@ -51,9 +52,13 @@ internal sealed class CrashLog(LogFile log)
         }
     }
 
-    public void Started(string message) => log.Write(LogLevel.Information, Category, message, null);
+    public void Started(string message) => log.Write(LogLevel.Information, Category, message, Option<Exception>.None);
 
     public void Failed(Exception failure) => log.WriteNow(LogLevel.Critical, Category, "Avala could not start", failure);
+
+    private void OnDomainException(object? sender, UnhandledExceptionEventArgs e) => Unhandled(e);
+
+    private void OnUnobservedTask(object? sender, UnobservedTaskExceptionEventArgs e) => Unobserved(e);
 
     private void OnDispatcherException(object? sender, DispatcherUnhandledExceptionEventArgs e) =>
         log.WriteNow(LogLevel.Critical, Category, "The interface failed on an unhandled exception", e.Exception);

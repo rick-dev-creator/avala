@@ -33,7 +33,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
     public Task TypingARepositoryAndPressingEnterReadsItsRulesAsync() =>
         ui.RunAsync(async () =>
         {
-            var settings = new SettingsViewModel(Repositories(new FakeOpener()), new DesignMachineSettingsViewModel(), new DesignAppearanceViewModel());
+            var settings = new SettingsViewModel(Repositories(new FakeOpener()), new DesignMachineSettingsViewModel(), new DesignAppearanceViewModel(), new DesignAboutViewModel());
             var view = Wide(settings);
             var before = view.Shows("Rules");
 

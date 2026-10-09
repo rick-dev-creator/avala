@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.AboutView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IAboutViewModel">
+  <Design.DataContext>
+    <settings:DesignAboutViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="8">
+    <TextBlock Classes="section" Text="About" />
+    <Border x:Name="Note"
+            Classes="quiet"
+            Padding="12,8"
+            IsVisible="{Binding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock x:Name="NoteText" Classes="caption" Text="{Binding Note}" TextWrapping="Wrap" />
+    </Border>
+    <Border Classes="grouped">
+      <StackPanel>
+        <DockPanel Margin="16,12">
+          <TextBlock x:Name="Version" DockPanel.Dock="Right" Classes="mono" Text="{Binding Version}" VerticalAlignment="Center" />
+          <TextBlock Text="Version" VerticalAlignment="Center" />
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <TextBlock x:Name="Commit" DockPanel.Dock="Right" Classes="mono" Text="{Binding Commit}" VerticalAlignment="Center" />
+          <TextBlock Text="Built from commit" VerticalAlignment="Center" />
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <StackPanel Orientation="Horizontal" Spacing="4" Margin="4,0">
+          <Button x:Name="OpenRepository" Classes="link" Padding="12,11" Content="Repository" Command="{Binding OpenRepositoryCommand}" />
+          <Button x:Name="OpenLicense" Classes="link" Padding="12,11" Content="License (MIT)" Command="{Binding OpenLicenseCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <TextBlock Classes="section" Margin="0,22,0,0" Text="Diagnostics" />
+    <Border Classes="grouped">
+      <DockPanel Margin="16,12">
+        <Button x:Name="OpenLogFolder"
+                DockPanel.Dock="Right"
+                Margin="12,0,0,0"
+                Content="Open"
+                VerticalAlignment="Center"
+                Command="{Binding OpenLogFolderCommand}" />
+        <StackPanel Spacing="2">
+          <TextBlock Text="Log folder" />
+          <TextBlock x:Name="LogFolder" Classes="mono caption" Text="{Binding LogFolder}" TextWrapping="Wrap" />
+          <TextBlock Classes="caption"
+                     TextWrapping="Wrap"
+                     Text="Startup failures, crashes and what a harness writes to its standard error, with secrets redacted. Attach the latest file when you report a problem." />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+  </StackPanel>
+</UserControl>
