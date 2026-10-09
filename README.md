@@ -48,9 +48,11 @@ dotnet test --solution Avala.slnx
 
 ## A note on T3 Code
 
-Avala exists because of [T3 Code](https://github.com/pingdotgg/t3code). Its work showed what a desktop harness for coding agents can be, and the idea for this project was born from it. We admire what its developers have built and shared with everyone.
+[T3 Code](https://github.com/pingdotgg/t3code) is one of the most popular open-source harnesses for building software with coding agents, so we use it as a fixed reference to measure Avala's size against.
 
-The comparison in the badges is only a yardstick: T3 Code is a well-known open-source harness, so its size gives us a fixed reference to measure our own against. It is not a criticism of the project or of the people behind it.
+It is only a yardstick. The two projects differ in scope, since T3 Code also ships web and mobile clients and Avala does not, so the numbers describe size, not a like-for-like comparison of features. [How the lines are counted](docs/architecture.md#quality-metrics).
+
+We respect and admire the work of its developers. The comparison is not a criticism of the project or of the people behind it.
 
 ## License
 
