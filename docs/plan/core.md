@@ -203,7 +203,7 @@ Status: done.
 
 ## Phase 8c: Connections and delegation
 
-Status: connections, resources, and review and approval done with the simulator; delegation planned. Both parts are built and proven with the simulator before the user interface and before the real Claude Code adapter, which then only translates its protocol.
+Status: connections, resources, review and approval, and autopilot done with the simulator; delegation planned, its first item in the minimal form autopilot needed. Both parts are built and proven with the simulator before the user interface and before the real Claude Code adapter, which then only translates its protocol.
 
 ### Connections
 
@@ -236,7 +236,7 @@ An orchestrating agent delegates work to sub-agents that may run on any connecti
 - Depth and the number of children running at once are capped, so delegation cannot recurse without end.
 - The audit keeps the whole tree: who delegated what, to which connection, at what cost, and what the policies decided.
 
-1. Harness tools the harness executes: a call to such a tool reaches Avala and its result returns to the agent, in the provider contract with the simulator implementing it and a conformance check. Claude Code receives them later through the MCP server of phase 6.
+1. Harness tools the harness executes: a call to such a tool reaches Avala and its result returns to the agent, in the provider contract with the simulator implementing it and a conformance check. Claude Code receives them later through the MCP server of phase 6. Done in its minimal form with autopilot's follow-ups, see [harness tools](../design/core.md#harness-tools): the `Executed` surface, `ToolCalled` and `ToolReturned`, `IAgents.ReturnAsync` and `IAgentSession.ReturnAsync`, the simulator's `CallTool` step and `CheckHarnessToolAsync`. What delegation still needs: pausing Supervision's silence while a long call runs, replaying a recorded call, and the MCP transport.
 2. Parent and child jobs in the Jobs domain, with the tree in its contracts and its persistence.
 3. The delegation tool and the routing policy that picks a child's connection, starting with the repository's declared rules.
 4. Inherited autonomy, budgets carved from the parent's cap, and the depth and fan-out caps.
@@ -247,7 +247,7 @@ Done when: a simulated orchestrator delegates to simulated children on two conne
 
 ### Resources
 
-Status: done with the simulator, after connections and before delegation, since delegation multiplies the processes, ports and worktrees an unattended run leaves behind. See [Process trees](../design/core.md#process-trees) and [Resources](../design/core.md#resources). Linux and Windows contain processes and run in CI; macOS compiles and is best effort, untested by CI. Deferred: a delegated cgroup on Linux where systemd user delegation is available, for memory and CPU measured and limited by the kernel; starting a Windows process inside its job rather than assigning it right after it starts, which needs `CreateProcess` with a job list; persisting samples, orphan reports, leases and the retention due of ended jobs across restarts; admitting continuations and recoveries against the limit of running jobs; a memory cap across the jobs of a machine; CPU caps; checking that the real Claude Code adapter starts its process through the session's launcher and passes the port variables on, with phase 6; and the views of resources, with phases 9 and 10.
+Status: done with the simulator, after connections and before delegation, since delegation multiplies the processes, ports and worktrees an unattended run leaves behind. See [Process trees](../design/core.md#process-trees) and [Resources](../design/core.md#resources). Linux and Windows contain processes and run in CI; macOS compiles and is best effort, untested by CI. Deferred: a delegated cgroup on Linux where systemd user delegation is available, for memory and CPU measured and limited by the kernel; starting a Windows process inside its job rather than assigning it right after it starts, which needs `CreateProcess` with a job list; persisting samples, orphan reports, leases and the retention due of ended jobs across restarts; admitting continuations and recoveries against the limit of running jobs; a memory cap across the jobs of a machine; CPU caps; checking that the real Claude Code adapter starts its process through the session's launcher and passes the port variables on, with phase 6; port leases that race across processes, since a lease checks which ports are listened on but the bind happens later, when the agent starts its service, so two Avala processes, or parallel test runs, with overlapping ranges can lease the same block and collide; and the views of resources, with phases 9 and 10.
 
 Agents and the commands they run leave resources behind: processes that outlive their session, such as test hosts and build servers, ports two worktrees fight over, and worktrees that pile up on disk. Avala accounts for every resource its jobs use and reclaims what they leave.
 
@@ -287,7 +287,7 @@ Done when: a simulated job is reviewed through the contracts alone, from its dif
 
 ### Autopilot
 
-Status: planned, after review and approval, whose `merge` strategy it needs.
+Status: done with the simulator, see [Autopilot](../design/core.md#autopilot). Deferred: persisting loops, their digests and the approval decisions, so a loop survives a restart and resumes; storing the verification reports with the job's evidence, without which a job judged after a restart waits for a person; pausing a loop on a limit before the first job of a loop that names no connection, whose connection is only known once a job started; a limit threshold read from the repository or the machine instead of the start command, and breakers declared in a file; a pause that holds the running job instead of letting it settle; a cap on the follow-ups one job may propose and on the depth of follow-ups of follow-ups; replaying a recorded tool call in the simulator; GitHub and Linear issues as job sources, in their plugins; the digest as a view, with phases 9 and 10; and checking the real Claude Code adapter's tool calls, with phase 6.
 
 Developers love to leave an agent looping on its own: take a task, finish it, take the next, all night. Done naively, such a loop burns quota, compounds its errors and lands work nobody would have approved. Autopilot runs the loop with the guarantees Avala already has, plus three pieces.
 
@@ -296,13 +296,13 @@ Developers love to leave an agent looping on its own: take a task, finish it, ta
 - **When to stop.** Circuit breakers: a cap on spending per loop and per time window, a number of failures in a row or the same failure repeated, attempts that change nothing, and a maximum number of iterations. When a connection reaches its usage limit, the loop pauses until the window resets and then continues, instead of stopping.
 - **The digest on return.** What was approved on its own with its evidence, what waits and why, what it cost, and which breaker fired; replay holds the detail of any job.
 
-1. The automatic approval rule and its audit.
-2. The job source extension point with the backlog, recurring and proposed sources.
-3. The loop: one job after another per repository, within the concurrency limit, with every breaker and the pause until a limit window resets.
-4. The digest as data: events and a query of what a loop did.
-5. Host simulation tests: a backlog runs unattended with clean jobs merged and an exceptional one left for review; a repeated failure trips the breaker; a limit near its cap pauses the loop until the reset and resumes it.
+1. Done. The automatic approval rule, `"autopilot": { "approve": "cleanEvidence" }` in `.avala/jobs.json` at the base commit, whose section Jobs accepts and Autopilot parses strictly; clean evidence defined from the audit data that exists, a passed last verification and no denial, assumption, edited rule file, hold or unreadable diff; every decision published as `AutoApprovalDecided` with its evidence summary and kept in the loop's digest. Only the jobs a loop took are judged.
+2. Done. `IJobSource` in `Autopilot.Contracts`, asked in registration order; the backlog and the recurring tasks of `.avala/backlog.json`, read from the repository's current base through the new `IBaseFiles.ReadCurrentAsync`; follow-ups proposed through the executed harness tool `propose_follow_up`, the minimal version of delegation's first item, accepted only from an autonomous session whose repository says `"followUps": "accept"`; marks and proposals in `autopilot.db`, never in the repository.
+3. Done. `IAutopilot` with start, pause, resume and stop, the loop's `LoopState` as data, one loop per repository, one job after another, every submission admitted by the machine's limit; breakers on iterations, failures in a row, the same failure signature, attempts that change nothing, and spending per loop and per trailing window of the stored history; a limit window at its threshold pauses the loop until it resets on a `TimeProvider` timer, and a job Budgets held near its limit is continued after the reset. Budgets no longer counts a limit reading whose window already reset.
+4. Done. The events `LoopStarted`, `LoopTaskTaken`, `AutoApprovalDecided`, `LoopIterated`, `LoopWaiting`, `LoopPaused`, `LoopResumed`, `BreakerTripped`, `LoopEnded` and `FollowUpDecided`, and `IAutopilot.DigestOf`.
+5. Done. Host simulation tests: a backlog of three tasks runs unattended, its two clean jobs merged as two commits on the base branch and the one that rewrote its checks left awaiting review; a check that fails the same way twice trips `SameFailure` and leaves the third task; the `near-limit` scenario pauses the loop until its window resets two seconds later and the loop then takes its next task; the `follow-up` scenario's proposal is accepted and runs next under an autonomous repository that accepts follow-ups, and refused for a supervised loop. Unit tests on `FakeTimeProvider` cover every breaker, the pauses, the waits for recurring tasks, the commands and the sources.
 
-Done when: a simulated backlog runs to its end unattended, merging only clean jobs, stopping on a repeated failure and pausing across a limit reset.
+Done when: a simulated backlog runs to its end unattended, merging only clean jobs, stopping on a repeated failure and pausing across a limit reset. Met.
 
 ## Phase 9: View models of the usable core
 

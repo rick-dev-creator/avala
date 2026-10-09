@@ -39,7 +39,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
 | Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, reviewing a job: approving it through its repository's approval strategy, sending it back or discarding it, stopping the session of a job that ended, admitting launches, the job's resume token, the autonomy a job asks for and the connection it runs on, and the catalog of jobs for the views | `JobId`, `Autonomy`, integration events, `IJobs`, `IJobCatalog`, `ICompletionGate`, `IJobAdmission`, `IApprovalStrategy` |
-| Agents | Sessions, turn integrity, provider registry, the connections sessions open on and their credential sources, the harness tools and resume tokens handed to providers by capability, the process tree each session's processes run in, the forms agents ask humans to fill, and the decorators every provider is started through | `IAgents`, `IAgentProvider`, `IAgentSession`, `IAgentProviderDecorator`, `IConnections`, `ICredentialSource`, `ConnectionName`, `ConnectionEnvironment`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
+| Agents | Sessions, turn integrity, provider registry, the connections sessions open on and their credential sources, the harness tools and resume tokens handed to providers by capability, the results of the harness tools the harness executes, the process tree each session's processes run in, the forms agents ask humans to fill, and the decorators every provider is started through | `IAgents`, `IAgentProvider`, `IAgentSession`, `IAgentProviderDecorator`, `IConnections`, `ICredentialSource`, `ConnectionName`, `ConnectionEnvironment`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ToolResult`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
 | Workspaces | Working copies, branches, checkpoints, the files of the commit a job started from, the diff of a workspace against that commit, merging a workspace's work into its base branch, and the reconciliation of worktrees on disk with the store | `IWorkspaces`, `IBaseFiles`, `IWorkspaceChanges`, `WorktreeReconciliation`, integration events |
 | Resources | Samples the processes, ports and disk every job uses, reaps the processes a session leaves behind, leases ports per worktree and reclaims worktrees by retention | `IResources`, `IOrphans`, `IWorktreeHousekeeping`, integration events |
 | Canvas | Offers the canvas tool, accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
@@ -50,6 +50,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Supervision | Holds a job whose agent stays silent, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
 | Budgets | Holds a job that reaches a cap on cost, tokens or memory, or a provider limit threshold, records every intervention, and admits launches up to the machine's limit of running jobs | `BudgetLoaded`, `BudgetIntervened`, `JobQueued`, `JobAdmitted`, `IBudgets` |
 | Recording | Records every provider session, when the data folder asks for it, as a file the simulator replays | None: it implements `IAgentProviderDecorator`, and its files are the [recording format](#session-recording-and-replay) |
+| Autopilot | Runs a repository's tasks one job after another, unattended: approves a job automatically only on clean evidence, takes its tasks from job sources, stops on its circuit breakers, pauses across a usage limit window, and keeps the digest of what it did | `IAutopilot`, `IJobSource`, `LoopId`, the loop's events and digest |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
 
@@ -371,7 +372,7 @@ public interface IApprovalStrategy
 public sealed record ApprovalRequest(JobId Job, string Instruction, int Attempts, WorkspaceInfo Workspace);
 ```
 
-- Strategies are registered through DI. The repository names one in `.avala/jobs.json` at the job's [base commit](#rules-from-the-base-commit), `{ "approval": "merge" }`, next to its preferred connection; without the file or the field the strategy is `keep`. The file is parsed strictly, as for the connection: at most 16 KiB, only `connection` and `approval`, each a non-empty string. A file that is invalid or cannot be read is `InvalidJobFile`, and a name no registered strategy has is `UnknownApprovalStrategy`; either leaves the job awaiting review. When two strategies share a name, the first registered wins.
+- Strategies are registered through DI. The repository names one in `.avala/jobs.json` at the job's [base commit](#rules-from-the-base-commit), `{ "approval": "merge" }`, next to its preferred connection; without the file or the field the strategy is `keep`. The file is parsed strictly, as for the connection: at most 16 KiB, only `connection` and `approval`, each a non-empty string, and `autopilot`, an object Jobs does not read and the [Autopilot](#autopilot) module parses strictly. A file that is invalid or cannot be read is `InvalidJobFile`, and a name no registered strategy has is `UnknownApprovalStrategy`; either leaves the job awaiting review. When two strategies share a name, the first registered wins.
 - The core registers two. `keep`: nothing is touched; the delivery names the job's branch, ready to be merged by hand or by a later strategy. `merge`: the job's checkpoints are squashed into one commit and land on the base branch, see below. Opening a pull request arrives as a strategy of a GitHub plugin, without touching the core.
 
 **The merge.** `MergeStrategy` composes the commit message and asks `IWorkspaceChanges.MergeAsync`, which never forces anything:
@@ -494,6 +495,7 @@ Every provider translates its protocol into one closed set of events. Each event
 | `UsageReported` | Tokens used: input, output, cache reads, cache writes and reasoning, plus the cost when the provider reports it |
 | `LimitReported` | A usage limit: its window, the fraction used and when it resets |
 | `ResumeTokenIssued` | The opaque token that resumes this session's conversation from here, see [Resuming a conversation](#resuming-a-conversation) |
+| `ToolCalled`, `ToolReturned` | A call of a harness tool the harness executes opens an item that waits for its result, and the provider reports the result it received, see [Harness tools](#harness-tools) |
 
 All work inside a turn shares one lifecycle: started, progressed, completed. Messages, tools and canvases therefore get the same integrity guarantees and the same rendering pipeline.
 
@@ -518,13 +520,18 @@ The harness offers tools of its own to the agent, starting with the canvas.
 ```csharp
 public sealed record HarnessTool(string Name, string Description, string InputSchema, ToolSurface Surface);
 
-public enum ToolSurface { Canvas }
+public enum ToolSurface { Canvas, Executed }
+
+public sealed record ToolResult(ItemId Item, string Content) { bool IsError; }
 ```
 
 - **Shaped like MCP.** A tool is a name, a description for the model and its input as a JSON Schema in text, exactly what an MCP server lists. The real adapter transports the tools through MCP, as a server it gives its agent; the contract does not depend on it, and no MCP server exists yet.
 - **Contributed, not known.** A module that offers a tool registers its `HarnessTool` in the container. `SessionStarter` gives every registered tool to providers that declare `AcceptsTools`, and none to the others. Agents never knows which module offered a tool.
 - **The surface says how a call is reported.** The adapter knows its own protocol, so it translates a call of an injected tool into agnostic events; the surface of the tool tells it which ones. `Canvas`: a call is a canvas item whose identifier is the call's. `CanvasStarted` opens it with the call's `title` and `mediaType`, `ItemProgressed` streams its `content`, in chunks when the provider streams partial input or at once otherwise, and `ItemCompleted` closes it as succeeded, or failed when the input cannot be read. The adapter answers the call to the agent itself; nothing else needs to run.
-- Tools whose calls the harness must execute and answer, with their own surface, arrive when the first one is needed.
+- **`Executed`: the harness runs the call and answers it.** The minimal version of the delegation plan's harness-executed tools, which [Autopilot's follow-ups](#follow-ups) needed first. The adapter reports a call as `ToolCalled`, with the call's item, the tool's name and its input as JSON text; it opens an item of the turn, as `CanvasStarted` does. The harness answers with `IAgents.ReturnAsync(session, ToolResult)`, which reaches the provider through `IAgentSession.ReturnAsync`; the adapter hands the result to its agent, reports it with `ToolReturned` and closes the item with `ItemCompleted`, succeeded, or failed when the result `IsError`.
+- **Who answers.** The module that offers an executed tool handles `AgentActivity` of `ToolCalled` for its own tool's name and answers through `IAgents.ReturnAsync`, exactly as Permissions answers `PermissionRequested` through `RespondAsync`. Agents never runs a tool and never learns which module offered it.
+- **Integrity.** The `Turn` aggregate keeps every call waiting for its result: a `ToolReturned` for an item with no pending call, or whose result names another item, is `NoPendingCall`, and a pending call never expires, since the harness owes the answer. `IAgents.ReturnAsync` refuses a provider that does not declare `AcceptsTools` with `Unsupported`, an item with no pending call with `NoPendingCall` and a session that is not open with `SessionClosed`, without asking the provider; `LiveSession` keeps the pending calls from the accepted `ToolCalled` until `ToolReturned`, the item's completion or the end of its turn.
+- Supervision counts a call as activity and does not pause its silence window for it: the first executed tool answers at once. A tool that takes longer, such as delegation's, will pause it like a form.
 
 ### Human-input forms
 
@@ -667,6 +674,7 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `CheckResumeAsync` | A provider that declares `CanResume` issues a token during the turn, and a new session started with it is accepted and runs a conforming turn. A provider that does not declare it only runs the turn check, which forbids tokens |
 | `CheckCanvasToolAsync` | A provider that declares `AcceptsTools`, given a canvas tool and an instruction that draws, reports the call as a canvas that completes. A provider that does not is given no tool, and runs the turn check |
 | `CheckProcessesAsync` | A provider given a launcher and an instruction that runs a process starts it through the session's launcher, so the process belongs to the session's tree. The kit's launcher records what it starts and kills it afterwards, so the check leaks nothing |
+| `CheckHarnessToolAsync` | A provider that declares `AcceptsTools`, given an executed tool and an instruction that calls it, reports the call as `ToolCalled`, refuses a result for an item with no pending call, accepts the kit's result and reports that same result with `ToolReturned`. A provider that does not declare it is given no tool and runs the turn check, which reports a call of a tool the session was not given |
 | `CheckConnectionsAsync` | Two sessions of the same provider, started with the environments of two different [connections](#connections), stay isolated: each runs a conforming turn, they share no session, no account when both report one, and no resume token, and a token issued on the first connection is not accepted by a session started on the second |
 
 ### Simulator
@@ -684,6 +692,7 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 - It declares every capability, `AsksQuestions` included, and an interruption ends the running turn as `Interrupted`.
 - **Resume.** A session's conversation is its scenario and the number of turns it played. Every turn issues, right after `TurnStarted`, a resume token that encodes both with the conversation's identifier and a fingerprint of the session's account, so a token survives a restart of the application without any storage. A session started with it on the same account continues the same conversation with its next script; a token it never issued, or one issued on another account, is rejected with `CannotResume`, as a harness rejects a conversation its configuration folder does not hold.
 - **Canvas tool.** Given a tool whose surface is `Canvas`, a canvas of a scenario is a call of that tool, reported as the canvas events the contract defines. Without one, the simulator writes the same content as a message, like an agent that has no canvas.
+- **Executed tools.** A scenario step calls a tool by name; given a tool of that name on the `Executed` surface, the simulator reports `ToolCalled`, waits for `ReturnAsync`, refusing a result for any other item with `NoPendingCall`, then reports `ToolReturned`, closes the item and replies with the result. Without the tool it says in a message what it would have called. The replay of a recorded tool call is not supported yet: the recorder writes calls, results and `return` entries, and the simulator's reader ignores them.
 - **Account.** The simulated equivalent of a login: a session reports the account of its connection's credential. A configuration folder is the account `simulated-login:<folder>`, labelled `Simulated account (<folder name>)`; an API key is `simulated-key:<fingerprint>`, labelled `Simulated API key`, and never shows the key; a connection without a credential reports the fixed account `simulated-account`, labelled `Simulated account`. Two connections of the simulator therefore run on distinct accounts.
 - **A recording on its own connection.** A simulator connection whose settings hold `replay`, such as `"settings": { "replay": "edit-allowed" }`, replays that recording in every session it opens, from the first message and whatever it says, and its sessions report the recorded account, so a recorded account's usage stays apart from the simulator's own.
 - `tests/Avala.Host.Tests` plays its scenarios inside the application composed from the published plugin folder, with its in-app pace, and observes the jobs and the canvas snapshots through the event feed.
@@ -704,6 +713,8 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `hang` | `TurnStarted` and its resume token, then nothing until interrupted; the next turn, in the same session or one that resumes it, replies and finishes |
 | `canvas` | Draws an SVG and a Mermaid diagram through the canvas tool, in chunks |
 | `processes` | Runs `dotnet build`, a real process that works briefly and exits, then `dotnet run`, a real server that listens on the port in `AVALA_PORT` and replies with it, and finishes the turn leaving the server running past the session |
+| `follow-up` | Writes `CHANGELOG.md`, then calls the executed tool `propose_follow_up` with the follow-up `[simulate: reply] Announce the changelog to the team`, waits for the harness's result, replies with it as `The harness answered: …` and finishes. Without that tool it writes the proposal as a message |
+| `near-limit` | Replies, reports its usage and a `5h` limit window 95% used that resets two seconds after the report, measured with `TimeProvider`, and finishes |
 
 The processes of the `processes` scenario are the `Avala.Simulator.Workload` program, shipped beside the simulator in its plugin folder and started with the `dotnet` host through the session's launcher, so they run the same on Linux, Windows and macOS without a shell. It works (`work`), prints an environment variable (`env`), listens on `AVALA_PORT` (`serve`), starts a detached child and exits (`spawn`) or waits (`hold`); every waiting mode ends on its own once the process that started the harness is gone, or after ten minutes, so a test that fails never leaves one behind. The tests of the runtime and the conformance kit use the same program.
 
@@ -758,7 +769,7 @@ The format is `avala-recording`, version 1. A reader refuses another version; wi
 ```
 
 - `account` is absent when the provider reports none. Enumerations are written in camel case, such as `askEveryTime` or `fileEdit`.
-- Each entry has `at` and exactly one of: `event`, an agnostic event; `file`, the content an edit left; `send`, `respond`, `answer` and `interrupt`, the harness's inputs, with `refused` when the provider returned an `AgentError`; `end`, with `crashed`; `stop`.
+- Each entry has `at` and exactly one of: `event`, an agnostic event; `file`, the content an edit left; `send`, `respond`, `answer`, `return`, a tool's result with its `item`, `content` and `isError`, and `interrupt`, the harness's inputs, with `refused` when the provider returned an `AgentError`; `end`, with `crashed`; `stop`.
 - An event has a `type`, the camel-cased name of its record such as `itemProgressed`, and `turn`, the turn's number in the session from 1, instead of the session and turn identifiers. Its other fields are the record's own, with the same nesting: `form`, `answer`, `steps`, `tokens`, `cost`, `limit`. An item is its identifier as text.
 
 #### Replay
@@ -882,7 +893,7 @@ The provider tag is the provider's identifier and the connection tag the connect
 
 **Accepted**
 
-A repository declares the rules of its jobs in three files: its checks in `.avala/checks.json`, its permission policy in `.avala/permissions.json` and its budget in `.avala/budget.json`. A fourth, `.avala/jobs.json`, names the connection its jobs prefer and the strategy that delivers an approved job, read the same way by Jobs, see [the job flow coordinator](#job-flow-coordinator) and [review](#review-and-approval). The agent works in the job's worktree, so a rule read from the worktree is a rule the agent can rewrite. Every rule is therefore read from the job's base commit, the commit its worktree was created from, and nothing the agent changes during the job can loosen the rules that judge it.
+A repository declares the rules of its jobs in three files: its checks in `.avala/checks.json`, its permission policy in `.avala/permissions.json` and its budget in `.avala/budget.json`. A fourth, `.avala/jobs.json`, names the connection its jobs prefer and the strategy that delivers an approved job, read the same way by Jobs, see [the job flow coordinator](#job-flow-coordinator) and [review](#review-and-approval), and in its `autopilot` section whether a job may be approved automatically and whether follow-ups are accepted, read the same way by [Autopilot](#autopilot). The agent works in the job's worktree, so a rule read from the worktree is a rule the agent can rewrite. Every rule is therefore read from the job's base commit, the commit its worktree was created from, and nothing the agent changes during the job can loosen the rules that judge it.
 
 ```csharp
 public interface IBaseFiles
@@ -900,6 +911,7 @@ public sealed record BaseFile(string Path, FileOrigin Origin, Option<string> Con
 - **Edits are ignored and reported.** `EditedInWorktree` says whether the worktree's copy differs from the committed one, compared by git object identity so line ending conversions do not count; a file the worktree added or deleted differs too. The rule stays the committed one, and each module surfaces the origin in its evidence: the verification report, the session's policy and the session's budget carry the commit and the flag, and the feedback of a failed verification tells the agent its changes to the checks do not apply to this job. An edit of a rule file is still an ordinary edit for review: approving the job is how a rule changes.
 - **Outside a workspace.** A folder that is no job's worktree has no base commit: `UnknownWorkspace`. Permissions and Budgets then apply no repository file, as if it were absent, so a session outside a job gets the built-in policy and no caps; Verification, which only ever judges a job, fails closed. A git failure is `GitFailed`, which each module treats as an unreadable file.
 - **Recovery.** A recovered session opens in the same worktree and reads the same base commit, so a restart cannot pick up a file the agent edited before it.
+- **Before a job exists.** `IBaseFiles.ReadCurrentAsync(repository, path)` reads a file of the commit the repository's `HEAD` points at, the base the next job starts from, for any folder inside the repository, with the same commands; `EditedInWorktree` then says whether the checkout's copy differs. Autopilot reads the [backlog](#job-sources) this way each time it takes a task, so an uncommitted edit of the backlog is ignored like an agent's edit of a rule. A folder outside any repository is `NotAGitRepository`.
 
 ## Verification
 
@@ -1122,7 +1134,7 @@ An unattended agent must not spend without limit. The Budgets module holds a job
 - Caps are per job: they count every session of the job, recovery included, as `IUsage.OfJob` adds them up. The module reads spending from `IUsage` instead of adding reports up again.
 - **Cost.** One cap per currency. A job is held as `BudgetExceeded` when what it spent in a currency reaches the cap of that currency. Only priced reports count: with a provider that reports no cost, cap tokens instead.
 - **Tokens.** One cap on every token the provider reported: input, output, cache reads, cache writes and reasoning. Counting all of them holds earlier rather than later.
-- **Limits.** A threshold between 0 and 1. A job is held as `LimitNearlyReached` when a usage limit window of its session's connection reaches the threshold, whichever session on that connection reported it, since a limit belongs to the account a connection runs on: a work subscription near its limit never holds a job on a personal one.
+- **Limits.** A threshold between 0 and 1. A job is held as `LimitNearlyReached` when a usage limit window of its session's connection reaches the threshold, whichever session on that connection reported it, since a limit belongs to the account a connection runs on: a work subscription near its limit never holds a job on a personal one. A reading whose window has already reset, its `ResetsAt` past, no longer counts, so a job continued after the reset is not held again by the reading that held it.
 - **By connection.** The `connections` section of the file gives the jobs on a named connection their own caps, which replace the top-level ones for those jobs, so an API key billed per token can be capped while a subscription is not. The loader reads the caps of the connection `SessionOpened` names.
 - **Memory.** A cap in megabytes on the memory, the working sets, of every process of the job's trees, as `IResources.OfJob` measures it at the latest sample. A job is held as `MemoryExceeded` when its processes reach it, so parallel builds cannot exhaust the machine. Without the Resources plugin nothing is measured and the cap never holds.
 - A cap is reached when the measure is equal to it or above it. The first breach found holds the job, in that order: cost, tokens, limit, memory.
@@ -1270,6 +1282,142 @@ Agents and the commands they run leave resources behind: processes that outlive 
 
 - The domain is a projection and a ledger of leases; it rejects nothing, so it has no aggregate. `ResourceError` is the module's single error enum, in its contracts.
 - The tracker is the only writer of the attribution; the sampler's loop is the only writer of the samples and the conflicts it reports; queries read immutable snapshots. Samples, orphans, leases and reclaimed worktrees live in memory, and so does the retention due of an ended job: a restart forgets it, and reconciliation reports what was left.
+
+## Autopilot
+
+**Accepted**
+
+A loop takes a repository's next task, runs it as a job, approves it on its own when the evidence is clean, and takes the next, all night if need be, with the guarantees the other modules already give a job plus three of its own: approval without a person only on clean evidence, sources of tasks, and circuit breakers. The Autopilot module is a plugin like any other: it submits, approves and continues jobs through `IJobs`, reads the evidence through the contracts of Verification, Permissions, Jobs and Workspaces, the spending through Observability's, and no module knows it.
+
+### Clean evidence
+
+A job of a loop that reaches `AwaitingReview` is approved automatically, through `IJobs.ApproveAsync` and so by the repository's own [approval strategy](#review-and-approval), only when its evidence has no exception. Otherwise it stays `AwaitingReview` for a person, and the loop moves on. The exceptions, each an `ExceptionReason`, read from data the harness already keeps:
+
+| Exception | When |
+| --- | --- |
+| `NotDeclared` | The `autopilot` section of `.avala/jobs.json` at the job's base commit does not say `"approve": "cleanEvidence"`. Without the file or the section nothing is approved automatically |
+| `UnreadableRules` | That file cannot be read from the base commit or its `autopilot` section is invalid |
+| `VerificationNotPassed` | The job's last `VerificationReport` in `IVerifications.OfJob` is not `Passed`: failed, `NoChecksDeclared`, `InvalidDeclaration`, or there is none. A repository without checks has no evidence that the work is right, so it is never approved alone. An earlier attempt that failed and was fixed by a retry does not count, only the last verification does |
+| `Denial` | Any `PolicyDecision` of the job in `IPermissionAudit.OfJob` answered `Deny`, any human answer in `AnswersOfJob` that denied, or any form in `FormsOfJob` that was declined |
+| `Assumption` | Any `FormDecision` of the job that carries an `Assumption`: the policy decided something for the agent that nobody confirmed |
+| `RuleFileEdited` | The job's diff, `IWorkspaceChanges.DiffAsync`, exactly what approval would deliver, touches a file under `.avala/`; or the last verification's declaration, or the policy of any of the job's sessions in `IPermissionAudit.PolicyOf`, reports `EditedInWorktree` |
+| `Held` | Any attempt of the job in `IJobCatalog.HistoryAsync` has the origin `Hint`. A job held for any reason, or that ran out of retries, waits in `NeedsHelp`, and only a continuation, which starts a `Hint` attempt, brings it back to review; so `Hint` marks every hold, whoever continued it, the loop itself after a limit window included |
+| `ChangesUnknown` | The job's diff cannot be read, so the rule files cannot be proven untouched |
+| `DeliveryRefused` | The evidence was clean but the strategy refused the delivery, such as `MergeConflict` or `BaseCheckoutDirty`; the refusal is kept with it |
+
+A job a person submitted is never approved automatically: only the jobs a loop took are judged, so a person who runs a job by hand reviews it. Every decision, approval or refusal, is published as `AutoApprovalDecided` with its `AutoApproval`: the loop, the job, whether it was approved, the `EvidenceSummary` (attempts, the last verification's outcome and the checks it passed, the permissions allowed, the forms decided and the files changed), the exceptions, the delivery or the refusal, and the time; and it is kept in the loop's digest.
+
+### The rules file
+
+The `autopilot` section of `.avala/jobs.json`, read from the job's [base commit](#rules-from-the-base-commit) by `AutopilotRulesReader`:
+
+```json
+{
+  "approval": "merge",
+  "autopilot": { "approve": "cleanEvidence", "followUps": "accept" }
+}
+```
+
+- `approve` is `never`, the default, or `cleanEvidence`. `followUps` is `refuse`, the default, or `accept`. Both are optional; without the section both keep their default.
+- Jobs accepts the section as an object and Autopilot parses it strictly: at most 16 KiB, no other field, duplicate fields, values of the wrong type and nesting deeper than the format are rejected. An invalid section is `Malformed`, `UnknownField` or `UnknownRule`, a file that cannot be read `Unreadable`; either way nothing is approved automatically and no follow-up is accepted.
+
+### Job sources
+
+A loop takes its tasks from job sources, an extension point in `Autopilot.Contracts` that plugins implement, like the approval strategies:
+
+```csharp
+public interface IJobSource
+{
+    string Name { get; }
+    ValueTask<Result<SourceAnswer, AutopilotError>> NextAsync(SourceRequest request, CancellationToken cancellationToken);
+    ValueTask MarkAsync(SourcedTask task, TaskMark mark, CancellationToken cancellationToken);
+}
+
+public sealed record SourceRequest(LoopId Loop, string Repository, DateTimeOffset Now);
+public sealed record SourcedTask(string Source, string Key, string Repository, string Instruction);
+public sealed record SourceAnswer(Option<SourcedTask> Task, Option<DateTimeOffset> NextDue);
+public sealed record TaskMark(TaskState State, Option<JobId> Job, DateTimeOffset At);
+```
+
+- The loop asks every registered source in registration order and takes the first task offered; when none offers one, it keeps the earliest `NextDue` any source gave. A source error ends the loop. It marks the task `Taken` with its job once the job is submitted, then `Approved`, `WaitingForPerson` or `Failed` when the iteration ends. A source never sees a job; a GitHub or Linear plugin later is one more source that keeps its own mapping.
+- The module registers three, in this order: the backlog, the follow-ups and the recurring tasks. Their marks and the proposals are kept in Avala's own store, `autopilot.db` in the data folder, never in the user's repository: one row per repository, source and task, with its state, its job, when it was last taken and when it last changed.
+
+**The backlog.** `.avala/backlog.json`, read from the repository's current base, the commit its `HEAD` points at, through `IBaseFiles.ReadCurrentAsync`, each time the loop asks, so a task committed while the loop runs is taken and an uncommitted edit is not:
+
+```json
+{
+  "tasks": [
+    { "id": "greet", "instruction": "Add a greeting to the README" },
+    { "id": "docs", "instruction": "Document the greeting" }
+  ],
+  "recurring": [
+    { "id": "dependencies", "instruction": "Update the dependencies and keep the build green", "everyMinutes": 1440 }
+  ]
+}
+```
+
+- Both lists are optional. `id` is required: 1 to 64 ASCII letters, digits, `.`, `_` and `-`, starting with a letter or a digit, unique across both lists; it is how the store remembers a task, so renaming it makes it a new task. `instruction` is required and not blank. `everyMinutes` is required for a recurring task, greater than 0 and at most a year, 525,600.
+- Parsed strictly: at most 64 KiB, unknown fields, duplicate fields, values of the wrong type and nesting deeper than the format are rejected, as `TooLarge`, `UnknownField`, `Malformed`, `InvalidKey`, `DuplicateKey`, `MissingInstruction` or `InvalidInterval`; a repository that cannot be read is `Unreadable`. A rejected backlog ends the loop as `SourceFailed` with its error, since its author meant something the loop cannot know. Without the file there is nothing to do.
+- The backlog source offers the first task, in file order, that the store has never seen for the repository: a task taken once is never taken again, whatever its job became; the breakers, not retries, deal with a task that fails.
+
+**Recurring tasks.** The `recurring` list of the same file, a `TimeProvider` schedule: a task never taken is due at once, then `everyMinutes` after it was last taken. The source offers the task due the longest, and otherwise the time the next one is due, so a loop with nothing else to do waits, as `Waiting`, until then.
+
+**Follow-ups.** The module offers agents the executed [harness tool](#harness-tools) `propose_follow_up`, whose input is an `instruction` and an optional `reason`. `FollowUpDesk` handles its calls and answers each one through `IAgents.ReturnAsync`, after `FollowUpPolicy` decided:
+
+| Refusal | When |
+| --- | --- |
+| `MalformedInput` | The input is not a JSON object with a non-blank `instruction` of at most 4,000 characters; the result is an error |
+| `NoJob` | The session runs no job, or the job is unknown |
+| `NotAutonomous` | The session's effective [autonomy](#autonomy-levels), `IPermissionAudit.AutonomyOf`, is not `autonomous`: only an agent nobody watches proposes work for nobody to watch |
+| `UnreadableRules` | The job's `.avala/jobs.json` cannot be read from its base commit or its section is invalid |
+| `NotAllowed` | Its `autopilot` section does not say `"followUps": "accept"` |
+
+An accepted proposal is stored as a `Proposed` task of the `follow-up` source for the job's repository, and the agent is told it is queued; the follow-up source offers proposals oldest first, to whatever loop runs on that repository next. Every decision is published as `FollowUpDecided`. A proposed follow-up runs as a job like any other and is approved only on its own clean evidence.
+
+### The loop
+
+`IAutopilot.StartAsync(LoopRequest)` starts a loop on a repository, with the connection, autonomy and attempts per round its jobs are submitted with, and its `LoopLimits`. One loop runs per repository at a time; another start is `AlreadyRunning`, a blank repository `EmptyRepository`, limits out of range `InvalidLimits`. Each loop is a `LoopRunner` whose state belongs to its own `SerialExecutor`: the bus's events, the commands and the timers all reach it as work queued there.
+
+- **One job after another.** The loop submits the next task's job through `IJobs.SubmitAsync` and takes no other task until that job settles. Different repositories' loops run side by side, and every submission goes through the machine's [admission](#running-jobs), so the limit of running jobs holds across loops.
+- **When a job settles.** `AwaitingReview`: the job is judged, approved automatically or left for a person. `NeedsHelp` after its retries ran out: the iteration failed. `NeedsHelp` from a hold: the loop waits for the `JobHeld` that follows, which says why; a hold for `LimitNearlyReached` pauses the loop, any other is a failure. `Failed`: a failure. A permission or a form left to a person (`PermissionDecided` or `FormDecided` with `LeftToHuman`): the job waits for that person, and the loop moves on. A job a person approved or discarded meanwhile ends its iteration too. A submission rejected is an iteration that failed.
+- **Iterations.** Each settled task is an `IterationRecord`: its number, task and job, its `IterationOutcome` (`ApprovedAutomatically`, `AwaitingReview`, `AwaitingAnswer`, `NeedsHelp`, `Failed`, `NotSubmitted`, `ApprovedByPerson` or `Discarded`), the exceptions that kept it for a person, the hold reason, the rejection, its failure signature, whether it changed nothing, and its cost from `IUsage.OfJob`, published as `LoopIterated`.
+
+**Circuit breakers**, checked before every task is taken; the first that trips ends the loop as `BreakerTripped`, published as `BreakerTripped` with what it measured against its cap:
+
+| `Breaker` | Trips when | Default |
+| --- | --- | --- |
+| `Iterations` | The loop has taken as many tasks as `Iterations` | 50 |
+| `FailuresInARow` | The last `FailuresInARow` iterations all failed: `NeedsHelp`, `Failed` or `NotSubmitted` | 3 |
+| `SameFailure` | The last `SameFailure` iterations failed with the same failure signature | 2 |
+| `NothingChanged` | The last `NothingChanged` iterations' jobs have an empty diff against their base commit | 2 |
+| `SpendPerLoop` | What the loop's jobs spent in a currency, as `IUsage.OfJob` adds it up, reaches its cap in `SpendPerLoop` | No cap |
+| `SpendPerWindow` | What the machine spent in a currency over the trailing `Window`, from the stored history through `IUsageHistory.WithinAsync`, so it counts across restarts and other loops, reaches its cap in `SpendPerWindow` | No cap, a day |
+| `UsageLimit` | A limit window at or above `PauseAtLimit` reports no reset time, so there is nothing to wait for | 0.9 |
+
+The **failure signature** comes from the verification evidence: the first check of the last report that neither passed nor was skipped, as its name, status and exit code, such as `tests Failed exit 1`; `InvalidDeclaration` when the declaration was invalid; the hold reason for a hold; the rejection for a submission refused; and the job's outcome otherwise. The same failure is the same signature in a row: the same check failing the same way, or the same hold.
+
+**Pausing across a usage limit.** Before taking a task, the loop reads the limit windows of the connection its jobs run on, from `IUsage.ByConnection`. A window at or above `PauseAtLimit` whose `ResetsAt` is still ahead pauses the loop, published as `LoopPaused` with `UsageLimit`, the window and the time it resets, on a `TimeProvider` timer; when it rings the loop publishes `LoopResumed` and takes its next task, instead of stopping. A job held as `LimitNearlyReached` by [Budgets](#budgets) pauses the loop the same way, until the reset of the window of its connection used most among those whose reset is still ahead, and is a failure when none is; on the reset the loop continues that job through `IJobs.ContinueAsync` with `The usage limit window has reset. Go on where you left off.` A reading whose window has reset no longer counts, for the loop and for Budgets.
+
+**Commands and state.** `PauseAsync`, `ResumeAsync` and `StopAsync` act on a loop by its `LoopId`: a pause takes no new task, and lets the job underway settle; a resume takes the next one; a stop ends the loop as `Stopped` and leaves the job underway as it is. A command on an unknown loop is `UnknownLoop`, a pause of a loop already paused `NotRunning`, a resume of a loop that is not paused `NotPaused`, any command on an ended loop `LoopEnded`. `IAutopilot.Loops()` lists every loop's `LoopState`: its repository, `LoopStatus` (`Running`, `Waiting`, `Paused` or `Ended`), when it started, its iterations, the job underway, until when it waits or pauses and why, and how it ended: `Drained`, `Stopped`, `BreakerTripped` with the breaker, or `SourceFailed` with the error.
+
+**The digest.** `IAutopilot.DigestOf(loop)` answers what a loop did as data: its state, its iterations, every automatic approval decision with its evidence summary, the breakers that tripped, the pauses, and what it spent per currency. What was approved alone is the approvals that succeeded; what waits for a person, and why, is the iterations that ended `AwaitingReview`, `AwaitingAnswer` or `NeedsHelp` with their exceptions and hold reasons. The replay of any job remains in its recording, when recording is on.
+
+### The module
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Loops` | `LoopRecord`, the immutable record of one loop: its request, status, the task underway, iterations, approvals, breakers tripped and pauses, with its state and digest; `Breakers`, the breakers' rules; `FailureSignatures` | Domain |
+| `Evidence` | `JobEvidence`, the facts gathered about a job; `CleanEvidence`, the exceptions and the summary; `AutopilotRules` | Domain |
+| `Backlogs` | `BacklogDeclaration`, its tasks and recurring tasks, and `RecurringSchedule`, which says what is due | Domain |
+| `Looping` | `LoopRunner`; `LoopRegistry`, behind `IAutopilot`; `LoopFeed`, the handler of `JobProgressed`, `JobHeld`, `PermissionDecided` and `FormDecided`; `LoopSteps`, `LoopGauges`, which reads spending and limits, and `LoopJournal` with `LoopBook`, which keep the loops' snapshots and publish their events | Application |
+| `Approving` | `EvidenceGatherer`, `AutoApprover`, `JobWork`, and the `IAutopilotRules` port | Application |
+| `Sourcing` | `TaskSources`, `BacklogSource`, `RecurringSource`, `FollowUpSource`, and the `IBacklogFile` and `ITaskLedger` ports | Application |
+| `FollowUps` | `FollowUpTool`, the definition of `propose_follow_up`; `FollowUpPolicy`; `FollowUpDesk`, the handler of `SessionOpened`, `JobSessionStarted` and `AgentActivity` | Application |
+| `RepositoryFiles` | `AutopilotRulesReader` behind `IAutopilotRules` and `BacklogFileReader` behind `IBacklogFile`, through `IBaseFiles` | Infrastructure |
+| `Storage` | `SqliteTaskLedger` behind `ITaskLedger`, in `autopilot.db` | Infrastructure |
+
+- The domain decides and rejects nothing, so it has no aggregate; the runner refuses the commands that do not fit a loop's status. `AutopilotError` is the module's single error enum, in its contracts.
+- Loops, their digests and the approval decisions live in memory: a loop does not survive a restart, and its jobs go on through recovery like any job. The marks and the proposals are stored, so a new loop never takes a backlog task again. Verification reports live in memory too, so a job judged after a restart has no verification and waits for a person, the safe way round.
 
 ## Data the harness produces
 
@@ -1427,7 +1575,7 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | `IJobs.ApproveAsync(JobId)` | Command answer | `Result<JobApproval, JobRejection>`: `Job` and `Delivery`, an `ApprovalDelivery` with `Strategy`, `Branch` and `Option<string>` `Commit`; or `NotAwaitingReview`, `UnknownJob`, `WorkspaceUnavailable`, `InvalidJobFile`, `UnknownApprovalStrategy`, `NoBaseBranch`, `MergeConflict`, `BaseCheckoutDirty`, `BaseMoved`, `DeliveryFailed`, or any rejection of a plugin's strategy | When a human approves. A success is followed by `SessionStopped` when the session was open, `JobProgressed` with `Approved`, then `JobApproved` | One per approval attempt |
 | `JobApproved` | Event | `Approval`: the `JobApproval` | Once the approved job is stored and announced | Zero or one per job |
 | `IJobs.SendBackAsync(JobId, feedback)` | Command answer | `Result<JobContinuation, JobRejection>`, as `ContinueAsync`; or `NotAwaitingReview`, `EmptyMessage`, `UnknownJob`, `WorkspaceUnavailable`, `UnknownConnection`, `UnusableConnection`, `AgentUnavailable` | When a human sends a job back. A success is followed by `JobProgressed` with `Running`, and by `JobSessionStarted` when the session is new | One per round asked for |
-| `.avala/jobs.json` `approval` | Field of a rule file | The name of the approval strategy, `keep` by default | Read from the base commit at each approval | One per repository |
+| `.avala/jobs.json` `approval` | Field of a rule file | The name of the approval strategy, `keep` by default; the file may also hold an `autopilot` object, see [Autopilot](#the-rules-file) | Read from the base commit at each approval | One per repository |
 
 ### Workspaces: changes
 
@@ -1478,6 +1626,40 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 
 The module publishes no event and answers no query: a recording is a file for people and tests, and a replay is an ordinary simulated session.
 
+### Agents: executed tools
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `AgentActivity` of `ToolCalled` | Event | `Session`, `Turn`, `Item`, `Tool` (the tool's name) and `Input`, the call's arguments as JSON text | When a provider that declares `AcceptsTools` calls a tool of the `Executed` surface it was given, once the `Turn` aggregate opened its item | Zero or more per turn |
+| `AgentActivity` of `ToolReturned` | Event | `Session`, `Turn`, `Item`, `Result`: a `ToolResult` with `Item`, `Content` and `IsError` | When the provider reports the result it received; `ItemCompleted` then closes the call | One per answered call |
+| `IAgents.ReturnAsync(session, ToolResult)` | Command answer | `Result<ItemId, AgentError>`: the item answered, or `SessionClosed`, `Unsupported`, `NoPendingCall` | When the module that offers the tool answers its call | One per call |
+
+### Workspaces: current files
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `IBaseFiles.ReadCurrentAsync(repository, path)` | Query | `Result<BaseFile, WorkspaceFailure>`: the file of the commit the repository's `HEAD` points at, its `Origin` with that commit and whether the checkout's copy differs, and its `Content`; `NotAGitRepository` outside a repository, `GitFailed` when git fails | On demand, at most five git commands | One answer per call |
+
+### Autopilot
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `IAutopilot.StartAsync(LoopRequest)` | Command answer | `Result<LoopId, AutopilotError>`: the new loop, or `EmptyRepository`, `InvalidLimits`, `AlreadyRunning`. `LoopRequest` has `Repository`, `Option<ConnectionName>` `Connection`, `Option<Autonomy>` `Autonomy`, `AttemptsPerRound` and `Limits`, a `LoopLimits` with `SpendPerLoop` and `SpendPerWindow` (lists of `Cost` caps), `Window`, `FailuresInARow`, `SameFailure`, `NothingChanged`, `Iterations` and `PauseAtLimit` | When a person starts a loop | One per loop |
+| `IAutopilot.PauseAsync`, `ResumeAsync`, `StopAsync(LoopId)` | Command answers | `Result<LoopId, AutopilotError>`: the loop, or `UnknownLoop`, `NotRunning`, `NotPaused`, `LoopEnded` | When a person pauses, resumes or stops a loop | One per command |
+| `IAutopilot.Loops()` | Query | `IReadOnlyList<LoopState>`: `Loop`, `Repository`, `Status` (`LoopStatus`: `Running`, `Waiting`, `Paused`, `Ended`), `Started`, `Iterations`, the `Option<JobId>` `Current` underway, and the options `Until`, `Pause` (`PauseReason`: `Command`, `UsageLimit`), `Ending` (`LoopEnding`: `Drained`, `Stopped`, `BreakerTripped`, `SourceFailed`), `Breaker` and `Error` | Any time, from memory, in start order | One per loop started since the application started |
+| `IAutopilot.DigestOf(LoopId)` | Query | `Option<LoopDigest>`: `State`, `Iterations` (each an `IterationRecord`: `Number`, `Task`, `Option<JobId>` `Job`, `Outcome`, `Ended`, `Exceptions`, `Option<HoldReason>` `Hold`, `Option<JobRejection>` `Rejection`, `Option<FailureSignature>` `Failure` with its `Source` and `Detail`, `ChangedNothing` and `Cost`), `Approvals` (each an `AutoApproval`), `Breakers` (each a `BreakerTrip`), `Pauses` (each a `LoopPause`) and `Spent` per currency | Any time, from memory | One per loop |
+| `LoopStarted`, `LoopEnded` | Events | `State`: the `LoopState` | When a loop starts; when it drains, is stopped, trips a breaker or meets a source it cannot read | One of each per loop |
+| `LoopTaskTaken` | Event | `Loop`, `Iteration`, `Task` (a `SourcedTask`: `Source`, `Key`, `Repository`, `Instruction`) and the `Job` submitted for it | Once the job is submitted and the task marked taken | One per task taken |
+| `AutoApprovalDecided` | Event | `Decision`: an `AutoApproval` with `Loop`, `Job`, `Approved`, `Evidence` (an `EvidenceSummary`: `Attempts`, `Option<VerificationOutcome>` `Verification`, `ChecksPassed`, `PermissionsAllowed`, `FormsDecided`, `FilesChanged`), `Exceptions` (each an `ExceptionReason`), `At`, and the options `Delivery` (an `ApprovalDelivery`) and `Refusal` (a `JobRejection`) | When a loop's job reaches `AwaitingReview`, after the approval was delivered or refused | One per review of a loop's job |
+| `LoopIterated` | Event | `Loop`, `Iteration`: the `IterationRecord` | When the iteration's job settled, after the task was marked | One per task taken or refused |
+| `LoopWaiting` | Event | `Loop`, `Until` | When nothing is to do until a recurring task is due | Zero or more per loop |
+| `LoopPaused`, `LoopResumed` | Events | `Loop` and a `LoopPause` with `Reason`, `At`, `Option<DateTimeOffset>` `Until` and `Option<string>` `Window`; `Loop` and `At` | On a pause command or a limit window at its threshold; on a resume command or the window's reset, once a held job was continued | Zero or more per loop |
+| `BreakerTripped` | Event | `Loop`, `Trip`: a `BreakerTrip` with `Breaker`, `Subject` (a currency, `iterations`, `failures`, a failure signature or a limit window), `Measured`, `Cap` and `At` | Right before the `LoopEnded` it causes | Zero or one per loop |
+| `FollowUpDecided` | Event | `Decision`: a `FollowUpDecision` with `Session`, `Option<JobId>` `Job`, `Instruction`, `At`, and the `Option<SourcedTask>` `Task` queued or the `Option<FollowUpRefusal>` `Refusal` (`MalformedInput`, `NoJob`, `NotAutonomous`, `UnreadableRules`, `NotAllowed`) | When an agent calls `propose_follow_up`, once it was answered | One per call |
+| `.avala/backlog.json` | Rule file | `tasks` and `recurring`, see [Job sources](#job-sources) | Read from the repository's current base each time a loop asks for a task | One per repository |
+| `.avala/jobs.json` `autopilot` | Field of a rule file | `approve` and `followUps` | Read from the base commit of each job judged and of each job that proposes a follow-up | One per repository |
+| `autopilot.db` | File in the data folder | `Tasks`: the repository, the source, the task's key and instruction, its `TaskState` (`Proposed`, `Taken`, `Approved`, `WaitingForPerson`, `Failed`), its job (an empty identifier when none), when it was last taken (`-1` when never) and when it last changed, in UTC ticks | One row per task a loop took and per follow-up proposed, updated by every mark | Grows with the backlogs; never compacted yet |
+
 ## Delivery
 
 **Accepted**
@@ -1489,7 +1671,7 @@ The application is built view model first: every screen is built and tested as v
 **Accepted**
 
 - EF Core with the SQLite provider, with no server.
-- One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`, `observability.db`, `supervision.db` and `budgets.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
+- One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`, `observability.db`, `supervision.db`, `budgets.db` and `autopilot.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
 - The schema is created with `EnsureCreated`. The schema changes so far, the `Base` and `BaseBranch` columns of a workspace, the `Resume`, `Autonomy`, `Connection` and `Submitted` columns of a job and the `Session` column of its attempts, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted, or its `jobs.db` and `workspaces.db` at least. The new databases of Observability, Supervision and Budgets are created when missing. Migrations arrive with the first schema change after a release; with stored history now worth keeping, that release is the moment to start them.
 - **Rows that are not aggregates.** A store of facts, such as usage facts and interventions, maps a plain row type in its `Storage` folder, converted to and from the module's records there, instead of an aggregate. Times are stored as UTC ticks, so SQLite compares and orders them as numbers.
 - Stores are internal interfaces of each module's application layer, implemented in its `Storage` folder.
