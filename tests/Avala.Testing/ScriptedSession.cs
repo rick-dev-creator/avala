@@ -13,6 +13,7 @@ public sealed class ScriptedSession(
 {
     private readonly Channel<IAgentEvent> events = Channel.CreateUnbounded<IAgentEvent>();
     private readonly ConcurrentQueue<string> received = new();
+    private readonly ConcurrentQueue<UserTurn> sent = new();
     private readonly ConcurrentQueue<PermissionDecision> decisions = new();
     private readonly ConcurrentQueue<TurnId> turns = new();
     private readonly ConcurrentQueue<FormAnswer> answers = new();
@@ -39,8 +40,33 @@ public sealed class ScriptedSession(
 
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
+    public Func<SessionId, TurnId, string, IEnumerable<IAgentEvent>> MidTurn { get; init; } =
+        (session, turn, text) => [new MessageQueued(session, turn, text)];
+
+    public IReadOnlyList<UserTurn> Turns => [.. sent];
+
     public async ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken)
     {
+        sent.Enqueue(turn);
+
+        if (turn.MidTurn)
+        {
+            if (turns.IsEmpty)
+            {
+                return AgentError.NoTurnInProgress;
+            }
+
+            var live = turns.Last();
+            received.Enqueue(turn.Text);
+
+            foreach (var agentEvent in MidTurn(Id, live, turn.Text))
+            {
+                await events.Writer.WriteAsync(agentEvent, cancellationToken);
+            }
+
+            return live;
+        }
+
         var id = TurnId.New();
         received.Enqueue(turn.Text);
         turns.Enqueue(id);

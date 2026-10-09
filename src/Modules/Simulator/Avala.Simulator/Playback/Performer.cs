@@ -9,6 +9,7 @@ namespace Avala.Simulator.Playback;
 internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates gates, CapabilitySet declared)
 {
     private readonly Replayer replayer = new(options, craft.Files, gates, craft.Pacing);
+    private int acknowledged;
 
     public bool Closing => replayer.Closing;
 
@@ -49,6 +50,9 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
                 .Append(cues.Ended(TurnOutcome.Finished))
                 .ToAsyncEnumerable(),
         Ask ask => AskAsync(cues, ask, cancellationToken),
+        AwaitMessage when !declared.Has<AcceptsMessagesMidTurn>() => AsyncEnumerable.Empty<IAgentEvent>(),
+        AwaitMessage => HearAsync(cues, cancellationToken),
+        Finish => Heard(cues).Append(cues.Ended(TurnOutcome.Finished)).ToAsyncEnumerable(),
         CallTool call => PlayAsync(cues, new CallTools([call]), cancellationToken),
         CallTools calls when calls.Calls.All(call => options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed)) =>
             CallAsync(cues, calls.Calls, cancellationToken),
@@ -177,6 +181,29 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             yield return cue;
         }
     }
+
+    private async IAsyncEnumerable<IAgentEvent> HearAsync(Cues cues, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        foreach (var cue in Acknowledged(cues, await gates.Messages.Reader.ReadAsync(cancellationToken)))
+        {
+            yield return cue;
+        }
+    }
+
+    private List<IAgentEvent> Heard(Cues cues)
+    {
+        var heard = new List<IAgentEvent>();
+
+        while (gates.Messages.Reader.TryRead(out var message))
+        {
+            heard.AddRange(Acknowledged(cues, message));
+        }
+
+        return heard;
+    }
+
+    private IEnumerable<IAgentEvent> Acknowledged(Cues cues, string message) =>
+        cues.Of(new Say(new ItemId($"heard-{++acknowledged}"), ItemKind.Message, "Reply", [$"Noted: {message} ", "I am folding it into this turn."]));
 
     private static Say Reply(ItemId item, string text) => new(new ItemId($"{item.Value}-reply"), ItemKind.Message, "Reply", [text]);
 

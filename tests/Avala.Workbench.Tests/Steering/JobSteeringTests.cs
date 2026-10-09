@@ -21,25 +21,38 @@ public sealed class JobSteeringTests
     {
         var job = OnBoard(Enum.Parse<JobStatus>(status));
 
-        Outcomes.Succeeds(await new JobSteering(jobs, board).SendAsync(job, "Use the staging database", Cancellation));
+        Outcomes.Succeeds(await new JobSteering(jobs, board, new QueuedMessages(jobs)).SendAsync(job, "Use the staging database", Cancellation));
 
         Assert.Equal([call], jobs.Calls);
     }
 
     [Fact]
-    public async Task AMessageToAJobThatIsWorkingIsRefusedWithoutAskingTheJob()
+    public async Task AMessageToAJobThatEndedIsRefusedWithoutAskingTheJob()
     {
-        var job = OnBoard(JobStatus.Running);
+        var job = OnBoard(JobStatus.Approved);
 
-        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await new JobSteering(jobs, board).SendAsync(job, "Hurry", Cancellation)));
+        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await new JobSteering(jobs, board, new QueuedMessages(jobs)).SendAsync(job, "Hurry", Cancellation)));
         Assert.Empty(jobs.Calls);
+    }
+
+    [Theory]
+    [InlineData(JobStatus.NeedsHelp, false, "Sent")]
+    [InlineData(JobStatus.Running, true, "JoinedTheTurn")]
+    [InlineData(JobStatus.Running, false, "Queued")]
+    [InlineData(JobStatus.Checking, true, "Queued")]
+    [InlineData(JobStatus.Preparing, false, "Queued")]
+    public async Task AMessageSaysHowItReachesTheAgent(JobStatus status, bool takesMessagesMidTurn, string delivery)
+    {
+        var job = OnBoard(status, takesMessagesMidTurn);
+
+        Assert.Equal(Enum.Parse<MessageDelivery>(delivery), Outcomes.Succeeds(await new JobSteering(jobs, board, new QueuedMessages(jobs)).SendAsync(job, "Keep the alias", Cancellation)));
     }
 
     [Fact]
     public async Task InterruptingAndStoppingBothHoldTheJobWithTheirOwnReasonAndNeitherDiscardsIt()
     {
         var job = OnBoard(JobStatus.Running);
-        var steering = new JobSteering(jobs, board);
+        var steering = new JobSteering(jobs, board, new QueuedMessages(jobs));
 
         Outcomes.Succeeds(await steering.InterruptAsync(job, Cancellation));
         Outcomes.Succeeds(await steering.StopAsync(job, Cancellation));
@@ -62,10 +75,10 @@ public sealed class JobSteeringTests
             (parsed.AcceptsMessages, parsed.CanBeInterrupted, parsed.CanBeStopped, parsed.CanBeReviewed, parsed.CanBeDiscarded));
     }
 
-    private JobId OnBoard(JobStatus status)
+    private JobId OnBoard(JobStatus status, bool takesMessagesMidTurn = false)
     {
         var summary = new FakeCatalog().Add("Fix the failing test", status).Summary;
-        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(summary.Job, new BoardJob(summary, Transcript.Empty)));
+        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(summary.Job, new BoardJob(summary, Transcript.Empty) { TakesMessagesMidTurn = takesMessagesMidTurn }));
 
         return summary.Job;
     }

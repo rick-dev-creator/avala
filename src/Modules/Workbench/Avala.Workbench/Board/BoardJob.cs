@@ -23,6 +23,8 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
 
     public int Revision { get; init; }
 
+    public bool TakesMessagesMidTurn { get; init; }
+
     public int PendingDecisions => Transcript.Awaiting.Count();
 
     public JobGroup Group => JobFacts.GroupOf(this);

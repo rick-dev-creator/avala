@@ -17,6 +17,7 @@ internal sealed class Conversation
     private bool tokenIssued;
     private bool interrupting;
     private int interruptions;
+    private int queued;
 
     public Conversation(SessionId session, SessionOptions options, string workingDirectory, Option<ConversationMark> resumed)
     {
@@ -32,6 +33,16 @@ internal sealed class Conversation
 
     public Result<(TurnId Turn, Reaction Reaction), AgentError> Begin(UserTurn turn)
     {
+        if (turn.MidTurn)
+        {
+            return live.ToResult(AgentError.NoTurnInProgress).Map(running =>
+            {
+                queued++;
+
+                return (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text)], [Messages.User(turn)]));
+            });
+        }
+
         if (live.IsSome)
         {
             return AgentError.TurnInProgress;
@@ -51,7 +62,7 @@ internal sealed class Conversation
         "rate_limit_event" => live.Match(
             stamp => Reaction.Of([.. Telemetry.Limits(message).Select(limit => new LimitReported(session, stamp.Turn, limit))]),
             () => Reaction.None),
-        "result" => live.Match(stamp => Ended(message, stamp), () => Reaction.None),
+        "result" => live.Match(stamp => queued > 0 && !interrupting ? Carried(message, stamp) : Ended(message, stamp), () => Reaction.None),
         "control_request" => desk.Receive(message, live),
         "control_cancel_request" => desk.Cancel(message),
         _ => Reaction.None,
@@ -95,11 +106,26 @@ internal sealed class Conversation
             () => Reaction.None);
     }
 
-    private Reaction Ended(JsonNode result, Stamp stamp)
+    private Reaction Carried(JsonNode result, Stamp stamp)
+    {
+        queued--;
+
+        return translator.Close(stamp, interrupted: false).Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), Spent(result))));
+    }
+
+    private Option<Cost> Spent(JsonNode result)
     {
         var total = Telemetry.TotalCost(result);
         var cost = total.Map(amount => new Cost(Math.Max(0m, amount - spent), Telemetry.Currency));
         spent = total.Match(amount => amount, () => spent);
+
+        return cost;
+    }
+
+    private Reaction Ended(JsonNode result, Stamp stamp)
+    {
+        var cost = Spent(result);
+        queued = 0;
         var outcome = interrupting
             ? TurnOutcome.Interrupted
             : result.TextOr("subtype", string.Empty) == "success" && !result.Flag("is_error") ? TurnOutcome.Finished : TurnOutcome.Failed;

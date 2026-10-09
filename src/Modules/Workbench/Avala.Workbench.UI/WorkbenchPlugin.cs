@@ -57,6 +57,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IHandle<JobProgressed>>(Keeper)
             .AddSingleton<IHandle<JobHeld>>(Keeper)
             .AddSingleton<IHandle<JobApproved>>(Keeper)
+            .AddSingleton<IHandle<SessionOpened>>(Keeper)
             .AddSingleton<IHandle<JobSessionStarted>>(Keeper)
             .AddSingleton<IHandle<ConnectionChosen>>(Keeper)
             .AddSingleton<IHandle<AgentActivity>>(Keeper)
@@ -74,6 +75,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddTransient<BoardFeed>()
             .AddSingleton<JobFocus>()
             .AddSingleton<JobSteering>()
+            .AddSingleton<QueuedMessages>()
+            .AddSingleton<IHandle<JobProgressed>>(Get<QueuedMessages>)
             .AddSingleton<HumanReplies>()
             .AddSingleton<Conversations>()
             .AddSingleton<ReviewReader>()
@@ -102,6 +105,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IConversationViewModel, ConversationView>();
         views.Register<IComposerViewModel, ComposerView>();
         views.Register<IPromptViewModel, PromptView>();
+        views.Register<IInterjectionViewModel, InterjectionView>();
         views.Register<IRestartViewModel, RestartView>();
         views.Register<IMessageViewModel, MessageView>();
         views.Register<IReasoningViewModel, ReasoningView>();

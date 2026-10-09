@@ -39,6 +39,27 @@
                TextWrapping="Wrap"
                Text="{Binding Error}"
                IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <Grid x:Name="QueuedNote"
+          ColumnDefinitions="*,Auto"
+          Margin="16,0"
+          IsVisible="{Binding Queued, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <StackPanel Spacing="2">
+        <TextBlock Classes="caption" Text="Queued · sent when the agent next stops for you" />
+        <TextBlock x:Name="QueuedText"
+                   Classes="secondary"
+                   TextWrapping="Wrap"
+                   MaxLines="3"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{Binding Queued}" />
+      </StackPanel>
+      <Button x:Name="Withdraw"
+              Grid.Column="1"
+              Classes="quiet"
+              VerticalAlignment="Top"
+              Content="Withdraw"
+              Command="{Binding WithdrawCommand}"
+              AutomationProperties.Name="Withdraw the queued message" />
+    </Grid>
     <Border x:Name="Field"
             BorderThickness="1"
             CornerRadius="{DynamicResource RadiusCard}"
@@ -85,7 +106,7 @@
                 Margin="6,0,0,0"
                 VerticalAlignment="Center"
                 Command="{Binding SendCommand}"
-                ToolTip.Tip="Send (Ctrl+Enter)"
+                ToolTip.Tip="{Binding SendHint}"
                 AutomationProperties.Name="Send">
           <Path Classes="icon" Data="{StaticResource IconSend}" />
         </Button>

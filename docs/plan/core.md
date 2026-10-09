@@ -435,3 +435,20 @@ Done. Each item has its acceptance criteria as view model scripts, headless view
 10. **Thinking the harness did not share.** A thought that streamed no text reads "Thought for Ns · content not shared by the harness" and does not open; the simulator's `unshared-thought` scenario plays it.
 11. **The sidebar's decision badge.** Each row draws the count of decisions waiting on its job.
 12. **The overview's limits.** Hovering a connection's hub lists every limit window of the connection.
+
+## Gaps against the brief
+
+### C2: steer while the agent works, usage windows, settings editing
+
+Each item has its acceptance criteria as unit tests, view model scripts, headless view scripts where the view changed, and a host simulation test that drives the composed application on the simulator.
+
+1. **Write while the agent works.** A capability component, `AcceptsMessagesMidTurn`, declared by Claude Code and the simulator, lets a message join the running turn; without it the composer queues the message honestly and delivers it when the job next stops for a person.
+   - AC1 Given a session whose provider declares the component and a running turn, when `IAgents.SteerAsync` is called, then the provider receives a `UserTurn` marked `MidTurn`, the call returns the running turn, and the turn announces `MessageQueued` with the text.
+   - AC2 Given a provider that does not declare it, `SteerAsync` returns `Unsupported` without asking the provider; a session that is not open returns `SessionClosed`.
+   - AC3 The conformance kit: `CheckMidTurnAsync` passes for a provider that queues the message into the running turn and reports one that does not; `MessageQueued` from a provider that does not declare the component is a violation; the simulator passes both, with and without the component.
+   - AC4 Given a running job, `IJobs.SteerAsync` reaches its session and leaves it running; a job that is not running returns `NotRunning`, a provider that refuses returns `NotSteerable`, an empty message `EmptyMessage`.
+   - AC5 Given a running job whose session takes messages mid-turn, the composer says "Message the agent while it works…" and Send joins the turn; the conversation shows the message as "You, while it worked · joined the turn".
+   - AC6 Given a job working without the component, or starting, or checking, Send queues the message, the composer shows it with Withdraw, and the hint says it waits for when the agent stops; a refusal mid-turn falls back to the queue.
+   - AC7 Given queued messages, when the job next needs help they continue it, when it awaits review they send it back, all at once; a withdrawn message is never delivered; a job that ends drops them.
+   - AC8 The simulator's `steer` scenario waits for a message mid-turn and answers it in the same turn; Claude Code writes the message to the CLI and keeps the turn open until the result of the queued message.
+   - AC9 End to end in `SteeringTests`: on the default simulator connection a message sent from the composer joins the running turn and is answered before the single turn end; on a connection without the component it is queued, and after an interruption it continues the job as "You".

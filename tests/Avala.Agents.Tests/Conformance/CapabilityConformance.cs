@@ -67,6 +67,67 @@ internal static class CapabilityConformance
         }
     }
 
+    public const string Steering = "Keep the old namespace as an alias.";
+
+    public static async Task<IReadOnlyList<string>> CheckMidTurnAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
+        CancellationToken deadline)
+    {
+        if (!provider.CapabilitiesOn(options.Connection).Has<AcceptsMessagesMidTurn>())
+        {
+            return await AgentConformance.CheckTurnAsync(provider, options, instruction, deadline);
+        }
+
+        if (!(await provider.StartAsync(options, deadline)).TryGetValue(out var session, out var startError))
+        {
+            return [$"the session did not start: {startError}"];
+        }
+
+        await using (session)
+        {
+            if (!(await session.SendAsync(instruction, deadline)).TryGetValue(out var turn, out var sendError))
+            {
+                return [$"the turn was not accepted: {sendError}"];
+            }
+
+            var violations = new List<string>();
+            var queued = false;
+
+            await foreach (var agentEvent in session.Events.WithCancellation(deadline))
+            {
+                switch (agentEvent)
+                {
+                    case TurnStarted started when started.Turn == turn:
+                        violations.AddRange(Joined(await session.SendAsync(new UserTurn(Steering) { MidTurn = true }, deadline), turn));
+                        break;
+                    case TurnStarted started:
+                        violations.Add($"the message mid-turn started the turn {started.Turn.Value}");
+                        break;
+                    case MessageQueued message when message.Turn == turn && message.Text == Steering:
+                        queued = true;
+                        break;
+                    case TurnCompleted completed when completed.Turn == turn:
+                        return [.. violations, .. Steered(queued, completed.Outcome)];
+                }
+            }
+
+            return [.. violations, "the event stream ended before TurnCompleted"];
+        }
+    }
+
+    private static IEnumerable<string> Joined(Avala.Sdk.Result<TurnId, AgentError> sent, TurnId turn) =>
+        sent.Match<IEnumerable<string>>(
+            joined => joined == turn ? [] : [$"the message mid-turn joined the turn {joined.Value} instead of {turn.Value}"],
+            error => [$"the message mid-turn was refused: {error}"]);
+
+    private static IEnumerable<string> Steered(bool queued, TurnOutcome outcome) =>
+    [
+        .. queued ? [] : new[] { "the message mid-turn was not queued into the running turn" },
+        .. outcome == TurnOutcome.Finished ? [] : new[] { $"the steered turn ended {outcome}" },
+    ];
+
     private static IEnumerable<string> Missing<T>(CapabilitySet declared, bool reported, string violation)
         where T : ICapability =>
         declared.Has<T>() && !reported ? [violation] : [];

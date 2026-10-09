@@ -54,6 +54,9 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     public ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Approval.Map(delivery => new JobApproval(job, delivery)));
 
+    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken)
     {
         discarded.Enqueue(job);

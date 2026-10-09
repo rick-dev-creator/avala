@@ -16,6 +16,8 @@ internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin
 
 internal sealed record RestartEntry(string Key) : ITimelineEntry;
 
+internal sealed record InterjectionEntry(string Key, string Text) : ITimelineEntry;
+
 internal sealed record MessageEntry(string Key, string Text, Option<ItemOutcome> Outcome) : ITimelineEntry;
 
 internal sealed record ReasoningEntry(string Key, string Text, DateTimeOffset Started, Option<TimeSpan> Duration, Option<ItemOutcome> Outcome) : ITimelineEntry;

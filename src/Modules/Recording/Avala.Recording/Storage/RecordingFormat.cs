@@ -142,7 +142,15 @@ internal sealed class RecordingFormat
                 });
                 break;
             case Sent sent:
-                Object("send", () => Text("text", sent.Turn.Text));
+                Object("send", () =>
+                {
+                    Text("text", sent.Turn.Text);
+
+                    if (sent.Turn.MidTurn)
+                    {
+                        json.WriteBoolean("midTurn", true);
+                    }
+                });
                 break;
             case Responded responded:
                 Object("respond", () =>
@@ -261,6 +269,9 @@ internal sealed class RecordingFormat
                     json.WriteNumber("usedFraction", limit.Limit.UsedFraction);
                     Present(limit.Limit.ResetsAt, resets => json.WriteString("resetsAt", resets));
                 });
+                break;
+            case MessageQueued queued:
+                Text("text", queued.Text);
                 break;
             case ResumeTokenIssued issued:
                 Text("token", issued.Token.Value);
