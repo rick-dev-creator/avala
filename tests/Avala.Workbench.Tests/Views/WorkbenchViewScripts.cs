@@ -123,6 +123,18 @@ public sealed class SidebarViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task SubAgentsAreNestedUnderTheirOrchestratorAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignSidebarViewModel());
+            var rows = view.All<Button>().Where(button => button.DataContext is IJobRowViewModel).ToList();
+
+            Assert.Equal(3, rows.Count(row => row.Classes.Contains("child")));
+            Assert.All(rows.Where(row => row.Classes.Contains("child")), row => Assert.True(Avalonia.VisualExtensions.TranslatePoint(row, default, view.Window)?.X > Avalonia.VisualExtensions.TranslatePoint(rows[0], default, view.Window)?.X));
+            Assert.Contains("Rewrite webhook signature tests", view.VisibleTexts);
+        }, Cancellation);
+
+    [Fact]
     public Task TheKeyboardSelectsARowAsync() =>
         ui.RunAsync(() =>
         {

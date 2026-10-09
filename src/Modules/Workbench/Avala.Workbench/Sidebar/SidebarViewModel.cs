@@ -111,7 +111,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
             var before = row.Group;
             row.Update(job);
 
-            if (before != row.Group)
+            if (before != row.Group && OwnerOf(row) is null)
             {
                 GroupOf(before).Remove(row);
                 Insert(row);
@@ -123,14 +123,34 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         row = new JobRowViewModel(job);
         rows.Add(job.Job, row);
         Insert(row);
+        Adopt(row);
     }
 
     private void Insert(JobRowViewModel row)
     {
+        if (OwnerOf(row) is { } owner)
+        {
+            owner.Children.Insert(owner.Children.TakeWhile(other => other.Submitted <= row.Submitted).Count(), row);
+
+            return;
+        }
+
         var group = GroupOf(row.Group);
         var position = group.TakeWhile(other => other.Submitted >= row.Submitted).Count();
         group.Insert(position, row);
     }
+
+    private void Adopt(JobRowViewModel owner)
+    {
+        foreach (var child in rows.Values.Where(other => other.Parent == owner.Job).ToList())
+        {
+            GroupOf(child.Group).Remove(child);
+            Insert(child);
+        }
+    }
+
+    private JobRowViewModel? OwnerOf(JobRowViewModel row) =>
+        row.Parent.Match(parent => rows.GetValueOrDefault(parent), () => null);
 
     private ObservableCollection<JobRowViewModel> GroupOf(JobGroup group) => group switch
     {

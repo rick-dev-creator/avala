@@ -6,6 +6,7 @@
              x:ClassModifier="internal"
              x:DataType="sidebar:IJobRowViewModel"
              ClipToBounds="False"
+             Classes.child="{Binding IsChild}"
              Classes.ended="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Approved,Discarded'}">
   <Design.DataContext>
     <sidebar:DesignJobRowViewModel />
@@ -17,6 +18,20 @@
     <Style Selector=":is(UserControl).ended TextBlock#Title">
       <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
     </Style>
+    <Style Selector="ContentControl#Dot">
+      <Setter Property="Width" Value="7" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="Margin" Value="0,0,10,0" />
+    </Style>
+    <Style Selector=":is(UserControl).child TextBlock#Title">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+    </Style>
+    <Style Selector=":is(UserControl).child ContentControl#Dot">
+      <Setter Property="Width" Value="6" />
+      <Setter Property="Height" Value="6" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
     <Style Selector=":is(UserControl).ended TextBlock#Fact">
       <Setter Property="IsVisible" Value="False" />
     </Style>
@@ -25,9 +40,6 @@
     <ContentControl x:Name="Dot"
                     ClipToBounds="False"
                     Content="{Binding Dot}"
-                    Width="7"
-                    Height="7"
-                    Margin="0,0,10,0"
                     VerticalAlignment="Center" />
     <TextBlock x:Name="Title"
                Grid.Column="1"
