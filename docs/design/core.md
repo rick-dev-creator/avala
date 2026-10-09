@@ -39,7 +39,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
 | Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, the job's resume token and the autonomy a job asks for | `JobId`, `Autonomy`, integration events, `IJobs`, `ICompletionGate` |
-| Agents | Sessions, turn integrity, provider registry, the harness tools and resume tokens handed to providers by capability, and the forms agents ask humans to fill | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
+| Agents | Sessions, turn integrity, provider registry, the harness tools and resume tokens handed to providers by capability, the forms agents ask humans to fill, and the decorators every provider is started through | `IAgents`, `IAgentProvider`, `IAgentSession`, `IAgentProviderDecorator`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
 | Workspaces | Working copies, branches, checkpoints, and the files of the commit a job started from | `IWorkspaces`, `IBaseFiles`, integration events |
 | Canvas | Offers the canvas tool, accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
@@ -48,6 +48,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Permissions | Answers permission requests and forms through an explicit policy at the job's level of autonomy, takes a human's answers with their session rules, and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `AutonomyApplied`, `FormDecided`, `PermissionAnswered`, `IPermissionAudit`, `IPermissionAnswers` |
 | Supervision | Holds a job whose agent stays silent, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
 | Budgets | Holds a job that reaches a cap on cost or tokens, or a provider limit threshold, and records every intervention | `BudgetLoaded`, `BudgetIntervened`, `IBudgets` |
+| Recording | Records every provider session, when the data folder asks for it, as a file the simulator replays | None: it implements `IAgentProviderDecorator`, and its files are the [recording format](#session-recording-and-replay) |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
 
@@ -370,6 +371,7 @@ public interface IAgents
 
 - `OpenAsync` opens a session in the working directory of `AgentRequest` and returns an `OpenedSession`: its `SessionId` and whether it `Resumed` the conversation of the request's optional `Resume` token. `SendAsync` sends a message and returns the `AgentTurn` it started. Opening and sending are separate so the caller can store the session before any turn can finish: Jobs records it on the job first.
 - `SessionStarter` builds the `SessionOptions` from the provider's capabilities, so no caller decides for a provider: it passes the harness tools only to a provider that `AcceptsTools`, and the resume token only to one that `CanResume`. When such a provider rejects the token, it starts a fresh session instead, which is not `Resumed`.
+- **Decorators.** Before it starts a session, `SessionStarter` wraps the provider in every registered `IAgentProviderDecorator`, in registration order, so a plugin can observe or adapt every session of every provider without Agents knowing it. A decorator returns an `IAgentProvider` that keeps the provider's `Info` and `Capabilities`. The [recorder](#session-recording-and-replay) is the first one.
 - `IsOpen` says whether a session is open and its event stream has not ended. Jobs asks it before continuing a held job in its old session.
 - `RespondAsync` answers the permission request of a live session and returns the item it unblocked. A session that is not open returns `SessionClosed`.
 - `AnswerAsync` answers the open form of a live session, see [Human-input forms](#human-input-forms). A provider that does not declare `AsksQuestions` returns `Unsupported` without being asked; an item with no open form returns `NoPendingForm`; an answer that does not fit its form returns `InvalidAnswer`, and neither reaches the provider.
@@ -477,7 +479,7 @@ The generated [turn lifecycle diagram](../diagrams/turn-lifecycle.md) shows the 
 
 **Accepted**
 
-Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests and filling every form it asks with its recommended or first options. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. When the session was asked to `AskEveryTime`, it also reports every file edit and command that goes ahead, by progressing or succeeding, without having asked permission first. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes in `AskEveryTime`, the mode Agents uses, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
+Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests and filling every form it asks with its recommended or first options. It reports items left open, rejected events, a missing `TurnStarted`, turns that never end and turns that end other than `Finished`, since nothing in the check fails or interrupts them; a replay that diverges ends its turn `Failed`, so the kit reports it too. When the session was asked to `AskEveryTime`, it also reports every file edit and command that goes ahead, by progressing or succeeding, without having asked permission first. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes in `AskEveryTime`, the mode Agents uses, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit also runs on every committed [regression recording](#regression-fixtures), replayed by the simulator, so a recorded session of a real provider is checked by the same kit as the provider itself. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
 
 Every addition to the provider contract arrives with a check of the kit, the simulator implementing it and, through the simulator, a host simulation test:
 
@@ -496,7 +498,7 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 `Avala.Simulator` is a provider plugin that plays a Claude Code session without a model, so the harness runs end to end for demos and for catching bugs without spending tokens. It depends only on `Agents.Contracts` and the SDK, the same contracts a real provider uses, and registers itself as an `IAgentProvider`.
 
 - Scenarios are declarative data in its domain, the `Scenarios` folder: one ordered script per turn, made of reasoning, message deltas, file edits, commands with output, permission requests, plan updates, usage with cost, a usage limit, streamed canvases and the end of the turn. A session advances to the next script with every turn, so a scenario can change its behavior after feedback.
-- The first message of a session chooses the scenario with a tag such as `[simulate: fix-after-feedback]`. Without a tag, or with an unknown name, the scenario is `reply`. Later messages never change it.
+- The first message of a session chooses the scenario with a tag such as `[simulate: fix-after-feedback]`. Without a tag, or with an unknown name, the scenario is `reply`. Later messages never change it. `[replay: <recording>]` and `[replay as recorded: <recording>]` choose a [recorded session](#replay) instead.
 - File edits write real files into the session's working directory through a port of `Playback`, implemented in `FileSystem`, which creates missing folders.
 - It honors the permission mode like Claude Code: in `AskEveryTime` every file edit and every command asks first, naming the file's full path or the command line, and an edit is written only once allowed; in `AllowEdits` edits go ahead and only the commands a scenario marks as asking do ask; in `AllowAll` nothing asks. A denied edit or command is cancelled and the turn finishes; a denial with a message is answered first with a reply that repeats it, `Understood, I will not go on: <message>`, so a test sees the message reach the agent.
 - **Forms.** A scenario step asks a form as declarative data and waits for `AnswerAsync`; an answer for any other item is `NoPendingForm`. It then reports the answer, closes the item, cancelled when declined, and replies with what it goes on with, such as `Going with Database: PostgreSQL`. A declined form, or a confirmation left unconfirmed, ends the turn there, like a denial.
@@ -524,6 +526,90 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `canvas` | Draws an SVG and a Mermaid diagram through the canvas tool, in chunks |
 
 Every scenario that reaches its end reports usage with cost and a usage limit, so observability can be exercised.
+
+### Session recording and replay
+
+**Accepted**
+
+A session of any provider can be recorded once and replayed by the simulator as often as needed. When the real Claude Code adapter arrives, its sessions become simulator scenarios and regression tests, so the simulator converges on reality and every quirk of the adapter is pinned by a test.
+
+#### Recording
+
+- **A plugin of its own.** The Recording module implements `IAgentProviderDecorator`: every session Agents starts goes through it, whatever the provider. It depends only on `Agents.Contracts` and the SDK, so it records what the harness sees, the agnostic level, never a provider's protocol.
+- **Off by default.** It records only when `recording.json` in the data folder says so, read once, parsed strictly like the other settings files: unknown fields, duplicate fields, values of the wrong type and files over 16 KiB are rejected, and a rejected file records nothing and logs why.
+
+```json
+{ "enabled": true, "redact": ["ana@example.com", "sk-ant-..."] }
+```
+
+- **What it records.** The session's provider, capabilities and account; its permission mode, whether it was asked to resume and the name and surface of its tools; every agnostic event in the order the harness received it; every input the harness sent: user turns, permission decisions with their message, form answers, interruptions, each with the error the provider refused it with, if it did; how the event stream ended, closed or crashed; and the stop of the session by the harness. Every entry carries its time since the session started, in milliseconds, measured with `TimeProvider`.
+- **Edited files.** The agnostic events do not carry what an edit wrote, so the recorder reads it: when an edit item whose permission request named its file succeeds, the content of that file, up to 1 MiB of text, is recorded before the item's completion, with its path relative to the working directory. Every session opens in `AskEveryTime`, so every edit names its file. A deleted file, a binary file or an edit that never asked is not captured.
+- **What it never records.** The working directory, replaced everywhere by `${workingDirectory}`; the resume token passed to the provider; the descriptions and schemas of the tools; environment variables, settings, credentials and anything else the agnostic contract does not carry. A crash is recorded without its exception, whose message could hold anything.
+- **Redaction.** Every text of the recording, titles, targets, messages, answers, file contents, account labels and tokens included, has each string of `redact` replaced by `[redacted]`. Redaction is literal, so it is only as good as the list; a recording is meant to be read before it is shared.
+- **Files.** One file per session, `recordings/<yyyyMMddTHHmmssZ>-<session>.json` under the data folder. The decorator never writes: it hands each entry to `RecordingFiles`, the single reader of a channel, which owns every open recording and rewrites the session's file, through a temporary file it then moves, when a turn completes, when the stream ends, when the session stops and when the application shuts down. Recording never delays the agent beyond reading an edited file.
+
+#### Format
+
+The format is `avala-recording`, version 1. A reader refuses another version; within a version, fields may be added, and readers ignore the fields and entry kinds they do not know.
+
+```json
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T08:30:00+00:00",
+  "provider": { "id": "claude-code", "name": "Claude Code" },
+  "capabilities": { "streamsPartialOutput": true, "exposesReasoning": true, "canInterrupt": true, "canResume": true, "acceptsTools": true, "reportsUsage": true, "reportsCost": true, "reportsLimits": true, "asksQuestions": true },
+  "account": { "id": "account-1", "label": "[redacted]" },
+  "options": { "permissions": "askEveryTime", "resumed": false, "tools": [ { "name": "canvas", "surface": "canvas" } ] },
+  "entries": [
+    { "at": 0, "send": { "text": "Add a greeting" } },
+    { "at": 40, "event": { "type": "turnStarted", "turn": 1 } },
+    { "at": 90, "event": { "type": "permissionRequested", "turn": 1, "item": "edit", "title": "Edit GREETING.md", "kind": "fileEdit", "target": "${workingDirectory}/GREETING.md" } },
+    { "at": 95, "respond": { "item": "edit", "answer": "allow" } },
+    { "at": 96, "event": { "type": "permissionResolved", "turn": 1, "item": "edit", "answer": "allow" } },
+    { "at": 120, "file": { "item": "edit", "path": "GREETING.md", "content": "# Hello\n" } },
+    { "at": 121, "event": { "type": "itemCompleted", "turn": 1, "item": "edit", "outcome": "succeeded" } },
+    { "at": 130, "interrupt": {}, "refused": "noTurnInProgress" },
+    { "at": 200, "stop": {} }
+  ]
+}
+```
+
+- `account` is absent when the provider reports none. Enumerations are written in camel case, such as `askEveryTime` or `fileEdit`.
+- Each entry has `at` and exactly one of: `event`, an agnostic event; `file`, the content an edit left; `send`, `respond`, `answer` and `interrupt`, the harness's inputs, with `refused` when the provider returned an `AgentError`; `end`, with `crashed`; `stop`.
+- An event has a `type`, the camel-cased name of its record such as `itemProgressed`, and `turn`, the turn's number in the session from 1, instead of the session and turn identifiers. Its other fields are the record's own, with the same nesting: `form`, `answer`, `steps`, `tokens`, `cost`, `limit`. An item is its identifier as text.
+
+#### Replay
+
+- **Converted, not a second format.** The simulator's declarative scenarios stay C# data in its domain: they are written by hand, at the level of intentions such as "write this file" and "run this command", and they adapt to the permission mode and the tools. A recording is a different thing, a transcript at the level of events, so it is not a scenario format; the simulator converts it into a scenario of replay steps when it is chosen, and the same session plays both. Recording files are the only format on disk.
+- **Chosen by name.** `[replay: edit-allowed]` in the first message replays `recordings/edit-allowed.json` of the data folder, the folder the recorder writes to. A name is letters, digits, `-`, `_` and `.`, not starting with a dot, so a tag never reaches outside the folder.
+- **Turns.** Each recorded `turnStarted` starts a turn of the scenario, and the session's `SendAsync` plays them in order; what the user turn says is not compared, since the harness writes feedback with durations and other details that change. Every event is replayed as the session's own, with its session and turn, `${workingDirectory}` replaced by the replaying session's working directory, and the replay's own resume token in place of the recorded one: a session resumed with it continues the recording at its next turn. A `file` entry writes its content through the simulator's `IFileWriter` at the point it was recorded. A recorded crash makes the stream fail, a recorded end closes it.
+- **Inputs.** A recorded permission request or form waits, like the real agent, for the harness's answer, and the answer must be the recorded one: the same `Allow` or `Deny` and message, or the same form answer field by field. An answer the provider refused at the time is not expected again. A recorded interruption waits to be interrupted.
+- **Divergence.** When the harness does something the recording did not, the replay says so instead of going on: an item titled `Replay diverged` reports what was expected and what came, such as `Replay diverged: the recording answered the permission for edit with Allow, but the harness answered Deny "Not now".`, the turn ends `Failed` and the session's stream closes, so the job fails and nothing silently continues. Divergences are a different answer, an answer to something the recording never answered, an interruption the recording never made, a turn beyond the recorded ones, a session opened in another permission mode than the recorded one, and a recording that cannot be read: absent, malformed or of another version.
+- **Timing.** `[replay: …]` compresses the recording, played at the simulator's pace; `[replay as recorded: …]` waits the recorded time between entries, measured with `TimeProvider`.
+- **Provider identity.** The replay runs inside the simulator, the one registered provider, so the session reports the simulator's provider, capabilities and account, not the recorded ones, which the file keeps for reference. A recording whose provider lacked a capability the harness then relies on, such as interruption, diverges and says so.
+
+#### Regression fixtures
+
+`tests/recordings` holds recordings committed as tests. Each `<name>.json` comes with `<name>.expected.json`:
+
+```json
+{
+  "record": "[simulate: edit] Greet the team",
+  "repository": { ".avala/permissions.json": "{ \"rules\": [] }" },
+  "journey": ["Running", "Checking", "AwaitingReview"],
+  "permissions": ["edits-inside-the-workspace FileEdit GREETING.md Allow Answered"],
+  "forms": [],
+  "verifications": ["1 NoChecksDeclared"],
+  "files": { "GREETING.md": "# Hello\n" }
+}
+```
+
+- `repository` is committed to the job's repository before it runs. The expectations are the job's journey from `Running`, each permission decision of its audit as `rule kind target answer delivery`, each form decision as `delivery autonomy` and its assumptions, each verification as `attempt outcome`, and the content the worktree's files must end with.
+- `RecordedSessionTests` in the host tests replays every committed recording in the real application with the `[replay: <name>]` tag and checks its expectations. When the fixture has `record`, the instruction of a simulator scenario, it also runs that scenario with recording on, checks the expectations, replays the new recording and checks that the replay reaches the same outcome. `AVALA_UPDATE_RECORDINGS=1` writes the new recordings over the committed ones.
+- The conformance kit runs on every committed recording replayed by the simulator.
+- A recording of a real provider is added with its expectations and no `record`: the round trip is skipped for it, since the tests cannot run that provider.
+- The fixtures are `edit`, `fix-after-feedback`, two turns with a failed then a passed verification, and `question-autonomous`, a form answered by the policy.
 
 ## Canvas
 
@@ -1011,6 +1097,15 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 
 `BudgetCaps` has `CostPerJob`, a list of `Cost` caps, one per currency; `TokensPerJob`, an `Option<long>`; and `HoldAtLimit`, an `Option<double>`. `BudgetIntervention` carries `Hold`, the `JobHold`; `Breach`; and `At`. A `BudgetBreach` states the measured facts: `Measure` (`Cost`, `Tokens`, `Limit` or `Declaration`), `Subject` (the currency, `tokens`, the limit window or the budget file), `Measured` and `Cap` as decimals (spent against cap, or the limit fraction used against the threshold; both 0 for a declaration) and `Error`, the `Option<BudgetError>` of an invalid declaration.
 
+### Recording
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `recordings/<yyyyMMddTHHmmssZ>-<session>.json` | File in the data folder | A recording in the [format](#format) `avala-recording` version 1 | Only when `recording.json` enables recording. Written whole when a turn completes, the stream ends, the session stops and the application shuts down | One per session started while recording is on, kept until someone deletes it |
+| `Replay diverged` | Item of a replayed turn | `ItemStarted` of kind `Other` with the item `replay-divergence`, one `ItemProgressed` with the reason, `ItemCompleted` as `Failed`, then `TurnCompleted` as `Failed` | When a replayed session meets an input or a turn its recording does not hold | At most one per replayed session, which closes after it |
+
+The module publishes no event and answers no query: a recording is a file for people and tests, and a replay is an ordinary simulated session.
+
 ## Delivery
 
 **Accepted**
@@ -1046,7 +1141,7 @@ Jobs run in parallel, each in its own queue, so the aggregate of one job may cha
 
 ### Data folder
 
-The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PATH` when set, otherwise `Avala` under the local application data folder. It locates the database files and the worktree root. The composition root receives it, so the host tests point it at a temporary folder.
+The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PATH` when set, otherwise `Avala` under the local application data folder. It locates the database files, the worktree root, the settings files `supervision.json` and `recording.json`, and the `recordings` folder the recorder writes and the simulator replays from. The composition root receives it, so the host tests point it at a temporary folder.
 
 ### Startup tasks
 

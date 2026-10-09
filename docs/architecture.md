@@ -14,10 +14,12 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `src/Modules/<Module>/Avala.<Module>` | Module core: domain, use cases, infrastructure and view models, in feature folders. Everything is `internal`. |
 | `src/Modules/<Module>/Avala.<Module>.UI` | Module views and its single public type: the plugin entry. |
 | `src/Modules/<Module>/Avala.<Module>.Contracts` | Optional public contracts other modules may depend on. |
-| `src/Modules/Simulator/Avala.Simulator` | A provider plugin that plays scripted Claude Code sessions through the public agent contracts only, for demos and tests without tokens: it resumes its conversations, draws through the injected canvas tool, asks questions and plan approvals through forms and reports an account. Its plugin entry lives in the core, since it has no views. |
+| `src/Modules/Simulator/Avala.Simulator` | A provider plugin that plays scripted Claude Code sessions through the public agent contracts only, for demos and tests without tokens: it resumes its conversations, draws through the injected canvas tool, asks questions and plan approvals through forms, reports an account and replays recorded sessions. Its plugin entry lives in the core, since it has no views. |
+| `src/Modules/Recording/Avala.Recording` | A plugin that decorates every agent provider and, when `recording.json` in the data folder enables it, records each session as a file the simulator replays. No contracts and no views. |
 | `tests/Avala.ArchitectureTests` | The rules below, enforced on every build. |
 | `tests/Avala.ArchitectureTests.Fixtures` | A compliant sample module and a module that breaks every rule on purpose. |
-| `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider whose capabilities, resume and account a test chooses, temporary folders and git repositories, committed rule files behind `IBaseFiles`, event watches with a safety timeout, generated diagrams. |
+| `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider whose capabilities, resume and account a test chooses, temporary folders and git repositories, committed rule files behind `IBaseFiles`, event watches with a safety timeout, generated diagrams, the regression recordings. |
+| `tests/recordings` | Recorded sessions committed as regression tests, each with its expected outcome, see the [core design](design/core.md#regression-fixtures). Refresh the ones recorded from the simulator with `AVALA_UPDATE_RECORDINGS=1 dotnet test --solution Avala.slnx`. |
 | `tests/Avala.<Project>.Tests` | Unit tests. |
 | `tests/Avala.Integration.Tests` | End-to-end tests that compose the real modules through their public plugin entries, over a real git repository and SQLite. Not part of `Avala.UnitTests.slnf`. |
 | `tests/Avala.Host.Tests` | Simulation tests of the real application: the composition root built from the published plugin folder, driven by the simulator over a real git repository. Not part of `Avala.UnitTests.slnf`. |
@@ -38,7 +40,7 @@ Inside a module, folders and namespaces are named after what the code does: its 
 | `Storage` | The EF Core store behind `IJobStore` | Infrastructure |
 | `JobList` | The jobs page view model | ViewModels |
 
-The other cores follow the same idea: Agents has `Turns` and `Sessions`; Workspaces has `Workspaces`, `Provisioning`, `BaseFiles`, `Git` and `Storage`; Canvas has `Canvases`, `Drawing`, `Gallery`, `Streaming` and `Throttling`; Observability has `Usage`, `Tracking` and `Metrics`; Verification has `Checks`, `Verifying` and `Evidence`; Permissions has `Policies`, `Governance`, `Answering` and `PolicyFiles`; Supervision has `Watching`, `Supervising` and `Settings`; Budgets has `Caps`, `Enforcement` and `BudgetFiles`; the simulator has `Scenarios`, `Playback` and `FileSystem`. Plugin entries stay at the root of their project, and `Contracts` projects keep their own names.
+The other cores follow the same idea: Agents has `Turns` and `Sessions`; Workspaces has `Workspaces`, `Provisioning`, `BaseFiles`, `Git` and `Storage`; Canvas has `Canvases`, `Drawing`, `Gallery`, `Streaming` and `Throttling`; Observability has `Usage`, `Tracking` and `Metrics`; Verification has `Checks`, `Verifying` and `Evidence`; Permissions has `Policies`, `Governance`, `Answering` and `PolicyFiles`; Supervision has `Watching`, `Supervising` and `Settings`; Budgets has `Caps`, `Enforcement` and `BudgetFiles`; the simulator has `Scenarios`, `Playback`, `FileSystem` and `Recordings`, where it reads the recordings it replays; Recording has `Recordings`, the domain of a recording and its redaction, `Capturing`, the decorator and its ports, `Settings` and `Storage`, the files and their format. Plugin entries stay at the root of their project, and `Contracts` projects keep their own names.
 
 ### Layer map
 
@@ -65,6 +67,7 @@ Enforced by `tests/Avala.ArchitectureTests`:
 - No type spans more than 600 lines, counting every part of a partial type.
 - Every script is C#, and CI steps only invoke `dotnet`.
 - The SDK, the runtime, the shell and every module core have a unit test project.
+- No test is lost to an attribute the runner cannot read. Every custom attribute of every built test assembly is decoded from its metadata, constructor signature and arguments included, enum values and `typeof` arguments too, and none may name a type of an `Avala.*` assembly that is missing from the test project's output folder. The runner reads test attributes before any fixture loads the plugin folder, so such a type cannot load, and the runner drops the tests it carries. The rule reads the test assemblies the build produced, so it runs after `dotnet build Avala.slnx`, as `dotnet test --solution` and the CI do.
 - Every namespace of a module assembly is declared in the [layer map](#layer-map).
 - The DDD and layer rules of the [core design](design/core.md#architecture-rules-to-add), with each type's layer taken from the layer map.
 - Only infrastructure types of the modules depend on `Microsoft.EntityFrameworkCore`.
@@ -89,7 +92,7 @@ A new capability, such as GitHub, Linear or another way to isolate work than git
 | --- | --- | --- |
 | Integration events on the bus | React to what happened | A GitHub plugin opens a pull request when `JobProgressed` reports an approved job. A Linear plugin moves an issue when a job starts or reaches review. A notifier reacts to `JobHeld`. |
 | Contracts injected through DI | Ask for an answer or ask for an action | A GitHub plugin reads a job's branch through `IWorkspaces`. A Linear plugin submits a job through `IJobs.SubmitAsync`. |
-| Extension points the core defines and plugins implement | Let the core use something it does not know | `IAgentProvider` and `ICompletionGate` today: Jobs runs every registered gate, so a gate that waits for GitHub's CI needs no change in Jobs. Later, a source of jobs and other isolation strategies, chosen by declared capabilities. |
+| Extension points the core defines and plugins implement | Let the core use something it does not know | `IAgentProvider`, `IAgentProviderDecorator` and `ICompletionGate` today: Jobs runs every registered gate, so a gate that waits for GitHub's CI needs no change in Jobs, and Agents starts every provider through every registered decorator, which is how the Recording plugin records sessions. Later, a source of jobs and other isolation strategies, chosen by declared capabilities. |
 
 - Events state facts. Never ask for something over the bus and wait for a reply: that hides a dependency a contract would make explicit.
 - A plugin depends only on the SDK and other modules' `Contracts`, never on their internals, as the [rules](#rules) enforce.
@@ -112,7 +115,7 @@ Comments are banned, so every exception to an analyzer is recorded here.
 
 ## Plugins
 
-A project becomes a plugin with `<AvalaPlugin>true</AvalaPlugin>` and `<EnableDynamicLoading>true</EnableDynamicLoading>`. Every module entry is one: Agents, Workspaces, the Jobs UI, Canvas, Observability, Verification, Permissions, Supervision, Budgets and the simulator. Its build output is copied to `artifacts/plugins/<AssemblyName>`. The host loads every folder there, or the folder named by `AVALA_PLUGINS_PATH`, in folder name order.
+A project becomes a plugin with `<AvalaPlugin>true</AvalaPlugin>` and `<EnableDynamicLoading>true</EnableDynamicLoading>`. Every module entry is one: Agents, Workspaces, the Jobs UI, Canvas, Observability, Verification, Permissions, Supervision, Budgets, Recording and the simulator. Its build output is copied to `artifacts/plugins/<AssemblyName>`. The host loads every folder there, or the folder named by `AVALA_PLUGINS_PATH`, in folder name order.
 
 All plugins share the host's default load context, so every assembly is loaded once:
 
@@ -122,7 +125,7 @@ All plugins share the host's default load context, so every assembly is loaded o
 
 Isolating each plugin in its own load context would load a `Contracts` assembly once per plugin and break every cross-module contract. Isolation can come back, as one shared context for module contracts plus private contexts, if a third-party plugin ever needs a dependency that conflicts with another plugin.
 
-The host knows no module: the loader only scans folders and instantiates the `IPlugin` types it finds. `tests/Avala.Host.Tests` composes the application from the published folder exactly as the host does at startup. Like the host, it does not ship the module contracts it compiles against, so they come from the plugin folder, which its assembly fixture loads before any test runs. Test attributes are read before that fixture, so they must not name a contract type, such as an enum value of `Autonomy` in an `InlineData`: the runner cannot load it and drops the whole class without failing the run.
+The host knows no module: the loader only scans folders and instantiates the `IPlugin` types it finds. `tests/Avala.Host.Tests` composes the application from the published folder exactly as the host does at startup. Like the host, it does not ship the module contracts it compiles against, so they come from the plugin folder, which its assembly fixture loads before any test runs. Test attributes are read before that fixture, so they must not name a contract type, such as an enum value of `Autonomy` in an `InlineData` or a `typeof` of a contract in a class attribute: the runner cannot load it and drops the tests of that class. Depending on the runner, the run has reported that as class cleanup failures or stayed green with fewer tests, so an [architecture rule](#rules) rejects such an attribute in every test assembly, whatever the runner does with it; pass the name of an enum value and parse it in the test instead.
 
 ## Testing
 
