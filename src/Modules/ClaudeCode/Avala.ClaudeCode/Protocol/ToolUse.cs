@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
 using Avala.Sdk;
@@ -11,6 +12,12 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
     private const int DetailsLength = 16 * 1024;
 
     private const string Selected = "select:";
+
+    private static readonly ImmutableHashSet<string> Ungated = new[]
+    {
+        "Read", "Grep", "Glob", "LS", "NotebookRead", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "ToolSearch", "Skill",
+        "AskUserQuestion", "ExitPlanMode", "EnterPlanMode", "Task", "Agent", "BashOutput", "TaskOutput",
+    }.ToImmutableHashSet(StringComparer.Ordinal);
 
     public ItemKind Kind => Name switch
     {
@@ -34,8 +41,7 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
         _ => Name,
     };
 
-    public bool Gated => Name is not ("Read" or "Grep" or "Glob" or "LS" or "NotebookRead" or "TodoWrite" or "TaskCreate" or "TaskUpdate" or "TaskList" or "TaskGet" or "ToolSearch" or "Skill"
-        or "AskUserQuestion" or "ExitPlanMode" or "EnterPlanMode" or "Task" or "Agent" or "BashOutput" or "TaskOutput");
+    public bool Gated => !Ungated.Contains(Name);
 
     public bool ReadsOutside(string workingDirectory) =>
         Name is "Read" or "NotebookRead" or "Grep" or "Glob" or "LS"

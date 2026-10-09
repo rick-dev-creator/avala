@@ -56,12 +56,14 @@ public sealed class StreamTests
         "Edit b.txt",
         "/work/b.txt",
         "- x\n+ y\n\n- p\n- q\n+ r")]
+    [InlineData("NotebookEdit", """{ "notebook_path": "/work/n.ipynb", "new_source": "print(1)" }""", ItemKind.FileEdit, "Edit n.ipynb", "/work/n.ipynb", "print(1)")]
     [InlineData("Bash", """{ "command": "dotnet test\nmore", "description": "Run the tests" }""", ItemKind.Command, "Run dotnet test", "dotnet test\nmore", "dotnet test\nmore")]
     [InlineData("Grep", """{ "pattern": "TODO", "path": "/work/src", "glob": "*.cs" }""", ItemKind.Search, "Search TODO", "TODO", "TODO in src *.cs")]
     [InlineData("Glob", """{ "pattern": "**/*.cs" }""", ItemKind.Search, "Search **/*.cs", "**/*.cs", "**/*.cs")]
     [InlineData("WebFetch", """{ "url": "https://example.com", "prompt": "Read" }""", ItemKind.Web, "Fetch https://example.com", "https://example.com", "https://example.com\nRead")]
     [InlineData("WebSearch", """{ "query": "avalonia" }""", ItemKind.Web, "Search the web for avalonia", "avalonia", "avalonia")]
     [InlineData("mcp__github__list", """{ }""", ItemKind.Mcp, "mcp__github__list", "mcp__github__list", "")]
+    [InlineData("mcp__github__issue", """{ "number": 7 }""", ItemKind.Mcp, "mcp__github__issue", "mcp__github__issue", """{"number":7}""")]
     [InlineData("Agent", """{ "description": "Explore", "prompt": "Look", "subagent_type": "Explore" }""", ItemKind.Subagent, "Subagent: Explore", "Explore", "Look")]
     [InlineData("Read", """{ "file_path": "/work/a.txt" }""", ItemKind.Other, "Read a.txt", "/work/a.txt", "a.txt")]
     [InlineData("ToolSearch", """{ "query": "select:mcp__avala__canvas", "max_results": 1 }""", ItemKind.Other, "Load mcp__avala__canvas", "ToolSearch", "select:mcp__avala__canvas")]
@@ -219,6 +221,14 @@ public sealed class StreamTests
                 new UsageLimit("7d", 0.99, DateTimeOffset.FromUnixTimeSeconds(1791691200)),
             ],
             talk.Events.OfType<LimitReported>().Select(reported => reported.Limit));
+    }
+
+    [Fact]
+    public void ARateLimitEventOutsideATurnReportsNothing()
+    {
+        var talk = new Talk().Receive(Cli.RateLimit());
+
+        Assert.Empty(talk.Events);
     }
 
     [Fact]
