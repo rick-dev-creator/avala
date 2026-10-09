@@ -3,6 +3,7 @@ using Avala.Budgets.Admission;
 using Avala.Budgets.BudgetFiles;
 using Avala.Budgets.Contracts;
 using Avala.Budgets.Enforcement;
+using Avala.Budgets.Routing;
 using Avala.Budgets.Storage;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -33,6 +34,7 @@ public sealed class BudgetsPlugin : IPlugin
             .AddSingleton<BudgetFileReader>()
             .AddSingleton<IBudgetFiles>(services => services.GetRequiredService<BudgetFileReader>())
             .AddSingleton<IRepositoryBudgets>(services => services.GetRequiredService<BudgetFileReader>())
+            .AddSingleton<IConnectionSelector, CapacitySelector>()
             .AddSingleton<BudgetActions>()
             .AddSingleton<IHandle<SessionOpened>, BudgetLoader>()
             .AddSingleton<BudgetEnforcer>()

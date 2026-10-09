@@ -16,18 +16,19 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
 {
     private readonly Dictionary<JobId, SessionId> sessions = [];
     private readonly Dictionary<JobId, JobStatus> statuses = [];
+    private readonly List<(JobId Child, JobId Parent)> uncarved = [];
 
     private Lineage Tree => new(book.Carves, Spent, Ended);
 
-    public async ValueTask HandleAsync(JobSubmitted integrationEvent, CancellationToken cancellationToken) =>
-        await integrationEvent.Parent.Match(
-            parent => actions.CarveAsync(
-                AllowanceOf(parent).CarveFor(parent, integrationEvent.Job, Tree.CommittedBy(parent), actions.Now),
-                cancellationToken),
-            () => Task.CompletedTask);
+    public async ValueTask HandleAsync(JobSubmitted integrationEvent, CancellationToken cancellationToken)
+    {
+        uncarved.AddRange(integrationEvent.Parent.Match<IEnumerable<(JobId, JobId)>>(parent => [(integrationEvent.Job, parent)], () => []));
+        await CarveKnownAsync(cancellationToken);
+    }
 
     public async ValueTask HandleAsync(BudgetLoaded integrationEvent, CancellationToken cancellationToken)
     {
+        await CarveKnownAsync(cancellationToken);
         foreach (var job in sessions.Where(tied => tied.Value == integrationEvent.Budget.Session).Select(tied => tied.Key).ToList())
         {
             await EnforceAsync(job, cancellationToken);
@@ -37,6 +38,7 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
     public async ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
     {
         sessions[integrationEvent.Job] = integrationEvent.Session;
+        await CarveKnownAsync(cancellationToken);
         await EnforceAsync(integrationEvent.Job, cancellationToken);
     }
 
@@ -62,6 +64,24 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
         }
     }
 
+    private async Task CarveKnownAsync(CancellationToken cancellationToken) =>
+        await uncarved
+            .Select(waiting => AllowanceOf(waiting.Parent).Map(allowance => (waiting.Child, waiting.Parent, Allowance: allowance)))
+            .FirstOrDefault(known => known.IsSome)
+            .Match(known => CarveAsync(known.Child, known.Parent, known.Allowance, cancellationToken), () => Task.CompletedTask);
+
+    private async Task CarveAsync(JobId child, JobId parent, BudgetCaps allowance, CancellationToken cancellationToken)
+    {
+        uncarved.Remove((child, parent));
+        await actions.CarveAsync(allowance.CarveFor(parent, child, Tree.CommittedBy(parent), actions.Now), cancellationToken);
+        foreach (var job in LineOf(child))
+        {
+            await EnforceAsync(job, cancellationToken);
+        }
+
+        await CarveKnownAsync(cancellationToken);
+    }
+
     private async Task EnforceAsync(JobId job, CancellationToken cancellationToken)
     {
         if (statuses.GetValueOrDefault(job) != JobStatus.Running || !sessions.TryGetValue(job, out var session))
@@ -77,14 +97,10 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
             .Match(breach => actions.HoldAsync(job, breach, cancellationToken), () => Task.CompletedTask);
     }
 
-    private BudgetCaps AllowanceOf(JobId job)
-    {
-        var own = sessions.TryGetValue(job, out var session)
-            ? book.Budgeted(session).Match(budgeted => budgeted.Budget.Caps, () => Breaches.Unlimited)
-            : Breaches.Unlimited;
-
-        return own.Within(book.CarveOf(job));
-    }
+    private Option<BudgetCaps> AllowanceOf(JobId job) =>
+        sessions.TryGetValue(job, out var session) && !uncarved.Exists(waiting => waiting.Child == job)
+            ? book.Budgeted(session).Map(budgeted => budgeted.Budget.Caps.Within(book.CarveOf(job)))
+            : Option<BudgetCaps>.None;
 
     private IReadOnlyList<JobId> LineOf(JobId job) =>
         [job, .. book.CarveOf(job).Match(carve => LineOf(carve.Parent), () => [])];

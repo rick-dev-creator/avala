@@ -65,6 +65,17 @@ public sealed class CanvasSurfaceViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ACanvasThatWasNotOfferedShowsItsSourceWithANoteEvenWhenARendererKnowsItsKindAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Show(Surface(Draft("circle", CanvasPhase.Completed) with { IsOffered = false }));
+
+            Assert.Equal("Avala does not offer text/x-sketch canvases to agents, so this one is not drawn. Showing its source.", view.TextOf("CanvasNote"));
+            Assert.Equal("circle", Source(view));
+            Assert.Empty(Drawings(view));
+        }, Cancellation);
+
+    [Fact]
     public Task AFinishedCanvasThatCannotBeRenderedShowsItsSourceWithANoteAsync() =>
         ui.RunAsync(() =>
         {
@@ -172,7 +183,7 @@ public sealed class CanvasSurfaceViewScripts(HeadlessUi ui)
         {
             var view = Show(new DesignCanvasSurfaceViewModel());
 
-            Assert.Equal(("Rounding path", "Mermaid", "3 of 3"), (view.TextOf("Title"), view.TextOf("MediaLabel"), view.TextOf("VersionText")));
+            Assert.Equal(("Rounding path", "SVG", "3 of 3"), (view.TextOf("Title"), view.TextOf("MediaLabel"), view.TextOf("VersionText")));
             Assert.Equal(DesignCanvasSurfaceViewModel.RoundingPath, Source(view));
         }, Cancellation);
 
@@ -227,7 +238,7 @@ public sealed class CanvasSurfaceViewScripts(HeadlessUi ui)
             }
         }
 
-        public bool Renders(string mediaType) => mediaType == Sketch;
+        public string MediaType => Sketch;
 
         public Option<Control> Render(string content) =>
             content.EndsWith('!') ? Option<Control>.None : new TextBlock { Name = "Sketch", Text = $"drawn: {content}" };

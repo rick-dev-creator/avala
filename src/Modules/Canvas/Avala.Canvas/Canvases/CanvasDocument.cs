@@ -13,12 +13,13 @@ internal sealed class CanvasDocument : IAggregateRoot<CanvasId>
     private readonly StringBuilder content = new();
     private readonly StateMachine<CanvasState, CanvasTrigger> machine;
 
-    private CanvasDocument(CanvasStarted started)
+    private CanvasDocument(CanvasStarted started, bool offered)
     {
         Id = new CanvasId(started.Turn, started.Item);
         Session = started.Session;
         Title = started.Title;
         MediaType = started.MediaType;
+        IsOffered = offered;
         machine = CanvasLifecycle.Create(() => State, state => State = state);
     }
 
@@ -30,12 +31,16 @@ internal sealed class CanvasDocument : IAggregateRoot<CanvasId>
 
     public string MediaType { get; }
 
+    public bool IsOffered { get; }
+
+    public Option<CanvasError> Rejection => IsOffered ? Option<CanvasError>.None : CanvasError.NotOffered;
+
     public CanvasState State { get; private set; } = CanvasState.Streaming;
 
     public string Content => content.ToString();
 
-    public static Result<CanvasDocument, CanvasError> Open(CanvasStarted started) =>
-        string.IsNullOrWhiteSpace(started.MediaType) ? CanvasError.MissingMediaType : new CanvasDocument(started);
+    public static Result<CanvasDocument, CanvasError> Open(CanvasStarted started, bool offered) =>
+        string.IsNullOrWhiteSpace(started.MediaType) ? CanvasError.MissingMediaType : new CanvasDocument(started, offered);
 
     public Result<ContentAppended, CanvasError> Append(ItemProgressed progressed)
     {

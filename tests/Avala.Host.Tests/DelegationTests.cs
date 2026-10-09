@@ -46,7 +46,7 @@ public sealed class DelegationTests(PublishedPlugins plugins)
             [
                 (".avala/checks.json", PassingChecks),
                 (".avala/permissions.json", Autonomous),
-                (".avala/jobs.json", """{ "delegation": { "connections": ["work", "personal"], "maxChildren": 2 } }"""),
+                (".avala/jobs.json", """{ "delegation": { "connections": ["work", "personal"], "routing": "roundRobin", "maxChildren": 2 } }"""),
             ]);
         var delegated = run.Watch<ChildDelegated>();
         var reported = run.Watch<ChildReported>();

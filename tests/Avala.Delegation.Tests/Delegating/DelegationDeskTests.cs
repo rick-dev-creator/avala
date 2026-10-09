@@ -38,6 +38,37 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
+    public async Task ACapacityRoutedChildRunsOnTheListedConnectionWithCapacityAndKeepsTheReadingsComparedAsync()
+    {
+        await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Routing = Routing.Capacity }));
+        desk.Selector.Chosen = new ConnectionName("personal");
+        await desk.StartedAsync();
+
+        await desk.DelegateAsync("first");
+
+        Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("personal")), Assert.Single(desk.Jobs.Submitted).Connection);
+        var question = Assert.Single(desk.Selector.Questions);
+        Assert.Equal((Desk.Worktree, 2), (question.Worktree, question.Candidates.Count));
+        var choice = Outcomes.Present(Assert.Single(desk.Bus.Published.OfType<ChildDelegated>()).Delegation.Choice);
+        Assert.Equal((new ConnectionName("personal"), 2), (choice.Connection, choice.Compared.Count));
+    }
+
+    [Fact]
+    public async Task AChildOfASectionThatListsNoConnectionsNamesNoneAndItsReportGivesTheConnectionItRanOnAsync()
+    {
+        await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Connections = [] }));
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        Assert.True(Assert.Single(desk.Jobs.Submitted).Connection.IsNone);
+        Assert.Empty(desk.Selector.Questions);
+        desk.Jobs.RanOn(child, new ConnectionName("personal"));
+        await desk.ProgressAsync(child, JobStatus.Failed);
+
+        Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("personal")), (await desk.ReportedAsync(child)).Connection);
+    }
+
+    [Fact]
     public async Task AVerifiedChildIsIntegratedAndItsEvidenceReturnsToTheParentAsItsResultAsync()
     {
         await using var desk = new Desk();

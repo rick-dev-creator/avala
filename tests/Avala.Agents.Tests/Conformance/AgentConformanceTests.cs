@@ -160,9 +160,26 @@ public sealed class AgentConformanceTests
     [Fact]
     public async Task ReportsACanvasDrawnWithoutTheCanvasToolAsync()
     {
-        var provider = new ScriptedAgentProvider(Drawing);
+        var provider = new ScriptedAgentProvider(DrawingIn("image/svg+xml"));
 
         Assert.Equal(["the canvas diagram was drawn without the canvas tool"], await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    [Theory]
+    [InlineData("image/svg+xml", "")]
+    [InlineData("text/markdown; charset=utf-8", "")]
+    [InlineData("text/vnd.mermaid", "the canvas diagram was drawn in text/vnd.mermaid, which the canvas tool does not offer")]
+    [InlineData("text/html", "the canvas diagram was drawn in text/html, which the canvas tool does not offer")]
+    public async Task AProviderMayDrawOnlyInTheMediaTypesTheCanvasToolOffersAsync(string mediaType, string expected)
+    {
+        var provider = new ScriptedAgentProvider(DrawingIn(mediaType))
+        {
+            Capabilities = Declared with { AcceptsTools = true },
+        };
+
+        var violations = await AgentConformance.CheckCanvasToolAsync(provider, Options, new UserTurn("conformance"), Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
     }
 
     [Theory]
@@ -170,7 +187,7 @@ public sealed class AgentConformanceTests
     [InlineData(false, "no canvas was drawn through the canvas tool")]
     public async Task AProviderThatAcceptsToolsMustReportACallOfTheCanvasToolAsACanvasAsync(bool draws, string expected)
     {
-        var provider = new ScriptedAgentProvider(draws ? Drawing : ScriptedAgentProvider.Reply)
+        var provider = new ScriptedAgentProvider(draws ? DrawingIn("image/svg+xml") : ScriptedAgentProvider.Reply)
         {
             Capabilities = Declared with { AcceptsTools = true },
         };
@@ -247,6 +264,44 @@ public sealed class AgentConformanceTests
                 "the two connections share the resume token conversation-1",
                 "a resume token of one connection was accepted on another",
             ],
+            violations);
+    }
+
+    [Theory]
+    [InlineData("other", "work", "login", "/logins/work", "the connection work names the provider other")]
+    [InlineData("scripted", "-work", "login", "/logins/work", "the connection name -work is not valid")]
+    [InlineData("scripted", "work", "login", "logins/work", "the connection work holds a credential of login that is not a reference")]
+    [InlineData("scripted", "work", "apiKey", "sk-ant-0123", "the connection work holds a credential of apiKey that is not a reference")]
+    [InlineData("scripted", "work", "apiKey", "WORK_KEY", "")]
+    [InlineData("scripted", "work", "login", "/logins/work", "")]
+    public async Task ReportsADiscoveredConnectionOfAnotherProviderWithAnInvalidNameOrHoldingSomethingOtherThanAReferenceAsync(
+        string provider,
+        string name,
+        string source,
+        string reference,
+        string expected)
+    {
+        var discovery = new ListedDiscovery([[new DiscoveredConnection(new ConnectionName(name), provider, new CredentialReference(source, reference))]]);
+
+        var violations = await AgentConformance.CheckDiscoveryAsync(Scripted, discovery, Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+    }
+
+    [Fact]
+    public async Task ReportsADiscoveryThatRepeatsANameOrACredentialOrChangesBetweenTwoCallsAsync()
+    {
+        var work = new DiscoveredConnection(new ConnectionName("work"), "scripted", new CredentialReference("login", "/logins/work"));
+        var discovery = new ListedDiscovery(
+        [
+            [work, work with { Credential = new CredentialReference("login", "/logins/other") }, work with { Name = new ConnectionName("copy") }],
+            [work],
+        ]);
+
+        var violations = await AgentConformance.CheckDiscoveryAsync(Scripted, discovery, Deadline);
+
+        Assert.Equal(
+            ["the connection work is discovered twice", "the credential /logins/work is discovered twice", "two discoveries found different connections"],
             violations);
     }
 
@@ -364,11 +419,11 @@ public sealed class AgentConformanceTests
         new TurnCompleted(session, turn, TurnOutcome.Finished),
     ];
 
-    private static IEnumerable<IAgentEvent> Drawing(SessionId session, TurnId turn) =>
+    private static Func<SessionId, TurnId, IEnumerable<IAgentEvent>> DrawingIn(string mediaType) => (session, turn) =>
     [
         new TurnStarted(session, turn),
-        new CanvasStarted(session, turn, new ItemId("diagram"), "Architecture", "text/vnd.mermaid"),
-        new ItemProgressed(session, turn, new ItemId("diagram"), "flowchart LR\n"),
+        new CanvasStarted(session, turn, new ItemId("diagram"), "Architecture", mediaType),
+        new ItemProgressed(session, turn, new ItemId("diagram"), "<svg/>"),
         new ItemCompleted(session, turn, new ItemId("diagram"), ItemOutcome.Succeeded),
         new TurnCompleted(session, turn, TurnOutcome.Finished),
     ];
@@ -417,5 +472,15 @@ public sealed class AgentConformanceTests
             new ItemCompleted(session, turn, item, ItemOutcome.Succeeded),
             new TurnCompleted(session, turn, TurnOutcome.Finished),
         ];
+    }
+
+    private static ScriptedAgentProvider Scripted => new(ScriptedAgentProvider.Reply) { Info = new ProviderInfo("scripted", "Scripted") };
+
+    private sealed class ListedDiscovery(IReadOnlyList<IReadOnlyList<DiscoveredConnection>> answers) : IConnectionDiscovery
+    {
+        private int calls;
+
+        public ValueTask<IReadOnlyList<DiscoveredConnection>> DiscoverAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult(answers[Math.Min(calls++, answers.Count - 1)]);
     }
 }

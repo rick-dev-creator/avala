@@ -1,5 +1,5 @@
-using Avala.Components.Canvases;
 using Avala.Components.UI.Canvases;
+using Avala.Rendering.Offer;
 using Avala.Rendering.Sanitizing;
 using Avala.Sdk;
 using Avalonia.Controls;
@@ -19,7 +19,7 @@ internal sealed class MarkdownRenderer : ICanvasRenderer
 
     private readonly MarkdownPipeline pipeline = OfflinePipeline();
 
-    public bool Renders(string mediaType) => mediaType == CanvasMediaTypes.Markdown;
+    public string MediaType => RenderedFormats.Markdown.MediaType;
 
     public Option<Control> Render(string content)
     {

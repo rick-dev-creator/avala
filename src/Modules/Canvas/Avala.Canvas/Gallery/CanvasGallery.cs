@@ -3,24 +3,25 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Canvases;
 using Avala.Canvas.Contracts;
+using Avala.Canvas.Drawing;
 using Avala.Sdk;
 
 namespace Avala.Canvas.Gallery;
 
-internal sealed class CanvasGallery : ICanvases
+internal sealed class CanvasGallery(CanvasOffer offer) : ICanvases
 {
     private readonly OrderedDictionary<CanvasId, CanvasDocument> documents = [];
     private ImmutableList<CanvasSnapshot> snapshots = [];
 
-    public Result<CanvasId, CanvasError> Open(CanvasStarted started) =>
+    public Result<CanvasOpened, CanvasError> Open(CanvasStarted started) =>
         documents.ContainsKey(new CanvasId(started.Turn, started.Item))
             ? CanvasError.AlreadyOpen
-            : CanvasDocument.Open(started).Map(document =>
+            : CanvasDocument.Open(started, offer.Offers(started.MediaType)).Map(document =>
             {
                 documents.Add(document.Id, document);
                 Volatile.Write(ref snapshots, snapshots.Add(document.Snapshot));
 
-                return document.Id;
+                return new CanvasOpened(document.Id, document.Rejection);
             });
 
     public Result<CanvasId, CanvasError> Append(ItemProgressed progressed) =>

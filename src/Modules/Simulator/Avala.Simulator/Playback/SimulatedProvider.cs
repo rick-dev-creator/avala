@@ -6,7 +6,9 @@ namespace Avala.Simulator.Playback;
 
 internal sealed class SimulatedProvider(Stagecraft craft) : IAgentProvider
 {
-    public ProviderInfo Info { get; } = new("simulator", "Simulated Claude Code");
+    public const string Id = "simulator";
+
+    public ProviderInfo Info { get; } = new(Id, "Simulated Claude Code");
 
     public AgentCapabilities Capabilities { get; } = new(
         StreamsPartialOutput: true,

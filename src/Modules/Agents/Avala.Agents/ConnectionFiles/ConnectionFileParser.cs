@@ -8,8 +8,6 @@ namespace Avala.Agents.ConnectionFiles;
 
 internal static class ConnectionFileParser
 {
-    public const int LongestName = 64;
-
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 4, AllowDuplicateProperties = false };
 
     private static readonly string[] Sections = ["default", "connections"];
@@ -31,11 +29,6 @@ internal static class ConnectionFileParser
             return ConnectionError.Malformed;
         }
     }
-
-    public static bool IsValidName(string name) =>
-        name.Length is > 0 and <= LongestName
-        && char.IsAsciiLetterOrDigit(name[0])
-        && name.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.');
 
     private static Result<ConnectionDeclarations, ConnectionError> Declarations(JsonElement root)
     {
@@ -115,7 +108,7 @@ internal static class ConnectionFileParser
     }
 
     private static Result<(ConnectionName Name, string Provider), ConnectionError> Identity(Option<string> name, Option<string> provider) =>
-        !name.Match(IsValidName, () => false) ? ConnectionError.InvalidName
+        !name.Match(ConnectionDeclaration.IsValidName, () => false) ? ConnectionError.InvalidName
         : !provider.Match(id => !string.IsNullOrWhiteSpace(id), () => false) ? ConnectionError.MissingProvider
         : (new ConnectionName(name.Match(value => value, () => string.Empty)), provider.Match(value => value, () => string.Empty));
 

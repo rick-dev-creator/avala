@@ -51,6 +51,13 @@ internal sealed class Budgeted
 
     public async Task OpenAsync(Result<Option<BudgetCaps>, BudgetError> file) => await OpenAsync(Session, file);
 
+    public async Task OpenAsync(SessionId session, Result<Option<BudgetCaps>, BudgetError> file)
+    {
+        await new BudgetLoader(Book, new FixedFiles(file, ReadFor), Bus)
+            .HandleAsync(new SessionOpened(session, Provider, "/worktrees/1", Connection), Cancellation);
+        await enforcer.HandleAsync(Bus.Published.OfType<BudgetLoaded>().Last(), Cancellation);
+    }
+
     public async Task RunningAsync(Result<Option<BudgetCaps>, BudgetError> file) => await RunningAsync(Job, Session, file);
 
     public async Task RunningAsync(JobId job, SessionId session, Result<Option<BudgetCaps>, BudgetError> file)
@@ -60,6 +67,12 @@ internal sealed class Budgeted
     }
 
     public async Task TiedAsync() => await TiedAsync(Job, Session);
+
+    public async Task TiedAsync(JobId job, SessionId session)
+    {
+        await ProgressAsync(job, JobStatus.Running);
+        await enforcer.HandleAsync(new JobSessionStarted(job, session), Cancellation);
+    }
 
     public async Task SubmittedAsync(JobId parent, JobId child) =>
         await enforcer.HandleAsync(new JobSubmitted(child) { Parent = parent }, Cancellation);
@@ -74,19 +87,6 @@ internal sealed class Budgeted
     {
         usage.Jobs[job] = new UsageSummary(tokens, costs, 0, default, []);
         await enforcer.HandleAsync(new UsageRecorded(SessionId.New(), job), Cancellation);
-    }
-
-    private async Task OpenAsync(SessionId session, Result<Option<BudgetCaps>, BudgetError> file)
-    {
-        await new BudgetLoader(Book, new FixedFiles(file, ReadFor), Bus)
-            .HandleAsync(new SessionOpened(session, Provider, "/worktrees/1", Connection), Cancellation);
-        await enforcer.HandleAsync(Bus.Published.OfType<BudgetLoaded>().Last(), Cancellation);
-    }
-
-    private async Task TiedAsync(JobId job, SessionId session)
-    {
-        await ProgressAsync(job, JobStatus.Running);
-        await enforcer.HandleAsync(new JobSessionStarted(job, session), Cancellation);
     }
 
     public async Task ReachAsync(UsageLimit limit)
@@ -150,6 +150,13 @@ internal sealed class Budgeted
         }
 
         public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotHeld));
+
+        public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(
+            JobId job,
+            Avala.Agents.Contracts.Connections.ConnectionName connection,
+            string message,
+            CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotHeld));
 
         public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>

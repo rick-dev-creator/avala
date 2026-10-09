@@ -122,7 +122,7 @@ internal sealed class LoopRunner : IAsyncDisposable
         var limits = record.Request.Limits;
         var window = limits.SpendPerWindow.Count == 0 ? [] : await steps.Gauges.WithinAsync(now - limits.Window, now, token);
         var trip = record.TrippedBy(window, now);
-        var exhausted = steps.Gauges.Exhausted(record.Connection, limits.PauseAtLimit, now);
+        var exhausted = await steps.Gauges.ExhaustedAsync(record.Request.Connection, limits.PauseAtLimit, now, token);
 
         if (trip.IsSome || exhausted.IsSome)
         {

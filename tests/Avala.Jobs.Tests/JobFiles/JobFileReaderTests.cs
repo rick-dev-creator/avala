@@ -17,6 +17,7 @@ public sealed class JobFileReaderTests
     [Theory]
     [InlineData("""{ "connection": "work", "approval": "merge" }""", "work", "merge")]
     [InlineData("""{ "approval": "keep" }""", "", "keep")]
+    [InlineData("""{ "connection": "auto", "approval": "keep" }""", "", "keep")]
     [InlineData("{}", "", "")]
     [InlineData("""{ "approval": "merge", "autopilot": { "approve": "cleanEvidence" } }""", "", "merge")]
     [InlineData("""{ "approval": "merge", "delegation": { "connections": ["work", "personal"], "maxDepth": 2 } }""", "", "merge")]

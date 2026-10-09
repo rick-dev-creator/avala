@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Canvases;
+using Avala.Sdk;
 using Avala.Testing;
 
 namespace Avala.Canvas.Tests.Canvases;
@@ -12,18 +13,30 @@ public sealed class CanvasDocumentTests
     [Fact]
     public void OpeningACanvasStartsItStreamingAndEmpty()
     {
-        var document = Outcomes.Succeeds(CanvasDocument.Open(sketch.Started("text/vnd.mermaid")));
+        var document = Outcomes.Succeeds(CanvasDocument.Open(sketch.Started("text/markdown"), offered: true));
 
         Assert.Equal(
-            (sketch.Id, sketch.Session, "Architecture", "text/vnd.mermaid", CanvasState.Streaming, string.Empty),
-            (document.Id, document.Session, document.Title, document.MediaType, document.State, document.Content));
+            (sketch.Id, sketch.Session, "Architecture", "text/markdown", CanvasState.Streaming, string.Empty, true, Option<CanvasError>.None),
+            (document.Id, document.Session, document.Title, document.MediaType, document.State, document.Content, document.IsOffered, document.Rejection));
+    }
+
+    [Fact]
+    public void ACanvasInAMediaTypeThatIsNotOfferedIsRejectedAsNotOfferedAndKeptAsSource()
+    {
+        var document = Outcomes.Succeeds(CanvasDocument.Open(sketch.Started("text/vnd.mermaid"), offered: false));
+
+        _ = Outcomes.Succeeds(document.Append(sketch.Chunk("flowchart LR\n")));
+
+        Assert.Equal(
+            (false, Option<CanvasError>.Some(CanvasError.NotOffered), "text/vnd.mermaid", "flowchart LR\n"),
+            (document.IsOffered, document.Rejection, document.MediaType, document.Content));
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("  ")]
-    public void ACanvasWithoutAMediaTypeIsRejected(string mediaType) =>
-        Assert.Equal(CanvasError.MissingMediaType, Outcomes.FailsWith(CanvasDocument.Open(sketch.Started(mediaType))));
+    [InlineData("", true)]
+    [InlineData("  ", false)]
+    public void ACanvasWithoutAMediaTypeIsRejected(string mediaType, bool offered) =>
+        Assert.Equal(CanvasError.MissingMediaType, Outcomes.FailsWith(CanvasDocument.Open(sketch.Started(mediaType), offered)));
 
     [Fact]
     public void ChunksAccumulateInTheOrderTheyArrive()
@@ -100,5 +113,5 @@ public sealed class CanvasDocumentTests
         Assert.Equal(CanvasState.Failed, document.State);
     }
 
-    private CanvasDocument Opened() => Outcomes.Succeeds(CanvasDocument.Open(sketch.Started()));
+    private CanvasDocument Opened() => Outcomes.Succeeds(CanvasDocument.Open(sketch.Started(), offered: true));
 }

@@ -93,6 +93,20 @@ Status: items 1, 6, 7 and 8 are done, the contract part of item 5 and the record
 
 Done when: a real job runs end to end with Claude Code.
 
+## Phase 6b: Capabilities as components
+
+Status: planned, right after the Claude Code adapter and before any second real harness, so the contract changes while it has one real provider and the simulator.
+
+Today a provider declares its capabilities as a closed record of booleans: every new capability changes the contract and every provider, and nothing says how a capability works or lets it differ per connection. Capabilities become components, in the spirit of an entity component system:
+
+- A component is an immutable record in the contracts that states a capability and its data, such as `Resumable(Scope)`, `ReportsLimits(Windows)`, `AcceptsTools(Surfaces)` or `StreamsPartialOutput(Granularity)`.
+- Providers attach the components they support; a connection may add or refine components, such as cost reporting for an API key or the limit windows of a subscription.
+- The core's systems query components as `Option<T>` and act on what is present; a plugin may define a new component without touching the base contract, and systems that don't know it ignore it.
+- The conformance kit verifies each declared component against the provider's behaviour.
+- Components are listed in a documented catalog, like the data catalog, and are never a bag of strings.
+
+The components are designed from what the Claude Code adapter and the selection by capacity actually need.
+
 ## Phase 7: Observability
 
 Status: done with the fake provider and the simulator, aggregation by account included: `SessionOpened` carries the account the provider reports, and `IUsage.ByAccount` groups by provider and account. One item waits for the real Claude Code provider of phase 6: checking that its turns and its account show up in the aggregates. The view models of the usage dashboards moved to phase 9.
@@ -112,7 +126,7 @@ Status: done. The canvas tool moved to phase 6: the module now offers its defini
 1. The Canvas module, a plugin of its own: the `CanvasDocument` aggregate with `CanvasLifecycle` and its generated diagram, accumulating each canvas from `CanvasStarted`, `ItemProgressed` and `ItemCompleted` and rejecting foreign, repeated and late content with typed errors.
 2. Snapshots throttled per canvas with `TimeProvider`, published as `CanvasUpdated` with the full content so far and flushed at once on completion.
 3. `Canvas.Contracts`: `CanvasId`, `CanvasSnapshot`, `CanvasUpdated` and the `ICanvases` query of a session's current canvases.
-4. A host simulation test: the simulator's `canvas` scenario delivers its SVG and Mermaid canvases, drawn through the injected canvas tool, as snapshots that grow in order and end complete.
+4. A host simulation test: the simulator's `canvas` scenario delivers its SVG and Markdown canvases, drawn through the injected canvas tool, as snapshots that grow in order and end complete.
 
 Done when: a canvas streamed by the simulator reaches the bus as snapshots in order, with unit tests. Met.
 
@@ -225,6 +239,21 @@ A user may hold several subscriptions of the same harness, such as a work and a 
 7. Done. Host simulation tests: two jobs on two connections of the simulator run side by side with their usage and accounts apart; a job recovered after a restart keeps its connection and resumes its conversation there; a job without a connection runs on its repository's default; and a job naming an unknown connection is rejected.
 
 Done when: two connections of one provider run jobs side by side with their usage, limits and caps apart, proven with the simulator. Met.
+
+### Several accounts of one harness
+
+Status: done with the simulator, see [Discovery](../design/core.md#discovery) and [Choosing a connection by capacity](../design/core.md#choosing-a-connection-by-capacity). Deferred: the Claude Code plugin's discovery, which its plugin implements against the contract and the kit; finding new accounts while the application runs, since discovery runs once; a command of the Workbench that continues a held job on another connection, which `IJobs.ContinueOnAsync` already offers; showing `ConnectionChosen` in the Usage and Overview pages; and weighing a connection's cost, such as an API key billed per token, against a subscription's remaining window.
+
+A machine may hold several subscriptions of the same harness. Avala finds them and always uses the one with capacity, unless something names a connection.
+
+1. Done. `IConnectionDiscovery` in `Agents.Contracts`: a provider plugin reports the connections it finds as references, never secrets. `ConnectionRegistry` merges them: declared connections win, discovered ones fill in, they replace a provider's implicit connection without a file, and a rejected file still leaves nothing usable. The catalog says each connection's origin, and the settings page shows it.
+2. Done. `CheckDiscoveryAsync` in the conformance kit: one provider, valid and stable names, no repeated name or credential, references only. The simulator discovers every folder under `simulated-logins` as a login and passes it.
+3. Done. `IConnectionSelector` in `Jobs.Contracts`, implemented by Budgets: among the candidates, the one with the most remaining capacity from the latest readings per connection, skipping those at their hold threshold in a window that has not reset yet, a connection without readings available, ties to the first listed. A job follows the precedence named connection, repository default, then capacity, with `auto` in `.avala/jobs.json` asking for capacity, and `ConnectionChosen` carries the readings compared.
+4. Done. Delegation routes by `capacity` by default among the listed connections, `leastUsed` kept as its earlier name, and a section without connections lets its children follow the precedence of any job. A loop that names no connection pauses only when every connection of the default provider is at its limit.
+5. Done. `IJobs.ContinueOnAsync` moves a held job to another connection as a new conversation, with typed rejections; a job is never moved on its own.
+6. Done. Host simulation tests: two simulated accounts discovered without `connections.json`; a job naming nothing runs on the first while neither has readings, and on the other once the first is near its limit; a connection the repository names is used near its limit and the budget holds the job; delegated children go to the listed account with capacity; and a job held at one account's limit continues on the other when asked.
+
+Done when: two accounts of one harness are found without configuration and jobs, children and loops go to the one with capacity, proven with the simulator. Met.
 
 ### Delegation
 
@@ -356,6 +385,6 @@ Done when: the full job flow runs end to end through view models in tests.
 1. Avalonia views for every view model, following the approved [design brief](../design/ui-brief.md), semi-transparent with themes, Inter for the interface and JetBrains Mono for code.
 2. The canvas surface for each media type, with renderer plugins registered by media type.
 
-   Done: the shared canvas surface, with versions, streaming without flicker and the focused view; `ICanvasRenderer`, registered through the view registry; the Rendering plugin, with Markdown, sanitized SVG, and Mermaid and HTML as highlighted source. Remains: the Mermaid and HTML renderers, once the [decision](../design/canvas-rendering.md#mermaid-and-html-the-decision) is made.
+   Done: the shared canvas surface, with versions, streaming without flicker and the focused view; `ICanvasRenderer`, registered through the view registry; the Rendering plugin, with Markdown and sanitized SVG. Done too, the [offer](../design/canvas-rendering.md#the-offer): renderer plugins declare the media types they draw as `CanvasFormat`, the canvas tool offers exactly those, a canvas in any other type is rejected as `NotOffered` and shown as source, highlighted for Mermaid and HTML, and the conformance kit reports a harness that draws outside the offer. [Decided](../design/canvas-rendering.md#mermaid-and-html-the-decision): Mermaid and HTML are not part of the offer; they remain possible as optional renderer plugins, which would appear in the offer once registered.
 
 Done when: the harness replaces a terminal for daily work.

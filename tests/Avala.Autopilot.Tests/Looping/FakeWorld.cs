@@ -97,7 +97,13 @@ internal sealed class FakeUsage : IUsage, IUsageHistory
 
     public Option<UsageSummary> OfJob(JobId job) => spent.TryGetValue(job, out var costs) ? Summary(costs, []) : Option<UsageSummary>.None;
 
-    public IReadOnlyList<ConnectionUsage> ByConnection() => [new ConnectionUsage(new ConnectionName("work"), Provider, Summary([], Limits))];
+    public Dictionary<ConnectionName, IReadOnlyList<UsageLimit>> Elsewhere { get; } = [];
+
+    public IReadOnlyList<ConnectionUsage> ByConnection() =>
+    [
+        new ConnectionUsage(new ConnectionName("work"), Provider, Summary([], Limits)),
+        .. Elsewhere.Select(other => new ConnectionUsage(other.Key, Provider, Summary([], other.Value))),
+    ];
 
     public ValueTask<UsagePeriod> WithinAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken)
     {
@@ -115,6 +121,21 @@ internal sealed class FakeUsage : IUsage, IUsageHistory
     public ValueTask<IReadOnlyList<UsagePeriod>> DailyAsync(DateOnly first, DateOnly last, TimeZoneInfo zone, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     private static UsageSummary Summary(IReadOnlyList<Cost> costs, IReadOnlyList<UsageLimit> limits) => new(default, costs, 0, default, limits);
+}
+
+internal sealed class FakeConnections : IConnections
+{
+    public List<ConnectionName> Names { get; } = [new("work")];
+
+    public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
+        ValueTask.FromResult(new ConnectionCatalog(
+            ConnectionFileStatus.Absent,
+            Option<ConnectionError>.None,
+            [.. Names.Select(name => new DeclaredConnection(name, "simulator", Option<string>.None))],
+            Names[0]));
+
+    public ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 }
 
 internal sealed class FixedRules(Result<AutopilotRules, AutopilotError> rules) : IAutopilotRules

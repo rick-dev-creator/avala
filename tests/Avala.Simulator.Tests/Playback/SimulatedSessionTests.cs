@@ -326,18 +326,22 @@ public sealed class SimulatedSessionTests
     }
 
     [Fact]
-    public async Task GivenTheCanvasToolTheCanvasScenarioStreamsAnSvgThroughItInSeveralChunksAsync()
+    public async Task GivenTheCanvasToolTheCanvasScenarioStreamsTwoSvgDiagramsAndMarkdownNotesThroughItInSeveralChunksAsync()
     {
         await using var stage = new Stage(PermissionMode.AskEveryTime, Stage.CanvasTool);
         await stage.SendAsync("[simulate: canvas] Draw the architecture", Cancellation);
 
         var events = await stage.ReadTurnAsync(Cancellation);
-        var svg = Assert.Single(events.OfType<CanvasStarted>(), canvas => canvas.MediaType == "image/svg+xml");
-        var chunks = events.OfType<ItemProgressed>().Where(progressed => progressed.Item == svg.Item).Select(progressed => progressed.Text).ToList();
+        var canvases = events.OfType<CanvasStarted>().ToList();
+        var chunks = canvases.ToDictionary(
+            canvas => canvas.Item.Value,
+            canvas => events.OfType<ItemProgressed>().Where(progressed => progressed.Item == canvas.Item).Select(progressed => progressed.Text).ToList());
 
-        Assert.True(chunks.Count > 1);
-        Assert.StartsWith("<svg", string.Concat(chunks), StringComparison.Ordinal);
-        Assert.EndsWith("</svg>", string.Concat(chunks), StringComparison.Ordinal);
+        Assert.Equal(
+            [("diagram", "image/svg+xml"), ("flow", "image/svg+xml"), ("notes", "text/markdown")],
+            canvases.Select(canvas => (canvas.Item.Value, canvas.MediaType)));
+        Assert.All(chunks.Values, parts => Assert.True(parts.Count > 1));
+        Assert.All(["diagram", "flow"], svg => Assert.Matches("^<svg.*</svg>$", string.Concat(chunks[svg])));
     }
 
     [Fact]

@@ -136,11 +136,9 @@ internal sealed class DesignCanvasViewModel : ICanvasViewModel
 {
     public string Title => "Rounding path";
 
-    public string MediaType => "text/vnd.mermaid";
+    public string MediaType => CanvasMediaTypes.Svg;
 
-    private const string Drawing = "flowchart LR\n  A[Amount ¥1,000] --> B[ToMinor ×100]\n  B --> C[ApplyTax · round]\n  C --> D[FromMinor ÷100 · round]";
-
-    public string Content => Drawing;
+    public string Content => DesignCanvasSurfaceViewModel.RoundingPath;
 
     public CanvasStatus Status => CanvasStatus.Completed;
 
@@ -151,7 +149,7 @@ internal sealed class DesignCanvasViewModel : ICanvasViewModel
     private static CanvasSurfaceViewModel Drawn()
     {
         var surface = new CanvasSurfaceViewModel();
-        surface.Show(new CanvasDraft("Rounding path", CanvasMediaTypes.Mermaid, Drawing, CanvasPhase.Completed));
+        surface.Show(new CanvasDraft("Rounding path", CanvasMediaTypes.Svg, DesignCanvasSurfaceViewModel.RoundingPath, CanvasPhase.Completed));
 
         return surface;
     }

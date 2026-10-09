@@ -62,6 +62,10 @@ public sealed class CanvasPresenter : Panel
             Children.Clear();
             presented = CanvasRendering.Nothing;
         }
+        else if (!rendering.IsOffered)
+        {
+            Arrive(rendering, this.FindDataTemplate(rendering)?.Build(rendering) ?? CanvasSource.Show(CanvasSource.NotOffered(rendering), rendering.Content));
+        }
         else if (!rendering.IsRenderable)
         {
             Arrive(rendering, CanvasSource.Show(TooLarge(rendering), rendering.Content));

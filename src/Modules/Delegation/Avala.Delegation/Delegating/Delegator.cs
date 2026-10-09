@@ -22,7 +22,7 @@ internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJ
             return Option<Delegated>.None;
         }
 
-        var planned = record with { Connection = plan.Connection, Autonomy = plan.Autonomy };
+        var planned = record with { Connection = plan.Connection, Choice = plan.Route.Choice, Autonomy = plan.Autonomy };
         var request = new JobRequest(plan.Parent.Repository, decision.Instruction)
         {
             Parent = plan.Parent.Job,

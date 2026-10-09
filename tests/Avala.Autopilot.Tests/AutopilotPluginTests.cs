@@ -61,6 +61,7 @@ public sealed class AutopilotPluginTests
             .AddSingleton<IWorkspaceChanges>(work)
             .AddSingleton<IUsage>(usage)
             .AddSingleton<IUsageHistory>(usage)
+            .AddSingleton<Avala.Agents.Contracts.Connections.IConnections>(new FakeConnections())
             .AddSingleton<IAgents>(new FollowUpTests.ReturningAgents())
             .AddSingleton<IBaseFiles>(new CommittedFiles()));
     }

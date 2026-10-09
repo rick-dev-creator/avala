@@ -13,6 +13,7 @@ using Avala.Supervision.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
+using Avala.Sdk.UI;
 using Avala.Simulator;
 using Avala.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,6 +54,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
     public FakeTimeProvider Clock { get; }
 
     public ICanvases Canvases => Get<ICanvases>();
+
+    public ViewRegistry Views => application.Root.Views;
 
     public JobId Job { get; private set; }
 

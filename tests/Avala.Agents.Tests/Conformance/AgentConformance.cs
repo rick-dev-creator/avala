@@ -1,3 +1,6 @@
+using System.Text.Json;
+using Avala.Agents.Connections;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Turns;
@@ -13,7 +16,7 @@ internal static class AgentConformance
     public static HarnessTool CanvasTool { get; } = new(
         "canvas",
         "Draw a canvas the user sees beside the conversation.",
-        """{ "type": "object", "properties": { "title": { "type": "string" }, "mediaType": { "type": "string" }, "content": { "type": "string" } } }""",
+        """{ "type": "object", "properties": { "title": { "type": "string" }, "mediaType": { "type": "string", "enum": ["image/svg+xml", "text/markdown"] }, "content": { "type": "string" } } }""",
         ToolSurface.Canvas);
 
     public static HarnessTool ExecutedTool { get; } = new(
@@ -249,6 +252,39 @@ internal static class AgentConformance
         ];
     }
 
+    public static async Task<IReadOnlyList<string>> CheckDiscoveryAsync(IAgentProvider provider, IConnectionDiscovery discovery, CancellationToken deadline)
+    {
+        var found = await discovery.DiscoverAsync(deadline);
+        var again = await discovery.DiscoverAsync(deadline);
+
+        return
+        [
+            .. found.Where(connection => connection.Provider != provider.Info.Id)
+                .Select(connection => $"the connection {connection.Name.Value} names the provider {connection.Provider}"),
+            .. found.Where(connection => !ConnectionDeclaration.IsValidName(connection.Name.Value))
+                .Select(connection => $"the connection name {connection.Name.Value} is not valid"),
+            .. found.GroupBy(connection => connection.Name).Where(named => named.Count() > 1)
+                .Select(named => $"the connection {named.Key.Value} is discovered twice"),
+            .. found.GroupBy(connection => connection.Credential).Where(shared => shared.Count() > 1)
+                .Select(shared => $"the credential {shared.Key.Reference} is discovered twice"),
+            .. found.Where(connection => !IsReference(connection.Credential))
+                .Select(connection => $"the connection {connection.Name.Value} holds a credential of {connection.Credential.Source} that is not a reference"),
+            .. found.Select(Fingerprint).SequenceEqual(again.Select(Fingerprint)) ? [] : new[] { "two discoveries found different connections" },
+        ];
+    }
+
+    private static bool IsReference(CredentialReference credential) => credential.Source switch
+    {
+        "login" => Path.IsPathFullyQualified(credential.Reference),
+        "apiKey" => credential.Reference.Length > 0
+            && (char.IsAsciiLetter(credential.Reference[0]) || credential.Reference[0] == '_')
+            && credential.Reference.All(character => char.IsAsciiLetterOrDigit(character) || character == '_'),
+        _ => !string.IsNullOrWhiteSpace(credential.Reference),
+    };
+
+    private static string Fingerprint(DiscoveredConnection connection) =>
+        $"{connection.Name.Value}|{connection.Provider}|{connection.Credential}|{string.Join(';', connection.Settings.OrderBy(setting => setting.Key, StringComparer.Ordinal))}";
+
     private static IEnumerable<string> Shared<T>(Option<T> one, Option<T> other, Func<T, string> violation)
         where T : notnull =>
         one.IsSome && one == other ? [one.Match(violation, () => string.Empty)] : [];
@@ -459,11 +495,22 @@ internal static class AgentConformance
             ResumeTokenIssued when !Capabilities.CanResume => ["a resume token was issued although the provider does not declare CanResume"],
             CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
                 [$"the canvas {started.Item.Value} was drawn without the canvas tool"],
+            CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas && Offers(tool, started.MediaType)) =>
+                [$"the canvas {started.Item.Value} was drawn in {started.MediaType}, which the canvas tool does not offer"],
             FormRequested asked when !Capabilities.AsksQuestions => [$"the form {asked.Item.Value} was asked although the provider does not declare AsksQuestions"],
             ToolCalled called when !Options.Tools.Any(tool => tool.Name == called.Tool && tool.Surface == ToolSurface.Executed) =>
                 [$"the tool {called.Tool} was called although the session was not given it"],
             _ => [],
         };
+
+        private static bool Offers(HarnessTool tool, string mediaType)
+        {
+            using var schema = JsonDocument.Parse(tool.InputSchema);
+            var essence = mediaType.Split(';', 2)[0].Trim();
+
+            return schema.RootElement.GetProperty("properties").GetProperty("mediaType").TryGetProperty("enum", out var offered)
+                && offered.EnumerateArray().Any(type => string.Equals(type.GetString(), essence, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     private sealed record Replies(

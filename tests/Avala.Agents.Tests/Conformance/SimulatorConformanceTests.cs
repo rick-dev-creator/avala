@@ -107,6 +107,34 @@ public sealed class SimulatorConformanceTests
             Deadline));
     }
 
+    [Fact]
+    public async Task TheSimulatorDiscoversEachSimulatedLoginFolderAsAConnectionThatConformsAsync()
+    {
+        using var data = new TemporaryFolder();
+        var logins = Path.Combine(data.Path, "simulated-logins");
+        Directory.CreateDirectory(Path.Combine(logins, "work"));
+        Directory.CreateDirectory(Path.Combine(logins, "personal account"));
+        await using var services = Simulated(new AvalaPaths(data.Path));
+        var discovery = services.GetRequiredService<IConnectionDiscovery>();
+
+        Assert.Empty(await AgentConformance.CheckDiscoveryAsync(services.GetRequiredService<IAgentProvider>(), discovery, Deadline));
+        Assert.Equal(
+            [
+                ("simulator-personal-account", "simulator", "login", Path.Combine(logins, "personal account")),
+                ("simulator-work", "simulator", "login", Path.Combine(logins, "work")),
+            ],
+            (await discovery.DiscoverAsync(Deadline)).Select(found => (found.Name.Value, found.Provider, found.Credential.Source, found.Credential.Reference)));
+    }
+
+    [Fact]
+    public async Task WithoutSimulatedLoginsTheSimulatorDiscoversNothingAsync()
+    {
+        using var data = new TemporaryFolder();
+        await using var services = Simulated(new AvalaPaths(data.Path));
+
+        Assert.Empty(await services.GetRequiredService<IConnectionDiscovery>().DiscoverAsync(Deadline));
+    }
+
     private static ConnectionEnvironment Credential(string kind, string name) =>
         kind == "login"
             ? new ConnectionEnvironment { ConfigurationDirectory = Path.Combine("/logins", name) }
@@ -200,6 +228,21 @@ public sealed class SimulatorConformanceTests
         await using var services = Simulated();
 
         Assert.Equal(["item build was left open"], await CheckAsync(services, folder, "left-open", Deadline));
+    }
+
+    [Fact]
+    public async Task ReportsACanvasTheUnofferedCanvasScenarioDrawsInAMediaTypeTheToolDoesNotOfferAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Equal(
+            ["the canvas flow was drawn in text/vnd.mermaid, which the canvas tool does not offer"],
+            await AgentConformance.CheckCanvasToolAsync(
+                services.GetRequiredService<IAgentProvider>(),
+                new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+                new UserTurn("[simulate: unoffered-canvas] conformance"),
+                Deadline));
     }
 
     [Fact]
