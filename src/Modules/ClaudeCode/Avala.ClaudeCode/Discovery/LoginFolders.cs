@@ -27,6 +27,8 @@ internal sealed class LoginFolders(UserHome home) : IConnectionDiscovery
         return ValueTask.FromResult(found);
     }
 
+    public bool HoldsAnyLogin() => Candidates().Any(HoldsLogin);
+
     public static ConnectionName NameOf(string folder)
     {
         var readable = new string([.. Path.GetFileName(folder).TrimStart('.')

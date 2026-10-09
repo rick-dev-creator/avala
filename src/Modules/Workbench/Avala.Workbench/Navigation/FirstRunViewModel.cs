@@ -57,15 +57,8 @@ internal static class FirstRunPhrases
             return ("connections.json is rejected", "Avala cannot use the connections it declares, so no job can start on them. Settings shows why; fix the file there or open it.");
         }
 
-        if (catalog.Connections.Count == 0)
-        {
-            return ("No connections yet", "A job runs on a harness, and Avala found none to run it on: no Claude Code login on this computer and no connection declared in connections.json.");
-        }
-
-        var implicitOnly = catalog.Connections.All(connection => connection.Origin == ConnectionOrigin.Implicit);
-
-        return implicitOnly
-            ? ("No login found", $"Avala found no login on this computer and no connections.json, so jobs run on {string.Join(" or ", catalog.Connections.Select(connection => connection.Name.Value))}, as the harness itself is set up. If a job cannot start, log in or add a connection.")
+        return catalog.Connections.Count == 0
+            ? ("No connections yet", "A job runs on a harness, and Avala found none to run it on: no Claude Code login on this computer and no connection declared in connections.json.")
             : Option<(string, string)>.None;
     }
 }

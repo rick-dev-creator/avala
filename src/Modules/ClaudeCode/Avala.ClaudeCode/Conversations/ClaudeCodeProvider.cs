@@ -6,11 +6,11 @@ using Avala.Sdk;
 
 namespace Avala.ClaudeCode.Conversations;
 
-internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders, UserHome home) : IAgentProvider
+internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders, UserHome home, ImplicitSignIn signIn) : IAgentProvider
 {
     public const string Id = "claude-code";
 
-    public ProviderInfo Info { get; } = new(Id, "Claude Code");
+    public ProviderInfo Info { get; } = new(Id, "Claude Code") { OffersImplicitConnection = signIn.IsAvailable };
 
     private static readonly CapabilitySet Declared = CapabilitySet.Of(
         new StreamsPartialOutput(),
