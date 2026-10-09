@@ -4,7 +4,7 @@ using Avala.Simulator.Playback;
 
 namespace Avala.Simulator.FileSystem;
 
-internal sealed class LoginDiscovery(AvalaPaths paths) : IConnectionDiscovery
+internal sealed class LoginDiscovery(AvalaPaths paths, bool developer) : IConnectionDiscovery
 {
     public const string FolderName = "simulated-logins";
 
@@ -17,7 +17,7 @@ internal sealed class LoginDiscovery(AvalaPaths paths) : IConnectionDiscovery
     public ValueTask<IReadOnlyList<DiscoveredConnection>> DiscoverAsync(CancellationToken cancellationToken)
     {
         var folder = paths.Folder(FolderName);
-        IReadOnlyList<DiscoveredConnection> found = Directory.Exists(folder)
+        IReadOnlyList<DiscoveredConnection> found = developer && Directory.Exists(folder)
             ? [.. Directory.GetDirectories(folder)
                 .Select(Path.GetFullPath)
                 .Order(StringComparer.Ordinal)

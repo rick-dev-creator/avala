@@ -4,17 +4,18 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Conversations;
 using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
+using Avala.Testing;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
 
 internal sealed class Talk
 {
-    public const string WorkingDirectory = "/work";
+    public static readonly string WorkingDirectory = HostPaths.Rooted("/work");
 
-    public const string Plans = "/home/ana/.claude-work/plans";
+    public static readonly string Plans = HostPaths.Rooted("/home/ana/.claude-work/plans");
 
-    public Talk(PermissionMode mode = PermissionMode.AskEveryTime, IReadOnlyList<HarnessTool>? tools = null, Option<ConversationMark> resumed = default, string plans = Plans) =>
-        Conversation = new Conversation(Session, new SessionOptions(WorkingDirectory, mode) { Tools = tools ?? [] }, new Places(WorkingDirectory, plans), resumed);
+    public Talk(PermissionMode mode = PermissionMode.AskEveryTime, IReadOnlyList<HarnessTool>? tools = null, Option<ConversationMark> resumed = default, string? plans = null) =>
+        Conversation = new Conversation(Session, new SessionOptions(WorkingDirectory, mode) { Tools = tools ?? [] }, new Places(WorkingDirectory, plans ?? Plans), resumed);
 
     public SessionId Session { get; } = SessionId.New();
 

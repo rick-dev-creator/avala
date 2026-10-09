@@ -36,7 +36,7 @@
       <Setter Property="IsVisible" Value="False" />
     </Style>
   </UserControl.Styles>
-  <Grid ColumnDefinitions="Auto,*,Auto">
+  <Grid ColumnDefinitions="Auto,*,Auto,Auto">
     <ContentControl x:Name="Dot"
                     ClipToBounds="False"
                     Content="{Binding Dot}"
@@ -54,5 +54,15 @@
                Text="{Binding Fact}"
                TextTrimming="CharacterEllipsis"
                VerticalAlignment="Center" />
+    <Border x:Name="PendingBadge"
+            Grid.Column="3"
+            Classes="badge"
+            MinWidth="16"
+            Margin="8,0,0,0"
+            VerticalAlignment="Center"
+            ToolTip.Tip="Decisions waiting for you"
+            IsVisible="{Binding HasPendingDecisions}">
+      <TextBlock x:Name="Pending" Text="{Binding PendingDecisions}" HorizontalAlignment="Center" />
+    </Border>
   </Grid>
 </UserControl>

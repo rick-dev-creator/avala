@@ -10,12 +10,17 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Avala.Simulator;
 
-public sealed class SimulatorPlugin(TimeSpan pace) : IPlugin
+public sealed class SimulatorPlugin(TimeSpan pace, bool developer) : IPlugin
 {
     private static readonly TimeSpan DemoPace = TimeSpan.FromMilliseconds(60);
 
     public SimulatorPlugin()
-        : this(DemoPace)
+        : this(DemoPace, DeveloperMode.IsOn)
+    {
+    }
+
+    public SimulatorPlugin(TimeSpan pace)
+        : this(pace, developer: true)
     {
     }
 
@@ -31,7 +36,8 @@ public sealed class SimulatorPlugin(TimeSpan pace) : IPlugin
             .AddSingleton<IWorkloads, DotnetWorkloads>()
             .AddSingleton<ScenarioLibrary>()
             .AddSingleton<Stagecraft>()
-            .AddSingleton<IAgentProvider, SimulatedProvider>()
-            .AddSingleton<IConnectionDiscovery, LoginDiscovery>();
+            .AddSingleton<IAgentProvider>(provider => new SimulatedProvider(provider.GetRequiredService<Stagecraft>(), SimulatedProvider.Second))
+            .AddSingleton<IAgentProvider>(provider => new SimulatedProvider(provider.GetRequiredService<Stagecraft>(), SimulatedProvider.First(developer)))
+            .AddSingleton<IConnectionDiscovery>(provider => new LoginDiscovery(provider.GetRequiredService<AvalaPaths>(), developer));
     }
 }

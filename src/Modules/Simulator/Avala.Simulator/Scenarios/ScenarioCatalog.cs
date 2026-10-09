@@ -154,6 +154,40 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario UnsharedThought { get; } = new("unshared-thought",
+    [
+        [
+            Thought(),
+            Message("Done, ", "without sharing how I got there."),
+            .. Bill(1_100, 70, 0.0040m, 0.12),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario Fields { get; } = new("fields",
+    [
+        [
+            Thought("The release needs three answers ", "before it can be tagged."),
+            new Ask(new ItemId("release"), new AgentForm(
+                FormPurpose.Other,
+                "Prepare the release",
+                "The changelog is drafted; the tag and its notes are not.",
+                [
+                    new FormField("tag", "Tag", "Which tag should the release get?", FieldKind.FreeText, []),
+                    new FormField(
+                        "targets",
+                        "Targets",
+                        "Where should it be published?",
+                        FieldKind.MultipleChoice,
+                        [new FormOption("NuGet", "The package feed.", Recommended: true), new FormOption("GitHub", "A release page.")]),
+                    new FormField("notes", "Notes", "Publish the drafted notes as they are?", FieldKind.Confirmation, []),
+                ])),
+            Message("The release is prepared."),
+            .. Bill(1_900, 110, 0.0070m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario PlanApproval { get; } = new("plan-approval",
     [
         [
@@ -434,8 +468,9 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas,
-        Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
+        Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, UnsharedThought, Fields, PlanApproval, Crash, LeftOpen, Hang,
+        Canvas, UnofferedCanvas, Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedExpensively, Recursive,
+        Notes, RevisedNotes, Todo, Expensive,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";

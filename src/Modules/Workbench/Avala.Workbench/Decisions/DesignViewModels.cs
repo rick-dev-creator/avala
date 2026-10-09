@@ -60,7 +60,17 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
 
     public IReadOnlyList<DecisionOption> Options { get; init; }
 
+    public IReadOnlyList<IFormFieldViewModel> Fields { get; init; } = [];
+
+    public bool HasFields => Fields.Count > 0;
+
     public bool IsSingleChoice => true;
+
+    public bool DontAskAgain { get; set; }
+
+    public string DontAskAgainLabel => CardPhrases.DontAskAgain;
+
+    public string DontAskAgainScope => IsPermission ? CardPhrases.DontAskAgainScope(Agents.Contracts.Events.ItemKind.Command) : string.Empty;
 
     public string Waiting { get; init; }
 

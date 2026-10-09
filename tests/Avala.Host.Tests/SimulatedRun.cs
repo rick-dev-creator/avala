@@ -88,7 +88,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         bool harnesses = false,
         Option<IPlugin> claudeCode = default)
     {
-        var run = await PreparedAsync(plugins, settings, committed, harnesses, claudeCode);
+        var run = await PreparedAsync(plugins, settings, committed, harnesses, claudeCode: claudeCode);
         run.Job = Outcomes.Succeeds(await run.SubmitAsync(request));
 
         return run;
@@ -142,6 +142,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed,
         bool harnesses = false,
+        bool developer = true,
         Option<IPlugin> claudeCode = default)
     {
         var data = new TemporaryFolder();
@@ -153,7 +154,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var surroundings = new Surroundings(new TestUiDispatcher(), new FakeTimeProvider(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, claudeCode);
+        var surroundings = new Surroundings(new TestUiDispatcher(), new FakeTimeProvider(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode);
         var root = surroundings.Compose(plugins, data);
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 
@@ -320,7 +321,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     }
 
 
-    private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock, bool Harnesses, Option<IPlugin> ClaudeCode)
+    private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock, bool Harnesses, bool Developer, Option<IPlugin> ClaudeCode)
     {
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
@@ -328,7 +329,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 new AvalaPaths(data.Path),
                 Ui,
                 Clock,
-                [new SimulatorPlugin(TimeSpan.Zero), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
+                [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)]);
     }
 

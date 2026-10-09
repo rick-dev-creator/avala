@@ -25,8 +25,12 @@ internal sealed partial class DesignNewJobViewModel : INewJobViewModel
 
     public bool IsRouteAttention => false;
 
+    public IReadOnlyList<string> Autonomies { get; } = ["Repository's level: autonomous", NewJobPhrases.Supervised];
+
     [ObservableProperty]
-    public partial bool Supervised { get; set; }
+    public partial string Autonomy { get; set; } = "Repository's level: autonomous";
+
+    public string AutonomyNote => "Autonomous, as the repository's .avala/permissions.json declares: edits and commands inside the worktree run without asking, anything else is denied, forms are answered by policy.";
 
     public string Error => string.Empty;
 

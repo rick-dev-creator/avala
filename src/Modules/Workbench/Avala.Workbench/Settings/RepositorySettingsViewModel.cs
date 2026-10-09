@@ -33,6 +33,8 @@ internal interface IRepositorySettingsViewModel
 
     string Error { get; }
 
+    string Notice { get; }
+
     IAsyncRelayCommand ReadCommand { get; }
 
     IAsyncRelayCommand<IRuleFileViewModel> EditCommand { get; }
@@ -90,6 +92,9 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
     public partial string Error { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    public partial string Notice { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial string Name { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -130,10 +135,17 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
     }
 
     [RelayCommand(CanExecute = nameof(CanEdit))]
-    private async Task EditAsync(IRuleFileViewModel? file, CancellationToken cancellationToken) =>
-        Error = file is null
-            ? string.Empty
-            : (await files.OpenInRepositoryAsync(Shown, file.Path, cancellationToken)).Match(_ => string.Empty, SettingsPhrases.Opening);
+    private async Task EditAsync(IRuleFileViewModel? file, CancellationToken cancellationToken)
+    {
+        if (file is null)
+        {
+            return;
+        }
+
+        var opened = await files.OpenInRepositoryAsync(Shown, file.Path, cancellationToken);
+        Error = opened.Match(_ => string.Empty, error => SettingsPhrases.Opening(error, Path.Combine(Shown, file.Path)));
+        Notice = opened.Match(done => done.Created ? SettingsPhrases.CreatedInRepository(file.Path) : string.Empty, _ => string.Empty);
+    }
 
     private bool CanRead() => !string.IsNullOrWhiteSpace(Repository);
 
@@ -145,6 +157,7 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
         Name = SettingsPhrases.Name(read.Repository);
         AutonomyNote = SettingsPhrases.Autonomy(read.Policy.Autonomy.ToString());
         Error = string.Empty;
+        Notice = string.Empty;
         Autonomy = read.Policy.Autonomy.ToString();
         FormStrategy = SettingsPhrases.Strategy(read.Policy.Strategy);
         RuleFileViewModel[] declared =

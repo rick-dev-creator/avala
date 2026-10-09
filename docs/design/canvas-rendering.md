@@ -26,7 +26,7 @@ A unit test of the Rendering plugin proves the two registrations agree: the medi
 | `CanvasSourceTemplate` | `Avala.Components.UI`, `Canvases` | A highlighted source view for a type that is not offered, registered with `views.AddCanvasSource(mediaType, highlight)`. It is not a renderer and offers nothing. |
 | `Avala.Rendering` | `src/Modules/Rendering` | The renderer plugin: Markdown and SVG, offered, and the highlighted source views of Mermaid and HTML, not offered. Its core holds the offer, the SVG sanitizer and the source highlighter, its `.UI` assembly the renderers and the plugin entry. |
 
-The Workbench's `CanvasViewModel` owns a surface and hands it every snapshot of its `CanvasEntry`; `CanvasView` draws the conversation's canvas card, its fill, border and corners, and hosts the surface inside it.
+The Workbench's `CanvasViewModel` owns a surface and hands it every snapshot of its `CanvasEntry`. The Canvas module's snapshots are the only source of a canvas entry's content and status: the end of the canvas's item does not close the entry, because the module's final snapshot, flushed on that same event, may reach the board after it, and closing the entry first would hand the surface a final version with the content of an earlier, throttled snapshot. `CanvasView` draws the conversation's canvas card, its fill, border and corners, and hosts the surface inside it.
 
 ### Registration
 
@@ -34,7 +34,7 @@ The Workbench's `CanvasViewModel` owns a surface and hands it every snapshot of 
 
 ### A canvas that was not offered
 
-A harness may still send a canvas in a type the tool did not offer. The Canvas module opens it, rejects it with `CanvasError.NotOffered`, which it logs, and keeps it as source: its snapshots carry `IsOffered` false. The Workbench passes that flag through its `CanvasEntry` and the surface's `CanvasDraft` to the `CanvasRendering`, and the presenter shows the source with the note "Avala does not offer Mermaid canvases to agents, so this one is not drawn. Showing its source.", highlighted when a source view is registered for the type, even if some renderer could draw it. Nothing of the canvas is lost, and the conformance kit reports the harness.
+A harness may still send a canvas in a type the tool did not offer. The Canvas module opens it, rejects it with `CanvasError.NotOffered`, which it logs, and keeps it as source: its snapshots carry `IsOffered` false. The Workbench passes that flag through its `CanvasEntry` and the surface's `CanvasDraft` to the `CanvasRendering`, and the presenter shows the source with the note "Avala does not offer Mermaid canvases to agents, so this one is not drawn. Showing its source.", highlighted when a source view is registered for the type, even if some renderer could draw it. Nothing of the canvas is lost, and the conformance kit reports the harness. A canvas started without a media type is opened the same way, as `text/plain` source rejected with `CanvasError.MissingMediaType`, so every canvas the board shows is followed by the module to its final snapshot.
 
 ### Streaming without flicker
 

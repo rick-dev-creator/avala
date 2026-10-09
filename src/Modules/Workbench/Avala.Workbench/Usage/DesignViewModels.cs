@@ -84,6 +84,8 @@ internal sealed class DesignUsageViewModel : IUsageViewModel
 {
     public string Title => "Usage";
 
+    public string Scope => Scopes.Usage;
+
     public IReadOnlyList<IConnectionMeterViewModel> Connections { get; } =
     [
         new DesignConnectionMeterViewModel(),

@@ -330,6 +330,17 @@ public sealed class ReasoningViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AnUnsharedThoughtShowsNoChevronAndClickingItOpensNothingAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new ReasoningViewModel(new ReasoningEntry("r", string.Empty, DateTimeOffset.UnixEpoch, TimeSpan.FromSeconds(12), ItemOutcome.Succeeded)));
+
+            view.Click("Toggle");
+
+            Assert.Equal(("Thought for 12s · content not shared by the harness", false, false), (view.TextOf("Summary"), view.Shows("Chevron"), view.Shows("Thought")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AnOpenThoughtStaysOpenWhileItKeepsStreamingAsync() =>
         ui.RunAsync(() =>
         {

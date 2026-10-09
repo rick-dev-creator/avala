@@ -55,6 +55,8 @@ internal sealed class DesignStaleWorktreeViewModel(string path, string reason) :
 
 internal sealed class DesignResourceIndicatorViewModel : IResourceIndicatorViewModel
 {
+    public string Scope => Scopes.Indicator;
+
     public string Memory => "7,168.0 MB";
 
     public int Leftovers => 2;
@@ -77,6 +79,8 @@ internal sealed class DesignResourceIndicatorViewModel : IResourceIndicatorViewM
 internal sealed class DesignResourcesViewModel : IResourcesViewModel
 {
     public string Title => "Resources";
+
+    public string Scope => Scopes.Resources;
 
     public IReadOnlyList<IAgentTreeViewModel> Trees { get; } =
     [

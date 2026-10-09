@@ -25,12 +25,12 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
 
     public string Target(string workingDirectory) => Kind switch
     {
-        ItemKind.FileEdit => Resolved(Input.TextOr("file_path", Input.TextOr("notebook_path", string.Empty)), workingDirectory),
+        ItemKind.FileEdit => Located(Input.TextOr("file_path", Input.TextOr("notebook_path", string.Empty)), workingDirectory),
         ItemKind.Command => Input.TextOr("command", Name),
         ItemKind.Search => Input.TextOr("pattern", Input.TextOr("path", Name)),
         ItemKind.Web => Input.TextOr("url", Input.TextOr("query", Name)),
         ItemKind.Subagent => Input.TextOr("description", Input.TextOr("subagent_type", Name)),
-        _ when Name == "Read" => Resolved(Input.TextOr("file_path", string.Empty), workingDirectory),
+        _ when Name == "Read" => Located(Input.TextOr("file_path", string.Empty), workingDirectory),
         _ => Name,
     };
 
@@ -39,8 +39,8 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
 
     public bool ReadsOutside(string workingDirectory) =>
         Name is "Read" or "NotebookRead" or "Grep" or "Glob" or "LS"
-        && Path.GetRelativePath(workingDirectory, Resolved(Input.TextOr("file_path", Input.TextOr("notebook_path", Input.TextOr("path", string.Empty))), workingDirectory)) is var relative
-        && (relative == ".." || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) || Path.IsPathRooted(relative));
+        && Resolved(Input.TextOr("file_path", Input.TextOr("notebook_path", Input.TextOr("path", string.Empty))), workingDirectory)
+            .Match(path => Outside(path, workingDirectory), () => true);
 
     public string Title(string workingDirectory) => Shorten(Kind switch
     {
@@ -100,8 +100,17 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
     private static string Scope(JsonObject input, string workingDirectory) =>
         input.Text("path").Match(path => $"in {Relative(path, workingDirectory)}", () => string.Empty);
 
-    private static string Resolved(string path, string workingDirectory) =>
-        string.IsNullOrWhiteSpace(path) || path.Contains('\0', StringComparison.Ordinal) ? workingDirectory : Path.GetFullPath(path, workingDirectory);
+    private static string Located(string path, string workingDirectory) =>
+        Resolved(path, workingDirectory).Match(resolved => resolved, () => path);
+
+    private static Option<string> Resolved(string path, string workingDirectory) =>
+        string.IsNullOrWhiteSpace(path) ? workingDirectory
+        : path.Contains('\0', StringComparison.Ordinal) || !Path.IsPathFullyQualified(workingDirectory) || Path.IsPathRooted(path) && !Path.IsPathFullyQualified(path) ? Option<string>.None
+        : Path.GetFullPath(path, workingDirectory);
+
+    private static bool Outside(string path, string workingDirectory) =>
+        Path.GetRelativePath(workingDirectory, path) is var relative
+        && (relative == ".." || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) || Path.IsPathRooted(relative));
 
     private static string Relative(string path, string workingDirectory) =>
         Path.IsPathFullyQualified(path) ? Path.GetRelativePath(workingDirectory, path).Replace('\\', '/') : path;
