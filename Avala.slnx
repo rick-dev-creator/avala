@@ -64,7 +64,12 @@
   <Folder Name="/src/Modules/Recording/">
     <Project Path="src/Modules/Recording/Avala.Recording/Avala.Recording.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Resources/">
+    <Project Path="src/Modules/Resources/Avala.Resources.Contracts/Avala.Resources.Contracts.csproj" />
+    <Project Path="src/Modules/Resources/Avala.Resources/Avala.Resources.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Simulator/">
+    <Project Path="src/Modules/Simulator/Avala.Simulator.Workload/Avala.Simulator.Workload.csproj" />
     <Project Path="src/Modules/Simulator/Avala.Simulator/Avala.Simulator.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -80,11 +85,13 @@
     <Project Path="tests/Avala.Observability.Tests/Avala.Observability.Tests.csproj" />
     <Project Path="tests/Avala.Permissions.Tests/Avala.Permissions.Tests.csproj" />
     <Project Path="tests/Avala.Recording.Tests/Avala.Recording.Tests.csproj" />
+    <Project Path="tests/Avala.Resources.Tests/Avala.Resources.Tests.csproj" />
     <Project Path="tests/Avala.Runtime.Tests/Avala.Runtime.Tests.csproj" />
     <Project Path="tests/Avala.Sdk.Tests/Avala.Sdk.Tests.csproj" />
     <Project Path="tests/Avala.Simulator.Tests/Avala.Simulator.Tests.csproj" />
     <Project Path="tests/Avala.Testing/Avala.Testing.csproj" />
     <Project Path="tests/Avala.Verification.Tests/Avala.Verification.Tests.csproj" />
+    <Project Path="tests/Avala.Simulator.Workload.Tests/Avala.Simulator.Workload.Tests.csproj" />
     <Project Path="tests/Avala.Supervision.Tests/Avala.Supervision.Tests.csproj" />
     <Project Path="tests/Avala.Budgets.Tests/Avala.Budgets.Tests.csproj" />
     <Project Path="tests/Avala.Workspaces.Tests/Avala.Workspaces.Tests.csproj" />

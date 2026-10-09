@@ -1,7 +1,9 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
+using Avala.Sdk.Processes;
 using Avala.Simulator.FileSystem;
+using Avala.Simulator.Workloads;
 using Avala.Simulator.Playback;
 using Avala.Simulator.Recordings;
 using Avala.Simulator.Scenarios;
@@ -17,10 +19,15 @@ internal sealed class Stage : IAsyncDisposable
     private readonly TemporaryFolder data = new();
 
     public Stage(PermissionMode permissions = PermissionMode.AskEveryTime, params HarnessTool[] tools)
+        : this(UncontainedProcesses.Instance, permissions, tools)
+    {
+    }
+
+    public Stage(IProcessLauncher processes, PermissionMode permissions, params HarnessTool[] tools)
     {
         Craft = Crafted(new AvalaPaths(data.Path));
         Session = new SimulatedSession(
-            new SessionOptions(folder.Path, permissions) { Tools = tools },
+            new SessionOptions(folder.Path, permissions) { Tools = tools, Processes = processes },
             Craft,
             SimulatedAccounts.Default,
             Option<Conversation>.None);
@@ -31,7 +38,7 @@ internal sealed class Stage : IAsyncDisposable
     public string Recordings => Path.Combine(data.Path, RecordingFolder.FolderName);
 
     public static Stagecraft Crafted(AvalaPaths paths) =>
-        new(new DiskFileWriter(), new Pacing(TimeProvider.System, TimeSpan.Zero), new ScenarioLibrary(new RecordingFolder(paths)));
+        new(new DiskFileWriter(), new Pacing(TimeProvider.System, TimeSpan.Zero), new ScenarioLibrary(new RecordingFolder(paths)), new DotnetWorkloads());
 
     public SimulatedSession Session { get; }
 

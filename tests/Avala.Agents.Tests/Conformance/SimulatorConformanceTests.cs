@@ -115,6 +115,19 @@ public sealed class SimulatorConformanceTests
     }
 
     [Fact]
+    public async Task TheSimulatorStartsTheProcessesOfAScenarioThroughTheSessionsLauncherAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await AgentConformance.CheckProcessesAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new UserTurn("[simulate: processes] conformance"),
+            Deadline));
+    }
+
+    [Fact]
     public async Task TheSimulatorHonorsADenialWithAMessageAsync()
     {
         using var folder = new TemporaryFolder();

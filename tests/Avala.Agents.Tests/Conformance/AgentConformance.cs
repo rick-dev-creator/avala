@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Turns;
 using Avala.Sdk;
+using Avala.Testing;
 
 namespace Avala.Agents.Tests.Conformance;
 
@@ -116,6 +117,19 @@ internal static class AgentConformance
                     || agentEvent is ItemCompleted { Outcome: ItemOutcome.Succeeded } completed && denied.Contains(completed.Item))
                 .Select(agentEvent => $"the denied item went ahead: {Name(agentEvent)}"),
         ];
+    }
+
+    public static async Task<IReadOnlyList<string>> CheckProcessesAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
+        CancellationToken deadline)
+    {
+        await using var trees = new RecordingProcessTrees();
+        var tree = Assert.IsType<RecordingTree>(await trees.OpenAsync(options.WorkingDirectory, deadline));
+        var run = await RunAsync(provider, options with { Processes = tree }, instruction, deadline);
+
+        return tree.Started.Count == 0 ? [.. run.Violations, "no process was started through the session's launcher"] : run.Violations;
     }
 
     public static async Task<IReadOnlyList<string>> CheckConnectionsAsync(

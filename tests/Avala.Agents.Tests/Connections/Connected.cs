@@ -4,6 +4,8 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Sessions;
 using Avala.Sdk;
+using Avala.Sdk.Processes;
+using Avala.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Agents.Tests.Connections;
@@ -20,7 +22,14 @@ internal static class Connected
         ConnectionRegistry registry,
         IEnumerable<HarnessTool> tools,
         IEnumerable<IAgentProviderDecorator> decorators) =>
-        new(registry, tools, decorators, NullLogger<SessionStarter>.Instance);
+        Starter(registry, tools, decorators, new RecordingProcessTrees());
+
+    public static SessionStarter Starter(
+        ConnectionRegistry registry,
+        IEnumerable<HarnessTool> tools,
+        IEnumerable<IAgentProviderDecorator> decorators,
+        IProcessTrees trees) =>
+        new(registry, new ProviderChain(tools, decorators), trees, NullLogger<SessionStarter>.Instance);
 
     public static ConnectionRegistry Registry(IEnumerable<IAgentProvider> providers, params ICredentialSource[] sources) =>
         new(new DeclaredFile(Option<ConnectionDeclarations>.None), providers, sources);

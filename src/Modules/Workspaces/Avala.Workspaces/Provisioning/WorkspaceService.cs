@@ -4,8 +4,17 @@ using Avala.Workspaces.Workspaces;
 
 namespace Avala.Workspaces.Provisioning;
 
-internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, WorkspaceSettings settings) : IWorkspaces
+internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, WorkspaceSettings settings, WorktreeReconciler reconciler) : IWorkspaces
 {
+    public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> FindAtAsync(string folder, CancellationToken cancellationToken) =>
+        (await store.FindAtAsync(folder, cancellationToken)).ToResult(WorkspaceFailure.UnknownWorkspace).Map(Describe);
+
+    public async ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken) =>
+        await reconciler.ReconcileAsync(cancellationToken);
+
+    public async ValueTask<WorktreeReconciliation> CleanAsync(WorktreeReconciliation found, CancellationToken cancellationToken) =>
+        await reconciler.CleanAsync(found, cancellationToken);
+
     public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> PrepareAsync(
         WorkspaceRequest request,
         CancellationToken cancellationToken) =>
@@ -90,8 +99,7 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
         return Result<T, WorkspaceFailure>.Success(value!);
     }
 
-    private static WorkspaceInfo Describe(Workspace workspace) =>
-        new(workspace.Id, workspace.Location.Path, workspace.Branch.Value, workspace.Base.Value);
+    private static WorkspaceInfo Describe(Workspace workspace) => workspace.Describe();
 
     private static Result<T, WorkspaceFailure> Valid<T>(Result<T, WorkspaceError> result) =>
         result.MapError(_ => WorkspaceFailure.InvalidState);

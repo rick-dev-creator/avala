@@ -13,4 +13,6 @@ internal interface IWorkspaceStore
     Task<Option<Workspace>> FindAtAsync(string path, CancellationToken cancellationToken);
 
     Task RemoveAsync(WorkspaceId id, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Workspace>> AllAsync(CancellationToken cancellationToken);
 }

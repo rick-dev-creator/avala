@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
+using Avala.Testing;
 using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
 namespace Avala.Jobs.Tests.Coordination;
@@ -114,14 +115,51 @@ public sealed class JobFlowTests
     }
 
     [Fact]
-    public async Task AFailedTurnFailsTheJobAsync()
+    public async Task AFailedTurnFailsTheJobAndStopsItsSessionBeforeAnnouncingItAsync()
     {
         var flow = JobFlow.With();
         var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
 
         await flow.FinishTurnAsync(job, TurnOutcome.Failed);
 
         Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal([session], flow.Agents.Stopped);
+    }
+
+    [Fact]
+    public async Task AJobWaitsForItsAdmissionBeforeItsWorkspaceIsPreparedAsync()
+    {
+        var flow = JobFlow.With();
+        var admission = new GatedAdmission();
+        flow.Admissions.Add(admission);
+        var job = await flow.SubmittedAsync();
+
+        var preparing = flow.Prepare.HandleAsync(new JobAnnouncement(job.Id), Cancellation).AsTask();
+        var asked = await admission.Asked.Task.WaitAsync(Cancellation);
+        Assert.Empty(flow.Workspaces.Requests);
+
+        admission.Open();
+        await preparing;
+        await flow.SettledAsync(job);
+
+        Assert.Equal(job.Id, asked);
+        Assert.Equal(JobState.Running, job.State);
+    }
+
+    private sealed class GatedAdmission : IJobAdmission
+    {
+        private readonly TaskCompletionSource admitted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<JobId> Asked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Open() => admitted.SetResult();
+
+        public async ValueTask AdmitAsync(JobId job, CancellationToken cancellationToken)
+        {
+            Asked.SetResult(job);
+            await admitted.Task.WaitAsync(cancellationToken);
+        }
     }
 
     [Fact]

@@ -24,6 +24,10 @@ public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IA
 
     public bool RejectsResume { get; init; }
 
+    public bool RefusesToStart { get; init; }
+
+    public Action<SessionOptions> Launching { get; init; } = _ => { };
+
     public Func<Option<AgentAccount>> Account { get; init; } = () => Option<AgentAccount>.None;
 
     public IReadOnlyList<ScriptedSession> Sessions => [.. sessions];
@@ -39,11 +43,12 @@ public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IA
 
     public ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken)
     {
-        if (options.Resume.IsSome && RejectsResume)
+        if (RefusesToStart || (options.Resume.IsSome && RejectsResume))
         {
             return ValueTask.FromResult(Result<IAgentSession, AgentError>.Failure(AgentError.CannotResume));
         }
 
+        Launching(options);
         var session = new ScriptedSession(script, options, Account);
         sessions.Enqueue(session);
 

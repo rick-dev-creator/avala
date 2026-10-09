@@ -73,7 +73,22 @@ internal static class LayerMap
             ["Contracts"] = Layer.Contracts,
             ["Caps"] = Layer.Domain,
             ["Enforcement"] = Layer.Application,
+            ["Admission"] = Layer.Application,
             ["BudgetFiles"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.Resources", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Usage"] = Layer.Domain,
+            ["Leases"] = Layer.Domain,
+            ["Tracking"] = Layer.Application,
+            ["Sampling"] = Layer.Application,
+            ["Reaping"] = Layer.Application,
+            ["Leasing"] = Layer.Application,
+            ["Housekeeping"] = Layer.Application,
+            ["Settings"] = Layer.Infrastructure,
+            ["Disks"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Simulator", new()
         {
@@ -82,6 +97,7 @@ internal static class LayerMap
             ["Playback"] = Layer.Application,
             ["FileSystem"] = Layer.Infrastructure,
             ["Recordings"] = Layer.Infrastructure,
+            ["Workloads"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Recording", new()
         {

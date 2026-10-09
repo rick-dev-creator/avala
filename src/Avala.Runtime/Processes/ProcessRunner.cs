@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 using Avala.Sdk;
@@ -6,30 +5,30 @@ using Avala.Sdk.Processes;
 
 namespace Avala.Runtime.Processes;
 
-internal sealed class ProcessRunner : IProcessRunner
+internal sealed class ProcessRunner(IProcessTrees trees) : IProcessRunner
 {
     public async ValueTask<Result<ProcessOutcome, ProcessError>> RunAsync(
         ProcessRequest request,
         CancellationToken cancellationToken)
     {
-        using var process = new Process { StartInfo = Describe(request) };
+        var launcher = request.WorkingDirectory
+            .Bind(trees.In)
+            .Match(tree => (IProcessLauncher)tree, () => UncontainedProcesses.Instance);
 
-        try
+        if (!launcher.Start(Describe(request)).TryGetValue(out var started, out var error))
         {
-            process.Start();
+            return error;
         }
-        catch (Win32Exception)
-        {
-            return ProcessError.NotFound;
-        }
+
+        using var process = started;
 
         try
         {
             var output = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var error = process.StandardError.ReadToEndAsync(cancellationToken);
+            var failure = process.StandardError.ReadToEndAsync(cancellationToken);
             await process.WaitForExitAsync(cancellationToken);
 
-            return new ProcessOutcome(process.ExitCode, await output, await error);
+            return new ProcessOutcome(process.ExitCode, await output, await failure);
         }
         catch (OperationCanceledException)
         {
