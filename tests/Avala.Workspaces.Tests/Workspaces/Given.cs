@@ -15,7 +15,8 @@ internal static class Given
             Outcomes.Succeeds(WorkspaceLocation.Create("/repos/shop", path)),
             Outcomes.Succeeds(BranchName.Create("avala/1")),
             Commit(0),
-            Outcomes.Succeeds(BranchName.Create("main"))));
+            Outcomes.Succeeds(BranchName.Create("main")),
+            Commit(9)));
 
         var error = state switch
         {

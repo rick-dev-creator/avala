@@ -20,7 +20,8 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
         CancellationToken cancellationToken) =>
         await git.FindRepositoryRootAsync(request.RepositoryPath, cancellationToken)
             .BindAsync(repository => git.ResolveCommitAsync(repository, request.BaseRef, cancellationToken)
-                .BindAsync(async commit => Plan(repository, commit, await git.BranchOfAsync(repository, request.BaseRef, cancellationToken))))
+                .BindAsync(commit => RulesAsync(repository, request.Rules, cancellationToken)
+                    .BindAsync(async rules => Plan(repository, commit, await git.BranchOfAsync(repository, request.BaseRef, cancellationToken), rules))))
             .BindAsync(workspace => EnsureBranchIsFreeAsync(workspace, cancellationToken))
             .BindAsync(workspace => OpenAsync(workspace, cancellationToken))
             .MapAsync(Describe);
@@ -57,14 +58,19 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
                 return Result<WorkspaceId, WorkspaceFailure>.Success(removed.Workspace);
             });
 
-    private Result<Workspace, WorkspaceFailure> Plan(string repository, CommitSha commit, Option<BranchName> baseBranch)
+    private Result<Workspace, WorkspaceFailure> Plan(string repository, CommitSha commit, Option<BranchName> baseBranch, Option<CommitSha> rules)
     {
         var id = WorkspaceId.New();
 
         return Valid(WorkspaceLocation.Create(repository, Path.Combine(settings.Root, $"{id.Value:N}"))
             .Bind(location => BranchName.Create($"avala/{id.Value:N}")
-                .Bind(branch => Workspace.Create(id, location, branch, commit, baseBranch))));
+                .Bind(branch => Workspace.Create(id, location, branch, commit, baseBranch, rules))));
     }
+
+    private async Task<Result<Option<CommitSha>, WorkspaceFailure>> RulesAsync(string repository, Option<string> rules, CancellationToken cancellationToken) =>
+        await rules.Match(
+            reference => git.ResolveCommitAsync(repository, reference, cancellationToken).MapAsync(Option<CommitSha>.Some),
+            () => Task.FromResult(Result<Option<CommitSha>, WorkspaceFailure>.Success(Option<CommitSha>.None)));
 
     private async Task<Result<Workspace, WorkspaceFailure>> EnsureBranchIsFreeAsync(
         Workspace workspace,

@@ -16,6 +16,7 @@ internal sealed class Workspace : IAggregateRoot<WorkspaceId>
         Location = location;
         Branch = branch;
         Base = @base;
+        Rules = @base;
         machine = WorkspaceLifecycle.Create(() => State, state => State = state);
     }
 
@@ -29,6 +30,8 @@ internal sealed class Workspace : IAggregateRoot<WorkspaceId>
 
     public Option<BranchName> BaseBranch { get; private init; }
 
+    public CommitSha Rules { get; private init; }
+
     public WorkspaceState State { get; private set; } = WorkspaceState.Creating;
 
     public IReadOnlyList<Checkpoint> Checkpoints => checkpoints;
@@ -38,9 +41,9 @@ internal sealed class Workspace : IAggregateRoot<WorkspaceId>
         WorkspaceLocation location,
         BranchName branch,
         CommitSha @base,
-        Option<BranchName> baseBranch = default) =>
-        new Workspace(id, location, branch, @base) { BaseBranch = baseBranch };
-
+        Option<BranchName> baseBranch = default,
+        Option<CommitSha> rules = default) =>
+        new Workspace(id, location, branch, @base) { BaseBranch = baseBranch, Rules = rules.Match(commit => commit, () => @base) };
     public Result<WorkspaceReady, WorkspaceError> MarkReady() =>
         machine.TryFire(WorkspaceTrigger.MarkReady, WorkspaceError.CannotMarkReady)
             .Map(_ => new WorkspaceReady(Id, Location, Branch));

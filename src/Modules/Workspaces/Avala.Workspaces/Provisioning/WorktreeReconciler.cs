@@ -59,6 +59,7 @@ internal static class WorkspaceDescriptions
             new(workspace.Id, workspace.Location.Path, workspace.Branch.Value, workspace.Base.Value)
             {
                 BaseBranch = workspace.BaseBranch.Map(branch => branch.Value),
+                RulesCommit = workspace.Rules.Value,
             };
     }
 }

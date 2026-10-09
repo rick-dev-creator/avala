@@ -2,11 +2,16 @@ using Avala.Sdk;
 
 namespace Avala.Workspaces.Contracts;
 
-public sealed record WorkspaceRequest(string RepositoryPath, string BaseRef = "HEAD");
+public sealed record WorkspaceRequest(string RepositoryPath, string BaseRef = "HEAD")
+{
+    public Option<string> Rules { get; init; }
+}
 
 public sealed record WorkspaceInfo(WorkspaceId Id, string Path, string Branch, string BaseCommit)
 {
     public Option<string> BaseBranch { get; init; }
+
+    public string RulesCommit { get; init; } = BaseCommit;
 }
 
 public sealed record CheckpointInfo(WorkspaceId Workspace, int Number, string Commit, string Label);

@@ -108,6 +108,29 @@ public sealed class GitChangesTests
     }
 
     [Fact]
+    public async Task AWorkspaceStartedFromAnotherWorkspacesBranchMergesIntoThatBranchAndUpdatesItsWorktreeAsync()
+    {
+        await using var job = await Job.PreparedAsync();
+        await job.WriteAsync("PLAN.md", "the plan\n");
+        await job.CheckpointAsync();
+        var parentTip = await job.HeadAsync();
+        var child = Outcomes.Succeeds(await job.Service.PrepareAsync(
+            new WorkspaceRequest(job.Repository.Path, job.Workspace.Branch) { Rules = job.Workspace.RulesCommit },
+            Cancellation));
+        await File.WriteAllTextAsync(Path.Combine(child.Path, "NOTES.md"), "the notes\n", Cancellation);
+        Outcomes.Succeeds(await job.Service.CheckpointAsync(child.Id, "Attempt 1", Cancellation));
+        var main = await job.Repository.GitAsync(Cancellation, "rev-parse", "main");
+
+        var merged = Outcomes.Succeeds(await job.Changes.MergeAsync(child.Id, Message, Cancellation));
+
+        var commit = Outcomes.Present(merged.Commit);
+        Assert.Equal((job.Workspace.Branch, Option<string>.Some(Path.GetFullPath(job.Workspace.Path))), (merged.BaseBranch, merged.Checkout.Map(Path.GetFullPath)));
+        Assert.Equal((commit, parentTip), (await job.HeadAsync(), await job.Repository.GitAsync(Cancellation, "rev-parse", $"{commit}^")));
+        Assert.Equal("the notes\n", (await File.ReadAllTextAsync(Path.Combine(job.Workspace.Path, "NOTES.md"), Cancellation)).ReplaceLineEndings("\n"));
+        Assert.Equal(main, await job.Repository.GitAsync(Cancellation, "rev-parse", "main"));
+    }
+
+    [Fact]
     public async Task MergingOntoABaseThatMovedCleanlyAppliesTheJobsChangesOnTopAsync()
     {
         await using var job = await Job.PreparedAsync(("src/cart.cs", "one\ntwo\nthree\n"));
