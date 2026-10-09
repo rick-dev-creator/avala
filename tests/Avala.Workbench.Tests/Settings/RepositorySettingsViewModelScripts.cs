@@ -9,12 +9,11 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Tests.Settings;
 
-public sealed class SettingsTests
+public sealed class RepositorySettingsViewModelScripts
 {
     private const string Repository = "/repositories/shop";
 
     private readonly FakeOpener opener = new();
-    private readonly FakeSupervision supervision = new();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -90,48 +89,25 @@ public sealed class SettingsTests
     }
 
     [Fact]
-    public async Task TheMachineSettingsListTheConnectionsAndOpenTheirFileAsync()
-    {
-        var machine = Machine();
-        await machine.LoadAsync(Cancellation);
-
-        await machine.OpenConnectionsCommand.ExecuteAsync(null);
-
-        Assert.Equal([("work", true, "login"), ("personal", false, "login")], machine.Connections.Select(connection => (connection.Name, connection.IsDefault, connection.Source)));
-        Assert.Equal([Path.Combine("/data", "connections.json")], opener.Opened);
-        Assert.Equal(("Applied", "900s", "Absent"), (machine.ConnectionsFile, machine.Silence, machine.SupervisionFile));
-    }
+    public void NothingCanBeReadWithoutARepositoryNorEditedBeforeARead() =>
+        ViewModelScript.Given(RepositorySettings())
+            .When(settings => settings.Repository = "  ")
+            .Then(settings => Assert.Equal((false, false), (settings.ReadCommand.CanExecute(null), settings.EditCommand.CanExecute(new DesignRuleFileViewModel()))));
 
     [Fact]
-    public async Task AValidSilenceWindowIsSavedAndShownAsync()
+    public async Task TypingAnotherRepositoryKeepsShowingTheRulesReadUntilItIsRead()
     {
-        var machine = Machine();
-        machine.SilenceDraft = " 90 ";
+        var settings = RepositorySettings();
+        settings.Repository = Repository;
+        await settings.ReadCommand.ExecuteAsync(null);
 
-        await machine.SaveSilenceCommand.ExecuteAsync(null);
+        settings.Repository = "/repositories/web";
 
-        Assert.Equal([TimeSpan.FromSeconds(90)], supervision.Changes);
-        Assert.Equal(("90s", "Applied", string.Empty), (machine.Silence, machine.SupervisionFile, machine.Error));
-    }
-
-    [Theory]
-    [InlineData("soon", "Enter the window in seconds.", 0)]
-    [InlineData("0", "The window must be more than 0 and at most 86,400 seconds.", 1)]
-    public async Task AnInvalidSilenceWindowIsRefusedWithItsReasonAsync(string draft, string error, int changes)
-    {
-        var machine = Machine();
-        machine.SilenceDraft = draft;
-
-        await machine.SaveSilenceCommand.ExecuteAsync(null);
-
-        Assert.Equal((error, changes), (machine.Error, supervision.Changes.Count));
+        Assert.Equal((Repository, 4), (settings.Shown, settings.Files.Count));
     }
 
     private RepositorySettingsViewModel RepositorySettings(params JobSummary[] jobs) =>
         new(Reader(new CommittedFiles().Workspace(Repository)), new SettingsFiles(opener, new AvalaPaths("/data")), Pages.Board(jobs));
-
-    private MachineSettingsViewModel Machine() =>
-        new(new MachineSettings(new FakeConnections("work", "personal"), supervision, new FakeResources()), new SettingsFiles(opener, new AvalaPaths("/data")));
 
     private static RulesReader Reader(CommittedFiles files)
     {
