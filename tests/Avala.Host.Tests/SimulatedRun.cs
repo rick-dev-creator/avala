@@ -59,6 +59,26 @@ internal sealed class SimulatedRun : IAsyncDisposable
         params (string Path, string Content)[] committed) =>
         StartAsync(plugins, Simulate(scenario), autonomy, [], committed);
 
+    private static Task<SimulatedRun> StartAsync(
+        PublishedPlugins plugins,
+        string instruction,
+        Option<Autonomy> autonomy,
+        IReadOnlyList<(string File, string Content)> settings,
+        IReadOnlyList<(string Path, string Content)> committed) =>
+        StartAsync(plugins, new JobRequest(string.Empty, instruction) { Autonomy = autonomy }, settings, committed);
+
+    private static async Task<SimulatedRun> StartAsync(
+        PublishedPlugins plugins,
+        JobRequest request,
+        IReadOnlyList<(string File, string Content)> settings,
+        IReadOnlyList<(string Path, string Content)> committed)
+    {
+        var run = await PreparedAsync(plugins, settings, committed);
+        run.Job = Outcomes.Succeeds(await run.SubmitAsync(request));
+
+        return run;
+    }
+
     public static Task<SimulatedRun> SupervisedAsync(PublishedPlugins plugins, string scenario, TimeSpan silence) =>
         StartAsync(
             plugins,
@@ -84,28 +104,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public static string Simulate(string scenario) => $"[simulate: {scenario}] Greet the team";
 
-    private static Task<SimulatedRun> StartAsync(
-        PublishedPlugins plugins,
-        string instruction,
-        Option<Autonomy> autonomy,
-        IReadOnlyList<(string File, string Content)> settings,
-        IReadOnlyList<(string Path, string Content)> committed) =>
-        StartAsync(plugins, new JobRequest(string.Empty, instruction) { Autonomy = autonomy }, settings, committed);
-
     public static Task<SimulatedRun> PreparedAsync(PublishedPlugins plugins, params (string Path, string Content)[] committed) =>
         PreparedAsync(plugins, [], committed);
-
-    private static async Task<SimulatedRun> StartAsync(
-        PublishedPlugins plugins,
-        JobRequest request,
-        IReadOnlyList<(string File, string Content)> settings,
-        IReadOnlyList<(string Path, string Content)> committed)
-    {
-        var run = await PreparedAsync(plugins, settings, committed);
-        run.Job = Outcomes.Succeeds(await run.SubmitAsync(request));
-
-        return run;
-    }
 
     public static async Task<SimulatedRun> PreparedAsync(
         PublishedPlugins plugins,
@@ -161,6 +161,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
         return [.. jobs.Select(job => settled[job])];
     }
 
+    public async Task<JobStatus> SettledAsync() =>
+        (await application.Progress.UntilAsync(update => Settled.Contains(update.Status))).Status;
+
     public async Task<SessionOpened> OpenedAsync() => await application.Opened.UntilAsync(_ => true);
 
     public async Task StartedAsync() => _ = await application.Started.UntilAsync(_ => true);
@@ -175,9 +178,6 @@ internal sealed class SimulatedRun : IAsyncDisposable
         application = new Application(CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path), Ui));
         application.Root.Start();
     }
-
-    public async Task<JobStatus> SettledAsync() =>
-        (await application.Progress.UntilAsync(update => Settled.Contains(update.Status))).Status;
 
     public async Task<IReadOnlyList<JobStatus>> JourneyAsync() =>
         [.. (await application.Progress.CollectUntilAsync(update => Settled.Contains(update.Status))).Select(update => update.Status)];

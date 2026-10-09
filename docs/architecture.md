@@ -94,6 +94,11 @@ Enforced by the compiler through `BannedSymbols.txt` and the threading analyzers
 - No direct `Fire` on a Stateless machine: transitions go through the guarded `TryFire`.
 - No coordination primitive in `src/`: `src/BannedSymbols.Concurrency.txt` bans the types above for every source project, so a violation fails the build before the architecture tests run. A `lock` on a plain object names no banned type, so only the architecture rule catches it.
 
+Enforced by the compiler through the code quality analyzers, on every project and script:
+
+- [SonarAnalyzer.CSharp](https://github.com/SonarSource/sonar-dotnet), open source under the LGPL, with its default rules, the Sonar way, as warnings and so as errors. Three maintainability rules are added to the defaults, with their limits in `SonarLint.xml`: cognitive complexity of at most 15 per method and 3 per property accessor (`S3776`), at most 3 nested control flow statements (`S134`) and at most 80 lines per method (`S138`). The rules that conflict with a convention are off and listed among the [analyzer exceptions](#analyzer-exceptions). Expression complexity (`S1067`) is left off, since it rejects the guard chains `S3358` is off for, and so are Sonar's own cyclomatic complexity (`S1541`) and coupling (`S1200`), which the .NET rules below already measure.
+- The .NET code metrics rules, with their limits in `CodeMetricsConfig.txt`: cyclomatic complexity of at most 20 per member (`CA1502`), a maintainability index of at least 20 per member and type, the start of Visual Studio's green band (`CA1505`), and class coupling of at most 40 types per member and 95 per type, the analyzer's defaults (`CA1506`).
+
 Every rule is checked against the production modules, a compliant fixture module and a violating fixture module. A rule must pass on the first two and find exactly the expected violations in the third, so it can never pass vacuously.
 
 ## Extending Avala
@@ -140,6 +145,12 @@ Comments are banned, so every exception to an analyzer is recorded here.
 | `CA1000` | Everywhere | `Result<TValue, TError>.Success` and `Failure` are the canonical static factories of a generic result. |
 | `VSTHRD003` | Everywhere | It guards against deadlocks under Visual Studio's `JoinableTaskFactory`, which Avala does not use. Awaiting a stored task, such as the event bus loop, is correct here. |
 | `CA1716` | Everywhere | It reserves Visual Basic keywords such as `Option`. Avala is C# only, and `Option<T>` is the established name of the pattern. |
+| `S108` | Everywhere | Its remedy for a block left empty on purpose, such as a `catch` that swallows an expected cancellation, is a comment that explains it, and comments are banned. |
+| `S3358` | Everywhere | A chain of conditional expressions, one guard per line that ends in the success value, is the established way to validate input into a `Result` declaratively, and the rule reads every such chain as nested ternaries. Cognitive complexity, `S3776`, still bounds each chain. |
+| `S5034` | Everywhere | It keys on the called method, so two separate calls of the same `ValueTask` method, or one call inside a loop, read as one `ValueTask` consumed twice. `CA2012` checks the real misuse. |
+| `CA1506` | `tests/` | A scenario test composes the application through its real contracts on purpose: its coupling measures the scenario, not a design to split. |
+| `S3903` | `scripts/` | Scripts are file-based apps with top-level statements, which cannot share a file with a file-scoped namespace, the only form the code style allows. |
+| `S4036` | `scripts/` | Scripts run `git` from the runner's `PATH` by design, as the product does through its process runner. |
 | `RS0030` | `GuardedTransitions.cs` | The guarded transition helper is the single place allowed to call `Fire`, right after `CanFire`. |
 | `RS0030` | xUnit's generated entry point | Third-party generated code that blocks on the test platform's task. |
 | `RS0030` | `tests/Avala.Testing/TemporaryFolder.cs`, `Task.Delay` | Windows releases a killed process's handles, and its console host's, a moment after the process exits, and announces it with no event, so `DisposeAsync` retries a failed deletion after a short delay. The timing rule reads this row and allows `Task.Delay` in this file only, nothing else. |
@@ -176,15 +187,33 @@ dotnet test --solution Avala.slnx
 
 ## Quality metrics
 
-The CI builds and tests on Linux and Windows, then measures coverage and lines of code on every push to `main` and every pull request. Both appear in the run summary.
-
-Coverage comes from the unit tests only, listed in `Avala.UnitTests.slnf`. The architecture tests run without instrumentation, because the coverage tooling rewrites the code they inspect. Generated code is excluded from the figures.
+The CI builds and tests on Linux and Windows, then measures coverage, code metrics, technical debt and lines of code on every push to `main` and every pull request, with open-source tools and no external service. Everything appears in the run summary, and the reports are kept as the run's `coverage`, `metrics` and `badges` artifacts.
 
 ```
 dotnet tool restore
 dotnet test --solution Avala.UnitTests.slnf --coverage --coverage-output-format cobertura --results-directory TestResults
-dotnet tool run reportgenerator -reports:"TestResults/*.cobertura.xml" -targetdir:TestResults/report -reporttypes:"TextSummary;Html" -assemblyfilters:"+Avala.*;-*.Tests" -filefilters:"-*.g.cs"
-dotnet run scripts/metrics.cs
+dotnet tool run reportgenerator -reports:"TestResults/*.cobertura.xml" -targetdir:TestResults/report -reporttypes:"TextSummary;Html;Badges;Cobertura" -assemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing" -riskhotspotassemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing" -filefilters:"-*.g.cs"
+dotnet run scripts/code-metrics.cs
+dotnet run scripts/metrics.cs -- --badges TestResults/badges
 ```
 
-Lines of code are physical lines of C#, counted the same way as the reference figure for T3 Code: about 907,000 lines of non-test TypeScript at commit `a4c9494b0`, on 2026-10-08. The goal is a better product in no more than 15% of that.
+- **Coverage** comes from the unit tests only, listed in `Avala.UnitTests.slnf`. The architecture tests run without instrumentation, because the coverage tooling rewrites the code they inspect. Generated code and the shared test helpers of `Avala.Testing` are excluded. ReportGenerator writes the HTML report with its risk hotspots, its own coverage badges and one merged Cobertura file the grade reads.
+- **Code metrics** are the maintainability index, cyclomatic complexity, class coupling, depth of inheritance and lines of every production assembly, namespace, type and member. `scripts/code-metrics.cs` computes them with `CodeAnalysisMetricData` from Microsoft.CodeAnalysis.AnalyzerUtilities, the library behind `Microsoft.CodeAnalysis.Metrics`, whose `Metrics.exe` runs only on Windows, and writes them in the same layout to `TestResults/metrics/CodeMetrics.xml`.
+- **Lines of code** are physical lines of C#, counted the same way as the reference figure for T3 Code: about 907,000 lines of non-test TypeScript at commit `a4c9494b0`, on 2026-10-08. The goal is a better product in no more than 15% of that.
+
+### Technical debt grade
+
+`scripts/metrics.cs` rates four indicators from A to E, and the grade is the worst of the four: the debt of a codebase is as high as its weakest measure.
+
+| Indicator | Source | A | B | C | D | E |
+| --- | --- | --- | --- | --- | --- | --- |
+| Line coverage of the unit tests | Merged Cobertura report | ≥ 80% | ≥ 70% | ≥ 60% | ≥ 50% | < 50% |
+| Mean maintainability index of the production methods | Code metrics | ≥ 80 | ≥ 70 | ≥ 60 | ≥ 50 | < 50 |
+| Highest cyclomatic complexity of a production method | Code metrics | ≤ 10 | ≤ 15 | ≤ 20 | ≤ 25 | > 25 |
+| Risk hotspots per 1,000 methods of the coverage report | Merged Cobertura report | ≤ 1 | ≤ 5 | ≤ 10 | ≤ 20 | > 20 |
+
+A risk hotspot is a method whose CRAP score, `complexity² × (1 − coverage)³ + complexity`, is above 30, the limit its authors proposed, with the complexity and the line coverage the coverage tool measures for the method. The summary lists the ten riskiest. `CA1502` fails the build above a complexity of 20, so the third indicator cannot fall below C.
+
+### Badges
+
+`scripts/metrics.cs -- --badges <folder>` writes six SVG badges in the flat style of shields.io, drawn by the script itself: coverage, maintainability, the highest complexity and the debt grade, each in the color of its rating, then the production lines of C# and their share of T3 Code's 907,000 lines. On a push to `main`, after the quality job, the `badges` job publishes them with `scripts/publish-badges.cs` on the `badges` branch, which holds nothing else, and the README shows them from there. The job alone has `contents: write`, runs one at a time, and the script refuses to run outside a push to `main`. It builds the commit with git's plumbing, so the checkout and `main` are never touched, adds nothing when the badges are unchanged, and pushes without force on top of the previous badges, so it can only ever move `badges` forward.

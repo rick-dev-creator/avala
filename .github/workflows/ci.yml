@@ -27,7 +27,7 @@ jobs:
         run: dotnet test --solution Avala.slnx --no-build
 
   quality:
-    name: Coverage and lines of code
+    name: Coverage, code metrics and technical debt
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -42,19 +42,52 @@ jobs:
           dotnet test --solution Avala.UnitTests.slnf
           --coverage --coverage-output-format cobertura
           --results-directory TestResults
-      - name: Coverage report
+      - name: Coverage report, badges and risk hotspots
         run: >-
           dotnet tool run reportgenerator
           -reports:"TestResults/*.cobertura.xml"
           -targetdir:TestResults/report
-          -reporttypes:"MarkdownSummaryGithub;Html"
-          -assemblyfilters:"+Avala.*;-*.Tests"
+          -reporttypes:"MarkdownSummaryGithub;Html;Badges;Cobertura"
+          -assemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing"
+          -riskhotspotassemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing"
           -filefilters:"-*.g.cs"
+      - name: Code metrics
+        run: dotnet run scripts/code-metrics.cs
       - name: Publish coverage summary
         run: dotnet run scripts/publish-summary.cs -- TestResults/report/SummaryGithub.md
-      - name: Lines of code
-        run: dotnet run scripts/metrics.cs
+      - name: Lines of code and technical debt
+        run: dotnet run scripts/metrics.cs -- --badges TestResults/badges
       - uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: TestResults/report
+      - uses: actions/upload-artifact@v7
+        with:
+          name: metrics
+          path: TestResults/metrics
+      - uses: actions/upload-artifact@v7
+        with:
+          name: badges
+          path: TestResults/badges
+
+  badges:
+    name: Publish badges
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: badges
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@v8
+        with:
+          name: badges
+          path: TestResults/badges
+      - name: Publish badges to the badges branch
+        run: dotnet run scripts/publish-badges.cs -- TestResults/badges

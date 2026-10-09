@@ -29,7 +29,7 @@ public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        for (var attempt = 1; ; attempt++)
+        for (var attempt = 1; attempt < Attempts; attempt++)
         {
             try
             {
@@ -37,10 +37,12 @@ public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
 
                 return;
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException && attempt < Attempts)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
                 await Task.Delay(Settling);
             }
         }
+
+        Dispose();
     }
 }

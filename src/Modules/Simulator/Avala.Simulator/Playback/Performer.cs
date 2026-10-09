@@ -43,6 +43,22 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
 
     private IAsyncEnumerable<IAgentEvent> PlayAsync(Cues cues, IStep step, CancellationToken cancellationToken) => step switch
     {
+        Ask ask => AskAsync(cues, ask, cancellationToken),
+        CallTool call => PlayAsync(cues, new CallTools([call]), cancellationToken),
+        CallTools calls when calls.Calls.All(call => options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed)) =>
+            CallAsync(cues, calls.Calls, cancellationToken),
+        CallTools calls => calls.Calls
+            .SelectMany(call => cues.Of(Reply(call.Item, $"I would call {call.Tool} with {call.Input}, but the harness did not offer it.")))
+            .ToAsyncEnumerable(),
+        ReportLimitResetting limit => cues.Of(new ReportLimit(new UsageLimit(limit.Window, limit.Used, craft.Pacing.Now + limit.ResetsIn))).ToAsyncEnumerable(),
+        Crash crash => throw new InvalidOperationException(crash.Reason),
+        Draw draw when !options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
+            cues.Of(new Say(draw.Item, ItemKind.Message, draw.Title, draw.Chunks)).ToAsyncEnumerable(),
+        _ => DeedAsync(cues, step, cancellationToken),
+    };
+
+    private IAsyncEnumerable<IAgentEvent> DeedAsync(Cues cues, IStep step, CancellationToken cancellationToken) => step switch
+    {
         WriteFile write => ActAsync(
             cues,
             new Deed(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", $"Edit {write.Path}", Path.Combine(options.WorkingDirectory, write.Path)),
@@ -66,17 +82,6 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             options.Permissions != PermissionMode.AllowAll,
             token => craft.Workloads.StartAsync(options.Processes, spawn.Workload, options.WorkingDirectory, token),
             cancellationToken),
-        Ask ask => AskAsync(cues, ask, cancellationToken),
-        CallTool call => PlayAsync(cues, new CallTools([call]), cancellationToken),
-        CallTools calls when calls.Calls.All(call => options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed)) =>
-            CallAsync(cues, calls.Calls, cancellationToken),
-        CallTools calls => calls.Calls
-            .SelectMany(call => cues.Of(Reply(call.Item, $"I would call {call.Tool} with {call.Input}, but the harness did not offer it.")))
-            .ToAsyncEnumerable(),
-        ReportLimitResetting limit => cues.Of(new ReportLimit(new UsageLimit(limit.Window, limit.Used, craft.Pacing.Now + limit.ResetsIn))).ToAsyncEnumerable(),
-        Crash crash => throw new InvalidOperationException(crash.Reason),
-        Draw draw when !options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
-            cues.Of(new Say(draw.Item, ItemKind.Message, draw.Title, draw.Chunks)).ToAsyncEnumerable(),
         _ => cues.Of(step).ToAsyncEnumerable(),
     };
 

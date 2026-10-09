@@ -24,14 +24,14 @@ internal sealed class InMemoryInterventions : IInterventionStore
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<BudgetIntervention>> EarlierRunsAsync(CancellationToken cancellationToken) => Task.FromResult(Earlier);
-
     public Task RecordAsync(BudgetCarve carve, CancellationToken cancellationToken)
     {
         carves.Enqueue(carve);
 
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<BudgetIntervention>> EarlierRunsAsync(CancellationToken cancellationToken) => Task.FromResult(Earlier);
 
     public Task<IReadOnlyList<BudgetCarve>> EarlierCarvesAsync(CancellationToken cancellationToken) => Task.FromResult(EarlierCarves);
 }
