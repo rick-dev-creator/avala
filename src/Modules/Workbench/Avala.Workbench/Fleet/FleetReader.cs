@@ -5,19 +5,23 @@ using Avala.Observability.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Following;
+using Avala.Workbench.Spending;
 
 namespace Avala.Workbench.Fleet;
 
-internal sealed record ConnectionState(ConnectionName Name, string Provider, bool IsDefault, Option<AgentAccount> Account, Option<UsageSummary> Usage, IReadOnlyList<BoardJob> Agents);
+internal sealed record ConnectionState(ConnectionName Name, string Provider, bool IsDefault, Option<AgentAccount> Account, Option<UsageSummary> Usage, IReadOnlyList<BoardJob> Agents)
+{
+    public IReadOnlyList<LimitReading> Limits { get; init; } = [];
+}
 
 internal sealed record FleetState(ConnectionFileStatus File, Option<ConnectionError> Error, IReadOnlyList<ConnectionState> Connections);
 
-internal sealed class FleetReader(IConnections connections, IUsage usage, SessionBook sessions, JobBoard board)
+internal sealed class FleetReader(IConnections connections, LimitReadings readings, SessionBook sessions, JobBoard board)
 {
     public async ValueTask<FleetState> ReadAsync(CancellationToken cancellationToken)
     {
         var catalog = await connections.CatalogAsync(cancellationToken);
-        var used = usage.ByConnection().ToDictionary(found => found.Connection);
+        var used = readings.ByConnection().ToDictionary(found => found.Connection);
         var declared = catalog.Connections.ToDictionary(connection => connection.Name);
         var agents = board.Jobs.Values
             .Where(job => job.Group != JobGroup.Done)
@@ -37,7 +41,10 @@ internal sealed class FleetReader(IConnections connections, IUsage usage, Sessio
                     catalog.DefaultMode == DefaultMode.Fixed && catalog.Default == Option<ConnectionName>.Some(name),
                     sessions.LatestOn(name).Bind(seen => seen.Account),
                     used.TryGetValue(name, out var reported) ? Option<UsageSummary>.Some(reported.Usage) : Option<UsageSummary>.None,
-                    [.. agents[name].OrderBy(job => job.Summary.Submitted)])),
+                    [.. agents[name].OrderBy(job => job.Summary.Submitted)])
+                {
+                    Limits = used.TryGetValue(name, out var read) ? readings.Judged(read.Usage.Limits) : [],
+                }),
             ]);
     }
 
