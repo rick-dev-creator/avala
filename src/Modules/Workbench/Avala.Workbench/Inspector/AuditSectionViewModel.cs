@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -86,7 +87,8 @@ internal sealed partial class AuditSectionViewModel : IAuditSectionViewModel, IR
                 audit.Answers.Count,
                 audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Deny) + audit.Answers.Count(answer => answer.Answer == PermissionAnswer.Deny),
                 assumptions.Count);
-        Decisions = [.. audit.Decisions.Select(InspectorPhrases.Decision), .. audit.Answers.Select(InspectorPhrases.Answer)];
+        var latest = facts.Bind(found => found.Record.History.Sessions.Count > 0 ? found.Record.History.Sessions[^1].Session : Option<SessionId>.None);
+        Decisions = [.. audit.Decisions.Select(decision => InspectorPhrases.Decision(decision, audit.Answers, latest)), .. audit.Answers.Select(InspectorPhrases.Answer)];
         Assumptions = [.. assumptions.Select(InspectorPhrases.Assumption)];
     }
 }

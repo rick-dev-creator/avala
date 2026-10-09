@@ -176,6 +176,29 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
         Assert.All(Outcomes.Present(history.Choice).Compared, candidate => Assert.Equal((0d, true), (candidate.Used, candidate.Available)));
     }
 
+    [Fact]
+    public async Task APermissionPendingWhenTheApplicationStopsIsNoLongerOfferedAfterARestartAndItsAuditSaysItsSessionEndedAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "waiting-permission");
+        Assert.Equal(Permissions.Contracts.DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
+        await run.ResumableAsync();
+        var before = await run.WorkbenchAsync();
+        var pending = await run.Ui.ReadAsync(() => before.Toolbar["Decisions"]);
+        await before.ShowsAsync(() => pending["Items"].Items.Count == 1);
+
+        await run.RestartAsync();
+
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var after = await run.WorkbenchAsync();
+        var decisions = await run.Ui.ReadAsync(() => after.Toolbar["Decisions"]);
+        await after.ShowsInGroupAsync(run.Job, "ReadyForReview");
+        Assert.Equal((true, 0), await run.Ui.ReadAsync(() => (decisions["IsEmpty"].Value<bool>(), decisions["Items"].Items.Count)));
+        var audit = Assert.Single(await after.InspectAsync(run.Job, "AuditSectionViewModel"));
+        Assert.Contains(
+            "Asked you Command dotnet ef database update · unanswered, its session ended",
+            await run.Ui.ReadAsync(() => audit["Decisions"].Value<IReadOnlyList<string>>()));
+    }
+
     private static string LimitOf(Bound usage) =>
         usage["Connections"].Items.Where(connection => connection["Name"].Text == "simulator-one").SelectMany(connection => connection["Limits"].Items).Select(limit => limit["UsedText"].Text).FirstOrDefault() ?? "none";
 
