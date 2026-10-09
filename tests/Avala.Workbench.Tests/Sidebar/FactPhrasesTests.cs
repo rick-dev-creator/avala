@@ -75,4 +75,12 @@ public sealed class FactPhrasesTests
             {
                 Strategy = strategy.Length == 0 ? Option<string>.None : strategy,
             }));
+
+    [Fact]
+    public void ATitleIsTheFirstLineOfTheInstructionCutShort()
+    {
+        var title = FactPhrases.Title($"{new string('a', 100)}\nMore detail");
+
+        Assert.Equal((80, '…'), (title.Length, title[^1]));
+    }
 }
