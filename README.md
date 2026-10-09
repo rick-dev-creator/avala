@@ -1,3 +1,5 @@
+<img src="docs/assets/brand/avala-icon.svg" alt="" width="88">
+
 # Avala
 
 **Agents you can trust without watching.**
