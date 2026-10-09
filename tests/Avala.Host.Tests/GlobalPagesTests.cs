@@ -78,7 +78,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
     [Fact]
     public async Task TheUsagePageShowsASimulatedJobsCostAndItsLimitAgainstTheHoldThresholdAsync()
     {
-        await using var run = await SimulatedRun.StartAsync(plugins, "near-limit", (".avala/budget.json", """{ "holdAtLimit": 0.9 }"""));
+        await using var run = await SimulatedRun.StartAsync(plugins, "spent-window", (".avala/budget.json", """{ "holdAtLimit": 0.9 }"""));
         _ = await run.SettledAsync();
         var usage = await ActivatedAsync(run, "Usage");
 

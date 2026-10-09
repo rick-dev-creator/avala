@@ -246,6 +246,17 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario SpentWindow { get; } = new("spent-window",
+    [
+        [
+            Thought("A long piece of work ", "that uses most of the window."),
+            Message("Done, ", "though the usage window is nearly spent."),
+            new ReportUsage(new TokenUsage(9_000, 700, 4_500, 900, 175), new Cost(0.0600m, "USD")),
+            new ReportLimitResetting("5h", 0.95, TimeSpan.FromHours(1)),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario Delegated { get; } = new("delegate",
     [
         [
@@ -361,7 +372,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas,
-        Processes, FollowUp, NearLimit, Delegated, DelegatedConflict, DelegatedLoosely, DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
+        Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedLoosely, DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";
