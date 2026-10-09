@@ -21,6 +21,12 @@ public sealed partial class HeadlessApp : Application
         DataTemplates.Add(Views);
     }
 
+    public override void OnFrameworkInitializationCompleted()
+    {
+        AnimationClock.HoldStill();
+        base.OnFrameworkInitializationCompleted();
+    }
+
     private static ViewRegistry CreateViews()
     {
         var views = new ViewRegistry();
