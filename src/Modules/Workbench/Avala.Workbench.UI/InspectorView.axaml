@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inspector="using:Avala.Workbench.Inspector"
+             x:Class="Avala.Workbench.UI.InspectorView"
+             x:ClassModifier="internal"
+             x:DataType="inspector:InspectorViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="12">
+      <Expander Header="Evidence" IsExpanded="True">
+        <ContentControl Content="{Binding Evidence}" />
+      </Expander>
+      <Expander Header="Decisions and assumptions">
+        <ContentControl Content="{Binding Audit}" />
+      </Expander>
+      <Expander Header="Usage and caps">
+        <ContentControl Content="{Binding Usage}" />
+      </Expander>
+      <Expander Header="Autonomy and connection">
+        <ContentControl Content="{Binding Autonomy}" />
+      </Expander>
+      <Expander Header="Worktree">
+        <ContentControl Content="{Binding Worktree}" />
+      </Expander>
+      <Expander Header="Delegation">
+        <ContentControl Content="{Binding Delegation}" />
+      </Expander>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

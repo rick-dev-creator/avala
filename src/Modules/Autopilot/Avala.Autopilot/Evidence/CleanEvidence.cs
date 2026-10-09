@@ -77,5 +77,7 @@ internal static class CleanEvidence
         };
     }
 
-    private static T[] When<T>(bool found, T value) => found ? [value] : [];
+    private static ExceptionReason[] When(bool found, ExceptionReason reason) => found ? [reason] : [];
+
+    private static string[] When(bool found, string file) => found ? [file] : [];
 }

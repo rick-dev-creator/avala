@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:review="using:Avala.Workbench.Review"
+             x:Class="Avala.Workbench.UI.ChangedFileView"
+             x:ClassModifier="internal"
+             x:DataType="review:ChangedFileViewModel">
+  <StackPanel Spacing="4">
+    <Button Background="Transparent" Command="{Binding ShowHunksCommand}">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding Kind}" Opacity="0.6" />
+        <TextBlock Text="{Binding Path}" FontFamily="monospace" />
+        <TextBlock Text="{Binding Counts}" Opacity="0.6" />
+      </StackPanel>
+    </Button>
+    <ItemsControl ItemsSource="{Binding Hunks}" IsVisible="{Binding IsExpanded}" />
+    <TextBlock Text="{Binding Error}" Opacity="0.6" />
+  </StackPanel>
+</UserControl>

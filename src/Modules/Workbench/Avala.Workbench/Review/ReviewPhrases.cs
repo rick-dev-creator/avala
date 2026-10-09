@@ -1,0 +1,111 @@
+using System.Globalization;
+using Avala.Agents.Contracts.Events;
+using Avala.Autopilot.Contracts;
+using Avala.Jobs.Contracts;
+using Avala.Observability.Contracts;
+using Avala.Permissions.Contracts;
+using Avala.Sdk;
+using Avala.Verification.Contracts;
+using Avala.Workbench.Conversation;
+using Avala.Workbench.Reviewing;
+using Avala.Workspaces.Contracts;
+
+namespace Avala.Workbench.Review;
+
+internal static class ReviewPhrases
+{
+    private const int TailLines = 12;
+
+    public static string Verdict(ReviewVerdict verdict) => verdict.Kind switch
+    {
+        VerdictKind.Verified => string.Create(CultureInfo.InvariantCulture, $"Verified on attempt {verdict.Attempt} of {verdict.Attempts}"),
+        VerdictKind.NoChecks => "No checks declared: nothing proves the work",
+        VerdictKind.Failed => string.Create(CultureInfo.InvariantCulture, $"Not verified: attempt {verdict.Attempt} of {verdict.Attempts} failed its checks"),
+        VerdictKind.InvalidDeclaration => "Not verified: the check declaration is invalid",
+        _ => "Not verified",
+    };
+
+    public static (string Title, string Detail) Exception(IReviewException exception) => exception switch
+    {
+        FailedAttempt failed => (
+            string.Create(CultureInfo.InvariantCulture, $"Attempt {failed.Attempt} failed {string.Join(", ", failed.Checks.Select(Check))}"),
+            string.Join("\n", failed.Checks.Select(Tail).Where(tail => tail.Length > 0))),
+        PolicyDenial denial => (
+            $"Denied: {Request(denial.Decision.Kind, denial.Decision.Target)}",
+            denial.Decision.Rule.Match(rule => $"by the rule {rule.Name}", () => "by the default policy")),
+        HumanDenial denial => ($"You denied: {Request(denial.Answer.Kind, denial.Answer.Target)}", denial.Answer.Message.Match(message => message, () => string.Empty)),
+        DeclinedForm declined => ($"Declined: {declined.Form.Form.Title}", string.Empty),
+        MadeAssumption assumed => (
+            $"Assumed {(assumed.Assumption.Chosen.Count > 0 ? string.Join(", ", assumed.Assumption.Chosen) : "the agent's judgment")} for \"{assumed.Assumption.Prompt}\"",
+            Basis(assumed.Assumption.Basis)),
+        ContinuedAfterHold held => (
+            string.Create(CultureInfo.InvariantCulture, $"Held, then continued on attempt {held.Attempt.Number}"),
+            held.Attempt.Guidance.Match(guidance => guidance, () => string.Empty)),
+        EditedRuleFile edited => ($"Edited a rule file: {edited.Path}", "Its rules apply from the base commit, not from this edit."),
+        _ => ("The diff could not be read", "Nothing proves the rule files are untouched."),
+    };
+
+    public static string Quiet(RunEvidence evidence, Option<UsageSummary> usage) =>
+        Amounts.Joined([
+            Amounts.Count(evidence.AllowedByRules, "other decision was allowed by rules", "other decisions were allowed by rules"),
+            .. usage.Match(Amounts.Spent, () => []),
+        ]);
+
+    public static string Changes(Result<WorkspaceDiff, WorkspaceFailure> diff) =>
+        diff.Match(
+            found => found.Files.Count == 0 ? "No files changed" : Amounts.Count(found.Files.Count, "file changed", "files changed"),
+            failure => failure == WorkspaceFailure.UnknownWorkspace ? "The job has no worktree" : "The diff could not be read");
+
+    public static string Counts(FileChange file) =>
+        file.Added.Match(
+            added => string.Create(CultureInfo.InvariantCulture, $"+{added} -{file.Removed.Match(removed => removed, () => 0)}"),
+            () => "binary");
+
+    public static string Delivered(ApprovalDelivery delivery) =>
+        delivery.Commit.Match(
+            commit => $"Merged into {delivery.Branch} as {commit[..Math.Min(7, commit.Length)]}",
+            () => $"Approved: the branch {delivery.Branch} is ready");
+
+    public static string Approval(ApprovalAttempt attempt) =>
+        attempt.Outcome.Match(
+            Delivered,
+            rejection => rejection == JobRejection.MergeConflict && attempt.Conflicts.Count > 0
+                ? $"The work conflicts with the base branch in {string.Join(", ", attempt.Conflicts)}."
+                : Refusal(rejection));
+
+    public static string Refusal(JobRejection rejection) => rejection switch
+    {
+        JobRejection.MergeConflict => "The work conflicts with the base branch.",
+        JobRejection.BaseCheckoutDirty => "The base branch's checkout has uncommitted changes. Commit or stash them, then approve again.",
+        JobRejection.BaseMoved => "The base branch moved while merging. Approve again.",
+        JobRejection.NoBaseBranch => "The job's base is not a branch, so there is nothing to merge into.",
+        JobRejection.InvalidJobFile or JobRejection.UnknownApprovalStrategy => "The repository's .avala/jobs.json names no usable approval strategy.",
+        JobRejection.DeliveryFailed => "The delivery failed. The job still awaits review.",
+        JobRejection.ParentNotRunning => "The parent job no longer runs, so its child cannot be integrated.",
+        _ => ConversationPhrases.Rejection(rejection),
+    };
+
+    private static string Check(CheckEvidence check) =>
+        check.ExitCode.Match(
+            code => string.Create(CultureInfo.InvariantCulture, $"{check.Name} (exit {code})"),
+            () => check.Status == CheckStatus.TimedOut ? $"{check.Name} (timed out)" : $"{check.Name} (not found)");
+
+    private static string Tail(CheckEvidence check) =>
+        string.Join("\n", $"{check.OutputTail}\n{check.ErrorTail}".Trim().Split('\n').TakeLast(TailLines));
+
+    private static string Request(ItemKind kind, string target) => kind switch
+    {
+        ItemKind.Command => $"run {target}",
+        ItemKind.FileEdit => $"edit {target}",
+        ItemKind.Web => $"reach {target}",
+        _ => $"use {target}",
+    };
+
+    private static string Basis(AssumptionBasis basis) => basis switch
+    {
+        AssumptionBasis.RecommendedOption => "The policy took the recommended option.",
+        AssumptionBasis.FirstOption => "The policy took the first option.",
+        AssumptionBasis.AgentJudgment => "The agent was told to decide.",
+        _ => "The policy confirmed it.",
+    };
+}

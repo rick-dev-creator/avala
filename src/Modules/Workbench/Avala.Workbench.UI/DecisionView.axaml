@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:decisions="using:Avala.Workbench.Decisions"
+             x:Class="Avala.Workbench.UI.DecisionView"
+             x:ClassModifier="internal"
+             x:DataType="decisions:DecisionViewModel">
+  <StackPanel Spacing="4">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <TextBlock Text="{Binding JobTitle}" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding Waiting}" Opacity="0.6" />
+    </StackPanel>
+    <ContentControl Content="{Binding Card}" />
+  </StackPanel>
+</UserControl>
