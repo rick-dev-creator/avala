@@ -34,6 +34,26 @@ public sealed class SqliteWorkspaceStoreTests
     }
 
     [Fact]
+    public async Task SavingAWorkspaceLeavesTheUnsavedChangesOfAnotherWorkspaceUnstoredAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var saved = Given.Workspace(WorkspaceState.Ready);
+        var changing = Given.Workspace(WorkspaceState.Ready);
+        await using (var store = new SqliteWorkspaceStore(new AvalaPaths(folder.Path)))
+        {
+            await store.SaveAsync(saved, Cancellation);
+            await store.SaveAsync(changing, Cancellation);
+            Outcomes.Succeeds(changing.RecordCheckpoint(Given.Commit(1), "Attempt 1"));
+            Outcomes.Succeeds(saved.RecordCheckpoint(Given.Commit(2), "Attempt 1"));
+            await store.SaveAsync(saved, Cancellation);
+        }
+
+        await using var reloaded = new SqliteWorkspaceStore(new AvalaPaths(folder.Path));
+        Assert.Single((await reloaded.FindAsync(saved.Id, Cancellation)).Match(found => found.Checkpoints, () => []));
+        Assert.Empty((await reloaded.FindAsync(changing.Id, Cancellation)).Match(found => found.Checkpoints, () => []));
+    }
+
+    [Fact]
     public async Task ARemovedWorkspaceIsGoneAsync()
     {
         using var folder = new TemporaryFolder();

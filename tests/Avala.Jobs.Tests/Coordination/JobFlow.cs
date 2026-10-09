@@ -10,6 +10,7 @@ using Avala.Jobs.Recovery;
 using Avala.Jobs.Submission;
 using Avala.Jobs.TurnChecks;
 using Avala.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
 using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
 namespace Avala.Jobs.Tests.Coordination;
@@ -22,12 +23,13 @@ internal sealed class JobFlow
         Agents = agents;
         var ledger = new JobLedger(Store, Bus);
         var launcher = new JobLauncher(ledger, workspaces, agents);
+        Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
         Submit = new SubmitJob(ledger, Bus);
         Hold = new HoldJob(ledger, agents, Bus);
-        Jobs = new JobsEntry(Submit, Hold);
-        Prepare = new PrepareJob(ledger, launcher);
-        Check = new CheckTurn(ledger, workspaces, new CompletionGates(gates), agents);
-        Recovery = new JobRecovery(ledger, launcher);
+        Jobs = new JobsEntry(Submit, Hold, Queues);
+        Prepare = new PrepareJob(Queues, launcher);
+        Check = new CheckTurn(ledger, Queues, new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents), Hold);
+        Recovery = new JobRecovery(ledger, Queues, launcher);
     }
 
     public InMemoryJobStore Store { get; } = new();
@@ -37,6 +39,8 @@ internal sealed class JobFlow
     public FakeWorkspaces Workspaces { get; }
 
     public FakeAgents Agents { get; }
+
+    public JobQueues Queues { get; }
 
     public SubmitJob Submit { get; }
 
@@ -65,12 +69,28 @@ internal sealed class JobFlow
     {
         var job = await SubmittedAsync(attemptsPerRound);
         await Prepare.HandleAsync(new JobAnnouncement(job.Id), Cancellation);
+        await SettledAsync(job);
 
         return job;
     }
 
-    public ValueTask FinishTurnAsync(Job job, TurnOutcome outcome = TurnOutcome.Finished) =>
-        job.Session.Match(
-            session => Check.HandleAsync(new TurnFinished(session, TurnId.New(), outcome), Cancellation),
-            () => ValueTask.CompletedTask);
+    public async Task FinishTurnAsync(Job job, TurnOutcome outcome = TurnOutcome.Finished)
+    {
+        await HandTurnAsync(job, outcome);
+        await SettledAsync(job);
+    }
+
+    public async Task HandTurnAsync(Job job, TurnOutcome outcome = TurnOutcome.Finished) =>
+        await Check.HandleAsync(new TurnFinished(Session(job), TurnId.New(), outcome), Cancellation);
+
+    public async Task EndSessionAsync(Job job, SessionId session)
+    {
+        await Check.HandleAsync(new SessionEnded(session, SessionEnding.Crashed), Cancellation);
+        await SettledAsync(job);
+    }
+
+    public async Task SettledAsync(Job job) =>
+        _ = await Queues.RunAsync(job.Id, (_, _) => Task.FromResult(true), Cancellation);
+
+    private static SessionId Session(Job job) => Outcomes.Present(job.Session);
 }

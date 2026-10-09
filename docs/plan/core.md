@@ -145,10 +145,10 @@ Status: done.
 
 Status: done with the simulator. Deferred: stopping a session whose agent ignores the interruption, after a grace period; resuming a job held as `SessionLost` in a new session when a human hints it; and persisting the interventions.
 
-1. The [Supervision](../design/core.md#supervision) module: a running job silent for the window, outside the time a permission waits for a human, is held as `Stalled`; a job whose session ends on its own is held as `SessionLost`.
+1. The [Supervision](../design/core.md#supervision) module: a running job silent for the window, outside the time a permission waits for a human, is held as `Stalled`. A job whose session ends on its own is held as `SessionLost` by Jobs itself, since [concurrent delivery](#concurrency) would make a hold from Supervision race the evaluation of the failed turn.
 2. The silence window from `supervision.json` in the data folder, 15 minutes by default, parsed strictly; a rejected file keeps the default and says why.
-3. Alarms measured with `TimeProvider` and confirmed on the bus dispatcher, so a busy bus never makes an active agent look silent.
-4. Every intervention published as `SupervisorIntervened` with the silence measured or how the session ended, and queryable per job through `ISupervision`.
+3. Alarms measured with `TimeProvider` and confirmed in the watchdog's mailbox, after every event published before they rang, so an active agent never looks silent.
+4. Every intervention published as `SupervisorIntervened` with the silence measured, and queryable per job through `ISupervision`.
 5. Host simulation tests: the `hang` scenario is interrupted and held as `Stalled`, `crash` is held as `SessionLost`, and `left-open` reaches review with no intervention.
 
 ### Budgets
@@ -159,9 +159,18 @@ Status: done with the simulator. Deferred: reading the budget from the job's bas
 2. The file parsed strictly; an invalid file is reported with a typed `BudgetError` and holds the job as `InvalidBudget` as soon as it runs.
 3. Spending read from `IUsage` on every `UsageRecorded`, and again whenever a job starts running.
 4. Every intervention published as `BudgetIntervened` with what was measured against the cap, and queryable per job through `IBudgets`.
-5. Host simulation tests: a cost cap below the `reply` scenario's cost holds the job as `BudgetExceeded`, and a limit threshold below the simulator's reported limit holds it as `LimitNearlyReached`.
+5. Host simulation tests: a cost cap below the `permission` scenario's cost holds the job as `BudgetExceeded`, and a limit threshold below the simulator's reported limit holds it as `LimitNearlyReached`. Both scenarios report their spending and then wait for a human to answer a permission, so the hold never races the end of the turn.
 
 Done when: a simulated job proves its work, asks permission within a policy, and is held with its reason recorded when it hangs, loses its session or reaches its budget. Met.
+
+### Concurrency
+
+Status: done.
+
+1. [One mailbox per handler](../design/core.md#event-bus): each handler sees its events in publishing order, a slow handler delays only itself, and stopping waits for every handler to end.
+2. [One queue per job](../design/core.md#job-flow-coordinator): `CheckTurn` hands the evaluation of a turn to the job's queue and returns, so the checks of one job never delay the bus or another job; holds and launches go through the same queue.
+3. Every ordering between handlers made explicit: Permissions decides in the handler that loaded the policy, Budgets enforces again on `BudgetLoaded`, Jobs holds a lost session itself, and host tests wait for the event that follows a record before they query it.
+4. [No lock in production code](../design/core.md#concurrency): state owned by one reader, `SerialExecutor` in the SDK for channel consumers, immutable snapshots for queries, an architecture rule over `src/` and banned types for the compiler.
 
 ## Phase 9: View models of the usable core
 

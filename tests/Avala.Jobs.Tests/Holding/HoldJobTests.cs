@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -81,6 +82,51 @@ public sealed class HoldJobTests
 
         Assert.Equal(JobState.NeedsHelp, job.State);
         Assert.Empty(flow.Workspaces.Checkpoints);
+    }
+
+    [Fact]
+    public async Task ASessionThatEndsOnItsOwnHoldsItsJobAsSessionLostBeforeItsFailedTurnIsCheckedAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
+
+        await flow.Check.HandleAsync(new SessionEnded(session, SessionEnding.Crashed), Cancellation);
+        await flow.FinishTurnAsync(job, TurnOutcome.Failed);
+
+        var held = Assert.Single(flow.Bus.Published.OfType<HoldAnnouncement>()).Hold;
+        Assert.Equal((JobState.NeedsHelp, job.Id, session, HoldReason.SessionLost), (job.State, held.Job, held.Session, held.Reason));
+    }
+
+    [Fact]
+    public async Task TheEndOfASessionTheJobNoLongerUsesIsIgnoredAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.RunningAsync();
+        var replaced = Outcomes.Present(job.Session);
+        await flow.Recovery.RunAsync(Cancellation);
+
+        await flow.EndSessionAsync(job, replaced);
+
+        Assert.Equal(JobState.Running, job.State);
+        Assert.Empty(flow.Bus.Published.OfType<HoldAnnouncement>());
+    }
+
+    [Fact]
+    public async Task AHoldRequestedWhileTheJobsTurnIsCheckedWaitsForTheCheckAsync()
+    {
+        var gate = new BlockingGate();
+        var flow = JobFlow.With(gate);
+        var job = await flow.RunningAsync();
+        await flow.HandTurnAsync(job);
+        await gate.Entered.WaitAsync(TimeSpan.FromSeconds(10), Cancellation);
+
+        var hold = flow.Jobs.HoldAsync(job.Id, HoldReason.Stalled, Cancellation).AsTask();
+
+        Assert.False(hold.IsCompleted);
+        gate.Release();
+        Assert.Equal(JobRejection.NotRunning, Outcomes.FailsWith(await hold.WaitAsync(TimeSpan.FromSeconds(10), Cancellation)));
+        Assert.Equal(JobState.AwaitingReview, job.State);
     }
 
     [Fact]

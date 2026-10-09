@@ -4,49 +4,44 @@ using Avala.Sdk;
 
 namespace Avala.Simulator.Playback;
 
-internal sealed class PermissionGate
+internal sealed class PermissionGate(SerialExecutor stage)
 {
-    private readonly Lock gate = new();
-    private Pending? pending;
+    private Option<Pending> pending;
 
-    public Task<PermissionAnswer> ExpectAsync(ItemId item)
-    {
-        var answer = new TaskCompletionSource<PermissionAnswer>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        lock (gate)
-        {
-            pending = new Pending(item, answer);
-        }
-
-        return answer.Task;
-    }
-
-    public Result<ItemId, AgentError> Respond(PermissionDecision decision)
-    {
-        lock (gate)
-        {
-            if (pending is not { } waiting || waiting.Item != decision.Item)
+    public Task<Task<PermissionAnswer>> ExpectAsync(ItemId item, CancellationToken cancellationToken) =>
+        stage.RunAsync(
+            _ =>
             {
-                return AgentError.NoPendingPermission;
-            }
+                var answer = new TaskCompletionSource<PermissionAnswer>(TaskCreationOptions.RunContinuationsAsynchronously);
+                pending = new Pending(item, answer);
 
-            pending = null;
-            waiting.Answer.TrySetResult(decision.Answer);
+                return Task.FromResult(answer.Task);
+            },
+            cancellationToken);
 
-            return decision.Item;
-        }
-    }
+    public Task<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken) =>
+        stage.RunAsync(_ => Task.FromResult(Respond(decision)), cancellationToken);
 
-    public void Withdraw(ItemId item)
-    {
-        lock (gate)
-        {
-            if (pending?.Item == item)
+    public Task WithdrawAsync(ItemId item) =>
+        stage.RunAsync(
+            _ =>
             {
-                pending = null;
-            }
-        }
-    }
+                pending = pending.Bind(waiting => waiting.Item == item ? Option<Pending>.None : waiting);
+
+                return Task.CompletedTask;
+            },
+            CancellationToken.None);
+
+    private Result<ItemId, AgentError> Respond(PermissionDecision decision) =>
+        pending.Bind(waiting => waiting.Item == decision.Item ? waiting : Option<Pending>.None).Match(
+            waiting =>
+            {
+                pending = Option<Pending>.None;
+                waiting.Answer.TrySetResult(decision.Answer);
+
+                return Result<ItemId, AgentError>.Success(decision.Item);
+            },
+            () => AgentError.NoPendingPermission);
 
     private sealed record Pending(ItemId Item, TaskCompletionSource<PermissionAnswer> Answer);
 }

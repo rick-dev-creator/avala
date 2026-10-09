@@ -38,7 +38,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
-| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason | `JobId`, integration events, `IJobs`, `ICompletionGate` |
+| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost | `JobId`, integration events, `IJobs`, `ICompletionGate` |
 | Agents | Sessions, turn integrity, provider registry | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, integration events |
 | Workspaces | Working copies, branches, checkpoints | `IWorkspaces`, integration events |
 | Canvas | Accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
@@ -46,7 +46,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Observability | Tokens, cost, limits and turns by provider, session and job, and their metrics | `IUsage` and its summaries |
 | Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
 | Permissions | Answers permission requests through an explicit policy and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `IPermissionAudit` |
-| Supervision | Holds a job whose agent stays silent or whose session is lost, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
+| Supervision | Holds a job whose agent stays silent, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
 | Budgets | Holds a job that reaches a cap on cost or tokens, or a provider limit threshold, and records every intervention | `BudgetLoaded`, `BudgetIntervened`, `IBudgets` |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
@@ -197,8 +197,12 @@ public interface IHandle<in TEvent>
 ```
 
 - Plugins subscribe by composition: they register `IHandle<T>` implementations and the bus discovers them.
-- `Avala.Runtime` implements the bus with `System.Threading.Channels`: one asynchronous queue and one dispatcher, which preserves event order and never blocks the publisher.
-- A failing handler is isolated and logged. The other handlers still run.
+- `Avala.Runtime` implements the bus with `System.Threading.Channels`. Publishing writes the event to one routing queue and never blocks the publisher. A single router reads that queue in publishing order and posts each event to the mailbox of every handler of its type, and to the feed of every subscriber.
+- **One mailbox per handler.** A mailbox is a channel with its own reader loop. A handler instance has one mailbox for every event type it handles, so a class that implements `IHandle<A>` and `IHandle<B>` sees its `A` and `B` events in the order they were published, one at a time. That reader loop owns the handler's state: a handler keeps plain collections and needs no lock.
+- **No order between handlers.** Two handlers of the same event run concurrently, and a slow handler delays only its own mailbox. A handler never relies on another handler having seen an event: what it needs from another module arrives as an event that module publishes once its work is done, such as `UsageRecorded` after Observability recorded a report, or `BudgetLoaded` after a budget file was read.
+- A failing handler is isolated and logged. Its mailbox goes on with the next event, and the other handlers are unaffected.
+- Stopping cancels the token of every handler, completes every mailbox and returns once every handler has ended. An event published after the bus stopped is logged and ignored.
+- Long work does not belong in a handler: it would delay the next event of that handler. Jobs, for example, hands the evaluation of a finished turn to the job's own queue and returns, see [the job flow coordinator](#job-flow-coordinator).
 - Unit tests use an in-memory bus that records what was published.
 
 ### Event feed for view models
@@ -216,6 +220,7 @@ public interface IEventFeed
 ```
 
 - Activation starts an `await foreach`. Deactivation cancels the token and ends the subscription, so no subscription outlives its screen.
+- Each subscription is a channel of its own: it receives its events in publishing order, and no handler can delay it. A subscriber therefore may see an event before the handlers of that event ran; one that needs a handler's result waits for the event that handler publishes afterwards.
 - Events arrive off the UI thread. The SDK defines `IUiDispatcher` and the host implements it, so view models stay unaware of Avalonia.
 
 ### Consistency without an outbox
@@ -226,6 +231,18 @@ public interface IEventFeed
 - On startup `JobRecovery` inspects every active job and resumes it from its state, so a lost event is recovered.
 - Handlers are idempotent: receiving an event twice has the effect of receiving it once.
 
+### Concurrency
+
+**Accepted**
+
+Components run concurrently, and they coordinate only through the event bus or `System.Threading.Channels`. Production code holds no lock, semaphore, monitor, mutex, wait handle, barrier or concurrent collection; an architecture rule and the banned API analyzer enforce it, see [the architecture](../architecture.md#rules).
+
+- **One owner per piece of state.** Mutable state belongs to a single reader loop: a handler's mailbox, or a channel consumer. `SerialExecutor` in the SDK is that consumer in its simplest form: it runs the operations queued to it one at a time, in order, and hands each caller its result. The SQLite stores, the jobs' queues, the canvas throttle and the simulator's sessions own their state through one.
+- **Queries read snapshots.** What other threads read is an immutable value the owner replaces whole, such as an `ImmutableDictionary` published with `Volatile` or `ImmutableInterlocked`. Publishing a reference is not coordination: no reader ever waits for a writer.
+- **Signals.** A `TaskCompletionSource` used once, to say that something happened, is allowed.
+- **Timers.** A timer callback never touches state. It hands its work to the owner: the canvas throttle queues its flush on its executor, and a silence alarm publishes `SilenceNoticed` for the watchdog's mailbox.
+- Tests may use whatever they need to observe concurrent code.
+
 ## Job flow coordinator
 
 The coordinator replaces the orchestrator. It is a set of small stateless classes in the application layer of Jobs, grouped by use case in the folders `Submission`, `Launching`, `TurnChecks`, `Recovery` and `Ledger`: the state of the flow is the `Job` aggregate itself. Each class keeps four or fewer dependencies. **Accepted**
@@ -233,18 +250,22 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 | Class | Role |
 | --- | --- |
 | `JobLedger` | Stores a job, then publishes `JobProgressed` with its status |
+| `JobQueues` | One serial queue per job: every piece of work on a job loads it and runs in that queue, in the order it was queued |
 | `SubmitJob` | Creates a job, submits it, stores it and publishes `JobSubmitted` |
 | `JobLauncher` | Prepares the workspace, opens the agent session, starts the job, stores it, announces `JobSessionStarted` and only then sends the instruction. It also relaunches a job after a restart |
-| `PrepareJob` | Handles `JobSubmitted` by launching the job |
-| `CheckTurn` | Handles `TurnFinished`: checkpoints the workspace, evaluates the gates, then passes the job, retries with feedback to the same session, or asks for help when the budget is spent |
+| `PrepareJob` | Handles `JobSubmitted` by queueing the launch of the job |
+| `CheckTurn` | Handles `TurnFinished` by queueing the evaluation of the turn, and `SessionEnded` by queueing a hold as `SessionLost`, then returns at once |
+| `EvaluateTurn` | Runs in the job's queue: checkpoints the workspace, evaluates the gates, then passes the job, retries with feedback to the same session, or asks for help when the budget is spent |
 | `CompletionGates` | Combines every registered gate into one verdict |
-| `JobRecovery` | An `IStartupTask` that launches `Preparing` jobs and recovers `Running` or `Checking` jobs |
-| `HoldJob` | Behind `IJobs.HoldAsync`: holds a running job for a typed reason, stores it, halts its agent session and publishes `JobHeld`, see [Holding a job](#holding-a-job) |
+| `JobRecovery` | An `IStartupTask` that launches `Preparing` jobs and recovers `Running` or `Checking` jobs, each in its queue |
+| `HoldJob` | Behind `IJobs.HoldAsync`, in the job's queue: holds a running job for a typed reason, stores it, halts its agent session and publishes `JobHeld`, see [Holding a job](#holding-a-job) |
 
+- **One queue per job.** Evaluating a turn runs real builds and tests through the gates and can take minutes, so it never runs inside a handler. `CheckTurn` only finds the job of the session and queues the work, so the bus keeps delivering while the checks run. Different jobs proceed in parallel; the work on one job runs one piece at a time, in the order it was queued: its launch, the evaluation of each turn and every hold. A hold that arrives while a turn of the same job is being checked waits for that check and then finds a job that is no longer `Running`.
 - The job stores its session before the instruction is sent, so a fast agent cannot finish a turn the job does not know yet.
 - A message is only ever sent to a `Running` job's session, so a job held between storing its session and sending the instruction is never told.
-- A turn that ends interrupted or failed fails the job, unless the job was held first: a held job is no longer `Running`, so `CheckTurn` ignores the end of the turn the hold interrupted.
-- Handlers are idempotent. `CheckTurn` acts only on a job that is still `Running`, so a repeated `TurnFinished` changes nothing.
+- A turn that ends interrupted or failed fails the job, unless the job was held first: a held job is no longer `Running`, so `EvaluateTurn` ignores the end of the turn the hold interrupted.
+- **A lost session holds the job.** When the current session of a running job ends on its own, `SessionEnded` reaches `CheckTurn` before the failed `TurnFinished` that `AgentSessions` publishes after it, and both go to the job's queue in that order. The job is held as `SessionLost` and its session stopped, so the failed turn finds a held job and a human decides. `SessionEnded` of a session the job no longer uses is ignored.
+- Handlers are idempotent. `EvaluateTurn` acts only on a job that is still `Running` in the session that finished, so a repeated `TurnFinished` changes nothing.
 - Recovery opens a new session in the existing workspace and calls `job.Recover`, which interrupts the attempt that was underway and starts a `Recovery` attempt.
 
 ### Completion gates
@@ -268,7 +289,7 @@ public interface ICompletionGate
 
 **Accepted**
 
-Supervision and Budgets stop an agent from outside Jobs through one operation, so Jobs stays ignorant of who calls it and why beyond a typed reason.
+Supervision and Budgets stop an agent from outside Jobs through one operation, so Jobs stays ignorant of who calls it and why beyond a typed reason. Jobs holds a job itself, through the same operation, when its session is lost.
 
 ```csharp
 public interface IJobs
@@ -418,9 +439,9 @@ The module subscribes to `AgentActivity` with an `IHandle<T>`, like every other 
 | Folder | Holds | Layer |
 | --- | --- | --- |
 | `Canvases` | The `CanvasDocument` aggregate, `CanvasLifecycle`, the error enum and the domain events | Domain |
-| `Gallery` | The documents of every session behind one lock, and the `ICanvases` query | Application |
+| `Gallery` | The documents of every session, changed only from the feed's mailbox, and the `ICanvases` query, which reads an immutable list of their snapshots the gallery replaces on every change | Application |
 | `Streaming` | `CanvasFeed`, the handler that applies canvas events to the gallery | Application |
-| `Throttling` | `SnapshotThrottle`, which decides when a snapshot is published | Application |
+| `Throttling` | `SnapshotThrottle`, which decides when a snapshot is published. Its cadences belong to a `SerialExecutor`: the feed's changes and the flushes its timers schedule run there one at a time | Application |
 
 - A `CanvasDocument` is identified by its `CanvasId`, the turn and the item that carry it. It opens from `CanvasStarted`, which needs a media type, appends every `ItemProgressed` chunk in arrival order and closes on `ItemCompleted` in the state of its outcome: completed, failed, cancelled, abandoned or expired. It rejects content and completions of another item with `ForeignItem`, and anything after it closed with `AlreadyClosed`. The gallery rejects a canvas that starts twice with `AlreadyOpen`, and reports content for an item that never started as a canvas as `UnknownCanvas`, which is how the feed ignores messages, reasoning and tools.
 - The generated [canvas lifecycle diagram](../diagrams/canvas-lifecycle.md) shows the states: `Streaming`, then one of the closed states inside the superstate `Closed`.
@@ -448,7 +469,7 @@ Agent events know only their session. Two integration events tie a session to th
 | `SessionOpened` | `AgentSessions`, before it pumps the session's events | `SessionId`, `ProviderInfo` |
 | `JobSessionStarted` | `JobLauncher`, after storing the job and before sending the instruction, at launch and at recovery | `JobId`, `SessionId` |
 
-The bus dispatches in publishing order, so both arrive before the first activity of the session. Observability does not rely on it: it keeps everything per session and groups sessions by provider and job only when queried, so a late correlation still lands in the right aggregate.
+Each handler receives its events in publishing order, so both arrive at the tracker before the first activity of the session. Observability does not rely on it: it keeps everything per session and groups sessions by provider and job only when queried, so a late correlation still lands in the right aggregate.
 
 ### The module
 
@@ -463,7 +484,8 @@ The bus dispatches in publishing order, so both arrive before the first activity
 - A turn lasts from its `TurnStarted` to its `TurnCompleted`, measured with `TimeProvider` when the tracker receives each event. A turn counts once: a repeated start or end changes nothing.
 - A limit belongs to the provider, not to a session: each window keeps its latest reading.
 - `IUsage` in `Avala.Observability.Contracts` answers by provider, by session and by job, with a `UsageSummary`: tokens, costs, unpriced reports, a `TurnTally` and limits. A job adds up every session it ran, recovery included.
-- After it records a `UsageReported` or a `LimitReported`, the tracker publishes `UsageRecorded` with the session and its job. A consumer that reacts to spending, such as Budgets, handles it and reads `IUsage`, which already includes the report. Handling `AgentActivity` directly would not do: handlers run in plugin order, so such a consumer could read the aggregates before the tracker applied the report.
+- After it records a `UsageReported` or a `LimitReported`, the tracker publishes `UsageRecorded` with the session and its job. A consumer that reacts to spending, such as Budgets, handles it and reads `IUsage`, which already includes the report. Handling `AgentActivity` directly would not do: handlers run concurrently, so such a consumer could read the aggregates before the tracker applied the report.
+- The tracker is the only writer of `UsageBook`. The book holds an immutable dictionary of sessions that the tracker replaces on every change, so `IUsage` answers from a consistent snapshot on any thread.
 - The aggregates live in memory and start empty with the application. Persisting them, or rebuilding them from stored history, is left for when the dashboards need history across restarts.
 
 | Instrument | Kind | Unit | Tags |
@@ -581,13 +603,14 @@ The module subscribes to the bus like every other consumer of agent events, so i
 | Folder | Holds | Layer |
 | --- | --- | --- |
 | `Policies` | `PermissionPolicy` with its built-in rules and first-match decision, rule matching as extension members on `PolicyRule`, `PermissionRequest`, `Verdict`, and `GovernedSession`, the immutable record of one session: working directory, policy, job and decisions | Domain |
-| `Governance` | `SessionGovernor`, the handler of `SessionOpened` and `JobSessionStarted`; `GovernanceBook`, the in-memory book that implements `IPermissionAudit`; and the `IPolicyFiles` port | Application |
-| `Answering` | `PermissionResponder`, the handler of `AgentActivity` that decides, answers and records; `RequestFacts`, which locates a request against the working directory | Application |
+| `Governance` | `SessionGovernor`, the handler of `SessionOpened`, `JobSessionStarted` and `AgentActivity`; `GovernanceBook`, the in-memory book that implements `IPermissionAudit`; and the `IPolicyFiles` port | Application |
+| `Answering` | `PermissionResponder`, which decides a request with its session's policy and answers the agent; `RequestFacts`, which locates a request against the working directory | Application |
 | `PolicyFiles` | `PolicyFileReader` behind `IPolicyFiles`, and `PolicyFileParser` | Infrastructure |
 
 - The domain decides and has nothing to reject, so it has no aggregate. The single error enum of the module is `PolicyError`, in its contracts, since only reading a policy file can fail and its outcome is public.
+- One handler, one mailbox. The governor handles the opening of a session, its job and its permission requests in publishing order, so a request is always decided by the policy its session's file loaded, however long reading the file took. The governor is the only writer of `GovernanceBook`, which holds an immutable dictionary of sessions that the audit queries read.
 - On `SessionOpened` the governor reads the policy file once, keeps the session's policy and publishes `PolicyLoaded`. Later edits of the file in the worktree do not change the policy of a running session.
-- On `PermissionRequested` the responder decides with the session's policy, answers `Allow` or `Deny` through `IAgents.RespondAsync`, leaves `Ask` pending, and publishes `PermissionDecided` with the answer, the rule that decided and whether the answer reached the agent. A request from a session it never saw open is decided by the built-in policy with no workspace, so only the default applies.
+- On `PermissionRequested` the responder decides with the session's policy and answers `Allow` or `Deny` through `IAgents.RespondAsync`, leaving `Ask` pending; the governor keeps the decision and publishes `PermissionDecided` with the answer, the rule that decided and whether the answer reached the agent. A request from a session it never saw open is decided by the built-in policy with no workspace, so only the default applies.
 - Requests left to a human stay pending exactly as before the module existed: the turn waits in `AwaitingPermission`, never expires, and anyone may still answer through `IAgents.RespondAsync`.
 - Decisions live in memory for the life of the application, like the usage aggregates.
 
@@ -595,20 +618,21 @@ The module subscribes to the bus like every other consumer of agent events, so i
 
 **Accepted**
 
-An unattended agent must not hang forever or die silently. The Supervision module watches every running job and holds it through `IJobs.HoldAsync`, with the reason and the facts it measured, when its agent goes silent or its session is lost.
+An unattended agent must not hang forever or die silently. The Supervision module watches every running job and holds it through `IJobs.HoldAsync`, with the facts it measured, when its agent goes silent. A session that dies is Jobs' own concern: it holds the job as `SessionLost`, see [the job flow coordinator](#job-flow-coordinator).
 
 ### Rules
 
 - **Silence.** A job is watched while it is `Running`, from its `JobProgressed`. Every accepted event of the job's current session, the one its latest `JobSessionStarted` named, restarts the silence; events of a session the job no longer uses do not. When the job stays silent for the whole window, it is held as `Stalled` with the silence measured and the window, and Jobs interrupts the turn.
 - **Human time.** While a permission request of the job's session waits for an answer, the job is never silent: the watch pauses on `PermissionRequested` and restarts the window on `PermissionResolved` or on the end of the turn. This is the same rule as the `Turn` aggregate's expiry, where an item waiting for permission never expires. Checks running in `Checking` are not watched either: Verification bounds them with its own timeouts.
-- **Session lost.** When `SessionEnded` reports that the current session of a job ended on its own, closed or crashed, the job is held as `SessionLost` with how it ended, and Jobs stops the session. `SessionEnded` precedes the failed turn that `AgentSessions` closes after it, so the job is held before `CheckTurn` sees the failure: with Supervision a lost session asks a human instead of failing the job. Without the module, the job fails as before.
+- **Why a lost session is not Supervision's.** A lost session must be held before Jobs evaluates the failed turn that follows it. With one mailbox per handler, a hold decided in Supervision would race that evaluation, and the job would sometimes fail instead of asking a human. Jobs receives both events in one mailbox and queues both on the job, so the order is guaranteed without any module having to be faster than another.
 - **What it does not duplicate.** Sessions lost to a restart of the application are recovery's: stopping a session at shutdown publishes no `SessionEnded`, and `JobRecovery` resumes the job in a new session. Items left open when a turn ends are the `Turn` aggregate's: they are closed as `Abandoned`, the turn ends normally and the job goes on to its checks, so the `left-open` scenario needs no intervention.
 - **Only a running job.** Jobs rejects a hold of a job that is not `Running`; the module then records nothing. An intervention exists only when a job was actually held.
 
 ### Timers
 
 - Silence is measured with `TimeProvider`, at the time the module handles each event. One alarm per job is pending at most: it is set for the last activity plus the window, and activity in the meantime only moves the last activity.
-- When an alarm rings, it does not hold the job from the timer thread. It publishes `SilenceNoticed`, and the watchdog confirms the silence when the bus dispatches it. Events published before the alarm rang are therefore handled first: a bus kept busy by another job's checks cannot make an active agent look silent, and the hold never races the job flow, whose handlers run on the same dispatcher. A confirmation that finds activity sets the alarm again from the last activity.
+- The watchdog's mailbox owns the watches and the pending alarms, so they need no lock. An alarm rings on a timer thread, which must not touch them: it publishes `SilenceNoticed`, and the watchdog confirms the silence when its mailbox reaches it. Every event published before the alarm rang is in that mailbox ahead of it, so an agent whose activity the watchdog has not handled yet, because a hold kept it busy, never looks silent. A confirmation that finds activity sets the alarm again from the last activity.
+- A hold waits in the job's queue behind the work already queued on that job, such as the evaluation of a turn, and the watchdog's mailbox waits with it. A job whose turn is being evaluated is `Checking` and not watched, so this only delays the next confirmations; it never makes a job look silent.
 
 ### Settings
 
@@ -634,7 +658,7 @@ The harness reads `supervision.json` from its data folder, the folder of `AVALA_
 | Folder | Holds | Layer |
 | --- | --- | --- |
 | `Watching` | `JobWatch`, the immutable record of one job: whether it runs, its current session, the permission it waits for and its last activity; it decides whether the job is armed, when its alarm is due and whether it is silent | Domain |
-| `Supervising` | `Watchdog`, the handler of `JobProgressed`, `JobSessionStarted`, `AgentActivity` and `SilenceNoticed`; `LostSessions`, the handler of `SessionEnded`; `SilenceAlarms`, the per-job timers; `Intervener`, which holds through `IJobs` and records; `SupervisionBook`, the in-memory book behind `ISupervision`; and the `ISupervisionSettings` port | Application |
+| `Supervising` | `Watchdog`, the handler of `JobProgressed`, `JobSessionStarted`, `AgentActivity` and `SilenceNoticed`, which keeps the watch of every job; `SilenceAlarms`, the per-job timers; `Intervener`, which holds through `IJobs` and records; `SupervisionBook`, the in-memory book behind `ISupervision`; and the `ISupervisionSettings` port | Application |
 | `Settings` | `SettingsFile` behind `ISupervisionSettings`, and `SettingsParser` | Infrastructure |
 
 - The domain decides and rejects nothing, so it has no aggregate. `SupervisionError` is the module's single error enum, in its contracts, since only reading the settings can fail and its outcome is public.
@@ -656,7 +680,8 @@ An unattended agent must not spend without limit. The Budgets module holds a job
 
 ### When it checks
 
-- When `UsageRecorded` names a job, after Observability recorded a usage or limit report; when `JobSessionStarted` ties a session to its job; and whenever `JobProgressed` says a job runs again, so a job already over its budget is held as soon as a retry, a hint or a recovery starts it, before it spends more.
+- When `UsageRecorded` names a job, after Observability recorded a usage or limit report; when `JobSessionStarted` ties a session to its job; when `BudgetLoaded` says the budget of a session tied to a job was read; and whenever `JobProgressed` says a job runs again, so a job already over its budget is held as soon as a retry, a hint or a recovery starts it, before it spends more.
+- The loader and the enforcer are separate handlers, so the enforcer may learn that a job runs before the budget file of its session was read. It then has nothing to enforce yet, and `BudgetLoaded`, published once the loader kept the budget, makes it check again. The enforcer keeps which session each job runs in and the status of each job in its own mailbox; the loader is the only writer of the budgets in `BudgetBook`, which holds them in an immutable dictionary.
 - Only a `Running` job is checked. A hold interrupts the turn, so an agent that reports usage as it goes is stopped mid-turn; one that reports only at the end of its turns can overshoot by one turn.
 
 ### Budget file
@@ -690,7 +715,7 @@ A repository declares its caps in `.avala/budget.json`, read from the session's 
 | Folder | Holds | Layer |
 | --- | --- | --- |
 | `Caps` | `Breaches`: the evaluation of a session's budget against a job's spending and its provider's limits, the reason each breach holds a job for, and the built-in caps | Domain |
-| `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `JobSessionStarted`, `JobProgressed` and `UsageRecorded`; `BudgetHolds`, which holds through `IJobs` and records; `BudgetBook`, the in-memory book behind `IBudgets`; and the `IBudgetFiles` port | Application |
+| `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `BudgetLoaded`, `JobSessionStarted`, `JobProgressed` and `UsageRecorded`; `BudgetHolds`, which holds through `IJobs` and records; `BudgetBook`, the in-memory book behind `IBudgets`; and the `IBudgetFiles` port | Application |
 | `BudgetFiles` | `BudgetFileReader` behind `IBudgetFiles`, and `BudgetFileParser` | Infrastructure |
 
 - The domain decides and rejects nothing, so it has no aggregate. `BudgetError` is the module's single error enum, in its contracts.
@@ -735,7 +760,7 @@ A `PolicyRule` carries its origin (`BuiltIn` or `Repository`), name, `Option<Ite
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
-| `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
+| `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, or Jobs holds one whose session ended on its own, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
 
 The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted`, predate this catalog and keep their shapes.
 
@@ -755,12 +780,12 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
-| `SilenceNoticed` | Event | `Job` | When the silence alarm of a running job rings. The watchdog confirms it when the bus dispatches it, so it does not mean the job was held | At most one pending per job; a job active for a long run gets one each time its window elapses without its last activity having moved |
+| `SilenceNoticed` | Event | `Job` | When the silence alarm of a running job rings. It is how the alarm reaches the watchdog's mailbox, which confirms it after every event published before it, so it does not mean the job was held | At most one pending per job; a job active for a long run gets one each time its window elapses without its last activity having moved |
 | `SupervisorIntervened` | Event | `Intervention`: a `SupervisionIntervention` | After a hold succeeded, following the hold's `JobProgressed` and `JobHeld` | One per intervention |
 | `ISupervision.OfJob(JobId)` | Query | `IReadOnlyList<SupervisionIntervention>` in the order they happened; empty for an unknown job | Any time, from memory | Zero or more per job |
 | `ISupervision.SettingsAsync` | Query | `SupervisionSettings`: `Silence` window, `File` (`SettingsFileStatus`: `Absent`, `Applied` or `Rejected`) and `Option<SupervisionError>` | Any time; reads the settings file the first time | One per application |
 
-`SupervisionIntervention` carries `Hold`, the `JobHold` Jobs returned; `Silence`, an `Option<SilenceMeasure>` with the measured `Silent` time and the `Window`, present for `Stalled`; `Ending`, an `Option<SessionEnding>`, present for `SessionLost`; and `At`, from `TimeProvider`.
+`SupervisionIntervention` carries `Hold`, the `JobHold` Jobs returned, always `Stalled`; `Silence`, a `SilenceMeasure` with the measured `Silent` time and the `Window`; and `At`, from `TimeProvider`. A lost session is not an intervention of Supervision: it shows as the `JobHeld` with `SessionLost` that Jobs publishes.
 
 ### Budgets
 
@@ -802,7 +827,9 @@ The application is built view model first: every screen is built and tested as v
 
 SQLite has no asynchronous I/O. The asynchronous methods of its provider, such as `SaveChangesAsync`, run synchronously, and the banned API analyzer cannot see it because their signatures are asynchronous. Called from the UI thread, they freeze it.
 
-Database work therefore never runs on the UI thread. Each store keeps one long-lived `DbContext`, used by one operation at a time behind a `SemaphoreSlim`, and runs every operation through `Task.Run`.
+Database work therefore never runs on the UI thread. Each store keeps one long-lived `DbContext` owned by a `SerialExecutor`, the SDK's channel consumer: every operation is queued there, runs alone and goes through `Task.Run`. No lock is involved, and the context is touched by one operation at a time.
+
+Jobs run in parallel, each in its own queue, so the aggregate of one job may change in memory while the store saves another. Automatic change detection is therefore off: saving an aggregate detects the changes of that aggregate and its owned entities only, so a save never reads, nor stores, another job's half-made changes.
 
 ### Data folder
 

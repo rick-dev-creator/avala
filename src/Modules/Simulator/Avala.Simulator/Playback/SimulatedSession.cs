@@ -10,18 +10,19 @@ internal sealed class SimulatedSession : IAgentSession
 {
     private readonly Channel<IAgentEvent> events = Channel.CreateUnbounded<IAgentEvent>();
     private readonly CancellationTokenSource lifetime = new();
-    private readonly PermissionGate permissions = new();
-    private readonly Lock gate = new();
+    private readonly SerialExecutor stage = new();
+    private readonly PermissionGate permissions;
     private readonly Performer performer;
     private readonly Pacing pacing;
-    private Scenario? scenario;
+    private Option<Scenario> scenario;
     private int played;
-    private Act? act;
+    private Option<Act> act;
     private bool closed;
     private Task conducting = Task.CompletedTask;
 
     public SimulatedSession(SessionOptions options, IFileWriter files, Pacing pacing)
     {
+        permissions = new PermissionGate(stage);
         performer = new Performer(options.WorkingDirectory, files, permissions);
         this.pacing = pacing;
     }
@@ -30,67 +31,57 @@ internal sealed class SimulatedSession : IAgentSession
 
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
-    public ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(Begin(turn));
+    public async ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken) =>
+        await stage.RunAsync(_ => Task.FromResult(Begin(turn)), cancellationToken);
 
-    public ValueTask<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(permissions.Respond(decision));
+    public async ValueTask<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken) =>
+        await permissions.RespondAsync(decision, cancellationToken);
 
-    public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken)
-    {
-        Act? running;
+    public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) =>
+        await (await stage.RunAsync(_ => Task.FromResult(act), cancellationToken)).Match(
+            async running =>
+            {
+                await running.Interruption.CancelAsync();
 
-        lock (gate)
-        {
-            running = act;
-        }
-
-        if (running is null)
-        {
-            return AgentError.NoTurnInProgress;
-        }
-
-        await running.Interruption.CancelAsync();
-
-        return running.Turn;
-    }
+                return Result<TurnId, AgentError>.Success(running.Turn);
+            },
+            () => Task.FromResult(Result<TurnId, AgentError>.Failure(AgentError.NoTurnInProgress)));
 
     public async ValueTask DisposeAsync()
     {
-        lock (gate)
-        {
-            closed = true;
-        }
+        var conducted = await stage.RunAsync(
+            _ =>
+            {
+                closed = true;
+
+                return Task.FromResult(conducting);
+            },
+            CancellationToken.None);
 
         await lifetime.CancelAsync();
         events.Writer.TryComplete();
-        await conducting;
+        await conducted;
+        await stage.DisposeAsync();
         lifetime.Dispose();
     }
 
     private Result<TurnId, AgentError> Begin(UserTurn turn)
     {
-        Act next;
-        IReadOnlyList<IStep> script;
-
-        lock (gate)
+        if (closed)
         {
-            if (closed)
-            {
-                return AgentError.SessionClosed;
-            }
-
-            if (act is not null)
-            {
-                return AgentError.TurnInProgress;
-            }
-
-            scenario ??= ScenarioCatalog.Choose(turn.Text);
-            script = scenario.Script(played++);
-            act = next = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token));
+            return AgentError.SessionClosed;
         }
 
-        conducting = ConductAsync(next, script);
+        if (act.IsSome)
+        {
+            return AgentError.TurnInProgress;
+        }
+
+        var chosen = scenario.Match(known => known, () => ScenarioCatalog.Choose(turn.Text));
+        var next = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token));
+        scenario = chosen;
+        act = next;
+        conducting = Task.Run(() => ConductAsync(next, chosen.Script(played++)), CancellationToken.None);
 
         return next.Turn;
     }
@@ -106,7 +97,7 @@ internal sealed class SimulatedSession : IAgentSession
             {
                 await pacing.WaitAsync(interruption);
 
-                if (Publish(current, cue))
+                if (await PublishAsync(current, cue))
                 {
                     return;
                 }
@@ -119,30 +110,38 @@ internal sealed class SimulatedSession : IAgentSession
         }
         catch (OperationCanceledException)
         {
-            Publish(current, cues.Ended(TurnOutcome.Interrupted));
+            await PublishAsync(current, cues.Ended(TurnOutcome.Interrupted));
         }
         catch (Exception failure)
         {
-            lock (gate)
-            {
-                closed = true;
-                act = null;
-            }
+            await stage.RunAsync(
+                _ =>
+                {
+                    closed = true;
+                    act = Option<Act>.None;
+
+                    return Task.CompletedTask;
+                },
+                CancellationToken.None);
 
             events.Writer.TryComplete(failure);
         }
     }
 
-    private bool Publish(Act current, IAgentEvent cue)
+    private async Task<bool> PublishAsync(Act current, IAgentEvent cue)
     {
         var ends = cue is TurnCompleted;
 
         if (ends)
         {
-            lock (gate)
-            {
-                act = ReferenceEquals(act, current) ? null : act;
-            }
+            await stage.RunAsync(
+                _ =>
+                {
+                    act = act.Bind(running => ReferenceEquals(running, current) ? Option<Act>.None : running);
+
+                    return Task.CompletedTask;
+                },
+                CancellationToken.None);
         }
 
         events.Writer.TryWrite(cue);

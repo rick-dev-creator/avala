@@ -58,6 +58,7 @@ The rules are enforced by `tests/Avala.ArchitectureTests` and by the compiler. D
 - **Interfaces only where they earn their place:** for infrastructure and for what must be replaceable, such as the ports a test replaces with a double. Everything else stays concrete and domain-centric; prefer extension members and plain domain code over an interface with a single implementation.
 - **No fat constructors.** More than four dependencies is a smell that calls for a refactoring, and the architecture tests reject it. Records holding data are exempt.
 - **Composition over inheritance.** Every class is `sealed`. Only framework types may be inherited: Avalonia types and EF Core's `DbContext`.
+- **Concurrency only through the event bus or channels.** No `lock`, `Lock`, semaphore, monitor, mutex, wait handle, barrier or concurrent collection in `src/`. State belongs to one reader: a handler's mailbox, or a channel consumer such as the SDK's `SerialExecutor`. Queries read an immutable snapshot the owner replaces whole, published with `Volatile` or `ImmutableInterlocked`. A `TaskCompletionSource` as a one-shot signal is fine; tests may use what they need.
 
 ## Domain
 

@@ -10,8 +10,8 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus)
 {
     public Task<Option<Job>> FindAsync(JobId id, CancellationToken cancellationToken) => store.FindAsync(id, cancellationToken);
 
-    public Task<Option<Job>> FindBySessionAsync(SessionId session, CancellationToken cancellationToken) =>
-        store.FindBySessionAsync(session, cancellationToken);
+    public Task<Option<JobId>> JobOfSessionAsync(SessionId session, CancellationToken cancellationToken) =>
+        store.JobOfSessionAsync(session, cancellationToken);
 
     public Task<IReadOnlyList<Job>> ActiveAsync(CancellationToken cancellationToken) => store.ActiveAsync(cancellationToken);
 

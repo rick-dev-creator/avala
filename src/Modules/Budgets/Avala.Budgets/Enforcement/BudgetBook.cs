@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
@@ -9,29 +8,22 @@ namespace Avala.Budgets.Enforcement;
 
 internal sealed class BudgetBook : IBudgets
 {
-    private readonly ConcurrentDictionary<SessionId, (SessionBudget Budget, ProviderInfo Provider)> sessions = new();
-    private readonly ConcurrentDictionary<JobId, SessionId> jobs = new();
-    private readonly ConcurrentDictionary<JobId, JobStatus> statuses = new();
+    private ImmutableDictionary<SessionId, (SessionBudget Budget, ProviderInfo Provider)> sessions =
+        ImmutableDictionary<SessionId, (SessionBudget Budget, ProviderInfo Provider)>.Empty;
+
     private ImmutableList<BudgetIntervention> interventions = [];
 
-    public void Keep(SessionBudget budget, ProviderInfo provider) => sessions[budget.Session] = (budget, provider);
+    public void Keep(SessionBudget budget, ProviderInfo provider) =>
+        ImmutableInterlocked.AddOrUpdate(ref sessions, budget.Session, (budget, provider), (_, _) => (budget, provider));
 
-    public void Tie(JobId job, SessionId session) => jobs[job] = session;
-
-    public void Track(JobId job, JobStatus status) => statuses[job] = status;
-
-    public bool IsRunning(JobId job) => statuses.GetValueOrDefault(job) == JobStatus.Running;
-
-    public Option<(SessionBudget Budget, ProviderInfo Provider)> BudgetOfJob(JobId job) =>
-        jobs.TryGetValue(job, out var session) && sessions.TryGetValue(session, out var budgeted)
-            ? budgeted
-            : Option<(SessionBudget, ProviderInfo)>.None;
+    public Option<(SessionBudget Budget, ProviderInfo Provider)> Budgeted(SessionId session) =>
+        Volatile.Read(ref sessions).TryGetValue(session, out var budgeted) ? budgeted : Option<(SessionBudget, ProviderInfo)>.None;
 
     public void Record(BudgetIntervention intervention) =>
         ImmutableInterlocked.Update(ref interventions, recorded => recorded.Add(intervention));
 
-    public Option<SessionBudget> BudgetOf(SessionId session) =>
-        sessions.TryGetValue(session, out var budgeted) ? budgeted.Budget : Option<SessionBudget>.None;
+    public Option<SessionBudget> BudgetOf(SessionId session) => Budgeted(session).Map(budgeted => budgeted.Budget);
 
-    public IReadOnlyList<BudgetIntervention> OfJob(JobId job) => [.. interventions.Where(intervention => intervention.Hold.Job == job)];
+    public IReadOnlyList<BudgetIntervention> OfJob(JobId job) =>
+        [.. Volatile.Read(ref interventions).Where(intervention => intervention.Hold.Job == job)];
 }

@@ -24,8 +24,8 @@ public sealed class WatchdogTests
         Assert.Equal([(supervised.Job, HoldReason.Stalled)], supervised.Jobs.Holds);
         var intervention = Assert.Single(supervised.Interventions);
         Assert.Equal(
-            (HoldReason.Stalled, new SilenceMeasure(Window, Window), true, supervised.Clock.GetUtcNow()),
-            (intervention.Hold.Reason, Outcomes.Present(intervention.Silence), intervention.Ending.IsNone, intervention.At));
+            (HoldReason.Stalled, new SilenceMeasure(Window, Window), supervised.Clock.GetUtcNow()),
+            (intervention.Hold.Reason, intervention.Silence, intervention.At));
         Assert.Equal(new SupervisorIntervened(intervention), supervised.Bus.Published[^1]);
     }
 
@@ -41,7 +41,7 @@ public sealed class WatchdogTests
         Assert.Empty(supervised.Jobs.Holds);
 
         await supervised.AdvanceAsync(Window - Minute);
-        Assert.Equal(new SilenceMeasure(Window, Window), Outcomes.Present(Assert.Single(supervised.Interventions).Silence));
+        Assert.Equal(new SilenceMeasure(Window, Window), Assert.Single(supervised.Interventions).Silence);
     }
 
     [Fact]
@@ -98,33 +98,5 @@ public sealed class WatchdogTests
         Assert.Single(supervised.Jobs.Holds);
         Assert.Empty(supervised.Interventions);
         Assert.DoesNotContain(supervised.Bus.Published, published => published is SupervisorIntervened);
-    }
-
-    [Fact]
-    public async Task ASessionThatEndsUnderItsRunningJobHoldsTheJobAsSessionLostAsync()
-    {
-        await using var supervised = new Supervised();
-        await supervised.RunningAsync();
-
-        await supervised.EndAsync(supervised.Session, SessionEnding.Crashed);
-
-        var intervention = Assert.Single(supervised.Interventions);
-        Assert.Equal(
-            (HoldReason.SessionLost, SessionEnding.Crashed, true),
-            (intervention.Hold.Reason, Outcomes.Present(intervention.Ending), intervention.Silence.IsNone));
-    }
-
-    [Fact]
-    public async Task TheEndOfASessionThatIsNotItsJobsCurrentOneIsIgnoredAsync()
-    {
-        await using var supervised = new Supervised();
-        var replaced = SessionId.New();
-        await supervised.JoinAsync(replaced);
-        await supervised.RunningAsync();
-
-        await supervised.EndAsync(replaced, SessionEnding.Closed);
-        await supervised.EndAsync(SessionId.New(), SessionEnding.Crashed);
-
-        Assert.Empty(supervised.Jobs.Holds);
     }
 }

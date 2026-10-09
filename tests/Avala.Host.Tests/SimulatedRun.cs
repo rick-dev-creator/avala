@@ -1,10 +1,13 @@
 using System.Globalization;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
+using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
+using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Supervision.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
@@ -25,6 +28,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private readonly EventWatch<AgentActivity> activity;
     private readonly EventWatch<CanvasUpdated> canvases;
     private readonly EventWatch<PermissionDecided> decisions;
+    private readonly EventWatch<JobHeld> holds;
+    private readonly EventWatch<SupervisorIntervened> supervision;
+    private readonly EventWatch<BudgetIntervened> budgets;
+    private readonly EventWatch<UsageRecorded> usage;
 
     private SimulatedRun(TemporaryFolder data, CompositionRoot root, TemporaryRepository repository)
     {
@@ -35,6 +42,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
         activity = Watch<AgentActivity>();
         canvases = Watch<CanvasUpdated>();
         decisions = Watch<PermissionDecided>();
+        holds = Watch<JobHeld>();
+        supervision = Watch<SupervisorIntervened>();
+        budgets = Watch<BudgetIntervened>();
+        usage = Watch<UsageRecorded>();
     }
 
     public TemporaryRepository Repository => repository;
@@ -94,6 +105,18 @@ internal sealed class SimulatedRun : IAsyncDisposable
         [.. (await activity.CollectUntilAsync(update => update.Event is TurnCompleted)).Select(update => update.Event)];
 
     public async Task<PolicyDecision> DecisionAsync() => (await decisions.UntilAsync(_ => true)).Decision;
+
+    public async Task<JobHold> HoldAsync() => (await holds.UntilAsync(_ => true)).Hold;
+
+    public async Task<SupervisionIntervention> SupervisorInterventionAsync() => (await supervision.UntilAsync(_ => true)).Intervention;
+
+    public async Task<BudgetIntervention> BudgetInterventionAsync() => (await budgets.UntilAsync(_ => true)).Intervention;
+
+    public async Task UsageRecordedAsync(int reports)
+    {
+        var recorded = 0;
+        _ = await usage.UntilAsync(_ => ++recorded == reports);
+    }
 
     public async Task<IReadOnlyList<CanvasSnapshot>> CanvasSnapshotsAsync(int canvasCount)
     {

@@ -16,7 +16,6 @@ internal sealed class Supervised : IAsyncDisposable
 
     private readonly SilenceAlarms alarms;
     private readonly Watchdog watchdog;
-    private readonly LostSessions lost;
     private int dispatched;
 
     public Supervised(Option<JobRejection> rejection = default)
@@ -24,9 +23,7 @@ internal sealed class Supervised : IAsyncDisposable
         Jobs = new HoldingJobs(rejection);
         Book = new SupervisionBook(new FixedSettings());
         alarms = new SilenceAlarms(Clock, Bus);
-        var intervener = new Intervener(Book, Jobs, Bus, Clock);
-        watchdog = new Watchdog(Book, alarms, new FixedSettings(), intervener);
-        lost = new LostSessions(Book, intervener);
+        watchdog = new Watchdog(alarms, new FixedSettings(), new Intervener(Book, Jobs, Bus, Clock));
     }
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 9, 0, 0, TimeSpan.Zero));
@@ -59,8 +56,6 @@ internal sealed class Supervised : IAsyncDisposable
     public async Task JoinAsync(SessionId session) => await watchdog.HandleAsync(new JobSessionStarted(Job, session), Cancellation);
 
     public async Task SeeAsync(IAgentEvent agentEvent) => await watchdog.HandleAsync(new AgentActivity(agentEvent), Cancellation);
-
-    public async Task EndAsync(SessionId session, SessionEnding ending) => await lost.HandleAsync(new SessionEnded(session, ending), Cancellation);
 
     public async Task AdvanceAsync(TimeSpan elapsed)
     {

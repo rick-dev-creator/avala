@@ -25,6 +25,7 @@ public sealed class BudgetsPlugin : IPlugin
             .AddSingleton<BudgetHolds>()
             .AddSingleton<IHandle<SessionOpened>, BudgetLoader>()
             .AddSingleton<BudgetEnforcer>()
+            .AddSingleton<IHandle<BudgetLoaded>>(services => services.GetRequiredService<BudgetEnforcer>())
             .AddSingleton<IHandle<JobSessionStarted>>(services => services.GetRequiredService<BudgetEnforcer>())
             .AddSingleton<IHandle<JobProgressed>>(services => services.GetRequiredService<BudgetEnforcer>())
             .AddSingleton<IHandle<UsageRecorded>>(services => services.GetRequiredService<BudgetEnforcer>());

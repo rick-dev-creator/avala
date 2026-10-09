@@ -26,8 +26,8 @@ internal sealed class InMemoryJobStore : IJobStore
     public Task<Option<Job>> FindAsync(JobId id, CancellationToken cancellationToken) =>
         Task.FromResult(jobs.GetValueOrDefault(id).ToOption());
 
-    public Task<Option<Job>> FindBySessionAsync(SessionId session, CancellationToken cancellationToken) =>
-        Task.FromResult(jobs.Values.FirstOrDefault(job => job.Session == Option<SessionId>.Some(session)).ToOption());
+    public Task<Option<JobId>> JobOfSessionAsync(SessionId session, CancellationToken cancellationToken) =>
+        Task.FromResult(jobs.Values.FirstOrDefault(job => job.Session == Option<SessionId>.Some(session)).ToOption().Map(job => job.Id));
 
     public Task<IReadOnlyList<Job>> ActiveAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Job>>([.. jobs.Values.Where(job => job.State is JobState.Preparing or JobState.Running or JobState.Checking)]);

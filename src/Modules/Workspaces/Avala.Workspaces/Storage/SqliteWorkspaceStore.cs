@@ -8,7 +8,7 @@ namespace Avala.Workspaces.Storage;
 
 internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, IAsyncDisposable
 {
-    private readonly SemaphoreSlim turn = new(1, 1);
+    private readonly SerialExecutor serial = new();
     private WorkspacesDbContext? context;
 
     public Task SaveAsync(Workspace workspace, CancellationToken cancellationToken) =>
@@ -19,6 +19,8 @@ internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, 
                 {
                     await database.Workspaces.AddAsync(workspace, cancellationToken);
                 }
+
+                database.Entry(workspace).DetectChanges();
 
                 return await database.SaveChangesAsync(cancellationToken);
             },
@@ -44,27 +46,16 @@ internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, 
 
     public async ValueTask DisposeAsync()
     {
+        await serial.DisposeAsync();
+
         if (context is not null)
         {
             await context.DisposeAsync();
         }
-
-        turn.Dispose();
     }
 
-    private async Task<T> RunAsync<T>(Func<WorkspacesDbContext, Task<T>> work, CancellationToken cancellationToken)
-    {
-        await turn.WaitAsync(cancellationToken);
-
-        try
-        {
-            return await Task.Run(async () => await work(await OpenAsync(cancellationToken)), cancellationToken);
-        }
-        finally
-        {
-            turn.Release();
-        }
-    }
+    private Task<T> RunAsync<T>(Func<WorkspacesDbContext, Task<T>> work, CancellationToken cancellationToken) =>
+        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
 
     private async Task<WorkspacesDbContext> OpenAsync(CancellationToken cancellationToken)
     {
@@ -72,6 +63,7 @@ internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, 
         {
             Directory.CreateDirectory(paths.Data);
             context = new WorkspacesDbContext(paths.Database("workspaces"));
+            context.ChangeTracker.AutoDetectChangesEnabled = false;
             await context.Database.EnsureCreatedAsync(cancellationToken);
         }
 

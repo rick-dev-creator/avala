@@ -8,8 +8,10 @@ namespace Avala.Runtime.Events;
 
 internal sealed partial class EventBus(IServiceProvider services, ILogger<EventBus> logger) : IEventBus, IEventFeed
 {
-    private readonly Channel<Func<CancellationToken, ValueTask>> queue =
-        Channel.CreateUnbounded<Func<CancellationToken, ValueTask>>(new UnboundedChannelOptions { SingleReader = true });
+    private readonly Channel<Action<CancellationToken>> routes =
+        Channel.CreateUnbounded<Action<CancellationToken>>(new UnboundedChannelOptions { SingleReader = true });
+
+    private readonly Dictionary<object, Mailbox> mailboxes = new(ReferenceEqualityComparer.Instance);
 
     private ImmutableDictionary<Type, ImmutableList<object>> subscribers =
         ImmutableDictionary<Type, ImmutableList<object>>.Empty;
@@ -17,7 +19,7 @@ internal sealed partial class EventBus(IServiceProvider services, ILogger<EventB
     public ValueTask PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
         where TEvent : IIntegrationEvent
     {
-        if (!queue.Writer.TryWrite(token => DispatchAsync(integrationEvent, token)))
+        if (!routes.Writer.TryWrite(token => Route(integrationEvent, token)))
         {
             LogPublishedAfterStop(typeof(TEvent).Name);
         }
@@ -44,29 +46,47 @@ internal sealed partial class EventBus(IServiceProvider services, ILogger<EventB
     {
         try
         {
-            await foreach (var dispatch in queue.Reader.ReadAllAsync(cancellationToken))
+            await foreach (var route in routes.Reader.ReadAllAsync(cancellationToken))
             {
-                await dispatch(cancellationToken);
+                route(cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            queue.Writer.TryComplete();
+            routes.Writer.TryComplete();
         }
+
+        foreach (var mailbox in mailboxes.Values)
+        {
+            mailbox.Close();
+        }
+
+        await Task.WhenAll(mailboxes.Values.Select(mailbox => mailbox.Delivered));
     }
 
-    private async ValueTask DispatchAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
+    private void Route<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
         where TEvent : IIntegrationEvent
     {
         foreach (var handler in services.GetServices<IHandle<TEvent>>())
         {
-            await HandleIsolatedAsync(handler, integrationEvent, cancellationToken);
+            MailboxOf(handler, cancellationToken).Post(token => HandleIsolatedAsync(handler, integrationEvent, token));
         }
 
         foreach (var writer in subscribers.GetValueOrDefault(typeof(TEvent), []).Cast<ChannelWriter<TEvent>>())
         {
             writer.TryWrite(integrationEvent);
         }
+    }
+
+    private Mailbox MailboxOf(object handler, CancellationToken cancellationToken)
+    {
+        if (!mailboxes.TryGetValue(handler, out var mailbox))
+        {
+            mailbox = new Mailbox(cancellationToken);
+            mailboxes.Add(handler, mailbox);
+        }
+
+        return mailbox;
     }
 
     private async ValueTask HandleIsolatedAsync<TEvent>(
@@ -96,4 +116,32 @@ internal sealed partial class EventBus(IServiceProvider services, ILogger<EventB
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "{Event} was published after the event bus stopped and is ignored")]
     private partial void LogPublishedAfterStop(string @event);
+
+    private sealed class Mailbox
+    {
+        private readonly Channel<Func<CancellationToken, ValueTask>> letters =
+            Channel.CreateUnbounded<Func<CancellationToken, ValueTask>>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+
+        public Mailbox(CancellationToken cancellationToken) => Delivered = Task.Run(() => DeliverAsync(cancellationToken), CancellationToken.None);
+
+        public Task Delivered { get; }
+
+        public void Post(Func<CancellationToken, ValueTask> letter) => letters.Writer.TryWrite(letter);
+
+        public void Close() => letters.Writer.TryComplete();
+
+        private async Task DeliverAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await foreach (var letter in letters.Reader.ReadAllAsync(cancellationToken))
+                {
+                    await letter(cancellationToken);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+        }
+    }
 }

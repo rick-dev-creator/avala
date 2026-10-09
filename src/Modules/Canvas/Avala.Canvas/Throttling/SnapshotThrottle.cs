@@ -7,90 +7,69 @@ namespace Avala.Canvas.Throttling;
 
 internal sealed class SnapshotThrottle(CanvasGallery gallery, IEventBus bus, TimeProvider clock, TimeSpan interval) : IAsyncDisposable
 {
-    private readonly SemaphoreSlim gate = new(1, 1);
+    private readonly SerialExecutor serial = new();
     private readonly Dictionary<CanvasId, Cadence> cadences = [];
 
-    public async ValueTask ChangedAsync(CanvasId canvas, CancellationToken cancellationToken)
-    {
-        await gate.WaitAsync(cancellationToken);
+    public async ValueTask ChangedAsync(CanvasId canvas, CancellationToken cancellationToken) =>
+        await serial.RunAsync(token => ChangeAsync(canvas, token), cancellationToken);
 
-        try
-        {
-            var cadence = cadences.GetValueOrDefault(canvas, Cadence.Fresh);
+    public async ValueTask FinishedAsync(CanvasId canvas, CancellationToken cancellationToken) =>
+        await serial.RunAsync(token => FinishAsync(canvas, token), cancellationToken);
 
-            if (cadence.Flush.IsSome)
-            {
-                return;
-            }
-
-            var wait = cadence.Published + interval - clock.GetUtcNow();
-
-            cadences[canvas] = wait > TimeSpan.Zero
-                ? cadence with { Flush = Option<ITimer>.Some(Schedule(canvas, wait)) }
-                : await PublishAsync(canvas, final: false, cancellationToken);
-        }
-        finally
-        {
-            gate.Release();
-        }
-    }
-
-    public async ValueTask FinishedAsync(CanvasId canvas, CancellationToken cancellationToken)
-    {
-        await gate.WaitAsync(cancellationToken);
-
-        try
-        {
-            if (cadences.Remove(canvas, out var cadence))
-            {
-                await cadence.CancelAsync();
-            }
-
-            _ = await PublishAsync(canvas, final: true, cancellationToken);
-        }
-        finally
-        {
-            gate.Release();
-        }
-    }
+    public async ValueTask IdleAsync(CancellationToken cancellationToken) =>
+        await serial.RunAsync(_ => Task.CompletedTask, cancellationToken);
 
     public async ValueTask DisposeAsync()
     {
-        await gate.WaitAsync(CancellationToken.None);
+        await serial.RunAsync(_ => CancelAllAsync(), CancellationToken.None);
+        await serial.DisposeAsync();
+    }
 
-        try
-        {
-            foreach (var cadence in cadences.Values)
-            {
-                await cadence.CancelAsync();
-            }
+    private async Task ChangeAsync(CanvasId canvas, CancellationToken cancellationToken)
+    {
+        var cadence = cadences.GetValueOrDefault(canvas, Cadence.Fresh);
 
-            cadences.Clear();
-        }
-        finally
+        if (cadence.Flush.IsSome)
         {
-            gate.Release();
+            return;
         }
+
+        var wait = cadence.Published + interval - clock.GetUtcNow();
+
+        cadences[canvas] = wait > TimeSpan.Zero
+            ? cadence with { Flush = Option<ITimer>.Some(Schedule(canvas, wait)) }
+            : await PublishAsync(canvas, final: false, cancellationToken);
+    }
+
+    private async Task FinishAsync(CanvasId canvas, CancellationToken cancellationToken)
+    {
+        if (cadences.Remove(canvas, out var cadence))
+        {
+            await cadence.CancelAsync();
+        }
+
+        _ = await PublishAsync(canvas, final: true, cancellationToken);
+    }
+
+    private async Task CancelAllAsync()
+    {
+        foreach (var cadence in cadences.Values)
+        {
+            await cadence.CancelAsync();
+        }
+
+        cadences.Clear();
     }
 
     private ITimer Schedule(CanvasId canvas, TimeSpan wait) =>
-        clock.CreateTimer(state => _ = FlushAsync(canvas), null, wait, Timeout.InfiniteTimeSpan);
+        clock.CreateTimer(state => _ = serial.RunAsync(token => FlushAsync(canvas), CancellationToken.None), null, wait, Timeout.InfiniteTimeSpan);
 
     private async Task FlushAsync(CanvasId canvas)
     {
-        await gate.WaitAsync(CancellationToken.None);
-
-        try
+        if (cadences.TryGetValue(canvas, out var cadence) && cadence.Flush.IsSome)
         {
-            if (cadences.TryGetValue(canvas, out var cadence) && cadence.Flush.IsSome)
-            {
-                await cadence.CancelAsync();
-                cadences[canvas] = await PublishAsync(canvas, final: false, CancellationToken.None);
-            }
-        }
-        finally
-        {
-            gate.Release();
+            await cadence.CancelAsync();
+            cadences[canvas] = await PublishAsync(canvas, final: false, CancellationToken.None);
         }
     }
 

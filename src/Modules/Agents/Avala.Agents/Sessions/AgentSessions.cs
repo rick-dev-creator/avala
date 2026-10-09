@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -15,7 +15,7 @@ internal sealed partial class AgentSessions(
     TimeProvider clock,
     ILogger<AgentSessions> logger) : IAgents, IAsyncDisposable
 {
-    private readonly ConcurrentDictionary<SessionId, LiveSession> live = new();
+    private ImmutableDictionary<SessionId, LiveSession> live = ImmutableDictionary<SessionId, LiveSession>.Empty;
 
     public async ValueTask<Result<SessionId, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken)
     {
@@ -32,7 +32,7 @@ internal sealed partial class AgentSessions(
         }
 
         await bus.PublishAsync(new SessionOpened(session.Id, provider.Info, request.WorkingDirectory), cancellationToken);
-        live.TryAdd(session.Id, new LiveSession(session, provider.Capabilities, PumpAsync));
+        ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, provider.Capabilities, PumpAsync));
 
         return session.Id;
     }
@@ -41,7 +41,7 @@ internal sealed partial class AgentSessions(
         SessionId session,
         string message,
         CancellationToken cancellationToken) =>
-        live.TryGetValue(session, out var running)
+        Volatile.Read(ref live).TryGetValue(session, out var running)
             ? (await running.Session.SendAsync(new UserTurn(message), cancellationToken)).Map(turn => new AgentTurn(session, turn))
             : AgentError.SessionClosed;
 
@@ -49,18 +49,18 @@ internal sealed partial class AgentSessions(
         SessionId session,
         PermissionDecision decision,
         CancellationToken cancellationToken) =>
-        live.TryGetValue(session, out var running)
+        Volatile.Read(ref live).TryGetValue(session, out var running)
             ? await running.Session.RespondAsync(decision, cancellationToken)
             : AgentError.SessionClosed;
 
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
-        !live.TryGetValue(session, out var running) ? AgentError.SessionClosed
+        !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
         : !running.Capabilities.CanInterrupt ? AgentError.Unsupported
         : await running.Session.InterruptAsync(cancellationToken);
 
     public async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)
     {
-        if (!live.TryRemove(session, out var running))
+        if (!ImmutableInterlocked.TryRemove(ref live, session, out var running))
         {
             return AgentError.SessionClosed;
         }
@@ -72,7 +72,7 @@ internal sealed partial class AgentSessions(
 
     public async ValueTask DisposeAsync()
     {
-        foreach (var session in live.Keys)
+        foreach (var session in Volatile.Read(ref live).Keys)
         {
             await StopAsync(session, CancellationToken.None);
         }

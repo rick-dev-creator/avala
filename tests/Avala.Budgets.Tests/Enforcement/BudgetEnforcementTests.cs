@@ -94,6 +94,18 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
+    public async Task ABudgetLoadedAfterItsJobStartedRunningIsEnforcedAsItLoadsAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.TiedAsync();
+        Assert.Empty(budgeted.Jobs.Holds);
+
+        await budgeted.OpenAsync(BudgetError.Malformed);
+
+        Assert.Equal([(budgeted.Job, HoldReason.InvalidBudget)], budgeted.Jobs.Holds);
+    }
+
+    [Fact]
     public async Task AJobOverBudgetIsHeldOnlyOnceItRunsAgainAsync()
     {
         var budgeted = new Budgeted();

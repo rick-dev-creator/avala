@@ -31,10 +31,10 @@ Inside a module, folders and namespaces are named after what the code does: its 
 | `Jobs` | The `Job` aggregate, its attempts, lifecycle, value objects, error enum and domain events | Domain |
 | `Submission` | Creating and submitting a job, and the `IJobs` entry other modules call | Application |
 | `Launching` | Preparing the workspace, opening the agent session and sending the instruction | Application |
-| `TurnChecks` | Checking a finished turn against the completion gates | Application |
+| `TurnChecks` | Checking a finished turn against the completion gates, and holding a job whose session was lost | Application |
 | `Recovery` | Resuming active jobs at startup | Application |
 | `Holding` | Holding a running job for a typed reason and halting its agent session | Application |
-| `Ledger` | Storing a job and announcing its progress, with the `IJobStore` port | Application |
+| `Ledger` | Storing a job and announcing its progress, with the `IJobStore` port, and `JobQueues`, which runs the work on each job in order | Application |
 | `Storage` | The EF Core store behind `IJobStore` | Infrastructure |
 | `JobList` | The jobs page view model | ViewModels |
 
@@ -70,12 +70,14 @@ Enforced by `tests/Avala.ArchitectureTests`:
 - Only infrastructure types of the modules depend on `Microsoft.EntityFrameworkCore`.
 - Database work never runs on the UI thread. Every infrastructure type that declares a field whose type derives from `DbContext` must be declared in a source file that calls `Task.Run`. The rule checks that the call is present in that file, not that every database operation goes through it; the stores route every operation through a single `RunAsync` that awaits `Task.Run`, as the [core design](design/core.md#sqlite-and-blocking) requires.
 - The architecture tests reference every source project, so no project escapes the rules.
+- Concurrency between components goes only through the event bus or `System.Threading.Channels`. No source file under `src/` holds a `lock` statement or names a coordination primitive: `Lock`, `Monitor`, `SemaphoreSlim`, `Semaphore`, `Mutex`, `ReaderWriterLock`, `ReaderWriterLockSlim`, `SpinLock`, `SpinWait`, `Barrier`, `CountdownEvent`, the reset events, `EventWaitHandle`, `WaitHandle`, or a concurrent collection. State is owned by one reader, a handler's mailbox or a channel consumer such as `SerialExecutor` in the SDK, and queries read an immutable snapshot the owner replaces whole. Publishing that reference with `Volatile` or `ImmutableInterlocked` is not coordination, and a `TaskCompletionSource` as a one-shot signal is allowed. Tests may use what they need.
 
 Enforced by the compiler through `BannedSymbols.txt` and the threading analyzers:
 
 - Nothing blocks a thread: no `Thread.Sleep`, `Wait`, `Result`, `GetResult`, synchronous waits or synchronous file I/O.
 - No `async void`.
 - No direct `Fire` on a Stateless machine: transitions go through the guarded `TryFire`.
+- No coordination primitive in `src/`: `src/BannedSymbols.Concurrency.txt` bans the types above for every source project, so a violation fails the build before the architecture tests run. A `lock` on a plain object names no banned type, so only the architecture rule catches it.
 
 Every rule is checked against the production modules, a compliant fixture module and a violating fixture module. A rule must pass on the first two and find exactly the expected violations in the third, so it can never pass vacuously.
 
