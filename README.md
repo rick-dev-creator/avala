@@ -7,12 +7,12 @@
 
 **Agents you can trust without watching.**
 
-[![Debt grade](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/debt.svg)](docs/architecture.md#technical-debt-grade)
-[![Coverage](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/coverage.svg)](docs/architecture.md#quality-metrics)
-[![Maintainability](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/maintainability.svg)](docs/architecture.md#technical-debt-grade)
-[![Highest complexity](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/complexity.svg)](docs/architecture.md#technical-debt-grade)
-[![C# lines](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/lines.svg)](docs/architecture.md#quality-metrics)
-[![Share of T3 Code's lines](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/t3-share.svg)](docs/architecture.md#quality-metrics)
+[![Debt grade](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/debt.svg)](docs/architecture.md#technical-debt-grade)
+[![Coverage](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/coverage.svg)](docs/architecture.md#quality-metrics)
+[![Maintainability](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/maintainability.svg)](docs/architecture.md#technical-debt-grade)
+[![Highest complexity](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/complexity.svg)](docs/architecture.md#technical-debt-grade)
+[![C# lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/lines.svg)](docs/architecture.md#quality-metrics)
+[![Share of T3 Code's lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/t3-share.svg)](docs/architecture.md#quality-metrics)
 
 Avala is an open-source desktop harness for coding agents. It runs each agent in its own git worktree and lets it work unattended, while every decision is governed by your rules, every result is backed by evidence, and every cost is accounted for.
 
