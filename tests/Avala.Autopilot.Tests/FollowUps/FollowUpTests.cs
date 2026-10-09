@@ -126,7 +126,7 @@ public sealed class FollowUpTests
         }
     }
 
-    private sealed class ReturningAgents : IAgents
+    internal sealed class ReturningAgents : IAgents
     {
         private readonly ConcurrentQueue<(SessionId Session, ToolResult Result)> results = new();
 

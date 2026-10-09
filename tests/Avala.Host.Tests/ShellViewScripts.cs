@@ -102,7 +102,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         }
     }
 
-    private sealed class JobPickerControl : Button
+    internal sealed class JobPickerControl : Button
     {
         public JobPickerControl()
         {
@@ -114,7 +114,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         protected override Type StyleKeyOverride => typeof(Button);
     }
 
-    private sealed class JobInspectorControl : TextBlock
+    internal sealed class JobInspectorControl : TextBlock
     {
         public JobInspectorControl() => this[!TextProperty] = new ReflectionBinding("Text");
 

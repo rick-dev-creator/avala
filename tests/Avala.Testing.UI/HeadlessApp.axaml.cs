@@ -2,12 +2,11 @@ using Avala.Components.UI;
 using Avala.Sdk.UI;
 using Avalonia;
 using Avalonia.Headless;
-using Avalonia.Markup.Xaml.Styling;
-using Avalonia.Styling;
+using Avalonia.Markup.Xaml;
 
 namespace Avala.Testing.UI;
 
-public sealed class HeadlessApp : Application
+public sealed partial class HeadlessApp : Application
 {
     public static ViewRegistry Views { get; } = CreateViews();
 
@@ -18,12 +17,8 @@ public sealed class HeadlessApp : Application
 
     public override void Initialize()
     {
-        RequestedThemeVariant = ThemeVariant.Dark;
+        AvaloniaXamlLoader.Load(this);
         DataTemplates.Add(Views);
-        Styles.Add(new StyleInclude(new Uri("avares://Avala.Testing.UI/"))
-        {
-            Source = new Uri("avares://Avala.Components.UI/Theme/AvalaTheme.axaml"),
-        });
     }
 
     private static ViewRegistry CreateViews()

@@ -1,0 +1,8 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Avala.Testing.UI.HeadlessApp"
+             RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <StyleInclude Source="avares://Avala.Components.UI/Theme/AvalaTheme.axaml" />
+  </Application.Styles>
+</Application>

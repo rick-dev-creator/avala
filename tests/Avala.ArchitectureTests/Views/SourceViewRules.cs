@@ -48,7 +48,7 @@ internal static class SourceViewRules
             scope.ScriptDirectories.SelectMany(directory => Solution.SolutionLayout.FilesUnder(directory, $"*{ComponentKinds.ScriptsSuffix}.cs")),
             cancellationToken);
         var scripts = files
-            .SelectMany(file => CSharpSyntaxTree.ParseText(file.Text, cancellationToken: cancellationToken).GetRoot()
+            .SelectMany(file => CSharpSyntaxTree.ParseText(file.Text, cancellationToken: cancellationToken).GetRoot(cancellationToken)
                 .DescendantNodes().OfType<TypeDeclarationSyntax>().Select(type => type.Identifier.Text))
             .ToHashSet(StringComparer.Ordinal);
 

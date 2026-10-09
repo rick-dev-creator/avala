@@ -23,12 +23,12 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `src/Modules/Workbench/Avala.Workbench.UI` | The Workbench's views and its plugin entry, which registers the board, the view models, the main window as the shell's first page and the global pages after it. |
 | `tests/Avala.ArchitectureTests` | The rules below, enforced on every build. |
 | `tests/Avala.ArchitectureTests.Fixtures` | A compliant sample module and a module that breaks every rule on purpose. |
-| `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider whose identity, capabilities, resume, account and launches a test chooses, process trees that record what they start and kill it, the workload program's commands, temporary folders and git repositories, committed rule files behind `IBaseFiles`, event watches with a safety timeout, generated diagrams, the regression recordings, and `TestUiDispatcher`, a UI thread of its own with its synchronization context, which runs what view models dispatch and lets a test await a condition on their state. |
+| `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider whose identity, capabilities, resume, account and launches a test chooses, process trees that record what they start and kill it, the workload program's commands, temporary folders and git repositories, committed rule files behind `IBaseFiles`, `PluginComposition`, which registers one plugin beside stand-ins for the contracts it consumes and builds it with validation so a module's tests prove its registration resolves, event watches with a safety timeout, generated diagrams, the regression recordings, and `TestUiDispatcher`, a UI thread of its own with its synchronization context, which runs what view models dispatch and lets a test await a condition on their state. |
 | `tests/recordings` | Recorded sessions committed as regression tests, each with its expected outcome, see the [core design](design/core.md#regression-fixtures). Refresh the ones recorded from the simulator with `AVALA_UPDATE_RECORDINGS=1 dotnet test --solution Avala.slnx`. |
 | `tests/Avala.<Project>.Tests` | Unit tests. |
 | `tests/Avala.Integration.Tests` | End-to-end tests that compose the real modules through their public plugin entries, over a real git repository and SQLite. Not part of `Avala.UnitTests.slnf`. |
 | `tests/Avala.Host.Tests` | Simulation tests of the real application: the composition root built from the published plugin folder, driven by the simulator over a real git repository, its view models driven the way a view binds them, and the shell rendered headless. Not part of `Avala.UnitTests.slnf`. |
-| `tests/Avala.Testing.UI` | Helpers for headless view scripts: `HeadlessApp`, the application with Avala's theme and a view registry, `HeadlessUi` and `ViewScript`. |
+| `tests/Avala.Testing.UI` | Helpers for headless view scripts: `HeadlessApp`, the application with Avala's theme, included from its XAML as the host's `App` does, and a view registry, `HeadlessUi` and `ViewScript`. |
 | `tests/Avala.ArchitectureTests.Fixtures.UI` | The views of the compliant and violating fixtures, and a view model that knows Avalonia. |
 
 ## Screaming architecture
@@ -220,7 +220,7 @@ Comments are banned, so every exception to an analyzer is recorded here.
 | `RS0030` | `GuardedTransitions.cs` | The guarded transition helper is the single place allowed to call `Fire`, right after `CanFire`. |
 | `RS0030` | xUnit's generated entry point | Third-party generated code that blocks on the test platform's task. |
 | `RS0030` | `tests/Avala.Testing/TemporaryFolder.cs`, `Task.Delay` | Windows releases a killed process's handles, and its console host's, a moment after the process exits, and announces it with no event, so `DisposeAsync` retries a failed deletion after a short delay. The timing rule reads this row and allows `Task.Delay` in this file only, nothing else. |
-| All analyzers | `Avala.ArchitectureTests.Fixtures` | The fixtures break rules on purpose. |
+| All analyzers | `Avala.ArchitectureTests.Fixtures` and `Avala.ArchitectureTests.Fixtures.UI` | The fixtures break rules on purpose. |
 
 ## Plugins
 
