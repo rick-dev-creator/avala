@@ -124,6 +124,8 @@ internal sealed class RecordingParser
         "canvasStarted" => new CanvasStarted(default, default, Item(recorded), Text(recorded.GetProperty("title")), Plain(recorded.GetProperty("mediaType"))),
         "itemProgressed" => new ItemProgressed(default, default, Item(recorded), Text(recorded.GetProperty("text"))),
         "itemCompleted" => new ItemCompleted(default, default, Item(recorded), Enum<ItemOutcome>(recorded.GetProperty("outcome"))),
+        "toolCalled" => new ToolCalled(default, default, Item(recorded), Plain(recorded.GetProperty("tool")), Text(recorded.GetProperty("input"))),
+        "toolReturned" => new ToolReturned(default, default, Item(recorded), Result(recorded.GetProperty("result"))),
         _ => ExchangeEvent(recorded, type),
     };
 
@@ -140,8 +142,6 @@ internal sealed class RecordingParser
         "formRequested" => new FormRequested(default, default, Item(recorded), Form(recorded.GetProperty("form"))),
         "formAnswered" => new FormAnswered(default, default, Item(recorded), Answer(recorded.GetProperty("answer"))),
         "requestWithdrawn" => new RequestWithdrawn(default, default, Item(recorded)),
-        "toolCalled" => new ToolCalled(default, default, Item(recorded), Plain(recorded.GetProperty("tool")), Text(recorded.GetProperty("input"))),
-        "toolReturned" => new ToolReturned(default, default, Item(recorded), Result(recorded.GetProperty("result"))),
         var unknown => throw new FormatException($"{unknown} is not an agent event."),
     };
 
