@@ -83,16 +83,31 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
         }
     }
 
-    [RelayCommand(CanExecute = nameof(AwaitsYou))]
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AllowCommand), nameof(DenyCommand))]
+    public partial bool IsAnswering { get; private set; }
+
+    [RelayCommand(CanExecute = nameof(CanAnswer))]
     private Task AllowAsync(CancellationToken cancellationToken) => AnswerAsync(PermissionAnswer.Allow, cancellationToken);
 
-    [RelayCommand(CanExecute = nameof(AwaitsYou))]
+    [RelayCommand(CanExecute = nameof(CanAnswer))]
     private Task DenyAsync(CancellationToken cancellationToken) => AnswerAsync(PermissionAnswer.Deny, cancellationToken);
+
+    private bool CanAnswer() => AwaitsYou && !IsAnswering;
 
     private async Task AnswerAsync(PermissionAnswer answer, CancellationToken cancellationToken)
     {
-        var note = string.IsNullOrWhiteSpace(Note) ? Option<string>.None : Note.Trim();
-        var answered = await replies.AnswerAsync(request, answer, note, DontAskAgain, cancellationToken);
-        Error = answered.Match(_ => string.Empty, CardPhrases.Error);
+        IsAnswering = true;
+
+        try
+        {
+            var note = string.IsNullOrWhiteSpace(Note) ? Option<string>.None : Note.Trim();
+            var answered = await replies.AnswerAsync(request, answer, note, DontAskAgain, cancellationToken);
+            Error = answered.Match(_ => string.Empty, CardPhrases.Error);
+        }
+        finally
+        {
+            IsAnswering = false;
+        }
     }
 }
