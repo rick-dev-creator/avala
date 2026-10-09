@@ -3,19 +3,100 @@
              xmlns:conversation="using:Avala.Workbench.Conversation"
              x:Class="Avala.Workbench.UI.ReasoningView"
              x:ClassModifier="internal"
-             x:DataType="conversation:IReasoningViewModel">
+             x:DataType="conversation:IReasoningViewModel"
+             Classes="fade-in"
+             Classes.thinking="{Binding IsThinking}"
+             Classes.expanded="{Binding IsExpanded}"
+             Margin="0,1">
   <Design.DataContext>
     <conversation:DesignReasoningViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="4">
-    <Button x:Name="Toggle" Classes="ghost" Command="{Binding ToggleCommand}" HorizontalAlignment="Left">
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <Path x:Name="Thinking" Classes="icon" Classes.pulse="{Binding IsThinking}" Data="{StaticResource IconReasoning}" />
-        <TextBlock x:Name="Summary" Classes="secondary" Text="{Binding Summary}" />
-      </StackPanel>
+  <UserControl.Styles>
+    <Style Selector="Button#Toggle">
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Button#Toggle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Ellipse.still">
+      <Setter Property="Width" Value="3" />
+      <Setter Property="Height" Value="3" />
+      <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Ellipse.think-dot">
+      <Setter Property="Width" Value="3" />
+      <Setter Property="Height" Value="3" />
+      <Setter Property="Fill" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Path#Chevron">
+      <Setter Property="Data" Value="{StaticResource IconChevronRight}" />
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector=":is(UserControl).expanded Path#Chevron">
+      <Setter Property="Data" Value="{StaticResource IconChevronDown}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="2">
+    <Button x:Name="Toggle"
+            Classes="line"
+            Command="{Binding ToggleCommand}"
+            AutomationProperties.Name="{Binding Summary}">
+      <Grid ColumnDefinitions="14,*,Auto" ColumnSpacing="10">
+        <StackPanel x:Name="LiveDots"
+                    Orientation="Horizontal"
+                    Spacing="3"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding IsThinking}">
+          <Ellipse Classes="think-dot" />
+          <Ellipse Classes="think-dot second" />
+          <Ellipse Classes="think-dot third" />
+        </StackPanel>
+        <StackPanel x:Name="StillDots"
+                    Orientation="Horizontal"
+                    Spacing="3"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding !IsThinking}">
+          <Ellipse Classes="still" />
+          <Ellipse Classes="still" />
+          <Ellipse Classes="still" />
+        </StackPanel>
+        <Panel Grid.Column="1" ClipToBounds="True">
+          <TextBlock x:Name="Summary" Text="{Binding Summary}" VerticalAlignment="Center" />
+          <Border x:Name="Shimmer"
+                  Classes="shimmer-window"
+                  Width="48"
+                  HorizontalAlignment="Left"
+                  ClipToBounds="True"
+                  OpacityMask="{DynamicResource ShimmerMaskBrush}"
+                  IsVisible="{Binding IsThinking}">
+            <TextBlock Classes="shimmer-text"
+                       Text="{Binding Summary}"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       VerticalAlignment="Center" />
+          </Border>
+        </Panel>
+        <Path x:Name="Chevron"
+              Grid.Column="2"
+              Classes="icon small"
+              VerticalAlignment="Center"
+              IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </Grid>
     </Button>
-    <Border x:Name="Thought" Classes="well" IsVisible="{Binding IsExpanded}">
-      <SelectableTextBlock x:Name="Text" Text="{Binding Text}" TextWrapping="Wrap" />
+    <Border x:Name="Thought"
+            Classes.fold-in="{Binding IsExpanded}"
+            Background="{DynamicResource FillQuietBrush}"
+            CornerRadius="{DynamicResource RadiusButton}"
+            Padding="34,8,12,10"
+            Margin="0,0,0,4"
+            IsVisible="{Binding IsExpanded}">
+      <SelectableTextBlock x:Name="Text"
+                           Text="{Binding Text}"
+                           TextWrapping="Wrap"
+                           FontSize="{DynamicResource FontSizeBody}"
+                           LineHeight="20"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
     </Border>
   </StackPanel>
 </UserControl>

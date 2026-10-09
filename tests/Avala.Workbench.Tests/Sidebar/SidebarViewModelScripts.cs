@@ -50,14 +50,13 @@ public sealed class SidebarViewModelScripts : IDisposable
 
         ViewModelScript.Given(sidebar)
             .When(shown => shown.Show(Board(running with { Transcript = AskingToRun() })))
-            .ThenNotified(nameof(SidebarViewModel.PendingDecisions), nameof(SidebarViewModel.HasPendingDecisions))
             .Then(shown =>
             {
                 Assert.Empty(shown.Running);
                 Assert.Same(row, Assert.Single(shown.NeedsYou));
                 Assert.Same(row, shown.Selected);
                 Assert.True(row.IsSelected);
-                Assert.Equal(("wants to run a command", 1, 1, StatusKind.NeedsYou), (row.Fact, row.PendingDecisions, shown.PendingDecisions, row.Dot.Kind));
+                Assert.Equal(("wants to run a command", 1, StatusKind.NeedsYou), (row.Fact, row.PendingDecisions, row.Dot.Kind));
             });
     }
 
@@ -163,31 +162,6 @@ public sealed class SidebarViewModelScripts : IDisposable
         await bench.Ui.ReadAsync(() => true);
 
         Assert.Single(await bench.Ui.ReadAsync(() => sidebar.Running.ToList()));
-    }
-
-    [Fact]
-    public void TogglingDecisionsOpensAndClosesThePopover()
-    {
-        ViewModelScript.Given(bench.Sidebar())
-            .Invoke(nameof(SidebarViewModel.ToggleDecisionsCommand))
-            .Then(sidebar => Assert.True(sidebar.IsDecisionsOpen))
-            .Invoke(nameof(SidebarViewModel.ToggleDecisionsCommand))
-            .ThenNotified(nameof(SidebarViewModel.IsDecisionsOpen))
-            .Then(sidebar => Assert.False(sidebar.IsDecisionsOpen));
-    }
-
-    [Fact]
-    public async Task ActivatingTheSidebarActivatesItsDecisionsPopoverAsync()
-    {
-        using var sidebar = bench.Sidebar();
-        var job = bench.Job("Fix flaky CheckoutForm test", JobStatus.Running);
-        bench.Publish(Bench.OnBoard(job) with { Transcript = AskingToRun() });
-        var decisions = Assert.IsAssignableFrom<Sdk.Presentation.IPresentation>(sidebar.Decisions);
-
-        await decisions.PresentsAfterAsync(() => bench.Post(sidebar.Activate), () => "the popover did not show", Cancellation);
-
-        Assert.Equal(1, await bench.Ui.ReadAsync(() => sidebar.Decisions.Items.Count));
-        await bench.Ui.InvokeAsync(sidebar.Deactivate, Cancellation);
     }
 
     public void Dispose() => bench.Dispose();

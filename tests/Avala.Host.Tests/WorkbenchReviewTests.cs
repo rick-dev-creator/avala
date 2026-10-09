@@ -73,7 +73,7 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         Assert.Equal(DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
         Assert.Equal(DecisionDelivery.LeftToHuman, (await run.FormDecisionAsync()).Delivery);
         var workbench = await run.WorkbenchAsync();
-        var decisions = await run.Ui.ReadAsync(() => workbench.Sidebar["Decisions"]);
+        var decisions = await run.Ui.ReadAsync(() => workbench.Toolbar["Decisions"]);
         await workbench.ShowsAsync(() => decisions["Items"].Items.Count == 2);
         var kinds = await run.Ui.ReadAsync(() => decisions["Items"].Items.Select(item => item["Card"].Kind).Order(StringComparer.Ordinal).ToList());
 

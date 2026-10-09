@@ -24,6 +24,8 @@ internal sealed partial class OverviewViewModel(IConnectionsViewModel connection
 {
     public string Title => "Overview";
 
+    public string Icon => "IconOverview";
+
     public IConnectionsViewModel Connections { get; } = connections;
 
     public IDelegationViewModel Delegation { get; } = delegation;

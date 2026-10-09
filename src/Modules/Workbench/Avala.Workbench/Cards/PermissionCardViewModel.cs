@@ -14,6 +14,8 @@ internal interface IPermissionCardViewModel
 
     ItemKind Kind { get; }
 
+    string Headline { get; }
+
     string Target { get; }
 
     bool AwaitsYou { get; }
@@ -50,6 +52,8 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
     public string Title => request.Title;
 
     public ItemKind Kind => request.Kind;
+
+    public string Headline => CardPhrases.Headline(request.Kind);
 
     public string Target => request.Target;
 

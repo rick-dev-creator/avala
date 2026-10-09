@@ -2,21 +2,78 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:events="using:Avala.Agents.Contracts.Events"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.PlanView"
              x:ClassModifier="internal"
-             x:DataType="conversation:IPlanViewModel">
+             x:DataType="conversation:IPlanViewModel"
+             Classes="arrive-snappy"
+             Margin="0,10">
   <Design.DataContext>
     <conversation:DesignPlanViewModel />
   </Design.DataContext>
-  <Border Classes="quiet" Padding="14,10">
+  <UserControl.Styles>
+    <Style Selector="Grid.step TextBlock.step">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="Grid.step.done TextBlock.step">
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+      <Setter Property="TextDecorations" Value="Strikethrough" />
+    </Style>
+    <Style Selector="Grid.step.active TextBlock.step">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border BorderBrush="{DynamicResource SeparatorBrush}"
+          BorderThickness="1"
+          CornerRadius="{DynamicResource RadiusBlock}"
+          Padding="14,12">
     <StackPanel Spacing="6">
-      <TextBlock x:Name="Progress" Classes="section" Text="{Binding Progress, StringFormat='Plan · {0}'}" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Classes="caption" Text="Plan" />
+        <TextBlock x:Name="Progress" Grid.Column="1" Classes="caption" Text="{Binding Progress}" />
+      </Grid>
       <ItemsControl x:Name="Steps" ItemsSource="{Binding Steps}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="events:PlanStep">
-            <Grid ColumnDefinitions="Auto,*" Margin="0,2">
-              <TextBlock Classes="caption" Text="{Binding Status}" Width="80" />
-              <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="13,*"
+                  ColumnSpacing="10"
+                  Classes="step"
+                  Classes.done="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Done}"
+                  Classes.active="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=InProgress}">
+              <Path Width="13"
+                    Height="13"
+                    Stretch="Uniform"
+                    StrokeThickness="1.6"
+                    StrokeLineCap="Round"
+                    StrokeJoin="Round"
+                    Stroke="{DynamicResource TextTertiaryBrush}"
+                    Data="{StaticResource IconCheck}"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Done}" />
+              <Arc Width="11"
+                   Height="11"
+                   StartAngle="0"
+                   SweepAngle="270"
+                   Stroke="{DynamicResource TextPrimaryBrush}"
+                   StrokeThickness="1.5"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Classes="spin"
+                   IsVisible="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=InProgress}" />
+              <Ellipse Width="11"
+                       Height="11"
+                       Stroke="{DynamicResource DotPendingBrush}"
+                       StrokeThickness="1.5"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Pending}" />
+              <TextBlock Grid.Column="1" Classes="step" Text="{Binding Title}" VerticalAlignment="Center" />
             </Grid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>

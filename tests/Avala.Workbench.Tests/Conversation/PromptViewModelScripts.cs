@@ -9,14 +9,14 @@ namespace Avala.Workbench.Tests.Conversation;
 public sealed class PromptViewModelScripts
 {
     [Theory]
-    [InlineData("Initial", "Instruction", true)]
-    [InlineData("Retry", "Verification feedback", false)]
-    [InlineData("Hint", "You", true)]
-    [InlineData("SendBack", "Sent back", true)]
-    [InlineData("Recovery", "Resumed after a restart", false)]
-    public void APromptSaysWhoSentIt(string origin, string phrase, bool fromPerson) =>
+    [InlineData("Initial", "Instruction", true, false)]
+    [InlineData("Retry", "Verification feedback", false, true)]
+    [InlineData("Hint", "You", true, true)]
+    [InlineData("SendBack", "Sent back", true, true)]
+    [InlineData("Recovery", "Resumed after a restart", false, true)]
+    public void APromptSaysWhoSentItAndOnlyAFollowUpShowsItsOrigin(string origin, string phrase, bool fromPerson, bool showsOrigin) =>
         ViewModelScript.Given(new PromptViewModel(new PromptEntry("attempt:1", 1, Enum.Parse<AttemptOrigin>(origin), "Round to whole yen", Option<AttemptOutcome>.None)))
-            .Then(prompt => Assert.Equal((phrase, fromPerson, string.Empty), (prompt.Origin, prompt.IsFromPerson, prompt.Outcome)));
+            .Then(prompt => Assert.Equal((phrase, fromPerson, showsOrigin, string.Empty), (prompt.Origin, prompt.IsFromPerson, prompt.ShowsOrigin, prompt.Outcome)));
 
     [Theory]
     [InlineData("Running", "running")]

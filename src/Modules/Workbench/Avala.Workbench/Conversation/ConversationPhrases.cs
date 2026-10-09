@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
+using Avala.Workbench.Board;
 
 namespace Avala.Workbench.Conversation;
 
@@ -40,6 +41,42 @@ internal static class ConversationPhrases
         _ => string.Create(CultureInfo.InvariantCulture, $"Failed after {Duration(duration)}"),
     };
 
+    public static string Placeholder(JobStatus status) => status switch
+    {
+        JobStatus.Running => "The agent is working · interrupt it to step in",
+        JobStatus.NeedsHelp => "Continue the job with a message…",
+        JobStatus.AwaitingReview => "Send the agent more to do before you review…",
+        JobStatus.Checking => "The checks are running…",
+        JobStatus.Draft or JobStatus.Preparing => "The agent is starting…",
+        _ => "This job has ended",
+    };
+
+    public static string Pill(BoardJob job) => job.Group switch
+    {
+        JobGroup.NeedsYou => job.Hold.Match(reason => job.PendingDecisions == 0 ? $"Held · {Held(reason)}" : "Needs you", () => "Needs you"),
+        JobGroup.ReadyForReview => "Ready for review",
+        JobGroup.Done => job.Status switch
+        {
+            JobStatus.Approved => "Approved",
+            JobStatus.Discarded => "Discarded",
+            _ => "Failed",
+        },
+        _ => job.Status switch
+        {
+            JobStatus.Checking => "Checking",
+            JobStatus.Draft or JobStatus.Preparing => "Starting",
+            _ => "Running",
+        },
+    };
+
+    public static string Place(JobSummary job)
+    {
+        var repository = job.Repository.TrimEnd('/', '\\');
+        var name = repository[(repository.LastIndexOfAny(['/', '\\']) + 1)..];
+
+        return job.Connection.Match(connection => $"{name} · {connection.Value}", () => name);
+    }
+
     public static string Thought(TimeSpan duration) =>
         string.Create(CultureInfo.InvariantCulture, $"Thought for {Duration(duration)}");
 
@@ -55,6 +92,18 @@ internal static class ConversationPhrases
         JobRejection.AgentUnavailable => "The agent could not start.",
         JobRejection.NotAwaitingReview => "The job no longer awaits review.",
         _ => "The job refused the command.",
+    };
+
+    private static string Held(HoldReason reason) => reason switch
+    {
+        HoldReason.Stalled => "stalled",
+        HoldReason.SessionLost => "session lost",
+        HoldReason.BudgetExceeded => "over budget",
+        HoldReason.LimitNearlyReached => "near its limit",
+        HoldReason.InvalidBudget => "invalid budget",
+        HoldReason.MemoryExceeded => "out of memory",
+        HoldReason.Stopped => "stopped",
+        _ => "interrupted",
     };
 
     private static string Duration(TimeSpan duration) =>

@@ -1,14 +1,22 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:streaming="using:Avala.Components.UI.Streaming"
              x:Class="Avala.Workbench.UI.MessageView"
              x:ClassModifier="internal"
-             x:DataType="conversation:IMessageViewModel">
+             x:DataType="conversation:IMessageViewModel"
+             Classes="fade-in"
+             Margin="0,10">
   <Design.DataContext>
     <conversation:DesignMessageViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="4">
-    <SelectableTextBlock x:Name="Text" Text="{Binding Text}" TextWrapping="Wrap" />
-    <TextBlock x:Name="Streaming" Classes="caption pulse" Text="writing…" IsVisible="{Binding IsStreaming}" />
-  </StackPanel>
+  <streaming:StreamingText x:Name="Text"
+                           Stream="{Binding Text}"
+                           IsLive="{Binding IsStreaming}"
+                           Classes.streaming="{Binding IsStreaming}"
+                           FontSize="{DynamicResource FontSizeReading}"
+                           LineHeight="23"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           SelectionBrush="{DynamicResource AccentSubtleBrush}" />
 </UserControl>

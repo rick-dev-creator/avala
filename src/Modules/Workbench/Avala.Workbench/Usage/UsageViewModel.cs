@@ -39,6 +39,8 @@ internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, L
 
     public string Title => "Usage";
 
+    public string Icon => "IconUsage";
+
     public IReadOnlyList<IConnectionMeterViewModel> Connections => connections;
 
     public IReadOnlyList<IUsageWindowViewModel> Windows => periods;

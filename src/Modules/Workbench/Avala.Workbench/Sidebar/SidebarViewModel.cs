@@ -4,7 +4,6 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Board;
-using Avala.Workbench.Decisions;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.Presenting;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -14,10 +13,6 @@ namespace Avala.Workbench.Sidebar;
 
 internal interface ISidebarViewModel
 {
-    IDecisionsViewModel Decisions { get; }
-
-    bool IsDecisionsOpen { get; }
-
     IReadOnlyList<IJobRowViewModel> NeedsYou { get; }
 
     IReadOnlyList<IJobRowViewModel> Running { get; }
@@ -28,15 +23,9 @@ internal interface ISidebarViewModel
 
     IJobRowViewModel? Selected { get; }
 
-    int PendingDecisions { get; }
-
-    bool HasPendingDecisions { get; }
-
     bool IsEmpty { get; }
 
     IRelayCommand<IJobRowViewModel> SelectCommand { get; }
-
-    IRelayCommand ToggleDecisionsCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -51,14 +40,11 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     private readonly ObservableCollection<JobRowViewModel> done = [];
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
 
-    public SidebarViewModel(IDecisionsViewModel decisions, BoardFeed feed, JobFocus focus)
+    public SidebarViewModel(BoardFeed feed, JobFocus focus)
     {
-        Decisions = decisions;
         this.feed = feed;
         this.focus = focus;
     }
-
-    public IDecisionsViewModel Decisions { get; }
 
     public IReadOnlyList<IJobRowViewModel> NeedsYou => needsYou;
 
@@ -79,31 +65,14 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     }
 
     [ObservableProperty]
-    public partial bool IsDecisionsOpen { get; private set; }
-
-    [ObservableProperty]
     public partial IJobRowViewModel? Selected { get; private set; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasPendingDecisions))]
-    public partial int PendingDecisions { get; private set; }
-
-    public bool HasPendingDecisions => PendingDecisions > 0;
 
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
 
-    public void Activate()
-    {
-        feed.Start(Show);
-        Decisions.Activate();
-    }
+    public void Activate() => feed.Start(Show);
 
-    public void Deactivate()
-    {
-        Decisions.Deactivate();
-        feed.Stop();
-    }
+    public void Deactivate() => feed.Stop();
 
     public void Dispose() => Deactivate();
 
@@ -115,7 +84,6 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         }
 
         shown = jobs;
-        PendingDecisions = jobs.Values.Sum(job => job.PendingDecisions);
         IsEmpty = rows.Count == 0;
 
         return [];
@@ -134,13 +102,6 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
             Selected = row;
             focus.Select(row.Job);
         }
-    }
-
-    [RelayCommand]
-    private void ToggleDecisions()
-    {
-        IsDecisionsOpen = !IsDecisionsOpen;
-        Decisions.Refresh();
     }
 
     private void Place(BoardJob job)

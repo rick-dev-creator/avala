@@ -96,8 +96,9 @@ public sealed class ComposerViewModelScripts
                 composer.Draft = "Carry on";
                 composer.Track(JobStatus.NeedsHelp);
             })
-            .ThenNotified(nameof(ComposerViewModel.Status), nameof(ComposerViewModel.AcceptsMessages))
-            .Then(composer => Assert.Equal((true, false, false), (composer.SendCommand.CanExecute(null), composer.InterruptCommand.CanExecute(null), composer.StopCommand.CanExecute(null))));
+            .ThenNotified(nameof(ComposerViewModel.Status), nameof(ComposerViewModel.AcceptsMessages), nameof(ComposerViewModel.Placeholder))
+            .Then(composer => Assert.Equal((true, false, false), (composer.SendCommand.CanExecute(null), composer.InterruptCommand.CanExecute(null), composer.StopCommand.CanExecute(null))))
+            .Then(composer => Assert.Equal("Continue the job with a message…", composer.Placeholder));
 
     [Fact]
     public async Task ASecondSendWhileTheFirstIsInFlightIsRefusedByTheCommand()

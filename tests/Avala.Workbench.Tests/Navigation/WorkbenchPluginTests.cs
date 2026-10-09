@@ -37,7 +37,7 @@ public sealed class WorkbenchPluginTests : IDisposable
     }
 
     [Fact]
-    public async Task TheJobListFillsTheSidebarAndTheSectionsFillTheInspectorInOrderAsync()
+    public async Task TheJobListFillsTheSidebarTheToolbarAndTheSectionsFillTheInspectorInOrderAsync()
     {
         await using var data = new TemporaryFolder();
         await using var composition = Compose(data);
@@ -45,12 +45,16 @@ public sealed class WorkbenchPluginTests : IDisposable
         var regions = composition.All<RegionContribution>().OrderBy(contribution => contribution.Order).ToLookup(contribution => contribution.Region, contribution => contribution.ViewModel.GetType());
 
         Assert.Equal([typeof(SidebarViewModel)], regions[ShellRegions.Sidebar]);
+        Assert.Equal([typeof(ToolbarViewModel)], regions[ShellRegions.Toolbar]);
         Assert.Equal([typeof(ResourceIndicatorViewModel)], regions[ShellRegions.SidebarFooter]);
         Assert.Equal(
             [typeof(EvidenceSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(DelegationSectionViewModel)],
             regions[ShellRegions.Inspector]);
         Assert.Equal(["Jobs", "New job", "Overview", "Usage", "Resources", "Settings"], composition.All<IPage>().Select(page => page.Title));
         Assert.IsType<WorkbenchViewModel>(composition.All<IPage>()[0]);
+        Assert.Equal(
+            [("Overview", "IconOverview"), ("Usage", "IconUsage"), ("Settings", "IconSettings")],
+            composition.All<IPage>().Where(page => page.Placement == PagePlacement.Navigation).Select(page => (page.Title, page.Icon)));
     }
 
     public void Dispose() => ui.Dispose();

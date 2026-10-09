@@ -49,6 +49,9 @@
     <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
     <Setter Property="LineHeight" Value="19" />
   </Style>
+  <Style Selector="TextBlock.medium">
+    <Setter Property="FontWeight" Value="Medium" />
+  </Style>
   <Style Selector="TextBlock.strong">
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>

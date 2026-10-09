@@ -203,6 +203,25 @@ public sealed class ShellViewModelScripts
     }
 
     [Fact]
+    public void AHiddenPageStaysOutOfTheNavigationButCanStillBeShown()
+    {
+        var jobs = new HiddenPage("Jobs");
+        var newJob = new HiddenPage("New job");
+        var usage = new Page("Usage");
+
+        ViewModelScript.Given(Shell([jobs, newJob, usage], []))
+            .Then(shell => Assert.Equal<IPage>([usage], shell.NavigationPages))
+            .Then(shell => Assert.True(shell.HasNavigation))
+            .When(shell => shell.Receive(new PageRequested(newJob)))
+            .Then(shell => Assert.Same(newJob, shell.SelectedPage));
+    }
+
+    [Fact]
+    public void WithOnlyHiddenPagesBesideTheFirstTheNavigationIsHidden() =>
+        ViewModelScript.Given(Shell([new HiddenPage("Jobs"), new HiddenPage("New job")], []))
+            .Then(shell => Assert.Equal((false, 0), (shell.HasNavigation, shell.NavigationPages.Count)));
+
+    [Fact]
     public void ARequestForAPageTheShellDoesNotHoldChangesNothing()
     {
         var jobs = new Page("Jobs");
@@ -228,6 +247,11 @@ public sealed class ShellViewModelScripts
         public void Activate() => Calls.Add("activated");
 
         public void Deactivate() => Calls.Add("deactivated");
+    }
+
+    private sealed record HiddenPage(string Title) : IPage
+    {
+        public PagePlacement Placement => PagePlacement.Hidden;
     }
 
     private sealed class Section : IActivatable, IRegionAware<JobInFocus>
