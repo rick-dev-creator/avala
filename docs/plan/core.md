@@ -266,6 +266,23 @@ Agents and the commands they run leave resources behind: processes that outlive 
 
 Done when: a simulated job that leaks a process and holds a port is reaped and reclaimed, with every resource attributed to its job and visible globally.
 
+### Review and approval
+
+Status: planned, after resources and before delegation, which brings a child's verified work into its parent through the same mechanism. The design of the user interface showed what review needs from the core that its contracts do not expose yet.
+
+- Approving a job delivers its work through an approval strategy, an extension point the core defines and plugins implement. A repository chooses its strategy in `.avala/jobs.json`, read from the base commit like every rule file.
+- The core ships two strategies. `keep`, the default: the job's branch is left ready and nothing else is touched. `merge`: the job's checkpoints are squashed into one clean commit and merged into the base branch without ever forcing; a conflict, a moved base that no longer merges cleanly, or a checkout with uncommitted changes returns a typed outcome naming the problem, and the job stays awaiting review.
+- Opening a pull request arrives later as a strategy of a GitHub plugin, without touching the core.
+
+1. Queries of jobs for the views: the list of jobs with their repository, instruction, status, connection and autonomy, and each job's history of sessions and attempts.
+2. The workspace diff against the base commit: files changed with their counts, and the hunks of a file on demand.
+3. The review commands in `IJobs`: approve, send back with feedback for another round, and discard, with their typed rejections.
+4. The approval strategy extension point, `keep` and `merge`, and the squashing of checkpoints.
+5. Stored history: usage reports and interventions persisted, so usage can be read over time windows and interventions survive a restart.
+6. Host simulation tests: a verified job approved with `keep` leaves its branch; with `merge` it lands on the base branch as one commit; a base that moved into a conflict is reported and the job stays awaiting review; a job sent back starts a new round with the feedback; a discarded job releases its worktree.
+
+Done when: a simulated job is reviewed through the contracts alone, from its diff to its approval, with both strategies and the conflict proven.
+
 ## Phase 9: View models of the usable core
 
 The whole application works through view models, with no user interface.
