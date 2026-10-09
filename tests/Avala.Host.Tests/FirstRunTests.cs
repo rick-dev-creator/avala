@@ -48,7 +48,7 @@ public sealed class FirstRunTests(PublishedPlugins plugins)
     {
         await using var home = new TemporaryFolder();
         var claudeCode = machine.StartsWith("Claude Code", StringComparison.Ordinal)
-            ? Option<IPlugin>.Some(new ClaudeCodePlugin("claude", [], home.Path, [], machine.EndsWith("API key", StringComparison.Ordinal) ? new Dictionary<string, string> { ["ANTHROPIC_API_KEY"] = "sk-test" } : []))
+            ? Option<IPlugin>.Some(new ClaudeCodePlugin("claude", [], home.Path, machine.EndsWith("API key", StringComparison.Ordinal) ? new Dictionary<string, string> { ["ANTHROPIC_API_KEY"] = "sk-test" } : new Dictionary<string, string>()))
             : Option<IPlugin>.None;
         await using var run = await SimulatedRun.PreparedAsync(plugins, [], [], developer: machine == "developer mode", claudeCode: claudeCode);
         var jobs = run.Page("Jobs");

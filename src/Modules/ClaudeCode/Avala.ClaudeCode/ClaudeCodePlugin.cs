@@ -11,19 +11,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Avala.ClaudeCode;
 
-public sealed class ClaudeCodePlugin(
-    string executable,
-    IReadOnlyList<string> arguments,
-    string home,
-    IReadOnlyList<string> configured,
-    IReadOnlyDictionary<string, string> environment) : IPlugin
+public sealed class ClaudeCodePlugin(string executable, IReadOnlyList<string> arguments, string home, IReadOnlyDictionary<string, string> environment) : IPlugin
 {
     public ClaudeCodePlugin()
-        : this(
-            CliCommand.Installed.FileName,
-            CliCommand.Installed.Prefix,
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            Environment.GetEnvironmentVariable(CommandLine.ConfigurationVariable) is { Length: > 0 } folder ? [folder] : [])
+        : this(CliCommand.Installed.FileName, CliCommand.Installed.Prefix, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Variables())
     {
     }
 
@@ -33,7 +24,7 @@ public sealed class ClaudeCodePlugin(
     }
 
     public ClaudeCodePlugin(string executable, IReadOnlyList<string> arguments, string home, IReadOnlyList<string> configured)
-        : this(executable, arguments, home, configured, Variables())
+        : this(executable, arguments, home, Configured(configured))
     {
     }
 
@@ -41,6 +32,7 @@ public sealed class ClaudeCodePlugin(
 
     public void Register(IPluginRegistrar registrar)
     {
+        IReadOnlyList<string> configured = environment.TryGetValue(CommandLine.ConfigurationVariable, out var folder) && folder.Length > 0 ? [folder] : [];
         var user = new UserHome(Path.TrimEndingDirectorySeparator(Path.GetFullPath(home)), configured);
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
@@ -51,6 +43,19 @@ public sealed class ClaudeCodePlugin(
             .AddSingleton<IConfigurationFolders, ConfigurationFolders>()
             .AddSingleton<IConnectionDiscovery, LoginFolders>()
             .AddSingleton<IAgentProvider, ClaudeCodeProvider>();
+    }
+
+    private static Dictionary<string, string> Configured(IReadOnlyList<string> configured)
+    {
+        var variables = Variables();
+        variables.Remove(CommandLine.ConfigurationVariable);
+
+        if (configured is [var folder, ..])
+        {
+            variables[CommandLine.ConfigurationVariable] = folder;
+        }
+
+        return variables;
     }
 
     private static Dictionary<string, string> Variables() =>
