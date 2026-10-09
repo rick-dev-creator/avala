@@ -27,10 +27,19 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
                 ("greet", SimulatedRun.Simulate("edit")),
                 ("checks", "[simulate: rewrite-checks] Loosen the checks"),
                 ("changelog", "[simulate: follow-up] Start a changelog"))));
+        var taken = run.Watch<LoopTaskTaken>();
+        var iterated = run.Watch<LoopIterated>();
         var ended = run.Watch<LoopEnded>();
         var before = await run.Repository.GitAsync(Cancellation, "rev-parse", "main");
 
         var loop = Outcomes.Succeeds(await run.Get<IAutopilot>().StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+
+        foreach (var number in (int[])[1, 2, 3])
+        {
+            _ = await taken.UntilAsync(task => task.Iteration == number);
+            _ = await iterated.UntilAsync(iteration => iteration.Iteration.Number == number);
+        }
+
         var state = (await ended.UntilAsync(_ => true)).State;
 
         Assert.Equal((Option<LoopEnding>.Some(LoopEnding.Drained), 3), (state.Ending, state.Iterations));

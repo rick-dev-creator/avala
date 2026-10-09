@@ -41,7 +41,7 @@ public sealed class ResourceTests(PublishedPlugins plugins)
         var port = ServedPort(await run.TurnAsync());
 
         Assert.Equal(lease.First, port);
-        Assert.Equal(Path.TrimEndingDirectorySeparator(Path.GetFullPath(run.Worktree)), lease.Worktree);
+        Assert.Equal(run.Worktree.Canonical(), lease.Worktree);
         Assert.Equal([lease], run.Get<IResources>().Leases());
     }
 
