@@ -258,6 +258,34 @@ public sealed class SimulatorConformanceTests
         Assert.Equal(["the turn did not complete before the deadline"], await check);
     }
 
+    [Theory]
+    [InlineData("login")]
+    [InlineData("apiKey")]
+    public async Task TheSimulatorReportsTheUsageCostAndLimitsItsConnectionDeclaresAndNoOthersAsync(string credential)
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await CapabilityConformance.CheckReportsAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Connection = Credential(credential, "work") },
+            new UserTurn("[simulate: near-limit] conformance"),
+            Deadline));
+    }
+
+    [Fact]
+    public async Task TheSimulatorEndsAHangingTurnItIsAskedToInterruptAsInterruptedAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await CapabilityConformance.CheckInterruptAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new UserTurn("[simulate: hang] conformance"),
+            Deadline));
+    }
+
     private static Task<IReadOnlyList<string>> CheckAsync(
         ServiceProvider services,
         TemporaryFolder folder,

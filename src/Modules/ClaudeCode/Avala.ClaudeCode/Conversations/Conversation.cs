@@ -98,7 +98,7 @@ internal sealed class Conversation
     private Reaction Ended(JsonNode result, Stamp stamp)
     {
         var total = Telemetry.TotalCost(result);
-        var cost = total.Map(amount => new Cost(Math.Max(0m, amount - spent), "USD"));
+        var cost = total.Map(amount => new Cost(Math.Max(0m, amount - spent), Telemetry.Currency));
         spent = total.Match(amount => amount, () => spent);
         var outcome = interrupting
             ? TurnOutcome.Interrupted

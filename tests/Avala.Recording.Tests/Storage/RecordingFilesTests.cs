@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Recording.Recordings;
@@ -48,7 +49,7 @@ public sealed class RecordingFilesTests
         new(
             recordedAt,
             new ProviderInfo("scripted", "Scripted"),
-            new AgentCapabilities(true, true, true, true, true, true, true, true, true),
+            CapabilitySet.Of(new Resumable()),
             Option<AgentAccount>.None,
             new SessionOptions(".", PermissionMode.AskEveryTime));
 }

@@ -1,5 +1,6 @@
 using Avala.Agents.Connections;
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
@@ -24,24 +25,25 @@ internal sealed partial class SessionStarter(
         }
 
         var provider = chain.Decorate(connection.Provider);
+        var capabilities = provider.CapabilitiesOn(connection.Environment);
         var tree = await trees.OpenAsync(request.WorkingDirectory, cancellationToken);
 
         var fresh = new SessionOptions(request.WorkingDirectory, PermissionMode.AskEveryTime)
         {
-            Tools = chain.ToolsFor(provider),
+            Tools = chain.ToolsFor(capabilities),
             Connection = connection.Environment,
             Processes = tree,
         };
-        var resumed = provider.Capabilities.CanResume
+        var resumed = capabilities.Has<Resumable>()
             ? await request.Resume.Match(
                 token => ResumeAsync(provider, fresh with { Resume = token }, cancellationToken),
                 () => Task.FromResult(Option<IAgentSession>.None))
             : Option<IAgentSession>.None;
 
         var started = await resumed.Match(
-            session => Task.FromResult(Result<StartedSession, AgentError>.Success(new StartedSession(provider, session, connection.Name, tree.Id, Resumed: true))),
+            session => Task.FromResult(Result<StartedSession, AgentError>.Success(new StartedSession(provider.Info, capabilities, session, connection.Name, tree.Id, Resumed: true))),
             async () => (await provider.StartAsync(fresh, cancellationToken))
-                .Map(session => new StartedSession(provider, session, connection.Name, tree.Id, Resumed: false)));
+                .Map(session => new StartedSession(provider.Info, capabilities, session, connection.Name, tree.Id, Resumed: false)));
 
         if (started.IsFailure)
         {
@@ -73,7 +75,14 @@ internal sealed class ProviderChain(IEnumerable<HarnessTool> tools, IEnumerable<
     public IAgentProvider Decorate(IAgentProvider provider) =>
         decorators.Aggregate(provider, (inner, decorator) => decorator.Decorate(inner));
 
-    public IReadOnlyList<HarnessTool> ToolsFor(IAgentProvider provider) => provider.Capabilities.AcceptsTools ? [.. tools] : [];
+    public IReadOnlyList<HarnessTool> ToolsFor(CapabilitySet capabilities) =>
+        capabilities.Get<AcceptsTools>().Match<IReadOnlyList<HarnessTool>>(accepted => [.. tools.Where(tool => accepted.Accepts(tool.Surface))], () => []);
 }
 
-internal sealed record StartedSession(IAgentProvider Provider, IAgentSession Session, ConnectionName Connection, ProcessTreeId Tree, bool Resumed);
+internal sealed record StartedSession(
+    ProviderInfo Provider,
+    CapabilitySet Capabilities,
+    IAgentSession Session,
+    ConnectionName Connection,
+    ProcessTreeId Tree,
+    bool Resumed);

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
@@ -12,7 +13,7 @@ internal sealed class LiveSession : IAsyncDisposable
     private ImmutableDictionary<ItemId, AgentForm> forms = ImmutableDictionary<ItemId, AgentForm>.Empty;
     private ImmutableHashSet<ItemId> calls = [];
 
-    public LiveSession(IAgentSession session, AgentCapabilities capabilities, Func<LiveSession, CancellationToken, Task> pump)
+    public LiveSession(IAgentSession session, CapabilitySet capabilities, Func<LiveSession, CancellationToken, Task> pump)
     {
         Session = session;
         Capabilities = capabilities;
@@ -21,7 +22,7 @@ internal sealed class LiveSession : IAsyncDisposable
 
     public IAgentSession Session { get; }
 
-    public AgentCapabilities Capabilities { get; }
+    public CapabilitySet Capabilities { get; }
 
     public bool Ended => pump.IsCompleted;
 

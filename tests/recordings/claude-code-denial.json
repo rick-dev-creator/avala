@@ -7,15 +7,29 @@
     "name": "Claude Code"
   },
   "capabilities": {
-    "streamsPartialOutput": true,
-    "exposesReasoning": true,
-    "canInterrupt": true,
-    "canResume": true,
-    "acceptsTools": true,
-    "reportsUsage": true,
-    "reportsCost": true,
-    "reportsLimits": true,
-    "asksQuestions": true
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
   },
   "account": {
     "id": "claude:[redacted]",

@@ -1,3 +1,5 @@
+using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Simulator.Scenarios;
@@ -10,16 +12,7 @@ internal sealed class SimulatedProvider(Stagecraft craft) : IAgentProvider
 
     public ProviderInfo Info { get; } = new(Id, "Simulated Claude Code");
 
-    public AgentCapabilities Capabilities { get; } = new(
-        StreamsPartialOutput: true,
-        ExposesReasoning: true,
-        CanInterrupt: true,
-        CanResume: true,
-        AcceptsTools: true,
-        ReportsUsage: true,
-        ReportsCost: true,
-        ReportsLimits: true,
-        AsksQuestions: true);
+    public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) => SimulatedCapabilities.On(connection);
 
     public async ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken)
     {

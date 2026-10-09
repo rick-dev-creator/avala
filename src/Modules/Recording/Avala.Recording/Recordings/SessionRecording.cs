@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
@@ -8,7 +9,7 @@ namespace Avala.Recording.Recordings;
 internal sealed record RecordingHeader(
     DateTimeOffset RecordedAt,
     ProviderInfo Provider,
-    AgentCapabilities Capabilities,
+    CapabilitySet Capabilities,
     Option<AgentAccount> Account,
     SessionOptions Options);
 
