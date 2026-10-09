@@ -23,6 +23,8 @@ internal interface IComposerViewModel
 
     string Queued { get; }
 
+    string QueuedCaption { get; }
+
     IAsyncRelayCommand SendCommand { get; }
 
     IAsyncRelayCommand InterruptCommand { get; }
@@ -52,7 +54,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     public partial string Draft { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AcceptsMessages), nameof(Placeholder), nameof(SendHint))]
+    [NotifyPropertyChangedFor(nameof(AcceptsMessages), nameof(Placeholder), nameof(SendHint), nameof(QueuedCaption))]
     [NotifyCanExecuteChangedFor(nameof(SendCommand), nameof(InterruptCommand), nameof(StopCommand))]
     public partial JobStatus Status { get; private set; }
 
@@ -72,6 +74,8 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn);
 
     public string SendHint => ConversationPhrases.SendHint(Status, TakesMessagesMidTurn);
+
+    public string QueuedCaption => ConversationPhrases.QueuedCaption(Status);
 
     public void Track(BoardJob shown)
     {
