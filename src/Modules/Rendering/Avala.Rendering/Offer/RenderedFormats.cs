@@ -8,12 +8,18 @@ internal static class RenderedFormats
     public static CanvasFormat Svg { get; } = new(
         "image/svg+xml",
         "SVG",
-        "Draw every diagram, chart, flow, screen or design as SVG.");
+        "Draw every diagram, chart, flow, screen or design as SVG.")
+    {
+        Order = 0,
+    };
 
     public static CanvasFormat Markdown { get; } = new(
         "text/markdown",
         "Markdown",
-        "Write notes, tables, plans and reports as Markdown.");
+        "Write notes, tables, plans and reports as Markdown.")
+    {
+        Order = 10,
+    };
 
     public static IReadOnlyList<CanvasFormat> All { get; } = [Svg, Markdown];
 

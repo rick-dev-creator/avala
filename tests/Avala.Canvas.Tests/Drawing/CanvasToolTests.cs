@@ -33,6 +33,31 @@ public sealed class CanvasToolTests
     }
 
     [Fact]
+    public async Task TheOfferFollowsEachFormatsDeclaredOrderWhateverOrderTheyAreRegisteredInAsync()
+    {
+        var diagram = new CanvasFormat("text/vnd.mermaid", "Mermaid", "Write diagrams as Mermaid.") { Order = 20, Requires = ["image/svg+xml"] };
+        await using var composition = Compose(diagram, Sketch.Markdown with { Order = 10 }, Sketch.Svg with { Order = 0 });
+        using var schema = JsonDocument.Parse(Assert.Single(composition.All<HarnessTool>()).InputSchema);
+
+        Assert.Equal(["image/svg+xml", "text/markdown", "text/vnd.mermaid"], OfferedIn(schema));
+    }
+
+    [Fact]
+    public async Task AFormatIsOfferedOnlyWhenEveryFormatItRequiresIsOfferedAsync()
+    {
+        var diagram = new CanvasFormat("text/vnd.mermaid", "Mermaid", "Write diagrams as Mermaid.") { Requires = ["image/svg+xml"] };
+        var chart = new CanvasFormat("text/x-chart", "Chart", "Write charts.") { Requires = ["text/vnd.mermaid"] };
+        await using var without = Compose(diagram, chart, Sketch.Markdown);
+        await using var with = Compose(diagram, chart, Sketch.Markdown, Sketch.Svg);
+
+        using var missing = JsonDocument.Parse(Assert.Single(without.All<HarnessTool>()).InputSchema);
+        using var present = JsonDocument.Parse(Assert.Single(with.All<HarnessTool>()).InputSchema);
+
+        Assert.Equal(["text/markdown"], OfferedIn(missing));
+        Assert.Equal(["text/vnd.mermaid", "text/x-chart", "text/markdown", "image/svg+xml"], OfferedIn(present));
+    }
+
+    [Fact]
     public async Task TheDescriptionTellsTheAgentEachOfferedFormatAndWhatToDrawInItAsync()
     {
         await using var composition = Compose(Sketch.Svg, Sketch.Markdown);
