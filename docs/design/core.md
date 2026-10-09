@@ -40,7 +40,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | --- | --- | --- |
 | Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost | `JobId`, integration events, `IJobs`, `ICompletionGate` |
 | Agents | Sessions, turn integrity, provider registry | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, integration events |
-| Workspaces | Working copies, branches, checkpoints | `IWorkspaces`, integration events |
+| Workspaces | Working copies, branches, checkpoints, and the files of the commit a job started from | `IWorkspaces`, `IBaseFiles`, integration events |
 | Canvas | Accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
 | Observability | Tokens, cost, limits and turns by provider, session and job, and their metrics | `IUsage` and its summaries |
@@ -332,6 +332,7 @@ public interface IAgentSession : IAsyncDisposable
 ```
 
 - `SessionOptions` holds harness concepts only: working directory and permission mode. Paths, tokens and protocols belong to each provider's own settings.
+- `AgentSessions` opens every session in `AskEveryTime`: the agent asks before every file edit and every command, so every action reaches the policy of [Permissions](#permissions), which allows edits inside the workspace by default. A provider is never told to allow edits on its own, since that would let edits bypass the policy, its guard and its audit. Without the Permissions plugin nothing answers for the harness, and every request waits for a human through `IAgents.RespondAsync`, the documented behavior of `Ask`.
 - Behavior depends on `AgentCapabilities`, never on a provider's name: partial output, reasoning, interruption, resumption, usage, cost and limits.
 
 Other modules use agents through `IAgents`, in two steps:
@@ -391,7 +392,7 @@ The generated [turn lifecycle diagram](../diagrams/turn-lifecycle.md) shows the 
 
 **Accepted**
 
-Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
+Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. When the session was asked to `AskEveryTime`, it also reports every file edit and command that goes ahead, by progressing or succeeding, without having asked permission first. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes in `AskEveryTime`, the mode Agents uses, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
 
 ### Simulator
 
@@ -401,7 +402,8 @@ Every provider plugin must pass the same check: start a session, send a turn and
 
 - Scenarios are declarative data in its domain, the `Scenarios` folder: one ordered script per turn, made of reasoning, message deltas, file edits, commands with output, permission requests, plan updates, usage with cost, a usage limit, streamed canvases and the end of the turn. A session advances to the next script with every turn, so a scenario can change its behavior after feedback.
 - The first message of a session chooses the scenario with a tag such as `[simulate: fix-after-feedback]`. Without a tag, or with an unknown name, the scenario is `reply`. Later messages never change it.
-- File edits write real files into the session's working directory through a port of `Playback`, implemented in `FileSystem`.
+- File edits write real files into the session's working directory through a port of `Playback`, implemented in `FileSystem`, which creates missing folders.
+- It honors the permission mode like Claude Code: in `AskEveryTime` every file edit and every command asks first, naming the file's full path or the command line, and an edit is written only once allowed; in `AllowEdits` edits go ahead and only the commands a scenario marks as asking do ask; in `AllowAll` nothing asks. A denied edit or command is cancelled and the turn finishes.
 - Events can be spaced by a delay measured with `TimeProvider`. It is zero by default and in tests; the plugin entry uses a short pace for in-app demos, and a constructor overload takes another.
 - It declares every capability, and an interruption ends the running turn as `Interrupted`.
 - `tests/Avala.Host.Tests` plays its scenarios inside the application composed from the published plugin folder, with its in-app pace, and observes the jobs and the canvas snapshots through the event feed.
@@ -411,6 +413,7 @@ Every provider plugin must pass the same check: start a session, send a turn and
 | `reply` | Reasoning and a streamed reply |
 | `edit` | A plan, a file written into the working directory, a test command and a reply |
 | `fix-after-feedback` | The first turn writes a file marked `BROKEN`; the turn after feedback rewrites it fixed |
+| `rewrite-checks` | Like `fix-after-feedback`, but the first turn also empties `.avala/checks.json`, an agent trying to loosen the rules that judge it |
 | `permission` | Asks permission for a command and waits for `RespondAsync`. Allowed, it runs the command and goes on; denied, it cancels the command and finishes the turn |
 | `crash` | The event stream throws in the middle of the turn |
 | `left-open` | Starts an item and finishes the turn without closing it |
@@ -498,6 +501,29 @@ Each handler receives its events in publishing order, so both arrive at the trac
 
 The provider tag is the provider's identifier, and it is left out when the session's provider is unknown.
 
+## Rules from the base commit
+
+**Accepted**
+
+A repository declares the rules of its jobs in three files: its checks in `.avala/checks.json`, its permission policy in `.avala/permissions.json` and its budget in `.avala/budget.json`. The agent works in the job's worktree, so a rule read from the worktree is a rule the agent can rewrite. Every rule is therefore read from the job's base commit, the commit its worktree was created from, and nothing the agent changes during the job can loosen the rules that judge it.
+
+```csharp
+public interface IBaseFiles
+{
+    ValueTask<Result<BaseFile, WorkspaceFailure>> ReadAsync(string worktree, string path, CancellationToken cancellationToken);
+}
+
+public sealed record FileOrigin(string Commit, bool EditedInWorktree);
+
+public sealed record BaseFile(string Path, FileOrigin Origin, Option<string> Content);
+```
+
+- **One mechanism.** Workspaces resolves the base reference to a commit when it prepares a workspace, creates the worktree at that exact commit, stores it with the workspace and reports it as `WorkspaceInfo.BaseCommit`. `IBaseFiles` reads a file of that commit for the workspace whose worktree is the given folder. Verification, Permissions and Budgets read their file through it, from the working directory they already know: the `CompletedAttempt` of a gate and the `SessionOpened` of a session.
+- **Git, not the file system.** The file is read with `git ls-tree` and `git cat-file` at the stored commit, with replace objects ignored, so neither the worktree, nor a checkpoint, nor a later commit to the repository, nor a `git replace` changes what it returns. A path the commit does not hold has no content; a folder at that path counts as no file.
+- **Edits are ignored and reported.** `EditedInWorktree` says whether the worktree's copy differs from the committed one, compared by git object identity so line ending conversions do not count; a file the worktree added or deleted differs too. The rule stays the committed one, and each module surfaces the origin in its evidence: the verification report, the session's policy and the session's budget carry the commit and the flag, and the feedback of a failed verification tells the agent its changes to the checks do not apply to this job. An edit of a rule file is still an ordinary edit for review: approving the job is how a rule changes.
+- **Outside a workspace.** A folder that is no job's worktree has no base commit: `UnknownWorkspace`. Permissions and Budgets then apply no repository file, as if it were absent, so a session outside a job gets the built-in policy and no caps; Verification, which only ever judges a job, fails closed. A git failure is `GitFailed`, which each module treats as an unreadable file.
+- **Recovery.** A recovered session opens in the same worktree and reads the same base commit, so a restart cannot pick up a file the agent edited before it.
+
 ## Verification
 
 **Accepted**
@@ -506,7 +532,7 @@ A job's completion depends on evidence, not on the agent's word. The Verificatio
 
 ### Declaring checks
 
-A repository declares its checks in `.avala/checks.json`, at the root of the repository and therefore of every worktree:
+A repository declares its checks in `.avala/checks.json`, at its root. The declaration is read from the job's [base commit](#rules-from-the-base-commit), never from the worktree:
 
 ```json
 {
@@ -524,24 +550,23 @@ A repository declares its checks in `.avala/checks.json`, at the root of the rep
 
 ### Rules
 
-- **No declaration.** A worktree without `.avala/checks.json`, or with an empty `checks` array, passes, and the evidence says so: the report's outcome is `NoChecksDeclared`. A repository is never verified silently.
-- **Invalid declaration.** A file that is not a JSON object with a `checks` array of objects, a check without a command, or a timeout out of range fails closed: nothing runs, the outcome is `InvalidDeclaration` and the verdict is `Retry` with feedback naming the file and the problem. The agent can fix it; if it does not, the attempt budget runs out and the job asks for help.
+- **No declaration.** A base commit without `.avala/checks.json`, or with an empty `checks` array, passes, and the evidence says so: the report's outcome is `NoChecksDeclared`. A repository is never verified silently.
+- **Invalid declaration.** A file that is not a JSON object with a `checks` array of objects, a check without a command, or a timeout out of range fails closed: nothing runs, the outcome is `InvalidDeclaration` and the verdict is `Retry` with feedback naming the file and the problem, and saying that the worktree cannot fix it since the job is verified against its base commit. The attempt budget runs out and the job asks for help. A declaration that cannot be read from the base commit, because git failed or the folder is no workspace, is `InvalidDeclaration` too, with the error `UnreadableDeclaration` and no origin.
 - **Failure.** A check fails when it exits with a code other than 0, when its command is not found, or when it outlasts its timeout. The checks after the first failure are not run and are recorded as `Skipped`, since a broken build makes the tests meaningless.
 - **Timeout.** Each check runs with a cancellation token that fires after its timeout, measured with `TimeProvider`. The runner kills the process tree and the check is `TimedOut`. When the job flow itself is cancelled, at shutdown, the cancellation propagates and nothing is recorded.
 - **Feedback.** A failure becomes `GateVerdict.Retry` with feedback naming the check, its command line, its exit code or the reason it stopped, its duration and the tails of its output and error streams. Jobs sends it back to the same agent session through the existing retry path, and asks for help once the attempt budget is spent. Verification adds no second path.
 - **Evidence.** Every evaluation, whatever its outcome, produces one `VerificationReport`, kept in memory and published as `AttemptVerified` before the gate returns. Output tails keep the last 4,000 characters of each stream, prefixed by `[...]` when cut.
-- **Trust.** The declaration is read from the worktree, so an agent could edit it. The report lists every command that ran, which the reviewer sees; reading the declaration from the job's base commit instead needs that commit in `CompletedAttempt` and is deferred.
+- **Trust.** The declaration comes from the base commit, so an agent that edits it, even to empty it, is still judged by the committed checks. The report carries the commit the declaration came from and whether the worktree's copy differs, and a failure's feedback adds that the agent's changes to the declaration do not apply to this job. The report also lists every command that ran, which the reviewer sees.
 
 ### The module
 
 | Folder | Holds | Layer |
 | --- | --- | --- |
 | `Checks` | `DeclaredCheck`, the parsing of the declaration with `JsonDocument`, the evidence of a check and its bounded tails, and `VerificationError` | Domain |
-| `Verifying` | `ChecksGate`, the `ICompletionGate`; `CheckRunner`, which runs one check with its timeout; `AgentFeedback`, which writes the verdict; and the `ICheckDeclarations` port | Application |
+| `Verifying` | `ChecksGate`, the `ICompletionGate`, which reads the declaration through `IBaseFiles` from Workspaces; `CheckRunner`, which runs one check with its timeout; and `AgentFeedback`, which writes the verdict | Application |
 | `Evidence` | `EvidenceBook`, the in-memory book behind `IVerifications`, and `EvidenceLedger`, which keeps a report and publishes it | Application |
-| `FileSystem` | `RepositoryDeclarations`, which reads `.avala/checks.json` from the worktree | Infrastructure |
 
-- The domain has no aggregate: it parses a declaration and describes facts. `VerificationError` is its single error enum, for the declaration it can reject: `MalformedDeclaration`, `MissingCommand` and `InvalidTimeout`.
+- The domain has no aggregate: it parses a declaration and describes facts. `VerificationError` is its single error enum, for the declaration it can reject: `MalformedDeclaration`, `MissingCommand`, `InvalidTimeout` and `UnreadableDeclaration`.
 - The reports live in memory and start empty with the application, like the usage aggregates. Persisting them arrives with the review screens that need them across restarts.
 
 ## Permissions
@@ -566,11 +591,11 @@ Agents ask before they act. For agents to work unattended, the harness must answ
 | `edits-inside-the-workspace` | Built-in default | Edits inside the workspace | `Allow` |
 | Default | None | Anything else | `Ask` |
 
-The guard comes first so that no repository rule can let an agent rewrite the policy that governs it. Editing inside the workspace is allowed by default because the workspace is the job's own disposable worktree, reviewed before anything is approved; a repository can still deny or ask for it with a rule of its own.
+The guard comes first so that no repository rule can let an agent rewrite the policy file unattended. The policy of a job comes from its base commit, so such an edit could not loosen that job's own policy anyway; the guard keeps a human in the loop for a change that would govern every later job once approved. Agents asks for every edit, see [the contract](#contract), so the guard and the edit rules apply to every edit the agent makes. Editing inside the workspace is allowed by default because the workspace is the job's own disposable worktree, reviewed before anything is approved; a repository can still deny or ask for it with a rule of its own.
 
 ### Policy file
 
-A repository declares its rules in `.avala/permissions.json`, read from the session's working directory when the session opens. A job's worktree is a checkout of the repository, so the committed file governs every job of that repository.
+A repository declares its rules in `.avala/permissions.json`, read when the session opens from the [base commit](#rules-from-the-base-commit) of the job whose worktree is the session's working directory. The committed file governs every job of that repository, and an edit of it in a worktree never changes the policy of that job, recovered sessions included. A session outside any job's worktree has no base commit and gets the built-in policy.
 
 ```json
 {
@@ -588,7 +613,7 @@ A repository declares its rules in `.avala/permissions.json`, read from the sess
 
 | `PolicyError` | Cause |
 | --- | --- |
-| `Unreadable` | The file exists but cannot be read |
+| `Unreadable` | The base commit cannot be read |
 | `TooLarge` | Over 64 KiB |
 | `Malformed` | Not JSON, a value of the wrong type, a duplicate field or nesting too deep |
 | `UnknownField` | A field the format does not define |
@@ -605,13 +630,13 @@ The module subscribes to the bus like every other consumer of agent events, so i
 | `Policies` | `PermissionPolicy` with its built-in rules and first-match decision, rule matching as extension members on `PolicyRule`, `PermissionRequest`, `Verdict`, and `GovernedSession`, the immutable record of one session: working directory, policy, job and decisions | Domain |
 | `Governance` | `SessionGovernor`, the handler of `SessionOpened`, `JobSessionStarted` and `AgentActivity`; `GovernanceBook`, the in-memory book that implements `IPermissionAudit`; and the `IPolicyFiles` port | Application |
 | `Answering` | `PermissionResponder`, which decides a request with its session's policy and answers the agent; `RequestFacts`, which locates a request against the working directory | Application |
-| `PolicyFiles` | `PolicyFileReader` behind `IPolicyFiles`, and `PolicyFileParser` | Infrastructure |
+| `PolicyFiles` | `PolicyFileReader` behind `IPolicyFiles`, which reads the file through `IBaseFiles` from Workspaces, and `PolicyFileParser` | Infrastructure |
 
 - The domain decides and has nothing to reject, so it has no aggregate. The single error enum of the module is `PolicyError`, in its contracts, since only reading a policy file can fail and its outcome is public.
 - One handler, one mailbox. The governor handles the opening of a session, its job and its permission requests in publishing order, so a request is always decided by the policy its session's file loaded, however long reading the file took. The governor is the only writer of `GovernanceBook`, which holds an immutable dictionary of sessions that the audit queries read.
-- On `SessionOpened` the governor reads the policy file once, keeps the session's policy and publishes `PolicyLoaded`. Later edits of the file in the worktree do not change the policy of a running session.
+- On `SessionOpened` the governor reads the policy file of the base commit once, keeps the session's policy and publishes `PolicyLoaded` with the file's origin. Edits of the file in the worktree never change the policy, of a running session or of a recovered one.
 - On `PermissionRequested` the responder decides with the session's policy and answers `Allow` or `Deny` through `IAgents.RespondAsync`, leaving `Ask` pending; the governor keeps the decision and publishes `PermissionDecided` with the answer, the rule that decided and whether the answer reached the agent. A request from a session it never saw open is decided by the built-in policy with no workspace, so only the default applies.
-- Requests left to a human stay pending exactly as before the module existed: the turn waits in `AwaitingPermission`, never expires, and anyone may still answer through `IAgents.RespondAsync`.
+- Requests left to a human stay pending exactly as before the module existed: the turn waits in `AwaitingPermission`, never expires, and anyone may still answer through `IAgents.RespondAsync`. Without the module, every request is left to a human that way.
 - Decisions live in memory for the life of the application, like the usage aggregates.
 
 ## Supervision
@@ -686,7 +711,7 @@ An unattended agent must not spend without limit. The Budgets module holds a job
 
 ### Budget file
 
-A repository declares its caps in `.avala/budget.json`, read from the session's working directory when the session opens, like the policy file. Without the file, nothing is capped: the built-in default has no caps and no limit threshold.
+A repository declares its caps in `.avala/budget.json`, read when the session opens from the job's [base commit](#rules-from-the-base-commit), like the policy file. Without the file, or for a session outside any job's worktree, nothing is capped: the built-in default has no caps and no limit threshold.
 
 ```json
 {
@@ -702,7 +727,7 @@ A repository declares its caps in `.avala/budget.json`, read from the session's 
 
 | `BudgetError` | Cause |
 | --- | --- |
-| `Unreadable` | The file exists but cannot be read |
+| `Unreadable` | The base commit cannot be read |
 | `TooLarge` | Over 64 KiB |
 | `Malformed` | Not JSON, a value of the wrong type, a duplicate field or nesting too deep |
 | `UnknownField` | A field the format does not define |
@@ -716,11 +741,11 @@ A repository declares its caps in `.avala/budget.json`, read from the session's 
 | --- | --- | --- |
 | `Caps` | `Breaches`: the evaluation of a session's budget against a job's spending and its provider's limits, the reason each breach holds a job for, and the built-in caps | Domain |
 | `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `BudgetLoaded`, `JobSessionStarted`, `JobProgressed` and `UsageRecorded`; `BudgetHolds`, which holds through `IJobs` and records; `BudgetBook`, the in-memory book behind `IBudgets`; and the `IBudgetFiles` port | Application |
-| `BudgetFiles` | `BudgetFileReader` behind `IBudgetFiles`, and `BudgetFileParser` | Infrastructure |
+| `BudgetFiles` | `BudgetFileReader` behind `IBudgetFiles`, which reads the file through `IBaseFiles` from Workspaces, and `BudgetFileParser` | Infrastructure |
 
 - The domain decides and rejects nothing, so it has no aggregate. `BudgetError` is the module's single error enum, in its contracts.
 - Budgets and interventions live in memory. Spending lives in Observability's memory too, so a restart starts every job's spending from zero; persisting usage is deferred with the dashboards.
-- **Trust.** The budget file is read from the worktree, so an agent could raise its own caps; a running session keeps the caps it opened with, but a recovered session reads the file again. Reading it from the job's base commit is deferred, like the checks and the policy.
+- **Trust.** The budget file comes from the base commit, so an agent cannot raise its own caps: neither a running session nor a recovered one, which reads the same commit again, sees an edit made in the worktree. `BudgetLoaded` carries the file's origin, with whether the worktree's copy differs.
 
 ## Data the harness produces
 
@@ -737,7 +762,7 @@ The user interface is designed from the data the harness produces, so every modu
 
 | Type | Fields |
 | --- | --- |
-| `VerificationReport` | `Job`: `JobId`; `Attempt`: the attempt number Jobs gave the gate; `Outcome`: `VerificationOutcome`; `Checks`: `IReadOnlyList<CheckEvidence>` in declaration order, empty when none were declared or the declaration is invalid; `Verdict`: the `GateVerdict` returned to Jobs, whose `Feedback` is the text sent back to the agent on `Retry` and empty on `Pass`; `VerifiedAt`: `DateTimeOffset` |
+| `VerificationReport` | `Job`: `JobId`; `Attempt`: the attempt number Jobs gave the gate; `Outcome`: `VerificationOutcome`; `Declaration`: the `Option<FileOrigin>` of `.avala/checks.json`, the base commit it was read from and whether the worktree's copy differs, absent when it could not be read; `Checks`: `IReadOnlyList<CheckEvidence>` in declaration order, empty when none were declared or the declaration is invalid; `Verdict`: the `GateVerdict` returned to Jobs, whose `Feedback` is the text sent back to the agent on `Retry` and empty on `Pass`; `VerifiedAt`: `DateTimeOffset` |
 | `VerificationOutcome` | `Passed`, `Failed`, `NoChecksDeclared`, `InvalidDeclaration` |
 | `CheckEvidence` | `Name`; `Command`: the command line as run, arguments containing spaces or quotes quoted; `Status`: `CheckStatus`; `ExitCode`: `Option<int>`, absent unless the process exited; `Duration`: `TimeSpan`, zero when skipped; `OutputTail` and `ErrorTail`: at most 4,000 characters each, plus the `[...]` marker |
 | `CheckStatus` | `Passed`, `Failed`, `TimedOut`, `NotFound`, `Skipped` |
@@ -748,13 +773,22 @@ Live progress of a check while it runs is not published yet: the job's `JobProgr
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
-| `PolicyLoaded` | Event | `SessionPolicy`: session, `PolicyFileStatus` (`Absent`, `Applied` or `Rejected`), `Option<PolicyError>`, and the effective rules in decision order | When a session opens, after its policy file was read and before any of its activity is handled | One per session |
+| `PolicyLoaded` | Event | `SessionPolicy`: session, `PolicyFileStatus` (`Absent`, `Applied` or `Rejected`), `Option<PolicyError>`, the effective rules in decision order, and `Origin`, the `Option<FileOrigin>` of the policy file: the base commit it was read from and whether the worktree's copy differs, absent outside a job's worktree or when the commit could not be read | When a session opens, after its policy file was read and before any of its activity is handled | One per session |
 | `PermissionDecided` | Event | `PolicyDecision`: session, turn, item, `Option<JobId>`, item kind, target as matched, `PolicyAnswer`, `Option<PolicyRule>` that decided (none for the default), `DecisionDelivery` (`Answered`, `LeftToHuman` or `Undelivered`) and the time from `TimeProvider` | For every permission request the `Turn` aggregate accepted, after the answer was sent. It may follow the `PermissionResolved` that its answer caused | One per permission request |
 | `IPermissionAudit.PolicyOf` | Query | `Option<SessionPolicy>` | Any time; none until the session opened | One per session |
 | `IPermissionAudit.OfSession` | Query | The session's `PolicyDecision`s in decision order | Any time | Zero or more per session |
 | `IPermissionAudit.OfJob` | Query | The `PolicyDecision`s of every session of a job, recovery included, by time | Any time; a session counts once `JobSessionStarted` tied it to the job | Zero or more per job |
 
 A `PolicyRule` carries its origin (`BuiltIn` or `Repository`), name, `Option<ItemKind>`, `Option<string>` target pattern, `RuleScope` (`Anywhere` or `Workspace`) and answer, so a decision explains itself without another query.
+
+### Workspaces: base files
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `WorkspaceInfo.BaseCommit` | Field of `IWorkspaces` answers | The full SHA of the commit the worktree was created from | Fixed when the workspace is prepared; stored with it | One per workspace |
+| `IBaseFiles.ReadAsync(worktree, path)` | Query | `Result<BaseFile, WorkspaceFailure>`: `Path`, `Origin` (`FileOrigin`: `Commit` and `EditedInWorktree`) and `Content`, an `Option<string>` absent when the commit holds no file there; `UnknownWorkspace` for a folder that is no worktree, `GitFailed` when git fails | On demand, at most three git commands each time | One answer per call |
+
+`FileOrigin` is the provenance every rule file reports: Verification in `VerificationReport.Declaration`, Permissions in `SessionPolicy.Origin` and Budgets in `SessionBudget.Origin`.
 
 ### Jobs: holds
 
@@ -791,7 +825,7 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
-| `BudgetLoaded` | Event | `Budget`: a `SessionBudget` with `Session`, `File` (`BudgetFileStatus`: `Absent`, `Applied` or `Rejected`), `Option<BudgetError>` and `Caps` | When a session opens, after its budget file was read and before the session is tied to its job | One per session |
+| `BudgetLoaded` | Event | `Budget`: a `SessionBudget` with `Session`, `File` (`BudgetFileStatus`: `Absent`, `Applied` or `Rejected`), `Option<BudgetError>`, `Caps` and `Origin`, the `Option<FileOrigin>` of the budget file, as for the policy | When a session opens, after its budget file was read and before the session is tied to its job | One per session |
 | `BudgetIntervened` | Event | `Intervention`: a `BudgetIntervention` | After a hold succeeded, following the hold's `JobProgressed` and `JobHeld` | One per intervention |
 | `IBudgets.BudgetOf(SessionId)` | Query | `Option<SessionBudget>`; none until the session opened | Any time | One per session |
 | `IBudgets.OfJob(JobId)` | Query | `IReadOnlyList<BudgetIntervention>` in the order they happened | Any time, from memory | Zero or more per job |
@@ -810,7 +844,7 @@ The application is built view model first: every screen is built and tested as v
 
 - EF Core with the SQLite provider, with no server.
 - One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
-- The schema is created with `EnsureCreated`. Migrations arrive with the first schema change.
+- The schema is created with `EnsureCreated`. The first schema change, the `Base` column of a workspace, arrived before any release could create jobs, so it ships without a migration: a data folder created by an earlier build must be deleted. Migrations arrive with the first schema change after a release.
 - Stores are internal interfaces of each module's application layer, implemented in its `Storage` folder.
 - EF Core is referenced only from the infrastructure layer, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.
 - Connection pooling is off.

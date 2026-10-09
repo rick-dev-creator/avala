@@ -10,5 +10,7 @@ internal interface IWorkspaceStore
 
     Task<Option<Workspace>> FindAsync(WorkspaceId id, CancellationToken cancellationToken);
 
+    Task<Option<Workspace>> FindAtAsync(string path, CancellationToken cancellationToken);
+
     Task RemoveAsync(WorkspaceId id, CancellationToken cancellationToken);
 }

@@ -28,8 +28,8 @@ public sealed class SqliteWorkspaceStoreTests
         var found = (await reloaded.FindAsync(workspace.Id, Cancellation)).Match(stored => stored, () => throw new InvalidOperationException("Not stored"));
 
         Assert.Equal(
-            (workspace.Location, workspace.Branch, workspace.State),
-            (found.Location, found.Branch, found.State));
+            (workspace.Location, workspace.Branch, workspace.Base, workspace.State),
+            (found.Location, found.Branch, found.Base, found.State));
         Assert.Equal(workspace.Checkpoints, found.Checkpoints);
     }
 
@@ -51,6 +51,19 @@ public sealed class SqliteWorkspaceStoreTests
         await using var reloaded = new SqliteWorkspaceStore(new AvalaPaths(folder.Path));
         Assert.Single((await reloaded.FindAsync(saved.Id, Cancellation)).Match(found => found.Checkpoints, () => []));
         Assert.Empty((await reloaded.FindAsync(changing.Id, Cancellation)).Match(found => found.Checkpoints, () => []));
+    }
+
+    [Fact]
+    public async Task AWorkspaceIsFoundByTheFolderOfItsWorktreeOnlyAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var workspace = Given.Workspace(WorkspaceState.Ready);
+        await using var store = new SqliteWorkspaceStore(new AvalaPaths(folder.Path));
+        await store.SaveAsync(Given.Workspace(WorkspaceState.Ready, "/worktrees/2"), Cancellation);
+        await store.SaveAsync(workspace, Cancellation);
+
+        Assert.Equal(workspace.Id, (await store.FindAtAsync(workspace.Location.Path + "/", Cancellation)).Match(found => found.Id, () => default));
+        Assert.True((await store.FindAtAsync("/worktrees/3", Cancellation)).IsNone);
     }
 
     [Fact]

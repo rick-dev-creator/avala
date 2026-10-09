@@ -10,11 +10,12 @@ internal sealed class Workspace : IAggregateRoot<WorkspaceId>
     private readonly List<Checkpoint> checkpoints = [];
     private readonly StateMachine<WorkspaceState, WorkspaceTrigger> machine;
 
-    private Workspace(WorkspaceId id, WorkspaceLocation location, BranchName branch)
+    private Workspace(WorkspaceId id, WorkspaceLocation location, BranchName branch, CommitSha @base)
     {
         Id = id;
         Location = location;
         Branch = branch;
+        Base = @base;
         machine = WorkspaceLifecycle.Create(() => State, state => State = state);
     }
 
@@ -24,12 +25,14 @@ internal sealed class Workspace : IAggregateRoot<WorkspaceId>
 
     public BranchName Branch { get; }
 
+    public CommitSha Base { get; }
+
     public WorkspaceState State { get; private set; } = WorkspaceState.Creating;
 
     public IReadOnlyList<Checkpoint> Checkpoints => checkpoints;
 
-    public static Result<Workspace, WorkspaceError> Create(WorkspaceId id, WorkspaceLocation location, BranchName branch) =>
-        new Workspace(id, location, branch);
+    public static Result<Workspace, WorkspaceError> Create(WorkspaceId id, WorkspaceLocation location, BranchName branch, CommitSha @base) =>
+        new Workspace(id, location, branch, @base);
 
     public Result<WorkspaceReady, WorkspaceError> MarkReady() =>
         machine.TryFire(WorkspaceTrigger.MarkReady, WorkspaceError.CannotMarkReady)

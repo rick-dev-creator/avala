@@ -14,6 +14,7 @@ public sealed class SimulatorConformanceTests
     [InlineData("reply")]
     [InlineData("edit")]
     [InlineData("fix-after-feedback")]
+    [InlineData("rewrite-checks")]
     [InlineData("canvas")]
     [InlineData("permission")]
     public async Task AWellBehavedScenarioConformsAsync(string scenario)
@@ -53,7 +54,7 @@ public sealed class SimulatorConformanceTests
         CancellationToken deadline) =>
         AgentConformance.CheckTurnAsync(
             services.GetRequiredService<IAgentProvider>(),
-            new SessionOptions(folder.Path, PermissionMode.AllowEdits),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
             new UserTurn($"[simulate: {scenario}] conformance"),
             deadline);
 

@@ -24,7 +24,7 @@ internal sealed partial class AgentSessions(
             return AgentError.ProviderUnavailable;
         }
 
-        var options = new SessionOptions(request.WorkingDirectory, PermissionMode.AllowEdits);
+        var options = new SessionOptions(request.WorkingDirectory, PermissionMode.AskEveryTime);
 
         if (!(await provider.StartAsync(options, cancellationToken)).TryGetValue(out var session, out var error))
         {

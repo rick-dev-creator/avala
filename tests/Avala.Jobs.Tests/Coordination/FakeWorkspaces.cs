@@ -26,7 +26,7 @@ internal sealed class FakeWorkspaces : IWorkspaces
         }
 
         var id = WorkspaceId.New();
-        var info = new WorkspaceInfo(id, $"/worktrees/{id.Value:N}", $"avala/{id.Value:N}");
+        var info = new WorkspaceInfo(id, $"/worktrees/{id.Value:N}", $"avala/{id.Value:N}", new string('0', 40));
         prepared[id] = info;
 
         return ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Success(info));

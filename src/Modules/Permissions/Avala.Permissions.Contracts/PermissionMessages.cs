@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Permissions.Contracts;
 
@@ -37,7 +38,8 @@ public sealed record SessionPolicy(
     SessionId Session,
     PolicyFileStatus File,
     Option<PolicyError> Error,
-    IReadOnlyList<PolicyRule> Rules);
+    IReadOnlyList<PolicyRule> Rules,
+    Option<FileOrigin> Origin);
 
 public sealed record PolicyDecision(
     SessionId Session,

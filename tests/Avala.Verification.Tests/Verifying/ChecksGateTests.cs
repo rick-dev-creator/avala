@@ -1,6 +1,8 @@
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Testing;
 using Avala.Verification.Contracts;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Verification.Tests.Verifying;
 
@@ -49,6 +51,8 @@ public sealed class ChecksGateTests
         Assert.All(verified.Processes.Requests, request => Assert.Equal(Option<string>.Some(Verified.Worktree), request.WorkingDirectory));
         var report = Assert.Single(verified.Published);
         Assert.Equal((2, VerificationOutcome.Passed, verdict, verified.Clock.GetUtcNow()), (report.Attempt, report.Outcome, report.Verdict, report.VerifiedAt));
+        Assert.Equal([(Verified.Worktree, ".avala/checks.json")], verified.Files.Reads);
+        Assert.Equal(Option<FileOrigin>.Some(CommittedFiles.Origin()), report.Declaration);
         Assert.Equal(
             [
                 new CheckEvidence("build", "dotnet build", CheckStatus.Passed, 0, TimeSpan.FromSeconds(12), "Build succeeded.", string.Empty),
@@ -128,12 +132,47 @@ public sealed class ChecksGateTests
         var verdict = await verified.EvaluateAsync(Job, 1, Cancellation);
 
         Assert.Equal(
-            GateVerdict.Retry("The check declaration in .avala/checks.json is invalid: a check has no command. Fix the file so its checks can run, then finish the turn again."),
+            GateVerdict.Retry(
+                "The check declaration in .avala/checks.json of the commit this job started from is invalid: a check has no command. "
+                + "The job is verified against that commit, so changing the file in the worktree does not fix it: the repository has to."),
             verdict);
         Assert.Empty(verified.Processes.Requests);
         var report = Assert.Single(verified.Published);
         Assert.Equal((VerificationOutcome.InvalidDeclaration, verdict), (report.Outcome, report.Verdict));
         Assert.Empty(report.Checks);
+    }
+
+    [Theory]
+    [InlineData(WorkspaceFailure.GitFailed)]
+    [InlineData(WorkspaceFailure.UnknownWorkspace)]
+    public async Task ADeclarationThatCannotBeReadFromTheBaseCommitFailsClosedAsync(WorkspaceFailure failure)
+    {
+        var verified = new Verified(new CommittedFiles().Failing(Verified.Worktree, failure));
+
+        var verdict = await verified.EvaluateAsync(Job, 1, Cancellation);
+
+        Assert.Equal(GateDecision.Retry, verdict.Decision);
+        Assert.Contains("is invalid: it could not be read from that commit.", verdict.Feedback, StringComparison.Ordinal);
+        Assert.Empty(verified.Processes.Requests);
+        var report = Assert.Single(verified.Published);
+        Assert.Equal((VerificationOutcome.InvalidDeclaration, Option<FileOrigin>.None), (report.Outcome, report.Declaration));
+    }
+
+    [Fact]
+    public async Task TheChecksOfTheBaseCommitRunWhateverTheWorktreeDeclaresAndTheAgentIsToldItsEditDoesNotApplyAsync()
+    {
+        var verified = new Verified(BuildAndTest, editedInWorktree: true);
+        verified.Processes.Exits("dotnet", 1, TimeSpan.FromSeconds(4));
+
+        var verdict = await verified.EvaluateAsync(Job, 1, Cancellation);
+
+        Assert.Equal(
+            "The repository check \"build\" did not pass: `dotnet build` exited with code 1 after 4.0 s. Fix the cause, then finish the turn again."
+            + "\n\nYour changes to .avala/checks.json do not apply to this job: its checks come from the commit it started from.",
+            verdict.Feedback);
+        var report = Assert.Single(verified.Published);
+        Assert.Equal(Option<FileOrigin>.Some(CommittedFiles.Origin(editedInWorktree: true)), report.Declaration);
+        Assert.Equal(["build", "tests"], report.Checks.Select(check => check.Name));
     }
 
     [Fact]

@@ -32,7 +32,7 @@ public sealed class SessionGovernorTests
         Assert.Equal("/worktrees/1", Outcomes.Present(governed.WorkingDirectory));
         Assert.Equal(PolicyAnswer.Allow, governed.Policy.Decide(Migration).Answer);
         Assert.Equal(
-            new PolicyLoaded(new SessionPolicy(session, PolicyFileStatus.Applied, Option<PolicyError>.None, governed.Policy.Rules)),
+            new PolicyLoaded(new SessionPolicy(session, PolicyFileStatus.Applied, Option<PolicyError>.None, governed.Policy.Rules, CommittedFiles.Origin())),
             Assert.Single(bus.Published));
         Assert.Contains(AllowEverything, governed.Policy.Rules);
     }
@@ -99,7 +99,7 @@ public sealed class SessionGovernorTests
 
     private sealed class FixedPolicyFiles(Result<Option<IReadOnlyList<PolicyRule>>, PolicyError> file) : IPolicyFiles
     {
-        public ValueTask<Result<Option<IReadOnlyList<PolicyRule>>, PolicyError>> ReadAsync(string workingDirectory, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(file);
+        public ValueTask<PolicyFile> ReadAsync(string workingDirectory, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new PolicyFile(CommittedFiles.Origin(), file));
     }
 }

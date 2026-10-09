@@ -55,11 +55,20 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AnEditLandsInTheWorktreeAndInItsCheckpointAsync()
+    public async Task EveryActionOfAnEditJobMeetsThePolicyAndTheEditLandsInTheWorktreeAndInItsCheckpointAsync()
     {
         const string Greeting = "# Hello\n\nWritten by the simulator.\n";
-        await using var run = await SimulatedRun.StartAsync(plugins, "edit");
+        await using var run = await SimulatedRun.StartAsync(plugins, "edit", (".avala/permissions.json", TestsPolicy));
 
+        var decisions = await run.DecisionsAsync(count: 2);
+
+        Assert.Equal(
+            [
+                ("edits-inside-the-workspace", ItemKind.FileEdit, "GREETING.md", PolicyAnswer.Allow, DecisionDelivery.Answered),
+                ("tests", ItemKind.Command, "dotnet test", PolicyAnswer.Allow, DecisionDelivery.Answered),
+            ],
+            decisions.Select(decision => (Outcomes.Present(decision.Rule).Name, decision.Kind, decision.Target, decision.Answer, decision.Delivery)));
+        Assert.Equal(decisions, run.Get<IPermissionAudit>().OfJob(run.Job));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         Assert.Equal(Greeting, await File.ReadAllTextAsync(Path.Combine(run.Worktree, "GREETING.md"), Cancellation));
         Assert.Equal("Attempt 1", await run.Repository.GitInAsync(run.Worktree, Cancellation, "log", "-1", "--format=%s"));
@@ -185,15 +194,11 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
     [Fact]
     public async Task AJobReachesReviewOnlyAfterItsDeclaredCheckPassesWithTheEvidenceOfEveryAttemptAsync()
     {
-        const string Checks = """
-            {
-              "checks": [
-                { "name": "git", "command": "git", "arguments": ["--version"] },
-                { "name": "calculator", "command": "git", "arguments": ["grep", "--quiet", "--fixed-strings", "add(2, 2) = 4", "--", "calculator.txt"], "timeoutSeconds": 60 }
-              ]
-            }
-            """;
-        await using var run = await SimulatedRun.StartAsync(plugins, "fix-after-feedback", (".avala/checks.json", Checks));
+        await using var run = await SimulatedRun.StartAsync(
+            plugins,
+            "fix-after-feedback",
+            (".avala/checks.json", CalculatorChecks),
+            (".avala/permissions.json", TestsPolicy));
 
         var journey = await run.JourneyAsync();
 
@@ -211,6 +216,30 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
             reports[0].Verdict.Feedback,
             StringComparison.Ordinal);
         Assert.Equal("add(2, 2) = 4\n", await File.ReadAllTextAsync(Path.Combine(run.Worktree, "calculator.txt"), Cancellation));
+    }
+
+    [Fact]
+    public async Task AnAgentThatEmptiesTheCheckDeclarationIsStillVerifiedByTheChecksOfItsBaseCommitAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(
+            plugins,
+            "rewrite-checks",
+            (".avala/checks.json", CalculatorChecks),
+            (".avala/permissions.json", TestsPolicy));
+        var baseCommit = await run.Repository.GitAsync(Cancellation, "rev-parse", "HEAD");
+
+        var journey = await run.JourneyAsync();
+
+        Assert.Equal(
+            [JobStatus.Running, JobStatus.Checking, JobStatus.Running, JobStatus.Checking, JobStatus.AwaitingReview],
+            journey.SkipWhile(status => status != JobStatus.Running));
+        var reports = run.Get<IVerifications>().OfJob(run.Job);
+        Assert.Equal(
+            ["1 Failed: git Passed, calculator Failed", "2 Passed: git Passed, calculator Passed"],
+            reports.Select(report => $"{report.Attempt} {report.Outcome}: " + string.Join(", ", report.Checks.Select(check => $"{check.Name} {check.Status}"))));
+        Assert.All(reports, report => Assert.Equal(Option<FileOrigin>.Some(new FileOrigin(baseCommit, EditedInWorktree: true)), report.Declaration));
+        Assert.Contains("Your changes to .avala/checks.json do not apply to this job", reports[0].Verdict.Feedback, StringComparison.Ordinal);
+        Assert.Equal("{ \"checks\": [] }\n", await File.ReadAllTextAsync(Path.Combine(run.Worktree, ".avala", "checks.json"), Cancellation));
     }
 
     [Fact]
@@ -254,6 +283,17 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
             Cancellation));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
     }
+
+    private const string TestsPolicy = """{ "rules": [ { "name": "tests", "kind": "command", "target": "dotnet test*", "answer": "allow" } ] }""";
+
+    private const string CalculatorChecks = """
+        {
+          "checks": [
+            { "name": "git", "command": "git", "arguments": ["--version"] },
+            { "name": "calculator", "command": "git", "arguments": ["grep", "--quiet", "--fixed-strings", "add(2, 2) = 4", "--", "calculator.txt"], "timeoutSeconds": 60 }
+          ]
+        }
+        """;
 
     private static string MigrationsPolicy(string answer) =>
         $$"""{ "rules": [ { "name": "migrations", "kind": "command", "target": "dotnet ef *", "answer": "{{answer}}" } ] }""";

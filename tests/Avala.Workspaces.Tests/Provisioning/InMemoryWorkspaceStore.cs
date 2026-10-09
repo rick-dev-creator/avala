@@ -22,6 +22,9 @@ internal sealed class InMemoryWorkspaceStore : IWorkspaceStore
     public Task<Option<Workspace>> FindAsync(WorkspaceId id, CancellationToken cancellationToken) =>
         Task.FromResult(workspaces.GetValueOrDefault(id).ToOption());
 
+    public Task<Option<Workspace>> FindAtAsync(string path, CancellationToken cancellationToken) =>
+        Task.FromResult(workspaces.Values.FirstOrDefault(workspace => workspace.Location.IsAt(path)).ToOption());
+
     public Task RemoveAsync(WorkspaceId id, CancellationToken cancellationToken)
     {
         workspaces.TryRemove(id, out _);

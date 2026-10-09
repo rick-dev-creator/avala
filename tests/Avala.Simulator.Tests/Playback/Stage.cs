@@ -10,9 +10,9 @@ internal sealed class Stage : IAsyncDisposable
 {
     private readonly TemporaryFolder folder = new();
 
-    public Stage() =>
+    public Stage(PermissionMode permissions = PermissionMode.AskEveryTime) =>
         Session = new SimulatedSession(
-            new SessionOptions(folder.Path, PermissionMode.AllowEdits),
+            new SessionOptions(folder.Path, permissions),
             new DiskFileWriter(),
             new Pacing(TimeProvider.System, TimeSpan.Zero));
 
@@ -36,6 +36,28 @@ internal sealed class Stage : IAsyncDisposable
             seen.Add(agentEvent);
 
             if (agentEvent is TEvent)
+            {
+                break;
+            }
+        }
+
+        return seen;
+    }
+
+    public async Task<IReadOnlyList<IAgentEvent>> ReadTurnAllowingEveryRequestAsync(CancellationToken cancellationToken)
+    {
+        var seen = new List<IAgentEvent>();
+
+        await foreach (var agentEvent in Session.Events.WithCancellation(cancellationToken))
+        {
+            seen.Add(agentEvent);
+
+            if (agentEvent is PermissionRequested requested)
+            {
+                Outcomes.Succeeds(await Session.RespondAsync(new PermissionDecision(requested.Item, PermissionAnswer.Allow), cancellationToken));
+            }
+
+            if (agentEvent is TurnCompleted)
             {
                 break;
             }

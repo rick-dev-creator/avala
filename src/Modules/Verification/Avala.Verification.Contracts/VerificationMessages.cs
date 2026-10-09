@@ -1,6 +1,7 @@
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Verification.Contracts;
 
@@ -34,6 +35,7 @@ public sealed record VerificationReport(
     JobId Job,
     int Attempt,
     VerificationOutcome Outcome,
+    Option<FileOrigin> Declaration,
     IReadOnlyList<CheckEvidence> Checks,
     GateVerdict Verdict,
     DateTimeOffset VerifiedAt);

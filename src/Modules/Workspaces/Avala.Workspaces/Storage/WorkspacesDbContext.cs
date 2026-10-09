@@ -19,6 +19,7 @@ internal sealed class WorkspacesDbContext(string database) : DbContext
             workspace.Property(entity => entity.Id).HasConversion(id => id.Value, value => new WorkspaceId(value));
             workspace.Property(entity => entity.Location).HasConversion(location => Stored.Write(location), json => Stored.Location(json));
             workspace.Property(entity => entity.Branch).HasConversion(branch => branch.Value, name => Stored.Branch(name));
+            workspace.Property(entity => entity.Base).HasConversion(commit => commit.Value, sha => Stored.Commit(sha));
             workspace.Property(entity => entity.State).HasConversion<string>();
             workspace.OwnsMany(entity => entity.Checkpoints, checkpoint =>
             {

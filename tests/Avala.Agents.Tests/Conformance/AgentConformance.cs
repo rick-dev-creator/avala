@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Turns;
+using Avala.Sdk;
 
 namespace Avala.Agents.Tests.Conformance;
 
@@ -27,7 +28,7 @@ internal static class AgentConformance
             await using (session)
             {
                 return (await session.SendAsync(instruction, deadline)).TryGetValue(out var turn, out var sendError)
-                    ? await AuditAsync(session, turn, deadline)
+                    ? await AuditAsync(session, turn, options.Permissions == PermissionMode.AskEveryTime, deadline)
                     : [$"the turn was not accepted: {sendError}"];
             }
         }
@@ -37,10 +38,11 @@ internal static class AgentConformance
         }
     }
 
-    private static async Task<IReadOnlyList<string>> AuditAsync(IAgentSession session, TurnId expected, CancellationToken deadline)
+    private static async Task<IReadOnlyList<string>> AuditAsync(IAgentSession session, TurnId expected, bool asksEveryTime, CancellationToken deadline)
     {
         var violations = new List<string>();
         var kinds = new Dictionary<ItemId, ItemKind>();
+        var asked = new HashSet<ItemId>();
         Turn? turn = null;
 
         await foreach (var agentEvent in session.Events.WithCancellation(deadline))
@@ -54,8 +56,14 @@ internal static class AgentConformance
                 kinds[started.Item] = started.Kind;
             }
 
+            if (asksEveryTime)
+            {
+                violations.AddRange(Unasked(agentEvent, kinds, asked));
+            }
+
             if (agentEvent is PermissionRequested requested)
             {
+                asked.Add(requested.Item);
                 violations.AddRange(Describes(requested, kinds));
                 violations.AddRange(await AllowAsync(session, requested, deadline));
             }
@@ -67,6 +75,22 @@ internal static class AgentConformance
         }
 
         return [.. violations, "the event stream ended before TurnCompleted"];
+    }
+
+    private static IEnumerable<string> Unasked(IAgentEvent agentEvent, Dictionary<ItemId, ItemKind> kinds, HashSet<ItemId> asked)
+    {
+        var acted = agentEvent switch
+        {
+            ItemProgressed progressed => progressed.Item,
+            ItemCompleted { Outcome: ItemOutcome.Succeeded } completed => completed.Item,
+            _ => Option<ItemId>.None,
+        };
+
+        return acted.Match<IEnumerable<string>>(
+            item => kinds.TryGetValue(item, out var kind) && kind is ItemKind.FileEdit or ItemKind.Command && asked.Add(item)
+                ? [$"the {kind} {item.Value} went ahead without asking permission"]
+                : [],
+            () => []);
     }
 
     private static IEnumerable<string> Describes(PermissionRequested requested, Dictionary<ItemId, ItemKind> kinds)

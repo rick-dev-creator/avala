@@ -11,9 +11,35 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
     private static readonly string[] CheckpointIdentity =
         ["-c", "user.name=Avala", "-c", "user.email=avala@localhost", "-c", "commit.gpgsign=false"];
 
+    private static readonly string[] Pristine = ["--no-replace-objects", "--literal-pathspecs"];
+
     public Task<Result<string, WorkspaceFailure>> FindRepositoryRootAsync(string path, CancellationToken cancellationToken) =>
         RunAsync(["-C", path, "rev-parse", "--show-toplevel"], WorkspaceFailure.NotAGitRepository, cancellationToken)
             .MapAsync(output => Path.GetFullPath(output.Trim()));
+
+    public Task<Result<CommitSha, WorkspaceFailure>> ResolveCommitAsync(string repository, string reference, CancellationToken cancellationToken) =>
+        RunAsync(["-C", repository, "rev-parse", "--verify", "--quiet", "--end-of-options", $"{reference}^{{commit}}"], WorkspaceFailure.GitFailed, cancellationToken)
+            .BindAsync(output => CommitSha.Create(output).MapError(_ => WorkspaceFailure.GitFailed));
+
+    public Task<Result<Option<string>, WorkspaceFailure>> CommittedBlobAsync(
+        string repository,
+        CommitSha commit,
+        string path,
+        CancellationToken cancellationToken) =>
+        RunAsync([.. Pristine, "-C", repository, "ls-tree", "--full-tree", commit.Value, "--", path], WorkspaceFailure.GitFailed, cancellationToken)
+            .MapAsync(output => output.Split('\t', 2)[0].Split(' ') is [_, "blob", var blob] ? Option<string>.Some(blob) : Option<string>.None);
+
+    public Task<Result<string, WorkspaceFailure>> BlobContentAsync(string repository, string blob, CancellationToken cancellationToken) =>
+        RunAsync([.. Pristine, "-C", repository, "cat-file", "blob", blob], WorkspaceFailure.GitFailed, cancellationToken);
+
+    public async Task<Result<Option<string>, WorkspaceFailure>> WorktreeBlobAsync(
+        WorkspaceLocation location,
+        string path,
+        CancellationToken cancellationToken) =>
+        File.Exists(Path.Combine(location.Path, path))
+            ? await RunAsync([.. Pristine, "-C", location.Path, "hash-object", "--", path], WorkspaceFailure.GitFailed, cancellationToken)
+                .MapAsync(output => Option<string>.Some(output.Trim()))
+            : Option<string>.None;
 
     public async Task<Result<bool, WorkspaceFailure>> BranchExistsAsync(
         string repository,
@@ -28,9 +54,9 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> AddWorktreeAsync(
         WorkspaceLocation location,
         BranchName branch,
-        string baseRef,
+        CommitSha commit,
         CancellationToken cancellationToken) =>
-        RunAsync(["-C", location.Repository, "worktree", "add", "-b", branch.Value, location.Path, baseRef], WorkspaceFailure.GitFailed, cancellationToken)
+        RunAsync(["-C", location.Repository, "worktree", "add", "-b", branch.Value, location.Path, commit.Value], WorkspaceFailure.GitFailed, cancellationToken)
             .MapAsync(_ => location);
 
     public Task<Result<CommitSha, WorkspaceFailure>> CommitAllAsync(

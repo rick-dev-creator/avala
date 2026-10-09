@@ -74,6 +74,39 @@ public sealed class AgentConformanceTests
             await AgentConformance.CheckTurnAsync(provider, Deadline));
     }
 
+    [Theory]
+    [InlineData(PermissionMode.AskEveryTime, "the FileEdit edit went ahead without asking permission|the Command test went ahead without asking permission")]
+    [InlineData(PermissionMode.AllowEdits, "")]
+    public async Task ReportsActionsThatDoNotAskPermissionOnlyWhenAskedToAskEveryTimeAsync(PermissionMode mode, string expected)
+    {
+        var provider = new ScriptedAgentProvider((session, turn) =>
+        [
+            new TurnStarted(session, turn),
+            new ItemStarted(session, turn, new ItemId("edit"), ItemKind.FileEdit, "Edit GREETING.md"),
+            new ItemProgressed(session, turn, new ItemId("edit"), "# Hello"),
+            new ItemCompleted(session, turn, new ItemId("edit"), ItemOutcome.Succeeded),
+            new ItemStarted(session, turn, new ItemId("test"), ItemKind.Command, "dotnet test"),
+            new ItemCompleted(session, turn, new ItemId("test"), ItemOutcome.Succeeded),
+            new TurnCompleted(session, turn, TurnOutcome.Finished),
+        ]);
+
+        var violations = await AgentConformance.CheckTurnAsync(provider, new SessionOptions(".", mode), new UserTurn("conformance"), Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+    }
+
+    [Fact]
+    public async Task AnActionThatAsksBeforeItGoesAheadConformsWhenAskedToAskEveryTimeAsync()
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => AskingPermission(session, turn, ItemKind.Command, "dotnet ef database update"));
+
+        Assert.Empty(await AgentConformance.CheckTurnAsync(
+            provider,
+            new SessionOptions(".", PermissionMode.AskEveryTime),
+            new UserTurn("conformance"),
+            Deadline));
+    }
+
     [Fact]
     public async Task ReportsATurnThatNeverEndsAsync()
     {

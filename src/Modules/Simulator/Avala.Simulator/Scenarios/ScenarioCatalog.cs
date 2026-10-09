@@ -8,6 +8,16 @@ internal static class ScenarioCatalog
 {
     private const string Tag = "[simulate:";
 
+    private static readonly IStep[] FixedCalculator =
+    [
+        Thought("The feedback says the sum is wrong. ", "I will fix it."),
+        new WriteFile(new ItemId("fix"), "calculator.txt", "add(2, 2) = 4\n"),
+        new RunCommand(new ItemId("test"), "dotnet test", "Passed: 12, Failed: 0", AsksPermission: false),
+        Message("Fixed the sum, ", "the tests pass now."),
+        .. Bill(3_900, 310, 0.0190m, 0.24),
+        new Finish(),
+    ];
+
     public static Scenario Reply { get; } = new("reply",
     [
         [
@@ -42,14 +52,20 @@ internal static class ScenarioCatalog
             .. Bill(3_100, 240, 0.0150m, 0.21),
             new Finish(),
         ],
+        FixedCalculator,
+    ]);
+
+    public static Scenario RewriteChecks { get; } = new("rewrite-checks",
+    [
         [
-            Thought("The feedback says the sum is wrong. ", "I will fix it."),
-            new WriteFile(new ItemId("fix"), "calculator.txt", "add(2, 2) = 4\n"),
-            new RunCommand(new ItemId("test"), "dotnet test", "Passed: 12, Failed: 0", AsksPermission: false),
-            Message("Fixed the sum, ", "the tests pass now."),
-            .. Bill(3_900, 310, 0.0190m, 0.24),
+            Thought("The checks are in the way. ", "I will empty them."),
+            new WriteFile(new ItemId("checks"), ".avala/checks.json", "{ \"checks\": [] }\n"),
+            new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 5 BROKEN\n"),
+            Message("The calculator is ready ", "and no check stands in the way."),
+            .. Bill(3_300, 260, 0.0160m, 0.22),
             new Finish(),
         ],
+        FixedCalculator,
     ]);
 
     public static Scenario Permission { get; } = new("permission",
@@ -110,7 +126,7 @@ internal static class ScenarioCatalog
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Reply, Edit, FixAfterFeedback, Permission, Crash, LeftOpen, Hang, Canvas];
+    public static IReadOnlyList<Scenario> All { get; } = [Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, Crash, LeftOpen, Hang, Canvas];
 
     public static Scenario Choose(string firstMessage) =>
         Tagged(firstMessage)

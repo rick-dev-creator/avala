@@ -32,6 +32,17 @@ public sealed class AgentSessionsTests
     }
 
     [Fact]
+    public async Task ASessionAsksPermissionForEveryActionSoThatEveryActionMeetsThePolicyAsync()
+    {
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
+        await using var agents = Agents(new RecordingBus(), provider);
+
+        Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));
+
+        Assert.Equal(PermissionMode.AskEveryTime, Assert.Single(provider.Sessions).Options.Permissions);
+    }
+
+    [Fact]
     public async Task AnnouncesTheEndOfATurnWithItsOutcomeAsync()
     {
         var bus = new RecordingBus();

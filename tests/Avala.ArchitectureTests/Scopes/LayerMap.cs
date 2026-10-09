@@ -83,7 +83,6 @@ internal static class LayerMap
             ["Checks"] = Layer.Domain,
             ["Verifying"] = Layer.Application,
             ["Evidence"] = Layer.Application,
-            ["FileSystem"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Workspaces", new()
         {
@@ -91,6 +90,7 @@ internal static class LayerMap
             ["Contracts"] = Layer.Contracts,
             ["Workspaces"] = Layer.Domain,
             ["Provisioning"] = Layer.Application,
+            ["BaseFiles"] = Layer.Application,
             ["Git"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
         }),

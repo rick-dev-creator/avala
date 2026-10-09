@@ -1,10 +1,11 @@
 using System.Runtime.CompilerServices;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
 
-internal sealed class Performer(string workingDirectory, IFileWriter files, PermissionGate permissions)
+internal sealed class Performer(SessionOptions options, IFileWriter files, PermissionGate permissions)
 {
     public async IAsyncEnumerable<IAgentEvent> PlayAsync(
         Cues cues,
@@ -27,60 +28,55 @@ internal sealed class Performer(string workingDirectory, IFileWriter files, Perm
         }
     }
 
-    private async IAsyncEnumerable<IAgentEvent> PlayAsync(Cues cues, IStep step, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private IAsyncEnumerable<IAgentEvent> PlayAsync(Cues cues, IStep step, CancellationToken cancellationToken) => step switch
     {
-        switch (step)
-        {
-            case WriteFile write:
-                yield return cues.Opened(write.Item, ItemKind.FileEdit, $"Edit {write.Path}");
-                await files.WriteAsync(Path.Combine(workingDirectory, write.Path), write.Content, cancellationToken);
-                yield return cues.Progressed(write.Item, write.Content);
-                yield return cues.Closed(write.Item, ItemOutcome.Succeeded);
-                break;
-            case RunCommand run:
-                await foreach (var cue in RunAsync(cues, run, cancellationToken))
-                {
-                    yield return cue;
-                }
+        WriteFile write => ActAsync(
+            cues,
+            new Deed(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", $"Edit {write.Path}", Path.Combine(options.WorkingDirectory, write.Path), write.Content),
+            options.Permissions == PermissionMode.AskEveryTime,
+            token => files.WriteAsync(Path.Combine(options.WorkingDirectory, write.Path), write.Content, token).AsTask(),
+            cancellationToken),
+        RunCommand run => ActAsync(
+            cues,
+            new Deed(run.Item, ItemKind.Command, run.Command, $"Run {run.Command}", run.Command, run.Output),
+            options.Permissions == PermissionMode.AskEveryTime || (options.Permissions == PermissionMode.AllowEdits && run.AsksPermission),
+            _ => Task.CompletedTask,
+            cancellationToken),
+        Crash crash => throw new InvalidOperationException(crash.Reason),
+        _ => cues.Of(step).ToAsyncEnumerable(),
+    };
 
-                break;
-            case Crash crash:
-                throw new InvalidOperationException(crash.Reason);
-            default:
-                foreach (var cue in cues.Of(step))
-                {
-                    yield return cue;
-                }
-
-                break;
-        }
-    }
-
-    private async IAsyncEnumerable<IAgentEvent> RunAsync(Cues cues, RunCommand run, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private async IAsyncEnumerable<IAgentEvent> ActAsync(
+        Cues cues,
+        Deed deed,
+        bool asks,
+        Func<CancellationToken, Task> perform,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        yield return cues.Opened(run.Item, ItemKind.Command, run.Command);
+        yield return cues.Opened(deed.Item, deed.Kind, deed.Title);
 
-        if (run.AsksPermission)
+        if (asks)
         {
-            var decision = await permissions.ExpectAsync(run.Item, cancellationToken);
-            yield return cues.Asked(run.Item, $"Run {run.Command}", ItemKind.Command, run.Command);
+            var decision = await permissions.ExpectAsync(deed.Item, cancellationToken);
+            yield return cues.Asked(deed.Item, deed.Request, deed.Kind, deed.Target);
 
-            var answer = await AwaitAsync(run, decision, cancellationToken);
-            yield return cues.Answered(run.Item, answer);
+            var answer = await AwaitAsync(deed.Item, decision, cancellationToken);
+            yield return cues.Answered(deed.Item, answer);
 
             if (answer == PermissionAnswer.Deny)
             {
-                yield return cues.Closed(run.Item, ItemOutcome.Cancelled);
+                yield return cues.Closed(deed.Item, ItemOutcome.Cancelled);
                 yield return cues.Ended(TurnOutcome.Finished);
                 yield break;
             }
         }
 
-        yield return cues.Progressed(run.Item, run.Output);
-        yield return cues.Closed(run.Item, ItemOutcome.Succeeded);
+        await perform(cancellationToken);
+        yield return cues.Progressed(deed.Item, deed.Output);
+        yield return cues.Closed(deed.Item, ItemOutcome.Succeeded);
     }
 
-    private async Task<PermissionAnswer> AwaitAsync(RunCommand run, Task<PermissionAnswer> decision, CancellationToken cancellationToken)
+    private async Task<PermissionAnswer> AwaitAsync(ItemId item, Task<PermissionAnswer> decision, CancellationToken cancellationToken)
     {
         try
         {
@@ -88,7 +84,9 @@ internal sealed class Performer(string workingDirectory, IFileWriter files, Perm
         }
         finally
         {
-            await permissions.WithdrawAsync(run.Item);
+            await permissions.WithdrawAsync(item);
         }
     }
+
+    private sealed record Deed(ItemId Item, ItemKind Kind, string Title, string Request, string Target, string Output);
 }

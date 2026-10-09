@@ -23,7 +23,7 @@ internal sealed class SimulatedSession : IAgentSession
     public SimulatedSession(SessionOptions options, IFileWriter files, Pacing pacing)
     {
         permissions = new PermissionGate(stage);
-        performer = new Performer(options.WorkingDirectory, files, permissions);
+        performer = new Performer(options, files, permissions);
         this.pacing = pacing;
     }
 
