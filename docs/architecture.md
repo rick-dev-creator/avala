@@ -94,7 +94,7 @@ Enforced by `tests/Avala.ArchitectureTests`:
 
 Enforced by the compiler through `BannedSymbols.txt` and the threading analyzers:
 
-- Nothing blocks a thread: no `Thread.Sleep`, `Wait`, `Result`, `GetResult`, synchronous waits or synchronous file I/O.
+- Nothing blocks a thread: no `Thread.Sleep`, `Wait`, `Result`, `GetResult`, synchronous waits or synchronous file I/O, synchronous `Stream` and `FileStream` writes, reads and flushes included, save the [documented last words](#analyzer-exceptions) of a dying process.
 - Nothing waits on time, in source and test projects alike: `Thread.Sleep`, every `Task.Delay` overload, `SpinWait`, `Thread.SpinWait`, the `System.Threading.Timer` constructors, `System.Timers.Timer` and `PeriodicTimer` are banned with a message that names the alternatives above.
 - No `async void`.
 - No direct `Fire` on a Stateless machine: transitions go through the guarded `TryFire`.
@@ -231,6 +231,7 @@ Comments are banned, so every exception to an analyzer is recorded here.
 | `RS0030` | `GuardedTransitions.cs` | The guarded transition helper is the single place allowed to call `Fire`, right after `CanFire`. |
 | `RS0030` | xUnit's generated entry point | Third-party generated code that blocks on the test platform's task. |
 | `RS0030` | `tests/Avala.Testing/TemporaryFolder.cs`, `Task.Delay` | Windows releases a killed process's handles, and its console host's, a moment after the process exits, and announces it with no event, so `DisposeAsync` retries a failed deletion after a short delay. The timing rule reads this row and allows `Task.Delay` in this file only, nothing else. |
+| `RS0030` | `src/Avala.Runtime/Diagnostics/LastWords.cs` | The one exception to "no synchronous file I/O". An exception that ends the process gives its handler no time to await the log's writer, so `LastWords.Append` writes that last line to the log file synchronously, once, and the process dies right after. The banned list rejects synchronous `Stream` and `FileStream` writes, reads and flushes everywhere else, and `SynchronousIoTests` checks that this file is the only one under `src/` exempt besides `GuardedTransitions.cs`, and that it makes a single synchronous `Write`. |
 | `S3011` | `tests/Avala.Testing.UI/AnimationClock.cs` | Avalonia keeps its animation clock private and offers no seam to replace it, so the headless test application stops it by reflection to hold motion still. |
 | All analyzers | `Avala.ArchitectureTests.Fixtures` and `Avala.ArchitectureTests.Fixtures.UI` | The fixtures break rules on purpose. |
 

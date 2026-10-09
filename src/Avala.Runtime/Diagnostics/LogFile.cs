@@ -45,16 +45,7 @@ internal sealed class LogFile : ILoggerProvider, IAsyncDisposable
     {
         var entry = Entered(level, category, message, exception);
 
-        try
-        {
-            Directory.CreateDirectory(folder);
-            var path = Volatile.Read(ref current) is { Length: > 0 } open ? open : Path.Combine(folder, Name(entry.At, 0));
-            using var file = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
-            file.Write(Utf8.GetBytes(entry.Text));
-        }
-        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
-        {
-        }
+        LastWords.Append(Volatile.Read(ref current) is { Length: > 0 } open ? open : Path.Combine(folder, Name(entry.At, 0)), Utf8.GetBytes(entry.Text));
     }
 
     public void Dispose() => entries.Writer.TryComplete();

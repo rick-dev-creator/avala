@@ -103,3 +103,13 @@ P:System.Threading.Tasks.Task`1.Result;Blocks the thread. Use await.
 T:System.Threading.SpinWait;Waits on time instead of an event. Await the event or signal that states the thing happened: an integration event, a component's refreshed signal, a TaskCompletionSource or a channel. For behavior that is genuinely about time, use a TimeProvider timer (TimeProvider.CreateTimer), testable with FakeTimeProvider.
 T:System.Threading.PeriodicTimer;Waits on time instead of an event. Await the event or signal that states the thing happened: an integration event, a component's refreshed signal, a TaskCompletionSource or a channel. For behavior that is genuinely about time, use a TimeProvider timer (TimeProvider.CreateTimer), testable with FakeTimeProvider.
 T:System.Timers.Timer;Waits on time instead of an event. Await the event or signal that states the thing happened: an integration event, a component's refreshed signal, a TaskCompletionSource or a channel. For behavior that is genuinely about time, use a TimeProvider timer (TimeProvider.CreateTimer), testable with FakeTimeProvider.
+M:System.IO.Stream.Write(System.Byte[],System.Int32,System.Int32);Synchronous I/O. Use WriteAsync.
+M:System.IO.Stream.Write(System.ReadOnlySpan{System.Byte});Synchronous I/O. Use WriteAsync.
+M:System.IO.FileStream.Write(System.Byte[],System.Int32,System.Int32);Synchronous I/O. Use WriteAsync.
+M:System.IO.FileStream.Write(System.ReadOnlySpan{System.Byte});Synchronous I/O. Use WriteAsync.
+M:System.IO.Stream.Read(System.Byte[],System.Int32,System.Int32);Synchronous I/O. Use ReadAsync.
+M:System.IO.Stream.Read(System.Span{System.Byte});Synchronous I/O. Use ReadAsync.
+M:System.IO.FileStream.Read(System.Byte[],System.Int32,System.Int32);Synchronous I/O. Use ReadAsync.
+M:System.IO.FileStream.Read(System.Span{System.Byte});Synchronous I/O. Use ReadAsync.
+M:System.IO.Stream.Flush;Synchronous I/O. Use FlushAsync.
+M:System.IO.FileStream.Flush;Synchronous I/O. Use FlushAsync.
