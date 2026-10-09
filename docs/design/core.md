@@ -1664,9 +1664,11 @@ The inspector, closed by default, shows the selected job in short sections, each
 
 `JobRecords` reads the catalog, the worktree, the lease and the delegations, `JobAudit` the in-memory audits, and `JobInspection` joins them.
 
+Each section is content of the shell's `Inspector` region, registered with `AddToRegion` in this order, so another module can add its own section beside them. The region's context is the job in focus, a `JobId`, which each section receives through `IRegionAware<JobId>`; no section subscribes to the selection. The jobs page sets that context while the inspector is open, the page is active and a job is selected, and clears it otherwise, and the shell shows the inspector only while it has a context. `InspectedJob` is what each section loads with: it follows the board while the section is active, requests a load when the focus changes or the focused job's revision moves, applies a load only if it answers the latest request for the job still in focus, drops one queued before a deactivation, and raises `Presented` after each change it shows. The sections share one read per job and revision through `InspectedFacts`, so opening the inspector costs one read, not six.
+
 ### Navigation
 
-The shell lists the pages plugins register, `IPage`, and activates the selected one through `IActivatable`. The Workbench's page is the main window: the sidebar, the conversation of the selected job, opened when the sidebar's selection changes, the inspector, closed by default and toggled, and the review sheet. While active it follows the board, and on every change it updates the sidebar, the decisions popover and the open conversation on the UI thread through `IUiDispatcher`; the view models are touched on that thread only.
+The shell lists the pages plugins register, `IPage`, and activates the selected one through `IActivatable`. The main window is composed of the shell's regions: the job list, `SidebarViewModel` with its decisions popover, is content of the `Sidebar` region and follows the board whichever page is shown; the jobs page, `WorkbenchViewModel`, is the first page of the `Content` region and holds the conversation of the selected job and the review sheet; the inspector's sections fill the `Inspector` region. Choosing a job in the sidebar publishes `JobSelected` over the `IMessenger`; the jobs page opens that job's conversation, keeps it and its review when the same job is chosen again, and asks the shell to show it with `PageRequested`. The inspector, closed by default, is toggled on the page, which sets the `Inspector` region's context to the selected job. Each of these view models follows the board while active through a `BoardFeed`, updates on the UI thread through `IUiDispatcher` and raises `Presented` after each change it shows; the view models are touched on that thread only.
 
 - **Loading the panels.** The review sheet and the inspector load their facts off the UI thread and apply them through `IUiDispatcher`. Each load is requested on the UI thread with the board revision it answers, and applies only if no newer request was made since and the page is still active: work queued for the UI thread before a deactivation is dropped, as the board updates are. Opening a panel loads it at once; the follow loop then reloads an open panel whose job's revision moved, one load after another, after the sidebar and conversation are shown.
 
@@ -1704,7 +1706,7 @@ Each global page is an `IPage` and `IActivatable`, a view model of its own folde
 | `Inspection` | `JobRecords`, `JobAudit` and `JobInspection`, the facts of the inspector | Application |
 | `Review` | `ReviewViewModel`, `ReviewExceptionViewModel`, `ChangedFileViewModel`, `HunkViewModel`, `ReviewPhrases` and `Amounts` | ViewModels |
 | `Decisions` | `DecisionsViewModel`, the popover, and `DecisionViewModel`, one waiting decision | ViewModels |
-| `Inspector` | `InspectorViewModel`, its six section view models and `InspectorPhrases` | ViewModels |
+| `Inspector` | The six section view models of the `Inspector` region, `InspectedJob`, which loads a section for the job in focus, and `InspectorPhrases` | ViewModels |
 | `Following` | `Pulse`, the handler whose signals the global pages follow, `LiveFeed`, which reads and shows a page's state while it is active, and `SessionBook` | Application |
 | `Fleet` | `FleetReader`, the connections and the agents on them, and `DelegationReader`, the orchestrators and their trees | Application |
 | `Spending` | `JobSpending`, a job's spend, caps, carve and interventions, `UsageReader` and `UsageWindows` | Application |
@@ -1715,7 +1717,9 @@ Each global page is an `IPage` and `IActivatable`, a view model of its own folde
 | `Presenting` | The wording of amounts, times and caps, and the replacement of a list's items, shared by the pages | ViewModels |
 | `Overview`, `Usage`, `Settings`, `Resources`, `NewJob` | Each global page's view model and its items | ViewModels |
 
-`JobScreens`, in `Navigation`, opens a job's conversation, review sheet and inspector through the `Conversations`, `Reviews` and `Inspectors` factories, so the main window keeps four dependencies.
+`JobScreens`, in `Navigation`, opens a job's conversation and review sheet through the `Conversations` and `Reviews` factories, and `JobFocus` holds the page's links to the shell, the selection message, the page request and the inspector's context, so the jobs page keeps three dependencies.
+
+Every view model implements its `IXViewModel`, which its view binds to and its parent holds, and has a `DesignXViewModel` with the sample work of the [brief](ui-brief.md), in a `DesignViewModels.cs` of its folder. `Presenting` also holds `BoardFeed`, the board follower of the sidebar, the decisions popover, the jobs page and the inspector's sections, and `SampleJobs`, the identifiers of the sample jobs.
 
 - The module has no domain: the board and the projection are facts that already happened, like Observability's, so it has no aggregate and no error enum. It shows the errors of the modules it calls.
 - The board lives in memory, every job's transcript since startup. Dropping the transcripts of ended jobs, and the canvases of their sessions, arrives with the first measure of their size.
@@ -2011,6 +2015,13 @@ A view follows each child's status through `JobProgressed`, its connection throu
 | `IDelegations.All()`, `OfParent(JobId)`, `OfChild(JobId)` | Query | The `DelegationRecord`s in the order the calls were made, the latest version of each | Any time, from memory | One per call since the application started |
 | The `delegate` call's result | Tool result | JSON: `job`, `outcome`, `status`, `connection`, `autonomy`, `summary`, `files` (`path`, `change`, `added`, `removed`, `binary`), `verification` (`outcome`, `checks` with `name`, `status`, `exitCode`), `spent`, `tokens`, `carve`, `integrated` (`branch`, `commit`), `conflicts`, `hold`, `refusal`; or, as an error, `refused` and `reason` | When the child settles, or at once when refused | One per call |
 | `.avala/jobs.json` `delegation` | Field of a rule file | `connections`, `routing`, `maxDepth`, `maxChildren`, see [Delegation](#the-rules-file-1) | Read from the rules commit of the caller's worktree at every call | One per repository |
+
+### Interface: UI messages
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `JobSelected` | UI message, Workbench `Contracts.Presentation` | `Job`, the `JobId` chosen | When a person chooses a job in the sidebar, again if it is chosen again | One per choice |
+| `PageRequested` | UI message, SDK `Presentation` | `Page`, the `IPage` to show | When a page asks the shell to show it, such as the jobs page after `JobSelected` | One per request |
 
 ## Delivery
 
