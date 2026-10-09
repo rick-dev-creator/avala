@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 
 namespace Avala.Testing;
 
@@ -60,6 +61,60 @@ public sealed class TestUiDispatcher : SynchronizationContext, IUiDispatcher, ID
             var state = await ReadAsync(() => Describe(describe));
 
             throw new TimeoutException($"The condition was not reached within {Patience.TotalSeconds:0} s. Last state: {state}");
+        }
+    }
+
+    public async Task<T> RunAsync<T>(Func<Task<T>> command) => await await ReadAsync(command);
+
+    public async Task RunAsync(Func<Task> command) => await await ReadAsync(command);
+
+    public async Task PresentedAsync(IPresentation component, Func<bool> shown, Func<string> describe)
+    {
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void Check()
+        {
+            if (Shows(shown))
+            {
+                reached.TrySetResult();
+            }
+        }
+
+        void OnPresented(object? sender, Presented presented) => Check();
+
+        await InvokeAsync(
+            () =>
+            {
+                component.Presented += OnPresented;
+                Check();
+            },
+            CancellationToken.None);
+
+        try
+        {
+            await reached.Task.WaitAsync(Patience);
+        }
+        catch (TimeoutException)
+        {
+            var state = await ReadAsync(() => $"revision {component.Revision}, {Describe(describe)}");
+
+            throw new TimeoutException($"{component.GetType().Name} did not present the expected state within {Patience.TotalSeconds:0} s. Last state: {state}");
+        }
+        finally
+        {
+            await InvokeAsync(() => component.Presented -= OnPresented, CancellationToken.None);
+        }
+    }
+
+    private static bool Shows(Func<bool> shown)
+    {
+        try
+        {
+            return shown();
+        }
+        catch (Exception failure) when (failure is InvalidOperationException or ArgumentException)
+        {
+            return false;
         }
     }
 

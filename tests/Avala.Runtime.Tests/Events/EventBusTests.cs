@@ -82,6 +82,36 @@ public sealed class EventBusTests
     }
 
     [Fact]
+    public async Task DeliveredCompletesOnlyOnceEveryHandlerHasHandledTheEventsPublishedBeforeAsync()
+    {
+        var slow = new BlockingHandler();
+        var other = new RecordingHandler(expected: 1);
+        await using var running = Run(slow, other);
+        await running.Bus.PublishAsync(new Pinged(1), Cancellation);
+        await slow.Started.WaitAsync(Patience, Cancellation);
+
+        var delivered = running.Bus.DeliveredAsync(Cancellation);
+        await other.Completion.WaitAsync(Patience, Cancellation);
+
+        Assert.False(delivered.IsCompleted);
+        slow.Release();
+        await delivered.WaitAsync(Patience, Cancellation);
+        Assert.True(slow.Ended);
+    }
+
+    [Fact]
+    public async Task DeliveredCompletesAtOnceOnceTheBusHasStoppedAsync()
+    {
+        var running = Run(new RecordingHandler(expected: 1));
+        await running.DisposeAsync();
+
+        var delivered = running.Bus.DeliveredAsync(Cancellation);
+        await delivered.WaitAsync(Patience, Cancellation);
+
+        Assert.True(delivered.IsCompletedSuccessfully);
+    }
+
+    [Fact]
     public async Task StoppingCancelsTheRunningHandlersAndWaitsForThemToEndAsync()
     {
         var slow = new BlockingHandler();

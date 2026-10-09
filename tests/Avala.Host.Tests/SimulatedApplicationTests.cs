@@ -92,6 +92,8 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         var window = TimeSpan.FromSeconds(1);
         await using var run = await SimulatedRun.SupervisedAsync(plugins, "hang", window);
 
+        await run.SilentForAsync(window);
+
         var turn = await run.TurnAsync();
 
         Assert.Equal(TurnOutcome.Interrupted, Assert.IsType<TurnCompleted>(turn[^1]).Outcome);

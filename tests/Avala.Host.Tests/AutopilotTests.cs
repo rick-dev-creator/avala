@@ -90,6 +90,7 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
             new LoopRequest(run.Repository.Path) { Limits = new LoopLimits { PauseAtLimit = 0.9, NothingChanged = 5 } },
             Cancellation));
         var pause = (await paused.UntilAsync(_ => true)).Pause;
+        run.AdvanceTo(Outcomes.Present(pause.Until));
         var resumedAt = (await resumed.UntilAsync(_ => true)).At;
         var second = await taken.UntilAsync(task => task.Iteration == 2);
         var state = (await ended.UntilAsync(_ => true)).State;
