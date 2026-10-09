@@ -182,8 +182,10 @@ internal sealed class MemorySource(string name) : IJobSource
         return task;
     }
 
+    public Exception? Fault { get; set; }
+
     public ValueTask<Result<SourceAnswer, AutopilotError>> NextAsync(SourceRequest request, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(Error.Match(
+        Fault is { } fault ? throw fault : ValueTask.FromResult(Error.Match(
             Result<SourceAnswer, AutopilotError>.Failure,
             () => tasks.TryDequeue(out var task)
                 ? new SourceAnswer(task, Option<DateTimeOffset>.None)

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Avala.Runtime.Containment;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
@@ -7,7 +8,11 @@ namespace Avala.Runtime.Processes;
 
 internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictionary<string, string> environment, IContainer container) : IProcessTree
 {
+    public static readonly TimeSpan Grace = TimeSpan.FromSeconds(2);
+
     private const int KillRounds = 20;
+
+    private const int Terminate = 15;
 
     private static readonly TimeSpan Settling = TimeSpan.FromMilliseconds(250);
 
@@ -47,6 +52,11 @@ internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictio
 
     public async Task<IReadOnlyList<TreeProcess>> KillAsync(TimeProvider clock, CancellationToken cancellationToken)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            await AskToEndAsync(clock, cancellationToken);
+        }
+
         for (var round = 0; round < KillRounds; round++)
         {
             var members = await container.MemberIdsAsync(cancellationToken);
@@ -56,11 +66,11 @@ internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictio
                 return [];
             }
 
-            var killed = members.Select(Kill).SelectMany(found => found.Match<Process[]>(process => [process], () => [])).ToList();
+            var killed = Ended(members, Kill);
 
             try
             {
-                await Task.WhenAll(killed.Select(process => process.WaitForExitAsync(cancellationToken))).WaitAsync(Settling, clock, cancellationToken);
+                await ExitedAsync(killed, cancellationToken).WaitAsync(Settling, clock, cancellationToken);
             }
             catch (TimeoutException)
             {
@@ -76,6 +86,45 @@ internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictio
 
     public void Release() => container.Dispose();
 
+    private async Task AskToEndAsync(TimeProvider clock, CancellationToken cancellationToken)
+    {
+        var members = await container.MemberIdsAsync(cancellationToken);
+
+        if (members.Count == 0)
+        {
+            return;
+        }
+
+        var grace = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var timer = clock.CreateTimer(_ => grace.TrySetResult(), null, Grace, Timeout.InfiniteTimeSpan);
+        var asked = Ended(members, process => Signal(process.Id, Terminate) == 0);
+
+        try
+        {
+            await Task.WhenAny(ExitedAsync(asked, cancellationToken), grace.Task).WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            asked.ForEach(process => process.Dispose());
+        }
+    }
+
+    private static Task ExitedAsync(List<Process> processes, CancellationToken cancellationToken) =>
+        Task.WhenAll(processes.Select(process => process.WaitForExitAsync(cancellationToken)));
+
+    private static List<Process> Ended(IEnumerable<int> members, Func<Process, bool> end) =>
+        [.. members.Select(member => EndMember(member, end)).SelectMany(found => found.Match<Process[]>(process => [process], () => []))];
+
+    private static bool Kill(Process process)
+    {
+        process.Kill();
+
+        return true;
+    }
+
+    [DllImport("libc", EntryPoint = "kill", SetLastError = true)]
+    private static extern int Signal(int process, int signal);
+
     private static Option<TreeProcess> Describe(int member)
     {
         try
@@ -90,22 +139,25 @@ internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictio
         }
     }
 
-    private static Option<Process> Kill(int member)
+    private static Option<Process> EndMember(int member, Func<Process, bool> end)
     {
         Process? process = null;
 
         try
         {
             process = Process.GetProcessById(member);
-            process.Kill();
 
-            return process;
+            if (end(process))
+            {
+                return process;
+            }
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
         {
-            process?.Dispose();
-
-            return Option<Process>.None;
         }
+
+        process?.Dispose();
+
+        return Option<Process>.None;
     }
 }
