@@ -16,16 +16,16 @@ internal static class DomainPurityRules
     public static IEnumerable<string> DependOnDisallowedTypes(CodeScope scope) =>
         scope.ArchitectureTypes
             .Where(type => Layers.Of(type.Namespace.FullName) == Layer.Domain)
-            .Where(type => type.Dependencies.Any(dependency =>
-                !IsAllowedForDomain(Layers.ModuleOf(type.Namespace.FullName), dependency.Target)))
+            .Where(type => type.NamedTargets.Any(target =>
+                !IsAllowedForDomain(Layers.ModuleOf(type.Namespace.FullName), target)))
             .Select(type => type.FullName)
             .Distinct();
 
     public static IEnumerable<string> UseStatelessOutsideDomain(CodeScope scope) =>
         scope.ArchitectureTypes
             .Where(type => Layers.Of(type.Namespace.FullName) != Layer.Domain)
-            .Where(type => type.Dependencies.Any(dependency =>
-                dependency.Target.Namespace.FullName.StartsWith("Stateless", StringComparison.Ordinal)))
+            .Where(type => type.NamedTargets.Any(target =>
+                target.Namespace.FullName.StartsWith("Stateless", StringComparison.Ordinal)))
             .Select(type => type.FullName)
             .Distinct();
 

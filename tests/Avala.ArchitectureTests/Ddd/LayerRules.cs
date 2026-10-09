@@ -16,7 +16,7 @@ internal static class LayerRules
 
     public static IEnumerable<string> CrossForbiddenLayers(CodeScope scope) =>
         scope.ArchitectureTypes
-            .Where(type => type.Dependencies.Any(dependency => Violates(type, dependency.Target)))
+            .Where(type => type.NamedTargets.Any(target => Violates(type, target)))
             .Select(type => type.FullName)
             .Distinct();
 
