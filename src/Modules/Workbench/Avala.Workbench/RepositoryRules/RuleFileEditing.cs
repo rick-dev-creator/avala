@@ -16,7 +16,7 @@ internal sealed class RuleFileEditing(IWorkingFiles files, IEnumerable<IRuleFile
             content => new RuleFileDraft(content, Exists: true),
             () => new RuleFileDraft(template, Exists: false)));
 
-    public Option<Enum> Rejection(string path, string content) =>
+    public Option<RuleFileRejection> Rejection(string path, string content) =>
         known.FirstOrDefault(format => format.Path == path).ToOption().Bind(format => format.Rejection(content));
 
     public async Task<Result<string, WorkspaceFailure>> WriteAsync(string repository, string path, string content, CancellationToken cancellationToken) =>

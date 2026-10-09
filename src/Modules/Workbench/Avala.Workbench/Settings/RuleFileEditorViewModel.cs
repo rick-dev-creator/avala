@@ -102,8 +102,8 @@ internal static class RuleFilePhrases
     public static string Saved(string path) =>
         $"Saved {path} in the repository's working tree. It applies to new jobs once you commit it.";
 
-    public static string Rejected(string path, Enum rejection) =>
-        $"Not saved: jobs would reject {path} ({rejection}). Fix it and save again.";
+    public static string Rejected(string path, RuleFileRejection rejection) =>
+        $"Not saved: jobs would reject {path} ({rejection.Error}, from {rejection.Module}). Fix it and save again.";
 
     public static string Unread(string path, WorkspaceFailure failure) => Failure(path, failure);
 

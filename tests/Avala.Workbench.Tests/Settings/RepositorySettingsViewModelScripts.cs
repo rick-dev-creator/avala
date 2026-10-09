@@ -176,7 +176,7 @@ public sealed class RepositorySettingsViewModelScripts
         await settings.Editor.SaveCommand.ExecuteAsync(null);
 
         Assert.Empty(working.Written);
-        Assert.Equal((true, "Not saved: jobs would reject .avala/budget.json (InvalidThreshold). Fix it and save again."), (settings.Editor.IsOpen, settings.Editor.Error));
+        Assert.Equal((true, "Not saved: jobs would reject .avala/budget.json (InvalidThreshold, from Budgets). Fix it and save again."), (settings.Editor.IsOpen, settings.Editor.Error));
     }
 
     [Fact]
