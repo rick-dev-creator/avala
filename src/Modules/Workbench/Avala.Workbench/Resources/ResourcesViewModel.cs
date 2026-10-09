@@ -63,6 +63,8 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
 
     public string Title => "Resources";
 
+    public PagePlacement Placement => PagePlacement.Hidden;
+
     public IReadOnlyList<IAgentTreeViewModel> Trees => trees;
 
     public IReadOnlyList<IOrphanViewModel> Orphans => orphans;

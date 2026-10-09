@@ -26,7 +26,14 @@ internal sealed class DesignShellViewModel : IShellViewModel
 
     public Region Inspector { get; } = new(ShellRegions.Inspector, [Usage("claude-personal · 5h", 0.31, "resets 17:05")]);
 
-    public IReadOnlyList<IPage> Pages => [];
+    public IReadOnlyList<IPage> Pages { get; } =
+    [
+        new DesignPage("Overview", "IconOverview"),
+        new DesignPage("Usage", "IconUsage"),
+        new DesignPage("Settings", "IconSettings"),
+    ];
+
+    public IReadOnlyList<IPage> NavigationPages => Pages;
 
     public IPage? SelectedPage
     {
@@ -34,11 +41,13 @@ internal sealed class DesignShellViewModel : IShellViewModel
         set { }
     }
 
-    public bool HasNavigation => false;
+    public bool HasNavigation => true;
 
     public bool HasSidebar => true;
 
     public bool IsInspectorShown => true;
+
+    private sealed record DesignPage(string Title, string Icon) : IPage;
 
     private static MeterViewModel Usage(string label, double fraction, string detail)
     {

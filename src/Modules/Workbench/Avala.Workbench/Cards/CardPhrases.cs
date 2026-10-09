@@ -19,6 +19,23 @@ internal static class CardPhrases
                 : form.WentToHuman ? $"Answered: {Chosen(answer)}" : $"Answered for you: {Chosen(answer)}",
             () => form.Closed || form.Outcome.IsSome ? "No longer waiting" : form.AwaitsHuman ? "Waiting for you" : "Deciding");
 
+    public static string Headline(ItemKind kind) => kind switch
+    {
+        ItemKind.Command => "Wants to run a command",
+        ItemKind.FileEdit => "Wants to edit a file",
+        ItemKind.Web => "Wants to reach the web",
+        ItemKind.Mcp => "Wants to use a tool",
+        _ => "Asks permission",
+    };
+
+    public static string Headline(FormPurpose purpose) => purpose switch
+    {
+        FormPurpose.Question => "Asks a question",
+        FormPurpose.PlanApproval => "Asks you to approve a plan",
+        FormPurpose.Permission => "Asks permission",
+        _ => "Asks for input",
+    };
+
     public static string Error(PolicyError error) => error switch
     {
         PolicyError.NotAwaitingAnswer => "The agent no longer waits for this answer.",

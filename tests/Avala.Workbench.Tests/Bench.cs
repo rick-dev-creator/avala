@@ -8,11 +8,13 @@ using Avala.Workbench.Decisions;
 using Avala.Workbench.Inspection;
 using Avala.Workbench.Inspector;
 using Avala.Workbench.Navigation;
+using Avala.Workbench.NewJob;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Replies;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Sidebar;
 using Avala.Workbench.Steering;
+using Avala.Workbench.Submitting;
 using Avala.Workbench.Timeline;
 using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.Messaging;
@@ -70,7 +72,11 @@ internal sealed class Bench : IDisposable
 
     public DecisionsViewModel Decisions() => new(Replies, Time, Feed(), Focus);
 
-    public SidebarViewModel Sidebar() => new(Decisions(), Feed(), Focus);
+    public SidebarViewModel Sidebar() => new(Feed(), Focus);
+
+    public NewJobViewModel NewJob { get; } = new(new JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work")), new JobBoard());
+
+    public ToolbarViewModel Toolbar() => new(Decisions(), Feed(), Focus, NewJob);
 
     public InspectedJob Inspected() => Inspected(Ui);
 

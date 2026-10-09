@@ -8,7 +8,7 @@ namespace Avala.Workbench.Cards;
 internal sealed partial class DesignFormChoiceViewModel(string label, string description, bool recommended) : IFormChoiceViewModel
 {
     public DesignFormChoiceViewModel()
-        : this("GET /invoices/{id}/pdf", "A resource of its own, cached by the CDN like the other invoice routes.", true)
+        : this("Render on each request", "No storage. About 300 ms per request.", true)
     {
     }
 
@@ -25,20 +25,21 @@ internal sealed partial class DesignFormChoiceViewModel(string label, string des
 [INotifyPropertyChanged]
 internal sealed partial class DesignFormFieldViewModel : IFormFieldViewModel
 {
-    public string Header => "Endpoint";
+    public string Header => "Storage";
 
-    public string Prompt => "Where should the invoice PDF be served from?";
+    public string Prompt => string.Empty;
 
     public FieldKind Kind => FieldKind.SingleChoice;
 
-    public bool AcceptsText => true;
+    public bool AcceptsText => false;
 
     public bool IsConfirmation => false;
 
     public IReadOnlyList<IFormChoiceViewModel> Choices { get; } =
     [
         new DesignFormChoiceViewModel(),
-        new DesignFormChoiceViewModel("GET /invoices/{id}?format=pdf", "Content negotiation on the existing route; no new route to document.", false),
+        new DesignFormChoiceViewModel("Cache in object storage for 24h", "Faster repeats. Adds a bucket and credentials.", false),
+        new DesignFormChoiceViewModel("Store permanently with the invoice", "An immutable copy. Needs a migration.", false),
     ];
 
     [ObservableProperty]
@@ -55,9 +56,11 @@ internal sealed partial class DesignFormCardViewModel : IFormCardViewModel
 {
     public FormPurpose Purpose => FormPurpose.Question;
 
-    public string Title => "Add invoice PDF endpoint";
+    public string Headline => "Asks a question";
 
-    public string Context => "The invoice service renders PDFs already; only the route is undecided.";
+    public string Title => "Where should generated PDFs live?";
+
+    public string Context => "Invoices render to about 80 KB. Nothing in this service stores files today.";
 
     public IReadOnlyList<IFormFieldViewModel> Fields { get; } = [new DesignFormFieldViewModel()];
 
@@ -78,11 +81,13 @@ internal sealed partial class DesignFormCardViewModel : IFormCardViewModel
 [INotifyPropertyChanged]
 internal sealed partial class DesignPermissionCardViewModel : IPermissionCardViewModel
 {
-    public string Title => "Run the CheckoutForm tests";
+    public string Title => "Install user-event so each keystroke is awaited";
 
     public ItemKind Kind => ItemKind.Command;
 
-    public string Target => "npm test -- CheckoutForm.test.tsx --runInBand";
+    public string Headline => "Wants to run a command";
+
+    public string Target => "pnpm add -D @testing-library/user-event@14.5.2";
 
     public bool AwaitsYou => true;
 

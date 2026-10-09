@@ -8,16 +8,31 @@
     <cards:DesignFormFieldViewModel />
   </Design.DataContext>
   <StackPanel Spacing="6">
-    <TextBlock x:Name="Header" Classes="section" Text="{Binding Header}" />
-    <TextBlock x:Name="Prompt" Text="{Binding Prompt}" TextWrapping="Wrap" />
-    <ItemsControl x:Name="Choices" ItemsSource="{Binding Choices}" IsVisible="{Binding !!Choices.Count}">
+    <TextBlock x:Name="Header"
+               Classes="section"
+               Text="{Binding Header}"
+               IsVisible="{Binding Header, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <TextBlock x:Name="Prompt"
+               Classes="body"
+               TextWrapping="Wrap"
+               Text="{Binding Prompt}"
+               IsVisible="{Binding Prompt, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <ItemsControl x:Name="Choices"
+                  ItemsSource="{Binding Choices}"
+                  IsVisible="{Binding !!Choices.Count}"
+                  AutomationProperties.Name="{Binding Header}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
-          <StackPanel Spacing="4" />
+          <StackPanel Spacing="6" />
         </ItemsPanelTemplate>
       </ItemsControl.ItemsPanel>
     </ItemsControl>
-    <TextBox x:Name="Text" Text="{Binding Text}" PlaceholderText="Your answer" IsVisible="{Binding AcceptsText}" />
+    <TextBox x:Name="Text"
+             Text="{Binding Text}"
+             TextWrapping="Wrap"
+             PlaceholderText="Your answer"
+             IsVisible="{Binding AcceptsText}"
+             AutomationProperties.Name="{Binding Header}" />
     <CheckBox x:Name="Confirmed" Content="Confirm" IsChecked="{Binding Confirmed}" IsVisible="{Binding IsConfirmation}" />
   </StackPanel>
 </UserControl>

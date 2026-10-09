@@ -7,51 +7,69 @@
   <Design.DataContext>
     <sidebar:DesignSidebarViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBlock.group">
+      <Setter Property="Margin" Value="10,4" />
+      <Setter Property="LetterSpacing" Value="0" />
+    </Style>
+    <Style Selector="Border.children">
+      <Setter Property="Margin" Value="13,0,0,4" />
+      <Setter Property="Padding" Value="8,0,0,0" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="BorderThickness" Value="1,0,0,0" />
+    </Style>
+    <Style Selector="Button.row.child">
+      <Setter Property="Padding" Value="8,5" />
+    </Style>
+    <Style Selector="ItemsControl.rows">
+      <Setter Property="ItemsPanel">
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="1" />
+        </ItemsPanelTemplate>
+      </Setter>
+    </Style>
+  </UserControl.Styles>
   <UserControl.Resources>
     <DataTemplate x:Key="Row" x:DataType="sidebar:IJobRowViewModel">
-      <Button Classes="row"
-              Classes.selected="{Binding IsSelected}"
-              Command="{Binding $parent[UserControl].((sidebar:ISidebarViewModel)DataContext).SelectCommand}"
-              CommandParameter="{Binding}">
-        <ContentControl Content="{Binding}" />
-      </Button>
+      <StackPanel>
+        <Button Classes="row"
+                Classes.child="{Binding IsChild}"
+                Classes.selected="{Binding IsSelected}"
+                Command="{Binding $parent[UserControl].((sidebar:ISidebarViewModel)DataContext).SelectCommand}"
+                CommandParameter="{Binding}">
+          <ContentControl ClipToBounds="False" Content="{Binding}" />
+        </Button>
+        <Border Classes="children" IsVisible="{Binding !!Children.Count}">
+          <ItemsControl Classes="rows" ItemsSource="{Binding Children}" ItemTemplate="{DynamicResource Row}" />
+        </Border>
+      </StackPanel>
     </DataTemplate>
   </UserControl.Resources>
   <StackPanel Spacing="14">
-    <Button x:Name="ToggleDecisions"
-            Classes="row"
-            Command="{Binding ToggleDecisionsCommand}"
-            HotKey="Ctrl+D">
-      <Grid ColumnDefinitions="Auto,*,Auto">
-        <Path Classes="icon" Data="{StaticResource IconDecisions}" Margin="0,0,10,0" />
-        <TextBlock Grid.Column="1" Text="Decisions" VerticalAlignment="Center" />
-        <Border x:Name="PendingBadge" Grid.Column="2" Classes="badge" IsVisible="{Binding HasPendingDecisions}">
-          <TextBlock x:Name="Pending" Text="{Binding PendingDecisions}" />
-        </Border>
-      </Grid>
-    </Button>
-    <ContentControl x:Name="DecisionsPopover" Content="{Binding Decisions}" IsVisible="{Binding IsDecisionsOpen}" />
-    <TextBlock x:Name="NoJobs"
-               Classes="caption"
-               Margin="10,0"
-               TextWrapping="Wrap"
-               Text="No jobs yet. Start one from New job."
-               IsVisible="{Binding IsEmpty}" />
-    <StackPanel x:Name="NeedsYouGroup" Spacing="2" IsVisible="{Binding !!NeedsYou.Count}">
-      <TextBlock Classes="section" Margin="10,0,10,4" Text="Needs you" />
-      <ItemsControl x:Name="NeedsYou" ItemsSource="{Binding NeedsYou}" ItemTemplate="{StaticResource Row}" />
+    <Border x:Name="NoJobs" Classes="empty" Margin="0,8,0,0" IsVisible="{Binding IsEmpty}">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="strong" Text="No jobs yet" HorizontalAlignment="Center" />
+        <TextBlock Classes="caption"
+                   TextWrapping="Wrap"
+                   TextAlignment="Center"
+                   Text="Start one with + above. It runs in its own worktree." />
+      </StackPanel>
+    </Border>
+    <StackPanel x:Name="NeedsYouGroup" Spacing="1" IsVisible="{Binding !!NeedsYou.Count}">
+      <TextBlock Classes="section group" Text="Needs you" />
+      <ItemsControl x:Name="NeedsYou" Classes="rows" ItemsSource="{Binding NeedsYou}" ItemTemplate="{StaticResource Row}" />
     </StackPanel>
-    <StackPanel x:Name="RunningGroup" Spacing="2" IsVisible="{Binding !!Running.Count}">
-      <TextBlock Classes="section" Margin="10,0,10,4" Text="Running" />
-      <ItemsControl x:Name="Running" ItemsSource="{Binding Running}" ItemTemplate="{StaticResource Row}" />
+    <StackPanel x:Name="RunningGroup" Spacing="1" IsVisible="{Binding !!Running.Count}">
+      <TextBlock Classes="section group" Text="Running" />
+      <ItemsControl x:Name="Running" Classes="rows" ItemsSource="{Binding Running}" ItemTemplate="{StaticResource Row}" />
     </StackPanel>
-    <StackPanel x:Name="ReadyForReviewGroup" Spacing="2" IsVisible="{Binding !!ReadyForReview.Count}">
-      <TextBlock Classes="section" Margin="10,0,10,4" Text="Ready for review" />
-      <ItemsControl x:Name="ReadyForReview" ItemsSource="{Binding ReadyForReview}" ItemTemplate="{StaticResource Row}" />
+    <StackPanel x:Name="ReadyForReviewGroup" Spacing="1" IsVisible="{Binding !!ReadyForReview.Count}">
+      <TextBlock Classes="section group" Text="Ready for review" />
+      <ItemsControl x:Name="ReadyForReview" Classes="rows" ItemsSource="{Binding ReadyForReview}" ItemTemplate="{StaticResource Row}" />
     </StackPanel>
-    <StackPanel x:Name="DoneGroup" Spacing="2" IsVisible="{Binding !!Done.Count}">
-      <TextBlock Classes="section" Margin="10,0,10,4" Text="Done" />
-      <ItemsControl x:Name="Done" ItemsSource="{Binding Done}" ItemTemplate="{StaticResource Row}" />
+    <StackPanel x:Name="DoneGroup" Spacing="1" IsVisible="{Binding !!Done.Count}">
+      <TextBlock Classes="section group" Text="Done" />
+      <ItemsControl x:Name="Done" Classes="rows" ItemsSource="{Binding Done}" ItemTemplate="{StaticResource Row}" />
     </StackPanel>
   </StackPanel>
 </UserControl>

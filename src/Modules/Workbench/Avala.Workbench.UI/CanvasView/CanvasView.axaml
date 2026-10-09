@@ -3,23 +3,49 @@
              xmlns:conversation="using:Avala.Workbench.Conversation"
              x:Class="Avala.Workbench.UI.CanvasView"
              x:ClassModifier="internal"
-             x:DataType="conversation:ICanvasViewModel">
+             x:DataType="conversation:ICanvasViewModel"
+             Classes="arrive-snappy"
+             Margin="0,10">
   <Design.DataContext>
     <conversation:DesignCanvasViewModel />
   </Design.DataContext>
-  <Border Classes="card" Padding="{DynamicResource PaddingCard}">
-    <StackPanel Spacing="8">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock x:Name="Title" Classes="strong" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="MediaType"
-                   Grid.Column="1"
-                   Classes="caption"
-                   Classes.pulse="{Binding IsStreaming}"
-                   Text="{Binding MediaType}" />
-      </Grid>
-      <Border Classes="well">
-        <SelectableTextBlock x:Name="Drawing" Classes="mono" Text="{Binding Content}" TextWrapping="Wrap" />
+  <Border x:Name="Figure"
+          Background="{DynamicResource SurfaceCanvasBrush}"
+          BorderBrush="{DynamicResource SeparatorBrush}"
+          BorderThickness="1"
+          CornerRadius="{DynamicResource RadiusCard}"
+          ClipToBounds="True">
+    <DockPanel>
+      <Border DockPanel.Dock="Top"
+              Padding="14,9"
+              BorderBrush="{DynamicResource EdgeBrush}"
+              BorderThickness="0,0,0,1">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock x:Name="Title"
+                     Classes="caption medium"
+                     Foreground="{DynamicResource TextPrimaryBrush}"
+                     Text="{Binding Title}"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="MediaType" Classes="caption" Text="{Binding MediaType}" />
+          <Arc x:Name="Streaming"
+               Width="10"
+               Height="10"
+               StartAngle="0"
+               SweepAngle="270"
+               Stroke="{DynamicResource TextTertiaryBrush}"
+               StrokeThickness="1.5"
+               VerticalAlignment="Center"
+               IsVisible="{Binding IsStreaming}"
+               Classes.spin="{Binding IsStreaming}" />
+        </StackPanel>
       </Border>
-    </StackPanel>
+      <Border x:Name="Surface" Padding="22,16" MinHeight="96">
+        <SelectableTextBlock x:Name="Drawing"
+                             Classes="mono"
+                             Foreground="{DynamicResource TextSecondaryBrush}"
+                             Text="{Binding Content}"
+                             TextWrapping="Wrap" />
+      </Border>
+    </DockPanel>
   </Border>
 </UserControl>

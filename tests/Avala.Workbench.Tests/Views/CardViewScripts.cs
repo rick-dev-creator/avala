@@ -3,6 +3,8 @@ using Avala.Testing.UI;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Tests.Cards;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Media;
 
 namespace Avala.Workbench.Tests.Views;
@@ -12,19 +14,32 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task AWaitingRequestShowsItsTargetInTheCodeFontWithAnAmberEdgeAndItsAnswersAsync() =>
+    public Task AWaitingRequestSaysWhatItWantsInAmberAndShowsItsTargetInTheCodeFontAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignPermissionCardViewModel());
 
-            Assert.Equal("npm test -- CheckoutForm.test.tsx --runInBand", view.Find<SelectableTextBlock>("Target").Text);
+            Assert.Equal(("Wants to run a command", "pnpm add -D @testing-library/user-event@14.5.2"), (view.TextOf("Headline"), view.Find<SelectableTextBlock>("Target").Text));
+            Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Headline").Foreground).Color);
             Assert.Equal("JetBrains Mono", view.Find<SelectableTextBlock>("Target").FontFamily.FamilyNames[0]);
-            Assert.Equal(Color.Parse("#59E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Border>("Card").BorderBrush).Color);
-            Assert.True(view.Shows("Allow") && view.Shows("Deny") && view.Shows("Note"));
+            Assert.True(view.Shows("Allow") && view.Shows("Deny") && view.Shows("DontAskAgain"));
+            Assert.Equal((false, false), (view.Shows("Resolved"), view.Shows("Error")));
         }, Cancellation);
 
     [Fact]
-    public Task AllowingFromTheCardSendsTheTypedNoteAndHidesTheAnswersOnceResolvedAsync() =>
+    public Task TheNoteStaysOutOfTheWayUntilAskedForAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignPermissionCardViewModel());
+            var hidden = view.Shows("Note");
+
+            view.Click("AddNote");
+
+            Assert.Equal((false, true), (hidden, view.Shows("Note")));
+        }, Cancellation);
+
+    [Fact]
+    public Task AllowingWithANoteAndDontAskAgainSendsBothAndFoldsTheCardIntoItsVerdictAsync() =>
         ui.RunAsync(async () =>
         {
             var asking = new Asking();
@@ -32,14 +47,46 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
             var card = new PermissionCardViewModel(asking.Permission(), new(permissions, new FakeAgents()));
             var view = Screen.Show(card);
 
-            view.Type("Note", "Only the checkout tests");
-            view.Click("Allow");
+            view.Click("AddNote").Type("Note", "Only the checkout tests").Click("DontAskAgain").Click("Allow");
             await (card.AllowCommand.ExecutionTask ?? Task.CompletedTask);
             card.Update(asking.Permission() with { Resolution = PermissionAnswer.Allow });
             view.Settle();
 
-            Assert.Equal("Only the checkout tests", Assert.Single(permissions.Replies).Reply.Message.Match(note => note, () => string.Empty));
-            Assert.Equal(("Allowed", false), (view.TextOf("Verdict"), view.Shows("Answer")));
+            var reply = Assert.Single(permissions.Replies).Reply;
+            Assert.Equal(("Only the checkout tests", true), (reply.Message.Match(note => note, () => string.Empty), reply.DontAskAgain));
+            Assert.Equal(("Allowed", false, true), (view.TextOf("Outcome"), view.Shows("Card"), view.Shows("Resolved")));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheKeyboardAllowsWithControlEnterAndDeniesWithControlBackspaceAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var permissions = new FakePermissionAnswers();
+            var allowed = new PermissionCardViewModel(new Asking().Permission(), new(permissions, new FakeAgents()));
+            var view = Screen.Show(allowed);
+            view.Find("DontAskAgain").Focus();
+            view.Press(Key.Enter, RawInputModifiers.Control);
+            await (allowed.AllowCommand.ExecutionTask ?? Task.CompletedTask);
+
+            var denied = new PermissionCardViewModel(new Asking().Permission(), new(permissions, new FakeAgents()));
+            var other = Screen.Show(denied);
+            other.Find("Allow").Focus();
+            other.Press(Key.Back, RawInputModifiers.Control);
+            await (denied.DenyCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal([PermissionAnswer.Allow, PermissionAnswer.Deny], permissions.Replies.Select(reply => reply.Reply.Answer));
+        }, Cancellation);
+
+    [Fact]
+    public Task ALongCommandWrapsInsideTheCardAsync() =>
+        ui.RunAsync(() =>
+        {
+            var target = string.Join(" && ", Enumerable.Repeat("pnpm vitest run CheckoutForm --repeat 20 --reporter verbose", 6));
+            var view = Screen.Show(new PermissionCardViewModel(new Asking().Permission(target), new(new FakePermissionAnswers(), new FakeAgents())));
+
+            var shown = view.Find<SelectableTextBlock>("Target");
+            Assert.True(shown.Bounds.Width <= view.Find("Card").Bounds.Width);
+            Assert.True(shown.Bounds.Height > 3 * shown.LineHeight);
         }, Cancellation);
 }
 
@@ -48,14 +95,14 @@ public sealed class FormCardViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task AFormShowsItsQuestionFieldsAndAnswersWithTheRecommendedOptionChosenAsync() =>
+    public Task AQuestionShowsWhatItAsksItsContextAndItsOptionsWithTheRecommendedOneChosenAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignFormCardViewModel());
 
-            Assert.Equal(("Add invoice PDF endpoint", "Waiting for you"), (view.TextOf("Title"), view.TextOf("Verdict")));
-            Assert.Contains("GET /invoices/{id}/pdf", view.VisibleTexts);
-            Assert.Contains("recommended", view.VisibleTexts);
+            Assert.Equal(("Asks a question", "Where should generated PDFs live?", "Waiting for you"), (view.TextOf("Headline"), view.TextOf("Title"), view.TextOf("Verdict")));
+            Assert.Contains("Invoices render to about 80 KB. Nothing in this service stores files today.", view.VisibleTexts);
+            Assert.Equal(["Render on each request"], view.All<ToggleButton>().Where(choice => choice.Name == "Choice" && choice.IsChecked == true).Select(choice => ((IFormChoiceViewModel)choice.DataContext!).Label));
             Assert.True(view.Find<Button>("Submit").IsEffectivelyEnabled);
         }, Cancellation);
 
@@ -67,12 +114,41 @@ public sealed class FormCardViewScripts(HeadlessUi ui)
             var card = new FormCardViewModel(new Asking().Form(), new(new FakePermissionAnswers(), agents));
             var view = Screen.Show(card);
 
-            view.All<CheckBox>().Single(box => box.Name == "Choice" && Equals((box.DataContext as IFormChoiceViewModel)?.Label, "SQLite")).IsChecked = true;
+            view.All<ToggleButton>().Single(choice => choice.Name == "Choice" && Equals((choice.DataContext as IFormChoiceViewModel)?.Label, "SQLite")).IsChecked = true;
             view.Settle();
             view.Click("Submit");
             await (card.SubmitCommand.ExecutionTask ?? Task.CompletedTask);
 
             Assert.Equal(["SQLite"], Assert.Single(Assert.Single(agents.Answers).Answer.Fields).Chosen);
+        }, Cancellation);
+
+    [Fact]
+    public Task ControlEnterAnswersFromAnywhereInTheCardAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var agents = new FakeAgents();
+            var card = new FormCardViewModel(new Asking().Form(), new(new FakePermissionAnswers(), agents));
+            var view = Screen.Show(card);
+
+            view.All<ToggleButton>().First(choice => choice.Name == "Choice").Focus();
+            view.Press(Key.Enter, RawInputModifiers.Control);
+            await (card.SubmitCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal(["PostgreSQL"], Assert.Single(Assert.Single(agents.Answers).Answer.Fields).Chosen);
+        }, Cancellation);
+
+    [Fact]
+    public Task AnAnsweredFormFoldsIntoItsVerdictAsync() =>
+        ui.RunAsync(() =>
+        {
+            var asking = new Asking();
+            var card = new FormCardViewModel(asking.Form(), new(new FakePermissionAnswers(), new FakeAgents()));
+            var view = Screen.Show(card);
+
+            card.Update(asking.Form() with { Closed = true });
+            view.Settle();
+
+            Assert.Equal((false, true, "No longer waiting"), (view.Shows("Card"), view.Shows("Resolved"), view.TextOf("Outcome")));
         }, Cancellation);
 }
 
@@ -114,6 +190,15 @@ public sealed class FormFieldViewScripts(HeadlessUi ui)
             Assert.Equal((true, false), (view.Shows("Confirmed"), view.Shows("Text")));
             Assert.True(field.Confirmed);
         }, Cancellation);
+
+    [Fact]
+    public Task AFieldWithoutAHeaderOrPromptShowsNeitherAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new FormFieldViewModel(new FormField("db", string.Empty, string.Empty, FieldKind.SingleChoice, [new FormOption("SQLite", "A file")])));
+
+            Assert.Equal((false, false, true), (view.Shows("Header"), view.Shows("Prompt"), view.Shows("Choices")));
+        }, Cancellation);
 }
 
 public sealed class FormChoiceViewScripts(HeadlessUi ui)
@@ -124,7 +209,8 @@ public sealed class FormChoiceViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignFormChoiceViewModel());
 
-            Assert.Equal(("GET /invoices/{id}/pdf", true, true), (view.TextOf("Label"), view.Shows("Recommended"), view.Find<CheckBox>("Choice").IsChecked == true));
+            Assert.Equal(("Render on each request", true, true), (view.TextOf("Label"), view.Shows("Recommended"), view.Find<ToggleButton>("Choice").IsChecked == true));
+            Assert.Equal(Color.Parse("#8DA2FB"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Avalonia.Controls.Shapes.Ellipse>("Radio").Stroke).Color);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -137,5 +223,18 @@ public sealed class FormChoiceViewScripts(HeadlessUi ui)
             view.Click("Choice");
 
             Assert.Equal((true, false, false), (choice.IsSelected, view.Shows("Recommended"), view.Shows("Description")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task SpaceChoosesTheFocusedChoiceAsync() =>
+        ui.RunAsync(() =>
+        {
+            var choice = new FormChoiceViewModel(new FormOption("SQLite", "A file"));
+            var view = Screen.Show(choice);
+
+            view.Find("Choice").Focus();
+            view.Press(Key.Space);
+
+            Assert.True(choice.IsSelected);
         }, TestContext.Current.CancellationToken);
 }

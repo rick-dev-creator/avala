@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Permissions.Contracts;
 using Avala.Workbench.Cards;
@@ -20,4 +21,21 @@ public sealed class CardPhrasesTests
     [InlineData(PolicyError.Unreadable, "The answer could not be recorded.")]
     public void AnAnswerThePolicyRefusedSaysWhy(PolicyError error, string phrase) =>
         Assert.Equal(phrase, CardPhrases.Error(error));
+
+    [Theory]
+    [InlineData(ItemKind.Command, "Wants to run a command")]
+    [InlineData(ItemKind.FileEdit, "Wants to edit a file")]
+    [InlineData(ItemKind.Web, "Wants to reach the web")]
+    [InlineData(ItemKind.Mcp, "Wants to use a tool")]
+    [InlineData(ItemKind.Search, "Asks permission")]
+    public void APermissionCardSaysWhatTheAgentWants(ItemKind kind, string phrase) =>
+        Assert.Equal(phrase, CardPhrases.Headline(kind));
+
+    [Theory]
+    [InlineData(FormPurpose.Question, "Asks a question")]
+    [InlineData(FormPurpose.PlanApproval, "Asks you to approve a plan")]
+    [InlineData(FormPurpose.Permission, "Asks permission")]
+    [InlineData(FormPurpose.Other, "Asks for input")]
+    public void AFormCardSaysWhatTheAgentAsks(FormPurpose purpose, string phrase) =>
+        Assert.Equal(phrase, CardPhrases.Headline(purpose));
 }

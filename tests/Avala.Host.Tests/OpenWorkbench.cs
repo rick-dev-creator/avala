@@ -5,7 +5,7 @@ using Avala.Shell;
 
 namespace Avala.Host.Tests;
 
-internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar)
+internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar, Bound toolbar)
 {
     private static readonly string[] Groups = ["NeedsYou", "Running", "ReadyForReview", "Done"];
 
@@ -13,18 +13,20 @@ internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar)
 
     public Bound Sidebar => sidebar;
 
+    public Bound Toolbar => toolbar;
+
     public static async Task<OpenWorkbench> ActivateAsync(SimulatedRun run)
     {
         var shell = run.Get<ShellViewModel>();
         await run.Ui.InvokeAsync(shell.Activate, TestContext.Current.CancellationToken);
 
-        return new OpenWorkbench(run, run.Page("Jobs"), Region(run, ShellRegions.Sidebar).Single());
+        return new OpenWorkbench(run, run.Page("Jobs"), Region(run, ShellRegions.Sidebar).Single(), Region(run, ShellRegions.Toolbar).Single());
     }
 
     public Bound Section(string kind) => Region(run, ShellRegions.Inspector).Single(section => section.Kind == kind);
 
     public Task ShowsAsync(Func<bool> shown) =>
-        run.Ui.PresentedAsync(new AnyOf([page.Presentation, sidebar.Presentation, sidebar["Decisions"].Presentation]), shown, Describe);
+        run.Ui.PresentedAsync(new AnyOf([page.Presentation, sidebar.Presentation, toolbar["Decisions"].Presentation]), shown, Describe);
 
     public async Task<Bound> SelectAsync(JobId job)
     {

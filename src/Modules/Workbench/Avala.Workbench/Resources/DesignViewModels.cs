@@ -1,3 +1,4 @@
+using Avala.Components.Meters;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Presenting;
@@ -44,6 +45,18 @@ internal sealed class DesignResourceIndicatorViewModel : IResourceIndicatorViewM
     public int Leftovers => 2;
 
     public bool HasLeftovers => true;
+
+    public IMeterViewModel Cpu { get; } = Meter();
+
+    public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
+
+    private static MeterViewModel Meter()
+    {
+        var meter = new MeterViewModel("CPU", Option<double>.None);
+        meter.Show(0.38);
+
+        return meter;
+    }
 }
 
 internal sealed class DesignResourcesViewModel : IResourcesViewModel

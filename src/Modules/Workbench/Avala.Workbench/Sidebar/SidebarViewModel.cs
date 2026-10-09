@@ -4,7 +4,6 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Board;
-using Avala.Workbench.Decisions;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.Presenting;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -14,10 +13,6 @@ namespace Avala.Workbench.Sidebar;
 
 internal interface ISidebarViewModel
 {
-    IDecisionsViewModel Decisions { get; }
-
-    bool IsDecisionsOpen { get; }
-
     IReadOnlyList<IJobRowViewModel> NeedsYou { get; }
 
     IReadOnlyList<IJobRowViewModel> Running { get; }
@@ -28,15 +23,9 @@ internal interface ISidebarViewModel
 
     IJobRowViewModel? Selected { get; }
 
-    int PendingDecisions { get; }
-
-    bool HasPendingDecisions { get; }
-
     bool IsEmpty { get; }
 
     IRelayCommand<IJobRowViewModel> SelectCommand { get; }
-
-    IRelayCommand ToggleDecisionsCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -51,15 +40,11 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     private readonly ObservableCollection<JobRowViewModel> done = [];
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
 
-    public SidebarViewModel(IDecisionsViewModel decisions, BoardFeed feed, JobFocus focus)
+    public SidebarViewModel(BoardFeed feed, JobFocus focus)
     {
-        Decisions = decisions;
         this.feed = feed;
         this.focus = focus;
-        decisions.CloseRequested += (_, _) => IsDecisionsOpen = false;
     }
-
-    public IDecisionsViewModel Decisions { get; }
 
     public IReadOnlyList<IJobRowViewModel> NeedsYou => needsYou;
 
@@ -80,31 +65,14 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     }
 
     [ObservableProperty]
-    public partial bool IsDecisionsOpen { get; private set; }
-
-    [ObservableProperty]
     public partial IJobRowViewModel? Selected { get; private set; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasPendingDecisions))]
-    public partial int PendingDecisions { get; private set; }
-
-    public bool HasPendingDecisions => PendingDecisions > 0;
 
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
 
-    public void Activate()
-    {
-        feed.Start(Show);
-        Decisions.Activate();
-    }
+    public void Activate() => feed.Start(Show);
 
-    public void Deactivate()
-    {
-        Decisions.Deactivate();
-        feed.Stop();
-    }
+    public void Deactivate() => feed.Stop();
 
     public void Dispose() => Deactivate();
 
@@ -116,7 +84,6 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         }
 
         shown = jobs;
-        PendingDecisions = jobs.Values.Sum(job => job.PendingDecisions);
         IsEmpty = rows.Count == 0;
 
         return [];
@@ -137,13 +104,6 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         }
     }
 
-    [RelayCommand]
-    private void ToggleDecisions()
-    {
-        IsDecisionsOpen = !IsDecisionsOpen;
-        Decisions.Refresh();
-    }
-
     private void Place(BoardJob job)
     {
         if (rows.TryGetValue(job.Job, out var row))
@@ -151,7 +111,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
             var before = row.Group;
             row.Update(job);
 
-            if (before != row.Group)
+            if (before != row.Group && OwnerOf(row) is null)
             {
                 GroupOf(before).Remove(row);
                 Insert(row);
@@ -163,14 +123,34 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         row = new JobRowViewModel(job);
         rows.Add(job.Job, row);
         Insert(row);
+        Adopt(row);
     }
 
     private void Insert(JobRowViewModel row)
     {
+        if (OwnerOf(row) is { } owner)
+        {
+            owner.Children.Insert(owner.Children.TakeWhile(other => other.Submitted <= row.Submitted).Count(), row);
+
+            return;
+        }
+
         var group = GroupOf(row.Group);
         var position = group.TakeWhile(other => other.Submitted >= row.Submitted).Count();
         group.Insert(position, row);
     }
+
+    private void Adopt(JobRowViewModel owner)
+    {
+        foreach (var child in rows.Values.Where(other => other.Parent == owner.Job).ToList())
+        {
+            GroupOf(child.Group).Remove(child);
+            Insert(child);
+        }
+    }
+
+    private JobRowViewModel? OwnerOf(JobRowViewModel row) =>
+        row.Parent.Match(parent => rows.GetValueOrDefault(parent), () => null);
 
     private ObservableCollection<JobRowViewModel> GroupOf(JobGroup group) => group switch
     {

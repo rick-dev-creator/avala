@@ -28,10 +28,12 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             Assert.True(view.Shows("SidebarPane"));
             Assert.True(view.Shows("InspectorPane"));
             Assert.True(view.Shows("EmptyContent"));
-            Assert.False(view.Shows("PageNavigation"));
+            Assert.True(view.Shows("PageNavigation"));
+            Assert.True(view.HasClass("InspectorPane", "arrive-gentle"));
             Assert.Superset(
-                new HashSet<string>(["Avala", "⌘K", "jump", "Add invoice PDF endpoint", "Fix JPY rounding in invoice totals", "claude-work · 5h", "88% · resets 16:20", "Inspector", "claude-personal · 5h", "Nothing to show yet"]),
+                new HashSet<string>(["Avala", "⌘K", "jump", "Add invoice PDF endpoint", "Fix JPY rounding in invoice totals", "claude-work · 5h", "88% · resets 16:20", "Inspector", "claude-personal · 5h", "Nothing to show yet", "Overview", "Usage", "Settings"]),
                 view.VisibleTexts.ToHashSet());
+            Assert.All(view.Find<ListBox>("PageNavigation").GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>(), icon => Assert.NotNull(icon.Data));
         }, Cancellation);
 
     [Fact]
@@ -54,7 +56,17 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
                 Assert.False(view.Shows("EmptyContent"));
                 Assert.True(view.Shows("SidebarPane"));
                 Assert.True(view.Shows("PageNavigation"));
+                Assert.Equal(["Overview", "Usage", "Settings"], view.Find<ListBox>("PageNavigation").Items.Cast<IPage>().Select(page => page.Title));
+                Assert.Null(view.Find<ListBox>("PageNavigation").SelectedItem);
                 Assert.False(view.Shows("InspectorPane"));
+
+                view.Find<ListBox>("PageNavigation").SelectedIndex = 1;
+                view.Settle();
+                Assert.Equal("Usage", shell.SelectedPage?.Title);
+                shell.SelectedPage = shell.Pages[0];
+                view.Settle();
+                Assert.Null(view.Find<ListBox>("PageNavigation").SelectedItem);
+                Assert.Same(shell.Pages[0], shell.SelectedPage);
             }
             finally
             {
