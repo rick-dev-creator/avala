@@ -45,7 +45,8 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton<IHandle<JobHeld>>(services => services.GetRequiredService<DelegationDesk>())
             .AddSingleton<IHandle<StartupCompleted>>(services => services.GetRequiredService<DelegationDesk>())
             .AddSingleton<ParentResumption>()
-            .AddSingleton<IRecoveryDeferral>(services => services.GetRequiredService<ParentResumption>())
+            .AddSingleton<DeferredParents>()
+            .AddSingleton<IRecoveryDeferral>(services => services.GetRequiredService<DeferredParents>())
             .AddSingleton<IHandle<ChildReported>>(services => services.GetRequiredService<ParentResumption>())
             .AddSingleton<IHandle<StartupCompleted>>(services => services.GetRequiredService<ParentResumption>())
             .AddSingleton<IJobBriefing, OwedReports>();
