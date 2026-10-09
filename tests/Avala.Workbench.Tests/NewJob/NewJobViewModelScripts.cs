@@ -6,7 +6,7 @@ using Avala.Workbench.Submitting;
 
 namespace Avala.Workbench.Tests.NewJob;
 
-public sealed class NewJobViewModelTests
+public sealed class NewJobViewModelScripts
 {
     private readonly SubmittingJobs jobs = new();
 
@@ -78,6 +78,41 @@ public sealed class NewJobViewModelTests
         page.Instruction = instruction;
 
         Assert.False(page.SubmitCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task ReloadingKeepsAChosenConnectionStillOfferedAndATypedRepository()
+    {
+        var page = Page(Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running));
+        await page.LoadAsync(Cancellation);
+        page.Connection = "personal";
+        page.Repository = "/repositories/web";
+
+        await page.LoadAsync(Cancellation);
+
+        Assert.Equal(("personal", "/repositories/web"), (page.Connection, page.Repository));
+    }
+
+    [Fact]
+    public async Task AChosenConnectionNoLongerOfferedFallsBackToTheRepositorysDefault()
+    {
+        var page = Page();
+        page.Connection = "retired";
+
+        await page.LoadAsync(Cancellation);
+
+        Assert.Equal(NewJobViewModel.RepositoryDefault, page.Connection);
+    }
+
+    [Fact]
+    public async Task ActivatingThePageLoadsItsChoices()
+    {
+        var page = Page();
+
+        page.Activate();
+        await page.Loading;
+
+        Assert.Equal(("New job", 3), (page.Title, page.Connections.Count));
     }
 
     private NewJobViewModel Page(params JobSummary[] known) =>
