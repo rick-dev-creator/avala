@@ -9,6 +9,7 @@ internal sealed class TimelineItems(HumanReplies replies)
     public ITimelineItem Create(ITimelineEntry entry) => entry switch
     {
         PromptEntry prompt => new PromptViewModel(prompt),
+        InterjectionEntry interjection => new InterjectionViewModel(interjection),
         MessageEntry message => new MessageViewModel(message),
         ReasoningEntry reasoning => new ReasoningViewModel(reasoning),
         ToolEntry tool => new ToolViewModel(tool),

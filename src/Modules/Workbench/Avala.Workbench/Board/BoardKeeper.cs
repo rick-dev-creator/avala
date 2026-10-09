@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
@@ -20,6 +21,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
     IHandle<JobProgressed>,
     IHandle<JobHeld>,
     IHandle<JobApproved>,
+    IHandle<SessionOpened>,
     IHandle<JobSessionStarted>,
     IHandle<ConnectionChosen>,
     IHandle<AgentActivity>,
@@ -36,6 +38,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
     IHandle<ChildReported>
 {
     private readonly Dictionary<SessionId, JobId> sessions = [];
+    private readonly HashSet<SessionId> steerable = [];
     private ImmutableDictionary<JobId, BoardJob> jobs = ImmutableDictionary<JobId, BoardJob>.Empty;
 
     public async ValueTask HandleAsync(StartupCompleted integrationEvent, CancellationToken cancellationToken)
@@ -68,11 +71,21 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
     public ValueTask HandleAsync(AttemptVerified integrationEvent, CancellationToken cancellationToken) =>
         ChangedAsync(integrationEvent.Report.Job, job => Audited(job with { Verification = integrationEvent.Report }));
 
+    public ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
+    {
+        if (integrationEvent.Capabilities.Has<AcceptsMessagesMidTurn>())
+        {
+            steerable.Add(integrationEvent.Session);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
     public async ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
     {
         sessions[integrationEvent.Session] = integrationEvent.Job;
         await RefreshAsync(integrationEvent.Job, restored: true, cancellationToken);
-        Change(integrationEvent.Job, Audited);
+        Change(integrationEvent.Job, job => Audited(job with { TakesMessagesMidTurn = steerable.Contains(integrationEvent.Session) }));
     }
 
     public async ValueTask HandleAsync(ConnectionChosen integrationEvent, CancellationToken cancellationToken)

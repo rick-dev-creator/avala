@@ -76,7 +76,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         Status = job.Status;
         pill.Kind = FactPhrases.Dot(job);
         pill.Text = ConversationPhrases.Pill(job);
-        composer.Track(job.Status);
+        composer.Track(job);
 
         if (ReferenceEquals(job.Transcript, shown))
         {

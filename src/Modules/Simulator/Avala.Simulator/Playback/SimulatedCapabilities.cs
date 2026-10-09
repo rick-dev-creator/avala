@@ -17,6 +17,7 @@ internal static class SimulatedCapabilities
         new Resumable(),
         new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
         new AsksForms(),
+        new AcceptsMessagesMidTurn(),
         new ReportsUsage(),
         new ReportsCost("USD"));
 
@@ -47,6 +48,7 @@ internal static class SimulatedCapabilities
         (nameof(Resumable), declared => declared.Without<Resumable>()),
         (nameof(AcceptsTools), declared => declared.Without<AcceptsTools>()),
         (nameof(AsksForms), declared => declared.Without<AsksForms>()),
+        (nameof(AcceptsMessagesMidTurn), declared => declared.Without<AcceptsMessagesMidTurn>()),
         (nameof(ReportsUsage), declared => declared.Without<ReportsUsage>().Without<ReportsCost>()),
         (nameof(ReportsCost), declared => declared.Without<ReportsCost>()),
         (nameof(ReportsLimits), declared => declared.Without<ReportsLimits>()),

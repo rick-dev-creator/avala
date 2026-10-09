@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -54,6 +55,22 @@ public sealed class BoardKeeperTests
         var joined = Joined(job);
         Assert.Equal([typeof(PromptEntry), typeof(PermissionEntry)], joined.Transcript.Entries.Select(entry => entry.GetType()));
         Assert.Equal(1, joined.PendingDecisions);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AJobKnowsWhetherTheSessionItRunsInTakesMessagesMidTurn(bool declared)
+    {
+        var job = catalog.Add("Rename the orders module").Summary.Job;
+        var session = SessionId.New();
+        var capabilities = declared ? CapabilitySet.Of(new AcceptsMessagesMidTurn()) : CapabilitySet.None;
+        await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+
+        await keeper.HandleAsync(new SessionOpened(session, new ProviderInfo("simulator", "Simulator"), ".", new ConnectionName("claude-work")) { Capabilities = capabilities }, Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(job, session), Cancellation);
+
+        Assert.Equal(declared, Joined(job).TakesMessagesMidTurn);
     }
 
     [Fact]

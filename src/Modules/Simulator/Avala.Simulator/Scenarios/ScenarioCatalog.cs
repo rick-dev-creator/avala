@@ -430,8 +430,27 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario Steer { get; } = new("steer",
+    [
+        [
+            Thought("Renaming the orders module ", "one folder at a time."),
+            new WriteFile(new ItemId("rename"), "ORDERS.md", "# Orders\n\nRenamed from Purchases.\n"),
+            Message("Renamed the folder. ", "Tell me if anything else should change while I work."),
+            new AwaitMessage(),
+            .. Bill(2_900, 210, 0.0130m, 0.23),
+            new Finish(),
+        ],
+        [
+            Thought("The note arrived ", "after my turn ended."),
+            Message("Picked up your note ", "and applied it in this turn."),
+            .. Bill(1_200, 90, 0.0050m, 0.24),
+            new Finish(),
+        ],
+    ]);
+
     public static IReadOnlyList<Scenario> All { get; } =
     [
+        Steer,
         Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, UnsharedThought, Fields, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas,
         Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedLoosely, DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
     ];
