@@ -4,6 +4,7 @@ using Avala.Delegation.Delegating;
 using Avala.Delegation.Records;
 using Avala.Delegation.Reporting;
 using Avala.Delegation.RepositoryFiles;
+using Avala.Delegation.Storage;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -22,8 +23,12 @@ public sealed class DelegationPlugin : IPlugin
         registrar.Services
             .AddSingleton(DelegationTool.Definition)
             .AddSingleton<IDelegationRules, DelegationRulesReader>()
+            .AddSingleton<SqliteDelegationStore>()
+            .AddSingleton<IDelegationStore>(services => services.GetRequiredService<SqliteDelegationStore>())
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteDelegationStore>())
             .AddSingleton<DelegationBook>()
             .AddSingleton<IDelegations>(services => services.GetRequiredService<DelegationBook>())
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<DelegationBook>())
             .AddSingleton<DelegationJournal>()
             .AddSingleton<ConnectionRouter>()
             .AddSingleton<DelegationPolicy>()
