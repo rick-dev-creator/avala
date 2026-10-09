@@ -241,6 +241,29 @@ An orchestrating agent delegates work to sub-agents that may run on any connecti
 
 Done when: a simulated orchestrator delegates to simulated children on two connections and receives their verified results, with the tree audited.
 
+### Resources
+
+Status: planned, after connections and before delegation, since delegation multiplies the processes, ports and worktrees an unattended run leaves behind.
+
+Agents and the commands they run leave resources behind: processes that outlive their session, such as test hosts and build servers, ports two worktrees fight over, and worktrees that pile up on disk. Avala accounts for every resource its jobs use and reclaims what they leave.
+
+- Every process an agent starts belongs to its session's process tree, contained by the operating system where it can: a job object on Windows, a process group or a delegated cgroup on Linux, a process group on macOS. The platform specifics live behind one infrastructure port.
+- Memory and CPU are sampled per tree and attributed to the job, the session, the connection and the provider; disk is measured per worktree, plus Avala's own data folder.
+- When a session or a job ends, its tree is reaped. A process still alive afterwards is an orphan: reported with the job it came from, and killed by policy or by a human.
+- Ports are leased per worktree from a range and handed to the agent's environment, and the listening sockets of each tree are observed, so collisions show up before they break a run.
+- Worktrees of finished or discarded jobs are reclaimed by a retention policy, and worktrees on disk that no workspace knows, or workspaces whose folder is gone, are reported.
+- Budgets may also cap resources: memory per job and the number of jobs running at once, so parallel builds cannot exhaust the machine.
+
+1. Process trees per session with containment and reaping, behind the platform port, starting with Linux and Windows, which CI runs.
+2. Sampling of memory, CPU and listening ports per tree, and disk per worktree and data folder, published as throttled integration events and queryable globally and by job, session, connection and provider.
+3. Orphan detection and reaping, with the audit.
+4. Port leases per worktree.
+5. Worktree retention and the reconciliation of worktrees on disk with the workspaces store.
+6. Resource caps in Budgets and a limit on concurrent jobs.
+7. Simulator scenarios that start real child processes, leave one running past the session and listen on a port, and host simulation tests: the orphan is found and reaped, the port lease reaches the agent, usage is attributed to its job, and a discarded job's worktree is reclaimed.
+
+Done when: a simulated job that leaks a process and holds a port is reaped and reclaimed, with every resource attributed to its job and visible globally.
+
 ## Phase 9: View models of the usable core
 
 The whole application works through view models, with no user interface.
