@@ -28,7 +28,7 @@ public sealed class WorkingFileStoreTests
         var written = Outcomes.Succeeds(await store.WriteAsync(repository.Path, Budget, "{ \"holdAtLimit\": 0.9 }", Cancellation));
 
         Assert.False(absent.IsSome);
-        Assert.Equal(Path.GetFullPath(Path.Combine(repository.Path, Budget)), Path.GetFullPath(written));
+        Assert.Equal(Path.Combine(repository.Path, Budget).Canonical(), Path.GetFullPath(written));
         Assert.Equal("{ \"holdAtLimit\": 0.9 }", Outcomes.Present(Outcomes.Succeeds(await store.ReadAsync(repository.Path, Budget, Cancellation))));
         Assert.Contains(Budget, await repository.GitAsync(Cancellation, "status", "--porcelain", "--untracked-files=all"), StringComparison.Ordinal);
     }
