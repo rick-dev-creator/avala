@@ -60,7 +60,7 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
 
         var paths = new AvalaPaths(Data);
         var log = new LogFile(paths, TimeProvider.System);
-        root = CompositionRoot.Create(plugins.Directory, paths, log);
+        root = CompositionRoot.Create(plugins.Directory, paths, log, Option<HttpMessageHandler>.None);
         Subscribe();
         root.Start();
         await journal.NoteAsync($"Composed the real application from {plugins.Directory}, data folder {Data}, repository {Repository}");
