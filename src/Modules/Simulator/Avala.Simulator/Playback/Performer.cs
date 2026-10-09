@@ -67,9 +67,12 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             token => craft.Workloads.StartAsync(options.Processes, spawn.Workload, options.WorkingDirectory, token),
             cancellationToken),
         Ask ask => AskAsync(cues, ask, cancellationToken),
-        CallTool call when options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed) =>
-            CallAsync(cues, call, cancellationToken),
-        CallTool call => cues.Of(Reply(call.Item, $"I would call {call.Tool} with {call.Input}, but the harness did not offer it.")).ToAsyncEnumerable(),
+        CallTool call => PlayAsync(cues, new CallTools([call]), cancellationToken),
+        CallTools calls when calls.Calls.All(call => options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed)) =>
+            CallAsync(cues, calls.Calls, cancellationToken),
+        CallTools calls => calls.Calls
+            .SelectMany(call => cues.Of(Reply(call.Item, $"I would call {call.Tool} with {call.Input}, but the harness did not offer it.")))
+            .ToAsyncEnumerable(),
         ReportLimitResetting limit => cues.Of(new ReportLimit(new UsageLimit(limit.Window, limit.Used, craft.Pacing.Now + limit.ResetsIn))).ToAsyncEnumerable(),
         Crash crash => throw new InvalidOperationException(crash.Reason),
         Draw draw when !options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
@@ -133,16 +136,33 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         }
     }
 
-    private async IAsyncEnumerable<IAgentEvent> CallAsync(Cues cues, CallTool call, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private async IAsyncEnumerable<IAgentEvent> CallAsync(
+        Cues cues,
+        IReadOnlyList<CallTool> calls,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var pending = await gates.Tools.ExpectAsync(call.Item, cancellationToken);
-        yield return cues.Called(call.Item, call.Tool, call.Input);
+        var waiting = new List<Task<ToolResult>>();
 
-        var result = await gates.Tools.AwaitAsync(call.Item, pending, cancellationToken);
-        yield return cues.Returned(call.Item, result);
-        yield return cues.Closed(call.Item, result.IsError ? ItemOutcome.Failed : ItemOutcome.Succeeded);
+        foreach (var call in calls)
+        {
+            var pending = await gates.Tools.ExpectAsync(call.Item, cancellationToken);
+            waiting.Add(gates.Tools.AwaitAsync(call.Item, pending, cancellationToken));
+            yield return cues.Called(call.Item, call.Tool, call.Input);
+        }
 
-        foreach (var cue in cues.Of(Reply(call.Item, $"The harness answered: {result.Content}")))
+        var answers = new List<string>();
+
+        while (waiting.Count > 0)
+        {
+            var answered = await Task.WhenAny(waiting);
+            waiting.Remove(answered);
+            var result = await answered;
+            answers.Add(result.Content);
+            yield return cues.Returned(result.Item, result);
+            yield return cues.Closed(result.Item, result.IsError ? ItemOutcome.Failed : ItemOutcome.Succeeded);
+        }
+
+        foreach (var cue in cues.Of(Reply(calls[0].Item, $"The harness answered: {string.Join(' ', answers)}")))
         {
             yield return cue;
         }

@@ -205,6 +205,26 @@ public sealed class AgentConformanceTests
         Assert.Equal([AgentConformance.ExecutedTool], Assert.Single(provider.Sessions).Options.Tools);
     }
 
+    [Theory]
+    [InlineData(false, "fewer than two calls of the tool propose_follow_up were pending at once")]
+    [InlineData(true, "the result of the call second was not reported")]
+    public async Task AProviderThatAcceptsToolsMustHoldTwoCallsAtOnceAndReportEachResultAsync(bool twice, string expected)
+    {
+        var provider = new ScriptedAgentProvider(twice ? CallingTwiceReportingOne : Calling)
+        {
+            Capabilities = Declared with { AcceptsTools = true },
+        };
+
+        var violations = await AgentConformance.CheckParallelToolCallsAsync(
+            provider,
+            Options,
+            AgentConformance.ExecutedTool,
+            new UserTurn("conformance"),
+            Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+    }
+
     [Fact]
     public async Task ReportsTwoConnectionsThatShareAnAccountAResumeTokenOrAConversationAsync()
     {
@@ -363,6 +383,23 @@ public sealed class AgentConformanceTests
             new ToolCalled(session, turn, item, AgentConformance.ExecutedTool.Name, """{ "instruction": "Document it" }"""),
             new ToolReturned(session, turn, item, AgentConformance.KitResult(item)),
             new ItemCompleted(session, turn, item, ItemOutcome.Succeeded),
+            new TurnCompleted(session, turn, TurnOutcome.Finished),
+        ];
+    }
+
+    private static IEnumerable<IAgentEvent> CallingTwiceReportingOne(SessionId session, TurnId turn)
+    {
+        var first = new ItemId("first");
+        var second = new ItemId("second");
+
+        return
+        [
+            new TurnStarted(session, turn),
+            new ToolCalled(session, turn, first, AgentConformance.ExecutedTool.Name, """{ "instruction": "Document it" }"""),
+            new ToolCalled(session, turn, second, AgentConformance.ExecutedTool.Name, """{ "instruction": "Test it" }"""),
+            new ToolReturned(session, turn, first, AgentConformance.KitResult(first)),
+            new ItemCompleted(session, turn, first, ItemOutcome.Succeeded),
+            new ItemCompleted(session, turn, second, ItemOutcome.Failed),
             new TurnCompleted(session, turn, TurnOutcome.Finished),
         ];
     }

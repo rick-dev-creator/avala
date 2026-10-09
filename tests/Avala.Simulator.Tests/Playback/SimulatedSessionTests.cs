@@ -353,6 +353,30 @@ public sealed class SimulatedSessionTests
     }
 
     [Fact]
+    public async Task TheDelegateScenarioCallsTwoToolsAtOnceAndReportsEachResultAsItArrivesAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll, new HarnessTool(ScenarioCatalog.Delegate, "Delegate", "{}", ToolSurface.Executed));
+        await stage.SendAsync("[simulate: delegate] Write the notes and the to-do list", Cancellation);
+        var first = Assert.IsType<ToolCalled>((await stage.ReadUntilAsync<ToolCalled>(Cancellation))[^1]);
+        var second = Assert.IsType<ToolCalled>(Assert.Single(await stage.ReadUntilAsync<ToolCalled>(Cancellation)));
+
+        Assert.Equal(second.Item, Outcomes.Succeeds(await stage.Session.ReturnAsync(new ToolResult(second.Item, "To-do written."), Cancellation)));
+        var answered = await stage.ReadUntilAsync<ItemCompleted>(Cancellation);
+        Assert.Equal(first.Item, Outcomes.Succeeds(await stage.Session.ReturnAsync(new ToolResult(first.Item, "Notes written."), Cancellation)));
+        var events = await stage.ReadTurnAsync(Cancellation);
+
+        Assert.Equal(
+            [(ScenarioCatalog.Delegate, "[simulate: notes]"), (ScenarioCatalog.Delegate, "[simulate: todo]")],
+            new[] { first, second }.Select(called => (called.Tool, called.Input[(called.Input.IndexOf('[', StringComparison.Ordinal))..(called.Input.IndexOf(']', StringComparison.Ordinal) + 1)])));
+        Assert.Equal(
+            [new ToolReturned(stage.Session.Id, second.Turn, second.Item, new ToolResult(second.Item, "To-do written.")), new ItemCompleted(stage.Session.Id, second.Turn, second.Item, ItemOutcome.Succeeded)],
+            answered);
+        Assert.Equal(new ToolReturned(stage.Session.Id, first.Turn, first.Item, new ToolResult(first.Item, "Notes written.")), events[0]);
+        Assert.Contains(events, agentEvent => agentEvent is ItemProgressed { Text: "The harness answered: To-do written. Notes written." });
+        Assert.IsType<TurnCompleted>(events[^1]);
+    }
+
+    [Fact]
     public async Task WithoutTheHarnessToolTheFollowUpScenarioWritesItsProposalAsAMessageAsync()
     {
         await using var stage = new Stage(PermissionMode.AllowAll);

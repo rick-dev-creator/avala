@@ -5,14 +5,14 @@ namespace Avala.Simulator.Playback;
 
 internal sealed class ReplyGate<TReply>(SerialExecutor stage, AgentError nothingPending)
 {
-    private Option<Pending> pending;
+    private readonly Dictionary<ItemId, TaskCompletionSource<TReply>> pending = [];
 
     public Task<Task<TReply>> ExpectAsync(ItemId item, CancellationToken cancellationToken) =>
         stage.RunAsync(
             _ =>
             {
                 var reply = new TaskCompletionSource<TReply>(TaskCreationOptions.RunContinuationsAsynchronously);
-                pending = new Pending(item, reply);
+                pending[item] = reply;
 
                 return Task.FromResult(reply.Task);
             },
@@ -37,22 +37,21 @@ internal sealed class ReplyGate<TReply>(SerialExecutor stage, AgentError nothing
         stage.RunAsync(
             _ =>
             {
-                pending = pending.Bind(waiting => waiting.Item == item ? Option<Pending>.None : waiting);
+                pending.Remove(item);
 
                 return Task.CompletedTask;
             },
             CancellationToken.None);
 
-    private Result<ItemId, AgentError> Respond(ItemId item, TReply reply) =>
-        pending.Bind(waiting => waiting.Item == item ? waiting : Option<Pending>.None).Match(
-            waiting =>
-            {
-                pending = Option<Pending>.None;
-                waiting.Reply.TrySetResult(reply);
+    private Result<ItemId, AgentError> Respond(ItemId item, TReply reply)
+    {
+        if (!pending.Remove(item, out var waiting))
+        {
+            return nothingPending;
+        }
 
-                return Result<ItemId, AgentError>.Success(item);
-            },
-            () => nothingPending);
+        waiting.TrySetResult(reply);
 
-    private sealed record Pending(ItemId Item, TaskCompletionSource<TReply> Reply);
+        return item;
+    }
 }

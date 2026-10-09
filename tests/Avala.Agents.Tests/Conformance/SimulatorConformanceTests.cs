@@ -114,6 +114,20 @@ public sealed class SimulatorConformanceTests
             Deadline));
     }
 
+    [Fact]
+    public async Task TheSimulatorHoldsTwoCallsAtOnceAndReportsEachResultInTheOrderItArrivesAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await AgentConformance.CheckParallelToolCallsAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            AgentConformance.ExecutedTool with { Name = "delegate" },
+            new UserTurn("[simulate: delegate] conformance"),
+            Deadline));
+    }
+
     [Theory]
     [InlineData("question")]
     [InlineData("plan-approval")]

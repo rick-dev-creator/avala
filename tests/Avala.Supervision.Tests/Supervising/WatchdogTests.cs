@@ -45,24 +45,50 @@ public sealed class WatchdogTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task WaitingForAHumanToAnswerAPermissionOrAFormIsNeverSilenceAsync(bool form)
+    [InlineData("permission")]
+    [InlineData("form")]
+    [InlineData("call")]
+    public async Task WaitingForAPermissionAFormOrAToolCallToBeAnsweredIsNeverSilenceAsync(string waitingFor)
     {
         await using var supervised = new Supervised();
         await supervised.RunningAsync();
         var item = new ItemId("migrate");
         var question = new AgentForm(FormPurpose.Question, "Migrate?", "", [new FormField("go", "Go", "Go on?", FieldKind.Confirmation, [])]);
-        await supervised.SeeAsync(form
-            ? new FormRequested(supervised.Session, supervised.Turn, item, question)
-            : new PermissionRequested(supervised.Session, supervised.Turn, item, "Run", ItemKind.Command, "dotnet ef"));
+        await supervised.SeeAsync(waitingFor switch
+        {
+            "form" => new FormRequested(supervised.Session, supervised.Turn, item, question),
+            "call" => new ToolCalled(supervised.Session, supervised.Turn, item, "delegate", "{}"),
+            _ => new PermissionRequested(supervised.Session, supervised.Turn, item, "Run", ItemKind.Command, "dotnet ef"),
+        });
 
         await supervised.AdvanceAsync(Window * 10);
         Assert.Empty(supervised.Jobs.Holds);
 
-        await supervised.SeeAsync(form
-            ? new FormAnswered(supervised.Session, supervised.Turn, item, new FormAnswer(item, [new FieldAnswer("go") { Confirmed = true }]))
-            : new PermissionResolved(supervised.Session, supervised.Turn, item, PermissionAnswer.Allow));
+        await supervised.SeeAsync(waitingFor switch
+        {
+            "form" => new FormAnswered(supervised.Session, supervised.Turn, item, new FormAnswer(item, [new FieldAnswer("go") { Confirmed = true }])),
+            "call" => new ToolReturned(supervised.Session, supervised.Turn, item, new ToolResult(item, "Done")),
+            _ => new PermissionResolved(supervised.Session, supervised.Turn, item, PermissionAnswer.Allow),
+        });
+        await supervised.AdvanceAsync(Window);
+        Assert.Single(supervised.Jobs.Holds);
+    }
+
+    [Fact]
+    public async Task AJobWaitingForSeveralToolCallsStaysAwakeUntilTheLastOneIsAnsweredAsync()
+    {
+        await using var supervised = new Supervised();
+        await supervised.RunningAsync();
+        var first = new ItemId("first");
+        var second = new ItemId("second");
+        await supervised.SeeAsync(new ToolCalled(supervised.Session, supervised.Turn, first, "delegate", "{}"));
+        await supervised.SeeAsync(new ToolCalled(supervised.Session, supervised.Turn, second, "delegate", "{}"));
+
+        await supervised.SeeAsync(new ToolReturned(supervised.Session, supervised.Turn, first, new ToolResult(first, "Done")));
+        await supervised.AdvanceAsync(Window * 3);
+        Assert.Empty(supervised.Jobs.Holds);
+
+        await supervised.SeeAsync(new ItemCompleted(supervised.Session, supervised.Turn, second, ItemOutcome.Abandoned));
         await supervised.AdvanceAsync(Window);
         Assert.Single(supervised.Jobs.Holds);
     }

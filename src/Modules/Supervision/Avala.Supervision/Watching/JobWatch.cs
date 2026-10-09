@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -17,13 +18,15 @@ internal sealed record JobWatch(JobId Job)
 
     public Option<ItemId> AwaitingHuman { get; private init; }
 
+    public ImmutableHashSet<ItemId> PendingCalls { get; private init; } = [];
+
     public DateTimeOffset LastActivity { get; private init; }
 
-    public bool IsArmed => Running && AwaitingHuman.IsNone;
+    public bool IsArmed => Running && AwaitingHuman.IsNone && PendingCalls.IsEmpty;
 
     public JobWatch Progressed(JobStatus status, DateTimeOffset at) =>
         status == JobStatus.Running
-            ? this with { Running = true, AwaitingHuman = Option<ItemId>.None, LastActivity = at }
+            ? this with { Running = true, AwaitingHuman = Option<ItemId>.None, PendingCalls = [], LastActivity = at }
             : this with { Running = false };
 
     public JobWatch Joined(SessionId session) => this with { Session = session };
@@ -34,7 +37,11 @@ internal sealed record JobWatch(JobId Job)
         {
             PermissionRequested requested => this with { LastActivity = at, AwaitingHuman = requested.Item },
             FormRequested requested => this with { LastActivity = at, AwaitingHuman = requested.Item },
-            PermissionResolved or FormAnswered or TurnCompleted => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None },
+            ToolCalled called => this with { LastActivity = at, PendingCalls = PendingCalls.Add(called.Item) },
+            ToolReturned returned => this with { LastActivity = at, PendingCalls = PendingCalls.Remove(returned.Item) },
+            ItemCompleted completed => this with { LastActivity = at, PendingCalls = PendingCalls.Remove(completed.Item) },
+            PermissionResolved or FormAnswered => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None },
+            TurnCompleted => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None, PendingCalls = [] },
             _ => this with { LastActivity = at },
         };
 

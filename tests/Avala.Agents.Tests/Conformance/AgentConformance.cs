@@ -106,6 +106,54 @@ internal static class AgentConformance
         return (await RunAsync(provider, options with { Tools = [ExecutedTool] }, instruction, replies, deadline)).Violations;
     }
 
+    public static async Task<IReadOnlyList<string>> CheckParallelToolCallsAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        HarnessTool tool,
+        UserTurn instruction,
+        CancellationToken deadline)
+    {
+        if (!provider.Capabilities.AcceptsTools)
+        {
+            return await CheckTurnAsync(provider, options with { Tools = [] }, instruction, deadline);
+        }
+
+        var held = new List<ToolCalled>();
+        var replies = Allowing with
+        {
+            Tool = async (session, called, token) =>
+            {
+                held.Add(called);
+
+                if (held.Count < 2)
+                {
+                    return [];
+                }
+
+                var violations = new List<string>();
+
+                foreach (var withheld in Enumerable.Reverse(held))
+                {
+                    violations.AddRange(await ReturnAsync(session, withheld, token));
+                }
+
+                held.Clear();
+
+                return violations;
+            },
+            AfterTurn = (_, events, _) => Task.FromResult<IReadOnlyList<string>>(
+                events.OfType<ToolCalled>().Count() < 2
+                    ? [$"fewer than two calls of the tool {tool.Name} were pending at once"]
+                    : [
+                        .. events.OfType<ToolCalled>()
+                            .Where(called => !events.OfType<ToolReturned>().Any(returned => returned.Result == KitResult(called.Item)))
+                            .Select(called => $"the result of the call {called.Item.Value} was not reported"),
+                    ]),
+        };
+
+        return (await RunAsync(provider, options with { Tools = [tool] }, instruction, replies, deadline)).Violations;
+    }
+
     public static async Task<IReadOnlyList<string>> CheckFormsAsync(
         IAgentProvider provider,
         SessionOptions options,
