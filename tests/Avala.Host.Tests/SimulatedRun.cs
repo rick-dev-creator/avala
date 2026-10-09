@@ -55,6 +55,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public RecordingLinks Links => surroundings.Links;
 
+    public BoardGate Board => surroundings.Board;
+
     public ICanvases Canvases => Get<ICanvases>();
 
     public ViewRegistry Views => application.Root.Views;
@@ -328,6 +330,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         if (!stopped)
         {
             stopped = true;
+            surroundings.Board.Release();
             await application.DisposeAsync();
         }
     }
@@ -337,6 +340,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
     {
         public RecordingLinks Links { get; } = new();
 
+        public BoardGate Board { get; } = new();
+
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
                 plugins.Directory,
@@ -345,7 +350,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 Clock,
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
-                Links);
+                Links,
+                [Board]);
     }
 
     private sealed class Application : IAsyncDisposable

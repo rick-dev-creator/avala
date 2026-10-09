@@ -87,7 +87,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     [RelayCommand(CanExecute = nameof(CanSend))]
     private async Task SendAsync(CancellationToken cancellationToken)
     {
-        var sent = await steering.SendAsync(job, Draft.Trim(), cancellationToken);
+        var sent = await steering.SendAsync(job, Status, Draft.Trim(), cancellationToken);
         Draft = sent.IsSuccess ? string.Empty : Draft;
         Error = sent.Match(_ => string.Empty, ConversationPhrases.Rejection);
         ShowQueued();
