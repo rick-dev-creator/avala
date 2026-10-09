@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows.Input;
+using Avala.Sdk.Presentation;
 using Xunit;
 
 namespace Avala.Testing;
@@ -32,6 +33,17 @@ public sealed class ViewModelScript<TViewModel>
     public ViewModelScript<TViewModel> When(Action<TViewModel> action)
     {
         action(ViewModel);
+
+        return this;
+    }
+
+    public async Task<ViewModelScript<TViewModel>> WhenPresentedAsync(Action<TViewModel> action, CancellationToken cancellationToken)
+    {
+        var component = Assert.IsAssignableFrom<IPresentation>(ViewModel);
+        await component.PresentsAfterAsync(
+            () => action(ViewModel),
+            () => $"revision {component.Revision}, notified [{string.Join(", ", notified)}]",
+            cancellationToken);
 
         return this;
     }

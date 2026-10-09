@@ -82,14 +82,14 @@ public sealed class ShellViewModelScripts
     }
 
     [Fact]
-    public void SelectingAPageActivatesItAndDeactivatesTheOneItLeaves()
+    public async Task SelectingAPageActivatesItAndDeactivatesTheOneItLeavesAsync()
     {
         var jobs = new Page("Jobs");
         var usage = new Page("Usage");
 
-        ViewModelScript.Given(Shell([jobs, usage], []))
-            .When(shell => shell.Activate())
-            .When(shell => shell.SelectedPage = usage)
+        var script = ViewModelScript.Given(Shell([jobs, usage], [])).When(shell => shell.Activate());
+
+        (await script.WhenPresentedAsync(shell => shell.SelectedPage = usage, TestContext.Current.CancellationToken))
             .ThenNotified(nameof(ShellViewModel.SelectedPage))
             .Then(_ =>
             {
@@ -143,16 +143,17 @@ public sealed class ShellViewModelScripts
     }
 
     [Fact]
-    public void ASelectionInOneRegionShowsInAnother()
+    public async Task ASelectionInOneRegionShowsInAnotherOnceTheShellPresentsItAsync()
     {
         var contexts = new RegionContexts();
         var list = new JobList(contexts);
         var details = new Section();
-        _ = new ShellViewModel([], [Into(ShellRegions.Sidebar, 0, list), Into(ShellRegions.Inspector, 0, details)], contexts);
+        var shell = new ShellViewModel([], [Into(ShellRegions.Sidebar, 0, list), Into(ShellRegions.Inspector, 0, details)], contexts);
 
-        ViewModelScript.Given(list).When(sidebar => sidebar.Select("job-3"));
+        await ViewModelScript.Given(shell).WhenPresentedAsync(_ => list.Select("job-3"), TestContext.Current.CancellationToken);
 
         Assert.Equal(new JobInFocus("job-3"), details.Focus.Match(focus => focus, () => new JobInFocus("none")));
+        Assert.Equal(1, shell.Revision);
     }
 
     private static ShellViewModel Shell(IEnumerable<IPage> pages, IEnumerable<RegionContribution> contributions) =>

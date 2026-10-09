@@ -8,6 +8,8 @@ internal sealed class RegionContexts : IRegions
     private readonly Dictionary<RegionName, Option<object>> contexts = [];
     private readonly Dictionary<RegionName, Region> regions = [];
 
+    public event Action<RegionName>? Delivered;
+
     public void Attach(Region region)
     {
         regions[region.Name] = region;
@@ -29,6 +31,7 @@ internal sealed class RegionContexts : IRegions
         if (regions.TryGetValue(region, out var attached))
         {
             attached.Deliver(context);
+            Delivered?.Invoke(region);
         }
     }
 }

@@ -1,17 +1,16 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
+                                 BackgroundSource="Digger"
+                                 TintColor="#1E1F24"
+                                 TintOpacity="1"
+                                 MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
+                                 FallbackColor="#18191D" />
+  </Styles.Resources>
+
   <Style Selector="Border.window">
     <Setter Property="Background" Value="{DynamicResource SurfaceWindowBrush}" />
-  </Style>
-
-  <Style Selector="ExperimentalAcrylicBorder.panel">
-    <Setter Property="Material">
-      <ExperimentalAcrylicMaterial BackgroundSource="Digger"
-                                   TintColor="#1E1F24"
-                                   TintOpacity="1"
-                                   MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
-                                   FallbackColor="#18191D" />
-    </Setter>
   </Style>
 
   <Style Selector="Border.panel">
