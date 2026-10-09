@@ -17,7 +17,7 @@ public sealed class AppearanceFileTests
 
         var settings = await file.ReadAsync(Cancellation);
 
-        Assert.Equal(new AppearanceSettings(new AppearancePreference(ThemeChoice.System, false), AppearanceFileStatus.Absent, Option<AppearanceError>.None), settings);
+        Assert.Equal(new AppearanceSettings(new AppearancePreference(ThemeChoice.System, MotionChoice.System), AppearanceFileStatus.Absent, Option<AppearanceError>.None), settings);
     }
 
     [Fact]
@@ -27,14 +27,14 @@ public sealed class AppearanceFileTests
         var bus = new RecordingBus();
         await using var file = new AppearanceFile(new AvalaPaths(data.Path), bus);
 
-        var changed = await file.ChangeAsync(new AppearancePreference(ThemeChoice.Light, true), Cancellation);
+        var changed = await file.ChangeAsync(new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced), Cancellation);
         await using var restarted = new AppearanceFile(new AvalaPaths(data.Path), new RecordingBus());
         var read = await restarted.ReadAsync(Cancellation);
 
         Assert.True(changed.IsSuccess);
-        Assert.Equal([new AppearanceChanged(new AppearancePreference(ThemeChoice.Light, true))], bus.Published);
-        Assert.Equal(new AppearanceSettings(new AppearancePreference(ThemeChoice.Light, true), AppearanceFileStatus.Applied, Option<AppearanceError>.None), read);
-        Assert.Equal("{\n  \"theme\": \"light\",\n  \"reduceMotion\": true\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
+        Assert.Equal([new AppearanceChanged(new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced))], bus.Published);
+        Assert.Equal(new AppearanceSettings(new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced), AppearanceFileStatus.Applied, Option<AppearanceError>.None), read);
+        Assert.Equal("{\n  \"theme\": \"light\",\n  \"reduceMotion\": \"on\"\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
     }
 
     [Fact]
@@ -47,7 +47,23 @@ public sealed class AppearanceFileTests
 
         await file.RunAsync(Cancellation);
 
-        Assert.Equal([new AppearanceChanged(new AppearancePreference(ThemeChoice.Dark, false))], bus.Published);
+        Assert.Equal([new AppearanceChanged(new AppearancePreference(ThemeChoice.Dark, MotionChoice.System))], bus.Published);
+    }
+
+    [Theory]
+    [InlineData("""{ "reduceMotion": "system" }""", MotionChoice.System)]
+    [InlineData("""{ "reduceMotion": "on" }""", MotionChoice.Reduced)]
+    [InlineData("""{ "reduceMotion": "off" }""", MotionChoice.Full)]
+    [InlineData("""{ "reduceMotion": true }""", MotionChoice.Reduced)]
+    [InlineData("""{ "reduceMotion": false }""", MotionChoice.Full)]
+    [InlineData("""{ }""", MotionChoice.System)]
+    public async Task ReducedMotionIsReadAsSystemOnOrOffAsync(string content, MotionChoice motion)
+    {
+        await using var data = new TemporaryFolder();
+        await File.WriteAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), content, Cancellation);
+        await using var file = new AppearanceFile(new AvalaPaths(data.Path), new RecordingBus());
+
+        Assert.Equal(motion, (await file.ReadAsync(Cancellation)).Preference.Motion);
     }
 
     [Theory]

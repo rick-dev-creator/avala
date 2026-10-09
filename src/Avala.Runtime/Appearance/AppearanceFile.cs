@@ -111,14 +111,19 @@ internal static class AppearanceText
             new Dictionary<string, object>(StringComparer.Ordinal)
             {
                 ["theme"] = preference.Theme.ToString().ToLowerInvariant(),
-                ["reduceMotion"] = preference.ReduceMotion,
+                ["reduceMotion"] = preference.Motion switch
+                {
+                    MotionChoice.Reduced => "on",
+                    MotionChoice.Full => "off",
+                    _ => "system",
+                },
             },
             Indented) + "\n";
 
     private static Result<AppearancePreference, AppearanceError> Preference(JsonElement root)
     {
         var theme = root.TryGetProperty("theme", out var named) ? Theme(named) : ThemeChoice.System;
-        var motion = root.TryGetProperty("reduceMotion", out var reduce) ? Motion(reduce) : false;
+        var motion = root.TryGetProperty("reduceMotion", out var reduce) ? Motion(reduce) : MotionChoice.System;
 
         return theme is { } chosen && motion is { } reduced
             ? new AppearancePreference(chosen, reduced)
@@ -133,6 +138,17 @@ internal static class AppearanceText
             ? theme
             : null;
 
-    private static bool? Motion(JsonElement value) =>
-        value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.GetBoolean() : null;
+    private static MotionChoice? Motion(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.True => MotionChoice.Reduced,
+        JsonValueKind.False => MotionChoice.Full,
+        JsonValueKind.String => value.GetString() switch
+        {
+            "system" => MotionChoice.System,
+            "on" => MotionChoice.Reduced,
+            "off" => MotionChoice.Full,
+            _ => null,
+        },
+        _ => null,
+    };
 }

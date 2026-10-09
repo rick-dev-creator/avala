@@ -2,6 +2,7 @@ using Avala.Host.Composition;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
 using Avala.Sdk.Events;
+using Avala.Sdk.Processes;
 using Avala.Shell;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -33,11 +34,19 @@ internal sealed partial class App : Application
             };
             DataTemplates.Add(composition.Views);
             shell.Activate();
-            var window = new ShellView { DataContext = shell };
-            appearance.Attach(window);
-            desktop.MainWindow = window;
+            _ = ShowAsync(desktop, composition, appearance, shell);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static async Task ShowAsync(IClassicDesktopStyleApplicationLifetime desktop, CompositionRoot composition, AppearanceApplier appearance, ShellViewModel shell)
+    {
+        var startup = new AppearanceStartup(
+            composition.Services.GetRequiredService<IAppearance>(),
+            new SystemMotion(composition.Services.GetRequiredService<IProcessRunner>()),
+            appearance);
+
+        desktop.MainWindow = await startup.ShowAsync(() => new ShellView { DataContext = shell }, composition.Lifetime);
     }
 }
