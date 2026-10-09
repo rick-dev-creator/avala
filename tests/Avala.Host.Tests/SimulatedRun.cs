@@ -24,6 +24,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private readonly TemporaryFolder data;
     private readonly TemporaryRepository repository;
     private Application application;
+    private bool stopped;
 
     private SimulatedRun(PublishedPlugins plugins, TemporaryFolder data, TemporaryRepository repository, CompositionRoot root)
     {
@@ -44,26 +45,35 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     public static Task<SimulatedRun> StartAsync(PublishedPlugins plugins, string scenario, params (string Path, string Content)[] committed) =>
-        StartAsync(plugins, scenario, Option<Autonomy>.None, [], committed);
+        StartAsync(plugins, Simulate(scenario), Option<Autonomy>.None, [], committed);
 
     public static Task<SimulatedRun> StartAsync(
         PublishedPlugins plugins,
         string scenario,
         Autonomy autonomy,
         params (string Path, string Content)[] committed) =>
-        StartAsync(plugins, scenario, autonomy, [], committed);
+        StartAsync(plugins, Simulate(scenario), autonomy, [], committed);
 
     public static Task<SimulatedRun> SupervisedAsync(PublishedPlugins plugins, string scenario, TimeSpan silence) =>
         StartAsync(
             plugins,
-            scenario,
+            Simulate(scenario),
             Option<Autonomy>.None,
             [("supervision.json", $$"""{ "silenceSeconds": {{silence.TotalSeconds.ToString(CultureInfo.InvariantCulture)}} }""")],
             []);
 
+    public static Task<SimulatedRun> InstructedAsync(
+        PublishedPlugins plugins,
+        string instruction,
+        IReadOnlyList<(string File, string Content)> data,
+        IReadOnlyList<(string Path, string Content)> committed) =>
+        StartAsync(plugins, instruction, Option<Autonomy>.None, data, committed);
+
+    private static string Simulate(string scenario) => $"[simulate: {scenario}] Greet the team";
+
     private static async Task<SimulatedRun> StartAsync(
         PublishedPlugins plugins,
-        string scenario,
+        string instruction,
         Option<Autonomy> autonomy,
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed)
@@ -72,7 +82,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         foreach (var (file, content) in settings)
         {
-            await File.WriteAllTextAsync(Path.Combine(data.Path, file), content, Cancellation);
+            var path = Path.Combine(data.Path, file);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
         var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
@@ -85,7 +97,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         var run = new SimulatedRun(plugins, data, repository, root);
         root.Start();
-        await run.SubmitAsync(scenario, autonomy);
+        await run.SubmitAsync(instruction, autonomy);
 
         return run;
     }
@@ -148,16 +160,35 @@ internal sealed class SimulatedRun : IAsyncDisposable
         ];
     }
 
+    public async Task<IReadOnlyList<string>> StopAndReadRecordingsAsync()
+    {
+        await StopAsync();
+        var folder = new AvalaPaths(data.Path).Folder("recordings");
+
+        return Directory.Exists(folder)
+            ? await Task.WhenAll(Directory.GetFiles(folder, "*.json").Order(StringComparer.Ordinal).Select(file => File.ReadAllTextAsync(file, Cancellation)))
+            : [];
+    }
+
     public async ValueTask DisposeAsync()
     {
-        await application.DisposeAsync();
+        await StopAsync();
         await repository.DisposeAsync();
         data.Dispose();
     }
 
-    private async Task SubmitAsync(string scenario, Option<Autonomy> autonomy) =>
+    private async Task StopAsync()
+    {
+        if (!stopped)
+        {
+            stopped = true;
+            await application.DisposeAsync();
+        }
+    }
+
+    private async Task SubmitAsync(string instruction, Option<Autonomy> autonomy) =>
         Job = Outcomes.Succeeds(await Get<IJobs>()
-            .SubmitAsync(new JobRequest(repository.Path, $"[simulate: {scenario}] Greet the team") { Autonomy = autonomy }, Cancellation));
+            .SubmitAsync(new JobRequest(repository.Path, instruction) { Autonomy = autonomy }, Cancellation));
 
     private sealed class Application : IAsyncDisposable
     {

@@ -1,0 +1,280 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T04:51:14.0024378+00:00",
+  "provider": {
+    "id": "simulator",
+    "name": "Simulated Claude Code"
+  },
+  "capabilities": {
+    "streamsPartialOutput": true,
+    "exposesReasoning": true,
+    "canInterrupt": true,
+    "canResume": true,
+    "acceptsTools": true,
+    "reportsUsage": true,
+    "reportsCost": true,
+    "reportsLimits": true,
+    "asksQuestions": true
+  },
+  "account": {
+    "id": "simulated-account",
+    "label": "Simulated account"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 1,
+      "send": {
+        "text": "[simulate: question] Greet the team"
+      }
+    },
+    {
+      "at": 61,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 121,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "840538e7ef664fc3a0cebb883bfc5e43/question/1"
+      }
+    },
+    {
+      "at": 181,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "thinking",
+        "kind": "reasoning",
+        "title": "Thinking"
+      }
+    },
+    {
+      "at": 241,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "thinking",
+        "text": "The service needs storage, "
+      }
+    },
+    {
+      "at": 302,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "thinking",
+        "text": "and the choice is the team's."
+      }
+    },
+    {
+      "at": 362,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "thinking",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 425,
+      "event": {
+        "type": "formRequested",
+        "turn": 1,
+        "item": "question",
+        "form": {
+          "purpose": "question",
+          "title": "Choose a database",
+          "context": "The service needs to store its orders.",
+          "fields": [
+            {
+              "id": "database",
+              "header": "Database",
+              "prompt": "Which database should the service use?",
+              "kind": "singleChoice",
+              "options": [
+                {
+                  "label": "PostgreSQL",
+                  "description": "Relational, already run by the team.",
+                  "recommended": true
+                },
+                {
+                  "label": "SQLite",
+                  "description": "A single file, no server to run.",
+                  "recommended": false
+                }
+              ],
+              "acceptsFreeText": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "at": 444,
+      "answer": {
+        "item": "question",
+        "fields": [
+          {
+            "field": "database",
+            "chosen": [
+              "PostgreSQL"
+            ],
+            "confirmed": false
+          }
+        ],
+        "declined": false
+      }
+    },
+    {
+      "at": 506,
+      "event": {
+        "type": "formAnswered",
+        "turn": 1,
+        "item": "question",
+        "answer": {
+          "item": "question",
+          "fields": [
+            {
+              "field": "database",
+              "chosen": [
+                "PostgreSQL"
+              ],
+              "confirmed": false
+            }
+          ],
+          "declined": false
+        }
+      }
+    },
+    {
+      "at": 566,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "question",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 628,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "question-reply",
+        "kind": "message",
+        "title": "Reply"
+      }
+    },
+    {
+      "at": 688,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "question-reply",
+        "text": "Going with Database: PostgreSQL"
+      }
+    },
+    {
+      "at": 748,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "question-reply",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 809,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "reply",
+        "kind": "message",
+        "title": "Reply"
+      }
+    },
+    {
+      "at": 869,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "reply",
+        "text": "The service stores its orders "
+      }
+    },
+    {
+      "at": 929,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "reply",
+        "text": "in the chosen database."
+      }
+    },
+    {
+      "at": 989,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "reply",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 1049,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 2200,
+          "output": 140,
+          "cacheRead": 1100,
+          "cacheWrite": 220,
+          "reasoning": 35
+        },
+        "cost": {
+          "amount": 0.0090,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 1110,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.27
+        }
+      }
+    },
+    {
+      "at": 1170,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 1192,
+      "stop": {}
+    }
+  ]
+}

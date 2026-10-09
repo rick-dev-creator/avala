@@ -29,6 +29,16 @@ public sealed class AgentConformanceTests
         Assert.Equal(["item build was left open"], await AgentConformance.CheckTurnAsync(provider, Deadline));
     }
 
+    [Theory]
+    [InlineData(TurnOutcome.Failed)]
+    [InlineData(TurnOutcome.Interrupted)]
+    public async Task ReportsATurnThatEndsWithoutFinishingAsync(TurnOutcome outcome)
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn), new TurnCompleted(session, turn, outcome)]);
+
+        Assert.Equal([$"the turn ended {outcome}"], await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
     [Fact]
     public async Task ReportsEventsForUnknownItemsAsync()
     {
