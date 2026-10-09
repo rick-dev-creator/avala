@@ -254,13 +254,43 @@ internal static class ScenarioCatalog
     public static Scenario UnofferedCanvas { get; } = new("unoffered-canvas",
     [
         [
+            new Draw(new ItemId("report"), "Job report", "text/html",
+            [
+                "<h1>Job report</h1>\n",
+                "<p>Submitted, then running.</p>\n",
+            ]),
+            Message("I wrote the job report in HTML."),
+            .. Bill(1_200, 80, 0.0040m, 0.30),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario MermaidCanvas { get; } = new("mermaid-canvas",
+    [
+        [
             new Draw(new ItemId("flow"), "Job flow", "text/vnd.mermaid",
             [
                 "flowchart LR\n",
                 "  Submitted --> Running\n",
+                "  Running --> Checking\n",
             ]),
             Message("I drew the job flow in Mermaid."),
             .. Bill(1_200, 80, 0.0040m, 0.30),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario Markdown { get; } = new("markdown",
+    [
+        [
+            Message(
+                "## Rounding fixed\n\nJPY has **no minor ",
+                "units**, so `ToMinor` now reads the exponent:\n\n- JPY: 0 decimals\n",
+                "- USD: 2 decimals\n\n```go\nfunc ToMinor(amount Money) int64 {\n",
+                "    return amount.Units * pow10(amount.Currency.Exponent)\n}\n```\n\n",
+                "| Currency | Exponent |\n| --- | --- |\n| JPY | 0 |\n\n",
+                "See [ISO 4217](https://www.iso.org/iso-4217-currency-codes.html) and [the notes](file:///etc/passwd)."),
+            .. Bill(1_400, 260, 0.0060m, 0.20),
             new Finish(),
         ],
     ]);
@@ -432,7 +462,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, UnsharedThought, Fields, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas,
+        Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, UnsharedThought, Fields, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown,
         Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedLoosely, DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
     ];
 

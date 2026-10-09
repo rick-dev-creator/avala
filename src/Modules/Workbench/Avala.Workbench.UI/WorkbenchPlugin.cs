@@ -20,6 +20,7 @@ using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using Avala.Workbench.Inspection;
 using Avala.Workbench.Inspector;
+using Avala.Workbench.Linking;
 using Avala.Workbench.Machine;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.NewJob;
@@ -75,6 +76,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<JobFocus>()
             .AddSingleton<JobSteering>()
             .AddSingleton<HumanReplies>()
+            .AddSingleton<Links>()
             .AddSingleton<Conversations>()
             .AddSingleton<ReviewReader>()
             .AddSingleton<ReviewDesk>()

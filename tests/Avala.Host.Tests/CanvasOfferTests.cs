@@ -51,12 +51,12 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
         var snapshot = (await run.CanvasSnapshotsAsync(canvasCount: 1))[^1];
         var surfaces = await CanvasSurfacesAsync(run, count: 1);
 
-        Assert.Equal(("text/vnd.mermaid", false, "flowchart LR\n  Submitted --> Running\n"), (snapshot.MediaType, snapshot.IsOffered, snapshot.Content));
+        Assert.Equal(("text/html", false, "<h1>Job report</h1>\n<p>Submitted, then running.</p>\n"), (snapshot.MediaType, snapshot.IsOffered, snapshot.Content));
         await ui.RunAsync(() => Presented(run, Assert.Single(surfaces), view =>
         {
             Assert.Equal("CanvasFallback", Drawing(view));
             Assert.Equal(
-                "Avala does not offer Mermaid canvases to agents, so this one is not drawn. Showing its source.",
+                "Avala does not offer HTML canvases to agents, so this one is not drawn. Showing its source.",
                 view.TextOf("CanvasNote"));
         }), Cancellation);
     }

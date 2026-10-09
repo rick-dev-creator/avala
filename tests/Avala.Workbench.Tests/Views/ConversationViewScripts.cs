@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
-using Avala.Components.UI.Streaming;
+using Avala.Components.UI.Markdown;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing.UI;
@@ -106,9 +106,9 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             view.Window.Width = 1400;
             view.Settle();
 
-            var text = view.Find<StreamingText>("Text");
+            var text = view.Find<MarkdownText>("Text");
             Assert.True(text.Bounds.Width <= 720);
-            Assert.True(text.Bounds.Height > 5 * text.LineHeight);
+            Assert.True(text.Bounds.Height > 5 * 23);
         }, Cancellation);
 
     private static IReadOnlyList<UserControl> Rows(ViewScript view) =>
@@ -122,7 +122,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
     private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript) Open(JobStatus status)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
-        var conversation = new Conversations(new JobSteering(new FakeJobs(), new JobBoard()), new(new FakePermissionAnswers(), new FakeAgents())).Open(summary.Job);
+        var conversation = new Conversations(new JobSteering(new FakeJobs(), new JobBoard()), new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening).Open(summary.Job);
         var transcript = Transcript.Empty.WithPrompts(summary.Instruction, []);
         conversation.Show(new BoardJob(summary, transcript));
 
@@ -258,43 +258,6 @@ public sealed class PromptViewScripts(HeadlessUi ui)
 
             Assert.True(view.Find("Bubble").Bounds.Width <= 560);
             Assert.True(view.Find<SelectableTextBlock>("Text").Bounds.Height > 46);
-        }, TestContext.Current.CancellationToken);
-}
-
-public sealed class MessageViewScripts(HeadlessUi ui)
-{
-    [Fact]
-    public Task AStreamingMessageGrowsGentlyWithACaretUntilItEndsAsync() =>
-        ui.RunAsync(() =>
-        {
-            var message = new MessageViewModel(new MessageEntry("m", "Totals now round", Option<ItemOutcome>.None));
-            var view = Screen.Show(message);
-            var text = view.Find<StreamingText>("Text");
-            var caret = text.ShowsCaret;
-
-            message.Update(new MessageEntry("m", "Totals now round to whole yen", Option<ItemOutcome>.None));
-            view.Settle();
-            var arriving = text.Arriving;
-            message.Update(new MessageEntry("m", "Totals now round to whole yen.", ItemOutcome.Succeeded));
-            view.Settle();
-
-            Assert.Equal((true, 1), (caret, arriving));
-            Assert.Equal((false, 0), (text.ShowsCaret, text.Arriving));
-            Assert.Equal("Totals now round to whole yen.", text.Stream);
-        }, TestContext.Current.CancellationToken);
-
-    [Fact]
-    public Task ARewrittenMessageShowsItsNewTextWholeAsync() =>
-        ui.RunAsync(() =>
-        {
-            var message = new MessageViewModel(new MessageEntry("m", "Totals round", Option<ItemOutcome>.None));
-            var view = Screen.Show(message);
-
-            message.Update(new MessageEntry("m", "Rounding moved to Money", Option<ItemOutcome>.None));
-            view.Settle();
-
-            var text = view.Find<StreamingText>("Text");
-            Assert.Equal((0, "Rounding moved to Money"), (text.Arriving, text.Stream));
         }, TestContext.Current.CancellationToken);
 }
 
