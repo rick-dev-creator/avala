@@ -104,6 +104,21 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario ScriptPermission { get; } = new("script-permission",
+    [
+        [
+            Thought("A throwaway script ", "will smoke-test the page."),
+            .. Bill(2_000, 140, 0.0100m, 0.30),
+            new RunCommand(
+                new ItemId("smoke"),
+                "node --check app.js\ncat > /tmp/avala-smoke.js <<'EOF'\nconst page = require('./app.js');\nconsole.log(page.start());\nEOF\nnode /tmp/avala-smoke.js; rm /tmp/avala-smoke.js",
+                "smoke ok",
+                AsksPermission: true),
+            Message("The page starts."),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario WaitingPermission { get; } = new("waiting-permission",
     [
         [
@@ -420,7 +435,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Steer, Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, Question, Governed, UnsharedThought, Fields, PlanApproval,
+        Steer, Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, Question, Governed, UnsharedThought, Fields, PlanApproval,
         Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, .. DelegationScenarios.All,
     ];
 

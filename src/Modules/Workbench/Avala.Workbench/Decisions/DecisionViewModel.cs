@@ -27,6 +27,8 @@ internal interface IDecisionViewModel
 
     string Target { get; }
 
+    string Writes { get; }
+
     string Context { get; }
 
     IReadOnlyList<DecisionOption> Options { get; }
@@ -78,6 +80,7 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
             IFormCardViewModel form => (form.Title, FactPhrases.Asking(form.Purpose), string.Empty, form.Context),
             _ => (string.Empty, string.Empty, string.Empty, string.Empty),
         };
+        Writes = (card as IPermissionCardViewModel)?.Writes ?? string.Empty;
         Forward(card);
     }
 
@@ -96,6 +99,8 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
     public bool IsPermission => Card is IPermissionCardViewModel;
 
     public string Target { get; }
+
+    public string Writes { get; }
 
     public string Context { get; }
 

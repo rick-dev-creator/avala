@@ -88,6 +88,31 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AMultiLineCommandIsAskedUnderAnHonestTitleAndItsDenialReviewsOnOneLineAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "script-permission");
+        Assert.Equal(DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
+        var workbench = await run.WorkbenchAsync();
+        var decisions = await run.Ui.ReadAsync(() => workbench.Toolbar["Decisions"]);
+        await workbench.ShowsAsync(() => decisions["Items"].Items.Count == 1);
+        var (title, writes, target) = await run.Ui.ReadAsync(() =>
+        {
+            var item = decisions["Items"].Items[0];
+
+            return (item["Title"].Text, item["Writes"].Text, item["Target"].Text);
+        });
+
+        await run.Ui.RunAsync(() => decisions.ExecuteAsync("DenyCommand"));
+
+        Assert.Equal(("Run 4 commands: node, cat > /tmp/avala-smoke.js, rm", "Writes to /tmp/avala-smoke.js"), (title, writes));
+        Assert.Contains("console.log(page.start());", target, StringComparison.Ordinal);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var (_, review) = await ReviewAsync(run);
+        var denial = await run.Ui.ReadAsync(() => review["Exceptions"].Items.Select(exception => (exception["Title"].Text, exception["Output"].Text)).Single(exception => exception.Item1.StartsWith("You denied", StringComparison.Ordinal)));
+        Assert.Equal(("You denied: run node --check app.js +5 lines", target), denial);
+    }
+
+    [Fact]
     public async Task TheInspectorShowsTheEvidenceDecisionsAndUsageOfAFinishedJobAsync()
     {
         await using var run = await VerifiedAsync();

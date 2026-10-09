@@ -82,6 +82,15 @@ public sealed class ReviewPhrasesTests
     }
 
     [Fact]
+    public void ADenialOfAMultiLineCommandIsTitledByItsFirstLineAndKeepsTheWholeCommandForItsDetail()
+    {
+        const string command = "node --check app.js\ncat > /tmp/smoke.js <<'EOF'\nconsole.log(1);\nEOF\nnode /tmp/smoke.js";
+        var answer = new HumanAnswer(SessionId.New(), JobId.New(), new ItemId("smoke"), ItemKind.Command, command, PermissionAnswer.Deny, Option<string>.None, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch);
+
+        Assert.Equal(new ExceptionPhrase("You denied: run node --check app.js +4 lines", "by you", string.Empty, command), ReviewPhrases.Exception(new HumanDenial(answer)));
+    }
+
+    [Fact]
     public void ADeclinedFormNamesTheForm() =>
         Assert.Equal(new ExceptionPhrase("Declined: Database", "form", string.Empty, string.Empty), ReviewPhrases.Exception(new DeclinedForm(Form([]))));
 

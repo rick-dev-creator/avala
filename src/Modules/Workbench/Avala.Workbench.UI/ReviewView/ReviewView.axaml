@@ -74,133 +74,138 @@
     </Style>
   </UserControl.Styles>
   <Border x:Name="Sheet" Classes="sheet-in" MaxWidth="{DynamicResource ReadingWidth}">
-    <ScrollViewer x:Name="Scroll" HorizontalScrollBarVisibility="Disabled">
-      <StackPanel x:Name="Body">
-        <Grid x:Name="Header" ColumnDefinitions="*,Auto" Margin="28,24,20,0">
-          <StackPanel Spacing="4">
-            <TextBlock x:Name="Heading" Classes="caption" Text="{Binding Heading}" />
-            <TextBlock x:Name="Title"
-                       Classes="title"
-                       Text="{Binding Title}"
-                       TextWrapping="Wrap"
-                       IsVisible="{Binding Title, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-            <TextBlock x:Name="Facts"
-                       Classes="caption"
-                       Text="{Binding Facts}"
-                       TextTrimming="CharacterEllipsis"
-                       IsVisible="{Binding Facts, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <Grid x:Name="Layout" RowDefinitions="Auto,*,Auto">
+      <Grid x:Name="Header" ColumnDefinitions="*,Auto" Margin="28,24,20,0">
+        <StackPanel Spacing="4">
+          <TextBlock x:Name="Heading" Classes="caption" Text="{Binding Heading}" />
+          <TextBlock x:Name="Title"
+                     Classes="title"
+                     Text="{Binding Title}"
+                     TextWrapping="Wrap"
+                     IsVisible="{Binding Title, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock x:Name="Facts"
+                     Classes="caption"
+                     Text="{Binding Facts}"
+                     TextTrimming="CharacterEllipsis"
+                     IsVisible="{Binding Facts, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+        <Button x:Name="Close"
+                Grid.Column="1"
+                Classes="ghost"
+                VerticalAlignment="Top"
+                Padding="6"
+                Command="{Binding CloseCommand}"
+                AutomationProperties.Name="Close the review">
+          <Path Classes="icon" Data="{StaticResource IconCross}" Width="10" Height="10" />
+        </Button>
+      </Grid>
+
+      <ScrollViewer x:Name="Scroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="Body" Margin="0,0,0,20">
+          <TextBlock x:Name="Loading"
+                     Classes="caption pulse"
+                     Margin="28,24,28,0"
+                     Text="Reading the evidence…"
+                     IsVisible="{Binding !IsLoaded}" />
+
+          <StackPanel x:Name="Proof" IsVisible="{Binding IsLoaded}">
+            <Border x:Name="Verdict"
+                    Margin="28,20,28,0"
+                    Padding="20,18"
+                    CornerRadius="{DynamicResource RadiusCard}"
+                    Background="{DynamicResource FillSubtleBrush}">
+              <Grid ColumnDefinitions="Auto,*">
+                <Panel x:Name="Glyph" Width="34" Height="34" Margin="0,0,16,0" VerticalAlignment="Center">
+                  <Ellipse x:Name="Ring" Stroke="{DynamicResource RingBrush}" StrokeThickness="1.5" />
+                  <Path x:Name="Check"
+                        Classes="glyph"
+                        Classes.draw="{Binding IsVerified}"
+                        Data="{StaticResource IconCheck}"
+                        IsVisible="{Binding IsVerified}" />
+                  <Path x:Name="Unproven"
+                        Classes="glyph"
+                        Stroke="{DynamicResource AttentionBrush}"
+                        Data="{StaticResource IconCross}"
+                        Width="12"
+                        Height="12"
+                        IsVisible="{Binding !IsVerified}" />
+                </Panel>
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                  <TextBlock x:Name="VerdictText" Classes="verdict strong" Text="{Binding Verdict}" TextWrapping="Wrap" />
+                  <TextBlock x:Name="ProofText"
+                             Classes="prose"
+                             Text="{Binding Proof}"
+                             IsVisible="{Binding Proof, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <StackPanel x:Name="WorthALook" Margin="28,22,28,0" Spacing="2">
+              <TextBlock x:Name="ExceptionCount"
+                         Classes="section"
+                         Margin="0,0,0,6"
+                         Text="{Binding Exceptions.Count, StringFormat='Worth a look · {0}'}"
+                         IsVisible="{Binding HasExceptions}" />
+              <ItemsControl x:Name="Exceptions" ItemsSource="{Binding Exceptions}" IsVisible="{Binding HasExceptions}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="2" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+              <TextBlock x:Name="Quiet"
+                         Classes="caption"
+                         Margin="12,10,12,0"
+                         Text="{Binding Quiet}"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding Quiet, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+
+            <Border x:Name="Diff"
+                    Margin="28,20,28,0"
+                    Padding="0,12,0,0"
+                    BorderBrush="{DynamicResource SeparatorBrush}"
+                    BorderThickness="0,1,0,0">
+              <ui:Fold x:Name="Changes"
+                       Classes="code"
+                       Margin="-12,0"
+                       Padding="12,8"
+                       Header="{Binding Changes}"
+                       Fact="{Binding Totals}">
+                <ItemsControl x:Name="Files" ItemsSource="{Binding Files}" Margin="12,0,12,12" />
+              </ui:Fold>
+            </Border>
           </StackPanel>
-          <Button x:Name="Close"
-                  Grid.Column="1"
-                  Classes="ghost"
-                  VerticalAlignment="Top"
-                  Padding="6"
-                  Command="{Binding CloseCommand}"
-                  AutomationProperties.Name="Close the review">
-            <Path Classes="icon" Data="{StaticResource IconCross}" Width="10" Height="10" />
-          </Button>
-        </Grid>
 
-        <TextBlock x:Name="Loading"
-                   Classes="caption pulse"
-                   Margin="28,24,28,0"
-                   Text="Reading the evidence…"
-                   IsVisible="{Binding !IsLoaded}" />
-
-        <StackPanel x:Name="Proof" IsVisible="{Binding IsLoaded}">
-          <Border x:Name="Verdict"
-                  Margin="28,20,28,0"
-                  Padding="20,18"
-                  CornerRadius="{DynamicResource RadiusCard}"
-                  Background="{DynamicResource FillSubtleBrush}">
-            <Grid ColumnDefinitions="Auto,*">
-              <Panel x:Name="Glyph" Width="34" Height="34" Margin="0,0,16,0" VerticalAlignment="Center">
-                <Ellipse x:Name="Ring" Stroke="{DynamicResource RingBrush}" StrokeThickness="1.5" />
-                <Path x:Name="Check"
-                      Classes="glyph"
-                      Classes.draw="{Binding IsVerified}"
-                      Data="{StaticResource IconCheck}"
-                      IsVisible="{Binding IsVerified}" />
-                <Path x:Name="Unproven"
-                      Classes="glyph"
-                      Stroke="{DynamicResource AttentionBrush}"
-                      Data="{StaticResource IconCross}"
-                      Width="12"
-                      Height="12"
-                      IsVisible="{Binding !IsVerified}" />
-              </Panel>
-              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                <TextBlock x:Name="VerdictText" Classes="verdict strong" Text="{Binding Verdict}" TextWrapping="Wrap" />
-                <TextBlock x:Name="ProofText"
-                           Classes="prose"
-                           Text="{Binding Proof}"
-                           IsVisible="{Binding Proof, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <Border x:Name="QueuedDraft"
+                  Margin="28,16,28,0"
+                  Padding="14,12"
+                  CornerRadius="{DynamicResource RadiusItem}"
+                  Background="{DynamicResource FillQuietBrush}">
+            <Border.IsVisible>
+              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                <Binding Path="Queued" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
+                <Binding Path="!IsClosed" />
+              </MultiBinding>
+            </Border.IsVisible>
+            <DockPanel>
+              <Button x:Name="SendBackQueued"
+                      DockPanel.Dock="Right"
+                      Margin="12,0,0,0"
+                      VerticalAlignment="Center"
+                      Content="Send back with this message"
+                      Command="{Binding SendBackQueuedCommand}" />
+              <StackPanel Spacing="4">
+                <TextBlock Classes="caption" Text="You queued this while the agent worked. It is not sent unless you choose." />
+                <TextBlock x:Name="QueuedText" TextWrapping="Wrap" Text="{Binding Queued}" />
               </StackPanel>
-            </Grid>
-          </Border>
-
-          <StackPanel x:Name="WorthALook" Margin="28,22,28,0" Spacing="2">
-            <TextBlock x:Name="ExceptionCount"
-                       Classes="section"
-                       Margin="0,0,0,6"
-                       Text="{Binding Exceptions.Count, StringFormat='Worth a look · {0}'}"
-                       IsVisible="{Binding HasExceptions}" />
-            <ItemsControl x:Name="Exceptions" ItemsSource="{Binding Exceptions}" IsVisible="{Binding HasExceptions}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <StackPanel Spacing="2" />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-            </ItemsControl>
-            <TextBlock x:Name="Quiet"
-                       Classes="caption"
-                       Margin="12,10,12,0"
-                       Text="{Binding Quiet}"
-                       TextWrapping="Wrap"
-                       IsVisible="{Binding Quiet, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-          </StackPanel>
-
-          <Border x:Name="Diff"
-                  Margin="28,20,28,0"
-                  Padding="0,12,0,0"
-                  BorderBrush="{DynamicResource SeparatorBrush}"
-                  BorderThickness="0,1,0,0">
-            <ui:Fold x:Name="Changes"
-                     Classes="code"
-                     Margin="-12,0"
-                     Padding="12,8"
-                     Header="{Binding Changes}"
-                     Fact="{Binding Totals}">
-              <ItemsControl x:Name="Files" ItemsSource="{Binding Files}" Margin="12,0,12,12" />
-            </ui:Fold>
+            </DockPanel>
           </Border>
         </StackPanel>
+      </ScrollViewer>
 
-        <Border x:Name="QueuedDraft"
-                Margin="28,16,28,0"
-                Padding="14,12"
-                CornerRadius="{DynamicResource RadiusItem}"
-                Background="{DynamicResource FillQuietBrush}">
-          <Border.IsVisible>
-            <MultiBinding Converter="{x:Static BoolConverters.And}">
-              <Binding Path="Queued" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
-              <Binding Path="!IsClosed" />
-            </MultiBinding>
-          </Border.IsVisible>
-          <DockPanel>
-            <Button x:Name="SendBackQueued"
-                    DockPanel.Dock="Right"
-                    Margin="12,0,0,0"
-                    VerticalAlignment="Center"
-                    Content="Send back with this message"
-                    Command="{Binding SendBackQueuedCommand}" />
-            <StackPanel Spacing="4">
-              <TextBlock Classes="caption" Text="You queued this while the agent worked. It is not sent unless you choose." />
-              <TextBlock x:Name="QueuedText" TextWrapping="Wrap" Text="{Binding Queued}" />
-            </StackPanel>
-          </DockPanel>
-        </Border>
-
+      <StackPanel x:Name="Pinned" Grid.Row="2">
+        <Border x:Name="PinnedEdge" Height="1" Background="{DynamicResource SeparatorBrush}" />
         <StackPanel x:Name="FeedbackBox"
                     Margin="28,16,28,0"
                     Spacing="6"
@@ -249,7 +254,7 @@
           </StackPanel>
         </Border>
 
-        <Panel x:Name="Footer" Margin="28,20,28,24">
+        <Panel x:Name="Footer" Margin="28,16,28,20">
           <StackPanel x:Name="Actions" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
             <StackPanel.IsVisible>
               <MultiBinding Converter="{x:Static BoolConverters.And}">
@@ -295,6 +300,6 @@
           </Border>
         </Panel>
       </StackPanel>
-    </ScrollViewer>
+    </Grid>
   </Border>
 </UserControl>
