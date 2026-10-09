@@ -139,7 +139,13 @@ internal sealed class RecordingFormat
     {
         json.WriteString("type", JsonNamingPolicy.CamelCase.ConvertName(recorded.GetType().Name));
         json.WriteNumber("turn", Turn(recorded.Turn));
+        ItemEvent(recorded);
+        InteractionEvent(recorded);
+        TurnEvent(recorded);
+    }
 
+    private void ItemEvent(IAgentEvent recorded)
+    {
         switch (recorded)
         {
             case ItemStarted started:
@@ -160,6 +166,22 @@ internal sealed class RecordingFormat
                 Item(completed.Item);
                 json.WriteString("outcome", Enum(completed.Outcome));
                 break;
+            case ToolCalled called:
+                Item(called.Item);
+                json.WriteString("tool", called.Tool);
+                Text("input", called.Input);
+                break;
+            case ToolReturned returned:
+                Item(returned.Item);
+                Object("result", () => Result(returned.Result));
+                break;
+        }
+    }
+
+    private void InteractionEvent(IAgentEvent recorded)
+    {
+        switch (recorded)
+        {
             case PermissionRequested requested:
                 Item(requested.Item);
                 Text("title", requested.Title);
@@ -178,15 +200,13 @@ internal sealed class RecordingFormat
                 Item(answered.Item);
                 Object("answer", () => Answer(answered.Answer));
                 break;
-            case ToolCalled called:
-                Item(called.Item);
-                json.WriteString("tool", called.Tool);
-                Text("input", called.Input);
-                break;
-            case ToolReturned returned:
-                Item(returned.Item);
-                Object("result", () => Result(returned.Result));
-                break;
+        }
+    }
+
+    private void TurnEvent(IAgentEvent recorded)
+    {
+        switch (recorded)
+        {
             case PlanUpdated plan:
                 Array("steps", plan.Steps, step => Object(() =>
                 {

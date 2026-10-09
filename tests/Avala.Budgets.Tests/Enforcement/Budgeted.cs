@@ -162,7 +162,7 @@ internal sealed class Budgeted
             ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotAwaitingReview));
     }
 
-    private sealed class Usage : IUsage
+    internal sealed class Usage : IUsage
     {
         public Dictionary<JobId, UsageSummary> Jobs { get; } = [];
 

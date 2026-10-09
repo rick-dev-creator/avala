@@ -27,17 +27,11 @@ internal static class ReviewPhrases
 
     public static (string Title, string Detail) Exception(IReviewException exception) => exception switch
     {
-        FailedAttempt failed => (
-            string.Create(CultureInfo.InvariantCulture, $"Attempt {failed.Attempt} failed {string.Join(", ", failed.Checks.Select(Check))}"),
-            string.Join("\n", failed.Checks.Select(Tail).Where(tail => tail.Length > 0))),
-        PolicyDenial denial => (
-            $"Denied: {Request(denial.Decision.Kind, denial.Decision.Target)}",
-            denial.Decision.Rule.Match(rule => $"by the rule {rule.Name}", () => "by the default policy")),
+        FailedAttempt failed => Failed(failed),
+        PolicyDenial denial => Denied(denial.Decision),
         HumanDenial denial => ($"You denied: {Request(denial.Answer.Kind, denial.Answer.Target)}", denial.Answer.Message.Match(message => message, () => string.Empty)),
         DeclinedForm declined => ($"Declined: {declined.Form.Form.Title}", string.Empty),
-        MadeAssumption assumed => (
-            $"Assumed {(assumed.Assumption.Chosen.Count > 0 ? string.Join(", ", assumed.Assumption.Chosen) : "the agent's judgment")} for \"{assumed.Assumption.Prompt}\"",
-            Basis(assumed.Assumption.Basis)),
+        MadeAssumption assumed => Assumed(assumed.Assumption),
         ContinuedAfterHold held => (
             string.Create(CultureInfo.InvariantCulture, $"Held, then continued on attempt {held.Attempt.Number}"),
             held.Attempt.Guidance.Match(guidance => guidance, () => string.Empty)),
@@ -84,6 +78,18 @@ internal static class ReviewPhrases
         JobRejection.ParentNotRunning => "The parent job no longer runs, so its child cannot be integrated.",
         _ => ConversationPhrases.Rejection(rejection),
     };
+
+    private static (string Title, string Detail) Failed(FailedAttempt failed) => (
+        string.Create(CultureInfo.InvariantCulture, $"Attempt {failed.Attempt} failed {string.Join(", ", failed.Checks.Select(Check))}"),
+        string.Join("\n", failed.Checks.Select(Tail).Where(tail => tail.Length > 0)));
+
+    private static (string Title, string Detail) Denied(PolicyDecision decision) => (
+        $"Denied: {Request(decision.Kind, decision.Target)}",
+        decision.Rule.Match(rule => $"by the rule {rule.Name}", () => "by the default policy"));
+
+    private static (string Title, string Detail) Assumed(Assumption assumption) => (
+        $"Assumed {(assumption.Chosen.Count > 0 ? string.Join(", ", assumption.Chosen) : "the agent's judgment")} for \"{assumption.Prompt}\"",
+        Basis(assumption.Basis));
 
     private static string Check(CheckEvidence check) =>
         check.ExitCode.Match(
