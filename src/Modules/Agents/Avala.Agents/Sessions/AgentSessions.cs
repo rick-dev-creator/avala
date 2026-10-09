@@ -14,7 +14,7 @@ internal sealed partial class AgentSessions(
     SessionStarter starter,
     IEventBus bus,
     TimeProvider clock,
-    ILogger<AgentSessions> logger) : IAgents, IAsyncDisposable
+    ILogger<AgentSessions> logger) : IAgents, IShutdownTask, IAsyncDisposable
 {
     private ImmutableDictionary<SessionId, LiveSession> live = ImmutableDictionary<SessionId, LiveSession>.Empty;
 
@@ -99,13 +99,15 @@ internal sealed partial class AgentSessions(
         return session;
     }
 
-    public async ValueTask DisposeAsync()
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         foreach (var session in Volatile.Read(ref live).Keys)
         {
-            await StopAsync(session, CancellationToken.None);
+            await StopAsync(session, cancellationToken);
         }
     }
+
+    public async ValueTask DisposeAsync() => await StopAsync(CancellationToken.None);
 
     private async Task PumpAsync(LiveSession running, CancellationToken cancellationToken)
     {

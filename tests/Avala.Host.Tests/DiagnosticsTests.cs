@@ -25,6 +25,17 @@ public sealed class DiagnosticsTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task StoppingWithAnAgentSessionOpenStopsItBeforeTheEventBusSoNoEventIsDroppedAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "waiting-permission");
+        Assert.Equal(Permissions.Contracts.DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
+
+        var log = await run.StopAndReadLogAsync();
+
+        Assert.DoesNotContain("was published after the event bus stopped", log, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task UnhandledExceptionsAndAFailedStartupAreLoggedAsErrorsAsync()
     {
         await using var data = new TemporaryFolder();

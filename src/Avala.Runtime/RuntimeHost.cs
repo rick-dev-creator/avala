@@ -6,11 +6,15 @@ namespace Avala.Runtime;
 
 public static class RuntimeHost
 {
+    private static readonly TimeSpan ShutdownGrace = TimeSpan.FromSeconds(10);
+
     extension(IServiceProvider services)
     {
         public async Task RunAsync(CancellationToken cancellationToken)
         {
-            var loop = services.GetRequiredService<EventBus>().RunAsync(cancellationToken);
+            var bus = services.GetRequiredService<EventBus>();
+            using var stopped = new CancellationTokenSource();
+            var loop = bus.RunAsync(cancellationToken, stopped.Token);
 
             try
             {
@@ -19,13 +23,40 @@ public static class RuntimeHost
                     await task.RunAsync(cancellationToken);
                 }
 
-                await services.GetRequiredService<EventBus>().PublishAsync(new StartupCompleted(), cancellationToken);
+                await bus.PublishAsync(new StartupCompleted(), cancellationToken);
+                await cancellationToken.UntilCancelledAsync();
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
             }
 
-            await loop;
+            try
+            {
+                await services.ShutDownAsync(bus);
+            }
+            finally
+            {
+                await stopped.CancelAsync();
+                await loop;
+            }
+        }
+
+        private async Task ShutDownAsync(EventBus bus)
+        {
+            using var grace = new CancellationTokenSource(ShutdownGrace, services.GetService<TimeProvider>() ?? TimeProvider.System);
+
+            try
+            {
+                foreach (var task in services.GetServices<IShutdownTask>())
+                {
+                    await task.StopAsync(grace.Token);
+                }
+
+                await bus.DeliveredAsync(grace.Token);
+            }
+            catch (OperationCanceledException) when (grace.IsCancellationRequested)
+            {
+            }
         }
     }
 }
