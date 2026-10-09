@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Spending;
@@ -21,12 +22,20 @@ internal interface IUsageViewModel
     IReadOnlyList<IInterventionViewModel> Interventions { get; }
 }
 
-internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, LiveFeed feed) : IUsageViewModel, IPage, IActivatable, IDisposable
+internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, LiveFeed feed) : IUsageViewModel, IPage, IActivatable, IPresentation, IDisposable
 {
     private readonly ObservableCollection<ConnectionMeterViewModel> connections = [];
     private readonly ObservableCollection<UsageWindowViewModel> periods = [];
     private readonly ObservableCollection<JobMeterViewModel> jobs = [];
     private readonly ObservableCollection<InterventionViewModel> interventions = [];
+
+    public event EventHandler<Presented>? Presented
+    {
+        add => feed.Presented += value;
+        remove => feed.Presented -= value;
+    }
+
+    public long Revision => feed.Revision;
 
     public string Title => "Usage";
 

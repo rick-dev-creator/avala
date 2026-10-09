@@ -115,12 +115,13 @@ public sealed class ReviewTests(PublishedPlugins plugins)
     [Fact]
     public async Task UsageAndInterventionsSurviveARestartAndUsageIsReadByTimeWindowAsync()
     {
-        var started = DateTimeOffset.UtcNow.AddMinutes(-1);
         await using var run = await SimulatedRun.InstructedAsync(
             plugins,
             SimulatedRun.Simulate("hang"),
             [("supervision.json", """{ "silenceSeconds": 1 }""")],
             [(".avala/budget.json", """{ "costPerJob": { "USD": 0.01 } }""")]);
+        var started = run.Clock.GetUtcNow().AddMinutes(-1);
+        await run.SilentForAsync(TimeSpan.FromSeconds(1));
         var stalled = await run.SupervisorInterventionAsync();
         var spending = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("permission"))));
         var exceeded = await run.BudgetInterventionAsync();
@@ -137,7 +138,7 @@ public sealed class ReviewTests(PublishedPlugins plugins)
         Assert.Equal(spent.Tokens, restored.Tokens);
         Assert.Equal(spent.Costs, restored.Costs);
         var history = run.Get<IUsageHistory>();
-        var now = DateTimeOffset.UtcNow.AddMinutes(1);
+        var now = run.Clock.GetUtcNow().AddMinutes(1);
         var window = await history.WithinAsync(started, now, Cancellation);
         Assert.Equal((spent.Tokens, spent.Costs[0]), (window.Usage.Tokens, Assert.Single(window.Usage.Costs)));
         Assert.Equal(0, (await history.WithinAsync(started.AddDays(-1), started, Cancellation)).Usage.Tokens.Input);

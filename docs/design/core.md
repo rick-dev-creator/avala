@@ -229,9 +229,12 @@ public interface IEventFeed
 {
     IAsyncEnumerable<TEvent> SubscribeAsync<TEvent>(CancellationToken cancellationToken)
         where TEvent : IIntegrationEvent;
+
+    Task DeliveredAsync(CancellationToken cancellationToken);
 }
 ```
 
+- `DeliveredAsync` completes once every handler has handled every event published before the call: a mark is routed behind them and posted to every mailbox. Events the handlers publish meanwhile are not awaited. It lets an observer, such as a simulation test about to advance the clock, know that no handler still holds an earlier event; it orders nothing between handlers.
 - Activation starts an `await foreach`. Deactivation cancels the token and ends the subscription, so no subscription outlives its screen.
 - Each subscription is a channel of its own: it receives its events in publishing order, and no handler can delay it. A subscriber therefore may see an event before the handlers of that event ran; one that needs a handler's result waits for the event that handler publishes afterwards.
 - Events arrive off the UI thread. The SDK defines `IUiDispatcher` and the host implements it, so view models stay unaware of Avalonia.
@@ -733,6 +736,7 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `processes` | Runs `dotnet build`, a real process that works briefly and exits, then `dotnet run`, a real server that listens on the port in `AVALA_PORT` and replies with it, and finishes the turn leaving the server running past the session |
 | `follow-up` | Writes `CHANGELOG.md`, then calls the executed tool `propose_follow_up` with the follow-up `[simulate: reply] Announce the changelog to the team`, waits for the harness's result, replies with it as `The harness answered: …` and finishes. Without that tool it writes the proposal as a message |
 | `near-limit` | Replies, reports its usage and a `5h` limit window 95% used that resets two seconds after the report, measured with `TimeProvider`, and finishes |
+| `spent-window` | Reports 0.06 USD of usage and a `5h` limit window 95% used that resets an hour later, then keeps working until interrupted, so a hold at the limit always finds the job running; the turn after replies and finishes |
 | `delegate` | An orchestrator: calls the executed tool `delegate` twice at once, `[simulate: notes] Write the release notes` and `[simulate: todo] Write the to-do list`, waits for both results, replies and finishes |
 | `delegate-conflict` | Like `delegate`, with the children `notes` and `notes-revised`, which both write `NOTES.md` |
 | `delegate-loosen` | Calls `delegate` for `notes` asking for `autonomous`, then again without asking, one after the other |
@@ -1163,7 +1167,7 @@ An unattended agent must not spend without limit. The Budgets module holds a job
 - Caps are per job: they count every session of the job, recovery included, as `IUsage.OfJob` adds them up. The module reads spending from `IUsage` instead of adding reports up again.
 - **Cost.** One cap per currency. A job is held as `BudgetExceeded` when what it spent in a currency reaches the cap of that currency. Only priced reports count: with a provider that reports no cost, cap tokens instead.
 - **Tokens.** One cap on every token the provider reported: input, output, cache reads, cache writes and reasoning. Counting all of them holds earlier rather than later.
-- **Limits.** A threshold between 0 and 1. A job is held as `LimitNearlyReached` when a usage limit window of its session's connection reaches the threshold, whichever session on that connection reported it, since a limit belongs to the account a connection runs on: a work subscription near its limit never holds a job on a personal one. A reading whose window has already reset, its `ResetsAt` past, no longer counts, so a job continued after the reset is not held again by the reading that held it.
+- **Limits.** A threshold between 0 and 1. A job is held as `LimitNearlyReached` when a usage limit window of its session's connection reaches the threshold, whichever session on that connection reported it, since a limit belongs to the account a connection runs on: a work subscription near its limit never holds a job on a personal one. A reading whose window has already reset, its `ResetsAt` past, no longer counts, so a job continued after the reset is not held again by the reading that held it. Only a running job is held: a reading that arrives with the end of a turn may find the job already checking or awaiting review, since Jobs and Budgets handle the turn's events in their own mailboxes, and then nothing is interrupted, as nothing runs; the job is held when it runs again while the window still counts, and the loop's own pause before its next task covers the autopilot.
 - **By connection.** The `connections` section of the file gives the jobs on a named connection their own caps, which replace the top-level ones for those jobs, so an API key billed per token can be capped while a subscription is not. The loader reads the caps of the connection `SessionOpened` names.
 - **Memory.** A cap in megabytes on the memory, the working sets, of every process of the job's trees, as `IResources.OfJob` measures it at the latest sample. A job is held as `MemoryExceeded` when its processes reach it, so parallel builds cannot exhaust the machine. Without the Resources plugin nothing is measured and the cap never holds.
 - A cap is reached when the measure is equal to it or above it. The first breach found holds the job, in that order: cost, tokens, limit, memory.

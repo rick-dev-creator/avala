@@ -250,9 +250,13 @@ internal static class ScenarioCatalog
     [
         [
             Thought("A long piece of work ", "that uses most of the window."),
-            Message("Done, ", "though the usage window is nearly spent."),
+            Message("Still going, ", "though the usage window is nearly spent."),
             new ReportUsage(new TokenUsage(9_000, 700, 4_500, 900, 175), new Cost(0.0600m, "USD")),
             new ReportLimitResetting("5h", 0.95, TimeSpan.FromHours(1)),
+        ],
+        [
+            Message("Picked up where the window ran out."),
+            .. Bill(800, 40, 0.0020m, 0.10),
             new Finish(),
         ],
     ]);

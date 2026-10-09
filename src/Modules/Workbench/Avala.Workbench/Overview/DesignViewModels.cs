@@ -1,4 +1,5 @@
 using Avala.Jobs.Contracts;
+using Avala.Sdk.Presentation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Usage;
 using CommunityToolkit.Mvvm.Input;
@@ -64,6 +65,14 @@ internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
     ];
 
     public string FileNote => string.Empty;
+
+    public long Revision => 0;
+
+    public event EventHandler<Presented>? Presented
+    {
+        add { }
+        remove { }
+    }
 
     public void Activate()
     {
@@ -137,6 +146,14 @@ internal sealed class DesignDelegationViewModel : IDelegationViewModel
     public IOrchestratorViewModel? Selected => Orchestrators[0];
 
     public IRelayCommand<IOrchestratorViewModel> SelectCommand { get; } = new RelayCommand<IOrchestratorViewModel>(_ => { });
+
+    public long Revision => 0;
+
+    public event EventHandler<Presented>? Presented
+    {
+        add { }
+        remove { }
+    }
 
     public void Activate()
     {

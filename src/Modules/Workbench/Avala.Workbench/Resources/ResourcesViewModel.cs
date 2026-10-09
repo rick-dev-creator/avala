@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Upkeep;
@@ -44,13 +45,21 @@ internal interface IResourcesViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekeeping housekeeping, LiveFeed feed) : IResourcesViewModel, IPage, IActivatable, IDisposable
+internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekeeping housekeeping, LiveFeed feed) : IResourcesViewModel, IPage, IActivatable, IPresentation, IDisposable
 {
     private readonly ObservableCollection<AgentTreeViewModel> trees = [];
     private readonly ObservableCollection<OrphanViewModel> orphans = [];
     private readonly ObservableCollection<StaleWorktreeViewModel> staleWorktrees = [];
     private readonly ObservableCollection<string> leases = [];
     private readonly ObservableCollection<string> conflicts = [];
+
+    public event EventHandler<Presented>? Presented
+    {
+        add => feed.Presented += value;
+        remove => feed.Presented -= value;
+    }
+
+    public long Revision => feed.Revision;
 
     public string Title => "Resources";
 

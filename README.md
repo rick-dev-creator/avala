@@ -7,12 +7,12 @@
 
 **Agents you can trust without watching.**
 
-[![Debt grade](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/debt.svg)](docs/architecture.md#technical-debt-grade)
-[![Coverage](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/coverage.svg)](docs/architecture.md#quality-metrics)
-[![Maintainability](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/maintainability.svg)](docs/architecture.md#technical-debt-grade)
-[![Highest complexity](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/complexity.svg)](docs/architecture.md#technical-debt-grade)
-[![C# lines](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/lines.svg)](docs/architecture.md#quality-metrics)
-[![Share of T3 Code's lines](https://raw.githubusercontent.com/rick-dev-creator/avala/badges/t3-share.svg)](docs/architecture.md#quality-metrics)
+[![Debt grade](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/debt.svg)](docs/architecture.md#technical-debt-grade)
+[![Coverage](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/coverage.svg)](docs/architecture.md#quality-metrics)
+[![Maintainability](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/maintainability.svg)](docs/architecture.md#technical-debt-grade)
+[![Highest complexity](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/complexity.svg)](docs/architecture.md#technical-debt-grade)
+[![C# lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/lines.svg)](docs/architecture.md#quality-metrics)
+[![Share of T3 Code's lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/t3-share.svg)](#a-note-on-t3-code)
 
 Avala is an open-source desktop harness for coding agents. It runs each agent in its own git worktree and lets it work unattended, while every decision is governed by your rules, every result is backed by evidence, and every cost is accounted for.
 
@@ -45,6 +45,14 @@ dotnet test --solution Avala.slnx
 - [Architecture](docs/architecture.md): the rules every change must pass.
 - [Core design](docs/design/core.md) and [plan](docs/plan/core.md).
 - [AGENTS.md](AGENTS.md): how to contribute, with or without an agent.
+
+## A note on T3 Code
+
+[T3 Code](https://github.com/pingdotgg/t3code) is one of the most popular open-source harnesses for building software with coding agents, so we use it as a fixed reference to measure Avala's size against.
+
+It is only a yardstick. The two projects differ in scope, since T3 Code also ships web and mobile clients and Avala does not, so the numbers describe size, not a like-for-like comparison of features. [How the lines are counted](docs/architecture.md#quality-metrics).
+
+We respect and admire the work of its developers. The comparison is not a criticism of the project or of the people behind it.
 
 ## License
 

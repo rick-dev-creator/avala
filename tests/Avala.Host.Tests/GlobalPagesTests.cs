@@ -38,13 +38,18 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoLogins, []);
         _ = Outcomes.Succeeds(await run.SubmitAsync(Hanging("Fix the failing test", "work")));
         _ = Outcomes.Succeeds(await run.SubmitAsync(Hanging("Add an endpoint", "personal")));
-        var connections = (await ActivatedAsync(run, "Overview"))["Connections"]["Connections"];
+        _ = await run.OpenedAsync();
+        _ = await run.OpenedAsync();
+        var connections = (await ActivatedAsync(run, "Overview"))["Connections"];
 
-        await run.Ui.UntilAsync(() => connections.Items.Count == 2 && connections.Items.All(card => card["Agents"].Items.Count == 1));
+        await run.Ui.PresentedAsync(
+            connections.Presentation,
+            () => connections["Connections"].Items.Count == 2 && connections["Connections"].Items.All(card => card["Agents"].Items.Count == 1),
+            () => string.Join(", ", connections["Connections"].Items.Select(card => $"{card["Name"].Text} with {card["Agents"].Items.Count} agents")));
 
         Assert.Equal(
             [("work", true, "Fix the failing test"), ("personal", false, "Add an endpoint")],
-            await run.Ui.ReadAsync(() => connections.Items
+            await run.Ui.ReadAsync(() => connections["Connections"].Items
                 .Select(card => (card["Name"].Text, card["IsDefault"].Value<bool>(), card["Agents"].Items[0]["Title"].Text.Split(" [")[0]))
                 .ToList()));
     }
@@ -64,8 +69,10 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(orchestrator)));
         var delegation = (await ActivatedAsync(run, "Overview"))["Delegation"];
 
-        await run.Ui.UntilAsync(() => delegation["Children"].Items.Count == 2
-            && delegation["Children"].Items.All(child => child["Activity"].Text == "integrated into its parent"));
+        await run.Ui.PresentedAsync(
+            delegation.Presentation,
+            () => delegation["Children"].Items.Count == 2 && delegation["Children"].Items.All(child => child["Activity"].Text == "integrated into its parent"),
+            () => string.Join(", ", delegation["Children"].Items.Select(child => child["Activity"].Text)));
 
         Assert.Equal(orchestrator, await run.Ui.ReadAsync(() => delegation["Selected"]["Job"].Value<JobId>()));
         Assert.Equal(
@@ -79,18 +86,19 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
     public async Task TheUsagePageShowsASimulatedJobsCostAndItsLimitAgainstTheHoldThresholdAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "spent-window", (".avala/budget.json", """{ "holdAtLimit": 0.9 }"""));
-        _ = await run.SettledAsync();
+        Assert.Equal(HoldReason.LimitNearlyReached, (await run.BudgetInterventionAsync()).Hold.Reason);
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
         var usage = await ActivatedAsync(run, "Usage");
 
-        await run.Ui.UntilAsync(
+        await run.Ui.PresentedAsync(
+            usage.Presentation,
             () => usage["Connections"].Items.Count == 1
                 && usage["Connections"].Items[0]["Limits"].Items.Count == 1
                 && usage["Jobs"].Items.Count == 1
                 && usage["Interventions"].Items.Count == 1,
             () => $"connections {usage["Connections"].Items.Count}, "
                 + $"limits {(usage["Connections"].Items.Count > 0 ? usage["Connections"].Items[0]["Limits"].Items.Count : -1)}, "
-                + $"jobs {usage["Jobs"].Items.Count}, interventions {usage["Interventions"].Items.Count}, "
-                + $"job status {run.Job}");
+                + $"jobs {usage["Jobs"].Items.Count}, interventions {usage["Interventions"].Items.Count}");
 
         var (cost, limit, job, intervention) = await run.Ui.ReadAsync(() => (
             usage["Connections"].Items[0]["Cost"].Text,
@@ -119,22 +127,21 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
             ]);
         var settings = (await ActivatedAsync(run, "Settings"))["Repository"];
 
-        await run.Ui.InvokeAsync(
-            () =>
-            {
-                settings.Set("Repository", run.Repository.Path);
-                settings.Execute("ReadCommand");
-            },
-            Cancellation);
-        await run.Ui.UntilAsync(() => settings["Shown"].Text == run.Repository.Path && settings["Checks"].Items.Count == 1);
+        await run.Ui.RunAsync(() =>
+        {
+            settings.Set("Repository", run.Repository.Path);
+
+            return settings.ExecuteAsync("ReadCommand");
+        });
 
         Assert.Equal(
-            ("Autonomous", "tests", "Repository", "git --version", "approval", "merge"),
+            (run.Repository.Path, "Autonomous", "tests", "Repository", "git --version", "approval", "merge"),
             await run.Ui.ReadAsync(() => (
+                settings["Shown"].Text,
                 settings["Autonomy"].Text,
                 settings["Rules"].Items[2]["Name"].Text,
                 settings["Rules"].Items[2]["Origin"].Text,
-                settings["Checks"].Items[0]["Command"].Text,
+                Assert.Single(settings["Checks"].Items)["Command"].Text,
                 settings["JobSections"].Items[0]["Name"].Text,
                 settings["JobSections"].Items[0]["Value"].Text)));
         var files = await run.Ui.ReadAsync(() => settings["Files"].Items.Select(file => (file["Status"].Text, file["Commit"].Text)).ToList());
@@ -148,19 +155,26 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         await using var run = await SimulatedRun.InstructedAsync(
             plugins,
             SimulatedRun.Simulate("processes"),
-            [("resources.json", """{ "orphans": "report" }""")],
+            [("resources.json", $$"""{ "orphans": "report", {{LeasedPorts.Settings(test: 0)}}, "worktrees": { "keepDiscardedHours": null } }""")],
             [(".avala/permissions.json", ServicesPolicy)]);
+        var reaped = run.Watch<OrphansReaped>();
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, Cancellation));
         var server = Assert.Single((await run.OrphansFoundAsync()).Processes);
         var resources = await ActivatedAsync(run, "Resources");
-        await run.Ui.UntilAsync(() => resources["Orphans"].Items.Any(orphan => orphan["CanReap"].Value<bool>()));
+        await run.Ui.PresentedAsync(
+            resources.Presentation,
+            () => resources["Orphans"].Items.Count == 1,
+            () => $"{resources["Orphans"].Items.Count} orphans");
 
-        await run.Ui.InvokeAsync(
-            () => resources.Execute("ReapCommand", resources["Orphans"].Items.Single(orphan => orphan["CanReap"].Value<bool>()).Target),
-            Cancellation);
-        await run.Ui.UntilAsync(() => resources["Orphans"].Items.Count == 1 && resources["Orphans"].Items[0]["Disposal"].Text == "killed");
+        await run.Ui.RunAsync(() => resources.ExecuteAsync("ReapCommand", Assert.Single(resources["Orphans"].Items, orphan => orphan["CanReap"].Value<bool>()).Target));
+        var killed = (await reaped.UntilAsync(_ => true)).Report;
+        await run.Ui.PresentedAsync(
+            resources.Presentation,
+            () => resources["Orphans"].Items is [var orphan] && orphan["Disposal"].Text == "killed",
+            () => string.Join(", ", resources["Orphans"].Items.Select(orphan => orphan["Disposal"].Text)));
 
+        Assert.Equal((run.Job, OrphanDisposal.Killed, string.Empty), (Outcomes.Present(killed.Job), killed.Disposal, await run.Ui.ReadAsync(() => resources["Error"].Text)));
         Assert.True(await Workloads.IsGoneAsync(server.Id), $"Process {server.Id} survived its clean-up");
         Assert.Equal([OrphanDisposal.LeftRunning, OrphanDisposal.Killed], run.Get<IOrphans>().OfJob(run.Job).Select(report => report.Disposal));
     }
@@ -170,18 +184,16 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoLogins, []);
         var page = await ActivatedAsync(run, "New job");
-        await run.Ui.UntilAsync(() => page["Connections"].Items.Any(connection => connection.Text == "personal"));
+        Assert.Contains("personal", await run.Ui.ReadAsync(() => page["Connections"].Items.Select(connection => connection.Text).ToList()));
 
-        await run.Ui.InvokeAsync(
-            () =>
-            {
-                page.Set("Repository", run.Repository.Path);
-                page.Set("Instruction", SimulatedRun.Simulate("reply"));
-                page.Set("Connection", "personal");
-                page.Execute("SubmitCommand");
-            },
-            Cancellation);
-        await run.Ui.UntilAsync(() => page["LastSubmitted"].Value<Option<JobId>>().IsSome);
+        await run.Ui.RunAsync(() =>
+        {
+            page.Set("Repository", run.Repository.Path);
+            page.Set("Instruction", SimulatedRun.Simulate("reply"));
+            page.Set("Connection", "personal");
+
+            return page.ExecuteAsync("SubmitCommand");
+        });
         var job = Outcomes.Present(await run.Ui.ReadAsync(() => page["LastSubmitted"].Value<Option<JobId>>()));
 
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
@@ -195,7 +207,12 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
     private static async Task<Bound> ActivatedAsync(SimulatedRun run, string title)
     {
         var page = run.Page(title);
-        await run.Ui.InvokeAsync(() => ((IActivatable)page.Target).Activate(), Cancellation);
+        await run.Ui.RunAsync(() =>
+        {
+            ((IActivatable)page.Target).Activate();
+
+            return page.Has("Loading") ? page["Loading"].Value<Task>() : Task.CompletedTask;
+        });
 
         return page;
     }
