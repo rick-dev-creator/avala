@@ -15,6 +15,8 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     public const int MaximumBytes = 16 * 1024;
 
+    public const string ByCapacity = "auto";
+
     private const string ConnectionField = "connection";
 
     private const string ApprovalField = "approval";
@@ -27,7 +29,7 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     public async ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken) =>
         (await DeclaredAsync(worktree, cancellationToken))
-            .Map(declared => declared.Connection.Map(name => new ConnectionName(name)))
+            .Map(declared => declared.Connection.Bind(name => name == ByCapacity ? Option<ConnectionName>.None : new ConnectionName(name)))
             .MapError(_ => JobRejection.UnusableConnection);
 
     public async ValueTask<Result<Option<string>, JobRejection>> ApprovalAsync(string worktree, CancellationToken cancellationToken) =>

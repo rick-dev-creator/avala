@@ -21,4 +21,5 @@ internal enum JobError
     CannotFail,
     CannotHold,
     ForeignSession,
+    SameConnection,
 }

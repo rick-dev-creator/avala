@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Jobs;
 using Avala.Testing;
@@ -24,6 +25,7 @@ public sealed class JobTransitionTests
         [Operation.RequestHelp] = ([], JobError.CannotRequestHelp),
         [Operation.Hint] = ([JobState.NeedsHelp], JobError.CannotHint),
         [Operation.HintInNewSession] = ([JobState.NeedsHelp], JobError.CannotHint),
+        [Operation.ContinueOnAnotherConnection] = ([JobState.NeedsHelp], JobError.CannotHint),
         [Operation.SendBack] = ([JobState.AwaitingReview], JobError.CannotSendBack),
         [Operation.SendBackInNewSession] = ([JobState.AwaitingReview], JobError.CannotSendBack),
         [Operation.Approve] = ([JobState.AwaitingReview], JobError.CannotApprove),
@@ -71,6 +73,7 @@ public sealed class JobTransitionTests
         Operation.RequestHelp => Outcomes.ErrorOf(job.RequestHelp()),
         Operation.Hint => Outcomes.ErrorOf(job.Hint(Given.Feedback)),
         Operation.HintInNewSession => Outcomes.ErrorOf(job.Hint(Given.Feedback, SessionId.New(), resumed: true)),
+        Operation.ContinueOnAnotherConnection => Outcomes.ErrorOf(job.ContinueOn(Given.Feedback, SessionId.New(), new ConnectionName("personal"))),
         Operation.SendBack => Outcomes.ErrorOf(job.SendBack(Given.Feedback)),
         Operation.SendBackInNewSession => Outcomes.ErrorOf(job.SendBack(Given.Feedback, SessionId.New(), resumed: true)),
         Operation.Approve => Outcomes.ErrorOf(job.Approve()),

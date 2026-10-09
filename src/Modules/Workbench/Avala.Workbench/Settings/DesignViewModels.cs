@@ -72,6 +72,8 @@ internal sealed class DesignMachineConnectionViewModel(string name, string sourc
 
     public string Source { get; } = source;
 
+    public string Origin { get; } = isDefault ? "declared in connections.json" : "discovered on this machine";
+
     public bool IsDefault { get; } = isDefault;
 }
 
