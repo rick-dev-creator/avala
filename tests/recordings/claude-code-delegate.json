@@ -1,0 +1,247 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T19:10:11.5485273+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
+  },
+  "account": {
+    "id": "claude:account-work",
+    "label": "work@example.com"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Have a sub-agent migrate the database."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "0c2a4b66-5d7e-4f82-9a03-9d5e7f9a1b06/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01ToolSearchDelegate001",
+        "kind": "other",
+        "title": "Load mcp__avala__delegate",
+        "input": "select:mcp__avala__delegate"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.25,
+          "resetsAt": "2026-10-10T17:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.38,
+          "resetsAt": "2026-10-15T05:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01ToolSearchDelegate001",
+        "text": "mcp__avala__delegate"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01ToolSearchDelegate001",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "toolCalled",
+        "turn": 1,
+        "item": "toolu_01DelegateMigrate000002",
+        "tool": "delegate",
+        "input": "{\"instruction\":\"[simulate: permission] Migrate the database\"}"
+      }
+    },
+    {
+      "at": 7200000,
+      "return": {
+        "item": "toolu_01DelegateMigrate000002",
+        "content": "{\"job\":\"01a12212-b025-7f0b-81dd-6d17d66bb917\",\"outcome\":\"integrated\",\"status\":\"approved\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a12212ad027fbc96ef2eacd2ae5bf4\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\"}",
+        "isError": false
+      }
+    },
+    {
+      "at": 7200000,
+      "event": {
+        "type": "toolReturned",
+        "turn": 1,
+        "item": "toolu_01DelegateMigrate000002",
+        "result": {
+          "item": "toolu_01DelegateMigrate000002",
+          "content": "{\"job\":\"01a12212-b025-7f0b-81dd-6d17d66bb917\",\"outcome\":\"integrated\",\"status\":\"approved\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a12212ad027fbc96ef2eacd2ae5bf4\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\"}",
+          "isError": false
+        }
+      }
+    },
+    {
+      "at": 7200000,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01DelegateMigrate000002",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 7200000,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_01DelegateC1b2C3d4E5f6G7:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 7200000,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01DelegateC1b2C3d4E5f6G7:0",
+        "text": "The migration came back "
+      }
+    },
+    {
+      "at": 7200000,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01DelegateC1b2C3d4E5f6G7:0",
+        "text": "from the sub-agent."
+      }
+    },
+    {
+      "at": 7200000,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_01DelegateC1b2C3d4E5f6G7:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 7200000,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 6,
+          "output": 210,
+          "cacheRead": 46878,
+          "cacheWrite": 4800,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.0066,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 7200000,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "0c2a4b66-5d7e-4f82-9a03-9d5e7f9a1b06/0.0066"
+      }
+    },
+    {
+      "at": 7200000,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 7200000,
+      "stop": {}
+    }
+  ]
+}

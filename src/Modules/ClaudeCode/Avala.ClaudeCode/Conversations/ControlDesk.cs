@@ -6,7 +6,7 @@ using Avala.Sdk;
 
 namespace Avala.ClaudeCode.Conversations;
 
-internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, string workingDirectory)
+internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places places)
 {
     private const string Interrupted = "The harness interrupted the turn.";
 
@@ -123,8 +123,10 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, string wo
     {
         var use = new ToolUse(input.TextOr("tool_use_id", string.Empty), input.TextOr("tool_name", string.Empty), input.Members("tool_input"));
 
-        return use.Gated && CommandLine.Unqualified(use.Name).IsNone || use.ReadsOutside(workingDirectory) ? Messages.Ask() : new JsonObject();
+        return !use.WritesPlan(places) && (use.Gated && CommandLine.Unqualified(use.Name).IsNone || use.ReadsOutside(places.WorkingDirectory)) ? Messages.Ask() : new JsonObject();
     }
+
+    private string Plan() => tools.All.Select(tool => tool.Use).Where(use => use.WritesPlan(places)).Aggregate(string.Empty, (plan, use) => use.Planned(plan));
 
     private Reaction Called(ToolCall call, Option<Stamp> turn) =>
         turn.Match(
@@ -170,12 +172,12 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, string wo
             return Reaction.Send(Messages.Mcp(call.RequestId, call.RpcId, Messages.Deny("This tool is internal to Avala.")));
         }
 
-        if (tool.Role is ToolRole.Canvas or ToolRole.Executed || tool.Role != ToolRole.Form && Granted(tool.Use))
+        if (tool.Role is ToolRole.Canvas or ToolRole.Executed || tool.Role != ToolRole.Form && (Granted(tool.Use) || (tool.Use with { Input = input }).WritesPlan(places)))
         {
             return Reaction.Send(Messages.Mcp(call.RequestId, call.RpcId, Messages.Allow(input)));
         }
 
-        prompts.Add(new Prompt(call, tool, input, tool.Role == ToolRole.Form ? Questions.Form(name, input) : Option<AgentForm>.None));
+        prompts.Add(new Prompt(call, tool, input, tool.Role == ToolRole.Form ? Questions.Form(name, input, Plan()) : Option<AgentForm>.None));
 
         return Announce(stamp);
     }
@@ -202,10 +204,12 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, string wo
         }
 
         var use = tool.Use with { Input = prompt.Input };
-        var opening = tool.Opened ? Reaction.None : Reaction.Of(new ItemStarted(stamp.Session, stamp.Turn, tool.Item, use.Kind, use.Title(workingDirectory)));
+        var opening = tool.Opened
+            ? Reaction.None
+            : Reaction.Of(new ItemStarted(stamp.Session, stamp.Turn, tool.Item, use.KindIn(places), use.Heading(places)) { Input = use.Details(places.WorkingDirectory) });
         tool.Opened = true;
 
-        return opening.Then(Reaction.Of(new PermissionRequested(stamp.Session, stamp.Turn, tool.Item, use.Title(workingDirectory), use.Kind, use.Target(workingDirectory))));
+        return opening.Then(Reaction.Of(new PermissionRequested(stamp.Session, stamp.Turn, tool.Item, use.Heading(places), use.Kind, use.Target(places.WorkingDirectory))));
     }
 
     private sealed record Prompt(ToolCall Call, TrackedTool Tool, JsonObject Input, Option<AgentForm> Form)

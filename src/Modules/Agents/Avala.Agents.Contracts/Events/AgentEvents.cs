@@ -5,7 +5,10 @@ namespace Avala.Agents.Contracts.Events;
 
 public sealed record TurnStarted(SessionId Session, TurnId Turn) : IAgentEvent;
 
-public sealed record ItemStarted(SessionId Session, TurnId Turn, ItemId Item, ItemKind Kind, string Title) : IAgentEvent;
+public sealed record ItemStarted(SessionId Session, TurnId Turn, ItemId Item, ItemKind Kind, string Title) : IAgentEvent
+{
+    public Option<string> Input { get; init; }
+}
 
 public sealed record CanvasStarted(SessionId Session, TurnId Turn, ItemId Item, string Title, string MediaType) : IAgentEvent;
 

@@ -7,6 +7,8 @@ public static class TranscriptPlayer
 {
     public const string WorkingDirectory = "${workingDirectory}";
 
+    public const string ConfigurationDirectory = "${configurationDirectory}";
+
     public static async Task<int> PlayAsync(string[] args, TextReader input, TextWriter output, TextWriter error)
     {
         var resume = args.SkipWhile(argument => argument != "--resume").Skip(1).FirstOrDefault();
@@ -23,14 +25,15 @@ public static class TranscriptPlayer
         }
 
         var cwd = JsonSerializer.Serialize(Environment.CurrentDirectory)[1..^1];
+        var login = JsonSerializer.Serialize(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") ?? string.Empty)[1..^1];
+        transcript = [.. transcript.Select(entry => JsonNode.Parse(entry.ToJsonString().Replace(ConfigurationDirectory, login, StringComparison.Ordinal))!)];
         var position = 0;
 
         while (position < transcript.Count)
         {
-            if (transcript[position]["out"] is { } line)
+            if (transcript[position]["in"] is null)
             {
-                await output.WriteLineAsync(line.ToJsonString().Replace(WorkingDirectory, cwd, StringComparison.Ordinal));
-                await output.FlushAsync();
+                await ActAsync(transcript[position], output, cwd);
                 position++;
                 continue;
             }
@@ -64,6 +67,22 @@ public static class TranscriptPlayer
         }
 
         return 0;
+    }
+
+    private static async Task ActAsync(JsonNode entry, TextWriter output, string cwd)
+    {
+        if (entry["out"] is { } line)
+        {
+            await output.WriteLineAsync(line.ToJsonString().Replace(WorkingDirectory, cwd, StringComparison.Ordinal));
+            await output.FlushAsync();
+        }
+
+        if (entry["file"] is { } file)
+        {
+            var path = Path.Combine(Environment.CurrentDirectory, file["path"]!.GetValue<string>());
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, file["content"]!.GetValue<string>());
+        }
     }
 
     public static string Key(JsonNode? message)
