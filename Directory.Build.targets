@@ -1,10 +1,13 @@
 <Project>
+  <PropertyGroup>
+    <AvalaPluginsDirectory Condition="'$(AvalaPluginsDirectory)' == ''">$(AvalaRoot)artifacts\plugins\</AvalaPluginsDirectory>
+  </PropertyGroup>
   <Target Name="AvalaPublishPlugin" AfterTargets="Build" Condition="'$(AvalaPlugin)' == 'true'">
     <ItemGroup>
       <AvalaPluginFile Include="$(OutDir)**\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(AvalaPluginFile)"
-          DestinationFiles="@(AvalaPluginFile->'$(AvalaRoot)artifacts\plugins\$(AssemblyName)\%(RecursiveDir)%(Filename)%(Extension)')"
+          DestinationFiles="@(AvalaPluginFile->'$(AvalaPluginsDirectory)$(AssemblyName)\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
 </Project>
