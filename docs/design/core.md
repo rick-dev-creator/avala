@@ -38,12 +38,12 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
-| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, the job's resume token and the autonomy a job asks for | `JobId`, `Autonomy`, integration events, `IJobs`, `ICompletionGate` |
-| Agents | Sessions, turn integrity, provider registry, the harness tools and resume tokens handed to providers by capability, the forms agents ask humans to fill, and the decorators every provider is started through | `IAgents`, `IAgentProvider`, `IAgentSession`, `IAgentProviderDecorator`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
+| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, the job's resume token, the autonomy a job asks for and the connection it runs on | `JobId`, `Autonomy`, integration events, `IJobs`, `ICompletionGate` |
+| Agents | Sessions, turn integrity, provider registry, the connections sessions open on and their credential sources, the harness tools and resume tokens handed to providers by capability, the forms agents ask humans to fill, and the decorators every provider is started through | `IAgents`, `IAgentProvider`, `IAgentSession`, `IAgentProviderDecorator`, `IConnections`, `ICredentialSource`, `ConnectionName`, `ConnectionEnvironment`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
 | Workspaces | Working copies, branches, checkpoints, and the files of the commit a job started from | `IWorkspaces`, `IBaseFiles`, integration events |
 | Canvas | Offers the canvas tool, accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
-| Observability | Tokens, cost, limits and turns by provider, account, session and job, and their metrics | `IUsage` and its summaries |
+| Observability | Tokens, cost, limits and turns by provider, account, connection, session and job, and their metrics | `IUsage` and its summaries |
 | Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
 | Permissions | Answers permission requests and forms through an explicit policy at the job's level of autonomy, takes a human's answers with their session rules, and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `AutonomyApplied`, `FormDecided`, `PermissionAnswered`, `IPermissionAudit`, `IPermissionAnswers` |
 | Supervision | Holds a job whose agent stays silent, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
@@ -76,10 +76,11 @@ internal sealed class Job
     public Option<WorkspaceId> Workspace { get; private set; }
     public Option<SessionId> Session { get; private set; }
     public Option<ResumeToken> Resume { get; private set; }
+    public Option<ConnectionName> Connection { get; private set; }
 
-    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository);
+    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository, Option<Autonomy> autonomy, Option<ConnectionName> connection);
     public Result<JobSubmitted, JobError> Submit();
-    public Result<AttemptStarted, JobError> Start(WorkspaceId workspace, SessionId session);
+    public Result<AttemptStarted, JobError> Start(WorkspaceId workspace, SessionId session, ConnectionName connection);
     public Result<AttemptStarted, JobError> Recover(SessionId session, bool resumed);
     public Result<ResumeRecorded, JobError> RecordResume(SessionId session, ResumeToken token);
     public Result<AttemptCompleted, JobError> CompleteTurn();
@@ -274,6 +275,7 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 - Handlers are idempotent. `EvaluateTurn` acts only on a job that is still `Running` in the session that finished, so a repeated `TurnFinished` changes nothing.
 - Recovery opens a new session in the existing workspace and calls `job.Recover`, which interrupts the attempt that was underway and starts a `Recovery` attempt. It asks to resume the job's conversation with its stored resume token: when the session resumed it, the agent is told that the harness restarted and to continue where it left off; otherwise the new session starts over with the instruction, as before.
 - **Resume tokens.** `SessionResumable` reaches `CheckTurn` in the same mailbox as `SessionEnded`, and both are queued on the job in that order, so a session that issues a token and then dies has its token stored before the job is held. The token is stored with the job and announced with `JobResumable`.
+- **Connection.** `JobRequest.Connection` optionally names the [connection](#connections) a job runs on. `SubmitJob` checks a named connection through `IConnections.CheckAsync` and rejects the request with `UnknownConnection` or `UnusableConnection`, storing and announcing nothing. A job that names none takes its repository's default: `JobLauncher` reads `.avala/jobs.json` from the job's [base commit](#rules-from-the-base-commit) once the workspace exists, `{ "connection": "work" }`, through the `IRepositoryDefaults` port that `JobFileReader` implements in the `JobFiles` folder; without the file, or without the field, the session opens on the machine's default connection. The file is parsed strictly, at most 16 KiB with no other field, and a file that is invalid or cannot be read fails the job as `ConnectionUnavailable` before any session opens, as does a connection that turns out unknown or unusable when the session opens, since the repository's preference is only known after submission. `Job.Start` records the connection the session actually opened on, so the job keeps it even if the default changes later: it is stored with the job, and recovery and `IJobs.ContinueAsync` open their new session on it. A recovery whose connection is gone fails the job as `ConnectionUnavailable`; a continuation whose connection is gone is rejected with `UnknownConnection` or `UnusableConnection` and the job stays held.
 - **Autonomy.** `JobRequest.Autonomy` is the optional [level of autonomy](#autonomy-levels) a job asks for. Jobs stores it with the job, never interprets it, and announces it with every `JobSessionStarted` of the job, at launch, recovery and continuation alike, so Permissions applies it before the session's first instruction is sent. Whether it may apply is Permissions' decision: a job can be stricter than its repository, never looser.
 
 ### Completion gates
@@ -319,7 +321,7 @@ public interface IJobs
 - `SameSession`: the job's session is still open, as after a `Stalled` or budget hold that interrupted the turn, or after the retries ran out. The message goes to that session.
 - `ResumedConversation`: the session is gone, because it was lost or the application restarted since. A new session opens in the job's workspace with the job's resume token, and the provider resumed the conversation, so the message alone is sent.
 - `NewConversation`: the session is gone and the conversation could not be resumed: the provider cannot resume, there is no token, or the provider rejected it. The new session starts over, and gets the instruction followed by the message.
-- Jobs decides whether the session is open by asking `IAgents.IsOpen`, never by the hold reason, which is not stored. A new session is opened before the job changes, so a job whose workspace is gone (`WorkspaceUnavailable`) or whose agent cannot start (`AgentUnavailable`) stays held. A job that is not `NeedsHelp` is `NotHeld`, an empty message `EmptyMessage`, an unknown job `UnknownJob`.
+- Jobs decides whether the session is open by asking `IAgents.IsOpen`, never by the hold reason, which is not stored. A new session is opened before the job changes, on the job's connection, so a job whose workspace is gone (`WorkspaceUnavailable`), whose connection is gone (`UnknownConnection`, `UnusableConnection`) or whose agent cannot start (`AgentUnavailable`) stays held. A job that is not `NeedsHelp` is `NotHeld`, an empty message `EmptyMessage`, an unknown job `UnknownJob`.
 
 ## Agents
 
@@ -349,7 +351,7 @@ public interface IAgentSession : IAsyncDisposable
 }
 ```
 
-- `SessionOptions` holds harness concepts only: working directory, permission mode, the `Resume` token of a conversation to resume and the harness `Tools` the agent may call. Paths, credentials and protocols belong to each provider's own settings.
+- `SessionOptions` holds harness concepts only: working directory, permission mode, the `Resume` token of a conversation to resume, the harness `Tools` the agent may call, and the `Connection` environment the session runs with, see [Connections](#connections). Paths and protocols belong to each provider's own settings, and how a provider applies a connection's configuration folder, key and settings is its own business.
 - `AgentSessions` opens every session in `AskEveryTime`: the agent asks before every file edit and every command, so every action reaches the policy of [Permissions](#permissions), which allows edits inside the workspace by default. A provider is never told to allow edits on its own, since that would let edits bypass the policy, its guard and its audit. Without the Permissions plugin nothing answers for the harness, and every request waits for a human through `IAgents.RespondAsync`, the documented behavior of `Ask`.
 - Behavior depends on `AgentCapabilities`, never on a provider's name: partial output, reasoning, interruption, resumption, injected tools, usage, cost, limits and [forms](#human-input-forms) (`AsksQuestions`).
 - `PermissionDecision` carries an optional `Message`: with `Deny`, it tells the agent why and what to do instead, the "no, do this instead" of a harness's permission prompt. "Don't ask again" is never sent to a provider: it is a [session rule](#session-rules) of Avala's policy.
@@ -370,13 +372,13 @@ public interface IAgents
 ```
 
 - `OpenAsync` opens a session in the working directory of `AgentRequest` and returns an `OpenedSession`: its `SessionId` and whether it `Resumed` the conversation of the request's optional `Resume` token. `SendAsync` sends a message and returns the `AgentTurn` it started. Opening and sending are separate so the caller can store the session before any turn can finish: Jobs records it on the job first.
-- `SessionStarter` builds the `SessionOptions` from the provider's capabilities, so no caller decides for a provider: it passes the harness tools only to a provider that `AcceptsTools`, and the resume token only to one that `CanResume`. When such a provider rejects the token, it starts a fresh session instead, which is not `Resumed`.
+- `SessionStarter` resolves the request's [connection](#connections), which chooses the provider, and builds the `SessionOptions` from the provider's capabilities, so no caller decides for a provider: it passes the harness tools only to a provider that `AcceptsTools`, and the resume token only to one that `CanResume`. When such a provider rejects the token, it starts a fresh session instead, which is not `Resumed`.
 - **Decorators.** Before it starts a session, `SessionStarter` wraps the provider in every registered `IAgentProviderDecorator`, in registration order, so a plugin can observe or adapt every session of every provider without Agents knowing it. A decorator returns an `IAgentProvider` that keeps the provider's `Info` and `Capabilities`. The [recorder](#session-recording-and-replay) is the first one.
 - `IsOpen` says whether a session is open and its event stream has not ended. Jobs asks it before continuing a held job in its old session.
 - `RespondAsync` answers the permission request of a live session and returns the item it unblocked. A session that is not open returns `SessionClosed`.
 - `AnswerAsync` answers the open form of a live session, see [Human-input forms](#human-input-forms). A provider that does not declare `AsksQuestions` returns `Unsupported` without being asked; an item with no open form returns `NoPendingForm`; an answer that does not fit its form returns `InvalidAnswer`, and neither reaches the provider.
 - `InterruptAsync` asks the agent of a live session to end its running turn, through `IAgentSession.InterruptAsync`; the agent then ends the turn as `Interrupted`. A provider whose capabilities do not declare `CanInterrupt` returns `Unsupported` without being asked, and a session that is not open returns `SessionClosed`. The provider contract does not change.
-- `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider and the session's account, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends and `SessionResumable` when a provider that `CanResume` issues a resume token.
+- `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider, the connection it opened on and the session's account, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends and `SessionResumable` when a provider that `CanResume` issues a resume token.
 - When a session's event stream ends on its own, `AgentSessions` publishes `SessionEnded` with `Crashed` when the stream failed and `Closed` when it completed. It publishes it before closing the turn left live, if any, as `Failed`, so a consumer learns the session is gone before it sees that turn fail. A stream that completes while a turn is live no longer leaves the turn open forever. Stopping a session through `StopAsync`, including at shutdown, publishes nothing, so a restart is never mistaken for a lost session and recovery still finds its jobs running.
 
 ### Agnostic events
@@ -460,6 +462,86 @@ public sealed record FormAnswer(ItemId Item, IReadOnlyList<FieldAnswer> Fields) 
 
 A provider may report the account a session runs under, as `IAgentSession.Account`: an opaque `Id` and a `Label` for people, or none. It is known when the session opens, `SessionOpened` carries it, and it never changes during the session. Observability aggregates usage by account with it.
 
+### Connections
+
+**Accepted**
+
+A user may hold several subscriptions of the same harness, such as a work and a personal account, or an API key next to a subscription. A **provider** is the adapter that speaks one harness's protocol, one per harness, inside its plugin. A **connection** is a named, configured instance of a provider: the provider, a credential source and settings, composed, never inherited. A user has any number of connections per provider.
+
+```csharp
+public readonly record struct ConnectionName(string Value);
+
+public sealed record ConnectionEnvironment
+{
+    public Option<string> ConfigurationDirectory { get; init; }
+    public Option<Secret> ApiKey { get; init; }
+    public IReadOnlyDictionary<string, string> Settings { get; init; }
+}
+
+public interface ICredentialSource
+{
+    string Source { get; }
+    ValueTask<Result<ConnectionEnvironment, ConnectionError>> ResolveAsync(CredentialRequest request, CancellationToken cancellationToken);
+}
+
+public interface IConnections
+{
+    ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken);
+    ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken);
+}
+```
+
+- **The provider never learns the source.** `ConnectionRegistry` resolves a connection when a session opens: its declaration, its provider among the registered ones, and its credential through the `ICredentialSource` it names. `SessionStarter` hands the result to the provider as `SessionOptions.Connection`, an agnostic `ConnectionEnvironment`: the harness configuration folder to use, an API key, and the connection's settings. The adapter decides inside its own plugin how to apply it, such as which environment variable names the folder or carries the key; the core never names one. `Secret` prints as `[secret]`, so a key never reaches a log through a record's text.
+- **Credential sources are an extension point.** The interface lives in `Agents.Contracts`, and plugins register implementations through DI, named by `Source`. Agents registers the first two, in its `Credentials` folder: `login`, a subscription login kept apart per connection through the harness's own configuration folder, which the `reference` names, absolute or relative to the data folder, or `connections/<name>` under the data folder by default; and `apiKey`, a key held as a reference to the environment variable the `reference` names. A missing folder is `MissingFolder`, an unset or empty variable `MissingVariable`, a source without its reference `MissingReference`. Later sources, such as the operating system's keychain or a corporate gateway, add an implementation without touching the core or an adapter.
+- **Never a silent fallback.** A connection that cannot be resolved is a typed error, never another account: an unknown name is `UnknownConnection`, a provider that is not installed `UnknownProvider`, a source nobody registered `UnknownSource`. A rejected `connections.json` makes every connection unusable rather than falling back to the implicit ones.
+- **Opening on a connection.** `AgentRequest.Connection` names the connection, or none for the default one. `OpenedSession` and `SessionOpened` carry the connection the session opened on. `IAgents.OpenAsync` reports `UnknownConnection` for an unknown name, `ProviderUnavailable` when the connection's provider is not registered or no connection exists, and `UnusableConnection` for everything else; the detailed `ConnectionError` is logged and answered by `IConnections.CheckAsync`, which resolves a connection without opening anything and returns its name and provider, never its secrets.
+- **The implicit default.** Without `connections.json`, every registered provider has one implicit connection named after its identifier, with no credential, which leaves the provider on its own default configuration, and the first registered provider's is the default: the behavior before connections existed.
+- **Belongs to the machine.** Connections are declared in the data folder, never in a repository. A repository may only name the connection its jobs prefer, see [the job flow coordinator](#job-flow-coordinator).
+
+#### Connections file
+
+`connections.json` in the data folder, read once, when first needed.
+
+```json
+{
+  "default": "work",
+  "connections": [
+    { "name": "work", "provider": "claude-code", "credential": { "source": "login" } },
+    { "name": "personal", "provider": "claude-code", "credential": { "source": "login", "reference": "/home/ana/.avala-logins/personal" } },
+    { "name": "team-api", "provider": "claude-code", "credential": { "source": "apiKey", "reference": "TEAM_ANTHROPIC_KEY" }, "settings": { "model": "opus" } }
+  ]
+}
+```
+
+- `connections` is required and holds at least one connection. `name` is required: 1 to 64 ASCII letters, digits, `-`, `_` and `.`, starting with a letter or a digit, unique in the file. `provider` is the identifier of a provider plugin and is required. `credential` is optional; without it the provider uses its own default configuration. Its `source` is required and its `reference` optional, but never blank. `settings` is optional, an object of strings the provider interprets; it is not for secrets.
+- `default` is optional and names a declared connection; without it the first declared connection is the default.
+- Secrets are never stored in the file, only references to them: a folder or the name of an environment variable.
+- The file is parsed strictly: unknown fields, duplicate fields, values of the wrong type, nesting deeper than the format needs and files over 64 KiB are rejected. Whether a provider is installed and a source registered is checked when a connection is used, so a file may declare connections for a plugin that is not loaded.
+
+| `ConnectionError` | Cause |
+| --- | --- |
+| `Unreadable` | The file exists but cannot be read |
+| `TooLarge` | Over 64 KiB |
+| `Malformed` | Not JSON, a value of the wrong type, a duplicate field or nesting too deep |
+| `UnknownField` | A field the format does not define |
+| `InvalidName` | A connection without a valid name |
+| `DuplicateName` | Two connections with the same name |
+| `MissingProvider` | A connection without a provider |
+| `MissingSource` | A credential without a source |
+| `UnknownDefault` | A `default` that names no declared connection |
+| `NoConnections` | No connection declared, or no provider registered without a file |
+| `UnknownConnection` | Not a file error: a name that no connection has |
+| `UnknownProvider`, `UnknownSource` | Not file errors: a connection whose provider or credential source is not registered |
+| `MissingReference`, `MissingVariable`, `MissingFolder` | Not file errors: a credential that cannot be resolved |
+
+#### The folders
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Connections` | `ConnectionRegistry`, which implements `IConnections` and resolves a connection for `SessionStarter`; the declarations and the implicit ones; and the `IConnectionFile` port | Application |
+| `ConnectionFiles` | `ConnectionFileReader` behind `IConnectionFile`, and `ConnectionFileParser` | Infrastructure |
+| `Credentials` | `LoginFolderSource` and `ApiKeySource`, the first `ICredentialSource` implementations | Infrastructure |
+
 ### Turn integrity
 
 **Accepted**
@@ -490,6 +572,7 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `CheckDenialAsync` | Every permission is denied with a message, the "no, do this instead" answer: the turn still conforms, a permission was asked, and no denied item progresses or succeeds afterwards |
 | `CheckResumeAsync` | A provider that declares `CanResume` issues a token during the turn, and a new session started with it is accepted and runs a conforming turn. A provider that does not declare it only runs the turn check, which forbids tokens |
 | `CheckCanvasToolAsync` | A provider that declares `AcceptsTools`, given a canvas tool and an instruction that draws, reports the call as a canvas that completes. A provider that does not is given no tool, and runs the turn check |
+| `CheckConnectionsAsync` | Two sessions of the same provider, started with the environments of two different [connections](#connections), stay isolated: each runs a conforming turn, they share no session, no account when both report one, and no resume token, and a token issued on the first connection is not accepted by a session started on the second |
 
 ### Simulator
 
@@ -504,9 +587,10 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 - **Forms.** A scenario step asks a form as declarative data and waits for `AnswerAsync`; an answer for any other item is `NoPendingForm`. It then reports the answer, closes the item, cancelled when declined, and replies with what it goes on with, such as `Going with Database: PostgreSQL`. A declined form, or a confirmation left unconfirmed, ends the turn there, like a denial.
 - Events can be spaced by a delay measured with `TimeProvider`. It is zero by default and in tests; the plugin entry uses a short pace for in-app demos, and a constructor overload takes another.
 - It declares every capability, `AsksQuestions` included, and an interruption ends the running turn as `Interrupted`.
-- **Resume.** A session's conversation is its scenario and the number of turns it played. Every turn issues, right after `TurnStarted`, a resume token that encodes both with the conversation's identifier, so a token survives a restart of the application without any storage. A session started with it continues the same conversation with its next script; a token it never issued is rejected with `CannotResume`.
+- **Resume.** A session's conversation is its scenario and the number of turns it played. Every turn issues, right after `TurnStarted`, a resume token that encodes both with the conversation's identifier and a fingerprint of the session's account, so a token survives a restart of the application without any storage. A session started with it on the same account continues the same conversation with its next script; a token it never issued, or one issued on another account, is rejected with `CannotResume`, as a harness rejects a conversation its configuration folder does not hold.
 - **Canvas tool.** Given a tool whose surface is `Canvas`, a canvas of a scenario is a call of that tool, reported as the canvas events the contract defines. Without one, the simulator writes the same content as a message, like an agent that has no canvas.
-- **Account.** Every session reports the fixed account `simulated-account`, labelled `Simulated account`.
+- **Account.** The simulated equivalent of a login: a session reports the account of its connection's credential. A configuration folder is the account `simulated-login:<folder>`, labelled `Simulated account (<folder name>)`; an API key is `simulated-key:<fingerprint>`, labelled `Simulated API key`, and never shows the key; a connection without a credential reports the fixed account `simulated-account`, labelled `Simulated account`. Two connections of the simulator therefore run on distinct accounts.
+- **A recording on its own connection.** A simulator connection whose settings hold `replay`, such as `"settings": { "replay": "edit-allowed" }`, replays that recording in every session it opens, from the first message and whatever it says, and its sessions report the recorded account, so a recorded account's usage stays apart from the simulator's own.
 - `tests/Avala.Host.Tests` plays its scenarios inside the application composed from the published plugin folder, with its in-app pace, and observes the jobs and the canvas snapshots through the event feed.
 
 | Scenario | Behavior |
@@ -544,7 +628,7 @@ A session of any provider can be recorded once and replayed by the simulator as 
 
 - **What it records.** The session's provider, capabilities and account; its permission mode, whether it was asked to resume and the name and surface of its tools; every agnostic event in the order the harness received it; every input the harness sent: user turns, permission decisions with their message, form answers, interruptions, each with the error the provider refused it with, if it did; how the event stream ended, closed or crashed; and the stop of the session by the harness. Every entry carries its time since the session started, in milliseconds, measured with `TimeProvider`.
 - **Edited files.** The agnostic events do not carry what an edit wrote, so the recorder reads it: when an edit item whose permission request named its file succeeds, the content of that file, up to 1 MiB of text, is recorded before the item's completion, with its path relative to the working directory. Every session opens in `AskEveryTime`, so every edit names its file. A deleted file, a binary file or an edit that never asked is not captured.
-- **What it never records.** The working directory, replaced everywhere by `${workingDirectory}`; the resume token passed to the provider; the descriptions and schemas of the tools; environment variables, settings, credentials and anything else the agnostic contract does not carry. A crash is recorded without its exception, whose message could hold anything.
+- **What it never records.** The working directory, replaced everywhere by `${workingDirectory}`; the resume token passed to the provider; the descriptions and schemas of the tools; the session's connection environment, its configuration folder, key and settings; environment variables, credentials and anything else the agnostic contract does not carry. A crash is recorded without its exception, whose message could hold anything.
 - **Redaction.** Every text of the recording, titles, targets, messages, answers, file contents, account labels and tokens included, has each string of `redact` replaced by `[redacted]`. Redaction is literal, so it is only as good as the list; a recording is meant to be read before it is shared.
 - **Files.** One file per session, `recordings/<yyyyMMddTHHmmssZ>-<session>.json` under the data folder. The decorator never writes: it hands each entry to `RecordingFiles`, the single reader of a channel, which owns every open recording and rewrites the session's file, through a temporary file it then moves, when a turn completes, when the stream ends, when the session stops and when the application shuts down. Recording never delays the agent beyond reading an edited file.
 
@@ -587,7 +671,7 @@ The format is `avala-recording`, version 1. A reader refuses another version; wi
 - **Inputs.** A recorded permission request or form waits, like the real agent, for the harness's answer, and the answer must be the recorded one: the same `Allow` or `Deny` and message, or the same form answer field by field. An answer the provider refused at the time is not expected again. A recorded interruption waits to be interrupted.
 - **Divergence.** When the harness does something the recording did not, the replay says so instead of going on: an item titled `Replay diverged` reports what was expected and what came, such as `Replay diverged: the recording answered the permission for edit with Allow, but the harness answered Deny "Not now".`, the turn ends `Failed` and the session's stream closes, so the job fails and nothing silently continues. Divergences are a different answer, an answer to something the recording never answered, an interruption the recording never made, a turn beyond the recorded ones, a session opened in another permission mode than the recorded one, and a recording that cannot be read: absent, malformed or of another version.
 - **Timing.** `[replay: …]` compresses the recording, played at the simulator's pace; `[replay as recorded: …]` waits the recorded time between entries, measured with `TimeProvider`.
-- **Provider identity.** The replay runs inside the simulator, the one registered provider, so the session reports the simulator's provider, capabilities and account, not the recorded ones, which the file keeps for reference. A recording whose provider lacked a capability the harness then relies on, such as interruption, diverges and says so.
+- **Provider identity.** The replay runs inside the simulator, so the session reports the simulator's provider and capabilities, not the recorded ones, which the file keeps for reference. A recording replayed on [its own connection](#simulator) reports the recorded account, so the account is lifted; the provider and the capabilities are not, because they belong to a provider, not to a session or a connection, in the contract: reporting another provider's identity would make the simulator impersonate it in every aggregate by provider. A recording whose provider lacked a capability the harness then relies on, such as interruption, diverges and says so.
 
 #### Regression fixtures
 
@@ -650,7 +734,7 @@ The module subscribes to `AgentActivity` with an `IHandle<T>`, like every other 
 Everything the harnesses process goes through observability: tokens, cost, usage limits, durations and outcomes.
 
 - The agnostic events carry the raw facts, so observability works the same for every provider.
-- An Observability module subscribes to the events on the bus and aggregates them by provider, account, session and job. The account is the one the provider reports when the session opens, see [Accounts](#accounts).
+- An Observability module subscribes to the events on the bus and aggregates them by provider, account, connection, session and job. The account is the one the provider reports when the session opens, see [Accounts](#accounts), and the connection the one the session opened on, see [Connections](#connections).
 - It publishes metrics through `System.Diagnostics.Metrics`, the .NET standard that OpenTelemetry collects, and later feeds view models for the in-app dashboards.
 
 ### Correlation
@@ -659,7 +743,7 @@ Agent events know only their session. Two integration events tie a session to th
 
 | Event | Published by | Carries |
 | --- | --- | --- |
-| `SessionOpened` | `AgentSessions`, before it pumps the session's events | `SessionId`, `ProviderInfo`, the working directory and the `Option<AgentAccount>` of the session |
+| `SessionOpened` | `AgentSessions`, before it pumps the session's events | `SessionId`, `ProviderInfo`, the working directory, the `ConnectionName` it opened on and the `Option<AgentAccount>` of the session |
 | `JobSessionStarted` | `JobLauncher`, after storing the job and before sending the instruction, at launch and at recovery | `JobId`, `SessionId` |
 
 Each handler receives its events in publishing order, so both arrive at the tracker before the first activity of the session. Observability does not rely on it: it keeps everything per session and groups sessions by provider and job only when queried, so a late correlation still lands in the right aggregate.
@@ -675,28 +759,29 @@ Each handler receives its events in publishing order, so both arrive at the trac
 - The domain is a projection of facts that already happened, so it has no aggregate and nothing to reject: records that return their next version, no error enum.
 - Each `UsageReported` adds to the totals. A report without a cost adds its tokens and counts as unpriced, so a dashboard can tell a partial cost from a complete one. Costs add up per currency.
 - A turn lasts from its `TurnStarted` to its `TurnCompleted`, measured with `TimeProvider` when the tracker receives each event. A turn counts once: a repeated start or end changes nothing.
-- A limit belongs to the provider, not to a session: each window keeps its latest reading.
-- `IUsage` in `Avala.Observability.Contracts` answers by provider, by account, by session and by job, with a `UsageSummary`: tokens, costs, unpriced reports, a `TurnTally` and limits. A job adds up every session it ran, recovery included.
+- A limit belongs to the account a connection runs on, not to a session: each window keeps its latest reading, and `ByConnection` keeps the limits of two connections of one provider apart.
+- `IUsage` in `Avala.Observability.Contracts` answers by provider, by account, by connection, by session and by job, with a `UsageSummary`: tokens, costs, unpriced reports, a `TurnTally` and limits. A job adds up every session it ran, recovery included.
 - An account belongs to its provider: `ByAccount` groups sessions by provider and account, so two providers that use the same identifier stay apart, and leaves out sessions whose provider reported no account. The metrics carry no account tag, to keep their cardinality bounded.
+- `ByConnection` groups sessions by the connection they opened on, with its provider, ordered by connection name, and leaves out sessions that were never announced.
 - After it records a `UsageReported` or a `LimitReported`, the tracker publishes `UsageRecorded` with the session and its job. A consumer that reacts to spending, such as Budgets, handles it and reads `IUsage`, which already includes the report. Handling `AgentActivity` directly would not do: handlers run concurrently, so such a consumer could read the aggregates before the tracker applied the report.
 - The tracker is the only writer of `UsageBook`. The book holds an immutable dictionary of sessions that the tracker replaces on every change, so `IUsage` answers from a consistent snapshot on any thread.
 - The aggregates live in memory and start empty with the application. Persisting them, or rebuilding them from stored history, is left for when the dashboards need history across restarts.
 
 | Instrument | Kind | Unit | Tags |
 | --- | --- | --- | --- |
-| `avala.agent.tokens` | Counter | `{token}` | `avala.provider`, `avala.token.type`: `input`, `output`, `cache_read`, `cache_write`, `reasoning` |
-| `avala.agent.cost` | Counter | `{currency}` | `avala.provider`, `avala.currency` |
-| `avala.agent.turns` | Counter | `{turn}` | `avala.provider`, `avala.turn.outcome` |
-| `avala.agent.turn.duration` | Histogram | `s` | `avala.provider`, `avala.turn.outcome` |
-| `avala.agent.limit.used` | Gauge | `1` | `avala.provider`, `avala.limit.window` |
+| `avala.agent.tokens` | Counter | `{token}` | `avala.provider`, `avala.connection`, `avala.token.type`: `input`, `output`, `cache_read`, `cache_write`, `reasoning` |
+| `avala.agent.cost` | Counter | `{currency}` | `avala.provider`, `avala.connection`, `avala.currency` |
+| `avala.agent.turns` | Counter | `{turn}` | `avala.provider`, `avala.connection`, `avala.turn.outcome` |
+| `avala.agent.turn.duration` | Histogram | `s` | `avala.provider`, `avala.connection`, `avala.turn.outcome` |
+| `avala.agent.limit.used` | Gauge | `1` | `avala.provider`, `avala.connection`, `avala.limit.window` |
 
-The provider tag is the provider's identifier, and it is left out when the session's provider is unknown.
+The provider tag is the provider's identifier and the connection tag the connection's name; each is left out when the session never announced it. Connection names are few and declared by the user, so the tag keeps the cardinality bounded, unlike an account.
 
 ## Rules from the base commit
 
 **Accepted**
 
-A repository declares the rules of its jobs in three files: its checks in `.avala/checks.json`, its permission policy in `.avala/permissions.json` and its budget in `.avala/budget.json`. The agent works in the job's worktree, so a rule read from the worktree is a rule the agent can rewrite. Every rule is therefore read from the job's base commit, the commit its worktree was created from, and nothing the agent changes during the job can loosen the rules that judge it.
+A repository declares the rules of its jobs in three files: its checks in `.avala/checks.json`, its permission policy in `.avala/permissions.json` and its budget in `.avala/budget.json`. A fourth, `.avala/jobs.json`, names the connection its jobs prefer, read the same way by Jobs, see [the job flow coordinator](#job-flow-coordinator). The agent works in the job's worktree, so a rule read from the worktree is a rule the agent can rewrite. Every rule is therefore read from the job's base commit, the commit its worktree was created from, and nothing the agent changes during the job can loosen the rules that judge it.
 
 ```csharp
 public interface IBaseFiles
@@ -935,7 +1020,8 @@ An unattended agent must not spend without limit. The Budgets module holds a job
 - Caps are per job: they count every session of the job, recovery included, as `IUsage.OfJob` adds them up. The module reads spending from `IUsage` instead of adding reports up again.
 - **Cost.** One cap per currency. A job is held as `BudgetExceeded` when what it spent in a currency reaches the cap of that currency. Only priced reports count: with a provider that reports no cost, cap tokens instead.
 - **Tokens.** One cap on every token the provider reported: input, output, cache reads, cache writes and reasoning. Counting all of them holds earlier rather than later.
-- **Limits.** A threshold between 0 and 1. A job is held as `LimitNearlyReached` when a usage limit window of its session's provider reaches the threshold, whichever session of that provider reported it, since a limit belongs to the provider.
+- **Limits.** A threshold between 0 and 1. A job is held as `LimitNearlyReached` when a usage limit window of its session's connection reaches the threshold, whichever session on that connection reported it, since a limit belongs to the account a connection runs on: a work subscription near its limit never holds a job on a personal one.
+- **By connection.** The `connections` section of the file gives the jobs on a named connection their own caps, which replace the top-level ones for those jobs, so an API key billed per token can be capped while a subscription is not. The loader reads the caps of the connection `SessionOpened` names.
 - A cap is reached when the measure is equal to it or above it. The first breach found holds the job, in that order: cost, tokens, limit.
 
 ### When it checks
@@ -952,11 +1038,15 @@ A repository declares its caps in `.avala/budget.json`, read when the session op
 {
   "costPerJob": { "USD": 5.00 },
   "tokensPerJob": 2000000,
-  "holdAtLimit": 0.9
+  "holdAtLimit": 0.9,
+  "connections": {
+    "team-api": { "costPerJob": { "USD": 2.00 } }
+  }
 }
 ```
 
 - Every field is optional. `costPerJob` maps a currency, as the provider reports it, to an amount greater than 0. `tokensPerJob` is a whole number greater than 0. `holdAtLimit` is greater than 0 and at most 1.
+- `connections` maps a [connection](#connections) name to caps of the same three fields, which replace the top-level caps for the jobs on that connection; a connection it does not name gets the top-level caps. A section names a connection of the machine that runs the job, so a name no connection has caps nothing. A blank name is `Malformed`, and a section is validated like the top level, without a `connections` of its own.
 - The file is parsed strictly: unknown fields, duplicate fields, values of the wrong type, nesting deeper than the format needs and files over 64 KiB are rejected.
 - **Invalid file, safe behavior.** A rejected file is reported in `BudgetLoaded` with its `BudgetError`, and the job is held as `InvalidBudget` as soon as it runs. A repository that declared caps meant to limit spending, so a broken declaration stops the agent instead of letting it spend without limit.
 
@@ -1040,6 +1130,20 @@ A `PolicyRule` carries its origin (`BuiltIn`, `Repository` or `Session`), name, 
 | `JobRequest.Autonomy` | Field of a command | `Option<Autonomy>`, the level the job asks for, stored with the job | At submission | One per job |
 | `JobSessionStarted.Autonomy` | Field of an event | The job's `Option<Autonomy>` | With every `JobSessionStarted` | One per session of a job |
 
+### Agents: connections
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `IConnections.CatalogAsync()` | Query | `ConnectionCatalog`: `File` (`ConnectionFileStatus`: `Absent`, `Applied` or `Rejected`), `Option<ConnectionError>`, `Connections` in declaration order, each a `DeclaredConnection` with `Name`, `Provider` (the provider's identifier) and the `Option<string>` name of its credential `Source`, never its reference or secret; and the `Option<ConnectionName>` `Default`, none when the file is rejected | Any time; reads `connections.json` the first time | One per application: the implicit connections without a file, none when the file is rejected |
+| `IConnections.CheckAsync(Option<ConnectionName>)` | Query | `Result<ConnectionInfo, ConnectionError>`: the connection's `Name` and the `ProviderInfo` of its provider, the default one when none is named; or why it cannot be used | On demand: resolves the credential each time, so a folder created or a variable set since is seen | One answer per call |
+| `SessionOpened.Connection` | Field of an event | The `ConnectionName` the session opened on | When a session opens; fixed for the session | One per session |
+| `OpenedSession.Connection` | Field of a command answer | The `ConnectionName` the session opened on | With every `IAgents.OpenAsync` that succeeds | One per session |
+| `JobRequest.Connection` | Field of a command | `Option<ConnectionName>`, the connection the job asks for; none takes the repository's default from `.avala/jobs.json`, then the machine's | At submission; checked then, a rejection being `UnknownConnection` or `UnusableConnection` | One per job |
+| The job's connection | Stored with the job | The `ConnectionName` its first session opened on | Fixed when the job starts; reused by recovery and continuation | One per job |
+| `IUsage.ByConnection()` | Query | `IReadOnlyList<ConnectionUsage>`: `Connection`, its `Provider` and its `UsageSummary`, limits included, ordered by connection name | Any time, from memory | One per connection that opened a session since the application started |
+
+The job's connection is not yet part of an event of Jobs: a view finds it through the `SessionOpened` of the job's sessions, which `JobSessionStarted` ties to the job.
+
 ### Workspaces: base files
 
 | Data | Kind | Shape | When and how often | Cardinality |
@@ -1055,7 +1159,7 @@ A `PolicyRule` carries its origin (`BuiltIn`, `Repository` or `Session`), name, 
 | --- | --- | --- | --- | --- |
 | `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, or Jobs holds one whose session ended on its own, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
 | `JobResumable` | Event | `Job`, `Session` whose resume token Jobs stored | Each time the job's current session issues a resume token, once the token is stored. Never for a session the job no longer uses | Zero or more per session; the simulator issues one per turn |
-| `IJobs.ContinueAsync(JobId, message)` | Command answer | `Result<JobContinuation, JobRejection>`: `Job`, the `Session` the job continues in and `Conversation` (`ContinuedIn`: `SameSession`, `ResumedConversation`, `NewConversation`); or `NotHeld`, `EmptyMessage`, `UnknownJob`, `WorkspaceUnavailable`, `AgentUnavailable` | When a human answers a job that needs help. A success is followed by `JobProgressed` with `Running`, and by `JobSessionStarted` when the session is new | One per human answer |
+| `IJobs.ContinueAsync(JobId, message)` | Command answer | `Result<JobContinuation, JobRejection>`: `Job`, the `Session` the job continues in and `Conversation` (`ContinuedIn`: `SameSession`, `ResumedConversation`, `NewConversation`); or `NotHeld`, `EmptyMessage`, `UnknownJob`, `WorkspaceUnavailable`, `UnknownConnection`, `UnusableConnection`, `AgentUnavailable` | When a human answers a job that needs help. A success is followed by `JobProgressed` with `Running`, and by `JobSessionStarted` when the session is new | One per human answer |
 
 The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted`, predate this catalog and keep their shapes. The resume token itself stays inside Jobs: it is the provider's opaque text and means nothing to a view.
 
@@ -1074,7 +1178,6 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | --- | --- | --- | --- | --- |
 | `UsageRecorded` | Event | `Session`, `Option<JobId>` of its job | After every `UsageReported` and `LimitReported` the tracker recorded, once `IUsage` includes it | One per usage or limit report |
 | `IUsage.ByAccount()` | Query | `IReadOnlyList<AccountUsage>`: `Provider`, `Account` and its `UsageSummary`, ordered by provider then account identifier | Any time, from memory | One per provider and account that reported usage since the application started; sessions without an account are left out |
-
 ### Supervision
 
 | Data | Kind | Shape | When and how often | Cardinality |
@@ -1095,7 +1198,7 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | `IBudgets.BudgetOf(SessionId)` | Query | `Option<SessionBudget>`; none until the session opened | Any time | One per session |
 | `IBudgets.OfJob(JobId)` | Query | `IReadOnlyList<BudgetIntervention>` in the order they happened | Any time, from memory | Zero or more per job |
 
-`BudgetCaps` has `CostPerJob`, a list of `Cost` caps, one per currency; `TokensPerJob`, an `Option<long>`; and `HoldAtLimit`, an `Option<double>`. `BudgetIntervention` carries `Hold`, the `JobHold`; `Breach`; and `At`. A `BudgetBreach` states the measured facts: `Measure` (`Cost`, `Tokens`, `Limit` or `Declaration`), `Subject` (the currency, `tokens`, the limit window or the budget file), `Measured` and `Cap` as decimals (spent against cap, or the limit fraction used against the threshold; both 0 for a declaration) and `Error`, the `Option<BudgetError>` of an invalid declaration.
+`BudgetCaps` has `CostPerJob`, a list of `Cost` caps, one per currency; `TokensPerJob`, an `Option<long>`; and `HoldAtLimit`, an `Option<double>`. A session's `Caps` are those of its connection: the file's `connections` section for it when there is one, the top-level caps otherwise. `BudgetIntervention` carries `Hold`, the `JobHold`; `Breach`; and `At`. A `BudgetBreach` states the measured facts: `Measure` (`Cost`, `Tokens`, `Limit` or `Declaration`), `Subject` (the currency, `tokens`, the limit window or the budget file), `Measured` and `Cap` as decimals (spent against cap, or the limit fraction used against the threshold; both 0 for a declaration) and `Error`, the `Option<BudgetError>` of an invalid declaration.
 
 ### Recording
 
@@ -1118,7 +1221,7 @@ The application is built view model first: every screen is built and tested as v
 
 - EF Core with the SQLite provider, with no server.
 - One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
-- The schema is created with `EnsureCreated`. The first schema changes, the `Base` column of a workspace and the `Resume` and `Autonomy` columns of a job, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted. Migrations arrive with the first schema change after a release.
+- The schema is created with `EnsureCreated`. The first schema changes, the `Base` column of a workspace and the `Resume`, `Autonomy` and `Connection` columns of a job, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted, or its `jobs.db` at least. Migrations arrive with the first schema change after a release.
 - Stores are internal interfaces of each module's application layer, implemented in its `Storage` folder.
 - EF Core is referenced only from the infrastructure layer, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.
 - Connection pooling is off.
@@ -1141,7 +1244,7 @@ Jobs run in parallel, each in its own queue, so the aggregate of one job may cha
 
 ### Data folder
 
-The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PATH` when set, otherwise `Avala` under the local application data folder. It locates the database files, the worktree root, the settings files `supervision.json` and `recording.json`, and the `recordings` folder the recorder writes and the simulator replays from. The composition root receives it, so the host tests point it at a temporary folder.
+The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PATH` when set, otherwise `Avala` under the local application data folder. It locates the database files, the worktree root, the settings files `supervision.json`, `recording.json` and `connections.json`, the `connections` folder that keeps the login of each connection by default, and the `recordings` folder the recorder writes and the simulator replays from. The composition root receives it, so the host tests point it at a temporary folder.
 
 ### Startup tasks
 
