@@ -7,7 +7,7 @@ internal sealed class EvidenceLedger(EvidenceBook book, IEventBus bus)
 {
     public async Task RecordAsync(VerificationReport report, CancellationToken cancellationToken)
     {
-        book.Keep(report);
+        await book.KeepAsync(report, cancellationToken);
         await bus.PublishAsync(new AttemptVerified(report), cancellationToken);
     }
 }

@@ -27,7 +27,9 @@ public sealed class JobsPlugin : IPlugin
     {
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
-            .AddSingleton<IJobStore, SqliteJobStore>()
+            .AddSingleton<SqliteJobStore>()
+            .AddSingleton<IJobStore>(services => services.GetRequiredService<SqliteJobStore>())
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteJobStore>())
             .AddSingleton<IRepositoryDefaults, JobFileReader>()
             .AddSingleton<JobLedger>()
             .AddSingleton<JobQueues>()

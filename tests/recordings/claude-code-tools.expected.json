@@ -1,0 +1,15 @@
+{
+  "repository": {
+    ".avala/permissions.json": "{ \"autonomy\": \"autonomous\", \"rules\": [ { \"name\": \"web\", \"kind\": \"web\", \"answer\": \"allow\" } ] }",
+    "README.md": "# A service that greets the team\n"
+  },
+  "journey": ["Running", "Checking", "AwaitingReview"],
+  "permissions": [
+    "web Web https://example.com/style Allow Answered",
+    "web Web team greeting conventions Allow Answered",
+    "autonomous-commands-in-the-worktree Command cat > NOTES.md <<'EOF'\n# Notes\nGreetings are level one headings that name the team.\nEOF Allow Answered"
+  ],
+  "forms": [],
+  "verifications": ["1 NoChecksDeclared"],
+  "files": { "NOTES.md": "# Notes\nGreetings are level one headings that name the team.\n" }
+}

@@ -1,0 +1,394 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T20:29:41.4688075+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "acceptsMessagesMidTurn": {},
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
+  },
+  "account": {
+    "id": "claude:account-work",
+    "label": "work@example.com"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Plan the greeting first and ask me to approve the plan, then write GREETING.md."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "5e7b9d22-1a3c-4e5f-8d70-6a2b4c6d8e03/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01ToolSearchPlanMode0000",
+        "kind": "other",
+        "title": "Load EnterPlanMode,ExitPlanMode",
+        "input": "select:EnterPlanMode,ExitPlanMode"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01ToolSearchPlanMode0000",
+        "text": "EnterPlanMode\nExitPlanMode"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01ToolSearchPlanMode0000",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01EnterPlanMode00000001",
+        "kind": "other",
+        "title": "EnterPlanMode"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01EnterPlanMode00000001",
+        "text": "Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01EnterPlanMode00000001",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01WritePlanFile000000004",
+        "kind": "other",
+        "title": "Write the plan",
+        "input": "1. Write GREETING.md with the line # Hello\n2. Say that it is done\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01WritePlanFile000000004",
+        "text": "File created successfully at: [redacted]/.claude-work/plans/greeting.md"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01WritePlanFile000000004",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.23,
+          "resetsAt": "2026-10-10T17:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.37,
+          "resetsAt": "2026-10-15T05:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "formRequested",
+        "turn": 1,
+        "item": "toolu_01ExitPlanMode000000002",
+        "form": {
+          "purpose": "planApproval",
+          "title": "Approve the plan",
+          "context": "1. Write GREETING.md with the line # Hello\n2. Say that it is done\n",
+          "fields": [
+            {
+              "id": "approve",
+              "header": "Plan",
+              "prompt": "Proceed with this plan?",
+              "kind": "confirmation",
+              "options": [],
+              "acceptsFreeText": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "at": 0,
+      "answer": {
+        "item": "toolu_01ExitPlanMode000000002",
+        "fields": [
+          {
+            "field": "approve",
+            "chosen": [],
+            "confirmed": true
+          }
+        ],
+        "declined": false
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "formAnswered",
+        "turn": 1,
+        "item": "toolu_01ExitPlanMode000000002",
+        "answer": {
+          "item": "toolu_01ExitPlanMode000000002",
+          "fields": [
+            {
+              "field": "approve",
+              "chosen": [],
+              "confirmed": true
+            }
+          ],
+          "declined": false
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01ExitPlanMode000000002",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01WriteApproved00000003",
+        "kind": "fileEdit",
+        "title": "Write GREETING.md",
+        "input": "# Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01WriteApproved00000003",
+        "title": "Write GREETING.md",
+        "kind": "fileEdit",
+        "target": "${workingDirectory}/GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01WriteApproved00000003",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01WriteApproved00000003",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01WriteApproved00000003",
+        "text": "File created successfully at: ${workingDirectory}/GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "file": {
+        "item": "toolu_01WriteApproved00000003",
+        "path": "GREETING.md",
+        "content": "# Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01WriteApproved00000003",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_01P1anD1b2C3d4E5f6G7h8i9:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01P1anD1b2C3d4E5f6G7h8i9:0",
+        "text": "The plan was approved "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01P1anD1b2C3d4E5f6G7h8i9:0",
+        "text": "and GREETING.md is written."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_01P1anD1b2C3d4E5f6G7h8i9:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 10,
+          "output": 388,
+          "cacheRead": 98656,
+          "cacheWrite": 14500,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.0418,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "5e7b9d22-1a3c-4e5f-8d70-6a2b4c6d8e03/0.0418"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

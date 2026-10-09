@@ -177,6 +177,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IHandle<WorktreesReconciled>>(Get<Leftovers>)
             .AddTransient<LiveFeed>()
             .AddSingleton<JobSpending>()
+            .AddSingleton<LimitReadings>()
             .AddSingleton<FleetReader>()
             .AddSingleton<DelegationReader>()
             .AddSingleton<UsageReader>()

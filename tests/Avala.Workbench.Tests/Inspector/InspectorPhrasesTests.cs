@@ -47,6 +47,26 @@ public sealed class InspectorPhrasesTests
                 Enum.Parse<DecisionDelivery>(delivery),
                 DateTimeOffset.UnixEpoch)));
 
+    [Fact]
+    public void ADecisionLeftToYouSaysWhetherItIsUnansweredAndWhetherItsSessionHasEnded()
+    {
+        var (asked, later) = (SessionId.New(), SessionId.New());
+        var decision = new PolicyDecision(asked, TurnId.New(), new ItemId("migrate"), Option<JobId>.None, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, DateTimeOffset.UnixEpoch);
+        var answer = new HumanAnswer(asked, Option<JobId>.None, new ItemId("migrate"), ItemKind.Command, "dotnet ef database update", PermissionAnswer.Allow, Option<string>.None, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch);
+
+        Assert.Equal(
+            [
+                "Asked you Command dotnet ef database update · unanswered",
+                "Asked you Command dotnet ef database update · unanswered, its session ended",
+                "Asked you Command dotnet ef database update",
+            ],
+            [
+                InspectorPhrases.Decision(decision, [], asked),
+                InspectorPhrases.Decision(decision, [], later),
+                InspectorPhrases.Decision(decision, [answer], later),
+            ]);
+    }
+
     [Theory]
     [InlineData("Supervised", "Supervised", false, "Supervised, as the repository declares")]
     [InlineData("Autonomous", "Supervised", false, "Supervised, tightened from the repository's Autonomous")]

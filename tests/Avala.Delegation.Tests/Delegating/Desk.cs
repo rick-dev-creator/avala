@@ -26,7 +26,7 @@ internal sealed class Desk : IAsyncDisposable
 
     public Desk(Result<Option<DelegationRules>, DelegationError> rules)
     {
-        Book = new DelegationBook();
+        Book = new DelegationBook(Store);
         var journal = new DelegationJournal(Book, Bus, Agents, Clock);
         var policy = new DelegationPolicy(new FixedRules(rules), Jobs, Audit, new ConnectionRouter([Selector]));
         reporter = new ChildReporter(
@@ -44,6 +44,8 @@ internal sealed class Desk : IAsyncDisposable
     }
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 9, 0, 0, TimeSpan.Zero));
+
+    public Records.InMemoryDelegations Store { get; } = new();
 
     public RecordingBus Bus { get; } = new();
 

@@ -8,6 +8,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Avala.Autopilot.Contracts\Avala.Autopilot.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Avala.Storage\Avala.Storage.csproj" />
     <ProjectReference Include="..\..\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
     <ProjectReference Include="..\..\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />
     <ProjectReference Include="..\..\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" />

@@ -42,8 +42,11 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         return await cli.Start(CommandLine.For(workingDirectory, options.Connection, resumed, home), options.Processes, transcripts).Match(
             async process => Result<IAgentSession, AgentError>.Success(await ClaudeCodeSession.OpenAsync(
                 process,
-                session => new Conversation(session, options, workingDirectory, resumed),
+                session => new Conversation(session, options, Places(workingDirectory, options.Connection), resumed),
                 account)),
             error => Task.FromResult(Result<IAgentSession, AgentError>.Failure(error)));
     }
+
+    private Places Places(string workingDirectory, ConnectionEnvironment connection) =>
+        new(workingDirectory, Path.Combine(connection.ConfigurationDirectory.Match(folder => folder, () => home.DefaultFolder), Protocol.Places.PlansFolder));
 }

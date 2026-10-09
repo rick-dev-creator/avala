@@ -23,7 +23,7 @@ public sealed class FormDecisionTests
         "The service needs storage.",
         [new FormField("database", "Database", "Which database?", FieldKind.SingleChoice, [new FormOption("SQLite", "A file.", Recommended: true)])]);
 
-    private readonly GovernanceBook book = new();
+    private readonly GovernanceBook book = new(new Governance.InMemoryGovernance());
     private readonly RecordingBus bus = new();
     private readonly AnsweringAgents agents = new();
     private readonly SessionId session = SessionId.New();

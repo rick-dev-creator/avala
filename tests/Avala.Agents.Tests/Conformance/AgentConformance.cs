@@ -88,9 +88,17 @@ internal static class AgentConformance
             : [.. run.Violations, "no canvas was drawn through the canvas tool"];
     }
 
+    public static Task<IReadOnlyList<string>> CheckHarnessToolAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
+        CancellationToken deadline) =>
+        CheckHarnessToolAsync(provider, options, ExecutedTool, instruction, deadline);
+
     public static async Task<IReadOnlyList<string>> CheckHarnessToolAsync(
         IAgentProvider provider,
         SessionOptions options,
+        HarnessTool tool,
         UserTurn instruction,
         CancellationToken deadline)
     {
@@ -112,10 +120,10 @@ internal static class AgentConformance
                 ? events.OfType<ToolReturned>().Any(returned => returned.Result == KitResult(last.Item))
                     ? []
                     : [$"the result of the call {last.Item.Value} was not reported"]
-                : [$"no call of the tool {ExecutedTool.Name} was made"]),
+                : [$"no call of the tool {tool.Name} was made"]),
         };
 
-        return (await RunAsync(provider, options with { Tools = [ExecutedTool] }, instruction, replies, deadline)).Violations;
+        return (await RunAsync(provider, options with { Tools = [tool] }, instruction, replies, deadline)).Violations;
     }
 
     public static async Task<IReadOnlyList<string>> CheckParallelToolCallsAsync(

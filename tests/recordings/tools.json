@@ -1,0 +1,490 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T19:26:22.4663918+00:00",
+  "provider": {
+    "id": "simulator",
+    "name": "Simulated Claude Code"
+  },
+  "capabilities": {
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
+  },
+  "account": {
+    "id": "simulated-account",
+    "label": "Simulated account"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "[simulate: tools] Greet the team"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "40b6d608f720487ba0f455a441938af7/tools/1/c8b77630ed2268c2"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "thinking",
+        "kind": "reasoning",
+        "title": "Thinking"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "thinking",
+        "text": "I will look around, "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "thinking",
+        "text": "then write the greeting and the notes."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "thinking",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write the change",
+            "status": "inProgress"
+          },
+          {
+            "title": "Run the tests",
+            "status": "pending"
+          }
+        ]
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "search",
+        "kind": "search",
+        "title": "Search greeting",
+        "input": "greeting in src/**/*.cs"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "search",
+        "text": "src/Greeter.cs:3: // greeting goes here"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "search",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "fetch",
+        "kind": "web",
+        "title": "Fetch https://example.com/style",
+        "input": "https://example.com/style\nHow should a greeting be written?"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "fetch",
+        "title": "Fetch https://example.com/style",
+        "kind": "web",
+        "target": "https://example.com/style"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "fetch",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "fetch",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "fetch",
+        "text": "Greetings start with a heading."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "fetch",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "load",
+        "kind": "other",
+        "title": "Load the canvas tool",
+        "input": "canvas"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "load",
+        "text": "canvas"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "load",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "explore",
+        "kind": "subagent",
+        "title": "Subagent: Find the greeting style",
+        "input": "Read the repository and say how greetings are written."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "explore",
+        "text": "Reading the repository.\n\nGreetings are a single heading line."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "explore",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "edit",
+        "kind": "fileEdit",
+        "title": "Edit GREETING.md",
+        "input": "# Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "edit",
+        "title": "Edit GREETING.md",
+        "kind": "fileEdit",
+        "target": "${workingDirectory}/GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "edit",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "edit",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "edit",
+        "text": "# Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "file": {
+        "item": "edit",
+        "path": "GREETING.md",
+        "content": "# Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "edit",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "notes",
+        "kind": "command",
+        "title": "cat > NOTES.md <<'EOF'",
+        "input": "cat > NOTES.md <<'EOF'\n# Notes\nWritten through the shell.\nEOF"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "notes",
+        "title": "Run cat > NOTES.md <<'EOF'",
+        "kind": "command",
+        "target": "cat > NOTES.md <<'EOF'\n# Notes\nWritten through the shell.\nEOF"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "notes",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "notes",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "file": {
+        "item": "notes",
+        "path": "NOTES.md",
+        "content": "# Notes\nWritten through the shell.\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "notes",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write the change",
+            "status": "done"
+          },
+          {
+            "title": "Run the tests",
+            "status": "done"
+          }
+        ]
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "reply",
+        "kind": "message",
+        "title": "Reply"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "reply",
+        "text": "Wrote GREETING.md "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "reply",
+        "text": "and NOTES.md."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "reply",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 3600,
+          "output": 410,
+          "cacheRead": 1800,
+          "cacheWrite": 360,
+          "reasoning": 102
+        },
+        "cost": {
+          "amount": 0.0210,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.19
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

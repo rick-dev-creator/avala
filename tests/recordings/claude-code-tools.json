@@ -1,0 +1,508 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T20:29:42.3400138+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "acceptsMessagesMidTurn": {},
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
+  },
+  "account": {
+    "id": "claude:account-work",
+    "label": "work@example.com"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Find how the project greets, check the style guide and the web, then write the findings to NOTES.md."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "3d5a7c11-8e2f-4a90-b6c4-5e1f2a3b4c02/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_01To0lsA1b2C3d4E5f6G7h8i:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01To0lsA1b2C3d4E5f6G7h8i:0",
+        "text": "Let me look "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01To0lsA1b2C3d4E5f6G7h8i:0",
+        "text": "around first."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_01To0lsA1b2C3d4E5f6G7h8i:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01GrepGreeting000000001",
+        "kind": "search",
+        "title": "Search greet",
+        "input": "greet in ."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01ToolSearchFollow00002",
+        "kind": "other",
+        "title": "Load mcp__avala__propose_follow_up",
+        "input": "select:mcp__avala__propose_follow_up"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.22,
+          "resetsAt": "2026-10-10T17:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.37,
+          "resetsAt": "2026-10-15T05:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01GrepGreeting000000001",
+        "text": "README.md:1:# A service that greets the team"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01GrepGreeting000000001",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01ToolSearchFollow00002",
+        "text": "mcp__avala__propose_follow_up"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01ToolSearchFollow00002",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01WebFetchStyle00000003",
+        "kind": "web",
+        "title": "Fetch https://example.com/style",
+        "input": "https://example.com/style\nHow should a greeting be written?"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01WebSearchStyle0000004",
+        "kind": "web",
+        "title": "Search the web for team greeting conventions",
+        "input": "team greeting conventions"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01WebFetchStyle00000003",
+        "title": "Fetch https://example.com/style",
+        "kind": "web",
+        "target": "https://example.com/style"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01WebFetchStyle00000003",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01WebFetchStyle00000003",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01WebSearchStyle0000004",
+        "title": "Search the web for team greeting conventions",
+        "kind": "web",
+        "target": "team greeting conventions"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01WebSearchStyle0000004",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01WebSearchStyle0000004",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01WebFetchStyle00000003",
+        "text": "Greetings start with a level one heading and name the team."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01WebFetchStyle00000003",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01WebSearchStyle0000004",
+        "text": "Web search results for query: \"team greeting conventions\"\n\nTeams greet with a short heading."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01WebSearchStyle0000004",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01TaskReadme00000000005",
+        "kind": "subagent",
+        "title": "Subagent: Read the README",
+        "input": "Read README.md and say in one sentence how the project greets."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01TaskReadme00000000005",
+        "text": "I will read the README."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01SubReadReadme00000006",
+        "kind": "other",
+        "title": "Read README.md",
+        "input": "README.md"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01SubReadReadme00000006",
+        "text": "     1\t# A service that greets the team\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01SubReadReadme00000006",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01TaskReadme00000000005",
+        "text": "\n\nThe project greets the team with a level one heading."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01TaskReadme00000000005",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01BashHeredocNotes0007",
+        "kind": "command",
+        "title": "Run cat > NOTES.md <<'EOF'",
+        "input": "cat > NOTES.md <<'EOF'\n# Notes\nGreetings are level one headings that name the team.\nEOF"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01BashHeredocNotes0007",
+        "title": "Run cat > NOTES.md <<'EOF'",
+        "kind": "command",
+        "target": "cat > NOTES.md <<'EOF'\n# Notes\nGreetings are level one headings that name the team.\nEOF"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01BashHeredocNotes0007",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01BashHeredocNotes0007",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "file": {
+        "item": "toolu_01BashHeredocNotes0007",
+        "path": "NOTES.md",
+        "content": "# Notes\nGreetings are level one headings that name the team.\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01BashHeredocNotes0007",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_01To0lsE1b2C3d4E5f6G7h8i:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01To0lsE1b2C3d4E5f6G7h8i:0",
+        "text": "NOTES.md records that greetings "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01To0lsE1b2C3d4E5f6G7h8i:0",
+        "text": "are headings that name the team."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_01To0lsE1b2C3d4E5f6G7h8i:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 12,
+          "output": 690,
+          "cacheRead": 83378,
+          "cacheWrite": 4800,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.0186,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "3d5a7c11-8e2f-4a90-b6c4-5e1f2a3b4c02/0.0186"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

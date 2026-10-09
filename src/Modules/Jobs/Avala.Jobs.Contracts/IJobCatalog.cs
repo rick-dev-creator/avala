@@ -53,4 +53,7 @@ public sealed record AttemptRecord(int Number, AttemptOrigin Origin, AttemptOutc
 
 public sealed record SessionRecord(SessionId Session, IReadOnlyList<int> Attempts);
 
-public sealed record JobHistory(JobSummary Summary, IReadOnlyList<SessionRecord> Sessions, IReadOnlyList<AttemptRecord> Attempts);
+public sealed record JobHistory(JobSummary Summary, IReadOnlyList<SessionRecord> Sessions, IReadOnlyList<AttemptRecord> Attempts)
+{
+    public Option<ConnectionChoice> Choice { get; init; }
+}

@@ -19,9 +19,13 @@ public sealed class SessionGovernorTests
 
     private static readonly PermissionRequest Migration = new(ItemKind.Command, "dotnet ef database update", InsideWorkspace: false);
 
-    private readonly GovernanceBook book = new();
+    private readonly InMemoryGovernance store = new();
+    private readonly GovernanceBook book;
+
     private readonly RecordingBus bus = new();
     private readonly SessionId session = SessionId.New();
+
+    public SessionGovernorTests() => book = new GovernanceBook(store);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -73,6 +77,22 @@ public sealed class SessionGovernorTests
 
         var decision = Assert.IsType<PermissionDecided>(bus.Published[^1]).Decision;
         Assert.Equal((PolicyAnswer.Allow, Option<PolicyRule>.Some(AllowEverything)), (decision.Answer, decision.Rule));
+    }
+
+    [Fact]
+    public async Task ThePolicyTheAutonomyAndEveryDecisionAreStoredAsTheGovernorKeepsThemAsync()
+    {
+        var job = JobId.New();
+        var governor = await OpenAsync(PermissionPolicy.With([AllowEverything]));
+        await governor.HandleAsync(new JobSessionStarted(job, session), Cancellation);
+
+        await governor.HandleAsync(
+            new AgentActivity(new PermissionRequested(session, TurnId.New(), new ItemId("migrate"), "Run", ItemKind.Command, "dotnet ef database update")),
+            Cancellation);
+
+        Assert.Equal(
+            [book.PolicyOf(session).Match<object>(policy => policy, () => string.Empty), book.AutonomyOf(session).Match<object>(autonomy => autonomy, () => string.Empty), book.OfJob(job)[0]],
+            store.Recorded);
     }
 
     [Theory]

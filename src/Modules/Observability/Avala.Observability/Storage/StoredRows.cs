@@ -23,8 +23,11 @@ internal sealed class StoredSession
 
     public Guid Job { get; init; }
 
+    public long Opened { get; init; }
+
     public static StoredSession Of(SessionUsage usage) => new()
     {
+        Opened = usage.Opened.UtcTicks,
         Session = usage.Session.Value,
         ProviderId = usage.Provider.Match(provider => provider.Id, () => string.Empty),
         ProviderName = usage.Provider.Match(provider => provider.Name, () => string.Empty),
@@ -39,7 +42,8 @@ internal sealed class StoredSession
             ProviderId.Length == 0 ? Option<ProviderInfo>.None : new ProviderInfo(ProviderId, ProviderName),
             AccountId.Length == 0 ? Option<AgentAccount>.None : new AgentAccount(AccountId, AccountLabel),
             Connection.Length == 0 ? Option<ConnectionName>.None : new ConnectionName(Connection),
-            Job == Guid.Empty ? Option<JobId>.None : new JobId(Job));
+            Job == Guid.Empty ? Option<JobId>.None : new JobId(Job))
+            .OpenedAt(new DateTimeOffset(Opened, TimeSpan.Zero));
 }
 
 internal sealed class StoredFact

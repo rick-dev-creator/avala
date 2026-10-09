@@ -1,11 +1,12 @@
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Sourcing;
 using Avala.Sdk;
+using Avala.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avala.Autopilot.Storage;
 
-internal sealed class SqliteTaskLedger(AvalaPaths paths) : ITaskLedger, IAsyncDisposable
+internal sealed class SqliteTaskLedger(AvalaPaths paths) : ITaskLedger, IStartupTask, IAsyncDisposable
 {
     private readonly SerialExecutor serial = new();
     private AutopilotDbContext? context;
@@ -52,6 +53,8 @@ internal sealed class SqliteTaskLedger(AvalaPaths paths) : ITaskLedger, IAsyncDi
             },
             cancellationToken);
 
+    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         await serial.DisposeAsync();
@@ -79,7 +82,7 @@ internal sealed class SqliteTaskLedger(AvalaPaths paths) : ITaskLedger, IAsyncDi
         {
             Directory.CreateDirectory(paths.Data);
             context = new AutopilotDbContext(paths.Database("autopilot"));
-            await context.Database.EnsureCreatedAsync(cancellationToken);
+            await ModuleDatabase.MigrateAsync(context, cancellationToken);
         }
 
         return context;
