@@ -6,6 +6,7 @@ using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Avala.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
 
@@ -59,7 +60,7 @@ public sealed class UserConfigurationTests
     {
         var launch = CommandLine.For(repository, connection, Option<ConversationMark>.None, new UserHome(home, []));
         launch = launch with { Variables = new Dictionary<string, string>(launch.Variables) { ["HOME"] = home } };
-        var cli = new ProcessCli(CliCommand.Installed, TimeProvider.System).Start(launch, UncontainedProcesses.Instance, Option<string>.None)
+        var cli = new ProcessCli(CliCommand.Installed, TimeProvider.System, NullLogger<ProcessCli>.Instance).Start(launch, UncontainedProcesses.Instance, Option<string>.None)
             .Match(started => started, error => throw new InvalidOperationException(error.ToString()));
         using var guard = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
         guard.CancelAfter(TimeSpan.FromMinutes(1));

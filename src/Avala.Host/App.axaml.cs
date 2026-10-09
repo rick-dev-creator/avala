@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using Avala.Host.Composition;
+using Avala.Runtime.Diagnostics;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
 using Avala.Sdk.Events;
@@ -45,25 +47,43 @@ internal sealed partial class App : Application
 
     private void Run(IClassicDesktopStyleApplicationLifetime desktop, AvalaPaths paths, DataFolderClaim claim)
     {
-        var composition = CompositionRoot.Create(PluginDirectory.Resolve(), paths);
+        var log = new LogFile(paths, TimeProvider.System);
+        var crashes = new CrashLog(log);
+        crashes.Watch();
+        crashes.Started($"Avala started on {RuntimeInformation.OSDescription}, data folder {paths.Data}");
+        var composition = Composed(paths, log, crashes);
         var appearance = new AppearanceApplier(this);
         _ = appearance.FollowAsync(
             composition.Services.GetRequiredService<IEventFeed>().SubscribeAsync<AppearanceChanged>(composition.Lifetime),
             composition.Services.GetRequiredService<IUiDispatcher>(),
             composition.Lifetime);
         composition.Start();
+        _ = crashes.ObserveAsync(composition.Running);
         var shell = composition.Services.GetRequiredService<ShellViewModel>();
         desktop.Exit += (_, _) =>
         {
             shell.Deactivate();
-            _ = StopAsync(composition, claim);
+            _ = StopAsync(composition, claim, log, crashes);
         };
         DataTemplates.Add(composition.Views);
         shell.Activate();
         _ = ShowAsync(desktop, composition, appearance, shell);
     }
 
-    private static async Task StopAsync(CompositionRoot composition, DataFolderClaim claim)
+    private static CompositionRoot Composed(AvalaPaths paths, LogFile log, CrashLog crashes)
+    {
+        try
+        {
+            return CompositionRoot.Create(PluginDirectory.Resolve(), paths, log);
+        }
+        catch (Exception failure)
+        {
+            crashes.Failed(failure);
+            throw;
+        }
+    }
+
+    private static async Task StopAsync(CompositionRoot composition, DataFolderClaim claim, LogFile log, CrashLog crashes)
     {
         try
         {
@@ -71,6 +91,8 @@ internal sealed partial class App : Application
         }
         finally
         {
+            crashes.Unwatch();
+            await log.DisposeAsync();
             claim.Dispose();
         }
     }

@@ -1,5 +1,6 @@
 using Avala.Components.UI;
 using Avala.Runtime;
+using Avala.Runtime.Diagnostics;
 using Avala.Sdk;
 using Avala.Sdk.UI;
 using Avala.Shell;
@@ -27,6 +28,9 @@ internal sealed class CompositionRoot : IAsyncDisposable
 
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths) =>
         Create(pluginDirectory, paths, new AvaloniaUiDispatcher());
+
+    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, LogFile log) =>
+        Create(pluginDirectory, paths, new Surroundings(new AvaloniaUiDispatcher(), new AvaloniaFileOpener(), TimeProvider.System, []) { Log = log });
 
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher) =>
         Create(pluginDirectory, paths, dispatcher, new AvaloniaFileOpener());
@@ -58,8 +62,9 @@ internal sealed class CompositionRoot : IAsyncDisposable
 
     private static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, Surroundings surroundings)
     {
-        var services = new ServiceCollection()
-            .AddLogging()
+        var services = new ServiceCollection().AddLogging();
+        _ = surroundings.Log.Match(log => services.AddSingleton(log), () => services);
+        services
             .AddSingleton(surroundings.Clock)
             .AddRuntime(paths)
             .AddShell()
@@ -105,6 +110,8 @@ internal sealed class CompositionRoot : IAsyncDisposable
         public IReadOnlyList<Type> Left { get; init; } = [];
 
         public ILinkOpener Links { get; init; } = new AvaloniaLinkOpener();
+
+        public Option<LogFile> Log { get; init; }
 
         public bool Kept(IPlugin loaded) => !Left.Contains(loaded.GetType());
 

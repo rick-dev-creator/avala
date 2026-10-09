@@ -5,10 +5,11 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Conversations;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
+using Microsoft.Extensions.Logging;
 
 namespace Avala.ClaudeCode.Cli;
 
-internal sealed class ProcessCli(CliCommand command, TimeProvider clock) : ICli
+internal sealed partial class ProcessCli(CliCommand command, TimeProvider clock, ILogger<ProcessCli> logger) : ICli
 {
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false);
 
@@ -42,9 +43,23 @@ internal sealed class ProcessCli(CliCommand command, TimeProvider clock) : ICli
         }
 
         return processes.Start(info).Match(
-            process => Result<ICliProcess, AgentError>.Success(new LaunchedCli(process, transcripts.Map(folder => TranscriptTap.Open(folder, launch, clock)))),
+            process => Result<ICliProcess, AgentError>.Success(new LaunchedCli(process, transcripts.Map(folder => TranscriptTap.Open(folder, launch, clock)), this)),
             _ => AgentError.ProviderUnavailable);
     }
+
+    private async Task ReadErrorsAsync(StreamReader errors)
+    {
+        while (await errors.ReadLineAsync() is { } line)
+        {
+            if (line.Length > 0)
+            {
+                LogError(line);
+            }
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Claude Code wrote to its standard error: {Line}")]
+    private partial void LogError(string line);
 
     private sealed class LaunchedCli : ICliProcess
     {
@@ -52,11 +67,11 @@ internal sealed class ProcessCli(CliCommand command, TimeProvider clock) : ICli
         private readonly Option<TranscriptTap> tap;
         private readonly Task errors;
 
-        public LaunchedCli(Process process, Option<TranscriptTap> tap)
+        public LaunchedCli(Process process, Option<TranscriptTap> tap, ProcessCli cli)
         {
             this.process = process;
             this.tap = tap;
-            errors = process.StandardError.ReadToEndAsync();
+            errors = cli.ReadErrorsAsync(process.StandardError);
         }
 
         public IAsyncEnumerable<string> Lines => ReadAsync(CancellationToken.None);
