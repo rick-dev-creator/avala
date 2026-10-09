@@ -318,7 +318,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         await StopAsync();
         var folder = new AvalaPaths(data.Path).Logs;
 
-        return string.Concat(await Task.WhenAll(Directory.GetFiles(folder).Order(StringComparer.Ordinal).Select(file => File.ReadAllTextAsync(file, Cancellation))));
+        return !Directory.Exists(folder) ? string.Empty : string.Concat(await Task.WhenAll(Directory.GetFiles(folder).Order(StringComparer.Ordinal).Select(file => File.ReadAllTextAsync(file, Cancellation))));
     }
 
     public async ValueTask DisposeAsync()

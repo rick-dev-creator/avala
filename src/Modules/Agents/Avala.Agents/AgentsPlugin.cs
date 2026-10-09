@@ -25,6 +25,8 @@ public sealed class AgentsPlugin : IPlugin
             .AddForwarded<IConnections, ConnectionRegistry>()
             .AddSingleton<ProviderChain>()
             .AddSingleton<SessionStarter>()
-            .AddSingleton<IAgents, AgentSessions>();
+            .AddSingleton<AgentSessions>()
+            .AddForwarded<IAgents, AgentSessions>()
+            .AddForwarded<IShutdownTask, AgentSessions>();
     }
 }

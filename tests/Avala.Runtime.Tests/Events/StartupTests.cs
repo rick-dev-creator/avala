@@ -55,6 +55,45 @@ public sealed class StartupTests
         Assert.Empty(ran);
     }
 
+    [Fact]
+    public async Task WhatAShutdownTaskPublishesIsHandledBeforeTheBusStopsAsync()
+    {
+        using var data = new TemporaryFolder();
+        var heard = new Heard();
+        await using var services = new ServiceCollection()
+            .AddSingleton(typeof(ILogger<>), typeof(NullLogger<>))
+            .AddRuntime(new AvalaPaths(data.Path))
+            .AddSingleton<IShutdownTask, Farewell>()
+            .AddSingleton<IHandle<Pinged>>(heard)
+            .BuildServiceProvider();
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        var completions = new EventWatch<StartupCompleted>(services.GetRequiredService<IEventFeed>().SubscribeAsync<StartupCompleted>(lifetime.Token), lifetime.Token);
+        var running = services.RunAsync(lifetime.Token);
+        _ = await completions.UntilAsync(_ => true);
+
+        await lifetime.CancelAsync();
+        await running;
+
+        Assert.Equal([(9, false)], heard.Events);
+    }
+
+    private sealed class Farewell(IEventBus bus) : IShutdownTask
+    {
+        public async Task StopAsync(CancellationToken cancellationToken) => await bus.PublishAsync(new Pinged(9), cancellationToken);
+    }
+
+    private sealed class Heard : IHandle<Pinged>
+    {
+        public List<(int Sequence, bool Cancelled)> Events { get; } = [];
+
+        public ValueTask HandleAsync(Pinged integrationEvent, CancellationToken cancellationToken)
+        {
+            Events.Add((integrationEvent.Sequence, cancellationToken.IsCancellationRequested));
+
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class Blocking : IStartupTask
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
