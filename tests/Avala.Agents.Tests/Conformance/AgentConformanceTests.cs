@@ -160,9 +160,26 @@ public sealed class AgentConformanceTests
     [Fact]
     public async Task ReportsACanvasDrawnWithoutTheCanvasToolAsync()
     {
-        var provider = new ScriptedAgentProvider(Drawing);
+        var provider = new ScriptedAgentProvider(DrawingIn("image/svg+xml"));
 
         Assert.Equal(["the canvas diagram was drawn without the canvas tool"], await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    [Theory]
+    [InlineData("image/svg+xml", "")]
+    [InlineData("text/markdown; charset=utf-8", "")]
+    [InlineData("text/vnd.mermaid", "the canvas diagram was drawn in text/vnd.mermaid, which the canvas tool does not offer")]
+    [InlineData("text/html", "the canvas diagram was drawn in text/html, which the canvas tool does not offer")]
+    public async Task AProviderMayDrawOnlyInTheMediaTypesTheCanvasToolOffersAsync(string mediaType, string expected)
+    {
+        var provider = new ScriptedAgentProvider(DrawingIn(mediaType))
+        {
+            Capabilities = Declared with { AcceptsTools = true },
+        };
+
+        var violations = await AgentConformance.CheckCanvasToolAsync(provider, Options, new UserTurn("conformance"), Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
     }
 
     [Theory]
@@ -170,7 +187,7 @@ public sealed class AgentConformanceTests
     [InlineData(false, "no canvas was drawn through the canvas tool")]
     public async Task AProviderThatAcceptsToolsMustReportACallOfTheCanvasToolAsACanvasAsync(bool draws, string expected)
     {
-        var provider = new ScriptedAgentProvider(draws ? Drawing : ScriptedAgentProvider.Reply)
+        var provider = new ScriptedAgentProvider(draws ? DrawingIn("image/svg+xml") : ScriptedAgentProvider.Reply)
         {
             Capabilities = Declared with { AcceptsTools = true },
         };
@@ -364,11 +381,11 @@ public sealed class AgentConformanceTests
         new TurnCompleted(session, turn, TurnOutcome.Finished),
     ];
 
-    private static IEnumerable<IAgentEvent> Drawing(SessionId session, TurnId turn) =>
+    private static Func<SessionId, TurnId, IEnumerable<IAgentEvent>> DrawingIn(string mediaType) => (session, turn) =>
     [
         new TurnStarted(session, turn),
-        new CanvasStarted(session, turn, new ItemId("diagram"), "Architecture", "text/vnd.mermaid"),
-        new ItemProgressed(session, turn, new ItemId("diagram"), "flowchart LR\n"),
+        new CanvasStarted(session, turn, new ItemId("diagram"), "Architecture", mediaType),
+        new ItemProgressed(session, turn, new ItemId("diagram"), "<svg/>"),
         new ItemCompleted(session, turn, new ItemId("diagram"), ItemOutcome.Succeeded),
         new TurnCompleted(session, turn, TurnOutcome.Finished),
     ];

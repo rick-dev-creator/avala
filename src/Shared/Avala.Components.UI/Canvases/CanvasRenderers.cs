@@ -1,7 +1,5 @@
-using Avala.Components.Canvases;
 using Avala.Sdk.UI;
-using Avalonia.Controls;
-using Avalonia.Controls.Templates;
+using Avalonia.Controls.Documents;
 
 namespace Avala.Components.UI.Canvases;
 
@@ -11,19 +9,16 @@ public static class CanvasRenderers
     {
         public IViewRegistrar AddCanvasRenderer(ICanvasRenderer renderer)
         {
-            views.Register(new RendererTemplate(renderer));
+            views.Register(new CanvasRendererTemplate(renderer));
 
             return views;
         }
-    }
 
-    private sealed class RendererTemplate(ICanvasRenderer renderer) : IDataTemplate
-    {
-        public bool Match(object? data) => data is CanvasRendering rendering && renderer.Renders(rendering.Essence);
+        public IViewRegistrar AddCanvasSource(string mediaType, Func<string, IEnumerable<Inline>> highlight)
+        {
+            views.Register(new CanvasSourceTemplate(mediaType, highlight));
 
-        public Control? Build(object? param) =>
-            param is CanvasRendering rendering
-                ? renderer.Render(rendering.Content).Match<Control?>(control => control, () => null)
-                : null;
+            return views;
+        }
     }
 }

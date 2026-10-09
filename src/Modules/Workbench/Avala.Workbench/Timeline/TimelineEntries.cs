@@ -32,7 +32,10 @@ internal sealed record PlanEntry(string Key, IReadOnlyList<PlanStep> Steps) : IT
     public int Total => Steps.Count;
 }
 
-internal sealed record CanvasEntry(string Key, string Title, string MediaType, string Content, CanvasStatus Status) : ITimelineEntry;
+internal sealed record CanvasEntry(string Key, string Title, string MediaType, string Content, CanvasStatus Status) : ITimelineEntry
+{
+    public bool IsOffered { get; init; } = true;
+}
 
 internal sealed record PermissionEntry(string Key, SessionId Session, TurnId Turn, ItemId Item, ItemKind Kind, string Title, string Target) : ITimelineEntry
 {

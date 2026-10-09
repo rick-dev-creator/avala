@@ -17,7 +17,7 @@ public sealed class CanvasFeedTests : IAsyncDisposable
 
     private readonly FakeTimeProvider clock = new();
     private readonly RecordingBus bus = new();
-    private readonly CanvasGallery gallery = new();
+    private readonly CanvasGallery gallery = new(Sketch.Offer);
     private readonly SnapshotThrottle throttle;
     private readonly CanvasFeed feed;
     private readonly Sketch sketch = Sketch.New();
@@ -36,8 +36,19 @@ public sealed class CanvasFeedTests : IAsyncDisposable
         await FeedAsync(sketch.Started());
 
         Assert.Equal(
-            new CanvasSnapshot(sketch.Id, sketch.Session, "Architecture", "image/svg+xml", string.Empty, CanvasStatus.Streaming),
+            new CanvasSnapshot(sketch.Id, sketch.Session, "Architecture", "image/svg+xml", string.Empty, CanvasStatus.Streaming, true),
             Assert.Single(Published));
+    }
+
+    [Fact]
+    public async Task ACanvasThatIsNotOfferedIsStillPublishedSoItsSourceCanBeShownAsync()
+    {
+        await FeedAsync(sketch.Started("text/vnd.mermaid"), sketch.Chunk("flowchart LR\n"), sketch.Completed());
+        var last = Published[^1];
+
+        Assert.Equal(
+            ("text/vnd.mermaid", "flowchart LR\n", CanvasStatus.Completed, false),
+            (last.MediaType, last.Content, last.Status, last.IsOffered));
     }
 
     [Fact]
