@@ -1,3 +1,4 @@
+using Avala.Components.UI;
 using Avala.Runtime;
 using Avala.Sdk;
 using Avala.Sdk.UI;
@@ -33,6 +34,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
             .AddShell()
             .AddSingleton(dispatcher);
         var views = new ViewRegistry();
+        views.AddComponentViews();
         var registrar = new PluginRegistrar(services);
 
         foreach (var plugin in PluginLoader.Load(pluginDirectory))

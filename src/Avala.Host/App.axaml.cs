@@ -17,12 +17,15 @@ internal sealed partial class App : Application
         {
             var composition = CompositionRoot.Create(PluginDirectory.Resolve(), DataDirectory.Resolve());
             composition.Start();
-            desktop.Exit += (_, _) => _ = composition.DisposeAsync().AsTask();
-            DataTemplates.Add(composition.Views);
-            desktop.MainWindow = new ShellView
+            var shell = composition.Services.GetRequiredService<ShellViewModel>();
+            desktop.Exit += (_, _) =>
             {
-                DataContext = composition.Services.GetRequiredService<ShellViewModel>(),
+                shell.Deactivate();
+                _ = composition.DisposeAsync().AsTask();
             };
+            DataTemplates.Add(composition.Views);
+            shell.Activate();
+            desktop.MainWindow = new ShellView { DataContext = shell };
         }
 
         base.OnFrameworkInitializationCompleted();

@@ -4,27 +4,122 @@
         xmlns:sdk="using:Avala.Sdk"
         x:Class="Avala.Host.ShellView"
         x:ClassModifier="internal"
-        x:DataType="shell:ShellViewModel"
+        x:DataType="shell:IShellViewModel"
         Title="Avala"
-        Width="1200"
-        Height="760"
-        TransparencyLevelHint="Mica, AcrylicBlur, Blur"
-        Background="{DynamicResource ShellBackgroundBrush}">
-  <Grid ColumnDefinitions="240,*">
-    <ListBox ItemsSource="{Binding Pages}"
-             SelectedItem="{Binding SelectedPage}"
-             Background="Transparent"
-             Margin="8">
-      <ListBox.ItemTemplate>
-        <DataTemplate x:DataType="sdk:IPage">
-          <TextBlock Text="{Binding Title}" />
-        </DataTemplate>
-      </ListBox.ItemTemplate>
-    </ListBox>
-    <Border Grid.Column="1"
-            Background="{DynamicResource ContentBackgroundBrush}"
-            CornerRadius="10,0,0,0">
-      <ContentControl Content="{Binding SelectedPage}" />
+        Width="1280"
+        Height="800"
+        MinWidth="720"
+        MinHeight="480"
+        Background="Transparent"
+        TransparencyLevelHint="Mica, AcrylicBlur, None">
+  <Design.DataContext>
+    <shell:DesignShellViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="Auto,*,Auto">
+    <Panel x:Name="SidebarPane"
+           Width="{DynamicResource SidebarWidth}"
+           IsVisible="{Binding HasSidebar}">
+      <ExperimentalAcrylicBorder Classes="panel" IsHitTestVisible="False" />
+      <DockPanel>
+        <Grid DockPanel.Dock="Top"
+              ColumnDefinitions="Auto,*,Auto"
+              Margin="18,16,14,10">
+          <Viewbox Width="18" Height="18" VerticalAlignment="Center">
+            <Canvas Width="24" Height="24">
+              <Path Data="{StaticResource LogoMark}"
+                    Stroke="{DynamicResource TextPrimaryBrush}"
+                    StrokeThickness="1.8"
+                    StrokeJoin="Round" />
+              <Path Data="{StaticResource LogoEye}" Fill="{DynamicResource AccentBrush}" />
+            </Canvas>
+          </Viewbox>
+          <TextBlock Grid.Column="1"
+                     Margin="8,0,0,0"
+                     Text="Avala"
+                     FontWeight="SemiBold"
+                     VerticalAlignment="Center" />
+          <ItemsControl x:Name="ToolbarRegion"
+                        Grid.Column="2"
+                        ItemsSource="{Binding Toolbar.Items}"
+                        VerticalAlignment="Center">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </Grid>
+        <StackPanel DockPanel.Dock="Bottom" IsVisible="{Binding SidebarFooter.HasItems}">
+          <Border Classes="separator" />
+          <ItemsControl x:Name="SidebarFooterRegion"
+                        Margin="10"
+                        ItemsSource="{Binding SidebarFooter.Items}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+        <ScrollViewer>
+          <StackPanel Margin="10,4,10,10" Spacing="14">
+            <ListBox x:Name="PageNavigation"
+                     IsVisible="{Binding HasNavigation}"
+                     ItemsSource="{Binding Pages}"
+                     SelectedItem="{Binding SelectedPage}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="sdk:IPage">
+                  <TextBlock Text="{Binding Title}" />
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <ItemsControl x:Name="SidebarRegion" ItemsSource="{Binding Sidebar.Items}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="2" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+      <Border Classes="edge" HorizontalAlignment="Right" />
+    </Panel>
+
+    <Border x:Name="ContentPane" Grid.Column="1" Classes="window">
+      <Panel>
+        <ContentControl x:Name="ContentRegion" Content="{Binding SelectedPage}" />
+        <Border x:Name="EmptyContent"
+                Classes="empty"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                IsVisible="{Binding SelectedPage, Converter={x:Static ObjectConverters.IsNull}}">
+          <StackPanel Spacing="6" HorizontalAlignment="Center">
+            <TextBlock Text="Nothing to show yet" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Classes="caption" Text="Plugins add their pages to this window." HorizontalAlignment="Center" />
+          </StackPanel>
+        </Border>
+      </Panel>
     </Border>
+
+    <Panel x:Name="InspectorPane"
+           Grid.Column="2"
+           Width="{DynamicResource InspectorWidth}"
+           IsVisible="{Binding Inspector.HasItems}">
+      <ExperimentalAcrylicBorder Classes="panel" IsHitTestVisible="False" />
+      <Border Classes="edge" HorizontalAlignment="Left" />
+      <ScrollViewer>
+        <StackPanel Margin="14,16" Spacing="6">
+          <TextBlock Classes="section" Margin="10,2,10,8" Text="Inspector" />
+          <ItemsControl x:Name="InspectorRegion" ItemsSource="{Binding Inspector.Items}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="6" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+    </Panel>
   </Grid>
 </Window>
