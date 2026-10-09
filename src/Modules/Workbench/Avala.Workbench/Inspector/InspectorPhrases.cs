@@ -89,7 +89,13 @@ internal static class InspectorPhrases
             child.Status.ToString(),
             .. child.Connection.Match<string[]>(connection => [connection.Value], () => []),
             .. delegation.Bind(record => record.Report).Match<string[]>(report => [report.Outcome.ToString()], () => []),
+            .. delegation.Match<string[]>(Delivery, () => []),
         ]);
+
+    private static string[] Delivery(DelegationRecord record) =>
+        record.Answered.Match<string[]>(
+            answer => answer.Route == AnswerRoute.Message ? ["told to its parent in a message"] : [],
+            () => record.Report.IsSome ? ["not yet told to its parent"] : []);
 
     public static string Refused(DelegationRecord record) =>
         $"Refused: {FactPhrases.Title(record.Instruction)}"

@@ -75,6 +75,7 @@ internal static class FactPhrases
         HoldReason.InvalidBudget => "held: invalid budget",
         HoldReason.MemoryExceeded => "held: out of memory",
         HoldReason.Stopped => "stopped",
+        HoldReason.NotResumable => "held: its conversation cannot resume",
         _ => "interrupted",
     };
 }

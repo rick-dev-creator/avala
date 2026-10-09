@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
+using Avala.Delegation.Contracts;
 using Avala.ClaudeCode;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
@@ -255,6 +256,15 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task<JobHold> HoldAsync() => (await application.Holds.UntilAsync(_ => true)).Hold;
 
+    public async Task<DelegationRecord> ChildReportedAsync() => (await application.Reported.UntilAsync(_ => true)).Delegation;
+
+    public async Task<DelegationRecord> ReportDeliveredAsync() => (await application.Delivered.UntilAsync(_ => true)).Delegation;
+
+    public async Task<string> ToldAsync() =>
+        ((ItemProgressed)(await application.Activity.UntilAsync(update => update.Event is ItemProgressed { Item.Value: "told" } told && told.Text != Told)).Event).Text;
+
+    private const string Told = "I was told: ";
+
     public async Task ResumableAsync() => _ = await application.Resumable.UntilAsync(update => update.Job == Job);
 
     public async Task<SupervisionIntervention> SupervisorInterventionAsync() => (await application.Supervision.UntilAsync(_ => true)).Intervention;
@@ -358,9 +368,15 @@ internal sealed class SimulatedRun : IAsyncDisposable
             Queued = Watch<JobQueued>();
             Sampled = Watch<ResourcesSampled>();
             Started = Watch<StartupCompleted>();
+            Reported = Watch<ChildReported>();
+            Delivered = Watch<ReportDelivered>();
         }
 
         public EventWatch<StartupCompleted> Started { get; }
+
+        public EventWatch<ChildReported> Reported { get; }
+
+        public EventWatch<ReportDelivered> Delivered { get; }
 
         public EventWatch<OrphansFound> Orphans { get; }
 
