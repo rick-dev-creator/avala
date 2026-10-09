@@ -52,6 +52,11 @@ internal static class ConversationPhrases
         _ => "This job has ended",
     };
 
+    public static string QueuedCaption(JobStatus status) =>
+        status == JobStatus.AwaitingReview
+            ? "Queued · waits in the review: send back with it, or withdraw it"
+            : "Queued · continues the job when it next needs you; at review, you decide";
+
     public static string SendHint(JobStatus status, bool takesMessagesMidTurn) => status switch
     {
         JobStatus.Running when takesMessagesMidTurn => "Send into the running turn (Ctrl+Enter)",

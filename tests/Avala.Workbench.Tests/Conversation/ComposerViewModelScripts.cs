@@ -90,10 +90,8 @@ public sealed class ComposerViewModelScripts
         Assert.Equal((string.Empty, "Keep the alias", string.Empty), (composer.Draft, composer.Queued, composer.Error));
     }
 
-    [Theory]
-    [InlineData(JobStatus.NeedsHelp, "continue Keep the alias\n\nAnd update the changelog")]
-    [InlineData(JobStatus.AwaitingReview, "send back Keep the alias\n\nAnd update the changelog")]
-    public async Task QueuedMessagesReachTheJobTogetherWhenItNextStopsForYou(JobStatus stop, string call)
+    [Fact]
+    public async Task QueuedMessagesContinueTheJobTogetherWhenItNextNeedsYou()
     {
         var composer = Composer(JobStatus.Checking);
         composer.Draft = "Keep the alias";
@@ -101,11 +99,25 @@ public sealed class ComposerViewModelScripts
         composer.Draft = "And update the changelog";
         await composer.SendCommand.ExecuteAsync(null);
 
-        await queue.HandleAsync(new JobProgressed(shown.Job, stop), Cancellation);
-        Becomes(composer, stop);
+        await queue.HandleAsync(new JobProgressed(shown.Job, JobStatus.NeedsHelp), Cancellation);
+        Becomes(composer, JobStatus.NeedsHelp);
 
-        Assert.Equal([call], jobs.Calls);
+        Assert.Equal(["continue Keep the alias\n\nAnd update the changelog"], jobs.Calls);
         Assert.Equal((string.Empty, false), (composer.Queued, composer.WithdrawCommand.CanExecute(null)));
+    }
+
+    [Fact]
+    public async Task AQueuedMessageWaitsInTheReviewUntilAPersonChoosesToSendItBack()
+    {
+        var composer = Composer(JobStatus.Running);
+        composer.Draft = "Keep the alias";
+        await composer.SendCommand.ExecuteAsync(null);
+
+        await queue.HandleAsync(new JobProgressed(shown.Job, JobStatus.AwaitingReview), Cancellation);
+        Becomes(composer, JobStatus.AwaitingReview);
+
+        Assert.Empty(jobs.Calls);
+        Assert.Equal(("Keep the alias", "Queued · waits in the review: send back with it, or withdraw it"), (composer.Queued, composer.QueuedCaption));
     }
 
     [Fact]

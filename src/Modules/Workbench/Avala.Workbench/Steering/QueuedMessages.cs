@@ -26,16 +26,12 @@ internal sealed class QueuedMessages(IJobs jobs) : IHandle<JobProgressed>
             return;
         }
 
-        if (!integrationEvent.Status.AcceptsMessages || !ImmutableInterlocked.TryRemove(ref queued, job, out var message))
+        if (integrationEvent.Status != JobStatus.NeedsHelp || !ImmutableInterlocked.TryRemove(ref queued, job, out var message))
         {
             return;
         }
 
-        var delivered = integrationEvent.Status == JobStatus.NeedsHelp
-            ? await jobs.ContinueAsync(job, message, cancellationToken)
-            : await jobs.SendBackAsync(job, message, cancellationToken);
-
-        if (!delivered.IsSuccess)
+        if (!(await jobs.ContinueAsync(job, message, cancellationToken)).IsSuccess)
         {
             Queue(job, message);
         }

@@ -1,13 +1,31 @@
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Workbench.Steering;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Reviewing;
 
 internal sealed record ApprovalAttempt(Result<ApprovalDelivery, JobRejection> Outcome, IReadOnlyList<string> Conflicts);
 
-internal sealed class ReviewDesk(IJobs jobs, IJobCatalog catalog, IWorkspaceChanges changes)
+internal sealed class ReviewDesk(IJobs jobs, IJobCatalog catalog, IWorkspaceChanges changes, QueuedMessages queue)
 {
+    public Option<string> Queued(JobId job) => queue.Find(job);
+
+    public async Task<Result<JobId, JobRejection>> SendBackQueuedAsync(JobId job, CancellationToken cancellationToken) =>
+        await queue.Find(job).Match(
+            async message =>
+            {
+                var sent = await SendBackAsync(job, message, cancellationToken);
+
+                if (sent.IsSuccess)
+                {
+                    queue.Withdraw(job);
+                }
+
+                return sent;
+            },
+            () => Task.FromResult(Result<JobId, JobRejection>.Failure(JobRejection.EmptyMessage)));
+
     public async Task<ApprovalAttempt> ApproveAsync(JobId job, CancellationToken cancellationToken)
     {
         var outcome = (await jobs.ApproveAsync(job, cancellationToken)).Map(approval => approval.Delivery);

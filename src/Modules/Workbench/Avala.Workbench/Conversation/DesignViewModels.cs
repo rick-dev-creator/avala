@@ -45,6 +45,8 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
     public string Queued { get; }
 
+    public string QueuedCaption => ConversationPhrases.QueuedCaption(Status);
+
     public IRelayCommand WithdrawCommand { get; }
 
     public bool AcceptsMessages => Status is not (JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed);
