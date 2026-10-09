@@ -15,13 +15,13 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     public const int MaximumBytes = 16 * 1024;
 
-    private const string Connection = "connection";
+    private const string ConnectionField = "connection";
 
-    private const string Approval = "approval";
+    private const string ApprovalField = "approval";
 
-    private const string Autopilot = "autopilot";
+    private const string AutopilotField = "autopilot";
 
-    private const string Delegation = "delegation";
+    private const string DelegationField = "delegation";
 
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
 
@@ -64,22 +64,22 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
             return Rejected("it is not a JSON object");
         }
 
-        if (root.EnumerateObject().Any(property => property.Name is not (Connection or Approval or Autopilot or Delegation)))
+        if (root.EnumerateObject().Any(property => property.Name is not (ConnectionField or ApprovalField or AutopilotField or DelegationField)))
         {
             return Rejected("it has a field the format does not define");
         }
 
-        if (root.TryGetProperty(Autopilot, out var autopilot) && !IsSection(autopilot, listsAllowed: false))
+        if (root.TryGetProperty(AutopilotField, out var autopilot) && !IsSection(autopilot, listsAllowed: false))
         {
-            return Rejected($"its {Autopilot} is not an object of plain values");
+            return Rejected($"its {AutopilotField} is not an object of plain values");
         }
 
-        if (root.TryGetProperty(Delegation, out var delegation) && !IsSection(delegation, listsAllowed: true))
+        if (root.TryGetProperty(DelegationField, out var delegation) && !IsSection(delegation, listsAllowed: true))
         {
-            return Rejected($"its {Delegation} is not an object of plain values and lists of them");
+            return Rejected($"its {DelegationField} is not an object of plain values and lists of them");
         }
 
-        return Named(root, Connection).Bind(connection => Named(root, Approval).Map(approval => new Declaration(connection, approval)));
+        return Named(root, ConnectionField).Bind(connection => Named(root, ApprovalField).Map(approval => new Declaration(connection, approval)));
     }
 
     private static bool IsSection(JsonElement section, bool listsAllowed) =>

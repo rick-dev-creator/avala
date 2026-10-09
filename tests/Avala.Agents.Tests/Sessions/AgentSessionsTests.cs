@@ -24,7 +24,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         await using var agents = Agents(bus, provider);
 
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
         await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
 
         var session = Assert.Single(provider.Sessions);
@@ -52,7 +52,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         await using var agents = Agents(bus, new ScriptedAgentProvider(ScriptedAgentProvider.Reply));
 
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
 
         Assert.Equal(
             new TurnFinished(turn.Session, turn.Turn, TurnOutcome.Finished),
@@ -70,7 +70,7 @@ public sealed class AgentSessionsTests
             new TurnCompleted(session, turn, TurnOutcome.Finished),
         ]));
 
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
         await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
 
         Assert.Equal(
@@ -94,7 +94,7 @@ public sealed class AgentSessionsTests
             TimeProvider.System,
             NullLogger<AgentSessions>.Instance);
 
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
         await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
 
         var tree = Assert.Single(trees.Opened);
@@ -132,7 +132,7 @@ public sealed class AgentSessionsTests
     {
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
         await using var agents = Agents(new RecordingBus(), provider);
-        var first = await StartAsync(agents, "Add GitHub login");
+        var first = await StartTurnAsync(agents, "Add GitHub login");
 
         var second = Outcomes.Succeeds(await agents.SendAsync(first.Session, "Two tests fail", Cancellation));
 
@@ -146,7 +146,7 @@ public sealed class AgentSessionsTests
     {
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
         await using var agents = Agents(new RecordingBus(), provider);
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
         Assert.True(agents.IsOpen(turn.Session));
 
         Outcomes.Succeeds(await agents.StopAsync(turn.Session, Cancellation));
@@ -161,7 +161,7 @@ public sealed class AgentSessionsTests
     {
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
         await using var agents = Agents(new RecordingBus(), provider);
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
         var decision = new PermissionDecision(new ItemId("migrate"), PermissionAnswer.Deny) { Message = "Use the staging database." };
 
         var answered = Outcomes.Succeeds(await agents.RespondAsync(turn.Session, decision, Cancellation));
@@ -186,7 +186,7 @@ public sealed class AgentSessionsTests
     {
         var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)], canInterrupt: true);
         await using var agents = Agents(new RecordingBus(), provider);
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
 
         Assert.Equal(turn.Turn, Outcomes.Succeeds(await agents.InterruptAsync(turn.Session, Cancellation)));
         Assert.Equal(1, Assert.Single(provider.Sessions).Interruptions);
@@ -197,7 +197,7 @@ public sealed class AgentSessionsTests
     {
         var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
         await using var agents = Agents(new RecordingBus(), provider);
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
 
         Assert.Equal(AgentError.Unsupported, Outcomes.FailsWith(await agents.InterruptAsync(turn.Session, Cancellation)));
         Assert.Equal(0, Assert.Single(provider.Sessions).Interruptions);
@@ -217,7 +217,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
         await using var agents = Agents(bus, provider);
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
 
         Assert.Single(provider.Sessions).Crash();
 
@@ -233,7 +233,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
         await using var agents = Agents(bus, provider);
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
 
         Assert.Single(provider.Sessions).End();
 
@@ -249,7 +249,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
         await using var agents = Agents(bus, provider);
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
         await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
 
         Assert.Single(provider.Sessions).End();
@@ -264,7 +264,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
         await using var agents = Agents(bus, provider);
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
 
         Outcomes.Succeeds(await agents.StopAsync(turn.Session, Cancellation));
 
@@ -327,7 +327,7 @@ public sealed class AgentSessionsTests
         };
         await using var agents = Agents(bus, provider);
 
-        var turn = await StartAsync(agents, "Add GitHub login");
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
         await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
 
         Assert.Equal(
@@ -339,7 +339,7 @@ public sealed class AgentSessionsTests
     public async Task AnsweringAFormIsUnsupportedWhenTheProviderAsksNoQuestionsAsync()
     {
         await using var agents = Agents(new RecordingBus(), new ScriptedAgentProvider(Asking));
-        var turn = await StartAsync(agents, "Choose a database");
+        var turn = await StartTurnAsync(agents, "Choose a database");
 
         Assert.Equal(AgentError.Unsupported, Outcomes.FailsWith(await agents.AnswerAsync(turn.Session, Choosing("SQLite"), Cancellation)));
     }
@@ -350,7 +350,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         var provider = new ScriptedAgentProvider(Asking) { Capabilities = Declared with { AsksQuestions = true } };
         await using var agents = Agents(bus, provider);
-        var turn = await StartAsync(agents, "Choose a database");
+        var turn = await StartTurnAsync(agents, "Choose a database");
         await bus.WaitForAsync<AgentActivity>(activity => activity.Event is FormRequested, Cancellation);
 
         Assert.Equal(AgentError.NoPendingForm, Outcomes.FailsWith(await agents.AnswerAsync(turn.Session, Choosing("SQLite") with { Item = new ItemId("other") }, Cancellation)));
@@ -368,7 +368,7 @@ public sealed class AgentSessionsTests
             Capabilities = Declared with { AsksQuestions = true },
         };
         await using var agents = Agents(bus, provider);
-        var turn = await StartAsync(agents, "Choose a database");
+        var turn = await StartTurnAsync(agents, "Choose a database");
         await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
 
         Assert.Equal(AgentError.NoPendingForm, Outcomes.FailsWith(await agents.AnswerAsync(turn.Session, Choosing("SQLite"), Cancellation)));
@@ -381,7 +381,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         var provider = new ScriptedAgentProvider(Calling) { Capabilities = Declared with { AcceptsTools = true } };
         await using var agents = Agents(bus, provider);
-        var turn = await StartAsync(agents, "Propose a follow-up");
+        var turn = await StartTurnAsync(agents, "Propose a follow-up");
         await bus.WaitForAsync<AgentActivity>(activity => activity.Event is ToolCalled, Cancellation);
         var result = new ToolResult(new ItemId("propose"), "Accepted.");
 
@@ -397,7 +397,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         var provider = new ScriptedAgentProvider(Calling) { Capabilities = Declared with { AcceptsTools = false } };
         await using var agents = Agents(bus, provider);
-        var turn = await StartAsync(agents, "Propose a follow-up");
+        var turn = await StartTurnAsync(agents, "Propose a follow-up");
         await bus.WaitForAsync<AgentActivity>(activity => activity.Event is ToolCalled, Cancellation);
 
         Assert.Equal(AgentError.Unsupported, Outcomes.FailsWith(await agents.ReturnAsync(turn.Session, new ToolResult(new ItemId("propose"), "Accepted."), Cancellation)));
@@ -426,7 +426,7 @@ public sealed class AgentSessionsTests
 
     private static AgentCapabilities Declared { get; } = new ScriptedAgentProvider(ScriptedAgentProvider.Reply).Capabilities;
 
-    private static async Task<AgentTurn> StartAsync(AgentSessions agents, string instruction)
+    private static async Task<AgentTurn> StartTurnAsync(AgentSessions agents, string instruction)
     {
         var opened = Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));
 

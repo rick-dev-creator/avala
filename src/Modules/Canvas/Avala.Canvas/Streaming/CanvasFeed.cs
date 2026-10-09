@@ -13,21 +13,20 @@ namespace Avala.Canvas.Streaming;
 internal sealed partial class CanvasFeed(CanvasGallery gallery, SnapshotThrottle throttle, ILogger<CanvasFeed> logger)
     : IHandle<AgentActivity>
 {
-    public async ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken)
-    {
-        switch (integrationEvent.Event)
+    public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken) =>
+        integrationEvent.Event switch
         {
-            case CanvasStarted started when Accepted(gallery.Open(started), out var canvas):
-                await throttle.ChangedAsync(canvas, cancellationToken);
-                break;
-            case ItemProgressed progressed when Accepted(gallery.Append(progressed), out var canvas):
-                await throttle.ChangedAsync(canvas, cancellationToken);
-                break;
-            case ItemCompleted completed when Accepted(gallery.Close(completed), out var canvas):
-                await throttle.FinishedAsync(canvas, cancellationToken);
-                break;
-        }
-    }
+            CanvasStarted started => ChangedAsync(gallery.Open(started), cancellationToken),
+            ItemProgressed progressed => ChangedAsync(gallery.Append(progressed), cancellationToken),
+            ItemCompleted completed => FinishedAsync(gallery.Close(completed), cancellationToken),
+            _ => ValueTask.CompletedTask,
+        };
+
+    private ValueTask ChangedAsync(Result<CanvasId, CanvasError> applied, CancellationToken cancellationToken) =>
+        Accepted(applied, out var canvas) ? throttle.ChangedAsync(canvas, cancellationToken) : ValueTask.CompletedTask;
+
+    private ValueTask FinishedAsync(Result<CanvasId, CanvasError> applied, CancellationToken cancellationToken) =>
+        Accepted(applied, out var canvas) ? throttle.FinishedAsync(canvas, cancellationToken) : ValueTask.CompletedTask;
 
     private bool Accepted(Result<CanvasId, CanvasError> applied, out CanvasId canvas)
     {

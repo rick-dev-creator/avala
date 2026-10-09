@@ -4,6 +4,8 @@
     <File Path="AGENTS.md" />
     <File Path="CLAUDE.md" />
     <File Path="BannedSymbols.txt" />
+    <File Path="CodeMetricsConfig.txt" />
+    <File Path="SonarLint.xml" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Build.rsp" />
     <File Path="Directory.Build.targets" />
@@ -12,7 +14,9 @@
     <File Path="Avala.UnitTests.slnf" />
     <File Path="dotnet-tools.json" />
     <File Path=".github/workflows/ci.yml" />
+    <File Path="scripts/code-metrics.cs" />
     <File Path="scripts/metrics.cs" />
+    <File Path="scripts/publish-badges.cs" />
     <File Path="scripts/publish-summary.cs" />
     <File Path="scripts/session-cost.cs" />
   </Folder>

@@ -9,12 +9,10 @@ public sealed class TestUiDispatcher : SynchronizationContext, IUiDispatcher, ID
 
     private readonly BlockingCollection<Action> work = [];
     private readonly List<(Func<bool> Condition, TaskCompletionSource Reached)> waiters = [];
-    private readonly Thread thread;
 
     public TestUiDispatcher()
     {
-        thread = new Thread(Run) { IsBackground = true, Name = "Test UI thread" };
-        thread.Start();
+        new Thread(Run) { IsBackground = true, Name = "Test UI thread" }.Start();
     }
 
     public ValueTask InvokeAsync(Action action, CancellationToken cancellationToken)

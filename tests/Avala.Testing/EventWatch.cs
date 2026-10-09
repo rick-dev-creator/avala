@@ -5,7 +5,7 @@ namespace Avala.Testing;
 public sealed class EventWatch<TEvent>(IAsyncEnumerable<TEvent> events, CancellationToken cancellationToken)
     where TEvent : IIntegrationEvent
 {
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(30);
+    private static TimeSpan Patience => TimeSpan.FromSeconds(30);
 
     private readonly IAsyncEnumerator<TEvent> pending = events.GetAsyncEnumerator(cancellationToken);
 

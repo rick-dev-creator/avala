@@ -124,32 +124,32 @@ internal sealed class WindowsJob : IContainer
 
     public void Adopt(Process process) => _ = AssignProcessToJobObject(job, process.Handle);
 
-    public ValueTask<IReadOnlyList<int>> MemberIdsAsync(CancellationToken cancellationToken)
+    public ValueTask<IReadOnlyList<int>> MemberIdsAsync(CancellationToken cancellationToken) =>
+        ValueTask.FromResult(MemberIds(64));
+
+    private IReadOnlyList<int> MemberIds(int capacity) =>
+        Query(capacity).Match(ids => ids, () => MemberIds(capacity * 2));
+
+    private Option<IReadOnlyList<int>> Query(int capacity)
     {
-        for (var capacity = 64; ; capacity *= 2)
+        var size = 8 + (IntPtr.Size * capacity);
+        var buffer = Marshal.AllocHGlobal(size);
+
+        try
         {
-            var size = 8 + (IntPtr.Size * capacity);
-            var buffer = Marshal.AllocHGlobal(size);
-
-            try
+            if (QueryInformationJobObject(job, BasicProcessIdList, buffer, (uint)size, out _))
             {
-                if (QueryInformationJobObject(job, BasicProcessIdList, buffer, (uint)size, out _))
-                {
-                    var count = Marshal.ReadInt32(buffer, 4);
+                var count = Marshal.ReadInt32(buffer, 4);
 
-                    return ValueTask.FromResult<IReadOnlyList<int>>(
-                        [.. Enumerable.Range(0, count).Select(index => (int)Marshal.ReadIntPtr(buffer, 8 + (IntPtr.Size * index)))]);
-                }
+                return Option<IReadOnlyList<int>>.Some(
+                    [.. Enumerable.Range(0, count).Select(index => (int)Marshal.ReadIntPtr(buffer, 8 + (IntPtr.Size * index)))]);
+            }
 
-                if (Marshal.GetLastWin32Error() != MoreData)
-                {
-                    return ValueTask.FromResult<IReadOnlyList<int>>([]);
-                }
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(buffer);
-            }
+            return Marshal.GetLastWin32Error() == MoreData ? Option<IReadOnlyList<int>>.None : Option<IReadOnlyList<int>>.Some([]);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
         }
     }
 

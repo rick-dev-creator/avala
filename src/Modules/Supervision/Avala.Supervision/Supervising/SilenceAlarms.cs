@@ -19,7 +19,7 @@ internal sealed class SilenceAlarms(TimeProvider clock, IEventBus bus) : IAsyncD
 
         var wait = due - clock.GetUtcNow();
         pending[job] = clock.CreateTimer(
-            _ => _ = bus.PublishAsync(new SilenceNoticed(job), CancellationToken.None).AsTask(),
+            state => _ = bus.PublishAsync(new SilenceNoticed(job), CancellationToken.None).AsTask(),
             null,
             wait > TimeSpan.Zero ? wait : TimeSpan.Zero,
             Timeout.InfiniteTimeSpan);

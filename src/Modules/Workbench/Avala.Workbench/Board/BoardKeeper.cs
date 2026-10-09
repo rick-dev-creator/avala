@@ -39,12 +39,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
 
     public async ValueTask HandleAsync(StartupCompleted integrationEvent, CancellationToken cancellationToken)
     {
-        foreach (var summary in await catalog.ListAsync(cancellationToken))
+        foreach (var summary in (await catalog.ListAsync(cancellationToken)).Where(summary => !jobs.ContainsKey(summary.Job)))
         {
-            if (!jobs.ContainsKey(summary.Job))
-            {
-                await RefreshAsync(summary.Job, restored: true, cancellationToken);
-            }
+            await RefreshAsync(summary.Job, restored: true, cancellationToken);
         }
     }
 
@@ -162,8 +159,8 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
         return ValueTask.CompletedTask;
     }
 
-    private bool Change(JobId job, Func<BoardJob, BoardJob> change) =>
-        Change(job, change, () => Option<BoardJob>.None);
+    private void Change(JobId job, Func<BoardJob, BoardJob> change) =>
+        _ = Change(job, change, () => Option<BoardJob>.None);
 
     private bool Change(JobId job, Func<BoardJob, BoardJob> change, Func<Option<BoardJob>> joined) =>
         (jobs.TryGetValue(job, out var known) ? Option<BoardJob>.Some(change(known)) : joined()).Match(

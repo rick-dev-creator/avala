@@ -63,7 +63,7 @@ internal static class ResourceSettingsParser
     private static Result<bool, ResourceError> Fields(JsonElement element, string[] fields) =>
         element.ValueKind != JsonValueKind.Object ? ResourceError.Malformed
         : element.EnumerateObject().Any(property => !fields.Contains(property.Name, StringComparer.Ordinal)) ? ResourceError.UnknownField
-        : true;
+        : Result<bool, ResourceError>.Success(true);
 
     private static Result<TimeSpan, ResourceError> Interval(JsonElement root, string name, TimeSpan fallback) =>
         !root.TryGetProperty(name, out var value) ? fallback

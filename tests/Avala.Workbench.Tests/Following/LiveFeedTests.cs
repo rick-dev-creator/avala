@@ -44,6 +44,7 @@ public sealed class LiveFeedTests : IDisposable
         board.Publish(Pages.Board(Pages.Summary("Fix the failing test", JobStatus.Running)).Jobs);
 
         await ui.UntilAsync(() => shown == 2);
+        Assert.Equal(2, await ui.ReadAsync(() => shown));
     }
 
     [Fact]

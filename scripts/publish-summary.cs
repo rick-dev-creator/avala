@@ -1,6 +1,6 @@
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Usage: dotnet run scripts/publish-summary.cs -- <markdown-file>...");
+    await Console.Error.WriteLineAsync("Usage: dotnet run scripts/publish-summary.cs -- <markdown-file>...");
     return 1;
 }
 
