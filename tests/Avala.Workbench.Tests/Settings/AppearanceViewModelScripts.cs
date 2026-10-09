@@ -10,13 +10,13 @@ public sealed class AppearanceViewModelScripts
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task WithoutAFileTheThemeFollowsTheSystemWithFullMotion()
+    public async Task WithoutAFileThemeAndMotionFollowTheSystem()
     {
         var appearance = new AppearanceViewModel(new FakeAppearance());
 
         await appearance.LoadAsync(Cancellation);
 
-        Assert.Equal((true, false, false, false, "Absent"), (appearance.FollowsSystem, appearance.IsLight, appearance.IsDark, appearance.ReduceMotion, appearance.File));
+        Assert.Equal((true, false, false, true, "Absent"), (appearance.FollowsSystem, appearance.IsLight, appearance.IsDark, appearance.MotionFollowsSystem, appearance.File));
     }
 
     [Fact]
@@ -31,22 +31,26 @@ public sealed class AppearanceViewModelScripts
             .ThenNotified(nameof(AppearanceViewModel.FollowsSystem), nameof(AppearanceViewModel.IsLight), nameof(AppearanceViewModel.File))
             .Then(page => Assert.Equal((false, true, false, "Applied"), (page.FollowsSystem, page.IsLight, page.IsDark, page.File)));
 
-        Assert.Equal([new AppearancePreference(ThemeChoice.Light, false)], store.Changes);
+        Assert.Equal([new AppearancePreference(ThemeChoice.Light, MotionChoice.System)], store.Changes);
     }
 
     [Fact]
-    public async Task SwitchingMotionKeepsTheThemeAndTogglesReducedMotion()
+    public async Task ChoosingReducedMotionOnOffOrSystemKeepsTheTheme()
     {
-        var store = new FakeAppearance(new AppearancePreference(ThemeChoice.Dark, false));
+        var store = new FakeAppearance(new AppearancePreference(ThemeChoice.Dark, MotionChoice.System));
         var appearance = new AppearanceViewModel(store);
         await appearance.LoadAsync(Cancellation);
 
-        await appearance.SwitchMotionCommand.ExecuteAsync(null);
-        var reduced = appearance.ReduceMotion;
-        await appearance.SwitchMotionCommand.ExecuteAsync(null);
+        await appearance.ChooseMotionCommand.ExecuteAsync(MotionChoice.Reduced);
+        var reduced = (appearance.IsMotionReduced, appearance.MotionFollowsSystem);
+        await appearance.ChooseMotionCommand.ExecuteAsync(MotionChoice.Full);
+        var full = appearance.IsMotionFull;
+        await appearance.ChooseMotionCommand.ExecuteAsync(MotionChoice.System);
 
-        Assert.Equal([new AppearancePreference(ThemeChoice.Dark, true), new AppearancePreference(ThemeChoice.Dark, false)], store.Changes);
-        Assert.Equal((true, false, true), (reduced, appearance.ReduceMotion, appearance.IsDark));
+        Assert.Equal(
+            [new AppearancePreference(ThemeChoice.Dark, MotionChoice.Reduced), new AppearancePreference(ThemeChoice.Dark, MotionChoice.Full), new AppearancePreference(ThemeChoice.Dark, MotionChoice.System)],
+            store.Changes);
+        Assert.Equal(((true, false), true, true, true), (reduced, full, appearance.MotionFollowsSystem, appearance.IsDark));
     }
 
     [Fact]

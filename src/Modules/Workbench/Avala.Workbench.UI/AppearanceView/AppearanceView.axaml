@@ -54,19 +54,33 @@
         </DockPanel>
         <Border Classes="separator" Margin="16,0" />
         <DockPanel Margin="16,12">
-          <ToggleSwitch x:Name="ReduceMotion"
-                        DockPanel.Dock="Right"
-                        VerticalAlignment="Center"
-                        OnContent=""
-                        OffContent=""
-                        AutomationProperties.Name="Reduce motion"
-                        IsChecked="{Binding ReduceMotion, Mode=OneWay}"
-                        Command="{Binding SwitchMotionCommand}" />
+          <Border DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal">
+              <Button x:Name="MotionFollowSystem"
+                      Classes="segment"
+                      Classes.selected="{Binding MotionFollowsSystem}"
+                      Content="System"
+                      Command="{Binding ChooseMotionCommand}"
+                      CommandParameter="{x:Static appearance:MotionChoice.System}" />
+              <Button x:Name="ReduceMotion"
+                      Classes="segment"
+                      Classes.selected="{Binding IsMotionReduced}"
+                      Content="On"
+                      Command="{Binding ChooseMotionCommand}"
+                      CommandParameter="{x:Static appearance:MotionChoice.Reduced}" />
+              <Button x:Name="FullMotion"
+                      Classes="segment"
+                      Classes.selected="{Binding IsMotionFull}"
+                      Content="Off"
+                      Command="{Binding ChooseMotionCommand}"
+                      CommandParameter="{x:Static appearance:MotionChoice.Full}" />
+            </StackPanel>
+          </Border>
           <StackPanel Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="Reduce motion" />
             <TextBlock Classes="caption"
                        TextWrapping="Wrap"
-                       Text="Stops the pulse, the spinners, the thinking shimmer and the fades. Avalonia does not report the operating system's setting, so Avala asks here." />
+                       Text="Stops the pulse, the spinners, the thinking shimmer and the fades. System follows the operating system's reduced motion setting." />
           </StackPanel>
         </DockPanel>
       </StackPanel>

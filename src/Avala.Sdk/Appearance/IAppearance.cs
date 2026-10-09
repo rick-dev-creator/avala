@@ -9,6 +9,13 @@ public enum ThemeChoice
     Dark,
 }
 
+public enum MotionChoice
+{
+    System,
+    Reduced,
+    Full,
+}
+
 public enum AppearanceFileStatus
 {
     Absent,
@@ -24,9 +31,9 @@ public enum AppearanceError
     Unwritable,
 }
 
-public sealed record AppearancePreference(ThemeChoice Theme, bool ReduceMotion)
+public sealed record AppearancePreference(ThemeChoice Theme, MotionChoice Motion)
 {
-    public static AppearancePreference Default { get; } = new(ThemeChoice.System, false);
+    public static AppearancePreference Default { get; } = new(ThemeChoice.System, MotionChoice.System);
 }
 
 public sealed record AppearanceSettings(AppearancePreference Preference, AppearanceFileStatus File, Option<AppearanceError> Error);

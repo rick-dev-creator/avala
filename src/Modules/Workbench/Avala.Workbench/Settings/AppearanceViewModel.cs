@@ -15,13 +15,17 @@ internal interface IAppearanceViewModel
 
     bool IsDark { get; }
 
-    bool ReduceMotion { get; }
+    bool MotionFollowsSystem { get; }
+
+    bool IsMotionReduced { get; }
+
+    bool IsMotionFull { get; }
 
     string Error { get; }
 
     IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; }
 
-    IAsyncRelayCommand SwitchMotionCommand { get; }
+    IAsyncRelayCommand<MotionChoice> ChooseMotionCommand { get; }
 
     Task LoadAsync(CancellationToken cancellationToken);
 }
@@ -30,7 +34,7 @@ internal interface IAppearanceViewModel
 internal sealed partial class AppearanceViewModel(IAppearance appearance) : IAppearanceViewModel
 {
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(FollowsSystem), nameof(IsLight), nameof(IsDark), nameof(ReduceMotion))]
+    [NotifyPropertyChangedFor(nameof(FollowsSystem), nameof(IsLight), nameof(IsDark), nameof(MotionFollowsSystem), nameof(IsMotionReduced), nameof(IsMotionFull))]
     public partial AppearancePreference Preference { get; private set; } = AppearancePreference.Default;
 
     [ObservableProperty]
@@ -45,7 +49,11 @@ internal sealed partial class AppearanceViewModel(IAppearance appearance) : IApp
 
     public bool IsDark => Preference.Theme == ThemeChoice.Dark;
 
-    public bool ReduceMotion => Preference.ReduceMotion;
+    public bool MotionFollowsSystem => Preference.Motion == MotionChoice.System;
+
+    public bool IsMotionReduced => Preference.Motion == MotionChoice.Reduced;
+
+    public bool IsMotionFull => Preference.Motion == MotionChoice.Full;
 
     public async Task LoadAsync(CancellationToken cancellationToken) => Show(await appearance.ReadAsync(cancellationToken));
 
@@ -54,8 +62,8 @@ internal sealed partial class AppearanceViewModel(IAppearance appearance) : IApp
         ChangeAsync(Preference with { Theme = theme }, cancellationToken);
 
     [RelayCommand]
-    private Task SwitchMotionAsync(CancellationToken cancellationToken) =>
-        ChangeAsync(Preference with { ReduceMotion = !Preference.ReduceMotion }, cancellationToken);
+    private Task ChooseMotionAsync(MotionChoice motion, CancellationToken cancellationToken) =>
+        ChangeAsync(Preference with { Motion = motion }, cancellationToken);
 
     private async Task ChangeAsync(AppearancePreference preference, CancellationToken cancellationToken)
     {

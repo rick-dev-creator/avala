@@ -238,13 +238,17 @@ internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
 
     public bool IsDark => false;
 
-    public bool ReduceMotion => false;
+    public bool MotionFollowsSystem => true;
+
+    public bool IsMotionReduced => false;
+
+    public bool IsMotionFull => false;
 
     public string Error { get; init; } = string.Empty;
 
     public IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; } = new AsyncRelayCommand<ThemeChoice>(_ => Task.CompletedTask);
 
-    public IAsyncRelayCommand SwitchMotionCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+    public IAsyncRelayCommand<MotionChoice> ChooseMotionCommand { get; } = new AsyncRelayCommand<MotionChoice>(_ => Task.CompletedTask);
 
     public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

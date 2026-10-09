@@ -40,13 +40,17 @@ public sealed class SettingsViewModelScripts
 
         public bool IsDark => appearance.IsDark;
 
-        public bool ReduceMotion => appearance.ReduceMotion;
+        public bool MotionFollowsSystem => appearance.MotionFollowsSystem;
+
+        public bool IsMotionReduced => appearance.IsMotionReduced;
+
+        public bool IsMotionFull => appearance.IsMotionFull;
 
         public string Error => appearance.Error;
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.ThemeChoice> ChooseThemeCommand => appearance.ChooseThemeCommand;
 
-        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand SwitchMotionCommand => appearance.SwitchMotionCommand;
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.MotionChoice> ChooseMotionCommand => appearance.ChooseMotionCommand;
 
         public Task LoadAsync(CancellationToken cancellationToken)
         {
