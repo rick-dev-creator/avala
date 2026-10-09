@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Replies;
 using Avala.Workbench.Timeline;
@@ -87,19 +88,33 @@ internal sealed partial class FormCardViewModel : IFormCardViewModel, ITimelineI
         }
     }
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SubmitCommand), nameof(DeclineCommand))]
+    public partial bool IsAnswering { get; private set; }
+
     [RelayCommand(CanExecute = nameof(CanSubmit))]
-    private async Task SubmitAsync(CancellationToken cancellationToken)
+    private Task SubmitAsync(CancellationToken cancellationToken) =>
+        AnswerAsync(FormReplies.Answer(form.Item, [.. fields.Select(field => field.Choice())]), cancellationToken);
+
+    [RelayCommand(CanExecute = nameof(CanDecline))]
+    private Task DeclineAsync(CancellationToken cancellationToken) => AnswerAsync(FormReplies.Decline(form.Item, Note), cancellationToken);
+
+    private async Task AnswerAsync(FormAnswer answer, CancellationToken cancellationToken)
     {
-        var answered = await replies.AnswerAsync(form, FormReplies.Answer(form.Item, [.. fields.Select(field => field.Choice())]), cancellationToken);
-        Error = answered.Match(_ => string.Empty, CardPhrases.Error);
+        IsAnswering = true;
+
+        try
+        {
+            var answered = await replies.AnswerAsync(form, answer, cancellationToken);
+            Error = answered.Match(_ => string.Empty, CardPhrases.Error);
+        }
+        finally
+        {
+            IsAnswering = false;
+        }
     }
 
-    [RelayCommand(CanExecute = nameof(AwaitsYou))]
-    private async Task DeclineAsync(CancellationToken cancellationToken)
-    {
-        var answered = await replies.AnswerAsync(form, FormReplies.Decline(form.Item, Note), cancellationToken);
-        Error = answered.Match(_ => string.Empty, CardPhrases.Error);
-    }
+    private bool CanSubmit() => CanDecline() && FormReplies.IsComplete([.. fields.Select(field => field.Choice())]);
 
-    private bool CanSubmit() => AwaitsYou && FormReplies.IsComplete([.. fields.Select(field => field.Choice())]);
+    private bool CanDecline() => AwaitsYou && !IsAnswering;
 }
