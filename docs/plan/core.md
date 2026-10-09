@@ -619,3 +619,29 @@ D5  Given a provider process that writes to its standard error, then each line r
 D6  Given Settings, then it shows the log folder, and "Open" opens it through IFileOpener; a folder the platform cannot open shows why.
 A1  Given Settings, then About shows the version and the commit from the host's informational version, "unknown" when it has none, and Repository and License open their links through ILinkOpener.
 ```
+
+## Release prep (G)
+
+Done, and nothing published: everything a release needs is in place for the owner to cut the first one, see [releasing](../release.md). Each item has its acceptance criteria below, played by unit tests, view model and view scripts and host tests, never the network: `ReleaseVersionTests` and `UpdateCheckTests` with a fake HTTP handler for the check, `UpdateViewModelScripts`, `UpdateViewScripts`, `UpdateNoticeViewModelScripts`, `UpdateNoticeViewScripts`, `AboutViewScripts` and `WorkbenchPluginTests` for what the person sees, and `SmokeRunTests` for the smoke run, which start the built host as a process. The packages are proven by running `scripts/package.cs` with `--smoke`, locally for linux-x64 and on each platform's runner in the release workflow. The design is in [release prep](../design/core.md#release-prep).
+
+1. **Packages.** `scripts/package.cs` builds a self-contained folder per platform, win-x64, linux-x64, osx-arm64 and osx-x64, with the plugins laid out as the host expects, the version from the tag, a zip for Windows, a tar.gz with an icon and a desktop entry for Linux, and an `Avala.app` with its `Info.plist` and an icns made from the brand's PNGs, zipped, for macOS, each with its SHA-256. An AppImage and a Windows installer come later.
+2. **Smoke run.** `--smoke` composes the real application headless, shows its main window and exits; `--version` prints the version and the commit.
+3. **Release workflow.** `release.yml` runs only on a pushed `v*` tag: it builds and tests, packages every platform on its own runner with the smoke run, and attaches the archives to a draft release. Signing is wired for Windows and macOS, notarization included, and stays off until the repository variable `AVALA_SIGNING` is `true` and its secrets exist.
+4. **Update check.** At startup, and on demand from About, Avala asks GitHub whether a newer version is out, never blocking startup and never installing anything; a machine setting turns the startup check off.
+5. **README.** Screenshots of the real application driven by the simulator, dark and light, the status as beta-ready and installs as coming soon.
+
+```
+P1  Given a run of scripts/package.cs for a platform, then its archive holds Avala, its plugins with only that platform's native files, and for macOS an Avala.app with Info.plist and avala.icns; with --smoke on that platform, the packaged --version names the version and the packaged --smoke exits 0.
+S1  Given the built application and its plugins, when it is started with --smoke and no display, then it composes, shows its main window, says so and exits 0.
+S2  Given no plugin, when it is started with --smoke, then it says no plugin was loaded and exits 2.
+S3  Given --version, then it prints "Avala <version> (<commit>)" and exits 0.
+U1  Given a release newer than the build, when Avala checks, then the state is Available with that version and its page, and UpdateFound is published.
+U2  Given only releases equal to or older than the build, or no release at all, then the state is UpToDate and nothing is published.
+U3  Given a stable build, drafts and prereleases are ignored; given a prerelease build, a newer prerelease is offered.
+U4  Given a refused request, an error status, an unreadable reply or no network, then the state is Unreachable and nothing throws.
+U5  Given updates.json turning the startup check off, or unreadable, then startup asks nothing and the state is Off, while a check from About still asks; without the file, or with it on, startup checks.
+U6  Given a reply that has not arrived, startup completes; once it arrives, UpdateFound is published.
+U7  Versions compare as Semantic Versioning's own precedence example orders them.
+N1  Given the sidebar, the notice is hidden until an update is found, then reads "Version x is available"; opening it opens the release page through ILinkOpener, and an unopened page gives its address.
+A2  Given About, it shows where the check stands; Check now asks and, when a newer version exists, Download opens its page.
+```

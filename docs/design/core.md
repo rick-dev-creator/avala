@@ -2340,6 +2340,30 @@ A person who installs Avala without a harness login sees a jobs page that cannot
 
 `AvalaBuild`, in the SDK, is the version and the commit the host was built from, read from its assembly's informational version, `<version>+<commit>`, which the .NET SDK writes from the git checkout; a build without one reads "unknown". The host registers it, and Settings shows it in About, `AboutViewModel`, with the short commit and links to the repository and its MIT license, opened through `ILinkOpener`, beside the log folder of the diagnostics.
 
+## Release prep
+
+**Accepted**
+
+What it takes to hand a build to someone else, see the plan's [release prep](../plan/core.md#release-prep-g) and [releasing](../release.md) for the steps.
+
+### Versions
+
+Every project shares one version, `VersionPrefix` 0.1.0 with the suffix `dev` in `Directory.Build.props`, so a build from a checkout says `0.1.0-dev+<commit>` and a stale plugin of another version fails to load instead of half-working. A release overrides it with `-p:Version` from its tag, `v0.1.0-beta.1` giving `0.1.0-beta.1+<commit>`, which About and the update check read through `AvalaBuild`.
+
+### Packages
+
+`scripts/package.cs` publishes the host self-contained for one runtime identifier and builds every project marked `AvalaPlugin` in Release into the package's `plugins` folder, through the `AvalaPluginsDirectory` property the plugin target honours, so the layout is exactly the one `PluginDirectory` resolves next to the executable. It then trims what the loader never reads: the native folders of other platforms, a plugin's copy of an assembly the host ships, which the default load context always takes from the host, and a file identical to one an earlier plugin in folder order already holds, since the loader asks the plugins' resolvers in that order and the first one that lists a file answers for every plugin. The host is a folder, not a single file: plugins are folders anyway, and a single-file host would hide from them the assemblies they expect to share. The executable is renamed `Avala`, which the apphost allows since it names its assembly inside.
+
+### Smoke run
+
+`Avala --smoke` starts the real application on Avalonia's headless platform, without a display: it claims a temporary data folder unless `AVALA_DATA_PATH` names one, composes every plugin, runs the startup tasks, shows the main window, and exits 0 once `StartupCompleted` arrives and the shell has pages; with no plugin loaded it exits 2, and on a failure 1. It never checks for updates. `Avala --version` prints `Avala <version> (<commit>)`. The packaging script runs both on the package it built whenever it runs on that platform.
+
+### Update check
+
+Avala checks, never installs. `UpdateCheck`, in `Avala.Runtime.Updates`, is the SDK's `IUpdates`: a startup task that reads `updates.json` in the data folder, starts the check on the thread pool and returns at once, so startup never waits on the network. The check asks GitHub's releases API for the repository's releases, ignores drafts, and ignores prereleases unless the build itself is one, then compares versions by Semantic Versioning's precedence. A newer one makes the state `Available`, with the release's page when it is a GitHub page and the releases page otherwise, and publishes `UpdateFound`; no release or none newer is `UpToDate`, and anything else, a refused request, an error status, a reply that is not a list or no network, is `Unreachable`, never an exception. `{ "checkOnStartup": false }` turns the startup check off, and so does a file that cannot be read or is not that object, since a person who wrote the file meant to change the default; a check asked for from About still runs. Only the host's real composition hands the runtime a `ReleaseFeed` over `HttpClient`, so the smoke run, the tests and the simulation never reach the network; without a feed a check answers the state it has.
+
+The Workbench shows it twice. `UpdateNoticeViewModel` sits in the sidebar's footer after the resource indicator and appears only once an update is found, "Version x is available", opening the release page through `ILinkOpener`; it follows the state through `LiveFeed`, whose pulse beats on `UpdateFound`. In About, `UpdateViewModel` holds the version and the commit with where the check stands, a Check now command and, when a newer version exists, Download, which opens its page.
+
 ## Architecture rules to add
 
 **Accepted**
