@@ -6,6 +6,7 @@ internal enum TurnTrigger
     ResolvePermission,
     AskForm,
     AnswerForm,
+    Withdraw,
     Finish,
     Interrupt,
     Fail,

@@ -37,6 +37,8 @@ internal static class Given
 
     public static PermissionResolved Resolved(string item) => new(Session, TurnId, Item(item), PermissionAnswer.Allow);
 
+    public static RequestWithdrawn Withdrawn(string item) => new(Session, TurnId, Item(item));
+
     public static AgentForm Form { get; } = new(
         FormPurpose.Question,
         "Choose a database",

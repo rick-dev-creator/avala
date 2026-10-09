@@ -163,6 +163,30 @@ public sealed class TurnTests
     }
 
     [Fact]
+    public void AWithdrawnPermissionOrFormStopsWaitingAndCanNoLongerBeAnswered()
+    {
+        var turn = Given.Turn(Given.Started("deploy"), Given.PermissionFor("deploy"));
+
+        Outcomes.Succeeds(turn.Apply(Given.Withdrawn("deploy"), Given.Now));
+        var afterPermission = (turn.State, turn.PendingPermission, Outcomes.FailsWith(turn.Apply(Given.Resolved("deploy"), Given.Now)));
+        Outcomes.Succeeds(turn.Apply(Given.Asked("question"), Given.Now));
+        Outcomes.Succeeds(turn.Apply(Given.Withdrawn("question"), Given.Now));
+
+        Assert.Equal((TurnState.Working, Option<ItemId>.None, TurnError.NoPendingPermission), afterPermission);
+        Assert.Equal((TurnState.Working, Option<ItemId>.None), (turn.State, turn.PendingForm));
+        Assert.Equal(TurnError.NoPendingForm, Outcomes.FailsWith(turn.Apply(Given.Answered("question"), Given.Now)));
+    }
+
+    [Fact]
+    public void RejectsWithdrawingARequestThatIsNotPending()
+    {
+        var turn = Given.Turn(Given.Started("deploy"), Given.Started("migrate"), Given.PermissionFor("deploy"));
+
+        Assert.Equal(TurnError.NoPendingRequest, Outcomes.FailsWith(turn.Apply(Given.Withdrawn("migrate"), Given.Now)));
+        Assert.Equal(TurnState.AwaitingPermission, turn.State);
+    }
+
+    [Fact]
     public void AToolCallOpensAnItemThatWaitsForItsResultAndThenCompletes()
     {
         var turn = Given.Turn();

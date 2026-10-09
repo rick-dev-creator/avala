@@ -57,10 +57,6 @@ internal sealed class Turn : IAggregateRoot<TurnId>
             CanvasStarted started => Open(started, started.Item, at),
             ItemProgressed progressed => Touch(progressed, progressed.Item, at),
             ItemCompleted completed => Close(completed),
-            PermissionRequested requested => RequestPermission(requested, at),
-            PermissionResolved resolved => ResolvePermission(resolved, at),
-            FormRequested requested => AskForm(requested, at),
-            FormAnswered answered => AnswerForm(answered, at),
             ToolCalled called => Open(called, called.Item, at).Map(progress =>
             {
                 pendingCalls.Add(called.Item);
@@ -69,7 +65,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
             }),
             ToolReturned returned => Return(returned, at),
             TurnCompleted completed => End(completed),
-            _ => new TurnProgress([agentEvent]),
+            _ => Exchange(agentEvent, at),
         };
     }
 
@@ -88,6 +84,16 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
         return new TurnProgress([.. stale.Select(item => Conclude(item, ItemOutcome.Expired))]);
     }
+
+    private Result<TurnProgress, TurnError> Exchange(IAgentEvent agentEvent, DateTimeOffset at) => agentEvent switch
+    {
+        PermissionRequested requested => RequestPermission(requested, at),
+        PermissionResolved resolved => ResolvePermission(resolved, at),
+        FormRequested requested => AskForm(requested, at),
+        FormAnswered answered => AnswerForm(answered, at),
+        RequestWithdrawn withdrawn => Withdraw(withdrawn, at),
+        _ => new TurnProgress([agentEvent]),
+    };
 
     private Result<TurnProgress, TurnError> Open(IAgentEvent started, ItemId item, DateTimeOffset at)
     {
@@ -192,6 +198,24 @@ internal sealed class Turn : IAggregateRoot<TurnId>
             PendingForm = Option<ItemId>.None;
 
             return Touch(answered, answered.Item, at);
+        });
+    }
+
+    private Result<TurnProgress, TurnError> Withdraw(RequestWithdrawn withdrawn, DateTimeOffset at)
+    {
+        var item = Option<ItemId>.Some(withdrawn.Item);
+
+        if (PendingPermission != item && PendingForm != item)
+        {
+            return TurnError.NoPendingRequest;
+        }
+
+        return machine.TryFire(TurnTrigger.Withdraw, TurnError.NoPendingRequest).Bind(_ =>
+        {
+            PendingPermission = Option<ItemId>.None;
+            PendingForm = Option<ItemId>.None;
+
+            return Touch(withdrawn, withdrawn.Item, at);
         });
     }
 

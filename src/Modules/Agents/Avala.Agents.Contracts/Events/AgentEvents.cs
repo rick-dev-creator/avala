@@ -24,6 +24,8 @@ public sealed record FormRequested(SessionId Session, TurnId Turn, ItemId Item, 
 
 public sealed record FormAnswered(SessionId Session, TurnId Turn, ItemId Item, FormAnswer Answer) : IAgentEvent;
 
+public sealed record RequestWithdrawn(SessionId Session, TurnId Turn, ItemId Item) : IAgentEvent;
+
 public sealed record ToolCalled(SessionId Session, TurnId Turn, ItemId Item, string Tool, string Input) : IAgentEvent;
 
 public sealed record ToolReturned(SessionId Session, TurnId Turn, ItemId Item, ToolResult Result) : IAgentEvent;
