@@ -21,6 +21,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
     IHandle<JobHeld>,
     IHandle<JobApproved>,
     IHandle<JobSessionStarted>,
+    IHandle<ConnectionChosen>,
     IHandle<AgentActivity>,
     IHandle<CanvasUpdated>,
     IHandle<PermissionDecided>,
@@ -70,13 +71,18 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
     public async ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
     {
         sessions[integrationEvent.Session] = integrationEvent.Job;
+        await RefreshAsync(integrationEvent.Job, restored: true, cancellationToken);
+        Change(integrationEvent.Job, Audited);
+    }
 
+    public async ValueTask HandleAsync(ConnectionChosen integrationEvent, CancellationToken cancellationToken)
+    {
         if (!jobs.ContainsKey(integrationEvent.Job))
         {
             await RefreshAsync(integrationEvent.Job, restored: true, cancellationToken);
         }
 
-        Change(integrationEvent.Job, Audited);
+        Change(integrationEvent.Job, job => Audited(job with { Choice = integrationEvent.Choice }));
     }
 
     public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken) =>
@@ -124,6 +130,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
                 job,
                 known => known with
                 {
+                    Summary = found.Summary with { Status = known.Summary.Status },
                     Attempts = found.Attempts.Count,
                     Transcript = known.Transcript.WithPrompts(found.Summary.Instruction, found.Attempts),
                 },

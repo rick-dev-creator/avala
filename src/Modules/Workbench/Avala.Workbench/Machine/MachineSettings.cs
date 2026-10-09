@@ -17,6 +17,9 @@ internal sealed class MachineSettings(IConnections connections, ISupervision sup
 
     public ValueTask<Result<SupervisionSettings, SupervisionError>> ChangeSilenceAsync(TimeSpan silence, CancellationToken cancellationToken) =>
         supervision.ChangeSilenceAsync(silence, cancellationToken);
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
+        connections.ChangeDefaultAsync(connection, cancellationToken);
 }
 
 internal sealed class SettingsFiles(IFileOpener opener, AvalaPaths paths)

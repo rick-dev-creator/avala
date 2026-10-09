@@ -15,6 +15,18 @@ namespace Avala.Workbench.Inspector;
 
 internal static class InspectorPhrases
 {
+    public static string Chosen(ConnectionChoice choice) =>
+        choice.Reason == ChoiceReason.AllAtLimit
+            ? $"Chosen by capacity: every connection was at its limit, so {choice.Connection.Value}, the least used"
+            : $"Chosen by capacity: {choice.Connection.Value} had the most left";
+
+    public static string Capacity(CandidateCapacity candidate) =>
+        Amounts.Joined([
+            candidate.Window.Match(window => $"{Presenting.Amounts.Percent(candidate.Used)} of {window.Window}", () => "no usage reported"),
+            .. candidate.Threshold < 1 ? [$"holds at {Presenting.Amounts.Percent(candidate.Threshold)}"] : Array.Empty<string>(),
+            .. candidate.Available ? Array.Empty<string>() : ["at its limit"],
+        ]);
+
     public static string Attempt(VerificationReport report) =>
         string.Create(CultureInfo.InvariantCulture, $"Attempt {report.Attempt}: {Outcome(report.Outcome)}")
         + (report.Checks.Count == 0 ? string.Empty : $" · {string.Join(", ", report.Checks.Select(Check))}");

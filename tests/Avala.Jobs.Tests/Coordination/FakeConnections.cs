@@ -14,12 +14,24 @@ internal sealed class FakeConnections : IConnections
 
     public List<DeclaredConnection> Declared { get; } = [];
 
+    public Option<ConnectionName> Fixed { get; set; }
+
+    public Option<ConnectionError> Rejection { get; set; }
+
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
-        ValueTask.FromResult(new ConnectionCatalog(
-            ConnectionFileStatus.Absent,
-            Option<ConnectionError>.None,
-            Declared,
-            Declared.Count == 0 ? Option<ConnectionName>.None : Declared[0].Name));
+        ValueTask.FromResult(Rejection.Match(
+            error => new ConnectionCatalog(ConnectionFileStatus.Rejected, error, [], Option<ConnectionName>.None),
+            () => new ConnectionCatalog(
+                ConnectionFileStatus.Absent,
+                Option<ConnectionError>.None,
+                Declared,
+                Fixed.IsSome ? Fixed : Declared.Count == 0 ? Option<ConnectionName>.None : Declared[0].Name)
+            {
+                DefaultMode = Fixed.IsSome ? DefaultMode.Fixed : DefaultMode.Auto,
+            }));
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 
     public ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken)
     {
@@ -64,4 +76,13 @@ internal sealed class FakeRepositoryDefaults : IRepositoryDefaults
 
     public ValueTask<Result<Option<string>, JobRejection>> ApprovalAsync(string worktree, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Approval);
+
+    public List<string> ReadCurrent { get; } = [];
+
+    public ValueTask<Result<Option<ConnectionName>, JobRejection>> CurrentConnectionAsync(string repository, CancellationToken cancellationToken)
+    {
+        ReadCurrent.Add(repository);
+
+        return ValueTask.FromResult(Connection);
+    }
 }

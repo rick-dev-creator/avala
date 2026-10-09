@@ -103,6 +103,99 @@ public sealed class ConnectionTests
         Assert.Equal((job.Id, Personal, 2), (chosen.Job, chosen.Choice.Connection, chosen.Choice.Compared.Count));
     }
 
+    [Fact]
+    public async Task AJobWithoutAnyPreferenceRunsOnTheFixedMachineDefaultWithoutAskingCapacityAsync()
+    {
+        var flow = JobFlow.With();
+        var selector = new FakeSelector(Work);
+        flow.Selectors.Add(selector);
+        flow.Connections.Declared.AddRange([Declared(Work), Declared(Personal)]);
+        flow.Connections.Fixed = Personal;
+
+        await flow.RunningAsync();
+
+        Assert.True(Assert.Single(flow.Agents.Requests).Connection.IsNone);
+        Assert.Empty(selector.Questions);
+        Assert.Empty(flow.Bus.Published.OfType<ConnectionChosen>());
+    }
+
+    [Fact]
+    public async Task ThePreviewNamesTheConnectionTheRepositoryPrefersAtItsCurrentCommitWithoutAskingCapacityAsync()
+    {
+        var flow = JobFlow.With();
+        var selector = new FakeSelector(Work);
+        flow.Selectors.Add(selector);
+        flow.Connections.Declared.AddRange([Declared(Work), Declared(Personal)]);
+        flow.Defaults.Connection = Option<ConnectionName>.Some(Personal);
+
+        var preview = Outcomes.Succeeds(await flow.Preview.PreviewAsync("/repositories/shop", Cancellation));
+
+        Assert.Equal((ConnectionRoute.Repository, Option<ConnectionName>.Some(Personal), false), (preview.Route, preview.Connection, preview.Choice.IsSome));
+        Assert.Equal(["/repositories/shop"], flow.Defaults.ReadCurrent);
+        Assert.Empty(selector.Questions);
+    }
+
+    [Fact]
+    public async Task ThePreviewOfAFixedMachineDefaultNamesItWithoutAskingCapacityAsync()
+    {
+        var flow = JobFlow.With();
+        var selector = new FakeSelector(Work);
+        flow.Selectors.Add(selector);
+        flow.Connections.Declared.AddRange([Declared(Work), Declared(Personal)]);
+        flow.Connections.Fixed = Personal;
+
+        var preview = Outcomes.Succeeds(await flow.Preview.PreviewAsync("/repositories/shop", Cancellation));
+
+        Assert.Equal((ConnectionRoute.MachineDefault, Option<ConnectionName>.Some(Personal)), (preview.Route, preview.Connection));
+        Assert.Empty(selector.Questions);
+    }
+
+    [Fact]
+    public async Task ThePreviewByCapacityAsksAtTheRepositorysCurrentCommitAndAnnouncesNothingAsync()
+    {
+        var flow = JobFlow.With();
+        var selector = new FakeSelector(Personal);
+        flow.Selectors.Add(selector);
+        flow.Connections.Declared.AddRange([Declared(Work), Declared(Personal)]);
+
+        var preview = Outcomes.Succeeds(await flow.Preview.PreviewAsync("/repositories/shop", Cancellation));
+
+        Assert.Equal((ConnectionRoute.Capacity, Option<ConnectionName>.Some(Personal)), (preview.Route, preview.Connection));
+        Assert.Equal([Work, Personal], Outcomes.Present(preview.Choice).Compared.Select(candidate => candidate.Connection));
+        var question = Assert.Single(selector.Questions);
+        Assert.Equal(("/repositories/shop", true), (question.Worktree, question.AtHead));
+        Assert.Empty(flow.Bus.Published);
+        Assert.Empty(flow.Store.Jobs);
+    }
+
+    [Fact]
+    public async Task WithNothingToChooseByCapacityThePreviewFallsBackToTheMachineDefaultAsync()
+    {
+        var flow = JobFlow.With();
+        flow.Connections.Declared.AddRange([Declared(Work), Declared(Personal)]);
+
+        var preview = Outcomes.Succeeds(await flow.Preview.PreviewAsync("/repositories/shop", Cancellation));
+
+        Assert.Equal((ConnectionRoute.Fallback, Option<ConnectionName>.Some(Work), false), (preview.Route, preview.Connection, preview.Choice.IsSome));
+    }
+
+    [Theory]
+    [InlineData(true, "InvalidJobFile")]
+    [InlineData(false, "UnusableConnection")]
+    public async Task APreviewThatCannotBeMadeSaysWhyAsync(bool jobFileRejected, string rejection)
+    {
+        var flow = JobFlow.With();
+        flow.Selectors.Add(new FakeSelector(Work));
+        flow.Defaults.Connection = jobFileRejected
+            ? Result<Option<ConnectionName>, JobRejection>.Failure(JobRejection.InvalidJobFile)
+            : Option<ConnectionName>.None;
+        flow.Connections.Rejection = jobFileRejected ? Option<ConnectionError>.None : ConnectionError.UnknownDefault;
+
+        var preview = await flow.Preview.PreviewAsync("/repositories/shop", Cancellation);
+
+        Assert.Equal(Enum.Parse<JobRejection>(rejection), Outcomes.FailsWith(preview));
+    }
+
     private static DeclaredConnection Declared(ConnectionName name) => new(name, FakeConnections.Provider.Id, Option<string>.None);
 
     [Theory]

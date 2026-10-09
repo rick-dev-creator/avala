@@ -54,11 +54,19 @@
                 </TextBox.KeyBindings>
               </TextBox>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="6">
               <StackPanel Spacing="6">
                 <TextBlock Classes="section" Text="Connection" />
                 <ComboBox x:Name="Connection" ItemsSource="{Binding Connections}" SelectedItem="{Binding Connection}" />
               </StackPanel>
+              <TextBlock x:Name="Route"
+                         Grid.Row="1"
+                         Grid.ColumnSpan="2"
+                         Classes="caption fade-in"
+                         Classes.attention="{Binding IsRouteAttention}"
+                         TextWrapping="Wrap"
+                         Text="{Binding Route}"
+                         IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Classes="section" Text="Autonomy" />
                 <CheckBox x:Name="Supervised" IsChecked="{Binding Supervised}">

@@ -54,16 +54,81 @@ internal static class Pages
 
 internal sealed class FakeConnections(params string[] names) : IConnections
 {
-    public ConnectionCatalog Catalog { get; set; } = new(
+    public ConnectionCatalog Catalog { get; set; } = new ConnectionCatalog(
         ConnectionFileStatus.Applied,
         Option<ConnectionError>.None,
         [.. names.Select(name => new DeclaredConnection(new ConnectionName(name), "simulator", "login"))],
-        names.Length > 0 ? new ConnectionName(names[0]) : Option<ConnectionName>.None);
+        names.Length > 0 ? new ConnectionName(names[0]) : Option<ConnectionName>.None)
+    {
+        DefaultMode = DefaultMode.Fixed,
+    };
+
+    public List<Option<ConnectionName>> Changes { get; } = [];
+
+    public Option<ConnectionError> Refusal { get; set; }
+
+    public FakeConnections Automatic()
+    {
+        Catalog = Catalog with { DefaultMode = DefaultMode.Auto };
+
+        return this;
+    }
 
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Catalog);
 
     public ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken)
+    {
+        Changes.Add(connection);
+
+        if (Refusal.IsSome)
+        {
+            return ValueTask.FromResult(Refusal.Match(Result<ConnectionCatalog, ConnectionError>.Failure, () => throw new InvalidOperationException()));
+        }
+
+        Catalog = Catalog with
+        {
+            File = ConnectionFileStatus.Applied,
+            Error = Option<ConnectionError>.None,
+            Default = connection.IsSome ? connection : Catalog.Connections.Select(declared => Option<ConnectionName>.Some(declared.Name)).FirstOrDefault(),
+            DefaultMode = connection.IsSome ? DefaultMode.Fixed : DefaultMode.Auto,
+        };
+
+        return ValueTask.FromResult(Result<ConnectionCatalog, ConnectionError>.Success(Catalog));
+    }
+}
+
+internal sealed class FakePreview : IConnectionPreview
+{
+    public Result<ConnectionPreview, JobRejection> Answer { get; set; } = new ConnectionPreview(ConnectionRoute.Fallback, Option<ConnectionName>.None);
+
+    public List<string> Asked { get; } = [];
+
+    public Dictionary<string, TaskCompletionSource<Result<ConnectionPreview, JobRejection>>> Pending { get; } = new(StringComparer.Ordinal);
+
+    public static ConnectionPreview ByCapacity(string chosen, ChoiceReason reason, params (string Connection, double Used, bool Available)[] compared) =>
+        new(ConnectionRoute.Capacity, new ConnectionName(chosen))
+        {
+            Choice = new ConnectionChoice(
+                new ConnectionName(chosen),
+                reason,
+                [.. compared.Select(candidate => new CandidateCapacity(
+                    new ConnectionName(candidate.Connection),
+                    candidate.Used,
+                    candidate.Used > 0 ? new UsageLimit("5h", candidate.Used, Option<DateTimeOffset>.None) : Option<UsageLimit>.None,
+                    0.9,
+                    candidate.Available))],
+                DateTimeOffset.UnixEpoch),
+        };
+
+    public ValueTask<Result<ConnectionPreview, JobRejection>> PreviewAsync(string repository, CancellationToken cancellationToken)
+    {
+        Asked.Add(repository);
+
+        return Pending.TryGetValue(repository, out var pending) ? new ValueTask<Result<ConnectionPreview, JobRejection>>(pending.Task) : ValueTask.FromResult(Answer);
+    }
 }
 
 internal sealed class FakeUsage : IUsage

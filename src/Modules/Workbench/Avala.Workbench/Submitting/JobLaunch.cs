@@ -4,10 +4,13 @@ using Avala.Sdk;
 
 namespace Avala.Workbench.Submitting;
 
-internal sealed class JobLaunch(IJobs jobs, IConnections connections)
+internal sealed class JobLaunch(IJobs jobs, IConnections connections, IConnectionPreview preview)
 {
-    public async ValueTask<IReadOnlyList<ConnectionName>> ConnectionsAsync(CancellationToken cancellationToken) =>
-        [.. (await connections.CatalogAsync(cancellationToken)).Connections.Select(connection => connection.Name)];
+    public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
+        connections.CatalogAsync(cancellationToken);
+
+    public ValueTask<Result<ConnectionPreview, JobRejection>> PreviewAsync(string repository, CancellationToken cancellationToken) =>
+        preview.PreviewAsync(repository.Trim(), cancellationToken);
 
     public ValueTask<Result<JobId, JobRejection>> SubmitAsync(
         string repository,
