@@ -24,6 +24,45 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
         Assert.Equal(before, await EvidenceAsync(run));
     }
 
+    [Fact]
+    public async Task TheAuditOfAGovernedJobShowsTheSameDecisionsDenialsAssumptionsAndAutonomyAfterARestartAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "governed", (".avala/permissions.json", GovernedPolicy));
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var before = await AuditAsync(run);
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        Assert.Contains(before, line => line.StartsWith("audit: 1 denied · ", StringComparison.Ordinal) && line.EndsWith("1 assumption", StringComparison.Ordinal));
+        Assert.Contains("decision: Denied Command dotnet ef database update · rule no-migrations", before);
+        Assert.Contains("assumption: Which database should the service use?: PostgreSQL", before);
+        Assert.Contains("autonomy: Autonomous · Autonomous, as the repository declares", before);
+        Assert.Contains(before, line => line.StartsWith("exception: Denied: run dotnet ef database update", StringComparison.Ordinal));
+        Assert.Equal(before, await AuditAsync(run));
+    }
+
+    private const string GovernedPolicy = """
+        { "autonomy": "autonomous", "rules": [ { "name": "no-migrations", "kind": "command", "target": "dotnet ef*", "answer": "deny" } ] }
+        """;
+
+    private static async Task<IReadOnlyList<string>> AuditAsync(SimulatedRun run)
+    {
+        var workbench = await run.WorkbenchAsync();
+        var sections = await workbench.InspectAsync(run.Job, "AuditSectionViewModel", "AutonomySectionViewModel");
+        var (audit, autonomy) = (sections[0], sections[1]);
+        var review = await ReviewAsync(run, workbench);
+
+        return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
+        [
+            $"audit: {audit["Fact"].Text} · {audit["Summary"].Text}",
+            .. audit["Decisions"].Value<IReadOnlyList<string>>().Select(decision => $"decision: {decision}"),
+            .. audit["Assumptions"].Value<IReadOnlyList<string>>().Select(assumption => $"assumption: {assumption}"),
+            $"autonomy: {autonomy["Fact"].Text} · {autonomy["Autonomy"].Text}",
+            .. review["Exceptions"].Items.Select(exception => $"exception: {exception["Title"].Text} | {exception["Fact"].Text}"),
+        ]);
+    }
+
     private static async Task<IReadOnlyList<string>> EvidenceAsync(SimulatedRun run)
     {
         var workbench = await run.WorkbenchAsync();

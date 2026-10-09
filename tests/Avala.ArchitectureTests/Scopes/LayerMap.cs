@@ -104,6 +104,8 @@ internal static class LayerMap
             ["Governance"] = Layer.Application,
             ["Answering"] = Layer.Application,
             ["PolicyFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Supervision", new()
         {

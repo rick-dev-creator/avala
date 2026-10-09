@@ -107,24 +107,21 @@ internal static class ScenarioCatalog
     [
         [
             Thought("The service needs storage, ", "and the choice is the team's."),
-            new Ask(new ItemId("question"), new AgentForm(
-                FormPurpose.Question,
-                "Choose a database",
-                "The service needs to store its orders.",
-                [
-                    new FormField(
-                        "database",
-                        "Database",
-                        "Which database should the service use?",
-                        FieldKind.SingleChoice,
-                        [
-                            new FormOption("PostgreSQL", "Relational, already run by the team.", Recommended: true),
-                            new FormOption("SQLite", "A single file, no server to run."),
-                        ],
-                        AcceptsFreeText: true),
-                ])),
+            DatabaseQuestion,
             Message("The service stores its orders ", "in the chosen database."),
             .. Bill(2_200, 140, 0.0090m, 0.27),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario Governed { get; } = new("governed",
+    [
+        [
+            Thought("The service needs storage ", "and its schema a migration."),
+            DatabaseQuestion,
+            .. Bill(2_500, 160, 0.0100m, 0.28),
+            new RunCommand(new ItemId("migrate"), "dotnet ef database update", "Applied 2 migrations.", AsksPermission: true),
+            Message("The orders are stored ", "and the database is migrated."),
             new Finish(),
         ],
     ]);
@@ -398,7 +395,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas,
+        Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, Governed, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas,
         Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedLoosely, DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
     ];
 
@@ -423,6 +420,23 @@ internal static class ScenarioCatalog
 
         return end < 0 ? Option<string>.None : message[(start + tag.Length)..end].Trim();
     }
+
+    private static Ask DatabaseQuestion => new(new ItemId("question"), new AgentForm(
+        FormPurpose.Question,
+        "Choose a database",
+        "The service needs to store its orders.",
+        [
+            new FormField(
+                "database",
+                "Database",
+                "Which database should the service use?",
+                FieldKind.SingleChoice,
+                [
+                    new FormOption("PostgreSQL", "Relational, already run by the team.", Recommended: true),
+                    new FormOption("SQLite", "A single file, no server to run."),
+                ],
+                AcceptsFreeText: true),
+        ]));
 
     private static Say Thought(params string[] chunks) => new(new ItemId("thinking"), ItemKind.Reasoning, "Thinking", chunks);
 
