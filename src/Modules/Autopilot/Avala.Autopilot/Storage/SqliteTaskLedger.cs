@@ -8,8 +8,7 @@ namespace Avala.Autopilot.Storage;
 
 internal sealed class SqliteTaskLedger(AvalaPaths paths) : ITaskLedger, IStartupTask, IAsyncDisposable
 {
-    private readonly SerialExecutor serial = new();
-    private AutopilotDbContext? context;
+    private readonly DatabaseOwner<AutopilotDbContext> owner = new(paths.Database("autopilot"), file => new AutopilotDbContext(file));
 
     public Task<IReadOnlyList<LedgerEntry>> EntriesAsync(string repository, string source, CancellationToken cancellationToken) =>
         RunAsync<IReadOnlyList<LedgerEntry>>(
@@ -53,17 +52,9 @@ internal sealed class SqliteTaskLedger(AvalaPaths paths) : ITaskLedger, IStartup
             },
             cancellationToken);
 
-    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+    public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await serial.DisposeAsync();
-
-        if (context is not null)
-        {
-            await context.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private static async Task<int> SaveAsync(AutopilotDbContext database, CancellationToken cancellationToken)
     {
@@ -74,17 +65,5 @@ internal sealed class SqliteTaskLedger(AvalaPaths paths) : ITaskLedger, IStartup
     }
 
     private Task<T> RunAsync<T>(Func<AutopilotDbContext, Task<T>> work, CancellationToken cancellationToken) =>
-        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
-
-    private async Task<AutopilotDbContext> OpenAsync(CancellationToken cancellationToken)
-    {
-        if (context is null)
-        {
-            Directory.CreateDirectory(paths.Data);
-            context = new AutopilotDbContext(paths.Database("autopilot"));
-            await ModuleDatabase.MigrateAsync(context, cancellationToken);
-        }
-
-        return context;
-    }
+        owner.RunAsync(work, cancellationToken);
 }

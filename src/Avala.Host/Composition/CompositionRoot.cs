@@ -88,9 +88,16 @@ internal sealed class CompositionRoot : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await lifetime.CancelAsync();
-        await Running;
-        await Services.DisposeAsync();
-        lifetime.Dispose();
+
+        try
+        {
+            await Running;
+        }
+        finally
+        {
+            await Services.DisposeAsync();
+            lifetime.Dispose();
+        }
     }
 
     private sealed record Surroundings(IUiDispatcher Dispatcher, IFileOpener Opener, TimeProvider Clock, IReadOnlyList<IPlugin> Replacements)

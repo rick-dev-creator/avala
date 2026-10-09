@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Runtime.Loader;
 using System.Xml.Linq;
 using Avala.Agents.Contracts;
@@ -44,6 +45,20 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
             .GroupBy(name => name)
             .Where(copies => copies.Count() > 1)
             .Select(copies => copies.Key));
+    }
+
+    [Fact]
+    public async Task AnApplicationWhoseStartupFailedStillDisposesItsServicesWhenItStopsAndReportsTheFailureAsync()
+    {
+        await using var data = new TemporaryFolder();
+        var paths = new AvalaPaths(data.Path);
+        Directory.CreateDirectory(paths.Database("jobs"));
+        var root = CompositionRoot.Create(plugins.Directory, paths);
+        root.Start();
+        var failure = await Assert.ThrowsAnyAsync<DbException>(() => root.Running);
+
+        Assert.Same(failure, await Assert.ThrowsAnyAsync<DbException>(() => root.DisposeAsync().AsTask()));
+        Assert.Throws<ObjectDisposedException>(() => root.Services.GetService<IJobs>());
     }
 
     [Fact]
