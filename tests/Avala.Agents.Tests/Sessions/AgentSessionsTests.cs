@@ -250,7 +250,7 @@ public sealed class AgentSessionsTests
     {
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { Capabilities = Declared with { AcceptsTools = accepts } };
         await using var agents = new AgentSessions(
-            new SessionStarter([provider], [Canvas]),
+            new SessionStarter([provider], [Canvas], []),
             new RecordingBus(),
             TimeProvider.System,
             NullLogger<AgentSessions>.Instance);
@@ -369,5 +369,37 @@ public sealed class AgentSessionsTests
     }
 
     private static AgentSessions Agents(RecordingBus bus, params IAgentProvider[] providers) =>
-        new(new SessionStarter(providers, []), bus, TimeProvider.System, NullLogger<AgentSessions>.Instance);
+        new(new SessionStarter(providers, [], []), bus, TimeProvider.System, NullLogger<AgentSessions>.Instance);
+
+    [Fact]
+    public async Task EverySessionStartsThroughTheRegisteredDecoratorsInRegistrationOrderAsync()
+    {
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
+        var bus = new RecordingBus();
+        await using var agents = new AgentSessions(
+            new SessionStarter([provider], [], [new Tagging("inner"), new Tagging("outer")]),
+            bus,
+            TimeProvider.System,
+            NullLogger<AgentSessions>.Instance);
+
+        Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));
+
+        Assert.Single(provider.Sessions);
+        Assert.Equal("outer(inner(scripted))", Assert.Single(bus.Published.OfType<SessionOpened>()).Provider.Id);
+    }
+
+    private sealed class Tagging(string tag) : IAgentProviderDecorator
+    {
+        public IAgentProvider Decorate(IAgentProvider provider) => new Tagged(tag, provider);
+    }
+
+    private sealed class Tagged(string tag, IAgentProvider inner) : IAgentProvider
+    {
+        public ProviderInfo Info { get; } = inner.Info with { Id = $"{tag}({inner.Info.Id})" };
+
+        public AgentCapabilities Capabilities => inner.Capabilities;
+
+        public ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken) =>
+            inner.StartAsync(options, cancellationToken);
+    }
 }
