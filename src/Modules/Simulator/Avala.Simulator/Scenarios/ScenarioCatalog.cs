@@ -396,6 +396,46 @@ internal static class ScenarioCatalog
             .. Bill(1_700, 120, 0.0065m, 0.22),
             new Finish(),
         ],
+        Resumed("The migration came back after the restart."),
+    ]);
+
+    public static Scenario DelegatedPaused { get; } = new("delegate-paused",
+    [
+        [
+            Thought("The notes can be written ", "by a sub-agent."),
+            Delegation("delegate-notes", """{ "instruction": "[simulate: notes-paused] Write the release notes" }"""),
+            Message("The notes came back."),
+            .. Bill(1_700, 120, 0.0065m, 0.22),
+            new Finish(),
+        ],
+        Resumed("The notes came back after the restart."),
+    ]);
+
+    public static Scenario DelegatedAcross { get; } = new("delegate-across",
+    [
+        [
+            Thought("Two pieces of work, ", "one sub-agent after the other."),
+            Delegation("delegate-notes", """{ "instruction": "[simulate: notes] Write the release notes" }"""),
+            Delegation("delegate-todo", """{ "instruction": "[simulate: todo] Write the to-do list" }"""),
+            Message("Both pieces of work came back ", "with their evidence."),
+            .. Bill(2_100, 160, 0.0080m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario PausedNotes { get; } = new("notes-paused",
+    [
+        [
+            Thought("Gathering what changed ", "for the release notes."),
+            .. Bill(900, 40, 0.0030m, 0.18),
+        ],
+        [
+            Thought("Back at the notes ", "after the restart."),
+            new WriteFile(new ItemId("notes"), "NOTES.md", "# Notes\n\nWritten by a delegated simulator after a restart.\n"),
+            Message("Wrote NOTES.md."),
+            .. Bill(1_400, 90, 0.0050m, 0.20),
+            new Finish(),
+        ],
     ]);
 
     public static Scenario DelegatedLoosely { get; } = new("delegate-loosen",
@@ -484,7 +524,7 @@ internal static class ScenarioCatalog
     [
         Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, WaitingPermission, RepeatedPermission, OutsideEdit, Question, Governed, UnsharedThought, Fields, PlanApproval,
         Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely,
-        DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
+        DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, Notes, RevisedNotes, Todo, Expensive, PausedNotes,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";
@@ -531,6 +571,14 @@ internal static class ScenarioCatalog
     private static Say Message(params string[] chunks) => new(new ItemId("reply"), ItemKind.Message, "Reply", chunks);
 
     private static CallTool Delegation(string item, string input) => new(new ItemId(item), Delegate, input);
+
+    private static IStep[] Resumed(string message) =>
+    [
+        new Recall(new ItemId("told")),
+        Message(message),
+        .. Bill(1_100, 70, 0.0040m, 0.24),
+        new Finish(),
+    ];
 
     private static UpdatePlan Plan(PlanStepStatus change, PlanStepStatus tests) =>
         new([new PlanStep("Write the change", change), new PlanStep("Run the tests", tests)]);
