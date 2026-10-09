@@ -9,7 +9,9 @@ public sealed class ModularMonolithTests
 
     private static readonly string[] HostDependencies = ["Avala.Runtime", "Avala.Sdk", "Avala.Sdk.UI", "Avala.Shell", .. SharedComponents];
 
-    private static readonly string[] ProjectsWithLogic = ["Avala.Runtime", "Avala.Sdk", "Avala.Shell", "Avala.Components"];
+    private static readonly string[] SharedLibraries = [.. SharedComponents, "Avala.Storage"];
+
+    private static readonly string[] ProjectsWithLogic = ["Avala.Runtime", "Avala.Sdk", "Avala.Shell", "Avala.Components", "Avala.Storage"];
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -42,6 +44,15 @@ public sealed class ModularMonolithTests
     [Fact]
     public void SharedViewsDependOnlyOnTheSdkAndTheirViewModels() =>
         Assert.Empty(AvalaAssemblies.Load("Avala.Components.UI").ReferencedAvalaAssemblies.Except(["Avala.Sdk", "Avala.Sdk.UI", "Avala.Components"]));
+
+    [Fact]
+    public void SharedStorageDependsOnlyOnTheSdkAndNoUiFramework()
+    {
+        var storage = AvalaAssemblies.Load("Avala.Storage");
+
+        Assert.Empty(storage.ReferencedAvalaAssemblies.Except(["Avala.Sdk"]));
+        Assert.False(storage.ReferencesAvalonia);
+    }
 
     [Fact]
     public void SdkDependsOnNothingFromAvalaNorAvalonia()
@@ -153,7 +164,7 @@ public sealed class ModularMonolithTests
 
     private static bool IsAllowedModuleDependency(SourceProject project, string reference) =>
         reference is "Avala.Sdk" or "Avala.Sdk.UI"
-        || SharedComponents.Contains(reference)
+        || SharedLibraries.Contains(reference)
         || SolutionLayout.ModuleProjects.Any(other =>
             other.Name == reference && (other.Module == project.Module || other.Kind == ProjectKind.Contracts));
 }

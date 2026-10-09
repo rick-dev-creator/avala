@@ -11,6 +11,7 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `src/Avala.Shell` | Shell view models and the regions of the main window. Depends only on the SDK and the shared view models. |
 | `src/Shared/Avala.Components` | Shared view models reused across modules, such as the status dot, status pill, meter, keycap hint and the canvas surface, each with its interface and design-time implementation. No UI framework. |
 | `src/Shared/Avala.Components.UI` | Their views, in a folder per view, and Avala's [design system](#design-system): the theme, the fonts and the icons, and the presentation pieces every module's views share: `StreamingText`, the text a streaming reply grows in, the converters of `States`, and `ICanvasRenderer`, the extension point plugins draw a canvas media type through, see [canvas rendering](design/canvas-rendering.md). |
+| `src/Shared/Avala.Storage` | What every module's database shares: `ModuleDatabase`, which brings a module's database to its latest migration and adopts a database an earlier build created without migrations, and `StoredJson`, which stores a contract record as JSON, its `Option` values and enums included. Depends only on the SDK and EF Core; any module may depend on it, as on the SDK. See [the core design](design/core.md#persistence). |
 | `src/Avala.Runtime` | Runtime services shared by every module: the event bus, the process runner and the process trees, with their platform containment in `Containment`. Depends only on the SDK. |
 | `src/Avala.Host` | Avalonia application, composition root and plugin loader. References only the SDK, the runtime and the shell. |
 | `src/Modules/<Module>/Avala.<Module>` | Module core: domain, use cases, infrastructure and view models, in feature folders. Everything is `internal`. |
@@ -68,14 +69,15 @@ A namespace missing from the map fails the architecture tests. A new folder ther
 
 Enforced by `tests/Avala.ArchitectureTests`:
 
-- The host references only the SDK, the runtime, the shell and the shared components, and depends on no module. The shared view models depend only on the SDK, their views only on the SDK, `Avala.Sdk.UI` and their view models, and every module may depend on both.
+- The host references only the SDK, the runtime, the shell and the shared components, and depends on no module. The shared view models depend only on the SDK, their views only on the SDK, `Avala.Sdk.UI` and their view models, and every module may depend on both. `Avala.Storage` depends only on the SDK, knows no UI framework, and every module may depend on it.
 - A module depends only on the SDK, its own projects and other modules' `Contracts`.
 - A module's `Contracts` depend only on the SDK and other modules' `Contracts`: identifiers such as `JobId` or `SessionId` are a vocabulary the modules share, never their internals.
 - A module exposes exactly one public type outside its `Contracts`: its `IPlugin` entry.
 - `InternalsVisibleTo` targets only the project's own module and its test project. The shell and the runtime may also open to the host and the host's tests.
 - The [view rules](#view-rules) below.
 - No class takes more than four constructor dependencies. Records holding data are exempt.
-- Every class is `sealed`. Only framework types may be inherited: Avalonia types for views and the application, and EF Core's `DbContext` for each module's database.
+- Every class is `sealed`. Only framework types may be inherited: Avalonia types for views and the application, EF Core's `DbContext` for each module's database and its `Migration` and `ModelSnapshot` for the migrations generated from it, and System.Text.Json's `JsonConverter` for the stored JSON of `Avala.Storage`.
+- Every `DbContext` has migrations and a model snapshot in its own assembly, and the model of every module's database matches its latest migration, so a change to a stored type that forgets its migration fails the build's tests instead of a user's upgrade.
 - No non-private member exposes a nullable type in its signature: properties, fields, parameters and return types, generic arguments such as `Task<T?>` included. Absence is an `Option<T>`. Exempt: members that implement framework interfaces or override framework members, such as Avalonia's `IDataTemplate`; properties of view models, since an empty selection is `null` in Avalonia; the `Optional` bridge; unconstrained generic type parameters; and generated code.
 - No comments, in C# or in XAML.
 - No type spans more than 600 lines, counting every part of a partial type.

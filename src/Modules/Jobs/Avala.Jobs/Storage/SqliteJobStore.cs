@@ -3,11 +3,12 @@ using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Ledger;
 using Avala.Sdk;
+using Avala.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avala.Jobs.Storage;
 
-internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IAsyncDisposable
+internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IStartupTask, IAsyncDisposable
 {
     private static readonly JobState[] Active = [JobState.Preparing, JobState.Running, JobState.Checking];
 
@@ -61,6 +62,8 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IAsyncDispos
             async database => (await database.Jobs.AsNoTracking().FirstOrDefaultAsync(job => job.Id == id, cancellationToken)).ToOption(),
             cancellationToken);
 
+    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         await serial.DisposeAsync();
@@ -81,7 +84,7 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IAsyncDispos
             Directory.CreateDirectory(paths.Data);
             context = new JobsDbContext(paths.Database("jobs"));
             context.ChangeTracker.AutoDetectChangesEnabled = false;
-            await context.Database.EnsureCreatedAsync(cancellationToken);
+            await ModuleDatabase.MigrateAsync(context, cancellationToken);
         }
 
         return context;

@@ -8,6 +8,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Avala.Storage\Avala.Storage.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Workspaces.Tests" />

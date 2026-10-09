@@ -1,4 +1,5 @@
 using Avala.Sdk;
+using Avala.Storage;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Provisioning;
 using Avala.Workspaces.Workspaces;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Avala.Workspaces.Storage;
 
-internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, IAsyncDisposable
+internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, IStartupTask, IAsyncDisposable
 {
     private readonly SerialExecutor serial = new();
     private WorkspacesDbContext? context;
@@ -52,6 +53,8 @@ internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, 
             },
             cancellationToken);
 
+    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         await serial.DisposeAsync();
@@ -72,7 +75,7 @@ internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, 
             Directory.CreateDirectory(paths.Data);
             context = new WorkspacesDbContext(paths.Database("workspaces"));
             context.ChangeTracker.AutoDetectChangesEnabled = false;
-            await context.Database.EnsureCreatedAsync(cancellationToken);
+            await ModuleDatabase.MigrateAsync(context, cancellationToken);
         }
 
         return context;

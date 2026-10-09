@@ -1,11 +1,12 @@
 using Avala.Observability.Tracking;
 using Avala.Observability.Usage;
 using Avala.Sdk;
+using Avala.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avala.Observability.Storage;
 
-internal sealed class SqliteUsageStore(AvalaPaths paths) : IUsageStore, IAsyncDisposable
+internal sealed class SqliteUsageStore(AvalaPaths paths) : IUsageStore, IStartupTask, IAsyncDisposable
 {
     private readonly SerialExecutor serial = new();
     private readonly HashSet<Guid> written = [];
@@ -61,6 +62,8 @@ internal sealed class SqliteUsageStore(AvalaPaths paths) : IUsageStore, IAsyncDi
             },
             cancellationToken);
 
+    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         await serial.DisposeAsync();
@@ -91,7 +94,7 @@ internal sealed class SqliteUsageStore(AvalaPaths paths) : IUsageStore, IAsyncDi
         {
             Directory.CreateDirectory(paths.Data);
             context = new ObservabilityDbContext(paths.Database("observability"));
-            await context.Database.EnsureCreatedAsync(cancellationToken);
+            await ModuleDatabase.MigrateAsync(context, cancellationToken);
         }
 
         return context;

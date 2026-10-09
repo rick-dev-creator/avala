@@ -2142,7 +2142,7 @@ The application is built view model first: every screen is built and tested as v
 
 - EF Core with the SQLite provider, with no server.
 - One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`, `observability.db`, `supervision.db`, `budgets.db` and `autopilot.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
-- The schema is created with `EnsureCreated`. The schema changes so far, the `Base`, `BaseBranch` and `Rules` columns of a workspace, the `Resume`, `Autonomy`, `Connection`, `Submitted` and `Parent` columns of a job, the `Session` column of its attempts and the `Carves` table of `budgets.db`, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted, or its `jobs.db`, `workspaces.db` and `budgets.db` at least, since `EnsureCreated` adds neither a column nor a table to a database that exists. The new databases of Observability, Supervision and Budgets are created when missing. Migrations arrive with the first schema change after a release; with stored history now worth keeping, that release is the moment to start them.
+- The schema is kept by EF Core migrations, see [migrations](#migrations).
 - **Rows that are not aggregates.** A store of facts, such as usage facts and interventions, maps a plain row type in its `Storage` folder, converted to and from the module's records there, instead of an aggregate. Times are stored as UTC ticks, so SQLite compares and orders them as numbers.
 - Stores are internal interfaces of each module's application layer, implemented in its `Storage` folder.
 - EF Core is referenced only from the infrastructure layer, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.
@@ -2155,6 +2155,21 @@ The application is built view model first: every screen is built and tested as v
 - A value object with several fields, such as `WorkspaceLocation`, is stored as one JSON column.
 - Owned collections, such as attempts and checkpoints, get a generated technical key that exists only in persistence.
 - An absent `Option` is stored as a sentinel that can never be a real value, such as `Guid.Empty` or empty text, so the database holds no nulls.
+
+### Migrations
+
+Every module's schema is kept by EF Core migrations, generated, never written by hand:
+
+```
+dotnet run scripts/migration.cs -- <Module> <MigrationName>
+```
+
+- **Generated per database.** The script references every module that owns a database, builds it, scaffolds the migration of the module's `DbContext` against the migrations and snapshot already compiled into it, with EF Core's design-time services, and writes three files into the module's `Storage/Migrations` folder: the migration, its designer and the updated model snapshot. Nothing is installed: the design-time package is a dependency of the script only, never of a module.
+- **Generated code, conformed.** The files are named `.g.cs`, so the analyzers treat them as generated code, and the script makes every class `internal sealed` and drops EF Core's comments, so the architecture rules hold without exceptions for them, save the [allowed base types](../architecture.md#rules) `Migration` and `ModelSnapshot`.
+- **Applied at startup.** Each store migrates its database the first time it opens it, inside its `SerialExecutor`, and registers itself as a [startup task](#startup-tasks) that opens it, so every database is brought up to date while the application starts even if nothing touches it yet. `ModuleDatabase.MigrateAsync`, in the shared `Avala.Storage`, does the work.
+- **Databases created by `EnsureCreated`.** Builds before migrations created each schema with `EnsureCreated`, which leaves no migration history. `ModuleDatabase` recognizes such a database, one that exists and has tables but no `__EFMigrationsHistory`, and adopts it: it creates the history and records the module's first migration, `Initial`, as applied without running it, since `Initial` was generated from the very model `EnsureCreated` built, then applies every later migration. A user's existing jobs, workspaces, usage and interventions therefore upgrade in place. A data folder older than the last `EnsureCreated` schema, one missing the columns listed in the plan's earlier phases, was already unsupported and still is.
+- **A forgotten migration fails the tests.** An [architecture rule](../architecture.md#rules) requires migrations and a snapshot for every `DbContext`, and asks EF Core whether each module's model has changes its latest migration lacks.
+- **Stored contract records.** A fact the harness only reads back, such as a verification report or a policy decision, is stored as the JSON of its contract record next to the columns it is looked up by, written with `StoredJson`: enums by name and `Option` as its value or `null`. A property added later reads as its default, an absent `Option` as `None`; a change that renames or removes a stored property needs a migration that rewrites the JSON.
 
 ### SQLite and blocking
 
