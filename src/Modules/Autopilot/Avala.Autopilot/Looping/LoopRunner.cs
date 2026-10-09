@@ -266,8 +266,8 @@ internal sealed class LoopRunner : IAsyncDisposable
         var pause = new LoopPause(PauseReason.UsageLimit, clock.GetUtcNow(), until) { Window = limit.Window };
         var paused = record.Paused(pause);
         Change(continues ? paused.Awaiting(underway => underway with { ContinuesAfterReset = true }) : paused);
-        await journal.PublishAsync(new LoopPaused(Id, pause), token);
         await ArmAsync(until, ResumeAfterResetAsync);
+        await journal.PublishAsync(new LoopPaused(Id, pause), token);
     }
 
     private async Task ResumeAfterResetAsync(CancellationToken token)
@@ -311,8 +311,8 @@ internal sealed class LoopRunner : IAsyncDisposable
     private async Task WaitAsync(DateTimeOffset due, CancellationToken token)
     {
         Change(record.Waiting(due));
-        await journal.PublishAsync(new LoopWaiting(Id, due), token);
         await ArmAsync(due, WakeAsync);
+        await journal.PublishAsync(new LoopWaiting(Id, due), token);
     }
 
     private async Task WakeAsync(CancellationToken token)
