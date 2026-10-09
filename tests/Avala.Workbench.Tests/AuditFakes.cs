@@ -49,21 +49,6 @@ internal sealed class FakeChanges : IWorkspaceChanges
         throw new NotSupportedException();
 }
 
-internal sealed class FakeUsage : IUsage
-{
-    public Dictionary<JobId, UsageSummary> Jobs { get; } = [];
-
-    public IReadOnlyList<ProviderUsage> ByProvider() => [];
-
-    public IReadOnlyList<AccountUsage> ByAccount() => [];
-
-    public IReadOnlyList<ConnectionUsage> ByConnection() => [];
-
-    public Option<UsageSummary> OfSession(SessionId session) => Option<UsageSummary>.None;
-
-    public Option<UsageSummary> OfJob(JobId job) => Jobs.TryGetValue(job, out var usage) ? usage : Option<UsageSummary>.None;
-}
-
 internal sealed class FakeAudit : IVerifications, IPermissionAudit, IBudgets
 {
     public List<VerificationReport> Reports { get; } = [];
@@ -131,7 +116,7 @@ internal sealed class FakeWorkspaces : IWorkspaces
     public ValueTask<WorktreeReconciliation> CleanAsync(WorktreeReconciliation found, CancellationToken cancellationToken) => throw new NotSupportedException();
 }
 
-internal sealed class FakeResources : IResources, IDelegations
+internal sealed class FakeRecordSources : IResources, IDelegations
 {
     private static readonly ResourceUsage Nothing = new(0, 0, TimeSpan.Zero, 0, [], 0);
 

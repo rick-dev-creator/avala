@@ -21,7 +21,9 @@ public sealed class PermissionsPlugin : IPlugin
         registrar.Services
             .AddSingleton<GovernanceBook>()
             .AddSingleton<IPermissionAudit>(services => services.GetRequiredService<GovernanceBook>())
-            .AddSingleton<IPolicyFiles, PolicyFileReader>()
+            .AddSingleton<PolicyFileReader>()
+            .AddSingleton<IPolicyFiles>(services => services.GetRequiredService<PolicyFileReader>())
+            .AddSingleton<IRepositoryPolicies>(services => services.GetRequiredService<PolicyFileReader>())
             .AddSingleton<PermissionResponder>()
             .AddSingleton<IPermissionAnswers, HumanAnswers>()
             .AddSingleton<SessionGovernor>()

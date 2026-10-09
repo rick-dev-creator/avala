@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:usage="using:Avala.Workbench.Usage"
+             x:Class="Avala.Workbench.UI.ConnectionMeterView"
+             x:ClassModifier="internal"
+             x:DataType="usage:ConnectionMeterViewModel">
+  <StackPanel Spacing="2" Margin="0,0,0,8">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding Provider}" Opacity="0.6" />
+      <TextBlock Text="{Binding Cost}" />
+      <TextBlock Text="{Binding Tokens}" Opacity="0.6" />
+    </StackPanel>
+    <TextBlock Text="{Binding Unpriced}" Opacity="0.6" FontSize="12" />
+    <TextBlock Text="{Binding Caps}" Opacity="0.6" FontSize="12" />
+    <ItemsControl ItemsSource="{Binding Limits}" />
+  </StackPanel>
+</UserControl>

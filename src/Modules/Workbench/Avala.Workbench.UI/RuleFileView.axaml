@@ -1,0 +1,13 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.RuleFileView"
+             x:ClassModifier="internal"
+             x:DataType="settings:RuleFileViewModel">
+  <StackPanel Orientation="Horizontal" Spacing="8">
+    <TextBlock Text="{Binding Path}" FontFamily="monospace" VerticalAlignment="Center" />
+    <TextBlock Text="{Binding Status}" VerticalAlignment="Center" />
+    <TextBlock Text="{Binding Commit}" Opacity="0.6" FontFamily="monospace" VerticalAlignment="Center" />
+    <TextBlock Text="edited in the checkout" Opacity="0.6" IsVisible="{Binding EditedInCheckout}" VerticalAlignment="Center" />
+  </StackPanel>
+</UserControl>

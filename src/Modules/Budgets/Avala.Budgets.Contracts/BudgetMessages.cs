@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -55,6 +56,15 @@ public sealed record JobQueued(JobId Job, int Running, int Limit) : IIntegration
 public sealed record JobAdmitted(JobId Job) : IIntegrationEvent;
 
 public sealed record SessionBudget(SessionId Session, BudgetFileStatus File, Option<BudgetError> Error, BudgetCaps Caps, Option<FileOrigin> Origin);
+
+public sealed record ConnectionCaps(ConnectionName Connection, BudgetCaps Caps);
+
+public sealed record RepositoryBudget(
+    BudgetFileStatus File,
+    Option<BudgetError> Error,
+    BudgetCaps Caps,
+    IReadOnlyList<ConnectionCaps> Connections,
+    Option<FileOrigin> Origin);
 
 public sealed record BudgetBreach(BudgetMeasure Measure, string Subject, decimal Measured, decimal Cap, Option<BudgetError> Error);
 
