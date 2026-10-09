@@ -161,12 +161,21 @@ internal sealed class FakeUsageHistory : IUsageHistory
         return ValueTask.FromResult(new UsagePeriod(from, to, Pages.Used(7m), [], []));
     }
 
+    public Func<DateOnly, UsageSummary> Day { get; init; } = _ => Pages.Used(2m) with { UnpricedReports = 3 };
+
     public ValueTask<IReadOnlyList<UsagePeriod>> DailyAsync(DateOnly first, DateOnly last, TimeZoneInfo zone, CancellationToken cancellationToken)
     {
         Daily.Add((first, last));
 
-        return ValueTask.FromResult<IReadOnlyList<UsagePeriod>>([new UsagePeriod(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, Pages.Used(2m) with { UnpricedReports = 3 }, [], [])]);
+        return ValueTask.FromResult<IReadOnlyList<UsagePeriod>>(
+        [
+            .. Enumerable.Range(0, last.DayNumber - first.DayNumber + 1).Select(first.AddDays).Select(day =>
+                new UsagePeriod(Midnight(day, zone), Midnight(day.AddDays(1), zone), Day(day), [], [])),
+        ]);
     }
+
+    private static DateTimeOffset Midnight(DateOnly day, TimeZoneInfo zone) =>
+        new(day.ToDateTime(TimeOnly.MinValue), zone.GetUtcOffset(day.ToDateTime(TimeOnly.MinValue)));
 }
 
 internal sealed class FakeBudgets : IBudgets

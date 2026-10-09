@@ -72,21 +72,23 @@ public sealed class SpendingTests : IDisposable
             state.Interventions.Select(intervention => new InterventionViewModel(intervention, "x")).Select(shown => (shown.Reason, shown.Detail)));
     }
 
-    [Fact]
-    public async Task TheUsageWindowsAreTodayInTheLocalZoneAndTheLastSevenDaysAsync()
+    [Theory]
+    [InlineData("Today", 10, 1)]
+    [InlineData("LastSevenDays", 4, 7)]
+    [InlineData("LastThirtyDays", -19, 30)]
+    public async Task AWindowIsTheLastLocalCalendarDaysUpToNowReadAsAWholeAndDayByDayAsync(string span, int firstDay, int days)
     {
         var history = new FakeUsageHistory();
+        var zone = TimeZoneInfo.CreateCustomTimeZone("Plus2", TimeSpan.FromHours(2), "Plus2", "Plus2");
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 9, 23, 30, 0, TimeSpan.Zero));
-        clock.SetLocalTimeZone(TimeZoneInfo.CreateCustomTimeZone("Plus2", TimeSpan.FromHours(2), "Plus2", "Plus2"));
+        clock.SetLocalTimeZone(zone);
+        var first = new DateOnly(2026, 10, 10).AddDays(firstDay - 10);
 
-        var windows = await new UsageWindows(history, clock).ReadAsync(Cancellation);
+        var range = await new UsageWindows(history, clock).ReadAsync(Enum.Parse<UsageSpan>(span), Cancellation);
 
-        Assert.Equal([(new DateOnly(2026, 10, 10), new DateOnly(2026, 10, 10))], history.Daily);
-        Assert.Equal([(clock.GetUtcNow().AddDays(-7), clock.GetUtcNow())], history.Within);
-        var shown = windows.Select(window => new UsageWindowViewModel(window)).ToList();
-        Assert.Equal(
-            [("Today", "2 USD", 100L, 5L, "3 usage reports had no cost"), ("Last 7 days", "7 USD", 100L, 5L, string.Empty)],
-            shown.Select(window => (window.Label, window.Cost, window.Input, window.Reasoning, window.Unpriced)));
+        Assert.Equal([(first, new DateOnly(2026, 10, 10))], history.Daily);
+        Assert.Equal([(new DateTimeOffset(first.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(2)), clock.GetUtcNow())], history.Within);
+        Assert.Equal((first, new DateOnly(2026, 10, 10), days), (range.First, range.Today, range.Days.Count));
     }
 
     public void Dispose() => ui.Dispose();

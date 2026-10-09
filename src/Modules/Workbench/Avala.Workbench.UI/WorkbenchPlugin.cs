@@ -219,6 +219,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IUsageViewModel, UsageView>();
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();
         views.Register<IUsageWindowViewModel, UsageWindowView>();
+        views.Register<IUsageRangeViewModel, UsageRangeView>();
+        views.Register<IUsageDayViewModel, UsageDayView>();
         views.Register<IJobMeterViewModel, JobMeterView>();
         views.Register<IInterventionViewModel, InterventionView>();
         views.Register<ISettingsViewModel, SettingsView>();
