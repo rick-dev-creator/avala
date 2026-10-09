@@ -401,3 +401,46 @@ Done when: the full job flow runs end to end through view models in tests.
    Done: the shared canvas surface, with versions, streaming without flicker and the focused view; `ICanvasRenderer`, registered through the view registry; the Rendering plugin, with Markdown and sanitized SVG. Done too, the [offer](../design/canvas-rendering.md#the-offer): renderer plugins declare the media types they draw as `CanvasFormat`, the canvas tool offers exactly those, a canvas in any other type is rejected as `NotOffered` and shown as source, highlighted for Mermaid and HTML, and the conformance kit reports a harness that draws outside the offer. [Decided](../design/canvas-rendering.md#mermaid-and-html-the-decision): Mermaid and HTML are not part of the offer; they remain possible as optional renderer plugins, which would appear in the offer once registered.
 
 Done when: the harness replaces a terminal for daily work.
+
+## Screen honesty
+
+An audit found screens that present as durable what lives only in memory, so after a restart the interface lied: a verified job read as merely ready for review, an audit as empty, a cap as unknown, a reading of a reset window as current. Every phase of this section ends with a host simulation test that restarts the application and proves the screen shows the same thing as before.
+
+### A1: Persistence
+
+Status: done.
+
+Every module that owns data keeps it in its own SQLite database through EF Core, with generated migrations applied at startup, see [persistence](../design/core.md#persistence) and [migrations](../design/core.md#migrations).
+
+0. Migrations: `Avala.Storage`, the shared library of `ModuleDatabase` and `StoredJson`; `scripts/migration.cs`, which scaffolds a module's migration with EF Core's design-time services and conforms the generated code to the architecture rules; an `Initial` migration for each existing database, generated from the model `EnsureCreated` built, so a database of an earlier build is adopted and upgraded in place; every store migrating on its first open and as a startup task; the architecture rules that every database has migrations and that every module's model matches its latest one.
+1. Verification evidence: every `VerificationReport`, with each check's status, exit code, duration and bounded output tails, stored in `verification.db` and restored at startup. The inspector shows each check's duration.
+2. The permission audit: policy reports, autonomy applied, permission and form decisions with their assumptions, and human answers stored in `permissions.db` and folded back into each session at startup.
+3. Budget caps: each session's `SessionBudget` and connection stored in `budgets.db`.
+4. Connection choices: the reason and the readings compared, stored in `jobs.db` and returned with the job's history.
+5. Delegation records: every version of a record stored in `delegation.db`; what resuming in-flight children needs is stored, the resumption itself is a later step.
+6. Sessions: Observability stores when each session opened and lists its sessions through `IUsageSessions`, so the Workbench finds the latest session of a connection or job of an earlier run, its account and its caps.
+7. Limit readings: a reading whose window has reset is shown as reset on the Usage page and the Overview, live through a `TimeProvider` timer and after a restart; capacity treats it as fresh capacity, as before.
+8. Pending decisions: by design they do not survive a restart, since the session that waits died; the count shows only what a live session waits for, and the audit marks the abandoned decision "unanswered, its session ended".
+
+Acceptance criteria, each a host simulation test in `ScreenHonestyTests` that captures what the screens show, restarts the application with `SimulatedRun.RestartAsync` over the same data folder and clock, and compares:
+
+```
+AC1  Given a job verified on attempt 2 of 2, when the application restarts, then the sidebar row, the inspector's evidence
+     with each check's exit code and duration, and the review's verdict and failed attempt with its output tail are the same.
+AC2  Given a governed job with a denial, an assumption and its autonomy, when the application restarts, then the inspector's
+     audit, decisions, assumptions and autonomy and the review's exceptions are the same.
+AC3  Given a job near its cost cap and held at a limit, when the application restarts, then the Usage page's cap, near-cap
+     alert and hold threshold, the Overview card's account and near-limit ring, and the inspector's spending are the same.
+AC4  Given a job placed by capacity, when the application restarts, then the inspector's connection, reason and compared
+     readings are the same.
+AC5  Given an orchestrator whose children were integrated, when the application restarts, then the delegation view's root
+     with its harness and cap, its children with their outcome, harness and carve, and the inspector's children are the same.
+AC6  Covered with AC3: the Overview card's account and the caps found through the latest session of an earlier run.
+AC7  Given a reading whose window resets, when its reset time passes, then the Usage page shows it reset and the Overview
+     card no longer near its limit; after a restart they still do; and a job naming no connection treats that connection
+     as unused.
+AC8  Given a permission left to a person when the application stops, when it restarts and the conversation resumes without
+     asking again, then no decision is pending and the audit marks the decision unanswered because its session ended.
+```
+
+Unit tests cover each store's round trip and its exclusion of what the current run wrote, each book's restore, the adoption of a database created without migrations, the stored JSON of options and enums, the judgment of readings against the clock and the timer that refreshes a page at a reset. The simulator gained the `governed` and `waiting-permission` scenarios.
