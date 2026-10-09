@@ -102,7 +102,7 @@ public sealed class GitChangesTests
         Assert.Equal(tip, await job.Repository.GitAsync(Cancellation, "rev-parse", $"{commit}^"));
         Assert.Equal(Message, await job.Repository.GitAsync(Cancellation, "log", "-1", "--format=%B", commit));
         Assert.Equal(await job.Repository.GitAsync(Cancellation, "rev-parse", $"{head}^{{tree}}"), await job.Repository.GitAsync(Cancellation, "rev-parse", $"{commit}^{{tree}}"));
-        Assert.Equal("class Login { }\n", await File.ReadAllTextAsync(Path.Combine(job.Repository.Path, "login.cs"), Cancellation));
+        Assert.Equal("class Login { }\n", (await File.ReadAllTextAsync(Path.Combine(job.Repository.Path, "login.cs"), Cancellation)).ReplaceLineEndings("\n"));
         Assert.Empty(await job.Repository.GitAsync(Cancellation, "status", "--porcelain"));
         Assert.Equal(head, await job.HeadAsync());
     }
@@ -119,7 +119,7 @@ public sealed class GitChangesTests
         var commit = Outcomes.Present(Outcomes.Succeeds(await job.Changes.MergeAsync(job.Workspace.Id, Message, Cancellation)).Commit);
 
         Assert.Equal(tip, await job.Repository.GitAsync(Cancellation, "rev-parse", $"{commit}^"));
-        Assert.Equal("one\ntwo\nthree\nfour\n", await File.ReadAllTextAsync(Path.Combine(job.Repository.Path, "src/cart.cs"), Cancellation));
+        Assert.Equal("one\ntwo\nthree\nfour\n", (await File.ReadAllTextAsync(Path.Combine(job.Repository.Path, "src/cart.cs"), Cancellation)).ReplaceLineEndings("\n"));
         Assert.True(File.Exists(Path.Combine(job.Repository.Path, "docs/notes.md")));
     }
 

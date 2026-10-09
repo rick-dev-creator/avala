@@ -33,6 +33,39 @@ public sealed class StartupTests
         await running;
     }
 
+    [Fact]
+    public async Task StoppingWhileAStartupTaskRunsEndsTheHostQuietlyAndSkipsTheRestAsync()
+    {
+        using var data = new TemporaryFolder();
+        var ran = new List<string>();
+        var blocking = new Blocking();
+        await using var services = new ServiceCollection()
+            .AddSingleton(typeof(ILogger<>), typeof(NullLogger<>))
+            .AddRuntime(new AvalaPaths(data.Path))
+            .AddSingleton<IStartupTask>(blocking)
+            .AddSingleton<IStartupTask>(new Noting(ran, "after"))
+            .BuildServiceProvider();
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        var running = services.RunAsync(lifetime.Token);
+
+        await blocking.Started.Task.WaitAsync(Cancellation);
+        await lifetime.CancelAsync();
+        await running;
+
+        Assert.Empty(ran);
+    }
+
+    private sealed class Blocking : IStartupTask
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task RunAsync(CancellationToken cancellationToken)
+        {
+            Started.SetResult();
+            await new TaskCompletionSource().Task.WaitAsync(cancellationToken);
+        }
+    }
+
     private sealed class Noting(List<string> ran, string name) : IStartupTask
     {
         public Task RunAsync(CancellationToken cancellationToken)
