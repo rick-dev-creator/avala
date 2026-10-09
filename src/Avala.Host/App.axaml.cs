@@ -1,4 +1,7 @@
 using Avala.Host.Composition;
+using Avala.Sdk;
+using Avala.Sdk.Appearance;
+using Avala.Sdk.Events;
 using Avala.Shell;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -16,6 +19,11 @@ internal sealed partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var composition = CompositionRoot.Create(PluginDirectory.Resolve(), DataDirectory.Resolve());
+            var appearance = new AppearanceApplier(this);
+            _ = appearance.FollowAsync(
+                composition.Services.GetRequiredService<IEventFeed>().SubscribeAsync<AppearanceChanged>(composition.Lifetime),
+                composition.Services.GetRequiredService<IUiDispatcher>(),
+                composition.Lifetime);
             composition.Start();
             var shell = composition.Services.GetRequiredService<ShellViewModel>();
             desktop.Exit += (_, _) =>
@@ -25,7 +33,9 @@ internal sealed partial class App : Application
             };
             DataTemplates.Add(composition.Views);
             shell.Activate();
-            desktop.MainWindow = new ShellView { DataContext = shell };
+            var window = new ShellView { DataContext = shell };
+            appearance.Attach(window);
+            desktop.MainWindow = window;
         }
 
         base.OnFrameworkInitializationCompleted();

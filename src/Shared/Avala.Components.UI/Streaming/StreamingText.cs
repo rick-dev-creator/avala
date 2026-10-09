@@ -1,3 +1,4 @@
+using Avala.Components.UI.Theme;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
@@ -66,7 +67,7 @@ public sealed class StreamingText : SelectableTextBlock
 
     private void Flow(string text)
     {
-        if (IsLive && text.Length > shown.Length && text.StartsWith(shown, StringComparison.Ordinal))
+        if (IsLive && !Motion.GetIsReduced(this) && text.Length > shown.Length && text.StartsWith(shown, StringComparison.Ordinal))
         {
             Arrive(text[shown.Length..]);
         }

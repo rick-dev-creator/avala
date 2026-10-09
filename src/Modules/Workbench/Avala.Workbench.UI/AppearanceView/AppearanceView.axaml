@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:appearance="using:Avala.Sdk.Appearance"
+             x:Class="Avala.Workbench.UI.AppearanceView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IAppearanceViewModel">
+  <Design.DataContext>
+    <settings:DesignAppearanceViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="8">
+    <DockPanel>
+      <TextBlock x:Name="AppearanceFile" DockPanel.Dock="Right" Classes="hint" Text="{Binding File, StringFormat='appearance.json: {0}'}" VerticalAlignment="Bottom" />
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <TextBlock Classes="section" Text="Appearance" VerticalAlignment="Bottom" />
+        <TextBlock Classes="hint" Text="stored by Avala on this computer" VerticalAlignment="Bottom" />
+      </StackPanel>
+    </DockPanel>
+    <Border x:Name="AppearanceError"
+            Classes="quiet"
+            Padding="12,8"
+            IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
+    </Border>
+    <Border Classes="grouped">
+      <StackPanel>
+        <DockPanel Margin="16,12">
+          <Border DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal">
+              <Button x:Name="FollowSystem"
+                      Classes="segment"
+                      Classes.selected="{Binding FollowsSystem}"
+                      Content="System"
+                      Command="{Binding ChooseThemeCommand}"
+                      CommandParameter="{x:Static appearance:ThemeChoice.System}" />
+              <Button x:Name="ChooseLight"
+                      Classes="segment"
+                      Classes.selected="{Binding IsLight}"
+                      Content="Light"
+                      Command="{Binding ChooseThemeCommand}"
+                      CommandParameter="{x:Static appearance:ThemeChoice.Light}" />
+              <Button x:Name="ChooseDark"
+                      Classes="segment"
+                      Classes.selected="{Binding IsDark}"
+                      Content="Dark"
+                      Command="{Binding ChooseThemeCommand}"
+                      CommandParameter="{x:Static appearance:ThemeChoice.Dark}" />
+            </StackPanel>
+          </Border>
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Theme" />
+            <TextBlock Classes="caption" Text="System follows the operating system's light or dark mode." TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="ReduceMotion"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        OnContent=""
+                        OffContent=""
+                        AutomationProperties.Name="Reduce motion"
+                        IsChecked="{Binding ReduceMotion, Mode=OneWay}"
+                        Command="{Binding SwitchMotionCommand}" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Reduce motion" />
+            <TextBlock Classes="caption"
+                       TextWrapping="Wrap"
+                       Text="Stops the pulse, the spinners, the thinking shimmer and the fades. Avalonia does not report the operating system's setting, so Avala asks here." />
+          </StackPanel>
+        </DockPanel>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

@@ -70,6 +70,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IRegions>(new TestRegions())
             .AddSingleton<IMessenger>(new StrongReferenceMessenger())
             .AddSingleton<IFileOpener>(new FakeOpener())
+            .AddSingleton<Sdk.Appearance.IAppearance>(new FakeAppearance())
             .AddSingleton<IJobCatalog>(new FakeCatalog())
             .AddSingleton<IJobs>(new FakeJobs())
             .AddSingleton<IAgents>(new FakeAgents())

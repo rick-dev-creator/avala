@@ -1,4 +1,5 @@
 using Avala.Permissions.Contracts;
+using Avala.Sdk.Appearance;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -223,4 +224,27 @@ internal sealed class DesignSettingsViewModel : ISettingsViewModel
     public IRepositorySettingsViewModel Repository { get; } = new DesignRepositorySettingsViewModel();
 
     public IMachineSettingsViewModel Machine { get; } = new DesignMachineSettingsViewModel();
+
+    public IAppearanceViewModel Appearance { get; } = new DesignAppearanceViewModel();
+}
+
+internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
+{
+    public string File => "Applied";
+
+    public bool FollowsSystem => true;
+
+    public bool IsLight => false;
+
+    public bool IsDark => false;
+
+    public bool ReduceMotion => false;
+
+    public string Error { get; init; } = string.Empty;
+
+    public IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; } = new AsyncRelayCommand<ThemeChoice>(_ => Task.CompletedTask);
+
+    public IAsyncRelayCommand SwitchMotionCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

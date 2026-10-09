@@ -25,6 +25,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
             Assert.Contains("ledger-api", view.VisibleTexts);
             Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "RepositorySettingsView");
             Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "MachineSettingsView");
+            Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "AppearanceView");
             Assert.False(view.Shows("NoRepositories"));
         }, TestContext.Current.CancellationToken);
 
@@ -32,7 +33,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
     public Task TypingARepositoryAndPressingEnterReadsItsRulesAsync() =>
         ui.RunAsync(async () =>
         {
-            var settings = new SettingsViewModel(Repositories(new FakeOpener()), new DesignMachineSettingsViewModel());
+            var settings = new SettingsViewModel(Repositories(new FakeOpener()), new DesignMachineSettingsViewModel(), new DesignAppearanceViewModel());
             var view = Wide(settings);
             var before = view.Shows("Rules");
 
