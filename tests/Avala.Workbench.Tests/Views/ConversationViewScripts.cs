@@ -46,11 +46,11 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             var view = Screen.Show(conversation);
             var prompt = view.Find<ItemsControl>("Entries").ContainerFromIndex(0);
 
-            conversation.Show(new BoardJob(summary, transcript.WithRestart()));
+            conversation.Show(new BoardJob(summary, transcript.WithRestart(kept: true)));
             view.Settle();
 
             Assert.Same(prompt, view.Find<ItemsControl>("Entries").ContainerFromIndex(0));
-            Assert.Contains("Avala restarted. The agent's work before this point is summarized by its attempts above.", view.VisibleTexts);
+            Assert.Contains("Avala restarted. Everything above happened before the restart.", view.VisibleTexts);
         }, Cancellation);
 
     [Fact]
@@ -490,7 +490,7 @@ public sealed class RestartViewScripts(HeadlessUi ui)
     public Task TheRestartIsAQuietMarkerAcrossTheConversationAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new RestartViewModel());
+            var view = Screen.Show(new RestartViewModel(new RestartEntry(EntryKeys.Restart, Kept: true)));
 
             Assert.True(view.HasClass("Note", "caption"));
             Assert.Contains("Avala restarted.", view.TextOf("Note"), StringComparison.Ordinal);

@@ -27,10 +27,19 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
                 ("greet", SimulatedRun.Simulate("edit")),
                 ("checks", "[simulate: rewrite-checks] Loosen the checks"),
                 ("changelog", "[simulate: follow-up] Start a changelog"))));
+        var taken = run.Watch<LoopTaskTaken>();
+        var iterated = run.Watch<LoopIterated>();
         var ended = run.Watch<LoopEnded>();
         var before = await run.Repository.GitAsync(Cancellation, "rev-parse", "main");
 
         var loop = Outcomes.Succeeds(await run.Get<IAutopilot>().StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+
+        foreach (var number in (int[])[1, 2, 3])
+        {
+            _ = await taken.UntilAsync(task => task.Iteration == number);
+            _ = await iterated.UntilAsync(iteration => iteration.Iteration.Number == number);
+        }
+
         var state = (await ended.UntilAsync(_ => true)).State;
 
         Assert.Equal((Option<LoopEnding>.Some(LoopEnding.Drained), 3), (state.Ending, state.Iterations));
@@ -137,6 +146,29 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
 
         Assert.Equal((Option<FollowUpRefusal>.Some(FollowUpRefusal.NotAutonomous), false), (decision.Refusal, decision.Task.IsSome));
         Assert.Equal((Option<LoopEnding>.Some(LoopEnding.Drained), 1), (state.Ending, state.Iterations));
+    }
+
+    [Fact]
+    public async Task ALoopWhoseWorkFailsEndsAsFailedWithItsFaultInsteadOfLookingRunningAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            (".avala/checks.json", PassingChecks),
+            (".avala/backlog.json", Backlog(("greet", "[simulate: reply] Greet the team"))));
+        var iterated = run.Watch<LoopIterated>();
+        var ended = run.Watch<LoopEnded>();
+        run.SourceFault.Arm(new IOException("The tracker went away"));
+
+        var loop = Outcomes.Succeeds(await run.Get<IAutopilot>().StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+        _ = await iterated.UntilAsync(iteration => iteration.Iteration.Number == 1);
+        var state = (await ended.UntilAsync(_ => true)).State;
+
+        Assert.Equal(
+            (loop, LoopStatus.Ended, Option<LoopEnding>.Some(LoopEnding.Failed), Option<string>.Some("IOException: The tracker went away"), 1),
+            (state.Loop, state.Status, state.Ending, state.Fault, state.Iterations));
+        Assert.Equal(state, Assert.Single(run.Get<IAutopilot>().Loops()));
+        Assert.Equal(AutopilotError.LoopEnded, Outcomes.FailsWith(await run.Get<IAutopilot>().PauseAsync(loop, Cancellation)));
+        Assert.Contains("The tracker went away", await run.StopAndReadLogAsync(), StringComparison.Ordinal);
     }
 
     private Task<SimulatedRun> FollowUpRunAsync() =>

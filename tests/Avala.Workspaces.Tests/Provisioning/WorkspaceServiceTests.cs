@@ -1,3 +1,4 @@
+using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Provisioning;
@@ -17,7 +18,7 @@ public sealed class WorkspaceServiceTests
 
         var info = Outcomes.Succeeds(await Service(git).PrepareAsync(new WorkspaceRequest("/repos/shop/src"), Cancellation));
 
-        Assert.Equal(Path.Combine(Root, $"{info.Id.Value:N}"), info.Path);
+        Assert.Equal(Path.Combine(Root.Canonical(), $"{info.Id.Value:N}"), info.Path);
         Assert.Equal($"avala/{info.Id.Value:N}", info.Branch);
         Assert.Equal([info.Path], git.Worktrees.Select(worktree => worktree.Path));
         Assert.Equal("/repos/shop", Assert.Single(git.Worktrees).Repository);

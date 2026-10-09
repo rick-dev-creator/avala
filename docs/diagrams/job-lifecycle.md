@@ -22,7 +22,7 @@ stateDiagram-v2
 	Running --> Checking : CompleteTurn
 	Running --> NeedsHelp : Hold
 	Running --> Running : Recover
-	Checking --> Running : Recover
+	Checking --> Checking : Recheck
 	Checking --> AwaitingReview : Pass
 	Checking --> Running : Retry [retries left]
 	Checking --> NeedsHelp : RequestHelp [budget exhausted]

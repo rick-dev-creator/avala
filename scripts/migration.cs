@@ -9,6 +9,7 @@
 #:project ../src/Modules/Verification/Avala.Verification/Avala.Verification.csproj
 #:project ../src/Modules/Permissions/Avala.Permissions/Avala.Permissions.csproj
 #:project ../src/Modules/Delegation/Avala.Delegation/Avala.Delegation.csproj
+#:project ../src/Modules/Transcripts/Avala.Transcripts/Avala.Transcripts.csproj
 
 using System.Reflection;
 using System.Text.RegularExpressions;

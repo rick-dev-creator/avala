@@ -14,7 +14,7 @@ internal interface ITimelineEntry
 
 internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin, Option<string> Text, Option<AttemptOutcome> Outcome) : ITimelineEntry;
 
-internal sealed record RestartEntry(string Key) : ITimelineEntry;
+internal sealed record RestartEntry(string Key, bool Kept) : ITimelineEntry;
 
 internal sealed record InterjectionEntry(string Key, string Text) : ITimelineEntry;
 

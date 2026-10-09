@@ -196,7 +196,7 @@ internal sealed class DesignTurnEndViewModel : ITurnEndViewModel
 
 internal sealed class DesignRestartViewModel : IRestartViewModel
 {
-    public string Note => "Avala restarted. The agent's work before this point is summarized by its attempts above.";
+    public string Note => RestartViewModel.KeptNote;
 }
 
 internal sealed record DesignConversationViewModel(string Title, string Place, IStatusPillViewModel Pill, IComposerViewModel Composer, IReadOnlyList<object> Entries) : IConversationViewModel

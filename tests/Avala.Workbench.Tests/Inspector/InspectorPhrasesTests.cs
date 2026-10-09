@@ -12,6 +12,23 @@ public sealed class InspectorPhrasesTests
     private static readonly PolicyRule SessionRule = new(RuleOrigin.Session, "edits", ItemKind.FileEdit, "src/**", RuleScope.Anywhere, PolicyAnswer.Allow);
 
     [Theory]
+    [InlineData(AttemptOutcome.Running, null, "Attempt 1: the agent is working, no checks yet")]
+    [InlineData(AttemptOutcome.AwaitingCheck, null, "Attempt 1: checks running")]
+    [InlineData(AttemptOutcome.Interrupted, AttemptOrigin.Recovery, "Attempt 1: interrupted by a restart, no checks completed")]
+    [InlineData(AttemptOutcome.Interrupted, AttemptOrigin.Hint, "Attempt 1: interrupted, no checks ran")]
+    [InlineData(AttemptOutcome.Interrupted, null, "Attempt 1: interrupted, no checks ran")]
+    [InlineData(AttemptOutcome.Passed, null, "Attempt 1: no checks ran")]
+    public void AnAttemptWithoutAReportSaysWhyItHasNoEvidence(AttemptOutcome outcome, AttemptOrigin? next, string phrase) =>
+        Assert.Equal(
+            phrase,
+            InspectorPhrases.Attempts(
+                [
+                    new AttemptRecord(1, AttemptOrigin.Initial, outcome, Option<string>.None, Option<SessionId>.None),
+                    .. next is { } origin ? [new AttemptRecord(2, origin, AttemptOutcome.Running, Option<string>.None, Option<SessionId>.None)] : Array.Empty<AttemptRecord>(),
+                ],
+                [])[0]);
+
+    [Theory]
     [InlineData("Allow", false, "You allowed FileEdit src/auth/login.ts")]
     [InlineData("Allow", true, "You allowed FileEdit src/auth/login.ts · don't ask again this session")]
     [InlineData("Deny", false, "You denied FileEdit src/auth/login.ts")]

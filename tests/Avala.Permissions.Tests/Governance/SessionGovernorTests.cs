@@ -6,6 +6,7 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Answering;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
+using Avala.Permissions.Links;
 using Avala.Permissions.Policies;
 using Avala.Sdk;
 using Avala.Testing;
@@ -122,7 +123,7 @@ public sealed class SessionGovernorTests
 
     private async Task<SessionGovernor> OpenAsync(Result<Option<PermissionPolicy>, PolicyError> file)
     {
-        var governor = new SessionGovernor(book, new FixedPolicyFiles(file), new PermissionResponder(new AnsweringAgents(), TimeProvider.System), bus);
+        var governor = new SessionGovernor(book, new FixedPolicyFiles(file), new PermissionResponder(new AnsweringAgents(), new SymbolicLinks(), TimeProvider.System), bus);
 
         await governor.HandleAsync(new SessionOpened(session, new ProviderInfo("agent", "Agent"), "/worktrees/1", new ConnectionName("agent")), Cancellation);
 

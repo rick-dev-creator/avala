@@ -173,6 +173,18 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario ChainedCommand { get; } = new("chained-command",
+    [
+        [
+            Thought("I will look around ", "before I change anything."),
+            new RunCommand(new ItemId("list"), "ls -la", "README.md", AsksPermission: true),
+            new RunCommand(new ItemId("chained"), "ls -la; git show --stat HEAD", "README.md\ncommit 1 file changed", AsksPermission: true),
+            Message("Looked around."),
+            .. Bill(1_500, 70, 0.0050m, 0.25),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario Question { get; } = new("question",
     [
         [
@@ -435,7 +447,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Steer, Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, Question, Governed, UnsharedThought, Fields, PlanApproval,
+        Steer, Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
         Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, .. DelegationScenarios.All,
     ];
 

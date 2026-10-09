@@ -15,7 +15,7 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Board;
 
-internal sealed class BoardKeeper(IJobCatalog catalog, IVerifications verifications, JobBoard board, TimeProvider time) :
+internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBoard board, TimeProvider time) :
     IHandle<StartupCompleted>,
     IHandle<JobSubmitted>,
     IHandle<JobProgressed>,
@@ -138,30 +138,24 @@ internal sealed class BoardKeeper(IJobCatalog catalog, IVerifications verificati
     private static JobId[] Known(Option<JobId> job) => job.Match<JobId[]>(found => [found], () => []);
 
     private async Task RefreshAsync(JobId job, bool restored, CancellationToken cancellationToken) =>
-        _ = (await catalog.HistoryAsync(job, cancellationToken)).Match(
-            found => Change(
-                job,
-                known => known with
+        await (await catalog.HistoryAsync(job, cancellationToken)).Match(
+            async found =>
+            {
+                if (jobs.ContainsKey(job))
                 {
-                    Summary = found.Summary with { Status = known.Summary.Status },
-                    Attempts = found.Attempts.Count,
-                    Transcript = known.Transcript.WithPrompts(found.Summary.Instruction, found.Attempts),
-                },
-                () => Joined(found, restored)),
-            () => false);
-
-    private BoardJob Joined(JobHistory history, bool restored)
-    {
-        var transcript = Transcript.Empty.WithPrompts(history.Summary.Instruction, history.Attempts);
-        var verified = verifications.OfJob(history.Summary.Job);
-
-        return new BoardJob(history.Summary, restored && history.Attempts.Count > 0 ? transcript.WithRestart() : transcript)
-        {
-            Attempts = history.Attempts.Count,
-            Verification = verified.Count > 0 ? verified[^1] : Option<VerificationReport>.None,
-            Choice = history.Choice,
-        };
-    }
+                    Change(job, known => known with
+                    {
+                        Summary = found.Summary with { Status = known.Summary.Status },
+                        Attempts = found.Attempts.Count,
+                        Transcript = known.Transcript.WithPrompts(found.Summary.Instruction, found.Attempts),
+                    });
+                }
+                else
+                {
+                    Publish(job, await joiner.JoinedAsync(found, restored, cancellationToken));
+                }
+            },
+            () => Task.CompletedTask);
 
     private ValueTask AuditedAsync(params JobId[] audited)
     {
@@ -183,17 +177,17 @@ internal sealed class BoardKeeper(IJobCatalog catalog, IVerifications verificati
         return ValueTask.CompletedTask;
     }
 
-    private void Change(JobId job, Func<BoardJob, BoardJob> change) =>
-        _ = Change(job, change, () => Option<BoardJob>.None);
+    private void Change(JobId job, Func<BoardJob, BoardJob> change)
+    {
+        if (jobs.TryGetValue(job, out var known))
+        {
+            Publish(job, change(known));
+        }
+    }
 
-    private bool Change(JobId job, Func<BoardJob, BoardJob> change, Func<Option<BoardJob>> joined) =>
-        (jobs.TryGetValue(job, out var known) ? Option<BoardJob>.Some(change(known)) : joined()).Match(
-            updated =>
-            {
-                jobs = jobs.SetItem(job, updated);
-                board.Publish(jobs);
-
-                return true;
-            },
-            () => false);
+    private void Publish(JobId job, BoardJob updated)
+    {
+        jobs = jobs.SetItem(job, updated);
+        board.Publish(jobs);
+    }
 }

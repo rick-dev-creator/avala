@@ -201,13 +201,13 @@ public sealed class TranscriptTests
     [Fact]
     public void ARestoredJobMarksWhereItsUnrecordedPastEnds()
     {
-        var restored = Transcript.Empty.WithPrompts("Fix the failing test", [Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted)]).WithRestart();
+        var restored = Transcript.Empty.WithPrompts("Fix the failing test", [Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted)]).WithRestart(kept: false);
         var recovered = restored.WithPrompts(
             "Fix the failing test",
             [Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted), Attempt(2, AttemptOrigin.Recovery, AttemptOutcome.Running)]);
 
         Assert.Equal([typeof(PromptEntry), typeof(RestartEntry), typeof(PromptEntry)], recovered.Entries.Select(entry => entry.GetType()));
-        Assert.Empty(Transcript.Empty.WithRestart().Entries);
+        Assert.Empty(Transcript.Empty.WithRestart(kept: false).Entries);
     }
 
     [Fact]

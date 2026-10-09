@@ -34,6 +34,21 @@ public sealed class GitWorkspacesTests
     }
 
     [Fact]
+    public async Task AWorkspaceUnderAFolderReachedThroughALinkLivesWhereGitAndItsProcessesSeeItAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var real = Directory.CreateDirectory(Path.Combine(repository.WorktreeRoot, "real")).FullName;
+        var linked = Directory.CreateSymbolicLink(Path.Combine(repository.WorktreeRoot, "linked"), real).FullName;
+        var service = Service(linked);
+
+        var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+
+        var seen = Path.GetFullPath(await repository.GitInAsync(workspace.Path, Cancellation, "rev-parse", "--show-toplevel"));
+        Assert.Equal(seen, workspace.Path);
+        Assert.Equal(workspace, Outcomes.Succeeds(await service.FindAtAsync(seen, Cancellation)));
+    }
+
+    [Fact]
     public async Task AWorkspaceStartedFromAnotherWorkspacesCheckpointReadsItsRulesFromTheRulesCommitItWasGivenAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
@@ -192,7 +207,7 @@ public sealed class GitWorkspacesTests
         var kept = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
         var lost = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
         Directory.Delete(lost.Path, recursive: true);
-        var stray = Directory.CreateDirectory(Path.Combine(repository.WorktreeRoot, "left-behind")).FullName;
+        var stray = Directory.CreateDirectory(Path.Combine(repository.WorktreeRoot, "left-behind")).FullName.Canonical();
 
         var found = await service.ReconcileAsync(Cancellation);
 
@@ -210,7 +225,7 @@ public sealed class GitWorkspacesTests
         var service = Service(repository);
         var lost = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
         Directory.Delete(lost.Path, recursive: true);
-        var stray = Directory.CreateDirectory(Path.Combine(repository.WorktreeRoot, "left-behind")).FullName;
+        var stray = Directory.CreateDirectory(Path.Combine(repository.WorktreeRoot, "left-behind")).FullName.Canonical();
         await File.WriteAllTextAsync(Path.Combine(stray, "output.log"), "built", Cancellation);
 
         var cleaned = await service.CleanAsync(await service.ReconcileAsync(Cancellation), Cancellation);
