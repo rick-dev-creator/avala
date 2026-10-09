@@ -93,6 +93,32 @@ public sealed class TranscriptTests
         Assert.Equal(("graph TD; A-->B", CanvasStatus.Completed), (entry.Content, entry.Status));
     }
 
+    [Theory]
+    [InlineData("Succeeded", "Completed")]
+    [InlineData("Failed", "Failed")]
+    [InlineData("Cancelled", "Cancelled")]
+    [InlineData("Abandoned", "Abandoned")]
+    [InlineData("Expired", "Expired")]
+    public void ACanvasStillStreamingWhenItsItemEndsTakesTheItemsOutcome(string outcome, string status)
+    {
+        var transcript = Played(
+            new CanvasStarted(Session, Turn, new ItemId("diagram"), "Flow", "text/vnd.mermaid"),
+            new ItemCompleted(Session, Turn, new ItemId("diagram"), Enum.Parse<ItemOutcome>(outcome)));
+
+        Assert.Equal(Enum.Parse<CanvasStatus>(status), Assert.IsType<CanvasEntry>(Assert.Single(transcript.Entries)).Status);
+    }
+
+    [Fact]
+    public void ACanvasAlreadyClosedBySnapshotKeepsItsStatusWhenItsItemEnds()
+    {
+        var canvas = new CanvasId(Turn, new ItemId("diagram"));
+        var transcript = Played(new CanvasStarted(Session, Turn, canvas.Item, "Flow", "text/vnd.mermaid"))
+            .Apply(new CanvasSnapshot(canvas, Session, "Flow", "text/vnd.mermaid", "graph TD", CanvasStatus.Completed))
+            .Apply(new ItemCompleted(Session, Turn, canvas.Item, ItemOutcome.Failed), Start);
+
+        Assert.Equal(CanvasStatus.Completed, Assert.IsType<CanvasEntry>(Assert.Single(transcript.Entries)).Status);
+    }
+
     [Fact]
     public void APermissionAwaitsAHumanOnlyOnceThePolicyLeftItToOneAndUntilItIsResolved()
     {

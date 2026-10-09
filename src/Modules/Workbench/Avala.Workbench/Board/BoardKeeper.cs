@@ -114,8 +114,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
 
     private static BoardJob Audited(BoardJob job) => job with { Revision = job.Revision + 1 };
 
-    private static JobId[] Related(DelegationRecord delegation) =>
-        [.. delegation.Parent.Match<JobId[]>(parent => [parent], () => []), .. delegation.Child.Match<JobId[]>(child => [child], () => [])];
+    private static JobId[] Related(DelegationRecord delegation) => [.. Known(delegation.Parent), .. Known(delegation.Child)];
+
+    private static JobId[] Known(Option<JobId> job) => job.Match<JobId[]>(found => [found], () => []);
 
     private async Task RefreshAsync(JobId job, bool restored, CancellationToken cancellationToken) =>
         _ = (await catalog.HistoryAsync(job, cancellationToken)).Match(

@@ -129,6 +129,24 @@ public sealed class BoardKeeperTests
         Assert.Equal((4, 1), (Joined(parent).Revision, Joined(child).Revision));
     }
 
+    [Fact]
+    public async Task ADelegationMovesTheRevisionOfEachJobItNamesAndOnlyThose()
+    {
+        var parent = catalog.Add("Split CheckoutPage into steps").Summary.Job;
+        var child = catalog.Add("Extract the address step").Summary.Job;
+        await keeper.HandleAsync(new JobSubmitted(parent), Cancellation);
+        await keeper.HandleAsync(new JobSubmitted(child), Cancellation);
+        var record = new Avala.Delegation.Contracts.DelegationRecord(SessionId.New(), new ItemId("delegate"), "Extract the address step", time.GetUtcNow());
+
+        await keeper.HandleAsync(new Avala.Delegation.Contracts.ChildDelegated(record with { Parent = parent }), Cancellation);
+        var refused = (Joined(parent).Revision, Joined(child).Revision);
+        await keeper.HandleAsync(new Avala.Delegation.Contracts.ChildReported(record with { Parent = parent, Child = child }), Cancellation);
+        await keeper.HandleAsync(new Avala.Delegation.Contracts.ChildDelegated(record), Cancellation);
+
+        Assert.Equal((1, 0), refused);
+        Assert.Equal((2, 1), (Joined(parent).Revision, Joined(child).Revision));
+    }
+
     private BoardJob Joined(JobId job) => board.Find(job).Match(found => found, () => throw new InvalidOperationException("The job is not on the board."));
 
     private static AttemptRecord Attempt(int number, AttemptOrigin origin, AttemptOutcome outcome, string guidance = "") =>
