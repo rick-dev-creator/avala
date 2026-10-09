@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inspector="using:Avala.Workbench.Inspector"
+             x:Class="Avala.Workbench.UI.DelegationSectionView"
+             x:ClassModifier="internal"
+             x:DataType="inspector:IDelegationSectionViewModel">
+  <Design.DataContext>
+    <inspector:DesignDelegationSectionViewModel />
+  </Design.DataContext>
+  <Expander x:Name="Section">
+    <Expander.Header>
+      <TextBlock Classes="section" Text="Delegation" />
+    </Expander.Header>
+    <StackPanel Spacing="4">
+      <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <TextBlock x:Name="NoDelegation" Classes="caption" Text="No delegation" IsVisible="{Binding IsEmpty}" />
+      <TextBlock x:Name="DelegatedBy"
+                 Text="{Binding Parent}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding Parent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <ItemsControl x:Name="Children" ItemsSource="{Binding Children}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Expander>
+</UserControl>

@@ -4,7 +4,22 @@ using Avala.Workbench.Presenting;
 
 namespace Avala.Workbench.Usage;
 
-internal sealed class LimitViewModel(UsageLimit limit, Option<double> holdAt)
+internal interface ILimitViewModel
+{
+    string Window { get; }
+
+    double Used { get; }
+
+    string UsedText { get; }
+
+    string Resets { get; }
+
+    string HoldAt { get; }
+
+    bool ReachesHold { get; }
+}
+
+internal sealed class LimitViewModel(UsageLimit limit, Option<double> holdAt) : ILimitViewModel
 {
     public string Window { get; } = limit.Window;
 

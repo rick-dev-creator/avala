@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inspector="using:Avala.Workbench.Inspector"
+             x:Class="Avala.Workbench.UI.UsageSectionView"
+             x:ClassModifier="internal"
+             x:DataType="inspector:IUsageSectionViewModel">
+  <Design.DataContext>
+    <inspector:DesignUsageSectionViewModel />
+  </Design.DataContext>
+  <Expander x:Name="Section">
+    <Expander.Header>
+      <TextBlock Classes="section" Text="Usage and caps" />
+    </Expander.Header>
+    <StackPanel Spacing="4">
+      <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <TextBlock x:Name="Spent" Classes="strong" Text="{Binding Spent}" TextWrapping="Wrap" />
+      <ItemsControl x:Name="Caps" ItemsSource="{Binding Caps}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <ItemsControl x:Name="Interventions" ItemsSource="{Binding Interventions}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="caption attention" Text="{Binding}" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock x:Name="Carve"
+                 Classes="caption"
+                 Text="{Binding Carve}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding Carve, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </Expander>
+</UserControl>

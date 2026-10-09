@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.CheckView"
+             x:ClassModifier="internal"
+             x:DataType="settings:ICheckViewModel">
+  <Design.DataContext>
+    <settings:DesignCheckViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+    <TextBlock x:Name="CheckName" Classes="strong" Text="{Binding Name}" Margin="0,0,10,0" />
+    <TextBlock x:Name="Command" Grid.Column="1" Classes="mono" Text="{Binding Command}" TextTrimming="CharacterEllipsis" />
+    <TextBlock x:Name="Timeout" Grid.Column="2" Classes="caption" Text="{Binding Timeout}" Margin="10,0,0,0" />
+  </Grid>
+</UserControl>

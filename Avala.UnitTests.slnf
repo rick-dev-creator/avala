@@ -37,6 +37,7 @@
       "src/Modules/Autopilot/Avala.Autopilot/Avala.Autopilot.csproj",
       "src/Modules/Delegation/Avala.Delegation.Contracts/Avala.Delegation.Contracts.csproj",
       "src/Modules/Delegation/Avala.Delegation/Avala.Delegation.csproj",
+      "src/Modules/Workbench/Avala.Workbench.Contracts/Avala.Workbench.Contracts.csproj",
       "src/Modules/Workbench/Avala.Workbench/Avala.Workbench.csproj",
       "src/Modules/Workbench/Avala.Workbench.UI/Avala.Workbench.UI.csproj",
       "tests/Avala.Agents.Tests/Avala.Agents.Tests.csproj",

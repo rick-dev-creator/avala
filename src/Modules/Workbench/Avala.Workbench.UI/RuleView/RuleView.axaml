@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.RuleView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IRuleViewModel">
+  <Design.DataContext>
+    <settings:DesignRuleViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="90,*,Auto" Margin="0,2">
+    <TextBlock x:Name="Origin" Classes="caption" Text="{Binding Origin}" />
+    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+      <TextBlock x:Name="RuleName" Text="{Binding Name}" />
+      <TextBlock x:Name="Kind" Classes="caption" Text="{Binding Kind}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Target" Classes="mono" Text="{Binding Target}" />
+      <TextBlock x:Name="Scope" Classes="caption" Text="{Binding Scope}" VerticalAlignment="Center" />
+    </StackPanel>
+    <TextBlock x:Name="Answer" Grid.Column="2" Classes="strong" Text="{Binding Answer}" />
+  </Grid>
+</UserControl>

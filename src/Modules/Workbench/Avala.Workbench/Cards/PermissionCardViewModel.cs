@@ -8,8 +8,31 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Cards;
 
+internal interface IPermissionCardViewModel
+{
+    string Title { get; }
+
+    ItemKind Kind { get; }
+
+    string Target { get; }
+
+    bool AwaitsYou { get; }
+
+    string Verdict { get; }
+
+    string Note { get; set; }
+
+    bool DontAskAgain { get; set; }
+
+    string Error { get; }
+
+    IAsyncRelayCommand AllowCommand { get; }
+
+    IAsyncRelayCommand DenyCommand { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class PermissionCardViewModel : ITimelineItem
+internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel, ITimelineItem
 {
     private readonly HumanReplies replies;
     private PermissionEntry request;

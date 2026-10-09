@@ -1,7 +1,10 @@
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Shell.Regions;
 using Avala.Testing;
+using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.Shell.Tests;
 
@@ -154,6 +157,59 @@ public sealed class ShellViewModelScripts
 
         Assert.Equal(new JobInFocus("job-3"), details.Focus.Match(focus => focus, () => new JobInFocus("none")));
         Assert.Equal(1, shell.Revision);
+    }
+
+    [Fact]
+    public void TheInspectorShowsOnlyWhileSomethingIsInFocus()
+    {
+        var contexts = new RegionContexts();
+        var script = ViewModelScript.Given(new ShellViewModel([], [Into(ShellRegions.Inspector, 0, new Section())], contexts));
+        var hidden = script.ViewModel.IsInspectorShown;
+
+        script.When(_ => contexts.SetContext(ShellRegions.Inspector, new JobInFocus("job-1")))
+            .ThenNotified(nameof(ShellViewModel.IsInspectorShown))
+            .Then(shell => Assert.Equal((false, true), (hidden, shell.IsInspectorShown)))
+            .When(_ => contexts.ClearContext(ShellRegions.Inspector))
+            .Then(shell => Assert.False(shell.IsInspectorShown));
+    }
+
+    [Fact]
+    public void AnInspectorWithoutSectionsStaysHiddenWhateverIsInFocus()
+    {
+        var contexts = new RegionContexts();
+        var shell = new ShellViewModel([], [], contexts);
+
+        contexts.SetContext(ShellRegions.Inspector, new JobInFocus("job-1"));
+
+        Assert.False(shell.IsInspectorShown);
+    }
+
+    [Fact]
+    public async Task APageRequestedOverTheMessengerIsSelectedAndActivatedAsync()
+    {
+        var jobs = new Page("Jobs");
+        var usage = new Page("Usage");
+        var services = new ServiceCollection().AddShell().AddSingleton<IPage>(usage).AddSingleton<IPage>(jobs).BuildServiceProvider();
+        var shell = services.GetRequiredService<ShellViewModel>();
+        shell.Activate();
+
+        await ViewModelScript.Given(shell).WhenPresentedAsync(
+            _ => services.GetRequiredService<IMessenger>().Send(new PageRequested(jobs)),
+            TestContext.Current.CancellationToken);
+
+        Assert.Same(jobs, shell.SelectedPage);
+        Assert.Equal(["activated", "deactivated"], usage.Calls);
+        Assert.Equal(["activated"], jobs.Calls);
+    }
+
+    [Fact]
+    public void ARequestForAPageTheShellDoesNotHoldChangesNothing()
+    {
+        var jobs = new Page("Jobs");
+
+        ViewModelScript.Given(Shell([jobs], []))
+            .When(shell => shell.Receive(new PageRequested(new Page("Elsewhere"))))
+            .Then(shell => Assert.Same(jobs, shell.SelectedPage));
     }
 
     private static ShellViewModel Shell(IEnumerable<IPage> pages, IEnumerable<RegionContribution> contributions) =>

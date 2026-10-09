@@ -75,11 +75,12 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
                 [new RegionContribution(ShellRegions.Sidebar, 0, new JobPicker(contexts)), new RegionContribution(ShellRegions.Inspector, 0, new JobInspector())],
                 contexts);
             var view = ViewScript.Present(new ShellView(), shell);
-            Assert.Contains("Nothing inspected", view.VisibleTexts);
+            Assert.False(view.Shows("InspectorPane"));
 
             await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
             view.Settle();
 
+            Assert.True(view.Shows("InspectorPane"));
             Assert.Contains("Inspecting job-3", view.VisibleTexts);
         }, Cancellation);
 

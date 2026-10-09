@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cards="using:Avala.Workbench.Cards"
+             x:Class="Avala.Workbench.UI.FormCardView"
+             x:ClassModifier="internal"
+             x:DataType="cards:IFormCardViewModel">
+  <Design.DataContext>
+    <cards:DesignFormCardViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Card.waiting">
+      <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Card"
+          Classes="card"
+          Classes.waiting="{Binding AwaitsYou}"
+          BorderThickness="1"
+          Padding="{DynamicResource PaddingCard}">
+    <StackPanel Spacing="8">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="Title" Classes="strong" Text="{Binding Title}" TextWrapping="Wrap" />
+        <TextBlock x:Name="Verdict"
+                   Grid.Column="1"
+                   Classes="caption"
+                   Classes.attention="{Binding AwaitsYou}"
+                   Text="{Binding Verdict}"
+                   Margin="12,0,0,0" />
+      </Grid>
+      <TextBlock x:Name="Context"
+                 Classes="secondary"
+                 Text="{Binding Context}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding Context, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <StackPanel x:Name="Answer" Spacing="10" IsVisible="{Binding AwaitsYou}">
+        <ItemsControl x:Name="Fields" ItemsSource="{Binding Fields}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="12" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+        <TextBox x:Name="Note" Text="{Binding Note}" PlaceholderText="A note for the agent if you decline" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="Submit" Classes="primary" Content="Answer" Command="{Binding SubmitCommand}" />
+          <Button x:Name="Decline" Content="Decline" Command="{Binding DeclineCommand}" />
+        </StackPanel>
+      </StackPanel>
+      <TextBlock x:Name="Error"
+                 Classes="caption failure"
+                 TextWrapping="Wrap"
+                 Text="{Binding Error}"
+                 IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </Border>
+</UserControl>

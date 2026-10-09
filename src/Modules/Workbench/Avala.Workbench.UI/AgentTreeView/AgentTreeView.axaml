@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="using:Avala.Workbench.Resources"
+             x:Class="Avala.Workbench.UI.AgentTreeView"
+             x:ClassModifier="internal"
+             x:DataType="resources:IAgentTreeViewModel">
+  <Design.DataContext>
+    <resources:DesignAgentTreeViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+    <StackPanel Spacing="1">
+      <TextBlock x:Name="Job" Text="{Binding Job}" TextTrimming="CharacterEllipsis" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock x:Name="Connection" Classes="caption mono" Text="{Binding Connection}" />
+        <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" />
+        <TextBlock x:Name="Ports" Classes="caption mono" Text="{Binding Ports}" />
+      </StackPanel>
+    </StackPanel>
+    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="12,0,0,0">
+      <TextBlock x:Name="Processes" Classes="caption" Text="{Binding Processes, StringFormat='{}{0} processes'}" />
+      <TextBlock x:Name="Memory" Text="{Binding Memory}" />
+      <TextBlock x:Name="Cpu" Text="{Binding Cpu}" />
+    </StackPanel>
+  </Grid>
+</UserControl>

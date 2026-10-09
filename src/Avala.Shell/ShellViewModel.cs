@@ -3,16 +3,19 @@ using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Shell.Regions;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Shell;
 
 [INotifyPropertyChanged]
-internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IPresentation
+internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IPresentation, IRecipient<PageRequested>
 {
+    private readonly RegionContexts contexts;
     private bool active;
 
     public ShellViewModel(IEnumerable<IPage> pages, IEnumerable<RegionContribution> contributions, RegionContexts contexts)
     {
+        this.contexts = contexts;
         var contributed = contributions.ToList();
         Toolbar = Region.Of(ShellRegions.Toolbar, contributed);
         Sidebar = Region.Of(ShellRegions.Sidebar, contributed);
@@ -27,7 +30,7 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
             contexts.Attach(region);
         }
 
-        contexts.Delivered += _ => Present();
+        contexts.Delivered += OnDelivered;
     }
 
     public event EventHandler<Presented>? Presented;
@@ -53,7 +56,17 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
 
     public bool HasSidebar => HasNavigation || Toolbar.HasItems || Sidebar.HasItems || SidebarFooter.HasItems;
 
+    public bool IsInspectorShown => Inspector.HasItems && contexts.ContextOf(ShellRegions.Inspector).IsSome;
+
     private IEnumerable<Region> Regions => [Toolbar, Sidebar, SidebarFooter, Content, Inspector];
+
+    public void Receive(PageRequested message)
+    {
+        if (Pages.Contains(message.Page))
+        {
+            SelectedPage = message.Page;
+        }
+    }
 
     public void Activate()
     {
@@ -91,6 +104,16 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         {
             (oldValue as IActivatable)?.Deactivate();
             (newValue as IActivatable)?.Activate();
+        }
+
+        Present();
+    }
+
+    private void OnDelivered(RegionName region)
+    {
+        if (region == ShellRegions.Inspector)
+        {
+            OnPropertyChanged(nameof(IsInspectorShown));
         }
 
         Present();

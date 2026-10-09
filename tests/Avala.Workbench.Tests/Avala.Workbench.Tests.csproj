@@ -4,6 +4,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Workbench\Avala.Workbench\Avala.Workbench.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Workbench\Avala.Workbench.UI\Avala.Workbench.UI.csproj" />
     <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+    <ProjectReference Include="..\Avala.Testing.UI\Avala.Testing.UI.csproj" />
   </ItemGroup>
 </Project>

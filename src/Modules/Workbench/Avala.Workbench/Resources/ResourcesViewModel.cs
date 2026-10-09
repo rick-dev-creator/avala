@@ -5,26 +5,64 @@ using Avala.Sdk;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Upkeep;
-using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Resources;
 
-[INotifyPropertyChanged]
-internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekeeping housekeeping, LiveFeed feed) : IPage, IActivatable, IDisposable
+internal interface IResourcesViewModel
 {
+    string Title { get; }
+
+    IReadOnlyList<IAgentTreeViewModel> Trees { get; }
+
+    IReadOnlyList<IOrphanViewModel> Orphans { get; }
+
+    IReadOnlyList<IStaleWorktreeViewModel> StaleWorktrees { get; }
+
+    IReadOnlyList<string> Leases { get; }
+
+    IReadOnlyList<string> Conflicts { get; }
+
+    string Memory { get; }
+
+    string Cpu { get; }
+
+    int Processes { get; }
+
+    string Disk { get; }
+
+    string Ports { get; }
+
+    string Error { get; }
+
+    IAsyncRelayCommand<IOrphanViewModel> ReapCommand { get; }
+
+    IAsyncRelayCommand ReconcileCommand { get; }
+
+    IAsyncRelayCommand CleanCommand { get; }
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekeeping housekeeping, LiveFeed feed) : IResourcesViewModel, IPage, IActivatable, IDisposable
+{
+    private readonly ObservableCollection<AgentTreeViewModel> trees = [];
+    private readonly ObservableCollection<OrphanViewModel> orphans = [];
+    private readonly ObservableCollection<StaleWorktreeViewModel> staleWorktrees = [];
+    private readonly ObservableCollection<string> leases = [];
+    private readonly ObservableCollection<string> conflicts = [];
+
     public string Title => "Resources";
 
-    public ObservableCollection<AgentTreeViewModel> Trees { get; } = [];
+    public IReadOnlyList<IAgentTreeViewModel> Trees => trees;
 
-    public ObservableCollection<OrphanViewModel> Orphans { get; } = [];
+    public IReadOnlyList<IOrphanViewModel> Orphans => orphans;
 
-    public ObservableCollection<StaleWorktreeViewModel> StaleWorktrees { get; } = [];
+    public IReadOnlyList<IStaleWorktreeViewModel> StaleWorktrees => staleWorktrees;
 
-    public ObservableCollection<string> Leases { get; } = [];
+    public IReadOnlyList<string> Leases => leases;
 
-    public ObservableCollection<string> Conflicts { get; } = [];
+    public IReadOnlyList<string> Conflicts => conflicts;
 
     [ObservableProperty]
     public partial string Memory { get; private set; } = string.Empty;
@@ -52,10 +90,10 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
 
     public void Dispose() => feed.Dispose();
 
-    [RelayCommand]
-    private async Task ReapAsync(OrphanViewModel orphan, CancellationToken cancellationToken)
+    [RelayCommand(CanExecute = nameof(CanReap))]
+    private async Task ReapAsync(IOrphanViewModel? orphan, CancellationToken cancellationToken)
     {
-        var reaped = await orphan.Job.Match(
+        var reaped = await (orphan?.Job ?? Option<Jobs.Contracts.JobId>.None).Match(
             job => housekeeping.ReapAsync(job, cancellationToken).AsTask(),
             () => Task.FromResult(Result<int, ResourceError>.Failure(ResourceError.NothingToReap)));
         Error = reaped.Match(_ => string.Empty, _ => "Nothing of that job is left running.");
@@ -75,6 +113,8 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
         feed.Refresh();
     }
 
+    private static bool CanReap(IOrphanViewModel? orphan) => orphan is { CanReap: true };
+
     private void Show(ResourceState state)
     {
         Memory = Amounts.Megabytes(state.Global.MemoryBytes);
@@ -82,12 +122,12 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
         Processes = state.Global.Processes;
         Disk = Amounts.Megabytes(state.Global.DiskBytes);
         Ports = string.Join(", ", state.Global.Ports.Select(port => port.ToString(CultureInfo.InvariantCulture)));
-        Trees.ShowOnly(state.Trees.Select(tree => new AgentTreeViewModel(tree)));
-        Orphans.ShowOnly(state.Orphans.Select(report => new OrphanViewModel(report)));
-        StaleWorktrees.ShowOnly(
+        trees.ShowOnly(state.Trees.Select(tree => new AgentTreeViewModel(tree)));
+        orphans.ShowOnly(state.Orphans.Select(report => new OrphanViewModel(report)));
+        staleWorktrees.ShowOnly(
             state.Stale.Strays.Select(path => new StaleWorktreeViewModel(path, "not known to any job"))
                 .Concat(state.Stale.Missing.Select(workspace => new StaleWorktreeViewModel(workspace.Path, "missing from the disk"))));
-        Leases.ShowOnly(state.Leases.Select(lease => string.Create(CultureInfo.InvariantCulture, $"{lease.First}-{lease.Last} for {lease.Worktree}")));
-        Conflicts.ShowOnly(state.Conflicts.Select(conflict => string.Create(CultureInfo.InvariantCulture, $"port {conflict.Port} held outside {conflict.Lease.Worktree}")));
+        leases.ShowOnly(state.Leases.Select(lease => string.Create(CultureInfo.InvariantCulture, $"{lease.First}-{lease.Last} for {lease.Worktree}")));
+        conflicts.ShowOnly(state.Conflicts.Select(conflict => string.Create(CultureInfo.InvariantCulture, $"port {conflict.Port} held outside {conflict.Lease.Worktree}")));
     }
 }

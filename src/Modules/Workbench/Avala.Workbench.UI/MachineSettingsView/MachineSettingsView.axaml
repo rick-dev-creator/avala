@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.MachineSettingsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IMachineSettingsViewModel">
+  <Design.DataContext>
+    <settings:DesignMachineSettingsViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="10">
+    <TextBlock x:Name="Error"
+               Classes="caption failure"
+               Text="{Binding Error}"
+               TextWrapping="Wrap"
+               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock x:Name="ConnectionsFile" Text="{Binding ConnectionsFile, StringFormat='connections.json: {0}'}" VerticalAlignment="Center" />
+      <Button x:Name="OpenConnections" Grid.Column="1" Classes="ghost" Content="Open connections.json" Command="{Binding OpenConnectionsCommand}" />
+    </Grid>
+    <ItemsControl x:Name="Connections" ItemsSource="{Binding Connections}" />
+    <TextBlock x:Name="SupervisionFile" Text="{Binding SupervisionFile, StringFormat='supervision.json: {0}'}" />
+    <Grid ColumnDefinitions="*,Auto,Auto">
+      <TextBlock x:Name="Silence" Text="{Binding Silence, StringFormat='Silence window: {0}'}" VerticalAlignment="Center" />
+      <TextBox x:Name="SilenceDraft" Grid.Column="1" Width="100" Text="{Binding SilenceDraft}">
+        <TextBox.KeyBindings>
+          <KeyBinding Gesture="Enter" Command="{Binding SaveSilenceCommand}" />
+        </TextBox.KeyBindings>
+      </TextBox>
+      <Button x:Name="SaveSilence" Grid.Column="2" Margin="8,0,0,0" Content="Save" Command="{Binding SaveSilenceCommand}" />
+    </Grid>
+    <TextBlock x:Name="ResourceSettings" Classes="caption" Text="{Binding Resources, StringFormat='resources.json: {0}'}" TextWrapping="Wrap" />
+  </StackPanel>
+</UserControl>

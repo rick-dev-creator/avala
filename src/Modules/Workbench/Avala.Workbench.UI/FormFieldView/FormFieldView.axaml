@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cards="using:Avala.Workbench.Cards"
+             x:Class="Avala.Workbench.UI.FormFieldView"
+             x:ClassModifier="internal"
+             x:DataType="cards:IFormFieldViewModel">
+  <Design.DataContext>
+    <cards:DesignFormFieldViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="6">
+    <TextBlock x:Name="Header" Classes="section" Text="{Binding Header}" />
+    <TextBlock x:Name="Prompt" Text="{Binding Prompt}" TextWrapping="Wrap" />
+    <ItemsControl x:Name="Choices" ItemsSource="{Binding Choices}" IsVisible="{Binding !!Choices.Count}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="4" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+    <TextBox x:Name="Text" Text="{Binding Text}" PlaceholderText="Your answer" IsVisible="{Binding AcceptsText}" />
+    <CheckBox x:Name="Confirmed" Content="Confirm" IsChecked="{Binding Confirmed}" IsVisible="{Binding IsConfirmation}" />
+  </StackPanel>
+</UserControl>

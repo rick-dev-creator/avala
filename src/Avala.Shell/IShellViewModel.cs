@@ -22,4 +22,6 @@ internal interface IShellViewModel
     bool HasNavigation { get; }
 
     bool HasSidebar { get; }
+
+    bool IsInspectorShown { get; }
 }

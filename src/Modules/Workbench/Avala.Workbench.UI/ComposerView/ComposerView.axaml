@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.ComposerView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IComposerViewModel">
+  <Design.DataContext>
+    <conversation:DesignComposerViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="6" Margin="0,12,0,0">
+    <TextBlock x:Name="Error"
+               Classes="caption failure"
+               TextWrapping="Wrap"
+               Text="{Binding Error}"
+               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <Border Classes="quiet" Padding="12,6">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <TextBox x:Name="Draft"
+                 Classes="bare"
+                 Text="{Binding Draft}"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 PlaceholderText="Message the agent when it needs you or awaits review">
+          <TextBox.KeyBindings>
+            <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SendCommand}" />
+          </TextBox.KeyBindings>
+        </TextBox>
+        <Button x:Name="Interrupt"
+                Grid.Column="1"
+                Classes="ghost"
+                Command="{Binding InterruptCommand}"
+                AutomationProperties.Name="Interrupt">
+          <Path Classes="icon" Data="{StaticResource IconInterrupt}" />
+        </Button>
+        <Button x:Name="Stop"
+                Grid.Column="2"
+                Classes="ghost"
+                Command="{Binding StopCommand}"
+                AutomationProperties.Name="Stop">
+          <Path Classes="icon" Data="{StaticResource IconStop}" />
+        </Button>
+        <Button x:Name="Send"
+                Grid.Column="3"
+                Classes="primary"
+                Margin="6,0,0,0"
+                Content="Send"
+                Command="{Binding SendCommand}" />
+      </Grid>
+    </Border>
+  </StackPanel>
+</UserControl>

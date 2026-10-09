@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="using:Avala.Workbench.Resources"
+             x:Class="Avala.Workbench.UI.ResourceIndicatorView"
+             x:ClassModifier="internal"
+             x:DataType="resources:IResourceIndicatorViewModel">
+  <Design.DataContext>
+    <resources:DesignResourceIndicatorViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="*,Auto">
+    <TextBlock x:Name="Memory" Classes="caption" Text="{Binding Memory, StringFormat='Memory {0}'}" />
+    <TextBlock x:Name="Leftovers"
+               Grid.Column="1"
+               Classes="caption attention"
+               Text="{Binding Leftovers, StringFormat='{}{0} left over'}"
+               IsVisible="{Binding HasLeftovers}" />
+  </Grid>
+</UserControl>

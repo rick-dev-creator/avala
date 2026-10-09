@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.DelegationRefusalView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IDelegationRefusalViewModel">
+  <Design.DataContext>
+    <overview:DesignDelegationRefusalViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="*,Auto">
+    <TextBlock x:Name="Instruction" Text="{Binding Instruction}" TextTrimming="CharacterEllipsis" />
+    <TextBlock x:Name="Reason" Grid.Column="1" Classes="caption failure" Text="{Binding Reason}" Margin="12,0,0,0" />
+  </Grid>
+</UserControl>

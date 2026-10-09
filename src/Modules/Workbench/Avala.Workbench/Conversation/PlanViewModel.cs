@@ -5,8 +5,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Conversation;
 
+internal interface IPlanViewModel
+{
+    IReadOnlyList<PlanStep> Steps { get; }
+
+    string Progress { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class PlanViewModel : ITimelineItem
+internal sealed partial class PlanViewModel : IPlanViewModel, ITimelineItem
 {
     public PlanViewModel(PlanEntry entry)
     {

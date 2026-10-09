@@ -3,8 +3,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Conversation;
 
+internal interface IMessageViewModel
+{
+    string Text { get; }
+
+    bool IsStreaming { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class MessageViewModel : ITimelineItem
+internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineItem
 {
     public MessageViewModel(MessageEntry entry)
     {

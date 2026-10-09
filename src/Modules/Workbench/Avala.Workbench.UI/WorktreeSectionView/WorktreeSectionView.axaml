@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inspector="using:Avala.Workbench.Inspector"
+             x:Class="Avala.Workbench.UI.WorktreeSectionView"
+             x:ClassModifier="internal"
+             x:DataType="inspector:IWorktreeSectionViewModel">
+  <Design.DataContext>
+    <inspector:DesignWorktreeSectionViewModel />
+  </Design.DataContext>
+  <Expander x:Name="Section">
+    <Expander.Header>
+      <TextBlock Classes="section" Text="Worktree" />
+    </Expander.Header>
+    <StackPanel Spacing="4">
+      <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <TextBlock x:Name="Branch" Classes="mono" Text="{Binding Branch}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Base" Classes="mono tertiary" Text="{Binding Base}" />
+      <SelectableTextBlock x:Name="Path" Classes="mono tertiary" Text="{Binding Path}" TextWrapping="Wrap" />
+      <TextBlock x:Name="Ports" Classes="caption" Text="{Binding Ports}" />
+    </StackPanel>
+  </Expander>
+</UserControl>

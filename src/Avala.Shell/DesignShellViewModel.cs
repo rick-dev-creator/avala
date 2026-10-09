@@ -38,6 +38,8 @@ internal sealed class DesignShellViewModel : IShellViewModel
 
     public bool HasSidebar => true;
 
+    public bool IsInspectorShown => true;
+
     private static MeterViewModel Usage(string label, double fraction, string detail)
     {
         var meter = new MeterViewModel(label, 0.9);

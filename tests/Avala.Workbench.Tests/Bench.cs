@@ -6,13 +6,16 @@ using Avala.Workbench.Board;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Decisions;
 using Avala.Workbench.Inspection;
+using Avala.Workbench.Inspector;
 using Avala.Workbench.Navigation;
+using Avala.Workbench.Presenting;
 using Avala.Workbench.Replies;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Sidebar;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
 using Avala.Workspaces.Contracts;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Workbench.Tests;
@@ -45,6 +48,12 @@ internal sealed class Bench : IDisposable
 
     public TestUiDispatcher Ui { get; } = new();
 
+    public TestRegions Regions { get; } = new();
+
+    public IMessenger Messenger { get; } = new StrongReferenceMessenger();
+
+    public JobFocus Focus => new(Regions, Messenger);
+
     public HumanReplies Replies => new(Permissions, Agents);
 
     public ReviewReader Reader => new(Evidence, Catalog, Changes, Usage);
@@ -53,16 +62,24 @@ internal sealed class Bench : IDisposable
 
     public JobInspection Inspection => new(new JobRecords(Catalog, Workspaces, Resources, Resources), new JobAudit(Audit, Audit, Usage, Audit));
 
-    public DecisionsViewModel Decisions() => new(Replies, Time);
+    public void Post(Action action) => _ = Ui.InvokeAsync(action, CancellationToken.None).AsTask();
+
+    public BoardFeed Feed() => Feed(Ui);
+
+    public BoardFeed Feed(IUiDispatcher ui) => new(Board, ui);
+
+    public DecisionsViewModel Decisions() => new(Replies, Time, Feed());
+
+    public SidebarViewModel Sidebar() => new(Decisions(), Feed(), Focus);
+
+    public InspectedJob Inspected() => Inspected(Ui);
+
+    public InspectedJob Inspected(IUiDispatcher ui) => new(Feed(ui), new InspectedFacts(Inspection));
 
     public WorkbenchViewModel Workbench() => Workbench(Ui);
 
     public WorkbenchViewModel Workbench(IUiDispatcher ui) =>
-        new(
-            Board,
-            ui,
-            new SidebarViewModel(Decisions()),
-            new JobScreens(new Conversations(new JobSteering(Jobs, Board), Replies), new Reviews(Reader, Desk, ui), new Inspectors(Inspection, ui)));
+        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Board), Replies), new Reviews(Reader, Desk, ui)), Focus);
 
     public JobSummary Job(string instruction, JobStatus status)
     {

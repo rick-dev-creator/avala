@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.ToolView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IToolViewModel">
+  <Design.DataContext>
+    <conversation:DesignToolViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="4">
+    <Button x:Name="Toggle" Classes="ghost" Command="{Binding ToggleCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock x:Name="Kind" Classes="caption" Text="{Binding Kind}" Margin="0,0,10,0" VerticalAlignment="Center" />
+        <TextBlock x:Name="Title" Grid.Column="1" Classes="mono" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <TextBlock x:Name="Outcome"
+                   Grid.Column="2"
+                   Classes="caption"
+                   Classes.failure="{Binding Failed}"
+                   Classes.pulse="{Binding IsRunning}"
+                   Text="{Binding Outcome}"
+                   Margin="10,0,0,0"
+                   VerticalAlignment="Center" />
+      </Grid>
+    </Button>
+    <Border x:Name="Details" Classes="well" IsVisible="{Binding IsExpanded}">
+      <StackPanel Spacing="6">
+        <SelectableTextBlock x:Name="Input"
+                             Classes="mono"
+                             Text="{Binding Input}"
+                             TextWrapping="Wrap"
+                             IsVisible="{Binding Input, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <SelectableTextBlock x:Name="Output" Classes="mono" Text="{Binding Output}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

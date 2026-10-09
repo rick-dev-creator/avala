@@ -4,8 +4,21 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Conversation;
 
+internal interface ICanvasViewModel
+{
+    string Title { get; }
+
+    string MediaType { get; }
+
+    string Content { get; }
+
+    CanvasStatus Status { get; }
+
+    bool IsStreaming { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class CanvasViewModel : ITimelineItem
+internal sealed partial class CanvasViewModel : ICanvasViewModel, ITimelineItem
 {
     public CanvasViewModel(CanvasEntry entry)
     {
@@ -27,6 +40,7 @@ internal sealed partial class CanvasViewModel : ITimelineItem
     public partial string Content { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStreaming))]
     public partial CanvasStatus Status { get; private set; }
 
     public bool IsStreaming => Status == CanvasStatus.Streaming;
@@ -39,7 +53,6 @@ internal sealed partial class CanvasViewModel : ITimelineItem
             MediaType = canvas.MediaType;
             Content = canvas.Content;
             Status = canvas.Status;
-            OnPropertyChanged(nameof(IsStreaming));
         }
     }
 }

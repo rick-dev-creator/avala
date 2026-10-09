@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.MachineConnectionView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IMachineConnectionViewModel">
+  <Design.DataContext>
+    <settings:DesignMachineConnectionViewModel />
+  </Design.DataContext>
+  <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+    <TextBlock x:Name="ConnectionName" Classes="mono" Text="{Binding Name}" />
+    <TextBlock x:Name="Default" Classes="caption" Text="default" IsVisible="{Binding IsDefault}" VerticalAlignment="Center" />
+    <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" VerticalAlignment="Center" />
+    <TextBlock x:Name="Source" Classes="caption" Text="{Binding Source}" VerticalAlignment="Center" />
+  </StackPanel>
+</UserControl>

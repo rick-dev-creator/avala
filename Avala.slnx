@@ -81,6 +81,7 @@
     <Project Path="src/Modules/Delegation/Avala.Delegation/Avala.Delegation.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Workbench/">
+    <Project Path="src/Modules/Workbench/Avala.Workbench.Contracts/Avala.Workbench.Contracts.csproj" />
     <Project Path="src/Modules/Workbench/Avala.Workbench/Avala.Workbench.csproj" />
     <Project Path="src/Modules/Workbench/Avala.Workbench.UI/Avala.Workbench.UI.csproj" />
   </Folder>

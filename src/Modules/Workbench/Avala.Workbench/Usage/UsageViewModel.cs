@@ -8,17 +8,35 @@ namespace Avala.Workbench.Usage;
 
 internal sealed record UsageState(SpendingState Spending, IReadOnlyList<UsageWindow> Windows);
 
-internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, LiveFeed feed) : IPage, IActivatable, IDisposable
+internal interface IUsageViewModel
 {
+    string Title { get; }
+
+    IReadOnlyList<IConnectionMeterViewModel> Connections { get; }
+
+    IReadOnlyList<IUsageWindowViewModel> Windows { get; }
+
+    IReadOnlyList<IJobMeterViewModel> Jobs { get; }
+
+    IReadOnlyList<IInterventionViewModel> Interventions { get; }
+}
+
+internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, LiveFeed feed) : IUsageViewModel, IPage, IActivatable, IDisposable
+{
+    private readonly ObservableCollection<ConnectionMeterViewModel> connections = [];
+    private readonly ObservableCollection<UsageWindowViewModel> periods = [];
+    private readonly ObservableCollection<JobMeterViewModel> jobs = [];
+    private readonly ObservableCollection<InterventionViewModel> interventions = [];
+
     public string Title => "Usage";
 
-    public ObservableCollection<ConnectionMeterViewModel> Connections { get; } = [];
+    public IReadOnlyList<IConnectionMeterViewModel> Connections => connections;
 
-    public ObservableCollection<UsageWindowViewModel> Windows { get; } = [];
+    public IReadOnlyList<IUsageWindowViewModel> Windows => periods;
 
-    public ObservableCollection<JobMeterViewModel> Jobs { get; } = [];
+    public IReadOnlyList<IJobMeterViewModel> Jobs => jobs;
 
-    public ObservableCollection<InterventionViewModel> Interventions { get; } = [];
+    public IReadOnlyList<IInterventionViewModel> Interventions => interventions;
 
     public Task Following => feed.Following;
 
@@ -34,9 +52,9 @@ internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, L
     private void Show(UsageState state)
     {
         var titles = state.Spending.Jobs.ToDictionary(cost => cost.Job.Job, cost => cost.Job.Summary.Instruction);
-        Connections.ShowOnly(state.Spending.Connections.Select(connection => new ConnectionMeterViewModel(connection)));
-        Windows.ShowOnly(state.Windows.Select(window => new UsageWindowViewModel(window)));
-        Jobs.ShowOnly(state.Spending.Jobs.Select(cost => new JobMeterViewModel(cost)));
-        Interventions.ShowOnly(state.Spending.Interventions.Select(intervention => new InterventionViewModel(intervention, titles[intervention.Job])));
+        connections.ShowOnly(state.Spending.Connections.Select(connection => new ConnectionMeterViewModel(connection)));
+        periods.ShowOnly(state.Windows.Select(window => new UsageWindowViewModel(window)));
+        jobs.ShowOnly(state.Spending.Jobs.Select(cost => new JobMeterViewModel(cost)));
+        interventions.ShowOnly(state.Spending.Interventions.Select(intervention => new InterventionViewModel(intervention, titles[intervention.Job])));
     }
 }

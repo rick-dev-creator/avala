@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:review="using:Avala.Workbench.Review"
+             x:Class="Avala.Workbench.UI.ChangedFileView"
+             x:ClassModifier="internal"
+             x:DataType="review:IChangedFileViewModel">
+  <Design.DataContext>
+    <review:DesignChangedFileViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="4">
+    <Button x:Name="ShowHunks" Classes="row" Command="{Binding ShowHunksCommand}">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock x:Name="Kind" Classes="caption" Text="{Binding Kind}" Width="64" VerticalAlignment="Center" />
+        <TextBlock x:Name="Path" Grid.Column="1" Classes="mono" Text="{Binding Path}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <TextBlock x:Name="Counts" Grid.Column="2" Classes="caption" Text="{Binding Counts}" Margin="12,0,0,0" VerticalAlignment="Center" />
+      </Grid>
+    </Button>
+    <ItemsControl x:Name="Hunks" ItemsSource="{Binding Hunks}" IsVisible="{Binding IsExpanded}" />
+    <TextBlock x:Name="Error"
+               Classes="caption"
+               Text="{Binding Error}"
+               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

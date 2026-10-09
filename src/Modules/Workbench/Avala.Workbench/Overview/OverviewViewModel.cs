@@ -4,14 +4,29 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
+internal interface IOverviewViewModel
+{
+    string Title { get; }
+
+    IConnectionsViewModel Connections { get; }
+
+    IDelegationViewModel Delegation { get; }
+
+    bool ShowsDelegation { get; }
+
+    IRelayCommand ShowConnectionsCommand { get; }
+
+    IRelayCommand ShowDelegationCommand { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class OverviewViewModel(ConnectionsViewModel connections, DelegationViewModel delegation) : IPage, IActivatable
+internal sealed partial class OverviewViewModel(IConnectionsViewModel connections, IDelegationViewModel delegation) : IOverviewViewModel, IPage, IActivatable
 {
     public string Title => "Overview";
 
-    public ConnectionsViewModel Connections { get; } = connections;
+    public IConnectionsViewModel Connections { get; } = connections;
 
-    public DelegationViewModel Delegation { get; } = delegation;
+    public IDelegationViewModel Delegation { get; } = delegation;
 
     [ObservableProperty]
     public partial bool ShowsDelegation { get; private set; }

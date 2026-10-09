@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.OrchestratorView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IOrchestratorViewModel">
+  <Design.DataContext>
+    <overview:DesignOrchestratorViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="1">
+    <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+    <TextBlock x:Name="Status" Classes="caption" Text="{Binding Status}" />
+  </StackPanel>
+</UserControl>

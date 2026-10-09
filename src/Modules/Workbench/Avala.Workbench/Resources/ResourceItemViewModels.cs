@@ -8,7 +8,46 @@ using Avala.Workbench.Upkeep;
 
 namespace Avala.Workbench.Resources;
 
-internal sealed class AgentTreeViewModel(TreeState state)
+internal interface IAgentTreeViewModel
+{
+    string Job { get; }
+
+    string Connection { get; }
+
+    string Provider { get; }
+
+    int Processes { get; }
+
+    string Memory { get; }
+
+    string Cpu { get; }
+
+    string Ports { get; }
+}
+
+internal interface IOrphanViewModel
+{
+    Option<JobId> Job { get; }
+
+    IReadOnlyList<string> Processes { get; }
+
+    bool IsLeftRunning { get; }
+
+    bool CanReap { get; }
+
+    string Disposal { get; }
+
+    string At { get; }
+}
+
+internal interface IStaleWorktreeViewModel
+{
+    string Path { get; }
+
+    string Reason { get; }
+}
+
+internal sealed class AgentTreeViewModel(TreeState state) : IAgentTreeViewModel
 {
     public string Job { get; } = state.Job.Match(job => FactPhrases.Title(job.Summary.Instruction), () => "no job");
 
@@ -25,7 +64,7 @@ internal sealed class AgentTreeViewModel(TreeState state)
     public string Ports { get; } = string.Join(", ", state.Tree.Processes.SelectMany(process => process.Ports).Select(port => port.ToString(CultureInfo.InvariantCulture)));
 }
 
-internal sealed class OrphanViewModel(OrphanReport report)
+internal sealed class OrphanViewModel(OrphanReport report) : IOrphanViewModel
 {
     public Option<JobId> Job { get; } = report.Job;
 
@@ -43,7 +82,7 @@ internal sealed class OrphanViewModel(OrphanReport report)
     public string At { get; } = Amounts.Time(report.At);
 }
 
-internal sealed class StaleWorktreeViewModel(string path, string reason)
+internal sealed class StaleWorktreeViewModel(string path, string reason) : IStaleWorktreeViewModel
 {
     public string Path { get; } = path;
 

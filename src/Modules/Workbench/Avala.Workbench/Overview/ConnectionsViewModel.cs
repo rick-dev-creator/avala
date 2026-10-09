@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avala.Agents.Contracts.Connections;
+using Avala.Sdk;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
@@ -7,10 +8,19 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Overview;
 
-[INotifyPropertyChanged]
-internal sealed partial class ConnectionsViewModel(FleetReader reader, LiveFeed feed) : IDisposable
+internal interface IConnectionsViewModel : IActivatable
 {
-    public ObservableCollection<ConnectionCardViewModel> Connections { get; } = [];
+    IReadOnlyList<IConnectionCardViewModel> Connections { get; }
+
+    string FileNote { get; }
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class ConnectionsViewModel(FleetReader reader, LiveFeed feed) : IConnectionsViewModel, IDisposable
+{
+    private readonly ObservableCollection<ConnectionCardViewModel> connections = [];
+
+    public IReadOnlyList<IConnectionCardViewModel> Connections => connections;
 
     [ObservableProperty]
     public partial string FileNote { get; private set; } = string.Empty;
@@ -28,6 +38,6 @@ internal sealed partial class ConnectionsViewModel(FleetReader reader, LiveFeed 
         FileNote = fleet.File == ConnectionFileStatus.Rejected
             ? $"connections.json is rejected: {fleet.Error.Match(error => error.ToString(), () => "invalid")}"
             : string.Empty;
-        Connections.ShowOnly(fleet.Connections.Select(connection => new ConnectionCardViewModel(connection)));
+        connections.ShowOnly(fleet.Connections.Select(connection => new ConnectionCardViewModel(connection)));
     }
 }

@@ -11,10 +11,35 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Settings;
 
-[INotifyPropertyChanged]
-internal sealed partial class MachineSettingsViewModel(MachineSettings settings, SettingsFiles files)
+internal interface IMachineSettingsViewModel
 {
-    public ObservableCollection<MachineConnectionViewModel> Connections { get; } = [];
+    IReadOnlyList<IMachineConnectionViewModel> Connections { get; }
+
+    string ConnectionsFile { get; }
+
+    string Silence { get; }
+
+    string SupervisionFile { get; }
+
+    string SilenceDraft { get; set; }
+
+    string Resources { get; }
+
+    string Error { get; }
+
+    IAsyncRelayCommand SaveSilenceCommand { get; }
+
+    IAsyncRelayCommand OpenConnectionsCommand { get; }
+
+    Task LoadAsync(CancellationToken cancellationToken);
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class MachineSettingsViewModel(MachineSettings settings, SettingsFiles files) : IMachineSettingsViewModel
+{
+    private readonly ObservableCollection<MachineConnectionViewModel> connections = [];
+
+    public IReadOnlyList<IMachineConnectionViewModel> Connections => connections;
 
     [ObservableProperty]
     public partial string ConnectionsFile { get; private set; } = string.Empty;
@@ -64,7 +89,7 @@ internal sealed partial class MachineSettingsViewModel(MachineSettings settings,
     private void Show(MachineState state)
     {
         ConnectionsFile = SettingsPhrases.Status(state.Connections.File, state.Connections.Error);
-        Connections.ShowOnly(state.Connections.Connections.Select(connection =>
+        connections.ShowOnly(state.Connections.Connections.Select(connection =>
             new MachineConnectionViewModel(connection, state.Connections.Default == Option<ConnectionName>.Some(connection.Name))));
         ShowSupervision(state.Supervision);
         Resources = Describe(state.Resources);

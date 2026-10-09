@@ -6,8 +6,25 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Conversation;
 
+internal interface IComposerViewModel
+{
+    string Draft { get; set; }
+
+    JobStatus Status { get; }
+
+    string Error { get; }
+
+    bool AcceptsMessages { get; }
+
+    IAsyncRelayCommand SendCommand { get; }
+
+    IAsyncRelayCommand InterruptCommand { get; }
+
+    IAsyncRelayCommand StopCommand { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class ComposerViewModel
+internal sealed partial class ComposerViewModel : IComposerViewModel
 {
     private readonly JobId job;
     private readonly JobSteering steering;

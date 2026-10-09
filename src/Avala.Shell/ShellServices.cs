@@ -1,3 +1,4 @@
+using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Shell.Regions;
 using CommunityToolkit.Mvvm.Messaging;
@@ -17,7 +18,15 @@ public static class ShellServices
             return services
                 .AddSingleton<RegionContexts>()
                 .AddSingleton<IRegions>(provider => provider.GetRequiredService<RegionContexts>())
-                .AddSingleton<ShellViewModel>();
+                .AddSingleton(Listening);
         }
+    }
+
+    private static ShellViewModel Listening(IServiceProvider provider)
+    {
+        var shell = ActivatorUtilities.CreateInstance<ShellViewModel>(provider);
+        provider.GetRequiredService<IMessenger>().Register<PageRequested>(shell);
+
+        return shell;
     }
 }

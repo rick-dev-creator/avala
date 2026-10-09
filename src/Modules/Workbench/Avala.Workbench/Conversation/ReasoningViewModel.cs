@@ -4,8 +4,23 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Conversation;
 
+internal interface IReasoningViewModel
+{
+    string Text { get; }
+
+    bool IsThinking { get; }
+
+    TimeSpan Duration { get; }
+
+    string Summary { get; }
+
+    bool IsExpanded { get; }
+
+    IRelayCommand ToggleCommand { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class ReasoningViewModel : ITimelineItem
+internal sealed partial class ReasoningViewModel : IReasoningViewModel, ITimelineItem
 {
     public ReasoningViewModel(ReasoningEntry entry)
     {
@@ -29,7 +44,7 @@ internal sealed partial class ReasoningViewModel : ITimelineItem
     public partial string Summary { get; private set; }
 
     [ObservableProperty]
-    public partial bool IsExpanded { get; set; }
+    public partial bool IsExpanded { get; private set; }
 
     public void Update(ITimelineEntry entry)
     {

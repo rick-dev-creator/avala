@@ -6,8 +6,17 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Resources;
 
+internal interface IResourceIndicatorViewModel
+{
+    string Memory { get; }
+
+    int Leftovers { get; }
+
+    bool HasLeftovers { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class ResourceIndicatorViewModel(ResourceReader reader, LiveFeed feed) : IActivatable, IDisposable
+internal sealed partial class ResourceIndicatorViewModel(ResourceReader reader, LiveFeed feed) : IResourceIndicatorViewModel, IActivatable, IDisposable
 {
     [ObservableProperty]
     public partial string Memory { get; private set; } = string.Empty;

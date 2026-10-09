@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:usage="using:Avala.Workbench.Usage"
+             x:Class="Avala.Workbench.UI.LimitView"
+             x:ClassModifier="internal"
+             x:DataType="usage:ILimitViewModel">
+  <Design.DataContext>
+    <usage:DesignLimitViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ProgressBar#Used">
+      <Setter Property="Background" Value="{DynamicResource MeterTrackBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    </Style>
+    <Style Selector="ProgressBar#Used.held">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="4">
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <TextBlock x:Name="Window" Classes="caption" Text="{Binding Window}" Margin="0,0,8,0" />
+      <TextBlock x:Name="UsedText" Grid.Column="1" Classes="caption" Classes.attention="{Binding ReachesHold}" Text="{Binding UsedText}" />
+      <TextBlock x:Name="Resets" Grid.Column="2" Classes="caption" Text="{Binding Resets}" />
+    </Grid>
+    <ProgressBar x:Name="Used"
+                 Classes.held="{Binding ReachesHold}"
+                 Minimum="0"
+                 Maximum="1"
+                 MinHeight="4"
+                 Height="4"
+                 Value="{Binding Used}" />
+    <TextBlock x:Name="HoldAt"
+               Classes="caption"
+               Text="{Binding HoldAt}"
+               IsVisible="{Binding HoldAt, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

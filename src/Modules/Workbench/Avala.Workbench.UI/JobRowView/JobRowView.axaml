@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sidebar="using:Avala.Workbench.Sidebar"
+             x:Class="Avala.Workbench.UI.JobRowView"
+             x:ClassModifier="internal"
+             x:DataType="sidebar:IJobRowViewModel">
+  <Design.DataContext>
+    <sidebar:DesignJobRowViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="Auto,*,Auto">
+    <ContentControl x:Name="Dot"
+                    Content="{Binding Dot}"
+                    Width="6"
+                    Height="6"
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center" />
+    <StackPanel Grid.Column="1" Spacing="1">
+      <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Fact" Classes="caption" Text="{Binding Fact}" TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+    <Border x:Name="Badge"
+            Grid.Column="2"
+            Classes="badge"
+            Margin="8,0,0,0"
+            IsVisible="{Binding HasPendingDecisions}">
+      <TextBlock x:Name="Pending" Text="{Binding PendingDecisions}" />
+    </Border>
+  </Grid>
+</UserControl>

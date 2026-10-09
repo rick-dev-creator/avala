@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="using:Avala.Workbench.Resources"
+             x:Class="Avala.Workbench.UI.ResourcesView"
+             x:ClassModifier="internal"
+             x:DataType="resources:IResourcesViewModel">
+  <Design.DataContext>
+    <resources:DesignResourcesViewModel />
+  </Design.DataContext>
+  <ScrollViewer>
+    <StackPanel Margin="24,16" Spacing="12" MaxWidth="{DynamicResource ReadingWidth}" HorizontalAlignment="Left">
+      <TextBlock Classes="title" Text="{Binding Title}" />
+      <WrapPanel>
+        <TextBlock x:Name="Memory" Margin="0,0,16,0" Text="{Binding Memory, StringFormat='Memory {0}'}" />
+        <TextBlock x:Name="Cpu" Margin="0,0,16,0" Text="{Binding Cpu, StringFormat='CPU {0}'}" />
+        <TextBlock x:Name="Processes" Margin="0,0,16,0" Text="{Binding Processes, StringFormat='{}{0} processes'}" />
+        <TextBlock x:Name="Disk" Margin="0,0,16,0" Text="{Binding Disk, StringFormat='Disk {0}'}" />
+        <TextBlock x:Name="Ports" Classes="mono" Text="{Binding Ports, StringFormat='Ports {0}'}" />
+      </WrapPanel>
+      <TextBlock x:Name="Error"
+                 Classes="caption failure"
+                 Text="{Binding Error}"
+                 IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Classes="section" Text="Agents" />
+      <TextBlock x:Name="NoAgents" Classes="caption" Text="No agent is running." IsVisible="{Binding !Trees.Count}" />
+      <ItemsControl x:Name="Trees" ItemsSource="{Binding Trees}" />
+      <TextBlock Classes="section" Text="Leftover processes" />
+      <TextBlock x:Name="NoOrphans" Classes="caption" Text="Nothing was left behind." IsVisible="{Binding !Orphans.Count}" />
+      <ItemsControl x:Name="Orphans" ItemsSource="{Binding Orphans}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="resources:IOrphanViewModel">
+            <Grid ColumnDefinitions="*,Auto">
+              <ContentControl Content="{Binding}" />
+              <Button Grid.Column="1"
+                      Classes="ghost"
+                      Content="Clean up"
+                      IsVisible="{Binding CanReap}"
+                      Command="{Binding $parent[UserControl].((resources:IResourcesViewModel)DataContext).ReapCommand}"
+                      CommandParameter="{Binding}" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBlock Classes="section" Text="Stale worktrees" VerticalAlignment="Center" />
+        <Button x:Name="Reconcile" Grid.Column="1" Classes="ghost" Content="Look again" Command="{Binding ReconcileCommand}" />
+        <Button x:Name="Clean" Grid.Column="2" Classes="ghost" Content="Clean up" Command="{Binding CleanCommand}" />
+      </Grid>
+      <TextBlock x:Name="NoStale" Classes="caption" Text="No stale worktree." IsVisible="{Binding !StaleWorktrees.Count}" />
+      <ItemsControl x:Name="StaleWorktrees" ItemsSource="{Binding StaleWorktrees}" />
+      <TextBlock Classes="section" Text="Port leases" />
+      <ItemsControl x:Name="Leases" ItemsSource="{Binding Leases}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="mono" Text="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <ItemsControl x:Name="Conflicts" ItemsSource="{Binding Conflicts}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="mono failure" Text="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

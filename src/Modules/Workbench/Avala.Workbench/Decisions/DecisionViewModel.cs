@@ -6,8 +6,19 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Decisions;
 
+internal interface IDecisionViewModel
+{
+    JobId Job { get; }
+
+    string JobTitle { get; }
+
+    object Card { get; }
+
+    string Waiting { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class DecisionViewModel
+internal sealed partial class DecisionViewModel : IDecisionViewModel
 {
     public DecisionViewModel(JobId job, string jobTitle, ITimelineItem card, DateTimeOffset since)
     {
@@ -25,6 +36,8 @@ internal sealed partial class DecisionViewModel
     public ITimelineItem Card { get; }
 
     public DateTimeOffset Since { get; }
+
+    object IDecisionViewModel.Card => Card;
 
     [ObservableProperty]
     public partial string Waiting { get; private set; }
