@@ -1,6 +1,4 @@
-<img src="docs/assets/brand/avala-icon.svg" alt="" width="88">
-
-# Avala
+<h1><img src="docs/assets/brand/avala-icon.svg" alt="" width="44" align="center">&nbsp;Avala</h1>
 
 **Agents you can trust without watching.**
 
