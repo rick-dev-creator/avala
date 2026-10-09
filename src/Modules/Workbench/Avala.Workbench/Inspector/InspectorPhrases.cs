@@ -38,7 +38,8 @@ internal static class InspectorPhrases
 
     public static string Decision(PolicyDecision decision, IReadOnlyList<HumanAnswer> answers, Option<SessionId> latest) =>
         Decision(decision)
-        + (decision.Delivery != DecisionDelivery.LeftToHuman || answers.Any(answer => answer.Session == decision.Session && answer.Item == decision.Item)
+        + (decision.Delivery == DecisionDelivery.Withdrawn ? " · withdrawn by the harness"
+        : decision.Delivery != DecisionDelivery.LeftToHuman || answers.Any(answer => answer.Session == decision.Session && answer.Item == decision.Item)
             ? string.Empty
             : latest == Option<SessionId>.Some(decision.Session) ? " · unanswered" : " · unanswered, its session ended");
 

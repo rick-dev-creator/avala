@@ -59,11 +59,13 @@ public sealed class InspectorPhrasesTests
                 "Asked you Command dotnet ef database update · unanswered",
                 "Asked you Command dotnet ef database update · unanswered, its session ended",
                 "Asked you Command dotnet ef database update",
+                "Asked you Command dotnet ef database update · withdrawn by the harness",
             ],
             [
                 InspectorPhrases.Decision(decision, [], asked),
                 InspectorPhrases.Decision(decision, [], later),
                 InspectorPhrases.Decision(decision, [answer], later),
+                InspectorPhrases.Decision(decision with { Delivery = DecisionDelivery.Withdrawn }, [], asked),
             ]);
     }
 
