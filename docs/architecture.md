@@ -14,10 +14,10 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `src/Modules/<Module>/Avala.<Module>` | Module core: domain, use cases, infrastructure and view models, in feature folders. Everything is `internal`. |
 | `src/Modules/<Module>/Avala.<Module>.UI` | Module views and its single public type: the plugin entry. |
 | `src/Modules/<Module>/Avala.<Module>.Contracts` | Optional public contracts other modules may depend on. |
-| `src/Modules/Simulator/Avala.Simulator` | A provider plugin that plays scripted Claude Code sessions through the public agent contracts only, for demos and tests without tokens. Its plugin entry lives in the core, since it has no views. |
+| `src/Modules/Simulator/Avala.Simulator` | A provider plugin that plays scripted Claude Code sessions through the public agent contracts only, for demos and tests without tokens: it resumes its conversations, draws through the injected canvas tool and reports an account. Its plugin entry lives in the core, since it has no views. |
 | `tests/Avala.ArchitectureTests` | The rules below, enforced on every build. |
 | `tests/Avala.ArchitectureTests.Fixtures` | A compliant sample module and a module that breaks every rule on purpose. |
-| `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider, temporary folders and git repositories, committed rule files behind `IBaseFiles`, event watches with a safety timeout, generated diagrams. |
+| `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider whose capabilities, resume and account a test chooses, temporary folders and git repositories, committed rule files behind `IBaseFiles`, event watches with a safety timeout, generated diagrams. |
 | `tests/Avala.<Project>.Tests` | Unit tests. |
 | `tests/Avala.Integration.Tests` | End-to-end tests that compose the real modules through their public plugin entries, over a real git repository and SQLite. Not part of `Avala.UnitTests.slnf`. |
 | `tests/Avala.Host.Tests` | Simulation tests of the real application: the composition root built from the published plugin folder, driven by the simulator over a real git repository. Not part of `Avala.UnitTests.slnf`. |
@@ -30,7 +30,7 @@ Inside a module, folders and namespaces are named after what the code does: its 
 | --- | --- | --- |
 | `Jobs` | The `Job` aggregate, its attempts, lifecycle, value objects, error enum and domain events | Domain |
 | `Submission` | Creating and submitting a job, and the `IJobs` entry other modules call | Application |
-| `Launching` | Preparing the workspace, opening the agent session and sending the instruction | Application |
+| `Launching` | Preparing the workspace, opening the agent session and sending the instruction, and opening a held job's session again when a human continues it | Application |
 | `TurnChecks` | Checking a finished turn against the completion gates, and holding a job whose session was lost | Application |
 | `Recovery` | Resuming active jobs at startup | Application |
 | `Holding` | Holding a running job for a typed reason and halting its agent session | Application |
@@ -38,7 +38,7 @@ Inside a module, folders and namespaces are named after what the code does: its 
 | `Storage` | The EF Core store behind `IJobStore` | Infrastructure |
 | `JobList` | The jobs page view model | ViewModels |
 
-The other cores follow the same idea: Agents has `Turns` and `Sessions`; Workspaces has `Workspaces`, `Provisioning`, `BaseFiles`, `Git` and `Storage`; Canvas has `Canvases`, `Gallery`, `Streaming` and `Throttling`; Observability has `Usage`, `Tracking` and `Metrics`; Verification has `Checks`, `Verifying` and `Evidence`; Permissions has `Policies`, `Governance`, `Answering` and `PolicyFiles`; Supervision has `Watching`, `Supervising` and `Settings`; Budgets has `Caps`, `Enforcement` and `BudgetFiles`; the simulator has `Scenarios`, `Playback` and `FileSystem`. Plugin entries stay at the root of their project, and `Contracts` projects keep their own names.
+The other cores follow the same idea: Agents has `Turns` and `Sessions`; Workspaces has `Workspaces`, `Provisioning`, `BaseFiles`, `Git` and `Storage`; Canvas has `Canvases`, `Drawing`, `Gallery`, `Streaming` and `Throttling`; Observability has `Usage`, `Tracking` and `Metrics`; Verification has `Checks`, `Verifying` and `Evidence`; Permissions has `Policies`, `Governance`, `Answering` and `PolicyFiles`; Supervision has `Watching`, `Supervising` and `Settings`; Budgets has `Caps`, `Enforcement` and `BudgetFiles`; the simulator has `Scenarios`, `Playback` and `FileSystem`. Plugin entries stay at the root of their project, and `Contracts` projects keep their own names.
 
 ### Layer map
 

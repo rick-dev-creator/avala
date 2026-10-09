@@ -5,7 +5,9 @@ namespace Avala.Agents.Contracts;
 
 public interface IAgents
 {
-    ValueTask<Result<SessionId, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken);
+    ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken);
+
+    bool IsOpen(SessionId session);
 
     ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken);
 

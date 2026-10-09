@@ -12,9 +12,15 @@ internal sealed class FakeAgents : IAgents
     private readonly ConcurrentQueue<SessionId> interrupted = new();
     private readonly ConcurrentQueue<SessionId> stopped = new();
 
-    public bool OpeningFails { get; init; }
+    private readonly ConcurrentQueue<AgentRequest> requests = new();
+
+    public bool OpeningFails { get; set; }
+
+    public bool Resumes { get; init; }
 
     public Option<AgentError> InterruptRejection { get; init; }
+
+    public IReadOnlyList<AgentRequest> Requests => [.. requests];
 
     public IReadOnlyList<SessionId> Interrupted => [.. interrupted];
 
@@ -24,18 +30,22 @@ internal sealed class FakeAgents : IAgents
 
     public IReadOnlyList<(SessionId Session, string Message)> Sent => [.. sent];
 
-    public ValueTask<Result<SessionId, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken)
+    public ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken)
     {
+        requests.Enqueue(request);
+
         if (OpeningFails)
         {
-            return ValueTask.FromResult(Result<SessionId, AgentError>.Failure(AgentError.ProviderUnavailable));
+            return ValueTask.FromResult(Result<OpenedSession, AgentError>.Failure(AgentError.ProviderUnavailable));
         }
 
         var session = SessionId.New();
         sessions[session] = request.WorkingDirectory;
 
-        return ValueTask.FromResult(Result<SessionId, AgentError>.Success(session));
+        return ValueTask.FromResult(Result<OpenedSession, AgentError>.Success(new OpenedSession(session, Resumes && request.Resume.IsSome)));
     }
+
+    public bool IsOpen(SessionId session) => sessions.ContainsKey(session);
 
     public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken)
     {

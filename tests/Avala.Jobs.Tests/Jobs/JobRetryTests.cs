@@ -71,7 +71,7 @@ public sealed class JobRetryTests
         Outcomes.Succeeds(job.Retry(Given.Feedback));
         Outcomes.Succeeds(job.CompleteTurn());
 
-        Outcomes.Succeeds(job.Recover(Given.Session));
+        Outcomes.Succeeds(job.Recover(Given.Session, resumed: false));
         Outcomes.Succeeds(job.CompleteTurn());
 
         Assert.True(job.Retry(Given.Feedback).IsSuccess);

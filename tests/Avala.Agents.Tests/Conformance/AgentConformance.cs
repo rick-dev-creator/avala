@@ -9,6 +9,12 @@ internal static class AgentConformance
 {
     private static readonly SessionOptions Options = new(".", PermissionMode.AllowAll);
 
+    public static HarnessTool CanvasTool { get; } = new(
+        "canvas",
+        "Draw a canvas the user sees beside the conversation.",
+        """{ "type": "object", "properties": { "title": { "type": "string" }, "mediaType": { "type": "string" }, "content": { "type": "string" } } }""",
+        ToolSurface.Canvas);
+
     public static Task<IReadOnlyList<string>> CheckTurnAsync(IAgentProvider provider, CancellationToken deadline) =>
         CheckTurnAsync(provider, Options, new UserTurn("conformance"), deadline);
 
@@ -16,47 +22,104 @@ internal static class AgentConformance
         IAgentProvider provider,
         SessionOptions options,
         UserTurn instruction,
+        CancellationToken deadline) =>
+        (await RunAsync(provider, options, instruction, deadline)).Violations;
+
+    public static async Task<IReadOnlyList<string>> CheckResumeAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
         CancellationToken deadline)
+    {
+        var first = await RunAsync(provider, options, instruction, deadline);
+
+        if (!provider.Capabilities.CanResume)
+        {
+            return first.Violations;
+        }
+
+        if (first.Events.OfType<ResumeTokenIssued>().LastOrDefault() is not { } issued)
+        {
+            return [.. first.Violations, "no resume token was issued although the provider declares CanResume"];
+        }
+
+        var resumed = await RunAsync(provider, options with { Resume = issued.Token }, new UserTurn("continue"), deadline);
+
+        return [.. first.Violations, .. resumed.Violations];
+    }
+
+    public static async Task<IReadOnlyList<string>> CheckCanvasToolAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
+        CancellationToken deadline)
+    {
+        if (!provider.Capabilities.AcceptsTools)
+        {
+            return await CheckTurnAsync(provider, options with { Tools = [] }, instruction, deadline);
+        }
+
+        var run = await RunAsync(provider, options with { Tools = [CanvasTool] }, instruction, deadline);
+        var drawn = run.Events.OfType<CanvasStarted>().Select(started => started.Item).ToHashSet();
+
+        return run.Events.OfType<ItemCompleted>().Any(completed => completed.Outcome == ItemOutcome.Succeeded && drawn.Contains(completed.Item))
+            ? run.Violations
+            : [.. run.Violations, "no canvas was drawn through the canvas tool"];
+    }
+
+    private static async Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, CancellationToken deadline)
     {
         try
         {
             if (!(await provider.StartAsync(options, deadline)).TryGetValue(out var session, out var startError))
             {
-                return [$"the session did not start: {startError}"];
+                return new Run(
+                    [options.Resume.IsSome ? $"the resume token was not accepted: {startError}" : $"the session did not start: {startError}"],
+                    []);
             }
 
             await using (session)
             {
-                return (await session.SendAsync(instruction, deadline)).TryGetValue(out var turn, out var sendError)
-                    ? await AuditAsync(session, turn, options.Permissions == PermissionMode.AskEveryTime, deadline)
-                    : [$"the turn was not accepted: {sendError}"];
+                var account = session.Account;
+
+                if (!(await session.SendAsync(instruction, deadline)).TryGetValue(out var turn, out var sendError))
+                {
+                    return new Run([$"the turn was not accepted: {sendError}"], []);
+                }
+
+                var audit = await AuditAsync(session, turn, new Rules(options, provider.Capabilities), deadline);
+
+                return session.Account == account ? audit : audit with { Violations = [.. audit.Violations, "the account changed during the session"] };
             }
         }
         catch (OperationCanceledException) when (deadline.IsCancellationRequested)
         {
-            return ["the turn did not complete before the deadline"];
+            return new Run(["the turn did not complete before the deadline"], []);
         }
     }
 
-    private static async Task<IReadOnlyList<string>> AuditAsync(IAgentSession session, TurnId expected, bool asksEveryTime, CancellationToken deadline)
+    private static async Task<Run> AuditAsync(IAgentSession session, TurnId expected, Rules rules, CancellationToken deadline)
     {
         var violations = new List<string>();
+        var events = new List<IAgentEvent>();
         var kinds = new Dictionary<ItemId, ItemKind>();
         var asked = new HashSet<ItemId>();
         Turn? turn = null;
 
         await foreach (var agentEvent in session.Events.WithCancellation(deadline))
         {
+            events.Add(agentEvent);
             violations.AddRange(agentEvent.Turn != expected
                 ? [$"{Name(agentEvent)} belongs to another turn"]
                 : Audit(ref turn, agentEvent));
+            violations.AddRange(rules.Breaches(agentEvent));
 
             if (agentEvent is ItemStarted started)
             {
                 kinds[started.Item] = started.Kind;
             }
 
-            if (asksEveryTime)
+            if (rules.AsksEveryTime)
             {
                 violations.AddRange(Unasked(agentEvent, kinds, asked));
             }
@@ -70,11 +133,11 @@ internal static class AgentConformance
 
             if (agentEvent is TurnCompleted)
             {
-                return violations;
+                return new Run(violations, events);
             }
         }
 
-        return [.. violations, "the event stream ended before TurnCompleted"];
+        return new Run([.. violations, "the event stream ended before TurnCompleted"], events);
     }
 
     private static IEnumerable<string> Unasked(IAgentEvent agentEvent, Dictionary<ItemId, ItemKind> kinds, HashSet<ItemId> asked)
@@ -129,4 +192,19 @@ internal static class AgentConformance
     }
 
     private static string Name(IAgentEvent agentEvent) => agentEvent.GetType().Name;
+
+    private sealed record Run(IReadOnlyList<string> Violations, IReadOnlyList<IAgentEvent> Events);
+
+    private sealed record Rules(SessionOptions Options, AgentCapabilities Capabilities)
+    {
+        public bool AsksEveryTime => Options.Permissions == PermissionMode.AskEveryTime;
+
+        public IEnumerable<string> Breaches(IAgentEvent agentEvent) => agentEvent switch
+        {
+            ResumeTokenIssued when !Capabilities.CanResume => ["a resume token was issued although the provider does not declare CanResume"],
+            CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
+                [$"the canvas {started.Item.Value} was drawn without the canvas tool"],
+            _ => [],
+        };
+    }
 }

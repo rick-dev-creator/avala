@@ -160,8 +160,10 @@ public sealed class PermissionResponderTests
                 () => Result<ItemId, AgentError>.Success(decision.Item)));
         }
 
-        public ValueTask<Result<SessionId, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<SessionId, AgentError>.Failure(AgentError.Unsupported));
+        public ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<OpenedSession, AgentError>.Failure(AgentError.Unsupported));
+
+        public bool IsOpen(SessionId session) => true;
 
         public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.Unsupported));

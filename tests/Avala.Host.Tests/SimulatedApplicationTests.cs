@@ -144,7 +144,33 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task StreamedCanvasesArriveInOrderAsSnapshotsThatEndCompleteAsync()
+    public async Task AJobRecoveredAfterARestartResumesItsSimulatedConversationAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "hang");
+        await run.ResumableAsync();
+
+        await run.RestartAsync();
+
+        var turn = await run.TurnAsync();
+        Assert.Contains(turn, update => update is ItemProgressed { Text: "Finished what I was doing." });
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task AJobWhoseSessionWasLostResumesItsConversationWhenAHumanContinuesItAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "crash");
+        Assert.Equal(HoldReason.SessionLost, (await run.HoldAsync()).Reason);
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+
+        var continued = Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(run.Job, "Please finish the work.", Cancellation));
+
+        Assert.Equal(ContinuedIn.ResumedConversation, continued.Conversation);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task CanvasesDrawnThroughTheInjectedCanvasToolArriveInOrderAsSnapshotsThatEndCompleteAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "canvas");
 
@@ -189,6 +215,8 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         var provider = Assert.Single(usage.ByProvider());
         Assert.Equal("simulator", provider.Provider.Id);
         Assert.Equal(job.Tokens, provider.Usage.Tokens);
+        var account = Assert.Single(usage.ByAccount());
+        Assert.Equal(("simulator", "simulated-account", job.Tokens), (account.Provider.Id, account.Account.Id, account.Usage.Tokens));
     }
 
     [Fact]

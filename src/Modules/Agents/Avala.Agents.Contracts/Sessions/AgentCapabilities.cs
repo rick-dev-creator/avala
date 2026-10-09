@@ -5,6 +5,7 @@ public sealed record AgentCapabilities(
     bool ExposesReasoning,
     bool CanInterrupt,
     bool CanResume,
+    bool AcceptsTools,
     bool ReportsUsage,
     bool ReportsCost,
     bool ReportsLimits);

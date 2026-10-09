@@ -9,6 +9,8 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 
     public TurnCompleted Ended(TurnOutcome outcome) => new(Session, Turn, outcome);
 
+    public ResumeTokenIssued Resumable(ResumeToken token) => new(Session, Turn, token);
+
     public ItemStarted Opened(ItemId item, ItemKind kind, string title) => new(Session, Turn, item, kind, title);
 
     public ItemProgressed Progressed(ItemId item, string text) => new(Session, Turn, item, text);

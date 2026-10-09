@@ -42,3 +42,5 @@ public sealed record JobHeld(JobHold Hold) : IIntegrationEvent;
 public sealed record JobProgressed(JobId Job, JobStatus Status) : IIntegrationEvent;
 
 public sealed record JobSessionStarted(JobId Job, SessionId Session) : IIntegrationEvent;
+
+public sealed record JobResumable(JobId Job, SessionId Session) : IIntegrationEvent;

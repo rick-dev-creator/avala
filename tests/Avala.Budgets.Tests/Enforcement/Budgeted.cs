@@ -88,6 +88,9 @@ internal sealed class Budgeted
                 Result<JobHold, JobRejection>.Failure,
                 () => Result<JobHold, JobRejection>.Success(new JobHold(job, SessionId.New(), reason, SessionHalt.Interrupted))));
         }
+
+        public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotHeld));
     }
 
     private sealed class Usage : IUsage
@@ -98,6 +101,8 @@ internal sealed class Budgeted
 
         public IReadOnlyList<ProviderUsage> ByProvider() =>
             [new ProviderUsage(Provider, new UsageSummary(default, [], 0, default, Limits)), new ProviderUsage(new ProviderInfo("other", "Other"), new UsageSummary(default, [], 0, default, [new UsageLimit("5h", 1, Option<DateTimeOffset>.None)]))];
+
+        public IReadOnlyList<AccountUsage> ByAccount() => [];
 
         public Option<UsageSummary> OfSession(SessionId session) => Option<UsageSummary>.None;
 

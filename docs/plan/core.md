@@ -77,35 +77,37 @@ Done when: a job goes from submitted to awaiting review with the fake provider, 
 
 ## Phase 6: First provider
 
-Status: item 1 is done.
+Status: items 1 and 6 are done, and the contract part of item 5. The provider contract now covers what the Claude Code adapter needs beyond a turn, so the adapter only translates its protocol: each addition came with the simulator implementing it and a check of the conformance kit.
 
 1. A simulated Claude Code provider that uses only the public agent contracts: declarative scenarios chosen by a tag in the first message, real file edits, permission requests answered through `IAgents.RespondAsync`, and failure scenarios that the conformance kit must report.
 2. The Claude Code provider plugin.
-3. It passes the conformance kit with recorded sessions.
+3. It passes the conformance kit with recorded sessions, including its resume, canvas tool and account checks.
 4. The architecture rule that keeps provider names inside their own plugin.
-5. The canvas tool the harness injects through MCP, translated into the canvas events the Canvas module already consumes.
+5. The canvas tool the harness injects through MCP, translated into the canvas events the Canvas module already consumes. Done in the contract: [harness tools](../design/core.md#harness-tools) shaped like MCP tools, the `AcceptsTools` capability, the `Canvas` surface that says how a call becomes canvas events, and the canvas tool the Canvas module offers, which the simulator's `canvas` scenario draws through. What waits for item 2: the MCP server that transports the tools to Claude Code, and the adapter's translation of its tool calls.
+6. The provider contract for the real adapters: [resume tokens](../design/core.md#resuming-a-conversation) under `CanResume`, stored by Jobs and used by recovery and by `IJobs.ContinueAsync`; [harness tools](../design/core.md#harness-tools) under `AcceptsTools`; and the session's [account](../design/core.md#accounts). Host simulation tests: a job recovered after a restart resumes its simulated conversation, a job held as `SessionLost` resumes when a human continues it, the canvas scenario reaches `CanvasUpdated` through the injected tool, and usage adds up by the simulator's account.
 
 Done when: a real job runs end to end with Claude Code.
 
 ## Phase 7: Observability
 
-Status: done with the fake provider and the simulator. Two items wait for the real Claude Code provider of phase 6: aggregating by account, since no event carries the account yet, and checking that its turns show up in the aggregates. The view models of the usage dashboards moved to phase 9.
+Status: done with the fake provider and the simulator, aggregation by account included: `SessionOpened` carries the account the provider reports, and `IUsage.ByAccount` groups by provider and account. One item waits for the real Claude Code provider of phase 6: checking that its turns and its account show up in the aggregates. The view models of the usage dashboards moved to phase 9.
 
 1. `SessionOpened` from Agents and `JobSessionStarted` from Jobs, so a session's activity can be tied to its provider and its job.
 2. The Observability module: aggregates tokens, cost per currency, unpriced reports, limits and turns by outcome with their durations, by provider, session and job, behind `IUsage` in its contracts.
 3. Metrics through `System.Diagnostics.Metrics`: the `Avala.Observability` meter with tokens, cost, turns, turn durations and limits.
-4. A simulation test of the real application: a simulated job's tokens, cost, turn and limit show up in the aggregates of its job and its provider.
+4. A simulation test of the real application: a simulated job's tokens, cost, turn and limit show up in the aggregates of its job, its provider and its account.
+5. Aggregation by account: the account a provider reports at session open, on `SessionOpened`, and `IUsage.ByAccount`.
 
 Done when: every turn of the fake and real providers shows up in the aggregates, with unit tests.
 
 ## Phase 8: Canvas
 
-Status: done. The MCP canvas tool moved to phase 6, with the real provider; the canvas view model to phase 9 and the renderers to phase 10, with the rest of the user interface.
+Status: done. The canvas tool moved to phase 6: the module now offers its definition as a harness tool, and its MCP transport arrives with the real provider. The canvas view model moved to phase 9 and the renderers to phase 10, with the rest of the user interface.
 
 1. The Canvas module, a plugin of its own: the `CanvasDocument` aggregate with `CanvasLifecycle` and its generated diagram, accumulating each canvas from `CanvasStarted`, `ItemProgressed` and `ItemCompleted` and rejecting foreign, repeated and late content with typed errors.
 2. Snapshots throttled per canvas with `TimeProvider`, published as `CanvasUpdated` with the full content so far and flushed at once on completion.
 3. `Canvas.Contracts`: `CanvasId`, `CanvasSnapshot`, `CanvasUpdated` and the `ICanvases` query of a session's current canvases.
-4. A host simulation test: the simulator's `canvas` scenario delivers its SVG and Mermaid canvases as snapshots that grow in order and end complete.
+4. A host simulation test: the simulator's `canvas` scenario delivers its SVG and Mermaid canvases, drawn through the injected canvas tool, as snapshots that grow in order and end complete.
 
 Done when: a canvas streamed by the simulator reaches the bus as snapshots in order, with unit tests. Met.
 
@@ -140,10 +142,11 @@ Status: done.
 2. `IAgents.InterruptAsync`, decided by the provider's `CanInterrupt` capability; the provider contract does not change.
 3. `SessionEnded` from Agents when a session's stream closes or crashes on its own, before the live turn is closed as failed; a stream that closes mid-turn no longer leaves the turn open.
 4. `UsageRecorded` from Observability, so spending is judged on aggregates that already include the last report.
+5. [`IJobs.ContinueAsync`](../design/core.md#holding-a-job), the caller the hint lacked: a human continues a held job with a message, in its session when it is still open, otherwise in a new session that resumes the job's conversation when the provider can, or starts over with the instruction and the message.
 
 ### Supervision
 
-Status: done with the simulator. Deferred: stopping a session whose agent ignores the interruption, after a grace period; resuming a job held as `SessionLost` in a new session when a human hints it; and persisting the interventions.
+Status: done with the simulator. Resuming a job held as `SessionLost` in a new session when a human hints it is done, through `IJobs.ContinueAsync`. Deferred: stopping a session whose agent ignores the interruption, after a grace period, and persisting the interventions.
 
 1. The [Supervision](../design/core.md#supervision) module: a running job silent for the window, outside the time a permission waits for a human, is held as `Stalled`. A job whose session ends on its own is held as `SessionLost` by Jobs itself, since [concurrent delivery](#concurrency) would make a hold from Supervision race the evaluation of the failed turn.
 2. The silence window from `supervision.json` in the data folder, 15 minutes by default, parsed strictly; a rejected file keeps the default and says why.

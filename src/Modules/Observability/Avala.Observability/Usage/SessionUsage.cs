@@ -11,6 +11,8 @@ internal sealed record SessionUsage(SessionId Session)
 {
     public Option<ProviderInfo> Provider { get; private init; }
 
+    public Option<AgentAccount> Account { get; private init; }
+
     public Option<JobId> Job { get; private init; }
 
     public TokenUsage Tokens { get; private init; }
@@ -27,7 +29,7 @@ internal sealed record SessionUsage(SessionId Session)
 
     private ImmutableHashSet<TurnId> EndedTurns { get; init; } = [];
 
-    public SessionUsage OpenedBy(ProviderInfo provider) => this with { Provider = provider };
+    public SessionUsage OpenedBy(ProviderInfo provider, Option<AgentAccount> account) => this with { Provider = provider, Account = account };
 
     public SessionUsage WorkingOn(JobId job) => this with { Job = job };
 

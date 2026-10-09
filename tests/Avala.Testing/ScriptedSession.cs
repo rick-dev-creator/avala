@@ -6,7 +6,10 @@ using Avala.Sdk;
 
 namespace Avala.Testing;
 
-public sealed class ScriptedSession(Func<SessionId, TurnId, IEnumerable<IAgentEvent>> script, SessionOptions options) : IAgentSession
+public sealed class ScriptedSession(
+    Func<SessionId, TurnId, IEnumerable<IAgentEvent>> script,
+    SessionOptions options,
+    Func<Option<AgentAccount>> account) : IAgentSession
 {
     private readonly Channel<IAgentEvent> events = Channel.CreateUnbounded<IAgentEvent>();
     private readonly ConcurrentQueue<string> received = new();
@@ -17,6 +20,8 @@ public sealed class ScriptedSession(Func<SessionId, TurnId, IEnumerable<IAgentEv
     public SessionId Id { get; } = SessionId.New();
 
     public SessionOptions Options { get; } = options;
+
+    public Option<AgentAccount> Account => account();
 
     public IReadOnlyList<string> Received => [.. received];
 

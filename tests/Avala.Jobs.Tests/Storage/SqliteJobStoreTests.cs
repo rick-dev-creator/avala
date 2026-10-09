@@ -18,13 +18,14 @@ public sealed class SqliteJobStoreTests
         using var folder = new TemporaryFolder();
         var job = Given.JobIn(JobState.Checking);
         Outcomes.Succeeds(job.Retry(Given.Feedback));
+        Outcomes.Succeeds(job.RecordResume(Given.Session, new ResumeToken("conversation-1")));
         await SaveAsync(folder, job);
 
         var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
 
         Assert.Equal(
-            (job.Id, job.State, job.Instruction, job.Budget, job.Repository, job.Workspace, job.Session),
-            (reloaded.Id, reloaded.State, reloaded.Instruction, reloaded.Budget, reloaded.Repository, reloaded.Workspace, reloaded.Session));
+            (job.Id, job.State, job.Instruction, job.Budget, job.Repository, job.Workspace, job.Session, job.Resume),
+            (reloaded.Id, reloaded.State, reloaded.Instruction, reloaded.Budget, reloaded.Repository, reloaded.Workspace, reloaded.Session, reloaded.Resume));
         Assert.Equal(
             job.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance)),
             reloaded.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance)));

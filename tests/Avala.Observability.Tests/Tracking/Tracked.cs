@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Observability.Metrics;
 using Avala.Observability.Tests.Metrics;
 using Avala.Observability.Tracking;
+using Avala.Sdk;
 using Avala.Testing;
 using Microsoft.Extensions.Time.Testing;
 
@@ -34,10 +35,12 @@ internal sealed class Tracked : IDisposable
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    public async Task<SessionId> OpenAsync(ProviderInfo provider)
+    public Task<SessionId> OpenAsync(ProviderInfo provider) => OpenAsync(provider, Option<AgentAccount>.None);
+
+    public async Task<SessionId> OpenAsync(ProviderInfo provider, Option<AgentAccount> account)
     {
         var session = SessionId.New();
-        await tracker.HandleAsync(new SessionOpened(session, provider, "."), Cancellation);
+        await tracker.HandleAsync(new SessionOpened(session, provider, ".") { Account = account }, Cancellation);
 
         return session;
     }

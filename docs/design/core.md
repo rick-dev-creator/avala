@@ -38,12 +38,12 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
-| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost | `JobId`, integration events, `IJobs`, `ICompletionGate` |
-| Agents | Sessions, turn integrity, provider registry | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, integration events |
+| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, and the job's resume token | `JobId`, integration events, `IJobs`, `ICompletionGate` |
+| Agents | Sessions, turn integrity, provider registry, the harness tools and resume tokens handed to providers by capability | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, integration events |
 | Workspaces | Working copies, branches, checkpoints, and the files of the commit a job started from | `IWorkspaces`, `IBaseFiles`, integration events |
-| Canvas | Accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
+| Canvas | Offers the canvas tool, accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
-| Observability | Tokens, cost, limits and turns by provider, session and job, and their metrics | `IUsage` and its summaries |
+| Observability | Tokens, cost, limits and turns by provider, account, session and job, and their metrics | `IUsage` and its summaries |
 | Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
 | Permissions | Answers permission requests through an explicit policy and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `IPermissionAudit` |
 | Supervision | Holds a job whose agent stays silent, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
@@ -74,16 +74,19 @@ internal sealed class Job
     public RepositoryPath Repository { get; }
     public Option<WorkspaceId> Workspace { get; private set; }
     public Option<SessionId> Session { get; private set; }
+    public Option<ResumeToken> Resume { get; private set; }
 
     public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository);
     public Result<JobSubmitted, JobError> Submit();
     public Result<AttemptStarted, JobError> Start(WorkspaceId workspace, SessionId session);
-    public Result<AttemptStarted, JobError> Recover(SessionId session);
+    public Result<AttemptStarted, JobError> Recover(SessionId session, bool resumed);
+    public Result<ResumeRecorded, JobError> RecordResume(SessionId session, ResumeToken token);
     public Result<AttemptCompleted, JobError> CompleteTurn();
     public Result<AttemptPassed, JobError> Pass();
     public Result<AttemptRetried, JobError> Retry(Feedback feedback);
     public Result<HelpRequested, JobError> RequestHelp();
     public Result<AttemptStarted, JobError> Hint(Feedback guidance);
+    public Result<AttemptStarted, JobError> Hint(Feedback guidance, SessionId session, bool resumed);
     public Result<AttemptStarted, JobError> SendBack(Feedback feedback);
     public Result<JobApproved, JobError> Approve();
     public Result<JobDiscarded, JobError> Discard();
@@ -114,6 +117,8 @@ State machines use the [Stateless](https://github.com/dotnet-state-machine/state
 The generated [job lifecycle diagram](../diagrams/job-lifecycle.md) is the reference. A test fails when it no longer matches the code.
 
 The job references its workspace and its agent session by identifier only. Both are absent until the job starts. `Recover` brings a job that was `Running` or `Checking` when the application stopped back to `Running`: it interrupts the attempt that was underway, records the new session and starts a `Recovery` attempt with a fresh round of retries.
+
+The job also keeps the latest [resume token](#resuming-a-conversation) its current session issued: `RecordResume` accepts a token only from the job's current session and returns `ForeignSession` otherwise. When the job moves to a new session, through `Recover` or the `Hint` that names a session, it keeps the token only if that session resumed the conversation; a session that started over forgets it, since its conversation is a new one that will issue its own token.
 
 Attempts have no state machine of their own. The job lifecycle already decides when an attempt starts, completes, passes or is rejected, so a second machine would be a second source of truth for the same facts. An attempt is an entity inside the `Job` aggregate, and only the job changes it.
 
@@ -252,9 +257,9 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 | `JobLedger` | Stores a job, then publishes `JobProgressed` with its status |
 | `JobQueues` | One serial queue per job: every piece of work on a job loads it and runs in that queue, in the order it was queued |
 | `SubmitJob` | Creates a job, submits it, stores it and publishes `JobSubmitted` |
-| `JobLauncher` | Prepares the workspace, opens the agent session, starts the job, stores it, announces `JobSessionStarted` and only then sends the instruction. It also relaunches a job after a restart |
+| `JobLauncher` | Prepares the workspace, opens the agent session, starts the job, stores it, announces `JobSessionStarted` and only then sends the instruction. It also relaunches a job after a restart, and continues a held job when a human sends it a message, resuming the job's conversation when it can |
 | `PrepareJob` | Handles `JobSubmitted` by queueing the launch of the job |
-| `CheckTurn` | Handles `TurnFinished` by queueing the evaluation of the turn, and `SessionEnded` by queueing a hold as `SessionLost`, then returns at once |
+| `CheckTurn` | Handles `TurnFinished` by queueing the evaluation of the turn, `SessionEnded` by queueing a hold as `SessionLost`, and `SessionResumable` by queueing the record of the job's resume token, then returns at once |
 | `EvaluateTurn` | Runs in the job's queue: checkpoints the workspace, evaluates the gates, then passes the job, retries with feedback to the same session, or asks for help when the budget is spent |
 | `CompletionGates` | Combines every registered gate into one verdict |
 | `JobRecovery` | An `IStartupTask` that launches `Preparing` jobs and recovers `Running` or `Checking` jobs, each in its queue |
@@ -266,7 +271,8 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 - A turn that ends interrupted or failed fails the job, unless the job was held first: a held job is no longer `Running`, so `EvaluateTurn` ignores the end of the turn the hold interrupted.
 - **A lost session holds the job.** When the current session of a running job ends on its own, `SessionEnded` reaches `CheckTurn` before the failed `TurnFinished` that `AgentSessions` publishes after it, and both go to the job's queue in that order. The job is held as `SessionLost` and its session stopped, so the failed turn finds a held job and a human decides. `SessionEnded` of a session the job no longer uses is ignored.
 - Handlers are idempotent. `EvaluateTurn` acts only on a job that is still `Running` in the session that finished, so a repeated `TurnFinished` changes nothing.
-- Recovery opens a new session in the existing workspace and calls `job.Recover`, which interrupts the attempt that was underway and starts a `Recovery` attempt.
+- Recovery opens a new session in the existing workspace and calls `job.Recover`, which interrupts the attempt that was underway and starts a `Recovery` attempt. It asks to resume the job's conversation with its stored resume token: when the session resumed it, the agent is told that the harness restarted and to continue where it left off; otherwise the new session starts over with the instruction, as before.
+- **Resume tokens.** `SessionResumable` reaches `CheckTurn` in the same mailbox as `SessionEnded`, and both are queued on the job in that order, so a session that issues a token and then dies has its token stored before the job is held. The token is stored with the job and announced with `JobResumable`.
 
 ### Completion gates
 
@@ -296,6 +302,7 @@ public interface IJobs
 {
     ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken);
     ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken);
+    ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken);
 }
 ```
 
@@ -304,6 +311,13 @@ public interface IJobs
 - `HoldJob` stores the held job first, which publishes `JobProgressed` with `NeedsHelp`, and only then halts the session, so the end of the interrupted turn finds a job that is no longer `Running`. It then publishes `JobHeld` with a `JobHold`: job, session, reason and how the session was halted.
 - Halting: `SessionLost` stops the session, since it is already gone. Every other reason interrupts the turn through `IAgents.InterruptAsync` and keeps the session open for a human: `Interrupted` when a turn was interrupted, `Idle` when none was running. A provider that cannot interrupt, or an interruption that fails otherwise, stops the session instead: `Stopped`. A session that is no longer open is `AlreadyClosed`.
 - The hold reason is not persisted: the stored job is `NeedsHelp` with an interrupted attempt, and the reason lives in `JobHeld` and in the audit of the module that held it. Persisting it arrives with the first schema migration.
+
+**Continuing a held job.** `IJobs.ContinueAsync` is how a human answers a job that needs help, whatever held it: it hints the job with the human's message, in the job's queue, and returns a `JobContinuation` with the session the job continues in and how (`ContinuedIn`).
+
+- `SameSession`: the job's session is still open, as after a `Stalled` or budget hold that interrupted the turn, or after the retries ran out. The message goes to that session.
+- `ResumedConversation`: the session is gone, because it was lost or the application restarted since. A new session opens in the job's workspace with the job's resume token, and the provider resumed the conversation, so the message alone is sent.
+- `NewConversation`: the session is gone and the conversation could not be resumed: the provider cannot resume, there is no token, or the provider rejected it. The new session starts over, and gets the instruction followed by the message.
+- Jobs decides whether the session is open by asking `IAgents.IsOpen`, never by the hold reason, which is not stored. A new session is opened before the job changes, so a job whose workspace is gone (`WorkspaceUnavailable`) or whose agent cannot start (`AgentUnavailable`) stays held. A job that is not `NeedsHelp` is `NotHeld`, an empty message `EmptyMessage`, an unknown job `UnknownJob`.
 
 ## Agents
 
@@ -324,6 +338,7 @@ public interface IAgentProvider
 public interface IAgentSession : IAsyncDisposable
 {
     SessionId Id { get; }
+    Option<AgentAccount> Account { get; }
     IAsyncEnumerable<IAgentEvent> Events { get; }
     ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken);
     ValueTask<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken);
@@ -331,16 +346,17 @@ public interface IAgentSession : IAsyncDisposable
 }
 ```
 
-- `SessionOptions` holds harness concepts only: working directory and permission mode. Paths, tokens and protocols belong to each provider's own settings.
+- `SessionOptions` holds harness concepts only: working directory, permission mode, the `Resume` token of a conversation to resume and the harness `Tools` the agent may call. Paths, credentials and protocols belong to each provider's own settings.
 - `AgentSessions` opens every session in `AskEveryTime`: the agent asks before every file edit and every command, so every action reaches the policy of [Permissions](#permissions), which allows edits inside the workspace by default. A provider is never told to allow edits on its own, since that would let edits bypass the policy, its guard and its audit. Without the Permissions plugin nothing answers for the harness, and every request waits for a human through `IAgents.RespondAsync`, the documented behavior of `Ask`.
-- Behavior depends on `AgentCapabilities`, never on a provider's name: partial output, reasoning, interruption, resumption, usage, cost and limits.
+- Behavior depends on `AgentCapabilities`, never on a provider's name: partial output, reasoning, interruption, resumption, injected tools, usage, cost and limits.
 
 Other modules use agents through `IAgents`, in two steps:
 
 ```csharp
 public interface IAgents
 {
-    ValueTask<Result<SessionId, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken);
+    ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken);
+    bool IsOpen(SessionId session);
     ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken);
     ValueTask<Result<ItemId, AgentError>> RespondAsync(SessionId session, PermissionDecision decision, CancellationToken cancellationToken);
     ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken);
@@ -348,10 +364,12 @@ public interface IAgents
 }
 ```
 
-- `OpenAsync` opens a session in the working directory of `AgentRequest` and returns its `SessionId`. `SendAsync` sends a message and returns the `AgentTurn` it started. Opening and sending are separate so the caller can store the session before any turn can finish: Jobs records it on the job first.
+- `OpenAsync` opens a session in the working directory of `AgentRequest` and returns an `OpenedSession`: its `SessionId` and whether it `Resumed` the conversation of the request's optional `Resume` token. `SendAsync` sends a message and returns the `AgentTurn` it started. Opening and sending are separate so the caller can store the session before any turn can finish: Jobs records it on the job first.
+- `SessionStarter` builds the `SessionOptions` from the provider's capabilities, so no caller decides for a provider: it passes the harness tools only to a provider that `AcceptsTools`, and the resume token only to one that `CanResume`. When such a provider rejects the token, it starts a fresh session instead, which is not `Resumed`.
+- `IsOpen` says whether a session is open and its event stream has not ended. Jobs asks it before continuing a held job in its old session.
 - `RespondAsync` answers the permission request of a live session and returns the item it unblocked. A session that is not open returns `SessionClosed`.
 - `InterruptAsync` asks the agent of a live session to end its running turn, through `IAgentSession.InterruptAsync`; the agent then ends the turn as `Interrupted`. A provider whose capabilities do not declare `CanInterrupt` returns `Unsupported` without being asked, and a session that is not open returns `SessionClosed`. The provider contract does not change.
-- `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends.
+- `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider and the session's account, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends and `SessionResumable` when a provider that `CanResume` issues a resume token.
 - When a session's event stream ends on its own, `AgentSessions` publishes `SessionEnded` with `Crashed` when the stream failed and `Closed` when it completed. It publishes it before closing the turn left live, if any, as `Failed`, so a consumer learns the session is gone before it sees that turn fail. A stream that completes while a turn is live no longer leaves the turn open forever. Stopping a session through `StopAsync`, including at shutdown, publishes nothing, so a restart is never mistaken for a lost session and recovery still finds its jobs running.
 
 ### Agnostic events
@@ -371,8 +389,44 @@ Every provider translates its protocol into one closed set of events. Each event
 | `PlanUpdated` | The agent's plan and the status of each step |
 | `UsageReported` | Tokens used: input, output, cache reads, cache writes and reasoning, plus the cost when the provider reports it |
 | `LimitReported` | A usage limit: its window, the fraction used and when it resets |
+| `ResumeTokenIssued` | The opaque token that resumes this session's conversation from here, see [Resuming a conversation](#resuming-a-conversation) |
 
 All work inside a turn shares one lifecycle: started, progressed, completed. Messages, tools and canvases therefore get the same integrity guarantees and the same rendering pipeline.
+
+### Resuming a conversation
+
+**Accepted**
+
+A provider that declares `CanResume` lets the harness continue a conversation in a new session, after the application restarted or after a session was lost.
+
+- **The token is the provider's.** `ResumeToken` is opaque text the provider issues and only that provider reads: a Claude Code session id, a Codex thread id, or whatever its protocol resumes from. The core stores and returns it, never parses it.
+- **Issued in a turn.** The provider reports it with `ResumeTokenIssued`, inside a turn, whenever its protocol makes it known, such as the start message of the turn. It may issue a new one in a later turn; the latest wins. The `Turn` aggregate passes it through like a plan or a usage report.
+- **Announced only by capability.** `AgentSessions` publishes `SessionResumable` for a token only when the provider declares `CanResume`; a token from another provider is still forwarded as activity, but nothing will try to resume it.
+- **Resumed through the options.** `AgentRequest.Resume` carries the token, and `SessionStarter` passes it in `SessionOptions.Resume` only to a provider that `CanResume`. The provider either resumes that conversation or rejects the token with `CannotResume`; the harness then starts over in a fresh session, so a stale token never blocks a job.
+- **Jobs keeps it.** Jobs stores the latest token of a job's current session with the job, and uses it for [recovery](#job-flow-coordinator) and when a human [continues a held job](#holding-a-job).
+
+### Harness tools
+
+**Accepted**
+
+The harness offers tools of its own to the agent, starting with the canvas.
+
+```csharp
+public sealed record HarnessTool(string Name, string Description, string InputSchema, ToolSurface Surface);
+
+public enum ToolSurface { Canvas }
+```
+
+- **Shaped like MCP.** A tool is a name, a description for the model and its input as a JSON Schema in text, exactly what an MCP server lists. The real adapter transports the tools through MCP, as a server it gives its agent; the contract does not depend on it, and no MCP server exists yet.
+- **Contributed, not known.** A module that offers a tool registers its `HarnessTool` in the container. `SessionStarter` gives every registered tool to providers that declare `AcceptsTools`, and none to the others. Agents never knows which module offered a tool.
+- **The surface says how a call is reported.** The adapter knows its own protocol, so it translates a call of an injected tool into agnostic events; the surface of the tool tells it which ones. `Canvas`: a call is a canvas item whose identifier is the call's. `CanvasStarted` opens it with the call's `title` and `mediaType`, `ItemProgressed` streams its `content`, in chunks when the provider streams partial input or at once otherwise, and `ItemCompleted` closes it as succeeded, or failed when the input cannot be read. The adapter answers the call to the agent itself; nothing else needs to run.
+- Tools whose calls the harness must execute and answer, with their own surface, arrive when the first one is needed.
+
+### Accounts
+
+**Accepted**
+
+A provider may report the account a session runs under, as `IAgentSession.Account`: an opaque `Id` and a `Label` for people, or none. It is known when the session opens, `SessionOpened` carries it, and it never changes during the session. Observability aggregates usage by account with it.
 
 ### Turn integrity
 
@@ -394,6 +448,14 @@ The generated [turn lifecycle diagram](../diagrams/turn-lifecycle.md) shows the 
 
 Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. When the session was asked to `AskEveryTime`, it also reports every file edit and command that goes ahead, by progressing or succeeding, without having asked permission first. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes in `AskEveryTime`, the mode Agents uses, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
 
+Every addition to the provider contract arrives with a check of the kit, the simulator implementing it and, through the simulator, a host simulation test:
+
+| Check | Requires |
+| --- | --- |
+| Every turn | A resume token only from a provider that declares `CanResume`; a canvas only from a session that was given a canvas tool; an account that does not change during the session |
+| `CheckResumeAsync` | A provider that declares `CanResume` issues a token during the turn, and a new session started with it is accepted and runs a conforming turn. A provider that does not declare it only runs the turn check, which forbids tokens |
+| `CheckCanvasToolAsync` | A provider that declares `AcceptsTools`, given a canvas tool and an instruction that draws, reports the call as a canvas that completes. A provider that does not is given no tool, and runs the turn check |
+
 ### Simulator
 
 **Accepted**
@@ -406,6 +468,9 @@ Every provider plugin must pass the same check: start a session, send a turn and
 - It honors the permission mode like Claude Code: in `AskEveryTime` every file edit and every command asks first, naming the file's full path or the command line, and an edit is written only once allowed; in `AllowEdits` edits go ahead and only the commands a scenario marks as asking do ask; in `AllowAll` nothing asks. A denied edit or command is cancelled and the turn finishes.
 - Events can be spaced by a delay measured with `TimeProvider`. It is zero by default and in tests; the plugin entry uses a short pace for in-app demos, and a constructor overload takes another.
 - It declares every capability, and an interruption ends the running turn as `Interrupted`.
+- **Resume.** A session's conversation is its scenario and the number of turns it played. Every turn issues, right after `TurnStarted`, a resume token that encodes both with the conversation's identifier, so a token survives a restart of the application without any storage. A session started with it continues the same conversation with its next script; a token it never issued is rejected with `CannotResume`.
+- **Canvas tool.** Given a tool whose surface is `Canvas`, a canvas of a scenario is a call of that tool, reported as the canvas events the contract defines. Without one, the simulator writes the same content as a message, like an agent that has no canvas.
+- **Account.** Every session reports the fixed account `simulated-account`, labelled `Simulated account`.
 - `tests/Avala.Host.Tests` plays its scenarios inside the application composed from the published plugin folder, with its in-app pace, and observes the jobs and the canvas snapshots through the event feed.
 
 | Scenario | Behavior |
@@ -415,10 +480,10 @@ Every provider plugin must pass the same check: start a session, send a turn and
 | `fix-after-feedback` | The first turn writes a file marked `BROKEN`; the turn after feedback rewrites it fixed |
 | `rewrite-checks` | Like `fix-after-feedback`, but the first turn also empties `.avala/checks.json`, an agent trying to loosen the rules that judge it |
 | `permission` | Asks permission for a command and waits for `RespondAsync`. Allowed, it runs the command and goes on; denied, it cancels the command and finishes the turn |
-| `crash` | The event stream throws in the middle of the turn |
+| `crash` | The event stream throws in the middle of the turn; a session that resumes the conversation finishes the next turn |
 | `left-open` | Starts an item and finishes the turn without closing it |
-| `hang` | `TurnStarted` and nothing else, until interrupted |
-| `canvas` | Streams an SVG and a Mermaid diagram in chunks |
+| `hang` | `TurnStarted` and its resume token, then nothing until interrupted; the next turn, in the same session or one that resumes it, replies and finishes |
+| `canvas` | Draws an SVG and a Mermaid diagram through the canvas tool, in chunks |
 
 Every scenario that reaches its end reports usage with cost and a usage limit, so observability can be exercised.
 
@@ -429,7 +494,7 @@ Every scenario that reaches its end reports usage with cost and a usage limit, s
 The harness can paint charts, diagrams, screens and designs while the agent writes them, for every provider.
 
 - A canvas is an item of the turn: `CanvasStarted` opens it with its media type, `ItemProgressed` streams its content and `ItemCompleted` closes it. It inherits every integrity rule of items.
-- The harness offers the canvas to every agent as a tool it injects through MCP. Providers that stream partial output deliver the canvas in chunks; the others deliver it at once. The tool arrives with the real Claude Code provider; until then the simulator's `canvas` scenario streams canvases through the same agnostic events.
+- The harness offers the canvas to every agent that accepts tools as a [harness tool](#harness-tools): the Canvas module registers its definition, `canvas` with a `title`, a `mediaType` among those it renders and the `content`, on the `Canvas` surface, in its `Drawing` folder. Agents passes it to providers without knowing Canvas, and each adapter reports the tool's calls as canvas events. Providers that stream partial output deliver the canvas in chunks; the others deliver it at once. The real adapter transports the tool through MCP; the simulator's `canvas` scenario draws through it today.
 - The Canvas module accumulates each canvas, throttles updates and publishes snapshots. View models and renderers, plugins registered by media type, arrive with the user interface.
 - Canvas content is untrusted: it renders in an isolated surface with no network access by default.
 
@@ -442,6 +507,7 @@ The module subscribes to `AgentActivity` with an `IHandle<T>`, like every other 
 | Folder | Holds | Layer |
 | --- | --- | --- |
 | `Canvases` | The `CanvasDocument` aggregate, `CanvasLifecycle`, the error enum and the domain events | Domain |
+| `Drawing` | `CanvasTool`, the definition of the canvas tool the module offers to agents as a `HarnessTool` | Application |
 | `Gallery` | The documents of every session, changed only from the feed's mailbox, and the `ICanvases` query, which reads an immutable list of their snapshots the gallery replaces on every change | Application |
 | `Streaming` | `CanvasFeed`, the handler that applies canvas events to the gallery | Application |
 | `Throttling` | `SnapshotThrottle`, which decides when a snapshot is published. Its cadences belong to a `SerialExecutor`: the feed's changes and the flushes its timers schedule run there one at a time | Application |
@@ -460,7 +526,7 @@ The module subscribes to `AgentActivity` with an `IHandle<T>`, like every other 
 Everything the harnesses process goes through observability: tokens, cost, usage limits, durations and outcomes.
 
 - The agnostic events carry the raw facts, so observability works the same for every provider.
-- An Observability module subscribes to the events on the bus and aggregates them by provider, session and job. Aggregating by account waits until an event carries the account, which arrives with the real providers.
+- An Observability module subscribes to the events on the bus and aggregates them by provider, account, session and job. The account is the one the provider reports when the session opens, see [Accounts](#accounts).
 - It publishes metrics through `System.Diagnostics.Metrics`, the .NET standard that OpenTelemetry collects, and later feeds view models for the in-app dashboards.
 
 ### Correlation
@@ -469,7 +535,7 @@ Agent events know only their session. Two integration events tie a session to th
 
 | Event | Published by | Carries |
 | --- | --- | --- |
-| `SessionOpened` | `AgentSessions`, before it pumps the session's events | `SessionId`, `ProviderInfo` |
+| `SessionOpened` | `AgentSessions`, before it pumps the session's events | `SessionId`, `ProviderInfo`, the working directory and the `Option<AgentAccount>` of the session |
 | `JobSessionStarted` | `JobLauncher`, after storing the job and before sending the instruction, at launch and at recovery | `JobId`, `SessionId` |
 
 Each handler receives its events in publishing order, so both arrive at the tracker before the first activity of the session. Observability does not rely on it: it keeps everything per session and groups sessions by provider and job only when queried, so a late correlation still lands in the right aggregate.
@@ -478,7 +544,7 @@ Each handler receives its events in publishing order, so both arrive at the trac
 
 | Folder | Holds | Layer |
 | --- | --- | --- |
-| `Usage` | `SessionUsage`, an immutable record of one session: provider, job, tokens, cost per currency, unpriced reports, turns by outcome with their duration, and the latest reading of each limit window. The arithmetic on tokens and turns, and the rollup of several sessions into a summary | Domain |
+| `Usage` | `SessionUsage`, an immutable record of one session: provider, account, job, tokens, cost per currency, unpriced reports, turns by outcome with their duration, and the latest reading of each limit window. The arithmetic on tokens and turns, and the rollup of several sessions into a summary | Domain |
 | `Tracking` | `UsageTracker`, the handler of `SessionOpened`, `JobSessionStarted` and `AgentActivity`; `UsageBook`, the in-memory book that implements `IUsage`; and the `IUsageMetrics` port | Application |
 | `Metrics` | `UsageMeter`, the `Avala.Observability` meter behind `IUsageMetrics` | Infrastructure |
 
@@ -486,7 +552,8 @@ Each handler receives its events in publishing order, so both arrive at the trac
 - Each `UsageReported` adds to the totals. A report without a cost adds its tokens and counts as unpriced, so a dashboard can tell a partial cost from a complete one. Costs add up per currency.
 - A turn lasts from its `TurnStarted` to its `TurnCompleted`, measured with `TimeProvider` when the tracker receives each event. A turn counts once: a repeated start or end changes nothing.
 - A limit belongs to the provider, not to a session: each window keeps its latest reading.
-- `IUsage` in `Avala.Observability.Contracts` answers by provider, by session and by job, with a `UsageSummary`: tokens, costs, unpriced reports, a `TurnTally` and limits. A job adds up every session it ran, recovery included.
+- `IUsage` in `Avala.Observability.Contracts` answers by provider, by account, by session and by job, with a `UsageSummary`: tokens, costs, unpriced reports, a `TurnTally` and limits. A job adds up every session it ran, recovery included.
+- An account belongs to its provider: `ByAccount` groups sessions by provider and account, so two providers that use the same identifier stay apart, and leaves out sessions whose provider reported no account. The metrics carry no account tag, to keep their cardinality bounded.
 - After it records a `UsageReported` or a `LimitReported`, the tracker publishes `UsageRecorded` with the session and its job. A consumer that reacts to spending, such as Budgets, handles it and reads `IUsage`, which already includes the report. Handling `AgentActivity` directly would not do: handlers run concurrently, so such a consumer could read the aggregates before the tracker applied the report.
 - The tracker is the only writer of `UsageBook`. The book holds an immutable dictionary of sessions that the tracker replaces on every change, so `IUsage` answers from a consistent snapshot on any thread.
 - The aggregates live in memory and start empty with the application. Persisting them, or rebuilding them from stored history, is left for when the dashboards need history across restarts.
@@ -650,7 +717,7 @@ An unattended agent must not hang forever or die silently. The Supervision modul
 - **Silence.** A job is watched while it is `Running`, from its `JobProgressed`. Every accepted event of the job's current session, the one its latest `JobSessionStarted` named, restarts the silence; events of a session the job no longer uses do not. When the job stays silent for the whole window, it is held as `Stalled` with the silence measured and the window, and Jobs interrupts the turn.
 - **Human time.** While a permission request of the job's session waits for an answer, the job is never silent: the watch pauses on `PermissionRequested` and restarts the window on `PermissionResolved` or on the end of the turn. This is the same rule as the `Turn` aggregate's expiry, where an item waiting for permission never expires. Checks running in `Checking` are not watched either: Verification bounds them with its own timeouts.
 - **Why a lost session is not Supervision's.** A lost session must be held before Jobs evaluates the failed turn that follows it. With one mailbox per handler, a hold decided in Supervision would race that evaluation, and the job would sometimes fail instead of asking a human. Jobs receives both events in one mailbox and queues both on the job, so the order is guaranteed without any module having to be faster than another.
-- **What it does not duplicate.** Sessions lost to a restart of the application are recovery's: stopping a session at shutdown publishes no `SessionEnded`, and `JobRecovery` resumes the job in a new session. Items left open when a turn ends are the `Turn` aggregate's: they are closed as `Abandoned`, the turn ends normally and the job goes on to its checks, so the `left-open` scenario needs no intervention.
+- **What it does not duplicate.** Sessions lost to a restart of the application are recovery's: stopping a session at shutdown publishes no `SessionEnded`, and `JobRecovery` resumes the job in a new session, continuing its conversation when the provider can resume it. A job held as `SessionLost` waits for a human, who continues it through `IJobs.ContinueAsync` in a new session that resumes the conversation when it can. Items left open when a turn ends are the `Turn` aggregate's: they are closed as `Abandoned`, the turn ends normally and the job goes on to its checks, so the `left-open` scenario needs no intervention.
 - **Only a running job.** Jobs rejects a hold of a job that is not `Running`; the module then records nothing. An intervention exists only when a job was actually held.
 
 ### Timers
@@ -795,20 +862,26 @@ A `PolicyRule` carries its origin (`BuiltIn` or `Repository`), name, `Option<Ite
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
 | `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, or Jobs holds one whose session ended on its own, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
+| `JobResumable` | Event | `Job`, `Session` whose resume token Jobs stored | Each time the job's current session issues a resume token, once the token is stored. Never for a session the job no longer uses | Zero or more per session; the simulator issues one per turn |
+| `IJobs.ContinueAsync(JobId, message)` | Command answer | `Result<JobContinuation, JobRejection>`: `Job`, the `Session` the job continues in and `Conversation` (`ContinuedIn`: `SameSession`, `ResumedConversation`, `NewConversation`); or `NotHeld`, `EmptyMessage`, `UnknownJob`, `WorkspaceUnavailable`, `AgentUnavailable` | When a human answers a job that needs help. A success is followed by `JobProgressed` with `Running`, and by `JobSessionStarted` when the session is new | One per human answer |
 
-The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted`, predate this catalog and keep their shapes.
+The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted`, predate this catalog and keep their shapes. The resume token itself stays inside Jobs: it is the provider's opaque text and means nothing to a view.
 
 ### Agents: session ends
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
 | `SessionEnded` | Event | `Session`, `Ending` (`SessionEnding`: `Closed` or `Crashed`) | When a session's event stream ends on its own, before the `TurnFinished` of the turn it left live, if any. Never when the harness stops the session | Zero or one per session |
+| `SessionOpened.Account` | Field of an event | `Option<AgentAccount>`: `Id`, opaque to the harness, and `Label` for people | When a session opens; fixed for the session | One per session |
+| `SessionResumable` | Event | `Session`, `Token`: the `ResumeToken` the provider issued | Right after the `AgentActivity` of the `ResumeTokenIssued` it reports, only for a provider that declares `CanResume` | Zero or more per session, as the provider issues them |
+| `AgentActivity` of `ResumeTokenIssued` | Event | `Session`, `Turn`, `Token` | Inside a turn, when the provider issues a token | As above |
 
 ### Observability: usage recorded
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
 | `UsageRecorded` | Event | `Session`, `Option<JobId>` of its job | After every `UsageReported` and `LimitReported` the tracker recorded, once `IUsage` includes it | One per usage or limit report |
+| `IUsage.ByAccount()` | Query | `IReadOnlyList<AccountUsage>`: `Provider`, `Account` and its `UsageSummary`, ordered by provider then account identifier | Any time, from memory | One per provider and account that reported usage since the application started; sessions without an account are left out |
 
 ### Supervision
 
@@ -844,7 +917,7 @@ The application is built view model first: every screen is built and tested as v
 
 - EF Core with the SQLite provider, with no server.
 - One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
-- The schema is created with `EnsureCreated`. The first schema change, the `Base` column of a workspace, arrived before any release could create jobs, so it ships without a migration: a data folder created by an earlier build must be deleted. Migrations arrive with the first schema change after a release.
+- The schema is created with `EnsureCreated`. The first schema changes, the `Base` column of a workspace and the `Resume` column of a job, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted. Migrations arrive with the first schema change after a release.
 - Stores are internal interfaces of each module's application layer, implemented in its `Storage` folder.
 - EF Core is referenced only from the infrastructure layer, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.
 - Connection pooling is off.

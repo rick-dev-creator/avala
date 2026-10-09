@@ -20,37 +20,23 @@ internal sealed class SimulatedRun : IAsyncDisposable
 {
     private static readonly JobStatus[] Settled = [JobStatus.AwaitingReview, JobStatus.NeedsHelp, JobStatus.Failed];
 
-    private readonly CancellationTokenSource subscriptions = new();
+    private readonly PublishedPlugins plugins;
     private readonly TemporaryFolder data;
-    private readonly CompositionRoot root;
     private readonly TemporaryRepository repository;
-    private readonly EventWatch<JobProgressed> progress;
-    private readonly EventWatch<AgentActivity> activity;
-    private readonly EventWatch<CanvasUpdated> canvases;
-    private readonly EventWatch<PermissionDecided> decisions;
-    private readonly EventWatch<JobHeld> holds;
-    private readonly EventWatch<SupervisorIntervened> supervision;
-    private readonly EventWatch<BudgetIntervened> budgets;
-    private readonly EventWatch<UsageRecorded> usage;
+    private Application application;
 
-    private SimulatedRun(TemporaryFolder data, CompositionRoot root, TemporaryRepository repository)
+    private SimulatedRun(PublishedPlugins plugins, TemporaryFolder data, TemporaryRepository repository, CompositionRoot root)
     {
+        this.plugins = plugins;
         this.data = data;
-        this.root = root;
         this.repository = repository;
-        progress = Watch<JobProgressed>();
-        activity = Watch<AgentActivity>();
-        canvases = Watch<CanvasUpdated>();
-        decisions = Watch<PermissionDecided>();
-        holds = Watch<JobHeld>();
-        supervision = Watch<SupervisorIntervened>();
-        budgets = Watch<BudgetIntervened>();
-        usage = Watch<UsageRecorded>();
+        application = new Application(root);
     }
 
     public TemporaryRepository Repository => repository;
 
-    public ICanvases Canvases => root.Services.GetRequiredService<ICanvases>();
+    public ICanvases Canvases => Get<ICanvases>();
+
     public JobId Job { get; private set; }
 
     public string Worktree => Assert.Single(Directory.GetDirectories(new AvalaPaths(data.Path).Folder("worktrees")));
@@ -84,7 +70,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await repository.CommitAsync(path, content, Cancellation);
         }
 
-        var run = new SimulatedRun(data, root, repository);
+        var run = new SimulatedRun(plugins, data, repository, root);
         root.Start();
         await run.SubmitAsync(scenario);
 
@@ -93,36 +79,45 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public T Get<T>()
         where T : notnull =>
-        root.Services.GetRequiredService<T>();
+        application.Root.Services.GetRequiredService<T>();
+
+    public async Task RestartAsync()
+    {
+        await application.DisposeAsync();
+        application = new Application(CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path)));
+        application.Root.Start();
+    }
 
     public async Task<JobStatus> SettledAsync() =>
-        (await progress.UntilAsync(update => Settled.Contains(update.Status))).Status;
+        (await application.Progress.UntilAsync(update => Settled.Contains(update.Status))).Status;
 
     public async Task<IReadOnlyList<JobStatus>> JourneyAsync() =>
-        [.. (await progress.CollectUntilAsync(update => Settled.Contains(update.Status))).Select(update => update.Status)];
+        [.. (await application.Progress.CollectUntilAsync(update => Settled.Contains(update.Status))).Select(update => update.Status)];
 
     public async Task<IReadOnlyList<IAgentEvent>> TurnAsync() =>
-        [.. (await activity.CollectUntilAsync(update => update.Event is TurnCompleted)).Select(update => update.Event)];
+        [.. (await application.Activity.CollectUntilAsync(update => update.Event is TurnCompleted)).Select(update => update.Event)];
 
-    public async Task<PolicyDecision> DecisionAsync() => (await decisions.UntilAsync(_ => true)).Decision;
+    public async Task<PolicyDecision> DecisionAsync() => (await application.Decisions.UntilAsync(_ => true)).Decision;
 
     public async Task<IReadOnlyList<PolicyDecision>> DecisionsAsync(int count)
     {
         var decided = 0;
 
-        return [.. (await decisions.CollectUntilAsync(_ => ++decided == count)).Select(update => update.Decision)];
+        return [.. (await application.Decisions.CollectUntilAsync(_ => ++decided == count)).Select(update => update.Decision)];
     }
 
-    public async Task<JobHold> HoldAsync() => (await holds.UntilAsync(_ => true)).Hold;
+    public async Task<JobHold> HoldAsync() => (await application.Holds.UntilAsync(_ => true)).Hold;
 
-    public async Task<SupervisionIntervention> SupervisorInterventionAsync() => (await supervision.UntilAsync(_ => true)).Intervention;
+    public async Task ResumableAsync() => _ = await application.Resumable.UntilAsync(update => update.Job == Job);
 
-    public async Task<BudgetIntervention> BudgetInterventionAsync() => (await budgets.UntilAsync(_ => true)).Intervention;
+    public async Task<SupervisionIntervention> SupervisorInterventionAsync() => (await application.Supervision.UntilAsync(_ => true)).Intervention;
+
+    public async Task<BudgetIntervention> BudgetInterventionAsync() => (await application.Budgets.UntilAsync(_ => true)).Intervention;
 
     public async Task UsageRecordedAsync(int reports)
     {
         var recorded = 0;
-        _ = await usage.UntilAsync(_ => ++recorded == reports);
+        _ = await application.Usage.UntilAsync(_ => ++recorded == reports);
     }
 
     public async Task<IReadOnlyList<CanvasSnapshot>> CanvasSnapshotsAsync(int canvasCount)
@@ -131,25 +126,69 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         return
         [
-            .. (await canvases.CollectUntilAsync(update => update.Snapshot.Status != CanvasStatus.Streaming && ++closed == canvasCount))
+            .. (await application.Canvases.CollectUntilAsync(update => update.Snapshot.Status != CanvasStatus.Streaming && ++closed == canvasCount))
                 .Select(update => update.Snapshot),
         ];
     }
 
     public async ValueTask DisposeAsync()
     {
-        await subscriptions.CancelAsync();
-        await root.DisposeAsync();
+        await application.DisposeAsync();
         await repository.DisposeAsync();
         data.Dispose();
-        subscriptions.Dispose();
     }
 
     private async Task SubmitAsync(string scenario) =>
         Job = Outcomes.Succeeds(await Get<IJobs>()
             .SubmitAsync(new JobRequest(repository.Path, $"[simulate: {scenario}] Greet the team"), Cancellation));
 
-    private EventWatch<TEvent> Watch<TEvent>()
-        where TEvent : IIntegrationEvent =>
-        new(root.Services.GetRequiredService<IEventFeed>().SubscribeAsync<TEvent>(subscriptions.Token), Cancellation);
+    private sealed class Application : IAsyncDisposable
+    {
+        private readonly CancellationTokenSource subscriptions = new();
+
+        public Application(CompositionRoot root)
+        {
+            Root = root;
+            Progress = Watch<JobProgressed>();
+            Activity = Watch<AgentActivity>();
+            Canvases = Watch<CanvasUpdated>();
+            Decisions = Watch<PermissionDecided>();
+            Holds = Watch<JobHeld>();
+            Resumable = Watch<JobResumable>();
+            Supervision = Watch<SupervisorIntervened>();
+            Budgets = Watch<BudgetIntervened>();
+            Usage = Watch<UsageRecorded>();
+        }
+
+        public CompositionRoot Root { get; }
+
+        public EventWatch<JobProgressed> Progress { get; }
+
+        public EventWatch<AgentActivity> Activity { get; }
+
+        public EventWatch<CanvasUpdated> Canvases { get; }
+
+        public EventWatch<PermissionDecided> Decisions { get; }
+
+        public EventWatch<JobHeld> Holds { get; }
+
+        public EventWatch<JobResumable> Resumable { get; }
+
+        public EventWatch<SupervisorIntervened> Supervision { get; }
+
+        public EventWatch<BudgetIntervened> Budgets { get; }
+
+        public EventWatch<UsageRecorded> Usage { get; }
+
+        public async ValueTask DisposeAsync()
+        {
+            await subscriptions.CancelAsync();
+            await Root.DisposeAsync();
+            subscriptions.Dispose();
+        }
+
+        private EventWatch<TEvent> Watch<TEvent>()
+            where TEvent : IIntegrationEvent =>
+            new(Root.Services.GetRequiredService<IEventFeed>().SubscribeAsync<TEvent>(subscriptions.Token), Cancellation);
+    }
 }

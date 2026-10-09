@@ -35,6 +35,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Option<SessionId> Session { get; private set; }
 
+    public Option<ResumeToken> Resume { get; private set; }
+
     public IReadOnlyList<Attempt> Attempts => attempts;
 
     public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository) =>
@@ -54,15 +56,27 @@ internal sealed class Job : IAggregateRoot<JobId>
                 return Begin(AttemptOrigin.Initial, Option<Feedback>.None);
             });
 
-    public Result<AttemptStarted, JobError> Recover(SessionId session) =>
+    public Result<AttemptStarted, JobError> Recover(SessionId session, bool resumed) =>
         machine.TryFire(JobTrigger.Recover, JobError.CannotRecover)
             .Map(_ =>
             {
-                Session = session;
+                Join(session, resumed);
                 InterruptUnderwayAttempt();
 
                 return Begin(AttemptOrigin.Recovery, Option<Feedback>.None);
             });
+
+    public Result<ResumeRecorded, JobError> RecordResume(SessionId session, ResumeToken token)
+    {
+        if (Session != Option<SessionId>.Some(session))
+        {
+            return JobError.ForeignSession;
+        }
+
+        Resume = token;
+
+        return new ResumeRecorded(Id, session);
+    }
 
     public Result<AttemptCompleted, JobError> CompleteTurn() =>
         machine.TryFire(JobTrigger.CompleteTurn, JobError.CannotCompleteTurn)
@@ -83,6 +97,15 @@ internal sealed class Job : IAggregateRoot<JobId>
     public Result<AttemptStarted, JobError> Hint(Feedback guidance) =>
         machine.TryFire(JobTrigger.Hint, JobError.CannotHint)
             .Map(_ => Begin(AttemptOrigin.Hint, guidance));
+
+    public Result<AttemptStarted, JobError> Hint(Feedback guidance, SessionId session, bool resumed) =>
+        machine.TryFire(JobTrigger.Hint, JobError.CannotHint)
+            .Map(_ =>
+            {
+                Join(session, resumed);
+
+                return Begin(AttemptOrigin.Hint, guidance);
+            });
 
     public Result<AttemptStarted, JobError> SendBack(Feedback feedback) =>
         machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
@@ -125,6 +148,12 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     private bool HasRetriesLeft() =>
         attempts.Count - attempts.FindLastIndex(attempt => attempt.Origin != AttemptOrigin.Retry) < Budget.AttemptsPerRound;
+
+    private void Join(SessionId session, bool resumed)
+    {
+        Session = session;
+        Resume = resumed ? Resume : Option<ResumeToken>.None;
+    }
 
     private AttemptStarted Begin(AttemptOrigin origin, Option<Feedback> guidance)
     {

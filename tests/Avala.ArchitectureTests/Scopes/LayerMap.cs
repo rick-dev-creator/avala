@@ -18,6 +18,7 @@ internal static class LayerMap
             [""] = Layer.None,
             ["Contracts"] = Layer.Contracts,
             ["Canvases"] = Layer.Domain,
+            ["Drawing"] = Layer.Application,
             ["Gallery"] = Layer.Application,
             ["Streaming"] = Layer.Application,
             ["Throttling"] = Layer.Application,

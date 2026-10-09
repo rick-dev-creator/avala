@@ -13,3 +13,5 @@ public sealed record UsageSummary(
 public readonly record struct TurnTally(int Finished, int Interrupted, int Failed, TimeSpan Duration);
 
 public sealed record ProviderUsage(ProviderInfo Provider, UsageSummary Usage);
+
+public sealed record AccountUsage(ProviderInfo Provider, AgentAccount Account, UsageSummary Usage);

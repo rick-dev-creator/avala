@@ -10,32 +10,30 @@ using Microsoft.Extensions.Logging;
 namespace Avala.Agents.Sessions;
 
 internal sealed partial class AgentSessions(
-    IEnumerable<IAgentProvider> providers,
+    SessionStarter starter,
     IEventBus bus,
     TimeProvider clock,
     ILogger<AgentSessions> logger) : IAgents, IAsyncDisposable
 {
     private ImmutableDictionary<SessionId, LiveSession> live = ImmutableDictionary<SessionId, LiveSession>.Empty;
 
-    public async ValueTask<Result<SessionId, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken)
+    public async ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken)
     {
-        if (providers.FirstOrDefault() is not { } provider)
-        {
-            return AgentError.ProviderUnavailable;
-        }
-
-        var options = new SessionOptions(request.WorkingDirectory, PermissionMode.AskEveryTime);
-
-        if (!(await provider.StartAsync(options, cancellationToken)).TryGetValue(out var session, out var error))
+        if (!(await starter.StartAsync(request, cancellationToken)).TryGetValue(out var started, out var error))
         {
             return error;
         }
 
-        await bus.PublishAsync(new SessionOpened(session.Id, provider.Info, request.WorkingDirectory), cancellationToken);
-        ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, provider.Capabilities, PumpAsync));
+        var session = started.Session;
+        await bus.PublishAsync(
+            new SessionOpened(session.Id, started.Provider.Info, request.WorkingDirectory) { Account = session.Account },
+            cancellationToken);
+        ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, started.Provider.Capabilities, PumpAsync));
 
-        return session.Id;
+        return new OpenedSession(session.Id, started.Resumed);
     }
+
+    public bool IsOpen(SessionId session) => Volatile.Read(ref live).TryGetValue(session, out var running) && !running.Ended;
 
     public async ValueTask<Result<AgentTurn, AgentError>> SendAsync(
         SessionId session,
@@ -78,8 +76,10 @@ internal sealed partial class AgentSessions(
         }
     }
 
-    private async Task PumpAsync(IAgentSession session, CancellationToken cancellationToken)
+    private async Task PumpAsync(LiveSession running, CancellationToken cancellationToken)
     {
+        var session = running.Session;
+        var resumable = running.Capabilities.CanResume;
         Turn? turn = null;
         var ending = SessionEnding.Closed;
 
@@ -95,7 +95,7 @@ internal sealed partial class AgentSessions(
                     })
                     : turn?.Apply(agentEvent, clock.GetUtcNow()) ?? Result<TurnProgress, TurnError>.Failure(TurnError.ForeignEvent);
 
-                await ForwardAsync(agentEvent, applied, cancellationToken);
+                await ForwardAsync(agentEvent, applied, resumable, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -118,11 +118,15 @@ internal sealed partial class AgentSessions(
         if (turn is { IsLive: true })
         {
             var failed = new TurnCompleted(turn.Session, turn.Id, TurnOutcome.Failed);
-            await ForwardAsync(failed, turn.Apply(failed, clock.GetUtcNow()), CancellationToken.None);
+            await ForwardAsync(failed, turn.Apply(failed, clock.GetUtcNow()), resumable, CancellationToken.None);
         }
     }
 
-    private async Task ForwardAsync(IAgentEvent agentEvent, Result<TurnProgress, TurnError> applied, CancellationToken cancellationToken)
+    private async Task ForwardAsync(
+        IAgentEvent agentEvent,
+        Result<TurnProgress, TurnError> applied,
+        bool resumable,
+        CancellationToken cancellationToken)
     {
         if (!applied.TryGetValue(out var progress, out var rejection))
         {
@@ -134,9 +138,14 @@ internal sealed partial class AgentSessions(
         {
             await bus.PublishAsync(new AgentActivity(forwarded), cancellationToken);
 
-            if (forwarded is TurnCompleted completed)
+            switch (forwarded)
             {
-                await bus.PublishAsync(new TurnFinished(completed.Session, completed.Turn, completed.Outcome), cancellationToken);
+                case TurnCompleted completed:
+                    await bus.PublishAsync(new TurnFinished(completed.Session, completed.Turn, completed.Outcome), cancellationToken);
+                    break;
+                case ResumeTokenIssued issued when resumable:
+                    await bus.PublishAsync(new SessionResumable(issued.Session, issued.Token), cancellationToken);
+                    break;
             }
         }
     }

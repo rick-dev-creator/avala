@@ -1,13 +1,17 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Ledger;
+using Avala.Sdk;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Launching;
 
 internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAgents agents)
 {
+    public const string RestartNote = "The harness restarted while you were working on this job. Continue where you left off.";
+
     public async Task LaunchAsync(Job job, CancellationToken cancellationToken)
     {
         if (job.State != JobState.Preparing)
@@ -21,15 +25,15 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             return;
         }
 
-        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path), cancellationToken)).TryGetValue(out var session, out _))
+        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path), cancellationToken)).TryGetValue(out var opened, out _))
         {
             await FailAsync(job, FailureReason.AgentUnavailable, cancellationToken);
             return;
         }
 
-        if (job.Start(workspace.Id, session).IsSuccess)
+        if (job.Start(workspace.Id, opened.Session).IsSuccess)
         {
-            await BeginAsync(job, session, cancellationToken);
+            await BeginAsync(job, opened.Session, job.Instruction.Text, cancellationToken);
         }
     }
 
@@ -46,23 +50,82 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             return;
         }
 
-        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path), cancellationToken)).TryGetValue(out var session, out _))
+        if (!(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out _))
         {
             await FailAsync(job, FailureReason.AgentUnavailable, cancellationToken);
             return;
         }
 
-        if (job.Recover(session).IsSuccess)
+        if (job.Recover(opened.Session, opened.Resumed).IsSuccess)
         {
-            await BeginAsync(job, session, cancellationToken);
+            await BeginAsync(job, opened.Session, opened.Resumed ? RestartNote : job.Instruction.Text, cancellationToken);
         }
     }
 
-    private async Task BeginAsync(Job job, SessionId session, CancellationToken cancellationToken)
+    public async Task<Result<JobContinuation, JobRejection>> ContinueAsync(Job job, Feedback guidance, CancellationToken cancellationToken)
+    {
+        if (job.State != JobState.NeedsHelp)
+        {
+            return JobRejection.NotHeld;
+        }
+
+        var live = job.Session.Bind(session => agents.IsOpen(session) ? Option<SessionId>.Some(session) : Option<SessionId>.None);
+
+        return await live.Match(
+            session => ContinueInAsync(job, session, guidance, cancellationToken),
+            () => ContinueInNewSessionAsync(job, guidance, cancellationToken));
+    }
+
+    private async Task<Result<JobContinuation, JobRejection>> ContinueInAsync(
+        Job job,
+        SessionId session,
+        Feedback guidance,
+        CancellationToken cancellationToken)
+    {
+        _ = job.Hint(guidance);
+        await ledger.RecordAsync(job, cancellationToken);
+        await TellAsync(job, guidance.Text, cancellationToken);
+
+        return new JobContinuation(job.Id, session, ContinuedIn.SameSession);
+    }
+
+    private async Task<Result<JobContinuation, JobRejection>> ContinueInNewSessionAsync(
+        Job job,
+        Feedback guidance,
+        CancellationToken cancellationToken)
+    {
+        if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        {
+            return JobRejection.WorkspaceUnavailable;
+        }
+
+        if (!(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out _))
+        {
+            return JobRejection.AgentUnavailable;
+        }
+
+        _ = job.Hint(guidance, opened.Session, opened.Resumed);
+        await BeginAsync(
+            job,
+            opened.Session,
+            opened.Resumed ? guidance.Text : $"{job.Instruction.Text}\n\n{guidance.Text}",
+            cancellationToken);
+
+        return new JobContinuation(job.Id, opened.Session, opened.Resumed ? ContinuedIn.ResumedConversation : ContinuedIn.NewConversation);
+    }
+
+    private async Task<Result<OpenedSession, AgentError>> OpenAsync(Job job, WorkspaceInfo workspace, CancellationToken cancellationToken) =>
+        await agents.OpenAsync(new AgentRequest(workspace.Path) { Resume = job.Resume }, cancellationToken);
+
+    private async Task BeginAsync(Job job, SessionId session, string message, CancellationToken cancellationToken)
     {
         await ledger.RecordSessionAsync(job, session, cancellationToken);
+        await TellAsync(job, message, cancellationToken);
+    }
 
-        if ((await agents.TellAsync(job, job.Instruction.Text, cancellationToken)).IsFailure)
+    private async Task TellAsync(Job job, string message, CancellationToken cancellationToken)
+    {
+        if ((await agents.TellAsync(job, message, cancellationToken)).IsFailure)
         {
             await FailAsync(job, FailureReason.AgentUnavailable, cancellationToken);
         }
