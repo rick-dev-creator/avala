@@ -1,4 +1,5 @@
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Shell.Regions;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -6,7 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Avala.Shell;
 
 [INotifyPropertyChanged]
-internal sealed partial class ShellViewModel : IShellViewModel, IActivatable
+internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IPresentation
 {
     private bool active;
 
@@ -25,7 +26,13 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable
         {
             contexts.Attach(region);
         }
+
+        contexts.Delivered += _ => Present();
     }
+
+    public event EventHandler<Presented>? Presented;
+
+    public long Revision { get; private set; }
 
     public Region Toolbar { get; }
 
@@ -80,13 +87,19 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable
 
     partial void OnSelectedPageChanged(IPage? oldValue, IPage? newValue)
     {
-        if (!active)
+        if (active)
         {
-            return;
+            (oldValue as IActivatable)?.Deactivate();
+            (newValue as IActivatable)?.Activate();
         }
 
-        (oldValue as IActivatable)?.Deactivate();
-        (newValue as IActivatable)?.Activate();
+        Present();
+    }
+
+    private void Present()
+    {
+        Revision++;
+        Presented?.Invoke(this, new Presented(Revision));
     }
 
     private static IPage AsPage(object contribution) =>

@@ -8,6 +8,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Host" />
+    <InternalsVisibleTo Include="Avala.Host.Tests" />
     <InternalsVisibleTo Include="Avala.Shell.Tests" />
   </ItemGroup>
 </Project>
