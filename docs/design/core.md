@@ -938,6 +938,7 @@ public sealed record BaseFile(string Path, FileOrigin Origin, Option<string> Con
 - **Recovery.** A recovered session opens in the same worktree and reads the same base commit, so a restart cannot pick up a file the agent edited before it.
 - **The rules commit.** A workspace reads its rule files from its rules commit, `WorkspaceInfo.RulesCommit`, which is its base commit unless `WorkspaceRequest.Rules` named another when it was prepared. A [child job](#delegation) starts from its parent's checkpoint, which may hold rule files its parent's agent edited, so Jobs prepares it with its parent's rules commit: every job of a delegation tree is judged by the rules of the commit its root started from, and an orchestrator cannot loosen its children's checks, policy, budget or delegation rules by editing them. `EditedInWorktree` compares with the rules commit too, so a child that inherited such an edit reports it. The diff of a workspace stays against its base commit, the work it did.
 - **Before a job exists.** `IBaseFiles.ReadCurrentAsync(repository, path)` reads a file of the commit the repository's `HEAD` points at, the base the next job starts from, for any folder inside the repository, with the same commands; `EditedInWorktree` then says whether the checkout's copy differs. Autopilot reads the [backlog](#job-sources) this way each time it takes a task, so an uncommitted edit of the backlog is ignored like an agent's edit of a rule. A folder outside any repository is `NotAGitRepository`.
+- **A repository's current rules.** The settings page shows what a repository declares before any job runs, so each module that owns a rule file answers for its own format: `IRepositoryPolicies` of Permissions, `IRepositoryBudgets` of Budgets and `IRepositoryChecks` of Verification, each with `OfRepositoryAsync(repository)`, read the file through `ReadCurrentAsync` with the parser the jobs use, and report its status, its error and its `FileOrigin`. The policy lists its rules in decision order without session rules, the guards and defaults included; the budget lists its top-level caps and those of each connection; the checks list each check's name, command line and timeout. A folder outside a repository is an unreadable file without origin. `.avala/jobs.json` belongs to three modules, so the Workbench reads it raw through `IBaseFiles` and shows each top-level section as written.
 
 ## Verification
 
@@ -1128,6 +1129,7 @@ The harness reads `supervision.json` from its data folder, the folder of `AVALA_
 
 - `silenceSeconds` is optional, a number greater than 0 and at most 86,400. The default is 15 minutes: generous enough for a long build or test command that reports nothing until it ends, short enough that a hung agent is noticed within the hour.
 - The file is parsed strictly, like the policy file: unknown fields, duplicate fields, values of the wrong type and files over 16 KiB are rejected. A rejected file keeps the default window and is reported through `ISupervision.SettingsAsync` with its `SupervisionError`, so a broken file never disables supervision.
+- `ISupervision.ChangeSilenceAsync(silence)` is how the settings page changes the window: it checks the range the parser checks, writes the file through a temporary file moved into place, one write at a time through a `SerialExecutor`, and replaces the settings the module holds, so the watchdog uses the new window from the next alarm it sets, for a job already running too, without a restart.
 
 | `SupervisionError` | Cause |
 | --- | --- |
@@ -1136,6 +1138,7 @@ The harness reads `supervision.json` from its data folder, the folder of `AVALA_
 | `Malformed` | Not JSON, not an object, a value of the wrong type or a duplicate field |
 | `UnknownField` | A field the format does not define |
 | `InvalidSilence` | A window not greater than 0 or over a day |
+| `Unwritable` | A changed window could not be written to the file |
 
 ### The module
 
@@ -1627,6 +1630,24 @@ The agent's events are not stored, so a job of an earlier run cannot be replayed
 
 The shell lists the pages plugins register, `IPage`, and activates the selected one through `IActivatable`. The Workbench's page is the main window: the sidebar, the conversation of the selected job, opened when the sidebar's selection changes, and the inspector, closed by default and toggled. While active it follows the board, and on every change it updates the sidebar and the open conversation on the UI thread through `IUiDispatcher`; the view models are touched on that thread only.
 
+The other pages follow the main window in the shell's list: New job, Overview, Usage, Resources and Settings.
+
+### The global pages
+
+Each global page is an `IPage` and `IActivatable`, a view model of its own folder over a reader of the application layer that turns contracts into immutable records, and item view models that are immutable too, rebuilt whole on every change.
+
+- **Following.** `Pulse` is one handler of the events that change what the pages show and the board does not: `UsageRecorded`, `ResourcesSampled`, `OrphansFound`, `OrphansReaped`, `WorktreeReclaimed`, `WorktreesReconciled`, `ChildDelegated`, `DelegationRefused`, `ChildReported`, `BudgetCarved`, `BudgetIntervened` and `SupervisorIntervened`. Its `ChangesAsync` merges them with the board's changes into one channel of one pending signal per watcher, as the board does. `LiveFeed` is what an active page follows with: on every signal it reads its state on the thread pool, then shows it on the UI thread through `IUiDispatcher`, and a state queued for the UI before the page was deactivated is dropped. A command that changes nothing the bus reports asks the feed to refresh.
+- **What the pages learn from sessions.** `SessionBook` handles `SessionOpened` and `JobSessionStarted` and keeps, for each session, its connection, provider and account, the latest session of each connection and of each job. It gives a connection its account and provider, a job its connection while it runs, and both the caps of their latest session through `IBudgets.BudgetOf`. Only sessions opened since the application started are known; a connection or job of an earlier run shows no account and no caps until it opens a session again.
+- **Overview.** Two views of one page. Connections: every declared connection, then any other that reported usage, with its provider, its account, whether it is the default, its cost and limit windows from `IUsage.ByConnection`, and the jobs of the board that are preparing, running or checking on it. Delegation: the root jobs that have children, from `IJobCatalog.ListAsync` and `IDelegations`; the latest is shown until another is selected, its tree from `IJobCatalog.TreeAsync` flattened with each child's depth, connection, harness (the provider of its latest session), latest activity (the outcome reported to its parent, or the board's fact), spend from `IUsage.OfJob` against its carve from `IBudgets.CarveOf`, and the delegations its tree refused.
+- **Usage.** Per connection: cost, tokens, the reports that had no cost, the caps of its latest session and each limit window with its reset time and the threshold at which those caps hold a job. Over time: today in the local zone, from `IUsageHistory.DailyAsync`, and the last seven days, from `WithinAsync`, each with tokens by type and turns. Per job of the board that spent or was held: cost against the caps of its latest session and its carve. And every intervention of Budgets and Supervision across those jobs, latest first; both modules restore their interventions at startup, so jobs of earlier runs count.
+- **Resources.** The machine's memory, CPU, processes, disk and ports from `IResources.Global`; each process tree of the latest sample with the job, connection and provider it is attributed to; the latest report of each tree that left orphans, cleaned up through `IOrphans.ReapAsync` of its job while left running; the stale worktrees of the latest `WorktreesReconciled`, none once it cleaned, looked for again through `IWorktreeHousekeeping.ReconcileAsync` and cleaned through `CleanAsync`; and the port leases and conflicts. `ResourceIndicatorViewModel` is the small indicator the sidebar can host: memory in use and the leftovers, orphans left running plus stale worktrees.
+- **Settings.** The repository, chosen among those of the board's jobs or typed, read only: its declared autonomy and form strategy, its rules in decision order with their origin, its budget caps, top-level and per connection, its checks, and the sections of `.avala/jobs.json`, see [a repository's current rules](#rules-from-the-base-commit); each file with its status, the commit it was read from and whether the checkout's copy differs, and "Edit in repository", which opens the checkout's file. The machine, in the data folder: the connections of `connections.json` with the file's status, listed and opened for editing rather than edited in place, since a connection's credential source and reference are not something a form should guess; the silence window, edited and written through `ISupervision.ChangeSilenceAsync`, a refusal shown by its `SupervisionError`; and the resource settings, shown.
+- **New job.** The repository, proposed from the latest job, the instruction, the connection, the repository's default or one of `IConnections.CatalogAsync`, and "Supervised", the only autonomy a job can ask for that its repository may not already declare, since a job can tighten its autonomy but never loosen it. It submits through `IJobs.SubmitAsync` and shows a `JobRejection` as text, keeping the instruction.
+
+### Opening a file
+
+"Edit in repository" and "Open connections.json" ask the platform to open a file in the application that edits it. `IFileOpener` in the SDK is that port, `OpenAsync(path)` answering the path or a `FileOpenError`: `NotFound` for a file that does not exist, `Unavailable` when nothing can open it, `Refused` when the platform declined. The host implements it with Avalonia's launcher on the main window, which answers `Unavailable` without one, as in the host simulation tests; `CompositionRoot.Create` takes another implementation for a test that needs one, and unit tests use a fake. The Workbench's `SettingsFiles` resolves a rule file inside the repository's checkout and a machine file inside the data folder; the checkout's copy is the one a person edits, and a change applies to the jobs that start from the commit that holds it.
+
 ### The module
 
 | Folder | Holds | Layer |
@@ -1639,6 +1660,15 @@ The shell lists the pages plugins register, `IPage`, and activates the selected 
 | `Sidebar` | `SidebarViewModel`, `JobRowViewModel` and the wording of the facts | ViewModels |
 | `Conversation` | `ConversationViewModel`, `ComposerViewModel`, one view model per kind of entry, and `Conversations`, which opens one per job | ViewModels |
 | `Cards` | `PermissionCardViewModel`, `FormCardViewModel`, `FormFieldViewModel` and `FormChoiceViewModel`, which the decisions popover can reuse | ViewModels |
+| `Following` | `Pulse`, the handler whose signals the global pages follow, `LiveFeed`, which reads and shows a page's state while it is active, and `SessionBook` | Application |
+| `Fleet` | `FleetReader`, the connections and the agents on them, and `DelegationReader`, the orchestrators and their trees | Application |
+| `Spending` | `JobSpending`, a job's spend, caps, carve and interventions, `UsageReader` and `UsageWindows` | Application |
+| `RepositoryRules` | `RulesReader`, a repository's current rule files | Application |
+| `Machine` | `MachineSettings`, the settings of the data folder and the silence window's change, and `SettingsFiles`, which opens a file through `IFileOpener` | Application |
+| `Upkeep` | `ResourceReader`, `Leftovers`, the handler of the latest reconciliation, and `Housekeeping`, the clean-up commands | Application |
+| `Submitting` | `JobLaunch`, a new job's submission | Application |
+| `Presenting` | The wording of amounts, times and caps, and the replacement of a list's items, shared by the pages | ViewModels |
+| `Overview`, `Usage`, `Settings`, `Resources`, `NewJob` | Each global page's view model and its items | ViewModels |
 
 - The module has no domain: the board and the projection are facts that already happened, like Observability's, so it has no aggregate and no error enum. It shows the errors of the modules it calls.
 - The board lives in memory, every job's transcript since startup. Dropping the transcripts of ended jobs, and the canvases of their sessions, arrives with the first measure of their size.
@@ -1653,6 +1683,7 @@ The user interface is designed from the data the harness produces, so every modu
 | --- | --- | --- | --- | --- |
 | `AttemptVerified` | Integration event | `Report`: a `VerificationReport` | Once per evaluation of the gate, after the checks of an attempt ran and before Jobs moves the job on, so it precedes the `JobProgressed` of the retry, the review or the request for help | One per finished turn of every job that reaches the gates, including recovery attempts. A repository without checks produces one too |
 | `IVerifications.OfJob(JobId)` | Query | `IReadOnlyList<VerificationReport>` in the order the attempts were verified; empty for an unknown job | At any time, from memory | One report per evaluation of that job since the application started |
+| `IRepositoryChecks.OfRepositoryAsync(repository)` | Query | `RepositoryChecks`: `File` (`ChecksFileStatus`: `Absent`, `Applied`, `Rejected`), `Checks`, each a `CheckDeclared` with `Name`, `Command` (the command line) and `Timeout`, and the `Option<FileOrigin>` of the repository's current commit | On demand, through `IBaseFiles.ReadCurrentAsync` | One answer per call |
 
 `VerificationReport` and its parts, in `Avala.Verification.Contracts`:
 
@@ -1682,6 +1713,7 @@ Live progress of a check while it runs is not published yet: the job's `JobProgr
 | `IPermissionAudit.SessionRulesOf` | Query | The session rules a human created, in the order they were created | Any time | Zero or more per session |
 | `IPermissionAudit.FormsOfSession`, `FormsOfJob` | Query | The `FormDecision`s of a session, or of every session of a job by time | Any time | Zero or more per session and job |
 | `IPermissionAudit.AnswersOfJob` | Query | The `HumanAnswer`s given to a job's requests, in the order given | Any time | Zero or more per job |
+| `IRepositoryPolicies.OfRepositoryAsync(repository)` | Query | `RepositoryPolicy`: `File` (`PolicyFileStatus`), `Option<PolicyError>`, `Rules` in decision order without session rules, `Origin` (the `Option<FileOrigin>` of the repository's current commit), `Autonomy` and `Strategy` | On demand, through `IBaseFiles.ReadCurrentAsync` | One answer per call |
 
 A `PolicyRule` carries its origin (`BuiltIn`, `Repository` or `Session`), name, `Option<ItemKind>`, `Option<string>` target pattern (an exact target for a session rule), `RuleScope` (`Anywhere`, `Workspace` or `OutsideWorkspace`) and answer, so a decision explains itself without another query. `SessionPolicy` also carries the repository's declared `Autonomy` and `FormStrategy` (`Recommended` or `BestJudgment`), and `PolicyDecision` the `Autonomy` it was decided at. An `Assumption` has the field's `Field` identifier, its `Prompt`, its `Basis` (`RecommendedOption`, `FirstOption`, `AgentJudgment` or `Confirmed`) and the labels `Chosen`, empty when the agent was told to decide.
 
@@ -1763,6 +1795,7 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | `ISupervision.OfJob(JobId)` | Query | `IReadOnlyList<SupervisionIntervention>` in the order they happened; empty for an unknown job | Any time, from memory; earlier runs restored at startup from `supervision.db` | Zero or more per job |
 | `supervision.db` | File in the data folder | `Interventions`: the job, the session, the hold reason and halt, the silence measured and the window in ticks, and the time in UTC ticks | One row per intervention, written before `SupervisorIntervened` | Zero or more per job |
 | `ISupervision.SettingsAsync` | Query | `SupervisionSettings`: `Silence` window, `File` (`SettingsFileStatus`: `Absent`, `Applied` or `Rejected`) and `Option<SupervisionError>` | Any time; reads the settings file the first time | One per application |
+| `ISupervision.ChangeSilenceAsync(silence)` | Command answer | `Result<SupervisionSettings, SupervisionError>`: the settings now applied, or `InvalidSilence`, `Unwritable` | When a person changes the window on the settings page; writes `supervision.json` | One per change |
 
 `SupervisionIntervention` carries `Hold`, the `JobHold` Jobs returned, always `Stalled`; `Silence`, a `SilenceMeasure` with the measured `Silent` time and the `Window`; and `At`, from `TimeProvider`. A lost session is not an intervention of Supervision: it shows as the `JobHeld` with `SessionLost` that Jobs publishes.
 
@@ -1783,6 +1816,13 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | `JobQueued` | Event | `Job`, `Running` (the slots taken when it asked), `Limit` | When a submitted job finds every slot taken, before it waits | Zero or one per job |
 | `JobAdmitted` | Event | `Job` | When a queued job gets its slot, before it launches | One per `JobQueued` |
 | `IBudgets.MachineAsync()` | Query | `MachineBudget`: `RunningJobs` (`Option<int>`, one when the file is rejected), `File` (`BudgetFileStatus`) and `Option<BudgetError>` | Any time; reads `budgets.json` the first time | One per application |
+| `IRepositoryBudgets.OfRepositoryAsync(repository)` | Query | `RepositoryBudget`: `File`, `Option<BudgetError>`, the top-level `Caps`, `Connections` (each a `ConnectionCaps` with `Connection` and `Caps`, in name order) and the `Option<FileOrigin>` of the repository's current commit; no caps when absent or rejected | On demand, through `IBaseFiles.ReadCurrentAsync` | One answer per call |
+
+### SDK: opening a file
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `IFileOpener.OpenAsync(path)` | Command answer | `Result<string, FileOpenError>`: the path opened, or `NotFound`, `Unavailable`, `Refused` | When a person asks to edit a rule file or a machine file | One per request |
 
 ### Jobs: discard
 
