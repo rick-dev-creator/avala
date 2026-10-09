@@ -11,21 +11,23 @@ internal sealed class SimulatedSession : IAgentSession
     private readonly Channel<IAgentEvent> events = Channel.CreateUnbounded<IAgentEvent>();
     private readonly CancellationTokenSource lifetime = new();
     private readonly SerialExecutor stage = new();
-    private readonly ReplyGate<PermissionDecision> permissions;
-    private readonly ReplyGate<FormAnswer> forms;
+    private readonly Gates gates;
     private readonly Performer performer;
-    private readonly Pacing pacing;
+    private readonly SessionOptions options;
+    private readonly Stagecraft craft;
     private Option<Conversation> conversation;
     private Option<Act> act;
     private bool closed;
     private Task conducting = Task.CompletedTask;
 
-    public SimulatedSession(SessionOptions options, IFileWriter files, Pacing pacing, Option<Conversation> resumed)
+    public SimulatedSession(SessionOptions options, Stagecraft craft, Option<Conversation> resumed)
     {
-        permissions = new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission);
-        forms = new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm);
-        performer = new Performer(options, files, permissions, forms);
-        this.pacing = pacing;
+        gates = new Gates(
+            new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission),
+            new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm));
+        performer = new Performer(options, craft.Files, gates, craft.Pacing);
+        this.options = options;
+        this.craft = craft;
         conversation = resumed;
     }
 
@@ -38,13 +40,13 @@ internal sealed class SimulatedSession : IAgentSession
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
     public async ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken) =>
-        await stage.RunAsync(_ => Task.FromResult(Begin(turn)), cancellationToken);
+        await stage.RunAsync(token => BeginAsync(turn, token), cancellationToken);
 
     public async ValueTask<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken) =>
-        await permissions.RespondAsync(decision.Item, decision, cancellationToken);
+        await gates.Permissions.RespondAsync(decision.Item, decision, cancellationToken);
 
     public async ValueTask<Result<ItemId, AgentError>> AnswerAsync(FormAnswer answer, CancellationToken cancellationToken) =>
-        await forms.RespondAsync(answer.Item, answer, cancellationToken);
+        await gates.Forms.RespondAsync(answer.Item, answer, cancellationToken);
 
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) =>
         await (await stage.RunAsync(_ => Task.FromResult(act), cancellationToken)).Match(
@@ -74,7 +76,7 @@ internal sealed class SimulatedSession : IAgentSession
         lifetime.Dispose();
     }
 
-    private Result<TurnId, AgentError> Begin(UserTurn turn)
+    private async Task<Result<TurnId, AgentError>> BeginAsync(UserTurn turn, CancellationToken cancellationToken)
     {
         if (closed)
         {
@@ -86,7 +88,9 @@ internal sealed class SimulatedSession : IAgentSession
             return AgentError.TurnInProgress;
         }
 
-        var current = conversation.Match(known => known, () => Conversation.Begin(turn.Text));
+        var current = await conversation.Match(
+            known => Task.FromResult(known),
+            async () => Conversation.Begin(await craft.Library.ChooseAsync(turn.Text, options, cancellationToken)));
         var next = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token));
         conversation = current.Advanced;
         act = next;
@@ -99,42 +103,60 @@ internal sealed class SimulatedSession : IAgentSession
     {
         var cues = new Cues(Id, current.Turn);
         var interruption = current.Interruption.Token;
+        var ended = false;
 
         try
         {
             await foreach (var cue in performer.PlayAsync(cues, played, interruption))
             {
-                await pacing.WaitAsync(interruption);
-
-                if (await PublishAsync(current, cue))
-                {
-                    return;
-                }
+                await craft.Pacing.WaitAsync(interruption);
+                ended |= await PublishAsync(current, cue);
             }
 
-            await Task.Delay(Timeout.InfiniteTimeSpan, interruption);
+            if (performer.Closing)
+            {
+                await HangUpAsync(Option<Exception>.None);
+            }
+            else if (!ended)
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, interruption);
+            }
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
         {
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (performer.Expects(played))
         {
             await PublishAsync(current, cues.Ended(TurnOutcome.Interrupted));
         }
+        catch (OperationCanceledException)
+        {
+            foreach (var cue in cues.Diverged(Divergence.Interrupted, started: true))
+            {
+                await PublishAsync(current, cue);
+            }
+
+            await HangUpAsync(Option<Exception>.None);
+        }
         catch (Exception failure)
         {
-            await stage.RunAsync(
-                _ =>
-                {
-                    closed = true;
-                    act = Option<Act>.None;
-
-                    return Task.CompletedTask;
-                },
-                CancellationToken.None);
-
-            events.Writer.TryComplete(failure);
+            await HangUpAsync(failure);
         }
+    }
+
+    private async Task HangUpAsync(Option<Exception> failure)
+    {
+        await stage.RunAsync(
+            _ =>
+            {
+                closed = true;
+                act = Option<Act>.None;
+
+                return Task.CompletedTask;
+            },
+            CancellationToken.None);
+
+        events.Writer.TryComplete(failure.Match<Exception?>(exception => exception, () => null));
     }
 
     private async Task<bool> PublishAsync(Act current, IAgentEvent cue)

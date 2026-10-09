@@ -5,13 +5,20 @@ using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
 
-internal sealed class Performer(
-    SessionOptions options,
-    IFileWriter files,
-    ReplyGate<PermissionDecision> permissions,
-    ReplyGate<FormAnswer> forms)
+internal sealed class Performer(SessionOptions options, IFileWriter files, Gates gates, Pacing pacing)
 {
-    public async IAsyncEnumerable<IAgentEvent> PlayAsync(
+    private readonly Replayer replayer = new(options, files, gates, pacing);
+
+    public bool Closing => replayer.Closing;
+
+    public bool Expects(Conversation conversation) => !conversation.Scenario.Recorded || replayer.AwaitsInterrupt;
+
+    public IAsyncEnumerable<IAgentEvent> PlayAsync(Cues cues, Conversation conversation, CancellationToken cancellationToken) =>
+        conversation.Scenario.Recorded
+            ? replayer.PlayAsync(cues, conversation, cancellationToken)
+            : PerformAsync(cues, conversation, cancellationToken);
+
+    private async IAsyncEnumerable<IAgentEvent> PerformAsync(
         Cues cues,
         Conversation conversation,
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -66,10 +73,10 @@ internal sealed class Performer(
 
         if (asks)
         {
-            var pending = await permissions.ExpectAsync(deed.Item, cancellationToken);
+            var pending = await gates.Permissions.ExpectAsync(deed.Item, cancellationToken);
             yield return cues.Asked(deed.Item, deed.Request, deed.Kind, deed.Target);
 
-            var decision = await AwaitAsync(permissions, deed.Item, pending, cancellationToken);
+            var decision = await gates.Permissions.AwaitAsync(deed.Item, pending, cancellationToken);
             yield return cues.Answered(deed.Item, decision.Answer);
 
             if (decision.Answer == PermissionAnswer.Deny)
@@ -93,10 +100,10 @@ internal sealed class Performer(
 
     private async IAsyncEnumerable<IAgentEvent> AskAsync(Cues cues, Ask ask, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var pending = await forms.ExpectAsync(ask.Item, cancellationToken);
+        var pending = await gates.Forms.ExpectAsync(ask.Item, cancellationToken);
         yield return cues.Asked(ask.Item, ask.Form);
 
-        var answer = await AwaitAsync(forms, ask.Item, pending, cancellationToken);
+        var answer = await gates.Forms.AwaitAsync(ask.Item, pending, cancellationToken);
         var goesOn = !answer.Declined && answer.Fields.All(given => given.Confirmed || ask.Form.Fields.Any(field => field.Id == given.Field && field.Kind != FieldKind.Confirmation));
         yield return cues.Answered(ask.Item, answer);
         yield return cues.Closed(ask.Item, answer.Declined ? ItemOutcome.Cancelled : ItemOutcome.Succeeded);
@@ -124,18 +131,6 @@ internal sealed class Performer(
         field.Kind == FieldKind.Confirmation
             ? (given.Confirmed ? "approved" : "not approved") + given.Text.Match(text => $" ({text})", () => string.Empty)
             : string.Join(", ", [.. given.Chosen, .. given.Text.Match<string[]>(text => [text], () => [])]);
-
-    private static async Task<TReply> AwaitAsync<TReply>(ReplyGate<TReply> gate, ItemId item, Task<TReply> reply, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await reply.WaitAsync(cancellationToken);
-        }
-        finally
-        {
-            await gate.WithdrawAsync(item);
-        }
-    }
 
     private sealed record Deed(ItemId Item, ItemKind Kind, string Title, string Request, string Target, string Output);
 }

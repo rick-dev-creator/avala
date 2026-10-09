@@ -211,18 +211,22 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
         [Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas];
 
-    public static Scenario Choose(string firstMessage) =>
-        Tagged(firstMessage).Bind(Named).Match(scenario => scenario, () => Reply);
+    public static string NameIn(string firstMessage) =>
+        Tagged(firstMessage, ReplayRequest.TimedTag).Match(
+            recording => new ReplayRequest(recording, AsRecorded: true).Scenario,
+            () => Tagged(firstMessage, ReplayRequest.CompressedTag).Match(
+                recording => new ReplayRequest(recording, AsRecorded: false).Scenario,
+                () => Tagged(firstMessage, Tag).Bind(Named).Match(scenario => scenario.Name, () => Reply.Name)));
 
     public static Option<Scenario> Named(string name) =>
         All.FirstOrDefault(scenario => string.Equals(scenario.Name, name, StringComparison.OrdinalIgnoreCase)).ToOption();
 
-    private static Option<string> Tagged(string message)
+    private static Option<string> Tagged(string message, string tag)
     {
-        var start = message.IndexOf(Tag, StringComparison.OrdinalIgnoreCase);
+        var start = message.IndexOf(tag, StringComparison.OrdinalIgnoreCase);
         var end = start < 0 ? -1 : message.IndexOf(']', start);
 
-        return end < 0 ? Option<string>.None : message[(start + Tag.Length)..end].Trim();
+        return end < 0 ? Option<string>.None : message[(start + tag.Length)..end].Trim();
     }
 
     private static Say Thought(params string[] chunks) => new(new ItemId("thinking"), ItemKind.Reasoning, "Thinking", chunks);

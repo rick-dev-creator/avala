@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Simulator.FileSystem;
 using Avala.Simulator.Playback;
+using Avala.Simulator.Recordings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -24,6 +25,9 @@ public sealed class SimulatorPlugin(TimeSpan pace) : IPlugin
         registrar.Services
             .AddSingleton<IFileWriter, DiskFileWriter>()
             .AddSingleton(provider => new Pacing(provider.GetRequiredService<TimeProvider>(), pace))
+            .AddSingleton<IRecordedScenarios, RecordingFolder>()
+            .AddSingleton<ScenarioLibrary>()
+            .AddSingleton<Stagecraft>()
             .AddSingleton<IAgentProvider, SimulatedProvider>();
     }
 }

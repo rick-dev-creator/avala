@@ -26,3 +26,17 @@ internal sealed record Open(ItemId Item, ItemKind Kind, string Title) : IStep;
 internal sealed record Crash(string Reason) : IStep;
 
 internal sealed record Finish : IStep;
+
+internal sealed record Emit(TimeSpan Gap, IAgentEvent Event) : IStep;
+
+internal sealed record AwaitPermission(PermissionDecision Decision) : IStep;
+
+internal sealed record AwaitAnswer(FormAnswer Answer) : IStep;
+
+internal sealed record AwaitInterrupt : IStep;
+
+internal sealed record PutFile(TimeSpan Gap, string Path, string Content) : IStep;
+
+internal sealed record Hangup : IStep;
+
+internal sealed record Diverge(string Reason) : IStep;
