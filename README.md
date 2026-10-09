@@ -12,7 +12,7 @@
 [![Maintainability](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/maintainability.svg)](docs/architecture.md#technical-debt-grade)
 [![Highest complexity](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/complexity.svg)](docs/architecture.md#technical-debt-grade)
 [![C# lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/lines.svg)](docs/architecture.md#quality-metrics)
-[![Share of T3 Code's lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/t3-share.svg)](docs/architecture.md#quality-metrics)
+[![Share of T3 Code's lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/t3-share.svg)](#a-note-on-t3-code)
 
 Avala is an open-source desktop harness for coding agents. It runs each agent in its own git worktree and lets it work unattended, while every decision is governed by your rules, every result is backed by evidence, and every cost is accounted for.
 
@@ -45,6 +45,12 @@ dotnet test --solution Avala.slnx
 - [Architecture](docs/architecture.md): the rules every change must pass.
 - [Core design](docs/design/core.md) and [plan](docs/plan/core.md).
 - [AGENTS.md](AGENTS.md): how to contribute, with or without an agent.
+
+## A note on T3 Code
+
+Avala exists because of [T3 Code](https://github.com/pingdotgg/t3code). Its work showed what a desktop harness for coding agents can be, and the idea for this project was born from it. We admire what its developers have built and shared with everyone.
+
+The comparison in the badges is only a yardstick: T3 Code is a well-known open-source harness, so its size gives us a fixed reference to measure our own against. It is not a criticism of the project or of the people behind it.
 
 ## License
 
