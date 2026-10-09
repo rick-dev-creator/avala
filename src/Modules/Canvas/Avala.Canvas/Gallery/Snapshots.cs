@@ -8,7 +8,7 @@ internal static class Snapshots
     extension(CanvasDocument document)
     {
         public CanvasSnapshot Snapshot =>
-            new(document.Id, document.Session, document.Title, document.MediaType, document.Content, document.State.Status);
+            new(document.Id, document.Session, document.Title, document.MediaType, document.Content, document.State.Status, document.IsOffered);
     }
 
     extension(CanvasState state)

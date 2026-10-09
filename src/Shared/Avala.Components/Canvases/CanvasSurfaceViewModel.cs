@@ -102,7 +102,7 @@ public sealed partial class CanvasSurfaceViewModel : ICanvasSurfaceViewModel
             return;
         }
 
-        versions.Add(new CanvasRendering(draft.MediaType, draft.Content, isFinal, ++sequence) { Surface = surface });
+        versions.Add(new CanvasRendering(draft.MediaType, draft.Content, isFinal, ++sequence) { Surface = surface, IsOffered = draft.IsOffered });
 
         if (versions.Count > VersionLimit)
         {

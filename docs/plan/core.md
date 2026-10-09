@@ -126,7 +126,7 @@ Status: done. The canvas tool moved to phase 6: the module now offers its defini
 1. The Canvas module, a plugin of its own: the `CanvasDocument` aggregate with `CanvasLifecycle` and its generated diagram, accumulating each canvas from `CanvasStarted`, `ItemProgressed` and `ItemCompleted` and rejecting foreign, repeated and late content with typed errors.
 2. Snapshots throttled per canvas with `TimeProvider`, published as `CanvasUpdated` with the full content so far and flushed at once on completion.
 3. `Canvas.Contracts`: `CanvasId`, `CanvasSnapshot`, `CanvasUpdated` and the `ICanvases` query of a session's current canvases.
-4. A host simulation test: the simulator's `canvas` scenario delivers its SVG and Mermaid canvases, drawn through the injected canvas tool, as snapshots that grow in order and end complete.
+4. A host simulation test: the simulator's `canvas` scenario delivers its SVG and Markdown canvases, drawn through the injected canvas tool, as snapshots that grow in order and end complete.
 
 Done when: a canvas streamed by the simulator reaches the bus as snapshots in order, with unit tests. Met.
 
@@ -370,6 +370,6 @@ Done when: the full job flow runs end to end through view models in tests.
 1. Avalonia views for every view model, following the approved [design brief](../design/ui-brief.md), semi-transparent with themes, Inter for the interface and JetBrains Mono for code.
 2. The canvas surface for each media type, with renderer plugins registered by media type.
 
-   Done: the shared canvas surface, with versions, streaming without flicker and the focused view; `ICanvasRenderer`, registered through the view registry; the Rendering plugin, with Markdown, sanitized SVG, and Mermaid and HTML as highlighted source. Remains: the Mermaid and HTML renderers, once the [decision](../design/canvas-rendering.md#mermaid-and-html-the-decision) is made.
+   Done: the shared canvas surface, with versions, streaming without flicker and the focused view; `ICanvasRenderer`, registered through the view registry; the Rendering plugin, with Markdown and sanitized SVG. Done too, the [offer](../design/canvas-rendering.md#the-offer): renderer plugins declare the media types they draw as `CanvasFormat`, the canvas tool offers exactly those, a canvas in any other type is rejected as `NotOffered` and shown as source, highlighted for Mermaid and HTML, and the conformance kit reports a harness that draws outside the offer. [Decided](../design/canvas-rendering.md#mermaid-and-html-the-decision): Mermaid and HTML are not part of the offer; they remain possible as optional renderer plugins, which would appear in the offer once registered.
 
 Done when: the harness replaces a terminal for daily work.

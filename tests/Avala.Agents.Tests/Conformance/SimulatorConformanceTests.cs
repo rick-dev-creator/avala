@@ -179,6 +179,21 @@ public sealed class SimulatorConformanceTests
     }
 
     [Fact]
+    public async Task ReportsACanvasTheUnofferedCanvasScenarioDrawsInAMediaTypeTheToolDoesNotOfferAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Equal(
+            ["the canvas flow was drawn in text/vnd.mermaid, which the canvas tool does not offer"],
+            await AgentConformance.CheckCanvasToolAsync(
+                services.GetRequiredService<IAgentProvider>(),
+                new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+                new UserTurn("[simulate: unoffered-canvas] conformance"),
+                Deadline));
+    }
+
+    [Fact]
     public async Task ReportsThatTheHangScenarioNeverCompletesAsync()
     {
         using var folder = new TemporaryFolder();

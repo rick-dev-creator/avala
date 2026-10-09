@@ -1,8 +1,19 @@
 # Canvas rendering
 
-**Proposed**: the surface, Markdown and SVG are built; Mermaid and HTML wait for the decision at the end of this page.
+**Accepted**: Avala offers SVG and Markdown; Mermaid and HTML are only possible as optional renderer plugins, see [the decision](#mermaid-and-html-the-decision).
 
-Agents draw canvases in four media types, `text/markdown`, `image/svg+xml`, `text/vnd.mermaid` and `text/html`, streamed as throttled `CanvasUpdated` snapshots, see the [core design](core.md#canvas). Canvas content is untrusted: it renders in an isolated surface with no network access by default. This page records how each type is rendered today and the choice still open for Mermaid and HTML.
+Avala offers, harnesses adapt. Agents draw canvases in the media types Avala's renderers declare, today `image/svg+xml` and `text/markdown`, streamed as throttled `CanvasUpdated` snapshots, see the [core design](core.md#canvas). The canvas tool handed to every harness lists exactly those types, so a diagram is drawn as SVG, and a canvas in any other type is rejected by the Canvas module and shown as its source. Canvas content is untrusted: it renders in an isolated surface with no network access by default. This page records how each offered type is rendered, how the offer is declared and why Mermaid and HTML are left to optional plugins.
+
+## The offer
+
+| Part | Where | Role |
+| --- | --- | --- |
+| `CanvasFormat` | `Avala.Canvas.Contracts` | One offered format: its media type, a name for people and the model, such as `SVG`, and guidance for the model, such as "Draw every diagram, chart, flow, screen or design as SVG." No UI framework, so a renderer plugin declares it from its core registration, `IPlugin.Register`. |
+| `RenderedFormats` | `Avala.Rendering`, `Offer` | The Rendering plugin's declaration: SVG, then Markdown, registered as `CanvasFormat` services. Its renderers in `Avala.Rendering.UI` take their media types from it. |
+| `CanvasOffer` | `Avala.Canvas`, `Drawing` | Every registered `CanvasFormat`, in registration order. It decides whether a media type is offered, compared without parameters and case. |
+| `CanvasTool` | `Avala.Canvas`, `Drawing` | Built from the offer: the schema's `mediaType` is an `enum` of exactly the offered types, and the description lists each type with its name and guidance and says that any other type is not drawn. |
+
+A unit test of the Rendering plugin proves the two registrations agree: the media types its core registration declares are exactly the media types its `RegisterViews` registers renderers for, both ways. A host test proves the same in the composed application: the canvas tool's `enum` is the declared formats, each has a renderer, and Mermaid and HTML have none. A renderer plugin added later, such as Mermaid, declares its `CanvasFormat` beside its renderer and appears in the offer, and so in the tool, without any change to the Canvas module.
 
 ## The surface
 
@@ -10,15 +21,20 @@ Agents draw canvases in four media types, `text/markdown`, `image/svg+xml`, `tex
 | --- | --- | --- |
 | `CanvasSurfaceViewModel` | `Avala.Components`, `Canvases` | One canvas: its title, kind, status, every snapshot kept as a version, the version shown, and the commands to step back, forward, return to the latest, open and close the focused view. No UI framework. |
 | `CanvasSurfaceView` | `Avala.Components.UI` | The inside of the card of the approved design: a caption with the title, the kind, the spinning arc and "Drawing" while it streams, the version stepper and "Open", the drawing below, and the focused view, a popup of 86% of the window, closed with Escape or its close button. The card's frame belongs to its host, so the surface never draws a second border, title or spinner. |
-| `CanvasPresenter` | `Avala.Components.UI` | Draws one `CanvasRendering` through the renderer registered for its media type and keeps the previous drawing until the new one is complete. |
-| `ICanvasRenderer` | `Avala.Components.UI`, `Canvases` | The extension point: `Renders(mediaType)` and `Render(content)`, which returns `None` when the content cannot be drawn yet. A plugin registers one with `views.AddCanvasRenderer(renderer)` from its `RegisterViews`. |
-| `Avala.Rendering` | `src/Modules/Rendering` | The renderer plugin: Markdown, SVG, and the source views of Mermaid and HTML. Its core holds the SVG sanitizer and the source highlighter, its `.UI` assembly the renderers and the plugin entry. |
+| `CanvasPresenter` | `Avala.Components.UI` | Draws one `CanvasRendering` through the renderer registered for its media type and keeps the previous drawing until the new one is complete. A rendering the Canvas module did not offer is never drawn: it shows its source, through the source view registered for its type when there is one. |
+| `ICanvasRenderer` | `Avala.Components.UI`, `Canvases` | The extension point: its `MediaType` and `Render(content)`, which returns `None` when the content cannot be drawn yet. A plugin registers one with `views.AddCanvasRenderer(renderer)` from its `RegisterViews`, as a `CanvasRendererTemplate`, and declares the same media type as a `CanvasFormat` from its `Register`. |
+| `CanvasSourceTemplate` | `Avala.Components.UI`, `Canvases` | A highlighted source view for a type that is not offered, registered with `views.AddCanvasSource(mediaType, highlight)`. It is not a renderer and offers nothing. |
+| `Avala.Rendering` | `src/Modules/Rendering` | The renderer plugin: Markdown and SVG, offered, and the highlighted source views of Mermaid and HTML, not offered. Its core holds the offer, the SVG sanitizer and the source highlighter, its `.UI` assembly the renderers and the plugin entry. |
 
 The Workbench's `CanvasViewModel` owns a surface and hands it every snapshot of its `CanvasEntry`; `CanvasView` draws the conversation's canvas card, its fill, border and corners, and hosts the surface inside it.
 
 ### Registration
 
-`IViewRegistrar.Register(IDataTemplate)` lets a plugin contribute a data template beside its views; the view registry tries the templates registered last first, so a plugin can replace a built-in renderer. `AddCanvasRenderer` wraps a renderer in a template that matches a `CanvasRendering` of its media type, compared without parameters and case, so `text/markdown; charset=utf-8` is Markdown. The presenter finds it with Avalonia's `FindDataTemplate`, the same lookup every view uses, and needs no service.
+`IViewRegistrar.Register(IDataTemplate)` lets a plugin contribute a data template beside its views; the view registry tries the templates registered last first, so a plugin can replace a built-in renderer. `AddCanvasRenderer` wraps a renderer in a template that matches an offered `CanvasRendering` of its media type, compared without parameters and case, so `text/markdown; charset=utf-8` is Markdown; `AddCanvasSource` wraps a highlighter in a template that matches only renderings that were not offered. The presenter finds either with Avalonia's `FindDataTemplate`, the same lookup every view uses, and needs no service.
+
+### A canvas that was not offered
+
+A harness may still send a canvas in a type the tool did not offer. The Canvas module opens it, rejects it with `CanvasError.NotOffered`, which it logs, and keeps it as source: its snapshots carry `IsOffered` false. The Workbench passes that flag through its `CanvasEntry` and the surface's `CanvasDraft` to the `CanvasRendering`, and the presenter shows the source with the note "Avala does not offer Mermaid canvases to agents, so this one is not drawn. Showing its source.", highlighted when a source view is registered for the type, even if some renderer could draw it. Nothing of the canvas is lost, and the conformance kit reports the harness.
 
 ### Streaming without flicker
 
@@ -35,7 +51,7 @@ The Workbench's `CanvasViewModel` owns a surface and hands it every snapshot of 
 | --- | --- |
 | SVG | `SvgSanitizer` parses with DTDs ignored, no resolver and a 4 M character cap, so entities, external or recursive, are never expanded and a document that uses one is rejected. It removes `script`, `foreignObject`, `iframe`, `object`, `embed`, media and listener elements, animations that target a reference or a handler, processing instructions such as `xml-stylesheet`, every `on*` attribute, every `href`, `xlink:href` or `src` that is not a fragment or an embedded PNG, JPEG, GIF or WebP, and every CSS `@import` and `url()` that is not a fragment. The card says how many things it blocked. Only the sanitized markup reaches Svg.Skia. |
 | Markdown | Images that are not embedded are replaced by their alternative text before rendering, so nothing is fetched; a link click is handled and opens nothing. Raw HTML in the Markdown is never run, and the images it names are never loaded. |
-| Mermaid, HTML | Shown as highlighted source only. |
+| Mermaid, HTML and any other type | Not offered: shown as source only, highlighted for Mermaid and HTML. |
 
 ## Packages
 
@@ -54,7 +70,9 @@ Considered for Markdown and not taken: [LiveMarkdown.Avalonia](https://github.co
 
 ## Mermaid and HTML: the decision
 
-Both need more than a .NET control: Mermaid's own renderer is JavaScript that lays out against a DOM, and HTML is a browser's job. Until a choice is made both render as highlighted source with a one-line explanation, through `SourceRenderer`, so the canvas is still useful and the source can be copied.
+**Decided**: Avala offers SVG and Markdown and nothing else. A diagram is drawn as SVG, which the agent writes directly and the sanitizer already guards, so no diagram language is needed in the core. Mermaid and HTML remain possible only as optional renderer plugins: such a plugin declares its `CanvasFormat` and registers its renderer, and from then on its type appears in the offer and in the canvas tool automatically, with no change to the Canvas module or to any harness plugin. Until one is installed, a Mermaid or HTML canvas is not offered and shows its highlighted source, see [a canvas that was not offered](#a-canvas-that-was-not-offered).
+
+Both need more than a .NET control: Mermaid's own renderer is JavaScript that lays out against a DOM, and HTML is a browser's job. The options below are kept for whoever builds one of those plugins.
 
 ### Mermaid
 
@@ -76,16 +94,16 @@ Both need more than a .NET control: Mermaid's own renderer is JavaScript that la
 
 Opening the page in the person's browser is not on the list: it would give untrusted content the network and the person's session.
 
-### Recommendation
+### If a plugin is ever built
 
 - **Mermaid: A, Mermaider.** It keeps Mermaid inside the SVG pipeline that is already sanitized and tested, adds no JavaScript and no native code, and works offline on every platform. Ship it as its own renderer plugin, pinned, with the source view as the fallback when it cannot parse a diagram, so it can be replaced by B if fidelity ever matters more than size.
-- **HTML: C now, A later and only on request.** HtmlRenderer draws the static reports and tables agents usually produce with no JavaScript and no network, which is the isolation the core design asks for. If interactive pages turn out to matter, add the operating system's web view as a second renderer that a person opts into per canvas, with the CSP and the request blocking above, and keep CEF out: its size would exceed the rest of Avala many times over.
+- **HTML: C first, A later and only on request.** HtmlRenderer draws the static reports and tables agents usually produce with no JavaScript and no network, which is the isolation the core design asks for. If interactive pages turn out to matter, add the operating system's web view as a second renderer that a person opts into per canvas, with the CSP and the request blocking above, and keep CEF out: its size would exceed the rest of Avala many times over.
 
-The choice is the user's; nothing above is built until it is made.
+Neither is built; each would be an optional plugin, not part of the offer Avala ships.
 
 ## Acceptance criteria
 
-The scripts that play them live in `CanvasSurfaceViewModelScripts`, `CanvasSurfaceViewScripts`, `CanvasRendererScripts`, `SvgSanitizerTests`, `SourceHighlighterTests` and the Workbench's `CanvasViewModelScripts` and `CanvasViewScripts`.
+The scripts that play them live in `CanvasSurfaceViewModelScripts`, `CanvasSurfaceViewScripts`, `CanvasRendererScripts`, `SvgSanitizerTests`, `SourceHighlighterTests`, the Workbench's `CanvasViewModelScripts` and `CanvasViewScripts`, the Canvas module's `CanvasToolTests`, `CanvasDocumentTests`, `CanvasGalleryTests` and `CanvasFeedTests`, the conformance kit's tests and the host's `CanvasOfferTests`.
 
 ```
 AC1  Given a new surface, when the first snapshot of a streaming canvas arrives, then it is shown as version 1 of 1, with "Drawing" and a spinning arc.
@@ -102,6 +120,11 @@ AC11 Given a canvas over 512 KB, then the start of its source is shown with its 
 AC12 Given a view switched to another canvas mid-stream, then it shows only the new canvas, never the first one's later snapshots or drawing.
 AC13 Given an SVG with scripts, handlers, external references, entities or imports, then none of them reaches the renderer and the card says how many were blocked; local references and embedded images are kept.
 AC14 Given Markdown with a remote image or a link, then nothing is fetched or opened.
-AC15 Given Mermaid or HTML, then their highlighted source is shown with the reason, and highlighting never changes the text.
-AC16 Given the plugin, then a renderer is registered for each of the four media types the core produces and for none other.
+AC15 Given a Mermaid or HTML canvas that was not offered, then its highlighted source is shown with the note that Avala does not offer it, and highlighting never changes the text.
+AC16 Given the Rendering plugin, then it offers SVG and Markdown, and the media types it declares are exactly the media types it registers renderers for; Mermaid and HTML have no renderer.
+AC17 Given the declared formats, when the Canvas module offers its tool, then the schema's mediaType enum is exactly the declared media types in order, and the description lists each with its name and guidance, SVG asking for every diagram, and says any other type is not drawn.
+AC18 Given a canvas in a media type that is not offered, when it starts, then the Canvas module rejects it with NotOffered, keeps its content and publishes snapshots with IsOffered false; offered types, with parameters or in any case, open as offered.
+AC19 Given a canvas that was not offered, then the surface shows its source with the note "Avala does not offer <type> canvases to agents, so this one is not drawn. Showing its source.", even when a renderer knows its type.
+AC20 Given a harness given the canvas tool, when it draws a canvas in a media type the tool does not offer, then the conformance kit reports it; in an offered type, it conforms.
+AC21 Given the simulator's canvas scenario in the composed application, then its two SVG diagrams and its Markdown notes are drawn in the conversation; given its unoffered-canvas scenario, the Mermaid canvas is shown as source with the note.
 ```

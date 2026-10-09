@@ -8,6 +8,8 @@ public sealed record CanvasRendering(string MediaType, string Content, bool IsFi
 
     public Guid Surface { get; init; }
 
+    public bool IsOffered { get; init; } = true;
+
     public bool Follows(CanvasRendering earlier) => Surface == earlier.Surface && Version > earlier.Version;
 
     public const int RenderableLength = 512 * 1024;
