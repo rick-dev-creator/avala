@@ -1,3 +1,7 @@
+using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
+using System.Text.Json;
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -26,6 +30,30 @@ public sealed class RestartTests(PublishedPlugins plugins)
         Assert.Contains(before, line => line.StartsWith("attempt: Attempt 1: failed · calculator failed (exit 1, ", StringComparison.Ordinal));
         Assert.Contains(before, line => line.StartsWith("exception: Attempt 1 failed | calculator · exit 1 | ", StringComparison.Ordinal));
         Assert.Equal(before, await EvidenceAsync(run));
+    }
+
+    [Fact]
+    public async Task AJobCheckingWhenTheApplicationStopsRunsItsChecksAgainForTheSameAttemptWithoutAnotherAgentTurnAsync()
+    {
+        using var verdicts = new TcpListener(IPAddress.Loopback, 0);
+        verdicts.Start();
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply", (".avala/checks.json", VerdictChecks(verdicts)));
+        using (await verdicts.AcceptTcpClientAsync(Cancellation).AsTask().WaitAsync(HangGuard, Cancellation))
+        {
+            await run.RestartAsync();
+        }
+
+        using var rerun = await verdicts.AcceptTcpClientAsync(Cancellation).AsTask().WaitAsync(HangGuard, Cancellation);
+        await rerun.GetStream().WriteAsync(new byte[] { 0 }, Cancellation);
+
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        var attempt = Assert.Single(history.Attempts);
+        Assert.Equal((AttemptOrigin.Initial, AttemptOutcome.Passed), (attempt.Origin, attempt.Outcome));
+        Assert.Single(history.Sessions);
+        var evidence = await EvidenceAsync(run);
+        Assert.Contains("verdict: Verified on attempt 1 of 1", evidence);
+        Assert.Contains("evidence: 1 of 1 passed · Verified on attempt 1 of 1", evidence);
     }
 
     [Fact]
@@ -279,6 +307,24 @@ public sealed class RestartTests(PublishedPlugins plugins)
 
         return page;
     }
+
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(60);
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    private static string VerdictChecks(TcpListener verdicts) =>
+        JsonSerializer.Serialize(new
+        {
+            checks = new[]
+            {
+                new
+                {
+                    name = "verdict",
+                    command = "dotnet",
+                    arguments = new[] { Workloads.Program, "verdict", ((IPEndPoint)verdicts.LocalEndpoint).Port.ToString(CultureInfo.InvariantCulture) },
+                },
+            },
+        });
 
     private const string GovernedPolicy = """
         { "autonomy": "autonomous", "rules": [ { "name": "no-migrations", "kind": "command", "target": "dotnet ef*", "answer": "deny" } ] }

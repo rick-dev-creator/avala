@@ -9,6 +9,7 @@ internal enum JobError
     CannotSubmit,
     CannotStart,
     CannotRecover,
+    CannotRecheck,
     CannotCompleteTurn,
     CannotPass,
     CannotRetry,

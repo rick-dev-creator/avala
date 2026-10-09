@@ -7,7 +7,7 @@ namespace Avala.Simulator.WorkloadModes;
 
 internal static class Modes
 {
-    private const string Usage = "Usage: work | env <variable> | serve <harness> | spawn <harness> | hold <harness>";
+    private const string Usage = "Usage: work | env <variable> | serve <harness> | spawn <harness> | hold <harness> | verdict <port>";
 
     public static Task<int> RunAsync(string[] args)
     {
@@ -20,9 +20,30 @@ internal static class Modes
             "serve" => ServeAsync(Harness(argument)),
             "spawn" => Task.FromResult(Spawn(Harness(argument))),
             "hold" => HoldAsync(Harness(argument)),
+            "verdict" => VerdictAsync(Harness(argument)),
             _ => RefuseAsync(),
         };
     }
+
+    private static async Task<int> VerdictAsync(int port)
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, port, deadline.Token);
+        Console.WriteLine($"awaiting the verdict on {port}");
+        var verdict = new byte[1];
+
+        try
+        {
+            return await client.GetStream().ReadAsync(verdict, deadline.Token) == 1 ? verdict[0] : HungUp;
+        }
+        catch (Exception exception) when (exception is IOException or OperationCanceledException)
+        {
+            return HungUp;
+        }
+    }
+
+    private const int HungUp = 3;
 
     private static int Work()
     {
