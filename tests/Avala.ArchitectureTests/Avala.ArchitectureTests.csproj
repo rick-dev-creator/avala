@@ -19,6 +19,7 @@
     <ProjectReference Include="..\..\src\Modules\Simulator\Avala.Simulator\Avala.Simulator.csproj" />
     <ProjectReference Include="..\..\src\Modules\Simulator\Avala.Simulator.Workload\Avala.Simulator.Workload.csproj" />
     <ProjectReference Include="..\..\src\Modules\Recording\Avala.Recording\Avala.Recording.csproj" />
+    <ProjectReference Include="..\..\src\Modules\ClaudeCode\Avala.ClaudeCode\Avala.ClaudeCode.csproj" />
     <ProjectReference Include="..\..\src\Modules\Canvas\Avala.Canvas.Contracts\Avala.Canvas.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Canvas\Avala.Canvas\Avala.Canvas.csproj" />
     <ProjectReference Include="..\..\src\Modules\Observability\Avala.Observability\Avala.Observability.csproj" />

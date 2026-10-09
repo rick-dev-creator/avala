@@ -36,7 +36,7 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         Assert.NotNull(root.Services.GetRequiredService<IPermissionAudit>());
         Assert.NotNull(root.Services.GetRequiredService<ISupervision>());
         Assert.NotNull(root.Services.GetRequiredService<IBudgets>());
-        Assert.Equal("simulator", Assert.Single(root.Services.GetServices<IAgentProvider>()).Info.Id);
+        Assert.Equal(["claude-code", "simulator"], root.Services.GetServices<IAgentProvider>().Select(provider => provider.Info.Id));
         Assert.Empty(AssemblyLoadContext.All
             .SelectMany(context => context.Assemblies)
             .Select(assembly => assembly.GetName().Name)

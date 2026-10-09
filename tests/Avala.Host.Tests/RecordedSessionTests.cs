@@ -54,7 +54,7 @@ public sealed class RecordedSessionTests(PublishedPlugins plugins)
         return await OutcomeAsync(run, fixture);
     }
 
-    private static async Task<Outcome> OutcomeAsync(SimulatedRun run, RegressionFixture fixture)
+    internal static async Task<Outcome> OutcomeAsync(SimulatedRun run, RegressionFixture fixture)
     {
         var journey = await run.JourneyAsync();
         var audit = run.Get<IPermissionAudit>();

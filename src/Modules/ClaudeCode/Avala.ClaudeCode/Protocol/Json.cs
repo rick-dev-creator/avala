@@ -5,7 +5,7 @@ namespace Avala.ClaudeCode.Protocol;
 
 internal static class Json
 {
-    extension(JsonNode? node)
+    extension(JsonNode node)
     {
         public Option<JsonNode> Field(string name) =>
             node is JsonObject owner && owner.TryGetPropertyValue(name, out var value) && value is not null ? value : Option<JsonNode>.None;

@@ -26,6 +26,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
 
+    private const string ConnectionsFile = "connections.json";
+
+    private const string SimulatorOnly = """{ "connections": [ { "name": "simulator", "provider": "simulator" } ] }""";
+
     private readonly PublishedPlugins plugins;
     private readonly TemporaryFolder data;
     private readonly TemporaryRepository repository;
@@ -120,8 +124,11 @@ internal sealed class SimulatedRun : IAsyncDisposable
         IReadOnlyList<(string Path, string Content)> committed)
     {
         var data = new TemporaryFolder();
+        var simulated = settings.Any(setting => setting.File == ConnectionsFile)
+            ? settings
+            : [.. settings, (ConnectionsFile, SimulatorOnly)];
 
-        foreach (var (file, content) in settings)
+        foreach (var (file, content) in simulated)
         {
             var path = Path.Combine(data.Path, file);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
