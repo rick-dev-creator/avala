@@ -8,6 +8,12 @@
     <ProjectReference Include="..\..\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />
     <ProjectReference Include="..\..\Canvas\Avala.Canvas.Contracts\Avala.Canvas.Contracts.csproj" />
     <ProjectReference Include="..\..\Verification\Avala.Verification.Contracts\Avala.Verification.Contracts.csproj" />
+    <ProjectReference Include="..\..\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
+    <ProjectReference Include="..\..\Autopilot\Avala.Autopilot.Contracts\Avala.Autopilot.Contracts.csproj" />
+    <ProjectReference Include="..\..\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" />
+    <ProjectReference Include="..\..\Budgets\Avala.Budgets.Contracts\Avala.Budgets.Contracts.csproj" />
+    <ProjectReference Include="..\..\Resources\Avala.Resources.Contracts\Avala.Resources.Contracts.csproj" />
+    <ProjectReference Include="..\..\Delegation\Avala.Delegation.Contracts\Avala.Delegation.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Workbench.UI" />

@@ -20,7 +20,7 @@ public sealed class SidebarViewModelTests
         var older = Job("Fix the failing test", JobStatus.Running);
         var newer = Job("Add an endpoint", JobStatus.Running);
         var review = Job("Update the dependency", JobStatus.AwaitingReview);
-        var sidebar = new SidebarViewModel();
+        var sidebar = new SidebarViewModel(new Bench().Decisions());
 
         sidebar.Show(Board(older, newer, review));
 
@@ -33,7 +33,7 @@ public sealed class SidebarViewModelTests
     public void AJobMovesToTheGroupOfWhatItNeedsAndKeepsItsRowAndTheSelection()
     {
         var running = Job("Run the migration", JobStatus.Running);
-        var sidebar = new SidebarViewModel();
+        var sidebar = new SidebarViewModel(new Bench().Decisions());
         sidebar.Show(Board(running));
         var row = Assert.Single(sidebar.Running);
         sidebar.SelectCommand.Execute(row);
@@ -49,7 +49,7 @@ public sealed class SidebarViewModelTests
     [Fact]
     public void ARowTellsWhyItsJobWasHeld()
     {
-        var sidebar = new SidebarViewModel();
+        var sidebar = new SidebarViewModel(new Bench().Decisions());
 
         sidebar.Show(Board(Job("Fix the failing test", JobStatus.NeedsHelp) with { Hold = HoldReason.Stalled }));
 

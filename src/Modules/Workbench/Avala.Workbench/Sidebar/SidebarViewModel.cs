@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
+using Avala.Workbench.Decisions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -12,6 +13,13 @@ internal sealed partial class SidebarViewModel
 {
     private readonly Dictionary<JobId, JobRowViewModel> rows = [];
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
+
+    public SidebarViewModel(DecisionsViewModel decisions) => Decisions = decisions;
+
+    public DecisionsViewModel Decisions { get; }
+
+    [ObservableProperty]
+    public partial bool IsDecisionsOpen { get; private set; }
 
     public ObservableCollection<JobRowViewModel> NeedsYou { get; } = [];
 
@@ -39,10 +47,18 @@ internal sealed partial class SidebarViewModel
 
         shown = jobs;
         PendingDecisions = jobs.Values.Sum(job => job.PendingDecisions);
+        Decisions.Show(jobs);
     }
 
     [RelayCommand]
     private void Select(JobRowViewModel row) => Selected = row;
+
+    [RelayCommand]
+    private void ToggleDecisions()
+    {
+        IsDecisionsOpen = !IsDecisionsOpen;
+        Decisions.Refresh();
+    }
 
     private void Place(BoardJob job)
     {

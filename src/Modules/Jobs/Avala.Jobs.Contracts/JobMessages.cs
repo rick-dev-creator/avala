@@ -32,6 +32,7 @@ public enum HoldReason
     InvalidBudget,
     MemoryExceeded,
     Interrupted,
+    Stopped,
 }
 
 public enum SessionHalt

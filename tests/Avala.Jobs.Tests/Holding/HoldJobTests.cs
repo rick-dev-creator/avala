@@ -45,13 +45,15 @@ public sealed class HoldJobTests
         Assert.Equal(expected == SessionHalt.Stopped, flow.Agents.Stopped.Contains(hold.Session));
     }
 
-    [Fact]
-    public async Task ALostSessionIsStoppedRatherThanInterruptedAsync()
+    [Theory]
+    [InlineData(HoldReason.SessionLost)]
+    [InlineData(HoldReason.Stopped)]
+    public async Task ALostSessionOrAJobAPersonStoppedIsStoppedRatherThanInterruptedAsync(HoldReason reason)
     {
         var flow = JobFlow.With();
         var job = await flow.RunningAsync();
 
-        var hold = Outcomes.Succeeds(await flow.Jobs.HoldAsync(job.Id, HoldReason.SessionLost, Cancellation));
+        var hold = Outcomes.Succeeds(await flow.Jobs.HoldAsync(job.Id, reason, Cancellation));
 
         Assert.Equal(SessionHalt.Stopped, hold.Halt);
         Assert.Empty(flow.Agents.Interrupted);
