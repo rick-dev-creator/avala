@@ -46,12 +46,35 @@ public sealed class TestUiDispatcher : SynchronizationContext, IUiDispatcher, ID
         return result;
     }
 
-    public async Task UntilAsync(Func<bool> condition)
+    public Task UntilAsync(Func<bool> condition) => UntilAsync(condition, () => "no description of the state was given");
+
+    public async Task UntilAsync(Func<bool> condition, Func<string> describe)
     {
         var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         work.Add(() => waiters.Add((condition, reached)));
 
-        await reached.Task.WaitAsync(Patience);
+        try
+        {
+            await reached.Task.WaitAsync(Patience);
+        }
+        catch (TimeoutException)
+        {
+            var state = await ReadAsync(() => Describe(describe));
+
+            throw new TimeoutException($"The condition was not reached within {Patience.TotalSeconds:0} s. Last state: {state}");
+        }
+    }
+
+    private static string Describe(Func<string> describe)
+    {
+        try
+        {
+            return describe();
+        }
+        catch (Exception failure) when (failure is InvalidOperationException or ArgumentException or NullReferenceException)
+        {
+            return $"the state could not be read: {failure.GetType().Name}: {failure.Message}";
+        }
     }
 
     public override void Post(SendOrPostCallback d, object? state) => work.Add(() => d(state));
