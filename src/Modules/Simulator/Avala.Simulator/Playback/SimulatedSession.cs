@@ -24,7 +24,8 @@ internal sealed class SimulatedSession : IAgentSession
     {
         gates = new Gates(
             new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission),
-            new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm));
+            new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm),
+            new ReplyGate<ToolResult>(stage, AgentError.NoPendingCall));
         performer = new Performer(options, craft, gates);
         this.options = options;
         this.craft = craft;
@@ -46,6 +47,9 @@ internal sealed class SimulatedSession : IAgentSession
 
     public async ValueTask<Result<ItemId, AgentError>> AnswerAsync(FormAnswer answer, CancellationToken cancellationToken) =>
         await gates.Forms.RespondAsync(answer.Item, answer, cancellationToken);
+
+    public async ValueTask<Result<ItemId, AgentError>> ReturnAsync(ToolResult result, CancellationToken cancellationToken) =>
+        await gates.Tools.RespondAsync(result.Item, result, cancellationToken);
 
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) =>
         await (await stage.RunAsync(_ => Task.FromResult(act), cancellationToken)).Match(

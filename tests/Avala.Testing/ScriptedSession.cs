@@ -16,6 +16,7 @@ public sealed class ScriptedSession(
     private readonly ConcurrentQueue<PermissionDecision> decisions = new();
     private readonly ConcurrentQueue<TurnId> turns = new();
     private readonly ConcurrentQueue<FormAnswer> answers = new();
+    private readonly ConcurrentQueue<ToolResult> results = new();
     private int interruptions;
 
     public SessionId Id { get; } = SessionId.New();
@@ -29,6 +30,8 @@ public sealed class ScriptedSession(
     public IReadOnlyList<PermissionDecision> Decisions => [.. decisions];
 
     public IReadOnlyList<FormAnswer> Answers => [.. answers];
+
+    public IReadOnlyList<ToolResult> Results => [.. results];
 
     public int Interruptions => interruptions;
 
@@ -62,6 +65,13 @@ public sealed class ScriptedSession(
         answers.Enqueue(answer);
 
         return ValueTask.FromResult(Result<ItemId, AgentError>.Success(answer.Item));
+    }
+
+    public ValueTask<Result<ItemId, AgentError>> ReturnAsync(ToolResult result, CancellationToken cancellationToken)
+    {
+        results.Enqueue(result);
+
+        return ValueTask.FromResult(Result<ItemId, AgentError>.Success(result.Item));
     }
 
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken)

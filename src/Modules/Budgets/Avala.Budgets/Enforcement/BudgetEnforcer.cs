@@ -66,5 +66,10 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
     }
 
     private IReadOnlyList<UsageLimit> LimitsOf(ConnectionName connection) =>
-        [.. usage.ByConnection().Where(used => used.Connection == connection).SelectMany(used => used.Usage.Limits)];
+        [
+            .. usage.ByConnection()
+                .Where(used => used.Connection == connection)
+                .SelectMany(used => used.Usage.Limits)
+                .Where(limit => limit.ResetsAt.Match(resets => resets > holds.Now, () => true)),
+        ];
 }

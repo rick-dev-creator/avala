@@ -23,11 +23,15 @@ internal enum Workload
 
 internal sealed record Ask(ItemId Item, AgentForm Form) : IStep;
 
+internal sealed record CallTool(ItemId Item, string Tool, string Input) : IStep;
+
 internal sealed record UpdatePlan(IReadOnlyList<PlanStep> Steps) : IStep;
 
 internal sealed record ReportUsage(TokenUsage Tokens, Cost Cost) : IStep;
 
 internal sealed record ReportLimit(UsageLimit Limit) : IStep;
+
+internal sealed record ReportLimitResetting(string Window, double Used, TimeSpan ResetsIn) : IStep;
 
 internal sealed record Open(ItemId Item, ItemKind Kind, string Title) : IStep;
 

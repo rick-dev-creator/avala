@@ -48,5 +48,9 @@ internal static class Given
     public static FormAnswered Answered(string item) =>
         new(Session, TurnId, Item(item), new FormAnswer(Item(item), [new FieldAnswer("database") { Chosen = ["SQLite"] }]));
 
+    public static ToolCalled Called(string item) => new(Session, TurnId, Item(item), "propose_follow_up", """{ "instruction": "Document it" }""");
+
+    public static ToolReturned Returned(string item, string answered) => new(Session, TurnId, Item(item), new ToolResult(Item(answered), "Accepted."));
+
     public static TurnCompleted Ended(TurnOutcome outcome = TurnOutcome.Finished) => new(Session, TurnId, outcome);
 }

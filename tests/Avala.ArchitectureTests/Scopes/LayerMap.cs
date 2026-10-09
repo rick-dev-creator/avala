@@ -132,6 +132,20 @@ internal static class LayerMap
             ["Git"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
         }),
+        .. Module("Avala.Autopilot", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Loops"] = Layer.Domain,
+            ["Evidence"] = Layer.Domain,
+            ["Backlogs"] = Layer.Domain,
+            ["Looping"] = Layer.Application,
+            ["Approving"] = Layer.Application,
+            ["Sourcing"] = Layer.Application,
+            ["FollowUps"] = Layer.Application,
+            ["RepositoryFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+        }),
         .. Module("Avala.Fixtures.Compliant", new()
         {
             ["Contracts"] = Layer.Contracts,

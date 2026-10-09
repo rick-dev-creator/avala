@@ -10,6 +10,7 @@ internal sealed class LiveSession : IAsyncDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly Task pump;
     private ImmutableDictionary<ItemId, AgentForm> forms = ImmutableDictionary<ItemId, AgentForm>.Empty;
+    private ImmutableHashSet<ItemId> calls = [];
 
     public LiveSession(IAgentSession session, AgentCapabilities capabilities, Func<LiveSession, CancellationToken, Task> pump)
     {
@@ -26,7 +27,10 @@ internal sealed class LiveSession : IAsyncDisposable
 
     public Option<AgentForm> OpenForm(ItemId item) => Volatile.Read(ref forms).GetValueOrDefault(item).ToOption();
 
-    public void Track(IAgentEvent accepted) =>
+    public bool AwaitsResult(ItemId item) => Volatile.Read(ref calls).Contains(item);
+
+    public void Track(IAgentEvent accepted)
+    {
         Volatile.Write(ref forms, accepted switch
         {
             FormRequested requested => forms.SetItem(requested.Item, requested.Form),
@@ -35,6 +39,15 @@ internal sealed class LiveSession : IAsyncDisposable
             TurnCompleted => forms.Clear(),
             _ => forms,
         });
+        Volatile.Write(ref calls, accepted switch
+        {
+            ToolCalled called => calls.Add(called.Item),
+            ToolReturned returned => calls.Remove(returned.Item),
+            ItemCompleted completed => calls.Remove(completed.Item),
+            TurnCompleted => calls.Clear(),
+            _ => calls,
+        });
+    }
 
     public async ValueTask DisposeAsync()
     {
