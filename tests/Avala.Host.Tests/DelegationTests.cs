@@ -272,6 +272,29 @@ public sealed class DelegationTests(PublishedPlugins plugins)
         Assert.Contains($"\"job\":\"{Outcomes.Present(reported.Child).Value}\",\"outcome\":\"integrated\"", returned["content"]!.GetValue<string>(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task AReportForAParentRunningALaterTurnArrivesMidTurnOnceWhenItsHarnessAcceptsMessagesAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [], [(".avala/checks.json", PassingChecks), (".avala/jobs.json", """{ "delegation": {} }""")]);
+        var delegated = run.Watch<ChildDelegated>();
+        var activity = run.Watch<AgentActivity>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-steered] Migrate the database")));
+        var child = Outcomes.Present((await delegated.UntilAsync(_ => true)).Delegation.Child);
+        var asked = await run.DecisionAsync();
+        Outcomes.Succeeds(await run.Get<IJobs>().HoldAsync(job, HoldReason.Interrupted, Cancellation));
+        var progress = run.Watch<JobProgressed>();
+        Assert.Equal(ContinuedIn.SameSession, Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(job, "Carry on while it migrates.", Cancellation)).Conversation);
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+
+        var delivered = await run.ReportDeliveredAsync();
+        var queued = (MessageQueued)(await activity.UntilAsync(update => update.Event is MessageQueued)).Event;
+        _ = await progress.UntilAsync(update => update.Job == job && update.Status == JobStatus.AwaitingReview);
+        Assert.Equal((Option<JobId>.Some(child), AnswerRoute.Message), (delivered.Child, Outcomes.Present(delivered.Answered).Route));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(queued.Text, $"\"job\":\"{child.Value}\""));
+        Assert.Equal(Outcomes.Present(delivered.Answered), Outcomes.Present(Outcomes.Present(run.Get<IDelegations>().OfChild(child)).Answered));
+    }
+
     private static async Task<IReadOnlyList<string>> HarnessesAsync(SimulatedRun run, Func<Bound, bool> settled)
     {
         var overview = run.Page("Overview");

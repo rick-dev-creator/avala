@@ -33,6 +33,23 @@ public sealed class RestartedDeskTests
     }
 
     [Fact]
+    public async Task AReportTheCallCannotReceiveIsSteeredIntoTheParentsLiveTurnOnceWhenItsHarnessAcceptsMessagesMidTurnAsync()
+    {
+        await using var desk = new Desk { Agents = { Closed = true }, Jobs = { Steerable = true } };
+        await desk.StartedAsync();
+        var child = await desk.DelegateAsync("notes");
+
+        await desk.ProgressAsync(child, JobStatus.Failed);
+        var delivered = (await desk.Bus.WaitForAsync<ReportDelivered>(_ => true, Cancellation)).Delegation;
+
+        var (parent, message) = Assert.Single(desk.Jobs.Steered);
+        Assert.Equal(desk.Parent, parent);
+        Assert.Contains($"delegate call notes: {{\"job\":\"{child.Value}\"", message, StringComparison.Ordinal);
+        Assert.Equal(AnswerRoute.Message, Outcomes.Present(delivered.Answered).Route);
+        Assert.True((await desk.Briefing.BriefAsync(desk.Parent, Cancellation)).IsNone);
+    }
+
+    [Fact]
     public async Task AChildStillRunningAtTheRestartIsReportedToItsParentWhenItSettlesAsync()
     {
         await using var desk = new Desk();

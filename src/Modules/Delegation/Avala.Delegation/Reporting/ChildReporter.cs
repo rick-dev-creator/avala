@@ -34,7 +34,15 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
         var connection = delegation.Connection.IsSome ? delegation.Connection : await evidence.ConnectionOfAsync(child, cancellationToken);
 
-        await journal.ReportedAsync(delegation with { Report = report, Connection = connection }, report, cancellationToken);
+        var reported = await journal.ReportedAsync(delegation with { Report = report, Connection = connection }, report, cancellationToken);
+
+        foreach (var parent in reported.Answered.IsNone ? reported.Parent.Match<JobId[]>(found => [found], () => []) : [])
+        {
+            if ((await jobs.SteerAsync(parent, ToolAnswers.Briefing([reported]), cancellationToken)).IsSuccess)
+            {
+                _ = await journal.BriefedAsync([reported], cancellationToken);
+            }
+        }
     }
 
     private async Task<ChildReport> IntegrateAsync(ChildReport settled, CancellationToken cancellationToken) =>

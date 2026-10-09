@@ -21,7 +21,7 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
         await bus.PublishAsync(new ChildDelegated(delegated), cancellationToken);
     }
 
-    public async Task ReportedAsync(DelegationRecord reported, ChildReport report, CancellationToken cancellationToken)
+    public async Task<DelegationRecord> ReportedAsync(DelegationRecord reported, ChildReport report, CancellationToken cancellationToken)
     {
         await book.KeepAsync(reported, cancellationToken);
         var returned = await agents.ReturnAsync(reported.Session, ToolAnswers.Reported(reported.Item, reported, report), cancellationToken);
@@ -38,6 +38,8 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
         {
             await bus.PublishAsync(new ReportDelivered(answered), cancellationToken);
         }
+
+        return answered;
     }
 
     public async Task<IReadOnlyList<DelegationRecord>> BriefedAsync(IReadOnlyList<DelegationRecord> reported, CancellationToken cancellationToken)

@@ -14,6 +14,7 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     private readonly ConcurrentQueue<JobRequest> submitted = new();
     private readonly ConcurrentQueue<JobId> discarded = new();
     private readonly ConcurrentQueue<JobId> resumed = new();
+    private readonly ConcurrentQueue<(JobId Job, string Message)> steered = new();
 
     public IReadOnlyList<JobRequest> Submitted => [.. submitted];
 
@@ -55,8 +56,21 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     public ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Approval.Map(delivery => new JobApproval(job, delivery)));
 
-    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
-        throw new NotSupportedException();
+    public bool Steerable { get; set; }
+
+    public IReadOnlyList<(JobId Job, string Message)> Steered => [.. steered];
+
+    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken)
+    {
+        if (!Steerable)
+        {
+            return ValueTask.FromResult(Result<JobSteered, JobRejection>.Failure(JobRejection.NotSteerable));
+        }
+
+        steered.Enqueue((job, message));
+
+        return ValueTask.FromResult(Result<JobSteered, JobRejection>.Success(new JobSteered(job, Agents.Contracts.Sessions.SessionId.New(), Agents.Contracts.Sessions.TurnId.New())));
+    }
 
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken)
     {
