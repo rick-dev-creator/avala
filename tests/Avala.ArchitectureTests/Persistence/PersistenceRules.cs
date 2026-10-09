@@ -19,9 +19,9 @@ internal static class PersistenceRules
     public static IEnumerable<string> UseEntityFrameworkOutsideInfrastructure(CodeScope scope) =>
         scope.ArchitectureTypes
             .Where(type => Layers.Of(type.Namespace.FullName) != Layer.Infrastructure)
-            .Where(type => type.Dependencies.Any(dependency =>
-                dependency.Target.Namespace.FullName == EntityFrameworkCore
-                || dependency.Target.Namespace.FullName.StartsWith($"{EntityFrameworkCore}.", StringComparison.Ordinal)))
+            .Where(type => type.NamedTargets.Any(target =>
+                target.Namespace.FullName == EntityFrameworkCore
+                || target.Namespace.FullName.StartsWith($"{EntityFrameworkCore}.", StringComparison.Ordinal)))
             .Select(type => type.FullName)
             .Distinct();
 
