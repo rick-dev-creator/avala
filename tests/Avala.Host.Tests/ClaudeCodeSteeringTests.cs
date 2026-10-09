@@ -20,18 +20,18 @@ public sealed class ClaudeCodeSteeringTests(PublishedPlugins plugins)
             conversation["Composer"]["Placeholder"].Text == "Message the agent while it works…"
             && OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Any(text => text.StartsWith("1\n2\n3\n4", StringComparison.Ordinal)));
 
-        await SendAsync(run, conversation, "Then end with the single word banana.");
+        await SendAsync(run, workbench, conversation, JobStatus.Running, "Then end with the single word banana.");
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Contains("TurnEndViewModel"));
         var steered = await run.Ui.ReadAsync(() => (OpenWorkbench.Kinds(conversation).Count(kind => kind == "TurnEndViewModel"), string.Join('|', OpenWorkbench.Texts(conversation, "MessageViewModel", "Text"))));
 
-        await SendAsync(run, conversation, "Count from 1 to 60, one number per line, nothing else.");
+        await SendAsync(run, workbench, conversation, JobStatus.AwaitingReview, "Count from 1 to 60, one number per line, nothing else.");
         await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains("1"));
-        await SendAsync(run, conversation, "Then end with the single word cherry.");
+        await SendAsync(run, workbench, conversation, JobStatus.Running, "Then end with the single word cherry.");
         await run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
         Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
 
-        await SendAsync(run, conversation, "Reply with the single word ok.");
+        await SendAsync(run, workbench, conversation, JobStatus.NeedsHelp, "Reply with the single word ok.");
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Count(kind => kind == "TurnEndViewModel") == 3);
         var (messages, interjections, turnEnds) = await run.Ui.ReadAsync(() => (
@@ -47,11 +47,14 @@ public sealed class ClaudeCodeSteeringTests(PublishedPlugins plugins)
         Assert.Equal(3, turnEnds.Count);
     }
 
-    private static Task SendAsync(SimulatedRun run, Bound conversation, string message) =>
-        run.Ui.RunAsync(() =>
+    private static async Task SendAsync(SimulatedRun run, OpenWorkbench workbench, Bound conversation, JobStatus shown, string message)
+    {
+        await workbench.ShowsAsync(() => conversation["Composer"]["Status"].Value<JobStatus>() == shown);
+        await run.Ui.RunAsync(() =>
         {
             conversation["Composer"].Set("Draft", message);
 
             return conversation["Composer"].ExecuteAsync("SendCommand");
         });
+    }
 }
