@@ -146,6 +146,12 @@ internal sealed class FakeConnections : IConnections
 
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 }
 
 internal sealed class FixedRules(Result<AutopilotRules, AutopilotError> rules) : IAutopilotRules

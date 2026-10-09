@@ -141,6 +141,141 @@ public sealed class MachineSettingsViewModelScripts
     {
         var settings = new MachineSettings(connections, supervision, new FakeResources());
 
-        return new(settings, new SettingsFiles(opener, new AvalaPaths("/data")), new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()));
+        return new(settings, new SettingsFiles(opener, new AvalaPaths("/data")), new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new ConnectionEditorViewModel(settings));
+    }
+}
+
+public sealed class ConnectionEditorViewModelScripts
+{
+    private readonly FakeConnections connections = new("work", "personal");
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task ANewConnectionIsAddedToTheFileAndTheListAtOnceAsync()
+    {
+        var machine = await MachineAsync();
+        machine.Editor.NewCommand.Execute(null);
+        var blank = (machine.Editor.IsOpen, machine.Editor.Title, machine.Editor.Provider, machine.Editor.Source, machine.Editor.SaveCommand.CanExecute(null));
+
+        machine.Editor.Name = "team";
+        await machine.Editor.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, "New connection", 0, 0, false), blank);
+        Assert.Equal(["declare team simulator"], connections.Edits);
+        Assert.Equal(["work", "personal", "team"], machine.Connections.Select(connection => connection.Name));
+        Assert.Equal((false, "Added team to connections.json. New jobs can run on it now."), (machine.Editor.IsOpen, machine.Notice));
+    }
+
+    [Fact]
+    public async Task AnApiKeyIsDeclaredByTheNameOfItsVariableNeverByTheKeyAsync()
+    {
+        var machine = await MachineAsync();
+        machine.Editor.NewCommand.Execute(null);
+        machine.Editor.Name = "team";
+        machine.Editor.Source = 2;
+        var withoutReference = machine.Editor.SaveCommand.CanExecute(null);
+
+        machine.Editor.Reference = " TEAM_KEY ";
+        await machine.Editor.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal((false, true), (withoutReference, machine.Editor.NeedsReference));
+        Assert.Contains("never reads or writes the key", machine.Editor.ReferenceHint, StringComparison.Ordinal);
+        Assert.Equal(["declare team simulator apiKey:TEAM_KEY"], connections.Edits);
+    }
+
+    [Fact]
+    public async Task EditingAConnectionStartsFromWhatItDeclaresAndARenameSaysWhatElseMustChangeAsync()
+    {
+        connections.Catalog = connections.Catalog with
+        {
+            Connections = [new DeclaredConnection(new ConnectionName("work"), "claude-code", "login") { Reference = "/logins/work" }],
+        };
+        var machine = await MachineAsync();
+
+        machine.Connections[0].EditCommand.Execute(null);
+        var prefilled = (machine.Editor.Title, machine.Editor.Name, machine.Editor.Provider, machine.Editor.Source, machine.Editor.Reference);
+        machine.Editor.Name = "office";
+        await machine.Editor.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(("Edit work", "work", 1, 1, "/logins/work"), prefilled);
+        Assert.Equal(["declare work->office claude-code login:/logins/work"], connections.Edits);
+        Assert.Equal("Renamed work to office in connections.json. A repository whose .avala/jobs.json names work must be changed too.", machine.Notice);
+    }
+
+    [Fact]
+    public async Task RemovingAsksFirstAndKeepingChangesNothingAsync()
+    {
+        var machine = await MachineAsync();
+
+        machine.Connections[1].RemoveCommand.Execute(null);
+        var asked = machine.Editor.Removing;
+        machine.Editor.KeepCommand.Execute(null);
+        machine.Connections[1].RemoveCommand.Execute(null);
+        await machine.Editor.RemoveCommand.ExecuteAsync(null);
+
+        Assert.Equal("personal", asked);
+        Assert.Equal(["remove personal"], connections.Edits);
+        Assert.Equal(["work"], machine.Connections.Select(connection => connection.Name));
+        Assert.Equal(string.Empty, machine.Editor.Removing);
+    }
+
+    [Theory]
+    [InlineData(ConnectionError.RemovesTheDefault, "This is the default connection: choose another default first.")]
+    [InlineData(ConnectionError.DuplicateName, "Another connection already has that name.")]
+    public async Task ARefusedChangeSaysWhyAndKeepsTheConnectionsAsync(ConnectionError refusal, string reason)
+    {
+        var machine = await MachineAsync();
+        connections.Refusal = refusal;
+
+        machine.Connections[0].RemoveCommand.Execute(null);
+        await machine.Editor.RemoveCommand.ExecuteAsync(null);
+
+        Assert.Equal(reason, machine.Editor.Error);
+        Assert.Equal(["work", "personal"], machine.Connections.Select(connection => connection.Name));
+    }
+
+    [Fact]
+    public async Task TheFirstDeclaredConnectionSaysWhichImplicitConnectionsItReplacesAsync()
+    {
+        connections.Catalog = connections.Catalog with
+        {
+            Connections = [new DeclaredConnection(new ConnectionName("simulator"), "simulator", Option<string>.None) { Origin = ConnectionOrigin.Implicit }],
+        };
+        var machine = await MachineAsync();
+        machine.Editor.NewCommand.Execute(null);
+        machine.Editor.Name = "team";
+
+        await machine.Editor.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(
+            "Added team to connections.json. New jobs can run on it now. A file that declares connections replaces the implicit ones, so simulator is no longer offered.",
+            machine.Notice);
+    }
+
+    [Fact]
+    public async Task OnlyAConnectionDeclaredInTheFileOffersEditAndRemoveAsync()
+    {
+        connections.Catalog = connections.Catalog with
+        {
+            Connections = [new DeclaredConnection(new ConnectionName("found"), "simulator", "login") { Origin = ConnectionOrigin.Discovered }],
+        };
+
+        var machine = await MachineAsync();
+
+        Assert.False(machine.Connections[0].IsDeclared);
+    }
+
+    private async Task<MachineSettingsViewModel> MachineAsync()
+    {
+        var settings = new MachineSettings(connections, new FakeSupervision(), new FakeResources());
+        var machine = new MachineSettingsViewModel(
+            settings,
+            new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")),
+            new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()),
+            new ConnectionEditorViewModel(settings));
+        await machine.LoadAsync(Cancellation);
+
+        return machine;
     }
 }

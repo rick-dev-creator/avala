@@ -17,7 +17,8 @@ internal sealed record ConnectionDeclaration(ConnectionName Name, string Provide
 
     public ConnectionOrigin Origin { get; init; }
 
-    public DeclaredConnection Declared => new(Name, Provider, Credential.Map(credential => credential.Source)) { Origin = Origin };
+    public DeclaredConnection Declared =>
+        new(Name, Provider, Credential.Map(credential => credential.Source)) { Origin = Origin, Reference = Credential.Bind(credential => credential.Reference) };
 
     public static bool IsValidName(string name) =>
         name.Length is > 0 and <= LongestName
@@ -104,5 +105,5 @@ internal interface IConnectionFile
 {
     ValueTask<Result<Option<ConnectionDeclarations>, ConnectionError>> LoadAsync(CancellationToken cancellationToken);
 
-    ValueTask<Result<ConnectionDeclarations, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken);
+    ValueTask<Result<ConnectionDeclarations, ConnectionError>> ChangeAsync(IConnectionChange change, CancellationToken cancellationToken);
 }

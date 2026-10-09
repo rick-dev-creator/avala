@@ -61,6 +61,8 @@ internal sealed class FakeConnections(params string[] names) : IConnections
         names.Length > 0 ? new ConnectionName(names[0]) : Option<ConnectionName>.None)
     {
         DefaultMode = DefaultMode.Fixed,
+        Providers = [new ProviderInfo("simulator", "Simulator"), new ProviderInfo("claude-code", "Claude Code")],
+        Sources = ["login", "apiKey"],
     };
 
     public List<Option<ConnectionName>> Changes { get; } = [];
@@ -95,6 +97,46 @@ internal sealed class FakeConnections(params string[] names) : IConnections
             Default = connection.IsSome ? connection : Catalog.Connections.Select(declared => Option<ConnectionName>.Some(declared.Name)).FirstOrDefault(),
             DefaultMode = connection.IsSome ? DefaultMode.Fixed : DefaultMode.Auto,
         };
+
+        return ValueTask.FromResult(Result<ConnectionCatalog, ConnectionError>.Success(Catalog));
+    }
+
+    public List<string> Edits { get; } = [];
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken)
+    {
+        var credential = connection.Credential.Match(found => $" {found.Source}:{found.Reference}", () => string.Empty);
+        Edits.Add($"declare {replacing.Match(name => $"{name.Value}->", () => string.Empty)}{connection.Name.Value} {connection.Provider}{credential}");
+
+        if (Refusal.IsSome)
+        {
+            return ValueTask.FromResult(Refusal.Match(Result<ConnectionCatalog, ConnectionError>.Failure, () => throw new InvalidOperationException()));
+        }
+
+        var declared = new DeclaredConnection(connection.Name, connection.Provider, connection.Credential.Map(found => found.Source))
+        {
+            Reference = connection.Credential.Map(found => found.Reference),
+        };
+        Catalog = Catalog with
+        {
+            Connections = replacing.IsSome
+                ? [.. Catalog.Connections.Select(known => replacing == known.Name ? declared : known)]
+                : [.. Catalog.Connections.Where(known => known.Origin != ConnectionOrigin.Implicit), declared],
+        };
+
+        return ValueTask.FromResult(Result<ConnectionCatalog, ConnectionError>.Success(Catalog));
+    }
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken)
+    {
+        Edits.Add($"remove {connection.Value}");
+
+        if (Refusal.IsSome)
+        {
+            return ValueTask.FromResult(Refusal.Match(Result<ConnectionCatalog, ConnectionError>.Failure, () => throw new InvalidOperationException()));
+        }
+
+        Catalog = Catalog with { Connections = [.. Catalog.Connections.Where(known => known.Name != connection)] };
 
         return ValueTask.FromResult(Result<ConnectionCatalog, ConnectionError>.Success(Catalog));
     }

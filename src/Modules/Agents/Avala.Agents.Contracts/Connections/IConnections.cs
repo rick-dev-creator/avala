@@ -22,6 +22,7 @@ public enum ConnectionError
     MissingVariable,
     MissingFolder,
     Unwritable,
+    RemovesTheDefault,
 }
 
 public enum ConnectionFileStatus
@@ -47,6 +48,8 @@ public enum DefaultMode
 public sealed record DeclaredConnection(ConnectionName Name, string Provider, Option<string> Source)
 {
     public ConnectionOrigin Origin { get; init; }
+
+    public Option<string> Reference { get; init; }
 }
 
 public sealed record ConnectionCatalog(
@@ -56,6 +59,15 @@ public sealed record ConnectionCatalog(
     Option<ConnectionName> Default)
 {
     public DefaultMode DefaultMode { get; init; }
+
+    public IReadOnlyList<ProviderInfo> Providers { get; init; } = [];
+
+    public IReadOnlyList<string> Sources { get; init; } = [];
+}
+
+public sealed record ConnectionEdit(ConnectionName Name, string Provider)
+{
+    public Option<CredentialReference> Credential { get; init; }
 }
 
 public sealed record ConnectionInfo(ConnectionName Name, ProviderInfo Provider);
@@ -67,4 +79,8 @@ public interface IConnections
     ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken);
 
     ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken);
+
+    ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken);
+
+    ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken);
 }
