@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Answering;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
+using Avala.Permissions.Links;
 using Avala.Sdk;
 using Avala.Testing;
 using Microsoft.Extensions.Time.Testing;
@@ -35,7 +36,7 @@ public sealed class WithdrawalTests
     {
         var clock = new FakeTimeProvider(Now);
         book = new GovernanceBook(store);
-        governor = new SessionGovernor(book, new NoPolicyFiles(), new PermissionResponder(agents, clock), bus);
+        governor = new SessionGovernor(book, new NoPolicyFiles(), new PermissionResponder(agents, new SymbolicLinks(), clock), bus);
         answers = new HumanAnswers(book, agents, bus, clock);
         book.Keep(book.Of(session).WorkingOn(job));
     }

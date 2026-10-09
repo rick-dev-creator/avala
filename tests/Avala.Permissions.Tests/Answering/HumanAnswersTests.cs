@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Answering;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
+using Avala.Permissions.Links;
 using Avala.Permissions.Policies;
 using Avala.Sdk;
 using Avala.Testing;
@@ -30,7 +31,7 @@ public sealed class HumanAnswersTests
     public HumanAnswersTests()
     {
         var clock = new FakeTimeProvider(Now);
-        governor = new SessionGovernor(book, new NoPolicyFiles(), new PermissionResponder(agents, clock), bus);
+        governor = new SessionGovernor(book, new NoPolicyFiles(), new PermissionResponder(agents, new SymbolicLinks(), clock), bus);
         answers = new HumanAnswers(book, agents, bus, clock);
         book.Keep(book.Of(session).WorkingOn(job));
     }

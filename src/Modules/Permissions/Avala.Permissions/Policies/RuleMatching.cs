@@ -1,4 +1,6 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Permissions.Contracts;
+using Avala.Sdk;
 
 namespace Avala.Permissions.Policies;
 
@@ -15,6 +17,30 @@ internal static class RuleMatching
                 RuleScope.OutsideWorkspace => !request.InsideWorkspace,
                 _ => true,
             };
+
+        public bool Covers(PermissionRequest line) =>
+            rule.Matches(line) && (rule.Target.IsNone || rule.Origin == RuleOrigin.Session);
+    }
+
+    extension(IReadOnlyList<PolicyRule> rules)
+    {
+        public Verdict First(Func<PolicyRule, bool> matches) =>
+            rules.FirstOrDefault(matches) is { } rule ? new Verdict(rule.Answer, rule) : new Verdict(PolicyAnswer.Ask, Option<PolicyRule>.None);
+
+        public Verdict Commanded(PermissionRequest request)
+        {
+            var line = CommandLine.Parse(request.Target);
+            Verdict[] verdicts =
+            [
+                .. line.Commands.Select(command => rules.First(rule => rule.Covers(request) || rule.Matches(request with { Target = command }))),
+                .. line.Writes.Select(path => rules.First(rule => (rule.Origin == RuleOrigin.Session && rule.Covers(request)) || rule.Matches(line.Written(path, request)))),
+                .. line.Opaque ? [rules.First(rule => rule.Covers(request))] : Array.Empty<Verdict>(),
+            ];
+
+            return verdicts.FirstOrDefault(verdict => verdict.Answer == PolicyAnswer.Deny)
+                ?? verdicts.FirstOrDefault(verdict => verdict.Answer == PolicyAnswer.Ask)
+                ?? verdicts[0];
+        }
     }
 
     private static bool Globs(string pattern, string text)
