@@ -43,7 +43,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Workspaces | Working copies, branches, checkpoints, the files of the commit a job's rules come from, the diff of a workspace against the commit it started from, merging a workspace's work into its base branch, and the reconciliation of worktrees on disk with the store | `IWorkspaces`, `IBaseFiles`, `IWorkspaceChanges`, `WorktreeReconciliation`, integration events |
 | Resources | Samples the processes, ports and disk every job uses, reaps the processes a session leaves behind, leases ports per worktree and reclaims worktrees by retention | `IResources`, `IOrphans`, `IWorktreeHousekeeping`, integration events |
 | Canvas | Offers the canvas tool, accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
-| Timeline | Read model of everything that happened in a job, for the activity view | Queries |
+| Workbench | The user interface's module: the job board, the conversation projection of every job since the application started, the composer's commands, the answers a person gives permissions and forms, and every view model of the main window, see [Workbench](#workbench) | None: other modules never depend on it |
 | Observability | Tokens, cost, limits and turns by provider, account, connection, session and job, stored as facts so they survive a restart and can be read over time windows, and their metrics | `IUsage`, `IUsageHistory` and their summaries |
 | Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
 | Permissions | Answers permission requests and forms through an explicit policy at the job's level of autonomy, takes a human's answers with their session rules, and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `AutonomyApplied`, `FormDecided`, `PermissionAnswered`, `IPermissionAudit`, `IPermissionAnswers` |
@@ -235,6 +235,8 @@ public interface IEventFeed
 - Activation starts an `await foreach`. Deactivation cancels the token and ends the subscription, so no subscription outlives its screen.
 - Each subscription is a channel of its own: it receives its events in publishing order, and no handler can delay it. A subscriber therefore may see an event before the handlers of that event ran; one that needs a handler's result waits for the event that handler publishes afterwards.
 - Events arrive off the UI thread. The SDK defines `IUiDispatcher` and the host implements it, so view models stay unaware of Avalonia.
+- A page that follows the feed implements `IActivatable` from the SDK: the shell activates the page it selects and deactivates the one it leaves, which is when the page starts and ends its subscriptions.
+- A view model that needs what happened before it opened reads it from an application-layer read model that a handler keeps from startup, such as the Workbench's [job board](#the-job-board), instead of subscribing itself: a subscription only sees what is published after it starts, and subscriptions to different event types have no order between them.
 
 ### Consistency without an outbox
 
@@ -326,7 +328,7 @@ public interface IJobs
 ```
 
 - `Job.Hold(reason)` moves a `Running` job to `NeedsHelp` and concludes its underway attempt as `Interrupted`. No new state: a held job needs a human exactly like one whose retries ran out, and a hint resumes either. Any other state returns `CannotHold`, which `IJobs` reports as `NotRunning`; an unknown job is `UnknownJob`.
-- `HoldReason` is `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget` or `MemoryExceeded`.
+- `HoldReason` is `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`, `MemoryExceeded` or `Interrupted`, a person who interrupted the job from its conversation, see [Workbench](#the-composer).
 - `HoldJob` stores the held job first, which publishes `JobProgressed` with `NeedsHelp`, and only then halts the session, so the end of the interrupted turn finds a job that is no longer `Running`. It then publishes `JobHeld` with a `JobHold`: job, session, reason and how the session was halted.
 - Halting: `SessionLost` stops the session, since it is already gone. Every other reason interrupts the turn through `IAgents.InterruptAsync` and keeps the session open for a human: `Interrupted` when a turn was interrupted, `Idle` when none was running. A provider that cannot interrupt, or an interruption that fails otherwise, stops the session instead: `Stopped`. A session that is no longer open is `AlreadyClosed`.
 - The hold reason is not persisted: the stored job is `NeedsHelp` with an interrupted attempt, and the reason lives in `JobHeld` and in the audit of the module that held it. Persisting it arrives with the first schema migration.
@@ -1538,6 +1540,109 @@ The result of the call, a `ChildReport` written as JSON for the agent, is never 
 - The domain decides and rejects nothing, so it has no aggregate. `DelegationError` is the module's single error enum, in its contracts.
 - Delegation records live in memory: a delegation does not survive a restart. The tree survives in Jobs, the carves in Budgets, and the children go on through recovery like any job; their parent's new session is not told their results.
 
+## Workbench
+
+**Accepted**
+
+The user interface is a module like any other, built view model first, see [Delivery](#delivery): phase 9 builds and tests its view models against the simulator, with plain placeholder views, and phase 10 designs the views from the approved [brief](ui-brief.md).
+
+### Where the view models live
+
+- **One module for the screens.** A screen of the approved design combines several modules: the conversation of a job reads Agents, Jobs, Permissions, Canvas and Verification. A module depends only on the SDK and other modules' contracts, so a screen can only be composed outside the modules whose data it shows. The Workbench is that module: it depends on the SDK, the SDK's UI contracts and the contracts it reads, and no module depends on it. The placeholder jobs page of Jobs is gone; Jobs keeps its plugin entry in `Avala.Jobs.UI`.
+- **Two projects.** `Avala.Workbench` holds the application layer, the projections and the commands, and the view models, without Avalonia. `Avala.Workbench.UI` holds the views and the plugin entry, which registers the main window's view model as the shell's page.
+- **Layers.** The view models use the application folders only, never infrastructure, and the module has none. Each view model takes at most four dependencies and delegates every command to a service of the application layer.
+- **A view model per kind of entry.** Every entry of the conversation, every sidebar row and every card is a view model with its own view, resolved through the view registry: one view model and one template per kind, never one view that knows every kind.
+- **Placeholder views.** Every `XViewModel` has an `XView`. Until phase 10 they are plain Avalonia controls bound to what the view model exposes, so the application runs, and the architecture rule holds, while the visual language is designed.
+
+### The job board
+
+`BoardKeeper` is one handler of `StartupCompleted`, `JobSubmitted`, `JobProgressed`, `JobHeld`, `JobApproved`, `JobSessionStarted`, `AgentActivity`, `CanvasUpdated`, `PermissionDecided`, `FormDecided` and `AttemptVerified`. One handler is one mailbox, so it sees all of them in the order they were published: a session is tied to its job before its first activity arrives, and a decision follows the request it decides. It keeps every job as a `BoardJob` from the moment the application starts, whether or not a screen shows it, so a conversation opened late shows everything since startup.
+
+- **What it asks Jobs.** `IJobCatalog.HistoryAsync` when a job is submitted, when a job it has not seen yet progresses or starts a session, and on every `JobProgressed`, to read the job's attempts; `ListAsync` once, on `StartupCompleted`, for the jobs of earlier runs.
+- **What it publishes.** `JobBoard` holds the immutable dictionary of jobs the keeper replaces whole, read with `Volatile`. A view model watches it through `ChangesAsync`, a channel of one pending signal per watcher: a change while one is pending is dropped, and the watcher reads the latest board when it wakes, so a burst of streamed text costs the interface one update. No lock: the keeper's mailbox is the only writer.
+- **`BoardJob`.** The job's `JobSummary` with its latest status, the number of its attempts, its `HoldReason` until it runs again, its latest `VerificationReport`, its `ApprovalDelivery` and its `Transcript`. It derives the sidebar's group, its one secondary fact and its pending decisions.
+
+| Group | Jobs |
+| --- | --- |
+| Needs you | Any job with a decision waiting for a person, and every `NeedsHelp` job |
+| Running | `Draft`, `Preparing`, `Running` and `Checking` |
+| Ready for review | `AwaitingReview` |
+| Done | `Approved`, `Discarded` and `Failed` |
+
+| Fact | When |
+| --- | --- |
+| Asks permission, by kind: wants to run a command, to edit a file, to reach the web, to use a tool | A permission left to a person is waiting |
+| Asks a question, to approve a plan, for input | A form left to a person is waiting, by its purpose |
+| `2 of 4` | A running job with a plan |
+| Working, verifying, starting | Running without a plan, checking, preparing |
+| Held, with the reason; needs help | `NeedsHelp` after a hold, or after its retries ran out |
+| Verified on attempt N, no checks declared, ready for review | Awaiting review, by its latest verification |
+| Merged or approved, discarded, failed | Ended |
+
+A decision waits for a person only once the policy said so: a permission whose `PermissionDecided` was `LeftToHuman` or `Undelivered`, or a form whose `FormDecided` carries no answer, as long as nothing resolved or answered it and its turn has not ended. A request the policy answers itself never counts, so the sidebar never flashes for an edit the policy allowed a moment later. Without the Permissions plugin nothing counts as waiting; the plugin is part of every composition.
+
+### The conversation projection
+
+`Transcript`, in the `Timeline` folder, is an immutable record of a job's entries in the order they happened, each with a stable key, and the functions that apply an event to it. It performs no I/O and takes the time from its caller, so it is tested without a bus or a clock.
+
+| Entry | From | Holds |
+| --- | --- | --- |
+| `PromptEntry` | The job's attempts, from the catalog | The attempt's number, origin and outcome, and what was sent: the instruction for the first attempt, the feedback, hint or review for the others, nothing for a recovery |
+| `RestartEntry` | A job of an earlier run | Marks where what the board saw itself begins |
+| `MessageEntry` | `ItemStarted` of a message | The streamed text, appended in order, and its outcome |
+| `ReasoningEntry` | `ItemStarted` of reasoning | The streamed text, and how long the agent thought, from `ItemStarted` to `ItemCompleted` as the keeper's `TimeProvider` measured them |
+| `ToolEntry` | `ItemStarted` of any other kind, or `ToolCalled` | Kind, title, output appended in order, outcome; for an executed harness tool, its input and the result it returned |
+| `PlanEntry` | `PlanUpdated` | The latest steps of the turn's plan, replaced in place, with done and total |
+| `CanvasEntry` | `CanvasStarted`, then `CanvasUpdated` | Title, media type, and the content and status of the latest throttled snapshot; the raw chunks are ignored, so the view never renders more often than the Canvas module publishes |
+| `PermissionEntry` | `PermissionRequested`, `PermissionDecided`, `PermissionResolved` | The request's session, item, kind, title and target, the policy's decision, the resolution, whether its turn ended |
+| `FormEntry` | `FormRequested`, `FormDecided`, `FormAnswered`, `ItemCompleted` | The form, the policy's decision, the answer, the outcome, whether its turn ended |
+| `TurnEndEntry` | `TurnCompleted` | The turn's outcome, its duration, and the tokens and costs it reported |
+
+- Content for an item that never started is ignored, as is any event the projection does not show, such as limits and resume tokens.
+- What the person or the harness sent the agent is not an agent event, so the user's side of the conversation comes from Jobs: every attempt starts with a message, and its guidance is that message. The board refreshes the attempts on every `JobProgressed`, which Jobs publishes after storing the attempt and before sending its message, so a prompt always precedes the turn it starts.
+- The conversation shows a permission card only when the request went to a person. The requests the policy answered stay in the transcript for the inspector.
+- A canvas is shown from the board's snapshots, not from `ICanvases.InSession`: the board follows `CanvasUpdated` from startup, so it already holds every canvas the query would return.
+
+### Jobs that ran before the application started
+
+The agent's events are not stored, so a job of an earlier run cannot be replayed. When the application starts, the board adds every job of the catalog with one prompt per attempt, each with its origin, what was sent and its outcome, then a `RestartEntry`; whatever the job does next follows it, a recovery included. A job of an earlier run that is recovered before the catalog is read joins the same way.
+
+**Proposed**, not built: storing the stream. The keeper would append every entry-changing event of a session to a file per session in the data folder, or rows of a `workbench.db`, and fold them through `Transcript` at startup, so a conversation survives a restart and a replay can digest what happened while a person was away. Its retention would follow the job's worktree. The recordings of the Recording module are not that store: they are opt-in, written for the simulator to replay a provider, and carry no decisions or snapshots.
+
+### The composer
+
+`JobSteering` gives the composer's commands to Jobs:
+
+- **Send.** To a job that needs a person, `IJobs.ContinueAsync`; to a job awaiting review, `IJobs.SendBackAsync`, a new round with the message as feedback. A running job takes no message, and `NotHeld` is returned without asking Jobs: steering an agent in the middle of a turn is not in the core, and a message sent straight to its session would start a turn Jobs does not count as an attempt.
+- **Interrupt.** `IJobs.HoldAsync` with `HoldReason.Interrupted`. Interrupting the agent directly through `IAgents.InterruptAsync` would fail the job, since an interrupted turn of a running job fails it. The hold interrupts the turn, keeps the session, and the job waits as `NeedsHelp` until a person continues it with a message.
+- **Stop.** `IJobs.DiscardAsync`: the job ends `Discarded`, its session stops, and Resources reclaims its worktree by its retention.
+- A rejection is shown as text in the composer; the draft stays when sending was refused.
+
+### Answering in place
+
+- **A permission card** answers through `IPermissionAnswers.AnswerAsync`, `Allow` or `Deny`, with the optional note for the agent and "don't ask again". Its commands are enabled only while the request waits for a person; a refusal, such as `NotAwaitingAnswer`, is shown on the card.
+- **A form card** renders any `AgentForm`: one field view model per field, one choice view model per option. The recommended options start selected, so answering with them is one command; choosing another option of a single choice unselects the first, and text typed for a single choice that accepts it is sent in place of an option. Answering is enabled once every field is complete, by the rules `IAgents.AnswerAsync` checks; declining sends the note as the form's message.
+
+### Navigation
+
+The shell lists the pages plugins register, `IPage`, and activates the selected one through `IActivatable`. The Workbench's page is the main window: the sidebar, the conversation of the selected job, opened when the sidebar's selection changes, and the inspector, closed by default and toggled. While active it follows the board, and on every change it updates the sidebar and the open conversation on the UI thread through `IUiDispatcher`; the view models are touched on that thread only.
+
+### The module
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Timeline` | `Transcript`, its entries and their keys | Application |
+| `Board` | `BoardJob`, `JobFacts`, the groups and facts of the sidebar, `JobBoard`, and `BoardKeeper`, the handler | Application |
+| `Steering` | `JobSteering`, the composer's commands, and what a status accepts | Application |
+| `Replies` | `HumanReplies`, the answers to permissions and forms, and `FieldChoice`, the answer to one field | Application |
+| `Navigation` | `WorkbenchViewModel`, the main window's page | ViewModels |
+| `Sidebar` | `SidebarViewModel`, `JobRowViewModel` and the wording of the facts | ViewModels |
+| `Conversation` | `ConversationViewModel`, `ComposerViewModel`, one view model per kind of entry, and `Conversations`, which opens one per job | ViewModels |
+| `Cards` | `PermissionCardViewModel`, `FormCardViewModel`, `FormFieldViewModel` and `FormChoiceViewModel`, which the decisions popover can reuse | ViewModels |
+
+- The module has no domain: the board and the projection are facts that already happened, like Observability's, so it has no aggregate and no error enum. It shows the errors of the modules it calls.
+- The board lives in memory, every job's transcript since startup. Dropping the transcripts of ended jobs, and the canvases of their sessions, arrives with the first measure of their size.
+
 ## Data the harness produces
 
 The user interface is designed from the data the harness produces, so every module that produces data lists it here: its integration events on the bus and its queries, with their shape, when and how often they are produced, and their cardinality.
@@ -1625,7 +1730,7 @@ The job's connection is not part of an event of Jobs: a view reads it from `IJob
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
-| `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`, `MemoryExceeded`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, or Jobs holds one whose session ended on its own, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
+| `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`, `MemoryExceeded`, `Interrupted`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, or Jobs holds one whose session ended on its own, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
 | `JobResumable` | Event | `Job`, `Session` whose resume token Jobs stored | Each time the job's current session issues a resume token, once the token is stored. Never for a session the job no longer uses | Zero or more per session; the simulator issues one per turn |
 | `IJobs.ContinueAsync(JobId, message)` | Command answer | `Result<JobContinuation, JobRejection>`: `Job`, the `Session` the job continues in and `Conversation` (`ContinuedIn`: `SameSession`, `ResumedConversation`, `NewConversation`); or `NotHeld`, `EmptyMessage`, `UnknownJob`, `WorkspaceUnavailable`, `UnknownConnection`, `UnusableConnection`, `AgentUnavailable` | When a human answers a job that needs help. A success is followed by `JobProgressed` with `Running`, and by `JobSessionStarted` when the session is new | One per human answer |
 
