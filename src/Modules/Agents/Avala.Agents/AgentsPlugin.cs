@@ -13,6 +13,8 @@ public sealed class AgentsPlugin : IPlugin
     public void Register(IPluginRegistrar registrar)
     {
         registrar.Services.TryAddSingleton(TimeProvider.System);
-        registrar.Services.AddSingleton<IAgents, AgentSessions>();
+        registrar.Services
+            .AddSingleton<SessionStarter>()
+            .AddSingleton<IAgents, AgentSessions>();
     }
 }

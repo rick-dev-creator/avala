@@ -35,6 +35,7 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
             .AddSingleton<CheckTurn>()
             .AddSingleton<IHandle<TurnFinished>>(services => services.GetRequiredService<CheckTurn>())
             .AddSingleton<IHandle<SessionEnded>>(services => services.GetRequiredService<CheckTurn>())
+            .AddSingleton<IHandle<SessionResumable>>(services => services.GetRequiredService<CheckTurn>())
             .AddSingleton<IStartupTask, JobRecovery>()
             .AddSingleton<IPage, JobsViewModel>();
 

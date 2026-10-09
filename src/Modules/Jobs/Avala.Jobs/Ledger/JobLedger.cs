@@ -21,6 +21,12 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus)
         await bus.PublishAsync(new JobProgressed(job.Id, job.State.Status), cancellationToken);
     }
 
+    public async Task RecordResumeAsync(Job job, SessionId session, CancellationToken cancellationToken)
+    {
+        await store.SaveAsync(job, cancellationToken);
+        await bus.PublishAsync(new JobResumable(job.Id, session), cancellationToken);
+    }
+
     public async Task RecordSessionAsync(Job job, SessionId session, CancellationToken cancellationToken)
     {
         await RecordAsync(job, cancellationToken);

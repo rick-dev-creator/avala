@@ -20,4 +20,5 @@ internal enum JobError
     CannotDiscard,
     CannotFail,
     CannotHold,
+    ForeignSession,
 }

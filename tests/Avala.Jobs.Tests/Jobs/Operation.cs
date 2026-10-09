@@ -10,6 +10,7 @@ internal enum Operation
     Retry,
     RequestHelp,
     Hint,
+    HintInNewSession,
     SendBack,
     Approve,
     Discard,

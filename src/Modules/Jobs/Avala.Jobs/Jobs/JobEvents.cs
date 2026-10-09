@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Jobs.Contracts;
 using Avala.Sdk.Domain;
@@ -23,3 +24,5 @@ internal sealed record JobDiscarded(JobId Job, JobState From) : IDomainEvent;
 internal sealed record JobFailed(JobId Job, FailureReason Reason) : IDomainEvent;
 
 internal sealed record JobHeld(JobId Job, AttemptNumber Attempt, HoldReason Reason) : IDomainEvent;
+
+internal sealed record ResumeRecorded(JobId Job, SessionId Session) : IDomainEvent;

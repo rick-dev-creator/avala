@@ -9,10 +9,12 @@ internal sealed class Performer(SessionOptions options, IFileWriter files, Permi
 {
     public async IAsyncEnumerable<IAgentEvent> PlayAsync(
         Cues cues,
-        IReadOnlyList<IStep> script,
+        Conversation conversation,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        var script = conversation.NextScript;
         yield return cues.Started;
+        yield return cues.Resumable(conversation.Advanced.Token);
 
         foreach (var step in script)
         {
@@ -43,6 +45,8 @@ internal sealed class Performer(SessionOptions options, IFileWriter files, Permi
             _ => Task.CompletedTask,
             cancellationToken),
         Crash crash => throw new InvalidOperationException(crash.Reason),
+        Draw draw when !options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
+            cues.Of(new Say(draw.Item, ItemKind.Message, draw.Title, draw.Chunks)).ToAsyncEnumerable(),
         _ => cues.Of(step).ToAsyncEnumerable(),
     };
 

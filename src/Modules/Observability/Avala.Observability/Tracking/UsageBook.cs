@@ -26,6 +26,19 @@ internal sealed class UsageBook : IUsage
             .Select(provider => new ProviderUsage(provider.Key, provider.ToList().Summary)),
     ];
 
+    public IReadOnlyList<AccountUsage> ByAccount() =>
+    [
+        .. Sessions.Values
+            .SelectMany(
+                usage => usage.Provider.Bind(provider => usage.Account.Map(account => (provider, account)))
+                    .Match<(ProviderInfo Provider, AgentAccount Account)[]>(owner => [owner], () => []),
+                (usage, owner) => (usage, owner))
+            .GroupBy(pair => pair.owner, pair => pair.usage)
+            .OrderBy(owner => owner.Key.Provider.Id, StringComparer.Ordinal)
+            .ThenBy(owner => owner.Key.Account.Id, StringComparer.Ordinal)
+            .Select(owner => new AccountUsage(owner.Key.Provider, owner.Key.Account, owner.ToList().Summary)),
+    ];
+
     public Option<UsageSummary> OfSession(SessionId session) =>
         Sessions.TryGetValue(session, out var usage) ? new[] { usage }.Summary : Option<UsageSummary>.None;
 

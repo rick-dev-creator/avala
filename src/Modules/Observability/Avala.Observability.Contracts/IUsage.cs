@@ -8,6 +8,8 @@ public interface IUsage
 {
     IReadOnlyList<ProviderUsage> ByProvider();
 
+    IReadOnlyList<AccountUsage> ByAccount();
+
     Option<UsageSummary> OfSession(SessionId session);
 
     Option<UsageSummary> OfJob(JobId job);

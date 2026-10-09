@@ -8,4 +8,5 @@ public enum AgentError
     NoTurnInProgress,
     NoPendingPermission,
     Unsupported,
+    CannotResume,
 }

@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Canvas.Contracts;
+using Avala.Canvas.Drawing;
 using Avala.Canvas.Gallery;
 using Avala.Canvas.Streaming;
 using Avala.Canvas.Throttling;
@@ -27,6 +28,7 @@ public sealed class CanvasPlugin : IPlugin
                 provider.GetRequiredService<IEventBus>(),
                 provider.GetRequiredService<TimeProvider>(),
                 SnapshotInterval))
-            .AddSingleton<IHandle<AgentActivity>, CanvasFeed>();
+            .AddSingleton<IHandle<AgentActivity>, CanvasFeed>()
+            .AddSingleton(CanvasTool.Definition);
     }
 }

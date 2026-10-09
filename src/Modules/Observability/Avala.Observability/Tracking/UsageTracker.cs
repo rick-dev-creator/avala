@@ -11,7 +11,7 @@ internal sealed class UsageTracker(UsageBook book, IUsageMetrics metrics, TimePr
 {
     public ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
     {
-        book.Keep(book.Of(integrationEvent.Session).OpenedBy(integrationEvent.Provider));
+        book.Keep(book.Of(integrationEvent.Session).OpenedBy(integrationEvent.Provider, integrationEvent.Account));
 
         return ValueTask.CompletedTask;
     }

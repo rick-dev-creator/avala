@@ -201,13 +201,13 @@ public sealed class SimulatedSessionTests
         Assert.Equal(turn, Outcomes.Succeeds(await stage.Session.InterruptAsync(Cancellation)));
         Assert.Equal(
             [new TurnStarted(stage.Session.Id, turn), new TurnCompleted(stage.Session.Id, turn, TurnOutcome.Interrupted)],
-            await stage.ReadTurnAsync(Cancellation));
+            (await stage.ReadTurnAsync(Cancellation)).Where(agentEvent => agentEvent is not ResumeTokenIssued));
     }
 
     [Fact]
-    public async Task TheCanvasScenarioStreamsAnSvgInSeveralChunksAsync()
+    public async Task GivenTheCanvasToolTheCanvasScenarioStreamsAnSvgThroughItInSeveralChunksAsync()
     {
-        await using var stage = new Stage();
+        await using var stage = new Stage(PermissionMode.AskEveryTime, Stage.CanvasTool);
         await stage.SendAsync("[simulate: canvas] Draw the architecture", Cancellation);
 
         var events = await stage.ReadTurnAsync(Cancellation);
@@ -217,5 +217,44 @@ public sealed class SimulatedSessionTests
         Assert.True(chunks.Count > 1);
         Assert.StartsWith("<svg", string.Concat(chunks), StringComparison.Ordinal);
         Assert.EndsWith("</svg>", string.Concat(chunks), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WithoutTheCanvasToolTheCanvasScenarioWritesItsDrawingsAsMessagesAsync()
+    {
+        await using var stage = new Stage();
+        await stage.SendAsync("[simulate: canvas] Draw the architecture", Cancellation);
+
+        var events = await stage.ReadTurnAsync(Cancellation);
+
+        Assert.DoesNotContain(events, agentEvent => agentEvent is CanvasStarted);
+        Assert.Contains(events, agentEvent => agentEvent is ItemStarted { Item.Value: "diagram", Kind: ItemKind.Message });
+    }
+
+    [Fact]
+    public async Task EveryTurnIssuesAResumeTokenThatContinuesTheConversationWithItsNextTurnAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+        await stage.SendAsync("[simulate: fix-after-feedback] Add a calculator", Cancellation);
+        var first = await stage.ReadTurnAsync(Cancellation);
+        var issued = Assert.IsType<ResumeTokenIssued>(first[1]);
+
+        await using var resumed = Outcomes.Succeeds(await stage.ResumeAsync(issued.Token, Cancellation));
+        Outcomes.Succeeds(await resumed.SendAsync(new UserTurn("Continue"), Cancellation));
+        var next = await Stage.ReadUntilAsync<TurnCompleted>(resumed, Cancellation);
+
+        Assert.Contains(next, agentEvent => agentEvent is ItemStarted { Item.Value: "fix" });
+        Assert.Equal("add(2, 2) = 4\n", await File.ReadAllTextAsync(Path.Combine(stage.WorkingDirectory, "calculator.txt"), Cancellation));
+        Assert.NotEqual(issued.Token, Assert.IsType<ResumeTokenIssued>(next[1]).Token);
+    }
+
+    [Theory]
+    [InlineData("not a token")]
+    [InlineData("0123456789abcdef0123456789abcdef/unknown/1")]
+    public async Task AResumeTokenTheSimulatorNeverIssuedIsRejectedAsync(string token)
+    {
+        await using var stage = new Stage();
+
+        Assert.Equal(AgentError.CannotResume, Outcomes.FailsWith(await stage.ResumeAsync(new ResumeToken(token), Cancellation)));
     }
 }

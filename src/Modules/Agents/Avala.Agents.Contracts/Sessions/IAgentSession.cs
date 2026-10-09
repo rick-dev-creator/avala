@@ -7,6 +7,8 @@ public interface IAgentSession : IAsyncDisposable
 {
     SessionId Id { get; }
 
+    Option<AgentAccount> Account { get; }
+
     IAsyncEnumerable<IAgentEvent> Events { get; }
 
     ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken);

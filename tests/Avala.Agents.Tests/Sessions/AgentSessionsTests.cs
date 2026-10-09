@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Sessions;
+using Avala.Sdk;
 using Avala.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -78,16 +79,17 @@ public sealed class AgentSessionsTests
     }
 
     [Fact]
-    public async Task OpeningASessionAnnouncesItWithItsProviderAndWorkingDirectoryBeforeAnyActivityAsync()
+    public async Task OpeningASessionAnnouncesItWithItsProviderAccountAndWorkingDirectoryBeforeAnyActivityAsync()
     {
-        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
+        var account = new AgentAccount("acct-1", "Team account");
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { Account = () => account };
         var bus = new RecordingBus();
         await using var agents = Agents(bus, provider);
 
         var turn = await StartAsync(agents, "Add GitHub login");
         await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
 
-        Assert.Equal(new SessionOpened(turn.Session, provider.Info, Request.WorkingDirectory), bus.Published[0]);
+        Assert.Equal(new SessionOpened(turn.Session, provider.Info, Request.WorkingDirectory) { Account = account }, bus.Published[0]);
     }
 
     [Fact]
@@ -118,9 +120,11 @@ public sealed class AgentSessionsTests
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
         await using var agents = Agents(new RecordingBus(), provider);
         var turn = await StartAsync(agents, "Add GitHub login");
+        Assert.True(agents.IsOpen(turn.Session));
 
         Outcomes.Succeeds(await agents.StopAsync(turn.Session, Cancellation));
 
+        Assert.False(agents.IsOpen(turn.Session));
         Assert.True(Assert.Single(provider.Sessions).IsDisposed);
         Assert.Equal(AgentError.SessionClosed, Outcomes.FailsWith(await agents.SendAsync(turn.Session, "late", Cancellation)));
     }
@@ -239,13 +243,79 @@ public sealed class AgentSessionsTests
         Assert.DoesNotContain(bus.Published, published => published is SessionEnded or TurnFinished);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task OnlyAProviderThatAcceptsToolsIsGivenTheHarnessToolsAsync(bool accepts)
+    {
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { Capabilities = Declared with { AcceptsTools = accepts } };
+        await using var agents = new AgentSessions(
+            new SessionStarter([provider], [Canvas]),
+            new RecordingBus(),
+            TimeProvider.System,
+            NullLogger<AgentSessions>.Instance);
+
+        Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));
+
+        Assert.Equal(accepts ? [Canvas] : [], Assert.Single(provider.Sessions).Options.Tools);
+    }
+
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, false, false)]
+    [InlineData(true, true, false)]
+    public async Task ASessionResumesOnlyWhenItsProviderCanResumeAndAcceptsTheTokenOtherwiseItStartsFreshAsync(
+        bool canResume,
+        bool rejects,
+        bool resumed)
+    {
+        var token = new ResumeToken("conversation-1");
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply)
+        {
+            Capabilities = Declared with { CanResume = canResume },
+            RejectsResume = rejects,
+        };
+        await using var agents = Agents(new RecordingBus(), provider);
+
+        var opened = Outcomes.Succeeds(await agents.OpenAsync(Request with { Resume = token }, Cancellation));
+
+        Assert.Equal(resumed, opened.Resumed);
+        Assert.Equal(resumed ? Option<ResumeToken>.Some(token) : Option<ResumeToken>.None, Assert.Single(provider.Sessions).Options.Resume);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AResumeTokenIssuedInATurnIsAnnouncedOnlyWhenTheProviderCanResumeAsync(bool canResume)
+    {
+        var token = new ResumeToken("conversation-1");
+        var bus = new RecordingBus();
+        var provider = new ScriptedAgentProvider((session, turn) =>
+            [new TurnStarted(session, turn), new ResumeTokenIssued(session, turn, token), new TurnCompleted(session, turn, TurnOutcome.Finished)])
+        {
+            Capabilities = Declared with { CanResume = canResume },
+        };
+        await using var agents = Agents(bus, provider);
+
+        var turn = await StartAsync(agents, "Add GitHub login");
+        await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
+
+        Assert.Equal(
+            canResume ? [new SessionResumable(turn.Session, token)] : [],
+            bus.Published.OfType<SessionResumable>());
+    }
+
+    private static readonly HarnessTool Canvas = new("canvas", "Draw a canvas", "{}", ToolSurface.Canvas);
+
+    private static AgentCapabilities Declared { get; } = new ScriptedAgentProvider(ScriptedAgentProvider.Reply).Capabilities;
+
     private static async Task<AgentTurn> StartAsync(AgentSessions agents, string instruction)
     {
-        var session = Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));
+        var opened = Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));
 
-        return Outcomes.Succeeds(await agents.SendAsync(session, instruction, Cancellation));
+        return Outcomes.Succeeds(await agents.SendAsync(opened.Session, instruction, Cancellation));
     }
 
     private static AgentSessions Agents(RecordingBus bus, params IAgentProvider[] providers) =>
-        new(providers, bus, TimeProvider.System, NullLogger<AgentSessions>.Instance);
+        new(new SessionStarter(providers, []), bus, TimeProvider.System, NullLogger<AgentSessions>.Instance);
 }

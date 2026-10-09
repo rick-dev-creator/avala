@@ -23,4 +23,6 @@ public sealed record UsageReported(SessionId Session, TurnId Turn, TokenUsage To
 
 public sealed record LimitReported(SessionId Session, TurnId Turn, UsageLimit Limit) : IAgentEvent;
 
+public sealed record ResumeTokenIssued(SessionId Session, TurnId Turn, ResumeToken Token) : IAgentEvent;
+
 public sealed record TurnCompleted(SessionId Session, TurnId Turn, TurnOutcome Outcome) : IAgentEvent;

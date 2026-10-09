@@ -87,6 +87,12 @@ internal static class ScenarioCatalog
             new Open(new ItemId("reply"), ItemKind.Message, "Reply"),
             new Crash("The simulated agent process exited unexpectedly."),
         ],
+        [
+            Thought("The previous run stopped halfway. ", "Picking up from there."),
+            Message("Resumed and finished the work."),
+            .. Bill(1_100, 70, 0.0040m, 0.34),
+            new Finish(),
+        ],
     ]);
 
     public static Scenario LeftOpen { get; } = new("left-open",
@@ -100,7 +106,16 @@ internal static class ScenarioCatalog
         ],
     ]);
 
-    public static Scenario Hang { get; } = new("hang", [[]]);
+    public static Scenario Hang { get; } = new("hang",
+    [
+        [],
+        [
+            Thought("Back at work ", "after the pause."),
+            Message("Finished what I was doing."),
+            .. Bill(1_300, 90, 0.0045m, 0.36),
+            new Finish(),
+        ],
+    ]);
 
     public static Scenario Canvas { get; } = new("canvas",
     [
@@ -129,9 +144,10 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } = [Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, Crash, LeftOpen, Hang, Canvas];
 
     public static Scenario Choose(string firstMessage) =>
-        Tagged(firstMessage)
-            .Bind(name => All.FirstOrDefault(scenario => string.Equals(scenario.Name, name, StringComparison.OrdinalIgnoreCase)).ToOption())
-            .Match(scenario => scenario, () => Reply);
+        Tagged(firstMessage).Bind(Named).Match(scenario => scenario, () => Reply);
+
+    public static Option<Scenario> Named(string name) =>
+        All.FirstOrDefault(scenario => string.Equals(scenario.Name, name, StringComparison.OrdinalIgnoreCase)).ToOption();
 
     private static Option<string> Tagged(string message)
     {

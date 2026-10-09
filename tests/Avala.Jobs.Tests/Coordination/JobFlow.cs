@@ -9,6 +9,7 @@ using Avala.Jobs.Ledger;
 using Avala.Jobs.Recovery;
 using Avala.Jobs.Submission;
 using Avala.Jobs.TurnChecks;
+using Avala.Sdk;
 using Avala.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
@@ -26,7 +27,7 @@ internal sealed class JobFlow
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
         Submit = new SubmitJob(ledger, Bus);
         Hold = new HoldJob(ledger, agents, Bus);
-        Jobs = new JobsEntry(Submit, Hold, Queues);
+        Jobs = new JobsEntry(Submit, Hold, launcher, Queues);
         Prepare = new PrepareJob(Queues, launcher);
         Check = new CheckTurn(ledger, Queues, new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents), Hold);
         Recovery = new JobRecovery(ledger, Queues, launcher);
@@ -87,6 +88,22 @@ internal sealed class JobFlow
     {
         await Check.HandleAsync(new SessionEnded(session, SessionEnding.Crashed), Cancellation);
         await SettledAsync(job);
+    }
+
+    public async Task OfferResumeAsync(Job job, SessionId session, ResumeToken token)
+    {
+        await Check.HandleAsync(new SessionResumable(session, token), Cancellation);
+        await SettledAsync(job);
+    }
+
+    public async Task<Job> HeldAsync(HoldReason reason, Option<ResumeToken> resumable = default)
+    {
+        var job = await RunningAsync();
+
+        await resumable.Match(token => OfferResumeAsync(job, Session(job), token), () => Task.CompletedTask);
+        Outcomes.Succeeds(await Jobs.HoldAsync(job.Id, reason, Cancellation));
+
+        return job;
     }
 
     public async Task SettledAsync(Job job) =>

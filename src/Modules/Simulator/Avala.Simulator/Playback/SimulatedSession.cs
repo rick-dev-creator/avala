@@ -14,20 +14,24 @@ internal sealed class SimulatedSession : IAgentSession
     private readonly PermissionGate permissions;
     private readonly Performer performer;
     private readonly Pacing pacing;
-    private Option<Scenario> scenario;
-    private int played;
+    private Option<Conversation> conversation;
     private Option<Act> act;
     private bool closed;
     private Task conducting = Task.CompletedTask;
 
-    public SimulatedSession(SessionOptions options, IFileWriter files, Pacing pacing)
+    public SimulatedSession(SessionOptions options, IFileWriter files, Pacing pacing, Option<Conversation> resumed)
     {
         permissions = new PermissionGate(stage);
         performer = new Performer(options, files, permissions);
         this.pacing = pacing;
+        conversation = resumed;
     }
 
+    public static AgentAccount SimulatedAccount { get; } = new("simulated-account", "Simulated account");
+
     public SessionId Id { get; } = SessionId.New();
+
+    public Option<AgentAccount> Account => SimulatedAccount;
 
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
@@ -77,23 +81,23 @@ internal sealed class SimulatedSession : IAgentSession
             return AgentError.TurnInProgress;
         }
 
-        var chosen = scenario.Match(known => known, () => ScenarioCatalog.Choose(turn.Text));
+        var current = conversation.Match(known => known, () => Conversation.Begin(turn.Text));
         var next = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token));
-        scenario = chosen;
+        conversation = current.Advanced;
         act = next;
-        conducting = Task.Run(() => ConductAsync(next, chosen.Script(played++)), CancellationToken.None);
+        conducting = Task.Run(() => ConductAsync(next, current), CancellationToken.None);
 
         return next.Turn;
     }
 
-    private async Task ConductAsync(Act current, IReadOnlyList<IStep> script)
+    private async Task ConductAsync(Act current, Conversation played)
     {
         var cues = new Cues(Id, current.Turn);
         var interruption = current.Interruption.Token;
 
         try
         {
-            await foreach (var cue in performer.PlayAsync(cues, script, interruption))
+            await foreach (var cue in performer.PlayAsync(cues, played, interruption))
             {
                 await pacing.WaitAsync(interruption);
 

@@ -1,20 +1,25 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 using Avala.Simulator.FileSystem;
 using Avala.Simulator.Playback;
+using Avala.Simulator.Scenarios;
 using Avala.Testing;
 
 namespace Avala.Simulator.Tests.Playback;
 
 internal sealed class Stage : IAsyncDisposable
 {
+    public static readonly HarnessTool CanvasTool = new("canvas", "Draw a canvas", "{}", ToolSurface.Canvas);
+
     private readonly TemporaryFolder folder = new();
 
-    public Stage(PermissionMode permissions = PermissionMode.AskEveryTime) =>
+    public Stage(PermissionMode permissions = PermissionMode.AskEveryTime, params HarnessTool[] tools) =>
         Session = new SimulatedSession(
-            new SessionOptions(folder.Path, permissions),
+            new SessionOptions(folder.Path, permissions) { Tools = tools },
             new DiskFileWriter(),
-            new Pacing(TimeProvider.System, TimeSpan.Zero));
+            new Pacing(TimeProvider.System, TimeSpan.Zero),
+            Option<Conversation>.None);
 
     public SimulatedSession Session { get; }
 
@@ -26,12 +31,16 @@ internal sealed class Stage : IAsyncDisposable
     public Task<IReadOnlyList<IAgentEvent>> ReadTurnAsync(CancellationToken cancellationToken) =>
         ReadUntilAsync<TurnCompleted>(cancellationToken);
 
-    public async Task<IReadOnlyList<IAgentEvent>> ReadUntilAsync<TEvent>(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<IAgentEvent>> ReadUntilAsync<TEvent>(CancellationToken cancellationToken)
+        where TEvent : IAgentEvent =>
+        ReadUntilAsync<TEvent>(Session, cancellationToken);
+
+    public static async Task<IReadOnlyList<IAgentEvent>> ReadUntilAsync<TEvent>(IAgentSession session, CancellationToken cancellationToken)
         where TEvent : IAgentEvent
     {
         var seen = new List<IAgentEvent>();
 
-        await foreach (var agentEvent in Session.Events.WithCancellation(cancellationToken))
+        await foreach (var agentEvent in session.Events.WithCancellation(cancellationToken))
         {
             seen.Add(agentEvent);
 
@@ -43,6 +52,10 @@ internal sealed class Stage : IAsyncDisposable
 
         return seen;
     }
+
+    public async Task<Result<IAgentSession, AgentError>> ResumeAsync(ResumeToken token, CancellationToken cancellationToken) =>
+        await new SimulatedProvider(new DiskFileWriter(), new Pacing(TimeProvider.System, TimeSpan.Zero))
+            .StartAsync(new SessionOptions(folder.Path, PermissionMode.AllowAll) { Resume = token }, cancellationToken);
 
     public async Task<IReadOnlyList<IAgentEvent>> ReadTurnAllowingEveryRequestAsync(CancellationToken cancellationToken)
     {

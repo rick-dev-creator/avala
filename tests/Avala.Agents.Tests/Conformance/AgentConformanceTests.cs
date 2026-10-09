@@ -119,6 +119,89 @@ public sealed class AgentConformanceTests
         Assert.Equal(["the turn did not complete before the deadline"], await check);
     }
 
+    [Fact]
+    public async Task ReportsAResumeTokenFromAProviderThatDoesNotDeclareCanResumeAsync()
+    {
+        var provider = new ScriptedAgentProvider(IssuingAToken);
+
+        Assert.Equal(
+            ["a resume token was issued although the provider does not declare CanResume"],
+            await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    [Theory]
+    [InlineData(true, false, "")]
+    [InlineData(false, false, "no resume token was issued although the provider declares CanResume")]
+    [InlineData(true, true, "the resume token was not accepted: CannotResume")]
+    public async Task AProviderThatDeclaresCanResumeMustIssueATokenAndAcceptItAsync(bool issues, bool rejects, string expected)
+    {
+        var provider = new ScriptedAgentProvider(issues ? IssuingAToken : ScriptedAgentProvider.Reply)
+        {
+            Capabilities = Declared with { CanResume = true },
+            RejectsResume = rejects,
+        };
+
+        var violations = await AgentConformance.CheckResumeAsync(provider, Options, new UserTurn("conformance"), Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+    }
+
+    [Fact]
+    public async Task ReportsACanvasDrawnWithoutTheCanvasToolAsync()
+    {
+        var provider = new ScriptedAgentProvider(Drawing);
+
+        Assert.Equal(["the canvas diagram was drawn without the canvas tool"], await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, "no canvas was drawn through the canvas tool")]
+    public async Task AProviderThatAcceptsToolsMustReportACallOfTheCanvasToolAsACanvasAsync(bool draws, string expected)
+    {
+        var provider = new ScriptedAgentProvider(draws ? Drawing : ScriptedAgentProvider.Reply)
+        {
+            Capabilities = Declared with { AcceptsTools = true },
+        };
+
+        var violations = await AgentConformance.CheckCanvasToolAsync(provider, Options, new UserTurn("conformance"), Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+        Assert.Equal([AgentConformance.CanvasTool], Assert.Single(provider.Sessions).Options.Tools);
+    }
+
+    [Fact]
+    public async Task ReportsAnAccountThatChangesDuringTheSessionAsync()
+    {
+        var reads = 0;
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply)
+        {
+            Account = () => new AgentAccount($"account-{Interlocked.Increment(ref reads)}", "Account"),
+        };
+
+        Assert.Equal(["the account changed during the session"], await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    private static readonly SessionOptions Options = new(".", PermissionMode.AllowAll);
+
+    private static AgentCapabilities Declared { get; } = new ScriptedAgentProvider(ScriptedAgentProvider.Reply).Capabilities;
+
+    private static IEnumerable<IAgentEvent> IssuingAToken(SessionId session, TurnId turn) =>
+    [
+        new TurnStarted(session, turn),
+        new ResumeTokenIssued(session, turn, new ResumeToken("conversation-1")),
+        new TurnCompleted(session, turn, TurnOutcome.Finished),
+    ];
+
+    private static IEnumerable<IAgentEvent> Drawing(SessionId session, TurnId turn) =>
+    [
+        new TurnStarted(session, turn),
+        new CanvasStarted(session, turn, new ItemId("diagram"), "Architecture", "text/vnd.mermaid"),
+        new ItemProgressed(session, turn, new ItemId("diagram"), "flowchart LR\n"),
+        new ItemCompleted(session, turn, new ItemId("diagram"), ItemOutcome.Succeeded),
+        new TurnCompleted(session, turn, TurnOutcome.Finished),
+    ];
+
     private static IEnumerable<IAgentEvent> AskingPermission(SessionId session, TurnId turn, ItemKind kind, string target)
     {
         var item = new ItemId("migrate");

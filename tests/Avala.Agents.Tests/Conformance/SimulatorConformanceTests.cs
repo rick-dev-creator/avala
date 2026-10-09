@@ -26,6 +26,32 @@ public sealed class SimulatorConformanceTests
     }
 
     [Fact]
+    public async Task TheSimulatorIssuesAResumeTokenAndAcceptsItToContinueTheConversationAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await AgentConformance.CheckResumeAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new UserTurn("[simulate: fix-after-feedback] conformance"),
+            Deadline));
+    }
+
+    [Fact]
+    public async Task TheSimulatorDrawsTheCanvasScenarioThroughTheCanvasToolAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await AgentConformance.CheckCanvasToolAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new UserTurn("[simulate: canvas] conformance"),
+            Deadline));
+    }
+
+    [Fact]
     public async Task ReportsTheItemTheLeftOpenScenarioLeavesOpenAsync()
     {
         using var folder = new TemporaryFolder();

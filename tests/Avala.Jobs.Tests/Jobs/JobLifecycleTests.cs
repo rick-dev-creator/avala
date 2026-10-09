@@ -45,7 +45,7 @@ public sealed class JobLifecycleTests
         var job = Given.JobIn(JobState.Running);
         var session = SessionId.New();
 
-        var resumed = Outcomes.Succeeds(job.Recover(session));
+        var resumed = Outcomes.Succeeds(job.Recover(session, resumed: false));
 
         Assert.Equal(new AttemptStarted(job.Id, new AttemptNumber(2), AttemptOrigin.Recovery, Option<Feedback>.None), resumed);
         Assert.Equal([AttemptOutcome.Interrupted, AttemptOutcome.Running], job.Attempts.Select(attempt => attempt.Outcome));
