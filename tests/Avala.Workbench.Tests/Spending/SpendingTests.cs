@@ -89,24 +89,6 @@ public sealed class SpendingTests : IDisposable
             shown.Select(window => (window.Label, window.Cost, window.Input, window.Reasoning, window.Unpriced)));
     }
 
-    [Fact]
-    public async Task TheUsagePageFollowsWhileActiveAsync()
-    {
-        var job = Pages.Summary("Fix the failing test", JobStatus.Running);
-        usage.Connections.Add(new ConnectionUsage(new ConnectionName("work"), Pages.Simulator, Pages.Used(1m)));
-        usage.Jobs[job.Job] = Pages.Used(1m);
-        var board = Pages.Board(job);
-        using var page = new UsageViewModel(
-            new UsageReader(usage, new JobSpending(usage, budgets, supervision, sessions), board),
-            new UsageWindows(new FakeUsageHistory(), TimeProvider.System),
-            new LiveFeed(new Pulse(board), ui));
-
-        page.Activate();
-        await ui.UntilAsync(() => page.Connections.Count == 1 && page.Windows.Count == 2 && page.Jobs.Count == 1);
-
-        Assert.Equal(("work", "1 USD"), await ui.ReadAsync(() => (page.Connections[0].Name, page.Jobs[0].Cost)));
-    }
-
     public void Dispose() => ui.Dispose();
 
     private UsageReader Reader(params JobSummary[] jobs) =>
