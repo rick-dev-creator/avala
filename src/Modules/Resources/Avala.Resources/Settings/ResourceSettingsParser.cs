@@ -78,13 +78,11 @@ internal static class ResourceSettingsParser
         : Enum.TryParse<T>(value.GetString(), ignoreCase: true, out var chosen) && Enum.IsDefined(chosen) && !char.IsDigit(value.GetString()![0]) ? chosen
         : ResourceError.UnknownPolicy;
 
-    private static Result<PortRange, ResourceError> PortsOf(JsonElement root)
-    {
-        if (!root.TryGetProperty(Ports, out var ports))
-        {
-            return Defaults.Ports;
-        }
+    private static Result<PortRange, ResourceError> PortsOf(JsonElement root) =>
+        root.TryGetProperty(Ports, out var ports) ? Range(ports) : Defaults.Ports;
 
+    private static Result<PortRange, ResourceError> Range(JsonElement ports)
+    {
         if (!Fields(ports, [First, Last, PerWorktree]).TryGetValue(out _, out var error)
             || !Whole(ports, First, Defaults.Ports.First).TryGetValue(out var first, out error)
             || !Whole(ports, Last, Defaults.Ports.Last).TryGetValue(out var last, out error)
@@ -93,10 +91,11 @@ internal static class ResourceSettingsParser
             return error;
         }
 
-        return first >= 1024 && last <= 65_535 && first <= last && each >= 1 && each <= last - first + 1
-            ? new PortRange(first, last, each)
-            : ResourceError.InvalidPorts;
+        return Usable(first, last, each) ? new PortRange(first, last, each) : ResourceError.InvalidPorts;
     }
+
+    private static bool Usable(int first, int last, int each) =>
+        first >= 1024 && last <= 65_535 && first <= last && each >= 1 && each <= last - first + 1;
 
     private static Result<int, ResourceError> Whole(JsonElement element, string name, int fallback) =>
         !element.TryGetProperty(name, out var value) ? fallback
