@@ -125,6 +125,18 @@ internal sealed class Job : IAggregateRoot<JobId>
                 return Begin(AttemptOrigin.Hint, guidance);
             });
 
+    public Result<AttemptStarted, JobError> ContinueOn(Feedback guidance, SessionId session, ConnectionName connection) =>
+        Connection == Option<ConnectionName>.Some(connection)
+            ? JobError.SameConnection
+            : machine.TryFire(JobTrigger.Hint, JobError.CannotHint)
+                .Map(_ =>
+                {
+                    Join(session, resumed: false);
+                    Connection = connection;
+
+                    return Begin(AttemptOrigin.Hint, guidance);
+                });
+
     public Result<AttemptStarted, JobError> SendBack(Feedback feedback) =>
         machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
             .Map(_ => Begin(AttemptOrigin.SendBack, feedback));

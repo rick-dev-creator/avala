@@ -25,7 +25,7 @@ public sealed class DelegationPlugin : IPlugin
             .AddSingleton<DelegationBook>()
             .AddSingleton<IDelegations>(services => services.GetRequiredService<DelegationBook>())
             .AddSingleton<DelegationJournal>()
-            .AddSingleton<ConnectionGauge>()
+            .AddSingleton<ConnectionRouter>()
             .AddSingleton<DelegationPolicy>()
             .AddSingleton<Delegator>()
             .AddSingleton<ChildSpending>()

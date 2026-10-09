@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -32,6 +33,9 @@ internal sealed class ChildEvidence(IWorkspaceChanges changes, IVerifications ve
 
     public async Task<JobStatus> StatusOfAsync(JobId child, JobStatus fallback, CancellationToken cancellationToken) =>
         (await catalog.HistoryAsync(child, cancellationToken)).Match(history => history.Summary.Status, () => fallback);
+
+    public async Task<Option<ConnectionName>> ConnectionOfAsync(JobId child, CancellationToken cancellationToken) =>
+        (await catalog.HistoryAsync(child, cancellationToken)).Bind(history => history.Summary.Connection);
 
     private async Task<Option<WorkspaceId>> WorkspaceOfAsync(JobId child, CancellationToken cancellationToken) =>
         (await catalog.HistoryAsync(child, cancellationToken)).Bind(history => history.Summary.Workspace);

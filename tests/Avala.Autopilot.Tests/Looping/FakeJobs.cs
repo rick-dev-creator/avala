@@ -63,6 +63,13 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
         return ValueTask.FromResult(Result<JobContinuation, JobRejection>.Success(new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession)));
     }
 
+    public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(
+        JobId job,
+        Avala.Agents.Contracts.Connections.ConnectionName connection,
+        string message,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public ValueTask<IReadOnlyList<JobSummary>> ListAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult<IReadOnlyList<JobSummary>>([.. histories.Values.Select(history => history.Summary)]);
 

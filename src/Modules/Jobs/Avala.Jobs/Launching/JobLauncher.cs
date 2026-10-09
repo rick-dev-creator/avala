@@ -74,6 +74,42 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             ? await NextRoundAsync(job, guidance, Round.Hint, cancellationToken)
             : JobRejection.NotHeld;
 
+    public async Task<Result<JobContinuation, JobRejection>> ContinueOnAsync(
+        Job job,
+        ConnectionName connection,
+        Feedback guidance,
+        CancellationToken cancellationToken)
+    {
+        if (job.State != JobState.NeedsHelp)
+        {
+            return JobRejection.NotHeld;
+        }
+
+        if (job.Connection == Option<ConnectionName>.Some(connection))
+        {
+            return JobRejection.SameConnection;
+        }
+
+        if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        {
+            return JobRejection.WorkspaceUnavailable;
+        }
+
+        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = connection }, cancellationToken)).TryGetValue(out var opened, out var error))
+        {
+            return Rejection(error);
+        }
+
+        var previous = job.Session;
+        _ = job.ContinueOn(guidance, opened.Session, opened.Connection);
+        await BeginAsync(job, opened.Session, $"{job.Instruction.Text}\n\n{guidance.Text}", cancellationToken);
+        await previous.Match(
+            async session => _ = await agents.StopAsync(session, cancellationToken),
+            () => Task.CompletedTask);
+
+        return new JobContinuation(job.Id, opened.Session, ContinuedIn.NewConversation);
+    }
+
     public async Task<Result<JobContinuation, JobRejection>> SendBackAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
         job.State == JobState.AwaitingReview
             ? await NextRoundAsync(job, feedback, Round.SendBack, cancellationToken)
@@ -115,12 +151,7 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
 
         if (!(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out var error))
         {
-            return error switch
-            {
-                AgentError.UnknownConnection => JobRejection.UnknownConnection,
-                AgentError.UnusableConnection => JobRejection.UnusableConnection,
-                _ => JobRejection.AgentUnavailable,
-            };
+            return Rejection(error);
         }
 
         _ = round.InNewSession(job, guidance, opened.Session, opened.Resumed);
@@ -135,6 +166,13 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
 
     private async Task<Result<OpenedSession, AgentError>> OpenAsync(Job job, WorkspaceInfo workspace, CancellationToken cancellationToken) =>
         await agents.OpenAsync(new AgentRequest(workspace.Path) { Resume = job.Resume, Connection = job.Connection }, cancellationToken);
+
+    private static JobRejection Rejection(AgentError error) => error switch
+    {
+        AgentError.UnknownConnection => JobRejection.UnknownConnection,
+        AgentError.UnusableConnection => JobRejection.UnusableConnection,
+        _ => JobRejection.AgentUnavailable,
+    };
 
     private static FailureReason Failure(AgentError error) =>
         error is AgentError.UnknownConnection or AgentError.UnusableConnection ? FailureReason.ConnectionUnavailable : FailureReason.AgentUnavailable;

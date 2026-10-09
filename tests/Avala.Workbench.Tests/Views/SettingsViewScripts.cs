@@ -274,11 +274,13 @@ public sealed class JobSectionViewScripts(HeadlessUi ui)
 public sealed class MachineConnectionViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task AConnectionShowsItsNameWhetherItIsTheDefaultAndItsSourceAsync() =>
+    public Task AConnectionShowsItsNameWhetherItIsTheDefaultItsSourceAndItsOriginAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignMachineConnectionViewModel("claude-personal", "the provider's own login", false));
 
-            Assert.Equal(("claude-personal", false, "the provider's own login"), (view.TextOf("ConnectionName"), view.Shows("Default"), view.TextOf("Source")));
+            Assert.Equal(
+                ("claude-personal", false, "the provider's own login", "discovered on this machine"),
+                (view.TextOf("ConnectionName"), view.Shows("Default"), view.TextOf("Source"), view.TextOf("Origin")));
         }, TestContext.Current.CancellationToken);
 }

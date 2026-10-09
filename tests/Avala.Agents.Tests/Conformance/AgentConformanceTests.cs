@@ -267,6 +267,44 @@ public sealed class AgentConformanceTests
             violations);
     }
 
+    [Theory]
+    [InlineData("other", "work", "login", "/logins/work", "the connection work names the provider other")]
+    [InlineData("scripted", "-work", "login", "/logins/work", "the connection name -work is not valid")]
+    [InlineData("scripted", "work", "login", "logins/work", "the connection work holds a credential of login that is not a reference")]
+    [InlineData("scripted", "work", "apiKey", "sk-ant-0123", "the connection work holds a credential of apiKey that is not a reference")]
+    [InlineData("scripted", "work", "apiKey", "WORK_KEY", "")]
+    [InlineData("scripted", "work", "login", "/logins/work", "")]
+    public async Task ReportsADiscoveredConnectionOfAnotherProviderWithAnInvalidNameOrHoldingSomethingOtherThanAReferenceAsync(
+        string provider,
+        string name,
+        string source,
+        string reference,
+        string expected)
+    {
+        var discovery = new ListedDiscovery([[new DiscoveredConnection(new ConnectionName(name), provider, new CredentialReference(source, reference))]]);
+
+        var violations = await AgentConformance.CheckDiscoveryAsync(Scripted, discovery, Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+    }
+
+    [Fact]
+    public async Task ReportsADiscoveryThatRepeatsANameOrACredentialOrChangesBetweenTwoCallsAsync()
+    {
+        var work = new DiscoveredConnection(new ConnectionName("work"), "scripted", new CredentialReference("login", "/logins/work"));
+        var discovery = new ListedDiscovery(
+        [
+            [work, work with { Credential = new CredentialReference("login", "/logins/other") }, work with { Name = new ConnectionName("copy") }],
+            [work],
+        ]);
+
+        var violations = await AgentConformance.CheckDiscoveryAsync(Scripted, discovery, Deadline);
+
+        Assert.Equal(
+            ["the connection work is discovered twice", "the credential /logins/work is discovered twice", "two discoveries found different connections"],
+            violations);
+    }
+
     [Fact]
     public async Task ReportsAnAccountThatChangesDuringTheSessionAsync()
     {
@@ -434,5 +472,15 @@ public sealed class AgentConformanceTests
             new ItemCompleted(session, turn, item, ItemOutcome.Succeeded),
             new TurnCompleted(session, turn, TurnOutcome.Finished),
         ];
+    }
+
+    private static ScriptedAgentProvider Scripted => new(ScriptedAgentProvider.Reply) { Info = new ProviderInfo("scripted", "Scripted") };
+
+    private sealed class ListedDiscovery(IReadOnlyList<IReadOnlyList<DiscoveredConnection>> answers) : IConnectionDiscovery
+    {
+        private int calls;
+
+        public ValueTask<IReadOnlyList<DiscoveredConnection>> DiscoverAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult(answers[Math.Min(calls++, answers.Count - 1)]);
     }
 }

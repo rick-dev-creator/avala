@@ -141,6 +141,13 @@ public sealed class ComposerViewModelScripts
             return await inner.ContinueAsync(job, message, cancellationToken);
         }
 
+        public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> ContinueOnAsync(
+            JobId job,
+            Avala.Agents.Contracts.Connections.ConnectionName connection,
+            string message,
+            CancellationToken cancellationToken) =>
+            inner.ContinueOnAsync(job, connection, message, cancellationToken);
+
         public ValueTask<Avala.Sdk.Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) => inner.DiscardAsync(job, cancellationToken);
 
         public ValueTask<Avala.Sdk.Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) => inner.ApproveAsync(job, cancellationToken);

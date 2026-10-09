@@ -17,6 +17,8 @@
         <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" />
         <TextBlock Classes="caption" Text="·" />
         <TextBlock x:Name="Source" Classes="caption" Text="{Binding Source}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Classes="caption" Text="·" />
+        <TextBlock x:Name="Origin" Classes="caption" Text="{Binding Origin}" TextTrimming="CharacterEllipsis" />
       </StackPanel>
     </StackPanel>
   </DockPanel>

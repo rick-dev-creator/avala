@@ -80,4 +80,12 @@ public sealed class MachineConnectionViewModelScripts
     public void AConnectionWithoutASourceUsesTheProvidersOwnLogin() =>
         ViewModelScript.Given(new MachineConnectionViewModel(new DeclaredConnection(new ConnectionName("claude-personal"), "claude-code", Option<string>.None), false))
             .Then(connection => Assert.Equal(("the provider's own login", false), (connection.Source, connection.IsDefault)));
+
+    [Theory]
+    [InlineData(ConnectionOrigin.Declared, "declared in connections.json")]
+    [InlineData(ConnectionOrigin.Discovered, "discovered on this machine")]
+    [InlineData(ConnectionOrigin.Implicit, "implicit")]
+    public void AConnectionSaysWhetherItWasDeclaredDiscoveredOrImplicit(ConnectionOrigin origin, string expected) =>
+        ViewModelScript.Given(new MachineConnectionViewModel(new DeclaredConnection(new ConnectionName("simulator-work"), "simulator", "login") { Origin = origin }, false))
+            .Then(connection => Assert.Equal(expected, connection.Origin));
 }

@@ -73,6 +73,8 @@ public sealed record DelegationRecord(SessionId Session, ItemId Item, string Ins
 
     public Option<ConnectionName> Connection { get; init; }
 
+    public Option<ConnectionChoice> Choice { get; init; }
+
     public Option<Autonomy> Autonomy { get; init; }
 
     public Option<DelegationError> Refusal { get; init; }
