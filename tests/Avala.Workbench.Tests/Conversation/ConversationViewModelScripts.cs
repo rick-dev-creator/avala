@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Canvas.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -87,7 +88,8 @@ public sealed class ConversationViewModelScripts
         var canvas = Assert.IsType<CanvasViewModel>(Assert.Single(conversation.Entries));
         var streaming = canvas.IsStreaming;
 
-        conversation.Show(Board(started.Apply(new ItemCompleted(session, turn, new ItemId("diagram"), ItemOutcome.Succeeded), Now)));
+        conversation.Show(Board(started.Apply(
+            new CanvasSnapshot(new CanvasId(turn, new ItemId("diagram")), session, "Rounding before and after", "text/vnd.mermaid", "flowchart LR", CanvasStatus.Completed, false))));
 
         Assert.Same(canvas, Assert.Single(conversation.Entries));
         Assert.Equal((true, false), (streaming, canvas.IsStreaming));

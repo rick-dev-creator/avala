@@ -16,7 +16,7 @@ public sealed class UsageViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignUsageViewModel());
 
             Assert.Equal((2, 2, 6, 2), (view.Find<ItemsControl>("Connections").ItemCount, view.Find<ItemsControl>("Windows").ItemCount, view.Find<ItemsControl>("Jobs").ItemCount, view.Find<ItemsControl>("InterventionList").ItemCount));
-            Assert.Equal((false, false, true, "Since Avala started"), (view.Shows("NoConnections"), view.Shows("NoJobs"), view.Shows("InterventionsGroup"), view.TextOf("Since")));
+            Assert.Equal((false, false, true, "All recorded usage, kept across restarts"), (view.Shows("NoConnections"), view.Shows("NoJobs"), view.Shows("InterventionsGroup"), view.TextOf("Scope")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -32,6 +32,8 @@ public sealed class UsageViewScripts(HeadlessUi ui)
     {
         public string Title => "Usage";
 
+        public string Scope => "All recorded usage, kept across restarts";
+
         public IReadOnlyList<IConnectionMeterViewModel> Connections => [];
 
         public IReadOnlyList<IUsageWindowViewModel> Windows => [];
@@ -45,12 +47,12 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 public sealed class ConnectionMeterViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task AConnectionShowsItsCostSinceStartItsTokensCapsAndLimitWindowsAsync() =>
+    public Task AConnectionShowsItsTotalCostItsTokensCapsAndLimitWindowsAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignConnectionMeterViewModel());
 
-            Assert.Equal(("claude-work", "9.86 USD since Avala started", 2), (view.TextOf("ConnectionName"), view.TextOf("Cost"), view.Find<ItemsControl>("Limits").ItemCount));
+            Assert.Equal(("claude-work", "9.86 USD in total", 2), (view.TextOf("ConnectionName"), view.TextOf("Cost"), view.Find<ItemsControl>("Limits").ItemCount));
             Assert.Equal((false, false), (view.Shows("Unpriced"), view.Shows("NoLimits")));
         }, TestContext.Current.CancellationToken);
 

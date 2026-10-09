@@ -82,6 +82,23 @@
           <TextBlock Classes="caption" Text="A note for the agent, sent with your answer" />
           <TextBox x:Name="DecisionNote" Text="{Binding Note}" PlaceholderText="Only the checkout tests, please" />
         </StackPanel>
+        <Border x:Name="FormBox"
+                DockPanel.Dock="Bottom"
+                Margin="16,0,16,12"
+                Padding="0,10,0,0"
+                BorderBrush="{DynamicResource SeparatorBrush}"
+                BorderThickness="0,1,0,0"
+                IsVisible="{Binding Selected.HasFields, FallbackValue=False}">
+          <ScrollViewer MaxHeight="260">
+            <ItemsControl x:Name="FormFields" ItemsSource="{Binding Selected.Fields, FallbackValue={x:Null}}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="12" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </ScrollViewer>
+        </Border>
         <Panel>
           <ListBox x:Name="Items"
                    MaxHeight="520"

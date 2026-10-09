@@ -173,12 +173,18 @@ internal static class SettingsPhrases
         where TError : struct, Enum =>
         error.Match(found => $"{status}: {found}", () => status.ToString());
 
-    public static string Opening(FileOpenError error) => error switch
+    public static string Opening(FileOpenError error, string path) => error switch
     {
-        FileOpenError.NotFound => "The file does not exist in the checkout yet.",
-        FileOpenError.Unavailable => "No application is available to open the file.",
-        _ => "The platform refused to open the file.",
+        FileOpenError.Uncreatable => $"{path} does not exist and could not be created.",
+        FileOpenError.Unavailable => $"No application is available to open files: edit {path} yourself.",
+        _ => $"The platform refused to open {path}.",
     };
+
+    public static string CreatedInRepository(string file) =>
+        $"{file} did not exist, so it was created from a minimal template in the repository's working tree. Jobs read it once it is committed.";
+
+    public const string CreatedConnections =
+        "connections.json did not exist, so it was created in the data folder with the Auto default. Connections you declare in it apply once Avala starts again.";
 
     public static string Silence(SupervisionError error) => error switch
     {

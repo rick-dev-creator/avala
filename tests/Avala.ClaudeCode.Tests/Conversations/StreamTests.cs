@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
+using Avala.Testing;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
 
@@ -66,13 +67,14 @@ public sealed class StreamTests
     [InlineData("ToolSearch", """{ "query": "select:mcp__avala__canvas", "max_results": 1 }""", ItemKind.Other, "Load mcp__avala__canvas", "ToolSearch", "select:mcp__avala__canvas")]
     public void EveryToolUseIsAnItemOfItsKindWithATitleItsInputAndTheTargetItsPermissionNames(string tool, string input, ItemKind kind, string title, string target, string details)
     {
-        var talk = new Talk().Begin().Receive(Cli.ToolUse("t1", tool, input)).Receive(Cli.Prompt("r1", tool, input, "t1"));
+        var onHost = Cli.OnHost(input);
+        var talk = new Talk().Begin().Receive(Cli.ToolUse("t1", tool, onHost)).Receive(Cli.Prompt("r1", tool, onHost, "t1"));
 
         Assert.Equal(
             new ItemStarted(talk.Session, talk.Turn, new ItemId("t1"), kind, title) { Input = details.Length == 0 ? Option<string>.None : details },
             talk.Events.OfType<ItemStarted>().Single());
         Assert.Equal(
-            new PermissionRequested(talk.Session, talk.Turn, new ItemId("t1"), title, kind, target),
+            new PermissionRequested(talk.Session, talk.Turn, new ItemId("t1"), title, kind, HostPaths.Rooted(target)),
             talk.Events.OfType<PermissionRequested>().Single());
     }
 
