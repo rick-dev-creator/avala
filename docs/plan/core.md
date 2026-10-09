@@ -93,6 +93,20 @@ Status: items 1, 6, 7 and 8 are done, the contract part of item 5 and the record
 
 Done when: a real job runs end to end with Claude Code.
 
+## Phase 6b: Capabilities as components
+
+Status: planned, right after the Claude Code adapter and before any second real harness, so the contract changes while it has one real provider and the simulator.
+
+Today a provider declares its capabilities as a closed record of booleans: every new capability changes the contract and every provider, and nothing says how a capability works or lets it differ per connection. Capabilities become components, in the spirit of an entity component system:
+
+- A component is an immutable record in the contracts that states a capability and its data, such as `Resumable(Scope)`, `ReportsLimits(Windows)`, `AcceptsTools(Surfaces)` or `StreamsPartialOutput(Granularity)`.
+- Providers attach the components they support; a connection may add or refine components, such as cost reporting for an API key or the limit windows of a subscription.
+- The core's systems query components as `Option<T>` and act on what is present; a plugin may define a new component without touching the base contract, and systems that don't know it ignore it.
+- The conformance kit verifies each declared component against the provider's behaviour.
+- Components are listed in a documented catalog, like the data catalog, and are never a bag of strings.
+
+The components are designed from what the Claude Code adapter and the selection by capacity actually need.
+
 ## Phase 7: Observability
 
 Status: done with the fake provider and the simulator, aggregation by account included: `SessionOpened` carries the account the provider reports, and `IUsage.ByAccount` groups by provider and account. One item waits for the real Claude Code provider of phase 6: checking that its turns and its account show up in the aggregates. The view models of the usage dashboards moved to phase 9.
