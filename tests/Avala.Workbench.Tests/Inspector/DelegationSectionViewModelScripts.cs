@@ -17,7 +17,7 @@ public sealed class DelegationSectionViewModelScripts : IDisposable
         await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
 
         Assert.Equal(
-            ("Delegated by Harden the auth endpoints", "Write the login tests · Approved · Integrated", false),
+            ("Delegated by Harden the auth endpoints", "Write the login tests · Approved · Integrated · not yet told to its parent", false),
             (section.Parent, string.Join("|", section.Children), section.IsEmpty));
     }
 
