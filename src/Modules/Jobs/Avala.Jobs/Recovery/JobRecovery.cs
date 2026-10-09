@@ -5,7 +5,7 @@ using Avala.Sdk;
 
 namespace Avala.Jobs.Recovery;
 
-internal sealed class JobRecovery(JobLedger ledger, JobQueues queues, JobLauncher launcher) : IStartupTask
+internal sealed class JobRecovery(JobLedger ledger, JobQueues queues, JobLauncher launcher, DeferredJobs deferred) : IStartupTask
 {
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -17,12 +17,24 @@ internal sealed class JobRecovery(JobLedger ledger, JobQueues queues, JobLaunche
                 {
                     if (!ledger.RecordedInThisRun(job.Id))
                     {
-                        await (job.State == JobState.Preparing ? launcher.LaunchAsync(job, token) : launcher.RelaunchAsync(job, token));
+                        await RecoverAsync(job, token);
                     }
 
                     return true;
                 },
                 cancellationToken);
+        }
+    }
+
+    private async Task RecoverAsync(Job job, CancellationToken cancellationToken)
+    {
+        if (job.State == JobState.Preparing)
+        {
+            await launcher.LaunchAsync(job, cancellationToken);
+        }
+        else if (job.State != JobState.Running || !await deferred.DeferAsync(job.Id, cancellationToken))
+        {
+            await launcher.RelaunchAsync(job, cancellationToken);
         }
     }
 }

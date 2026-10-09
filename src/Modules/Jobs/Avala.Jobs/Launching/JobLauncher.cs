@@ -9,7 +9,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Launching;
 
-internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAgents agents, WorkspacePlanner planner)
+internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePlanner planner, JobMessenger messenger)
 {
     public const string RestartNote = "The harness restarted while you were working on this job. Continue where you left off.";
 
@@ -51,7 +51,7 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             return;
         }
 
-        if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             await FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken);
             return;
@@ -67,6 +67,30 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
         {
             await BeginAsync(job, opened.Session, opened.Resumed ? RestartNote : job.Instruction.Text, cancellationToken);
         }
+    }
+
+    public async Task<Result<JobContinuation, JobRejection>> ResumeAsync(Job job, CancellationToken cancellationToken)
+    {
+        if (job.Resume.IsNone || !(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        {
+            return JobRejection.NotResumable;
+        }
+
+        if (!(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out _))
+        {
+            return JobRejection.NotResumable;
+        }
+
+        if (!opened.Resumed || job.Recover(opened.Session, resumed: true).IsFailure)
+        {
+            _ = await agents.StopAsync(opened.Session, cancellationToken);
+
+            return JobRejection.NotResumable;
+        }
+
+        await BeginAsync(job, opened.Session, RestartNote, cancellationToken);
+
+        return new JobContinuation(job.Id, opened.Session, ContinuedIn.ResumedConversation);
     }
 
     public async Task<Result<JobContinuation, JobRejection>> ContinueAsync(Job job, Feedback guidance, CancellationToken cancellationToken) =>
@@ -90,7 +114,7 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             return JobRejection.SameConnection;
         }
 
-        if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }
@@ -144,7 +168,7 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
         Round round,
         CancellationToken cancellationToken)
     {
-        if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return JobRejection.WorkspaceUnavailable;
         }
@@ -185,7 +209,7 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
 
     private async Task TellAsync(Job job, string message, CancellationToken cancellationToken)
     {
-        if ((await agents.TellAsync(job, message, cancellationToken)).IsFailure)
+        if ((await messenger.TellAsync(job, message, cancellationToken)).IsFailure)
         {
             await FailAsync(job, FailureReason.AgentUnavailable, cancellationToken);
         }

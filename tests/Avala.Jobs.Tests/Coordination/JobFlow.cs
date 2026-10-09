@@ -28,14 +28,23 @@ internal sealed class JobFlow
         Agents = agents;
         var ledger = new JobLedger(Store, Bus, agents);
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
-        var launcher = new JobLauncher(ledger, workspaces, agents, new WorkspacePlanner(workspaces, Defaults, Queues, new ConnectionChooser(Connections, Selectors, Store, Bus)));
+        var launcher = new JobLauncher(
+            ledger,
+            agents,
+            new WorkspacePlanner(workspaces, Defaults, Queues, new ConnectionChooser(Connections, Selectors, Store, Bus)),
+            new JobMessenger(agents, Briefings));
+        var deferred = new DeferredJobs(Deferrals);
         Submit = new SubmitJob(ledger, Bus, Connections, Clock);
         Hold = new HoldJob(ledger, agents, Bus);
-        Jobs = new JobsEntry(Submit, Hold, new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), Bus), Queues);
+        Jobs = new JobsEntry(
+            Submit,
+            Hold,
+            new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), new ResumeJob(deferred, launcher, Hold)),
+            Queues);
         Prepare = new PrepareJob(Queues, launcher, Admissions);
         Check = new CheckTurn(ledger, Queues, new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents), Hold);
-        Recovery = new JobRecovery(new JobLedger(Store, Bus, agents), Queues, launcher);
-        RecoveryInThisRun = new JobRecovery(ledger, Queues, launcher);
+        Recovery = new JobRecovery(new JobLedger(Store, Bus, agents), Queues, launcher, deferred);
+        RecoveryInThisRun = new JobRecovery(ledger, Queues, launcher, deferred);
         Catalog = new JobCatalog(Store);
     }
 
@@ -46,6 +55,10 @@ internal sealed class JobFlow
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 8, 0, 0, TimeSpan.Zero)) { AutoAdvanceAmount = TimeSpan.FromSeconds(1) };
 
     public List<IJobAdmission> Admissions { get; } = [];
+
+    public List<IRecoveryDeferral> Deferrals { get; } = [];
+
+    public List<IJobBriefing> Briefings { get; } = [];
 
     public InMemoryJobStore Store { get; } = new();
 

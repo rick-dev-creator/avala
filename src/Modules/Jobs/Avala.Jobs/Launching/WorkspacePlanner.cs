@@ -14,6 +14,8 @@ internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaul
             parent => FromParentAsync(job, parent, cancellationToken),
             () => workspaces.PrepareAsync(new WorkspaceRequest(job.Repository.Value), cancellationToken).AsTask());
 
+    public Task<Result<WorkspaceInfo, WorkspaceFailure>> FindAsync(Job job, CancellationToken cancellationToken) => workspaces.FindAsync(job, cancellationToken);
+
     public async Task<Result<Option<ConnectionName>, JobRejection>> ConnectionOfAsync(
         Job job,
         WorkspaceInfo workspace,
