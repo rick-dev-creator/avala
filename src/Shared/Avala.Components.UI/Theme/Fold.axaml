@@ -50,26 +50,27 @@
                           Theme="{StaticResource FoldHeader}"
                           Padding="{TemplateBinding Padding}"
                           IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
-              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+              <Grid ColumnDefinitions="Auto,*,Auto">
                 <Viewbox Name="PART_Lead" Classes="chevron" Margin="0,0,8,0">
                   <Path Classes="chevron" />
                 </Viewbox>
-                <ContentPresenter Name="PART_Header"
-                                  Grid.Column="1"
-                                  VerticalAlignment="Center"
-                                  Content="{TemplateBinding Header}"
-                                  ContentTemplate="{TemplateBinding HeaderTemplate}" />
-                <TextBlock Name="PART_Fact"
-                           Grid.Column="2"
-                           Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           FontSize="{DynamicResource FontSizeCaption}"
-                           Foreground="{DynamicResource TextTertiaryBrush}"
-                           Text="{TemplateBinding Fact}"
-                           IsVisible="{TemplateBinding Fact, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <ui:FoldHeaderPanel Grid.Column="1">
+                  <ContentPresenter Name="PART_Header"
+                                    VerticalAlignment="Center"
+                                    Content="{TemplateBinding Header}"
+                                    ContentTemplate="{TemplateBinding HeaderTemplate}" />
+                  <TextBlock Name="PART_Fact"
+                             Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             TextAlignment="Right"
+                             TextTrimming="CharacterEllipsis"
+                             FontSize="{DynamicResource FontSizeCaption}"
+                             Foreground="{DynamicResource TextTertiaryBrush}"
+                             Text="{TemplateBinding Fact}"
+                             IsVisible="{TemplateBinding Fact, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </ui:FoldHeaderPanel>
                 <Viewbox Name="PART_Trail"
-                         Grid.Column="3"
+                         Grid.Column="2"
                          Classes="chevron"
                          Margin="10,0,0,0"
                          IsVisible="False">
