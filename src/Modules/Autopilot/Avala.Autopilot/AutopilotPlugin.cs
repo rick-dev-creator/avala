@@ -33,6 +33,7 @@ public sealed class AutopilotPlugin : IPlugin
             .AddSingleton<TaskSources>()
             .AddSingleton<JobWork>()
             .AddSingleton<EvidenceGatherer>()
+            .AddSingleton<IRunEvidence, RunEvidenceQuery>()
             .AddSingleton<AutoApprover>()
             .AddSingleton<LoopGauges>()
             .AddSingleton<LoopSteps>()
