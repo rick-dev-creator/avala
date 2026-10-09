@@ -1,0 +1,13 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cards="using:Avala.Workbench.Cards"
+             x:Class="Avala.Workbench.UI.FormChoiceView"
+             x:ClassModifier="internal"
+             x:DataType="cards:FormChoiceViewModel">
+  <CheckBox IsChecked="{Binding IsSelected}">
+    <StackPanel>
+      <TextBlock Text="{Binding Label}" />
+      <TextBlock Text="{Binding Description}" Opacity="0.6" TextWrapping="Wrap" />
+    </StackPanel>
+  </CheckBox>
+</UserControl>

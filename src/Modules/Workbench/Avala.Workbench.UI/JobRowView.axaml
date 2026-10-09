@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sidebar="using:Avala.Workbench.Sidebar"
+             x:Class="Avala.Workbench.UI.JobRowView"
+             x:ClassModifier="internal"
+             x:DataType="sidebar:JobRowViewModel">
+  <Grid ColumnDefinitions="*,Auto">
+    <StackPanel>
+      <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      <TextBlock Text="{Binding Fact}" Opacity="0.6" FontSize="12" />
+    </StackPanel>
+    <TextBlock Grid.Column="1"
+               Text="{Binding PendingDecisions}"
+               IsVisible="{Binding HasPendingDecisions}" />
+  </Grid>
+</UserControl>
