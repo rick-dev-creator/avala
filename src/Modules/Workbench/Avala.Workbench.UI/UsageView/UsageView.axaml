@@ -10,7 +10,7 @@
   <DockPanel>
     <Border DockPanel.Dock="Top" Classes="pageHeader">
       <DockPanel>
-        <TextBlock x:Name="Since" DockPanel.Dock="Right" Classes="caption" Text="Since Avala started" VerticalAlignment="Center" />
+        <TextBlock x:Name="Scope" DockPanel.Dock="Right" Classes="caption" Text="{Binding Scope}" VerticalAlignment="Center" />
         <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
       </DockPanel>
     </Border>

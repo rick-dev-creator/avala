@@ -25,7 +25,7 @@
   <Button x:Name="Open" Command="{Binding OpenCommand}" ToolTip.Tip="Open resources">
     <StackPanel Spacing="9">
       <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Classes="caption secondary" Text="This computer" />
+        <TextBlock x:Name="Scope" Classes="caption secondary" Text="{Binding Scope}" />
         <Path Grid.Column="1"
               Classes="icon small"
               Width="9"
