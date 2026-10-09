@@ -38,16 +38,17 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
-| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, the job's resume token, the autonomy a job asks for and the connection it runs on | `JobId`, `Autonomy`, integration events, `IJobs`, `ICompletionGate` |
-| Agents | Sessions, turn integrity, provider registry, the connections sessions open on and their credential sources, the harness tools and resume tokens handed to providers by capability, the forms agents ask humans to fill, and the decorators every provider is started through | `IAgents`, `IAgentProvider`, `IAgentSession`, `IAgentProviderDecorator`, `IConnections`, `ICredentialSource`, `ConnectionName`, `ConnectionEnvironment`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
-| Workspaces | Working copies, branches, checkpoints, and the files of the commit a job started from | `IWorkspaces`, `IBaseFiles`, integration events |
+| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, discarding a job, stopping the session of a job that ended, admitting launches, the job's resume token, the autonomy a job asks for and the connection it runs on | `JobId`, `Autonomy`, integration events, `IJobs`, `ICompletionGate`, `IJobAdmission` |
+| Agents | Sessions, turn integrity, provider registry, the connections sessions open on and their credential sources, the harness tools and resume tokens handed to providers by capability, the process tree each session's processes run in, the forms agents ask humans to fill, and the decorators every provider is started through | `IAgents`, `IAgentProvider`, `IAgentSession`, `IAgentProviderDecorator`, `IConnections`, `ICredentialSource`, `ConnectionName`, `ConnectionEnvironment`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
+| Workspaces | Working copies, branches, checkpoints, the files of the commit a job started from, and the reconciliation of worktrees on disk with the store | `IWorkspaces`, `IBaseFiles`, `WorktreeReconciliation`, integration events |
+| Resources | Samples the processes, ports and disk every job uses, reaps the processes a session leaves behind, leases ports per worktree and reclaims worktrees by retention | `IResources`, `IOrphans`, `IWorktreeHousekeeping`, integration events |
 | Canvas | Offers the canvas tool, accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
 | Observability | Tokens, cost, limits and turns by provider, account, connection, session and job, and their metrics | `IUsage` and its summaries |
 | Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
 | Permissions | Answers permission requests and forms through an explicit policy at the job's level of autonomy, takes a human's answers with their session rules, and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `AutonomyApplied`, `FormDecided`, `PermissionAnswered`, `IPermissionAudit`, `IPermissionAnswers` |
 | Supervision | Holds a job whose agent stays silent, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
-| Budgets | Holds a job that reaches a cap on cost or tokens, or a provider limit threshold, and records every intervention | `BudgetLoaded`, `BudgetIntervened`, `IBudgets` |
+| Budgets | Holds a job that reaches a cap on cost, tokens or memory, or a provider limit threshold, records every intervention, and admits launches up to the machine's limit of running jobs | `BudgetLoaded`, `BudgetIntervened`, `JobQueued`, `JobAdmitted`, `IBudgets` |
 | Recording | Records every provider session, when the data folder asks for it, as a file the simulator replays | None: it implements `IAgentProviderDecorator`, and its files are the [recording format](#session-recording-and-replay) |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
@@ -307,11 +308,12 @@ public interface IJobs
     ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken);
     ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken);
     ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken);
+    ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken);
 }
 ```
 
 - `Job.Hold(reason)` moves a `Running` job to `NeedsHelp` and concludes its underway attempt as `Interrupted`. No new state: a held job needs a human exactly like one whose retries ran out, and a hint resumes either. Any other state returns `CannotHold`, which `IJobs` reports as `NotRunning`; an unknown job is `UnknownJob`.
-- `HoldReason` is `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached` or `InvalidBudget`.
+- `HoldReason` is `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget` or `MemoryExceeded`.
 - `HoldJob` stores the held job first, which publishes `JobProgressed` with `NeedsHelp`, and only then halts the session, so the end of the interrupted turn finds a job that is no longer `Running`. It then publishes `JobHeld` with a `JobHold`: job, session, reason and how the session was halted.
 - Halting: `SessionLost` stops the session, since it is already gone. Every other reason interrupts the turn through `IAgents.InterruptAsync` and keeps the session open for a human: `Interrupted` when a turn was interrupted, `Idle` when none was running. A provider that cannot interrupt, or an interruption that fails otherwise, stops the session instead: `Stopped`. A session that is no longer open is `AlreadyClosed`.
 - The hold reason is not persisted: the stored job is `NeedsHelp` with an interrupted attempt, and the reason lives in `JobHeld` and in the audit of the module that held it. Persisting it arrives with the first schema migration.
@@ -322,6 +324,12 @@ public interface IJobs
 - `ResumedConversation`: the session is gone, because it was lost or the application restarted since. A new session opens in the job's workspace with the job's resume token, and the provider resumed the conversation, so the message alone is sent.
 - `NewConversation`: the session is gone and the conversation could not be resumed: the provider cannot resume, there is no token, or the provider rejected it. The new session starts over, and gets the instruction followed by the message.
 - Jobs decides whether the session is open by asking `IAgents.IsOpen`, never by the hold reason, which is not stored. A new session is opened before the job changes, on the job's connection, so a job whose workspace is gone (`WorkspaceUnavailable`), whose connection is gone (`UnknownConnection`, `UnusableConnection`) or whose agent cannot start (`AgentUnavailable`) stays held. A job that is not `NeedsHelp` is `NotHeld`, an empty message `EmptyMessage`, an unknown job `UnknownJob`.
+
+**Discarding a job.** `IJobs.DiscardAsync` discards an open job in its queue, whatever it is doing: `Job.Discard` interrupts the attempt underway, and the job ends `Discarded`. A job that already ended is `NotDiscardable`, an unknown job `UnknownJob`. It is the first command of review; approving and sending back arrive with the review screens.
+
+**An ended job stops its session.** Whenever `JobLedger` stores a job that ended, `Approved`, `Discarded` or `Failed`, it stops the job's session through `IAgents.StopAsync` before it publishes the job's `JobProgressed`, so the agent's process does not outlive its job and Resources reaps what the session left behind before it reclaims the worktree.
+
+**Admitting launches.** `IJobAdmission` is an extension point in `Jobs.Contracts`: `PrepareJob` awaits every registered admission before it queues the launch of a submitted job, in its own mailbox, so submitted jobs start in submission order as admissions let them. With no admission registered, every job launches at once. Budgets registers the first one, the [limit of running jobs](#running-jobs). Recovery at startup and continuations are not admitted: they resume jobs that already held a slot.
 
 ## Agents
 
@@ -351,7 +359,7 @@ public interface IAgentSession : IAsyncDisposable
 }
 ```
 
-- `SessionOptions` holds harness concepts only: working directory, permission mode, the `Resume` token of a conversation to resume, the harness `Tools` the agent may call, and the `Connection` environment the session runs with, see [Connections](#connections). Paths and protocols belong to each provider's own settings, and how a provider applies a connection's configuration folder, key and settings is its own business.
+- `SessionOptions` holds harness concepts only: working directory, permission mode, the `Resume` token of a conversation to resume, the harness `Tools` the agent may call, the `Connection` environment the session runs with, see [Connections](#connections), and the `Processes` launcher every process of the session starts through, see [Process trees](#process-trees). Paths and protocols belong to each provider's own settings, and how a provider applies a connection's configuration folder, key and settings is its own business.
 - `AgentSessions` opens every session in `AskEveryTime`: the agent asks before every file edit and every command, so every action reaches the policy of [Permissions](#permissions), which allows edits inside the workspace by default. A provider is never told to allow edits on its own, since that would let edits bypass the policy, its guard and its audit. Without the Permissions plugin nothing answers for the harness, and every request waits for a human through `IAgents.RespondAsync`, the documented behavior of `Ask`.
 - Behavior depends on `AgentCapabilities`, never on a provider's name: partial output, reasoning, interruption, resumption, injected tools, usage, cost, limits and [forms](#human-input-forms) (`AsksQuestions`).
 - `PermissionDecision` carries an optional `Message`: with `Deny`, it tells the agent why and what to do instead, the "no, do this instead" of a harness's permission prompt. "Don't ask again" is never sent to a provider: it is a [session rule](#session-rules) of Avala's policy.
@@ -379,7 +387,36 @@ public interface IAgents
 - `AnswerAsync` answers the open form of a live session, see [Human-input forms](#human-input-forms). A provider that does not declare `AsksQuestions` returns `Unsupported` without being asked; an item with no open form returns `NoPendingForm`; an answer that does not fit its form returns `InvalidAnswer`, and neither reaches the provider.
 - `InterruptAsync` asks the agent of a live session to end its running turn, through `IAgentSession.InterruptAsync`; the agent then ends the turn as `Interrupted`. A provider whose capabilities do not declare `CanInterrupt` returns `Unsupported` without being asked, and a session that is not open returns `SessionClosed`. The provider contract does not change.
 - `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider, the connection it opened on and the session's account, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends and `SessionResumable` when a provider that `CanResume` issues a resume token.
-- When a session's event stream ends on its own, `AgentSessions` publishes `SessionEnded` with `Crashed` when the stream failed and `Closed` when it completed. It publishes it before closing the turn left live, if any, as `Failed`, so a consumer learns the session is gone before it sees that turn fail. A stream that completes while a turn is live no longer leaves the turn open forever. Stopping a session through `StopAsync`, including at shutdown, publishes nothing, so a restart is never mistaken for a lost session and recovery still finds its jobs running.
+- When a session's event stream ends on its own, `AgentSessions` publishes `SessionEnded` with `Crashed` when the stream failed and `Closed` when it completed. It publishes it before closing the turn left live, if any, as `Failed`, so a consumer learns the session is gone before it sees that turn fail. A stream that completes while a turn is live no longer leaves the turn open forever. Stopping a session through `StopAsync`, including at shutdown, never publishes `SessionEnded`, so a restart is never mistaken for a lost session and recovery still finds its jobs running; once the provider's session is disposed it publishes `SessionStopped`, the fact Resources reaps the session's process tree on. At shutdown the bus has stopped by then, and the runtime closes every tree itself.
+
+### Process trees
+
+**Accepted**
+
+Every process an agent starts belongs to its session's process tree, contained by the operating system where it can, so the harness can measure what the session uses and reap what it leaves behind.
+
+```csharp
+public interface IProcessLauncher
+{
+    IReadOnlyDictionary<string, string> Environment { get; }
+    Result<Process, ProcessError> Start(ProcessStartInfo info);
+}
+```
+
+- **The harness hands the session a launcher.** `SessionStarter` opens a tree for the request's working directory through `IProcessTrees`, the runtime's port, and passes it to the provider as `SessionOptions.Processes`. A provider starts its own process, and anything else it runs, through `Processes.Start`, with the redirections and arguments it needs; the launcher adds the tree's environment, contains the process and returns it. The provider never learns how containment works on the platform, and a launcher refuses `UseShellExecute`, whose environment cannot be set. `SessionOpened.ProcessTree` names the tree, and a session that cannot start closes it at once.
+- **The tree's environment.** Every process started in a tree gets `AVALA_PROCESS_TREE`, the tree's identifier, and the variables the registered `IProcessEnvironment` contributors give the tree's folder, the [port lease](#port-leases) today. A provider that runs no process can read them from `Processes.Environment`.
+- **Processes the harness runs.** `IProcessRunner` starts a process whose `WorkingDirectory` is the folder of an open tree inside the most recent such tree, so the checks of Verification, which run in the worktree, and the git commands of a checkpoint, which Workspaces runs in the worktree, join the tree of the job's session. A process run anywhere else is not contained.
+- **One port, three platforms.** The runtime's `ProcessTrees` registry implements `IProcessTrees` over `IContainment`, an internal port with one implementation per platform:
+
+| Platform | Containment | Members |
+| --- | --- | --- |
+| Linux | Each process starts through `setsid` when it is on the `PATH`, so it leads a new session and process group. No cgroup: a delegated cgroup needs systemd user delegation, which neither CI nor every desktop offers | Every process, not a zombie, started after the tree opened, that carries the tree's `AVALA_PROCESS_TREE` in `/proc/<pid>/environ`, belongs to the session of a process the tree started, or descends from a member. A process that clears its environment and leaves its session is the only escape |
+| Windows | A job object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, the process assigned to it right after it starts; its children join it as they start. Where Windows refuses a job object, the tree tracks the processes it started | The job's process list |
+| macOS | None: no `setsid` and no rootless cgroup. Best effort, not run by CI | The processes whose environment, read with `ps -E`, carries the tree's variable, and their descendants |
+
+- **Closing a tree** kills every member, process by process, until none is left or twenty rounds passed, and returns the survivors; on Windows closing the job handle kills what remains. The registry closes every open tree when the application shuts down, so nothing Avala started outlives it, except on Linux and macOS a process that escaped its tree.
+- **Listening ports.** `IListeningPorts` lists the listening TCP sockets of the machine, with the process that holds each one when it is among the given owners: from `/proc/net/tcp` and `tcp6` and the owners' `/proc/<pid>/fd` on Linux, from `netstat -ano` on Windows, and from `lsof` on macOS.
+- **Known limits.** On Windows a process can start a child in the moment between its start and its assignment to the job; the child then escapes. Linux reads processes' start times in clock ticks of 100 per second, the value Linux reports on every common architecture.
 
 ### Agnostic events
 
@@ -572,6 +609,7 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `CheckDenialAsync` | Every permission is denied with a message, the "no, do this instead" answer: the turn still conforms, a permission was asked, and no denied item progresses or succeeds afterwards |
 | `CheckResumeAsync` | A provider that declares `CanResume` issues a token during the turn, and a new session started with it is accepted and runs a conforming turn. A provider that does not declare it only runs the turn check, which forbids tokens |
 | `CheckCanvasToolAsync` | A provider that declares `AcceptsTools`, given a canvas tool and an instruction that draws, reports the call as a canvas that completes. A provider that does not is given no tool, and runs the turn check |
+| `CheckProcessesAsync` | A provider given a launcher and an instruction that runs a process starts it through the session's launcher, so the process belongs to the session's tree. The kit's launcher records what it starts and kills it afterwards, so the check leaks nothing |
 | `CheckConnectionsAsync` | Two sessions of the same provider, started with the environments of two different [connections](#connections), stay isolated: each runs a conforming turn, they share no session, no account when both report one, and no resume token, and a token issued on the first connection is not accepted by a session started on the second |
 
 ### Simulator
@@ -608,6 +646,9 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `left-open` | Starts an item and finishes the turn without closing it |
 | `hang` | `TurnStarted` and its resume token, then nothing until interrupted; the next turn, in the same session or one that resumes it, replies and finishes |
 | `canvas` | Draws an SVG and a Mermaid diagram through the canvas tool, in chunks |
+| `processes` | Runs `dotnet build`, a real process that works briefly and exits, then `dotnet run`, a real server that listens on the port in `AVALA_PORT` and replies with it, and finishes the turn leaving the server running past the session |
+
+The processes of the `processes` scenario are the `Avala.Simulator.Workload` program, shipped beside the simulator in its plugin folder and started with the `dotnet` host through the session's launcher, so they run the same on Linux, Windows and macOS without a shell. It works (`work`), prints an environment variable (`env`), listens on `AVALA_PORT` (`serve`), starts a detached child and exits (`spawn`) or waits (`hold`); every waiting mode ends on its own once the process that started the harness is gone, or after ten minutes, so a test that fails never leaves one behind. The tests of the runtime and the conformance kit use the same program.
 
 Every scenario that reaches its end reports usage with cost and a usage limit, so observability can be exercised.
 
@@ -1022,11 +1063,12 @@ An unattended agent must not spend without limit. The Budgets module holds a job
 - **Tokens.** One cap on every token the provider reported: input, output, cache reads, cache writes and reasoning. Counting all of them holds earlier rather than later.
 - **Limits.** A threshold between 0 and 1. A job is held as `LimitNearlyReached` when a usage limit window of its session's connection reaches the threshold, whichever session on that connection reported it, since a limit belongs to the account a connection runs on: a work subscription near its limit never holds a job on a personal one.
 - **By connection.** The `connections` section of the file gives the jobs on a named connection their own caps, which replace the top-level ones for those jobs, so an API key billed per token can be capped while a subscription is not. The loader reads the caps of the connection `SessionOpened` names.
-- A cap is reached when the measure is equal to it or above it. The first breach found holds the job, in that order: cost, tokens, limit.
+- **Memory.** A cap in megabytes on the memory, the working sets, of every process of the job's trees, as `IResources.OfJob` measures it at the latest sample. A job is held as `MemoryExceeded` when its processes reach it, so parallel builds cannot exhaust the machine. Without the Resources plugin nothing is measured and the cap never holds.
+- A cap is reached when the measure is equal to it or above it. The first breach found holds the job, in that order: cost, tokens, limit, memory.
 
 ### When it checks
 
-- When `UsageRecorded` names a job, after Observability recorded a usage or limit report; when `JobSessionStarted` ties a session to its job; when `BudgetLoaded` says the budget of a session tied to a job was read; and whenever `JobProgressed` says a job runs again, so a job already over its budget is held as soon as a retry, a hint or a recovery starts it, before it spends more.
+- When `UsageRecorded` names a job, after Observability recorded a usage or limit report; when `ResourcesSampled` says Resources kept a new sample, for every running job; when `JobSessionStarted` ties a session to its job; when `BudgetLoaded` says the budget of a session tied to a job was read; and whenever `JobProgressed` says a job runs again, so a job already over its budget is held as soon as a retry, a hint or a recovery starts it, before it spends more.
 - The loader and the enforcer are separate handlers, so the enforcer may learn that a job runs before the budget file of its session was read. It then has nothing to enforce yet, and `BudgetLoaded`, published once the loader kept the budget, makes it check again. The enforcer keeps which session each job runs in and the status of each job in its own mailbox; the loader is the only writer of the budgets in `BudgetBook`, which holds them in an immutable dictionary.
 - Only a `Running` job is checked. A hold interrupts the turn, so an agent that reports usage as it goes is stopped mid-turn; one that reports only at the end of its turns can overshoot by one turn.
 
@@ -1039,14 +1081,15 @@ A repository declares its caps in `.avala/budget.json`, read when the session op
   "costPerJob": { "USD": 5.00 },
   "tokensPerJob": 2000000,
   "holdAtLimit": 0.9,
+  "memoryPerJobMegabytes": 4096,
   "connections": {
     "team-api": { "costPerJob": { "USD": 2.00 } }
   }
 }
 ```
 
-- Every field is optional. `costPerJob` maps a currency, as the provider reports it, to an amount greater than 0. `tokensPerJob` is a whole number greater than 0. `holdAtLimit` is greater than 0 and at most 1.
-- `connections` maps a [connection](#connections) name to caps of the same three fields, which replace the top-level caps for the jobs on that connection; a connection it does not name gets the top-level caps. A section names a connection of the machine that runs the job, so a name no connection has caps nothing. A blank name is `Malformed`, and a section is validated like the top level, without a `connections` of its own.
+- Every field is optional. `costPerJob` maps a currency, as the provider reports it, to an amount greater than 0. `tokensPerJob` is a whole number greater than 0. `holdAtLimit` is greater than 0 and at most 1. `memoryPerJobMegabytes` is a whole number greater than 0.
+- `connections` maps a [connection](#connections) name to caps of the same four fields, which replace the top-level caps for the jobs on that connection; a connection it does not name gets the top-level caps. A section names a connection of the machine that runs the job, so a name no connection has caps nothing. A blank name is `Malformed`, and a section is validated like the top level, without a `connections` of its own.
 - The file is parsed strictly: unknown fields, duplicate fields, values of the wrong type, nesting deeper than the format needs and files over 64 KiB are rejected.
 - **Invalid file, safe behavior.** A rejected file is reported in `BudgetLoaded` with its `BudgetError`, and the job is held as `InvalidBudget` as soon as it runs. A repository that declared caps meant to limit spending, so a broken declaration stops the agent instead of letting it spend without limit.
 
@@ -1059,18 +1102,112 @@ A repository declares its caps in `.avala/budget.json`, read when the session op
 | `InvalidCost` | A currency without a name or an amount not greater than 0 |
 | `InvalidTokens` | A token cap that is not a whole number greater than 0 |
 | `InvalidThreshold` | A threshold not greater than 0 or over 1 |
+| `InvalidMemory` | A memory cap that is not a whole number greater than 0 |
+| `InvalidRunningJobs` | Not a file error of the repository: a limit of running jobs in `budgets.json` that is not a whole number greater than 0 |
+
+### Running jobs
+
+The machine decides how many jobs run at once, never a repository: `budgets.json` in the data folder, read once, when first needed.
+
+```json
+{ "runningJobs": 2 }
+```
+
+- `runningJobs` is optional, a whole number greater than 0. Without the file, or without the field, any number of jobs runs at once.
+- The file is parsed strictly, like the other settings files: unknown fields, duplicate fields, values of the wrong type and files over 16 KiB are rejected. A rejected file runs one job at a time, the limit that cannot exhaust a machine, and is reported through `IBudgets.MachineAsync` with its `BudgetError`, so a broken file never lifts the limit its author meant to set.
+- `RunningJobs` is the `IJobAdmission` of Budgets. A job holds a slot from its admission until it leaves `Preparing`, `Running` and `Checking`: it ends, waits for review or a human. A submitted job beyond the limit waits, published as `JobQueued` with the jobs running and the limit, in its `Preparing` state and with no workspace yet, until a slot frees, published as `JobAdmitted`; waiting jobs start in submission order. A waiting job that is discarded meanwhile is let through without a slot, and its launch finds it ended.
+- A job continued by a human or recovered at startup takes a slot again when it runs, even beyond the limit: the limit governs launches.
+- The slots and the queue are owned by a `SerialExecutor`; the waiting launch awaits a one-shot signal.
 
 ### The module
 
 | Folder | Holds | Layer |
 | --- | --- | --- |
-| `Caps` | `Breaches`: the evaluation of a session's budget against a job's spending and its provider's limits, the reason each breach holds a job for, and the built-in caps | Domain |
-| `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `BudgetLoaded`, `JobSessionStarted`, `JobProgressed` and `UsageRecorded`; `BudgetHolds`, which holds through `IJobs` and records; `BudgetBook`, the in-memory book behind `IBudgets`; and the `IBudgetFiles` port | Application |
-| `BudgetFiles` | `BudgetFileReader` behind `IBudgetFiles`, which reads the file through `IBaseFiles` from Workspaces, and `BudgetFileParser` | Infrastructure |
+| `Caps` | `Breaches`: the evaluation of a session's budget against a job's spending, its provider's limits and its memory, the reason each breach holds a job for, and the built-in caps | Domain |
+| `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `BudgetLoaded`, `JobSessionStarted`, `JobProgressed`, `UsageRecorded` and `ResourcesSampled`; `BudgetHolds`, which holds through `IJobs` and records; `BudgetBook`, the in-memory book behind `IBudgets`; and the `IBudgetFiles` port | Application |
+| `Admission` | `RunningJobs`, the `IJobAdmission` and handler of `JobProgressed` that keeps the slots, and the `IMachineBudgetFile` port | Application |
+| `BudgetFiles` | `BudgetFileReader` behind `IBudgetFiles`, which reads the file through `IBaseFiles` from Workspaces, `BudgetFileParser`, and `MachineBudgetFile` behind `IMachineBudgetFile` | Infrastructure |
 
 - The domain decides and rejects nothing, so it has no aggregate. `BudgetError` is the module's single error enum, in its contracts.
 - Budgets and interventions live in memory. Spending lives in Observability's memory too, so a restart starts every job's spending from zero; persisting usage is deferred with the dashboards.
 - **Trust.** The budget file comes from the base commit, so an agent cannot raise its own caps: neither a running session nor a recovered one, which reads the same commit again, sees an edit made in the worktree. `BudgetLoaded` carries the file's origin, with whether the worktree's copy differs.
+- Budgets measures memory through `IEnumerable<IResources>`, so it works without the Resources plugin.
+
+## Resources
+
+**Accepted**
+
+Agents and the commands they run leave resources behind: processes that outlive their session, such as test hosts and build servers, ports two worktrees fight over, and worktrees that pile up on disk. The Resources module accounts for every resource the jobs use and reclaims what they leave, on top of the [process trees](#process-trees) the runtime contains.
+
+### Sampling and attribution
+
+- `ResourceSampler`, a startup task, samples on a `PeriodicTimer` driven by `TimeProvider`, every `sampleSeconds`: the members of every open tree with their working set and CPU time, the listening ports of those members, and, every `diskSeconds`, the size of every worktree a session ran in and of the data folder. Each sample is one `ResourcesSampled`, so the event is throttled to one per interval whatever happens. `SampleTaker` keeps the sample in `ResourceBook` before it publishes it, so a handler of the event, such as Budgets, reads it through `IResources`.
+- **Attribution.** `ResourceTracker` ties a tree to its session, connection and provider from `SessionOpened.ProcessTree`, and the session to its job from `JobSessionStarted`. Each tree of a sample is attributed when it is taken; a worktree to the job that ran in it.
+- **CPU load** is the CPU time a tree's processes used between two samples, over the time between them, in cores; a process new to the tree counts from its next sample. A process that ends between two samples takes its CPU time with it.
+- `IResources` answers from the latest sample: `Global`, all trees and the data folder; `OfJob` and `OfSession`, their trees and their worktree; `ByConnection` and `ByProvider`, the trees of their sessions and the worktrees those sessions ran in. Memory is the sum of working sets, so memory shared between processes counts once per process.
+
+### Orphans
+
+- When a session ends, on `SessionEnded` or `SessionStopped`, the processes still alive in its tree are orphans: the agent's process is gone, so whatever remains, a test host, a build server, a dev server, was left behind. `OrphanReaper` reports them with their session, job, memory and ports as `OrphansFound`.
+- **Policy.** `orphans` in `resources.json`: `kill`, the default, closes the tree, killing every member, and reports `Killed` with the processes that survived, normally none; `report` leaves them running, reported `LeftRunning`, until `IOrphans.ReapAsync(job)` kills them and publishes `OrphansReaped`. A tree that holds no process is closed without a report. Every report is kept in the audit, by job.
+- The reaper runs in the tracker's mailbox, which also handles the end of the job afterwards: Jobs stops an ended job's session before it announces the end, so the orphans are reaped before the worktree is reclaimed.
+
+### Port leases
+
+- Every worktree leases a block of `perWorktree` ports from the range `first` to `last` when its first tree opens, through `IProcessEnvironment`, skipping blocks in which a port is already listened on. A second session in the same worktree gets the same lease. The lease reaches every process of the worktree's trees as `AVALA_PORT`, the first port, and `AVALA_PORTS`, the block as `first-last`, so a dev server, a test database or a second checkout never collide: the agent's harness passes them to the agent like any environment variable, and the agent uses them when it starts a service. A worktree that finds no free block gets no variables, and the shortage is logged.
+- A lease is published as `PortsLeased` and released, as `PortsReleased`, when the job of the worktree ends.
+- **Collisions.** Every sample compares the listening sockets of the machine with the leases: a leased port listened on by a process outside the worktree's trees, another worktree's or a process the harness does not know, is a `PortConflict`, published once per port, lease and process as `PortConflictObserved` and kept by `IResources.Conflicts`.
+
+### Worktrees
+
+- **Retention.** When a job ends, its worktrees are kept for the time its status is retained, then removed through `IWorkspaces.RemoveAsync`, which deletes the worktree and its branch, and published as `WorktreeReclaimed`. By default a discarded job's worktree is reclaimed at once, a failed job's after a week, and an approved job's is kept, since its branch is what gets merged. Retention is checked when a job ends and at every sample; a removal that fails, such as a folder Windows still holds open, is tried again at the next sample.
+- **Reconciliation.** `IWorkspaces.ReconcileAsync` compares the worktree root with the store: folders under it that no workspace knows are strays, workspaces whose folder is gone are missing. `IWorkspaces.CleanAsync` cleans only what a reconciliation reported and is still the case: it deletes stray folders and forgets missing workspaces after `git worktree prune`, keeping their branches, which hold the work. At startup the housekeeper reconciles and publishes `WorktreesReconciled`; with `reconcile` set to `clean` it cleans too. `IWorktreeHousekeeping.CleanAsync` is the command.
+
+### Settings
+
+`resources.json` in the data folder, read once, when first needed.
+
+```json
+{
+  "sampleSeconds": 5,
+  "diskSeconds": 60,
+  "orphans": "kill",
+  "ports": { "first": 24000, "last": 24999, "perWorktree": 10 },
+  "worktrees": { "keepDiscardedHours": 0, "keepFailedHours": 168, "keepApprovedHours": null, "reconcile": "report" }
+}
+```
+
+- Every field is optional and the example shows the defaults. `sampleSeconds` and `diskSeconds` are numbers from 0.1 to 86,400. `orphans` is `kill` or `report`. `ports` holds whole numbers: `first` from 1024, `last` at most 65,535 and not below `first`, `perWorktree` from 1 to the size of the range; the default range sits below the ephemeral ports of Linux, Windows and macOS. Each `keep…Hours` is a number from 0 to 87,600, or `null` to keep the worktree. `reconcile` is `report` or `clean`.
+- The file is parsed strictly: unknown fields, duplicate fields, values of the wrong type, nesting deeper than the format needs and files over 16 KiB are rejected. A rejected file keeps every default and is reported through `IResources.SettingsAsync` with its `ResourceError`.
+
+| `ResourceError` | Cause |
+| --- | --- |
+| `Unreadable` | The file exists but cannot be read |
+| `TooLarge` | Over 16 KiB |
+| `Malformed` | Not JSON, not an object, a value of the wrong type or a duplicate field |
+| `UnknownField` | A field the format does not define |
+| `InvalidInterval` | A sampling interval out of its range |
+| `InvalidPorts` | A port range out of its bounds or a block larger than the range |
+| `InvalidRetention` | A retention out of its range |
+| `UnknownPolicy` | An `orphans` or `reconcile` outside its list |
+| `NothingToReap` | Not a file error: `IOrphans.ReapAsync` found no orphan left running for the job |
+
+### The module
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Usage` | `Tallies`: the rollup of trees into a `ResourceUsage`, the CPU load between two samples, and the retention of each final status | Domain |
+| `Leases` | `PortBook`: the leases of the range, leasing, releasing, the conflicts of the listening sockets with the leases, and the environment variables of a lease | Domain |
+| `Tracking` | `ResourceTracker`, the handler of `SessionOpened`, `JobSessionStarted`, `SessionEnded`, `SessionStopped`, `JobProgressed` and `ResourcesSampled`; `Attribution`, the correlation of trees, sessions and jobs; `ResourceBook`, behind `IResources`; and the `IResourceSettings` and `IFolderSizes` ports | Application |
+| `Sampling` | `ResourceSampler`, the timer; `SampleTaker`, which takes, keeps and publishes a sample and its conflicts; and `ProcessReadings`, which reads trees and their ports through `IProcessTrees` and `IListeningPorts` | Application |
+| `Reaping` | `OrphanReaper`, behind `IOrphans` | Application |
+| `Leasing` | `PortLeases`, the `IProcessEnvironment` that leases and releases, owning its book through a `SerialExecutor` | Application |
+| `Housekeeping` | `WorktreeHousekeeper`, behind `IWorktreeHousekeeping`, the startup reconciliation and the retention of ended jobs' worktrees | Application |
+| `Settings` | `ResourceSettingsFile` behind `IResourceSettings`, and `ResourceSettingsParser` | Infrastructure |
+| `Disks` | `FolderSizes` behind `IFolderSizes` | Infrastructure |
+
+- The domain is a projection and a ledger of leases; it rejects nothing, so it has no aggregate. `ResourceError` is the module's single error enum, in its contracts.
+- The tracker is the only writer of the attribution; the sampler's loop is the only writer of the samples and the conflicts it reports; queries read immutable snapshots. Samples, orphans, leases and reclaimed worktrees live in memory, and so does the retention due of an ended job: a restart forgets it, and reconciliation reports what was left.
 
 ## Data the harness produces
 
@@ -1150,6 +1287,8 @@ The job's connection is not yet part of an event of Jobs: a view finds it throug
 | --- | --- | --- | --- | --- |
 | `WorkspaceInfo.BaseCommit` | Field of `IWorkspaces` answers | The full SHA of the commit the worktree was created from | Fixed when the workspace is prepared; stored with it | One per workspace |
 | `IBaseFiles.ReadAsync(worktree, path)` | Query | `Result<BaseFile, WorkspaceFailure>`: `Path`, `Origin` (`FileOrigin`: `Commit` and `EditedInWorktree`) and `Content`, an `Option<string>` absent when the commit holds no file there; `UnknownWorkspace` for a folder that is no worktree, `GitFailed` when git fails | On demand, at most three git commands each time | One answer per call |
+| `IWorkspaces.FindAtAsync(folder)` | Query | `Result<WorkspaceInfo, WorkspaceFailure>`: the workspace whose worktree is the folder, or `UnknownWorkspace` | On demand | One answer per call |
+| `IWorkspaces.ReconcileAsync()`, `CleanAsync(found)` | Query and command | `WorktreeReconciliation`: `Strays`, folders under the worktree root no workspace knows, in path order, and `Missing`, the workspaces whose folder is gone; cleaning answers what it cleaned | On demand; Resources reconciles at startup | One answer per call |
 
 `FileOrigin` is the provenance every rule file reports: Verification in `VerificationReport.Declaration`, Permissions in `SessionPolicy.Origin` and Budgets in `SessionBudget.Origin`.
 
@@ -1157,7 +1296,7 @@ The job's connection is not yet part of an event of Jobs: a view finds it throug
 
 | Data | Kind | Shape | When and how often | Cardinality |
 | --- | --- | --- | --- | --- |
-| `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, or Jobs holds one whose session ended on its own, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
+| `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`, `MemoryExceeded`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, or Jobs holds one whose session ended on its own, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
 | `JobResumable` | Event | `Job`, `Session` whose resume token Jobs stored | Each time the job's current session issues a resume token, once the token is stored. Never for a session the job no longer uses | Zero or more per session; the simulator issues one per turn |
 | `IJobs.ContinueAsync(JobId, message)` | Command answer | `Result<JobContinuation, JobRejection>`: `Job`, the `Session` the job continues in and `Conversation` (`ContinuedIn`: `SameSession`, `ResumedConversation`, `NewConversation`); or `NotHeld`, `EmptyMessage`, `UnknownJob`, `WorkspaceUnavailable`, `UnknownConnection`, `UnusableConnection`, `AgentUnavailable` | When a human answers a job that needs help. A success is followed by `JobProgressed` with `Running`, and by `JobSessionStarted` when the session is new | One per human answer |
 
@@ -1198,7 +1337,43 @@ The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted
 | `IBudgets.BudgetOf(SessionId)` | Query | `Option<SessionBudget>`; none until the session opened | Any time | One per session |
 | `IBudgets.OfJob(JobId)` | Query | `IReadOnlyList<BudgetIntervention>` in the order they happened | Any time, from memory | Zero or more per job |
 
-`BudgetCaps` has `CostPerJob`, a list of `Cost` caps, one per currency; `TokensPerJob`, an `Option<long>`; and `HoldAtLimit`, an `Option<double>`. A session's `Caps` are those of its connection: the file's `connections` section for it when there is one, the top-level caps otherwise. `BudgetIntervention` carries `Hold`, the `JobHold`; `Breach`; and `At`. A `BudgetBreach` states the measured facts: `Measure` (`Cost`, `Tokens`, `Limit` or `Declaration`), `Subject` (the currency, `tokens`, the limit window or the budget file), `Measured` and `Cap` as decimals (spent against cap, or the limit fraction used against the threshold; both 0 for a declaration) and `Error`, the `Option<BudgetError>` of an invalid declaration.
+`BudgetCaps` has `CostPerJob`, a list of `Cost` caps, one per currency; `TokensPerJob`, an `Option<long>`; `HoldAtLimit`, an `Option<double>`; and `MemoryPerJobMegabytes`, an `Option<long>`. A session's `Caps` are those of its connection: the file's `connections` section for it when there is one, the top-level caps otherwise. `BudgetIntervention` carries `Hold`, the `JobHold`; `Breach`; and `At`. A `BudgetBreach` states the measured facts: `Measure` (`Cost`, `Tokens`, `Limit`, `Declaration` or `Memory`), `Subject` (the currency, `tokens`, the limit window, the budget file or `megabytes`), `Measured` and `Cap` as decimals (spent against cap, the limit fraction used against the threshold, or megabytes used, to one decimal, against the cap; both 0 for a declaration) and `Error`, the `Option<BudgetError>` of an invalid declaration.
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `JobQueued` | Event | `Job`, `Running` (the slots taken when it asked), `Limit` | When a submitted job finds every slot taken, before it waits | Zero or one per job |
+| `JobAdmitted` | Event | `Job` | When a queued job gets its slot, before it launches | One per `JobQueued` |
+| `IBudgets.MachineAsync()` | Query | `MachineBudget`: `RunningJobs` (`Option<int>`, one when the file is rejected), `File` (`BudgetFileStatus`) and `Option<BudgetError>` | Any time; reads `budgets.json` the first time | One per application |
+
+### Jobs: discard
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `IJobs.DiscardAsync(JobId)` | Command answer | `Result<JobId, JobRejection>`: the job discarded, or `NotDiscardable`, `UnknownJob` | When a human discards a job. A success is followed by `SessionStopped` when the job had a session, then `JobProgressed` with `Discarded` | One per discard |
+
+### Agents: process trees
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `SessionOpened.ProcessTree` | Field of an event | `Option<ProcessTreeId>`: the tree the session's processes run in, from the SDK | When a session opens; fixed for the session | One per session |
+| `SessionStopped` | Event | `Session` | When the harness stopped a session, once the provider's session is disposed: a hold that stops it, a job that ended, or shutdown, when the bus has already stopped | Zero or one per session |
+
+### Resources
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `ResourcesSampled` | Event | `Sample`: a `ResourceSample` with `At`; `Trees`, each a `TreeUsage` with `Tree`, `Home` (the folder it opened for), `Processes`, `CpuLoad` and its `Option` `Session`, `Job`, `Connection` and `Provider`; `Worktrees`, each a `FolderUsage` with `Path`, `Bytes` and `Option<JobId>` `Job`; and `DataFolderBytes` | Every `sampleSeconds`, once the sample is kept; the disk figures are measured every `diskSeconds` and repeated between | One per interval for the life of the application |
+| `ProcessUsage` | Part of a sample or a report | `Id`, `Name`, `MemoryBytes` (working set), `CpuTime` (since the process started), `Ports` it listens on | With every sample and orphan report | One per live process of a tree |
+| `IResources.Latest`, `Global()`, `OfJob(JobId)`, `OfSession(SessionId)`, `ByConnection()`, `ByProvider()` | Query | The latest sample, or a `ResourceUsage`: `Processes`, `MemoryBytes`, `CpuTime`, `CpuLoad`, `Ports`, `DiskBytes`; by connection and provider in name order | Any time, from the latest sample; nothing before the first one | One answer per call |
+| `OrphansFound` | Event | `Report`: an `OrphanReport` with `Tree`, `Processes`, `Disposal` (`Killed` or `LeftRunning`), `Survivors` (the identifiers still alive after a kill), `At`, and its `Option` `Session` and `Job` | When a session ends with processes still alive in its tree, after they were killed by policy | Zero or one per session |
+| `OrphansReaped` | Event | `Report`, as above, `Killed` | When `IOrphans.ReapAsync` kills orphans left running | Zero or one per tree left running |
+| `IOrphans.Audit()`, `OfJob(JobId)`, `ReapAsync(JobId)` | Query and command | The reports in the order they were made; the reaped reports or `NothingToReap` | Any time | Zero or more per job |
+| `PortsLeased`, `PortsReleased` | Events | `Lease`: a `PortLease` with `Worktree`, `First`, `Last` | When a worktree's first tree opens; when its job ends | One of each per worktree |
+| `PortConflictObserved` | Event | `Conflict`: a `PortConflict` with `Port`, the `Lease` it belongs to, `At` and the `Option` `Process` and `Tree` that hold it | When a sample first finds a leased port held outside its worktree | Once per port, lease and holder |
+| `IResources.Leases()`, `Conflicts()` | Query | The current leases; every conflict observed | Any time | Zero or more |
+| `WorktreeReclaimed` | Event | `Reclaimed`: a `ReclaimedWorktree` with `Job`, `Path`, the job's final `Status` and `At` | When retention removed an ended job's worktree | Zero or one per worktree |
+| `WorktreesReconciled` | Event | `Found`: a `WorktreeReconciliation` with `Strays` (folders) and `Missing` (`WorkspaceInfo`s), and `Cleaned` | At startup, and on every reconciliation or cleaning command | One per startup and command |
+| `IResources.SettingsAsync()` | Query | `ResourceSettings`: `Sampling`, `DiskSampling`, `Orphans` (`OrphanPolicy`), `Ports` (`PortRange`), `Retention` (`WorktreeRetention`, an `Option<TimeSpan>` per final status) and `Reconcile`, with `File` and `Option<ResourceError>` | Any time; reads `resources.json` the first time | One per application |
 
 ### Recording
 
@@ -1244,7 +1419,7 @@ Jobs run in parallel, each in its own queue, so the aggregate of one job may cha
 
 ### Data folder
 
-The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PATH` when set, otherwise `Avala` under the local application data folder. It locates the database files, the worktree root, the settings files `supervision.json`, `recording.json` and `connections.json`, the `connections` folder that keeps the login of each connection by default, and the `recordings` folder the recorder writes and the simulator replays from. The composition root receives it, so the host tests point it at a temporary folder.
+The host registers `AvalaPaths` from the SDK. Its data folder is `AVALA_DATA_PATH` when set, otherwise `Avala` under the local application data folder. It locates the database files, the worktree root, the settings files `supervision.json`, `recording.json`, `connections.json`, `resources.json` and `budgets.json`, the `connections` folder that keeps the login of each connection by default, and the `recordings` folder the recorder writes and the simulator replays from. The composition root receives it, so the host tests point it at a temporary folder.
 
 ### Startup tasks
 

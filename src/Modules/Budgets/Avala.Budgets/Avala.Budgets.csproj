@@ -6,6 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Avala.Budgets.Contracts\Avala.Budgets.Contracts.csproj" />
     <ProjectReference Include="..\..\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" />
+    <ProjectReference Include="..\..\Resources\Avala.Resources.Contracts\Avala.Resources.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Budgets.Tests" />

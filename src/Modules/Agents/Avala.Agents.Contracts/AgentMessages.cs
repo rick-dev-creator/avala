@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Sdk.Processes;
 
 namespace Avala.Agents.Contracts;
 
@@ -20,7 +21,11 @@ public sealed record AgentTurn(SessionId Session, TurnId Turn);
 public sealed record SessionOpened(SessionId Session, ProviderInfo Provider, string WorkingDirectory, ConnectionName Connection) : IIntegrationEvent
 {
     public Option<AgentAccount> Account { get; init; }
+
+    public Option<ProcessTreeId> ProcessTree { get; init; }
 }
+
+public sealed record SessionStopped(SessionId Session) : IIntegrationEvent;
 
 public enum SessionEnding
 {

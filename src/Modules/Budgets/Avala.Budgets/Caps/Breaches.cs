@@ -12,18 +12,23 @@ internal static class Breaches
 
     public const string TokenUnit = "tokens";
 
+    public const string MemoryUnit = "megabytes";
+
+    private const decimal Megabyte = 1024 * 1024;
+
     public static BudgetCaps Unlimited { get; } = new([], Option<long>.None, Option<double>.None);
 
     public static UsageSummary NothingSpent { get; } = new(default, [], 0, default, []);
 
     extension(SessionBudget budget)
     {
-        public Option<BudgetBreach> BreachBy(UsageSummary spent, IReadOnlyList<UsageLimit> limits) =>
+        public Option<BudgetBreach> BreachBy(UsageSummary spent, IReadOnlyList<UsageLimit> limits, long memoryBytes) =>
             budget.Error.Match(
                 error => new BudgetBreach(BudgetMeasure.Declaration, BudgetFile, 0, 0, error),
                 () => Costs(budget.Caps, spent)
                     .Concat(Tokens(budget.Caps, spent))
                     .Concat(Limits(budget.Caps, limits))
+                    .Concat(Memory(budget.Caps, memoryBytes))
                     .FirstOrDefault()
                     .ToOption());
     }
@@ -34,6 +39,7 @@ internal static class Breaches
         {
             BudgetMeasure.Limit => HoldReason.LimitNearlyReached,
             BudgetMeasure.Declaration => HoldReason.InvalidBudget,
+            BudgetMeasure.Memory => HoldReason.MemoryExceeded,
             _ => HoldReason.BudgetExceeded,
         };
     }
@@ -59,5 +65,12 @@ internal static class Breaches
             threshold => limits
                 .Where(limit => limit.UsedFraction >= threshold)
                 .Select(limit => new BudgetBreach(BudgetMeasure.Limit, limit.Window, (decimal)limit.UsedFraction, (decimal)threshold, Option<BudgetError>.None)),
+            () => []);
+
+    private static IEnumerable<BudgetBreach> Memory(BudgetCaps caps, long memoryBytes) =>
+        caps.MemoryPerJobMegabytes.Match<IEnumerable<BudgetBreach>>(
+            cap => memoryBytes / Megabyte >= cap
+                ? [new BudgetBreach(BudgetMeasure.Memory, MemoryUnit, Math.Round(memoryBytes / Megabyte, 1), cap, Option<BudgetError>.None)]
+                : [],
             () => []);
 }

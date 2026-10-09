@@ -36,6 +36,9 @@ internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, 
             async database => (await database.Workspaces.ToListAsync(cancellationToken)).FirstOrDefault(workspace => workspace.Location.IsAt(path)).ToOption(),
             cancellationToken);
 
+    public Task<IReadOnlyList<Workspace>> AllAsync(CancellationToken cancellationToken) =>
+        RunAsync<IReadOnlyList<Workspace>>(async database => await database.Workspaces.ToListAsync(cancellationToken), cancellationToken);
+
     public Task RemoveAsync(WorkspaceId id, CancellationToken cancellationToken) =>
         RunAsync(
             async database =>

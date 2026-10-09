@@ -25,7 +25,7 @@ internal sealed class SimulatedSession : IAgentSession
         gates = new Gates(
             new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission),
             new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm));
-        performer = new Performer(options, craft.Files, gates, craft.Pacing);
+        performer = new Performer(options, craft, gates);
         this.options = options;
         this.craft = craft;
         this.conversation = conversation;

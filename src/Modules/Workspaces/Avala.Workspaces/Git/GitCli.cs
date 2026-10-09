@@ -37,7 +37,7 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
         string path,
         CancellationToken cancellationToken) =>
         File.Exists(Path.Combine(location.Path, path))
-            ? await RunAsync([.. Pristine, "-C", location.Path, "hash-object", "--", path], WorkspaceFailure.GitFailed, cancellationToken)
+            ? await RunAsync([.. Pristine, "-C", location.Path, "hash-object", "--", path], WorkspaceFailure.GitFailed, location.Path, cancellationToken)
                 .MapAsync(output => Option<string>.Some(output.Trim()))
             : Option<string>.None;
 
@@ -63,12 +63,13 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
         WorkspaceLocation location,
         string label,
         CancellationToken cancellationToken) =>
-        RunAsync(["-C", location.Path, "add", "--all"], WorkspaceFailure.GitFailed, cancellationToken)
+        RunAsync(["-C", location.Path, "add", "--all"], WorkspaceFailure.GitFailed, location.Path, cancellationToken)
             .BindAsync(_ => RunAsync(
                 [.. CheckpointIdentity, "-C", location.Path, "commit", "--allow-empty", "--no-verify", "--quiet", "--message", label],
                 WorkspaceFailure.GitFailed,
+                location.Path,
                 cancellationToken))
-            .BindAsync(_ => RunAsync(["-C", location.Path, "rev-parse", "HEAD"], WorkspaceFailure.GitFailed, cancellationToken))
+            .BindAsync(_ => RunAsync(["-C", location.Path, "rev-parse", "HEAD"], WorkspaceFailure.GitFailed, location.Path, cancellationToken))
             .BindAsync(output => CommitSha.Create(output).MapError(_ => WorkspaceFailure.GitFailed));
 
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(
@@ -79,11 +80,21 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
             .BindAsync(_ => RunAsync(["-C", location.Repository, "branch", "-D", branch.Value], WorkspaceFailure.GitFailed, cancellationToken))
             .MapAsync(_ => location);
 
-    private async Task<Result<string, WorkspaceFailure>> RunAsync(
+    public Task<Result<string, WorkspaceFailure>> PruneWorktreesAsync(string repository, CancellationToken cancellationToken) =>
+        RunAsync(["-C", repository, "worktree", "prune"], WorkspaceFailure.GitFailed, cancellationToken);
+
+    private Task<Result<string, WorkspaceFailure>> RunAsync(
         IReadOnlyList<string> arguments,
         WorkspaceFailure failure,
         CancellationToken cancellationToken) =>
-        (await processes.RunAsync(new ProcessRequest("git", arguments), cancellationToken))
+        RunAsync(arguments, failure, Option<string>.None, cancellationToken);
+
+    private async Task<Result<string, WorkspaceFailure>> RunAsync(
+        IReadOnlyList<string> arguments,
+        WorkspaceFailure failure,
+        Option<string> worktree,
+        CancellationToken cancellationToken) =>
+        (await processes.RunAsync(new ProcessRequest("git", arguments, worktree), cancellationToken))
             .MapError(_ => failure)
             .Bind<string>(outcome => outcome.Succeeded ? outcome.Output : failure);
 }

@@ -144,9 +144,28 @@ public sealed class BudgetEnforcementTests
         Assert.DoesNotContain(budgeted.Bus.Published, published => published is BudgetIntervened);
     }
 
-    private static Result<Option<BudgetCaps>, BudgetError> Caps(Cost[]? cost = null, long tokens = 0, double threshold = 0) =>
+    [Fact]
+    public async Task AJobWhoseProcessesUseItsMemoryCapIsHeldAsMemoryExceededWhenResourcesAreSampledAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.RunningAsync(Caps(memory: 512));
+
+        await budgeted.MeasureAsync(511L * 1024 * 1024);
+        Assert.Empty(budgeted.Jobs.Holds);
+        await budgeted.MeasureAsync(600L * 1024 * 1024);
+
+        Assert.Equal([(budgeted.Job, HoldReason.MemoryExceeded)], budgeted.Jobs.Holds);
+        Assert.Equal(
+            new BudgetBreach(BudgetMeasure.Memory, "megabytes", 600m, 512m, Option<BudgetError>.None),
+            Assert.Single(budgeted.Book.OfJob(budgeted.Job)).Breach);
+    }
+
+    private static Result<Option<BudgetCaps>, BudgetError> Caps(Cost[]? cost = null, long tokens = 0, double threshold = 0, long memory = 0) =>
         Option<BudgetCaps>.Some(new BudgetCaps(
             cost ?? [],
             tokens > 0 ? tokens : Option<long>.None,
-            threshold > 0 ? threshold : Option<double>.None));
+            threshold > 0 ? threshold : Option<double>.None)
+        {
+            MemoryPerJobMegabytes = memory > 0 ? memory : Option<long>.None,
+        });
 }

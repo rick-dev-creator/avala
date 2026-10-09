@@ -6,6 +6,7 @@ using Avala.Budgets.Contracts;
 using Avala.Budgets.Enforcement;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Microsoft.Extensions.Time.Testing;
@@ -24,14 +25,16 @@ internal sealed class Budgeted
     public Budgeted(Option<JobRejection> rejection = default)
     {
         Jobs = new HoldingJobs(rejection);
-        enforcer = new BudgetEnforcer(Book, usage, new BudgetHolds(Book, Jobs, Bus, Clock));
+        enforcer = new BudgetEnforcer(Book, usage, [Resources], new BudgetHolds(Book, Jobs, Bus, Clock));
     }
+
+    public MeasuredResources Resources { get; } = new();
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 9, 0, 0, TimeSpan.Zero));
 
     public RecordingBus Bus { get; } = new();
 
-    public BudgetBook Book { get; } = new();
+    public BudgetBook Book { get; } = new(new FixedMachine());
 
     public HoldingJobs Jobs { get; }
 
@@ -76,6 +79,42 @@ internal sealed class Budgeted
         await enforcer.HandleAsync(new UsageRecorded(Session, Job), Cancellation);
     }
 
+    public async Task MeasureAsync(long memoryBytes)
+    {
+        Resources.Memory = memoryBytes;
+        await enforcer.HandleAsync(new ResourcesSampled(new ResourceSample(Clock.GetUtcNow(), [], [], 0)), Cancellation);
+    }
+
+    internal sealed class MeasuredResources : IResources
+    {
+        public long Memory { get; set; }
+
+        public Option<ResourceSample> Latest => Option<ResourceSample>.None;
+
+        public ResourceUsage Global() => OfJob(default);
+
+        public ResourceUsage OfJob(JobId job) => new(1, Memory, TimeSpan.Zero, 0, [], 0);
+
+        public ResourceUsage OfSession(SessionId session) => OfJob(default);
+
+        public IReadOnlyList<ConnectionResources> ByConnection() => [];
+
+        public IReadOnlyList<ProviderResources> ByProvider() => [];
+
+        public IReadOnlyList<PortLease> Leases() => [];
+
+        public IReadOnlyList<PortConflict> Conflicts() => [];
+
+        public ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    internal sealed class FixedMachine : Avala.Budgets.Admission.IMachineBudgetFile
+    {
+        public MachineBudget Budget { get; set; } = new(Option<int>.None, BudgetFileStatus.Absent, Option<BudgetError>.None);
+
+        public ValueTask<MachineBudget> LoadAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Budget);
+    }
+
     internal sealed class HoldingJobs(Option<JobRejection> rejection) : IJobs
     {
         private readonly List<(JobId Job, HoldReason Reason)> holds = [];
@@ -96,6 +135,9 @@ internal sealed class Budgeted
 
         public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotHeld));
+
+        public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<JobId, JobRejection>.Failure(JobRejection.NotDiscardable));
     }
 
     private sealed class Usage : IUsage

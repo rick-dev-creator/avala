@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" />
+    <ProjectReference Include="..\Avala.Simulator.Workload\Avala.Simulator.Workload.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Simulator.Tests" />

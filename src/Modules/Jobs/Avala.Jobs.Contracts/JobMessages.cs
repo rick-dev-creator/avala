@@ -30,6 +30,7 @@ public enum HoldReason
     BudgetExceeded,
     LimitNearlyReached,
     InvalidBudget,
+    MemoryExceeded,
 }
 
 public enum SessionHalt

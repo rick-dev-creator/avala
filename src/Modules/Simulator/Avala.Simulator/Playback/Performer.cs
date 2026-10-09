@@ -5,9 +5,9 @@ using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
 
-internal sealed class Performer(SessionOptions options, IFileWriter files, Gates gates, Pacing pacing)
+internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates gates)
 {
-    private readonly Replayer replayer = new(options, files, gates, pacing);
+    private readonly Replayer replayer = new(options, craft.Files, gates, craft.Pacing);
 
     public bool Closing => replayer.Closing;
 
@@ -45,15 +45,26 @@ internal sealed class Performer(SessionOptions options, IFileWriter files, Gates
     {
         WriteFile write => ActAsync(
             cues,
-            new Deed(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", $"Edit {write.Path}", Path.Combine(options.WorkingDirectory, write.Path), write.Content),
+            new Deed(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", $"Edit {write.Path}", Path.Combine(options.WorkingDirectory, write.Path)),
             options.Permissions == PermissionMode.AskEveryTime,
-            token => files.WriteAsync(Path.Combine(options.WorkingDirectory, write.Path), write.Content, token).AsTask(),
+            async token =>
+            {
+                await craft.Files.WriteAsync(Path.Combine(options.WorkingDirectory, write.Path), write.Content, token);
+
+                return write.Content;
+            },
             cancellationToken),
         RunCommand run => ActAsync(
             cues,
-            new Deed(run.Item, ItemKind.Command, run.Command, $"Run {run.Command}", run.Command, run.Output),
+            new Deed(run.Item, ItemKind.Command, run.Command, $"Run {run.Command}", run.Command),
             options.Permissions == PermissionMode.AskEveryTime || (options.Permissions == PermissionMode.AllowEdits && run.AsksPermission),
-            _ => Task.CompletedTask,
+            _ => Task.FromResult(run.Output),
+            cancellationToken),
+        Spawn spawn => ActAsync(
+            cues,
+            new Deed(spawn.Item, ItemKind.Command, spawn.Command, $"Run {spawn.Command}", spawn.Command),
+            options.Permissions != PermissionMode.AllowAll,
+            token => craft.Workloads.StartAsync(options.Processes, spawn.Workload, options.WorkingDirectory, token),
             cancellationToken),
         Ask ask => AskAsync(cues, ask, cancellationToken),
         Crash crash => throw new InvalidOperationException(crash.Reason),
@@ -66,7 +77,7 @@ internal sealed class Performer(SessionOptions options, IFileWriter files, Gates
         Cues cues,
         Deed deed,
         bool asks,
-        Func<CancellationToken, Task> perform,
+        Func<CancellationToken, Task<string>> perform,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         yield return cues.Opened(deed.Item, deed.Kind, deed.Title);
@@ -93,8 +104,7 @@ internal sealed class Performer(SessionOptions options, IFileWriter files, Gates
             }
         }
 
-        await perform(cancellationToken);
-        yield return cues.Progressed(deed.Item, deed.Output);
+        yield return cues.Progressed(deed.Item, await perform(cancellationToken));
         yield return cues.Closed(deed.Item, ItemOutcome.Succeeded);
     }
 
@@ -132,5 +142,5 @@ internal sealed class Performer(SessionOptions options, IFileWriter files, Gates
             ? (given.Confirmed ? "approved" : "not approved") + given.Text.Match(text => $" ({text})", () => string.Empty)
             : string.Join(", ", [.. given.Chosen, .. given.Text.Match<string[]>(text => [text], () => [])]);
 
-    private sealed record Deed(ItemId Item, ItemKind Kind, string Title, string Request, string Target, string Output);
+    private sealed record Deed(ItemId Item, ItemKind Kind, string Title, string Request, string Target);
 }

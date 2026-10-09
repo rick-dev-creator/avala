@@ -26,4 +26,8 @@ internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, JobLauncher laun
         return (await queues.RunAsync(job, (found, token) => launcher.ContinueAsync(found, guidance, token), cancellationToken))
             .Match(continued => continued, () => Result<JobContinuation, JobRejection>.Failure(JobRejection.UnknownJob));
     }
+
+    public async ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
+        (await queues.RunAsync(job, hold.DiscardAsync, cancellationToken))
+            .Match(discarded => discarded, () => Result<JobId, JobRejection>.Failure(JobRejection.UnknownJob));
 }

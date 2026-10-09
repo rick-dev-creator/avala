@@ -3,14 +3,15 @@ using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
+using Avala.Sdk.Processes;
 using Microsoft.Extensions.Logging;
 
 namespace Avala.Agents.Sessions;
 
 internal sealed partial class SessionStarter(
     ConnectionRegistry connections,
-    IEnumerable<HarnessTool> tools,
-    IEnumerable<IAgentProviderDecorator> decorators,
+    ProviderChain chain,
+    IProcessTrees trees,
     ILogger<SessionStarter> logger)
 {
     public async Task<Result<StartedSession, AgentError>> StartAsync(AgentRequest request, CancellationToken cancellationToken)
@@ -22,33 +23,39 @@ internal sealed partial class SessionStarter(
             return Unavailable(error);
         }
 
-        var provider = decorators.Aggregate(connection.Provider, (inner, decorator) => decorator.Decorate(inner));
+        var provider = chain.Decorate(connection.Provider);
+        var tree = await trees.OpenAsync(request.WorkingDirectory, cancellationToken);
 
         var fresh = new SessionOptions(request.WorkingDirectory, PermissionMode.AskEveryTime)
         {
-            Tools = provider.Capabilities.AcceptsTools ? [.. tools] : [],
+            Tools = chain.ToolsFor(provider),
             Connection = connection.Environment,
+            Processes = tree,
         };
         var resumed = provider.Capabilities.CanResume
             ? await request.Resume.Match(
-                token => ResumeAsync(provider, fresh with { Resume = token }, connection.Name, cancellationToken),
-                () => Task.FromResult(Option<StartedSession>.None))
-            : Option<StartedSession>.None;
+                token => ResumeAsync(provider, fresh with { Resume = token }, cancellationToken),
+                () => Task.FromResult(Option<IAgentSession>.None))
+            : Option<IAgentSession>.None;
 
-        return await resumed.Match(
-            started => Task.FromResult(Result<StartedSession, AgentError>.Success(started)),
+        var started = await resumed.Match(
+            session => Task.FromResult(Result<StartedSession, AgentError>.Success(new StartedSession(provider, session, connection.Name, tree.Id, Resumed: true))),
             async () => (await provider.StartAsync(fresh, cancellationToken))
-                .Map(session => new StartedSession(provider, session, connection.Name, Resumed: false)));
+                .Map(session => new StartedSession(provider, session, connection.Name, tree.Id, Resumed: false)));
+
+        if (started.IsFailure)
+        {
+            _ = await trees.CloseAsync(tree.Id, cancellationToken);
+        }
+
+        return started;
     }
 
-    private static async Task<Option<StartedSession>> ResumeAsync(
+    private static async Task<Option<IAgentSession>> ResumeAsync(
         IAgentProvider provider,
         SessionOptions options,
-        ConnectionName connection,
         CancellationToken cancellationToken) =>
-        (await provider.StartAsync(options, cancellationToken)).Match(
-            session => Option<StartedSession>.Some(new StartedSession(provider, session, connection, Resumed: true)),
-            _ => Option<StartedSession>.None);
+        (await provider.StartAsync(options, cancellationToken)).Match(Option<IAgentSession>.Some, _ => Option<IAgentSession>.None);
 
     private static AgentError Unavailable(ConnectionError error) => error switch
     {
@@ -61,4 +68,12 @@ internal sealed partial class SessionStarter(
     private partial void LogUnavailable(string connection, ConnectionError error);
 }
 
-internal sealed record StartedSession(IAgentProvider Provider, IAgentSession Session, ConnectionName Connection, bool Resumed);
+internal sealed class ProviderChain(IEnumerable<HarnessTool> tools, IEnumerable<IAgentProviderDecorator> decorators)
+{
+    public IAgentProvider Decorate(IAgentProvider provider) =>
+        decorators.Aggregate(provider, (inner, decorator) => decorator.Decorate(inner));
+
+    public IReadOnlyList<HarnessTool> ToolsFor(IAgentProvider provider) => provider.Capabilities.AcceptsTools ? [.. tools] : [];
+}
+
+internal sealed record StartedSession(IAgentProvider Provider, IAgentSession Session, ConnectionName Connection, ProcessTreeId Tree, bool Resumed);

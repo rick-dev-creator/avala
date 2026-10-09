@@ -23,6 +23,7 @@ public sealed class AgentsPlugin : IPlugin
             .AddSingleton<ICredentialSource, ApiKeySource>()
             .AddSingleton<ConnectionRegistry>()
             .AddSingleton<IConnections>(services => services.GetRequiredService<ConnectionRegistry>())
+            .AddSingleton<ProviderChain>()
             .AddSingleton<SessionStarter>()
             .AddSingleton<IAgents, AgentSessions>();
     }
