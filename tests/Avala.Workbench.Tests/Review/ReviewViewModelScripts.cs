@@ -3,18 +3,19 @@ using Avala.Autopilot.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Sdk;
+using Avala.Testing;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Review;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Tests.Review;
 
-public sealed class ReviewViewModelTests : IDisposable
+public sealed class ReviewViewModelScripts : IDisposable
 {
     private readonly Bench bench = new();
     private readonly JobSummary job;
 
-    public ReviewViewModelTests() => job = bench.Job("Fix the failing test", JobStatus.AwaitingReview);
+    public ReviewViewModelScripts() => job = bench.Job("Rate-limit POST /login", JobStatus.AwaitingReview);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -122,6 +123,58 @@ public sealed class ReviewViewModelTests : IDisposable
         Assert.Equal((false, 0, false), (direct, cancelled, review.ConfirmingDiscard));
         Assert.Equal(("Discarded", "discard"), (review.Outcome, string.Join(",", bench.Jobs.Calls)));
     }
+
+    [Fact]
+    public async Task AJobWithoutEvidenceOrWorktreeSaysSoAndIsLoaded()
+    {
+        var bare = bench.Catalog.Add("Add invoice PDF endpoint", JobStatus.NeedsHelp).Summary;
+        var review = new ReviewViewModel(bare.Job, bench.Reader, bench.Desk, bench.Ui);
+
+        await ViewModelScript.Given(review).WhenPresentedAsync(shown => _ = shown.Request(0)(Cancellation), Cancellation);
+
+        Assert.Equal(("No evidence for this job", "The job has no worktree", false, true), (review.Verdict, review.Changes, review.HasExceptions, review.IsLoaded));
+        Assert.Empty(review.Files);
+    }
+
+    [Fact]
+    public async Task AnExpandedFileStaysExpandedWhenTheSheetReloads()
+    {
+        bench.Changes.Files = [new FileChange("src/auth/login.ts", ChangeKind.Modified, 24, 3)];
+        bench.Changes.Hunks["src/auth/login.ts"] = new FileDiff("src/auth/login.ts", false, [new DiffHunk(12, 6, 12, 14, "login", [new DiffLine(DiffLineKind.Added, "limiter.consume()")])]);
+        var review = Review();
+        await review.Request(0)(Cancellation);
+        var file = review.Files[0];
+        await file.ShowHunksCommand.ExecuteAsync(null);
+
+        await review.Request(1)(Cancellation);
+
+        Assert.Same(file, Assert.Single(review.Files));
+        Assert.True(file.IsExpanded);
+    }
+
+    [Fact]
+    public async Task AnApprovalRefusedForADirtyBaseCheckoutAsksToCommitOrStash()
+    {
+        bench.Jobs.Refusal = JobRejection.BaseCheckoutDirty;
+        var review = Review();
+
+        await review.ApproveCommand.ExecuteAsync(null);
+
+        Assert.Equal(("The base branch's checkout has uncommitted changes. Commit or stash them, then approve again.", 0), (review.Outcome, review.Conflicts.Count));
+    }
+
+    [Fact]
+    public void AnEndedJobCanNeitherBeApprovedNorDiscarded() =>
+        ViewModelScript.Given(Review())
+            .When(review => review.Track(JobStatus.Approved))
+            .ThenNotified(nameof(ReviewViewModel.Status))
+            .Then(review => Assert.Equal((false, false), (review.ApproveCommand.CanExecute(null), review.RequestDiscardCommand.CanExecute(null))));
+
+    [Fact]
+    public void AHeldJobCanBeDiscardedButNotApproved() =>
+        ViewModelScript.Given(Review())
+            .When(review => review.Track(JobStatus.NeedsHelp))
+            .Then(review => Assert.Equal((false, true), (review.ApproveCommand.CanExecute(null), review.RequestDiscardCommand.CanExecute(null))));
 
     public void Dispose() => bench.Dispose();
 
