@@ -23,6 +23,8 @@ internal sealed class CompositionRoot : IAsyncDisposable
 
     public Task Running { get; private set; } = Task.CompletedTask;
 
+    public CancellationToken Lifetime => lifetime.Token;
+
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths) =>
         Create(pluginDirectory, paths, new AvaloniaUiDispatcher());
 

@@ -36,6 +36,20 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             Assert.All(view.Find<ListBox>("PageNavigation").GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>(), icon => Assert.NotNull(icon.Data));
         }, Cancellation);
 
+    [Theory]
+    [InlineData("Dark")]
+    [InlineData("Light")]
+    public Task TheShellDrawsEachThemeVariantWithLegibleTextAsync(string name) =>
+        ui.RunAsync(() =>
+        {
+            var variant = name == "Light" ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark;
+            var view = ViewScript.Present(new ShellView { RequestedThemeVariant = variant }, new DesignShellViewModel());
+            var surface = Legibility.Resource("SurfaceWindowBrush", variant);
+
+            Assert.Equal(variant, view.Window.ActualThemeVariant);
+            Assert.All(Legibility.Texts(view.Window, surface), text => Assert.True(text.Ratio >= 3, $"\"{text.Text}\" is {text.Foreground} on {text.Background}: {text.Ratio:F2}:1"));
+        }, Cancellation);
+
     [Fact]
     public Task TheComposedApplicationShowsItsPageInTheContentRegionAsync() =>
         ui.RunAsync(async () =>

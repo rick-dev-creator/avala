@@ -1,7 +1,9 @@
+using Avala.Runtime.Appearance;
 using Avala.Runtime.Containment;
 using Avala.Runtime.Events;
 using Avala.Runtime.Processes;
 using Avala.Sdk;
+using Avala.Sdk.Appearance;
 using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +28,10 @@ public static class RuntimeServices
                 .AddSingleton(ListeningPorts())
                 .AddSingleton<ProcessTrees>()
                 .AddSingleton<IProcessTrees>(provider => provider.GetRequiredService<ProcessTrees>())
-                .AddSingleton<IProcessRunner, ProcessRunner>();
+                .AddSingleton<IProcessRunner, ProcessRunner>()
+                .AddSingleton<AppearanceFile>()
+                .AddSingleton<IAppearance>(provider => provider.GetRequiredService<AppearanceFile>())
+                .AddSingleton<IStartupTask>(provider => provider.GetRequiredService<AppearanceFile>());
         }
     }
 

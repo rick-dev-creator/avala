@@ -24,12 +24,7 @@ public sealed class ThemeScreenScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var variant = name == "Light" ? ThemeVariant.Light : ThemeVariant.Dark;
-            var view = Screen.Show(Of(screen));
-            view.Window.Width = 1440;
-            view.Window.Height = 1000;
-            view.Window.RequestedThemeVariant = variant;
-            view.Window.Bind(Window.BackgroundProperty, view.Window.GetResourceObservable("SurfaceWindowBrush"));
-            view.Settle();
+            var view = Screen.Show(Of(screen), variant, 1440, 1000);
             var surface = Legibility.Resource("SurfaceWindowBrush", variant);
 
             var texts = Legibility.Texts(view.Window, surface);

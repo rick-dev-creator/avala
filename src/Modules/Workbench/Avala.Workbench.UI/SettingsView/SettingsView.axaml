@@ -79,6 +79,7 @@
       <StackPanel Margin="24,32,24,48" Spacing="30" MaxWidth="680">
         <ContentControl x:Name="Repository" Content="{Binding Repository}" />
         <ContentControl x:Name="Machine" Content="{Binding Machine}" />
+        <ContentControl x:Name="Appearance" Content="{Binding Appearance}" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

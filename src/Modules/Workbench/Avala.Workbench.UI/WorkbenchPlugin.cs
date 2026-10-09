@@ -188,6 +188,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
             .AddSingleton<IDefaultConnectionViewModel, DefaultConnectionViewModel>()
             .AddSingleton<IMachineSettingsViewModel, MachineSettingsViewModel>()
+            .AddSingleton<IAppearanceViewModel, AppearanceViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
             .AddSingleton<NewJobViewModel>()
             .AddSingleton<OverviewViewModel>()
@@ -220,6 +221,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ISettingsViewModel, SettingsView>();
         views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
         views.Register<IMachineSettingsViewModel, MachineSettingsView>();
+        views.Register<IAppearanceViewModel, AppearanceView>();
         views.Register<IRuleFileViewModel, RuleFileView>();
         views.Register<IRuleViewModel, RuleView>();
         views.Register<ICapsViewModel, CapsView>();
