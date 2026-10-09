@@ -124,6 +124,22 @@ public sealed class ConnectionsViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AGraphLargerThanThePageShrinksSoEveryNodeStaysInSightAsync() =>
+        ui.RunAsync(() =>
+        {
+            var cards = Enumerable.Range(1, 4)
+                .Select(connection => Card($"connection-{connection}", [.. Enumerable.Range(1, 6).Select(agent => Agent($"Agent {agent} of connection {connection}", JobStatus.Running))]))
+                .ToArray();
+            var view = Screen.Show(new RecordingConnections(cards));
+            view.Window.Width = 1064;
+            view.Window.Height = 840;
+            view.Settle();
+            var page = new Rect(0, 0, view.Window.Width, view.Window.Height);
+
+            Assert.All(Bounds(view, Nodes(view)), node => Assert.True(page.Contains(node), $"{node} leaves {page}"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task LongNamesAreTrimmedInsideTheirNodeAndHubAsync() =>
         ui.RunAsync(() =>
         {
@@ -170,7 +186,7 @@ public sealed class ConnectionsViewScripts(HeadlessUi ui)
     }
 
     private static IEnumerable<Rect> Bounds(ViewScript view, IEnumerable<Visual> visuals) =>
-        visuals.Select(visual => new Rect(visual.TranslatePoint(default, view.Window) ?? default, visual.Bounds.Size));
+        visuals.Select(visual => new Rect(visual.Bounds.Size).TransformToAABB(visual.TransformToVisual(view.Window) ?? Matrix.Identity));
 
     private static IEnumerable<(Rect First, Rect Second)> Pairs(IEnumerable<Rect> rects)
     {
@@ -214,7 +230,7 @@ public sealed class AgentViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignAgentViewModel());
 
             Assert.Equal("Fix JPY rounding in invoice totals", view.TextOf("Title"));
-            Assert.True(view.HasClass("Node", "float"));
+            Assert.True(view.HasClass("Node", "drift"));
             Assert.False(view.HasClass("Node", "attention"));
             Assert.Equal("Running — editing money/minor.go, then re-running the money tests", ToolTip.GetTip(view.Find("Open")));
             Assert.Equal(EdgeKind.Flowing, Graph.GetEdge(view.Named("AgentView").Single()));
@@ -226,7 +242,7 @@ public sealed class AgentViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignAgentViewModel(Presenting.SampleJobs.InvoicePdf, "Add invoice PDF endpoint", StatusKind.NeedsYou, "asks a question"));
 
-            Assert.Equal((true, false), (view.HasClass("Node", "attention"), view.HasClass("Node", "float")));
+            Assert.Equal((true, false), (view.HasClass("Node", "attention"), view.HasClass("Node", "drift")));
             Assert.Equal(EdgeKind.Attention, Graph.GetEdge(view.Named("AgentView").Single()));
         }, TestContext.Current.CancellationToken);
 }

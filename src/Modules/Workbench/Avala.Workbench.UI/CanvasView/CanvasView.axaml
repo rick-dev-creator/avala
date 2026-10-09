@@ -15,37 +15,6 @@
           BorderThickness="1"
           CornerRadius="{DynamicResource RadiusCard}"
           ClipToBounds="True">
-    <DockPanel>
-      <Border DockPanel.Dock="Top"
-              Padding="14,9"
-              BorderBrush="{DynamicResource EdgeBrush}"
-              BorderThickness="0,0,0,1">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock x:Name="Title"
-                     Classes="caption medium"
-                     Foreground="{DynamicResource TextPrimaryBrush}"
-                     Text="{Binding Title}"
-                     TextTrimming="CharacterEllipsis" />
-          <TextBlock x:Name="MediaType" Classes="caption" Text="{Binding MediaType}" />
-          <Arc x:Name="Streaming"
-               Width="10"
-               Height="10"
-               StartAngle="0"
-               SweepAngle="270"
-               Stroke="{DynamicResource TextTertiaryBrush}"
-               StrokeThickness="1.5"
-               VerticalAlignment="Center"
-               IsVisible="{Binding IsStreaming}"
-               Classes.spin="{Binding IsStreaming}" />
-        </StackPanel>
-      </Border>
-      <Border x:Name="Surface" Padding="22,16" MinHeight="96">
-        <SelectableTextBlock x:Name="Drawing"
-                             Classes="mono"
-                             Foreground="{DynamicResource TextSecondaryBrush}"
-                             Text="{Binding Content}"
-                             TextWrapping="Wrap" />
-      </Border>
-    </DockPanel>
+    <ContentControl x:Name="Surface" Content="{Binding Surface}" />
   </Border>
 </UserControl>

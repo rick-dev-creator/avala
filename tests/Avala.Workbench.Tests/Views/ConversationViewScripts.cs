@@ -11,6 +11,7 @@ using Avala.Workbench.Conversation;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Presenters;
 using Path = Avalonia.Controls.Shapes.Path;
 using Avalonia.Input;
@@ -421,19 +422,21 @@ public sealed class PlanViewScripts(HeadlessUi ui)
 public sealed class CanvasViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ACanvasShowsItsTitleMediaTypeAndSourceAndSpinsWhileStreamingAsync() =>
+    public Task ACanvasShowsItsSurfaceInItsCardWithOneTitleKindAndDrawingAndSpinsWhileStreamingAsync() =>
         ui.RunAsync(() =>
         {
             var canvas = new CanvasViewModel(new CanvasEntry("c", "Rounding path", "text/vnd.mermaid", "flowchart LR", CanvasStatus.Streaming));
             var view = Screen.Show(canvas);
-            var streaming = view.Shows("Streaming");
+            var streaming = (view.Shows("Streaming"), view.HasClass("Streaming", "spin"));
 
             canvas.Update(new CanvasEntry("c", "Rounding path", "text/vnd.mermaid", "flowchart LR\n  A --> B", CanvasStatus.Completed));
             view.Settle();
 
-            Assert.Equal((true, false), (streaming, view.Shows("Streaming")));
-            Assert.Equal(("Rounding path", "text/vnd.mermaid"), (view.TextOf("Title"), view.TextOf("MediaType")));
-            Assert.Equal("flowchart LR\n  A --> B", view.Find<SelectableTextBlock>("Drawing").Text);
+            Assert.Equal(((true, true), false, false), (streaming, view.Shows("Streaming"), view.Shows("Status")));
+            Assert.Equal(("Rounding path", "Mermaid"), (view.TextOf("Title"), view.TextOf("MediaLabel")));
+            Assert.Single(view.All<TextBlock>(), block => block.Name == "Title");
+            Assert.Same(view.Find<Border>("Figure"), view.Find("Surface").GetVisualParent());
+            Assert.Equal("flowchart LR\n  A --> B", string.Concat(view.All<SelectableTextBlock>().Last(block => block.Name == "CanvasSource").Inlines!.OfType<Run>().Select(run => run.Text)));
         }, TestContext.Current.CancellationToken);
 }
 

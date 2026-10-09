@@ -40,6 +40,8 @@
     <ProjectReference Include="..\..\src\Modules\Workbench\Avala.Workbench.Contracts\Avala.Workbench.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Workbench\Avala.Workbench\Avala.Workbench.csproj" />
     <ProjectReference Include="..\..\src\Modules\Workbench\Avala.Workbench.UI\Avala.Workbench.UI.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Rendering\Avala.Rendering\Avala.Rendering.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Rendering\Avala.Rendering.UI\Avala.Rendering.UI.csproj" />
     <ProjectReference Include="..\..\src\Shared\Avala.Components\Avala.Components.csproj" />
     <ProjectReference Include="..\..\src\Shared\Avala.Components.UI\Avala.Components.UI.csproj" />
     <ProjectReference Include="..\Avala.ArchitectureTests.Fixtures\Avala.ArchitectureTests.Fixtures.csproj" />

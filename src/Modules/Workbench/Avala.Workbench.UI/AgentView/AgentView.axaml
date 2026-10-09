@@ -35,7 +35,7 @@
           CommandParameter="{Binding Job}">
     <Border x:Name="Node"
             Classes="node"
-            Classes.float="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='Working,Checking'}"
+            Classes.drift="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='Working,Checking'}"
             Classes.attention="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}"
             Height="40"
             Padding="13,0">

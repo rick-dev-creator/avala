@@ -55,7 +55,7 @@
     </Style.Animations>
   </Style>
 
-  <Style Selector=":is(Visual).float">
+  <Style Selector=":is(Visual).drift">
     <Setter Property="RenderTransform">
       <TranslateTransform />
     </Setter>

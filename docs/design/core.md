@@ -841,8 +841,8 @@ The harness can paint charts, diagrams, screens and designs while the agent writ
 
 - A canvas is an item of the turn: `CanvasStarted` opens it with its media type, `ItemProgressed` streams its content and `ItemCompleted` closes it. It inherits every integrity rule of items.
 - The harness offers the canvas to every agent that accepts tools as a [harness tool](#harness-tools): the Canvas module registers its definition, `canvas` with a `title`, a `mediaType` among those it renders and the `content`, on the `Canvas` surface, in its `Drawing` folder. Agents passes it to providers without knowing Canvas, and each adapter reports the tool's calls as canvas events. Providers that stream partial output deliver the canvas in chunks; the others deliver it at once. The real adapter transports the tool through MCP; the simulator's `canvas` scenario draws through it today.
-- The Canvas module accumulates each canvas, throttles updates and publishes snapshots. View models and renderers, plugins registered by media type, arrive with the user interface.
-- Canvas content is untrusted: it renders in an isolated surface with no network access by default.
+- The Canvas module accumulates each canvas, throttles updates and publishes snapshots. The shared canvas surface shows them, keeps each snapshot as a version and draws it through the renderer a plugin registered for its media type, see [canvas rendering](canvas-rendering.md).
+- Canvas content is untrusted: it renders in an isolated surface with no network access by default. The SVG renderer draws only sanitized markup, Markdown loads no image and opens no link, and Mermaid and HTML show their source until the decision in [canvas rendering](canvas-rendering.md) is made.
 
 ### Canvas module
 
@@ -1603,7 +1603,7 @@ A decision waits for a person only once the policy said so: a permission whose `
 | `ReasoningEntry` | `ItemStarted` of reasoning | The streamed text, and how long the agent thought, from `ItemStarted` to `ItemCompleted` as the keeper's `TimeProvider` measured them |
 | `ToolEntry` | `ItemStarted` of any other kind, or `ToolCalled` | Kind, title, output appended in order, outcome; for an executed harness tool, its input and the result it returned |
 | `PlanEntry` | `PlanUpdated` | The latest steps of the turn's plan, replaced in place, with done and total |
-| `CanvasEntry` | `CanvasStarted`, then `CanvasUpdated` | Title, media type, and the content and status of the latest throttled snapshot; the raw chunks are ignored, so the view never renders more often than the Canvas module publishes |
+| `CanvasEntry` | `CanvasStarted`, then `CanvasUpdated` | Title, media type, and the content and status of the latest throttled snapshot; the raw chunks are ignored, so the view never renders more often than the Canvas module publishes. Its view model hands each snapshot to a shared canvas surface, which keeps them as versions |
 | `PermissionEntry` | `PermissionRequested`, `PermissionDecided`, `PermissionResolved` | The request's session, item, kind, title and target, the policy's decision, the resolution, whether its turn ended |
 | `FormEntry` | `FormRequested`, `FormDecided`, `FormAnswered`, `ItemCompleted` | The form, the policy's decision, the answer, the outcome, whether its turn ended |
 | `TurnEndEntry` | `TurnCompleted` | The turn's outcome, its duration, and the tokens and costs it reported |
