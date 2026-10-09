@@ -51,22 +51,22 @@ internal sealed class ConfigurationFolders(string home) : IConfigurationFolders
         }
     }
 
-    private static async Task<JsonNode?> ReadAsync(string path, CancellationToken cancellationToken)
+    private static async Task<JsonNode> ReadAsync(string path, CancellationToken cancellationToken)
     {
         try
         {
             if (!File.Exists(path) || new FileInfo(path).Length > MaximumBytes)
             {
-                return null;
+                return new JsonObject();
             }
 
             await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.Asynchronous);
 
-            return await JsonNode.ParseAsync(stream, cancellationToken: cancellationToken);
+            return await JsonNode.ParseAsync(stream, cancellationToken: cancellationToken) ?? new JsonObject();
         }
         catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or JsonException)
         {
-            return null;
+            return new JsonObject();
         }
     }
 
