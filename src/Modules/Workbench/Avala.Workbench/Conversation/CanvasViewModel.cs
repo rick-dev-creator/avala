@@ -1,4 +1,5 @@
 using Avala.Canvas.Contracts;
+using Avala.Components.Canvases;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -15,11 +16,15 @@ internal interface ICanvasViewModel
     CanvasStatus Status { get; }
 
     bool IsStreaming { get; }
+
+    ICanvasSurfaceViewModel Surface { get; }
 }
 
 [INotifyPropertyChanged]
 internal sealed partial class CanvasViewModel : ICanvasViewModel, ITimelineItem
 {
+    private readonly CanvasSurfaceViewModel surface = new();
+
     public CanvasViewModel(CanvasEntry entry)
     {
         Title = string.Empty;
@@ -29,6 +34,8 @@ internal sealed partial class CanvasViewModel : ICanvasViewModel, ITimelineItem
     }
 
     public bool IsShown => true;
+
+    public ICanvasSurfaceViewModel Surface => surface;
 
     [ObservableProperty]
     public partial string Title { get; private set; }
@@ -53,6 +60,15 @@ internal sealed partial class CanvasViewModel : ICanvasViewModel, ITimelineItem
             MediaType = canvas.MediaType;
             Content = canvas.Content;
             Status = canvas.Status;
+            surface.Show(new CanvasDraft(canvas.Title, canvas.MediaType, canvas.Content, Phase(canvas.Status)));
         }
     }
+
+    private static CanvasPhase Phase(CanvasStatus status) => status switch
+    {
+        CanvasStatus.Streaming => CanvasPhase.Streaming,
+        CanvasStatus.Completed => CanvasPhase.Completed,
+        CanvasStatus.Failed => CanvasPhase.Failed,
+        _ => CanvasPhase.Stopped,
+    };
 }

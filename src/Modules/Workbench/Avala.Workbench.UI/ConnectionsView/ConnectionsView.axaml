@@ -34,7 +34,7 @@
                      Text="Declare a connection in connections.json or start a job: its agents gather here around the connection they run on." />
         </StackPanel>
       </Border>
-      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <Viewbox StretchDirection="DownOnly">
         <ItemsControl x:Name="Connections"
                       ItemsSource="{Binding Connections}"
                       HorizontalAlignment="Center"
@@ -46,7 +46,7 @@
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
-      </ScrollViewer>
+      </Viewbox>
     </Panel>
   </DockPanel>
 </UserControl>

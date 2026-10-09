@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Canvas.Contracts;
+using Avala.Components.Canvases;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Cards;
@@ -137,11 +138,23 @@ internal sealed class DesignCanvasViewModel : ICanvasViewModel
 
     public string MediaType => "text/vnd.mermaid";
 
-    public string Content => "flowchart LR\n  A[Amount ¥1,000] --> B[ToMinor ×100]\n  B --> C[ApplyTax · round]\n  C --> D[FromMinor ÷100 · round]";
+    private const string Drawing = "flowchart LR\n  A[Amount ¥1,000] --> B[ToMinor ×100]\n  B --> C[ApplyTax · round]\n  C --> D[FromMinor ÷100 · round]";
+
+    public string Content => Drawing;
 
     public CanvasStatus Status => CanvasStatus.Completed;
 
     public bool IsStreaming => false;
+
+    public ICanvasSurfaceViewModel Surface { get; } = Drawn();
+
+    private static CanvasSurfaceViewModel Drawn()
+    {
+        var surface = new CanvasSurfaceViewModel();
+        surface.Show(new CanvasDraft("Rounding path", CanvasMediaTypes.Mermaid, Drawing, CanvasPhase.Completed));
+
+        return surface;
+    }
 }
 
 internal sealed class DesignTurnEndViewModel : ITurnEndViewModel

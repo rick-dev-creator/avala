@@ -20,4 +20,18 @@ public sealed class CanvasViewModelScripts
         ViewModelScript.Given(new CanvasViewModel(new CanvasEntry("c", "Flow", "text/vnd.mermaid", "flowchart", CanvasStatus.Streaming)))
             .When(canvas => canvas.Update(new CanvasEntry("c", "Flow", "text/vnd.mermaid", "flowchart", CanvasStatus.Failed)))
             .Then(canvas => Assert.Equal((CanvasStatus.Failed, false, "flowchart"), (canvas.Status, canvas.IsStreaming, canvas.Content)));
+
+    [Theory]
+    [InlineData(CanvasStatus.Completed, "")]
+    [InlineData(CanvasStatus.Failed, "Failed")]
+    [InlineData(CanvasStatus.Cancelled, "Stopped")]
+    [InlineData(CanvasStatus.Abandoned, "Stopped")]
+    [InlineData(CanvasStatus.Expired, "Stopped")]
+    public void ItsSurfaceKeepsEverySnapshotAsAVersionAndShowsHowItClosed(CanvasStatus closed, string status) =>
+        ViewModelScript.Given(new CanvasViewModel(new CanvasEntry("c", "Flow", "text/vnd.mermaid", "flowchart", CanvasStatus.Streaming)))
+            .Then(canvas => Assert.Equal(("Drawing", "Mermaid"), (canvas.Surface.StatusText, canvas.Surface.MediaLabel)))
+            .When(canvas => canvas.Update(new CanvasEntry("c", "Flow", "text/vnd.mermaid", "flowchart LR\n  A --> B", closed)))
+            .Then(canvas => Assert.Equal(
+                ("Flow", "flowchart LR\n  A --> B", true, "2 of 2", status, false),
+                (canvas.Surface.Title, canvas.Surface.Shown.Content, canvas.Surface.Shown.IsFinal, canvas.Surface.VersionText, canvas.Surface.StatusText, canvas.Surface.IsStreaming)));
 }

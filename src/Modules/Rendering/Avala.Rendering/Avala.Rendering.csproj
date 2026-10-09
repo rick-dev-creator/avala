@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Avala.Sdk\Avala.Sdk.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Rendering.UI" />
+    <InternalsVisibleTo Include="Avala.Rendering.Tests" />
+  </ItemGroup>
+</Project>
