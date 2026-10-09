@@ -9,4 +9,6 @@ public interface IBudgets
     Option<SessionBudget> BudgetOf(SessionId session);
 
     IReadOnlyList<BudgetIntervention> OfJob(JobId job);
+
+    ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken);
 }

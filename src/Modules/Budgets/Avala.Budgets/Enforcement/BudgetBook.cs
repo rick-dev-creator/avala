@@ -1,14 +1,17 @@
 using System.Collections.Immutable;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Budgets.Admission;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Budgets.Enforcement;
 
-internal sealed class BudgetBook : IBudgets
+internal sealed class BudgetBook(IMachineBudgetFile machine) : IBudgets
 {
+    public ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken) => machine.LoadAsync(cancellationToken);
+
     private ImmutableDictionary<SessionId, (SessionBudget Budget, ConnectionName Connection)> sessions =
         ImmutableDictionary<SessionId, (SessionBudget Budget, ConnectionName Connection)>.Empty;
 
