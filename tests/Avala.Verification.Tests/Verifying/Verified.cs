@@ -25,6 +25,7 @@ internal sealed class Verified
     {
         Files = files;
         Processes = new ScriptedProcesses(Clock);
+        Book = new EvidenceBook(Store);
         gate = new ChecksGate(files, new CheckRunner(Processes, Clock), new EvidenceLedger(Book, Bus), Clock);
     }
 
@@ -34,7 +35,9 @@ internal sealed class Verified
 
     public ScriptedProcesses Processes { get; }
 
-    public EvidenceBook Book { get; } = new();
+    public InMemoryEvidence Store { get; } = new();
+
+    public EvidenceBook Book { get; }
 
     public RecordingBus Bus { get; } = new();
 

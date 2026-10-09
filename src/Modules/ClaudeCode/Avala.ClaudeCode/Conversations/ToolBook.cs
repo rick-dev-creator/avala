@@ -26,6 +26,10 @@ internal sealed class TrackedTool(ToolUse use, ToolRole role)
     public bool Refused { get; set; }
 
     public bool Closed { get; set; }
+
+    public bool Narrated { get; set; }
+
+    public string Drawn { get; set; } = string.Empty;
 }
 
 internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
@@ -60,7 +64,7 @@ internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)
             () => name switch
             {
                 _ when Questions.Asks(name) => ToolRole.Form,
-                Telemetry.PlanTool => ToolRole.Plan,
+                _ when PlanBook.Plans(name) => ToolRole.Plan,
                 _ => ToolRole.Work,
             });
 }

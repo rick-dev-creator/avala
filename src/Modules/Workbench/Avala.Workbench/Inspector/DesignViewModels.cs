@@ -12,8 +12,8 @@ internal sealed class DesignEvidenceSectionViewModel : IEvidenceSectionViewModel
 
     public IReadOnlyList<string> Attempts { get; } =
     [
-        "Attempt 1: failed · tests failed (exit 1), lint passed (exit 0)",
-        "Attempt 2: passed · tests passed (exit 0), lint passed (exit 0)",
+        "Attempt 1: failed · tests failed (exit 1, 41.2 s), lint passed (exit 0, 3.1 s)",
+        "Attempt 2: passed · tests passed (exit 0, 39.8 s), lint passed (exit 0, 2.9 s)",
     ];
 }
 

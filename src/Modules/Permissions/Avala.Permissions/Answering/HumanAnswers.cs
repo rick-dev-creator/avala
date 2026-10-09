@@ -49,7 +49,7 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IEventBu
             reply.Message,
             reply.DontAskAgain ? rule : Option<PolicyRule>.None,
             clock.GetUtcNow());
-        book.Record(human);
+        await book.RecordAsync(human, cancellationToken);
         await bus.PublishAsync(new PermissionAnswered(human), cancellationToken);
 
         return human;

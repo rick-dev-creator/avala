@@ -7,6 +7,7 @@
     <ProjectReference Include="..\..\src\Modules\ClaudeCode\Avala.ClaudeCode\Avala.ClaudeCode.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Avala.Host\Avala.Host.csproj" />
     <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+    <ProjectReference Include="..\Avala.ClaudeCode.Replay\Avala.ClaudeCode.Replay.csproj" />
     <ProjectReference Include="..\Avala.Testing.UI\Avala.Testing.UI.csproj" />
     <ProjectReference Include="..\..\src\Modules\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Canvas\Avala.Canvas.Contracts\Avala.Canvas.Contracts.csproj" Private="false" ExcludeAssets="runtime" />

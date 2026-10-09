@@ -10,20 +10,20 @@ internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAge
 
     public async Task RefusedAsync(DelegationRecord refused, DelegationError error, CancellationToken cancellationToken)
     {
-        book.Keep(refused);
+        await book.KeepAsync(refused, cancellationToken);
         _ = await agents.ReturnAsync(refused.Session, ToolAnswers.Refused(refused.Item, error), cancellationToken);
         await bus.PublishAsync(new DelegationRefused(refused), cancellationToken);
     }
 
     public async Task DelegatedAsync(DelegationRecord delegated, CancellationToken cancellationToken)
     {
-        book.Keep(delegated);
+        await book.KeepAsync(delegated, cancellationToken);
         await bus.PublishAsync(new ChildDelegated(delegated), cancellationToken);
     }
 
     public async Task ReportedAsync(DelegationRecord reported, ChildReport report, CancellationToken cancellationToken)
     {
-        book.Keep(reported);
+        await book.KeepAsync(reported, cancellationToken);
         _ = await agents.ReturnAsync(reported.Session, ToolAnswers.Reported(reported.Item, reported, report), cancellationToken);
         await bus.PublishAsync(new ChildReported(reported), cancellationToken);
     }

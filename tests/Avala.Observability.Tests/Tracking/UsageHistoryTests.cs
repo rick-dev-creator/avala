@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
+using Avala.Observability.Contracts;
 using Avala.Observability.Tracking;
 using Avala.Observability.Usage;
 using Avala.Sdk;
@@ -58,6 +59,26 @@ public sealed class UsageHistoryTests
         Assert.Equal((150L, new Cost(0.15m, "USD")), (ofJob.Tokens.Input, Assert.Single(ofJob.Costs)));
         Assert.Equal(0.9, Assert.Single(Assert.Single(tracked.Book.ByConnection(), used => used.Connection.Value == "work").Usage.Limits).UsedFraction);
         Assert.Single(tracked.Store.Facts);
+    }
+
+    [Fact]
+    public async Task TheSessionsOfEarlierRunsAreListedWithTheirAccountConnectionAndJobBeforeTheLiveOnesInTheOrderTheyOpenedAsync()
+    {
+        using var tracked = new Tracked();
+        var job = JobId.New();
+        var account = new AgentAccount("team", "Team");
+        var earlier = new SessionUsage(SessionId.New()).Attributed(Claude, account, new ConnectionName("work"), job).OpenedAt(Nine.AddDays(-1));
+        tracked.Store.Earlier = new StoredUsage([earlier, new SessionUsage(SessionId.New())], []);
+
+        await tracked.Book.RunAsync(Cancellation);
+        var live = await tracked.OpenAsync(Codex, new ConnectionName("personal"), Option<AgentAccount>.None);
+
+        Assert.Equal(
+            [
+                new UsageSession(earlier.Session, Claude, account, new ConnectionName("work"), Nine.AddDays(-1)) { Job = job },
+                new UsageSession(live, Codex, Option<AgentAccount>.None, new ConnectionName("personal"), Nine),
+            ],
+            ((IUsageSessions)tracked.Book).Sessions());
     }
 
     [Fact]

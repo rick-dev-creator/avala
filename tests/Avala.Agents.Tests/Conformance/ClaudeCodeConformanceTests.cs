@@ -97,6 +97,53 @@ public sealed class ClaudeCodeConformanceTests
             Deadline));
     }
 
+    [Theory]
+    [InlineData("tasks")]
+    [InlineData("tools")]
+    public async Task ARecordedSessionOfEveryToolShapeConformsAsync(string name)
+    {
+        await using var replay = await ReplayAsync(name);
+
+        Assert.Empty(await AgentConformance.CheckTurnAsync(replay.Provider, replay.Options(WorkLogin), Instruction, Deadline));
+    }
+
+    [Fact]
+    public async Task ARecordedPlanApprovalIsAWellFormedFormAsync()
+    {
+        await using var replay = await ReplayAsync("plan-approval");
+
+        Assert.Empty(await AgentConformance.CheckFormsAsync(replay.Provider, replay.Options(WorkLogin), Instruction, Deadline));
+    }
+
+    [Fact]
+    public async Task ARecordedCanvasStreamedInChunksIsDrawnThroughTheCanvasToolAsync()
+    {
+        await using var replay = await ReplayAsync("canvas");
+
+        Assert.Empty(await AgentConformance.CheckCanvasToolAsync(replay.Provider, replay.Options(WorkLogin), Instruction, Deadline));
+    }
+
+    [Fact]
+    public async Task ARecordedTurnInterruptedMidwayEndsAsInterruptedAsync()
+    {
+        await using var replay = await ReplayAsync("interrupt");
+
+        Assert.Empty(await CapabilityConformance.CheckInterruptAsync(replay.Provider, replay.Options(WorkLogin), Instruction, Deadline));
+    }
+
+    [Fact]
+    public async Task ARecordedDelegationWaitsForTheResultItIsGivenAsync()
+    {
+        await using var replay = await ReplayAsync("delegate");
+
+        Assert.Empty(await AgentConformance.CheckHarnessToolAsync(
+            replay.Provider,
+            replay.Options(WorkLogin),
+            AgentConformance.ExecutedTool with { Name = "delegate" },
+            Instruction,
+            Deadline));
+    }
+
     [Fact]
     public async Task ClaudeCodeDiscoversItsLoginsAsReferencesAsync()
     {

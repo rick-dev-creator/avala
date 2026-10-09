@@ -13,6 +13,8 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 
     public ItemStarted Opened(ItemId item, ItemKind kind, string title) => new(Session, Turn, item, kind, title);
 
+    public ItemStarted Opened(ItemId item, ItemKind kind, string title, string input) => Opened(item, kind, title) with { Input = input };
+
     public ItemProgressed Progressed(ItemId item, string text) => new(Session, Turn, item, text);
 
     public ItemCompleted Closed(ItemId item, ItemOutcome outcome) => new(Session, Turn, item, outcome);

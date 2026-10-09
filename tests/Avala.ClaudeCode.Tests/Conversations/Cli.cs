@@ -68,6 +68,37 @@ internal static class Cli
             },
         };
 
+    public static JsonNode Nested(JsonNode message, string parent)
+    {
+        message["parent_tool_use_id"] = parent;
+
+        return message;
+    }
+
+    public static IEnumerable<JsonNode> DraftedTool(string message, int index, string id, string name, params string[] partials)
+    {
+        yield return Parse($$"""{ "type": "stream_event", "event": { "type": "message_start", "message": { "id": "{{message}}" } }, "parent_tool_use_id": null }""");
+        yield return Parse($$"""{ "type": "stream_event", "event": { "type": "content_block_start", "index": {{index}}, "content_block": { "type": "tool_use", "id": "{{id}}", "name": "{{name}}", "input": {} } }, "parent_tool_use_id": null }""");
+
+        foreach (var partial in partials)
+        {
+            yield return new JsonObject
+            {
+                ["type"] = "stream_event",
+                ["event"] = new JsonObject
+                {
+                    ["type"] = "content_block_delta",
+                    ["index"] = index,
+                    ["delta"] = new JsonObject { ["type"] = "input_json_delta", ["partial_json"] = partial },
+                },
+                ["parent_tool_use_id"] = null,
+            };
+        }
+    }
+
+    public static JsonNode Stopped(int index) =>
+        Parse($$"""{ "type": "stream_event", "event": { "type": "content_block_stop", "index": {{index}} }, "parent_tool_use_id": null }""");
+
     public static JsonNode Prompt(string requestId, string tool, string input, string toolUseId) =>
         McpCall(requestId, "permission_prompt", $$"""{ "tool_name": "{{tool}}", "input": {{input}}, "tool_use_id": "{{toolUseId}}" }""", toolUseId);
 

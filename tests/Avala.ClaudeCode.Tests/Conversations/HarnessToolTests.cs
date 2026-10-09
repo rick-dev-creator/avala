@@ -51,6 +51,37 @@ public sealed class HarnessToolTests
     }
 
     [Fact]
+    public void ACanvasGrowsAsItsInputStreamsAndTheFinalInputAddsOnlyWhatWasMissing()
+    {
+        const string Final = """{ "title": "Circle", "mediaType": "image/svg+xml", "content": "<svg xmlns=\"a\"/><t>café</t></svg>" }""";
+        var talk = new Talk(tools: [Canvas]).Begin().Receive(Cli.DraftedTool(
+            "m1",
+            0,
+            "c1",
+            "mcp__avala__canvas",
+            """{"title": "Circ""",
+            """le", "mediaType": "image/svg+xml", "content": "<svg x""",
+            "mlns=\\\"a\\\"",
+            """/><t>caf\u00""",
+            """e9</t></svg>"}"""));
+        var item = new ItemId("c1");
+        var streamed = talk.Events.Skip(1).ToList();
+
+        talk.Receive(Cli.ToolUse("c1", "mcp__avala__canvas", Final), Cli.Stopped(0), Cli.McpCall("r2", "canvas", Final, "c1"));
+
+        Assert.Equal<IAgentEvent>(
+            [
+                new CanvasStarted(talk.Session, talk.Turn, item, "Circle", "image/svg+xml"),
+                new ItemProgressed(talk.Session, talk.Turn, item, "<svg x"),
+                new ItemProgressed(talk.Session, talk.Turn, item, "mlns=\"a\""),
+                new ItemProgressed(talk.Session, talk.Turn, item, "/><t>caf"),
+                new ItemProgressed(talk.Session, talk.Turn, item, "é</t></svg>"),
+            ],
+            streamed);
+        Assert.Equal<IAgentEvent>([.. streamed, new ItemCompleted(talk.Session, talk.Turn, item, ItemOutcome.Succeeded)], talk.Events.Skip(1));
+    }
+
+    [Fact]
     public void ACanvasWhoseInputCannotBeReadFails()
     {
         var talk = new Talk(tools: [Canvas]).Begin().Receive(Cli.McpCall("r2", "canvas", """{ "title": "Empty" }""", "c1"));

@@ -13,6 +13,10 @@ internal sealed record WriteFile(ItemId Item, string Path, string Content) : ISt
 
 internal sealed record RunCommand(ItemId Item, string Command, string Output, bool AsksPermission) : IStep;
 
+internal sealed record WriteThroughCommand(ItemId Item, string Command, string Path, string Content) : IStep;
+
+internal sealed record UseTool(ItemId Item, ItemKind Kind, string Title, string Target, string Input, string Output, bool AsksPermission) : IStep;
+
 internal sealed record Spawn(ItemId Item, string Command, Workload Workload) : IStep;
 
 internal enum Workload
@@ -46,6 +50,8 @@ internal sealed record Emit(TimeSpan Gap, IAgentEvent Event) : IStep;
 internal sealed record AwaitPermission(PermissionDecision Decision) : IStep;
 
 internal sealed record AwaitAnswer(FormAnswer Answer) : IStep;
+
+internal sealed record AwaitReturn(ToolResult Result) : IStep;
 
 internal sealed record AwaitInterrupt : IStep;
 

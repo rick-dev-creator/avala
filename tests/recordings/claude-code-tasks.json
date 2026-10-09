@@ -1,0 +1,442 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T20:29:41.940946+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "acceptsMessagesMidTurn": {},
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
+  },
+  "account": {
+    "id": "claude:account-work",
+    "label": "work@example.com"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "Track the work with tasks: write GREETING.md, then polish it."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "7c1e2a90-4b6d-4f1e-9a53-2d8f0c6b1e01/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_01Ta5kPlanA1b2C3d4E5f6G7:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01Ta5kPlanA1b2C3d4E5f6G7:0",
+        "text": "I will track "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01Ta5kPlanA1b2C3d4E5f6G7:0",
+        "text": "this with two tasks."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_01Ta5kPlanA1b2C3d4E5f6G7:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write GREETING.md",
+            "status": "pending"
+          }
+        ]
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write GREETING.md",
+            "status": "pending"
+          },
+          {
+            "title": "Polish the greeting",
+            "status": "pending"
+          }
+        ]
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.21,
+          "resetsAt": "2026-10-10T17:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.37,
+          "resetsAt": "2026-10-15T05:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write GREETING.md",
+            "status": "inProgress"
+          },
+          {
+            "title": "Polish the greeting",
+            "status": "pending"
+          }
+        ]
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01WriteGreeting0000004",
+        "kind": "fileEdit",
+        "title": "Write GREETING.md",
+        "input": "# Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01WriteGreeting0000004",
+        "title": "Write GREETING.md",
+        "kind": "fileEdit",
+        "target": "${workingDirectory}/GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01WriteGreeting0000004",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01WriteGreeting0000004",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01WriteGreeting0000004",
+        "text": "File created successfully at: ${workingDirectory}/GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "file": {
+        "item": "toolu_01WriteGreeting0000004",
+        "path": "GREETING.md",
+        "content": "# Hello\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01WriteGreeting0000004",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write GREETING.md",
+            "status": "done"
+          },
+          {
+            "title": "Polish the greeting",
+            "status": "pending"
+          }
+        ]
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write GREETING.md",
+            "status": "done"
+          },
+          {
+            "title": "Polish the greeting",
+            "status": "inProgress"
+          }
+        ]
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "toolu_01EditGreeting00000007",
+        "kind": "fileEdit",
+        "title": "Edit GREETING.md",
+        "input": "- # Hello\n+ # Hello, team"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "toolu_01EditGreeting00000007",
+        "title": "Edit GREETING.md",
+        "kind": "fileEdit",
+        "target": "${workingDirectory}/GREETING.md"
+      }
+    },
+    {
+      "at": 0,
+      "respond": {
+        "item": "toolu_01EditGreeting00000007",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "toolu_01EditGreeting00000007",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "toolu_01EditGreeting00000007",
+        "text": "The file ${workingDirectory}/GREETING.md has been updated successfully."
+      }
+    },
+    {
+      "at": 0,
+      "file": {
+        "item": "toolu_01EditGreeting00000007",
+        "path": "GREETING.md",
+        "content": "# Hello, team\n"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "toolu_01EditGreeting00000007",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write GREETING.md",
+            "status": "done"
+          },
+          {
+            "title": "Polish the greeting",
+            "status": "done"
+          }
+        ]
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_01Ta5kPlanE1b2C3d4E5f6G7:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01Ta5kPlanE1b2C3d4E5f6G7:0",
+        "text": "GREETING.md now greets "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01Ta5kPlanE1b2C3d4E5f6G7:0",
+        "text": "the team; both tasks are done."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_01Ta5kPlanE1b2C3d4E5f6G7:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 15,
+          "output": 512,
+          "cacheRead": 82120,
+          "cacheWrite": 5120,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.0412,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "7c1e2a90-4b6d-4f1e-9a53-2d8f0c6b1e01/0.0412"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

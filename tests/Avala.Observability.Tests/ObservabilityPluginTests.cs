@@ -26,7 +26,9 @@ public sealed class ObservabilityPluginTests
         await using var composition = Compose(data);
 
         Assert.Same(composition.Get<UsageBook>(), composition.Get<IUsage>());
+        Assert.Same(composition.Get<UsageBook>(), composition.Get<IUsageSessions>());
         Assert.Same(composition.Get<UsageBook>(), composition.Get<IStartupTask>());
+        Assert.Contains(composition.Get<Avala.Observability.Storage.SqliteUsageStore>(), composition.All<IStartupTask>());
         Assert.Same(composition.Get<UsageTracker>(), composition.Get<IHandle<SessionOpened>>());
         Assert.Same(composition.Get<UsageTracker>(), composition.Get<IHandle<JobSessionStarted>>());
         Assert.Same(composition.Get<UsageTracker>(), composition.Get<IHandle<AgentActivity>>());

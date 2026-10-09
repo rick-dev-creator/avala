@@ -33,6 +33,18 @@ internal sealed class InMemoryJobStore : IJobStore
 
     public Task<Option<Job>> SnapshotAsync(JobId id, CancellationToken cancellationToken) => FindAsync(id, cancellationToken);
 
+    public ConcurrentDictionary<JobId, ConnectionChoice> Choices { get; } = new();
+
+    public Task RecordAsync(JobId id, ConnectionChoice choice, CancellationToken cancellationToken)
+    {
+        Choices[id] = choice;
+
+        return Task.CompletedTask;
+    }
+
+    public Task<Option<ConnectionChoice>> ChoiceOfAsync(JobId id, CancellationToken cancellationToken) =>
+        Task.FromResult(Choices.GetValueOrDefault(id).ToOption());
+
     public Task<IReadOnlyList<Job>> ActiveAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Job>>([.. jobs.Values.Where(job => job.State is JobState.Preparing or JobState.Running or JobState.Checking)]);
 }

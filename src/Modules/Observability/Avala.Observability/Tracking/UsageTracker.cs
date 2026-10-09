@@ -12,7 +12,7 @@ internal sealed class UsageTracker(UsageBook book, IUsageMetrics metrics, TimePr
 {
     public async ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken) =>
         await book.AttributeAsync(
-            book.Of(integrationEvent.Session).OpenedBy(integrationEvent.Provider, integrationEvent.Account, integrationEvent.Connection),
+            book.Of(integrationEvent.Session).OpenedBy(integrationEvent.Provider, integrationEvent.Account, integrationEvent.Connection, clock.GetUtcNow()),
             cancellationToken);
 
     public async ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken) =>
