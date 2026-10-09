@@ -1,0 +1,79 @@
+using System.Text.Json.Nodes;
+using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
+using Avala.Delegation.Contracts;
+
+namespace Avala.Delegation.Records;
+
+internal static class ToolAnswers
+{
+    public static ToolResult Refused(ItemId item, DelegationError error) =>
+        new(item, new JsonObject { ["refused"] = Camel(error), ["reason"] = Reason(error) }.ToJsonString()) { IsError = true };
+
+    public static ToolResult Reported(ItemId item, DelegationRecord delegation, ChildReport report)
+    {
+        var answer = new JsonObject
+        {
+            ["job"] = report.Child.Value.ToString(),
+            ["outcome"] = Camel(report.Outcome),
+            ["status"] = Camel(report.Status),
+            ["connection"] = delegation.Connection.Match(name => name.Value, () => string.Empty),
+            ["autonomy"] = delegation.Autonomy.Match(level => Camel(level), () => string.Empty),
+            ["summary"] = report.Summary.Match(text => text, () => string.Empty),
+            ["files"] = new JsonArray([.. report.Files.Select(file => Node(new JsonObject
+            {
+                ["path"] = file.Path,
+                ["change"] = Camel(file.Kind),
+                ["added"] = file.Added.Match(lines => lines, () => 0),
+                ["removed"] = file.Removed.Match(lines => lines, () => 0),
+                ["binary"] = file.Added.IsNone,
+            }))]),
+            ["verification"] = report.Verification.Match<JsonNode>(
+                verified => new JsonObject
+                {
+                    ["outcome"] = Camel(verified.Outcome),
+                    ["checks"] = new JsonArray([.. verified.Checks.Select(check => Node(new JsonObject
+                    {
+                        ["name"] = check.Name,
+                        ["status"] = Camel(check.Status),
+                        ["exitCode"] = check.ExitCode.Match(code => code.ToString(System.Globalization.CultureInfo.InvariantCulture), () => string.Empty),
+                    }))]),
+                },
+                () => new JsonObject { ["outcome"] = "none" }),
+            ["spent"] = Costs(report.Spent),
+            ["tokens"] = report.Tokens,
+            ["carve"] = report.Carve.Match<JsonNode>(
+                carve => new JsonObject { ["cost"] = Costs(carve.Cost), ["tokens"] = carve.Tokens.Match(tokens => tokens.ToString(System.Globalization.CultureInfo.InvariantCulture), () => "uncapped") },
+                () => new JsonObject()),
+            ["integrated"] = report.Delivery.Match<JsonNode>(
+                delivery => new JsonObject { ["branch"] = delivery.Branch, ["commit"] = delivery.Commit.Match(commit => commit, () => string.Empty) },
+                () => new JsonObject()),
+            ["conflicts"] = new JsonArray([.. report.Conflicts.Select(path => Node(JsonValue.Create(path)))]),
+            ["hold"] = report.Hold.Match(reason => Camel(reason), () => string.Empty),
+            ["refusal"] = report.Refusal.Match(rejection => Camel(rejection), () => string.Empty),
+        };
+
+        return new ToolResult(item, answer.ToJsonString());
+    }
+
+    private static JsonArray Costs(IReadOnlyList<Cost> costs) =>
+        new([.. costs.Select(cost => Node(new JsonObject { ["amount"] = cost.Amount, ["currency"] = cost.Currency }))]);
+
+    private static JsonNode? Node(JsonNode node) => node;
+
+    private static string Camel<TValue>(TValue value)
+        where TValue : struct, Enum =>
+        value.ToString() is var name ? $"{char.ToLowerInvariant(name[0])}{name[1..]}" : string.Empty;
+
+    private static string Reason(DelegationError error) => error switch
+    {
+        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, and an autonomy of supervised or autonomous if any.",
+        DelegationError.NoJob => "this session runs no job, so there is nothing to delegate from.",
+        DelegationError.NotDeclared => "the repository's .avala/jobs.json declares no delegation section, so this repository does not delegate.",
+        DelegationError.DepthExceeded => "a sub-agent at this depth would be deeper than the repository's maxDepth allows; do the work yourself.",
+        DelegationError.TooManyChildren => "you already have as many sub-agents running as the repository's maxChildren allows; wait for one to report back.",
+        DelegationError.AutonomyLoosened => "a sub-agent may only run as strictly as you or stricter, and you are not autonomous.",
+        DelegationError.NotSubmitted => "the harness could not submit the sub-agent's job.",
+        _ => "the repository's delegation section of .avala/jobs.json cannot be read from the job's base commit or is invalid.",
+    };
+}
