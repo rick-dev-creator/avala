@@ -12,7 +12,7 @@
       </StackPanel>
       <TextBlock Text="{Binding Target}" FontFamily="monospace" TextWrapping="Wrap" />
       <StackPanel Spacing="6" IsVisible="{Binding AwaitsYou}">
-        <TextBox Text="{Binding Note}" Watermark="A note for the agent" />
+        <TextBox Text="{Binding Note}" PlaceholderText="A note for the agent" />
         <CheckBox Content="Don't ask again" IsChecked="{Binding DontAskAgain}" />
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Button Content="Allow" Command="{Binding AllowCommand}" />
