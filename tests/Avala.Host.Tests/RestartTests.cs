@@ -53,7 +53,8 @@ public sealed class RestartTests(PublishedPlugins plugins)
         Assert.Single(history.Sessions);
         var evidence = await EvidenceAsync(run);
         Assert.Contains("verdict: Verified on attempt 1 of 1", evidence);
-        Assert.Contains("evidence: 1 of 1 passed · Verified on attempt 1 of 1", evidence);
+        Assert.Contains("evidence: 1 of 1 check passed · Verified on attempt 1 of 1", evidence);
+        Assert.StartsWith("attempt: Attempt 1: passed · verdict passed (exit 0, ", Assert.Single(evidence, line => line.StartsWith("attempt: ", StringComparison.Ordinal)), StringComparison.Ordinal);
     }
 
     [Fact]

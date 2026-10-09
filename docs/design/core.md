@@ -1842,11 +1842,11 @@ The decisions popover, opened from the toolbar's count of pending decisions and 
 
 ### Inspector
 
-The inspector, closed by default, shows the selected job in short sections, each a folded row with a one-fact summary, such as "4 of 4 passed", "1 denied" in amber or "USD 0.84 of USD 5", opened on demand, each a small view model loaded when the inspector opens and reloaded when the job's revision moves:
+The inspector, closed by default, shows the selected job in short sections, each a folded row with a one-fact summary, such as "4 of 4 checks passed", "1 denied" in amber or "USD 0.84 of USD 5", opened on demand, each a small view model loaded when the inspector opens and reloaded when the job's revision moves:
 
 | Section | From |
 | --- | --- |
-| Evidence | `IVerifications.OfJob`: the verdict and one line per verified attempt with its checks |
+| Evidence | `IVerifications.OfJob` and the attempts of the catalog's history: the verdict, the checks of the latest report counted as checks, "3 of 3 checks passed", and one line per attempt of the history, so the list and the "attempt N of M" count the same attempts. An attempt with a report shows its checks; one without says why: the agent is working, checks running, interrupted by a restart with no checks completed, interrupted, or no checks ran |
 | Decisions and assumptions | `IPermissionAudit.OfJob`, `AnswersOfJob` and `FormsOfJob`: what the rules allowed, what a person answered, what was denied, and each assumption |
 | Usage and caps | `IUsage.OfJob`, the caps of the latest session's `IBudgets.BudgetOf`, the interventions of `IBudgets.OfJob`, and the carve of a child job from `CarveOf` |
 | Autonomy and connection | The latest session's `IPermissionAudit.AutonomyOf`, the connection of the catalog, the one the job actually runs on once it started, and, for a job placed by capacity, the reason of its `ConnectionChosen` with each compared connection's reading, threshold and whether it was at its limit, the chosen one emphasised |

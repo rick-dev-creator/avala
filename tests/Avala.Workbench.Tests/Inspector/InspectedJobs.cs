@@ -59,6 +59,6 @@ internal static class InspectedJobs
             () => $"revision {section.Revision}",
             TestContext.Current.CancellationToken);
 
-    private static VerificationReport Report(JobId job, int attempt, VerificationOutcome outcome, CheckStatus status, int exit) =>
+    public static VerificationReport Report(JobId job, int attempt, VerificationOutcome outcome, CheckStatus status, int exit) =>
         new(job, attempt, outcome, Option<FileOrigin>.None, [new CheckEvidence("tests", "npm test", status, exit, TimeSpan.FromSeconds(1), string.Empty, string.Empty)], GateVerdict.Pass, DateTimeOffset.UnixEpoch);
 }

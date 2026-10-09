@@ -68,6 +68,6 @@ internal sealed partial class EvidenceSectionViewModel : IEvidenceSectionViewMod
         Summary = facts.Match(
             found => ReviewPhrases.Verdict(ReviewExceptions.VerdictOf(found.Audit.Verifications, found.Record.History.Attempts.Count)),
             () => string.Empty);
-        Attempts = facts.Match<IReadOnlyList<string>>(found => [.. found.Audit.Verifications.Select(InspectorPhrases.Attempt)], () => []);
+        Attempts = facts.Match<IReadOnlyList<string>>(found => InspectorPhrases.Attempts(found.Record.History.Attempts, found.Audit.Verifications), () => []);
     }
 }
