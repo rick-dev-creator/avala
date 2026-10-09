@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avala.Components.Canvases;
 using Avala.Components.UI.Canvases;
+using Avala.Components.UI.Theme;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
@@ -90,7 +91,11 @@ public sealed class CanvasPresenter : Panel
         presented = rendering;
         Children.Add(layer);
 
-        if (Children.Count > 1)
+        if (Children.Count > 1 && Motion.GetIsReduced(this))
+        {
+            Settle();
+        }
+        else if (Children.Count > 1)
         {
             FadeIn(layer, arrival);
         }

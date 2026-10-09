@@ -9,9 +9,11 @@ internal interface ISettingsViewModel
     IRepositorySettingsViewModel Repository { get; }
 
     IMachineSettingsViewModel Machine { get; }
+
+    IAppearanceViewModel Appearance { get; }
 }
 
-internal sealed class SettingsViewModel(IRepositorySettingsViewModel repository, IMachineSettingsViewModel machine) : ISettingsViewModel, IPage, IActivatable
+internal sealed class SettingsViewModel(IRepositorySettingsViewModel repository, IMachineSettingsViewModel machine, IAppearanceViewModel appearance) : ISettingsViewModel, IPage, IActivatable
 {
     public string Title => "Settings";
 
@@ -20,6 +22,8 @@ internal sealed class SettingsViewModel(IRepositorySettingsViewModel repository,
     public IRepositorySettingsViewModel Repository { get; } = repository;
 
     public IMachineSettingsViewModel Machine { get; } = machine;
+
+    public IAppearanceViewModel Appearance { get; } = appearance;
 
     public Task Loading { get; private set; } = Task.CompletedTask;
 
@@ -32,6 +36,7 @@ internal sealed class SettingsViewModel(IRepositorySettingsViewModel repository,
     private async Task LoadAsync(CancellationToken cancellationToken)
     {
         await Machine.LoadAsync(cancellationToken);
+        await Appearance.LoadAsync(cancellationToken);
         await Repository.LoadAsync(cancellationToken);
     }
 }

@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
-             xmlns:streaming="using:Avala.Components.UI.Streaming"
+             xmlns:markdown="using:Avala.Components.UI.Markdown"
              x:Class="Avala.Workbench.UI.MessageView"
              x:ClassModifier="internal"
              x:DataType="conversation:IMessageViewModel"
@@ -10,13 +10,17 @@
   <Design.DataContext>
     <conversation:DesignMessageViewModel />
   </Design.DataContext>
-  <streaming:StreamingText x:Name="Text"
-                           Stream="{Binding Text}"
-                           IsLive="{Binding IsStreaming}"
+  <StackPanel Spacing="6">
+    <markdown:MarkdownText x:Name="Text"
+                           Classes="reading"
                            Classes.streaming="{Binding IsStreaming}"
-                           FontSize="{DynamicResource FontSizeReading}"
-                           LineHeight="23"
-                           TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextPrimaryBrush}"
-                           SelectionBrush="{DynamicResource AccentSubtleBrush}" />
+                           Markdown="{Binding Text}"
+                           IsLive="{Binding IsStreaming}"
+                           LinkCommand="{Binding OpenLinkCommand}" />
+    <TextBlock x:Name="LinkNotice"
+               Classes="caption"
+               TextWrapping="Wrap"
+               Text="{Binding LinkNotice}"
+               IsVisible="{Binding LinkNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
 </UserControl>

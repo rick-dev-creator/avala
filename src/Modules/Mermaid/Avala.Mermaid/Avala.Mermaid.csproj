@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Mermaider" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Avala.Sdk\Avala.Sdk.csproj" />
+    <ProjectReference Include="..\..\Canvas\Avala.Canvas.Contracts\Avala.Canvas.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Mermaid.UI" />
+    <InternalsVisibleTo Include="Avala.Mermaid.Tests" />
+  </ItemGroup>
+</Project>
