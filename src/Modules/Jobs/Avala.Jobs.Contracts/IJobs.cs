@@ -12,7 +12,10 @@ public interface IJobs
     ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken);
 }
 
-public sealed record JobRequest(string RepositoryPath, string Instruction, int AttemptsPerRound = 3);
+public sealed record JobRequest(string RepositoryPath, string Instruction, int AttemptsPerRound = 3)
+{
+    public Option<Autonomy> Autonomy { get; init; }
+}
 
 public enum ContinuedIn
 {

@@ -136,42 +136,4 @@ public sealed class PermissionResponderTests
         new(new PermissionRequested(requester, turn, new ItemId("migrate"), "Run", kind, target));
 
     private PolicyDecision Decided() => Assert.IsType<PermissionDecided>(Assert.Single(bus.Published)).Decision;
-
-    private sealed class NoPolicyFiles : IPolicyFiles
-    {
-        public ValueTask<PolicyFile> ReadAsync(string workingDirectory, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new PolicyFile(Option<FileOrigin>.None, Option<IReadOnlyList<PolicyRule>>.None));
-    }
-
-    private sealed class AnsweringAgents : IAgents
-    {
-        private readonly List<(SessionId, PermissionDecision)> responses = [];
-
-        public IReadOnlyList<(SessionId, PermissionDecision)> Responses => responses;
-
-        public Option<AgentError> Rejection { get; set; }
-
-        public ValueTask<Result<ItemId, AgentError>> RespondAsync(SessionId session, PermissionDecision decision, CancellationToken cancellationToken)
-        {
-            responses.Add((session, decision));
-
-            return ValueTask.FromResult(Rejection.Match(
-                error => Result<ItemId, AgentError>.Failure(error),
-                () => Result<ItemId, AgentError>.Success(decision.Item)));
-        }
-
-        public ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<OpenedSession, AgentError>.Failure(AgentError.Unsupported));
-
-        public bool IsOpen(SessionId session) => true;
-
-        public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.Unsupported));
-
-        public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<TurnId, AgentError>.Failure(AgentError.Unsupported));
-
-        public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<SessionId, AgentError>.Failure(AgentError.Unsupported));
-    }
 }

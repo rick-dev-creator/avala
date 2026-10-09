@@ -15,5 +15,7 @@ public interface IAgentSession : IAsyncDisposable
 
     ValueTask<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken);
 
+    ValueTask<Result<ItemId, AgentError>> AnswerAsync(FormAnswer answer, CancellationToken cancellationToken);
+
     ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken);
 }

@@ -19,7 +19,8 @@ public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IA
         AcceptsTools: false,
         ReportsUsage: true,
         ReportsCost: true,
-        ReportsLimits: true);
+        ReportsLimits: true,
+        AsksQuestions: false);
 
     public bool RejectsResume { get; init; }
 

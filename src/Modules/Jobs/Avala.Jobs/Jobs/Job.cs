@@ -37,10 +37,17 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Option<ResumeToken> Resume { get; private set; }
 
+    public Option<Autonomy> Autonomy { get; private set; }
+
     public IReadOnlyList<Attempt> Attempts => attempts;
 
-    public static Result<Job, JobError> Create(JobId id, Instruction instruction, AttemptBudget budget, RepositoryPath repository) =>
-        new Job(id, instruction, budget, repository);
+    public static Result<Job, JobError> Create(
+        JobId id,
+        Instruction instruction,
+        AttemptBudget budget,
+        RepositoryPath repository,
+        Option<Autonomy> autonomy = default) =>
+        new Job(id, instruction, budget, repository) { Autonomy = autonomy };
 
     public Result<JobSubmitted, JobError> Submit() =>
         machine.TryFire(JobTrigger.Submit, JobError.CannotSubmit)

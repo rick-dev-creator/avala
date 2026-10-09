@@ -4,6 +4,8 @@ internal enum TurnTrigger
 {
     RequestPermission,
     ResolvePermission,
+    AskForm,
+    AnswerForm,
     Finish,
     Interrupt,
     Fail,

@@ -8,8 +8,13 @@ internal static class RuleMatching
     {
         public bool Matches(PermissionRequest request) =>
             rule.Kind.Match(kind => kind == request.Kind, () => true)
-            && rule.Target.Match(pattern => Globs(pattern, request.Target), () => true)
-            && (rule.Scope == RuleScope.Anywhere || request.InsideWorkspace);
+            && rule.Target.Match(pattern => rule.Origin == RuleOrigin.Session ? pattern == request.Target : Globs(pattern, request.Target), () => true)
+            && rule.Scope switch
+            {
+                RuleScope.Workspace => request.InsideWorkspace,
+                RuleScope.OutsideWorkspace => !request.InsideWorkspace,
+                _ => true,
+            };
     }
 
     private static bool Globs(string pattern, string text)

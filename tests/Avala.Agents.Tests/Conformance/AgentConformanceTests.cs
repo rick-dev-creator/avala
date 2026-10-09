@@ -182,6 +182,76 @@ public sealed class AgentConformanceTests
         Assert.Equal(["the account changed during the session"], await AgentConformance.CheckTurnAsync(provider, Deadline));
     }
 
+    [Fact]
+    public async Task ReportsAFormFromAProviderThatDoesNotDeclareAsksQuestionsAsync()
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => Asking(session, turn, Question));
+
+        Assert.Equal(
+            ["the form question was asked although the provider does not declare AsksQuestions"],
+            await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    [Fact]
+    public async Task ReportsAMalformedFormAsync()
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => Asking(session, turn, Question with { Fields = [] }))
+        {
+            Capabilities = Declared with { AsksQuestions = true },
+        };
+
+        Assert.Equal(
+            ["FormRequested was rejected: MalformedForm", "FormAnswered was rejected: NoPendingForm", "ItemCompleted was rejected: UnknownItem"],
+            await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    [Theory]
+    [InlineData(true, "an answer to a form that is not open was accepted|an answer to a form that was already answered was accepted")]
+    [InlineData(false, "no form was asked although the provider declares AsksQuestions")]
+    public async Task AProviderThatAsksQuestionsMustAskAndRefuseAnswersToFormsThatAreNotOpenAsync(bool asks, string expected)
+    {
+        var provider = new ScriptedAgentProvider(asks ? (session, turn) => Asking(session, turn, Question) : ScriptedAgentProvider.Reply)
+        {
+            Capabilities = Declared with { AsksQuestions = true },
+        };
+
+        var violations = await AgentConformance.CheckFormsAsync(provider, Options, new UserTurn("conformance"), Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+    }
+
+    [Theory]
+    [InlineData(true, "the denied item went ahead: ItemCompleted")]
+    [InlineData(false, "no permission was requested to deny")]
+    public async Task ReportsADeniedActionThatGoesAheadAsync(bool asks, string expected)
+    {
+        var provider = new ScriptedAgentProvider(asks ? (session, turn) => AskingPermission(session, turn, ItemKind.Command, "dotnet ef") : ScriptedAgentProvider.Reply);
+
+        var violations = await AgentConformance.CheckDenialAsync(provider, Options, new UserTurn("conformance"), Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+    }
+
+    private static readonly AgentForm Question = new(
+        FormPurpose.Question,
+        "Choose a database",
+        "The service needs storage.",
+        [new FormField("database", "Database", "Which database?", FieldKind.SingleChoice, [new FormOption("SQLite", "A file.")])]);
+
+    private static IEnumerable<IAgentEvent> Asking(SessionId session, TurnId turn, AgentForm form)
+    {
+        var item = new ItemId("question");
+
+        return
+        [
+            new TurnStarted(session, turn),
+            new FormRequested(session, turn, item, form),
+            new FormAnswered(session, turn, item, new FormAnswer(item, [new FieldAnswer("database") { Chosen = ["SQLite"] }])),
+            new ItemCompleted(session, turn, item, ItemOutcome.Succeeded),
+            new TurnCompleted(session, turn, TurnOutcome.Finished),
+        ];
+    }
+
     private static readonly SessionOptions Options = new(".", PermissionMode.AllowAll);
 
     private static AgentCapabilities Declared { get; } = new ScriptedAgentProvider(ScriptedAgentProvider.Reply).Capabilities;

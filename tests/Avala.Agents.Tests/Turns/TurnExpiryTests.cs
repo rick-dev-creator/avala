@@ -29,6 +29,14 @@ public sealed class TurnExpiryTests
     }
 
     [Fact]
+    public void AFormWaitingForItsAnswerNeverExpires()
+    {
+        var turn = Given.Turn(Given.Asked("question"));
+
+        Assert.Empty(Outcomes.Succeeds(turn.Expire(Given.Now.AddHours(8), Patience)).Events);
+    }
+
+    [Fact]
     public void AnExpiredItemCannotProgressAnymore()
     {
         var turn = Given.Turn(Given.Started("build"));

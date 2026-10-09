@@ -13,6 +13,8 @@ internal sealed record WriteFile(ItemId Item, string Path, string Content) : ISt
 
 internal sealed record RunCommand(ItemId Item, string Command, string Output, bool AsksPermission) : IStep;
 
+internal sealed record Ask(ItemId Item, AgentForm Form) : IStep;
+
 internal sealed record UpdatePlan(IReadOnlyList<PlanStep> Steps) : IStep;
 
 internal sealed record ReportUsage(TokenUsage Tokens, Cost Cost) : IStep;

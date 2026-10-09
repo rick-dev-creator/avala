@@ -14,12 +14,20 @@ public enum RuleOrigin
 {
     BuiltIn,
     Repository,
+    Session,
 }
 
 public enum RuleScope
 {
     Anywhere,
     Workspace,
+    OutsideWorkspace,
+}
+
+public enum FormStrategy
+{
+    Recommended,
+    BestJudgment,
 }
 
 public sealed record PolicyRule(

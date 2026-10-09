@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 using Avala.Sdk.Events;
 
 namespace Avala.Jobs.Contracts;
@@ -14,6 +15,12 @@ public enum JobStatus
     Approved,
     Discarded,
     Failed,
+}
+
+public enum Autonomy
+{
+    Supervised,
+    Autonomous,
 }
 
 public enum HoldReason
@@ -41,6 +48,9 @@ public sealed record JobHeld(JobHold Hold) : IIntegrationEvent;
 
 public sealed record JobProgressed(JobId Job, JobStatus Status) : IIntegrationEvent;
 
-public sealed record JobSessionStarted(JobId Job, SessionId Session) : IIntegrationEvent;
+public sealed record JobSessionStarted(JobId Job, SessionId Session) : IIntegrationEvent
+{
+    public Option<Autonomy> Autonomy { get; init; }
+}
 
 public sealed record JobResumable(JobId Job, SessionId Session) : IIntegrationEvent;

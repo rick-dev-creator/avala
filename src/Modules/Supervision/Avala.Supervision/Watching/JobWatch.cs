@@ -33,7 +33,8 @@ internal sealed record JobWatch(JobId Job)
         : agentEvent switch
         {
             PermissionRequested requested => this with { LastActivity = at, AwaitingHuman = requested.Item },
-            PermissionResolved or TurnCompleted => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None },
+            FormRequested requested => this with { LastActivity = at, AwaitingHuman = requested.Item },
+            PermissionResolved or FormAnswered or TurnCompleted => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None },
             _ => this with { LastActivity = at },
         };
 

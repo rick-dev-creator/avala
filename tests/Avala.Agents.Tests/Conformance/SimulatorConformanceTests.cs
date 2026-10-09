@@ -17,6 +17,9 @@ public sealed class SimulatorConformanceTests
     [InlineData("rewrite-checks")]
     [InlineData("canvas")]
     [InlineData("permission")]
+    [InlineData("repeated-permission")]
+    [InlineData("question")]
+    [InlineData("plan-approval")]
     public async Task AWellBehavedScenarioConformsAsync(string scenario)
     {
         using var folder = new TemporaryFolder();
@@ -48,6 +51,34 @@ public sealed class SimulatorConformanceTests
             services.GetRequiredService<IAgentProvider>(),
             new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
             new UserTurn("[simulate: canvas] conformance"),
+            Deadline));
+    }
+
+    [Theory]
+    [InlineData("question")]
+    [InlineData("plan-approval")]
+    public async Task TheSimulatorAsksWellFormedFormsAndRefusesAnswersToFormsThatAreNotOpenAsync(string scenario)
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await AgentConformance.CheckFormsAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new UserTurn($"[simulate: {scenario}] conformance"),
+            Deadline));
+    }
+
+    [Fact]
+    public async Task TheSimulatorHonorsADenialWithAMessageAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await AgentConformance.CheckDenialAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new UserTurn("[simulate: permission] conformance"),
             Deadline));
     }
 

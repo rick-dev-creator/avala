@@ -18,7 +18,7 @@ public sealed class PolicyFileReaderTests
     {
         var file = await new PolicyFileReader(new CommittedFiles().Workspace(Worktree)).ReadAsync(Worktree, Cancellation);
 
-        Assert.True(Outcomes.Succeeds(file.Rules).IsNone);
+        Assert.True(Outcomes.Succeeds(file.Policy).IsNone);
         Assert.Equal(Option<FileOrigin>.Some(CommittedFiles.Origin()), file.Origin);
     }
 
@@ -33,7 +33,7 @@ public sealed class PolicyFileReaderTests
 
         var file = await new PolicyFileReader(committed).ReadAsync(Worktree, Cancellation);
 
-        Assert.Equal("tests", Assert.Single(Outcomes.Present(Outcomes.Succeeds(file.Rules))).Name);
+        Assert.Equal("tests", Assert.Single(Outcomes.Present(Outcomes.Succeeds(file.Policy)).Repository).Name);
         Assert.Equal(Option<FileOrigin>.Some(CommittedFiles.Origin(editedInWorktree: true)), file.Origin);
         Assert.Equal([(Worktree, PolicyFile)], committed.Reads);
     }
@@ -43,7 +43,7 @@ public sealed class PolicyFileReaderTests
     {
         var committed = new CommittedFiles().With(Worktree, PolicyFile, $$"""{ "rules": [], "padding": "{{new string(' ', PolicyFileReader.MaximumBytes)}}" }""");
 
-        Assert.Equal(PolicyError.TooLarge, Outcomes.FailsWith((await new PolicyFileReader(committed).ReadAsync(Worktree, Cancellation)).Rules));
+        Assert.Equal(PolicyError.TooLarge, Outcomes.FailsWith((await new PolicyFileReader(committed).ReadAsync(Worktree, Cancellation)).Policy));
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class PolicyFileReaderTests
     {
         var file = await new PolicyFileReader(new CommittedFiles()).ReadAsync("/elsewhere", Cancellation);
 
-        Assert.True(Outcomes.Succeeds(file.Rules).IsNone);
+        Assert.True(Outcomes.Succeeds(file.Policy).IsNone);
         Assert.True(file.Origin.IsNone);
     }
 
@@ -60,6 +60,6 @@ public sealed class PolicyFileReaderTests
     {
         var file = await new PolicyFileReader(new CommittedFiles().Failing(Worktree, WorkspaceFailure.GitFailed)).ReadAsync(Worktree, Cancellation);
 
-        Assert.Equal(PolicyError.Unreadable, Outcomes.FailsWith(file.Rules));
+        Assert.Equal(PolicyError.Unreadable, Outcomes.FailsWith(file.Policy));
     }
 }

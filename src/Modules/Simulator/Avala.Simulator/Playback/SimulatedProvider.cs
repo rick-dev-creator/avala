@@ -16,7 +16,8 @@ internal sealed class SimulatedProvider(IFileWriter files, Pacing pacing) : IAge
         AcceptsTools: true,
         ReportsUsage: true,
         ReportsCost: true,
-        ReportsLimits: true);
+        ReportsLimits: true,
+        AsksQuestions: true);
 
     public ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken) =>
         ValueTask.FromResult(options.Resume.Match(

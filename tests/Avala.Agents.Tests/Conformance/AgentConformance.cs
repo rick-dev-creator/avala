@@ -67,7 +67,61 @@ internal static class AgentConformance
             : [.. run.Violations, "no canvas was drawn through the canvas tool"];
     }
 
-    private static async Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, CancellationToken deadline)
+    public static async Task<IReadOnlyList<string>> CheckFormsAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
+        CancellationToken deadline)
+    {
+        if (!provider.Capabilities.AsksQuestions)
+        {
+            return await CheckTurnAsync(provider, options, instruction, deadline);
+        }
+
+        var replies = Allowing with
+        {
+            Form = async (session, requested, token) =>
+                [
+                    .. await RefusedAsync(session, Fill(new ItemId($"not-{requested.Item.Value}"), requested.Form), "a form that is not open", token),
+                    .. await FillAsync(session, requested, token),
+                ],
+            AfterTurn = async (session, events, token) => events.OfType<FormRequested>().LastOrDefault() is { } last
+                ? await RefusedAsync(session, Fill(last.Item, last.Form), "a form that was already answered", token)
+                : ["no form was asked although the provider declares AsksQuestions"],
+        };
+
+        return (await RunAsync(provider, options, instruction, replies, deadline)).Violations;
+    }
+
+    public static async Task<IReadOnlyList<string>> CheckDenialAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
+        CancellationToken deadline)
+    {
+        var replies = Allowing with
+        {
+            Permission = requested => new PermissionDecision(requested.Item, PermissionAnswer.Deny) { Message = "Denied by the conformance kit." },
+        };
+        var run = await RunAsync(provider, options, instruction, replies, deadline);
+        var denied = run.Events.OfType<PermissionRequested>().Select(requested => requested.Item).ToHashSet();
+        var afterDenial = run.Events.SkipWhile(agentEvent => agentEvent is not PermissionResolved).ToList();
+
+        return
+        [
+            .. run.Violations,
+            .. denied.Count == 0 ? ["no permission was requested to deny"] : Array.Empty<string>(),
+            .. afterDenial
+                .Where(agentEvent => agentEvent is ItemProgressed progressed && denied.Contains(progressed.Item)
+                    || agentEvent is ItemCompleted { Outcome: ItemOutcome.Succeeded } completed && denied.Contains(completed.Item))
+                .Select(agentEvent => $"the denied item went ahead: {Name(agentEvent)}"),
+        ];
+    }
+
+    private static Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, CancellationToken deadline) =>
+        RunAsync(provider, options, instruction, Allowing, deadline);
+
+    private static async Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, Replies replies, CancellationToken deadline)
     {
         try
         {
@@ -87,7 +141,8 @@ internal static class AgentConformance
                     return new Run([$"the turn was not accepted: {sendError}"], []);
                 }
 
-                var audit = await AuditAsync(session, turn, new Rules(options, provider.Capabilities), deadline);
+                var audit = await AuditAsync(session, turn, new Rules(options, provider.Capabilities), replies, deadline);
+                audit = audit with { Violations = [.. audit.Violations, .. await replies.AfterTurn(session, audit.Events, deadline)] };
 
                 return session.Account == account ? audit : audit with { Violations = [.. audit.Violations, "the account changed during the session"] };
             }
@@ -98,7 +153,7 @@ internal static class AgentConformance
         }
     }
 
-    private static async Task<Run> AuditAsync(IAgentSession session, TurnId expected, Rules rules, CancellationToken deadline)
+    private static async Task<Run> AuditAsync(IAgentSession session, TurnId expected, Rules rules, Replies replies, CancellationToken deadline)
     {
         var violations = new List<string>();
         var events = new List<IAgentEvent>();
@@ -128,7 +183,12 @@ internal static class AgentConformance
             {
                 asked.Add(requested.Item);
                 violations.AddRange(Describes(requested, kinds));
-                violations.AddRange(await AllowAsync(session, requested, deadline));
+                violations.AddRange(await RespondAsync(session, replies.Permission(requested), deadline));
+            }
+
+            if (agentEvent is FormRequested form)
+            {
+                violations.AddRange(await replies.Form(session, form, deadline));
             }
 
             if (agentEvent is TurnCompleted)
@@ -169,10 +229,28 @@ internal static class AgentConformance
         }
     }
 
-    private static async Task<IReadOnlyList<string>> AllowAsync(IAgentSession session, PermissionRequested requested, CancellationToken deadline) =>
-        (await session.RespondAsync(new PermissionDecision(requested.Item, PermissionAnswer.Allow), deadline)).Match<IReadOnlyList<string>>(
+    private static async Task<IReadOnlyList<string>> RespondAsync(IAgentSession session, PermissionDecision decision, CancellationToken deadline) =>
+        (await session.RespondAsync(decision, deadline)).Match<IReadOnlyList<string>>(
             _ => [],
-            error => [$"the permission for {requested.Item.Value} could not be granted: {error}"]);
+            error => [$"the permission for {decision.Item.Value} could not be answered: {error}"]);
+
+    private static async Task<IReadOnlyList<string>> FillAsync(IAgentSession session, FormRequested requested, CancellationToken deadline) =>
+        (await session.AnswerAsync(Fill(requested.Item, requested.Form), deadline)).Match<IReadOnlyList<string>>(
+            _ => [],
+            error => [$"the form {requested.Item.Value} could not be answered: {error}"]);
+
+    private static async Task<IReadOnlyList<string>> RefusedAsync(IAgentSession session, FormAnswer answer, string form, CancellationToken deadline) =>
+        (await session.AnswerAsync(answer, deadline)).Match<IReadOnlyList<string>>(
+            _ => [$"an answer to {form} was accepted"],
+            _ => []);
+
+    private static FormAnswer Fill(ItemId item, AgentForm form) =>
+        new(item, [.. form.Fields.Select(field => field.Kind switch
+        {
+            FieldKind.Confirmation => new FieldAnswer(field.Id) { Confirmed = true },
+            FieldKind.FreeText => new FieldAnswer(field.Id) { Text = "conformance" },
+            _ => new FieldAnswer(field.Id) { Chosen = [(field.Options.FirstOrDefault(option => option.Recommended) ?? field.Options[0]).Label] },
+        })]);
 
     private static IEnumerable<string> Audit(ref Turn? turn, IAgentEvent agentEvent)
     {
@@ -204,7 +282,18 @@ internal static class AgentConformance
             ResumeTokenIssued when !Capabilities.CanResume => ["a resume token was issued although the provider does not declare CanResume"],
             CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
                 [$"the canvas {started.Item.Value} was drawn without the canvas tool"],
+            FormRequested asked when !Capabilities.AsksQuestions => [$"the form {asked.Item.Value} was asked although the provider does not declare AsksQuestions"],
             _ => [],
         };
     }
+
+    private sealed record Replies(
+        Func<PermissionRequested, PermissionDecision> Permission,
+        Func<IAgentSession, FormRequested, CancellationToken, Task<IReadOnlyList<string>>> Form,
+        Func<IAgentSession, IReadOnlyList<IAgentEvent>, CancellationToken, Task<IReadOnlyList<string>>> AfterTurn);
+
+    private static Replies Allowing { get; } = new(
+        requested => new PermissionDecision(requested.Item, PermissionAnswer.Allow),
+        FillAsync,
+        (_, _, _) => Task.FromResult<IReadOnlyList<string>>([]));
 }

@@ -79,6 +79,73 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario RepeatedPermission { get; } = new("repeated-permission",
+    [
+        [
+            Thought("Two databases ", "need the same migration."),
+            .. Bill(2_600, 170, 0.0120m, 0.31),
+            new RunCommand(new ItemId("migrate"), "dotnet ef database update", "Applied 2 migrations.", AsksPermission: true),
+            new RunCommand(new ItemId("migrate-again"), "dotnet ef database update", "Applied 2 migrations.", AsksPermission: true),
+            Message("Both databases are up to date."),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario OutsideEdit { get; } = new("outside-edit",
+    [
+        [
+            Thought("I will build, ", "then note the result next to the repository."),
+            new RunCommand(new ItemId("build"), "dotnet build", "Build succeeded.", AsksPermission: true),
+            new WriteFile(new ItemId("note"), "../avala-outside-note.txt", "Built.\n"),
+            Message("Built and noted."),
+            .. Bill(1_700, 90, 0.0060m, 0.26),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario Question { get; } = new("question",
+    [
+        [
+            Thought("The service needs storage, ", "and the choice is the team's."),
+            new Ask(new ItemId("question"), new AgentForm(
+                FormPurpose.Question,
+                "Choose a database",
+                "The service needs to store its orders.",
+                [
+                    new FormField(
+                        "database",
+                        "Database",
+                        "Which database should the service use?",
+                        FieldKind.SingleChoice,
+                        [
+                            new FormOption("PostgreSQL", "Relational, already run by the team.", Recommended: true),
+                            new FormOption("SQLite", "A single file, no server to run."),
+                        ],
+                        AcceptsFreeText: true),
+                ])),
+            Message("The service stores its orders ", "in the chosen database."),
+            .. Bill(2_200, 140, 0.0090m, 0.27),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario PlanApproval { get; } = new("plan-approval",
+    [
+        [
+            Thought("Planning before ", "touching anything."),
+            Plan(PlanStepStatus.Pending, PlanStepStatus.Pending),
+            new Ask(new ItemId("plan"), new AgentForm(
+                FormPurpose.PlanApproval,
+                "Approve the plan",
+                "1. Write the change\n2. Run the tests",
+                [new FormField("approve", "Plan", "Proceed with this plan?", FieldKind.Confirmation, [], AcceptsFreeText: true)])),
+            new WriteFile(new ItemId("edit"), "PLAN.md", "# Plan\n\nApproved and carried out.\n"),
+            Message("The plan is carried out."),
+            .. Bill(2_000, 120, 0.0080m, 0.28),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario Crash { get; } = new("crash",
     [
         [
@@ -141,7 +208,8 @@ internal static class ScenarioCatalog
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, Crash, LeftOpen, Hang, Canvas];
+    public static IReadOnlyList<Scenario> All { get; } =
+        [Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas];
 
     public static Scenario Choose(string firstMessage) =>
         Tagged(firstMessage).Bind(Named).Match(scenario => scenario, () => Reply);

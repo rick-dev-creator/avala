@@ -59,16 +59,16 @@ internal sealed class JobFlow
 
     public static JobFlow With(params ICompletionGate[] gates) => new(new FakeWorkspaces(), new FakeAgents(), gates);
 
-    public async Task<Job> SubmittedAsync(int attemptsPerRound = 3)
+    public async Task<Job> SubmittedAsync(int attemptsPerRound = 3, Option<Autonomy> autonomy = default)
     {
-        var id = Outcomes.Succeeds(await Submit.ExecuteAsync("/repos/shop", "Add GitHub login", attemptsPerRound, Cancellation));
+        var id = Outcomes.Succeeds(await Submit.ExecuteAsync("/repos/shop", "Add GitHub login", attemptsPerRound, autonomy, Cancellation));
 
         return Store.Jobs.Single(job => job.Id == id);
     }
 
-    public async Task<Job> RunningAsync(int attemptsPerRound = 3)
+    public async Task<Job> RunningAsync(int attemptsPerRound = 3, Option<Autonomy> autonomy = default)
     {
-        var job = await SubmittedAsync(attemptsPerRound);
+        var job = await SubmittedAsync(attemptsPerRound, autonomy);
         await Prepare.HandleAsync(new JobAnnouncement(job.Id), Cancellation);
         await SettledAsync(job);
 
