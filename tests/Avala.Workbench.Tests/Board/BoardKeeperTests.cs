@@ -107,9 +107,11 @@ public sealed class BoardKeeperTests
     }
 
     [Fact]
-    public async Task AtStartupTheJobsOfEarlierRunsJoinWithAMarkAfterTheirAttemptsAndTheirLastStoredVerification()
+    public async Task AtStartupTheJobsOfEarlierRunsJoinWithAMarkAfterTheirAttemptsTheirLastStoredVerificationAndTheirStoredConnectionChoice()
     {
         var earlier = catalog.Add("Update the dependency", JobStatus.AwaitingReview, Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Passed)).Summary.Job;
+        var choice = new ConnectionChoice(new ConnectionName("personal"), ChoiceReason.MostCapacity, [], time.GetUtcNow());
+        catalog.Change(earlier, history => history with { Choice = choice });
         var live = catalog.Add("Fix the failing test").Summary.Job;
         var verified = new VerificationReport(earlier, 2, VerificationOutcome.Passed, Option<FileOrigin>.None, [], GateVerdict.Pass, time.GetUtcNow());
         audit.Reports.AddRange([verified with { Attempt = 1, Outcome = VerificationOutcome.Failed }, verified]);
@@ -119,6 +121,7 @@ public sealed class BoardKeeperTests
 
         Assert.Equal([typeof(PromptEntry), typeof(RestartEntry)], Joined(earlier).Transcript.Entries.Select(entry => entry.GetType()));
         Assert.Equal(Option<VerificationReport>.Some(verified), Joined(earlier).Verification);
+        Assert.Equal(Option<ConnectionChoice>.Some(choice), Joined(earlier).Choice);
         Assert.Equal([typeof(PromptEntry)], Joined(live).Transcript.Entries.Select(entry => entry.GetType()));
     }
 

@@ -101,6 +101,7 @@ public sealed class ConnectionTests
         Assert.Equal(Option<ConnectionName>.Some(Personal), job.Connection);
         var chosen = Assert.Single(flow.Bus.Published.OfType<ConnectionChosen>());
         Assert.Equal((job.Id, Personal, 2), (chosen.Job, chosen.Choice.Connection, chosen.Choice.Compared.Count));
+        Assert.Equal(Option<ConnectionChoice>.Some(chosen.Choice), Outcomes.Present(await flow.Catalog.HistoryAsync(job.Id, TestContext.Current.CancellationToken)).Choice);
     }
 
     [Fact]

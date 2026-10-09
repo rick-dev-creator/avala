@@ -1,11 +1,12 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
+using Avala.Jobs.Ledger;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 
 namespace Avala.Jobs.Launching;
 
-internal sealed class ConnectionChooser(IConnections connections, IEnumerable<IConnectionSelector> selectors, IEventBus bus)
+internal sealed class ConnectionChooser(IConnections connections, IEnumerable<IConnectionSelector> selectors, IJobStore store, IEventBus bus)
 {
     public async Task<Option<ConnectionName>> ChooseAsync(JobId job, string worktree, CancellationToken cancellationToken)
     {
@@ -21,6 +22,7 @@ internal sealed class ConnectionChooser(IConnections connections, IEnumerable<IC
         return await chosen.Match(
             async choice =>
             {
+                await store.RecordAsync(job, choice, cancellationToken);
                 await bus.PublishAsync(new ConnectionChosen(job, choice), cancellationToken);
 
                 return Option<ConnectionName>.Some(choice.Connection);
