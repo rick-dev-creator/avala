@@ -53,6 +53,14 @@ internal sealed class SqliteJobStore(AvalaPaths paths) : IJobStore, IAsyncDispos
             async database => await database.Jobs.Where(job => Active.Contains(job.State)).ToListAsync(cancellationToken),
             cancellationToken);
 
+    public Task<IReadOnlyList<Job>> SnapshotsAsync(CancellationToken cancellationToken) =>
+        RunAsync<IReadOnlyList<Job>>(async database => await database.Jobs.AsNoTracking().ToListAsync(cancellationToken), cancellationToken);
+
+    public Task<Option<Job>> SnapshotAsync(JobId id, CancellationToken cancellationToken) =>
+        RunAsync(
+            async database => (await database.Jobs.AsNoTracking().FirstOrDefaultAsync(job => job.Id == id, cancellationToken)).ToOption(),
+            cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         await serial.DisposeAsync();

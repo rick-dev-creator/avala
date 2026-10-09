@@ -30,6 +30,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public RepositoryPath Repository { get; }
 
+    public DateTimeOffset Submitted { get; private init; }
+
     public JobState State { get; private set; } = JobState.Draft;
 
     public Option<WorkspaceId> Workspace { get; private set; }
@@ -49,9 +51,10 @@ internal sealed class Job : IAggregateRoot<JobId>
         Instruction instruction,
         AttemptBudget budget,
         RepositoryPath repository,
+        DateTimeOffset submitted,
         Option<Autonomy> autonomy = default,
         Option<ConnectionName> connection = default) =>
-        new Job(id, instruction, budget, repository) { Autonomy = autonomy, Connection = connection };
+        new Job(id, instruction, budget, repository) { Submitted = submitted, Autonomy = autonomy, Connection = connection };
 
     public Result<JobSubmitted, JobError> Submit() =>
         machine.TryFire(JobTrigger.Submit, JobError.CannotSubmit)
@@ -123,6 +126,15 @@ internal sealed class Job : IAggregateRoot<JobId>
         machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
             .Map(_ => Begin(AttemptOrigin.SendBack, feedback));
 
+    public Result<AttemptStarted, JobError> SendBack(Feedback feedback, SessionId session, bool resumed) =>
+        machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
+            .Map(_ =>
+            {
+                Join(session, resumed);
+
+                return Begin(AttemptOrigin.SendBack, feedback);
+            });
+
     public Result<JobApproved, JobError> Approve() =>
         machine.TryFire(JobTrigger.Approve, JobError.CannotApprove)
             .Map(_ => new JobApproved(Id));
@@ -170,7 +182,7 @@ internal sealed class Job : IAggregateRoot<JobId>
     private AttemptStarted Begin(AttemptOrigin origin, Option<Feedback> guidance)
     {
         var number = attempts.Count == 0 ? AttemptNumber.First : attempts[^1].Number.Next;
-        attempts.Add(new Attempt(number, origin, guidance));
+        attempts.Add(new Attempt(number, origin, guidance, Session));
 
         return new AttemptStarted(Id, number, origin, guidance);
     }

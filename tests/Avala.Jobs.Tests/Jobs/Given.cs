@@ -27,7 +27,10 @@ internal static class Given
             Instruction,
             Outcomes.Succeeds(AttemptBudget.Create(attemptsPerRound)),
             Repository,
+            Submitted,
             Autonomy.Supervised));
+
+    public static DateTimeOffset Submitted { get; } = new(2026, 10, 9, 8, 0, 0, TimeSpan.Zero);
 
     public static Job JobIn(JobState state, int attemptsPerRound = 3)
     {

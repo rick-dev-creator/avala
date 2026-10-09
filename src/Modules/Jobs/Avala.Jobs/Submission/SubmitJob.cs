@@ -8,14 +8,14 @@ using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
 namespace Avala.Jobs.Submission;
 
-internal sealed class SubmitJob(JobLedger ledger, IEventBus bus, IConnections connections)
+internal sealed class SubmitJob(JobLedger ledger, IEventBus bus, IConnections connections, TimeProvider clock)
 {
     public async Task<Result<JobId, JobRejection>> ExecuteAsync(JobRequest request, CancellationToken cancellationToken)
     {
         var submitted = RepositoryPath.Create(request.RepositoryPath)
             .Bind(path => Instruction.Create(request.Instruction)
                 .Bind(text => AttemptBudget.Create(request.AttemptsPerRound)
-                    .Bind(budget => Job.Create(JobId.New(), text, budget, path, request.Autonomy, request.Connection))))
+                    .Bind(budget => Job.Create(JobId.New(), text, budget, path, clock.GetUtcNow(), request.Autonomy, request.Connection))))
             .Bind(job => job.Submit().Map(_ => job))
             .MapError(Rejection);
 

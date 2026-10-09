@@ -14,4 +14,8 @@ internal interface IJobStore
     Task<Option<JobId>> JobOfSessionAsync(SessionId session, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<Job>> ActiveAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Job>> SnapshotsAsync(CancellationToken cancellationToken);
+
+    Task<Option<Job>> SnapshotAsync(JobId id, CancellationToken cancellationToken);
 }

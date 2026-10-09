@@ -1,5 +1,7 @@
 using Avala.Jobs.Jobs;
 using Avala.Testing;
+using AttemptOrigin = Avala.Jobs.Contracts.AttemptOrigin;
+using AttemptOutcome = Avala.Jobs.Contracts.AttemptOutcome;
 
 namespace Avala.Jobs.Tests.Jobs;
 
