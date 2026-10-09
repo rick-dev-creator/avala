@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:updates="using:Avala.Workbench.Updates"
+             x:Class="Avala.Workbench.UI.UpdateNoticeView"
+             x:ClassModifier="internal"
+             x:DataType="updates:IUpdateNoticeViewModel"
+             IsVisible="{Binding IsShown}">
+  <Design.DataContext>
+    <updates:DesignUpdateNoticeViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="4">
+    <Button x:Name="Open"
+            Classes="link emphasis"
+            Command="{Binding OpenCommand}"
+            ToolTip.Tip="Open the release page">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Ellipse Width="6" Height="6" Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+        <TextBlock x:Name="Text" Text="{Binding Text}" />
+      </StackPanel>
+    </Button>
+    <TextBlock x:Name="Note"
+               Classes="caption"
+               Margin="8,0"
+               TextWrapping="Wrap"
+               Text="{Binding Note}"
+               IsVisible="{Binding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

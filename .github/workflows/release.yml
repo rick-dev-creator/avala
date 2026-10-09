@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Build and test the tagged commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: dotnet build Avala.slnx
+      - name: Test
+        run: dotnet test --solution Avala.slnx --no-build
+
+  package:
+    name: Package ${{ matrix.rid }}
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: osx-arm64
+            os: macos-latest
+          - rid: osx-x64
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Package and smoke test, unsigned
+        if: vars.AVALA_SIGNING != 'true'
+        run: dotnet run scripts/package.cs -- --rid ${{ matrix.rid }} --smoke --output artifacts/release
+      - name: Package, sign and smoke test
+        if: vars.AVALA_SIGNING == 'true'
+        run: dotnet run scripts/package.cs -- --rid ${{ matrix.rid }} --sign --smoke --output artifacts/release
+        env:
+          AVALA_WINDOWS_CERTIFICATE: ${{ secrets.AVALA_WINDOWS_CERTIFICATE }}
+          AVALA_WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.AVALA_WINDOWS_CERTIFICATE_PASSWORD }}
+          AVALA_MACOS_CERTIFICATE: ${{ secrets.AVALA_MACOS_CERTIFICATE }}
+          AVALA_MACOS_CERTIFICATE_PASSWORD: ${{ secrets.AVALA_MACOS_CERTIFICATE_PASSWORD }}
+          AVALA_MACOS_SIGNING_IDENTITY: ${{ secrets.AVALA_MACOS_SIGNING_IDENTITY }}
+          AVALA_APPLE_ID: ${{ secrets.AVALA_APPLE_ID }}
+          AVALA_APPLE_TEAM_ID: ${{ secrets.AVALA_APPLE_TEAM_ID }}
+          AVALA_APPLE_APP_PASSWORD: ${{ secrets.AVALA_APPLE_APP_PASSWORD }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-${{ matrix.rid }}
+          path: artifacts/release/*
+          if-no-files-found: error
+
+  draft:
+    name: Draft the GitHub release
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: package-*
+          path: artifacts/release
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          name: Avala ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifacts/release/*

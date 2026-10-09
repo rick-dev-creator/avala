@@ -3,10 +3,12 @@ using Avala.Runtime.Containment;
 using Avala.Runtime.Diagnostics;
 using Avala.Runtime.Events;
 using Avala.Runtime.Processes;
+using Avala.Runtime.Updates;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
 using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
+using Avala.Sdk.Updates;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -35,8 +37,19 @@ public static class RuntimeServices
                 .AddSingleton<IProcessRunner, ProcessRunner>()
                 .AddSingleton<AppearanceFile>()
                 .AddForwarded<IAppearance, AppearanceFile>()
-                .AddForwarded<IStartupTask, AppearanceFile>();
+                .AddForwarded<IStartupTask, AppearanceFile>()
+                .AddSingleton<UpdatesFile>()
+                .AddSingleton(provider => new UpdateCheck(
+                    provider.GetService<AvalaBuild>() ?? AvalaBuild.From(Option<string>.None),
+                    provider.GetRequiredService<UpdatesFile>(),
+                    provider.GetService<ReleaseFeed>().ToOption(),
+                    provider.GetRequiredService<IEventBus>()))
+                .AddForwarded<IUpdates, UpdateCheck>()
+                .AddForwarded<IStartupTask, UpdateCheck>();
         }
+
+        public IServiceCollection AddReleaseFeed(HttpMessageHandler handler) =>
+            services.AddSingleton(_ => new ReleaseFeed(new HttpClient(handler) { Timeout = ReleaseFeed.Patience }));
     }
 
     private static IContainment Containment() =>

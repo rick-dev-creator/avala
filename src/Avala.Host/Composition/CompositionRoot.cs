@@ -33,8 +33,8 @@ internal sealed class CompositionRoot : IAsyncDisposable
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths) =>
         Create(pluginDirectory, paths, new AvaloniaUiDispatcher());
 
-    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, LogFile log) =>
-        Create(pluginDirectory, paths, new Surroundings(new AvaloniaUiDispatcher(), new AvaloniaFileOpener(), TimeProvider.System, []) { Log = log });
+    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, LogFile log, Option<HttpMessageHandler> releases) =>
+        Create(pluginDirectory, paths, new Surroundings(new AvaloniaUiDispatcher(), new AvaloniaFileOpener(), TimeProvider.System, []) { Log = log, Releases = releases });
 
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher) =>
         Create(pluginDirectory, paths, dispatcher, new AvaloniaFileOpener());
@@ -69,6 +69,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
     {
         var services = new ServiceCollection().AddLogging();
         _ = surroundings.Log.Match(log => services.AddSingleton(log), () => services);
+        _ = surroundings.Releases.Match(services.AddReleaseFeed, () => services);
         services
             .AddSingleton(Build)
             .AddSingleton(surroundings.Clock)
@@ -118,6 +119,8 @@ internal sealed class CompositionRoot : IAsyncDisposable
         public ILinkOpener Links { get; init; } = new AvaloniaLinkOpener();
 
         public Option<LogFile> Log { get; init; }
+
+        public Option<HttpMessageHandler> Releases { get; init; }
 
         public IReadOnlyList<IPlugin> Additions { get; init; } = [];
 
