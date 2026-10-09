@@ -89,6 +89,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IDecisionsViewModel>(Get<DecisionsViewModel>)
             .AddSingleton<SidebarViewModel>()
             .AddSingleton<ToolbarViewModel>()
+            .AddSingleton<SettingsLink>()
+            .AddSingleton<IFirstRunViewModel, FirstRunViewModel>()
             .AddSingleton<WorkbenchViewModel>()
             .AddSingleton<IPage>(Get<WorkbenchViewModel>);
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0);
@@ -101,6 +103,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     public void RegisterViews(IViewRegistrar views)
     {
         views.Register<IWorkbenchViewModel, WorkbenchView>();
+        views.Register<IFirstRunViewModel, FirstRunView>();
         views.Register<ISidebarViewModel, SidebarView>();
         views.Register<IJobRowViewModel, JobRowView>();
         views.Register<IToolbarViewModel, ToolbarView>();
