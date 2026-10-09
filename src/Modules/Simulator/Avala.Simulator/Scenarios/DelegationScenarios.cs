@@ -170,9 +170,28 @@ internal static class DelegationScenarios
         ],
     ]);
 
+    public static Scenario DelegatedSteered { get; } = new("delegate-steered",
+    [
+        [
+            Thought("The migration needs a person's approval. ", "A sub-agent will ask for it."),
+            Delegation("delegate-migrate", """{ "instruction": "[simulate: permission] Migrate the database" }"""),
+            Message("The migration came back."),
+            .. Bill(1_700, 120, 0.0065m, 0.22),
+            new Finish(),
+        ],
+        [
+            Thought("Carrying on ", "while the sub-agent works."),
+            new AwaitMessage(),
+            Message("Folded the sub-agent's report into this turn."),
+            .. Bill(1_200, 90, 0.0050m, 0.24),
+            new Finish(),
+        ],
+    ]);
+
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, Notes, RevisedNotes, Todo, Expensive, PausedNotes,
+        Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
+        Notes, RevisedNotes, Todo, Expensive, PausedNotes,
     ];
 
     private static CallTool Delegation(string item, string input) => new(new ItemId(item), ScenarioCatalog.Delegate, input);
