@@ -110,7 +110,10 @@ internal sealed class JobFlow
     }
 
     public async Task HandTurnAsync(Job job, TurnOutcome outcome = TurnOutcome.Finished) =>
-        await Check.HandleAsync(new TurnFinished(Session(job), TurnId.New(), outcome), Cancellation);
+        await HandTurnAsync(job, TurnId.New(), outcome);
+
+    public async Task HandTurnAsync(Job job, TurnId turn, TurnOutcome outcome) =>
+        await Check.HandleAsync(new TurnFinished(Session(job), turn, outcome), Cancellation);
 
     public async Task EndSessionAsync(Job job, SessionId session)
     {
