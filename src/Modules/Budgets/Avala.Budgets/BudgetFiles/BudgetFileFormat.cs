@@ -10,8 +10,10 @@ internal sealed class BudgetFileFormat : IRuleFileFormat
 {
     public string Path => Breaches.BudgetFile;
 
-    public Option<Enum> Rejection(string content) =>
+    public Option<RuleFileRejection> Rejection(string content) =>
         Encoding.UTF8.GetByteCount(content) > BudgetFileReader.MaximumBytes
-            ? Option<Enum>.Some(BudgetError.TooLarge)
-            : BudgetFileParser.Parse(content).Match(_ => Option<Enum>.None, error => Option<Enum>.Some(error));
+            ? Rejected(BudgetError.TooLarge)
+            : BudgetFileParser.Parse(content).Match(_ => Option<RuleFileRejection>.None, Rejected);
+
+    private static Option<RuleFileRejection> Rejected(BudgetError error) => RuleFileRejection.Of("Budgets", error);
 }

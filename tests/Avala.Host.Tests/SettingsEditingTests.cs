@@ -61,7 +61,7 @@ public sealed class SettingsEditingTests(PublishedPlugins plugins)
         });
         await run.Ui.RunAsync(() => settings["Refreshing"].Value<Task>());
 
-        Assert.Equal("Not saved: jobs would reject .avala/budget.json (InvalidThreshold). Fix it and save again.", rejected);
+        Assert.Equal("Not saved: jobs would reject .avala/budget.json (InvalidThreshold, from Budgets). Fix it and save again.", rejected);
         Assert.Equal("""{ "holdAtLimit": 0.5 }""", await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, ".avala", "budget.json"), Cancellation));
         Assert.Equal(
             (true, "Hold when a usage window reaches", "90%"),

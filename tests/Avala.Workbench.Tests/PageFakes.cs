@@ -452,8 +452,8 @@ internal sealed class BudgetLikeFormat : IRuleFileFormat
 {
     public string Path => ".avala/budget.json";
 
-    public Option<Enum> Rejection(string content) =>
-        content.Contains("\"holdAtLimit\": 2", StringComparison.Ordinal) ? Option<Enum>.Some(BudgetError.InvalidThreshold) : Option<Enum>.None;
+    public Option<RuleFileRejection> Rejection(string content) =>
+        content.Contains("\"holdAtLimit\": 2", StringComparison.Ordinal) ? RuleFileRejection.Of("Budgets", BudgetError.InvalidThreshold) : Option<RuleFileRejection>.None;
 }
 
 internal sealed class FakeRules : IRepositoryPolicies, IRepositoryBudgets, IRepositoryChecks

@@ -13,5 +13,11 @@ public interface IRuleFileFormat
 {
     string Path { get; }
 
-    Option<Enum> Rejection(string content);
+    Option<RuleFileRejection> Rejection(string content);
+}
+
+public sealed record RuleFileRejection(string Module, Enum Error)
+{
+    public static RuleFileRejection Of<TError>(string module, TError error)
+        where TError : struct, Enum => new(module, error);
 }
