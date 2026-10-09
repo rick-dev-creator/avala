@@ -8,12 +8,15 @@ internal interface ISystemMotion
     ValueTask<bool> PrefersReducedAsync(CancellationToken cancellationToken);
 }
 
-internal sealed class SystemMotion(IProcessRunner processes) : ISystemMotion
+internal sealed class SystemMotion(IProcessRunner processes, Func<bool> windowsAnimates) : ISystemMotion
 {
-    private const uint ClientAreaAnimation = 0x1042;
+    public SystemMotion(IProcessRunner processes)
+        : this(processes, WindowsAnimation.IsOn)
+    {
+    }
 
     public async ValueTask<bool> PrefersReducedAsync(CancellationToken cancellationToken) =>
-        OperatingSystem.IsWindows() ? !WindowsAnimates()
+        OperatingSystem.IsWindows() ? !windowsAnimates()
         : OperatingSystem.IsMacOS() ? await ReadAsync("defaults", ["read", "com.apple.universalaccess", "reduceMotion"], cancellationToken) == "1"
         : await ReadAsync("gsettings", ["get", "org.gnome.desktop.interface", "enable-animations"], cancellationToken) == "false";
 
@@ -21,8 +24,13 @@ internal sealed class SystemMotion(IProcessRunner processes) : ISystemMotion
         (await processes.RunAsync(new ProcessRequest(program, arguments), cancellationToken)).Match(
             outcome => outcome.Succeeded ? outcome.Output.Trim() : string.Empty,
             _ => string.Empty);
+}
 
-    private static bool WindowsAnimates() =>
+internal static class WindowsAnimation
+{
+    private const uint ClientAreaAnimation = 0x1042;
+
+    public static bool IsOn() =>
         !SystemParametersInfoW(ClientAreaAnimation, 0, out var animates, 0) || animates != 0;
 
     [DllImport("user32.dll", SetLastError = true)]

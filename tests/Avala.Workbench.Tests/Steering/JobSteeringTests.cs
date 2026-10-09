@@ -1,27 +1,32 @@
-using System.Collections.Immutable;
 using Avala.Jobs.Contracts;
 using Avala.Testing;
-using Avala.Workbench.Board;
 using Avala.Workbench.Steering;
-using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Tests.Steering;
 
-public sealed class JobSteeringTests
+public sealed class JobSteeringTests : IAsyncDisposable
 {
     private readonly FakeJobs jobs = new();
-    private readonly JobBoard board = new();
+    private readonly QueuedMessages queue;
+    private readonly JobSteering steering;
+    private readonly JobId job = JobId.New();
+
+    public JobSteeringTests()
+    {
+        queue = new QueuedMessages(jobs);
+        steering = new JobSteering(jobs, queue);
+    }
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Theory]
-    [InlineData("NeedsHelp", "continue Use the staging database")]
-    [InlineData("AwaitingReview", "send back Use the staging database")]
-    public async Task AMessageContinuesAJobThatNeedsYouAndSendsBackAJobAwaitingReview(string status, string call)
+    [InlineData(JobStatus.NeedsHelp, "continue Use the staging database")]
+    [InlineData(JobStatus.AwaitingReview, "send back Use the staging database")]
+    public async Task AMessageContinuesAJobThatNeedsYouAndSendsBackAJobAwaitingReview(JobStatus status, string call)
     {
-        var job = OnBoard(Enum.Parse<JobStatus>(status));
+        jobs.Status = status;
 
-        Outcomes.Succeeds(await new JobSteering(jobs, board, new QueuedMessages(jobs)).SendAsync(job, "Use the staging database", Cancellation));
+        Outcomes.Succeeds(await steering.SendAsync(job, status, "Use the staging database", Cancellation));
 
         Assert.Equal([call], jobs.Calls);
     }
@@ -29,9 +34,7 @@ public sealed class JobSteeringTests
     [Fact]
     public async Task AMessageToAJobThatEndedIsRefusedWithoutAskingTheJob()
     {
-        var job = OnBoard(JobStatus.Approved);
-
-        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await new JobSteering(jobs, board, new QueuedMessages(jobs)).SendAsync(job, "Hurry", Cancellation)));
+        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await steering.SendAsync(job, JobStatus.Approved, "Hurry", Cancellation)));
         Assert.Empty(jobs.Calls);
     }
 
@@ -43,17 +46,46 @@ public sealed class JobSteeringTests
     [InlineData(JobStatus.Preparing, false, "Queued")]
     public async Task AMessageSaysHowItReachesTheAgent(JobStatus status, bool takesMessagesMidTurn, string delivery)
     {
-        var job = OnBoard(status, takesMessagesMidTurn);
+        (jobs.Status, jobs.Steerable) = (status, takesMessagesMidTurn);
 
-        Assert.Equal(Enum.Parse<MessageDelivery>(delivery), Outcomes.Succeeds(await new JobSteering(jobs, board, new QueuedMessages(jobs)).SendAsync(job, "Keep the alias", Cancellation)));
+        Assert.Equal(Enum.Parse<MessageDelivery>(delivery), Outcomes.Succeeds(await steering.SendAsync(job, status, "Keep the alias", Cancellation)));
+    }
+
+    [Theory]
+    [InlineData(JobStatus.Running, JobStatus.NeedsHelp, "Sent", "continue Keep the alias", "")]
+    [InlineData(JobStatus.Checking, JobStatus.NeedsHelp, "Sent", "continue Keep the alias", "")]
+    [InlineData(JobStatus.AwaitingReview, JobStatus.NeedsHelp, "Sent", "continue Keep the alias", "")]
+    [InlineData(JobStatus.Running, JobStatus.AwaitingReview, "Queued", "", "Keep the alias")]
+    [InlineData(JobStatus.Checking, JobStatus.AwaitingReview, "Queued", "", "Keep the alias")]
+    [InlineData(JobStatus.NeedsHelp, JobStatus.Running, "Queued", "", "Keep the alias")]
+    [InlineData(JobStatus.AwaitingReview, JobStatus.Running, "Queued", "", "Keep the alias")]
+    public async Task AMessageSentFromAScreenBehindTheJobFollowsTheJobsRealState(JobStatus shown, JobStatus real, string delivery, string call, string queued)
+    {
+        jobs.Status = real;
+
+        var sent = Outcomes.Succeeds(await steering.SendAsync(job, shown, "Keep the alias", Cancellation));
+
+        Assert.Equal(Enum.Parse<MessageDelivery>(delivery), sent);
+        Assert.Equal(call.Length == 0 ? [] : [call], jobs.Calls);
+        Assert.Equal(queued, steering.Queued(job).Match(message => message, () => string.Empty));
+    }
+
+    [Fact]
+    public async Task AMessageQueuedBecauseTheTurnHadEndedContinuesTheJobWhenItNextNeedsYou()
+    {
+        jobs.Status = JobStatus.Checking;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await steering.SendAsync(job, JobStatus.Running, "Keep the alias", Cancellation)));
+
+        jobs.Status = JobStatus.NeedsHelp;
+        await queue.HandleAsync(new JobProgressed(job, JobStatus.NeedsHelp), Cancellation);
+
+        Assert.Equal(["continue Keep the alias"], jobs.Calls);
+        Assert.True(steering.Queued(job).IsNone);
     }
 
     [Fact]
     public async Task InterruptingAndStoppingBothHoldTheJobWithTheirOwnReasonAndNeitherDiscardsIt()
     {
-        var job = OnBoard(JobStatus.Running);
-        var steering = new JobSteering(jobs, board, new QueuedMessages(jobs));
-
         Outcomes.Succeeds(await steering.InterruptAsync(job, Cancellation));
         Outcomes.Succeeds(await steering.StopAsync(job, Cancellation));
 
@@ -75,11 +107,5 @@ public sealed class JobSteeringTests
             (parsed.AcceptsMessages, parsed.CanBeInterrupted, parsed.CanBeStopped, parsed.CanBeReviewed, parsed.CanBeDiscarded));
     }
 
-    private JobId OnBoard(JobStatus status, bool takesMessagesMidTurn = false)
-    {
-        var summary = new FakeCatalog().Add("Fix the failing test", status).Summary;
-        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(summary.Job, new BoardJob(summary, Transcript.Empty) { TakesMessagesMidTurn = takesMessagesMidTurn }));
-
-        return summary.Job;
-    }
+    public ValueTask DisposeAsync() => queue.DisposeAsync();
 }

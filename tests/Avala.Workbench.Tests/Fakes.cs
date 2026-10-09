@@ -45,6 +45,10 @@ internal sealed class FakeJobs : IJobs
 
     public JobRejection Refusal { get; set; } = (JobRejection)(-1);
 
+    public Option<JobStatus> Status { get; set; }
+
+    public bool Steerable { get; set; } = true;
+
     public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
@@ -52,7 +56,9 @@ internal sealed class FakeJobs : IJobs
         AnswerAsync($"hold {reason}", new JobHold(job, SessionId.New(), reason, SessionHalt.Interrupted));
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
-        AnswerAsync($"continue {message}", new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession));
+        Unless(JobStatus.NeedsHelp, JobRejection.NotHeld) is { } refused
+            ? ValueTask.FromResult<Result<JobContinuation, JobRejection>>(refused)
+            : AnswerAsync($"continue {message}", new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession));
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(
         JobId job,
@@ -65,7 +71,9 @@ internal sealed class FakeJobs : IJobs
         AnswerAsync("discard", job);
 
     public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
-        AnswerAsync($"steer {message}", new JobSteered(job, SessionId.New(), TurnId.New()));
+        (Steerable ? Unless(JobStatus.Running, JobRejection.NotRunning) : JobRejection.NotSteerable) is { } refused
+            ? ValueTask.FromResult<Result<JobSteered, JobRejection>>(refused)
+            : AnswerAsync($"steer {message}", new JobSteered(job, SessionId.New(), TurnId.New()));
 
     public TaskCompletionSource? Gate { get; set; }
 
@@ -82,10 +90,15 @@ internal sealed class FakeJobs : IJobs
     }
 
     public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
-        AnswerAsync($"send back {feedback}", new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession));
+        Unless(JobStatus.AwaitingReview, JobRejection.NotAwaitingReview) is { } refused
+            ? ValueTask.FromResult<Result<JobContinuation, JobRejection>>(refused)
+            : AnswerAsync($"send back {feedback}", new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession));
 
     public ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) =>
         AnswerAsync("resume", new JobContinuation(job, SessionId.New(), ContinuedIn.ResumedConversation));
+
+    private JobRejection? Unless(JobStatus accepted, JobRejection rejection) =>
+        Status.Match<JobRejection?>(status => status == accepted ? null : rejection, () => null);
 
     private ValueTask<Result<T, JobRejection>> AnswerAsync<T>(string call, T value)
         where T : notnull
