@@ -51,12 +51,15 @@ internal sealed partial class App : Application
         var crashes = new CrashLog(log);
         crashes.Watch();
         crashes.Started($"Avala {CompositionRoot.Build.Version} ({CompositionRoot.Build.Commit.Match(commit => commit, () => AvalaBuild.Unknown)}) started on {RuntimeInformation.OSDescription}, data folder {paths.Data}");
-        var composition = Composed(paths, log, crashes);
+        var smoke = SmokeRun.IsRequested(desktop.Args ?? []);
+        var composition = Composed(paths, log, crashes, smoke ? Option<HttpMessageHandler>.None : new SocketsHttpHandler());
         var appearance = new AppearanceApplier(this);
+        var feed = composition.Services.GetRequiredService<IEventFeed>();
         _ = appearance.FollowAsync(
-            composition.Services.GetRequiredService<IEventFeed>().SubscribeAsync<AppearanceChanged>(composition.Lifetime),
+            feed.SubscribeAsync<AppearanceChanged>(composition.Lifetime),
             composition.Services.GetRequiredService<IUiDispatcher>(),
             composition.Lifetime);
+        var started = feed.SubscribeAsync<StartupCompleted>(composition.Lifetime);
         composition.Start();
         _ = crashes.ObserveAsync(composition.Running);
         var shell = composition.Services.GetRequiredService<ShellViewModel>();
@@ -67,14 +70,15 @@ internal sealed partial class App : Application
         };
         DataTemplates.Add(composition.Views);
         shell.Activate();
-        _ = ShowAsync(desktop, composition, appearance, shell);
+        var showing = ShowAsync(desktop, composition, appearance, shell);
+        _ = smoke ? SmokeRun.PassAsync(desktop, showing, started, shell) : showing;
     }
 
-    private static CompositionRoot Composed(AvalaPaths paths, LogFile log, CrashLog crashes)
+    private static CompositionRoot Composed(AvalaPaths paths, LogFile log, CrashLog crashes, Option<HttpMessageHandler> releases)
     {
         try
         {
-            return CompositionRoot.Create(PluginDirectory.Resolve(), paths, log);
+            return CompositionRoot.Create(PluginDirectory.Resolve(), paths, log, releases);
         }
         catch (Exception failure)
         {
