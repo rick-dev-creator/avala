@@ -1,3 +1,5 @@
+using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 using Avala.Jobs.Jobs;
 using Avala.Testing;
 using AttemptOrigin = Avala.Jobs.Contracts.AttemptOrigin;
@@ -17,6 +19,19 @@ public sealed class JobRetryTests
         Assert.Equal(new AttemptRetried(job.Id, AttemptNumber.First, new AttemptNumber(2), Given.Feedback), retried);
         Assert.Equal([AttemptOutcome.Rejected, AttemptOutcome.Running], job.Attempts.Select(attempt => attempt.Outcome));
         Assert.Equal(AttemptOrigin.Retry, job.Attempts[^1].Origin);
+    }
+
+    [Fact]
+    public void RetryingInANewSessionStartsTheNextAttemptThere()
+    {
+        var job = Given.JobIn(JobState.Checking);
+        var session = SessionId.New();
+
+        var retried = Outcomes.Succeeds(job.Retry(Given.Feedback, session, resumed: true));
+
+        Assert.Equal(new AttemptRetried(job.Id, AttemptNumber.First, new AttemptNumber(2), Given.Feedback), retried);
+        Assert.Equal([Option<SessionId>.Some(Given.Session), Option<SessionId>.Some(session)], job.Attempts.Select(attempt => attempt.Session));
+        Assert.Equal((JobState.Running, Option<SessionId>.Some(session)), (job.State, job.Session));
     }
 
     [Fact]
@@ -71,7 +86,6 @@ public sealed class JobRetryTests
     {
         var job = Given.JobIn(JobState.Checking, attemptsPerRound: 2);
         Outcomes.Succeeds(job.Retry(Given.Feedback));
-        Outcomes.Succeeds(job.CompleteTurn());
 
         Outcomes.Succeeds(job.Recover(Given.Session, resumed: false));
         Outcomes.Succeeds(job.CompleteTurn());

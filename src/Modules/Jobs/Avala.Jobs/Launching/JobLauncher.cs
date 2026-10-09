@@ -46,11 +46,25 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
     public async Task RelaunchAsync(Job job, CancellationToken cancellationToken)
     {
-        if (job.State is not (JobState.Running or JobState.Checking))
+        if (job.State == JobState.Running)
         {
-            return;
+            await ReopenAsync(
+                job,
+                opened => job.Recover(opened.Session, opened.Resumed).IsSuccess,
+                opened => opened.Resumed ? RestartNote : job.Instruction.Text,
+                cancellationToken);
         }
+    }
 
+    public async Task RetryInNewSessionAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
+        await ReopenAsync(
+            job,
+            opened => job.Retry(feedback, opened.Session, opened.Resumed).IsSuccess,
+            opened => opened.Resumed ? feedback.Text : $"{job.Instruction.Text}\n\n{feedback.Text}",
+            cancellationToken);
+
+    private async Task ReopenAsync(Job job, Func<OpenedSession, bool> begin, Func<OpenedSession, string> message, CancellationToken cancellationToken)
+    {
         if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             await FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken);
@@ -63,9 +77,9 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return;
         }
 
-        if (job.Recover(opened.Session, opened.Resumed).IsSuccess)
+        if (begin(opened))
         {
-            await BeginAsync(job, opened.Session, opened.Resumed ? RestartNote : job.Instruction.Text, cancellationToken);
+            await BeginAsync(job, opened.Session, message(opened), cancellationToken);
         }
     }
 

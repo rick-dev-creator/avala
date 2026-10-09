@@ -42,9 +42,11 @@ internal sealed class JobFlow
             new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), new ResumeJob(deferred, launcher, Hold)),
             Queues);
         Prepare = new PrepareJob(Queues, launcher, Admissions);
-        Check = new CheckTurn(ledger, Queues, new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents), Hold);
-        Recovery = new JobRecovery(new JobLedger(Store, Bus, agents), Queues, launcher, deferred);
-        RecoveryInThisRun = new JobRecovery(ledger, Queues, launcher, deferred);
+        var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents);
+        Check = new CheckTurn(ledger, Queues, evaluate, Hold);
+        var recover = new RecoverJob(ledger, launcher, evaluate, deferred);
+        Recovery = new JobRecovery(new JobLedger(Store, Bus, agents), Queues, recover);
+        RecoveryInThisRun = new JobRecovery(ledger, Queues, recover);
         Catalog = new JobCatalog(Store);
     }
 
