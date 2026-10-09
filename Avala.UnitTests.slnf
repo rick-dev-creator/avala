@@ -65,7 +65,10 @@
       "tests/Avala.Autopilot.Tests/Avala.Autopilot.Tests.csproj",
       "tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj",
       "tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj",
-      "tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj"
+      "tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj",
+      "src/Modules/ClaudeCode/Avala.ClaudeCode/Avala.ClaudeCode.csproj",
+      "tests/Avala.ClaudeCode.Tests/Avala.ClaudeCode.Tests.csproj",
+      "tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj"
     ]
   }
 }

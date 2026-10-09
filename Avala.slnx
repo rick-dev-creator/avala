@@ -131,5 +131,7 @@
     <Project Path="tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj" />
     <Project Path="tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj" />
     <Project Path="tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj" />
+    <Project Path="tests/Avala.ClaudeCode.Tests/Avala.ClaudeCode.Tests.csproj" />
+    <Project Path="tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj" />
   </Folder>
 </Solution>
