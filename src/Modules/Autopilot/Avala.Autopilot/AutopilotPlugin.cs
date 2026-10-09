@@ -25,8 +25,8 @@ public sealed class AutopilotPlugin : IPlugin
         registrar.Services
             .AddSingleton(FollowUpTool.Definition)
             .AddSingleton<SqliteTaskLedger>()
-            .AddSingleton<ITaskLedger>(services => services.GetRequiredService<SqliteTaskLedger>())
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteTaskLedger>())
+            .AddForwarded<ITaskLedger, SqliteTaskLedger>()
+            .AddForwarded<IStartupTask, SqliteTaskLedger>()
             .AddSingleton<IBacklogFile, BacklogFileReader>()
             .AddSingleton<IAutopilotRules, AutopilotRulesReader>()
             .AddSingleton<IJobSource, BacklogSource>()
@@ -42,16 +42,16 @@ public sealed class AutopilotPlugin : IPlugin
             .AddSingleton<LoopBook>()
             .AddSingleton<LoopJournal>()
             .AddSingleton<LoopRegistry>()
-            .AddSingleton<IAutopilot>(services => services.GetRequiredService<LoopRegistry>())
+            .AddForwarded<IAutopilot, LoopRegistry>()
             .AddSingleton<LoopFeed>()
-            .AddSingleton<IHandle<JobProgressed>>(services => services.GetRequiredService<LoopFeed>())
-            .AddSingleton<IHandle<JobHeld>>(services => services.GetRequiredService<LoopFeed>())
-            .AddSingleton<IHandle<PermissionDecided>>(services => services.GetRequiredService<LoopFeed>())
-            .AddSingleton<IHandle<FormDecided>>(services => services.GetRequiredService<LoopFeed>())
+            .AddForwarded<IHandle<JobProgressed>, LoopFeed>()
+            .AddForwarded<IHandle<JobHeld>, LoopFeed>()
+            .AddForwarded<IHandle<PermissionDecided>, LoopFeed>()
+            .AddForwarded<IHandle<FormDecided>, LoopFeed>()
             .AddSingleton<FollowUpPolicy>()
             .AddSingleton<FollowUpDesk>()
-            .AddSingleton<IHandle<SessionOpened>>(services => services.GetRequiredService<FollowUpDesk>())
-            .AddSingleton<IHandle<JobSessionStarted>>(services => services.GetRequiredService<FollowUpDesk>())
-            .AddSingleton<IHandle<AgentActivity>>(services => services.GetRequiredService<FollowUpDesk>());
+            .AddForwarded<IHandle<SessionOpened>, FollowUpDesk>()
+            .AddForwarded<IHandle<JobSessionStarted>, FollowUpDesk>()
+            .AddForwarded<IHandle<AgentActivity>, FollowUpDesk>();
     }
 }

@@ -22,7 +22,7 @@ public sealed class AgentsPlugin : IPlugin
             .AddSingleton<ICredentialSource, LoginFolderSource>()
             .AddSingleton<ICredentialSource, ApiKeySource>()
             .AddSingleton<ConnectionRegistry>()
-            .AddSingleton<IConnections>(services => services.GetRequiredService<ConnectionRegistry>())
+            .AddForwarded<IConnections, ConnectionRegistry>()
             .AddSingleton<ProviderChain>()
             .AddSingleton<SessionStarter>()
             .AddSingleton<IAgents, AgentSessions>();

@@ -20,17 +20,17 @@ public sealed class ObservabilityPlugin : IPlugin
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton<SqliteUsageStore>()
-            .AddSingleton<IUsageStore>(services => services.GetRequiredService<SqliteUsageStore>())
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteUsageStore>())
+            .AddForwarded<IUsageStore, SqliteUsageStore>()
+            .AddForwarded<IStartupTask, SqliteUsageStore>()
             .AddSingleton<UsageBook>()
-            .AddSingleton<IUsage>(services => services.GetRequiredService<UsageBook>())
-            .AddSingleton<IUsageSessions>(services => services.GetRequiredService<UsageBook>())
+            .AddForwarded<IUsage, UsageBook>()
+            .AddForwarded<IUsageSessions, UsageBook>()
             .AddSingleton<IUsageHistory, UsageHistory>()
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<UsageBook>())
+            .AddForwarded<IStartupTask, UsageBook>()
             .AddSingleton<IUsageMetrics, UsageMeter>()
             .AddSingleton<UsageTracker>()
-            .AddSingleton<IHandle<SessionOpened>>(services => services.GetRequiredService<UsageTracker>())
-            .AddSingleton<IHandle<JobSessionStarted>>(services => services.GetRequiredService<UsageTracker>())
-            .AddSingleton<IHandle<AgentActivity>>(services => services.GetRequiredService<UsageTracker>());
+            .AddForwarded<IHandle<SessionOpened>, UsageTracker>()
+            .AddForwarded<IHandle<JobSessionStarted>, UsageTracker>()
+            .AddForwarded<IHandle<AgentActivity>, UsageTracker>();
     }
 }

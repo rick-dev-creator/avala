@@ -23,19 +23,19 @@ public static class RuntimeServices
             services.TryAddSingleton(provider => new LogFile(paths, provider.GetRequiredService<TimeProvider>()));
 
             return services
-                .AddSingleton<ILoggerProvider>(provider => provider.GetRequiredService<LogFile>())
+                .AddForwarded<ILoggerProvider, LogFile>()
                 .AddSingleton(paths)
                 .AddSingleton<EventBus>()
-                .AddSingleton<IEventBus>(provider => provider.GetRequiredService<EventBus>())
-                .AddSingleton<IEventFeed>(provider => provider.GetRequiredService<EventBus>())
+                .AddForwarded<IEventBus, EventBus>()
+                .AddForwarded<IEventFeed, EventBus>()
                 .AddSingleton(Containment())
                 .AddSingleton(ListeningPorts())
                 .AddSingleton<ProcessTrees>()
-                .AddSingleton<IProcessTrees>(provider => provider.GetRequiredService<ProcessTrees>())
+                .AddForwarded<IProcessTrees, ProcessTrees>()
                 .AddSingleton<IProcessRunner, ProcessRunner>()
                 .AddSingleton<AppearanceFile>()
-                .AddSingleton<IAppearance>(provider => provider.GetRequiredService<AppearanceFile>())
-                .AddSingleton<IStartupTask>(provider => provider.GetRequiredService<AppearanceFile>());
+                .AddForwarded<IAppearance, AppearanceFile>()
+                .AddForwarded<IStartupTask, AppearanceFile>();
         }
     }
 

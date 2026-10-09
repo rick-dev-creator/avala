@@ -23,7 +23,7 @@ public sealed class CanvasPlugin : IPlugin
         registrar.Services
             .AddSingleton(provider => new CanvasOffer(provider.GetServices<CanvasFormat>()))
             .AddSingleton<CanvasGallery>()
-            .AddSingleton<ICanvases>(provider => provider.GetRequiredService<CanvasGallery>())
+            .AddForwarded<ICanvases, CanvasGallery>()
             .AddSingleton(provider => new SnapshotThrottle(
                 provider.GetRequiredService<CanvasGallery>(),
                 provider.GetRequiredService<IEventBus>(),

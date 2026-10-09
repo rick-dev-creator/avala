@@ -1,3 +1,4 @@
+using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Shell.Regions;
@@ -17,7 +18,7 @@ public static class ShellServices
 
             return services
                 .AddSingleton<RegionContexts>()
-                .AddSingleton<IRegions>(provider => provider.GetRequiredService<RegionContexts>())
+                .AddForwarded<IRegions, RegionContexts>()
                 .AddSingleton(Listening);
         }
     }

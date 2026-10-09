@@ -28,8 +28,8 @@ public sealed class JobsPlugin : IPlugin
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton<SqliteJobStore>()
-            .AddSingleton<IJobStore>(services => services.GetRequiredService<SqliteJobStore>())
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteJobStore>())
+            .AddForwarded<IJobStore, SqliteJobStore>()
+            .AddForwarded<IStartupTask, SqliteJobStore>()
             .AddSingleton<IRepositoryDefaults, JobFileReader>()
             .AddSingleton<JobLedger>()
             .AddSingleton<JobQueues>()
@@ -52,9 +52,9 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<IJobCatalog, JobCatalog>()
             .AddSingleton<IHandle<JobAnnouncement>, PrepareJob>()
             .AddSingleton<CheckTurn>()
-            .AddSingleton<IHandle<TurnFinished>>(services => services.GetRequiredService<CheckTurn>())
-            .AddSingleton<IHandle<SessionEnded>>(services => services.GetRequiredService<CheckTurn>())
-            .AddSingleton<IHandle<SessionResumable>>(services => services.GetRequiredService<CheckTurn>())
+            .AddForwarded<IHandle<TurnFinished>, CheckTurn>()
+            .AddForwarded<IHandle<SessionEnded>, CheckTurn>()
+            .AddForwarded<IHandle<SessionResumable>, CheckTurn>()
             .AddSingleton<IStartupTask, JobRecovery>();
     }
 }
