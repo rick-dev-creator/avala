@@ -11,7 +11,7 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
     private static readonly string[] CheckpointIdentity =
         ["-c", "user.name=Avala", "-c", "user.email=avala@localhost", "-c", "commit.gpgsign=false"];
 
-    private static readonly string[] Pristine = ["--no-replace-objects", "--literal-pathspecs"];
+    private static readonly string[] Pristine = GitRefs.Pristine;
 
     public Task<Result<string, WorkspaceFailure>> FindRepositoryRootAsync(string path, CancellationToken cancellationToken) =>
         RunAsync(["-C", path, "rev-parse", "--show-toplevel"], WorkspaceFailure.NotAGitRepository, cancellationToken)
@@ -20,6 +20,14 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
     public Task<Result<CommitSha, WorkspaceFailure>> ResolveCommitAsync(string repository, string reference, CancellationToken cancellationToken) =>
         RunAsync(["-C", repository, "rev-parse", "--verify", "--quiet", "--end-of-options", $"{reference}^{{commit}}"], WorkspaceFailure.GitFailed, cancellationToken)
             .BindAsync(output => CommitSha.Create(output).MapError(_ => WorkspaceFailure.GitFailed));
+
+    public async Task<Option<BranchName>> BranchOfAsync(string repository, string reference, CancellationToken cancellationToken) =>
+        (await RunAsync(["-C", repository, "rev-parse", "--verify", "--quiet", "--symbolic-full-name", "--end-of-options", reference], WorkspaceFailure.GitFailed, cancellationToken))
+            .Match(
+                output => output.Trim() is var name && name.StartsWith(GitRefs.Heads, StringComparison.Ordinal)
+                    ? BranchName.Create(name[GitRefs.Heads.Length..]).Match(Option<BranchName>.Some, _ => Option<BranchName>.None)
+                    : Option<BranchName>.None,
+                _ => Option<BranchName>.None);
 
     public Task<Result<Option<string>, WorkspaceFailure>> CommittedBlobAsync(
         string repository,
@@ -46,7 +54,7 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
         BranchName branch,
         CancellationToken cancellationToken) =>
         (await processes.RunAsync(
-            new ProcessRequest("git", ["-C", repository, "rev-parse", "--verify", "--quiet", $"refs/heads/{branch.Value}"]),
+            new ProcessRequest("git", ["-C", repository, "rev-parse", "--verify", "--quiet", $"{GitRefs.Heads}{branch.Value}"]),
             cancellationToken))
             .MapError(_ => WorkspaceFailure.GitFailed)
             .Map(outcome => outcome.Succeeded);

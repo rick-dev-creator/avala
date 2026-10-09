@@ -20,7 +20,7 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
         CancellationToken cancellationToken) =>
         await git.FindRepositoryRootAsync(request.RepositoryPath, cancellationToken)
             .BindAsync(repository => git.ResolveCommitAsync(repository, request.BaseRef, cancellationToken)
-                .BindAsync(commit => Plan(repository, commit)))
+                .BindAsync(async commit => Plan(repository, commit, await git.BranchOfAsync(repository, request.BaseRef, cancellationToken))))
             .BindAsync(workspace => EnsureBranchIsFreeAsync(workspace, cancellationToken))
             .BindAsync(workspace => OpenAsync(workspace, cancellationToken))
             .MapAsync(Describe);
@@ -57,13 +57,13 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
                 return Result<WorkspaceId, WorkspaceFailure>.Success(removed.Workspace);
             });
 
-    private Result<Workspace, WorkspaceFailure> Plan(string repository, CommitSha commit)
+    private Result<Workspace, WorkspaceFailure> Plan(string repository, CommitSha commit, Option<BranchName> baseBranch)
     {
         var id = WorkspaceId.New();
 
         return Valid(WorkspaceLocation.Create(repository, Path.Combine(settings.Root, $"{id.Value:N}"))
             .Bind(location => BranchName.Create($"avala/{id.Value:N}")
-                .Bind(branch => Workspace.Create(id, location, branch, commit))));
+                .Bind(branch => Workspace.Create(id, location, branch, commit, baseBranch))));
     }
 
     private async Task<Result<Workspace, WorkspaceFailure>> EnsureBranchIsFreeAsync(

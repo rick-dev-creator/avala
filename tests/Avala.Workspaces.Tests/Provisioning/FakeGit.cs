@@ -49,6 +49,9 @@ internal sealed class FakeGit : IGit
         CancellationToken cancellationToken) =>
         Task.FromResult<Result<Option<string>, WorkspaceFailure>>(Option<string>.None);
 
+    public Task<Option<BranchName>> BranchOfAsync(string repository, string reference, CancellationToken cancellationToken) =>
+        Task.FromResult(BranchName.Create("main").Match(Option<BranchName>.Some, _ => Option<BranchName>.None));
+
     public Task<Result<bool, WorkspaceFailure>> BranchExistsAsync(string repository, BranchName branch, CancellationToken cancellationToken) =>
         Task.FromResult<Result<bool, WorkspaceFailure>>(BranchTaken);
 

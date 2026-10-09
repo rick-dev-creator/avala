@@ -2,6 +2,8 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Testing;
+using AttemptOrigin = Avala.Jobs.Contracts.AttemptOrigin;
+using AttemptOutcome = Avala.Jobs.Contracts.AttemptOutcome;
 using HoldReason = Avala.Jobs.Contracts.HoldReason;
 
 namespace Avala.Jobs.Tests.Jobs;

@@ -37,13 +37,23 @@ internal sealed record SessionUsage(SessionId Session)
 
     public SessionUsage WorkingOn(JobId job) => this with { Job = job };
 
+    public SessionUsage Attributed(Option<ProviderInfo> provider, Option<AgentAccount> account, Option<ConnectionName> connection, Option<JobId> job) =>
+        this with { Provider = provider, Account = account, Connection = connection, Job = job };
+
+    public SessionUsage Recorded(UsageFact fact) => fact.Kind switch
+    {
+        FactKind.Usage => Bill(fact.Tokens, fact.Cost),
+        FactKind.Limit => fact.Limit.Match(limit => this with { Limits = Limits.SetItem(limit.Window, new LimitReading(limit, fact.At)) }, () => this),
+        _ => fact.Outcome.Match(outcome => this with { Turns = Turns.Counting(outcome, fact.Duration) }, () => this),
+    };
+
     public Option<TimeSpan> Elapsed(TurnId turn, DateTimeOffset at) =>
         OpenTurns.TryGetValue(turn, out var started) ? at - started : Option<TimeSpan>.None;
 
     public SessionUsage Apply(IAgentEvent agentEvent, DateTimeOffset at) => agentEvent switch
     {
         TurnStarted started => Begin(started.Turn, at),
-        UsageReported usage => Bill(usage),
+        UsageReported usage => Bill(usage.Tokens, usage.Cost),
         LimitReported limit => this with { Limits = Limits.SetItem(limit.Limit.Window, new LimitReading(limit.Limit, at)) },
         TurnCompleted completed => End(completed, at),
         _ => this,
@@ -52,13 +62,13 @@ internal sealed record SessionUsage(SessionId Session)
     private SessionUsage Begin(TurnId turn, DateTimeOffset at) =>
         OpenTurns.ContainsKey(turn) || EndedTurns.Contains(turn) ? this : this with { OpenTurns = OpenTurns.Add(turn, at) };
 
-    private SessionUsage Bill(UsageReported usage) => usage.Cost.Match(
+    private SessionUsage Bill(TokenUsage tokens, Option<Cost> priced) => priced.Match(
         cost => this with
         {
-            Tokens = Tokens + usage.Tokens,
+            Tokens = Tokens + tokens,
             Costs = Costs.SetItem(cost.Currency, Costs.GetValueOrDefault(cost.Currency) + cost.Amount),
         },
-        () => this with { Tokens = Tokens + usage.Tokens, UnpricedReports = UnpricedReports + 1 });
+        () => this with { Tokens = Tokens + tokens, UnpricedReports = UnpricedReports + 1 });
 
     private SessionUsage End(TurnCompleted completed, DateTimeOffset at) =>
         EndedTurns.Contains(completed.Turn)

@@ -17,14 +17,24 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private const string Connection = "connection";
 
+    private const string Approval = "approval";
+
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 2, AllowDuplicateProperties = false };
 
     public async ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken) =>
+        (await DeclaredAsync(worktree, cancellationToken))
+            .Map(declared => declared.Connection.Map(name => new ConnectionName(name)))
+            .MapError(_ => JobRejection.UnusableConnection);
+
+    public async ValueTask<Result<Option<string>, JobRejection>> ApprovalAsync(string worktree, CancellationToken cancellationToken) =>
+        (await DeclaredAsync(worktree, cancellationToken)).Map(declared => declared.Approval);
+
+    private async Task<Result<Declaration, JobRejection>> DeclaredAsync(string worktree, CancellationToken cancellationToken) =>
         (await files.ReadAsync(worktree, JobFile, cancellationToken)).Match(
-            file => file.Content.Match(Parse, () => Option<ConnectionName>.None),
+            file => file.Content.Match(Parse, () => new Declaration(Option<string>.None, Option<string>.None)),
             failure => Rejected($"it cannot be read from the base commit: {failure}"));
 
-    private Result<Option<ConnectionName>, JobRejection> Parse(string text)
+    private Result<Declaration, JobRejection> Parse(string text)
     {
         if (Encoding.UTF8.GetByteCount(text) > MaximumBytes)
         {
@@ -43,35 +53,42 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
         }
     }
 
-    private Result<Option<ConnectionName>, JobRejection> Declared(JsonElement root)
+    private Result<Declaration, JobRejection> Declared(JsonElement root)
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
             return Rejected("it is not a JSON object");
         }
 
-        if (root.EnumerateObject().Any(property => property.Name != Connection))
+        if (root.EnumerateObject().Any(property => property.Name is not (Connection or Approval)))
         {
             return Rejected("it has a field the format does not define");
         }
 
-        if (!root.TryGetProperty(Connection, out var named))
+        return Named(root, Connection).Bind(connection => Named(root, Approval).Map(approval => new Declaration(connection, approval)));
+    }
+
+    private Result<Option<string>, JobRejection> Named(JsonElement root, string field)
+    {
+        if (!root.TryGetProperty(field, out var named))
         {
-            return Option<ConnectionName>.None;
+            return Option<string>.None;
         }
 
         return named.ValueKind == JsonValueKind.String && named.GetString() is { Length: > 0 } name
-            ? Option<ConnectionName>.Some(new ConnectionName(name))
-            : Rejected("its connection is not a name");
+            ? Option<string>.Some(name)
+            : Rejected($"its {field} is not a name");
     }
 
-    private Result<Option<ConnectionName>, JobRejection> Rejected(string reason)
+    private JobRejection Rejected(string reason)
     {
         LogRejected(JobFile, reason);
 
-        return JobRejection.UnusableConnection;
+        return JobRejection.InvalidJobFile;
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The repository's {File} is rejected because {Reason}")]
     private partial void LogRejected(string file, string reason);
+
+    private sealed record Declaration(Option<string> Connection, Option<string> Approval);
 }

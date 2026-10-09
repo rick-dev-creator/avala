@@ -10,6 +10,8 @@ internal interface IGit
 
     Task<Result<CommitSha, WorkspaceFailure>> ResolveCommitAsync(string repository, string reference, CancellationToken cancellationToken);
 
+    Task<Option<BranchName>> BranchOfAsync(string repository, string reference, CancellationToken cancellationToken);
+
     Task<Result<bool, WorkspaceFailure>> BranchExistsAsync(string repository, BranchName branch, CancellationToken cancellationToken);
 
     Task<Result<WorkspaceLocation, WorkspaceFailure>> AddWorktreeAsync(WorkspaceLocation location, BranchName branch, CommitSha commit, CancellationToken cancellationToken);

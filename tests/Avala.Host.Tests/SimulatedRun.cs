@@ -142,6 +142,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task<SessionOpened> OpenedAsync() => await application.Opened.UntilAsync(_ => true);
 
+    public async Task StartedAsync() => _ = await application.Started.UntilAsync(_ => true);
+
     public T Get<T>()
         where T : notnull =>
         application.Root.Services.GetRequiredService<T>();
@@ -262,7 +264,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
             Leased = Watch<PortsLeased>();
             Queued = Watch<JobQueued>();
             Sampled = Watch<ResourcesSampled>();
+            Started = Watch<StartupCompleted>();
         }
+
+        public EventWatch<StartupCompleted> Started { get; }
 
         public EventWatch<OrphansFound> Orphans { get; }
 

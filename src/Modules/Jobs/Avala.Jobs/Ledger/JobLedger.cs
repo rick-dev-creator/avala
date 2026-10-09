@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -9,6 +10,10 @@ namespace Avala.Jobs.Ledger;
 
 internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents)
 {
+    private ImmutableHashSet<JobId> recorded = [];
+
+    public bool RecordedInThisRun(JobId job) => Volatile.Read(ref recorded).Contains(job);
+
     public Task<Option<Job>> FindAsync(JobId id, CancellationToken cancellationToken) => store.FindAsync(id, cancellationToken);
 
     public Task<Option<JobId>> JobOfSessionAsync(SessionId session, CancellationToken cancellationToken) =>
@@ -18,7 +23,7 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents)
 
     public async Task RecordAsync(Job job, CancellationToken cancellationToken)
     {
-        await store.SaveAsync(job, cancellationToken);
+        await SaveAsync(job, cancellationToken);
 
         if (job.State is JobState.Approved or JobState.Discarded or JobState.Failed)
         {
@@ -30,7 +35,7 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents)
 
     public async Task RecordResumeAsync(Job job, SessionId session, CancellationToken cancellationToken)
     {
-        await store.SaveAsync(job, cancellationToken);
+        await SaveAsync(job, cancellationToken);
         await bus.PublishAsync(new JobResumable(job.Id, session), cancellationToken);
     }
 
@@ -38,5 +43,12 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents)
     {
         await RecordAsync(job, cancellationToken);
         await bus.PublishAsync(new JobSessionStarted(job.Id, session) { Autonomy = job.Autonomy }, cancellationToken);
+    }
+
+    private Task SaveAsync(Job job, CancellationToken cancellationToken)
+    {
+        ImmutableInterlocked.Update(ref recorded, known => known.Add(job.Id));
+
+        return store.SaveAsync(job, cancellationToken);
     }
 }

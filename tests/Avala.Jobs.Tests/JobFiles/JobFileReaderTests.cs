@@ -15,24 +15,28 @@ public sealed class JobFileReaderTests
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Theory]
-    [InlineData("""{ "connection": "work" }""", "work")]
-    [InlineData("{}", "")]
-    public async Task TheJobFileOfTheBaseCommitNamesTheRepositorysDefaultConnectionAsync(string text, string expected)
+    [InlineData("""{ "connection": "work", "approval": "merge" }""", "work", "merge")]
+    [InlineData("""{ "approval": "keep" }""", "", "keep")]
+    [InlineData("{}", "", "")]
+    public async Task TheJobFileOfTheBaseCommitNamesTheRepositorysDefaultConnectionAndApprovalAsync(string text, string connection, string approval)
     {
         var committed = new CommittedFiles().With(Worktree, JobFileReader.JobFile, text, editedInWorktree: true);
+        var reader = Reader(committed);
 
-        var connection = Outcomes.Succeeds(await Reader(committed).ConnectionAsync(Worktree, Cancellation));
+        var named = Outcomes.Succeeds(await reader.ConnectionAsync(Worktree, Cancellation));
+        var strategy = Outcomes.Succeeds(await reader.ApprovalAsync(Worktree, Cancellation));
 
-        Assert.Equal(expected, connection.Match(name => name.Value, () => string.Empty));
-        Assert.Equal([(Worktree, JobFileReader.JobFile)], committed.Reads);
+        Assert.Equal((connection, approval), (named.Match(name => name.Value, () => string.Empty), strategy.Match(name => name, () => string.Empty)));
+        Assert.Equal([(Worktree, JobFileReader.JobFile), (Worktree, JobFileReader.JobFile)], committed.Reads);
     }
 
     [Fact]
-    public async Task ABaseCommitWithoutAJobFileHasNoDefaultConnectionAsync()
+    public async Task ABaseCommitWithoutAJobFileHasNoDefaultConnectionNorApprovalAsync()
     {
-        var connection = await Reader(new CommittedFiles().Workspace(Worktree)).ConnectionAsync(Worktree, Cancellation);
+        var reader = Reader(new CommittedFiles().Workspace(Worktree));
 
-        Assert.Equal(Option<ConnectionName>.None, Outcomes.Succeeds(connection));
+        Assert.Equal(Option<ConnectionName>.None, Outcomes.Succeeds(await reader.ConnectionAsync(Worktree, Cancellation)));
+        Assert.Equal(Option<string>.None, Outcomes.Succeeds(await reader.ApprovalAsync(Worktree, Cancellation)));
     }
 
     [Theory]
@@ -42,21 +46,27 @@ public sealed class JobFileReaderTests
     [InlineData("""{ "connection": "" }""")]
     [InlineData("""{ "connection": "a", "connection": "b" }""")]
     [InlineData("""{ "connection": "work", "model": "large" }""")]
-    public async Task AnInvalidJobFileMakesTheDefaultConnectionUnusableAsync(string text)
+    [InlineData("""{ "approval": 1 }""")]
+    [InlineData("""{ "approval": "" }""")]
+    [InlineData("""{ "approval": { "name": "merge" } }""")]
+    public async Task AnInvalidJobFileMakesTheDefaultConnectionUnusableAndTheApprovalInvalidAsync(string text)
     {
-        var connection = await Reader(new CommittedFiles().With(Worktree, JobFileReader.JobFile, text)).ConnectionAsync(Worktree, Cancellation);
+        var reader = Reader(new CommittedFiles().With(Worktree, JobFileReader.JobFile, text));
 
-        Assert.Equal(JobRejection.UnusableConnection, Outcomes.FailsWith(connection));
+        Assert.Equal(JobRejection.UnusableConnection, Outcomes.FailsWith(await reader.ConnectionAsync(Worktree, Cancellation)));
+        Assert.Equal(JobRejection.InvalidJobFile, Outcomes.FailsWith(await reader.ApprovalAsync(Worktree, Cancellation)));
     }
 
     [Fact]
-    public async Task AJobFileOverTheSizeLimitOrABaseCommitThatCannotBeReadIsUnusableAsync()
+    public async Task AJobFileOverTheSizeLimitOrABaseCommitThatCannotBeReadIsRejectedAsync()
     {
-        var large = new CommittedFiles().With(Worktree, JobFileReader.JobFile, new string(' ', JobFileReader.MaximumBytes + 1));
-        var failing = new CommittedFiles().Failing(Worktree, WorkspaceFailure.GitFailed);
+        var large = Reader(new CommittedFiles().With(Worktree, JobFileReader.JobFile, new string(' ', JobFileReader.MaximumBytes + 1)));
+        var failing = Reader(new CommittedFiles().Failing(Worktree, WorkspaceFailure.GitFailed));
 
-        Assert.Equal(JobRejection.UnusableConnection, Outcomes.FailsWith(await Reader(large).ConnectionAsync(Worktree, Cancellation)));
-        Assert.Equal(JobRejection.UnusableConnection, Outcomes.FailsWith(await Reader(failing).ConnectionAsync(Worktree, Cancellation)));
+        Assert.Equal(JobRejection.UnusableConnection, Outcomes.FailsWith(await large.ConnectionAsync(Worktree, Cancellation)));
+        Assert.Equal(JobRejection.UnusableConnection, Outcomes.FailsWith(await failing.ConnectionAsync(Worktree, Cancellation)));
+        Assert.Equal(JobRejection.InvalidJobFile, Outcomes.FailsWith(await large.ApprovalAsync(Worktree, Cancellation)));
+        Assert.Equal(JobRejection.InvalidJobFile, Outcomes.FailsWith(await failing.ApprovalAsync(Worktree, Cancellation)));
     }
 
     private static JobFileReader Reader(CommittedFiles files) => new(files, NullLogger<JobFileReader>.Instance);
