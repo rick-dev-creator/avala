@@ -131,6 +131,21 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     [RelayCommand]
     private void CloseReview() => Review = null;
 
+    partial void OnReviewChanged(ReviewViewModel? oldValue, ReviewViewModel? newValue)
+    {
+        if (oldValue is not null)
+        {
+            oldValue.Closed -= OnReviewClosed;
+        }
+
+        if (newValue is not null)
+        {
+            newValue.Closed += OnReviewClosed;
+        }
+    }
+
+    private void OnReviewClosed(object? sender, EventArgs e) => Review = null;
+
     private bool CanOpenReview() => Conversation is { } open && open.Status.CanBeReviewed;
 
     private void Inspect()

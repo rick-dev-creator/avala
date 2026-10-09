@@ -18,14 +18,17 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task EveryWaitingDecisionIsListedWithItsCardAndTheKeysThatAnswerItAsync() =>
+    public Task EveryWaitingDecisionIsListedWithTheSelectedOneOpenAndTheKeysThatAnswerItAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignDecisionsViewModel());
+            var view = Tall(Screen.Show(new DesignDecisionsViewModel()));
 
-            Assert.Equal(2, view.Find<ListBox>("Items").ItemCount);
-            Assert.False(view.Shows("Empty"));
-            Assert.Superset(new HashSet<string>(["Fix flaky CheckoutForm test", "waiting 4m", "Add invoice PDF endpoint", "Ctrl+Enter answer"]), view.VisibleTexts.ToHashSet());
+            Assert.Equal((3, "3 pending"), (view.Find<ListBox>("Items").ItemCount, view.TextOf("Pending")));
+            Assert.False(view.Shows("EmptyState"));
+            Assert.Superset(
+                new HashSet<string>(["Where should generated PDFs live?", "6m", "Render on each request", "Recommended", "Answer  ⏎", "J K", "move", "1–3", "choose", "esc", "close"]),
+                view.VisibleTexts.ToHashSet());
+            Assert.Single(view.All<StackPanel>(), panel => panel.Name == "Details");
         }, Cancellation);
 
     [Fact]
@@ -35,25 +38,66 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             using var bench = new Bench();
             var view = Screen.Show(bench.Decisions());
 
-            Assert.Equal((true, false, false), (view.Shows("Empty"), view.Shows("Items"), view.Shows("Answer")));
-            Assert.Equal("Nothing needs you", view.TextOf("Empty"));
+            Assert.Equal((true, false), (view.Shows("EmptyState"), view.Shows("Items")));
+            Assert.Equal(("Nothing needs you", "all answered"), (view.TextOf("Empty"), view.TextOf("Pending")));
+            Assert.Contains("Every agent is working again.", view.VisibleTexts);
         }, Cancellation);
 
     [Fact]
-    public Task TheKeyboardMovesToTheFormChoosesItsSecondOptionAndAnswersAsync() =>
+    public Task TheKeyboardAloneMovesWithJAndKChoosesTheSecondOptionAndAnswersAsync() =>
         ui.RunAsync(async () =>
         {
             using var bench = new Bench();
             var decisions = Waiting(bench);
-            var view = Screen.Show(decisions);
-            view.Find<ListBox>("Items").ContainerFromIndex(0)!.Focus();
+            var view = Tall(Screen.Show(decisions));
+            var focusedOnShow = view.Find<ListBox>("Items").ContainerFromIndex(0)!.IsFocused;
 
-            view.Press(Key.Down);
+            view.Press(Key.J);
+            view.Press(Key.K);
+            view.Press(Key.J);
             view.Press(Key.D2);
-            view.Press(Key.Enter, RawInputModifiers.Control);
+            view.Press(Key.Enter);
             await (decisions.AnswerCommand.ExecutionTask ?? Task.CompletedTask);
 
+            Assert.True(focusedOnShow);
             Assert.Equal(["GET /invoices/{id}?format=pdf"], Assert.Single(Assert.Single(bench.Agents.Answers).Answer.Fields).Chosen);
+            Assert.Empty(bench.Permissions.Replies);
+        }, Cancellation);
+
+    [Fact]
+    public Task BackspaceDeniesTheSelectedPermissionAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var decisions = Waiting(bench);
+            var view = Tall(Screen.Show(decisions));
+
+            view.Press(Key.Back);
+            await (decisions.DenyCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal(PermissionAnswer.Deny, Assert.Single(bench.Permissions.Replies).Reply.Answer);
+        }, Cancellation);
+
+    [Fact]
+    public Task ShiftEnterOpensTheNoteWhereDigitsAndBackspaceTypeAndEnterAnswersWithItAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var decisions = Waiting(bench);
+            var view = Tall(Screen.Show(decisions));
+            var closed = view.Shows("NoteBox");
+
+            view.Press(Key.Enter, RawInputModifiers.Shift);
+            var focused = view.Find<TextBox>("DecisionNote").IsFocused;
+            view.Type("DecisionNote", "Only 22 tests");
+            view.Press(Key.D2);
+            view.Press(Key.Back);
+            view.Press(Key.Enter);
+            await (decisions.AnswerCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal((false, true), (closed, focused));
+            var (_, reply) = Assert.Single(bench.Permissions.Replies);
+            Assert.Equal((PermissionAnswer.Allow, Option<string>.Some("Only 22 test")), (reply.Answer, reply.Message));
         }, Cancellation);
 
     [Fact]
@@ -63,13 +107,15 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             using var bench = new Bench();
             var decisions = Waiting(bench);
             decisions.MoveNextCommand.Execute(null);
-            var view = Screen.Show(decisions);
-            view.Find<TextBox>("DecisionNote").Focus();
+            var view = Tall(Screen.Show(decisions));
+            view.Press(Key.Enter, RawInputModifiers.Shift);
 
+            view.Type("DecisionNote", "2");
             view.Press(Key.D2);
 
             var card = Assert.IsType<FormCardViewModel>(decisions.Items[1].Card);
             Assert.Equal([true, false], card.Fields[0].Choices.Select(choice => choice.IsSelected));
+            Assert.Equal("2", decisions.Note);
         }, Cancellation);
 
     [Fact]
@@ -78,14 +124,114 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var decisions = Waiting(bench);
-            var view = Screen.Show(decisions);
+            var view = Tall(Screen.Show(decisions));
+            view.Press(Key.Enter, RawInputModifiers.Shift);
             view.Type("DecisionNote", "Only the checkout tests");
 
             view.Press(Key.Back, RawInputModifiers.Control);
+            view.Press(Key.Back);
 
             Assert.Empty(bench.Permissions.Replies);
-            Assert.Equal("Only the checkout ", decisions.Note);
+            Assert.Equal("Only the checkout", decisions.Note);
         }, Cancellation);
+
+    [Fact]
+    public Task EscapeAsksToCloseThePopoverAsync() =>
+        ui.RunAsync(() =>
+        {
+            using var bench = new Bench();
+            var decisions = Waiting(bench);
+            var closed = 0;
+            decisions.CloseRequested += (_, _) => closed++;
+            var view = Tall(Screen.Show(decisions));
+
+            view.Press(Key.Escape);
+
+            Assert.Equal(1, closed);
+        }, Cancellation);
+
+    [Fact]
+    public Task DecisionsArrivingAndLeavingWhileOpenKeepTheSelectionOnItsDecisionAsync() =>
+        ui.RunAsync(() =>
+        {
+            using var bench = new Bench();
+            var decisions = bench.Decisions();
+            var asking = Asking(bench);
+            var questioning = Questioning(bench);
+            decisions.Show(Bench.Of(questioning));
+            var view = Tall(Screen.Show(decisions));
+            var selected = decisions.Selected;
+
+            decisions.Show(Bench.Of(asking, questioning));
+            view.Settle();
+            var afterArrival = (decisions.Selected, view.Find<ListBox>("Items").SelectedItem, view.Find<ListBox>("Items").ItemCount);
+            decisions.Show(Bench.Of(asking with { Transcript = Transcript.Empty }, questioning));
+            view.Settle();
+
+            Assert.Equal((selected, (object?)selected, 2), afterArrival);
+            Assert.Equal((selected, (object?)selected, 1), (decisions.Selected, view.Find<ListBox>("Items").SelectedItem, view.Find<ListBox>("Items").ItemCount));
+            Assert.True(view.Shows("Details"));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheSelectedDecisionLeavingMovesTheSelectionAndTheKeyboardFocusToTheNextAsync() =>
+        ui.RunAsync(() =>
+        {
+            using var bench = new Bench();
+            var decisions = bench.Decisions();
+            var asking = Asking(bench);
+            var questioning = Questioning(bench);
+            decisions.Show(Bench.Of(asking, questioning));
+            var view = Tall(Screen.Show(decisions));
+
+            decisions.Show(Bench.Of(asking with { Transcript = Transcript.Empty }, questioning));
+            view.Settle();
+
+            Assert.Same(decisions.Items[0], decisions.Selected);
+            Assert.True(view.Find<ListBox>("Items").ContainerFromIndex(0)!.IsKeyboardFocusWithin);
+        }, Cancellation);
+
+    [Fact]
+    public Task ClickingAnOptionChoosesItAndClickingAllowAnswersAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var decisions = Waiting(bench);
+            var view = Tall(Screen.Show(decisions));
+
+            view.Click("Answer");
+            await (decisions.Items[0].AnswerCommand.ExecutionTask ?? Task.CompletedTask);
+            decisions.MoveNextCommand.Execute(null);
+            view.Settle();
+            view.Click(view.All<RadioButton>()[1]);
+
+            var card = Assert.IsType<FormCardViewModel>(decisions.Items[1].Card);
+            Assert.Equal(PermissionAnswer.Allow, Assert.Single(bench.Permissions.Replies).Reply.Answer);
+            Assert.Equal([false, true], card.Fields[0].Choices.Select(choice => choice.IsSelected));
+        }, Cancellation);
+
+    [Fact]
+    public Task ALongCommandLineWrapsInsideThePopoverAsync() =>
+        ui.RunAsync(() =>
+        {
+            using var bench = new Bench();
+            var decisions = bench.Decisions();
+            var command = $"pnpm vitest run src/checkout/CheckoutForm.test.tsx --reporter=verbose {string.Join(' ', Enumerable.Repeat("--testNamePattern=submits", 12))}";
+            decisions.Show(Bench.Of(Asking(bench, command)));
+            var view = Tall(Screen.Show(decisions));
+
+            var target = view.Find<SelectableTextBlock>("Target");
+            Assert.Equal(command, target.Text);
+            Assert.True(target.Bounds.Width <= view.Find<Border>("Surface").Bounds.Width);
+            Assert.True(target.Bounds.Height > 40);
+        }, Cancellation);
+
+    private static ViewScript Tall(ViewScript view)
+    {
+        view.Window.Height = 900;
+
+        return view.Settle();
+    }
 
     private static DecisionsViewModel Waiting(Bench bench)
     {
@@ -95,7 +241,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         return decisions;
     }
 
-    private static BoardJob Asking(Bench bench)
+    private static BoardJob Asking(Bench bench, string target = "npm test")
     {
         var session = SessionId.New();
         var turn = TurnId.New();
@@ -105,8 +251,8 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         {
             Transcript = Transcript.Empty
                 .Apply(new TurnStarted(session, turn), asked)
-                .Apply(new PermissionRequested(session, turn, new ItemId("run"), "Run the CheckoutForm tests", ItemKind.Command, "npm test"), asked)
-                .Apply(new PolicyDecision(session, turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, "npm test", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, asked)),
+                .Apply(new PermissionRequested(session, turn, new ItemId("run"), "Run the CheckoutForm tests", ItemKind.Command, target), asked)
+                .Apply(new PolicyDecision(session, turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, asked)),
         };
     }
 
@@ -133,13 +279,37 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
 
 public sealed class DecisionViewScripts(HeadlessUi ui)
 {
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
     [Fact]
-    public Task ADecisionShowsItsJobHowLongItWaitedAndItsCardAsync() =>
+    public Task TheOpenDecisionShowsItsQuestionContextAndNumberedOptionsAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignDecisionViewModel());
 
-            Assert.Equal(("Fix flaky CheckoutForm test", "waiting 4m"), (view.TextOf("JobTitle"), view.TextOf("Waiting")));
-            Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "PermissionCardView");
-        }, TestContext.Current.CancellationToken);
+            Assert.Equal(("Where should generated PDFs live?", "Add invoice PDF endpoint · asks a question", "6m"), (view.TextOf("Title"), view.TextOf("Asked"), view.TextOf("Waiting")));
+            Assert.Equal((true, false, false), (view.Shows("Options"), view.Shows("TargetWell"), view.Shows("Deny")));
+            Assert.Superset(new HashSet<string>(["1", "2", "3", "Render on each request", "Recommended", "Answer  ⏎"]), view.VisibleTexts.ToHashSet());
+        }, Cancellation);
+
+    [Fact]
+    public Task AFoldedPermissionShowsOnlyItsRowAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(DesignDecisionViewModel.Permission(JobId.New(), "Fix flaky CheckoutForm test", "Run pnpm add -D @testing-library/user-event", "pnpm add -D @testing-library/user-event@14.5.2", "2m"));
+
+            Assert.Equal(("Fix flaky CheckoutForm test · wants to run a command", false), (view.TextOf("Asked"), view.Shows("Details")));
+        }, Cancellation);
+
+    [Fact]
+    public Task AnOpenPermissionShowsItsWholeCommandAndAllowAndDenyAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(DesignDecisionViewModel.Permission(JobId.New(), "Fix flaky CheckoutForm test", "Run pnpm add -D @testing-library/user-event", "pnpm add -D @testing-library/user-event@14.5.2", "2m", isSelected: true));
+
+            Assert.Equal("pnpm add -D @testing-library/user-event@14.5.2", view.Find<SelectableTextBlock>("Target").Text);
+            Assert.Equal((true, false), (view.Shows("Deny"), view.Shows("Options")));
+            Assert.Contains("Allow  ⏎", view.VisibleTexts);
+            Assert.Equal("JetBrains Mono", view.Find<SelectableTextBlock>("Target").FontFamily.FamilyNames[0]);
+        }, Cancellation);
 }

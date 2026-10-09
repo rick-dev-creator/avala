@@ -46,5 +46,20 @@ public sealed class AuditSectionViewModelScripts : IDisposable
         Assert.Equal((false, string.Empty, 0), (section.IsLoaded, section.Summary, section.Decisions.Count));
     }
 
+    [Fact]
+    public async Task TheHeaderFactLeadsWithDenialsInAmberOtherwiseWhatTheRulesAllowed()
+    {
+        using var section = new AuditSectionViewModel(bench.Inspected());
+        await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
+        var reviewed = (section.Fact, section.IsAttention);
+        var denied = bench.Job("Fix flaky CheckoutForm test", JobStatus.Running);
+        bench.Audit.Answers.Add(new HumanAnswer(SessionId.New(), denied.Job, new ItemId("run"), ItemKind.Command, "rm -rf node_modules", PermissionAnswer.Deny, Option<string>.None, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch));
+
+        await section.FocusAsync(denied.Job, bench);
+
+        Assert.Equal(("1 allowed by rules", false), reviewed);
+        Assert.Equal(("1 denied", true), (section.Fact, section.IsAttention));
+    }
+
     public void Dispose() => bench.Dispose();
 }

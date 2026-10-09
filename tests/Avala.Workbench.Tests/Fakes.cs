@@ -57,8 +57,19 @@ internal sealed class FakeJobs : IJobs
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
         AnswerAsync("discard", job);
 
-    public ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) =>
-        AnswerAsync("approve", new JobApproval(job, new ApprovalDelivery("keep", "avala/fix-the-test", Option<string>.None)));
+    public TaskCompletionSource? Gate { get; set; }
+
+    public async ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken)
+    {
+        var answer = AnswerAsync("approve", new JobApproval(job, new ApprovalDelivery("keep", "avala/fix-the-test", Option<string>.None)));
+
+        if (Gate is { } gate)
+        {
+            await gate.Task.WaitAsync(cancellationToken);
+        }
+
+        return await answer;
+    }
 
     public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         AnswerAsync($"send back {feedback}", new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession));

@@ -1,26 +1,34 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inspector="using:Avala.Workbench.Inspector"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.EvidenceSectionView"
              x:ClassModifier="internal"
              x:DataType="inspector:IEvidenceSectionViewModel">
   <Design.DataContext>
     <inspector:DesignEvidenceSectionViewModel />
   </Design.DataContext>
-  <Expander x:Name="Section" IsExpanded="True">
-    <Expander.Header>
-      <TextBlock Classes="section" Text="Evidence" />
-    </Expander.Header>
-    <StackPanel Spacing="4">
+  <ui:Fold x:Name="Section" Header="Evidence" Fact="{Binding Fact}">
+    <StackPanel Margin="28,0,12,12" Spacing="7">
       <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
-      <TextBlock x:Name="Summary" Classes="strong" Text="{Binding Summary}" TextWrapping="Wrap" />
+      <TextBlock x:Name="Summary"
+                 Classes="caption"
+                 Foreground="{DynamicResource TextPrimaryBrush}"
+                 Text="{Binding Summary}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding Summary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <ItemsControl x:Name="Attempts" ItemsSource="{Binding Attempts}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="7" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="caption" Text="{Binding}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption secondary" Text="{Binding}" TextWrapping="Wrap" />
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
     </StackPanel>
-  </Expander>
+  </ui:Fold>
 </UserControl>

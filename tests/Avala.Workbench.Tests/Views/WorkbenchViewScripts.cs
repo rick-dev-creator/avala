@@ -54,6 +54,29 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task AnOpenReviewDimsThePageUnderItsSheetAndTheSheetsCloseButtonReturnsToTheConversationAsync() =>
+        ui.RunAsync(() =>
+        {
+            using var bench = new Bench();
+            var page = bench.Workbench();
+            var job = bench.Job("Rate-limit POST /login", JobStatus.AwaitingReview);
+            bench.Publish(Bench.OnBoard(job));
+            page.Activate();
+            bench.Messenger.Send(new JobSelected(job.Job));
+            var view = Screen.Show(page);
+            view.Window.Height = 1000;
+
+            view.Press(Key.R, RawInputModifiers.Control);
+            var opened = (view.Shows("ReviewSheet"), view.Shows("ReviewScrim"), view.Shows("Sheet"));
+            view.Click("Close");
+
+            Assert.Equal((true, true, true), opened);
+            Assert.Equal((false, (object?)null), (view.Shows("ReviewSheet"), page.Review));
+            Assert.False(view.Shows("NoJob"));
+            page.Deactivate();
+        }, Cancellation);
+
+    [Fact]
     public Task AJobSelectedInTheSidebarOpensItsConversationOnThePageAsync() =>
         ui.RunAsync(() =>
         {

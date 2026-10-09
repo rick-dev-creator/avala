@@ -58,5 +58,32 @@ public sealed class UsageSectionViewModelScripts : IDisposable
         Assert.Equal(("No usage reported", "USD 0.25 · 1,500 tokens"), (before, section.Spent));
     }
 
+    [Fact]
+    public async Task TheHeaderFactAndTheMeterSetTheSpendAgainstTheCostCap()
+    {
+        using var section = new UsageSectionViewModel(bench.Inspected());
+
+        await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
+
+        Assert.Equal(("USD 0.25 of USD 5", false), (section.Fact, section.IsAttention));
+        var meter = Assert.IsAssignableFrom<Components.Meters.IMeterViewModel>(section.Meter);
+        Assert.Equal(("Cost cap", 0.05, "5%"), (meter.Label, Math.Round(meter.Fraction, 2), meter.Reading));
+    }
+
+    [Fact]
+    public async Task AJobWithoutCapOrUsageHasNoMeterAndAHoldReadsInAmber()
+    {
+        var job = bench.Job("Extract sync queue into a module", JobStatus.NeedsHelp);
+        bench.Audit.Interventions.Add(new BudgetIntervention(
+            new JobHold(job.Job, SessionId.New(), HoldReason.BudgetExceeded, SessionHalt.Interrupted),
+            new BudgetBreach(BudgetMeasure.Cost, "USD", 5.2m, 5m, Option<BudgetError>.None),
+            DateTimeOffset.UnixEpoch));
+        using var section = new UsageSectionViewModel(bench.Inspected());
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal(("nothing yet", true, null), (section.Fact, section.IsAttention, section.Meter));
+    }
+
     public void Dispose() => bench.Dispose();
 }

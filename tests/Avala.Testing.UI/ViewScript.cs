@@ -60,11 +60,12 @@ public sealed class ViewScript
         where T : Visual =>
         [.. Window.GetVisualDescendants().OfType<T>().Where(visual => visual.IsEffectivelyVisible)];
 
-    public ViewScript Click(string name)
+    public ViewScript Click(string name) => Click(Find(name));
+
+    public ViewScript Click(Control target)
     {
-        var target = Find(name);
         var center = target.TranslatePoint(new Point(target.Bounds.Width / 2, target.Bounds.Height / 2), Window)
-            ?? throw new InvalidOperationException($"{name} is not laid out.");
+            ?? throw new InvalidOperationException($"{target.Name ?? target.GetType().Name} is not laid out.");
         Window.MouseDown(center, MouseButton.Left);
         Window.MouseUp(center, MouseButton.Left);
 

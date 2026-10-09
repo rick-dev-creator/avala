@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Testing;
 using Avala.Workbench.Cards;
+using Avala.Workbench.Conversation;
 using Avala.Workbench.Decisions;
 using Avala.Workbench.Tests.Cards;
 
@@ -10,11 +11,13 @@ public sealed class DecisionViewModelScripts
 {
     private static readonly DateTimeOffset Since = new(2026, 10, 9, 9, 0, 0, TimeSpan.Zero);
     private readonly Asking asking = new();
+    private readonly FakePermissionAnswers permissions = new();
+    private readonly FakeAgents agents = new();
 
     [Theory]
-    [InlineData(20, "waiting less than a minute")]
-    [InlineData(300, "waiting 5m")]
-    [InlineData(4500, "waiting 1h 15m")]
+    [InlineData(20, "<1m")]
+    [InlineData(300, "5m")]
+    [InlineData(4500, "1h 15m")]
     public void ADecisionTellsHowLongItHasWaited(int seconds, string waiting) =>
         ViewModelScript.Given(Decision())
             .When(decision => decision.Update(asking.Permission(), Since.AddSeconds(seconds)))
@@ -22,9 +25,20 @@ public sealed class DecisionViewModelScripts
             .Then(decision => Assert.Equal(waiting, decision.Waiting));
 
     [Fact]
-    public void ADecisionCarriesItsJobAndTheCardItIsAnsweredWith() =>
+    public void APermissionNamesItsRequestWhatTheAgentWantsAndTheWholeTarget() =>
         ViewModelScript.Given(Decision())
-            .Then(decision => Assert.Equal(("Fix flaky CheckoutForm test", "Run the CheckoutForm tests"), (decision.JobTitle, Assert.IsType<PermissionCardViewModel>(decision.Card).Title)));
+            .Then(decision => Assert.Equal(
+                ("Fix flaky CheckoutForm test", "Run the CheckoutForm tests", "wants to run a command", "npm test -- CheckoutForm.test.tsx --runInBand", true, 0),
+                (decision.JobTitle, decision.Title, decision.Asking, decision.Target, decision.IsPermission, decision.Options.Count)));
+
+    [Fact]
+    public void AFormNamesItsQuestionItsContextAndNumbersTheOptionsOfItsFirstChoice() =>
+        ViewModelScript.Given(Decision(new FormCardViewModel(asking.Form(), Replies())))
+            .Then(decision =>
+            {
+                Assert.Equal(("Add invoice PDF endpoint", "asks a question", "The service stores invoices.", false, true), (decision.Title, decision.Asking, decision.Context, decision.IsPermission, decision.IsSingleChoice));
+                Assert.Equal([(1, "PostgreSQL"), (2, "SQLite")], decision.Options.Select(option => (option.Number, option.Choice.Label)));
+            });
 
     [Fact]
     public void AnUpdateReachesItsCard() =>
@@ -32,6 +46,39 @@ public sealed class DecisionViewModelScripts
             .When(decision => decision.Update(asking.Permission() with { Resolution = PermissionAnswer.Deny }, Since))
             .Then(decision => Assert.Equal("Denied", Assert.IsType<PermissionCardViewModel>(decision.Card).Verdict));
 
-    private DecisionViewModel Decision() =>
-        new(Jobs.Contracts.JobId.New(), "Fix flaky CheckoutForm test", new PermissionCardViewModel(asking.Permission(), new(new FakePermissionAnswers(), new FakeAgents())), Since);
+    [Fact]
+    public void ADecisionAnsweredElsewhereCanNoLongerBeAnswered() =>
+        ViewModelScript.Given(Decision())
+            .When(decision => decision.Update(asking.Permission() with { Resolution = PermissionAnswer.Allow }, Since))
+            .Then(decision => Assert.Equal((false, false), (decision.AnswerCommand.CanExecute(null), decision.DenyCommand.CanExecute(null))));
+
+    [Fact]
+    public async Task DenyingSendsTheNoteTheParentHandedDown()
+    {
+        var decision = Decision();
+        decision.Note = "Not on CI";
+
+        await decision.DenyCommand.ExecuteAsync(null);
+
+        var (_, reply) = Assert.Single(permissions.Replies);
+        Assert.Equal((PermissionAnswer.Deny, "Not on CI"), (reply.Answer, reply.Message.Match(message => message, () => string.Empty)));
+    }
+
+    [Fact]
+    public void OpeningTheConversationIsReportedToTheList()
+    {
+        var decision = Decision();
+        var opened = 0;
+        decision.Opened += (_, _) => opened++;
+
+        decision.OpenCommand.Execute(null);
+
+        Assert.Equal(1, opened);
+    }
+
+    private Workbench.Replies.HumanReplies Replies() => new(permissions, agents);
+
+    private DecisionViewModel Decision() => Decision(new PermissionCardViewModel(asking.Permission(), Replies()));
+
+    private static DecisionViewModel Decision(ITimelineItem card) => new(Jobs.Contracts.JobId.New(), "Fix flaky CheckoutForm test", card, Since);
 }

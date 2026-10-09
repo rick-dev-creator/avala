@@ -3,38 +3,126 @@
              xmlns:decisions="using:Avala.Workbench.Decisions"
              x:Class="Avala.Workbench.UI.DecisionsView"
              x:ClassModifier="internal"
-             x:DataType="decisions:IDecisionsViewModel">
+             x:DataType="decisions:IDecisionsViewModel"
+             MaxWidth="540">
   <Design.DataContext>
     <decisions:DesignDecisionsViewModel />
   </Design.DataContext>
   <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+    <KeyBinding Gesture="Enter" Command="{Binding AnswerCommand}" />
+    <KeyBinding Gesture="Shift+Enter" Command="{Binding WriteNoteCommand}" />
     <KeyBinding Gesture="Down" Command="{Binding MoveNextCommand}" />
     <KeyBinding Gesture="Up" Command="{Binding MovePreviousCommand}" />
-    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding AnswerCommand}" />
   </UserControl.KeyBindings>
-  <Border Classes="float">
-    <StackPanel Spacing="10">
-      <TextBlock x:Name="Empty" Classes="caption" Text="{Binding Empty}" IsVisible="{Binding IsEmpty}" />
-      <ListBox x:Name="Items" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" IsVisible="{Binding !IsEmpty}">
-        <ListBox.KeyBindings>
-          <KeyBinding Gesture="D1" Command="{Binding ChooseCommand}" CommandParameter="1" />
-          <KeyBinding Gesture="D2" Command="{Binding ChooseCommand}" CommandParameter="2" />
-          <KeyBinding Gesture="D3" Command="{Binding ChooseCommand}" CommandParameter="3" />
-          <KeyBinding Gesture="D4" Command="{Binding ChooseCommand}" CommandParameter="4" />
-          <KeyBinding Gesture="Ctrl+Back" Command="{Binding DenyCommand}" />
-        </ListBox.KeyBindings>
-      </ListBox>
-      <TextBox x:Name="DecisionNote" Text="{Binding Note}" PlaceholderText="A note for the agent" IsVisible="{Binding !IsEmpty}" />
-      <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsEmpty}">
-        <Button x:Name="Answer" Classes="primary" Content="Answer" Command="{Binding AnswerCommand}" />
-        <Button x:Name="Deny" Classes="destructive" Content="Deny" Command="{Binding DenyCommand}" />
-      </StackPanel>
-      <StackPanel Orientation="Horizontal" Spacing="12">
-        <TextBlock Classes="caption" Text="↑ ↓ move" />
-        <TextBlock Classes="caption" Text="1–4 choose" />
-        <TextBlock Classes="caption" Text="Ctrl+Enter answer" />
-        <TextBlock Classes="caption" Text="Ctrl+Backspace deny" />
-      </StackPanel>
-    </StackPanel>
-  </Border>
+  <UserControl.Styles>
+    <Style Selector="Border#Surface, Border#Arrow">
+      <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+    </Style>
+    <Style Selector="Border#Surface">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPopover}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowPopover}" />
+    </Style>
+    <Style Selector="ListBox#Items">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="8,0,8,8" />
+    </Style>
+    <Style Selector="ListBox#Items > ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,0,0,4" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusItem}" />
+      <Setter Property="FocusAdorner" Value="{x:Null}" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.2" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="ListBox#Items > ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusItem}" />
+    </Style>
+    <Style Selector="ListBox#Items > ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillQuietBrush}" />
+    </Style>
+    <Style Selector="ListBox#Items > ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox#Items > ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, ListBox#Items > ListBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Panel x:Name="Popover" Classes="pop-in">
+    <Border x:Name="Surface" Margin="0,6,0,0" BorderThickness="1">
+      <DockPanel>
+        <Grid x:Name="Header" DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="16,14,16,10">
+          <TextBlock x:Name="Heading" Classes="strong" Text="Decisions" />
+          <TextBlock x:Name="Pending" Grid.Column="1" Classes="caption" VerticalAlignment="Center" Text="{Binding Pending}" />
+        </Grid>
+        <Border x:Name="Footer"
+                DockPanel.Dock="Bottom"
+                Padding="16,10"
+                BorderBrush="{DynamicResource SeparatorBrush}"
+                BorderThickness="0,1,0,0">
+          <DockPanel>
+            <ContentControl x:Name="CloseHint" DockPanel.Dock="Right" Margin="14,0,0,0" Content="{Binding CloseHint}" />
+            <ItemsControl x:Name="Hints" ItemsSource="{Binding Hints}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel ItemSpacing="14" LineSpacing="4" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </DockPanel>
+        </Border>
+        <StackPanel x:Name="NoteBox"
+                    DockPanel.Dock="Bottom"
+                    Margin="16,0,16,12"
+                    Spacing="6"
+                    RenderTransformOrigin="50%,0%"
+                    Classes.fold-in="{Binding IsWritingNote}"
+                    IsVisible="{Binding IsWritingNote}">
+          <TextBlock Classes="caption" Text="A note for the agent, sent with your answer" />
+          <TextBox x:Name="DecisionNote" Text="{Binding Note}" PlaceholderText="Only the checkout tests, please" />
+        </StackPanel>
+        <Panel>
+          <ListBox x:Name="Items"
+                   MaxHeight="520"
+                   ItemsSource="{Binding Items}"
+                   SelectedItem="{Binding Selected}"
+                   IsVisible="{Binding !IsEmpty}">
+            <ListBox.KeyBindings>
+              <KeyBinding Gesture="J" Command="{Binding MoveNextCommand}" />
+              <KeyBinding Gesture="K" Command="{Binding MovePreviousCommand}" />
+              <KeyBinding Gesture="D1" Command="{Binding ChooseCommand}" CommandParameter="1" />
+              <KeyBinding Gesture="D2" Command="{Binding ChooseCommand}" CommandParameter="2" />
+              <KeyBinding Gesture="D3" Command="{Binding ChooseCommand}" CommandParameter="3" />
+              <KeyBinding Gesture="D4" Command="{Binding ChooseCommand}" CommandParameter="4" />
+              <KeyBinding Gesture="D5" Command="{Binding ChooseCommand}" CommandParameter="5" />
+              <KeyBinding Gesture="D6" Command="{Binding ChooseCommand}" CommandParameter="6" />
+              <KeyBinding Gesture="D7" Command="{Binding ChooseCommand}" CommandParameter="7" />
+              <KeyBinding Gesture="D8" Command="{Binding ChooseCommand}" CommandParameter="8" />
+              <KeyBinding Gesture="D9" Command="{Binding ChooseCommand}" CommandParameter="9" />
+              <KeyBinding Gesture="Back" Command="{Binding DenyCommand}" />
+            </ListBox.KeyBindings>
+          </ListBox>
+          <StackPanel x:Name="EmptyState"
+                      Margin="16,26,16,22"
+                      Spacing="4"
+                      HorizontalAlignment="Center"
+                      Classes.rise-in="{Binding IsEmpty}"
+                      IsVisible="{Binding IsEmpty}">
+            <Path Classes="icon" Data="{StaticResource IconCheck}" Width="20" Height="20" HorizontalAlignment="Center" />
+            <TextBlock x:Name="Empty" Classes="strong" HorizontalAlignment="Center" Text="{Binding Empty}" />
+            <TextBlock Classes="caption" HorizontalAlignment="Center" Text="Every agent is working again." />
+          </StackPanel>
+        </Panel>
+      </DockPanel>
+    </Border>
+    <Border x:Name="Arrow"
+            Width="12"
+            Height="12"
+            Margin="24,0,0,0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            BorderThickness="1,1,0,0"
+            RenderTransform="rotate(45deg)" />
+  </Panel>
 </UserControl>

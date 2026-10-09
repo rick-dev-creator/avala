@@ -13,6 +13,8 @@ internal interface IAutonomySectionViewModel
 
     string Autonomy { get; }
 
+    string Fact { get; }
+
     string Connection { get; }
 }
 
@@ -41,6 +43,9 @@ internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewMod
     public partial bool IsLoaded { get; private set; }
 
     [ObservableProperty]
+    public partial string Fact { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial string Autonomy { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -57,6 +62,11 @@ internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewMod
     private void Show(Option<InspectorFacts> facts)
     {
         IsLoaded = facts.IsSome;
+        Fact = facts.Match(
+            found => found.Audit.Autonomy.Match(
+                autonomy => autonomy.Effective.ToString(),
+                () => found.Record.History.Summary.Autonomy.Match(requested => requested.ToString(), () => "not started")),
+            () => string.Empty);
         Autonomy = facts.Match(
             found => found.Audit.Autonomy.Match(
                 InspectorPhrases.Autonomy,

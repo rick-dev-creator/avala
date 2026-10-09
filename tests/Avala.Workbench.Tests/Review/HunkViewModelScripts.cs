@@ -7,7 +7,7 @@ namespace Avala.Workbench.Tests.Review;
 public sealed class HunkViewModelScripts
 {
     [Fact]
-    public void AHunkShowsItsHeaderAndMarksEachLine() =>
+    public void AHunkShowsItsHeaderAndMarksEachLineAddedRemovedOrContext() =>
         ViewModelScript.Given(new HunkViewModel(new DiffHunk(12, 6, 12, 8, "export async function login", [
                 new DiffLine(DiffLineKind.Context, "const user = await users.find(email);"),
                 new DiffLine(DiffLineKind.Removed, "return ok(user);"),
@@ -16,7 +16,8 @@ public sealed class HunkViewModelScripts
             .Then(hunk =>
             {
                 Assert.Equal("@@ -12,6 +12,8 @@ export async function login", hunk.Header);
-                Assert.Equal([" const user = await users.find(email);", "-return ok(user);", "+return limited(user);"], hunk.Lines);
+                Assert.Equal([" const user = await users.find(email);", "-return ok(user);", "+return limited(user);"], hunk.Lines.Select(line => line.Text));
+                Assert.Equal([(false, false), (false, true), (true, false)], hunk.Lines.Select(line => (line.IsAdded, line.IsRemoved)));
             });
 
     [Fact]

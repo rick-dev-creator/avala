@@ -7,11 +7,179 @@
   <Design.DataContext>
     <decisions:DesignDecisionViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="6">
-    <Grid ColumnDefinitions="*,Auto">
-      <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding JobTitle}" TextTrimming="CharacterEllipsis" />
-      <TextBlock x:Name="Waiting" Grid.Column="1" Classes="caption" Text="{Binding Waiting}" Margin="12,0,0,0" />
+  <UserControl.Styles>
+    <Style Selector=":is(ToggleButton).option">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="Frame"
+                  Padding="10,8"
+                  CornerRadius="{DynamicResource RadiusButton}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource SeparatorBrush}"
+                  Background="Transparent">
+            <Border.Transitions>
+              <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="0.34,1.4,0.64,1" />
+                <BrushTransition Property="Background" Duration="0:0:0.2" Easing="0.34,1.4,0.64,1" />
+              </Transitions>
+            </Border.Transitions>
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="Stretch" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector=":is(ToggleButton).option:pointerover /template/ Border#Frame">
+      <Setter Property="Background" Value="{DynamicResource FillQuietBrush}" />
+    </Style>
+    <Style Selector=":is(ToggleButton).option:checked /template/ Border#Frame">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+    </Style>
+    <Style Selector="Border#Dot">
+      <Setter Property="Width" Value="7" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Background" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="Button.link">
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0,4" />
+    </Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Button.small">
+      <Setter Property="Padding" Value="12,5" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    </Style>
+  </UserControl.Styles>
+  <UserControl.DataTemplates>
+    <DataTemplate x:DataType="decisions:DecisionOption">
+      <Grid ColumnDefinitions="20,*,Auto">
+        <TextBlock Classes="mono tertiary"
+                   FontSize="{DynamicResource FontSizeSection}"
+                   VerticalAlignment="Center"
+                   Text="{Binding Number}" />
+        <TextBlock Grid.Column="1" Text="{Binding Choice.Label}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="2"
+                   Classes="secondary"
+                   Margin="12,0,0,0"
+                   FontSize="{DynamicResource FontSizeHint}"
+                   VerticalAlignment="Center"
+                   Text="Recommended"
+                   IsVisible="{Binding Choice.Recommended}" />
+      </Grid>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+  <StackPanel>
+    <Grid x:Name="Row" ColumnDefinitions="Auto,*,Auto" Margin="12,10">
+      <Border x:Name="Dot" Margin="0,0,10,0" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1">
+        <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="Asked" Classes="caption" TextTrimming="CharacterEllipsis">
+          <TextBlock.Text>
+            <MultiBinding StringFormat="{}{0} · {1}">
+              <Binding Path="JobTitle" />
+              <Binding Path="Asking" />
+            </MultiBinding>
+          </TextBlock.Text>
+        </TextBlock>
+      </StackPanel>
+      <TextBlock x:Name="Waiting" Grid.Column="2" Classes="caption" Text="{Binding Waiting}" Margin="12,0,0,0" VerticalAlignment="Center" />
     </Grid>
-    <ContentControl x:Name="Card" Content="{Binding Card}" />
+
+    <StackPanel x:Name="Details"
+                Margin="12,0,12,12"
+                Spacing="6"
+                RenderTransformOrigin="50%,0%"
+                Classes.fold-in="{Binding IsSelected}"
+                IsVisible="{Binding IsSelected}">
+      <TextBlock x:Name="Context"
+                 Margin="17,0,0,4"
+                 Foreground="{DynamicResource TextSecondaryBrush}"
+                 FontSize="{DynamicResource FontSizeMono}"
+                 TextWrapping="Wrap"
+                 Text="{Binding Context}"
+                 IsVisible="{Binding Context, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <Border x:Name="TargetWell"
+              Padding="11,9"
+              CornerRadius="{DynamicResource RadiusButton}"
+              Background="{DynamicResource FillWellBrush}"
+              IsVisible="{Binding Target, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <SelectableTextBlock x:Name="Target"
+                             FontFamily="{DynamicResource MonoFont}"
+                             FontSize="{DynamicResource FontSizeCaption}"
+                             LineHeight="18"
+                             TextWrapping="Wrap"
+                             Text="{Binding Target}" />
+      </Border>
+      <ItemsControl x:Name="Options" ItemsSource="{Binding Options}">
+        <ItemsControl.IsVisible>
+          <MultiBinding Converter="{x:Static BoolConverters.And}">
+            <Binding Path="IsSingleChoice" />
+            <Binding Path="!!Options.Count" />
+          </MultiBinding>
+        </ItemsControl.IsVisible>
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="decisions:DecisionOption">
+            <RadioButton Classes="option" IsChecked="{Binding Choice.IsSelected}" Content="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <ItemsControl x:Name="ManyOptions" ItemsSource="{Binding Options}">
+        <ItemsControl.IsVisible>
+          <MultiBinding Converter="{x:Static BoolConverters.And}">
+            <Binding Path="!IsSingleChoice" />
+            <Binding Path="!!Options.Count" />
+          </MultiBinding>
+        </ItemsControl.IsVisible>
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="decisions:DecisionOption">
+            <ToggleButton Classes="option" IsChecked="{Binding Choice.IsSelected}" Content="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Grid x:Name="Actions" ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
+        <Button x:Name="Open"
+                Classes="link"
+                HorizontalAlignment="Left"
+                Content="Open conversation"
+                Command="{Binding OpenCommand}" />
+        <Button x:Name="Deny"
+                Grid.Column="1"
+                Classes="small"
+                Margin="0,0,8,0"
+                Content="Deny  ⌫"
+                Command="{Binding DenyCommand}"
+                IsVisible="{Binding IsPermission}" />
+        <Button x:Name="Answer"
+                Grid.Column="2"
+                Classes="primary small"
+                Command="{Binding AnswerCommand}">
+          <Panel>
+            <TextBlock Text="Allow  ⏎" IsVisible="{Binding IsPermission}" />
+            <TextBlock Text="Answer  ⏎" IsVisible="{Binding !IsPermission}" />
+          </Panel>
+        </Button>
+      </Grid>
+    </StackPanel>
   </StackPanel>
 </UserControl>

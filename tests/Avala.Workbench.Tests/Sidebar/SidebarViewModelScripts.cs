@@ -177,6 +177,13 @@ public sealed class SidebarViewModelScripts : IDisposable
     }
 
     [Fact]
+    public void ThePopoverAskingToCloseClosesIt() =>
+        ViewModelScript.Given(bench.Sidebar())
+            .Invoke(nameof(SidebarViewModel.ToggleDecisionsCommand))
+            .When(sidebar => sidebar.Decisions.CloseCommand.Execute(null))
+            .Then(sidebar => Assert.False(sidebar.IsDecisionsOpen));
+
+    [Fact]
     public async Task ActivatingTheSidebarActivatesItsDecisionsPopoverAsync()
     {
         using var sidebar = bench.Sidebar();

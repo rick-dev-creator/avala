@@ -1,8 +1,12 @@
+using Avala.Components.Meters;
+
 namespace Avala.Workbench.Inspector;
 
 internal sealed class DesignEvidenceSectionViewModel : IEvidenceSectionViewModel
 {
     public bool IsLoaded => true;
+
+    public string Fact => "4 of 4 passed";
 
     public string Summary => "Verified on attempt 2 of 2";
 
@@ -16,6 +20,10 @@ internal sealed class DesignEvidenceSectionViewModel : IEvidenceSectionViewModel
 internal sealed class DesignAuditSectionViewModel : IAuditSectionViewModel
 {
     public bool IsLoaded => true;
+
+    public string Fact => "1 assumption";
+
+    public bool IsAttention => false;
 
     public string Summary => "6 allowed by rules · 1 answered by you · 0 denied · 1 assumption";
 
@@ -31,7 +39,18 @@ internal sealed class DesignAuditSectionViewModel : IAuditSectionViewModel
 
 internal sealed class DesignUsageSectionViewModel : IUsageSectionViewModel
 {
+    public DesignUsageSectionViewModel()
+    {
+        var meter = new MeterViewModel("Cost cap", Sdk.Option<double>.None);
+        meter.Show(0.168);
+        Meter = meter;
+    }
+
     public bool IsLoaded => true;
+
+    public string Fact => "USD 0.84 of USD 5";
+
+    public bool IsAttention => false;
 
     public string Spent => "USD 0.84 · 61,250 tokens";
 
@@ -40,11 +59,15 @@ internal sealed class DesignUsageSectionViewModel : IUsageSectionViewModel
     public IReadOnlyList<string> Interventions { get; } = [];
 
     public string Carve => string.Empty;
+
+    public IMeterViewModel? Meter { get; }
 }
 
 internal sealed class DesignAutonomySectionViewModel : IAutonomySectionViewModel
 {
     public bool IsLoaded => true;
+
+    public string Fact => "Supervised";
 
     public string Autonomy => "Supervised, as the repository declares";
 
@@ -54,6 +77,8 @@ internal sealed class DesignAutonomySectionViewModel : IAutonomySectionViewModel
 internal sealed class DesignWorktreeSectionViewModel : IWorktreeSectionViewModel
 {
     public bool IsLoaded => true;
+
+    public string Fact => "rate-limit-post-login";
 
     public string Branch => "avala/rate-limit-post-login";
 
@@ -67,6 +92,8 @@ internal sealed class DesignWorktreeSectionViewModel : IWorktreeSectionViewModel
 internal sealed class DesignDelegationSectionViewModel : IDelegationSectionViewModel
 {
     public bool IsLoaded => true;
+
+    public string Fact => "a sub-agent";
 
     public string Parent => "Delegated by Harden the auth endpoints";
 

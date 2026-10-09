@@ -15,6 +15,10 @@ internal interface IAuditSectionViewModel
 
     string Summary { get; }
 
+    string Fact { get; }
+
+    bool IsAttention { get; }
+
     IReadOnlyList<string> Decisions { get; }
 
     IReadOnlyList<string> Assumptions { get; }
@@ -45,6 +49,12 @@ internal sealed partial class AuditSectionViewModel : IAuditSectionViewModel, IR
     public partial bool IsLoaded { get; private set; }
 
     [ObservableProperty]
+    public partial string Fact { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsAttention { get; private set; }
+
+    [ObservableProperty]
     public partial string Summary { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -66,6 +76,9 @@ internal sealed partial class AuditSectionViewModel : IAuditSectionViewModel, IR
         IsLoaded = facts.IsSome;
         var audit = facts.Match(found => found.Audit, () => new AuditFacts([], [], []));
         var assumptions = audit.Forms.SelectMany(form => form.Assumptions).ToList();
+        var denied = audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Deny) + audit.Answers.Count(answer => answer.Answer == PermissionAnswer.Deny);
+        Fact = facts.IsNone ? string.Empty : InspectorPhrases.Decided(audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Allow), audit.Answers.Count, denied, assumptions.Count);
+        IsAttention = denied > 0;
         Summary = facts.IsNone
             ? string.Empty
             : InspectorPhrases.Audit(

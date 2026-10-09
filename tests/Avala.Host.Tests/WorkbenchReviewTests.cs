@@ -16,14 +16,15 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
 
         var (verdict, failed, file) = await run.Ui.ReadAsync(() => (
             review["Verdict"].Text,
-            review["Exceptions"].Items.Select(exception => exception["Title"].Text).FirstOrDefault(),
+            review["Exceptions"].Items.Select(exception => (exception["Title"].Text, exception["Fact"].Text)).FirstOrDefault(),
             review["Files"].Items.Select(changed => (changed["Path"].Text, changed["Counts"].Text)).Single()));
         Assert.Equal("Verified on attempt 2 of 2", verdict);
-        Assert.StartsWith("Attempt 1 failed calculator", failed, StringComparison.Ordinal);
-        Assert.Equal(("calculator.txt", "+1 -0"), file);
+        Assert.Equal("Attempt 1 failed", failed.Item1);
+        Assert.StartsWith("calculator", failed.Item2, StringComparison.Ordinal);
+        Assert.Equal(("calculator.txt", "+1"), file);
 
         await run.Ui.RunAsync(() => review["Files"].Items[0].ExecuteAsync("ShowHunksCommand"));
-        Assert.Contains("+add(2, 2) = 4", await run.Ui.ReadAsync(() => Assert.Single(review["Files"].Items[0]["Hunks"].Items)["Lines"].Value<IReadOnlyList<string>>()));
+        Assert.Contains("+add(2, 2) = 4", await run.Ui.ReadAsync(() => Assert.Single(review["Files"].Items[0]["Hunks"].Items)["Lines"].Items.Select(line => line["Text"].Text).ToList()));
 
         await run.Ui.RunAsync(() => review.ExecuteAsync("ApproveCommand"));
         await workbench.ShowsAsync(() => review["Status"].Value<JobStatus>() == JobStatus.Approved);
@@ -48,7 +49,7 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         var conversation = await run.Ui.ReadAsync(() => workbench.Page["Conversation"]);
         await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin").Count == 2);
         Assert.Equal(["Instruction", "Sent back"], await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin")));
-        Assert.Equal("Sent back for another round", await run.Ui.ReadAsync(() => review["Outcome"].Text));
+        Assert.Equal("Sent back with your feedback", await run.Ui.ReadAsync(() => review["Outcome"].Text));
     }
 
     [Fact]
@@ -62,7 +63,7 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
 
         Assert.Equal(
             ("The work conflicts with the base branch in calculator.txt.", "calculator.txt", JobStatus.AwaitingReview),
-            await run.Ui.ReadAsync(() => (review["Outcome"].Text, string.Join(",", review["Conflicts"].Value<IReadOnlyList<string>>()), review["Status"].Value<JobStatus>())));
+            await run.Ui.ReadAsync(() => (review["Refusal"].Text, string.Join(",", review["Conflicts"].Value<IReadOnlyList<string>>()), review["Status"].Value<JobStatus>())));
     }
 
     [Fact]

@@ -47,6 +47,16 @@ internal static class FactPhrases
         _ => job.Status == JobStatus.Checking ? StatusKind.Checking : StatusKind.Working,
     };
 
+    public static string Asking(ItemKind kind) => Permission(kind);
+
+    public static string Asking(FormPurpose purpose) => purpose switch
+    {
+        FormPurpose.Question => "asks a question",
+        FormPurpose.PlanApproval => "asks to approve a plan",
+        FormPurpose.Permission => "asks permission",
+        _ => "asks for input",
+    };
+
     private static string Permission(ItemKind kind) => kind switch
     {
         ItemKind.Command => "wants to run a command",

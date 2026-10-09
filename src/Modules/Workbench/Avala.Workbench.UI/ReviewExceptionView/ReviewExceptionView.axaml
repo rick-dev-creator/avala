@@ -1,20 +1,66 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:review="using:Avala.Workbench.Review"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.ReviewExceptionView"
              x:ClassModifier="internal"
              x:DataType="review:IReviewExceptionViewModel">
   <Design.DataContext>
     <review:DesignReviewExceptionViewModel />
   </Design.DataContext>
-  <Border Classes="quiet" Padding="12,10">
-    <StackPanel Spacing="6">
-      <TextBlock x:Name="Title" Classes="strong attention" Text="{Binding Title}" TextWrapping="Wrap" />
-      <SelectableTextBlock x:Name="Detail"
-                           Classes="mono"
-                           Text="{Binding Detail}"
-                           TextWrapping="Wrap"
-                           IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  <UserControl.Styles>
+    <Style Selector="Border#Dot">
+      <Setter Property="Width" Value="7" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="BorderThickness" Value="1.5" />
+    </Style>
+    <Style Selector="Border#Dot.failure">
+      <Setter Property="Background" Value="{DynamicResource FailureBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Border#Dot.attention">
+      <Setter Property="Background" Value="{DynamicResource AttentionBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+  </UserControl.Styles>
+  <ui:Fold x:Name="Row"
+           Classes="trailing"
+           Padding="12,10"
+           Fact="{Binding Fact}"
+           IsExpanded="{Binding IsExpanded}">
+    <ui:Fold.Header>
+      <DockPanel>
+        <Border x:Name="Dot"
+                DockPanel.Dock="Left"
+                Margin="0,0,12,0"
+                VerticalAlignment="Center"
+                Classes.failure="{Binding Tone, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static review:ExceptionTone.Failure}}"
+                Classes.attention="{Binding Tone, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static review:ExceptionTone.Attention}}" />
+        <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+    </ui:Fold.Header>
+    <StackPanel Margin="31,0,14,14" Spacing="8">
+      <TextBlock x:Name="Detail"
+                 Text="{Binding Detail}"
+                 Foreground="{DynamicResource TextSecondaryBrush}"
+                 LineHeight="20"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <Border x:Name="OutputWell"
+              Padding="12,10"
+              CornerRadius="{DynamicResource RadiusButton}"
+              Background="{DynamicResource FillWellBrush}"
+              IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <SelectableTextBlock x:Name="Output"
+                             Text="{Binding Output}"
+                             FontFamily="{DynamicResource MonoFont}"
+                             FontSize="{DynamicResource FontSizeHint}"
+                             Foreground="{DynamicResource TextSecondaryBrush}"
+                             LineHeight="18"
+                             TextWrapping="Wrap" />
+      </Border>
     </StackPanel>
-  </Border>
+  </ui:Fold>
 </UserControl>

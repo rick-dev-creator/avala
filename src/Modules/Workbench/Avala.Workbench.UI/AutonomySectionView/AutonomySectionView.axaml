@@ -1,20 +1,38 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inspector="using:Avala.Workbench.Inspector"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.AutonomySectionView"
              x:ClassModifier="internal"
              x:DataType="inspector:IAutonomySectionViewModel">
   <Design.DataContext>
     <inspector:DesignAutonomySectionViewModel />
   </Design.DataContext>
-  <Expander x:Name="Section">
-    <Expander.Header>
-      <TextBlock Classes="section" Text="Autonomy and connection" />
-    </Expander.Header>
-    <StackPanel Spacing="4">
+  <ui:Fold x:Name="Section" Header="Autonomy &amp; connection" Fact="{Binding Fact}">
+    <StackPanel Margin="28,0,12,12" Spacing="7">
       <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
-      <TextBlock x:Name="Autonomy" Text="{Binding Autonomy}" TextWrapping="Wrap" />
-      <TextBlock x:Name="Connection" Classes="mono secondary" Text="{Binding Connection}" />
+      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding IsLoaded}">
+        <TextBlock Classes="caption secondary" Text="Autonomy" />
+        <TextBlock x:Name="Autonomy"
+                   Grid.Column="1"
+                   Classes="caption"
+                   Margin="12,0,0,0"
+                   Foreground="{DynamicResource TextPrimaryBrush}"
+                   TextAlignment="Right"
+                   TextWrapping="Wrap"
+                   Text="{Binding Autonomy}" />
+      </Grid>
+      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding IsLoaded}">
+        <TextBlock Classes="caption secondary" Text="Connection" />
+        <TextBlock x:Name="Connection"
+                   Grid.Column="1"
+                   Classes="mono"
+                   Margin="12,0,0,0"
+                   FontSize="{DynamicResource FontSizeCaption}"
+                   TextAlignment="Right"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{Binding Connection}" />
+      </Grid>
     </StackPanel>
-  </Expander>
+  </ui:Fold>
 </UserControl>

@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
@@ -74,6 +75,47 @@ internal static class InspectorPhrases
     public static string Refused(DelegationRecord record) =>
         $"Refused: {FactPhrases.Title(record.Instruction)}"
         + record.Refusal.Match(refusal => $" · {refusal}", () => record.Rejection.Match(rejection => $" · {ConversationPhrases.Rejection(rejection)}", () => string.Empty));
+
+    public static string Checked(IReadOnlyList<VerificationReport> verifications) =>
+        verifications.Count == 0
+            ? "no checks yet"
+            : verifications[^1] switch
+            {
+                { Outcome: VerificationOutcome.NoChecksDeclared } => "no checks declared",
+                { Outcome: VerificationOutcome.Passed or VerificationOutcome.Failed } last => string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{last.Checks.Count(check => check.Status == CheckStatus.Passed)} of {last.Checks.Count} passed"),
+                _ => "invalid declaration",
+            };
+
+    public static string Decided(int allowed, int byYou, int denied, int assumptions) =>
+        denied > 0 ? Amounts.Count(denied, "denied", "denied")
+        : assumptions > 0 ? Amounts.Count(assumptions, "assumption", "assumptions")
+        : allowed > 0 ? Amounts.Count(allowed, "allowed by rules", "allowed by rules")
+        : byYou > 0 ? Amounts.Count(byYou, "answered by you", "answered by you")
+        : "nothing yet";
+
+    public static string Spending(Option<UsageSummary> usage, Option<Cost> cap) =>
+        usage.Match(
+            spent => cap.Match(
+                limit => $"{Amounts.Costs([Spent(spent, limit.Currency)])} of {Amounts.Costs([limit])}",
+                () => spent.Costs.Count > 0 ? Amounts.Costs(spent.Costs) : Amounts.Tokens(Amounts.Total(spent.Tokens))),
+            () => cap.Match(limit => $"capped at {Amounts.Costs([limit])}", () => "nothing yet"));
+
+    public static Option<double> Share(Option<UsageSummary> usage, Option<Cost> cap) =>
+        cap.Bind(limit => limit.Amount <= 0
+            ? Option<double>.None
+            : Option<double>.Some((double)(usage.Match(spent => Spent(spent, limit.Currency).Amount, () => 0m) / limit.Amount)));
+
+    public static string Delegated(int children, bool delegatedByParent) =>
+        children > 0 ? Amounts.Count(children, "sub-agent", "sub-agents")
+        : delegatedByParent ? "a sub-agent"
+        : "none";
+
+    public static string Branch(string branch) => branch.Split('/')[^1];
+
+    private static Cost Spent(UsageSummary usage, string currency) =>
+        new(usage.Costs.Where(cost => cost.Currency == currency).Sum(cost => cost.Amount), currency);
 
     private static string Outcome(VerificationOutcome outcome) => outcome switch
     {

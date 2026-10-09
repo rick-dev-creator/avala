@@ -48,5 +48,15 @@ public sealed class DelegationSectionViewModelScripts : IDisposable
         Assert.Equal((false, true), (before, section.IsEmpty));
     }
 
+    [Fact]
+    public async Task TheHeaderFactCountsTheSubAgents()
+    {
+        using var section = new DelegationSectionViewModel(bench.Inspected());
+
+        await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
+
+        Assert.Equal("1 sub-agent", section.Fact);
+    }
+
     public void Dispose() => bench.Dispose();
 }
