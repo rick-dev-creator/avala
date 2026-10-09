@@ -19,6 +19,7 @@ public sealed record CanvasSnapshot(
     string Title,
     string MediaType,
     string Content,
-    CanvasStatus Status);
+    CanvasStatus Status,
+    bool IsOffered);
 
 public sealed record CanvasUpdated(CanvasSnapshot Snapshot) : IIntegrationEvent;

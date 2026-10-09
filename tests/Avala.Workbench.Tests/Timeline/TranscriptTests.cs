@@ -87,10 +87,10 @@ public sealed class TranscriptTests
         var transcript = Played(
                 new CanvasStarted(Session, Turn, canvas.Item, "Flow", "text/vnd.mermaid"),
                 new ItemProgressed(Session, Turn, canvas.Item, "graph TD"))
-            .Apply(new CanvasSnapshot(canvas, Session, "Flow", "text/vnd.mermaid", "graph TD; A-->B", CanvasStatus.Completed));
+            .Apply(new CanvasSnapshot(canvas, Session, "Flow", "text/vnd.mermaid", "graph TD; A-->B", CanvasStatus.Completed, false));
 
         var entry = Assert.IsType<CanvasEntry>(Assert.Single(transcript.Entries));
-        Assert.Equal(("graph TD; A-->B", CanvasStatus.Completed), (entry.Content, entry.Status));
+        Assert.Equal(("graph TD; A-->B", CanvasStatus.Completed, false), (entry.Content, entry.Status, entry.IsOffered));
     }
 
     [Theory]
@@ -113,7 +113,7 @@ public sealed class TranscriptTests
     {
         var canvas = new CanvasId(Turn, new ItemId("diagram"));
         var transcript = Played(new CanvasStarted(Session, Turn, canvas.Item, "Flow", "text/vnd.mermaid"))
-            .Apply(new CanvasSnapshot(canvas, Session, "Flow", "text/vnd.mermaid", "graph TD", CanvasStatus.Completed))
+            .Apply(new CanvasSnapshot(canvas, Session, "Flow", "text/vnd.mermaid", "graph TD", CanvasStatus.Completed, false))
             .Apply(new ItemCompleted(Session, Turn, canvas.Item, ItemOutcome.Failed), Start);
 
         Assert.Equal(CanvasStatus.Completed, Assert.IsType<CanvasEntry>(Assert.Single(transcript.Entries)).Status);

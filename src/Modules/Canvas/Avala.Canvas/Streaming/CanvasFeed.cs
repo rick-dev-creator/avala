@@ -16,7 +16,7 @@ internal sealed partial class CanvasFeed(CanvasGallery gallery, SnapshotThrottle
     public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken) =>
         integrationEvent.Event switch
         {
-            CanvasStarted started => ChangedAsync(gallery.Open(started), cancellationToken),
+            CanvasStarted started => ChangedAsync(gallery.Open(started).Map(Admitted), cancellationToken),
             ItemProgressed progressed => ChangedAsync(gallery.Append(progressed), cancellationToken),
             ItemCompleted completed => FinishedAsync(gallery.Close(completed), cancellationToken),
             _ => ValueTask.CompletedTask,
@@ -27,6 +27,16 @@ internal sealed partial class CanvasFeed(CanvasGallery gallery, SnapshotThrottle
 
     private ValueTask FinishedAsync(Result<CanvasId, CanvasError> applied, CancellationToken cancellationToken) =>
         Accepted(applied, out var canvas) ? throttle.FinishedAsync(canvas, cancellationToken) : ValueTask.CompletedTask;
+
+    private CanvasId Admitted(CanvasOpened opened)
+    {
+        if (opened.Rejection.Match<CanvasError?>(rejection => rejection, () => null) is { } rejection)
+        {
+            LogRejected(rejection);
+        }
+
+        return opened.Canvas;
+    }
 
     private bool Accepted(Result<CanvasId, CanvasError> applied, out CanvasId canvas)
     {

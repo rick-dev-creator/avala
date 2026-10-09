@@ -49,7 +49,7 @@ internal sealed record Transcript
 
     public Transcript Apply(CanvasSnapshot snapshot) =>
         Change(EntryKeys.Item(snapshot.Canvas.Turn, snapshot.Canvas.Item), entry => entry is CanvasEntry canvas
-            ? canvas with { Title = snapshot.Title, MediaType = snapshot.MediaType, Content = snapshot.Content, Status = snapshot.Status }
+            ? canvas with { Title = snapshot.Title, MediaType = snapshot.MediaType, Content = snapshot.Content, Status = snapshot.Status, IsOffered = snapshot.IsOffered }
             : entry);
 
     public Transcript Apply(PolicyDecision decision) =>
