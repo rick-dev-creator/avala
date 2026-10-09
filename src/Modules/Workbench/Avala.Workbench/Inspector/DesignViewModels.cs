@@ -6,7 +6,7 @@ internal sealed class DesignEvidenceSectionViewModel : IEvidenceSectionViewModel
 {
     public bool IsLoaded => true;
 
-    public string Fact => "4 of 4 passed";
+    public string Fact => "4 of 4 checks passed";
 
     public string Summary => "Verified on attempt 2 of 2";
 
