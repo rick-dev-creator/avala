@@ -35,8 +35,13 @@ internal sealed class ProcessTree(ProcessTreeId id, string home, IReadOnlyDictio
         });
     }
 
-    public async ValueTask<IReadOnlyList<TreeProcess>> MembersAsync(CancellationToken cancellationToken) =>
-        [.. (await container.MemberIdsAsync(cancellationToken)).Select(Describe).SelectMany(described => described.Match<TreeProcess[]>(found => [found], () => []))];
+    public async ValueTask<IReadOnlyList<TreeProcess>> MembersAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<TreeProcess> members =
+            [.. (await container.MemberIdsAsync(cancellationToken)).Select(Describe).SelectMany(described => described.Match<TreeProcess[]>(found => [found], () => []))];
+
+        return OperatingSystem.IsWindows() ? ConsoleHosts.Attributed(members, WindowsProcesses.ParentOf) : members;
+    }
 
     public async Task<IReadOnlyList<TreeProcess>> KillAsync(TimeProvider clock, CancellationToken cancellationToken)
     {

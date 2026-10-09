@@ -17,6 +17,7 @@ internal sealed class Stage : IAsyncDisposable
 
     private readonly TemporaryFolder folder = new();
     private readonly TemporaryFolder data = new();
+    private bool sessionClosed;
 
     public Stage(PermissionMode permissions = PermissionMode.AskEveryTime, params HarnessTool[] tools)
         : this(UncontainedProcesses.Instance, permissions, tools)
@@ -98,10 +99,19 @@ internal sealed class Stage : IAsyncDisposable
         return seen;
     }
 
+    public async ValueTask CloseSessionAsync()
+    {
+        if (!sessionClosed)
+        {
+            sessionClosed = true;
+            await Session.DisposeAsync();
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
-        await Session.DisposeAsync();
-        folder.Dispose();
-        data.Dispose();
+        await CloseSessionAsync();
+        await folder.DisposeAsync();
+        await data.DisposeAsync();
     }
 }

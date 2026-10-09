@@ -225,7 +225,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     {
         await StopAsync();
         await repository.DisposeAsync();
-        data.Dispose();
+        await data.DisposeAsync();
     }
 
     private async Task StopAsync()
