@@ -91,6 +91,29 @@ public sealed class SqliteTranscriptLogTests : IAsyncDisposable
         Assert.Equal(2, earlier.Select(kept => kept.Run).Distinct().Count());
     }
 
+    [Fact]
+    public async Task ReleasingAJobDropsWhatItsConversationShowedBeforeAndKeepsTheStartOfItsAttemptsAndOtherJobsAsync()
+    {
+        var other = JobId.New();
+        var canvas = new CanvasId(Turn, new ItemId("canvas"));
+        var log = Log();
+        log.Keep(job, At, new AttemptBegan(1));
+        log.Keep(job, At, new AgentActed(new ItemProgressed(Session, Turn, new ItemId("message"), "Hello ")));
+        log.Keep(job, At, new CanvasDrawn(new CanvasSnapshot(canvas, Session, "Flow", "image/svg+xml", "<svg>1</svg>", CanvasStatus.Streaming, true)));
+        log.Keep(other, At, new AgentActed(new TurnStarted(Session, Turn)));
+        log.Release(job);
+        log.Keep(job, At, new AgentActed(new ItemProgressed(Session, Turn, new ItemId("message"), "again")));
+        log.Keep(job, At, new CanvasDrawn(new CanvasSnapshot(canvas, Session, "Flow", "image/svg+xml", "<svg>2</svg>", CanvasStatus.Completed, true)));
+        await log.DisposeAsync();
+        var restarted = Log();
+
+        var (released, untouched) = (await restarted.EarlierRunsAsync(job, Cancellation), await restarted.EarlierRunsAsync(other, Cancellation));
+        await restarted.DisposeAsync();
+
+        Assert.Equal(["attempt 1", $"{new ItemProgressed(Session, Turn, new ItemId("message"), "again")}", "canvas <svg>2</svg> Completed"], released.Select(kept => Describe(kept.Fact)));
+        Assert.Single(untouched);
+    }
+
     public async ValueTask DisposeAsync() => await data.DisposeAsync();
 
     private SqliteTranscriptLog Log() => new(new AvalaPaths(data.Path), NullLogger<SqliteTranscriptLog>.Instance);

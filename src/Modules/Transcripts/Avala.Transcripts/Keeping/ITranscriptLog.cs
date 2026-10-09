@@ -7,6 +7,8 @@ internal interface ITranscriptLog
 {
     void Keep(JobId job, DateTimeOffset at, ITranscriptFact fact);
 
+    void Release(JobId job);
+
     Task<int> AttemptsAsync(JobId job, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<KeptFact>> EarlierRunsAsync(JobId job, CancellationToken cancellationToken);

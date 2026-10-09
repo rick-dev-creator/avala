@@ -81,3 +81,5 @@ internal sealed class StoredFact
 }
 
 internal sealed record PendingFact(JobId Job, DateTimeOffset At, ITranscriptFact Fact);
+
+internal sealed record Released : ITranscriptFact;
