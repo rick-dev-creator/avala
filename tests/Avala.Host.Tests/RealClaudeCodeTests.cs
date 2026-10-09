@@ -112,7 +112,7 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
             }),
         };
 
-        await using var run = await SimulatedRun.InstructedAsync(
+        await using var run = await SimulatedRun.RealAsync(
             plugins,
             instruction,
             [

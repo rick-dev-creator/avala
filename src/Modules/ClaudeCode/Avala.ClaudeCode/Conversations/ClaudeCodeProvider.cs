@@ -4,7 +4,7 @@ using Avala.Sdk;
 
 namespace Avala.ClaudeCode.Conversations;
 
-internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders) : IAgentProvider
+internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders, UserHome home) : IAgentProvider
 {
     public const string Id = "claude-code";
 
@@ -34,7 +34,7 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         var transcripts = options.Connection.Settings.TryGetValue(CommandLine.TranscriptsSetting, out var folder) ? folder : Option<string>.None;
         var account = await folders.AccountAsync(options.Connection, cancellationToken);
 
-        return await cli.Start(CommandLine.For(workingDirectory, options.Connection, resumed), options.Processes, transcripts).Match(
+        return await cli.Start(CommandLine.For(workingDirectory, options.Connection, resumed, home), options.Processes, transcripts).Match(
             async process => Result<IAgentSession, AgentError>.Success(await ClaudeCodeSession.OpenAsync(
                 process,
                 session => new Conversation(session, options, workingDirectory, resumed),

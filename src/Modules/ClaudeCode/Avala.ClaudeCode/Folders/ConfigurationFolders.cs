@@ -10,18 +10,13 @@ using Avala.Sdk;
 
 namespace Avala.ClaudeCode.Folders;
 
-internal sealed class ConfigurationFolders(string home) : IConfigurationFolders
+internal sealed class ConfigurationFolders(UserHome home) : IConfigurationFolders
 {
     private const string GlobalConfiguration = ".claude.json";
 
     private const int MaximumBytes = 4 * 1024 * 1024;
 
-    public ConfigurationFolders()
-        : this(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
-    {
-    }
-
-    public string DefaultFolder => Path.Combine(home, ".claude");
+    public string DefaultFolder => home.DefaultFolder;
 
     public async Task<Option<AgentAccount>> AccountAsync(ConnectionEnvironment connection, CancellationToken cancellationToken)
     {
@@ -30,8 +25,23 @@ internal sealed class ConfigurationFolders(string home) : IConfigurationFolders
             return connection.ApiKey.Map(key => new AgentAccount($"api-key:{Fingerprint(key.Value)}", "Anthropic API key"));
         }
 
-        var global = connection.ConfigurationDirectory.Match(folder => Path.Combine(folder, GlobalConfiguration), () => Path.Combine(home, GlobalConfiguration));
-        var account = (await ReadAsync(global, cancellationToken)).Members("oauthAccount");
+        var global = connection.ConfigurationDirectory
+            .Bind(folder => home.IsDefault(folder) ? Option<string>.None : folder)
+            .Match<string[]>(
+                folder => [Path.Combine(folder, GlobalConfiguration)],
+                () => [Path.Combine(home.Folder, GlobalConfiguration), Path.Combine(home.DefaultFolder, GlobalConfiguration)]);
+        var account = new JsonObject();
+
+        foreach (var candidate in global)
+        {
+            account = (await ReadAsync(candidate, cancellationToken)).Members("oauthAccount");
+
+            if (account.Count > 0)
+            {
+                break;
+            }
+        }
+
 
         return account.Text("accountUuid").Map(id => new AgentAccount($"claude:{id}", account.TextOr("emailAddress", account.TextOr("displayName", id))));
     }

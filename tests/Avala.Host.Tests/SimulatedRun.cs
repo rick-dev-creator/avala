@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
+using Avala.ClaudeCode;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -27,13 +28,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
 
-    private const string ConnectionsFile = "connections.json";
-
-    private const string SimulatorOnly = """{ "connections": [ { "name": "simulator", "provider": "simulator" } ] }""";
-
     private readonly PublishedPlugins plugins;
     private readonly TemporaryFolder data;
     private readonly TemporaryRepository repository;
+    private readonly Surroundings surroundings;
     private Application application;
     private bool stopped;
 
@@ -42,6 +40,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         this.plugins = plugins;
         this.data = data;
         this.repository = repository;
+        this.surroundings = surroundings;
         application = new Application(root);
         Ui = surroundings.Ui;
         Clock = surroundings.Clock;
@@ -85,9 +84,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
         PublishedPlugins plugins,
         JobRequest request,
         IReadOnlyList<(string File, string Content)> settings,
-        IReadOnlyList<(string Path, string Content)> committed)
+        IReadOnlyList<(string Path, string Content)> committed,
+        bool harnesses = false)
     {
-        var run = await PreparedAsync(plugins, settings, committed);
+        var run = await PreparedAsync(plugins, settings, committed, harnesses);
         run.Job = Outcomes.Succeeds(await run.SubmitAsync(request));
 
         return run;
@@ -118,27 +118,32 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public static string Simulate(string scenario) => $"[simulate: {scenario}] Greet the team";
 
+    public static Task<SimulatedRun> RealAsync(
+        PublishedPlugins plugins,
+        string instruction,
+        IReadOnlyList<(string File, string Content)> data,
+        IReadOnlyList<(string Path, string Content)> committed) =>
+        StartAsync(plugins, new JobRequest(string.Empty, instruction), data, committed, harnesses: true);
+
     public static Task<SimulatedRun> PreparedAsync(PublishedPlugins plugins, params (string Path, string Content)[] committed) =>
         PreparedAsync(plugins, [], committed);
 
     public static async Task<SimulatedRun> PreparedAsync(
         PublishedPlugins plugins,
         IReadOnlyList<(string File, string Content)> settings,
-        IReadOnlyList<(string Path, string Content)> committed)
+        IReadOnlyList<(string Path, string Content)> committed,
+        bool harnesses = false)
     {
         var data = new TemporaryFolder();
-        var simulated = settings.Any(setting => setting.File == ConnectionsFile)
-            ? settings
-            : [.. settings, (ConnectionsFile, SimulatorOnly)];
 
-        foreach (var (file, content) in simulated)
+        foreach (var (file, content) in settings)
         {
             var path = Path.Combine(data.Path, file);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var surroundings = new Surroundings(new TestUiDispatcher(), new FakeTimeProvider(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) });
+        var surroundings = new Surroundings(new TestUiDispatcher(), new FakeTimeProvider(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses);
         var root = surroundings.Compose(plugins, data);
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 
@@ -214,7 +219,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     public async Task RestartAsync()
     {
         await application.DisposeAsync();
-        application = new Application(new Surroundings(Ui, Clock).Compose(plugins, data));
+        application = new Application(surroundings.Compose(plugins, data));
         application.Root.Start();
     }
 
@@ -305,10 +310,16 @@ internal sealed class SimulatedRun : IAsyncDisposable
     }
 
 
-    private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock)
+    private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock, bool Harnesses)
     {
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
-            CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path), Ui, Clock, [new SimulatorPlugin(TimeSpan.Zero)]);
+            CompositionRoot.Create(
+                plugins.Directory,
+                new AvalaPaths(data.Path),
+                Ui,
+                Clock,
+                [new SimulatorPlugin(TimeSpan.Zero)],
+                Harnesses ? [] : [typeof(ClaudeCodePlugin)]);
     }
 
     private sealed class Application : IAsyncDisposable
