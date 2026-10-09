@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="using:Avala.Shell"
+        x:Class="Avala.Host.DataFolderInUseView"
+        x:ClassModifier="internal"
+        x:DataType="shell:IDataFolderInUseViewModel"
+        Title="Avala is already running"
+        Icon="avares://Avala.Host/Assets/avala.ico"
+        Width="560"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource SurfaceWindowBrush}">
+  <Design.DataContext>
+    <shell:DesignDataFolderInUseViewModel />
+  </Design.DataContext>
+  <StackPanel Margin="28,24" Spacing="14">
+    <TextBlock x:Name="Heading" Classes="heading" Text="Avala is already running" />
+    <StackPanel Spacing="4">
+      <TextBlock Classes="caption" Text="Data folder" />
+      <TextBlock x:Name="Folder" Classes="mono" Text="{Binding Folder}" TextWrapping="Wrap" />
+    </StackPanel>
+    <TextBlock x:Name="Reason" Classes="body secondary" Text="{Binding Reason}" TextWrapping="Wrap" />
+    <Button x:Name="Quit"
+            Classes="primary"
+            HorizontalAlignment="Right"
+            Content="Quit"
+            IsDefault="True"
+            Command="{Binding QuitCommand}" />
+  </StackPanel>
+</Window>

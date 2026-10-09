@@ -19,25 +19,60 @@ internal sealed partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var composition = CompositionRoot.Create(PluginDirectory.Resolve(), DataDirectory.Resolve());
-            var appearance = new AppearanceApplier(this);
-            _ = appearance.FollowAsync(
-                composition.Services.GetRequiredService<IEventFeed>().SubscribeAsync<AppearanceChanged>(composition.Lifetime),
-                composition.Services.GetRequiredService<IUiDispatcher>(),
-                composition.Lifetime);
-            composition.Start();
-            var shell = composition.Services.GetRequiredService<ShellViewModel>();
-            desktop.Exit += (_, _) =>
-            {
-                shell.Deactivate();
-                _ = composition.DisposeAsync().AsTask();
-            };
-            DataTemplates.Add(composition.Views);
-            shell.Activate();
-            _ = ShowAsync(desktop, composition, appearance, shell);
+            var paths = DataDirectory.Resolve();
+            _ = DataFolderClaim.TryTake(paths).Match(
+                claim =>
+                {
+                    Run(desktop, paths, claim);
+                    return true;
+                },
+                () =>
+                {
+                    Refuse(desktop, paths);
+                    return false;
+                });
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static void Refuse(IClassicDesktopStyleApplicationLifetime desktop, AvalaPaths paths)
+    {
+        var refusal = new DataFolderInUseViewModel(paths.Data);
+        refusal.QuitRequested += (_, _) => desktop.Shutdown(1);
+        desktop.MainWindow = new DataFolderInUseView { DataContext = refusal };
+    }
+
+    private void Run(IClassicDesktopStyleApplicationLifetime desktop, AvalaPaths paths, DataFolderClaim claim)
+    {
+        var composition = CompositionRoot.Create(PluginDirectory.Resolve(), paths);
+        var appearance = new AppearanceApplier(this);
+        _ = appearance.FollowAsync(
+            composition.Services.GetRequiredService<IEventFeed>().SubscribeAsync<AppearanceChanged>(composition.Lifetime),
+            composition.Services.GetRequiredService<IUiDispatcher>(),
+            composition.Lifetime);
+        composition.Start();
+        var shell = composition.Services.GetRequiredService<ShellViewModel>();
+        desktop.Exit += (_, _) =>
+        {
+            shell.Deactivate();
+            _ = StopAsync(composition, claim);
+        };
+        DataTemplates.Add(composition.Views);
+        shell.Activate();
+        _ = ShowAsync(desktop, composition, appearance, shell);
+    }
+
+    private static async Task StopAsync(CompositionRoot composition, DataFolderClaim claim)
+    {
+        try
+        {
+            await composition.DisposeAsync();
+        }
+        finally
+        {
+            claim.Dispose();
+        }
     }
 
     private static async Task ShowAsync(IClassicDesktopStyleApplicationLifetime desktop, CompositionRoot composition, AppearanceApplier appearance, ShellViewModel shell)

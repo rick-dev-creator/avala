@@ -603,9 +603,8 @@ What a first public build needs before anyone outside the project runs it: an ic
 
 ```
 I1  Given the main window, then its Icon is set from the brand's avala.ico; the host's project declares the same file as its ApplicationIcon.
-O1  Given a data folder claimed by a running Avala, when another claim of the same folder is attempted, then it is refused, and once the first claim is released the folder can be claimed again; a folder that does not exist yet is created and claimed.
-O2  Given the claim is held through an operating system's exclusive file handle, avala.lock in the data folder, then it is released by the system when the process dies, so a crashed Avala never blocks the next one.
-O3  Given a second Avala on a claimed data folder, then it composes nothing, shows "Avala is already running" with the folder and why it stops, and its Quit command ends the application; the view says the same headless.
+O1  Given a data folder claimed by a running Avala, when another claim of the same folder is attempted, then it is refused, and once the first claim is released the folder can be claimed again; a folder that does not exist yet is created and claimed; another folder can be claimed meanwhile.
+O2  Given a second Avala on a claimed data folder, then it composes nothing, shows "Avala is already running" with the folder and why it stops, and its Quit command ends the application; the view says the same headless.
 M1  Given a database whose migration was killed after taking EF Core's lock, so __EFMigrationsLock still holds its row, when the database is migrated, then the lock is cleared and every migration applies instead of waiting forever.
 F1  Given developer mode off, no login of any harness and no connections.json, when the jobs page opens, then it says "No connections yet", explains that a job needs a harness to run on, and shows how to log in to Claude Code and how to add a connection in Settings.
 F2  Given F1, when "Open Settings" is chosen, then the shell shows the Settings page.
