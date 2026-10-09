@@ -34,7 +34,7 @@ internal sealed class FleetReader(IConnections connections, IUsage usage, Sessio
                 .. names.Select(name => new ConnectionState(
                     name,
                     Provider(name, declared, used),
-                    catalog.Default == Option<ConnectionName>.Some(name),
+                    catalog.DefaultMode == DefaultMode.Fixed && catalog.Default == Option<ConnectionName>.Some(name),
                     sessions.LatestOn(name).Bind(seen => seen.Account),
                     used.TryGetValue(name, out var reported) ? Option<UsageSummary>.Some(reported.Usage) : Option<UsageSummary>.None,
                     [.. agents[name].OrderBy(job => job.Summary.Submitted)])),

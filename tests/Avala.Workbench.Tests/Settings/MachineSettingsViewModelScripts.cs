@@ -2,6 +2,7 @@ using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Machine;
 using Avala.Workbench.Settings;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Settings;
 
@@ -82,6 +83,36 @@ public sealed class MachineSettingsViewModelScripts
             .When(machine => machine.SilenceDraft = " ")
             .Then(machine => Assert.False(machine.SaveSilenceCommand.CanExecute(null)));
 
-    private MachineSettingsViewModel Machine() =>
-        new(new MachineSettings(new FakeConnections("work", "personal"), supervision, new FakeResources()), new SettingsFiles(opener, new AvalaPaths("/data")));
+    [Fact]
+    public async Task AChangedDefaultMovesTheDefaultTagToItsConnectionAsync()
+    {
+        var connections = new FakeConnections("work", "personal");
+        var machine = Machine(connections);
+        await machine.LoadAsync(Cancellation);
+
+        machine.DefaultConnection.Draft = "personal";
+        await machine.DefaultConnection.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal([("work", false), ("personal", true)], machine.Connections.Select(connection => (connection.Name, connection.IsDefault)));
+    }
+
+    [Fact]
+    public async Task UnderAutoNoConnectionIsTaggedAsTheDefaultAsync()
+    {
+        var machine = Machine(new FakeConnections("work", "personal").Automatic());
+
+        await machine.LoadAsync(Cancellation);
+
+        Assert.All(machine.Connections, connection => Assert.False(connection.IsDefault));
+        Assert.Equal(DefaultPhrases.Auto, machine.DefaultConnection.Saved);
+    }
+
+    private MachineSettingsViewModel Machine() => Machine(new FakeConnections("work", "personal"));
+
+    private MachineSettingsViewModel Machine(FakeConnections connections)
+    {
+        var settings = new MachineSettings(connections, supervision, new FakeResources());
+
+        return new(settings, new SettingsFiles(opener, new AvalaPaths("/data")), new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()));
+    }
 }

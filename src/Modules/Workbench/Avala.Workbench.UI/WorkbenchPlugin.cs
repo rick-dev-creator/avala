@@ -58,6 +58,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IHandle<JobHeld>>(Keeper)
             .AddSingleton<IHandle<JobApproved>>(Keeper)
             .AddSingleton<IHandle<JobSessionStarted>>(Keeper)
+            .AddSingleton<IHandle<ConnectionChosen>>(Keeper)
             .AddSingleton<IHandle<AgentActivity>>(Keeper)
             .AddSingleton<IHandle<CanvasUpdated>>(Keeper)
             .AddSingleton<IHandle<PermissionDecided>>(Keeper)
@@ -185,6 +186,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IConnectionsViewModel, ConnectionsViewModel>()
             .AddSingleton<IDelegationViewModel, DelegationViewModel>()
             .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
+            .AddSingleton<IDefaultConnectionViewModel, DefaultConnectionViewModel>()
             .AddSingleton<IMachineSettingsViewModel, MachineSettingsViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
             .AddSingleton<NewJobViewModel>()
@@ -224,6 +226,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ICheckViewModel, CheckView>();
         views.Register<IJobSectionViewModel, JobSectionView>();
         views.Register<IMachineConnectionViewModel, MachineConnectionView>();
+        views.Register<IDefaultConnectionViewModel, DefaultConnectionView>();
         views.Register<IResourcesViewModel, ResourcesView>();
         views.Register<IAgentTreeViewModel, AgentTreeView>();
         views.Register<IOrphanViewModel, OrphanView>();

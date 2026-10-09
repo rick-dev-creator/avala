@@ -62,7 +62,7 @@ internal sealed class Bench : IDisposable
 
     public ReviewDesk Desk => new(Jobs, Catalog, Changes);
 
-    public JobInspection Inspection => new(new JobRecords(Catalog, Workspaces, Resources, Resources), new JobAudit(Audit, Audit, Usage, Audit));
+    public JobInspection Inspection => new(new JobRecords(Catalog, Workspaces, Resources, Resources), new JobAudit(Audit, Audit, Usage, Audit), Board);
 
     public void Post(Action action) => _ = Ui.InvokeAsync(action, CancellationToken.None).AsTask();
 
@@ -74,7 +74,7 @@ internal sealed class Bench : IDisposable
 
     public SidebarViewModel Sidebar() => new(Feed(), Focus);
 
-    public NewJobViewModel NewJob { get; } = new(new JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work")), new JobBoard());
+    public NewJobViewModel NewJob { get; } = new(new JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview()), new JobBoard(), new StrongReferenceMessenger());
 
     public ToolbarViewModel Toolbar() => new(Decisions(), Feed(), Focus, NewJob);
 

@@ -85,6 +85,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IResources>(sources)
             .AddSingleton<IDelegations>(sources)
             .AddSingleton<IConnections>(new FakeConnections("claude-work"))
+            .AddSingleton<IConnectionPreview>(new FakePreview())
             .AddSingleton<ISupervision>(new FakeSupervision())
             .AddSingleton<IRepositoryPolicies>(rules)
             .AddSingleton<IRepositoryBudgets>(rules)

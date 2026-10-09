@@ -37,27 +37,46 @@ internal sealed record ConnectionDeclaration(ConnectionName Name, string Provide
         || (Provider == other.Provider && Credential.Bind(credential => credential.Reference).IsSome && Credential == other.Credential);
 }
 
-internal sealed record ConnectionDeclarations(IReadOnlyList<ConnectionDeclaration> Connections, ConnectionName Default)
+internal sealed record ConnectionDeclarations(IReadOnlyList<ConnectionDeclaration> Connections, Option<ConnectionName> Fixed)
 {
+    public const string Auto = "auto";
+
+    public static ConnectionDeclarations Nothing { get; } = new([], Option<ConnectionName>.None);
+
+    public DefaultMode Mode => Fixed.IsSome ? DefaultMode.Fixed : DefaultMode.Auto;
+
+    public Option<ConnectionName> Default =>
+        Fixed.IsSome ? Fixed
+        : Connections.Count == 0 ? Option<ConnectionName>.None
+        : Connections[0].Name;
+
     public static ConnectionDeclarations Implicit(IEnumerable<IAgentProvider> providers) => Implicit(providers, []);
 
-    public static ConnectionDeclarations Implicit(IEnumerable<IAgentProvider> providers, IReadOnlyList<ConnectionDeclaration> discovered)
-    {
-        var connections = Distinct(providers
-            .Select(provider => provider.Info.Id)
-            .Distinct(StringComparer.Ordinal)
-            .SelectMany(id => discovered.Any(found => found.Provider == id)
-                ? discovered.Where(found => found.Provider == id)
-                : [new ConnectionDeclaration(new ConnectionName(id), id) { Origin = ConnectionOrigin.Implicit }]));
-
-        return new ConnectionDeclarations(connections, connections.Count == 0 ? default : connections[0].Name);
-    }
+    public static ConnectionDeclarations Implicit(IEnumerable<IAgentProvider> providers, IReadOnlyList<ConnectionDeclaration> discovered) =>
+        new(
+            Distinct(providers
+                .Select(provider => provider.Info.Id)
+                .Distinct(StringComparer.Ordinal)
+                .SelectMany(id => discovered.Any(found => found.Provider == id)
+                    ? discovered.Where(found => found.Provider == id)
+                    : [new ConnectionDeclaration(new ConnectionName(id), id) { Origin = ConnectionOrigin.Implicit }])),
+            Option<ConnectionName>.None);
 
     public static IReadOnlyList<ConnectionDeclaration> Distinct(IEnumerable<ConnectionDeclaration> connections) =>
         Fill([], connections);
 
-    public ConnectionDeclarations With(IReadOnlyList<ConnectionDeclaration> discovered) =>
-        this with { Connections = Fill(Connections, discovered) };
+    public Result<ConnectionDeclarations, ConnectionError> Merged(IEnumerable<IAgentProvider> providers, IReadOnlyList<ConnectionDeclaration> discovered)
+    {
+        var merged = Connections.Count == 0
+            ? Implicit(providers, discovered) with { Fixed = Fixed }
+            : this with { Connections = Fill(Connections, discovered) };
+
+        return merged.Fixed.Match(
+            named => merged.Connections.Any(connection => connection.Name == named)
+                ? Result<ConnectionDeclarations, ConnectionError>.Success(merged)
+                : ConnectionError.UnknownDefault,
+            () => merged);
+    }
 
     private static ImmutableList<ConnectionDeclaration> Fill(IEnumerable<ConnectionDeclaration> kept, IEnumerable<ConnectionDeclaration> candidates) =>
         candidates.Aggregate(
@@ -71,9 +90,9 @@ internal sealed record ConnectionDeclarations(IReadOnlyList<ConnectionDeclaratio
             return ConnectionError.NoConnections;
         }
 
-        var name = requested.Match(chosen => chosen, () => Default);
+        var name = requested.IsSome ? requested : Default;
 
-        return Connections.FirstOrDefault(connection => connection.Name == name) is { } found
+        return Connections.FirstOrDefault(connection => Option<ConnectionName>.Some(connection.Name) == name) is { } found
             ? found
             : ConnectionError.UnknownConnection;
     }
@@ -82,4 +101,6 @@ internal sealed record ConnectionDeclarations(IReadOnlyList<ConnectionDeclaratio
 internal interface IConnectionFile
 {
     ValueTask<Result<Option<ConnectionDeclarations>, ConnectionError>> LoadAsync(CancellationToken cancellationToken);
+
+    ValueTask<Result<ConnectionDeclarations, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken);
 }

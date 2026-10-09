@@ -155,6 +155,27 @@ public sealed class LoopTests
     }
 
     [Fact]
+    public async Task ALoopNamingNoConnectionPausesWhenTheFixedMachineDefaultIsAtItsLimitWhateverTheOthersHaveLeftAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Connections.Names.Add(new ConnectionName("personal"));
+        pilot.Connections.Fixed = new ConnectionName("work");
+        pilot.Backlog.Add("one", "Greet the team");
+        pilot.Backlog.Add("two", "Document the greeting");
+        await pilot.StartAsync();
+        var job = await pilot.TakenAsync(1);
+        pilot.Usage.Limits = [new UsageLimit("5h", 0.95, pilot.Clock.GetUtcNow().AddHours(2))];
+        pilot.Passed(job);
+        pilot.Work.Changed(job, "GREETING.md");
+
+        await pilot.ProgressAsync(job, JobStatus.AwaitingReview);
+        var paused = await pilot.Bus.WaitForAsync<LoopPaused>(_ => true, Cancellation);
+
+        Assert.Equal((PauseReason.UsageLimit, Option<string>.Some("5h")), (paused.Pause.Reason, paused.Pause.Window));
+        Assert.Single(pilot.Jobs.Submitted);
+    }
+
+    [Fact]
     public async Task AJobHeldNearItsLimitPausesTheLoopAndIsContinuedOnceTheWindowResetsAsync()
     {
         await using var pilot = new Pilot();

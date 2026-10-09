@@ -109,6 +109,41 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
             Assert.Equal(("Supervised, as the repository declares", "claude-personal"), (view.TextOf("Autonomy"), view.TextOf("Connection")));
             Assert.Equal("JetBrains Mono", view.Find<TextBlock>("Connection").FontFamily.FamilyNames[0]);
         }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AConnectionChosenByCapacityShowsWhyAndTheReadingsItComparedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new DesignAutonomySectionViewModel()));
+
+            Assert.Equal((true, "Chosen by capacity: claude-personal had the most left"), (view.Shows("Reason"), view.TextOf("Reason")));
+            Assert.Equal(2, view.Find<ItemsControl>("Compared").ItemCount);
+            Assert.Contains("88% of 5h · holds at 90%", view.VisibleTexts, StringComparer.Ordinal);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AConnectionNamedOnTheJobShowsNoComparisonAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new Named()));
+
+            Assert.Equal((false, false), (view.Shows("Reason"), view.Shows("Compared")));
+        }, TestContext.Current.CancellationToken);
+
+    private sealed class Named : IAutonomySectionViewModel
+    {
+        public bool IsLoaded => true;
+
+        public string Autonomy => "Supervised, as asked";
+
+        public string Fact => "Supervised";
+
+        public string Connection => "claude-work";
+
+        public string Reason => string.Empty;
+
+        public IReadOnlyList<CapacityLine> Compared { get; } = [];
+    }
 }
 
 public sealed class WorktreeSectionViewScripts(HeadlessUi ui)

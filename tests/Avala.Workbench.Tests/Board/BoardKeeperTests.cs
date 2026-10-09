@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
@@ -74,6 +75,31 @@ public sealed class BoardKeeperTests
         Assert.Equal(
             ["Fix the failing test", "Use the staging database"],
             resumed.Transcript.Entries.Cast<PromptEntry>().Select(prompt => prompt.Text.Match(text => text, () => string.Empty)));
+    }
+
+    [Fact]
+    public async Task AJobThatStartsShowsTheConnectionItsSessionOpenedOnAsync()
+    {
+        var job = catalog.Add("Fix the failing test").Summary.Job;
+        await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+        var submitted = Joined(job).Summary.Connection;
+        catalog.Change(job, history => history with { Summary = history.Summary with { Connection = new ConnectionName("claude-personal"), Status = JobStatus.Running } });
+
+        await keeper.HandleAsync(new JobSessionStarted(job, SessionId.New()), Cancellation);
+
+        var started = Joined(job);
+        Assert.Equal((true, Option<ConnectionName>.Some(new ConnectionName("claude-personal")), JobStatus.Preparing), (submitted.IsNone, started.Summary.Connection, started.Status));
+    }
+
+    [Fact]
+    public async Task AConnectionChosenByCapacityStaysWithItsJobAndAJobUnknownSoFarJoinsWithItAsync()
+    {
+        var job = catalog.Add("Fix the failing test").Summary.Job;
+        var choice = new ConnectionChoice(new ConnectionName("claude-personal"), ChoiceReason.MostCapacity, [], time.GetUtcNow());
+
+        await keeper.HandleAsync(new ConnectionChosen(job, choice), Cancellation);
+
+        Assert.Equal(Option<ConnectionChoice>.Some(choice), Joined(job).Choice);
     }
 
     [Fact]

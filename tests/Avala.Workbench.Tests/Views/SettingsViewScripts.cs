@@ -165,7 +165,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var supervision = new FakeSupervision();
-            var machine = new MachineSettingsViewModel(new MachineSettings(new FakeConnections(), supervision, new FakeResources()), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")));
+            var machine = Machine(new FakeConnections(), supervision);
             var view = Screen.Show(machine);
 
             view.Type("SilenceDraft", "120");
@@ -179,7 +179,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
     public Task ARefusedWindowShowsWhyAsync() =>
         ui.RunAsync(async () =>
         {
-            var machine = new MachineSettingsViewModel(new MachineSettings(new FakeConnections(), new FakeSupervision(), new FakeResources()), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")));
+            var machine = Machine(new FakeConnections(), new FakeSupervision());
             var view = Screen.Show(machine);
 
             view.Find<TextBox>("SilenceDraft").Text = "later";
@@ -187,6 +187,78 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal((true, "Enter the window in seconds."), (view.Shows("Error"), view.TextOf("ErrorText")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheDefaultConnectionIsChosenAboveTheConnectionsAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
+            var machine = Machine(connections, new FakeSupervision());
+            await machine.LoadAsync(TestContext.Current.CancellationToken);
+            var view = Screen.Show(machine);
+
+            Assert.Equal((DefaultPhrases.Auto, true, false), (view.Find<ComboBox>("Choices").SelectedItem, view.Shows("Recommended"), view.Shows("Save")));
+            Assert.Equal([false, false], view.Find<ItemsControl>("Connections").Items.Cast<IMachineConnectionViewModel>().Select(connection => connection.IsDefault));
+        }, TestContext.Current.CancellationToken);
+
+    internal static MachineSettingsViewModel Machine(FakeConnections connections, FakeSupervision supervision)
+    {
+        var settings = new MachineSettings(connections, supervision, new FakeResources());
+
+        return new(settings, new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")), new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()));
+    }
+}
+
+public sealed class DefaultConnectionViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task AutoIsShownRecommendedWithWhatItMeansAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignDefaultConnectionViewModel());
+
+            Assert.Equal((3, DefaultPhrases.Auto, true, false, false), (view.Find<ComboBox>("Choices").ItemCount, view.Find<ComboBox>("Choices").SelectedItem, view.Shows("Recommended"), view.Shows("Save"), view.Shows("Error")));
+            Assert.StartsWith("Recommended.", view.TextOf("Explanation"), StringComparison.Ordinal);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task PickingAConnectionOffersToSaveAndSavingFixesItAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
+            var settings = new MachineSettings(connections, new FakeSupervision(), new FakeResources());
+            var chosen = new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
+            chosen.Show(connections.Catalog);
+            var view = Screen.Show(chosen);
+
+            view.Find<ComboBox>("Choices").SelectedItem = "claude-personal";
+            view.Settle();
+            var offered = (view.Shows("Save"), view.Shows("Recommended"));
+            view.Click("Save");
+            await (chosen.SaveCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.Equal((true, false), offered);
+            Assert.Equal((false, "claude-personal"), (view.Shows("Save"), chosen.Saved));
+            Assert.Contains("runs on claude-personal, even near its limit", view.TextOf("Explanation"), StringComparison.Ordinal);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ARefusedChangeShowsWhyInPlaceAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
+            connections.Refusal = Agents.Contracts.Connections.ConnectionError.Unwritable;
+            var chosen = new DefaultConnectionViewModel(new MachineSettings(connections, new FakeSupervision(), new FakeResources()), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
+            chosen.Show(connections.Catalog);
+            var view = Screen.Show(chosen);
+
+            view.Find<ComboBox>("Choices").SelectedItem = "claude-work";
+            await chosen.SaveCommand.ExecuteAsync(null);
+            view.Settle();
+
+            Assert.Equal((true, "connections.json could not be written."), (view.Shows("Error"), view.TextOf("Error")));
         }, TestContext.Current.CancellationToken);
 }
 

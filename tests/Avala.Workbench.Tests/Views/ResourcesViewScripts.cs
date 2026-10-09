@@ -178,8 +178,38 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
             var view = Screen.Show(new Avala.Workbench.NewJob.DesignNewJobViewModel());
 
             Assert.Equal(3, view.Find<ComboBox>("Connection").ItemCount);
-            Assert.Equal("claude-work", view.Find<ComboBox>("Connection").SelectedItem);
+            Assert.Equal("Auto", view.Find<ComboBox>("Connection").SelectedItem);
             Assert.Equal(("Submitted: Fix JPY rounding in invoice totals", false), (view.TextOf("Submitted"), view.Shows("Error")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AutoIsPreselectedWithWhatItWouldPickNowAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var preview = new FakePreview { Answer = FakePreview.ByCapacity("claude-personal", ChoiceReason.MostCapacity, ("claude-work", 0.88, true), ("claude-personal", 0.31, true)) };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
+            await page.LoadAsync(TestContext.Current.CancellationToken);
+            var view = Screen.Show(page);
+
+            Assert.Equal(("Auto", "Auto → claude-personal · 31% of the 5-hour window used · the most capacity left", false), (view.Find<ComboBox>("Connection").SelectedItem, view.TextOf("Route"), view.HasClass("Route", "attention")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task PickingAConnectionAtItsLimitWarnsInAmberAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var preview = new FakePreview { Answer = FakePreview.ByCapacity("claude-personal", ChoiceReason.MostCapacity, ("claude-work", 0.95, false), ("claude-personal", 0.31, true)) };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
+            await page.LoadAsync(TestContext.Current.CancellationToken);
+            var view = Screen.Show(page);
+
+            view.Find<ComboBox>("Connection").SelectedItem = "claude-work";
+            view.Settle();
+
+            Assert.Equal(("claude-work", true), (page.Connection, view.HasClass("Route", "attention")));
+            Assert.StartsWith("Runs on claude-work · 95%", view.TextOf("Route"), StringComparison.Ordinal);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -187,7 +217,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work")), bench.Board) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview()), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
             var view = Screen.Show(page);
 
             var empty = view.Find<Button>("Submit").IsEffectivelyEnabled;
@@ -202,7 +232,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var jobs = new SubmittingJobs { Refusal = JobRejection.UnknownConnection };
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(jobs, new FakeConnections("claude-work")), bench.Board) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(jobs, new FakeConnections("claude-work"), new FakePreview()), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
             var view = Screen.Show(page);
 
             view.Type("Instruction", "Add invoice PDF endpoint");

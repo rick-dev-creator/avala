@@ -16,7 +16,9 @@ internal sealed class CapacitySelector(IBudgetFiles files, IUsage usage, TimePro
 
         foreach (var candidate in question.Candidates)
         {
-            var budget = await files.ReadAsync(question.Worktree, candidate, cancellationToken);
+            var budget = question.AtHead
+                ? await files.ReadCurrentAsync(question.Worktree, candidate, cancellationToken)
+                : await files.ReadAsync(question.Worktree, candidate, cancellationToken);
             var threshold = budget.Caps.Match(caps => caps.Bind(declared => declared.HoldAtLimit), _ => Option<double>.None);
             compared.Add(CapacityPolicy.Measure(
                 candidate,

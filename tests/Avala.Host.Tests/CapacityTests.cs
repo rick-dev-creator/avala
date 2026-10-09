@@ -132,6 +132,104 @@ public sealed class CapacityTests(PublishedPlugins plugins)
         Assert.Equal(Two, await RanOnAsync(run, job));
     }
 
+    [Fact]
+    public async Task NewJobSaysWhereAutoWouldRunAndTheJobRunsThereWithItsReasonInTheInspectorAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/budget.json", HoldNearTheLimit)]);
+        await NearTheLimitAsync(run, One);
+        var page = await ActivatedAsync(run, "New job");
+
+        var route = await run.Ui.RunAsync(async () =>
+        {
+            page.Set("Repository", run.Repository.Path);
+            await page["Previewing"].Value<Task>();
+
+            return (page["Connection"].Text, page["Route"].Text);
+        });
+        await run.Ui.RunAsync(() =>
+        {
+            page.Set("Instruction", SimulatedRun.Simulate("reply"));
+
+            return page.ExecuteAsync("SubmitCommand");
+        });
+        var job = Outcomes.Present(await run.Ui.ReadAsync(() => page["LastSubmitted"].Value<Option<JobId>>()));
+
+        Assert.Equal(("Auto", "Auto → simulator-two · no usage reported yet · the most capacity left"), route);
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        Assert.Equal(Two, await RanOnAsync(run, job));
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(job);
+        await workbench.ShowsInGroupAsync(job, "ReadyForReview");
+        var section = await InspectedAsync(run, workbench, "AutonomySectionViewModel");
+        Assert.EndsWith("· simulator-two", await run.Ui.ReadAsync(() => conversation["Place"].Text), StringComparison.Ordinal);
+        Assert.Equal(
+            ("simulator-two", "Chosen by capacity: simulator-two had the most left", "95% of 5h · holds at 90% · at its limit", "no usage reported · holds at 90%"),
+            await run.Ui.ReadAsync(() => (
+                section["Connection"].Text,
+                section["Reason"].Text,
+                section["Compared"].Items[0]["Reading"].Text,
+                section["Compared"].Items[1]["Reading"].Text)));
+    }
+
+    [Fact]
+    public async Task ADefaultFixedInSettingsRunsJobsThatNameNoConnectionThereWithoutChoosingByCapacityAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, []);
+        var settings = await ActivatedAsync(run, "Settings");
+        var chosen = await run.Ui.ReadAsync(() => settings["Machine"]["DefaultConnection"]);
+        var offered = await run.Ui.ReadAsync(() => (chosen["Saved"].Text, chosen["Choices"].Items.Count));
+
+        await run.Ui.RunAsync(() =>
+        {
+            chosen.Set("Draft", "simulator-two");
+
+            return chosen.ExecuteAsync("SaveCommand");
+        });
+        var page = await ActivatedAsync(run, "New job");
+        var route = await run.Ui.RunAsync(async () =>
+        {
+            page.Set("Repository", run.Repository.Path);
+            await page["Previewing"].Value<Task>();
+
+            return (page["Connection"].Text, page["Route"].Text);
+        });
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+
+        Assert.Equal(("Auto (most capacity)", 3), offered);
+        Assert.Equal(("simulator-two", string.Empty), await run.Ui.ReadAsync(() => (chosen["Saved"].Text, chosen["Error"].Text)));
+        Assert.Contains("\"default\": \"simulator-two\"", await File.ReadAllTextAsync(Path.Combine(run.DataFolder, "connections.json"), Cancellation), StringComparison.Ordinal);
+        Assert.Equal(("Default (simulator-two)", "Default → simulator-two · the default connection of this machine"), route);
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        Assert.Equal(Two, await RanOnAsync(run, job));
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(job);
+        await workbench.ShowsInGroupAsync(job, "ReadyForReview");
+        var section = await InspectedAsync(run, workbench, "AutonomySectionViewModel");
+        Assert.Equal(("simulator-two", string.Empty), await run.Ui.ReadAsync(() => (section["Connection"].Text, section["Reason"].Text)));
+    }
+
+    private static async Task<Bound> ActivatedAsync(SimulatedRun run, string title)
+    {
+        var page = run.Page(title);
+        await run.Ui.RunAsync(() =>
+        {
+            ((IActivatable)page.Target).Activate();
+
+            return page["Loading"].Value<Task>();
+        });
+
+        return page;
+    }
+
+    private static async Task<Bound> InspectedAsync(SimulatedRun run, OpenWorkbench workbench, string kind)
+    {
+        var section = workbench.Section(kind);
+        await run.Ui.InvokeAsync(() => workbench.Page.Execute("ToggleInspectorCommand"), Cancellation);
+        await run.Ui.PresentedAsync(section.Presentation, () => section["IsLoaded"].Value<bool>(), () => $"{section.Kind} did not load");
+
+        return section;
+    }
+
     private static async Task NearTheLimitAsync(SimulatedRun run, ConnectionName connection)
     {
         var recorded = run.Watch<Avala.Observability.Contracts.UsageRecorded>();

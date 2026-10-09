@@ -29,8 +29,13 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     public async ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken) =>
         (await DeclaredAsync(worktree, cancellationToken))
-            .Map(declared => declared.Connection.Bind(name => name == ByCapacity ? Option<ConnectionName>.None : new ConnectionName(name)))
+            .Map(Preferred)
             .MapError(_ => JobRejection.UnusableConnection);
+
+    public async ValueTask<Result<Option<ConnectionName>, JobRejection>> CurrentConnectionAsync(string repository, CancellationToken cancellationToken) =>
+        (await files.ReadCurrentAsync(repository, JobFile, cancellationToken)).Match(
+            file => file.Content.Match(Parse, () => new Declaration(Option<string>.None, Option<string>.None)).Map(Preferred),
+            _ => Option<ConnectionName>.None);
 
     public async ValueTask<Result<Option<string>, JobRejection>> ApprovalAsync(string worktree, CancellationToken cancellationToken) =>
         (await DeclaredAsync(worktree, cancellationToken)).Map(declared => declared.Approval);
@@ -83,6 +88,9 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
         return Named(root, ConnectionField).Bind(connection => Named(root, ApprovalField).Map(approval => new Declaration(connection, approval)));
     }
+
+    private static Option<ConnectionName> Preferred(Declaration declared) =>
+        declared.Connection.Bind(name => name == ByCapacity ? Option<ConnectionName>.None : new ConnectionName(name));
 
     private static bool IsSection(JsonElement section, bool listsAllowed) =>
         section.ValueKind == JsonValueKind.Object

@@ -33,6 +33,30 @@
                    TextTrimming="CharacterEllipsis"
                    Text="{Binding Connection}" />
       </Grid>
+      <TextBlock x:Name="Reason"
+                 Classes="caption"
+                 TextWrapping="Wrap"
+                 Text="{Binding Reason}"
+                 IsVisible="{Binding Reason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <ItemsControl x:Name="Compared" ItemsSource="{Binding Compared}" IsVisible="{Binding !!Compared.Count}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="inspector:CapacityLine">
+            <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+              <TextBlock Classes="mono"
+                         Classes.tertiary="{Binding !IsChosen}"
+                         FontSize="{DynamicResource FontSizeCaption}"
+                         Text="{Binding Connection}" />
+              <TextBlock Grid.Column="1"
+                         Classes="caption"
+                         Classes.attention="{Binding IsAtLimit}"
+                         Margin="12,0,0,0"
+                         TextAlignment="Right"
+                         TextWrapping="Wrap"
+                         Text="{Binding Reading}" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </StackPanel>
   </ui:Fold>
 </UserControl>

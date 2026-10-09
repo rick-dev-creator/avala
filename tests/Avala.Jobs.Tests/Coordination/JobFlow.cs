@@ -55,6 +55,8 @@ internal sealed class JobFlow
 
     public FakeRepositoryDefaults Defaults { get; } = new();
 
+    public ConnectionPreviewer Preview => new(Connections, Defaults, new ConnectionChooser(Connections, Selectors, Bus));
+
     public RecordingBus Bus { get; } = new();
 
     public FakeWorkspaces Workspaces { get; }
