@@ -126,4 +126,35 @@ public sealed class BudgetFileTests
 
         Assert.Equal(BudgetError.Unreadable, Outcomes.FailsWith(file.Caps));
     }
+
+    [Fact]
+    public async Task ARepositorysCurrentBudgetListsItsCapsAndThoseOfEachConnectionAsync()
+    {
+        const string File = """{ "tokensPerJob": 1000, "holdAtLimit": 0.8, "connections": { "work": { "costPerJob": { "USD": 2 } }, "api": { "tokensPerJob": 50 } } }""";
+
+        var budget = await new BudgetFileReader(new CommittedFiles().With(Repository, BudgetFile, File)).OfRepositoryAsync(Repository, Cancellation);
+
+        Assert.Equal(
+            (BudgetFileStatus.Applied, Option<BudgetError>.None, Option<long>.Some(1_000), Option<double>.Some(0.8), Option<FileOrigin>.Some(CommittedFiles.Origin())),
+            (budget.File, budget.Error, budget.Caps.TokensPerJob, budget.Caps.HoldAtLimit, budget.Origin));
+        Assert.Equal(
+            [("api", Option<long>.Some(50), 0), ("work", Option<long>.None, 1)],
+            budget.Connections.Select(connection => (connection.Connection.Value, connection.Caps.TokensPerJob, connection.Caps.CostPerJob.Count)));
+    }
+
+    [Theory]
+    [InlineData(false, nameof(BudgetFileStatus.Absent), null)]
+    [InlineData(true, nameof(BudgetFileStatus.Rejected), nameof(BudgetError.Malformed))]
+    public async Task ARepositoryWithoutAValidBudgetCapsNothingAndSaysWhyAsync(bool declared, string status, string? error)
+    {
+        var committed = declared ? new CommittedFiles().With(Repository, BudgetFile, "not json") : new CommittedFiles().Workspace(Repository);
+
+        var budget = await new BudgetFileReader(committed).OfRepositoryAsync(Repository, Cancellation);
+
+        Assert.Equal(
+            (Enum.Parse<BudgetFileStatus>(status), error is null ? Option<BudgetError>.None : Enum.Parse<BudgetError>(error), 0, true, 0),
+            (budget.File, budget.Error, budget.Caps.CostPerJob.Count, budget.Caps.TokensPerJob.IsNone, budget.Connections.Count));
+    }
+
+    private const string Repository = "/repositories/shop";
 }

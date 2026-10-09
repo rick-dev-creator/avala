@@ -11,6 +11,7 @@ public enum SupervisionError
     Malformed,
     UnknownField,
     InvalidSilence,
+    Unwritable,
 }
 
 public enum SettingsFileStatus

@@ -23,6 +23,11 @@ public interface IPermissionAudit
     IReadOnlyList<HumanAnswer> AnswersOfJob(JobId job);
 }
 
+public interface IRepositoryPolicies
+{
+    ValueTask<RepositoryPolicy> OfRepositoryAsync(string repository, CancellationToken cancellationToken);
+}
+
 public interface IPermissionAnswers
 {
     ValueTask<Result<HumanAnswer, PolicyError>> AnswerAsync(SessionId session, PermissionReply reply, CancellationToken cancellationToken);

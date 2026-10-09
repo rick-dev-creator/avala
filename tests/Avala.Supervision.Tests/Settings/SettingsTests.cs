@@ -62,6 +62,32 @@ public sealed class SettingsTests
             await new SettingsFile(new AvalaPaths(data.Path)).LoadAsync(Cancellation));
     }
 
+    [Fact]
+    public async Task AChangedSilenceWindowIsWrittenToTheFileAndAppliesAtOnceAsync()
+    {
+        using var data = new TemporaryFolder();
+        await using var settings = new SettingsFile(new AvalaPaths(data.Path));
+        _ = await settings.LoadAsync(Cancellation);
+
+        var changed = Outcomes.Succeeds(await settings.ChangeSilenceAsync(TimeSpan.FromSeconds(90), Cancellation));
+
+        var applied = new SupervisionSettings(TimeSpan.FromSeconds(90), SettingsFileStatus.Applied, Option<SupervisionError>.None);
+        await using var reread = new SettingsFile(new AvalaPaths(data.Path));
+        Assert.Equal((applied, applied, applied), (changed, await settings.LoadAsync(Cancellation), await reread.LoadAsync(Cancellation)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(86_401)]
+    public async Task ASilenceWindowOutOfRangeIsRefusedAndNothingIsWrittenAsync(double seconds)
+    {
+        using var data = new TemporaryFolder();
+        await using var settings = new SettingsFile(new AvalaPaths(data.Path));
+
+        Assert.Equal(SupervisionError.InvalidSilence, Outcomes.FailsWith(await settings.ChangeSilenceAsync(TimeSpan.FromSeconds(seconds), Cancellation)));
+        Assert.False(File.Exists(Path.Combine(data.Path, SettingsFile.FileName)));
+    }
+
     private static Task WriteAsync(TemporaryFolder data, string content) =>
         File.WriteAllTextAsync(Path.Combine(data.Path, SettingsFile.FileName), content, Cancellation);
 }

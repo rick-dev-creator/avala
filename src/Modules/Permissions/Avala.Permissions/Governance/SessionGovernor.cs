@@ -15,11 +15,7 @@ internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, P
     public async ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
     {
         var read = await files.ReadAsync(integrationEvent.WorkingDirectory, cancellationToken);
-        var (policy, file, error) = read.Policy.Match(
-            found => found.Match(
-                declared => (declared, PolicyFileStatus.Applied, Option<PolicyError>.None),
-                () => (PermissionPolicy.BuiltIn, PolicyFileStatus.Absent, Option<PolicyError>.None)),
-            rejection => (PermissionPolicy.BuiltIn, PolicyFileStatus.Rejected, Option<PolicyError>.Some(rejection)));
+        var (policy, file, error) = read.Resolved;
 
         var report = new SessionPolicy(integrationEvent.Session, file, error, policy.Rules, read.Origin)
         {

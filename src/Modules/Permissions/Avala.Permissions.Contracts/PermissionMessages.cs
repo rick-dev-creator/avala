@@ -49,6 +49,17 @@ public sealed record SessionPolicy(
     public FormStrategy Strategy { get; init; }
 }
 
+public sealed record RepositoryPolicy(
+    PolicyFileStatus File,
+    Option<PolicyError> Error,
+    IReadOnlyList<PolicyRule> Rules,
+    Option<FileOrigin> Origin)
+{
+    public Autonomy Autonomy { get; init; }
+
+    public FormStrategy Strategy { get; init; }
+}
+
 public sealed record PolicyDecision(
     SessionId Session,
     TurnId Turn,
