@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Observability.Metrics;
 using Avala.Observability.Tests.Metrics;
 using Avala.Observability.Tracking;
+using Avala.Testing;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Observability.Tests.Tracking;
@@ -20,12 +21,14 @@ internal sealed class Tracked : IDisposable
     public Tracked()
     {
         Measurements = new MeterRecorder(meter.Meter);
-        tracker = new UsageTracker(Book, meter, Clock);
+        tracker = new UsageTracker(Book, meter, Clock, Bus);
     }
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 9, 0, 0, TimeSpan.Zero));
 
     public UsageBook Book { get; } = new();
+
+    public RecordingBus Bus { get; } = new();
 
     public MeterRecorder Measurements { get; }
 

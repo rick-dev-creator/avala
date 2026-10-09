@@ -16,7 +16,28 @@ public enum JobStatus
     Failed,
 }
 
+public enum HoldReason
+{
+    Stalled,
+    SessionLost,
+    BudgetExceeded,
+    LimitNearlyReached,
+    InvalidBudget,
+}
+
+public enum SessionHalt
+{
+    Interrupted,
+    Idle,
+    Stopped,
+    AlreadyClosed,
+}
+
+public sealed record JobHold(JobId Job, SessionId Session, HoldReason Reason, SessionHalt Halt);
+
 public sealed record JobSubmitted(JobId Job) : IIntegrationEvent;
+
+public sealed record JobHeld(JobHold Hold) : IIntegrationEvent;
 
 public sealed record JobProgressed(JobId Job, JobStatus Status) : IIntegrationEvent;
 

@@ -4,7 +4,7 @@ using Avala.Testing;
 
 namespace Avala.Jobs.Tests.Submission;
 
-public sealed class JobSubmissionsTests
+public sealed class JobsEntryTests
 {
     private static CancellationToken Cancellation => JobFlow.Cancellation;
 

@@ -21,3 +21,5 @@ internal sealed record JobApproved(JobId Job) : IDomainEvent;
 internal sealed record JobDiscarded(JobId Job, JobState From) : IDomainEvent;
 
 internal sealed record JobFailed(JobId Job, FailureReason Reason) : IDomainEvent;
+
+internal sealed record JobHeld(JobId Job, AttemptNumber Attempt, HoldReason Reason) : IDomainEvent;

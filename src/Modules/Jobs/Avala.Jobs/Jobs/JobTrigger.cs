@@ -14,4 +14,5 @@ internal enum JobTrigger
     Approve,
     Discard,
     Fail,
+    Hold,
 }

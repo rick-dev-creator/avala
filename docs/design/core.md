@@ -38,7 +38,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
-| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator | `JobId`, integration events, `IJobs`, `ICompletionGate` |
+| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason | `JobId`, integration events, `IJobs`, `ICompletionGate` |
 | Agents | Sessions, turn integrity, provider registry | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, integration events |
 | Workspaces | Working copies, branches, checkpoints | `IWorkspaces`, integration events |
 | Canvas | Accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
@@ -46,6 +46,8 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Observability | Tokens, cost, limits and turns by provider, session and job, and their metrics | `IUsage` and its summaries |
 | Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
 | Permissions | Answers permission requests through an explicit policy and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `IPermissionAudit` |
+| Supervision | Holds a job whose agent stays silent or whose session is lost, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
+| Budgets | Holds a job that reaches a cap on cost or tokens, or a provider limit threshold, and records every intervention | `BudgetLoaded`, `BudgetIntervened`, `IBudgets` |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
 
@@ -86,6 +88,7 @@ internal sealed class Job
     public Result<JobApproved, JobError> Approve();
     public Result<JobDiscarded, JobError> Discard();
     public Result<JobFailed, JobError> Fail(FailureReason reason);
+    public Result<JobHeld, JobError> Hold(HoldReason reason);
 }
 ```
 
@@ -236,9 +239,11 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 | `CheckTurn` | Handles `TurnFinished`: checkpoints the workspace, evaluates the gates, then passes the job, retries with feedback to the same session, or asks for help when the budget is spent |
 | `CompletionGates` | Combines every registered gate into one verdict |
 | `JobRecovery` | An `IStartupTask` that launches `Preparing` jobs and recovers `Running` or `Checking` jobs |
+| `HoldJob` | Behind `IJobs.HoldAsync`: holds a running job for a typed reason, stores it, halts its agent session and publishes `JobHeld`, see [Holding a job](#holding-a-job) |
 
 - The job stores its session before the instruction is sent, so a fast agent cannot finish a turn the job does not know yet.
-- A turn that ends interrupted or failed fails the job.
+- A message is only ever sent to a `Running` job's session, so a job held between storing its session and sending the instruction is never told.
+- A turn that ends interrupted or failed fails the job, unless the job was held first: a held job is no longer `Running`, so `CheckTurn` ignores the end of the turn the hold interrupted.
 - Handlers are idempotent. `CheckTurn` acts only on a job that is still `Running`, so a repeated `TurnFinished` changes nothing.
 - Recovery opens a new session in the existing workspace and calls `job.Recover`, which interrupts the attempt that was underway and starts a `Recovery` attempt.
 
@@ -258,6 +263,26 @@ public interface ICompletionGate
 - With no gate registered, every attempt passes, so the core works on its own.
 - Gates run in registration order, and the first `Retry` wins: its feedback goes back to the agent.
 - Verification registers a gate that runs the checks, see [Verification](#verification). Future plugins, such as security policy or a review by a second agent, are further gates.
+
+### Holding a job
+
+**Accepted**
+
+Supervision and Budgets stop an agent from outside Jobs through one operation, so Jobs stays ignorant of who calls it and why beyond a typed reason.
+
+```csharp
+public interface IJobs
+{
+    ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken);
+    ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken);
+}
+```
+
+- `Job.Hold(reason)` moves a `Running` job to `NeedsHelp` and concludes its underway attempt as `Interrupted`. No new state: a held job needs a human exactly like one whose retries ran out, and a hint resumes either. Any other state returns `CannotHold`, which `IJobs` reports as `NotRunning`; an unknown job is `UnknownJob`.
+- `HoldReason` is `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached` or `InvalidBudget`.
+- `HoldJob` stores the held job first, which publishes `JobProgressed` with `NeedsHelp`, and only then halts the session, so the end of the interrupted turn finds a job that is no longer `Running`. It then publishes `JobHeld` with a `JobHold`: job, session, reason and how the session was halted.
+- Halting: `SessionLost` stops the session, since it is already gone. Every other reason interrupts the turn through `IAgents.InterruptAsync` and keeps the session open for a human: `Interrupted` when a turn was interrupted, `Idle` when none was running. A provider that cannot interrupt, or an interruption that fails otherwise, stops the session instead: `Stopped`. A session that is no longer open is `AlreadyClosed`.
+- The hold reason is not persisted: the stored job is `NeedsHelp` with an interrupted attempt, and the reason lives in `JobHeld` and in the audit of the module that held it. Persisting it arrives with the first schema migration.
 
 ## Agents
 
@@ -296,13 +321,16 @@ public interface IAgents
     ValueTask<Result<SessionId, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken);
     ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken);
     ValueTask<Result<ItemId, AgentError>> RespondAsync(SessionId session, PermissionDecision decision, CancellationToken cancellationToken);
+    ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken);
     ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken);
 }
 ```
 
 - `OpenAsync` opens a session in the working directory of `AgentRequest` and returns its `SessionId`. `SendAsync` sends a message and returns the `AgentTurn` it started. Opening and sending are separate so the caller can store the session before any turn can finish: Jobs records it on the job first.
 - `RespondAsync` answers the permission request of a live session and returns the item it unblocked. A session that is not open returns `SessionClosed`.
+- `InterruptAsync` asks the agent of a live session to end its running turn, through `IAgentSession.InterruptAsync`; the agent then ends the turn as `Interrupted`. A provider whose capabilities do not declare `CanInterrupt` returns `Unsupported` without being asked, and a session that is not open returns `SessionClosed`. The provider contract does not change.
 - `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends.
+- When a session's event stream ends on its own, `AgentSessions` publishes `SessionEnded` with `Crashed` when the stream failed and `Closed` when it completed. It publishes it before closing the turn left live, if any, as `Failed`, so a consumer learns the session is gone before it sees that turn fail. A stream that completes while a turn is live no longer leaves the turn open forever. Stopping a session through `StopAsync`, including at shutdown, publishes nothing, so a restart is never mistaken for a lost session and recovery still finds its jobs running.
 
 ### Agnostic events
 
@@ -435,6 +463,7 @@ The bus dispatches in publishing order, so both arrive before the first activity
 - A turn lasts from its `TurnStarted` to its `TurnCompleted`, measured with `TimeProvider` when the tracker receives each event. A turn counts once: a repeated start or end changes nothing.
 - A limit belongs to the provider, not to a session: each window keeps its latest reading.
 - `IUsage` in `Avala.Observability.Contracts` answers by provider, by session and by job, with a `UsageSummary`: tokens, costs, unpriced reports, a `TurnTally` and limits. A job adds up every session it ran, recovery included.
+- After it records a `UsageReported` or a `LimitReported`, the tracker publishes `UsageRecorded` with the session and its job. A consumer that reacts to spending, such as Budgets, handles it and reads `IUsage`, which already includes the report. Handling `AgentActivity` directly would not do: handlers run in plugin order, so such a consumer could read the aggregates before the tracker applied the report.
 - The aggregates live in memory and start empty with the application. Persisting them, or rebuilding them from stored history, is left for when the dashboards need history across restarts.
 
 | Instrument | Kind | Unit | Tags |
@@ -562,6 +591,112 @@ The module subscribes to the bus like every other consumer of agent events, so i
 - Requests left to a human stay pending exactly as before the module existed: the turn waits in `AwaitingPermission`, never expires, and anyone may still answer through `IAgents.RespondAsync`.
 - Decisions live in memory for the life of the application, like the usage aggregates.
 
+## Supervision
+
+**Accepted**
+
+An unattended agent must not hang forever or die silently. The Supervision module watches every running job and holds it through `IJobs.HoldAsync`, with the reason and the facts it measured, when its agent goes silent or its session is lost.
+
+### Rules
+
+- **Silence.** A job is watched while it is `Running`, from its `JobProgressed`. Every accepted event of the job's current session, the one its latest `JobSessionStarted` named, restarts the silence; events of a session the job no longer uses do not. When the job stays silent for the whole window, it is held as `Stalled` with the silence measured and the window, and Jobs interrupts the turn.
+- **Human time.** While a permission request of the job's session waits for an answer, the job is never silent: the watch pauses on `PermissionRequested` and restarts the window on `PermissionResolved` or on the end of the turn. This is the same rule as the `Turn` aggregate's expiry, where an item waiting for permission never expires. Checks running in `Checking` are not watched either: Verification bounds them with its own timeouts.
+- **Session lost.** When `SessionEnded` reports that the current session of a job ended on its own, closed or crashed, the job is held as `SessionLost` with how it ended, and Jobs stops the session. `SessionEnded` precedes the failed turn that `AgentSessions` closes after it, so the job is held before `CheckTurn` sees the failure: with Supervision a lost session asks a human instead of failing the job. Without the module, the job fails as before.
+- **What it does not duplicate.** Sessions lost to a restart of the application are recovery's: stopping a session at shutdown publishes no `SessionEnded`, and `JobRecovery` resumes the job in a new session. Items left open when a turn ends are the `Turn` aggregate's: they are closed as `Abandoned`, the turn ends normally and the job goes on to its checks, so the `left-open` scenario needs no intervention.
+- **Only a running job.** Jobs rejects a hold of a job that is not `Running`; the module then records nothing. An intervention exists only when a job was actually held.
+
+### Timers
+
+- Silence is measured with `TimeProvider`, at the time the module handles each event. One alarm per job is pending at most: it is set for the last activity plus the window, and activity in the meantime only moves the last activity.
+- When an alarm rings, it does not hold the job from the timer thread. It publishes `SilenceNoticed`, and the watchdog confirms the silence when the bus dispatches it. Events published before the alarm rang are therefore handled first: a bus kept busy by another job's checks cannot make an active agent look silent, and the hold never races the job flow, whose handlers run on the same dispatcher. A confirmation that finds activity sets the alarm again from the last activity.
+
+### Settings
+
+The harness reads `supervision.json` from its data folder, the folder of `AVALA_DATA_PATH`, once, when the module first needs it.
+
+```json
+{ "silenceSeconds": 900 }
+```
+
+- `silenceSeconds` is optional, a number greater than 0 and at most 86,400. The default is 15 minutes: generous enough for a long build or test command that reports nothing until it ends, short enough that a hung agent is noticed within the hour.
+- The file is parsed strictly, like the policy file: unknown fields, duplicate fields, values of the wrong type and files over 16 KiB are rejected. A rejected file keeps the default window and is reported through `ISupervision.SettingsAsync` with its `SupervisionError`, so a broken file never disables supervision.
+
+| `SupervisionError` | Cause |
+| --- | --- |
+| `Unreadable` | The file exists but cannot be read |
+| `TooLarge` | Over 16 KiB |
+| `Malformed` | Not JSON, not an object, a value of the wrong type or a duplicate field |
+| `UnknownField` | A field the format does not define |
+| `InvalidSilence` | A window not greater than 0 or over a day |
+
+### The module
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Watching` | `JobWatch`, the immutable record of one job: whether it runs, its current session, the permission it waits for and its last activity; it decides whether the job is armed, when its alarm is due and whether it is silent | Domain |
+| `Supervising` | `Watchdog`, the handler of `JobProgressed`, `JobSessionStarted`, `AgentActivity` and `SilenceNoticed`; `LostSessions`, the handler of `SessionEnded`; `SilenceAlarms`, the per-job timers; `Intervener`, which holds through `IJobs` and records; `SupervisionBook`, the in-memory book behind `ISupervision`; and the `ISupervisionSettings` port | Application |
+| `Settings` | `SettingsFile` behind `ISupervisionSettings`, and `SettingsParser` | Infrastructure |
+
+- The domain decides and rejects nothing, so it has no aggregate. `SupervisionError` is the module's single error enum, in its contracts, since only reading the settings can fail and its outcome is public.
+- Interventions live in memory for the life of the application, like the usage aggregates.
+
+## Budgets
+
+**Accepted**
+
+An unattended agent must not spend without limit. The Budgets module holds a job through `IJobs.HoldAsync` when it reaches a cap its repository declares, and records what it spent against what it was allowed.
+
+### Caps
+
+- Caps are per job: they count every session of the job, recovery included, as `IUsage.OfJob` adds them up. The module reads spending from `IUsage` instead of adding reports up again.
+- **Cost.** One cap per currency. A job is held as `BudgetExceeded` when what it spent in a currency reaches the cap of that currency. Only priced reports count: with a provider that reports no cost, cap tokens instead.
+- **Tokens.** One cap on every token the provider reported: input, output, cache reads, cache writes and reasoning. Counting all of them holds earlier rather than later.
+- **Limits.** A threshold between 0 and 1. A job is held as `LimitNearlyReached` when a usage limit window of its session's provider reaches the threshold, whichever session of that provider reported it, since a limit belongs to the provider.
+- A cap is reached when the measure is equal to it or above it. The first breach found holds the job, in that order: cost, tokens, limit.
+
+### When it checks
+
+- When `UsageRecorded` names a job, after Observability recorded a usage or limit report; when `JobSessionStarted` ties a session to its job; and whenever `JobProgressed` says a job runs again, so a job already over its budget is held as soon as a retry, a hint or a recovery starts it, before it spends more.
+- Only a `Running` job is checked. A hold interrupts the turn, so an agent that reports usage as it goes is stopped mid-turn; one that reports only at the end of its turns can overshoot by one turn.
+
+### Budget file
+
+A repository declares its caps in `.avala/budget.json`, read from the session's working directory when the session opens, like the policy file. Without the file, nothing is capped: the built-in default has no caps and no limit threshold.
+
+```json
+{
+  "costPerJob": { "USD": 5.00 },
+  "tokensPerJob": 2000000,
+  "holdAtLimit": 0.9
+}
+```
+
+- Every field is optional. `costPerJob` maps a currency, as the provider reports it, to an amount greater than 0. `tokensPerJob` is a whole number greater than 0. `holdAtLimit` is greater than 0 and at most 1.
+- The file is parsed strictly: unknown fields, duplicate fields, values of the wrong type, nesting deeper than the format needs and files over 64 KiB are rejected.
+- **Invalid file, safe behavior.** A rejected file is reported in `BudgetLoaded` with its `BudgetError`, and the job is held as `InvalidBudget` as soon as it runs. A repository that declared caps meant to limit spending, so a broken declaration stops the agent instead of letting it spend without limit.
+
+| `BudgetError` | Cause |
+| --- | --- |
+| `Unreadable` | The file exists but cannot be read |
+| `TooLarge` | Over 64 KiB |
+| `Malformed` | Not JSON, a value of the wrong type, a duplicate field or nesting too deep |
+| `UnknownField` | A field the format does not define |
+| `InvalidCost` | A currency without a name or an amount not greater than 0 |
+| `InvalidTokens` | A token cap that is not a whole number greater than 0 |
+| `InvalidThreshold` | A threshold not greater than 0 or over 1 |
+
+### The module
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Caps` | `Breaches`: the evaluation of a session's budget against a job's spending and its provider's limits, the reason each breach holds a job for, and the built-in caps | Domain |
+| `Enforcement` | `BudgetLoader`, the handler of `SessionOpened`; `BudgetEnforcer`, the handler of `JobSessionStarted`, `JobProgressed` and `UsageRecorded`; `BudgetHolds`, which holds through `IJobs` and records; `BudgetBook`, the in-memory book behind `IBudgets`; and the `IBudgetFiles` port | Application |
+| `BudgetFiles` | `BudgetFileReader` behind `IBudgetFiles`, and `BudgetFileParser` | Infrastructure |
+
+- The domain decides and rejects nothing, so it has no aggregate. `BudgetError` is the module's single error enum, in its contracts.
+- Budgets and interventions live in memory. Spending lives in Observability's memory too, so a restart starts every job's spending from zero; persisting usage is deferred with the dashboards.
+- **Trust.** The budget file is read from the worktree, so an agent could raise its own caps; a running session keeps the caps it opened with, but a recovered session reads the file again. Reading it from the job's base commit is deferred, like the checks and the policy.
+
 ## Data the harness produces
 
 The user interface is designed from the data the harness produces, so every module that produces data lists it here: its integration events on the bus and its queries, with their shape, when and how often they are produced, and their cardinality.
@@ -595,6 +730,48 @@ Live progress of a check while it runs is not published yet: the job's `JobProgr
 | `IPermissionAudit.OfJob` | Query | The `PolicyDecision`s of every session of a job, recovery included, by time | Any time; a session counts once `JobSessionStarted` tied it to the job | Zero or more per job |
 
 A `PolicyRule` carries its origin (`BuiltIn` or `Repository`), name, `Option<ItemKind>`, `Option<string>` target pattern, `RuleScope` (`Anywhere` or `Workspace`) and answer, so a decision explains itself without another query.
+
+### Jobs: holds
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `JobHeld` | Event | `Hold`: a `JobHold` with `Job`, `Session`, `Reason` (`HoldReason`: `Stalled`, `SessionLost`, `BudgetExceeded`, `LimitNearlyReached`, `InvalidBudget`) and `Halt` (`SessionHalt`: `Interrupted`, `Idle`, `Stopped`, `AlreadyClosed`) | Each time a module holds a running job, right after the job's `JobProgressed` with `NeedsHelp` and once its session was halted | Zero or one per run of a job: a held job runs again only after a human hint |
+
+The other events of Jobs, `JobSubmitted`, `JobProgressed` and `JobSessionStarted`, predate this catalog and keep their shapes.
+
+### Agents: session ends
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `SessionEnded` | Event | `Session`, `Ending` (`SessionEnding`: `Closed` or `Crashed`) | When a session's event stream ends on its own, before the `TurnFinished` of the turn it left live, if any. Never when the harness stops the session | Zero or one per session |
+
+### Observability: usage recorded
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `UsageRecorded` | Event | `Session`, `Option<JobId>` of its job | After every `UsageReported` and `LimitReported` the tracker recorded, once `IUsage` includes it | One per usage or limit report |
+
+### Supervision
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `SilenceNoticed` | Event | `Job` | When the silence alarm of a running job rings. The watchdog confirms it when the bus dispatches it, so it does not mean the job was held | At most one pending per job; a job active for a long run gets one each time its window elapses without its last activity having moved |
+| `SupervisorIntervened` | Event | `Intervention`: a `SupervisionIntervention` | After a hold succeeded, following the hold's `JobProgressed` and `JobHeld` | One per intervention |
+| `ISupervision.OfJob(JobId)` | Query | `IReadOnlyList<SupervisionIntervention>` in the order they happened; empty for an unknown job | Any time, from memory | Zero or more per job |
+| `ISupervision.SettingsAsync` | Query | `SupervisionSettings`: `Silence` window, `File` (`SettingsFileStatus`: `Absent`, `Applied` or `Rejected`) and `Option<SupervisionError>` | Any time; reads the settings file the first time | One per application |
+
+`SupervisionIntervention` carries `Hold`, the `JobHold` Jobs returned; `Silence`, an `Option<SilenceMeasure>` with the measured `Silent` time and the `Window`, present for `Stalled`; `Ending`, an `Option<SessionEnding>`, present for `SessionLost`; and `At`, from `TimeProvider`.
+
+### Budgets
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `BudgetLoaded` | Event | `Budget`: a `SessionBudget` with `Session`, `File` (`BudgetFileStatus`: `Absent`, `Applied` or `Rejected`), `Option<BudgetError>` and `Caps` | When a session opens, after its budget file was read and before the session is tied to its job | One per session |
+| `BudgetIntervened` | Event | `Intervention`: a `BudgetIntervention` | After a hold succeeded, following the hold's `JobProgressed` and `JobHeld` | One per intervention |
+| `IBudgets.BudgetOf(SessionId)` | Query | `Option<SessionBudget>`; none until the session opened | Any time | One per session |
+| `IBudgets.OfJob(JobId)` | Query | `IReadOnlyList<BudgetIntervention>` in the order they happened | Any time, from memory | Zero or more per job |
+
+`BudgetCaps` has `CostPerJob`, a list of `Cost` caps, one per currency; `TokensPerJob`, an `Option<long>`; and `HoldAtLimit`, an `Option<double>`. `BudgetIntervention` carries `Hold`, the `JobHold`; `Breach`; and `At`. A `BudgetBreach` states the measured facts: `Measure` (`Cost`, `Tokens`, `Limit` or `Declaration`), `Subject` (the currency, `tokens`, the limit window or the budget file), `Measured` and `Cap` as decimals (spent against cap, or the limit fraction used against the threshold; both 0 for a declaration) and `Error`, the `Option<BudgetError>` of an invalid declaration.
 
 ## Delivery
 

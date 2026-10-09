@@ -114,6 +114,15 @@ internal sealed class Job : IAggregateRoot<JobId>
                 return new JobFailed(Id, reason);
             });
 
+    public Result<JobHeld, JobError> Hold(HoldReason reason) =>
+        machine.TryFire(JobTrigger.Hold, JobError.CannotHold)
+            .Map(_ =>
+            {
+                InterruptUnderwayAttempt();
+
+                return new JobHeld(Id, attempts[^1].Number, reason);
+            });
+
     private bool HasRetriesLeft() =>
         attempts.Count - attempts.FindLastIndex(attempt => attempt.Origin != AttemptOrigin.Retry) < Budget.AttemptsPerRound;
 

@@ -31,6 +31,7 @@ internal static class LayerMap
             ["Launching"] = Layer.Application,
             ["TurnChecks"] = Layer.Application,
             ["Recovery"] = Layer.Application,
+            ["Holding"] = Layer.Application,
             ["Ledger"] = Layer.Application,
             ["Storage"] = Layer.Infrastructure,
             ["JobList"] = Layer.ViewModels,
@@ -51,6 +52,22 @@ internal static class LayerMap
             ["Governance"] = Layer.Application,
             ["Answering"] = Layer.Application,
             ["PolicyFiles"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.Supervision", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Watching"] = Layer.Domain,
+            ["Supervising"] = Layer.Application,
+            ["Settings"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.Budgets", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Caps"] = Layer.Domain,
+            ["Enforcement"] = Layer.Application,
+            ["BudgetFiles"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Simulator", new()
         {

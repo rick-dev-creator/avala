@@ -19,4 +19,5 @@ internal enum JobError
     CannotApprove,
     CannotDiscard,
     CannotFail,
+    CannotHold,
 }

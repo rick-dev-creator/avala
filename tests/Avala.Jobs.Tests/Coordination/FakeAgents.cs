@@ -9,8 +9,16 @@ internal sealed class FakeAgents : IAgents
 {
     private readonly ConcurrentDictionary<SessionId, string> sessions = new();
     private readonly ConcurrentQueue<(SessionId Session, string Message)> sent = new();
+    private readonly ConcurrentQueue<SessionId> interrupted = new();
+    private readonly ConcurrentQueue<SessionId> stopped = new();
 
     public bool OpeningFails { get; init; }
+
+    public Option<AgentError> InterruptRejection { get; init; }
+
+    public IReadOnlyList<SessionId> Interrupted => [.. interrupted];
+
+    public IReadOnlyList<SessionId> Stopped => [.. stopped];
 
     public IReadOnlyDictionary<SessionId, string> Sessions => sessions;
 
@@ -49,8 +57,29 @@ internal sealed class FakeAgents : IAgents
             ? Result<ItemId, AgentError>.Success(decision.Item)
             : Result<ItemId, AgentError>.Failure(AgentError.SessionClosed));
 
-    public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(sessions.TryRemove(session, out _)
-            ? Result<SessionId, AgentError>.Success(session)
-            : Result<SessionId, AgentError>.Failure(AgentError.SessionClosed));
+    public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken)
+    {
+        if (!sessions.ContainsKey(session))
+        {
+            return ValueTask.FromResult(Result<TurnId, AgentError>.Failure(AgentError.SessionClosed));
+        }
+
+        interrupted.Enqueue(session);
+
+        return ValueTask.FromResult(InterruptRejection.Match(
+            Result<TurnId, AgentError>.Failure,
+            () => Result<TurnId, AgentError>.Success(TurnId.New())));
+    }
+
+    public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)
+    {
+        if (!sessions.TryRemove(session, out _))
+        {
+            return ValueTask.FromResult(Result<SessionId, AgentError>.Failure(AgentError.SessionClosed));
+        }
+
+        stopped.Enqueue(session);
+
+        return ValueTask.FromResult(Result<SessionId, AgentError>.Success(session));
+    }
 }

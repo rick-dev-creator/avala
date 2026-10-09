@@ -11,6 +11,8 @@ public sealed class ScriptedSession(Func<SessionId, TurnId, IEnumerable<IAgentEv
     private readonly Channel<IAgentEvent> events = Channel.CreateUnbounded<IAgentEvent>();
     private readonly ConcurrentQueue<string> received = new();
     private readonly ConcurrentQueue<PermissionDecision> decisions = new();
+    private readonly ConcurrentQueue<TurnId> turns = new();
+    private int interruptions;
 
     public SessionId Id { get; } = SessionId.New();
 
@@ -20,6 +22,8 @@ public sealed class ScriptedSession(Func<SessionId, TurnId, IEnumerable<IAgentEv
 
     public IReadOnlyList<PermissionDecision> Decisions => [.. decisions];
 
+    public int Interruptions => interruptions;
+
     public bool IsDisposed { get; private set; }
 
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
@@ -28,6 +32,7 @@ public sealed class ScriptedSession(Func<SessionId, TurnId, IEnumerable<IAgentEv
     {
         var id = TurnId.New();
         received.Enqueue(turn.Text);
+        turns.Enqueue(id);
 
         foreach (var agentEvent in script(Id, id))
         {
@@ -44,8 +49,18 @@ public sealed class ScriptedSession(Func<SessionId, TurnId, IEnumerable<IAgentEv
         return ValueTask.FromResult(Result<ItemId, AgentError>.Success(decision.Item));
     }
 
-    public ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) =>
-        ValueTask.FromResult(Result<TurnId, AgentError>.Failure(AgentError.NoTurnInProgress));
+    public ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref interruptions);
+
+        return ValueTask.FromResult(turns.IsEmpty
+            ? Result<TurnId, AgentError>.Failure(AgentError.NoTurnInProgress)
+            : Result<TurnId, AgentError>.Success(turns.Last()));
+    }
+
+    public void End() => events.Writer.TryComplete();
+
+    public void Crash() => events.Writer.TryComplete(new InvalidOperationException("The scripted agent crashed."));
 
     public ValueTask DisposeAsync()
     {

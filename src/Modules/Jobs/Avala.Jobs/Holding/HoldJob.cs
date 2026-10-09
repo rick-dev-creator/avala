@@ -1,0 +1,55 @@
+using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
+using Avala.Jobs.Jobs;
+using Avala.Jobs.Ledger;
+using Avala.Sdk;
+using Avala.Sdk.Events;
+using HoldAnnouncement = Avala.Jobs.Contracts.JobHeld;
+
+namespace Avala.Jobs.Holding;
+
+internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
+{
+    public async Task<Result<JobHold, JobRejection>> ExecuteAsync(JobId id, HoldReason reason, CancellationToken cancellationToken) =>
+        await (await ledger.FindAsync(id, cancellationToken)).Match(
+            job => job.Session.Match(
+                session => job.Hold(reason).IsSuccess
+                    ? HeldAsync(job, session, reason, cancellationToken)
+                    : RejectedAsync(JobRejection.NotRunning),
+                () => RejectedAsync(JobRejection.NotRunning)),
+            () => RejectedAsync(JobRejection.UnknownJob));
+
+    private static Task<Result<JobHold, JobRejection>> RejectedAsync(JobRejection rejection) =>
+        Task.FromResult(Result<JobHold, JobRejection>.Failure(rejection));
+
+    private async Task<Result<JobHold, JobRejection>> HeldAsync(Job job, SessionId session, HoldReason reason, CancellationToken cancellationToken)
+    {
+        await ledger.RecordAsync(job, cancellationToken);
+
+        var hold = new JobHold(job.Id, session, reason, await HaltAsync(session, reason, cancellationToken));
+        await bus.PublishAsync(new HoldAnnouncement(hold), cancellationToken);
+
+        return hold;
+    }
+
+    private async Task<SessionHalt> HaltAsync(SessionId session, HoldReason reason, CancellationToken cancellationToken)
+    {
+        if (reason == HoldReason.SessionLost)
+        {
+            return await StopAsync(session, cancellationToken);
+        }
+
+        return await (await agents.InterruptAsync(session, cancellationToken)).Match(
+            _ => Task.FromResult(SessionHalt.Interrupted),
+            error => error switch
+            {
+                AgentError.NoTurnInProgress => Task.FromResult(SessionHalt.Idle),
+                AgentError.SessionClosed => Task.FromResult(SessionHalt.AlreadyClosed),
+                _ => StopAsync(session, cancellationToken),
+            });
+    }
+
+    private async Task<SessionHalt> StopAsync(SessionId session, CancellationToken cancellationToken) =>
+        (await agents.StopAsync(session, cancellationToken)).Match(_ => SessionHalt.Stopped, _ => SessionHalt.AlreadyClosed);
+}

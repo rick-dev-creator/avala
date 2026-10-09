@@ -65,14 +65,13 @@ Done when: a workspace is created, checkpointed and disposed on Linux and Window
 
 ## Phase 5: Job flow
 
-Status: items 1 to 6 are done, with `Option<T>`, the rule that keeps nullable types out of signatures and the persistence rules that keep EF Core in `Infrastructure` and database work off the UI thread. An end-to-end integration test of the flow is being finished.
+Status: items 1 to 5 are done, with `Option<T>`, the rule that keeps nullable types out of signatures and the persistence rules that keep EF Core in `Infrastructure` and database work off the UI thread. An end-to-end integration test of the flow is being finished. The Verification module, formerly item 6, moved to [phase 8b](#phase-8b-trust) with the other modules that let an agent run unattended.
 
 1. The job flow coordinator as event handlers.
 2. `ICompletionGate`, with every attempt passing when no gate is registered.
 3. Recovery on startup from stored state.
 4. Persistence for Jobs and Workspaces with EF Core and SQLite, one `DbContext` and one database file per module.
 5. Keep database work off the UI thread, with an architecture rule that verifies it.
-6. The [Verification](../design/core.md#verification) module, a plugin of its own: a completion gate that runs the checks a repository declares in `.avala/checks.json` inside the worktree, each with its timeout, sends the failures back to the agent through the retry path, and publishes the evidence of every attempt as `AttemptVerified`, queryable through `IVerifications`. A host simulation test proves that a job whose declared check fails reaches review only after the agent fixes it. Deferred: reading the declaration from the job's base commit so the agent cannot change it, live progress of a running check, and persisting the reports.
 
 Done when: a job goes from submitted to awaiting review with the fake provider, survives a restart midway, and handlers stay idempotent.
 
@@ -110,17 +109,59 @@ Status: done. The MCP canvas tool moved to phase 6, with the real provider; the 
 
 Done when: a canvas streamed by the simulator reaches the bus as snapshots in order, with unit tests. Met.
 
-## Phase 8b: Permissions
+## Phase 8b: Trust
+
+Agents you can trust without watching: an unattended job must prove its work, act within an explicit policy, never hang forever or die silently, and never spend without limit. Each concern is a plugin of its own that joins the job flow through a contract of Jobs, and every intervention leaves evidence queryable per job.
+
+Status: done with the simulator. What waits is listed per module.
+
+### Verification
+
+Status: done. Deferred: reading the declaration from the job's base commit so the agent cannot change it, live progress of a running check, and persisting the reports.
+
+1. The [Verification](../design/core.md#verification) module: a completion gate that runs the checks a repository declares in `.avala/checks.json` inside the worktree, each with its timeout, sends the failures back to the agent through the retry path, and publishes the evidence of every attempt as `AttemptVerified`, queryable through `IVerifications`.
+2. A host simulation test: a job whose declared check fails reaches review only after the agent fixes it.
+
+### Permissions
 
 Status: done with the simulator. Reading the policy from the committed base rather than the worktree, and opening sessions in `AskEveryTime` so that edits also reach the policy, wait for the real Claude Code provider of phase 6.
 
 1. `PermissionRequested` names its item kind and its target, `SessionOpened` its working directory, and the conformance kit reports requests that name no target or another kind than their item.
-2. The Permissions module, a plugin of its own: ordered rules with first-match semantics and a default `Ask`, scoped to the workspace for file edits, with a built-in guard that sends edits of the policy file to a human.
+2. The [Permissions](../design/core.md#permissions) module: ordered rules with first-match semantics and a default `Ask`, scoped to the workspace for file edits, with a built-in guard that sends edits of the policy file to a human.
 3. A repository policy in `.avala/permissions.json`, parsed strictly; an invalid file is reported with a typed `PolicyError` and falls back to the built-in policy.
 4. `PermissionResponder` answers `Allow` and `Deny` through `IAgents.RespondAsync` and leaves `Ask` pending; every decision is published as `PermissionDecided` with the rule that made it, and is queryable by session and job through `IPermissionAudit`.
 5. Host simulation tests with the `permission` scenario: an allowing policy lets the job finish unattended, a denying policy is answered `Deny`, and without a policy the request awaits a human, with the decision audited in each case.
 
-Done when: a simulated job that asks permission finishes unattended under a repository policy, and every decision is audited. Met.
+### Holding a job
+
+Status: done.
+
+1. [`IJobs.HoldAsync`](../design/core.md#holding-a-job) with a typed `HoldReason`: a running job goes to `NeedsHelp`, its attempt is interrupted, its session is interrupted or stopped, and `JobHeld` says why. Jobs knows no caller.
+2. `IAgents.InterruptAsync`, decided by the provider's `CanInterrupt` capability; the provider contract does not change.
+3. `SessionEnded` from Agents when a session's stream closes or crashes on its own, before the live turn is closed as failed; a stream that closes mid-turn no longer leaves the turn open.
+4. `UsageRecorded` from Observability, so spending is judged on aggregates that already include the last report.
+
+### Supervision
+
+Status: done with the simulator. Deferred: stopping a session whose agent ignores the interruption, after a grace period; resuming a job held as `SessionLost` in a new session when a human hints it; and persisting the interventions.
+
+1. The [Supervision](../design/core.md#supervision) module: a running job silent for the window, outside the time a permission waits for a human, is held as `Stalled`; a job whose session ends on its own is held as `SessionLost`.
+2. The silence window from `supervision.json` in the data folder, 15 minutes by default, parsed strictly; a rejected file keeps the default and says why.
+3. Alarms measured with `TimeProvider` and confirmed on the bus dispatcher, so a busy bus never makes an active agent look silent.
+4. Every intervention published as `SupervisorIntervened` with the silence measured or how the session ended, and queryable per job through `ISupervision`.
+5. Host simulation tests: the `hang` scenario is interrupted and held as `Stalled`, `crash` is held as `SessionLost`, and `left-open` reaches review with no intervention.
+
+### Budgets
+
+Status: done with the simulator. Deferred: reading the budget from the job's base commit, keeping spending across restarts, an override that lets a human raise the cap of a held job, and caps across jobs or per account.
+
+1. The [Budgets](../design/core.md#budgets) module: per-job caps on cost per currency and on tokens, and a threshold on the provider's usage limits, from `.avala/budget.json`; no caps without the file.
+2. The file parsed strictly; an invalid file is reported with a typed `BudgetError` and holds the job as `InvalidBudget` as soon as it runs.
+3. Spending read from `IUsage` on every `UsageRecorded`, and again whenever a job starts running.
+4. Every intervention published as `BudgetIntervened` with what was measured against the cap, and queryable per job through `IBudgets`.
+5. Host simulation tests: a cost cap below the `reply` scenario's cost holds the job as `BudgetExceeded`, and a limit threshold below the simulator's reported limit holds it as `LimitNearlyReached`.
+
+Done when: a simulated job proves its work, asks permission within a policy, and is held with its reason recorded when it hangs, loses its session or reaches its budget. Met.
 
 ## Phase 9: View models of the usable core
 

@@ -14,4 +14,5 @@ internal enum Operation
     Approve,
     Discard,
     Fail,
+    Hold,
 }

@@ -7,13 +7,16 @@ internal sealed class LiveSession : IAsyncDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly Task pump;
 
-    public LiveSession(IAgentSession session, Func<IAgentSession, CancellationToken, Task> pump)
+    public LiveSession(IAgentSession session, AgentCapabilities capabilities, Func<IAgentSession, CancellationToken, Task> pump)
     {
         Session = session;
+        Capabilities = capabilities;
         this.pump = pump(session, lifetime.Token);
     }
 
     public IAgentSession Session { get; }
+
+    public AgentCapabilities Capabilities { get; }
 
     public async ValueTask DisposeAsync()
     {

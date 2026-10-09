@@ -29,6 +29,7 @@ internal static class JobLifecycle
         machine.Configure(JobState.Running)
             .SubstateOf(JobState.Active)
             .Permit(JobTrigger.CompleteTurn, JobState.Checking)
+            .Permit(JobTrigger.Hold, JobState.NeedsHelp)
             .PermitReentry(JobTrigger.Recover);
 
         machine.Configure(JobState.Checking)

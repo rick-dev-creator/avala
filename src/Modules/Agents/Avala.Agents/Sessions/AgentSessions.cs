@@ -32,7 +32,7 @@ internal sealed partial class AgentSessions(
         }
 
         await bus.PublishAsync(new SessionOpened(session.Id, provider.Info, request.WorkingDirectory), cancellationToken);
-        live.TryAdd(session.Id, new LiveSession(session, PumpAsync));
+        live.TryAdd(session.Id, new LiveSession(session, provider.Capabilities, PumpAsync));
 
         return session.Id;
     }
@@ -52,6 +52,11 @@ internal sealed partial class AgentSessions(
         live.TryGetValue(session, out var running)
             ? await running.Session.RespondAsync(decision, cancellationToken)
             : AgentError.SessionClosed;
+
+    public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
+        !live.TryGetValue(session, out var running) ? AgentError.SessionClosed
+        : !running.Capabilities.CanInterrupt ? AgentError.Unsupported
+        : await running.Session.InterruptAsync(cancellationToken);
 
     public async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)
     {
@@ -76,6 +81,7 @@ internal sealed partial class AgentSessions(
     private async Task PumpAsync(IAgentSession session, CancellationToken cancellationToken)
     {
         Turn? turn = null;
+        var ending = SessionEnding.Closed;
 
         try
         {
@@ -94,10 +100,23 @@ internal sealed partial class AgentSessions(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            return;
         }
-        catch (Exception exception) when (turn is not null)
+        catch (Exception exception)
         {
             LogSessionFailed(session.Id.Value, exception);
+            ending = SessionEnding.Crashed;
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        await bus.PublishAsync(new SessionEnded(session.Id, ending), CancellationToken.None);
+
+        if (turn is { IsLive: true })
+        {
             var failed = new TurnCompleted(turn.Session, turn.Id, TurnOutcome.Failed);
             await ForwardAsync(failed, turn.Apply(failed, clock.GetUtcNow()), CancellationToken.None);
         }

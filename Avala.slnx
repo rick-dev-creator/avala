@@ -53,6 +53,14 @@
     <Project Path="src/Modules/Permissions/Avala.Permissions.Contracts/Avala.Permissions.Contracts.csproj" />
     <Project Path="src/Modules/Permissions/Avala.Permissions/Avala.Permissions.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Supervision/">
+    <Project Path="src/Modules/Supervision/Avala.Supervision.Contracts/Avala.Supervision.Contracts.csproj" />
+    <Project Path="src/Modules/Supervision/Avala.Supervision/Avala.Supervision.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Budgets/">
+    <Project Path="src/Modules/Budgets/Avala.Budgets.Contracts/Avala.Budgets.Contracts.csproj" />
+    <Project Path="src/Modules/Budgets/Avala.Budgets/Avala.Budgets.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Simulator/">
     <Project Path="src/Modules/Simulator/Avala.Simulator/Avala.Simulator.csproj" />
   </Folder>
@@ -73,6 +81,8 @@
     <Project Path="tests/Avala.Simulator.Tests/Avala.Simulator.Tests.csproj" />
     <Project Path="tests/Avala.Testing/Avala.Testing.csproj" />
     <Project Path="tests/Avala.Verification.Tests/Avala.Verification.Tests.csproj" />
+    <Project Path="tests/Avala.Supervision.Tests/Avala.Supervision.Tests.csproj" />
+    <Project Path="tests/Avala.Budgets.Tests/Avala.Budgets.Tests.csproj" />
     <Project Path="tests/Avala.Workspaces.Tests/Avala.Workspaces.Tests.csproj" />
   </Folder>
 </Solution>

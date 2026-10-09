@@ -13,8 +13,11 @@ internal sealed class InMemoryJobStore : IJobStore
 
     public IReadOnlyList<Job> Jobs => [.. jobs.Values];
 
+    public Action<Job> Saving { get; set; } = _ => { };
+
     public Task SaveAsync(Job job, CancellationToken cancellationToken)
     {
+        Saving(job);
         jobs[job.Id] = job;
 
         return Task.CompletedTask;

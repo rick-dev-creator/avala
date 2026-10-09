@@ -23,6 +23,10 @@
       "src/Modules/Verification/Avala.Verification/Avala.Verification.csproj",
       "src/Modules/Permissions/Avala.Permissions.Contracts/Avala.Permissions.Contracts.csproj",
       "src/Modules/Permissions/Avala.Permissions/Avala.Permissions.csproj",
+      "src/Modules/Supervision/Avala.Supervision.Contracts/Avala.Supervision.Contracts.csproj",
+      "src/Modules/Supervision/Avala.Supervision/Avala.Supervision.csproj",
+      "src/Modules/Budgets/Avala.Budgets.Contracts/Avala.Budgets.Contracts.csproj",
+      "src/Modules/Budgets/Avala.Budgets/Avala.Budgets.csproj",
       "tests/Avala.Agents.Tests/Avala.Agents.Tests.csproj",
       "tests/Avala.Canvas.Tests/Avala.Canvas.Tests.csproj",
       "tests/Avala.Jobs.Tests/Avala.Jobs.Tests.csproj",
@@ -34,6 +38,8 @@
       "tests/Avala.Simulator.Tests/Avala.Simulator.Tests.csproj",
       "tests/Avala.Testing/Avala.Testing.csproj",
       "tests/Avala.Verification.Tests/Avala.Verification.Tests.csproj",
+      "tests/Avala.Supervision.Tests/Avala.Supervision.Tests.csproj",
+      "tests/Avala.Budgets.Tests/Avala.Budgets.Tests.csproj",
       "tests/Avala.Workspaces.Tests/Avala.Workspaces.Tests.csproj"
     ]
   }

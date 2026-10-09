@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Jobs.Holding;
 using Avala.Jobs.JobList;
 using Avala.Jobs.Launching;
 using Avala.Jobs.Ledger;
@@ -26,7 +27,8 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
             .AddSingleton<JobLauncher>()
             .AddSingleton<CompletionGates>()
             .AddSingleton<SubmitJob>()
-            .AddSingleton<IJobs, JobSubmissions>()
+            .AddSingleton<HoldJob>()
+            .AddSingleton<IJobs, JobsEntry>()
             .AddSingleton<IHandle<JobAnnouncement>, PrepareJob>()
             .AddSingleton<IHandle<TurnFinished>, CheckTurn>()
             .AddSingleton<IStartupTask, JobRecovery>()

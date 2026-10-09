@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Testing;
+using HoldReason = Avala.Jobs.Contracts.HoldReason;
 
 namespace Avala.Jobs.Tests.Jobs;
 
@@ -118,5 +119,15 @@ public sealed class JobLifecycleTests
         Assert.Equal(new JobFailed(job.Id, FailureReason.AgentUnavailable), Outcomes.Succeeds(job.Fail(FailureReason.AgentUnavailable)));
         Assert.Equal(JobState.Failed, job.State);
         Assert.Equal(AttemptOutcome.Interrupted, job.Attempts[^1].Outcome);
+    }
+
+    [Fact]
+    public void HoldingARunningJobRecordsTheReasonInterruptsTheAttemptAndAsksForHelp()
+    {
+        var job = Given.JobIn(JobState.Running);
+
+        Assert.Equal(new JobHeld(job.Id, AttemptNumber.First, HoldReason.Stalled), Outcomes.Succeeds(job.Hold(HoldReason.Stalled)));
+        Assert.Equal(JobState.NeedsHelp, job.State);
+        Assert.Equal(AttemptOutcome.Interrupted, Assert.Single(job.Attempts).Outcome);
     }
 }

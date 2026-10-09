@@ -12,7 +12,9 @@ internal static class JobCollaborators
     {
         public Task<Result<AgentTurn, AgentError>> TellAsync(Job job, string message, CancellationToken cancellationToken) =>
             job.Session.Match(
-                session => agents.SendAsync(session, message, cancellationToken).AsTask(),
+                session => job.State == JobState.Running
+                    ? agents.SendAsync(session, message, cancellationToken).AsTask()
+                    : Task.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.Unsupported)),
                 () => Task.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.SessionClosed)));
     }
 

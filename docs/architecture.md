@@ -33,11 +33,12 @@ Inside a module, folders and namespaces are named after what the code does: its 
 | `Launching` | Preparing the workspace, opening the agent session and sending the instruction | Application |
 | `TurnChecks` | Checking a finished turn against the completion gates | Application |
 | `Recovery` | Resuming active jobs at startup | Application |
+| `Holding` | Holding a running job for a typed reason and halting its agent session | Application |
 | `Ledger` | Storing a job and announcing its progress, with the `IJobStore` port | Application |
 | `Storage` | The EF Core store behind `IJobStore` | Infrastructure |
 | `JobList` | The jobs page view model | ViewModels |
 
-The other cores follow the same idea: Agents has `Turns` and `Sessions`; Workspaces has `Workspaces`, `Provisioning`, `Git` and `Storage`; Canvas has `Canvases`, `Gallery`, `Streaming` and `Throttling`; Observability has `Usage`, `Tracking` and `Metrics`; Verification has `Checks`, `Verifying`, `Evidence` and `FileSystem`; Permissions has `Policies`, `Governance`, `Answering` and `PolicyFiles`; the simulator has `Scenarios`, `Playback` and `FileSystem`. Plugin entries stay at the root of their project, and `Contracts` projects keep their own names.
+The other cores follow the same idea: Agents has `Turns` and `Sessions`; Workspaces has `Workspaces`, `Provisioning`, `Git` and `Storage`; Canvas has `Canvases`, `Gallery`, `Streaming` and `Throttling`; Observability has `Usage`, `Tracking` and `Metrics`; Verification has `Checks`, `Verifying`, `Evidence` and `FileSystem`; Permissions has `Policies`, `Governance`, `Answering` and `PolicyFiles`; Supervision has `Watching`, `Supervising` and `Settings`; Budgets has `Caps`, `Enforcement` and `BudgetFiles`; the simulator has `Scenarios`, `Playback` and `FileSystem`. Plugin entries stay at the root of their project, and `Contracts` projects keep their own names.
 
 ### Layer map
 
@@ -94,7 +95,7 @@ Comments are banned, so every exception to an analyzer is recorded here.
 
 ## Plugins
 
-A project becomes a plugin with `<AvalaPlugin>true</AvalaPlugin>` and `<EnableDynamicLoading>true</EnableDynamicLoading>`. Every module entry is one: Agents, Workspaces, the Jobs UI, Canvas, Observability, Verification, Permissions and the simulator. Its build output is copied to `artifacts/plugins/<AssemblyName>`. The host loads every folder there, or the folder named by `AVALA_PLUGINS_PATH`, in folder name order.
+A project becomes a plugin with `<AvalaPlugin>true</AvalaPlugin>` and `<EnableDynamicLoading>true</EnableDynamicLoading>`. Every module entry is one: Agents, Workspaces, the Jobs UI, Canvas, Observability, Verification, Permissions, Supervision, Budgets and the simulator. Its build output is copied to `artifacts/plugins/<AssemblyName>`. The host loads every folder there, or the folder named by `AVALA_PLUGINS_PATH`, in folder name order.
 
 All plugins share the host's default load context, so every assembly is loaded once:
 

@@ -1,5 +1,6 @@
 using Avala.Jobs.Jobs;
 using Avala.Testing;
+using HoldReason = Avala.Jobs.Contracts.HoldReason;
 
 namespace Avala.Jobs.Tests.Jobs;
 
@@ -26,6 +27,7 @@ public sealed class JobTransitionTests
         [Operation.Discard] =
             ([JobState.Draft, JobState.Preparing, JobState.Running, JobState.Checking, JobState.NeedsHelp, JobState.AwaitingReview], JobError.CannotDiscard),
         [Operation.Fail] = ([JobState.Preparing, JobState.Running, JobState.Checking], JobError.CannotFail),
+        [Operation.Hold] = ([JobState.Running], JobError.CannotHold),
     };
 
     [Fact]
@@ -69,6 +71,7 @@ public sealed class JobTransitionTests
         Operation.Approve => Outcomes.ErrorOf(job.Approve()),
         Operation.Discard => Outcomes.ErrorOf(job.Discard()),
         Operation.Fail => Outcomes.ErrorOf(job.Fail(FailureReason.AgentFailed)),
+        Operation.Hold => Outcomes.ErrorOf(job.Hold(HoldReason.BudgetExceeded)),
         _ => throw new ArgumentOutOfRangeException(nameof(operation)),
     };
 }
