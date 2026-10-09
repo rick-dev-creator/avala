@@ -8,10 +8,9 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Tests.Conversation;
 
-public sealed class ComposerViewModelScripts
+public sealed class ComposerViewModelScripts : IAsyncDisposable
 {
     private readonly FakeJobs jobs = new();
-    private readonly JobBoard board = new();
     private BoardJob shown = null!;
     private QueuedMessages queue = null!;
 
@@ -99,6 +98,7 @@ public sealed class ComposerViewModelScripts
         composer.Draft = "And update the changelog";
         await composer.SendCommand.ExecuteAsync(null);
 
+        jobs.Status = JobStatus.NeedsHelp;
         await queue.HandleAsync(new JobProgressed(shown.Job, JobStatus.NeedsHelp), Cancellation);
         Becomes(composer, JobStatus.NeedsHelp);
 
@@ -213,9 +213,10 @@ public sealed class ComposerViewModelScripts
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
         shown = new BoardJob(summary, Transcript.Empty) { TakesMessagesMidTurn = takesMessagesMidTurn };
-        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(summary.Job, shown));
+        jobs.Status = status;
+        jobs.Steerable = takesMessagesMidTurn;
         queue = new QueuedMessages(steered);
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, board, queue));
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue));
         composer.Track(shown);
 
         return composer;
@@ -224,9 +225,11 @@ public sealed class ComposerViewModelScripts
     private void Becomes(ComposerViewModel composer, JobStatus status)
     {
         shown = shown with { Summary = shown.Summary with { Status = status } };
-        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(shown.Job, shown));
+        jobs.Status = status;
         composer.Track(shown);
     }
+
+    public ValueTask DisposeAsync() => queue is { } owned ? owned.DisposeAsync() : ValueTask.CompletedTask;
 
     private sealed class GatedJobs(Task gate, FakeJobs inner) : IJobs
     {
