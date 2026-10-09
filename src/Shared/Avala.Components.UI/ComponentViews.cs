@@ -1,3 +1,4 @@
+using Avala.Components.Canvases;
 using Avala.Components.Keycaps;
 using Avala.Components.Meters;
 using Avala.Components.Status;
@@ -15,6 +16,7 @@ public static class ComponentViews
             views.Register<IStatusPillViewModel, StatusPillView>();
             views.Register<IMeterViewModel, MeterView>();
             views.Register<IKeycapHintViewModel, KeycapHintView>();
+            views.Register<ICanvasSurfaceViewModel, CanvasSurfaceView>();
 
             return views;
         }

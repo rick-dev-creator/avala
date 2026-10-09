@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Canvas.Contracts;
+using Avala.Components.Canvases;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Presenting;
@@ -106,11 +107,23 @@ internal sealed class DesignCanvasViewModel : ICanvasViewModel
 
     public string MediaType => "text/vnd.mermaid";
 
-    public string Content => "flowchart LR\n  A[Line items] --> B[Sum in minor units]\n  B --> C{Currency}\n  C -->|JPY: 0 decimals| D[¥1,235]\n  C -->|EUR: 2 decimals| E[€12.35]";
+    private const string Drawing = "flowchart LR\n  A[Line items] --> B[Sum in minor units]\n  B --> C{Currency}\n  C -->|JPY: 0 decimals| D[¥1,235]\n  C -->|EUR: 2 decimals| E[€12.35]";
+
+    public string Content => Drawing;
 
     public CanvasStatus Status => CanvasStatus.Completed;
 
     public bool IsStreaming => false;
+
+    public ICanvasSurfaceViewModel Surface { get; } = Drawn();
+
+    private static CanvasSurfaceViewModel Drawn()
+    {
+        var surface = new CanvasSurfaceViewModel();
+        surface.Show(new CanvasDraft("Rounding before and after", CanvasMediaTypes.Mermaid, Drawing, CanvasPhase.Completed));
+
+        return surface;
+    }
 }
 
 internal sealed class DesignTurnEndViewModel : ITurnEndViewModel

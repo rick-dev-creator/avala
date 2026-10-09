@@ -1,0 +1,64 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mv="using:MarkView.Avalonia">
+  <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml" />
+  <Style Selector="mv|MarkdownViewer">
+    <Setter Property="VerticalAlignment" Value="Top" />
+    <Setter Property="VerticalContentAlignment" Value="Top" />
+  </Style>
+  <Style Selector="TextBlock.markdown-paragraph">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="LineHeight" Value="20" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.markdown-h1">
+    <Setter Property="Margin" Value="0,0,0,8" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeTitle}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.markdown-h2">
+    <Setter Property="Margin" Value="0,12,0,6" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeHeading}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.markdown-h3, TextBlock.markdown-h4, TextBlock.markdown-h5, TextBlock.markdown-h6">
+    <Setter Property="Margin" Value="0,10,0,4" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="Border.markdown-code-block">
+    <Setter Property="Background" Value="{DynamicResource FillWellBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+  </Style>
+  <Style Selector="Border.markdown-code-block TextBlock, Border.markdown-code-block SelectableTextBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="Run.markdown-code-inline">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="Background" Value="{DynamicResource FillCodeBrush}" />
+  </Style>
+  <Style Selector="Border.markdown-blockquote">
+    <Setter Property="BorderBrush" Value="{DynamicResource SeparatorStrongBrush}" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Border.markdown-table-cell, Border.markdown-table-header">
+    <Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}" />
+  </Style>
+  <Style Selector="Border.markdown-table-header">
+    <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+  </Style>
+  <Style Selector="HyperlinkButton.markdown-link">
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="Separator.markdown-thematic-break">
+    <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+  </Style>
+</Styles>

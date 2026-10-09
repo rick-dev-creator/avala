@@ -8,6 +8,7 @@ using Avala.Workbench.Steering;
 using Avala.Workbench.Board;
 using Avala.Workbench.Timeline;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Input;
 using Avalonia.Media;
 
@@ -220,18 +221,19 @@ public sealed class PlanViewScripts(HeadlessUi ui)
 public sealed class CanvasViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ACanvasShowsItsTitleMediaTypeAndSourceAndPulsesWhileStreamingAsync() =>
+    public Task ACanvasShowsItsSurfaceWithItsTitleKindAndDrawingAndPulsesWhileStreamingAsync() =>
         ui.RunAsync(() =>
         {
             var canvas = new CanvasViewModel(new CanvasEntry("c", "Rounding before and after", "text/vnd.mermaid", "flowchart LR", CanvasStatus.Streaming));
             var view = Screen.Show(canvas);
-            var streaming = view.HasClass("MediaType", "pulse");
+            var streaming = view.Shows("Streaming");
 
             canvas.Update(new CanvasEntry("c", "Rounding before and after", "text/vnd.mermaid", "flowchart LR\n  A --> B", CanvasStatus.Completed));
             view.Settle();
 
-            Assert.Equal((true, false), (streaming, view.HasClass("MediaType", "pulse")));
-            Assert.Equal("flowchart LR\n  A --> B", view.Find<SelectableTextBlock>("Drawing").Text);
+            Assert.Equal((true, false, false), (streaming, view.Shows("Streaming"), view.Shows("Status")));
+            Assert.Equal(("Rounding before and after", "Mermaid"), (view.TextOf("Title"), view.TextOf("MediaLabel")));
+            Assert.Equal("flowchart LR\n  A --> B", string.Concat(view.All<SelectableTextBlock>().Last(block => block.Name == "CanvasSource").Inlines!.OfType<Run>().Select(run => run.Text)));
         }, TestContext.Current.CancellationToken);
 }
 

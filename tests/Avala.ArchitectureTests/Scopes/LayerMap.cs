@@ -27,6 +27,15 @@ internal static class LayerMap
             ["Streaming"] = Layer.Application,
             ["Throttling"] = Layer.Application,
         }),
+        .. Module("Avala.Rendering", new()
+        {
+            ["UI"] = Layer.None,
+            ["UI.Markdown"] = Layer.None,
+            ["UI.Svg"] = Layer.None,
+            ["UI.Source"] = Layer.None,
+            ["Highlighting"] = Layer.Domain,
+            ["Sanitizing"] = Layer.Application,
+        }),
         .. Module("Avala.Jobs", new()
         {
             ["UI"] = Layer.None,
