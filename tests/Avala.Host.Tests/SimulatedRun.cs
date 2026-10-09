@@ -8,6 +8,7 @@ using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Resources.Contracts;
 using Avala.Supervision.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -188,6 +189,17 @@ internal sealed class SimulatedRun : IAsyncDisposable
         _ = await application.Usage.UntilAsync(_ => ++recorded == reports);
     }
 
+    public async Task<OrphanReport> OrphansFoundAsync() => (await application.Orphans.UntilAsync(_ => true)).Report;
+
+    public async Task<ReclaimedWorktree> ReclaimedAsync() => (await application.Reclaimed.UntilAsync(_ => true)).Reclaimed;
+
+    public async Task<PortLease> LeasedAsync() => (await application.Leased.UntilAsync(_ => true)).Lease;
+
+    public async Task<JobQueued> QueuedAsync() => await application.Queued.UntilAsync(_ => true);
+
+    public async Task<ResourceSample> SampledAsync(Func<ResourceSample, bool> match) =>
+        (await application.Sampled.UntilAsync(sampled => match(sampled.Sample))).Sample;
+
     public async Task<IReadOnlyList<CanvasSnapshot>> CanvasSnapshotsAsync(int canvasCount)
     {
         var closed = 0;
@@ -245,7 +257,22 @@ internal sealed class SimulatedRun : IAsyncDisposable
             Forms = Watch<FormDecided>();
             Autonomies = Watch<AutonomyApplied>();
             Opened = Watch<SessionOpened>();
+            Orphans = Watch<OrphansFound>();
+            Reclaimed = Watch<WorktreeReclaimed>();
+            Leased = Watch<PortsLeased>();
+            Queued = Watch<JobQueued>();
+            Sampled = Watch<ResourcesSampled>();
         }
+
+        public EventWatch<OrphansFound> Orphans { get; }
+
+        public EventWatch<WorktreeReclaimed> Reclaimed { get; }
+
+        public EventWatch<PortsLeased> Leased { get; }
+
+        public EventWatch<JobQueued> Queued { get; }
+
+        public EventWatch<ResourcesSampled> Sampled { get; }
 
         public EventWatch<SessionOpened> Opened { get; }
 
