@@ -7,6 +7,8 @@ internal static class InternalsVisibility
 {
     private const string Host = "Avala.Host";
 
+    private const string HostTests = "Avala.Host.Tests";
+
     public static IEnumerable<string> Targets(Assembly assembly) =>
         assembly.GetCustomAttributes<InternalsVisibleToAttribute>()
             .Select(attribute => attribute.AssemblyName.Split(',')[0].Trim());
@@ -22,6 +24,6 @@ internal static class InternalsVisibility
     private static bool IsAllowed(SourceProject project, string target, IEnumerable<SourceProject> projects) =>
         target == $"{project.Name}.Tests"
         || (project.Module is null
-            ? target == Host
+            ? target is Host or HostTests
             : projects.Any(other => other.Module == project.Module && other.Name == target));
 }

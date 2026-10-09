@@ -1,0 +1,67 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <FontFamily x:Key="InterfaceFont">fonts:Inter#Inter</FontFamily>
+    <FontFamily x:Key="MonoFont">avares://Avala.Components.UI/Fonts#JetBrains Mono</FontFamily>
+    <FontFamily x:Key="ContentControlThemeFontFamily">fonts:Inter#Inter</FontFamily>
+  </Styles.Resources>
+
+  <Style Selector=":is(TopLevel)">
+    <Setter Property="FontFamily" Value="{DynamicResource InterfaceFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.title">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeTitle}" />
+    <Setter Property="LineHeight" Value="28" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="-0.44" />
+  </Style>
+  <Style Selector="TextBlock.heading">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeHeading}" />
+    <Setter Property="LineHeight" Value="22" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.reading">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
+    <Setter Property="LineHeight" Value="23" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector="TextBlock.body">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="LineHeight" Value="20" />
+  </Style>
+  <Style Selector="TextBlock.caption">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="LineHeight" Value="16" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.section">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeSection}" />
+    <Setter Property="LineHeight" Value="14" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="LetterSpacing" Value="0.22" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.mono, SelectableTextBlock.mono">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+    <Setter Property="LineHeight" Value="19" />
+  </Style>
+  <Style Selector="TextBlock.strong">
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.secondary">
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.tertiary">
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+  </Style>
+  <Style Selector="TextBlock.attention">
+    <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+  </Style>
+  <Style Selector="TextBlock.failure">
+    <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+  </Style>
+</Styles>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />
+    <ProjectReference Include="..\Avala.Components\Avala.Components.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Fonts\*.ttf" />
+    <None Include="Fonts\JetBrainsMono-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -5,71 +5,80 @@ namespace Avala.ArchitectureTests.SelfTests;
 public sealed class CodeBehindInspectorTests
 {
     [Fact]
-    public void AcceptsAnExpressionBodiedInitializingConstructor()
+    public void AcceptsAnInitializingConstructor()
     {
         const string source = """
+            using Avalonia.Controls;
+
             namespace Sample;
 
-            internal sealed partial class WidgetView
+            internal sealed partial class WidgetView : UserControl
             {
                 public WidgetView() => InitializeComponent();
             }
             """;
 
-        Assert.Empty(CodeBehindInspector.FindLogic(source));
+        Assert.Empty(CodeBehindInspector.FindViolations(source));
     }
 
     [Fact]
-    public void AcceptsABlockInitializingConstructor()
+    public void AcceptsPresentationConcerns()
     {
         const string source = """
+            using Avalonia.Controls;
+            using Avalonia.Interactivity;
+
             namespace Sample;
 
-            internal sealed partial class WidgetView
-            {
-                public WidgetView()
-                {
-                    InitializeComponent();
-                }
-            }
-            """;
-
-        Assert.Empty(CodeBehindInspector.FindLogic(source));
-    }
-
-    [Fact]
-    public void RejectsEventHandlers()
-    {
-        const string source = """
-            namespace Sample;
-
-            internal sealed partial class WidgetView
+            internal sealed partial class WidgetView : UserControl
             {
                 public WidgetView() => InitializeComponent();
 
-                private void OnClick(object sender, object args) => Width = 10;
-            }
-            """;
-
-        Assert.Single(CodeBehindInspector.FindLogic(source));
-    }
-
-    [Fact]
-    public void RejectsConstructorsThatDoMoreThanInitialize()
-    {
-        const string source = """
-            namespace Sample;
-
-            internal sealed partial class WidgetView
-            {
-                public WidgetView()
+                protected override void OnLoaded(RoutedEventArgs e)
                 {
-                    InitializeComponent();
-                    DataContext = new object();
+                    base.OnLoaded(e);
+                    BringIntoView();
                 }
             }
             """;
 
-        Assert.Single(CodeBehindInspector.FindLogic(source));
+        Assert.Empty(CodeBehindInspector.FindViolations(source));
+    }
+
+    [Fact]
+    public void RejectsConstructorDependencies()
+    {
+        const string source = """
+            using Avalonia.Controls;
+
+            namespace Sample;
+
+            internal sealed partial class WidgetView : UserControl
+            {
+                public WidgetView(object service) => InitializeComponent();
+            }
+            """;
+
+        Assert.Single(CodeBehindInspector.FindViolations(source));
+    }
+
+    [Fact]
+    public void RejectsServicesModuleContractsAndViewModels()
+    {
+        const string source = """
+            using Avala.Jobs.Contracts;
+            using Avalonia.Controls;
+
+            namespace Sample;
+
+            internal sealed partial class WidgetView : UserControl
+            {
+                public WidgetView() => InitializeComponent();
+
+                private void Approve() => ((WidgetViewModel)DataContext!).Approve();
+            }
+            """;
+
+        Assert.Equal(2, CodeBehindInspector.FindViolations(source).Count);
     }
 }

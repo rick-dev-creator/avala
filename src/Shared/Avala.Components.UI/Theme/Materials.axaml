@@ -1,0 +1,64 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ExperimentalAcrylicMaterial x:Key="PanelMaterial"
+                                 BackgroundSource="Digger"
+                                 TintColor="#1E1F24"
+                                 TintOpacity="1"
+                                 MaterialOpacity="{OnPlatform Default=1, macOS=0.66, Windows=0.82}"
+                                 FallbackColor="#18191D" />
+  </Styles.Resources>
+
+  <Style Selector="Border.window">
+    <Setter Property="Background" Value="{DynamicResource SurfaceWindowBrush}" />
+  </Style>
+
+  <Style Selector="Border.panel">
+    <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+  </Style>
+
+  <Style Selector="Border.edge">
+    <Setter Property="Background" Value="{DynamicResource EdgeBrush}" />
+    <Setter Property="Width" Value="1" />
+  </Style>
+
+  <Style Selector="Border.separator">
+    <Setter Property="Background" Value="{DynamicResource EdgeBrush}" />
+    <Setter Property="Height" Value="1" />
+  </Style>
+
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusRow}" />
+    <Setter Property="BoxShadow" Value="{DynamicResource ShadowCard}" />
+  </Style>
+
+  <Style Selector="Border.float">
+    <Setter Property="Background" Value="{DynamicResource SurfaceFloatBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+    <Setter Property="BoxShadow" Value="{DynamicResource ShadowFloat}" />
+    <Setter Property="Padding" Value="{DynamicResource PaddingCard}" />
+  </Style>
+
+  <Style Selector="Border.quiet">
+    <Setter Property="Background" Value="{DynamicResource FillQuietBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusRow}" />
+  </Style>
+
+  <Style Selector="Border.well">
+    <Setter Property="Background" Value="{DynamicResource FillWellBrush}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+    <Setter Property="Padding" Value="12,10" />
+  </Style>
+
+  <Style Selector="Border.empty">
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderPillBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+    <Setter Property="Padding" Value="16,28" />
+  </Style>
+</Styles>

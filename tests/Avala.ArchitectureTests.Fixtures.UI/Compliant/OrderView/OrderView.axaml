@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewModels="using:Avala.Fixtures.Compliant.ViewModels"
+             xmlns:regions="using:Avala.Fixtures.Compliant.Regions"
+             x:Class="Avala.Fixtures.Compliant.Views.OrderView"
+             x:DataType="viewModels:IOrderViewModel">
+  <Design.DataContext>
+    <viewModels:DesignOrderViewModel />
+  </Design.DataContext>
+  <StackPanel>
+    <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{DynamicResource FontSizeBody}" />
+    <ContentControl Content="{Binding Line}" Tag="{x:Static regions:OrderRegions.Lines}" />
+    <Button AutomationProperties.Name="Refresh the order">
+      <Path Data="M3 8H13" Stroke="{DynamicResource TextSecondaryBrush}" />
+    </Button>
+    <Button Content="Place the order" Background="Transparent" />
+  </StackPanel>
+</UserControl>

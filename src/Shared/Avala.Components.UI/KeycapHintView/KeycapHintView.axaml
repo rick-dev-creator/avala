@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:keycaps="using:Avala.Components.Keycaps"
+             x:Class="Avala.Components.UI.KeycapHintView"
+             x:ClassModifier="internal"
+             x:DataType="keycaps:IKeycapHintViewModel">
+  <Design.DataContext>
+    <keycaps:DesignKeycapHintViewModel />
+  </Design.DataContext>
+  <StackPanel Orientation="Horizontal" Spacing="4">
+    <TextBlock x:Name="Keys"
+               Text="{Binding Keys}"
+               FontFamily="{DynamicResource MonoFont}"
+               FontSize="{DynamicResource FontSizeHint}"
+               Foreground="{DynamicResource TextSecondaryBrush}" />
+    <TextBlock x:Name="Action"
+               Text="{Binding Action}"
+               FontSize="{DynamicResource FontSizeHint}"
+               Foreground="{DynamicResource TextTertiaryBrush}" />
+  </StackPanel>
+</UserControl>
