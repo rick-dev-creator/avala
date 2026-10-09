@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Mermaid\Avala.Mermaid\Avala.Mermaid.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Mermaid\Avala.Mermaid.UI\Avala.Mermaid.UI.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Rendering\Avala.Rendering.UI\Avala.Rendering.UI.csproj" />
+    <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+    <ProjectReference Include="..\Avala.Testing.UI\Avala.Testing.UI.csproj" />
+  </ItemGroup>
+</Project>

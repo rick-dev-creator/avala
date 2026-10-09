@@ -69,6 +69,10 @@
     <Project Path="src/Modules/Rendering/Avala.Rendering/Avala.Rendering.csproj" />
     <Project Path="src/Modules/Rendering/Avala.Rendering.UI/Avala.Rendering.UI.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Mermaid/">
+    <Project Path="src/Modules/Mermaid/Avala.Mermaid/Avala.Mermaid.csproj" />
+    <Project Path="src/Modules/Mermaid/Avala.Mermaid.UI/Avala.Mermaid.UI.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Recording/">
     <Project Path="src/Modules/Recording/Avala.Recording/Avala.Recording.csproj" />
   </Folder>
@@ -131,6 +135,7 @@
     <Project Path="tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj" />
     <Project Path="tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj" />
     <Project Path="tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj" />
+    <Project Path="tests/Avala.Mermaid.Tests/Avala.Mermaid.Tests.csproj" />
     <Project Path="tests/Avala.ClaudeCode.Tests/Avala.ClaudeCode.Tests.csproj" />
     <Project Path="tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj" />
   </Folder>

@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Components.Canvases;
 using Avala.Host.Composition;
+using Avala.Mermaid.UI;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Testing.UI;
@@ -25,10 +26,42 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
 
         var offered = schema.RootElement.GetProperty("properties").GetProperty("mediaType").GetProperty("enum").EnumerateArray().Select(type => type.GetString()!).ToList();
 
-        Assert.Equal(["image/svg+xml", "text/markdown"], offered);
+        Assert.Equal(["image/svg+xml", "text/markdown", "text/vnd.mermaid"], offered.Order(StringComparer.Ordinal));
         Assert.Equal(offered, root.Services.GetServices<CanvasFormat>().Select(format => format.MediaType));
         Assert.All(offered, mediaType => Assert.True(root.Views.Match(new CanvasRendering(mediaType, "x", true, 1))));
-        Assert.All(["text/vnd.mermaid", "text/html"], mediaType => Assert.False(root.Views.Match(new CanvasRendering(mediaType, "x", true, 1))));
+        Assert.False(root.Views.Match(new CanvasRendering("text/html", "x", true, 1)));
+    }
+
+    [Fact]
+    public async Task WithoutTheMermaidPluginMermaidIsNeitherOfferedNorDrawnAsync()
+    {
+        await using var data = new TemporaryFolder();
+        using var dispatcher = new TestUiDispatcher();
+        await using var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path), dispatcher, TimeProvider.System, [], [typeof(MermaidPlugin)]);
+        var tool = Assert.Single(root.Services.GetServices<HarnessTool>(), tool => tool.Surface == ToolSurface.Canvas);
+        using var schema = JsonDocument.Parse(tool.InputSchema);
+
+        var offered = schema.RootElement.GetProperty("properties").GetProperty("mediaType").GetProperty("enum").EnumerateArray().Select(type => type.GetString()!).ToList();
+
+        Assert.Equal(["image/svg+xml", "text/markdown"], offered);
+        Assert.False(root.Views.Match(new CanvasRendering("text/vnd.mermaid", "x", true, 1)));
+        Assert.True(root.Views.Match(new CanvasRendering("text/vnd.mermaid", "x", true, 1) { IsOffered = false }));
+    }
+
+    [Fact]
+    public async Task TheMermaidScenarioDrawsItsDiagramThroughTheSvgRendererAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "mermaid-canvas");
+
+        var snapshot = (await run.CanvasSnapshotsAsync(canvasCount: 1))[^1];
+        var surfaces = await CanvasSurfacesAsync(run, count: 1);
+
+        Assert.Equal(("text/vnd.mermaid", true), (snapshot.MediaType, snapshot.IsOffered));
+        await ui.RunAsync(() => Presented(run, Assert.Single(surfaces), view =>
+        {
+            Assert.True(view.Shows("Mermaid"));
+            Assert.True(view.Shows("Svg"));
+        }), Cancellation);
     }
 
     [Fact]
