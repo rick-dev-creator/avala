@@ -45,14 +45,17 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
             Assert.Equal("shop", view.TextOf("RepositoryName"));
         }, TestContext.Current.CancellationToken);
 
-    internal static RepositorySettingsViewModel Repositories(FakeOpener opener)
+    internal static RepositorySettingsViewModel Repositories(FakeOpener opener) => Repositories(opener, new FakeWorkingFiles());
+
+    internal static RepositorySettingsViewModel Repositories(FakeOpener opener, FakeWorkingFiles working)
     {
         var rules = new FakeRules();
 
         return new RepositorySettingsViewModel(
             new RulesReader(rules, rules, rules, new CommittedFiles().Workspace(Repository)),
             new SettingsFiles(opener, new AvalaPaths("/data")),
-            Pages.Board());
+            Pages.Board(),
+            new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])));
     }
 
     private static ViewScript Wide(object viewModel)
@@ -97,6 +100,30 @@ public sealed class RepositorySettingsViewScripts(HeadlessUi ui)
             await (settings.EditCommand.ExecutionTask ?? Task.CompletedTask);
 
             Assert.Equal([Path.Combine("/repositories/shop", ".avala/permissions.json"), Path.Combine("/repositories/shop", ".avala/budget.json")], opener.Opened);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task EditHereOpensTheEditorAboveTheRulesAndCancelClosesItAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var working = new FakeWorkingFiles();
+            working.Files[".avala/budget.json"] = "{ \"holdAtLimit\": 0.9 }";
+            var settings = SettingsViewScripts.Repositories(new FakeOpener(), working);
+            await settings.OpenCommand.ExecuteAsync("/repositories/shop");
+            var view = Screen.Show(settings);
+            view.Window.Height = 1400;
+            view.Settle();
+            var before = view.Shows("Editor");
+
+            view.Click("EditBudgetHere");
+            await (settings.EditHereCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+            var opened = (view.Shows("Editor"), view.Find<TextBox>("FileText").Text);
+            view.Click("CancelFile");
+            view.Settle();
+
+            Assert.Equal((false, (true, "{ \"holdAtLimit\": 0.9 }"), false), (before, opened, view.Shows("Editor")));
+            Assert.False(view.Find<Button>("EditAutonomyHere").IsEffectivelyEnabled);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -339,6 +366,43 @@ public sealed class RuleFileViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignRuleFileViewModel(".avala/checks.json", "Rejected: Malformed", "70d2e11", false, "no checks"));
 
             Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Status").Foreground).Color);
+        }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(".avala/budget.json", true)]
+    [InlineData(".avala/jobs.json", false)]
+    public Task OnlyAFileWithAKnownFormatOffersEditHereAsync(string path, bool offered) =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignRuleFileViewModel(path, "Applied", "4be19c2", false, "1 scope"));
+
+            Assert.Equal((offered, true), (view.Shows("EditHere"), view.Shows("Edit")));
+        }, TestContext.Current.CancellationToken);
+}
+
+public sealed class RuleFileEditorViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task TheEditorShowsTheFileItsNoteAndTheTextInTheCodeFontAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignRuleFileEditorViewModel());
+
+            Assert.Equal(".avala/budget.json", view.TextOf("Path"));
+            Assert.Contains("applies to new jobs once you commit it", view.TextOf("Note"), StringComparison.Ordinal);
+            Assert.Contains("holdAtLimit", view.Find<TextBox>("FileText").Text, StringComparison.Ordinal);
+            Assert.Contains("JetBrains Mono", view.Find<TextBox>("FileText").FontFamily.ToString(), StringComparison.Ordinal);
+            Assert.False(view.Shows("Error"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ARejectionShowsUnderTheTextInTheFailureColorAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignRuleFileEditorViewModel { Error = "Not saved: jobs would reject .avala/budget.json (InvalidThreshold). Fix it and save again." });
+
+            Assert.True(view.Shows("Error"));
+            Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Error").Foreground).Color);
         }, TestContext.Current.CancellationToken);
 }
 

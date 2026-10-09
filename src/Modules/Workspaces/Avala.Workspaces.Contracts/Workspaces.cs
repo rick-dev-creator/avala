@@ -28,4 +28,8 @@ public enum WorkspaceFailure
     MergeConflict,
     BaseCheckoutDirty,
     BaseMoved,
+    OutsideRepository,
+    FileTooLarge,
+    FileUnreadable,
+    FileUnwritable,
 }

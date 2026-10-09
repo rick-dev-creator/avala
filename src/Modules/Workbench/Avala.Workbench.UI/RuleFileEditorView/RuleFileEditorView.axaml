@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.RuleFileEditorView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IRuleFileEditorViewModel">
+  <Design.DataContext>
+    <settings:DesignRuleFileEditorViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBox#FileText">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+      <Setter Property="MinHeight" Value="180" />
+      <Setter Property="MaxHeight" Value="420" />
+    </Style>
+  </UserControl.Styles>
+  <Border Classes="grouped" Padding="16,14">
+    <StackPanel Spacing="10">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <TextBlock Classes="section" Text="Edit here" VerticalAlignment="Bottom" />
+        <TextBlock x:Name="Path" Classes="hint mono" Text="{Binding Path}" VerticalAlignment="Bottom" />
+      </StackPanel>
+      <TextBlock x:Name="Note" Classes="caption" TextWrapping="Wrap" Text="{Binding Note}" />
+      <TextBox x:Name="FileText"
+               AcceptsReturn="True"
+               TextWrapping="NoWrap"
+               Text="{Binding Content}"
+               AutomationProperties.Name="File content" />
+      <TextBlock x:Name="Error"
+                 Classes="caption failure"
+                 TextWrapping="Wrap"
+                 Text="{Binding Error}"
+                 IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <Button x:Name="CancelFile" Content="Cancel" Command="{Binding CancelCommand}" />
+        <Button x:Name="SaveFile" Classes="primary" Content="Check and save in the working tree" Command="{Binding SaveCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -36,7 +36,11 @@ public sealed class SettingsViewModelScripts
 
         public IDefaultConnectionViewModel DefaultConnection => machine.DefaultConnection;
 
-        public IConnectionEditorViewModel Editor => machine.Editor;
+        IConnectionEditorViewModel IMachineSettingsViewModel.Editor => machine.Editor;
+
+        IRuleFileEditorViewModel IRepositorySettingsViewModel.Editor => repository.Editor;
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<IRuleFileViewModel> EditHereCommand => repository.EditHereCommand;
 
         public IReadOnlyList<IRuleFileViewModel> Files => repository.Files;
 

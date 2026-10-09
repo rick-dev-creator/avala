@@ -411,6 +411,41 @@ internal sealed class FakeOpener : IFileOpener
     }
 }
 
+internal sealed class FakeWorkingFiles : IWorkingFiles
+{
+    public Dictionary<string, string> Files { get; } = new(StringComparer.Ordinal);
+
+    public List<string> Written { get; } = [];
+
+    public Option<WorkspaceFailure> Refusal { get; set; }
+
+    public ValueTask<Result<Option<string>, WorkspaceFailure>> ReadAsync(string repository, string path, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Refusal.Match(
+            Result<Option<string>, WorkspaceFailure>.Failure,
+            () => Result<Option<string>, WorkspaceFailure>.Success(Files.GetValueOrDefault(path).ToOption())));
+
+    public ValueTask<Result<string, WorkspaceFailure>> WriteAsync(string repository, string path, string content, CancellationToken cancellationToken)
+    {
+        if (Refusal.IsSome)
+        {
+            return ValueTask.FromResult(Refusal.Match(Result<string, WorkspaceFailure>.Failure, () => throw new InvalidOperationException()));
+        }
+
+        Written.Add(path);
+        Files[path] = content;
+
+        return ValueTask.FromResult(Result<string, WorkspaceFailure>.Success(Path.Combine(repository, path)));
+    }
+}
+
+internal sealed class BudgetLikeFormat : IRuleFileFormat
+{
+    public string Path => ".avala/budget.json";
+
+    public Option<Enum> Rejection(string content) =>
+        content.Contains("\"holdAtLimit\": 2", StringComparison.Ordinal) ? Option<Enum>.Some(BudgetError.InvalidThreshold) : Option<Enum>.None;
+}
+
 internal sealed class FakeRules : IRepositoryPolicies, IRepositoryBudgets, IRepositoryChecks
 {
     public static FileOrigin Origin { get; } = new("0123456789abcdef0123456789abcdef01234567", false);

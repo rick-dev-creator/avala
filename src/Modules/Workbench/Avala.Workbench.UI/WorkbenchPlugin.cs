@@ -182,6 +182,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<UsageReader>()
             .AddSingleton<UsageWindows>()
             .AddSingleton<RulesReader>()
+            .AddSingleton<RuleFileEditing>()
+            .AddSingleton<RuleFileEditorViewModel>()
             .AddSingleton<MachineSettings>()
             .AddSingleton<SettingsFiles>()
             .AddSingleton<ResourceReader>()
@@ -226,6 +228,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IInterventionViewModel, InterventionView>();
         views.Register<ISettingsViewModel, SettingsView>();
         views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
+        views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
         views.Register<IMachineSettingsViewModel, MachineSettingsView>();
         views.Register<IRuleFileViewModel, RuleFileView>();
         views.Register<IRuleViewModel, RuleView>();

@@ -148,13 +148,136 @@ public sealed class RepositorySettingsViewModelScripts
         Assert.Equal((string.Empty, 0), (settings.Shown, settings.Files.Count));
     }
 
+    [Fact]
+    public async Task EditingARuleFileHereStartsFromTheWorkingCopyOrATemplateAndSaysWhenItAppliesAsync()
+    {
+        var settings = RepositorySettings();
+        working.Files[RuleFiles.Budget] = "{ \"holdAtLimit\": 0.9 }";
+        await settings.OpenCommand.ExecuteAsync(Repository);
+
+        await settings.EditHereCommand.ExecuteAsync(settings.BudgetFile);
+        var existing = (settings.Editor.IsOpen, settings.Editor.Path, settings.Editor.Content);
+        await settings.EditHereCommand.ExecuteAsync(settings.PermissionsFile);
+
+        Assert.Equal((true, RuleFiles.Budget, "{ \"holdAtLimit\": 0.9 }"), existing);
+        Assert.Equal(SettingsFiles.TemplateOf(RuleFiles.Permissions), settings.Editor.Content);
+        Assert.StartsWith($"{RuleFiles.Permissions} does not exist yet", settings.Editor.Note, StringComparison.Ordinal);
+        Assert.Contains("applies to new jobs once you commit it", settings.Editor.Note, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AFileTheModulesParserRejectsIsNeverWrittenAndSaysWhyAsync()
+    {
+        var settings = RepositorySettings();
+        await settings.OpenCommand.ExecuteAsync(Repository);
+        await settings.EditHereCommand.ExecuteAsync(settings.BudgetFile);
+
+        settings.Editor.Content = "{ \"holdAtLimit\": 2 }";
+        await settings.Editor.SaveCommand.ExecuteAsync(null);
+
+        Assert.Empty(working.Written);
+        Assert.Equal((true, "Not saved: jobs would reject .avala/budget.json (InvalidThreshold). Fix it and save again."), (settings.Editor.IsOpen, settings.Editor.Error));
+    }
+
+    [Fact]
+    public async Task AValidFileIsWrittenInTheWorkingTreeAndThePageReadsTheRepositoryAgainAsync()
+    {
+        var settings = RepositorySettings();
+        await settings.OpenCommand.ExecuteAsync(Repository);
+        await settings.EditHereCommand.ExecuteAsync(settings.BudgetFile);
+
+        settings.Editor.Content = "{ \"holdAtLimit\": 0.8 }";
+        await settings.Editor.SaveCommand.ExecuteAsync(null);
+        await settings.Refreshing;
+
+        Assert.Equal([RuleFiles.Budget], working.Written);
+        Assert.Equal((false, "Saved .avala/budget.json in the repository's working tree. It applies to new jobs once you commit it."), (settings.Editor.IsOpen, settings.Notice));
+    }
+
+    [Fact]
+    public async Task OnlyAFileWithAKnownFormatCanBeEditedHereAsync()
+    {
+        var settings = RepositorySettings();
+
+        await settings.OpenCommand.ExecuteAsync(Repository);
+
+        Assert.Equal(
+            [(RuleFiles.Permissions, false), (RuleFiles.Budget, true), (RuleFiles.Checks, false), (RuleFiles.Jobs, false)],
+            settings.Files.Select(file => (file.Path, file.CanEditHere)));
+        Assert.False(settings.EditHereCommand.CanExecute(settings.Files[3]));
+    }
+
+    [Fact]
+    public async Task AWorkingTreeThatCannotBeWrittenKeepsTheEditorOpenWithTheReasonAsync()
+    {
+        var settings = RepositorySettings();
+        await settings.OpenCommand.ExecuteAsync(Repository);
+        await settings.EditHereCommand.ExecuteAsync(settings.BudgetFile);
+        working.Refusal = WorkspaceFailure.FileUnwritable;
+
+        await settings.Editor.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, ".avala/budget.json could not be written."), (settings.Editor.IsOpen, settings.Editor.Error));
+    }
+
+    private readonly FakeWorkingFiles working = new();
+
     private RepositorySettingsViewModel RepositorySettings(params JobSummary[] jobs) =>
-        new(Reader(new CommittedFiles().Workspace(Repository)), new SettingsFiles(opener, new AvalaPaths("/data")), Pages.Board(jobs));
+        new(
+            Reader(new CommittedFiles().Workspace(Repository)),
+            new SettingsFiles(opener, new AvalaPaths("/data")),
+            Pages.Board(jobs),
+            new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])));
 
     private static RulesReader Reader(CommittedFiles files)
     {
         var rules = new FakeRules();
 
         return new RulesReader(rules, rules, rules, files);
+    }
+}
+
+public sealed class RuleFileEditorViewModelScripts
+{
+    private readonly FakeWorkingFiles working = new();
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task CancellingClosesTheEditorWithoutWritingAndClearsItsErrorAsync()
+    {
+        var editor = new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()]));
+        await editor.OpenAsync("/repositories/shop", RuleFiles.Budget, Cancellation);
+        editor.Content = "{ \"holdAtLimit\": 2 }";
+        await editor.SaveCommand.ExecuteAsync(null);
+        var refused = editor.Error.Length > 0;
+
+        editor.CancelCommand.Execute(null);
+
+        Assert.True(refused);
+        Assert.Equal((false, string.Empty, false), (editor.IsOpen, editor.Error, editor.SaveCommand.CanExecute(null)));
+        Assert.Empty(working.Written);
+    }
+
+    [Fact]
+    public async Task EmptyTextCannotBeSavedAsync()
+    {
+        var editor = new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()]));
+        await editor.OpenAsync("/repositories/shop", RuleFiles.Budget, Cancellation);
+
+        ViewModelScript.Given(editor)
+            .When(opened => opened.Content = "   ")
+            .Then(opened => Assert.False(opened.SaveCommand.CanExecute(null)));
+    }
+
+    [Fact]
+    public async Task AWorkingTreeThatCannotBeReadOpensNothingAndSaysWhyAsync()
+    {
+        working.Refusal = WorkspaceFailure.NotAGitRepository;
+        var editor = new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()]));
+
+        await editor.OpenAsync("/repositories/shop", RuleFiles.Budget, Cancellation);
+
+        Assert.Equal((false, "This folder is not a git repository."), (editor.IsOpen, editor.Error));
     }
 }

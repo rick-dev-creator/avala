@@ -6,6 +6,7 @@ using Avala.Permissions.Governance;
 using Avala.Permissions.PolicyFiles;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -22,6 +23,7 @@ public sealed class PermissionsPlugin : IPlugin
             .AddSingleton<GovernanceBook>()
             .AddSingleton<IPermissionAudit>(services => services.GetRequiredService<GovernanceBook>())
             .AddSingleton<PolicyFileReader>()
+            .AddSingleton<IRuleFileFormat, PolicyFileFormat>()
             .AddSingleton<IPolicyFiles>(services => services.GetRequiredService<PolicyFileReader>())
             .AddSingleton<IRepositoryPolicies>(services => services.GetRequiredService<PolicyFileReader>())
             .AddSingleton<PermissionResponder>()

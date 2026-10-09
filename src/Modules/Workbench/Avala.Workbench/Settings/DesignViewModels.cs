@@ -12,6 +12,27 @@ internal sealed record DesignRuleFileViewModel(string Path, string Status, strin
     }
 
     public bool IsRejected => Status.StartsWith("Rejected", StringComparison.Ordinal);
+
+    public bool CanEditHere => Path != ".avala/jobs.json";
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DesignRuleFileEditorViewModel : IRuleFileEditorViewModel
+{
+    public bool IsOpen { get; init; } = true;
+
+    public string Path => ".avala/budget.json";
+
+    [ObservableProperty]
+    public partial string Content { get; set; } = "{\n  \"costPerJob\": { \"USD\": 5.00 },\n  \"holdAtLimit\": 0.9\n}\n";
+
+    public string Note => RuleFilePhrases.Note(".avala/budget.json", exists: true);
+
+    public string Error { get; init; } = string.Empty;
+
+    public IAsyncRelayCommand SaveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand CancelCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed record DesignRuleViewModel(int Order, string Name, string Origin, string Kind, string Target, PolicyAnswer Answer) : IRuleViewModel
@@ -186,6 +207,10 @@ internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySet
     public IAsyncRelayCommand ReadCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand<IRuleFileViewModel> EditCommand { get; } = new AsyncRelayCommand<IRuleFileViewModel>(_ => Task.CompletedTask);
+
+    public IAsyncRelayCommand<IRuleFileViewModel> EditHereCommand { get; } = new AsyncRelayCommand<IRuleFileViewModel>(_ => Task.CompletedTask);
+
+    public IRuleFileEditorViewModel Editor { get; init; } = new DesignRuleFileEditorViewModel { IsOpen = false };
 
     public IAsyncRelayCommand<string> OpenCommand { get; } = new AsyncRelayCommand<string>(_ => Task.CompletedTask);
 
