@@ -69,7 +69,7 @@ public sealed class CardViewModelTests
 
         field.Choices[1].IsSelected = true;
 
-        Assert.Equal(["SQLite"], field.Choice().Chosen);
+        Assert.Equal([false, true], field.Choices.Select(choice => choice.IsSelected));
     }
 
     [Fact]

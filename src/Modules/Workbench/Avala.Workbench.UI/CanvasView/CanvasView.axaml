@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.CanvasView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:ICanvasViewModel">
+  <Design.DataContext>
+    <conversation:DesignCanvasViewModel />
+  </Design.DataContext>
+  <Border Classes="card" Padding="{DynamicResource PaddingCard}">
+    <StackPanel Spacing="8">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="Title" Classes="strong" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="MediaType"
+                   Grid.Column="1"
+                   Classes="caption"
+                   Classes.pulse="{Binding IsStreaming}"
+                   Text="{Binding MediaType}" />
+      </Grid>
+      <Border Classes="well">
+        <SelectableTextBlock x:Name="Drawing" Classes="mono" Text="{Binding Content}" TextWrapping="Wrap" />
+      </Border>
+    </StackPanel>
+  </Border>
+</UserControl>

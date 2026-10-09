@@ -9,26 +9,65 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Settings;
 
-[INotifyPropertyChanged]
-internal sealed partial class RepositorySettingsViewModel(RulesReader reader, SettingsFiles files, JobBoard board)
+internal interface IRepositorySettingsViewModel
 {
-    public ObservableCollection<string> Repositories { get; } = [];
+    IReadOnlyList<string> Repositories { get; }
 
-    public ObservableCollection<RuleFileViewModel> Files { get; } = [];
+    IReadOnlyList<IRuleFileViewModel> Files { get; }
 
-    public ObservableCollection<RuleViewModel> Rules { get; } = [];
+    IReadOnlyList<IRuleViewModel> Rules { get; }
 
-    public ObservableCollection<CapsViewModel> Caps { get; } = [];
+    IReadOnlyList<ICapsViewModel> Caps { get; }
 
-    public ObservableCollection<CheckViewModel> Checks { get; } = [];
+    IReadOnlyList<ICheckViewModel> Checks { get; }
 
-    public ObservableCollection<JobSectionViewModel> JobSections { get; } = [];
+    IReadOnlyList<IJobSectionViewModel> JobSections { get; }
+
+    string Repository { get; set; }
+
+    string Shown { get; }
+
+    string Autonomy { get; }
+
+    string FormStrategy { get; }
+
+    string Error { get; }
+
+    IAsyncRelayCommand ReadCommand { get; }
+
+    IAsyncRelayCommand<IRuleFileViewModel> EditCommand { get; }
+
+    Task LoadAsync(CancellationToken cancellationToken);
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class RepositorySettingsViewModel(RulesReader reader, SettingsFiles files, JobBoard board) : IRepositorySettingsViewModel
+{
+    private readonly ObservableCollection<string> repositories = [];
+    private readonly ObservableCollection<RuleFileViewModel> ruleFiles = [];
+    private readonly ObservableCollection<RuleViewModel> rules = [];
+    private readonly ObservableCollection<CapsViewModel> caps = [];
+    private readonly ObservableCollection<CheckViewModel> checks = [];
+    private readonly ObservableCollection<JobSectionViewModel> jobSections = [];
+
+    public IReadOnlyList<string> Repositories => repositories;
+
+    public IReadOnlyList<IRuleFileViewModel> Files => ruleFiles;
+
+    public IReadOnlyList<IRuleViewModel> Rules => rules;
+
+    public IReadOnlyList<ICapsViewModel> Caps => caps;
+
+    public IReadOnlyList<ICheckViewModel> Checks => checks;
+
+    public IReadOnlyList<IJobSectionViewModel> JobSections => jobSections;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReadCommand))]
     public partial string Repository { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(EditCommand))]
     public partial string Shown { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -42,11 +81,11 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
-        Repositories.ShowOnly(board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct());
+        repositories.ShowOnly(board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct());
 
-        if (string.IsNullOrWhiteSpace(Repository) && Repositories.Count > 0)
+        if (string.IsNullOrWhiteSpace(Repository) && repositories.Count > 0)
         {
-            Repository = Repositories[0];
+            Repository = repositories[0];
         }
 
         if (CanRead())
@@ -58,34 +97,38 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
     [RelayCommand(CanExecute = nameof(CanRead))]
     private async Task ReadAsync(CancellationToken cancellationToken) => Show(await reader.ReadAsync(Repository.Trim(), cancellationToken));
 
-    [RelayCommand]
-    private async Task EditAsync(RuleFileViewModel file, CancellationToken cancellationToken) =>
-        Error = (await files.OpenInRepositoryAsync(Shown, file.Path, cancellationToken)).Match(_ => string.Empty, SettingsPhrases.Opening);
+    [RelayCommand(CanExecute = nameof(CanEdit))]
+    private async Task EditAsync(IRuleFileViewModel? file, CancellationToken cancellationToken) =>
+        Error = file is null
+            ? string.Empty
+            : (await files.OpenInRepositoryAsync(Shown, file.Path, cancellationToken)).Match(_ => string.Empty, SettingsPhrases.Opening);
 
     private bool CanRead() => !string.IsNullOrWhiteSpace(Repository);
 
-    private void Show(RulesOfRepository rules)
+    private bool CanEdit(IRuleFileViewModel? file) => file is not null && Shown.Length > 0;
+
+    private void Show(RulesOfRepository read)
     {
-        Shown = rules.Repository;
+        Shown = read.Repository;
         Error = string.Empty;
-        Autonomy = rules.Policy.Autonomy.ToString();
-        FormStrategy = SettingsPhrases.Strategy(rules.Policy.Strategy);
+        Autonomy = read.Policy.Autonomy.ToString();
+        FormStrategy = SettingsPhrases.Strategy(read.Policy.Strategy);
         RuleFileViewModel[] declared =
         [
-            new(RuleFiles.Permissions, SettingsPhrases.Status(rules.Policy.File, rules.Policy.Error), rules.Policy.Origin),
-            new(RuleFiles.Budget, SettingsPhrases.Status(rules.Budget.File, rules.Budget.Error), rules.Budget.Origin),
-            new(RuleFiles.Checks, rules.Checks.File.ToString(), rules.Checks.Origin),
-            new(RuleFiles.Jobs, rules.Jobs.File.ToString(), rules.Jobs.Origin),
+            new(RuleFiles.Permissions, SettingsPhrases.Status(read.Policy.File, read.Policy.Error), read.Policy.Origin),
+            new(RuleFiles.Budget, SettingsPhrases.Status(read.Budget.File, read.Budget.Error), read.Budget.Origin),
+            new(RuleFiles.Checks, read.Checks.File.ToString(), read.Checks.Origin),
+            new(RuleFiles.Jobs, read.Jobs.File.ToString(), read.Jobs.Origin),
         ];
-        CapsViewModel[] caps =
+        CapsViewModel[] capped =
         [
-            new("Every connection", Amounts.Caps(rules.Budget.Caps)),
-            .. rules.Budget.Connections.Select(connection => new CapsViewModel(connection.Connection.Value, Amounts.Caps(connection.Caps))),
+            new("Every connection", Amounts.Caps(read.Budget.Caps)),
+            .. read.Budget.Connections.Select(connection => new CapsViewModel(connection.Connection.Value, Amounts.Caps(connection.Caps))),
         ];
-        Files.ShowOnly(declared);
-        Rules.ShowOnly(rules.Policy.Rules.Select(rule => new RuleViewModel(rule)));
-        Caps.ShowOnly(caps);
-        Checks.ShowOnly(rules.Checks.Checks.Select(check => new CheckViewModel(check)));
-        JobSections.ShowOnly(rules.Jobs.Sections.Select(section => new JobSectionViewModel(section.Name, section.Value)));
+        ruleFiles.ShowOnly(declared);
+        rules.ShowOnly(read.Policy.Rules.Select(rule => new RuleViewModel(rule)));
+        caps.ShowOnly(capped);
+        checks.ShowOnly(read.Checks.Checks.Select(check => new CheckViewModel(check)));
+        jobSections.ShowOnly(read.Jobs.Sections.Select(section => new JobSectionViewModel(section.Name, section.Value)));
     }
 }

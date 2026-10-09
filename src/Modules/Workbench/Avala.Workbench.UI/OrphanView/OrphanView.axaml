@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="using:Avala.Workbench.Resources"
+             x:Class="Avala.Workbench.UI.OrphanView"
+             x:ClassModifier="internal"
+             x:DataType="resources:IOrphanViewModel">
+  <Design.DataContext>
+    <resources:DesignOrphanViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="2" Margin="0,2">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <TextBlock x:Name="At" Classes="caption mono" Text="{Binding At}" />
+      <TextBlock x:Name="Disposal" Classes="caption" Classes.attention="{Binding IsLeftRunning}" Text="{Binding Disposal}" />
+    </StackPanel>
+    <ItemsControl x:Name="Processes" ItemsSource="{Binding Processes}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="x:String">
+          <TextBlock Classes="mono" Text="{Binding}" />
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

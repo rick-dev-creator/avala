@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.JobSectionView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IJobSectionViewModel">
+  <Design.DataContext>
+    <settings:DesignJobSectionViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="2" Margin="0,2">
+    <TextBlock x:Name="SectionName" Classes="caption" Text="{Binding Name}" />
+    <SelectableTextBlock x:Name="Value" Classes="mono" Text="{Binding Value}" TextWrapping="Wrap" />
+  </StackPanel>
+</UserControl>

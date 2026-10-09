@@ -10,16 +10,42 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.NewJob;
 
+internal interface INewJobViewModel
+{
+    string Title { get; }
+
+    IReadOnlyList<string> Repositories { get; }
+
+    IReadOnlyList<string> Connections { get; }
+
+    string Repository { get; set; }
+
+    string Instruction { get; set; }
+
+    string Connection { get; set; }
+
+    bool Supervised { get; set; }
+
+    string Error { get; }
+
+    string Submitted { get; }
+
+    IAsyncRelayCommand SubmitCommand { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board) : IPage, IActivatable
+internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board) : INewJobViewModel, IPage, IActivatable
 {
     public const string RepositoryDefault = "The repository's default";
 
+    private readonly ObservableCollection<string> repositories = [];
+    private readonly ObservableCollection<string> connections = [RepositoryDefault];
+
     public string Title => "New job";
 
-    public ObservableCollection<string> Repositories { get; } = [];
+    public IReadOnlyList<string> Repositories => repositories;
 
-    public ObservableCollection<string> Connections { get; } = [RepositoryDefault];
+    public IReadOnlyList<string> Connections => connections;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SubmitCommand))]
@@ -53,15 +79,15 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board) 
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
-        Repositories.ShowOnly(board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct());
+        repositories.ShowOnly(board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct());
         var chosen = Connection;
-        string[] connections = [RepositoryDefault, .. (await launch.ConnectionsAsync(cancellationToken)).Select(name => name.Value)];
-        Connections.ShowOnly(connections);
-        Connection = Connections.Contains(chosen) ? chosen : RepositoryDefault;
+        string[] named = [RepositoryDefault, .. (await launch.ConnectionsAsync(cancellationToken)).Select(name => name.Value)];
+        connections.ShowOnly(named);
+        Connection = connections.Contains(chosen) ? chosen : RepositoryDefault;
 
-        if (string.IsNullOrWhiteSpace(Repository) && Repositories.Count > 0)
+        if (string.IsNullOrWhiteSpace(Repository) && repositories.Count > 0)
         {
-            Repository = Repositories[0];
+            Repository = repositories[0];
         }
     }
 

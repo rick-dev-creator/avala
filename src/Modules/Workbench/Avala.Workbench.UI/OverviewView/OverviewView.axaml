@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.OverviewView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IOverviewViewModel">
+  <Design.DataContext>
+    <overview:DesignOverviewViewModel />
+  </Design.DataContext>
+  <DockPanel Margin="24,16">
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+      <TextBlock Classes="title" Text="{Binding Title}" VerticalAlignment="Center" />
+      <Button x:Name="ShowConnections"
+              Classes="ghost"
+              Classes.selected="{Binding !ShowsDelegation}"
+              Content="Connections"
+              Command="{Binding ShowConnectionsCommand}" />
+      <Button x:Name="ShowDelegation"
+              Classes="ghost"
+              Classes.selected="{Binding ShowsDelegation}"
+              Content="Delegation"
+              Command="{Binding ShowDelegationCommand}" />
+    </StackPanel>
+    <Panel>
+      <ContentControl x:Name="Connections" Content="{Binding Connections}" IsVisible="{Binding !ShowsDelegation}" />
+      <ContentControl x:Name="Delegation" Content="{Binding Delegation}" IsVisible="{Binding ShowsDelegation}" />
+    </Panel>
+  </DockPanel>
+</UserControl>

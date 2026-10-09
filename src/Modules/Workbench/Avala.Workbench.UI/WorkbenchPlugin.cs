@@ -8,6 +8,7 @@ using Avala.Permissions.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Sdk.Regions;
 using Avala.Sdk.UI;
 using Avala.Supervision.Contracts;
 using Avala.Verification.Contracts;
@@ -23,6 +24,7 @@ using Avala.Workbench.Machine;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.NewJob;
 using Avala.Workbench.Overview;
+using Avala.Workbench.Presenting;
 using Avala.Workbench.Replies;
 using Avala.Workbench.RepositoryRules;
 using Avala.Workbench.Resources;
@@ -68,57 +70,81 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IHandle<BudgetCarved>>(Keeper)
             .AddSingleton<IHandle<ChildDelegated>>(Keeper)
             .AddSingleton<IHandle<ChildReported>>(Keeper)
+            .AddTransient<BoardFeed>()
+            .AddSingleton<JobFocus>()
             .AddSingleton<JobSteering>()
             .AddSingleton<HumanReplies>()
             .AddSingleton<Conversations>()
             .AddSingleton<ReviewReader>()
             .AddSingleton<ReviewDesk>()
             .AddSingleton<Reviews>()
-            .AddSingleton<JobRecords>()
-            .AddSingleton<JobAudit>()
-            .AddSingleton<JobInspection>()
-            .AddSingleton<Inspectors>()
             .AddSingleton<JobScreens>()
             .AddSingleton<DecisionsViewModel>()
+            .AddSingleton<IDecisionsViewModel>(Get<DecisionsViewModel>)
             .AddSingleton<SidebarViewModel>()
             .AddSingleton<WorkbenchViewModel>()
-            .AddSingleton<IPage>(services => services.GetRequiredService<WorkbenchViewModel>());
+            .AddSingleton<IPage>(Get<WorkbenchViewModel>);
+        registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0);
+        RegisterInspector(registrar);
         RegisterGlobalPages(registrar.Services);
+        registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
     }
 
     public void RegisterViews(IViewRegistrar views)
     {
-        views.Register<WorkbenchViewModel, WorkbenchView>();
-        views.Register<SidebarViewModel, SidebarView>();
-        views.Register<JobRowViewModel, JobRowView>();
-        views.Register<ConversationViewModel, ConversationView>();
-        views.Register<ComposerViewModel, ComposerView>();
-        views.Register<PromptViewModel, PromptView>();
-        views.Register<RestartViewModel, RestartView>();
-        views.Register<MessageViewModel, MessageView>();
-        views.Register<ReasoningViewModel, ReasoningView>();
-        views.Register<ToolViewModel, ToolView>();
-        views.Register<PlanViewModel, PlanView>();
-        views.Register<CanvasViewModel, CanvasView>();
-        views.Register<TurnEndViewModel, TurnEndView>();
-        views.Register<PermissionCardViewModel, PermissionCardView>();
-        views.Register<FormCardViewModel, FormCardView>();
-        views.Register<FormFieldViewModel, FormFieldView>();
-        views.Register<FormChoiceViewModel, FormChoiceView>();
-        views.Register<ReviewViewModel, ReviewView>();
-        views.Register<ReviewExceptionViewModel, ReviewExceptionView>();
-        views.Register<ChangedFileViewModel, ChangedFileView>();
-        views.Register<HunkViewModel, HunkView>();
-        views.Register<DecisionsViewModel, DecisionsView>();
-        views.Register<DecisionViewModel, DecisionView>();
-        views.Register<InspectorViewModel, InspectorView>();
-        views.Register<EvidenceSectionViewModel, EvidenceSectionView>();
-        views.Register<AuditSectionViewModel, AuditSectionView>();
-        views.Register<UsageSectionViewModel, UsageSectionView>();
-        views.Register<AutonomySectionViewModel, AutonomySectionView>();
-        views.Register<WorktreeSectionViewModel, WorktreeSectionView>();
-        views.Register<DelegationSectionViewModel, DelegationSectionView>();
+        views.Register<IWorkbenchViewModel, WorkbenchView>();
+        views.Register<ISidebarViewModel, SidebarView>();
+        views.Register<IJobRowViewModel, JobRowView>();
+        views.Register<IConversationViewModel, ConversationView>();
+        views.Register<IComposerViewModel, ComposerView>();
+        views.Register<IPromptViewModel, PromptView>();
+        views.Register<IRestartViewModel, RestartView>();
+        views.Register<IMessageViewModel, MessageView>();
+        views.Register<IReasoningViewModel, ReasoningView>();
+        views.Register<IToolViewModel, ToolView>();
+        views.Register<IPlanViewModel, PlanView>();
+        views.Register<ICanvasViewModel, CanvasView>();
+        views.Register<ITurnEndViewModel, TurnEndView>();
+        views.Register<IPermissionCardViewModel, PermissionCardView>();
+        views.Register<IFormCardViewModel, FormCardView>();
+        views.Register<IFormFieldViewModel, FormFieldView>();
+        views.Register<IFormChoiceViewModel, FormChoiceView>();
+        views.Register<IReviewViewModel, ReviewView>();
+        views.Register<IReviewExceptionViewModel, ReviewExceptionView>();
+        views.Register<IChangedFileViewModel, ChangedFileView>();
+        views.Register<IHunkViewModel, HunkView>();
+        views.Register<IDecisionsViewModel, DecisionsView>();
+        views.Register<IDecisionViewModel, DecisionView>();
+        views.Register<IEvidenceSectionViewModel, EvidenceSectionView>();
+        views.Register<IAuditSectionViewModel, AuditSectionView>();
+        views.Register<IUsageSectionViewModel, UsageSectionView>();
+        views.Register<IAutonomySectionViewModel, AutonomySectionView>();
+        views.Register<IWorktreeSectionViewModel, WorktreeSectionView>();
+        views.Register<IDelegationSectionViewModel, DelegationSectionView>();
         RegisterGlobalViews(views);
+    }
+
+    private static void RegisterInspector(IPluginRegistrar registrar)
+    {
+        registrar.Services
+            .AddSingleton<JobRecords>()
+            .AddSingleton<JobAudit>()
+            .AddSingleton<JobInspection>()
+            .AddSingleton<InspectedFacts>()
+            .AddTransient<InspectedJob>()
+            .AddSingleton<EvidenceSectionViewModel>()
+            .AddSingleton<AuditSectionViewModel>()
+            .AddSingleton<UsageSectionViewModel>()
+            .AddSingleton<AutonomySectionViewModel>()
+            .AddSingleton<WorktreeSectionViewModel>()
+            .AddSingleton<DelegationSectionViewModel>();
+        registrar
+            .AddToRegion<EvidenceSectionViewModel>(ShellRegions.Inspector, 10)
+            .AddToRegion<AuditSectionViewModel>(ShellRegions.Inspector, 20)
+            .AddToRegion<UsageSectionViewModel>(ShellRegions.Inspector, 30)
+            .AddToRegion<AutonomySectionViewModel>(ShellRegions.Inspector, 40)
+            .AddToRegion<WorktreeSectionViewModel>(ShellRegions.Inspector, 50)
+            .AddToRegion<DelegationSectionViewModel>(ShellRegions.Inspector, 60);
     }
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
@@ -153,10 +179,10 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ResourceReader>()
             .AddSingleton<Housekeeping>()
             .AddSingleton<JobLaunch>()
-            .AddSingleton<ConnectionsViewModel>()
-            .AddSingleton<DelegationViewModel>()
-            .AddSingleton<RepositorySettingsViewModel>()
-            .AddSingleton<MachineSettingsViewModel>()
+            .AddSingleton<IConnectionsViewModel, ConnectionsViewModel>()
+            .AddSingleton<IDelegationViewModel, DelegationViewModel>()
+            .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
+            .AddSingleton<IMachineSettingsViewModel, MachineSettingsViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
             .AddSingleton<NewJobViewModel>()
             .AddSingleton<OverviewViewModel>()
@@ -171,35 +197,35 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
 
     private static void RegisterGlobalViews(IViewRegistrar views)
     {
-        views.Register<OverviewViewModel, OverviewView>();
-        views.Register<ConnectionsViewModel, ConnectionsView>();
-        views.Register<ConnectionCardViewModel, ConnectionCardView>();
-        views.Register<AgentViewModel, AgentView>();
-        views.Register<LimitViewModel, LimitView>();
-        views.Register<DelegationViewModel, DelegationView>();
-        views.Register<OrchestratorViewModel, OrchestratorView>();
-        views.Register<DelegationNodeViewModel, DelegationNodeView>();
-        views.Register<DelegationRefusalViewModel, DelegationRefusalView>();
-        views.Register<UsageViewModel, UsageView>();
-        views.Register<ConnectionMeterViewModel, ConnectionMeterView>();
-        views.Register<UsageWindowViewModel, UsageWindowView>();
-        views.Register<JobMeterViewModel, JobMeterView>();
-        views.Register<InterventionViewModel, InterventionView>();
-        views.Register<SettingsViewModel, SettingsView>();
-        views.Register<RepositorySettingsViewModel, RepositorySettingsView>();
-        views.Register<MachineSettingsViewModel, MachineSettingsView>();
-        views.Register<RuleFileViewModel, RuleFileView>();
-        views.Register<RuleViewModel, RuleView>();
-        views.Register<CapsViewModel, CapsView>();
-        views.Register<CheckViewModel, CheckView>();
-        views.Register<JobSectionViewModel, JobSectionView>();
-        views.Register<MachineConnectionViewModel, MachineConnectionView>();
-        views.Register<ResourcesViewModel, ResourcesView>();
-        views.Register<AgentTreeViewModel, AgentTreeView>();
-        views.Register<OrphanViewModel, OrphanView>();
-        views.Register<StaleWorktreeViewModel, StaleWorktreeView>();
-        views.Register<ResourceIndicatorViewModel, ResourceIndicatorView>();
-        views.Register<NewJobViewModel, NewJobView>();
+        views.Register<IOverviewViewModel, OverviewView>();
+        views.Register<IConnectionsViewModel, ConnectionsView>();
+        views.Register<IConnectionCardViewModel, ConnectionCardView>();
+        views.Register<IAgentViewModel, AgentView>();
+        views.Register<ILimitViewModel, LimitView>();
+        views.Register<IDelegationViewModel, DelegationView>();
+        views.Register<IOrchestratorViewModel, OrchestratorView>();
+        views.Register<IDelegationNodeViewModel, DelegationNodeView>();
+        views.Register<IDelegationRefusalViewModel, DelegationRefusalView>();
+        views.Register<IUsageViewModel, UsageView>();
+        views.Register<IConnectionMeterViewModel, ConnectionMeterView>();
+        views.Register<IUsageWindowViewModel, UsageWindowView>();
+        views.Register<IJobMeterViewModel, JobMeterView>();
+        views.Register<IInterventionViewModel, InterventionView>();
+        views.Register<ISettingsViewModel, SettingsView>();
+        views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
+        views.Register<IMachineSettingsViewModel, MachineSettingsView>();
+        views.Register<IRuleFileViewModel, RuleFileView>();
+        views.Register<IRuleViewModel, RuleView>();
+        views.Register<ICapsViewModel, CapsView>();
+        views.Register<ICheckViewModel, CheckView>();
+        views.Register<IJobSectionViewModel, JobSectionView>();
+        views.Register<IMachineConnectionViewModel, MachineConnectionView>();
+        views.Register<IResourcesViewModel, ResourcesView>();
+        views.Register<IAgentTreeViewModel, AgentTreeView>();
+        views.Register<IOrphanViewModel, OrphanView>();
+        views.Register<IStaleWorktreeViewModel, StaleWorktreeView>();
+        views.Register<IResourceIndicatorViewModel, ResourceIndicatorView>();
+        views.Register<INewJobViewModel, NewJobView>();
     }
 
     private static T Get<T>(IServiceProvider services)

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
+using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
 
@@ -36,6 +37,14 @@ internal static class FactPhrases
         FactKind.Discarded => "discarded",
         FactKind.Failed => "failed",
         _ => "starting",
+    };
+
+    public static StatusKind Dot(BoardJob job) => job.Group switch
+    {
+        JobGroup.NeedsYou => job.PendingDecisions == 0 && job.Hold.IsSome ? StatusKind.Held : StatusKind.NeedsYou,
+        JobGroup.ReadyForReview => StatusKind.ReadyForReview,
+        JobGroup.Done => job.Status == JobStatus.Failed ? StatusKind.Failed : StatusKind.Done,
+        _ => job.Status == JobStatus.Checking ? StatusKind.Checking : StatusKind.Working,
     };
 
     private static string Permission(ItemKind kind) => kind switch

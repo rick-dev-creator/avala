@@ -71,6 +71,33 @@
     <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
   </Style>
 
+  <Style Selector="Button.row">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="{DynamicResource PaddingRow}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="Button.row:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+  </Style>
+  <Style Selector="Button.row.selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FillSelectedBrush}" />
+  </Style>
+
+  <Style Selector="Border.badge">
+    <Setter Property="Background" Value="{DynamicResource AttentionBrush}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Padding" Value="6,1" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.badge > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource OnAttentionBrush}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
   <Style Selector="TextBox">
     <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
     <Setter Property="Padding" Value="10,8" />

@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:events="using:Avala.Agents.Contracts.Events"
+             x:Class="Avala.Workbench.UI.PlanView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IPlanViewModel">
+  <Design.DataContext>
+    <conversation:DesignPlanViewModel />
+  </Design.DataContext>
+  <Border Classes="quiet" Padding="14,10">
+    <StackPanel Spacing="6">
+      <TextBlock x:Name="Progress" Classes="section" Text="{Binding Progress, StringFormat='Plan · {0}'}" />
+      <ItemsControl x:Name="Steps" ItemsSource="{Binding Steps}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="events:PlanStep">
+            <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+              <TextBlock Classes="caption" Text="{Binding Status}" Width="80" />
+              <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
+</UserControl>

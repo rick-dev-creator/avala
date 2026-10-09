@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.PromptView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IPromptViewModel">
+  <Design.DataContext>
+    <conversation:DesignPromptViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border.person">
+      <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Bubble"
+          Classes="quiet"
+          Classes.person="{Binding IsFromPerson}"
+          Padding="14,10">
+    <StackPanel Spacing="4">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock x:Name="Origin" Classes="caption strong" Text="{Binding Origin}" />
+        <TextBlock x:Name="Outcome" Classes="caption" Text="{Binding Outcome}" />
+      </StackPanel>
+      <SelectableTextBlock x:Name="Text"
+                           Text="{Binding Text}"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </Border>
+</UserControl>

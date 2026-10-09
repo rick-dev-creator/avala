@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:usage="using:Avala.Workbench.Usage"
+             x:Class="Avala.Workbench.UI.InterventionView"
+             x:ClassModifier="internal"
+             x:DataType="usage:IInterventionViewModel">
+  <Design.DataContext>
+    <usage:DesignInterventionViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+    <TextBlock x:Name="At" Classes="caption mono" Text="{Binding At}" Margin="0,0,12,0" />
+    <StackPanel Grid.Column="1" Spacing="1">
+      <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Detail" Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
+    </StackPanel>
+    <TextBlock x:Name="Reason" Grid.Column="2" Classes="caption attention" Text="{Binding Reason}" Margin="12,0,0,0" />
+  </Grid>
+</UserControl>

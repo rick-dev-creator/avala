@@ -3,8 +3,19 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Cards;
 
+internal interface IFormChoiceViewModel
+{
+    string Label { get; }
+
+    string Description { get; }
+
+    bool Recommended { get; }
+
+    bool IsSelected { get; set; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class FormChoiceViewModel
+internal sealed partial class FormChoiceViewModel : IFormChoiceViewModel
 {
     public FormChoiceViewModel(FormOption option)
     {

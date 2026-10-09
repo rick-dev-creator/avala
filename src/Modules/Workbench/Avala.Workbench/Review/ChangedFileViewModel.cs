@@ -6,11 +6,36 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Review;
 
+internal interface IChangedFileViewModel
+{
+    string Path { get; }
+
+    ChangeKind Kind { get; }
+
+    string Counts { get; }
+
+    IReadOnlyList<IHunkViewModel> Hunks { get; }
+
+    bool IsExpanded { get; }
+
+    string Error { get; }
+
+    IAsyncRelayCommand ShowHunksCommand { get; }
+}
+
+internal interface IHunkViewModel
+{
+    string Header { get; }
+
+    IReadOnlyList<string> Lines { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class ChangedFileViewModel
+internal sealed partial class ChangedFileViewModel : IChangedFileViewModel
 {
     private readonly WorkspaceId workspace;
     private readonly ReviewReader reader;
+    private readonly ObservableCollection<HunkViewModel> hunks = [];
 
     public ChangedFileViewModel(FileChange file, WorkspaceId workspace, ReviewReader reader)
     {
@@ -28,7 +53,7 @@ internal sealed partial class ChangedFileViewModel
 
     public string Counts { get; }
 
-    public ObservableCollection<HunkViewModel> Hunks { get; } = [];
+    public IReadOnlyList<IHunkViewModel> Hunks => hunks;
 
     [ObservableProperty]
     public partial bool IsExpanded { get; private set; }
@@ -41,7 +66,7 @@ internal sealed partial class ChangedFileViewModel
     {
         if (IsExpanded)
         {
-            Hunks.Clear();
+            hunks.Clear();
             IsExpanded = false;
 
             return;
@@ -53,7 +78,7 @@ internal sealed partial class ChangedFileViewModel
             {
                 foreach (var hunk in found.Hunks)
                 {
-                    Hunks.Add(new HunkViewModel(hunk));
+                    hunks.Add(new HunkViewModel(hunk));
                 }
 
                 IsExpanded = true;
@@ -64,7 +89,7 @@ internal sealed partial class ChangedFileViewModel
     }
 }
 
-internal sealed class HunkViewModel(DiffHunk hunk)
+internal sealed class HunkViewModel(DiffHunk hunk) : IHunkViewModel
 {
     public string Header { get; } = $"@@ -{hunk.OldStart},{hunk.OldLines} +{hunk.NewStart},{hunk.NewLines} @@ {hunk.Section}".TrimEnd();
 

@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:usage="using:Avala.Workbench.Usage"
+             x:Class="Avala.Workbench.UI.UsageView"
+             x:ClassModifier="internal"
+             x:DataType="usage:IUsageViewModel">
+  <Design.DataContext>
+    <usage:DesignUsageViewModel />
+  </Design.DataContext>
+  <ScrollViewer>
+    <StackPanel Margin="24,16" Spacing="12" MaxWidth="{DynamicResource ReadingWidth}" HorizontalAlignment="Left">
+      <TextBlock Classes="title" Text="{Binding Title}" />
+      <TextBlock Classes="section" Text="Connections" />
+      <TextBlock x:Name="NoConnections" Classes="caption" Text="No connection has reported usage yet." IsVisible="{Binding !Connections.Count}" />
+      <ItemsControl x:Name="Connections" ItemsSource="{Binding Connections}" />
+      <TextBlock Classes="section" Text="Over time" />
+      <ItemsControl x:Name="Windows" ItemsSource="{Binding Windows}" />
+      <TextBlock Classes="section" Text="Jobs" />
+      <TextBlock x:Name="NoJobs" Classes="caption" Text="No job has spent anything yet." IsVisible="{Binding !Jobs.Count}" />
+      <ItemsControl x:Name="Jobs" ItemsSource="{Binding Jobs}" />
+      <StackPanel x:Name="InterventionsGroup" Spacing="6" IsVisible="{Binding !!Interventions.Count}">
+        <TextBlock Classes="section" Text="Interventions" />
+        <ItemsControl x:Name="Interventions" ItemsSource="{Binding Interventions}" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="using:Avala.Workbench.Resources"
+             x:Class="Avala.Workbench.UI.StaleWorktreeView"
+             x:ClassModifier="internal"
+             x:DataType="resources:IStaleWorktreeViewModel">
+  <Design.DataContext>
+    <resources:DesignStaleWorktreeViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+    <TextBlock x:Name="Path" Classes="mono" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+    <TextBlock x:Name="Reason" Grid.Column="1" Classes="caption" Text="{Binding Reason}" Margin="12,0,0,0" />
+  </Grid>
+</UserControl>

@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.ReasoningView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IReasoningViewModel">
+  <Design.DataContext>
+    <conversation:DesignReasoningViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="4">
+    <Button x:Name="Toggle" Classes="ghost" Command="{Binding ToggleCommand}" HorizontalAlignment="Left">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Path x:Name="Thinking" Classes="icon" Classes.pulse="{Binding IsThinking}" Data="{StaticResource IconReasoning}" />
+        <TextBlock x:Name="Summary" Classes="secondary" Text="{Binding Summary}" />
+      </StackPanel>
+    </Button>
+    <Border x:Name="Thought" Classes="well" IsVisible="{Binding IsExpanded}">
+      <SelectableTextBlock x:Name="Text" Text="{Binding Text}" TextWrapping="Wrap" />
+    </Border>
+  </StackPanel>
+</UserControl>

@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:review="using:Avala.Workbench.Review"
+             x:Class="Avala.Workbench.UI.ReviewExceptionView"
+             x:ClassModifier="internal"
+             x:DataType="review:IReviewExceptionViewModel">
+  <Design.DataContext>
+    <review:DesignReviewExceptionViewModel />
+  </Design.DataContext>
+  <Border Classes="quiet" Padding="12,10">
+    <StackPanel Spacing="6">
+      <TextBlock x:Name="Title" Classes="strong attention" Text="{Binding Title}" TextWrapping="Wrap" />
+      <SelectableTextBlock x:Name="Detail"
+                           Classes="mono"
+                           Text="{Binding Detail}"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </Border>
+</UserControl>

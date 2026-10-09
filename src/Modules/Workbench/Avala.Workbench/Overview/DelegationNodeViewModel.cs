@@ -6,7 +6,35 @@ using Avala.Workbench.Sidebar;
 
 namespace Avala.Workbench.Overview;
 
-internal sealed class DelegationNodeViewModel(DelegationNode node)
+internal interface IDelegationNodeViewModel
+{
+    JobId Job { get; }
+
+    string Title { get; }
+
+    int Depth { get; }
+
+    JobStatus Status { get; }
+
+    string Connection { get; }
+
+    string Harness { get; }
+
+    string Activity { get; }
+
+    string Spent { get; }
+
+    string Carve { get; }
+}
+
+internal interface IDelegationRefusalViewModel
+{
+    string Instruction { get; }
+
+    string Reason { get; }
+}
+
+internal sealed class DelegationNodeViewModel(DelegationNode node) : IDelegationNodeViewModel
 {
     public JobId Job { get; } = node.Job.Job;
 
@@ -30,7 +58,7 @@ internal sealed class DelegationNodeViewModel(DelegationNode node)
     public string Carve { get; } = node.Spend.Carve.Match(carve => Amounts.Costs(carve.Cost), () => "no carve");
 }
 
-internal sealed class DelegationRefusalViewModel(DelegationRecord record)
+internal sealed class DelegationRefusalViewModel(DelegationRecord record) : IDelegationRefusalViewModel
 {
     public string Instruction { get; } = FactPhrases.Title(record.Instruction);
 

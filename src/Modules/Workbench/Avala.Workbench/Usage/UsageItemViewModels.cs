@@ -8,7 +8,81 @@ using Avala.Workbench.Spending;
 
 namespace Avala.Workbench.Usage;
 
-internal sealed class ConnectionMeterViewModel(ConnectionSpend connection)
+internal interface IConnectionMeterViewModel
+{
+    string Name { get; }
+
+    string Provider { get; }
+
+    string Cost { get; }
+
+    string Tokens { get; }
+
+    string Unpriced { get; }
+
+    string Caps { get; }
+
+    IReadOnlyList<ILimitViewModel> Limits { get; }
+}
+
+internal interface IUsageWindowViewModel
+{
+    string Label { get; }
+
+    string Cost { get; }
+
+    long Input { get; }
+
+    long Output { get; }
+
+    long CacheRead { get; }
+
+    long CacheWrite { get; }
+
+    long Reasoning { get; }
+
+    string Tokens { get; }
+
+    string Unpriced { get; }
+
+    string Turns { get; }
+}
+
+internal interface IJobMeterViewModel
+{
+    JobId Job { get; }
+
+    string Title { get; }
+
+    JobStatus Status { get; }
+
+    string Cost { get; }
+
+    string Tokens { get; }
+
+    string Unpriced { get; }
+
+    string Caps { get; }
+
+    string Carve { get; }
+
+    int Interventions { get; }
+}
+
+internal interface IInterventionViewModel
+{
+    JobId Job { get; }
+
+    string Title { get; }
+
+    string At { get; }
+
+    HoldReason Reason { get; }
+
+    string Detail { get; }
+}
+
+internal sealed class ConnectionMeterViewModel(ConnectionSpend connection) : IConnectionMeterViewModel
 {
     public string Name { get; } = connection.Usage.Connection.Value;
 
@@ -22,11 +96,11 @@ internal sealed class ConnectionMeterViewModel(ConnectionSpend connection)
 
     public string Caps { get; } = connection.Caps.Match(Amounts.Caps, () => "no caps known yet");
 
-    public IReadOnlyList<LimitViewModel> Limits { get; } =
+    public IReadOnlyList<ILimitViewModel> Limits { get; } =
         [.. connection.Usage.Usage.Limits.Select(limit => new LimitViewModel(limit, connection.Caps.Bind(caps => caps.HoldAtLimit)))];
 }
 
-internal sealed class UsageWindowViewModel(UsageWindow window)
+internal sealed class UsageWindowViewModel(UsageWindow window) : IUsageWindowViewModel
 {
     public string Label { get; } = window.Span == UsageSpan.Today ? "Today" : "Last 7 days";
 
@@ -52,7 +126,7 @@ internal sealed class UsageWindowViewModel(UsageWindow window)
         string.Create(CultureInfo.InvariantCulture, $"{turns.Finished} turns finished, {turns.Interrupted} interrupted, {turns.Failed} failed");
 }
 
-internal sealed class JobMeterViewModel(JobCost cost)
+internal sealed class JobMeterViewModel(JobCost cost) : IJobMeterViewModel
 {
     public JobId Job { get; } = cost.Job.Job;
 
@@ -73,7 +147,7 @@ internal sealed class JobMeterViewModel(JobCost cost)
     public int Interventions { get; } = cost.Interventions.Count;
 }
 
-internal sealed class InterventionViewModel(JobIntervention intervention, string instruction)
+internal sealed class InterventionViewModel(JobIntervention intervention, string instruction) : IInterventionViewModel
 {
     public JobId Job { get; } = intervention.Job;
 

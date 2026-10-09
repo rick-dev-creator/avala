@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:decisions="using:Avala.Workbench.Decisions"
+             x:Class="Avala.Workbench.UI.DecisionView"
+             x:ClassModifier="internal"
+             x:DataType="decisions:IDecisionViewModel">
+  <Design.DataContext>
+    <decisions:DesignDecisionViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="6">
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding JobTitle}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Waiting" Grid.Column="1" Classes="caption" Text="{Binding Waiting}" Margin="12,0,0,0" />
+    </Grid>
+    <ContentControl x:Name="Card" Content="{Binding Card}" />
+  </StackPanel>
+</UserControl>

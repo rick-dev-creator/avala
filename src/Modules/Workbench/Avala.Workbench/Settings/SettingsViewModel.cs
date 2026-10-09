@@ -2,13 +2,22 @@ using Avala.Sdk;
 
 namespace Avala.Workbench.Settings;
 
-internal sealed class SettingsViewModel(RepositorySettingsViewModel repository, MachineSettingsViewModel machine) : IPage, IActivatable
+internal interface ISettingsViewModel
+{
+    string Title { get; }
+
+    IRepositorySettingsViewModel Repository { get; }
+
+    IMachineSettingsViewModel Machine { get; }
+}
+
+internal sealed class SettingsViewModel(IRepositorySettingsViewModel repository, IMachineSettingsViewModel machine) : ISettingsViewModel, IPage, IActivatable
 {
     public string Title => "Settings";
 
-    public RepositorySettingsViewModel Repository { get; } = repository;
+    public IRepositorySettingsViewModel Repository { get; } = repository;
 
-    public MachineSettingsViewModel Machine { get; } = machine;
+    public IMachineSettingsViewModel Machine { get; } = machine;
 
     public Task Loading { get; private set; } = Task.CompletedTask;
 

@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:usage="using:Avala.Workbench.Usage"
+             x:Class="Avala.Workbench.UI.JobMeterView"
+             x:ClassModifier="internal"
+             x:DataType="usage:IJobMeterViewModel">
+  <Design.DataContext>
+    <usage:DesignJobMeterViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="2" Margin="0,0,0,10">
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+        <TextBlock x:Name="Status" Classes="caption" Text="{Binding Status}" VerticalAlignment="Center" />
+        <TextBlock x:Name="Cost" Text="{Binding Cost}" />
+        <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens}" VerticalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+    <TextBlock x:Name="Caps" Classes="caption" Text="{Binding Caps}" />
+    <TextBlock x:Name="Carve"
+               Classes="caption"
+               Text="{Binding Carve}"
+               IsVisible="{Binding Carve, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <TextBlock x:Name="Unpriced"
+               Classes="caption"
+               Text="{Binding Unpriced}"
+               IsVisible="{Binding Unpriced, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <TextBlock x:Name="Interventions"
+               Classes="caption attention"
+               Text="{Binding Interventions, StringFormat='held {0} times'}"
+               IsVisible="{Binding !!Interventions}" />
+  </StackPanel>
+</UserControl>

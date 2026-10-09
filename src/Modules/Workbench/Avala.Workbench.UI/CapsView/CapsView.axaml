@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.CapsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:ICapsViewModel">
+  <Design.DataContext>
+    <settings:DesignCapsViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="140,*" Margin="0,2">
+    <TextBlock x:Name="Scope" Classes="caption mono" Text="{Binding Scope}" TextTrimming="CharacterEllipsis" />
+    <TextBlock x:Name="Caps" Grid.Column="1" Text="{Binding Caps}" TextWrapping="Wrap" />
+  </Grid>
+</UserControl>

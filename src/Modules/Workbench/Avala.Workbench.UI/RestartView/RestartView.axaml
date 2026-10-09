@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.RestartView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IRestartViewModel">
+  <Design.DataContext>
+    <conversation:DesignRestartViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="8">
+    <Border Classes="separator" />
+    <TextBlock x:Name="Note" Classes="caption" Text="{Binding Note}" TextWrapping="Wrap" HorizontalAlignment="Center" />
+  </StackPanel>
+</UserControl>

@@ -1,8 +1,0 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:conversation="using:Avala.Workbench.Conversation"
-             x:Class="Avala.Workbench.UI.RestartView"
-             x:ClassModifier="internal"
-             x:DataType="conversation:RestartViewModel">
-  <TextBlock Text="{Binding Note}" Opacity="0.6" TextWrapping="Wrap" />
-</UserControl>

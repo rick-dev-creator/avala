@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.ConnectionsView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IConnectionsViewModel">
+  <Design.DataContext>
+    <overview:DesignConnectionsViewModel />
+  </Design.DataContext>
+  <ScrollViewer>
+    <StackPanel Spacing="12">
+      <TextBlock x:Name="FileNote"
+                 Classes="caption failure"
+                 Text="{Binding FileNote}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding FileNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock x:Name="NoConnections"
+                 Classes="caption"
+                 Text="No connection is declared or has reported usage yet."
+                 IsVisible="{Binding !Connections.Count}" />
+      <ItemsControl x:Name="Connections" ItemsSource="{Binding Connections}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="12" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

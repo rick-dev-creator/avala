@@ -47,6 +47,7 @@ internal static class LayerMap
         .. Module("Avala.Workbench", new()
         {
             ["UI"] = Layer.None,
+            ["Contracts.Presentation"] = Layer.Contracts,
             ["Timeline"] = Layer.Application,
             ["Board"] = Layer.Application,
             ["Steering"] = Layer.Application,

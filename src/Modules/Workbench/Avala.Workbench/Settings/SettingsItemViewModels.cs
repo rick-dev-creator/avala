@@ -9,7 +9,67 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Settings;
 
-internal sealed class RuleFileViewModel(string path, string status, Option<FileOrigin> origin)
+internal interface IRuleFileViewModel
+{
+    string Path { get; }
+
+    string Status { get; }
+
+    string Commit { get; }
+
+    bool EditedInCheckout { get; }
+}
+
+internal interface IRuleViewModel
+{
+    string Name { get; }
+
+    string Origin { get; }
+
+    string Kind { get; }
+
+    string Target { get; }
+
+    RuleScope Scope { get; }
+
+    PolicyAnswer Answer { get; }
+}
+
+internal interface ICapsViewModel
+{
+    string Scope { get; }
+
+    string Caps { get; }
+}
+
+internal interface ICheckViewModel
+{
+    string Name { get; }
+
+    string Command { get; }
+
+    string Timeout { get; }
+}
+
+internal interface IJobSectionViewModel
+{
+    string Name { get; }
+
+    string Value { get; }
+}
+
+internal interface IMachineConnectionViewModel
+{
+    string Name { get; }
+
+    string Provider { get; }
+
+    string Source { get; }
+
+    bool IsDefault { get; }
+}
+
+internal sealed class RuleFileViewModel(string path, string status, Option<FileOrigin> origin) : IRuleFileViewModel
 {
     public string Path { get; } = path;
 
@@ -20,7 +80,7 @@ internal sealed class RuleFileViewModel(string path, string status, Option<FileO
     public bool EditedInCheckout { get; } = origin.Match(found => found.EditedInWorktree, () => false);
 }
 
-internal sealed class RuleViewModel(PolicyRule rule)
+internal sealed class RuleViewModel(PolicyRule rule) : IRuleViewModel
 {
     public string Name { get; } = rule.Name;
 
@@ -35,14 +95,14 @@ internal sealed class RuleViewModel(PolicyRule rule)
     public PolicyAnswer Answer { get; } = rule.Answer;
 }
 
-internal sealed class CapsViewModel(string scope, string caps)
+internal sealed class CapsViewModel(string scope, string caps) : ICapsViewModel
 {
     public string Scope { get; } = scope;
 
     public string Caps { get; } = caps;
 }
 
-internal sealed class CheckViewModel(CheckDeclared check)
+internal sealed class CheckViewModel(CheckDeclared check) : ICheckViewModel
 {
     public string Name { get; } = check.Name;
 
@@ -51,14 +111,14 @@ internal sealed class CheckViewModel(CheckDeclared check)
     public string Timeout { get; } = $"{Amounts.Seconds(check.Timeout)}s";
 }
 
-internal sealed class JobSectionViewModel(string name, string value)
+internal sealed class JobSectionViewModel(string name, string value) : IJobSectionViewModel
 {
     public string Name { get; } = name;
 
     public string Value { get; } = value;
 }
 
-internal sealed class MachineConnectionViewModel(DeclaredConnection connection, bool isDefault)
+internal sealed class MachineConnectionViewModel(DeclaredConnection connection, bool isDefault) : IMachineConnectionViewModel
 {
     public string Name { get; } = connection.Name.Value;
 

@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:review="using:Avala.Workbench.Review"
+             x:Class="Avala.Workbench.UI.HunkView"
+             x:ClassModifier="internal"
+             x:DataType="review:IHunkViewModel">
+  <Design.DataContext>
+    <review:DesignHunkViewModel />
+  </Design.DataContext>
+  <Border Classes="well">
+    <StackPanel>
+      <TextBlock x:Name="Header" Classes="mono tertiary" Text="{Binding Header}" TextTrimming="CharacterEllipsis" />
+      <ItemsControl x:Name="Lines" ItemsSource="{Binding Lines}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="mono" Text="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
+</UserControl>

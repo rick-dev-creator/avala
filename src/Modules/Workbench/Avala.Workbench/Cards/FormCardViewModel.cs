@@ -7,22 +7,46 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Cards;
 
+internal interface IFormCardViewModel
+{
+    FormPurpose Purpose { get; }
+
+    string Title { get; }
+
+    string Context { get; }
+
+    IReadOnlyList<IFormFieldViewModel> Fields { get; }
+
+    bool AwaitsYou { get; }
+
+    string Verdict { get; }
+
+    string Note { get; set; }
+
+    string Error { get; }
+
+    IAsyncRelayCommand SubmitCommand { get; }
+
+    IAsyncRelayCommand DeclineCommand { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class FormCardViewModel : ITimelineItem
+internal sealed partial class FormCardViewModel : IFormCardViewModel, ITimelineItem
 {
     private readonly HumanReplies replies;
+    private readonly FormFieldViewModel[] fields;
     private FormEntry form;
 
     public FormCardViewModel(FormEntry entry, HumanReplies replies)
     {
         this.replies = replies;
         form = entry;
-        Fields = [.. entry.Form.Fields.Select(field => new FormFieldViewModel(field))];
+        fields = [.. entry.Form.Fields.Select(field => new FormFieldViewModel(field))];
         Note = string.Empty;
         Verdict = string.Empty;
         Error = string.Empty;
 
-        foreach (var field in Fields)
+        foreach (var field in fields)
         {
             field.PropertyChanged += (_, _) => SubmitCommand.NotifyCanExecuteChanged();
         }
@@ -36,7 +60,7 @@ internal sealed partial class FormCardViewModel : ITimelineItem
 
     public string Context => form.Form.Context;
 
-    public IReadOnlyList<FormFieldViewModel> Fields { get; }
+    public IReadOnlyList<IFormFieldViewModel> Fields => fields;
 
     public bool IsShown => true;
 
@@ -66,7 +90,7 @@ internal sealed partial class FormCardViewModel : ITimelineItem
     [RelayCommand(CanExecute = nameof(CanSubmit))]
     private async Task SubmitAsync(CancellationToken cancellationToken)
     {
-        var answered = await replies.AnswerAsync(form, FormReplies.Answer(form.Item, [.. Fields.Select(field => field.Choice())]), cancellationToken);
+        var answered = await replies.AnswerAsync(form, FormReplies.Answer(form.Item, [.. fields.Select(field => field.Choice())]), cancellationToken);
         Error = answered.Match(_ => string.Empty, CardPhrases.Error);
     }
 
@@ -77,5 +101,5 @@ internal sealed partial class FormCardViewModel : ITimelineItem
         Error = answered.Match(_ => string.Empty, CardPhrases.Error);
     }
 
-    private bool CanSubmit() => AwaitsYou && FormReplies.IsComplete([.. Fields.Select(field => field.Choice())]);
+    private bool CanSubmit() => AwaitsYou && FormReplies.IsComplete([.. fields.Select(field => field.Choice())]);
 }

@@ -105,7 +105,7 @@
     <Panel x:Name="InspectorPane"
            Grid.Column="2"
            Width="{DynamicResource InspectorWidth}"
-           IsVisible="{Binding Inspector.HasItems}">
+           IsVisible="{Binding IsInspectorShown}">
       <ExperimentalAcrylicBorder Material="{StaticResource PanelMaterial}" IsHitTestVisible="False" />
       <Border Classes="edge" HorizontalAlignment="Left" />
       <ScrollViewer>

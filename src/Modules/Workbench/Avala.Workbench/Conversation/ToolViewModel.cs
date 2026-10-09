@@ -5,8 +5,29 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Conversation;
 
+internal interface IToolViewModel
+{
+    ItemKind Kind { get; }
+
+    string Title { get; }
+
+    string Input { get; }
+
+    string Output { get; }
+
+    bool IsRunning { get; }
+
+    bool Failed { get; }
+
+    string Outcome { get; }
+
+    bool IsExpanded { get; }
+
+    IRelayCommand ToggleCommand { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class ToolViewModel : ITimelineItem
+internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
 {
     public ToolViewModel(ToolEntry entry)
     {
@@ -39,7 +60,7 @@ internal sealed partial class ToolViewModel : ITimelineItem
     public partial string Outcome { get; private set; }
 
     [ObservableProperty]
-    public partial bool IsExpanded { get; set; }
+    public partial bool IsExpanded { get; private set; }
 
     public void Update(ITimelineEntry entry)
     {

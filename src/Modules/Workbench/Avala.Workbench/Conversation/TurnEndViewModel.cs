@@ -4,7 +4,20 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Conversation;
 
-internal sealed class TurnEndViewModel(TurnEndEntry entry) : ITimelineItem
+internal interface ITurnEndViewModel
+{
+    TurnOutcome Outcome { get; }
+
+    TimeSpan Duration { get; }
+
+    string Summary { get; }
+
+    long Tokens { get; }
+
+    string Cost { get; }
+}
+
+internal sealed class TurnEndViewModel(TurnEndEntry entry) : ITurnEndViewModel, ITimelineItem
 {
     public TurnOutcome Outcome { get; } = entry.Outcome;
 

@@ -8,9 +8,25 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Conversation;
 
-[INotifyPropertyChanged]
-internal sealed partial class ConversationViewModel
+internal interface IConversationViewModel
 {
+    JobId Job { get; }
+
+    string Title { get; }
+
+    JobStatus Status { get; }
+
+    string Plan { get; }
+
+    IComposerViewModel Composer { get; }
+
+    IReadOnlyList<object> Entries { get; }
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class ConversationViewModel : IConversationViewModel
+{
+    private readonly ComposerViewModel composer;
     private readonly TimelineItems items;
     private readonly Dictionary<string, (ITimelineEntry Entry, ITimelineItem Item)> known = [];
     private Transcript shown = Transcript.Empty;
@@ -18,7 +34,7 @@ internal sealed partial class ConversationViewModel
     public ConversationViewModel(JobId job, ComposerViewModel composer, TimelineItems items)
     {
         Job = job;
-        Composer = composer;
+        this.composer = composer;
         this.items = items;
         Title = string.Empty;
         Plan = string.Empty;
@@ -26,9 +42,11 @@ internal sealed partial class ConversationViewModel
 
     public JobId Job { get; }
 
-    public ComposerViewModel Composer { get; }
+    public IComposerViewModel Composer => composer;
 
     public ObservableCollection<ITimelineItem> Entries { get; } = [];
+
+    IReadOnlyList<object> IConversationViewModel.Entries => Entries;
 
     [ObservableProperty]
     public partial string Title { get; private set; }
@@ -43,7 +61,7 @@ internal sealed partial class ConversationViewModel
     {
         Title = FactPhrases.Title(job.Summary.Instruction);
         Status = job.Status;
-        Composer.Track(job.Status);
+        composer.Track(job.Status);
 
         if (ReferenceEquals(job.Transcript, shown))
         {

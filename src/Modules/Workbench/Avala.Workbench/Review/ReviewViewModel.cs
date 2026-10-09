@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
+using Avala.Workbench.Presenting;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Steering;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -8,12 +10,60 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Review;
 
+internal interface IReviewViewModel
+{
+    JobId Job { get; }
+
+    JobStatus Status { get; }
+
+    bool IsLoaded { get; }
+
+    string Verdict { get; }
+
+    bool HasExceptions { get; }
+
+    IReadOnlyList<IReviewExceptionViewModel> Exceptions { get; }
+
+    string Quiet { get; }
+
+    string Changes { get; }
+
+    IReadOnlyList<IChangedFileViewModel> Files { get; }
+
+    string Feedback { get; set; }
+
+    string Outcome { get; }
+
+    IReadOnlyList<string> Conflicts { get; }
+
+    bool ConfirmingDiscard { get; }
+
+    IAsyncRelayCommand ApproveCommand { get; }
+
+    IAsyncRelayCommand SendBackCommand { get; }
+
+    IRelayCommand RequestDiscardCommand { get; }
+
+    IRelayCommand CancelDiscardCommand { get; }
+
+    IAsyncRelayCommand ConfirmDiscardCommand { get; }
+}
+
+internal interface IReviewExceptionViewModel
+{
+    string Title { get; }
+
+    string Detail { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class ReviewViewModel
+internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
 {
     private readonly ReviewReader reader;
     private readonly ReviewDesk desk;
     private readonly IUiDispatcher ui;
+    private readonly ObservableCollection<ReviewExceptionViewModel> exceptions = [];
+    private readonly ObservableCollection<ChangedFileViewModel> files = [];
 
     public ReviewViewModel(JobId job, ReviewReader reader, ReviewDesk desk, IUiDispatcher ui)
     {
@@ -33,9 +83,13 @@ internal sealed partial class ReviewViewModel
 
     public int Requested { get; private set; } = -1;
 
-    public ObservableCollection<ReviewExceptionViewModel> Exceptions { get; } = [];
+    public long Revision { get; private set; }
 
-    public ObservableCollection<ChangedFileViewModel> Files { get; } = [];
+    public event EventHandler<Presented>? Presented;
+
+    public IReadOnlyList<IReviewExceptionViewModel> Exceptions => exceptions;
+
+    public IReadOnlyList<IChangedFileViewModel> Files => files;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
@@ -88,6 +142,8 @@ internal sealed partial class ReviewViewModel
                 if (!cancellationToken.IsCancellationRequested && revision == Requested)
                 {
                     Show(facts);
+                    Revision++;
+                    Presented?.Invoke(this, new Presented(Revision));
                 }
             },
             cancellationToken);
@@ -97,22 +153,13 @@ internal sealed partial class ReviewViewModel
     {
         Verdict = facts.Evidence.Match(evidence => ReviewPhrases.Verdict(ReviewExceptions.VerdictOf(evidence)), () => "No evidence for this job");
         Quiet = facts.Evidence.Match(evidence => ReviewPhrases.Quiet(evidence, facts.Usage), () => string.Empty);
-        Exceptions.Clear();
-
-        foreach (var exception in facts.Evidence.Match(ReviewExceptions.Of, () => []))
-        {
-            Exceptions.Add(new ReviewExceptionViewModel(exception));
-        }
-
-        HasExceptions = Exceptions.Count > 0;
+        exceptions.ShowOnly(facts.Evidence.Match(ReviewExceptions.Of, () => []).Select(exception => new ReviewExceptionViewModel(exception)));
+        HasExceptions = exceptions.Count > 0;
         Changes = ReviewPhrases.Changes(facts.Diff);
-        Files.Clear();
-
-        foreach (var file in facts.Diff.Match(diff => diff.Files.Select(file => new ChangedFileViewModel(file, diff.Workspace, reader)), _ => []))
-        {
-            Files.Add(file);
-        }
-
+        var kept = files.ToDictionary(file => (file.Path, file.Kind, file.Counts));
+        files.ShowOnly(facts.Diff.Match(
+            diff => diff.Files.Select(file => kept.GetValueOrDefault((file.Path, file.Kind, ReviewPhrases.Counts(file))) ?? new ChangedFileViewModel(file, diff.Workspace, reader)),
+            _ => []));
         IsLoaded = true;
     }
 
@@ -155,7 +202,7 @@ internal sealed partial class ReviewViewModel
     private bool CanConfirmDiscard() => Status.CanBeDiscarded && ConfirmingDiscard;
 }
 
-internal sealed class ReviewExceptionViewModel
+internal sealed class ReviewExceptionViewModel : IReviewExceptionViewModel
 {
     public ReviewExceptionViewModel(IReviewException exception) => (Title, Detail) = ReviewPhrases.Exception(exception);
 

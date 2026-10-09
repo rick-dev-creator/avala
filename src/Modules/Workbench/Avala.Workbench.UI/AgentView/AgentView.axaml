@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.AgentView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IAgentViewModel">
+  <Design.DataContext>
+    <overview:DesignAgentViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+    <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+    <TextBlock x:Name="Fact" Grid.Column="1" Classes="caption" Text="{Binding Fact}" Margin="12,0,0,0" />
+  </Grid>
+</UserControl>

@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sidebar="using:Avala.Workbench.Sidebar"
+             x:Class="Avala.Workbench.UI.SidebarView"
+             x:ClassModifier="internal"
+             x:DataType="sidebar:ISidebarViewModel">
+  <Design.DataContext>
+    <sidebar:DesignSidebarViewModel />
+  </Design.DataContext>
+  <UserControl.Resources>
+    <DataTemplate x:Key="Row" x:DataType="sidebar:IJobRowViewModel">
+      <Button Classes="row"
+              Classes.selected="{Binding IsSelected}"
+              Command="{Binding $parent[UserControl].((sidebar:ISidebarViewModel)DataContext).SelectCommand}"
+              CommandParameter="{Binding}">
+        <ContentControl Content="{Binding}" />
+      </Button>
+    </DataTemplate>
+  </UserControl.Resources>
+  <StackPanel Spacing="14">
+    <Button x:Name="ToggleDecisions"
+            Classes="row"
+            Command="{Binding ToggleDecisionsCommand}"
+            HotKey="Ctrl+D">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Path Classes="icon" Data="{StaticResource IconDecisions}" Margin="0,0,10,0" />
+        <TextBlock Grid.Column="1" Text="Decisions" VerticalAlignment="Center" />
+        <Border x:Name="PendingBadge" Grid.Column="2" Classes="badge" IsVisible="{Binding HasPendingDecisions}">
+          <TextBlock x:Name="Pending" Text="{Binding PendingDecisions}" />
+        </Border>
+      </Grid>
+    </Button>
+    <ContentControl x:Name="DecisionsPopover" Content="{Binding Decisions}" IsVisible="{Binding IsDecisionsOpen}" />
+    <TextBlock x:Name="NoJobs"
+               Classes="caption"
+               Margin="10,0"
+               TextWrapping="Wrap"
+               Text="No jobs yet. Start one from New job."
+               IsVisible="{Binding IsEmpty}" />
+    <StackPanel x:Name="NeedsYouGroup" Spacing="2" IsVisible="{Binding !!NeedsYou.Count}">
+      <TextBlock Classes="section" Margin="10,0,10,4" Text="Needs you" />
+      <ItemsControl x:Name="NeedsYou" ItemsSource="{Binding NeedsYou}" ItemTemplate="{StaticResource Row}" />
+    </StackPanel>
+    <StackPanel x:Name="RunningGroup" Spacing="2" IsVisible="{Binding !!Running.Count}">
+      <TextBlock Classes="section" Margin="10,0,10,4" Text="Running" />
+      <ItemsControl x:Name="Running" ItemsSource="{Binding Running}" ItemTemplate="{StaticResource Row}" />
+    </StackPanel>
+    <StackPanel x:Name="ReadyForReviewGroup" Spacing="2" IsVisible="{Binding !!ReadyForReview.Count}">
+      <TextBlock Classes="section" Margin="10,0,10,4" Text="Ready for review" />
+      <ItemsControl x:Name="ReadyForReview" ItemsSource="{Binding ReadyForReview}" ItemTemplate="{StaticResource Row}" />
+    </StackPanel>
+    <StackPanel x:Name="DoneGroup" Spacing="2" IsVisible="{Binding !!Done.Count}">
+      <TextBlock Classes="section" Margin="10,0,10,4" Text="Done" />
+      <ItemsControl x:Name="Done" ItemsSource="{Binding Done}" ItemTemplate="{StaticResource Row}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

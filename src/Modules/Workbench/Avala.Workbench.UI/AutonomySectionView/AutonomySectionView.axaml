@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inspector="using:Avala.Workbench.Inspector"
+             x:Class="Avala.Workbench.UI.AutonomySectionView"
+             x:ClassModifier="internal"
+             x:DataType="inspector:IAutonomySectionViewModel">
+  <Design.DataContext>
+    <inspector:DesignAutonomySectionViewModel />
+  </Design.DataContext>
+  <Expander x:Name="Section">
+    <Expander.Header>
+      <TextBlock Classes="section" Text="Autonomy and connection" />
+    </Expander.Header>
+    <StackPanel Spacing="4">
+      <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <TextBlock x:Name="Autonomy" Text="{Binding Autonomy}" TextWrapping="Wrap" />
+      <TextBlock x:Name="Connection" Classes="mono secondary" Text="{Binding Connection}" />
+    </StackPanel>
+  </Expander>
+</UserControl>

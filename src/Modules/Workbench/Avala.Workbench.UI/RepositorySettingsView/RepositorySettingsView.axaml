@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.RepositorySettingsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IRepositorySettingsViewModel">
+  <Design.DataContext>
+    <settings:DesignRepositorySettingsViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="10">
+    <Grid ColumnDefinitions="*,Auto">
+      <AutoCompleteBox x:Name="Repository" Text="{Binding Repository}" ItemsSource="{Binding Repositories}" />
+      <Button x:Name="Read" Grid.Column="1" Margin="8,0,0,0" Content="Read" Command="{Binding ReadCommand}" />
+    </Grid>
+    <TextBlock x:Name="Error"
+               Classes="caption failure"
+               Text="{Binding Error}"
+               TextWrapping="Wrap"
+               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <StackPanel x:Name="Rules" Spacing="10" IsVisible="{Binding Shown, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock x:Name="Autonomy" Text="{Binding Autonomy, StringFormat='Autonomy: {0}'}" />
+      <TextBlock x:Name="FormStrategy" Text="{Binding FormStrategy, StringFormat='Forms are answered with: {0}'}" />
+      <ItemsControl x:Name="Files" ItemsSource="{Binding Files}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="settings:IRuleFileViewModel">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+              <ContentControl Content="{Binding}" />
+              <Button Grid.Column="1"
+                      Classes="ghost"
+                      Content="Edit in repository"
+                      Command="{Binding $parent[UserControl].((settings:IRepositorySettingsViewModel)DataContext).EditCommand}"
+                      CommandParameter="{Binding}" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Classes="section" Text="Rules, in decision order" />
+      <ItemsControl x:Name="RuleList" ItemsSource="{Binding Rules}" />
+      <TextBlock Classes="section" Text="Budget caps" />
+      <ItemsControl x:Name="Caps" ItemsSource="{Binding Caps}" />
+      <TextBlock Classes="section" Text="Checks" />
+      <ItemsControl x:Name="Checks" ItemsSource="{Binding Checks}" />
+      <StackPanel x:Name="JobsFile" Spacing="4" IsVisible="{Binding !!JobSections.Count}">
+        <TextBlock Classes="section" Text="jobs.json" />
+        <ItemsControl x:Name="JobSections" ItemsSource="{Binding JobSections}" />
+      </StackPanel>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

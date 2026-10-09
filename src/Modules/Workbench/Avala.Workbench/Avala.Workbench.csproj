@@ -3,6 +3,8 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\Avala.Components\Avala.Components.csproj" />
+    <ProjectReference Include="..\Avala.Workbench.Contracts\Avala.Workbench.Contracts.csproj" />
     <ProjectReference Include="..\..\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" />
     <ProjectReference Include="..\..\Jobs\Avala.Jobs.Contracts\Avala.Jobs.Contracts.csproj" />
     <ProjectReference Include="..\..\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />

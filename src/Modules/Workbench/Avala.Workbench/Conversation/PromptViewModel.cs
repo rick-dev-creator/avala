@@ -4,8 +4,21 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Conversation;
 
+internal interface IPromptViewModel
+{
+    int Attempt { get; }
+
+    string Origin { get; }
+
+    bool IsFromPerson { get; }
+
+    string Text { get; }
+
+    string Outcome { get; }
+}
+
 [INotifyPropertyChanged]
-internal sealed partial class PromptViewModel : ITimelineItem
+internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
 {
     public PromptViewModel(PromptEntry entry)
     {

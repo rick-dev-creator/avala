@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:review="using:Avala.Workbench.Review"
+             x:Class="Avala.Workbench.UI.ReviewView"
+             x:ClassModifier="internal"
+             x:DataType="review:IReviewViewModel">
+  <Design.DataContext>
+    <review:DesignReviewViewModel />
+  </Design.DataContext>
+  <ScrollViewer>
+    <StackPanel Spacing="14" MaxWidth="{DynamicResource ReadingWidth}">
+      <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading the evidence…" IsVisible="{Binding !IsLoaded}" />
+      <StackPanel x:Name="Proof" Spacing="14" IsVisible="{Binding IsLoaded}">
+        <TextBlock x:Name="Verdict" Classes="title" Text="{Binding Verdict}" TextWrapping="Wrap" />
+        <ItemsControl x:Name="Exceptions" ItemsSource="{Binding Exceptions}" IsVisible="{Binding HasExceptions}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+        <TextBlock x:Name="Quiet" Classes="caption" Text="{Binding Quiet}" TextWrapping="Wrap" />
+        <TextBlock x:Name="Changes" Classes="section" Text="{Binding Changes}" />
+        <ItemsControl x:Name="Files" ItemsSource="{Binding Files}" />
+      </StackPanel>
+      <TextBox x:Name="Feedback"
+               Text="{Binding Feedback}"
+               PlaceholderText="Feedback for another round"
+               AcceptsReturn="True"
+               TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button x:Name="Approve" Classes="primary" Content="Approve" Command="{Binding ApproveCommand}" />
+        <Button x:Name="SendBack" Content="Send back" Command="{Binding SendBackCommand}" />
+        <Button x:Name="RequestDiscard" Classes="destructive" Content="Discard…" Command="{Binding RequestDiscardCommand}" />
+      </StackPanel>
+      <Border x:Name="DiscardConfirmation" Classes="quiet" Padding="12,10" IsVisible="{Binding ConfirmingDiscard}">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="Discard the job and its worktree?" VerticalAlignment="Center" />
+          <Button x:Name="ConfirmDiscard" Classes="destructive" Content="Discard" Command="{Binding ConfirmDiscardCommand}" />
+          <Button x:Name="CancelDiscard" Content="Keep it" Command="{Binding CancelDiscardCommand}" />
+        </StackPanel>
+      </Border>
+      <TextBlock x:Name="Outcome"
+                 TextWrapping="Wrap"
+                 Text="{Binding Outcome}"
+                 IsVisible="{Binding Outcome, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <ItemsControl x:Name="Conflicts" ItemsSource="{Binding Conflicts}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="mono failure" Text="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
