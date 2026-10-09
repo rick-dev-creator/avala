@@ -20,6 +20,7 @@ using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using Avala.Workbench.Inspection;
 using Avala.Workbench.Inspector;
+using Avala.Workbench.Linking;
 using Avala.Workbench.Machine;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.NewJob;
@@ -78,6 +79,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<QueuedMessages>()
             .AddSingleton<IHandle<JobProgressed>>(Get<QueuedMessages>)
             .AddSingleton<HumanReplies>()
+            .AddSingleton<Links>()
             .AddSingleton<Conversations>()
             .AddSingleton<ReviewReader>()
             .AddSingleton<ReviewDesk>()
@@ -196,6 +198,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IDefaultConnectionViewModel, DefaultConnectionViewModel>()
             .AddSingleton<ConnectionEditorViewModel>()
             .AddSingleton<IMachineSettingsViewModel, MachineSettingsViewModel>()
+            .AddSingleton<IAppearanceViewModel, AppearanceViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
             .AddSingleton<NewJobViewModel>()
             .AddSingleton<OverviewViewModel>()
@@ -231,6 +234,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
         views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
         views.Register<IMachineSettingsViewModel, MachineSettingsView>();
+        views.Register<IAppearanceViewModel, AppearanceView>();
         views.Register<IRuleFileViewModel, RuleFileView>();
         views.Register<IRuleViewModel, RuleView>();
         views.Register<ICapsViewModel, CapsView>();

@@ -1,19 +1,19 @@
 # Canvas rendering
 
-**Accepted**: Avala offers SVG and Markdown; Mermaid and HTML are only possible as optional renderer plugins, see [the decision](#mermaid-and-html-the-decision).
+**Accepted**: Avala offers SVG and Markdown; Mermaid is offered by the optional Mermaid renderer plugin, drawn in pure .NET through the SVG renderer, and HTML remains possible only as an optional plugin, see [the decision](#mermaid-and-html-the-decision).
 
-Avala offers, harnesses adapt. Agents draw canvases in the media types Avala's renderers declare, today `image/svg+xml` and `text/markdown`, streamed as throttled `CanvasUpdated` snapshots, see the [core design](core.md#canvas). The canvas tool handed to every harness lists exactly those types, so a diagram is drawn as SVG, and a canvas in any other type is rejected by the Canvas module and shown as its source. Canvas content is untrusted: it renders in an isolated surface with no network access by default. This page records how each offered type is rendered, how the offer is declared and why Mermaid and HTML are left to optional plugins.
+Avala offers, harnesses adapt. Agents draw canvases in the media types Avala's renderers declare, today `image/svg+xml` and `text/markdown`, and `text/vnd.mermaid` when the Mermaid plugin is installed, streamed as throttled `CanvasUpdated` snapshots, see the [core design](core.md#canvas). The canvas tool handed to every harness lists exactly those types, so a diagram is drawn as SVG, and a canvas in any other type is rejected by the Canvas module and shown as its source. Canvas content is untrusted: it renders in an isolated surface with no network access by default. This page records how each offered type is rendered, how the offer is declared and why Mermaid and HTML are left to optional plugins.
 
 ## The offer
 
 | Part | Where | Role |
 | --- | --- | --- |
-| `CanvasFormat` | `Avala.Canvas.Contracts` | One offered format: its media type, a name for people and the model, such as `SVG`, and guidance for the model, such as "Draw every diagram, chart, flow, screen or design as SVG." No UI framework, so a renderer plugin declares it from its core registration, `IPlugin.Register`. |
+| `CanvasFormat` | `Avala.Canvas.Contracts` | One offered format: its media type, a name for people and the model, such as `SVG`, and guidance for the model, such as "Draw every diagram, chart, flow, screen or design as SVG." No UI framework, so a renderer plugin declares it from its core registration, `IPlugin.Register`. It also declares its `Order` in the offer and the media types it `Requires`. |
 | `RenderedFormats` | `Avala.Rendering`, `Offer` | The Rendering plugin's declaration: SVG, then Markdown, registered as `CanvasFormat` services. Its renderers in `Avala.Rendering.UI` take their media types from it. |
 | `CanvasOffer` | `Avala.Canvas`, `Drawing` | Every registered `CanvasFormat`, in registration order. It decides whether a media type is offered, compared without parameters and case. |
 | `CanvasTool` | `Avala.Canvas`, `Drawing` | Built from the offer: the schema's `mediaType` is an `enum` of exactly the offered types, and the description lists each type with its name and guidance and says that any other type is not drawn. |
 
-A unit test of the Rendering plugin proves the two registrations agree: the media types its core registration declares are exactly the media types its `RegisterViews` registers renderers for, both ways. A host test proves the same in the composed application: the canvas tool's `enum` is the declared formats, each has a renderer, and Mermaid and HTML have none. A renderer plugin added later, such as Mermaid, declares its `CanvasFormat` beside its renderer and appears in the offer, and so in the tool, without any change to the Canvas module.
+A unit test of the Rendering plugin proves the two registrations agree: the media types its core registration declares are exactly the media types its `RegisterViews` registers renderers for, both ways. A host test proves the same in the composed application: the canvas tool's `enum` is the declared formats, each has a renderer, and HTML has none. The Mermaid plugin declares its `CanvasFormat` beside its renderer and appears in the offer, and so in the tool, without any change to the Canvas module; a host test leaves it out of the composition and proves Mermaid is then neither offered nor drawn. The offer does not depend on the order plugins load in: each `CanvasFormat` declares its `Order`, SVG 0, Markdown 10 and Mermaid 20, and the offer lists formats by it, then by registration. A format may declare the media types it `Requires`; Mermaid requires `image/svg+xml`, since it draws through the SVG renderer, and the offer leaves out any format whose requirements it does not offer, so without the Rendering plugin Mermaid is not offered either.
 
 ## The surface
 
@@ -25,6 +25,7 @@ A unit test of the Rendering plugin proves the two registrations agree: the medi
 | `ICanvasRenderer` | `Avala.Components.UI`, `Canvases` | The extension point: its `MediaType` and `Render(content)`, which returns `None` when the content cannot be drawn yet. A plugin registers one with `views.AddCanvasRenderer(renderer)` from its `RegisterViews`, as a `CanvasRendererTemplate`, and declares the same media type as a `CanvasFormat` from its `Register`. |
 | `CanvasSourceTemplate` | `Avala.Components.UI`, `Canvases` | A highlighted source view for a type that is not offered, registered with `views.AddCanvasSource(mediaType, highlight)`. It is not a renderer and offers nothing. |
 | `Avala.Rendering` | `src/Modules/Rendering` | The renderer plugin: Markdown and SVG, offered, and the highlighted source views of Mermaid and HTML, not offered. Its core holds the offer, the SVG sanitizer and the source highlighter, its `.UI` assembly the renderers and the plugin entry. |
+| `Avala.Mermaid` | `src/Modules/Mermaid` | The optional Mermaid renderer plugin: it offers `text/vnd.mermaid`, translates a diagram to SVG with Mermaider in the theme's colors, resolves the SVG's CSS variables and `color-mix` into plain colors, and draws the result through the SVG renderer registered by the Rendering plugin, so the SVG sanitizer guards it. See [the Mermaid plugin](#the-mermaid-plugin). |
 
 The Workbench's `CanvasViewModel` owns a surface and hands it every snapshot of its `CanvasEntry`. The Canvas module's snapshots are the only source of a canvas entry's content and status: the end of the canvas's item does not close the entry, because the module's final snapshot, flushed on that same event, may reach the board after it, and closing the entry first would hand the surface a final version with the content of an earlier, throttled snapshot. `CanvasView` draws the conversation's canvas card, its fill, border and corners, and hosts the surface inside it.
 
@@ -50,8 +51,9 @@ A harness may still send a canvas in a type the tool did not offer. The Canvas m
 | Type | What is blocked |
 | --- | --- |
 | SVG | `SvgSanitizer` parses with DTDs ignored, no resolver and a 4 M character cap, so entities, external or recursive, are never expanded and a document that uses one is rejected. It removes `script`, `foreignObject`, `iframe`, `object`, `embed`, media and listener elements, animations that target a reference or a handler, processing instructions such as `xml-stylesheet`, every `on*` attribute, every `href`, `xlink:href` or `src` that is not a fragment or an embedded PNG, JPEG, GIF or WebP, and every CSS `@import` and `url()` that is not a fragment. The card says how many things it blocked. Only the sanitized markup reaches Svg.Skia. |
-| Markdown | Images that are not embedded are replaced by their alternative text before rendering, so nothing is fetched; a link click is handled and opens nothing. Raw HTML in the Markdown is never run, and the images it names are never loaded. |
-| Mermaid, HTML and any other type | Not offered: shown as source only, highlighted for Mermaid and HTML. |
+| Markdown | Images that are not embedded are replaced by their alternative text before rendering, so nothing is fetched; a link click in a canvas is handled and opens nothing, and in an agent's reply only a web link opens, through `ILinkOpener`. Raw HTML in the Markdown is never run, and the images it names are never loaded. |
+| Mermaid | With its plugin: Mermaider's own allow-list sanitizer, which drops scripts, `foreignObject`, handlers and every external `href`, then `SvgSanitizer` as for any SVG. Without it: not offered, shown as highlighted source. |
+| HTML and any other type | Not offered: shown as source only, highlighted for HTML. |
 
 ## Packages
 
@@ -63,6 +65,10 @@ A harness may still send a canvas in a type the tool did not offer. The Canvas m
 | Svg.Skia, Svg.Model, Svg.SceneGraph, Svg.Animation, ShimSkiaSharp, through it | 5.1.1 | MIT | |
 | Svg.Custom, through it | 5.1.1 | MS-PL | A fork of SVG.NET; permissive, with a notice requirement for redistribution. |
 | ExCSS, through it | 4.3.1 | MIT | |
+| [Mermaider](https://github.com/nullean/mermaider), in the Mermaid plugin only | 0.15.1 | MIT | The current release, pinned; pure managed code, no JavaScript and no native library. |
+| Sugiyama and Microsoft.Extensions.ObjectPool, through it | 0.15.1, 10.0.3 | MIT | |
+
+MarkView lives in `Avala.Components.UI`, which the host loads, since agent replies and the Markdown canvas share `MarkdownText`; the Rendering plugin uses the host's copy.
 
 Together they add about 4 MB of managed code to the plugin folder. SkiaSharp and HarfBuzz, with their native libraries, come from the host, which ships them for Avalonia, and the renderer tests reference `Avalonia.Desktop` as the host does; the plugin excludes their native assets, which would otherwise copy half a gigabyte of native libraries for every platform into its folder.
 
@@ -70,9 +76,9 @@ Considered for Markdown and not taken: [LiveMarkdown.Avalonia](https://github.co
 
 ## Mermaid and HTML: the decision
 
-**Decided**: Avala offers SVG and Markdown and nothing else. A diagram is drawn as SVG, which the agent writes directly and the sanitizer already guards, so no diagram language is needed in the core. Mermaid and HTML remain possible only as optional renderer plugins: such a plugin declares its `CanvasFormat` and registers its renderer, and from then on its type appears in the offer and in the canvas tool automatically, with no change to the Canvas module or to any harness plugin. Until one is installed, a Mermaid or HTML canvas is not offered and shows its highlighted source, see [a canvas that was not offered](#a-canvas-that-was-not-offered).
+**Decided**: the core's Rendering plugin offers SVG and Markdown and nothing else. A diagram is drawn as SVG, which the agent writes directly and the sanitizer already guards, so no diagram language is needed in the core. Mermaid and HTML are possible only as optional renderer plugins: such a plugin declares its `CanvasFormat` and registers its renderer, and from then on its type appears in the offer and in the canvas tool automatically, with no change to the Canvas module or to any harness plugin. Mermaid now has one, [the Mermaid plugin](#the-mermaid-plugin), option A below; removing its folder from the plugins removes Mermaid from the offer. Until a plugin for a type is installed, a canvas in it is not offered and shows its highlighted source, see [a canvas that was not offered](#a-canvas-that-was-not-offered).
 
-Both need more than a .NET control: Mermaid's own renderer is JavaScript that lays out against a DOM, and HTML is a browser's job. The options below are kept for whoever builds one of those plugins.
+Mermaid's own renderer is JavaScript that lays out against a DOM, and HTML is a browser's job. The options below are kept for whoever replaces the Mermaid plugin or builds the HTML one.
 
 ### Mermaid
 
@@ -94,16 +100,25 @@ Both need more than a .NET control: Mermaid's own renderer is JavaScript that la
 
 Opening the page in the person's browser is not on the list: it would give untrusted content the network and the person's session.
 
-### If a plugin is ever built
+### The Mermaid plugin
 
-- **Mermaid: A, Mermaider.** It keeps Mermaid inside the SVG pipeline that is already sanitized and tested, adds no JavaScript and no native code, and works offline on every platform. Ship it as its own renderer plugin, pinned, with the source view as the fallback when it cannot parse a diagram, so it can be replaced by B if fidelity ever matters more than size.
+Built on option A, Mermaider, the only maintained pure .NET Mermaid renderer found on NuGet in October 2026. The others either embed mermaid.js in a browser control (the Blazor and MAUI packages), generate Mermaid text instead of drawing it (MermaidDotNet, FluentMermaid, EfToMermaid), or, like Naiad, ship their binaries under a maintenance-fee agreement.
+
+`Avala.Mermaid` declares `text/vnd.mermaid` with the guidance "Write a standard flowchart, sequence, state, class or entity-relationship diagram as Mermaid when its syntax fits; Avala draws it in the app's theme." `MermaidSvg` renders a diagram with Mermaider in a palette of four colors and the interface's fonts, transparent, without shadows, and returns nothing when Mermaider rejects the text. Mermaider writes its colors as CSS custom properties and `color-mix()`, which Svg.Skia does not evaluate, so `CssVariables` resolves every `var()` with its fallbacks and every `color-mix(in srgb, …)`, nested or not, with premultiplied alpha as CSS defines it, into plain hex colors, turns `rem` into pixels and drops the drop-shadow filters; the arithmetic is tested against the CSS specification's mixes.
+
+`Avala.Mermaid.UI` registers `MermaidRenderer`, which returns nothing while the diagram cannot be parsed, so a streaming diagram keeps its previous drawing and a final one that never parses shows its source, as any renderer. When it can, it returns a `MermaidDrawing`, which renders the diagram in the colors of its window's theme (`SurfaceCanvasBrush`, `TextPrimaryBrush`, `AccentBrush`, `TextSecondaryBrush`), again whenever the theme changes, and presents the SVG as an offered `image/svg+xml` `CanvasRendering`. The SVG renderer of the Rendering plugin draws it through its data template, so a Mermaid diagram passes Mermaider's allow-list and then `SvgSanitizer`, and the plugin needs neither Svg.Skia nor its own sanitizer. The plugin therefore needs the Rendering plugin, which its format declares: without an offered `image/svg+xml`, Mermaid is not offered.
+
+Mermaider's layout is not identical to mermaid.js's and its text is measured with the platform's fonts, so a diagram may differ slightly from the one GitHub draws; option B stays the way to exact fidelity.
+
+### HTML, if a plugin is ever built
+
 - **HTML: C first, A later and only on request.** HtmlRenderer draws the static reports and tables agents usually produce with no JavaScript and no network, which is the isolation the core design asks for. If interactive pages turn out to matter, add the operating system's web view as a second renderer that a person opts into per canvas, with the CSP and the request blocking above, and keep CEF out: its size would exceed the rest of Avala many times over.
 
-Neither is built; each would be an optional plugin, not part of the offer Avala ships.
+It is not built; it would be an optional plugin, not part of the offer Avala ships.
 
 ## Acceptance criteria
 
-The scripts that play them live in `CanvasSurfaceViewModelScripts`, `CanvasSurfaceViewScripts`, `CanvasRendererScripts`, `SvgSanitizerTests`, `SourceHighlighterTests`, the Workbench's `CanvasViewModelScripts` and `CanvasViewScripts`, the Canvas module's `CanvasToolTests`, `CanvasDocumentTests`, `CanvasGalleryTests` and `CanvasFeedTests`, the conformance kit's tests and the host's `CanvasOfferTests`.
+The scripts that play them live in `CanvasSurfaceViewModelScripts`, `CanvasSurfaceViewScripts`, `CanvasRendererScripts`, `SvgSanitizerTests`, `SourceHighlighterTests`, the Workbench's `CanvasViewModelScripts` and `CanvasViewScripts`, the Canvas module's `CanvasToolTests`, `CanvasDocumentTests`, `CanvasGalleryTests` and `CanvasFeedTests`, the conformance kit's tests, the Mermaid plugin's `MermaidSvgTests` and `MermaidRendererScripts`, and the host's `CanvasOfferTests`.
 
 ```
 AC1  Given a new surface, when the first snapshot of a streaming canvas arrives, then it is shown as version 1 of 1, with "Drawing" and a spinning arc.
@@ -121,10 +136,13 @@ AC12 Given a view switched to another canvas mid-stream, then it shows only the 
 AC13 Given an SVG with scripts, handlers, external references, entities or imports, then none of them reaches the renderer and the card says how many were blocked; local references and embedded images are kept.
 AC14 Given Markdown with a remote image or a link, then nothing is fetched or opened.
 AC15 Given a Mermaid or HTML canvas that was not offered, then its highlighted source is shown with the note that Avala does not offer it, and highlighting never changes the text.
-AC16 Given the Rendering plugin, then it offers SVG and Markdown, and the media types it declares are exactly the media types it registers renderers for; Mermaid and HTML have no renderer.
+AC16 Given the Rendering plugin, then it offers SVG and Markdown, and the media types it declares are exactly the media types it registers renderers for; Mermaid and HTML have no renderer in it.
 AC17 Given the declared formats, when the Canvas module offers its tool, then the schema's mediaType enum is exactly the declared media types in order, and the description lists each with its name and guidance, SVG asking for every diagram, and says any other type is not drawn.
 AC18 Given a canvas in a media type that is not offered, when it starts, then the Canvas module rejects it with NotOffered, keeps its content and publishes snapshots with IsOffered false; offered types, with parameters or in any case, open as offered.
 AC19 Given a canvas that was not offered, then the surface shows its source with the note "Avala does not offer <type> canvases to agents, so this one is not drawn. Showing its source.", even when a renderer knows its type.
 AC20 Given a harness given the canvas tool, when it draws a canvas in a media type the tool does not offer, then the conformance kit reports it; in an offered type, it conforms.
-AC21 Given the simulator's canvas scenario in the composed application, then its two SVG diagrams and its Markdown notes are drawn in the conversation; given its unoffered-canvas scenario, the Mermaid canvas is shown as source with the note.
+AC21 Given the simulator's canvas scenario in the composed application, then its two SVG diagrams and its Markdown notes are drawn in the conversation; given its unoffered-canvas scenario, the HTML canvas is shown as source with the note; given its mermaid-canvas scenario, the Mermaid diagram is drawn as SVG.
+AC22 Given the Mermaid plugin installed, then the offer and the canvas tool list text/vnd.mermaid and a renderer draws it; without it, Mermaid is not offered, has no renderer and shows its highlighted source.
+AC23 Given a Mermaid diagram, then it is translated to SVG with every CSS variable and color-mix resolved, in the colors of the window's theme, redrawn when the theme changes, and drawn through the SVG renderer; scripts and external links never reach the SVG.
+AC24 Given Mermaid that cannot be parsed, then the renderer draws nothing.
 ```

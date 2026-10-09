@@ -96,7 +96,7 @@ public sealed class CanvasRendererScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var view = Show("text/markdown", "[docs](https://example.com)");
-            var viewer = view.Window.GetLogicalDescendants().OfType<MarkdownViewer>().Single();
+            var viewer = view.Window.GetLogicalDescendants().OfType<MarkdownViewer>().First(viewer => viewer.Name == "Settled");
             var clicked = new MarkView.Avalonia.Rendering.LinkClickedEventArgs("https://example.com") { RoutedEvent = MarkdownViewer.LinkClickedEvent };
 
             viewer.RaiseEvent(clicked);

@@ -6,25 +6,58 @@ namespace Avala.Workbench.Tests.Settings;
 public sealed class SettingsViewModelScripts
 {
     [Fact]
-    public async Task ActivatingThePageLoadsTheMachineThenTheRepository()
+    public async Task ActivatingThePageLoadsTheMachineTheAppearanceThenTheRepository()
     {
         var calls = new List<string>();
-        var page = new SettingsViewModel(new Loading("repository", calls), new Loading("machine", calls));
+        var page = new SettingsViewModel(new Loading("repository", calls), new Loading("machine", calls), new AppearanceLoading(calls));
 
         page.Activate();
         await page.Loading;
 
-        Assert.Equal(("Settings", "machine,repository"), (page.Title, string.Join(",", calls)));
+        Assert.Equal(("Settings", "machine,appearance,repository"), (page.Title, string.Join(",", calls)));
     }
 
     [Fact]
-    public void ThePageHoldsTheRepositoryAndMachineSettings()
+    public void ThePageHoldsTheRepositoryMachineAndAppearanceSettings()
     {
         var repository = new DesignRepositorySettingsViewModel();
         var machine = new DesignMachineSettingsViewModel();
+        var appearance = new DesignAppearanceViewModel();
 
-        ViewModelScript.Given(new SettingsViewModel(repository, machine))
-            .Then(page => Assert.Equal((repository, machine), (page.Repository, page.Machine)));
+        ViewModelScript.Given(new SettingsViewModel(repository, machine, appearance))
+            .Then(page => Assert.Equal<(object, object, object)>((repository, machine, appearance), (page.Repository, page.Machine, page.Appearance)));
+    }
+
+    private sealed class AppearanceLoading(List<string> calls) : IAppearanceViewModel
+    {
+        private readonly DesignAppearanceViewModel appearance = new();
+
+        public string File => appearance.File;
+
+        public bool FollowsSystem => appearance.FollowsSystem;
+
+        public bool IsLight => appearance.IsLight;
+
+        public bool IsDark => appearance.IsDark;
+
+        public bool MotionFollowsSystem => appearance.MotionFollowsSystem;
+
+        public bool IsMotionReduced => appearance.IsMotionReduced;
+
+        public bool IsMotionFull => appearance.IsMotionFull;
+
+        public string Error => appearance.Error;
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.ThemeChoice> ChooseThemeCommand => appearance.ChooseThemeCommand;
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.MotionChoice> ChooseMotionCommand => appearance.ChooseMotionCommand;
+
+        public Task LoadAsync(CancellationToken cancellationToken)
+        {
+            calls.Add("appearance");
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class Loading(string name, List<string> calls) : IRepositorySettingsViewModel, IMachineSettingsViewModel

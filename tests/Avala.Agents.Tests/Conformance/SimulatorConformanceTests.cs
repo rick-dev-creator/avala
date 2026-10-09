@@ -237,7 +237,7 @@ public sealed class SimulatorConformanceTests
         await using var services = Simulated();
 
         Assert.Equal(
-            ["the canvas flow was drawn in text/vnd.mermaid, which the canvas tool does not offer"],
+            ["the canvas report was drawn in text/html, which the canvas tool does not offer"],
             await AgentConformance.CheckCanvasToolAsync(
                 services.GetRequiredService<IAgentProvider>(),
                 new SessionOptions(folder.Path, PermissionMode.AskEveryTime),

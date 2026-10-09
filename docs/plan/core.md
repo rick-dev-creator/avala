@@ -425,7 +425,7 @@ Done when: the full job flow runs end to end through view models in tests.
 1. Avalonia views for every view model, following the approved [design brief](../design/ui-brief.md), semi-transparent with themes, Inter for the interface and JetBrains Mono for code.
 2. The canvas surface for each media type, with renderer plugins registered by media type.
 
-   Done: the shared canvas surface, with versions, streaming without flicker and the focused view; `ICanvasRenderer`, registered through the view registry; the Rendering plugin, with Markdown and sanitized SVG. Done too, the [offer](../design/canvas-rendering.md#the-offer): renderer plugins declare the media types they draw as `CanvasFormat`, the canvas tool offers exactly those, a canvas in any other type is rejected as `NotOffered` and shown as source, highlighted for Mermaid and HTML, and the conformance kit reports a harness that draws outside the offer. [Decided](../design/canvas-rendering.md#mermaid-and-html-the-decision): Mermaid and HTML are not part of the offer; they remain possible as optional renderer plugins, which would appear in the offer once registered.
+   Done: the shared canvas surface, with versions, streaming without flicker and the focused view; `ICanvasRenderer`, registered through the view registry; the Rendering plugin, with Markdown and sanitized SVG. Done too, the [offer](../design/canvas-rendering.md#the-offer): renderer plugins declare the media types they draw as `CanvasFormat`, the canvas tool offers exactly those, a canvas in any other type is rejected as `NotOffered` and shown as source, highlighted for Mermaid and HTML, and the conformance kit reports a harness that draws outside the offer. [Decided](../design/canvas-rendering.md#mermaid-and-html-the-decision): Mermaid and HTML are not part of the core's offer; they are possible as optional renderer plugins, which appear in the offer once registered, and Mermaid has one since the C1 polish.
 
 Done when: the harness replaces a terminal for daily work.
 
@@ -520,3 +520,35 @@ Each item has its acceptance criteria as unit tests, view model scripts, headles
    - AC6 `IWorkingFiles` writes inside the repository only, refuses a path that leaves it, content over 64 KiB and a folder that is not a repository, and leaves the change uncommitted.
    - AC7 End to end in `SettingsEditingTests`: a connection added in Settings is written to the data folder and a job runs on it at once, then removing it makes it unknown; a budget file edited in Settings is refused with `InvalidThreshold`, then written, while the caps shown are still the committed ones; every format registered in the application accepts its template and rejects malformed text.
    - Not done: dedicated controls for autonomy, form strategy and caps, which are edited as the text of their file; the machine's running-jobs limit of Budgets, left to its module's owner.
+
+## Polish
+
+### C1: light theme, reduced motion, Markdown replies and Mermaid
+
+Done. Each item has its acceptance criteria below, played by view model scripts, headless view scripts and host simulation tests that drive the composed application on the simulator: `ThemeVariantTests`, `ThemeVariantScripts`, `ThemeScreenScripts` and `ShellViewScripts` for the theme, `AppearanceFileTests`, `AppearanceViewModelScripts`, `AppearanceViewScripts` and the host's `AppearanceTests` for the setting, `MotionScripts`, `StreamingTextScripts` and `CanvasSurfaceViewScripts` for motion, `MarkdownBlocksTests`, `MessageViewModelScripts`, `MessageViewScripts` and the host's `MarkdownReplyTests` for replies, and `MermaidSvgTests`, `MermaidRendererScripts` and the host's `CanvasOfferTests` for Mermaid. The design is in [the design system](../architecture.md#design-system), [appearance](../architecture.md#appearance), [Markdown replies](../architecture.md#markdown-replies) and [the Mermaid plugin](../design/canvas-rendering.md#the-mermaid-plugin).
+
+1. **Light theme.** Every theme resource has a light variant in the macOS-inspired direction of the brief; Avala follows the operating system's theme unless the machine's appearance setting forces light or dark.
+2. **Reduced motion.** A machine setting, System, On or Off, turns off every animation that moves, pulses or fades; System follows the operating system's preference, which the host reads itself on Windows, GNOME and macOS since Avalonia 12.1 does not expose it.
+3. **Markdown replies.** The agent's messages are drawn as Markdown, streamed without redrawing what is already settled, with copyable code blocks and links opened only when they are web links.
+4. **Mermaid as an optional plugin.** A separate renderer plugin offers `text/vnd.mermaid` and draws it in pure .NET through the SVG renderer and its sanitizer; without the plugin, Mermaid is not offered and shows its source.
+
+```
+T1  Given the theme files, then every theme dictionary declares the same keys for Dark and Light, and no theme file holds a color or a shadow outside a theme dictionary.
+T2  Given each variant, then primary text reaches 7:1 against the window, panel, float and canvas surfaces, secondary text 4.5:1, tertiary text and the attention and failure colors 3:1, and the accent 4.5:1 against the window.
+T3  Given the key screens (the shell, a conversation, settings, the review and the decisions popover) rendered headless in Light and in Dark, then each draws the variant's window surface and every visible enabled text reaches 3:1 against what is drawn behind it.
+T4  Given no appearance file, when Avala starts, then it follows the operating system's theme and reduced-motion preference, and settings show appearance.json as Absent; the main window is created only once the appearance is read, so it never shows the wrong theme first.
+T5  Given settings, when Light, Dark or System is chosen, then appearance.json records it, AppearanceChanged is published, the application's theme becomes that variant, and it survives a restart.
+T6  Given an appearance.json that cannot be read as an appearance, then settings say it was rejected and why, the defaults apply, and choosing again rewrites it.
+M1  Given reduced motion off, then the pulse, the spinners, the thinking shimmer and dots, the caret and the entrances animate; given it on, then none of them runs: entrances show their final state at once, the shimmer and the pulse halo are hidden, spinners stand still, and streamed text and canvas versions appear without fading.
+M2  Given settings, when Reduce motion is set to On, Off or System, then appearance.json records it, the shell's window follows it, System following the operating system's preference, and it survives a restart.
+K1  Given a reply with Markdown (headings, emphasis, lists, inline code, a fenced code block, a table and a link), then it is drawn as Markdown, its code in the code font with a Copy button.
+K2  Given a code block, when Copy is clicked, then the clipboard holds exactly its code.
+K3  Given a streaming reply, when text arrives in its last block, then the blocks before it keep their drawing and only the last block is drawn again; an open code fence is drawn as code while it streams; when the reply ends, it is drawn whole once. A caret sits under the live block until the reply ends, still with reduced motion.
+K4  Given a link to an http or https address, when it is clicked, then it is opened through the link opener; given any other link, such as a file, a script or a relative path, then nothing is opened and the reply says that only web links are opened.
+K5  Given a reply with a remote image, then nothing is fetched and its alternative text is shown.
+K6  Given the simulator's markdown scenario in the composed application, then its reply is drawn as Markdown with its code block and table, its web link opens through the link opener and its file link opens nothing.
+R1  Given the Mermaid plugin installed, then the offer and the canvas tool list text/vnd.mermaid after SVG and Markdown, by each format's declared order, and a renderer draws it; without it, or without the SVG renderer it draws through, Mermaid is not offered.
+R2  Given a Mermaid diagram, then it is translated to SVG in pure .NET with the theme's colors, every CSS variable and color-mix resolved, and drawn through the SVG renderer, so the SVG sanitizer guards it.
+R3  Given Mermaid that cannot be parsed, then nothing is drawn while it streams and its source is shown once it is final.
+R4  Given the simulator's mermaid-canvas scenario in the composed application, then its diagram is drawn as SVG in the conversation; given the unoffered-canvas scenario, now an HTML canvas, then its highlighted source is shown with the note.
+```

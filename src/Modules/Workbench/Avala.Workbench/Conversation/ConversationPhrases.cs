@@ -2,6 +2,7 @@ using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
+using Avala.Workbench.Linking;
 
 namespace Avala.Workbench.Conversation;
 
@@ -120,6 +121,13 @@ internal static class ConversationPhrases
         HoldReason.MemoryExceeded => "out of memory",
         HoldReason.Stopped => "stopped",
         _ => "interrupted",
+    };
+
+    public static string Link(LinkRefusal refusal, string link) => refusal switch
+    {
+        LinkRefusal.NotAWebLink => $"Avala opens only web links, so {link} was not opened.",
+        LinkRefusal.Unavailable => $"No browser is available to open {link}.",
+        _ => $"The platform refused to open {link}.",
     };
 
     private static string Duration(TimeSpan duration) =>

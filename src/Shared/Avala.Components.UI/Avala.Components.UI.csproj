@@ -3,6 +3,7 @@
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="MarkView.Avalonia" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />

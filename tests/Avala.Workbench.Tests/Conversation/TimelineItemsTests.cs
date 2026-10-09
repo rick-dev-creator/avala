@@ -31,7 +31,7 @@ public sealed class TimelineItemsTests
     [Theory]
     [MemberData(nameof(EveryEntry))]
     public void EachKindOfEntryGetsItsOwnViewModel(string kind, Type item) =>
-        Assert.IsType(item, new TimelineItems(new HumanReplies(new FakePermissionAnswers(), new FakeAgents())).Create(Entry(kind)));
+        Assert.IsType(item, new TimelineItems(new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening).Create(Entry(kind)));
 
     private static ITimelineEntry Entry(string kind) => kind switch
     {

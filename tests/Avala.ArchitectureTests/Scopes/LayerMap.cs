@@ -38,6 +38,13 @@ internal static class LayerMap
             ["Offer"] = Layer.Application,
             ["Sanitizing"] = Layer.Application,
         }),
+        .. Module("Avala.Mermaid", new()
+        {
+            ["UI"] = Layer.None,
+            ["UI.Drawing"] = Layer.None,
+            ["Offer"] = Layer.Application,
+            ["Translating"] = Layer.Application,
+        }),
         .. Module("Avala.Jobs", new()
         {
             ["UI"] = Layer.None,
@@ -75,6 +82,7 @@ internal static class LayerMap
             ["Spending"] = Layer.Application,
             ["RepositoryRules"] = Layer.Application,
             ["Machine"] = Layer.Application,
+            ["Linking"] = Layer.Application,
             ["Upkeep"] = Layer.Application,
             ["Submitting"] = Layer.Application,
             ["Presenting"] = Layer.ViewModels,
