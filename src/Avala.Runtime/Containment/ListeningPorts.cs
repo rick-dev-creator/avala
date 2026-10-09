@@ -1,4 +1,6 @@
+using System.Buffers.Binary;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 
@@ -59,18 +61,60 @@ internal sealed class LinuxListeningPorts : IListeningPorts
 
 internal sealed class WindowsListeningPorts : IListeningPorts
 {
-    public async ValueTask<IReadOnlyList<Listener>> ListAsync(IReadOnlySet<int> owners, CancellationToken cancellationToken) =>
-        (await Commands.OutputAsync("netstat", ["-ano", "-p", "TCP"], cancellationToken))
-            .Match(output => output, () => string.Empty)
-            .Split('\n')
-            .Concat((await Commands.OutputAsync("netstat", ["-ano", "-p", "TCPv6"], cancellationToken)).Match(output => output, () => string.Empty).Split('\n'))
-            .Select(line => line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .Where(fields => fields.Length >= 5 && fields[0] == "TCP" && fields[2].EndsWith(":0", StringComparison.Ordinal))
-            .Select(fields => new Listener(Port(fields[1]), int.Parse(fields[^1], CultureInfo.InvariantCulture)))
-            .Distinct()
-            .ToList();
+    private const uint InsufficientBuffer = 122;
+    private const int OwnerProcessListeners = 3;
 
-    private static int Port(string endpoint) => int.Parse(endpoint[(endpoint.LastIndexOf(':') + 1)..], CultureInfo.InvariantCulture);
+    public ValueTask<IReadOnlyList<Listener>> ListAsync(IReadOnlySet<int> owners, CancellationToken cancellationToken) =>
+        ValueTask.FromResult<IReadOnlyList<Listener>>([.. Read(TcpFamily.Ipv4).Concat(Read(TcpFamily.Ipv6)).Distinct()]);
+
+    private static IReadOnlyList<Listener> Read(TcpFamily family)
+    {
+        var size = 0;
+        byte[]? table = null;
+        uint outcome;
+
+        while ((outcome = GetExtendedTcpTable(table, ref size, order: false, family.AddressFamily, OwnerProcessListeners, 0)) == InsufficientBuffer)
+        {
+            table = new byte[size];
+        }
+
+        return outcome == 0 && table is not null ? TcpTables.Listeners(table, family) : [];
+    }
+
+    [DllImport("iphlpapi.dll")]
+    private static extern uint GetExtendedTcpTable(
+        byte[]? table,
+        ref int size,
+        [MarshalAs(UnmanagedType.Bool)] bool order,
+        int addressFamily,
+        int tableClass,
+        uint reserved);
+}
+
+internal sealed record TcpFamily(int AddressFamily, int RowSize, int PortOffset, int ProcessOffset)
+{
+    public static TcpFamily Ipv4 { get; } = new(2, 24, 8, 20);
+
+    public static TcpFamily Ipv6 { get; } = new(23, 56, 20, 52);
+}
+
+internal static class TcpTables
+{
+    private const int Header = 4;
+
+    public static IReadOnlyList<Listener> Listeners(ReadOnlySpan<byte> table, TcpFamily family)
+    {
+        var listeners = new List<Listener>();
+        var rows = Math.Min(BinaryPrimitives.ReadInt32LittleEndian(table), (table.Length - Header) / family.RowSize);
+
+        for (var index = 0; index < rows; index++)
+        {
+            var row = table.Slice(Header + (index * family.RowSize), family.RowSize);
+            listeners.Add(new Listener(BinaryPrimitives.ReadUInt16BigEndian(row[family.PortOffset..]), BinaryPrimitives.ReadInt32LittleEndian(row[family.ProcessOffset..])));
+        }
+
+        return listeners;
+    }
 }
 
 internal sealed class MacListeningPorts : IListeningPorts
