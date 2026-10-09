@@ -29,9 +29,11 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
 
         try
         {
-            foreach (var step in conversation.NextScript)
+            var script = conversation.NextScript;
+
+            for (var next = 0; next < script.Count; next++)
             {
-                var played = await StepAsync(step, play, cancellationToken);
+                var played = await StepAsync(script[next], script.Skip(next), play, cancellationToken);
 
                 foreach (var cue in played.Cues)
                 {
@@ -52,8 +54,8 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
         }
     }
 
-    private Task<Played> StepAsync(IStep step, Play play, CancellationToken cancellationToken) =>
-        Unanswered(step) is { } unanswered
+    private Task<Played> StepAsync(IStep step, IEnumerable<IStep> ahead, Play play, CancellationToken cancellationToken) =>
+        Unanswered(ahead) is { } unanswered
             ? Task.FromResult(Diverged(play, unanswered))
             : ActAsync(step, play, cancellationToken);
 
@@ -130,9 +132,11 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
     private Played Diverged(Play play, string divergence) =>
         new([.. play.Cues.Diverged(divergence, started)], Ends: true);
 
-    private string? Unanswered(IStep step) =>
-        permission is { Reply.IsCompleted: true } && step is not AwaitPermission ? Divergence.NeverAnswered(permission.Item)
-        : form is { Reply.IsCompleted: true } && step is not AwaitAnswer ? Divergence.NeverAnswered(form.Item)
+    private string? Unanswered(IEnumerable<IStep> ahead) =>
+        permission is { Reply.IsCompleted: true } && !ahead.Any(step => step is AwaitPermission awaited && awaited.Decision.Item == permission.Item)
+            ? Divergence.NeverAnswered(permission.Item)
+        : form is { Reply.IsCompleted: true } && !ahead.Any(step => step is AwaitAnswer awaited && awaited.Answer.Item == form.Item)
+            ? Divergence.NeverAnswered(form.Item)
         : null;
 
     private static string? Compare(PermissionDecision recorded, PermissionDecision given) =>
