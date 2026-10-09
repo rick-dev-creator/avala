@@ -2,6 +2,8 @@
 
 Goal: a minimal core that is usable every day within a couple of days, built on the [core design](../design/core.md). Every step ends with green architecture and unit tests.
 
+Order: everything is built and proven against the simulated provider first, the user interface included: phase 8c, then phases 9 and 10 running on the simulator, following the approved [design brief](../design/ui-brief.md). Real harnesses come last: the Claude Code adapter of phase 6, items 2 to 5, is added only once the whole application works on the simulator, and then only translates its protocol into the contract the simulator already honors.
+
 ## Phase 0: Spikes
 
 Throwaway experiments that answer questions the design depends on. Results are written down here, and the code is deleted.
