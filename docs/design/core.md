@@ -38,14 +38,14 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 
 | Module | Responsibility | Public contracts |
 | --- | --- | --- |
-| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, and the job's resume token | `JobId`, integration events, `IJobs`, `ICompletionGate` |
-| Agents | Sessions, turn integrity, provider registry, the harness tools and resume tokens handed to providers by capability | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, integration events |
+| Jobs | Job lifecycle, attempts, attempt budget, the job flow coordinator, holding a job for a typed reason, including one whose session was lost, continuing a held job, the job's resume token and the autonomy a job asks for | `JobId`, `Autonomy`, integration events, `IJobs`, `ICompletionGate` |
+| Agents | Sessions, turn integrity, provider registry, the harness tools and resume tokens handed to providers by capability, and the forms agents ask humans to fill | `IAgents`, `IAgentProvider`, `IAgentSession`, `AgentEvent`, `AgentCapabilities`, `HarnessTool`, `ResumeToken`, `AgentAccount`, `AgentForm`, `FormAnswer`, integration events |
 | Workspaces | Working copies, branches, checkpoints, and the files of the commit a job started from | `IWorkspaces`, `IBaseFiles`, integration events |
 | Canvas | Offers the canvas tool, accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
 | Observability | Tokens, cost, limits and turns by provider, account, session and job, and their metrics | `IUsage` and its summaries |
 | Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
-| Permissions | Answers permission requests through an explicit policy and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `IPermissionAudit` |
+| Permissions | Answers permission requests and forms through an explicit policy at the job's level of autonomy, takes a human's answers with their session rules, and records why each decision was made | `PolicyLoaded`, `PermissionDecided`, `AutonomyApplied`, `FormDecided`, `PermissionAnswered`, `IPermissionAudit`, `IPermissionAnswers` |
 | Supervision | Holds a job whose agent stays silent, and records every intervention | `SilenceNoticed`, `SupervisorIntervened`, `ISupervision` |
 | Budgets | Holds a job that reaches a cap on cost or tokens, or a provider limit threshold, and records every intervention | `BudgetLoaded`, `BudgetIntervened`, `IBudgets` |
 
@@ -110,7 +110,7 @@ State machines use the [Stateless](https://github.com/dotnet-state-machine/state
 | Machine | Module | States |
 | --- | --- | --- |
 | `JobLifecycle` | Jobs | Draft, Preparing, Running, Checking, AwaitingReview, NeedsHelp, Approved, Discarded, Failed, inside the superstates Open and Active |
-| `TurnLifecycle` | Agents | Idle, Working, AwaitingPermission, Completed, Interrupted, Failed |
+| `TurnLifecycle` | Agents | Working, AwaitingPermission and AwaitingAnswer inside the superstate Live, then Finished, Interrupted or Failed |
 | `WorkspaceLifecycle` | Workspaces | Creating, Ready, Disposed |
 | `CanvasLifecycle` | Canvas | Streaming, then Completed, Failed, Cancelled, Abandoned or Expired inside the superstate Closed |
 
@@ -273,6 +273,7 @@ The coordinator replaces the orchestrator. It is a set of small stateless classe
 - Handlers are idempotent. `EvaluateTurn` acts only on a job that is still `Running` in the session that finished, so a repeated `TurnFinished` changes nothing.
 - Recovery opens a new session in the existing workspace and calls `job.Recover`, which interrupts the attempt that was underway and starts a `Recovery` attempt. It asks to resume the job's conversation with its stored resume token: when the session resumed it, the agent is told that the harness restarted and to continue where it left off; otherwise the new session starts over with the instruction, as before.
 - **Resume tokens.** `SessionResumable` reaches `CheckTurn` in the same mailbox as `SessionEnded`, and both are queued on the job in that order, so a session that issues a token and then dies has its token stored before the job is held. The token is stored with the job and announced with `JobResumable`.
+- **Autonomy.** `JobRequest.Autonomy` is the optional [level of autonomy](#autonomy-levels) a job asks for. Jobs stores it with the job, never interprets it, and announces it with every `JobSessionStarted` of the job, at launch, recovery and continuation alike, so Permissions applies it before the session's first instruction is sent. Whether it may apply is Permissions' decision: a job can be stricter than its repository, never looser.
 
 ### Completion gates
 
@@ -342,13 +343,15 @@ public interface IAgentSession : IAsyncDisposable
     IAsyncEnumerable<IAgentEvent> Events { get; }
     ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken);
     ValueTask<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken);
+    ValueTask<Result<ItemId, AgentError>> AnswerAsync(FormAnswer answer, CancellationToken cancellationToken);
     ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken);
 }
 ```
 
 - `SessionOptions` holds harness concepts only: working directory, permission mode, the `Resume` token of a conversation to resume and the harness `Tools` the agent may call. Paths, credentials and protocols belong to each provider's own settings.
 - `AgentSessions` opens every session in `AskEveryTime`: the agent asks before every file edit and every command, so every action reaches the policy of [Permissions](#permissions), which allows edits inside the workspace by default. A provider is never told to allow edits on its own, since that would let edits bypass the policy, its guard and its audit. Without the Permissions plugin nothing answers for the harness, and every request waits for a human through `IAgents.RespondAsync`, the documented behavior of `Ask`.
-- Behavior depends on `AgentCapabilities`, never on a provider's name: partial output, reasoning, interruption, resumption, injected tools, usage, cost and limits.
+- Behavior depends on `AgentCapabilities`, never on a provider's name: partial output, reasoning, interruption, resumption, injected tools, usage, cost, limits and [forms](#human-input-forms) (`AsksQuestions`).
+- `PermissionDecision` carries an optional `Message`: with `Deny`, it tells the agent why and what to do instead, the "no, do this instead" of a harness's permission prompt. "Don't ask again" is never sent to a provider: it is a [session rule](#session-rules) of Avala's policy.
 
 Other modules use agents through `IAgents`, in two steps:
 
@@ -359,6 +362,7 @@ public interface IAgents
     bool IsOpen(SessionId session);
     ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken);
     ValueTask<Result<ItemId, AgentError>> RespondAsync(SessionId session, PermissionDecision decision, CancellationToken cancellationToken);
+    ValueTask<Result<ItemId, AgentError>> AnswerAsync(SessionId session, FormAnswer answer, CancellationToken cancellationToken);
     ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken);
     ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken);
 }
@@ -368,6 +372,7 @@ public interface IAgents
 - `SessionStarter` builds the `SessionOptions` from the provider's capabilities, so no caller decides for a provider: it passes the harness tools only to a provider that `AcceptsTools`, and the resume token only to one that `CanResume`. When such a provider rejects the token, it starts a fresh session instead, which is not `Resumed`.
 - `IsOpen` says whether a session is open and its event stream has not ended. Jobs asks it before continuing a held job in its old session.
 - `RespondAsync` answers the permission request of a live session and returns the item it unblocked. A session that is not open returns `SessionClosed`.
+- `AnswerAsync` answers the open form of a live session, see [Human-input forms](#human-input-forms). A provider that does not declare `AsksQuestions` returns `Unsupported` without being asked; an item with no open form returns `NoPendingForm`; an answer that does not fit its form returns `InvalidAnswer`, and neither reaches the provider.
 - `InterruptAsync` asks the agent of a live session to end its running turn, through `IAgentSession.InterruptAsync`; the agent then ends the turn as `Interrupted`. A provider whose capabilities do not declare `CanInterrupt` returns `Unsupported` without being asked, and a session that is not open returns `SessionClosed`. The provider contract does not change.
 - `AgentSessions` implements `IAgents`. It announces every session it opens with `SessionOpened`, carrying the `ProviderInfo` of its provider and the session's account, before pumping any of its events. It pumps the events of each session through the `Turn` aggregate and publishes the accepted ones as `AgentActivity`, plus `TurnFinished` when a turn ends and `SessionResumable` when a provider that `CanResume` issues a resume token.
 - When a session's event stream ends on its own, `AgentSessions` publishes `SessionEnded` with `Crashed` when the stream failed and `Closed` when it completed. It publishes it before closing the turn left live, if any, as `Failed`, so a consumer learns the session is gone before it sees that turn fail. A stream that completes while a turn is live no longer leaves the turn open forever. Stopping a session through `StopAsync`, including at shutdown, publishes nothing, so a restart is never mistaken for a lost session and recovery still finds its jobs running.
@@ -386,6 +391,7 @@ Every provider translates its protocol into one closed set of events. Each event
 | `ItemProgressed` | More content for an open item or canvas, appended in order |
 | `ItemCompleted` | An item or canvas ends as succeeded, failed, cancelled, abandoned or expired |
 | `PermissionRequested`, `PermissionResolved` | An open item waits for a decision, and gets it |
+| `FormRequested`, `FormAnswered` | A form opens an item that waits for a human's or the policy's answer, and gets it; `ItemCompleted` closes it, see [Human-input forms](#human-input-forms) |
 | `PlanUpdated` | The agent's plan and the status of each step |
 | `UsageReported` | Tokens used: input, output, cache reads, cache writes and reasoning, plus the cost when the provider reports it |
 | `LimitReported` | A usage limit: its window, the fraction used and when it resets |
@@ -422,6 +428,30 @@ public enum ToolSurface { Canvas }
 - **The surface says how a call is reported.** The adapter knows its own protocol, so it translates a call of an injected tool into agnostic events; the surface of the tool tells it which ones. `Canvas`: a call is a canvas item whose identifier is the call's. `CanvasStarted` opens it with the call's `title` and `mediaType`, `ItemProgressed` streams its `content`, in chunks when the provider streams partial input or at once otherwise, and `ItemCompleted` closes it as succeeded, or failed when the input cannot be read. The adapter answers the call to the agent itself; nothing else needs to run.
 - Tools whose calls the harness must execute and answer, with their own surface, arrive when the first one is needed.
 
+### Human-input forms
+
+**Accepted**
+
+Harnesses stop to ask a human: Claude Code's multiple-choice questions, with a header, options described one by one, one marked recommended, several selectable and an "other" answer in free text; its permission prompts with "yes", "yes, and don't ask again" and "no, do this instead"; its plan approval; Codex and the others have their own. The core defines one closed, provider-agnostic form, and each provider plugin translates its own modals into it. Providers compose the format; they never add core types, so one generic form component renders any form.
+
+```csharp
+public enum FormPurpose { Permission, Question, PlanApproval, Other }
+public enum FieldKind { SingleChoice, MultipleChoice, FreeText, Confirmation }
+
+public sealed record FormOption(string Label, string Description, bool Recommended = false);
+public sealed record FormField(string Id, string Header, string Prompt, FieldKind Kind, IReadOnlyList<FormOption> Options, bool AcceptsFreeText = false);
+public sealed record AgentForm(FormPurpose Purpose, string Title, string Context, IReadOnlyList<FormField> Fields);
+
+public sealed record FieldAnswer(string Field) { IReadOnlyList<string> Chosen; Option<string> Text; bool Confirmed; }
+public sealed record FormAnswer(ItemId Item, IReadOnlyList<FieldAnswer> Fields) { bool Declined; Option<string> Message; }
+```
+
+- **The purpose says what the policy answers**, never who asked: a question, a plan to approve, a permission asked as a form, or anything else. A permission whose facts the provider knows, its item kind and target, stays a `PermissionRequested`, so the policy can match it; `Permission` forms are for prompts without such facts.
+- **An item like any other.** `FormRequested` opens an item of the turn, as `CanvasStarted` does, and the turn waits in `AwaitingAnswer`, as it waits in `AwaitingPermission`: a form never expires, and Supervision does not count the wait as silence. The provider reports the answer with `FormAnswered`, then closes the item with `ItemCompleted`: succeeded, or cancelled when the form was declined. Forms get the integrity of every item.
+- **Well formed or rejected.** The `Turn` aggregate rejects a malformed form with `MalformedForm` and opens no item: a purpose and a kind out of their lists, a form without fields, fields without an identifier or sharing one, a choice without options, a free text or confirmation field with options, options without a label or sharing one, or more than one recommended option in a field.
+- **Answers fit their form.** A declined form carries no field answers and may carry a `Message` for the agent. Otherwise every field is answered exactly once: a single choice by one of its labels or, when it accepts free text, by text alone; a multiple choice by distinct labels and, when accepted, text; free text by non-blank text; a confirmation by `Confirmed`, with text when accepted. `IAgents.AnswerAsync` checks it against the form the session has open, which `AgentSessions` keeps from the moment the turn accepts `FormRequested` until it is answered, closed or its turn ends.
+- **Only by capability.** A provider that declares `AsksQuestions` may ask forms; the conformance kit reports a form from any other.
+
 ### Accounts
 
 **Accepted**
@@ -437,7 +467,8 @@ The `Turn` aggregate applies every incoming event and returns a `Result`:
 - Every started item completes, and no item starts twice or progresses before it starts or after it ends.
 - Events from another session or turn are rejected, and nothing is accepted after the turn ends.
 - When a turn ends with items still open, the turn closes them as `Abandoned` before forwarding the end, so the stream stays consistent for every consumer.
-- An item silent for longer than the allowed patience expires. An item waiting for permission never expires: that is human time.
+- An item silent for longer than the allowed patience expires. An item waiting for permission or for the answer to its form never expires: that is human time.
+- A turn waits for one human at a time: a form or a permission requested while another waits is rejected, and an answer only resolves the form that waits.
 - Time is passed in by the caller, so the domain stays pure and tests never wait.
 
 The generated [turn lifecycle diagram](../diagrams/turn-lifecycle.md) shows the states.
@@ -446,13 +477,15 @@ The generated [turn lifecycle diagram](../diagrams/turn-lifecycle.md) shows the 
 
 **Accepted**
 
-Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. When the session was asked to `AskEveryTime`, it also reports every file edit and command that goes ahead, by progressing or succeeding, without having asked permission first. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes in `AskEveryTime`, the mode Agents uses, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
+Every provider plugin must pass the same check: start a session, send a turn and audit every event through the `Turn` aggregate, allowing every permission the turn requests and filling every form it asks with its recommended or first options. It reports items left open, rejected events, a missing `TurnStarted` and turns that never end. When the session was asked to `AskEveryTime`, it also reports every file edit and command that goes ahead, by progressing or succeeding, without having asked permission first. A scripted provider and the simulator exercise the kit today: every well-behaved scenario of the simulator passes in `AskEveryTime`, the mode Agents uses, and its `left-open` and `hang` scenarios are reported, which proves the kit and the simulator against each other. The kit lives with the Agents tests until the first real provider needs it, when it moves to a shared testing project.
 
 Every addition to the provider contract arrives with a check of the kit, the simulator implementing it and, through the simulator, a host simulation test:
 
 | Check | Requires |
 | --- | --- |
-| Every turn | A resume token only from a provider that declares `CanResume`; a canvas only from a session that was given a canvas tool; an account that does not change during the session |
+| Every turn | A resume token only from a provider that declares `CanResume`; a canvas only from a session that was given a canvas tool; a form only from a provider that declares `AsksQuestions`, and only well formed, since the `Turn` aggregate rejects the others; an account that does not change during the session |
+| `CheckFormsAsync` | A provider that declares `AsksQuestions`, given an instruction that asks, asks a form, refuses an answer to an item that has no open form, accepts the answer to its form, and refuses a second answer to it once the turn ended. A provider that does not declare it runs the turn check, which forbids forms |
+| `CheckDenialAsync` | Every permission is denied with a message, the "no, do this instead" answer: the turn still conforms, a permission was asked, and no denied item progresses or succeeds afterwards |
 | `CheckResumeAsync` | A provider that declares `CanResume` issues a token during the turn, and a new session started with it is accepted and runs a conforming turn. A provider that does not declare it only runs the turn check, which forbids tokens |
 | `CheckCanvasToolAsync` | A provider that declares `AcceptsTools`, given a canvas tool and an instruction that draws, reports the call as a canvas that completes. A provider that does not is given no tool, and runs the turn check |
 
@@ -465,9 +498,10 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 - Scenarios are declarative data in its domain, the `Scenarios` folder: one ordered script per turn, made of reasoning, message deltas, file edits, commands with output, permission requests, plan updates, usage with cost, a usage limit, streamed canvases and the end of the turn. A session advances to the next script with every turn, so a scenario can change its behavior after feedback.
 - The first message of a session chooses the scenario with a tag such as `[simulate: fix-after-feedback]`. Without a tag, or with an unknown name, the scenario is `reply`. Later messages never change it.
 - File edits write real files into the session's working directory through a port of `Playback`, implemented in `FileSystem`, which creates missing folders.
-- It honors the permission mode like Claude Code: in `AskEveryTime` every file edit and every command asks first, naming the file's full path or the command line, and an edit is written only once allowed; in `AllowEdits` edits go ahead and only the commands a scenario marks as asking do ask; in `AllowAll` nothing asks. A denied edit or command is cancelled and the turn finishes.
+- It honors the permission mode like Claude Code: in `AskEveryTime` every file edit and every command asks first, naming the file's full path or the command line, and an edit is written only once allowed; in `AllowEdits` edits go ahead and only the commands a scenario marks as asking do ask; in `AllowAll` nothing asks. A denied edit or command is cancelled and the turn finishes; a denial with a message is answered first with a reply that repeats it, `Understood, I will not go on: <message>`, so a test sees the message reach the agent.
+- **Forms.** A scenario step asks a form as declarative data and waits for `AnswerAsync`; an answer for any other item is `NoPendingForm`. It then reports the answer, closes the item, cancelled when declined, and replies with what it goes on with, such as `Going with Database: PostgreSQL`. A declined form, or a confirmation left unconfirmed, ends the turn there, like a denial.
 - Events can be spaced by a delay measured with `TimeProvider`. It is zero by default and in tests; the plugin entry uses a short pace for in-app demos, and a constructor overload takes another.
-- It declares every capability, and an interruption ends the running turn as `Interrupted`.
+- It declares every capability, `AsksQuestions` included, and an interruption ends the running turn as `Interrupted`.
 - **Resume.** A session's conversation is its scenario and the number of turns it played. Every turn issues, right after `TurnStarted`, a resume token that encodes both with the conversation's identifier, so a token survives a restart of the application without any storage. A session started with it continues the same conversation with its next script; a token it never issued is rejected with `CannotResume`.
 - **Canvas tool.** Given a tool whose surface is `Canvas`, a canvas of a scenario is a call of that tool, reported as the canvas events the contract defines. Without one, the simulator writes the same content as a message, like an agent that has no canvas.
 - **Account.** Every session reports the fixed account `simulated-account`, labelled `Simulated account`.
@@ -480,6 +514,10 @@ Every addition to the provider contract arrives with a check of the kit, the sim
 | `fix-after-feedback` | The first turn writes a file marked `BROKEN`; the turn after feedback rewrites it fixed |
 | `rewrite-checks` | Like `fix-after-feedback`, but the first turn also empties `.avala/checks.json`, an agent trying to loosen the rules that judge it |
 | `permission` | Asks permission for a command and waits for `RespondAsync`. Allowed, it runs the command and goes on; denied, it cancels the command and finishes the turn |
+| `repeated-permission` | Asks twice for the same command, `dotnet ef database update`, so a "don't ask again" answer to the first request decides the second |
+| `outside-edit` | Runs `dotnet build`, then edits `../avala-outside-note.txt`, a file outside its worktree |
+| `question` | Asks which database to use: one single-choice field, PostgreSQL recommended, SQLite, free text accepted; then replies with the choice and finishes |
+| `plan-approval` | Asks to approve a two-step plan with a confirmation field that accepts a comment; approved, it writes `PLAN.md` and finishes; not approved, it stops |
 | `crash` | The event stream throws in the middle of the turn; a session that resumes the conversation finishes the next turn |
 | `left-open` | Starts an item and finishes the turn without closing it |
 | `hang` | `TurnStarted` and its resume token, then nothing until interrupted; the next turn, in the same session or one that resumes it, replies and finishes |
@@ -648,17 +686,51 @@ Agents ask before they act. For agents to work unattended, the harness must answ
 - The first rule that matches decides. When none matches, the answer is `Ask`: the safe default never grants anything.
 - A rule matches on the agnostic facts of `PermissionRequested`: its item kind and its target. A missing kind or target matches any. No rule knows a provider.
 - A target pattern matches the whole target, case-sensitively, with `*` for any run of characters, `/` included, and `?` for one character. The matcher is linear and backtracks only to the last `*`, so no pattern can make it slow.
-- A rule scoped to the `workspace` matches only file edits whose path lies inside the session's working directory. The path is resolved against the working directory, so `src/../x` and an absolute path inside both count, and `../x` does not; the target an inside edit is matched and recorded with is its path relative to the working directory, with `/` separators. Other kinds have no path to scope, so a policy file that scopes them is rejected.
-- The policy of a session is, in order: the built-in guards, the repository rules, the built-in defaults, then the default `Ask`.
+- A rule scoped to the `workspace` matches only file edits whose path lies inside the session's working directory. The path is resolved against the working directory, so `src/../x` and an absolute path inside both count, and `../x` does not; the target an inside edit is matched and recorded with is its path relative to the working directory, with `/` separators. Other kinds have no path to scope, so a policy file that scopes them is rejected. The built-in guard for edits elsewhere uses the scope `OutsideWorkspace`, which a policy file cannot declare.
+- The policy of a session is, in order: the built-in guards, the repository rules, the [session rules](#session-rules), the built-in defaults, the autonomous rules when the session is [autonomous](#autonomy-levels), then the default `Ask`. Under `autonomous`, every `Ask` the policy would give becomes `Deny`, so an unattended agent is never left waiting.
 
 | Rule | Origin | Matches | Answer |
 | --- | --- | --- | --- |
 | `policy-file-goes-to-a-human` | Built-in guard | Edits of `.avala/permissions.json` inside the workspace | `Ask` |
+| `edits-outside-the-workspace-go-to-a-human` | Built-in guard | Edits outside the workspace, or of a session outside any workspace | `Ask` |
 | Repository rules | `.avala/permissions.json` | Whatever they declare, in file order | Their own |
+| Session rules | A human's "don't ask again" | The exact kind and target that human answered | The human's answer |
 | `edits-inside-the-workspace` | Built-in default | Edits inside the workspace | `Allow` |
+| `autonomous-commands-in-the-worktree` | Built-in, autonomous only | Commands, which run in the worktree | `Allow` |
+| `autonomous-denies-the-rest` | Built-in, autonomous only | Anything else | `Deny` |
 | Default | None | Anything else | `Ask` |
 
-The guard comes first so that no repository rule can let an agent rewrite the policy file unattended. The policy of a job comes from its base commit, so such an edit could not loosen that job's own policy anyway; the guard keeps a human in the loop for a change that would govern every later job once approved. Agents asks for every edit, see [the contract](#contract), so the guard and the edit rules apply to every edit the agent makes. Editing inside the workspace is allowed by default because the workspace is the job's own disposable worktree, reviewed before anything is approved; a repository can still deny or ask for it with a rule of its own.
+The guards come first so that no repository rule can let an agent rewrite the policy file or write outside its worktree unattended; under `autonomous` their `Ask` becomes `Deny`. The policy of a job comes from its base commit, so such an edit could not loosen that job's own policy anyway; the guard keeps a human in the loop for a change that would govern every later job once approved. Agents asks for every edit, see [the contract](#contract), so the guard and the edit rules apply to every edit the agent makes. Editing inside the workspace is allowed by default because the workspace is the job's own disposable worktree, reviewed before anything is approved; a repository can still deny or ask for it with a rule of its own.
+
+### Autonomy levels
+
+The provider's permission mode is always `AskEveryTime`; how much an agent may do without a human is Avala's policy, at one of two levels.
+
+| Level | Permission requests | Forms |
+| --- | --- | --- |
+| `supervised`, the default | Decided by the rules; the ones they leave to `Ask` wait for a human, and only that job pauses | Wait for a human |
+| `autonomous` | Edits inside the worktree and commands, which run in it, are allowed; anything else, an edit outside the worktree, a web request, an MCP call, is denied instead of asked, so the agent never blocks | Answered by the policy, see [Forms](#forms) |
+
+- **Guards at every level.** Editing the policy file, writing outside the worktree and whatever the repository denies are never allowed automatically: they come before the autonomous rules, and under `autonomous` their `Ask` becomes `Deny`.
+- **Declared by the repository.** `.avala/permissions.json` declares the level, read from the job's base commit like its rules, so an agent cannot raise its own autonomy.
+- **Tightened by the job, never loosened.** A job may ask for a level at submission, `JobRequest.Autonomy`, and Jobs announces it with each `JobSessionStarted`. Permissions caps the session's level at it: a job submitted as `supervised` in an `autonomous` repository runs supervised. A job that asks for more than its repository declares is refused: it runs at the repository's level and `AutonomyApplied` reports the request as `Refused`. The repository's level is only known once the workspace exists, so the refusal is recorded when the session starts, not at submission.
+
+### Session rules
+
+A human who answers a request through `IPermissionAnswers.AnswerAsync` may say "don't ask again". Avala's policy, not the provider, turns that answer into a session rule:
+
+- It matches the exact item kind and target of the answered request, the target as the policy matched it, never as a pattern, and gives the human's answer, `Allow` or `Deny`. It is named `don't ask again` with the origin `Session`.
+- It comes after the guards and the repository rules, so a request the repository sends to a human, or a guard keeps for one, still asks. It lasts as long as the session.
+- It is added before the answer reaches the agent and removed when the agent no longer awaits it, so the agent's next identical request already meets it.
+- Only a request the policy left to a human can be answered this way; any other is `NotAwaitingAnswer`. Every answer is published as `PermissionAnswered` and kept in the audit with the rule it created, if any. A `Deny` may carry a message, which reaches the agent through `PermissionDecision.Message`.
+
+### Forms
+
+The policy answers a [form](#human-input-forms) only when the session is `autonomous`; a supervised session leaves it to a human, who answers through `IAgents.AnswerAsync`. Either way the decision is published as `FormDecided`.
+
+- A `Permission` form is declined with a message, since the policy cannot see what it would grant: `Nobody is watching this job, so permissions asked through a form are not granted. Stay within the worktree.`
+- Any other form is answered field by field with the repository's strategy, `formAnswers` in the policy file. `recommended`, the default, takes the option the agent marked recommended. `bestJudgment` answers every field that accepts text with `Nobody is watching this job. Decide with your best judgment, state the assumption you make and go on.` Under either, a field the strategy cannot answer falls back in this order: the judgment text when the field accepts text, the recommended option, the first option. A confirmation is confirmed, so a plan is approved and carried out within the worktree's confines.
+- Every automatic answer is audited with one `Assumption` per field: its identifier, its prompt, its basis (`RecommendedOption`, `FirstOption`, `AgentJudgment` or `Confirmed`) and the options chosen. They are the job's evidence of what was decided without asking, queryable through `IPermissionAudit.FormsOfJob` beside the verification reports.
 
 ### Policy file
 
@@ -666,6 +738,8 @@ A repository declares its rules in `.avala/permissions.json`, read when the sess
 
 ```json
 {
+  "autonomy": "autonomous",
+  "formAnswers": "recommended",
   "rules": [
     { "name": "run the tests", "kind": "command", "target": "dotnet test*", "answer": "allow" },
     { "name": "no network", "kind": "web", "answer": "deny" },
@@ -673,6 +747,8 @@ A repository declares its rules in `.avala/permissions.json`, read when the sess
   ]
 }
 ```
+
+- Every section is optional. `autonomy` is `supervised`, the default, or `autonomous`. `formAnswers` is `recommended`, the default, or `bestJudgment`. `rules` defaults to none.
 
 - `kind` is an `ItemKind` name, case-insensitive: `message`, `reasoning`, `fileEdit`, `command`, `search`, `web`, `mcp`, `subagent` or `other`. `within` is `anywhere`, the default, or `workspace`. `answer` is `allow`, `deny` or `ask`, and is required. A rule without a `name` is named by its position, such as `rule 3`.
 - The file is parsed strictly: unknown fields, duplicate fields, numbers for names, nesting deeper than the format needs and files over 64 KiB are rejected without being interpreted.
@@ -687,23 +763,29 @@ A repository declares its rules in `.avala/permissions.json`, read when the sess
 | `UnknownKind`, `UnknownScope`, `UnknownAnswer` | A value outside its list |
 | `MissingAnswer` | A rule without an answer |
 | `ScopeNeedsFileEdits` | A `workspace` scope on a kind other than `fileEdit` |
+| `UnknownAutonomy`, `UnknownStrategy` | An `autonomy` or a `formAnswers` outside its list |
+| `NotAwaitingAnswer` | Not a file error: a human answered a request the policy did not leave to a human, or that the agent no longer awaits |
+
+A rejected file falls back to the built-in policy, which is `supervised`.
 
 ### The module
 
-The module subscribes to the bus like every other consumer of agent events, so it receives only permission requests the `Turn` aggregate has already accepted, and answers through `IAgents.RespondAsync`.
+The module subscribes to the bus like every other consumer of agent events, so it receives only permission requests and forms the `Turn` aggregate has already accepted, and answers through `IAgents.RespondAsync` and `IAgents.AnswerAsync`.
 
 | Folder | Holds | Layer |
 | --- | --- | --- |
-| `Policies` | `PermissionPolicy` with its built-in rules and first-match decision, rule matching as extension members on `PolicyRule`, `PermissionRequest`, `Verdict`, and `GovernedSession`, the immutable record of one session: working directory, policy, job and decisions | Domain |
+| `Policies` | `PermissionPolicy`, the declared rules, level and strategy with the built-in rules, the cap a job puts on the level and the first-match decision; rule matching as extension members on `PolicyRule`; `FormPolicy`, the automatic answer to a form with its assumptions; `PermissionRequest`, `Verdict`, and `GovernedSession`, the immutable record of one session: working directory, policy, job, autonomy, decisions and forms | Domain |
 | `Governance` | `SessionGovernor`, the handler of `SessionOpened`, `JobSessionStarted` and `AgentActivity`; `GovernanceBook`, the in-memory book that implements `IPermissionAudit`; and the `IPolicyFiles` port | Application |
-| `Answering` | `PermissionResponder`, which decides a request with its session's policy and answers the agent; `RequestFacts`, which locates a request against the working directory | Application |
+| `Answering` | `PermissionResponder`, which decides a request or a form with its session's policy and answers the agent; `RequestFacts`, which locates a request against the working directory; `HumanAnswers`, behind `IPermissionAnswers`, which delivers a human's answer and keeps its session rule | Application |
 | `PolicyFiles` | `PolicyFileReader` behind `IPolicyFiles`, which reads the file through `IBaseFiles` from Workspaces, and `PolicyFileParser` | Infrastructure |
 
-- The domain decides and has nothing to reject, so it has no aggregate. The single error enum of the module is `PolicyError`, in its contracts, since only reading a policy file can fail and its outcome is public.
-- One handler, one mailbox. The governor handles the opening of a session, its job and its permission requests in publishing order, so a request is always decided by the policy its session's file loaded, however long reading the file took. The governor is the only writer of `GovernanceBook`, which holds an immutable dictionary of sessions that the audit queries read.
-- On `SessionOpened` the governor reads the policy file of the base commit once, keeps the session's policy and publishes `PolicyLoaded` with the file's origin. Edits of the file in the worktree never change the policy, of a running session or of a recovered one.
-- On `PermissionRequested` the responder decides with the session's policy and answers `Allow` or `Deny` through `IAgents.RespondAsync`, leaving `Ask` pending; the governor keeps the decision and publishes `PermissionDecided` with the answer, the rule that decided and whether the answer reached the agent. A request from a session it never saw open is decided by the built-in policy with no workspace, so only the default applies.
-- Requests left to a human stay pending exactly as before the module existed: the turn waits in `AwaitingPermission`, never expires, and anyone may still answer through `IAgents.RespondAsync`. Without the module, every request is left to a human that way.
+- The domain decides and has nothing to reject, so it has no aggregate. The single error enum of the module is `PolicyError`, in its contracts: reading a policy file can fail, and so can a human's answer, with `NotAwaitingAnswer`.
+- One handler, one mailbox. The governor handles the opening of a session, its job, its permission requests and its forms in publishing order, so a request is always decided by the policy its session's file loaded and at the level its job asked for. The governor is the only writer of the sessions in `GovernanceBook`, an immutable dictionary the audit queries read. `HumanAnswers` writes only the session rules and the human answers, each an immutable collection of its own replaced through `ImmutableInterlocked`, which the governor reads when it decides.
+- On `SessionOpened` the governor reads the policy file of the base commit once, keeps the session's policy and publishes `PolicyLoaded` with the file's origin, its declared level and strategy. Edits of the file in the worktree never change the policy, of a running session or of a recovered one.
+- On `JobSessionStarted` the governor caps the session's level at the one the job asked for, if any, and publishes `AutonomyApplied`. Jobs publishes it before it sends the session its first message, so the level applies to everything the agent asks.
+- On `PermissionRequested` the responder decides with the session's policy and its session rules and answers `Allow` or `Deny` through `IAgents.RespondAsync`, leaving `Ask` pending; the governor keeps the decision and publishes `PermissionDecided` with the answer, the rule that decided, the level it was decided at and whether the answer reached the agent. A request from a session it never saw open is decided by the built-in policy with no workspace, so only the guards and the default apply.
+- On `FormRequested` the responder answers through `IAgents.AnswerAsync` when the session is autonomous and leaves the form to a human otherwise; the governor keeps the decision and publishes `FormDecided`.
+- Requests left to a human stay pending exactly as before the module existed: the turn waits in `AwaitingPermission`, never expires, and anyone may still answer through `IAgents.RespondAsync`, or through `IPermissionAnswers.AnswerAsync` to leave a message or a session rule and have the answer audited. Forms wait the same way in `AwaitingAnswer`. Without the module, every request and every form is left to a human that way.
 - Decisions live in memory for the life of the application, like the usage aggregates.
 
 ## Supervision
@@ -715,7 +797,7 @@ An unattended agent must not hang forever or die silently. The Supervision modul
 ### Rules
 
 - **Silence.** A job is watched while it is `Running`, from its `JobProgressed`. Every accepted event of the job's current session, the one its latest `JobSessionStarted` named, restarts the silence; events of a session the job no longer uses do not. When the job stays silent for the whole window, it is held as `Stalled` with the silence measured and the window, and Jobs interrupts the turn.
-- **Human time.** While a permission request of the job's session waits for an answer, the job is never silent: the watch pauses on `PermissionRequested` and restarts the window on `PermissionResolved` or on the end of the turn. This is the same rule as the `Turn` aggregate's expiry, where an item waiting for permission never expires. Checks running in `Checking` are not watched either: Verification bounds them with its own timeouts.
+- **Human time.** While a permission request or a form of the job's session waits for an answer, the job is never silent: the watch pauses on `PermissionRequested` and `FormRequested`, and restarts the window on `PermissionResolved`, `FormAnswered` or the end of the turn. This is the same rule as the `Turn` aggregate's expiry, where an item waiting for permission never expires. Checks running in `Checking` are not watched either: Verification bounds them with its own timeouts.
 - **Why a lost session is not Supervision's.** A lost session must be held before Jobs evaluates the failed turn that follows it. With one mailbox per handler, a hold decided in Supervision would race that evaluation, and the job would sometimes fail instead of asking a human. Jobs receives both events in one mailbox and queues both on the job, so the order is guaranteed without any module having to be faster than another.
 - **What it does not duplicate.** Sessions lost to a restart of the application are recovery's: stopping a session at shutdown publishes no `SessionEnded`, and `JobRecovery` resumes the job in a new session, continuing its conversation when the provider can resume it. A job held as `SessionLost` waits for a human, who continues it through `IJobs.ContinueAsync` in a new session that resumes the conversation when it can. Items left open when a turn ends are the `Turn` aggregate's: they are closed as `Abandoned`, the turn ends normally and the job goes on to its checks, so the `left-open` scenario needs no intervention.
 - **Only a running job.** Jobs rejects a hold of a job that is not `Running`; the module then records nothing. An intervention exists only when a job was actually held.
@@ -845,8 +927,32 @@ Live progress of a check while it runs is not published yet: the job's `JobProgr
 | `IPermissionAudit.PolicyOf` | Query | `Option<SessionPolicy>` | Any time; none until the session opened | One per session |
 | `IPermissionAudit.OfSession` | Query | The session's `PolicyDecision`s in decision order | Any time | Zero or more per session |
 | `IPermissionAudit.OfJob` | Query | The `PolicyDecision`s of every session of a job, recovery included, by time | Any time; a session counts once `JobSessionStarted` tied it to the job | Zero or more per job |
+| `AutonomyApplied` | Event | `SessionAutonomy`: `Session`, `Job`, `Declared` (the repository's `Autonomy`: `Supervised` or `Autonomous`), `Requested` (the job's `Option<Autonomy>`), `Effective` and `Refused`, true when the job asked for more than its repository declares | On every `JobSessionStarted`, after `PolicyLoaded` and before the session's first activity | One per session of a job |
+| `FormDecided` | Event | `FormDecision`: session, turn, item, `Option<JobId>`, the `AgentForm` as asked, the `Autonomy` it was decided at, `Option<FormAnswer>` the policy gave (none when left to a human), `Assumptions` (one per field answered automatically), `DecisionDelivery` and the time | For every form the `Turn` aggregate accepted, after the automatic answer was sent or the form was left to a human | One per form |
+| `PermissionAnswered` | Event | `HumanAnswer`: session, `Option<JobId>`, item, item kind and target as matched, the `PermissionAnswer`, the `Option<string>` message for the agent, the `Option<PolicyRule>` session rule it created and the time | When a human answered a request left to them through `IPermissionAnswers`, once the answer reached the agent | Zero or one per request left to a human |
+| `IPermissionAnswers.AnswerAsync(session, PermissionReply)` | Command answer | `Result<HumanAnswer, PolicyError>`: the answer as recorded, or `NotAwaitingAnswer`. `PermissionReply` has the item, `Allow` or `Deny`, an optional `Message` and `DontAskAgain` | When a human answers | One per human answer |
+| `IPermissionAudit.AutonomyOf` | Query | `Option<SessionAutonomy>`; none until the session's job started it | Any time | One per session |
+| `IPermissionAudit.SessionRulesOf` | Query | The session rules a human created, in the order they were created | Any time | Zero or more per session |
+| `IPermissionAudit.FormsOfSession`, `FormsOfJob` | Query | The `FormDecision`s of a session, or of every session of a job by time | Any time | Zero or more per session and job |
+| `IPermissionAudit.AnswersOfJob` | Query | The `HumanAnswer`s given to a job's requests, in the order given | Any time | Zero or more per job |
 
-A `PolicyRule` carries its origin (`BuiltIn` or `Repository`), name, `Option<ItemKind>`, `Option<string>` target pattern, `RuleScope` (`Anywhere` or `Workspace`) and answer, so a decision explains itself without another query.
+A `PolicyRule` carries its origin (`BuiltIn`, `Repository` or `Session`), name, `Option<ItemKind>`, `Option<string>` target pattern (an exact target for a session rule), `RuleScope` (`Anywhere`, `Workspace` or `OutsideWorkspace`) and answer, so a decision explains itself without another query. `SessionPolicy` also carries the repository's declared `Autonomy` and `FormStrategy` (`Recommended` or `BestJudgment`), and `PolicyDecision` the `Autonomy` it was decided at. An `Assumption` has the field's `Field` identifier, its `Prompt`, its `Basis` (`RecommendedOption`, `FirstOption`, `AgentJudgment` or `Confirmed`) and the labels `Chosen`, empty when the agent was told to decide.
+
+### Agents: forms
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `AgentActivity` of `FormRequested` | Event | `Session`, `Turn`, `Item`, `Form`: an `AgentForm` with `Purpose` (`Permission`, `Question`, `PlanApproval`, `Other`), `Title`, `Context` and `Fields`; each `FormField` has `Id`, `Header`, `Prompt`, `Kind` (`SingleChoice`, `MultipleChoice`, `FreeText`, `Confirmation`), `Options` (each a `FormOption` with `Label`, `Description` and `Recommended`) and `AcceptsFreeText` | When a provider that declares `AsksQuestions` asks, inside a turn, once the `Turn` aggregate accepted the form as well formed | Zero or more per turn, one waiting at a time |
+| `AgentActivity` of `FormAnswered` | Event | `Session`, `Turn`, `Item`, `Answer`: a `FormAnswer` with `Item`, `Fields` (each a `FieldAnswer` with `Field`, `Chosen` labels, `Option<string>` `Text` and `Confirmed`), `Declined` and an `Option<string>` `Message` | When the provider reports the answer it received, from a human or from the policy; then `ItemCompleted` closes the form | One per answered form |
+| `IAgents.AnswerAsync(session, FormAnswer)` | Command answer | `Result<ItemId, AgentError>`: the item answered, or `SessionClosed`, `Unsupported`, `NoPendingForm`, `InvalidAnswer` | When a human or the policy answers | One per answer |
+| `PermissionDecision.Message` | Field of a command | `Option<string>` sent to the agent with the answer, the reason for a `Deny` and what to do instead | With `IAgents.RespondAsync` | One per answer |
+
+### Jobs: autonomy
+
+| Data | Kind | Shape | When and how often | Cardinality |
+| --- | --- | --- | --- | --- |
+| `JobRequest.Autonomy` | Field of a command | `Option<Autonomy>`, the level the job asks for, stored with the job | At submission | One per job |
+| `JobSessionStarted.Autonomy` | Field of an event | The job's `Option<Autonomy>` | With every `JobSessionStarted` | One per session of a job |
 
 ### Workspaces: base files
 
@@ -917,7 +1023,7 @@ The application is built view model first: every screen is built and tested as v
 
 - EF Core with the SQLite provider, with no server.
 - One `DbContext` and one database file per module, under the data folder: `jobs.db`, `workspaces.db`. Separate files isolate modules for real, and each module creates its schema on its own. No module reads another module's data.
-- The schema is created with `EnsureCreated`. The first schema changes, the `Base` column of a workspace and the `Resume` column of a job, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted. Migrations arrive with the first schema change after a release.
+- The schema is created with `EnsureCreated`. The first schema changes, the `Base` column of a workspace and the `Resume` and `Autonomy` columns of a job, arrived before any release could create jobs, so they ship without a migration: a data folder created by an earlier build must be deleted. Migrations arrive with the first schema change after a release.
 - Stores are internal interfaces of each module's application layer, implemented in its `Storage` folder.
 - EF Core is referenced only from the infrastructure layer, enforced by the layer rules. Inheriting from `DbContext` is allowed, like inheriting from Avalonia types.
 - Connection pooling is off.

@@ -10,4 +10,7 @@ internal enum TurnError
     UnknownItem,
     PermissionAlreadyPending,
     NoPendingPermission,
+    MalformedForm,
+    FormAlreadyPending,
+    NoPendingForm,
 }

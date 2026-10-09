@@ -16,10 +16,10 @@ internal sealed class PolicyFileReader(IBaseFiles files) : IPolicyFiles
             file => new PolicyFile(file.Origin, file.Content.Match(Parse, Absent)),
             failure => new PolicyFile(Option<FileOrigin>.None, failure == WorkspaceFailure.UnknownWorkspace ? Absent() : PolicyError.Unreadable));
 
-    private static Result<Option<IReadOnlyList<PolicyRule>>, PolicyError> Parse(string text) =>
+    private static Result<Option<PermissionPolicy>, PolicyError> Parse(string text) =>
         Encoding.UTF8.GetByteCount(text) > MaximumBytes
             ? PolicyError.TooLarge
-            : PolicyFileParser.Parse(text).Map(Option<IReadOnlyList<PolicyRule>>.Some);
+            : PolicyFileParser.Parse(text).Map(Option<PermissionPolicy>.Some);
 
-    private static Result<Option<IReadOnlyList<PolicyRule>>, PolicyError> Absent() => Option<IReadOnlyList<PolicyRule>>.None;
+    private static Result<Option<PermissionPolicy>, PolicyError> Absent() => Option<PermissionPolicy>.None;
 }

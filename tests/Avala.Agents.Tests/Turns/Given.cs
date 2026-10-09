@@ -37,5 +37,16 @@ internal static class Given
 
     public static PermissionResolved Resolved(string item) => new(Session, TurnId, Item(item), PermissionAnswer.Allow);
 
+    public static AgentForm Form { get; } = new(
+        FormPurpose.Question,
+        "Choose a database",
+        "The service needs storage.",
+        [new FormField("database", "Database", "Which database?", FieldKind.SingleChoice, [new FormOption("SQLite", "A file.", Recommended: true)])]);
+
+    public static FormRequested Asked(string item, AgentForm? form = null) => new(Session, TurnId, Item(item), form ?? Form);
+
+    public static FormAnswered Answered(string item) =>
+        new(Session, TurnId, Item(item), new FormAnswer(Item(item), [new FieldAnswer("database") { Chosen = ["SQLite"] }]));
+
     public static TurnCompleted Ended(TurnOutcome outcome = TurnOutcome.Finished) => new(Session, TurnId, outcome);
 }

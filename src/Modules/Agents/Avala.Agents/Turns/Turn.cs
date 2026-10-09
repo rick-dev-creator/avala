@@ -29,6 +29,8 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
     public Option<ItemId> PendingPermission { get; private set; }
 
+    public Option<ItemId> PendingForm { get; private set; }
+
     public IReadOnlyCollection<ItemId> OpenItems => openItems.Keys;
 
     public static Result<Turn, TurnError> Begin(TurnStarted started) => new Turn(started.Session, started.Turn);
@@ -54,6 +56,8 @@ internal sealed class Turn : IAggregateRoot<TurnId>
             ItemCompleted completed => Close(completed),
             PermissionRequested requested => RequestPermission(requested, at),
             PermissionResolved resolved => ResolvePermission(resolved, at),
+            FormRequested requested => AskForm(requested, at),
+            FormAnswered answered => AnswerForm(answered, at),
             TurnCompleted completed => End(completed),
             _ => new TurnProgress([agentEvent]),
         };
@@ -67,7 +71,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         }
 
         var stale = openItems
-            .Where(item => PendingPermission != Option<ItemId>.Some(item.Key) && now - item.Value >= patience)
+            .Where(item => !IsAwaitingHuman(item.Key) && now - item.Value >= patience)
             .OrderBy(item => item.Value)
             .Select(item => item.Key)
             .ToList();
@@ -145,6 +149,44 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         });
     }
 
+    private Result<TurnProgress, TurnError> AskForm(FormRequested requested, DateTimeOffset at)
+    {
+        if (!requested.Form.IsWellFormed())
+        {
+            return TurnError.MalformedForm;
+        }
+
+        if (openItems.ContainsKey(requested.Item) || completedItems.Contains(requested.Item))
+        {
+            return TurnError.ItemAlreadyStarted;
+        }
+
+        return machine.TryFire(TurnTrigger.AskForm, TurnError.FormAlreadyPending).Bind(_ =>
+        {
+            PendingForm = requested.Item;
+
+            return Open(requested, requested.Item, at);
+        });
+    }
+
+    private Result<TurnProgress, TurnError> AnswerForm(FormAnswered answered, DateTimeOffset at)
+    {
+        if (PendingForm != Option<ItemId>.Some(answered.Item) || answered.Answer.Item != answered.Item)
+        {
+            return TurnError.NoPendingForm;
+        }
+
+        return machine.TryFire(TurnTrigger.AnswerForm, TurnError.NoPendingForm).Bind(_ =>
+        {
+            PendingForm = Option<ItemId>.None;
+
+            return Touch(answered, answered.Item, at);
+        });
+    }
+
+    private bool IsAwaitingHuman(ItemId item) =>
+        PendingPermission == Option<ItemId>.Some(item) || PendingForm == Option<ItemId>.Some(item);
+
     private Result<TurnProgress, TurnError> End(TurnCompleted completed)
     {
         var trigger = completed.Outcome switch
@@ -158,6 +200,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         {
             var abandoned = openItems.OrderBy(item => item.Value).Select(item => item.Key).ToList();
             PendingPermission = Option<ItemId>.None;
+            PendingForm = Option<ItemId>.None;
 
             return new TurnProgress([.. abandoned.Select(item => Conclude(item, ItemOutcome.Abandoned)), completed]);
         });

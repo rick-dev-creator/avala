@@ -21,6 +21,10 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 
     public PermissionResolved Answered(ItemId item, PermissionAnswer answer) => new(Session, Turn, item, answer);
 
+    public FormRequested Asked(ItemId item, AgentForm form) => new(Session, Turn, item, form);
+
+    public FormAnswered Answered(ItemId item, FormAnswer answer) => new(Session, Turn, item, answer);
+
     public IEnumerable<IAgentEvent> Of(IStep step) => step switch
     {
         Say say => Stream(Opened(say.Item, say.Kind, say.Title), say.Item, say.Chunks),

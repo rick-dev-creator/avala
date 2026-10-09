@@ -51,6 +51,18 @@ internal sealed partial class AgentSessions(
             ? await running.Session.RespondAsync(decision, cancellationToken)
             : AgentError.SessionClosed;
 
+    public async ValueTask<Result<ItemId, AgentError>> AnswerAsync(
+        SessionId session,
+        FormAnswer answer,
+        CancellationToken cancellationToken) =>
+        !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
+        : !running.Capabilities.AsksQuestions ? AgentError.Unsupported
+        : await running.OpenForm(answer.Item).Match(
+            async form => form.Accepts(answer)
+                ? await running.Session.AnswerAsync(answer, cancellationToken)
+                : Result<ItemId, AgentError>.Failure(AgentError.InvalidAnswer),
+            () => Task.FromResult(Result<ItemId, AgentError>.Failure(AgentError.NoPendingForm)));
+
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
         !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
         : !running.Capabilities.CanInterrupt ? AgentError.Unsupported
@@ -79,7 +91,6 @@ internal sealed partial class AgentSessions(
     private async Task PumpAsync(LiveSession running, CancellationToken cancellationToken)
     {
         var session = running.Session;
-        var resumable = running.Capabilities.CanResume;
         Turn? turn = null;
         var ending = SessionEnding.Closed;
 
@@ -95,7 +106,7 @@ internal sealed partial class AgentSessions(
                     })
                     : turn?.Apply(agentEvent, clock.GetUtcNow()) ?? Result<TurnProgress, TurnError>.Failure(TurnError.ForeignEvent);
 
-                await ForwardAsync(agentEvent, applied, resumable, cancellationToken);
+                await ForwardAsync(agentEvent, applied, running, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -118,14 +129,14 @@ internal sealed partial class AgentSessions(
         if (turn is { IsLive: true })
         {
             var failed = new TurnCompleted(turn.Session, turn.Id, TurnOutcome.Failed);
-            await ForwardAsync(failed, turn.Apply(failed, clock.GetUtcNow()), resumable, CancellationToken.None);
+            await ForwardAsync(failed, turn.Apply(failed, clock.GetUtcNow()), running, CancellationToken.None);
         }
     }
 
     private async Task ForwardAsync(
         IAgentEvent agentEvent,
         Result<TurnProgress, TurnError> applied,
-        bool resumable,
+        LiveSession running,
         CancellationToken cancellationToken)
     {
         if (!applied.TryGetValue(out var progress, out var rejection))
@@ -136,6 +147,7 @@ internal sealed partial class AgentSessions(
 
         foreach (var forwarded in progress.Events)
         {
+            running.Track(forwarded);
             await bus.PublishAsync(new AgentActivity(forwarded), cancellationToken);
 
             switch (forwarded)
@@ -143,7 +155,7 @@ internal sealed partial class AgentSessions(
                 case TurnCompleted completed:
                     await bus.PublishAsync(new TurnFinished(completed.Session, completed.Turn, completed.Outcome), cancellationToken);
                     break;
-                case ResumeTokenIssued issued when resumable:
+                case ResumeTokenIssued issued when running.Capabilities.CanResume:
                     await bus.PublishAsync(new SessionResumable(issued.Session, issued.Token), cancellationToken);
                     break;
             }

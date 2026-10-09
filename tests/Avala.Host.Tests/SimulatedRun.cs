@@ -44,14 +44,27 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     public static Task<SimulatedRun> StartAsync(PublishedPlugins plugins, string scenario, params (string Path, string Content)[] committed) =>
-        StartAsync(plugins, scenario, [], committed);
+        StartAsync(plugins, scenario, Option<Autonomy>.None, [], committed);
+
+    public static Task<SimulatedRun> StartAsync(
+        PublishedPlugins plugins,
+        string scenario,
+        Autonomy autonomy,
+        params (string Path, string Content)[] committed) =>
+        StartAsync(plugins, scenario, autonomy, [], committed);
 
     public static Task<SimulatedRun> SupervisedAsync(PublishedPlugins plugins, string scenario, TimeSpan silence) =>
-        StartAsync(plugins, scenario, [("supervision.json", $$"""{ "silenceSeconds": {{silence.TotalSeconds.ToString(CultureInfo.InvariantCulture)}} }""")], []);
+        StartAsync(
+            plugins,
+            scenario,
+            Option<Autonomy>.None,
+            [("supervision.json", $$"""{ "silenceSeconds": {{silence.TotalSeconds.ToString(CultureInfo.InvariantCulture)}} }""")],
+            []);
 
     private static async Task<SimulatedRun> StartAsync(
         PublishedPlugins plugins,
         string scenario,
+        Option<Autonomy> autonomy,
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed)
     {
@@ -72,7 +85,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         var run = new SimulatedRun(plugins, data, repository, root);
         root.Start();
-        await run.SubmitAsync(scenario);
+        await run.SubmitAsync(scenario, autonomy);
 
         return run;
     }
@@ -106,6 +119,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
         return [.. (await application.Decisions.CollectUntilAsync(_ => ++decided == count)).Select(update => update.Decision)];
     }
 
+    public async Task<FormDecision> FormDecisionAsync() => (await application.Forms.UntilAsync(_ => true)).Decision;
+
+    public async Task<SessionAutonomy> AutonomyAsync() => (await application.Autonomies.UntilAsync(_ => true)).Autonomy;
+
     public async Task<JobHold> HoldAsync() => (await application.Holds.UntilAsync(_ => true)).Hold;
 
     public async Task ResumableAsync() => _ = await application.Resumable.UntilAsync(update => update.Job == Job);
@@ -138,9 +155,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
         data.Dispose();
     }
 
-    private async Task SubmitAsync(string scenario) =>
+    private async Task SubmitAsync(string scenario, Option<Autonomy> autonomy) =>
         Job = Outcomes.Succeeds(await Get<IJobs>()
-            .SubmitAsync(new JobRequest(repository.Path, $"[simulate: {scenario}] Greet the team"), Cancellation));
+            .SubmitAsync(new JobRequest(repository.Path, $"[simulate: {scenario}] Greet the team") { Autonomy = autonomy }, Cancellation));
 
     private sealed class Application : IAsyncDisposable
     {
@@ -158,7 +175,13 @@ internal sealed class SimulatedRun : IAsyncDisposable
             Supervision = Watch<SupervisorIntervened>();
             Budgets = Watch<BudgetIntervened>();
             Usage = Watch<UsageRecorded>();
+            Forms = Watch<FormDecided>();
+            Autonomies = Watch<AutonomyApplied>();
         }
+
+        public EventWatch<FormDecided> Forms { get; }
+
+        public EventWatch<AutonomyApplied> Autonomies { get; }
 
         public CompositionRoot Root { get; }
 

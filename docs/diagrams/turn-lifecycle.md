@@ -7,11 +7,14 @@ stateDiagram-v2
 	state Live {
 		Working
 		AwaitingPermission
+		AwaitingAnswer
 	}
 	Live --> Finished : Finish
 	Live --> Interrupted : Interrupt
 	Live --> Failed : Fail
 	Working --> AwaitingPermission : RequestPermission
+	Working --> AwaitingAnswer : AskForm
 	AwaitingPermission --> Working : ResolvePermission
+	AwaitingAnswer --> Working : AnswerForm
 [*] --> Working
 ```

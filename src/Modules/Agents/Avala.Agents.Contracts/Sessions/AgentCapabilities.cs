@@ -8,4 +8,5 @@ public sealed record AgentCapabilities(
     bool AcceptsTools,
     bool ReportsUsage,
     bool ReportsCost,
-    bool ReportsLimits);
+    bool ReportsLimits,
+    bool AsksQuestions);

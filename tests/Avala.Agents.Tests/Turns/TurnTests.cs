@@ -103,6 +103,66 @@ public sealed class TurnTests
     }
 
     [Fact]
+    public void AFormOpensAnItemThatWaitsForItsAnswerAndThenCompletes()
+    {
+        var turn = Given.Turn();
+        IAgentEvent[] life = [Given.Asked("question"), Given.Answered("question"), Given.Completed("question")];
+
+        var forwarded = life.Select(agentEvent =>
+        {
+            var events = Outcomes.Succeeds(turn.Apply(agentEvent, Given.Now)).Events;
+
+            return (events, turn.State, turn.PendingForm);
+        }).ToList();
+
+        Assert.Equal(life.Select(agentEvent => new[] { agentEvent }), forwarded.Select(step => step.events));
+        Assert.Equal(
+            [
+                (TurnState.AwaitingAnswer, Option<ItemId>.Some(Given.Item("question"))),
+                (TurnState.Working, Option<ItemId>.None),
+                (TurnState.Working, Option<ItemId>.None),
+            ],
+            forwarded.Select(step => (step.State, step.PendingForm)));
+        Assert.Empty(turn.OpenItems);
+    }
+
+    public static TheoryData<string, AgentForm> MalformedForms => new()
+    {
+        { "no field", Given.Form with { Fields = [] } },
+        { "undefined purpose", Given.Form with { Purpose = (FormPurpose)42 } },
+        { "a choice without options", Given.Form with { Fields = [Field(FieldKind.SingleChoice)] } },
+        { "free text with options", Given.Form with { Fields = [Field(FieldKind.FreeText, new FormOption("a", ""))] } },
+        { "two recommended options", Given.Form with { Fields = [Field(FieldKind.MultipleChoice, new FormOption("a", "", true), new FormOption("b", "", true))] } },
+        { "an option without a label", Given.Form with { Fields = [Field(FieldKind.SingleChoice, new FormOption(" ", ""))] } },
+        { "two options with one label", Given.Form with { Fields = [Field(FieldKind.SingleChoice, new FormOption("a", ""), new FormOption("a", ""))] } },
+        { "two fields with one id", Given.Form with { Fields = [Field(FieldKind.FreeText), Field(FieldKind.Confirmation)] } },
+        { "a field without an id", Given.Form with { Fields = [Field(FieldKind.FreeText) with { Id = "" }] } },
+    };
+
+    [Theory]
+    [MemberData(nameof(MalformedForms))]
+    public void RejectsAMalformedFormWithoutOpeningItsItem(string malformation, AgentForm form)
+    {
+        var turn = Given.Turn();
+
+        Assert.Equal(TurnError.MalformedForm, Outcomes.FailsWith(turn.Apply(Given.Asked("question", form), Given.Now)));
+        Assert.Equal((TurnState.Working, 0), (turn.State, turn.OpenItems.Count));
+        Assert.NotEmpty(malformation);
+    }
+
+    [Fact]
+    public void RejectsFormsAndAnswersThatDoNotFitTheTurn()
+    {
+        var turn = Given.Turn(Given.Started("deploy"), Given.Asked("question"));
+
+        Assert.Equal(TurnError.FormAlreadyPending, Outcomes.FailsWith(turn.Apply(Given.Asked("another"), Given.Now)));
+        Assert.Equal(TurnError.ItemAlreadyStarted, Outcomes.FailsWith(turn.Apply(Given.Asked("deploy"), Given.Now)));
+        Assert.Equal(TurnError.PermissionAlreadyPending, Outcomes.FailsWith(turn.Apply(Given.PermissionFor("deploy"), Given.Now)));
+        Assert.Equal(TurnError.NoPendingForm, Outcomes.FailsWith(turn.Apply(Given.Answered("deploy"), Given.Now)));
+        Assert.Equal(TurnState.AwaitingAnswer, turn.State);
+    }
+
+    [Fact]
     public void EndsInTheStateOfItsOutcome()
     {
         var states = Enum.GetValues<TurnOutcome>().Select(outcome =>
@@ -155,4 +215,6 @@ public sealed class TurnTests
 
         Assert.Equal(telemetry.Select(agentEvent => new[] { agentEvent }), forwarded);
     }
+
+    private static FormField Field(FieldKind kind, params FormOption[] options) => new("field", "Field", "Prompt?", kind, options);
 }

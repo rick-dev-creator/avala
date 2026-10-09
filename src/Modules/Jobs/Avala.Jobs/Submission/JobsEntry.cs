@@ -10,7 +10,7 @@ namespace Avala.Jobs.Submission;
 internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, JobLauncher launcher, JobQueues queues) : IJobs
 {
     public async ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
-        (await submit.ExecuteAsync(request.RepositoryPath, request.Instruction, request.AttemptsPerRound, cancellationToken))
+        (await submit.ExecuteAsync(request.RepositoryPath, request.Instruction, request.AttemptsPerRound, request.Autonomy, cancellationToken))
             .MapError(Rejection);
 
     public async ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>

@@ -163,6 +163,83 @@ public sealed class SimulatedSessionTests
     }
 
     [Fact]
+    public async Task ADenialWithAMessageReachesTheAgentWhichRepliesWithItBeforeTheTurnFinishesAsync()
+    {
+        await using var stage = new Stage();
+        var turn = await stage.SendAsync("[simulate: permission] Migrate the database", Cancellation);
+        var requested = Assert.IsType<PermissionRequested>((await stage.ReadUntilAsync<PermissionRequested>(Cancellation))[^1]);
+        var denial = new PermissionDecision(requested.Item, PermissionAnswer.Deny) { Message = "Use the staging database." };
+
+        Outcomes.Succeeds(await stage.Session.RespondAsync(denial, Cancellation));
+
+        var reply = new ItemId("migrate-reply");
+        Assert.Equal(
+            [
+                new PermissionResolved(stage.Session.Id, turn, requested.Item, PermissionAnswer.Deny),
+                new ItemCompleted(stage.Session.Id, turn, requested.Item, ItemOutcome.Cancelled),
+                new ItemStarted(stage.Session.Id, turn, reply, ItemKind.Message, "Reply"),
+                new ItemProgressed(stage.Session.Id, turn, reply, "Understood, I will not go on: Use the staging database."),
+                new ItemCompleted(stage.Session.Id, turn, reply, ItemOutcome.Succeeded),
+                new TurnCompleted(stage.Session.Id, turn, TurnOutcome.Finished),
+            ],
+            await stage.ReadTurnAsync(Cancellation));
+    }
+
+    [Fact]
+    public async Task TheQuestionScenarioWaitsForAnAnswerAndGoesOnWithTheChoiceAsync()
+    {
+        await using var stage = new Stage();
+        var turn = await stage.SendAsync("[simulate: question] Store the orders", Cancellation);
+        var asked = Assert.IsType<FormRequested>((await stage.ReadUntilAsync<FormRequested>(Cancellation))[^1]);
+        var field = Assert.Single(asked.Form.Fields);
+        var answer = new FormAnswer(asked.Item, [new FieldAnswer(field.Id) { Chosen = ["SQLite"] }]);
+
+        Outcomes.Succeeds(await stage.Session.AnswerAsync(answer, Cancellation));
+
+        var rest = await stage.ReadTurnAsync(Cancellation);
+        Assert.Equal((FormPurpose.Question, "PostgreSQL"), (asked.Form.Purpose, Assert.Single(field.Options, option => option.Recommended).Label));
+        Assert.Equal(
+            [
+                new FormAnswered(stage.Session.Id, turn, asked.Item, answer),
+                new ItemCompleted(stage.Session.Id, turn, asked.Item, ItemOutcome.Succeeded),
+            ],
+            rest.Take(2));
+        Assert.Contains(rest, cue => cue is ItemProgressed { Text: "Going with Database: SQLite" });
+        Assert.Equal(new TurnCompleted(stage.Session.Id, turn, TurnOutcome.Finished), rest[^1]);
+    }
+
+    [Fact]
+    public async Task APlanThatIsNotApprovedIsNotCarriedOutAsync()
+    {
+        await using var stage = new Stage();
+        var turn = await stage.SendAsync("[simulate: plan-approval] Add an endpoint", Cancellation);
+        var asked = Assert.IsType<FormRequested>((await stage.ReadUntilAsync<FormRequested>(Cancellation))[^1]);
+
+        Outcomes.Succeeds(await stage.Session.AnswerAsync(
+            new FormAnswer(asked.Item, [new FieldAnswer("approve") { Confirmed = false, Text = "Split it in two." }]),
+            Cancellation));
+
+        var rest = await stage.ReadTurnAsync(Cancellation);
+        Assert.Equal(FormPurpose.PlanApproval, asked.Form.Purpose);
+        Assert.Contains(rest, cue => cue is ItemProgressed { Text: "Going with Plan: not approved (Split it in two.)" });
+        Assert.Equal(new TurnCompleted(stage.Session.Id, turn, TurnOutcome.Finished), rest[^1]);
+        Assert.DoesNotContain(rest, cue => cue is PermissionRequested);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(stage.WorkingDirectory));
+    }
+
+    [Fact]
+    public async Task AnsweringAnItemThatNoFormWaitsOnFailsAsync()
+    {
+        await using var stage = new Stage();
+        await stage.SendAsync("[simulate: question] Store the orders", Cancellation);
+        await stage.ReadUntilAsync<FormRequested>(Cancellation);
+
+        var answer = new FormAnswer(new ItemId("deploy"), [new FieldAnswer("database") { Chosen = ["SQLite"] }]);
+
+        Assert.Equal(AgentError.NoPendingForm, Outcomes.FailsWith(await stage.Session.AnswerAsync(answer, Cancellation)));
+    }
+
+    [Fact]
     public async Task AnsweringAnItemThatIsNotWaitingForPermissionFailsAsync()
     {
         await using var stage = new Stage();

@@ -9,4 +9,6 @@ public enum AgentError
     NoPendingPermission,
     Unsupported,
     CannotResume,
+    NoPendingForm,
+    InvalidAnswer,
 }

@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Avala.Agents.Contracts.Events;
+using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Permissions.Policies;
 using Avala.Sdk;
 
 namespace Avala.Permissions.PolicyFiles;
@@ -11,13 +13,15 @@ internal static class PolicyFileParser
 
     private static readonly string[] Fields = ["name", "kind", "target", "within", "answer"];
 
-    public static Result<IReadOnlyList<PolicyRule>, PolicyError> Parse(string text)
+    private static readonly string[] Sections = ["rules", "autonomy", "formAnswers"];
+
+    public static Result<PermissionPolicy, PolicyError> Parse(string text)
     {
         try
         {
             using var document = JsonDocument.Parse(text, Options);
 
-            return Rules(document.RootElement);
+            return Policy(document.RootElement);
         }
         catch (JsonException)
         {
@@ -25,16 +29,41 @@ internal static class PolicyFileParser
         }
     }
 
-    private static Result<IReadOnlyList<PolicyRule>, PolicyError> Rules(JsonElement root)
+    private static Result<PermissionPolicy, PolicyError> Policy(JsonElement root)
     {
-        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("rules", out var rules) || rules.ValueKind != JsonValueKind.Array)
+        if (root.ValueKind != JsonValueKind.Object)
         {
             return PolicyError.Malformed;
         }
 
-        if (root.EnumerateObject().Any(property => property.Name != "rules"))
+        if (root.EnumerateObject().Any(property => !Sections.Contains(property.Name, StringComparer.Ordinal)))
         {
             return PolicyError.UnknownField;
+        }
+
+        if (!Text(root, "autonomy").Bind(text => Named<Autonomy>(text, PolicyError.UnknownAutonomy)).TryGetValue(out var autonomy, out var error)
+            || !Text(root, "formAnswers").Bind(text => Named<FormStrategy>(text, PolicyError.UnknownStrategy)).TryGetValue(out var strategy, out error)
+            || !Rules(root).TryGetValue(out var rules, out error))
+        {
+            return error;
+        }
+
+        return new PermissionPolicy(
+            rules,
+            autonomy.Match(level => level, () => Autonomy.Supervised),
+            strategy.Match(chosen => chosen, () => FormStrategy.Recommended));
+    }
+
+    private static Result<IReadOnlyList<PolicyRule>, PolicyError> Rules(JsonElement root)
+    {
+        if (!root.TryGetProperty("rules", out var rules))
+        {
+            return Result<IReadOnlyList<PolicyRule>, PolicyError>.Success([]);
+        }
+
+        if (rules.ValueKind != JsonValueKind.Array)
+        {
+            return PolicyError.Malformed;
         }
 
         var parsed = new List<PolicyRule>();
@@ -67,7 +96,7 @@ internal static class PolicyFileParser
         if (!Text(element, "name").TryGetValue(out var name, out var error)
             || !Text(element, "kind").Bind(text => Named<ItemKind>(text, PolicyError.UnknownKind)).TryGetValue(out var kind, out error)
             || !Text(element, "target").TryGetValue(out var target, out error)
-            || !Text(element, "within").Bind(text => Named<RuleScope>(text, PolicyError.UnknownScope)).TryGetValue(out var scope, out error)
+            || !Text(element, "within").Bind(text => Named<RuleScope>(text, PolicyError.UnknownScope)).Bind(Declarable).TryGetValue(out var scope, out error)
             || !Text(element, "answer").Bind(text => text.IsSome
                 ? Named<PolicyAnswer>(text, PolicyError.UnknownAnswer)
                 : PolicyError.MissingAnswer).TryGetValue(out var answer, out error))
@@ -90,6 +119,9 @@ internal static class PolicyFileParser
             within,
             answer.Match(value => value, () => PolicyAnswer.Ask));
     }
+
+    private static Result<Option<RuleScope>, PolicyError> Declarable(Option<RuleScope> scope) =>
+        scope == Option<RuleScope>.Some(RuleScope.OutsideWorkspace) ? PolicyError.UnknownScope : scope;
 
     private static Result<Option<string>, PolicyError> Text(JsonElement rule, string field) =>
         !rule.TryGetProperty(field, out var value) ? Option<string>.None

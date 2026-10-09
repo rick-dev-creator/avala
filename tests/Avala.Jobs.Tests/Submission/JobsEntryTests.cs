@@ -1,5 +1,6 @@
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Tests.Coordination;
+using Avala.Sdk;
 using Avala.Testing;
 
 namespace Avala.Jobs.Tests.Submission;
@@ -13,9 +14,10 @@ public sealed class JobsEntryTests
     {
         var flow = JobFlow.With();
 
-        var id = Outcomes.Succeeds(await flow.Jobs.SubmitAsync(new JobRequest("/repos/shop", "Add GitHub login"), Cancellation));
+        var id = Outcomes.Succeeds(await flow.Jobs.SubmitAsync(new JobRequest("/repos/shop", "Add GitHub login") { Autonomy = Autonomy.Supervised }, Cancellation));
 
-        Assert.Equal(id, Assert.Single(flow.Store.Jobs).Id);
+        var job = Assert.Single(flow.Store.Jobs);
+        Assert.Equal((id, Option<Autonomy>.Some(Autonomy.Supervised)), (job.Id, job.Autonomy));
     }
 
     [Theory]

@@ -185,17 +185,17 @@ public sealed class JobFlowTests
     }
 
     [Fact]
-    public async Task EverySessionAJobStartsIsAnnouncedAsync()
+    public async Task EverySessionAJobStartsIsAnnouncedWithTheAutonomyTheJobAskedForAsync()
     {
         var flow = JobFlow.With();
-        var job = await flow.RunningAsync();
+        var job = await flow.RunningAsync(autonomy: Autonomy.Supervised);
         var first = Assert.Single(flow.Agents.Sessions).Key;
 
         await flow.Recovery.RunAsync(Cancellation);
 
         var second = Assert.Single(flow.Agents.Sessions.Keys, session => session != first);
         Assert.Equal(
-            [new JobSessionStarted(job.Id, first), new JobSessionStarted(job.Id, second)],
+            [new JobSessionStarted(job.Id, first) { Autonomy = Autonomy.Supervised }, new JobSessionStarted(job.Id, second) { Autonomy = Autonomy.Supervised }],
             flow.Bus.Published.OfType<JobSessionStarted>());
     }
 }

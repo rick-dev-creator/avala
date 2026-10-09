@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
 using Avala.Permissions.Answering;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
@@ -26,24 +27,27 @@ public sealed class SessionGovernorTests
     [Fact]
     public async Task ARepositoryPolicyGovernsTheSessionItIsFoundInAsync()
     {
-        await OpenAsync(Option<IReadOnlyList<PolicyRule>>.Some([AllowEverything]));
+        await OpenAsync(PermissionPolicy.With([AllowEverything]) with { Declared = Autonomy.Autonomous, Strategy = FormStrategy.BestJudgment });
 
         var governed = book.Of(session);
         Assert.Equal("/worktrees/1", Outcomes.Present(governed.WorkingDirectory));
         Assert.Equal(PolicyAnswer.Allow, governed.Policy.Decide(Migration).Answer);
+        var loaded = Assert.IsType<PolicyLoaded>(Assert.Single(bus.Published)).Policy;
         Assert.Equal(
-            new PolicyLoaded(new SessionPolicy(session, PolicyFileStatus.Applied, Option<PolicyError>.None, governed.Policy.Rules, CommittedFiles.Origin())),
-            Assert.Single(bus.Published));
+            (session, PolicyFileStatus.Applied, Option<PolicyError>.None, CommittedFiles.Origin(), Autonomy.Autonomous, FormStrategy.BestJudgment),
+            (loaded.Session, loaded.File, loaded.Error, loaded.Origin, loaded.Autonomy, loaded.Strategy));
+        Assert.Equal(governed.Policy.Rules, loaded.Rules);
         Assert.Contains(AllowEverything, governed.Policy.Rules);
     }
 
     [Fact]
     public async Task ASessionWithoutAPolicyFileIsGovernedByTheBuiltInPolicyAsync()
     {
-        await OpenAsync(Option<IReadOnlyList<PolicyRule>>.None);
+        await OpenAsync(Option<PermissionPolicy>.None);
 
         Assert.Equal(PermissionPolicy.BuiltIn, book.Of(session).Policy);
-        Assert.Equal(PolicyFileStatus.Absent, Assert.IsType<PolicyLoaded>(Assert.Single(bus.Published)).Policy.File);
+        var loaded = Assert.IsType<PolicyLoaded>(Assert.Single(bus.Published)).Policy;
+        Assert.Equal((PolicyFileStatus.Absent, Autonomy.Supervised), (loaded.File, loaded.Autonomy));
     }
 
     [Fact]
@@ -60,7 +64,7 @@ public sealed class SessionGovernorTests
     [Fact]
     public async Task ARequestThatFollowsTheOpeningOfItsSessionIsDecidedByThePolicyItsFileLoadedAsync()
     {
-        var governor = await OpenAsync(Option<IReadOnlyList<PolicyRule>>.Some([AllowEverything]));
+        var governor = await OpenAsync(PermissionPolicy.With([AllowEverything]));
 
         await governor.HandleAsync(
             new AgentActivity(new PermissionRequested(session, TurnId.New(), new ItemId("migrate"), "Run", ItemKind.Command, "dotnet ef database update")),
@@ -70,36 +74,41 @@ public sealed class SessionGovernorTests
         Assert.Equal((PolicyAnswer.Allow, Option<PolicyRule>.Some(AllowEverything)), (decision.Answer, decision.Rule));
     }
 
-    private async Task<SessionGovernor> OpenAsync(Result<Option<IReadOnlyList<PolicyRule>>, PolicyError> file)
+    [Theory]
+    [InlineData(Autonomy.Autonomous, null, Autonomy.Autonomous, false)]
+    [InlineData(Autonomy.Autonomous, Autonomy.Supervised, Autonomy.Supervised, false)]
+    [InlineData(Autonomy.Autonomous, Autonomy.Autonomous, Autonomy.Autonomous, false)]
+    [InlineData(Autonomy.Supervised, Autonomy.Autonomous, Autonomy.Supervised, true)]
+    [InlineData(Autonomy.Supervised, null, Autonomy.Supervised, false)]
+    public async Task AJobMayTightenTheAutonomyOfItsRepositoryButNeverLoosenItAsync(
+        Autonomy declared,
+        Autonomy? requested,
+        Autonomy effective,
+        bool refused)
     {
-        var governor = new SessionGovernor(book, new FixedPolicyFiles(file), new PermissionResponder(new SilentAgents(), TimeProvider.System), bus);
+        var job = JobId.New();
+        var governor = await OpenAsync(PermissionPolicy.With([]) with { Declared = declared });
+
+        await governor.HandleAsync(new JobSessionStarted(job, session) { Autonomy = requested.ToOption() }, Cancellation);
+
+        var applied = new SessionAutonomy(session, job, declared, requested.ToOption(), effective, refused);
+        Assert.Equal(new AutonomyApplied(applied), bus.Published[^1]);
+        Assert.Equal(Option<SessionAutonomy>.Some(applied), book.AutonomyOf(session));
+        Assert.Equal(effective, book.Of(session).Policy.Autonomy);
+    }
+
+    private Task<SessionGovernor> OpenAsync(PermissionPolicy policy) => OpenAsync(Option<PermissionPolicy>.Some(policy));
+
+    private async Task<SessionGovernor> OpenAsync(Result<Option<PermissionPolicy>, PolicyError> file)
+    {
+        var governor = new SessionGovernor(book, new FixedPolicyFiles(file), new PermissionResponder(new AnsweringAgents(), TimeProvider.System), bus);
 
         await governor.HandleAsync(new SessionOpened(session, new ProviderInfo("agent", "Agent"), "/worktrees/1"), Cancellation);
 
         return governor;
     }
 
-    private sealed class SilentAgents : IAgents
-    {
-        public ValueTask<Result<ItemId, AgentError>> RespondAsync(SessionId session, PermissionDecision decision, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<ItemId, AgentError>.Success(decision.Item));
-
-        public ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<OpenedSession, AgentError>.Failure(AgentError.Unsupported));
-
-        public bool IsOpen(SessionId session) => true;
-
-        public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.Unsupported));
-
-        public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<TurnId, AgentError>.Failure(AgentError.Unsupported));
-
-        public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<SessionId, AgentError>.Failure(AgentError.Unsupported));
-    }
-
-    private sealed class FixedPolicyFiles(Result<Option<IReadOnlyList<PolicyRule>>, PolicyError> file) : IPolicyFiles
+    private sealed class FixedPolicyFiles(Result<Option<PermissionPolicy>, PolicyError> file) : IPolicyFiles
     {
         public ValueTask<PolicyFile> ReadAsync(string workingDirectory, CancellationToken cancellationToken) =>
             ValueTask.FromResult(new PolicyFile(CommittedFiles.Origin(), file));

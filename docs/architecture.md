@@ -14,7 +14,7 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `src/Modules/<Module>/Avala.<Module>` | Module core: domain, use cases, infrastructure and view models, in feature folders. Everything is `internal`. |
 | `src/Modules/<Module>/Avala.<Module>.UI` | Module views and its single public type: the plugin entry. |
 | `src/Modules/<Module>/Avala.<Module>.Contracts` | Optional public contracts other modules may depend on. |
-| `src/Modules/Simulator/Avala.Simulator` | A provider plugin that plays scripted Claude Code sessions through the public agent contracts only, for demos and tests without tokens: it resumes its conversations, draws through the injected canvas tool and reports an account. Its plugin entry lives in the core, since it has no views. |
+| `src/Modules/Simulator/Avala.Simulator` | A provider plugin that plays scripted Claude Code sessions through the public agent contracts only, for demos and tests without tokens: it resumes its conversations, draws through the injected canvas tool, asks questions and plan approvals through forms and reports an account. Its plugin entry lives in the core, since it has no views. |
 | `tests/Avala.ArchitectureTests` | The rules below, enforced on every build. |
 | `tests/Avala.ArchitectureTests.Fixtures` | A compliant sample module and a module that breaks every rule on purpose. |
 | `tests/Avala.Testing` | Helpers shared by the test projects: result assertions, a recording bus, a scripted agent provider whose capabilities, resume and account a test chooses, temporary folders and git repositories, committed rule files behind `IBaseFiles`, event watches with a safety timeout, generated diagrams. |
@@ -122,7 +122,7 @@ All plugins share the host's default load context, so every assembly is loaded o
 
 Isolating each plugin in its own load context would load a `Contracts` assembly once per plugin and break every cross-module contract. Isolation can come back, as one shared context for module contracts plus private contexts, if a third-party plugin ever needs a dependency that conflicts with another plugin.
 
-The host knows no module: the loader only scans folders and instantiates the `IPlugin` types it finds. `tests/Avala.Host.Tests` composes the application from the published folder exactly as the host does at startup. Like the host, it does not ship the module contracts it compiles against, so they come from the plugin folder, which its assembly fixture loads before any test runs.
+The host knows no module: the loader only scans folders and instantiates the `IPlugin` types it finds. `tests/Avala.Host.Tests` composes the application from the published folder exactly as the host does at startup. Like the host, it does not ship the module contracts it compiles against, so they come from the plugin folder, which its assembly fixture loads before any test runs. Test attributes are read before that fixture, so they must not name a contract type, such as an enum value of `Autonomy` in an `InlineData`: the runner cannot load it and drops the whole class without failing the run.
 
 ## Testing
 

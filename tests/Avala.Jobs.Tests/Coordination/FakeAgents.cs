@@ -67,6 +67,9 @@ internal sealed class FakeAgents : IAgents
             ? Result<ItemId, AgentError>.Success(decision.Item)
             : Result<ItemId, AgentError>.Failure(AgentError.SessionClosed));
 
+    public ValueTask<Result<ItemId, AgentError>> AnswerAsync(SessionId session, FormAnswer answer, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.Unsupported));
+
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken)
     {
         if (!sessions.ContainsKey(session))

@@ -44,18 +44,25 @@ public sealed class WatchdogTests
         Assert.Equal(new SilenceMeasure(Window, Window), Assert.Single(supervised.Interventions).Silence);
     }
 
-    [Fact]
-    public async Task WaitingForAHumanToAnswerAPermissionIsNeverSilenceAsync()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WaitingForAHumanToAnswerAPermissionOrAFormIsNeverSilenceAsync(bool form)
     {
         await using var supervised = new Supervised();
         await supervised.RunningAsync();
         var item = new ItemId("migrate");
-        await supervised.SeeAsync(new PermissionRequested(supervised.Session, supervised.Turn, item, "Run", ItemKind.Command, "dotnet ef"));
+        var question = new AgentForm(FormPurpose.Question, "Migrate?", "", [new FormField("go", "Go", "Go on?", FieldKind.Confirmation, [])]);
+        await supervised.SeeAsync(form
+            ? new FormRequested(supervised.Session, supervised.Turn, item, question)
+            : new PermissionRequested(supervised.Session, supervised.Turn, item, "Run", ItemKind.Command, "dotnet ef"));
 
         await supervised.AdvanceAsync(Window * 10);
         Assert.Empty(supervised.Jobs.Holds);
 
-        await supervised.SeeAsync(new PermissionResolved(supervised.Session, supervised.Turn, item, PermissionAnswer.Allow));
+        await supervised.SeeAsync(form
+            ? new FormAnswered(supervised.Session, supervised.Turn, item, new FormAnswer(item, [new FieldAnswer("go") { Confirmed = true }]))
+            : new PermissionResolved(supervised.Session, supervised.Turn, item, PermissionAnswer.Allow));
         await supervised.AdvanceAsync(Window);
         Assert.Single(supervised.Jobs.Holds);
     }

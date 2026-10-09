@@ -11,7 +11,8 @@ internal sealed class SimulatedSession : IAgentSession
     private readonly Channel<IAgentEvent> events = Channel.CreateUnbounded<IAgentEvent>();
     private readonly CancellationTokenSource lifetime = new();
     private readonly SerialExecutor stage = new();
-    private readonly PermissionGate permissions;
+    private readonly ReplyGate<PermissionDecision> permissions;
+    private readonly ReplyGate<FormAnswer> forms;
     private readonly Performer performer;
     private readonly Pacing pacing;
     private Option<Conversation> conversation;
@@ -21,8 +22,9 @@ internal sealed class SimulatedSession : IAgentSession
 
     public SimulatedSession(SessionOptions options, IFileWriter files, Pacing pacing, Option<Conversation> resumed)
     {
-        permissions = new PermissionGate(stage);
-        performer = new Performer(options, files, permissions);
+        permissions = new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission);
+        forms = new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm);
+        performer = new Performer(options, files, permissions, forms);
         this.pacing = pacing;
         conversation = resumed;
     }
@@ -39,7 +41,10 @@ internal sealed class SimulatedSession : IAgentSession
         await stage.RunAsync(_ => Task.FromResult(Begin(turn)), cancellationToken);
 
     public async ValueTask<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken) =>
-        await permissions.RespondAsync(decision, cancellationToken);
+        await permissions.RespondAsync(decision.Item, decision, cancellationToken);
+
+    public async ValueTask<Result<ItemId, AgentError>> AnswerAsync(FormAnswer answer, CancellationToken cancellationToken) =>
+        await forms.RespondAsync(answer.Item, answer, cancellationToken);
 
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) =>
         await (await stage.RunAsync(_ => Task.FromResult(act), cancellationToken)).Match(

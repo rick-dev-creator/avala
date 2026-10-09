@@ -23,7 +23,8 @@ internal static class Given
             JobId.New(),
             Instruction,
             Outcomes.Succeeds(AttemptBudget.Create(attemptsPerRound)),
-            Repository));
+            Repository,
+            Autonomy.Supervised));
 
     public static Job JobIn(JobState state, int attemptsPerRound = 3)
     {

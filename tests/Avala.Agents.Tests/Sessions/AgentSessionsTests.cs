@@ -135,7 +135,7 @@ public sealed class AgentSessionsTests
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
         await using var agents = Agents(new RecordingBus(), provider);
         var turn = await StartAsync(agents, "Add GitHub login");
-        var decision = new PermissionDecision(new ItemId("migrate"), PermissionAnswer.Allow);
+        var decision = new PermissionDecision(new ItemId("migrate"), PermissionAnswer.Deny) { Message = "Use the staging database." };
 
         var answered = Outcomes.Succeeds(await agents.RespondAsync(turn.Session, decision, Cancellation));
 
@@ -304,6 +304,58 @@ public sealed class AgentSessionsTests
             canResume ? [new SessionResumable(turn.Session, token)] : [],
             bus.Published.OfType<SessionResumable>());
     }
+
+    [Fact]
+    public async Task AnsweringAFormIsUnsupportedWhenTheProviderAsksNoQuestionsAsync()
+    {
+        await using var agents = Agents(new RecordingBus(), new ScriptedAgentProvider(Asking));
+        var turn = await StartAsync(agents, "Choose a database");
+
+        Assert.Equal(AgentError.Unsupported, Outcomes.FailsWith(await agents.AnswerAsync(turn.Session, Choosing("SQLite"), Cancellation)));
+    }
+
+    [Fact]
+    public async Task OnlyAnAnswerThatFitsTheOpenFormReachesTheSessionAsync()
+    {
+        var bus = new RecordingBus();
+        var provider = new ScriptedAgentProvider(Asking) { Capabilities = Declared with { AsksQuestions = true } };
+        await using var agents = Agents(bus, provider);
+        var turn = await StartAsync(agents, "Choose a database");
+        await bus.WaitForAsync<AgentActivity>(activity => activity.Event is FormRequested, Cancellation);
+
+        Assert.Equal(AgentError.NoPendingForm, Outcomes.FailsWith(await agents.AnswerAsync(turn.Session, Choosing("SQLite") with { Item = new ItemId("other") }, Cancellation)));
+        Assert.Equal(AgentError.InvalidAnswer, Outcomes.FailsWith(await agents.AnswerAsync(turn.Session, Choosing("Oracle"), Cancellation)));
+        Assert.Equal(new ItemId("question"), Outcomes.Succeeds(await agents.AnswerAsync(turn.Session, Choosing("SQLite"), Cancellation)));
+        Assert.Equal(["SQLite"], Assert.Single(Assert.Single(Assert.Single(provider.Sessions).Answers).Fields).Chosen);
+    }
+
+    [Fact]
+    public async Task AFormIsNoLongerOpenOnceItsTurnEndsAsync()
+    {
+        var bus = new RecordingBus();
+        var provider = new ScriptedAgentProvider((session, turn) => [.. Asking(session, turn), new TurnCompleted(session, turn, TurnOutcome.Finished)])
+        {
+            Capabilities = Declared with { AsksQuestions = true },
+        };
+        await using var agents = Agents(bus, provider);
+        var turn = await StartAsync(agents, "Choose a database");
+        await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
+
+        Assert.Equal(AgentError.NoPendingForm, Outcomes.FailsWith(await agents.AnswerAsync(turn.Session, Choosing("SQLite"), Cancellation)));
+        Assert.Empty(Assert.Single(provider.Sessions).Answers);
+    }
+
+    private static IEnumerable<IAgentEvent> Asking(SessionId session, TurnId turn) =>
+    [
+        new TurnStarted(session, turn),
+        new FormRequested(session, turn, new ItemId("question"), new AgentForm(
+            FormPurpose.Question,
+            "Choose a database",
+            "The service needs storage.",
+            [new FormField("database", "Database", "Which database?", FieldKind.SingleChoice, [new FormOption("SQLite", "A file.")])])),
+    ];
+
+    private static FormAnswer Choosing(string label) => new(new ItemId("question"), [new FieldAnswer("database") { Chosen = [label] }]);
 
     private static readonly HarnessTool Canvas = new("canvas", "Draw a canvas", "{}", ToolSurface.Canvas);
 

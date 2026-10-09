@@ -17,6 +17,10 @@ public sealed record PermissionRequested(SessionId Session, TurnId Turn, ItemId 
 
 public sealed record PermissionResolved(SessionId Session, TurnId Turn, ItemId Item, PermissionAnswer Answer) : IAgentEvent;
 
+public sealed record FormRequested(SessionId Session, TurnId Turn, ItemId Item, AgentForm Form) : IAgentEvent;
+
+public sealed record FormAnswered(SessionId Session, TurnId Turn, ItemId Item, FormAnswer Answer) : IAgentEvent;
+
 public sealed record PlanUpdated(SessionId Session, TurnId Turn, IReadOnlyList<PlanStep> Steps) : IAgentEvent;
 
 public sealed record UsageReported(SessionId Session, TurnId Turn, TokenUsage Tokens, Option<Cost> Cost) : IAgentEvent;
