@@ -76,6 +76,28 @@ public sealed class RecordingFormatTests
         Assert.True(entries[8].GetProperty("end").GetProperty("crashed").GetBoolean());
     }
 
+    [Fact]
+    public void AToolCallItsResultAndTheResultTheHarnessReturnedAreRecordedWithTheirTextRedacted()
+    {
+        var result = new ToolResult(new ItemId("propose"), "Queued for ana@example.com") { IsError = true };
+        var entries = Written(Recording(
+        [
+            (5, new Observed(new ToolCalled(Session, First, new ItemId("propose"), "propose_follow_up", """{ "instruction": "Mail ana@example.com" }"""))),
+            (6, new Returned(1, result)),
+            (7, new Observed(new ToolReturned(Session, First, new ItemId("propose"), result))),
+        ])).GetProperty("entries");
+
+        var called = entries[0].GetProperty("event");
+        Assert.Equal(
+            ("toolCalled", "propose", "propose_follow_up", """{ "instruction": "Mail [redacted]" }"""),
+            (called.GetProperty("type").GetString(), called.GetProperty("item").GetString(), called.GetProperty("tool").GetString(), called.GetProperty("input").GetString()));
+        Assert.All(
+            [entries[1].GetProperty("return"), entries[2].GetProperty("event").GetProperty("result")],
+            written => Assert.Equal(
+                ("propose", "Queued for [redacted]", true),
+                (written.GetProperty("item").GetString(), written.GetProperty("content").GetString(), written.GetProperty("isError").GetBoolean())));
+    }
+
     private static SessionRecording Recording(IReadOnlyList<(int At, IRecordedFact Fact)> facts) =>
         facts.Aggregate(
             SessionRecording.Begin(

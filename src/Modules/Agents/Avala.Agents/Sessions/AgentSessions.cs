@@ -63,6 +63,15 @@ internal sealed partial class AgentSessions(
                 : Result<ItemId, AgentError>.Failure(AgentError.InvalidAnswer),
             () => Task.FromResult(Result<ItemId, AgentError>.Failure(AgentError.NoPendingForm)));
 
+    public async ValueTask<Result<ItemId, AgentError>> ReturnAsync(
+        SessionId session,
+        ToolResult result,
+        CancellationToken cancellationToken) =>
+        !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
+        : !running.Capabilities.AcceptsTools ? AgentError.Unsupported
+        : !running.AwaitsResult(result.Item) ? AgentError.NoPendingCall
+        : await running.Session.ReturnAsync(result, cancellationToken);
+
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
         !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
         : !running.Capabilities.CanInterrupt ? AgentError.Unsupported

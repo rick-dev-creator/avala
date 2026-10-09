@@ -37,6 +37,14 @@ public sealed class TurnExpiryTests
     }
 
     [Fact]
+    public void AToolCallWaitingForItsResultNeverExpires()
+    {
+        var turn = Given.Turn(Given.Called("propose"));
+
+        Assert.Empty(Outcomes.Succeeds(turn.Expire(Given.Now.AddHours(8), Patience)).Events);
+    }
+
+    [Fact]
     public void AnExpiredItemCannotProgressAnymore()
     {
         var turn = Given.Turn(Given.Started("build"));

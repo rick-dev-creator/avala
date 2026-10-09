@@ -25,6 +25,9 @@ internal sealed class RecordedSession(IAgentSession inner, string workingDirecto
     public ValueTask<Result<ItemId, AgentError>> AnswerAsync(FormAnswer answer, CancellationToken cancellationToken) =>
         InputAsync(sequence => new Answered(sequence, answer), () => inner.AnswerAsync(answer, cancellationToken));
 
+    public ValueTask<Result<ItemId, AgentError>> ReturnAsync(ToolResult result, CancellationToken cancellationToken) =>
+        InputAsync(sequence => new Returned(sequence, result), () => inner.ReturnAsync(result, cancellationToken));
+
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) =>
         InputAsync(sequence => new Interrupted(sequence), () => inner.InterruptAsync(cancellationToken));
 

@@ -43,6 +43,7 @@ public sealed class RecorderTests
         var turn = Outcomes.Succeeds(await recorded.SendAsync(new UserTurn("Write the notes"), Cancellation));
         var events = await ReadTurnAsync(recorded);
         Outcomes.Succeeds(await recorded.RespondAsync(new PermissionDecision(new ItemId("edit"), PermissionAnswer.Allow) { Message = "Go ahead" }, Cancellation));
+        Outcomes.Succeeds(await recorded.ReturnAsync(new ToolResult(new ItemId("propose"), "Accepted."), Cancellation));
         await recorded.DisposeAsync();
 
         var recording = store.Of(recorded.Id);
@@ -57,6 +58,7 @@ public sealed class RecorderTests
                 "file edit docs/notes.md # Notes\n",
                 "ItemCompleted", "TurnCompleted",
                 "responded edit Allow Go ahead",
+                "returned propose Accepted.",
                 "stopped",
             ],
             recording.Entries.Select(entry => Describe(entry.Fact)));
@@ -154,6 +156,7 @@ public sealed class RecorderTests
         FileCaptured file => $"file {file.Item.Value} {file.Path} {file.Content}",
         Sent sent => $"sent {sent.Turn.Text}",
         Responded responded => $"responded {responded.Decision.Item.Value} {responded.Decision.Answer} {responded.Decision.Message.Match(message => message, () => string.Empty)}",
+        Returned returned => $"returned {returned.Result.Item.Value} {returned.Result.Content}",
         StreamEnded ended => ended.Crashed ? "ended crashed" : "ended closed",
         Stopped => "stopped",
         _ => fact.GetType().Name,
