@@ -7,7 +7,7 @@ using Avala.Sdk;
 
 namespace Avala.Observability.Tracking;
 
-internal sealed class UsageBook(IUsageStore store) : IUsage, IStartupTask
+internal sealed class UsageBook(IUsageStore store) : IUsage, IUsageSessions, IStartupTask
 {
     private ImmutableDictionary<SessionId, SessionUsage> earlier = ImmutableDictionary<SessionId, SessionUsage>.Empty;
     private ImmutableDictionary<SessionId, SessionUsage> live = ImmutableDictionary<SessionId, SessionUsage>.Empty;
@@ -35,6 +35,9 @@ internal sealed class UsageBook(IUsageStore store) : IUsage, IStartupTask
         var stored = await store.EarlierRunsAsync(cancellationToken);
         Volatile.Write(ref earlier, stored.Sessions.Recording(stored.Facts).ToImmutableDictionary(usage => usage.Session));
     }
+
+    IReadOnlyList<UsageSession> IUsageSessions.Sessions() =>
+        [.. Sessions.SelectMany(usage => usage.Seen.Match<UsageSession[]>(seen => [seen], () => [])).OrderBy(seen => seen.Opened)];
 
     public IReadOnlyList<ProviderUsage> ByProvider() => Sessions.ByProvider();
 

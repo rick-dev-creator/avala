@@ -1,11 +1,12 @@
 using Avala.Sdk;
+using Avala.Storage;
 using Avala.Supervision.Contracts;
 using Avala.Supervision.Supervising;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avala.Supervision.Storage;
 
-internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionStore, IAsyncDisposable
+internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionStore, IStartupTask, IAsyncDisposable
 {
     private readonly SerialExecutor serial = new();
     private readonly HashSet<int> written = [];
@@ -35,6 +36,8 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
             ],
             cancellationToken);
 
+    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         await serial.DisposeAsync();
@@ -54,7 +57,7 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
         {
             Directory.CreateDirectory(paths.Data);
             context = new SupervisionDbContext(paths.Database("supervision"));
-            await context.Database.EnsureCreatedAsync(cancellationToken);
+            await ModuleDatabase.MigrateAsync(context, cancellationToken);
         }
 
         return context;

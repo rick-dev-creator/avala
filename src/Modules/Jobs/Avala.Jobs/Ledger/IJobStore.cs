@@ -18,4 +18,8 @@ internal interface IJobStore
     Task<IReadOnlyList<Job>> SnapshotsAsync(CancellationToken cancellationToken);
 
     Task<Option<Job>> SnapshotAsync(JobId id, CancellationToken cancellationToken);
+
+    Task RecordAsync(JobId id, ConnectionChoice choice, CancellationToken cancellationToken);
+
+    Task<Option<ConnectionChoice>> ChoiceOfAsync(JobId id, CancellationToken cancellationToken);
 }

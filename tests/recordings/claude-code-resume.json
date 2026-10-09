@@ -1,0 +1,178 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T19:10:14.0396709+00:00",
+  "provider": {
+    "id": "claude-code",
+    "name": "Claude Code"
+  },
+  "capabilities": {
+    "acceptsTools": {
+      "surfaces": [
+        "canvas",
+        "executed"
+      ]
+    },
+    "asksForms": {},
+    "exposesReasoning": {},
+    "interruptible": {},
+    "reportsCost": {
+      "currency": "USD"
+    },
+    "reportsLimits": {
+      "windows": [
+        "5h",
+        "7d",
+        "7d opus",
+        "7d sonnet"
+      ]
+    },
+    "reportsUsage": {},
+    "resumable": {},
+    "streamsPartialOutput": {}
+  },
+  "account": {
+    "id": "claude:account-work",
+    "label": "work@example.com"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": true,
+    "tools": [
+      {
+        "name": "propose_follow_up",
+        "surface": "executed"
+      },
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      },
+      {
+        "name": "delegate",
+        "surface": "executed"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 0,
+      "send": {
+        "text": "The harness restarted while you were working on this job. Continue where you left off."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "1d3b5c77-6e8f-4093-8b14-ae6f8a0b2c07/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "msg_01ResumeB1b2C3d4E5f6G7h:0",
+        "kind": "message",
+        "title": "Message"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01ResumeB1b2C3d4E5f6G7h:0",
+        "text": "Picking up where I stopped: "
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "msg_01ResumeB1b2C3d4E5f6G7h:0",
+        "text": "the release notes are gathered."
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "msg_01ResumeB1b2C3d4E5f6G7h:0",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.26,
+          "resetsAt": "2026-10-10T17:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "7d",
+          "usedFraction": 0.38,
+          "resetsAt": "2026-10-15T05:00:00+00:00"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 2,
+          "output": 40,
+          "cacheRead": 16939,
+          "cacheWrite": 0,
+          "reasoning": 0
+        },
+        "cost": {
+          "amount": 0.0035,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "1d3b5c77-6e8f-4093-8b14-ae6f8a0b2c07/0.0035"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 0,
+      "stop": {}
+    }
+  ]
+}

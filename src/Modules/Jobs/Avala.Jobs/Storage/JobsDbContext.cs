@@ -13,11 +13,22 @@ internal sealed class JobsDbContext(string database) : DbContext
 {
     public DbSet<Job> Jobs => Set<Job>();
 
+    public DbSet<StoredChoice> Choices => Set<StoredChoice>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Job>(Configure);
+        modelBuilder.Entity<StoredChoice>(choice =>
+        {
+            choice.ToTable("ConnectionChoices");
+            choice.HasKey(row => row.Key);
+            choice.Property(row => row.Key).ValueGeneratedOnAdd();
+            choice.HasIndex(row => row.Job);
+        });
+    }
 
     private static void Configure(EntityTypeBuilder<Job> job)
     {

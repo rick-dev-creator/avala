@@ -60,6 +60,7 @@ internal static class LayerMap
             ["Review"] = Layer.Application,
             ["Delivery"] = Layer.Application,
             ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
             ["JobFiles"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Workbench", new()
@@ -102,6 +103,7 @@ internal static class LayerMap
             ["Tracking"] = Layer.Application,
             ["Metrics"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Permissions", new()
         {
@@ -111,6 +113,8 @@ internal static class LayerMap
             ["Governance"] = Layer.Application,
             ["Answering"] = Layer.Application,
             ["PolicyFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Supervision", new()
         {
@@ -120,6 +124,7 @@ internal static class LayerMap
             ["Supervising"] = Layer.Application,
             ["Settings"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Budgets", new()
         {
@@ -132,6 +137,7 @@ internal static class LayerMap
             ["Routing"] = Layer.Application,
             ["BudgetFiles"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Resources", new()
         {
@@ -181,6 +187,8 @@ internal static class LayerMap
             ["Checks"] = Layer.Domain,
             ["Verifying"] = Layer.Application,
             ["Evidence"] = Layer.Application,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Workspaces", new()
         {
@@ -192,6 +200,7 @@ internal static class LayerMap
             ["Changes"] = Layer.Application,
             ["Git"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Autopilot", new()
         {
@@ -206,6 +215,7 @@ internal static class LayerMap
             ["FollowUps"] = Layer.Application,
             ["RepositoryFiles"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Delegation", new()
         {
@@ -216,6 +226,8 @@ internal static class LayerMap
             ["Reporting"] = Layer.Application,
             ["Records"] = Layer.Application,
             ["RepositoryFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Fixtures.Compliant", new()
         {

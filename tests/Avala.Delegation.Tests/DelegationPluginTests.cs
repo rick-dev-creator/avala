@@ -34,6 +34,9 @@ public sealed class DelegationPluginTests
         await using var composition = Compose(data);
 
         Assert.Same(composition.Get<DelegationBook>(), composition.Get<IDelegations>());
+        Assert.Contains(composition.Get<DelegationBook>(), composition.All<IStartupTask>());
+        Assert.Same(composition.Get<Storage.SqliteDelegationStore>(), composition.Get<IDelegationStore>());
+        Assert.Contains(composition.Get<Storage.SqliteDelegationStore>(), composition.All<IStartupTask>());
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<SessionOpened>>());
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<JobSessionStarted>>());
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<AgentActivity>>());

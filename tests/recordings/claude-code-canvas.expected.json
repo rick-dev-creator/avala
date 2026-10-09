@@ -1,0 +1,9 @@
+{
+  "repository": {
+    ".avala/permissions.json": "{ \"autonomy\": \"autonomous\" }"
+  },
+  "journey": ["Running", "Checking", "AwaitingReview"],
+  "permissions": [],
+  "forms": [],
+  "verifications": ["1 NoChecksDeclared"]
+}

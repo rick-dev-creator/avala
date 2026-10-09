@@ -16,13 +16,38 @@ namespace Avala.Workbench.Tests.Spending;
 
 public sealed class SpendingTests : IDisposable
 {
-    private readonly SessionBook sessions = new();
+    private readonly SessionBook sessions;
     private readonly FakeUsage usage = new();
     private readonly FakeBudgets budgets = new();
     private readonly FakeSupervision supervision = new();
     private readonly TestUiDispatcher ui = new();
 
+    public SpendingTests() => sessions = new SessionBook(usage);
+
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public void AfterARestartAJobAndAConnectionTakeTheirCapsAndAccountFromTheirLatestStoredSession()
+    {
+        var job = JobId.New();
+        var account = new AgentAccount("team", "Team");
+        var (older, latest) = (SessionId.New(), SessionId.New());
+        usage.Stored.AddRange(
+        [
+            new UsageSession(older, Pages.Simulator, account, new ConnectionName("work"), DateTimeOffset.UnixEpoch) { Job = job },
+            new UsageSession(latest, Pages.Simulator, account, new ConnectionName("work"), DateTimeOffset.UnixEpoch.AddHours(1)) { Job = job },
+        ]);
+        var caps = new BudgetCaps([new Cost(5m, "USD")], Option<long>.None, 0.8);
+        budgets.Caps[latest] = caps;
+        var spending = new JobSpending(usage, budgets, supervision, sessions);
+
+        var spend = spending.Of(job);
+
+        Assert.Equal((latest, Option<AgentAccount>.Some(account)), Outcomes.Present(spend.Session.Map(seen => (seen.Session, seen.Account))));
+        Assert.Equal(Option<BudgetCaps>.Some(caps), spend.Caps);
+        Assert.Equal(Option<BudgetCaps>.Some(caps), spending.CapsOn(new ConnectionName("work")));
+        Assert.Equal(Option<BudgetCaps>.None, spending.CapsOn(new ConnectionName("personal")));
+    }
 
     [Fact]
     public async Task AConnectionsLimitShowsItsResetAndTheThresholdItsLatestSessionHoldsJobsAtAsync()
@@ -92,5 +117,5 @@ public sealed class SpendingTests : IDisposable
     public void Dispose() => ui.Dispose();
 
     private UsageReader Reader(params JobSummary[] jobs) =>
-        new(usage, new JobSpending(usage, budgets, supervision, sessions), Pages.Board(jobs));
+        new(Pages.Readings(usage), new JobSpending(usage, budgets, supervision, sessions), Pages.Board(jobs));
 }

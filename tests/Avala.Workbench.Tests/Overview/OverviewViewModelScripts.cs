@@ -19,7 +19,7 @@ namespace Avala.Workbench.Tests.Overview;
 public sealed class OverviewViewModelScripts : IDisposable
 {
     private readonly TestUiDispatcher ui = new();
-    private readonly SessionBook sessions = new();
+    private readonly SessionBook sessions = new(new FakeUsage());
     private readonly TreeCatalog catalog = new();
     private readonly JobBoard board = new();
 
@@ -77,7 +77,7 @@ public sealed class OverviewViewModelScripts : IDisposable
         var pulse = new Pulse(board);
 
         return new OverviewViewModel(
-            new ConnectionsViewModel(new FleetReader(new FakeConnections("work", "personal"), usage, sessions, board), new LiveFeed(pulse, ui), Focusing.Focus(), Focusing.Spending(usage, sessions)),
+            new ConnectionsViewModel(new FleetReader(new FakeConnections("work", "personal"), Pages.Readings(usage), sessions, board), new LiveFeed(pulse, ui), Focusing.Focus(), Focusing.Spending(usage, sessions)),
             new DelegationViewModel(
                 new DelegationReader(catalog, new FakeDelegations(), new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), sessions), board),
                 new LiveFeed(pulse, ui),
@@ -157,7 +157,7 @@ public sealed class ConnectionsViewModelScripts : IDisposable
     {
         var board = new JobBoard();
         var connections = new FakeConnections("work") { Catalog = new FakeConnections("work").Catalog with { File = ConnectionFileStatus.Rejected, Error = ConnectionError.Malformed } };
-        using var page = new ConnectionsViewModel(new FleetReader(connections, new FakeUsage(), new SessionBook(), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook()));
+        using var page = new ConnectionsViewModel(new FleetReader(connections, Pages.Readings(new FakeUsage()), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
 
         page.Activate();
 
@@ -169,7 +169,7 @@ public sealed class ConnectionsViewModelScripts : IDisposable
     public async Task WithoutDeclaredOrUsedConnectionsTheListIsEmptyAsync()
     {
         var board = new JobBoard();
-        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), new FakeUsage(), new SessionBook(), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook()));
+        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), Pages.Readings(new FakeUsage()), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
 
         await page.PresentsAfterAsync(page.Activate, () => "never presented", TestContext.Current.CancellationToken);
 
@@ -189,7 +189,11 @@ public sealed class ConnectionCardViewModelScripts
                 true,
                 new Agents.Contracts.Sessions.AgentAccount("rick@acme.dev", "rick@acme.dev"),
                 Pages.Used(3.214m, new UsageLimit("5h", 0.88, Option<DateTimeOffset>.None)),
-                [new BoardJob(Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running), Transcript.Empty)]), Option<double>.None))
+                [new BoardJob(Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running), Transcript.Empty)])
+            {
+                Limits = [Pages.Current(new UsageLimit("5h", 0.88, Option<DateTimeOffset>.None))],
+            },
+            Option<double>.None))
             .Then(card =>
             {
                 Assert.Equal(("claude-work", "Claude Code", "rick@acme.dev", true, "3.214 USD"), (card.Name, card.Provider, card.Account, card.IsDefault, card.Cost));
@@ -227,10 +231,23 @@ public sealed class ConnectionCardUpdateScripts
             .When(card => card.Update(State(0.4), 0.9))
             .Then(card => Assert.Equal((false, 0.4, false), (card.IsNearLimit, card.Used, card.IsProminent)));
 
+    [Fact]
+    public void AConnectionWhoseOnlyWindowHasResetShowsItResetAndIsNoLongerNearItsLimit() =>
+        ViewModelScript.Given(new ConnectionCardViewModel(State(0.95), 0.9))
+            .When(card => card.Update(State(0.95) with { Limits = [new LimitReading(new UsageLimit("5h", 0.95, DateTimeOffset.UnixEpoch), Expired: true)] }, 0.9))
+            .Then(card => Assert.Equal((false, 0d, "5h · reset", "reset"), (card.IsNearLimit, card.Used, card.Use, Assert.Single(card.Limits).UsedText)));
+
     private static ConnectionState State(params BoardJob[] agents) => State(0.92, agents);
 
-    private static ConnectionState State(double used, params BoardJob[] agents) =>
-        new(new ConnectionName("claude-work"), "Claude Code", false, Option<Agents.Contracts.Sessions.AgentAccount>.None, Pages.Used(1m, new UsageLimit("5h", used, Option<DateTimeOffset>.None)), agents);
+    private static ConnectionState State(double used, params BoardJob[] agents)
+    {
+        var limit = new UsageLimit("5h", used, Option<DateTimeOffset>.None);
+
+        return new ConnectionState(new ConnectionName("claude-work"), "Claude Code", false, Option<Agents.Contracts.Sessions.AgentAccount>.None, Pages.Used(1m, limit), agents)
+        {
+            Limits = [Pages.Current(limit)],
+        };
+    }
 }
 
 public sealed class ConnectionsOpeningScripts
@@ -242,7 +259,7 @@ public sealed class ConnectionsOpeningScripts
         var opened = new List<JobId>();
         CommunityToolkit.Mvvm.Messaging.IMessengerExtensions.Register<List<JobId>, Contracts.Presentation.JobSelected>(messenger, opened, (recipient, message) => recipient.Add(message.Job));
         var board = new JobBoard();
-        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), new FakeUsage(), new SessionBook(), board), new LiveFeed(new Pulse(board), new TestUiDispatcher()), new Avala.Workbench.Navigation.JobFocus(new TestRegions(), messenger), Focusing.Spending(new FakeUsage(), new SessionBook()));
+        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), Pages.Readings(new FakeUsage()), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), new TestUiDispatcher()), new Avala.Workbench.Navigation.JobFocus(new TestRegions(), messenger), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
         var agent = new AgentViewModel(new BoardJob(Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running), Transcript.Empty));
 
         page.OpenCommand.Execute(agent.Job);
@@ -309,7 +326,7 @@ public sealed class DelegationViewModelScripts : IDisposable
     {
         var board = new JobBoard();
         var usage = new FakeUsage();
-        var sessions = new SessionBook();
+        var sessions = new SessionBook(new FakeUsage());
         using var page = new DelegationViewModel(
             new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), sessions), board),
             new LiveFeed(new Pulse(board), ui),
@@ -325,7 +342,7 @@ public sealed class DelegationViewModelScripts : IDisposable
     {
         var board = new JobBoard();
         using var page = new DelegationViewModel(
-            new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(new FakeUsage(), new FakeBudgets(), new FakeSupervision(), new SessionBook()), board),
+            new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(new FakeUsage(), new FakeBudgets(), new FakeSupervision(), new SessionBook(new FakeUsage())), board),
             new LiveFeed(new Pulse(board), ui),
             Focusing.Focus());
 

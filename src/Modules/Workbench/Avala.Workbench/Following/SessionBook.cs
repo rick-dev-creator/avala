@@ -3,6 +3,7 @@ using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
+using Avala.Observability.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 
@@ -10,7 +11,7 @@ namespace Avala.Workbench.Following;
 
 internal sealed record SessionSeen(SessionId Session, ConnectionName Connection, ProviderInfo Provider, Option<AgentAccount> Account);
 
-internal sealed class SessionBook : IHandle<SessionOpened>, IHandle<JobSessionStarted>
+internal sealed class SessionBook(IUsageSessions earlier) : IHandle<SessionOpened>, IHandle<JobSessionStarted>
 {
     private Ledger ledger = new([], [], []);
 
@@ -39,15 +40,24 @@ internal sealed class SessionBook : IHandle<SessionOpened>, IHandle<JobSessionSt
     {
         var current = Volatile.Read(ref ledger);
 
-        return current.OnConnection.TryGetValue(connection, out var session) ? current.Seen(session) : Option<SessionSeen>.None;
+        return current.OnConnection.TryGetValue(connection, out var session)
+            ? current.Seen(session)
+            : Stored(seen => seen.Connection == connection);
     }
 
     public Option<SessionSeen> LatestOf(JobId job)
     {
         var current = Volatile.Read(ref ledger);
 
-        return current.OfJob.TryGetValue(job, out var session) ? current.Seen(session) : Option<SessionSeen>.None;
+        return current.OfJob.TryGetValue(job, out var session)
+            ? current.Seen(session)
+            : Stored(seen => seen.Job == Option<JobId>.Some(job));
     }
+
+    private Option<SessionSeen> Stored(Func<UsageSession, bool> matches) =>
+        earlier.Sessions().LastOrDefault(matches) is { } seen
+            ? new SessionSeen(seen.Session, seen.Connection, seen.Provider, seen.Account)
+            : Option<SessionSeen>.None;
 
     private sealed record Ledger(
         ImmutableDictionary<SessionId, SessionSeen> Sessions,

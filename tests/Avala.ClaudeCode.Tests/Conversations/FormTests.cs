@@ -1,5 +1,7 @@
+using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Testing;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
 
@@ -95,6 +97,53 @@ public sealed class FormTests
         Assert.Equal((FormPurpose.PlanApproval, "1. Write\n2. Test", FieldKind.Confirmation), (form.Purpose, form.Context, form.Fields[0].Kind));
         Assert.Equal(behavior, (string?)talk.Decision("r1")["behavior"]);
     }
+
+    [Fact]
+    public void APlanWrittenToClaudesPlansFolderGoesUnaskedAndIsWhatItsApprovalFormShows()
+    {
+        var written = Cli.OnHost("""{ "file_path": "/home/ana/.claude-work/plans/greeting.md", "content": "Write GREETING.md\n" }""");
+        var elsewhere = Cli.OnHost("""{ "file_path": "/home/ana/.claude-work/plans/../notes.md", "content": "Notes" }""");
+        var talk = new Talk().Begin().Receive(
+            Cli.ToolUse("w1", "Write", written),
+            Cli.Hook("h1", "Write", written),
+            Cli.Prompt("r1", "Write", written, "w1"),
+            Cli.Hook("h2", "Write", elsewhere),
+            Cli.ToolUse("e1", "ExitPlanMode", "{}"),
+            Cli.Prompt("r2", "ExitPlanMode", "{}", "e1"));
+
+        Assert.Empty(talk.HookAnswer("h1").AsObject());
+        Assert.Equal("ask", (string?)talk.HookAnswer("h2")["hookSpecificOutput"]!["permissionDecision"]);
+        Assert.Equal("allow", (string?)talk.Decision("r1")["behavior"]);
+        Assert.Empty(talk.Events.OfType<PermissionRequested>());
+        Assert.Equal("Write the plan", talk.Events.OfType<ItemStarted>().Single().Title);
+        Assert.Equal("Write GREETING.md\n", Assert.Single(talk.Events.OfType<FormRequested>()).Form.Context);
+    }
+
+    [Fact]
+    public async Task InARealPlanModeSessionThePlanClaudeWroteToItsPlansFolderIsTheContextOfItsApprovalAsync()
+    {
+        var transcript = Path.Combine(Repository.Root.FullName, "tests", "transcripts", "claude-code", "real-plan-approval");
+        var home = HostPaths.Rooted("/home/ana");
+        var talk = new Talk(plans: Path.Combine(home, ".claude-work", "plans")).Begin();
+
+        foreach (var line in await File.ReadAllLinesAsync(Directory.GetFiles(transcript, "*.jsonl").Single(), TestContext.Current.CancellationToken))
+        {
+            var onHost = line
+                .Replace("${workingDirectory}", Encoded(Talk.WorkingDirectory), StringComparison.Ordinal)
+                .Replace("[redacted]/.claude-work/plans/", Encoded(Path.Combine(home, ".claude-work", "plans") + Path.DirectorySeparatorChar), StringComparison.Ordinal);
+
+            if (JsonNode.Parse(onHost)?["out"] is { } output)
+            {
+                talk.Receive(output.DeepClone());
+            }
+        }
+
+        Assert.Equal("Write GREETING.md containing # Hello\n", Assert.Single(talk.Events.OfType<FormRequested>()).Form.Context);
+        Assert.Contains(talk.Events, agentEvent => agentEvent is ItemStarted { Kind: ItemKind.Other, Title: "Write the plan" });
+        Assert.DoesNotContain(talk.Events, agentEvent => agentEvent is PermissionRequested { Title: "Write the plan" });
+    }
+
+    private static string Encoded(string text) => System.Text.Json.JsonSerializer.Serialize(text)[1..^1];
 
     private static Talk Asked() =>
         new Talk().Begin().Receive(Cli.ToolUse("q", "AskUserQuestion", Questions), Cli.Prompt("r1", "AskUserQuestion", Questions, "q"));

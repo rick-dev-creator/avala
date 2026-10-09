@@ -108,7 +108,7 @@ internal sealed class ConnectionMeterViewModel(ConnectionSpend connection) : ICo
     public string Caps { get; } = connection.Caps.Match(Amounts.Caps, () => "no caps known yet");
 
     public IReadOnlyList<ILimitViewModel> Limits { get; } =
-        [.. connection.Usage.Usage.Limits.Select(limit => new LimitViewModel(limit, connection.Caps.Bind(caps => caps.HoldAtLimit)))];
+        [.. connection.Limits.Select(limit => new LimitViewModel(limit, connection.Caps.Bind(caps => caps.HoldAtLimit)))];
 }
 
 internal sealed class UsageWindowViewModel(UsageWindow window) : IUsageWindowViewModel

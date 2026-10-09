@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
+using Avala.Sdk;
 using Avala.Testing;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
@@ -46,22 +47,32 @@ public sealed class StreamTests
     }
 
     [Theory]
-    [InlineData("Write", """{ "file_path": "/work/hello.txt", "content": "hello" }""", ItemKind.FileEdit, "Write hello.txt", "/work/hello.txt")]
-    [InlineData("Edit", """{ "file_path": "src/a.cs", "old_string": "a", "new_string": "b" }""", ItemKind.FileEdit, "Edit src/a.cs", "/work/src/a.cs")]
-    [InlineData("Bash", """{ "command": "dotnet test\nmore", "description": "Run the tests" }""", ItemKind.Command, "Run dotnet test", "dotnet test\nmore")]
-    [InlineData("Grep", """{ "pattern": "TODO" }""", ItemKind.Search, "Search TODO", "TODO")]
-    [InlineData("Glob", """{ "pattern": "**/*.cs" }""", ItemKind.Search, "Search **/*.cs", "**/*.cs")]
-    [InlineData("WebFetch", """{ "url": "https://example.com", "prompt": "Read" }""", ItemKind.Web, "Fetch https://example.com", "https://example.com")]
-    [InlineData("WebSearch", """{ "query": "avalonia" }""", ItemKind.Web, "Search the web for avalonia", "avalonia")]
-    [InlineData("mcp__github__list", """{ }""", ItemKind.Mcp, "mcp__github__list", "mcp__github__list")]
-    [InlineData("Agent", """{ "description": "Explore", "prompt": "Look", "subagent_type": "Explore" }""", ItemKind.Subagent, "Subagent: Explore", "Explore")]
-    [InlineData("Read", """{ "file_path": "/work/a.txt" }""", ItemKind.Other, "Read a.txt", "/work/a.txt")]
-    public void EveryToolUseIsAnItemOfItsKindWithATitleAndTheTargetItsPermissionNames(string tool, string input, ItemKind kind, string title, string target)
+    [InlineData("Write", """{ "file_path": "/work/hello.txt", "content": "hello" }""", ItemKind.FileEdit, "Write hello.txt", "/work/hello.txt", "hello")]
+    [InlineData("Edit", """{ "file_path": "src/a.cs", "old_string": "a", "new_string": "b" }""", ItemKind.FileEdit, "Edit src/a.cs", "/work/src/a.cs", "- a\n+ b")]
+    [InlineData(
+        "MultiEdit",
+        """{ "file_path": "/work/b.txt", "edits": [ { "old_string": "x", "new_string": "y" }, { "old_string": "p\nq", "new_string": "r" } ] }""",
+        ItemKind.FileEdit,
+        "Edit b.txt",
+        "/work/b.txt",
+        "- x\n+ y\n\n- p\n- q\n+ r")]
+    [InlineData("Bash", """{ "command": "dotnet test\nmore", "description": "Run the tests" }""", ItemKind.Command, "Run dotnet test", "dotnet test\nmore", "dotnet test\nmore")]
+    [InlineData("Grep", """{ "pattern": "TODO", "path": "/work/src", "glob": "*.cs" }""", ItemKind.Search, "Search TODO", "TODO", "TODO in src *.cs")]
+    [InlineData("Glob", """{ "pattern": "**/*.cs" }""", ItemKind.Search, "Search **/*.cs", "**/*.cs", "**/*.cs")]
+    [InlineData("WebFetch", """{ "url": "https://example.com", "prompt": "Read" }""", ItemKind.Web, "Fetch https://example.com", "https://example.com", "https://example.com\nRead")]
+    [InlineData("WebSearch", """{ "query": "avalonia" }""", ItemKind.Web, "Search the web for avalonia", "avalonia", "avalonia")]
+    [InlineData("mcp__github__list", """{ }""", ItemKind.Mcp, "mcp__github__list", "mcp__github__list", "")]
+    [InlineData("Agent", """{ "description": "Explore", "prompt": "Look", "subagent_type": "Explore" }""", ItemKind.Subagent, "Subagent: Explore", "Explore", "Look")]
+    [InlineData("Read", """{ "file_path": "/work/a.txt" }""", ItemKind.Other, "Read a.txt", "/work/a.txt", "a.txt")]
+    [InlineData("ToolSearch", """{ "query": "select:mcp__avala__canvas", "max_results": 1 }""", ItemKind.Other, "Load mcp__avala__canvas", "ToolSearch", "select:mcp__avala__canvas")]
+    public void EveryToolUseIsAnItemOfItsKindWithATitleItsInputAndTheTargetItsPermissionNames(string tool, string input, ItemKind kind, string title, string target, string details)
     {
         var onHost = Cli.OnHost(input);
         var talk = new Talk().Begin().Receive(Cli.ToolUse("t1", tool, onHost)).Receive(Cli.Prompt("r1", tool, onHost, "t1"));
 
-        Assert.Equal(new ItemStarted(talk.Session, talk.Turn, new ItemId("t1"), kind, title), talk.Events.OfType<ItemStarted>().Single());
+        Assert.Equal(
+            new ItemStarted(talk.Session, talk.Turn, new ItemId("t1"), kind, title) { Input = details.Length == 0 ? Option<string>.None : details },
+            talk.Events.OfType<ItemStarted>().Single());
         Assert.Equal(
             new PermissionRequested(talk.Session, talk.Turn, new ItemId("t1"), title, kind, HostPaths.Rooted(target)),
             talk.Events.OfType<PermissionRequested>().Single());
@@ -80,6 +91,77 @@ public sealed class StreamTests
             [new PlanStep("Write", PlanStepStatus.Done), new PlanStep("Test", PlanStepStatus.InProgress), new PlanStep("Ship", PlanStepStatus.Pending)],
             Assert.Single(talk.Events.OfType<PlanUpdated>()).Steps);
         Assert.Empty(talk.Events.OfType<ItemStarted>());
+    }
+
+    [Fact]
+    public void TheTaskToolsUpdateThePlanAsTasksAreCreatedStartedFinishedAndDeleted()
+    {
+        var talk = new Talk().Begin().Receive(
+            Cli.ToolUse("c1", "TaskCreate", """{ "subject": "Write", "description": "Write the file", "activeForm": "Writing" }"""),
+            Cli.ToolUse("c2", "TaskCreate", """{ "subject": "Test", "description": "Run the tests" }"""),
+            Cli.ToolResult("c1", "Task #1 created successfully: Write"),
+            Cli.ToolResult("c2", "Task #2 created successfully: Test"),
+            Cli.ToolUse("u1", "TaskUpdate", """{ "taskId": "1", "status": "in_progress" }"""),
+            Cli.ToolUse("u2", "TaskUpdate", """{ "taskId": "1", "status": "completed" }"""),
+            Cli.ToolUse("u3", "TaskUpdate", """{ "taskId": "2", "status": "deleted" }"""),
+            Cli.ToolUse("l1", "TaskList", "{}"));
+
+        Assert.Equal(
+            [
+                "Write Pending",
+                "Write Pending, Test Pending",
+                "Write InProgress, Test Pending",
+                "Write Done, Test Pending",
+                "Write Done",
+            ],
+            talk.Events.OfType<PlanUpdated>().Select(plan => string.Join(", ", plan.Steps.Select(step => $"{step.Title} {step.Status}"))));
+        Assert.Empty(talk.Events.OfType<ItemStarted>());
+    }
+
+    [Fact]
+    public void ATaskThatFailsToBeCreatedLeavesThePlan()
+    {
+        var talk = new Talk().Begin().Receive(
+            Cli.ToolUse("c1", "TaskCreate", """{ "subject": "Write" }"""),
+            Cli.ToolResult("c1", "The task list is full.", isError: true));
+
+        Assert.Empty(talk.Events.OfType<PlanUpdated>().Last().Steps);
+    }
+
+    [Fact]
+    public void ASubagentsTextGrowsItsOwnItemWhileItsToolsAreItemsOfTheirOwnAndItsPlanIsNotTheJobs()
+    {
+        var talk = new Talk().Begin().Receive(
+            Cli.ToolUse("a1", "Agent", """{ "description": "Explore", "prompt": "Find the greeting", "subagent_type": "Explore" }"""),
+            Cli.Nested(Cli.Parse("""{ "type": "stream_event", "event": { "type": "message_start", "message": { "id": "sub-1" } } }"""), "a1"),
+            Cli.Nested(Cli.Said("sub-1", "text", "Reading the repository."), "a1"),
+            Cli.Nested(Cli.ToolUse("r1", "Read", """{ "file_path": "/work/GREETING.md" }"""), "a1"),
+            Cli.Nested(Cli.ToolUse("p1", "TodoWrite", """{ "todos": [ { "content": "Look", "status": "pending" } ] }"""), "a1"),
+            Cli.Nested(Cli.ToolResult("r1", "# Hello"), "a1"),
+            Cli.Nested(Cli.Said("sub-2", "text", "The greeting is a heading."), "a1"),
+            Cli.ToolResult("a1", "The greeting is a heading."));
+        var subagent = new ItemId("a1");
+
+        Assert.Equal([ItemKind.Subagent, ItemKind.Other], talk.Events.OfType<ItemStarted>().Select(started => started.Kind));
+        Assert.Equal(
+            ["Reading the repository.", "\n\nThe greeting is a heading."],
+            talk.Events.OfType<ItemProgressed>().Where(progressed => progressed.Item == subagent).Select(progressed => progressed.Text));
+        Assert.Equal("# Hello", talk.Events.OfType<ItemProgressed>().Single(progressed => progressed.Item.Value == "r1").Text);
+        Assert.Empty(talk.Events.OfType<PlanUpdated>());
+        Assert.Equal([ItemOutcome.Succeeded, ItemOutcome.Succeeded], talk.Events.OfType<ItemCompleted>().Select(completed => completed.Outcome));
+    }
+
+    [Fact]
+    public void AToolSearchResultListsTheToolsItLoaded()
+    {
+        var talk = new Talk().Begin().Receive(
+            Cli.ToolUse("s1", "ToolSearch", """{ "query": "select:mcp__avala__canvas" }"""),
+            Cli.Parse("""
+                { "type": "user", "message": { "role": "user", "content": [ { "type": "tool_result", "tool_use_id": "s1",
+                  "content": [ { "type": "tool_reference", "tool_name": "mcp__avala__canvas" } ] } ] } }
+                """));
+
+        Assert.Equal("mcp__avala__canvas", talk.Events.OfType<ItemProgressed>().Single().Text);
     }
 
     [Fact]

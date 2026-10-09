@@ -14,7 +14,7 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Board;
 
-internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvider time) :
+internal sealed class BoardKeeper(IJobCatalog catalog, IVerifications verifications, JobBoard board, TimeProvider time) :
     IHandle<StartupCompleted>,
     IHandle<JobSubmitted>,
     IHandle<JobProgressed>,
@@ -137,13 +137,16 @@ internal sealed class BoardKeeper(IJobCatalog catalog, JobBoard board, TimeProvi
                 () => Joined(found, restored)),
             () => false);
 
-    private static BoardJob Joined(JobHistory history, bool restored)
+    private BoardJob Joined(JobHistory history, bool restored)
     {
         var transcript = Transcript.Empty.WithPrompts(history.Summary.Instruction, history.Attempts);
+        var verified = verifications.OfJob(history.Summary.Job);
 
         return new BoardJob(history.Summary, restored && history.Attempts.Count > 0 ? transcript.WithRestart() : transcript)
         {
             Attempts = history.Attempts.Count,
+            Verification = verified.Count > 0 ? verified[^1] : Option<VerificationReport>.None,
+            Choice = history.Choice,
         };
     }
 

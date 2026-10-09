@@ -22,8 +22,11 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
 
     public ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken) => machine.LoadAsync(cancellationToken);
 
-    public void Keep(SessionBudget budget, ConnectionName connection) =>
+    public async Task KeepAsync(SessionBudget budget, ConnectionName connection, CancellationToken cancellationToken)
+    {
         ImmutableInterlocked.AddOrUpdate(ref sessions, budget.Session, (budget, connection), (_, _) => (budget, connection));
+        await store.RecordAsync(new BudgetedSession(budget, connection), cancellationToken);
+    }
 
     public Option<(SessionBudget Budget, ConnectionName Connection)> Budgeted(SessionId session) =>
         Volatile.Read(ref sessions).TryGetValue(session, out var budgeted) ? budgeted : Option<(SessionBudget, ConnectionName)>.None;
@@ -44,6 +47,11 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
     {
         Volatile.Write(ref earlier, [.. await store.EarlierRunsAsync(cancellationToken)]);
         Volatile.Write(ref earlierCarves, [.. await store.EarlierCarvesAsync(cancellationToken)]);
+
+        foreach (var budgeted in await store.EarlierBudgetsAsync(cancellationToken))
+        {
+            ImmutableInterlocked.TryAdd(ref sessions, budgeted.Budget.Session, (budgeted.Budget, budgeted.Connection));
+        }
     }
 
     public Option<SessionBudget> BudgetOf(SessionId session) => Budgeted(session).Map(budgeted => budgeted.Budget);

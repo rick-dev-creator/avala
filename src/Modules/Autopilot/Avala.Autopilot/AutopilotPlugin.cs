@@ -24,7 +24,9 @@ public sealed class AutopilotPlugin : IPlugin
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton(FollowUpTool.Definition)
-            .AddSingleton<ITaskLedger, SqliteTaskLedger>()
+            .AddSingleton<SqliteTaskLedger>()
+            .AddSingleton<ITaskLedger>(services => services.GetRequiredService<SqliteTaskLedger>())
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteTaskLedger>())
             .AddSingleton<IBacklogFile, BacklogFileReader>()
             .AddSingleton<IAutopilotRules, AutopilotRulesReader>()
             .AddSingleton<IJobSource, BacklogSource>()
