@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Agents\Avala.Agents.Contracts\Avala.Agents.Contracts.csproj" />
+    <ProjectReference Include="..\..\Jobs\Avala.Jobs.Contracts\Avala.Jobs.Contracts.csproj" />
+    <ProjectReference Include="..\..\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />
+    <ProjectReference Include="..\..\Canvas\Avala.Canvas.Contracts\Avala.Canvas.Contracts.csproj" />
+    <ProjectReference Include="..\..\Verification\Avala.Verification.Contracts\Avala.Verification.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Workbench.UI" />
+    <InternalsVisibleTo Include="Avala.Workbench.Tests" />
+  </ItemGroup>
+</Project>

@@ -76,6 +76,10 @@
     <Project Path="src/Modules/Delegation/Avala.Delegation.Contracts/Avala.Delegation.Contracts.csproj" />
     <Project Path="src/Modules/Delegation/Avala.Delegation/Avala.Delegation.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Workbench/">
+    <Project Path="src/Modules/Workbench/Avala.Workbench/Avala.Workbench.csproj" />
+    <Project Path="src/Modules/Workbench/Avala.Workbench.UI/Avala.Workbench.UI.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Simulator/">
     <Project Path="src/Modules/Simulator/Avala.Simulator.Workload/Avala.Simulator.Workload.csproj" />
     <Project Path="src/Modules/Simulator/Avala.Simulator/Avala.Simulator.csproj" />
@@ -105,5 +109,6 @@
     <Project Path="tests/Avala.Workspaces.Tests/Avala.Workspaces.Tests.csproj" />
     <Project Path="tests/Avala.Autopilot.Tests/Avala.Autopilot.Tests.csproj" />
     <Project Path="tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj" />
+    <Project Path="tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj" />
   </Folder>
 </Solution>

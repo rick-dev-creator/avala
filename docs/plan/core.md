@@ -310,11 +310,26 @@ Done when: a simulated backlog runs to its end unattended, merging only clean jo
 
 The whole application works through view models, with no user interface.
 
-1. Job list, new job and job detail.
-2. Timeline projection and the activity view: messages, reasoning, tools and canvases, the canvas view model reading `ICanvases` and following `CanvasUpdated`.
+Status: part 1 done with the simulator, see [Workbench](../design/core.md#workbench): the module that holds every screen, its job board and conversation projection, and the main window's view models. The screens of the approved [brief](../design/ui-brief.md) that remain are listed below, each built on these foundations.
+
+1. Partly done. The job list is the sidebar: jobs grouped by what they need, one secondary fact per row from real data and the count of pending decisions; job detail is the conversation. Remains: a new job, submitted through `IJobs.SubmitAsync` with its repository, instruction, connection and autonomy.
+2. Done. The `Transcript` projection of the job board: prompts from the job's attempts, messages and reasoning streamed in order, reasoning with its measured duration, tool rows, the turn's plan, canvases from the throttled `CanvasUpdated` snapshots, permission and form cards, and the end of every turn with its usage; a job of an earlier run shows its attempts and a restart mark. The board follows `CanvasUpdated` from startup, so `ICanvases` is not needed. Storing the event stream, so a conversation survives a restart, is proposed in the design.
 3. Diff review: approve, send back or discard.
 4. Usage dashboards over `IUsage`: by provider, by job and by session.
-5. Answering agents: one generic form view model that renders any `AgentForm` and answers it through `IAgents.AnswerAsync`, permission prompts answered through `IPermissionAnswers` with a message and "don't ask again", and the automatic decisions and assumptions of a job for its review, all designed from the data in the [catalog](../design/core.md#data-the-harness-produces).
+5. Partly done. One generic form card renders any `AgentForm`, recommended options preselected, and answers through `IAgents.AnswerAsync`; the permission card answers through `IPermissionAnswers` with a note and "don't ask again"; both are answered in place in the conversation. Remains: the automatic decisions and assumptions of a job for its review and the inspector.
+6. Done. The main window: the shell activates its page through `IActivatable`, the page shows the sidebar, the selected job's conversation and the inspector toggle, closed by default. The composer sends a message to a job that needs a person or awaits review, interrupts a running job by holding it as `Interrupted`, and stops a job by discarding it.
+7. Done. Unit tests of the projection, the board and every view model with fakes, and host simulation tests driving the view models against the application composed on the simulator: a job streams into its conversation in order with its thinking and tool rows, a permission card answered from its view model unblocks the job, a form is answered with its recommended option, and the sidebar moves a job from running to needing a person when it is interrupted and to ready for review once continued.
+
+Remains for the next steps, each a view model of the Workbench with its placeholder view, and its unit and host tests:
+
+- **Review sheet.** Verdict first, then the exceptions only: failed checks from `IVerifications.OfJob`, denials and the session rules from `IPermissionAudit`, assumptions from `FormsOfJob`, holds, an edited rule file from the reports' `FileOrigin`; then the diff from `IWorkspaceChanges`, a file's hunks on demand; approve, send back with feedback and discard through `IJobs`, an approval refused showing its reason in place.
+- **Decisions popover.** Every waiting permission and form across jobs, from the board's transcripts, answered with the cards of the `Cards` folder, keyboard first.
+- **Inspector.** Evidence, decisions and assumptions, usage and caps from `IUsage.OfJob` and `IBudgets`, autonomy from `IPermissionAudit.AutonomyOf`, connection and worktree from the catalog and `IWorkspaces`, each a short section.
+- **Overview.** The connections with their running agents, and each delegation tree from `IJobCatalog.TreeAsync` and `IDelegations`.
+- **Usage.** Meters per connection and job, limit windows with their reset time, caps as thresholds, from `IUsage`, `IUsageHistory` and `IBudgets`.
+- **Settings.** The repository's rules read-only from the base commit, with "Edit in repository", and the machine's settings editable: connections and the supervision window.
+- **Resources.** The resources of each job and of the machine from `IResources`, orphans and leases, and the sidebar's small resources indicator.
+- **A new job**, see item 1.
 
 Done when: the full job flow runs end to end through view models in tests.
 
