@@ -24,6 +24,8 @@ internal sealed record Responded(int Sequence, PermissionDecision Decision) : IH
 
 internal sealed record Answered(int Sequence, FormAnswer Answer) : IHarnessInput;
 
+internal sealed record Returned(int Sequence, ToolResult Result) : IHarnessInput;
+
 internal sealed record Interrupted(int Sequence) : IHarnessInput;
 
 internal sealed record Refused(int Sequence, AgentError Error) : IRecordedFact;

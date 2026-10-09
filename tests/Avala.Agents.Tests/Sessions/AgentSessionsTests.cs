@@ -375,6 +375,41 @@ public sealed class AgentSessionsTests
         Assert.Empty(Assert.Single(provider.Sessions).Answers);
     }
 
+    [Fact]
+    public async Task OnlyTheResultOfAPendingToolCallReachesTheSessionAsync()
+    {
+        var bus = new RecordingBus();
+        var provider = new ScriptedAgentProvider(Calling) { Capabilities = Declared with { AcceptsTools = true } };
+        await using var agents = Agents(bus, provider);
+        var turn = await StartAsync(agents, "Propose a follow-up");
+        await bus.WaitForAsync<AgentActivity>(activity => activity.Event is ToolCalled, Cancellation);
+        var result = new ToolResult(new ItemId("propose"), "Accepted.");
+
+        Assert.Equal(AgentError.NoPendingCall, Outcomes.FailsWith(await agents.ReturnAsync(turn.Session, result with { Item = new ItemId("other") }, Cancellation)));
+        Assert.Equal(new ItemId("propose"), Outcomes.Succeeds(await agents.ReturnAsync(turn.Session, result, Cancellation)));
+        Assert.Equal([result], Assert.Single(provider.Sessions).Results);
+        Assert.Equal(AgentError.SessionClosed, Outcomes.FailsWith(await agents.ReturnAsync(SessionId.New(), result, Cancellation)));
+    }
+
+    [Fact]
+    public async Task ReturningAToolResultIsUnsupportedWhenTheProviderAcceptsNoToolsAsync()
+    {
+        var bus = new RecordingBus();
+        var provider = new ScriptedAgentProvider(Calling) { Capabilities = Declared with { AcceptsTools = false } };
+        await using var agents = Agents(bus, provider);
+        var turn = await StartAsync(agents, "Propose a follow-up");
+        await bus.WaitForAsync<AgentActivity>(activity => activity.Event is ToolCalled, Cancellation);
+
+        Assert.Equal(AgentError.Unsupported, Outcomes.FailsWith(await agents.ReturnAsync(turn.Session, new ToolResult(new ItemId("propose"), "Accepted."), Cancellation)));
+        Assert.Empty(Assert.Single(provider.Sessions).Results);
+    }
+
+    private static IEnumerable<IAgentEvent> Calling(SessionId session, TurnId turn) =>
+    [
+        new TurnStarted(session, turn),
+        new ToolCalled(session, turn, new ItemId("propose"), "propose_follow_up", """{ "instruction": "Document it" }"""),
+    ];
+
     private static IEnumerable<IAgentEvent> Asking(SessionId session, TurnId turn) =>
     [
         new TurnStarted(session, turn),

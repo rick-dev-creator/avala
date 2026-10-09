@@ -118,6 +118,9 @@ internal sealed class RecordingFormat
             case Answered answered:
                 Object("answer", () => Answer(answered.Answer));
                 break;
+            case Returned returned:
+                Object("return", () => Result(returned.Result));
+                break;
             case Interrupted:
                 Object("interrupt", () => { });
                 break;
@@ -174,6 +177,15 @@ internal sealed class RecordingFormat
             case FormAnswered answered:
                 Item(answered.Item);
                 Object("answer", () => Answer(answered.Answer));
+                break;
+            case ToolCalled called:
+                Item(called.Item);
+                json.WriteString("tool", called.Tool);
+                Text("input", called.Input);
+                break;
+            case ToolReturned returned:
+                Item(returned.Item);
+                Object("result", () => Result(returned.Result));
                 break;
             case PlanUpdated plan:
                 Array("steps", plan.Steps, step => Object(() =>
@@ -252,6 +264,13 @@ internal sealed class RecordingFormat
         }));
         json.WriteBoolean("declined", answer.Declined);
         Optional("message", answer.Message);
+    }
+
+    private void Result(ToolResult result)
+    {
+        Item(result.Item);
+        Text("content", result.Content);
+        json.WriteBoolean("isError", result.IsError);
     }
 
     private int Turn(TurnId turn)

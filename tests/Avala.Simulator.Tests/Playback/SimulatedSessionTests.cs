@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Simulator.Scenarios;
 using Avala.Testing;
 
 namespace Avala.Simulator.Tests.Playback;
@@ -329,6 +330,52 @@ public sealed class SimulatedSessionTests
 
         Assert.DoesNotContain(events, agentEvent => agentEvent is CanvasStarted);
         Assert.Contains(events, agentEvent => agentEvent is ItemStarted { Item.Value: "diagram", Kind: ItemKind.Message });
+    }
+
+    [Fact]
+    public async Task GivenTheHarnessToolTheFollowUpScenarioWaitsForTheResultOfItsCallAndRepliesWithItAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll, new HarnessTool(ScenarioCatalog.ProposeFollowUp, "Propose", "{}", ToolSurface.Executed));
+        await stage.SendAsync("[simulate: follow-up] Start a changelog", Cancellation);
+        var called = Assert.IsType<ToolCalled>((await stage.ReadUntilAsync<ToolCalled>(Cancellation))[^1]);
+        var result = new ToolResult(called.Item, "Accepted as a follow-up.");
+
+        Assert.Equal(AgentError.NoPendingCall, Outcomes.FailsWith(await stage.Session.ReturnAsync(result with { Item = new ItemId("other") }, Cancellation)));
+        Assert.Equal(called.Item, Outcomes.Succeeds(await stage.Session.ReturnAsync(result, Cancellation)));
+
+        var events = await stage.ReadTurnAsync(Cancellation);
+        Assert.Equal(ScenarioCatalog.ProposeFollowUp, called.Tool);
+        Assert.Contains("[simulate: reply]", called.Input, StringComparison.Ordinal);
+        Assert.Equal(
+            [new ToolReturned(stage.Session.Id, called.Turn, called.Item, result), new ItemCompleted(stage.Session.Id, called.Turn, called.Item, ItemOutcome.Succeeded)],
+            events.Take(2));
+        Assert.Contains(events, agentEvent => agentEvent is ItemProgressed { Text: "The harness answered: Accepted as a follow-up." });
+    }
+
+    [Fact]
+    public async Task WithoutTheHarnessToolTheFollowUpScenarioWritesItsProposalAsAMessageAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+        await stage.SendAsync("[simulate: follow-up] Start a changelog", Cancellation);
+
+        var events = await stage.ReadTurnAsync(Cancellation);
+
+        Assert.DoesNotContain(events, agentEvent => agentEvent is ToolCalled);
+        Assert.Contains(events, agentEvent => agentEvent is ItemProgressed progressed && progressed.Text.StartsWith("I would call propose_follow_up", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TheNearLimitScenarioReportsALimitThatResetsTwoSecondsAfterItsReportAsync()
+    {
+        await using var stage = new Stage();
+        var before = TimeProvider.System.GetUtcNow();
+        await stage.SendAsync("[simulate: near-limit] Use the window", Cancellation);
+
+        var limit = Assert.Single((await stage.ReadTurnAsync(Cancellation)).OfType<LimitReported>()).Limit;
+
+        var resets = Outcomes.Present(limit.ResetsAt);
+        Assert.Equal(("5h", 0.95), (limit.Window, limit.UsedFraction));
+        Assert.InRange(resets, before.AddSeconds(2), TimeProvider.System.GetUtcNow().AddSeconds(2));
     }
 
     [Fact]

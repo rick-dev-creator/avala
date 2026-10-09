@@ -25,6 +25,10 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 
     public FormAnswered Answered(ItemId item, FormAnswer answer) => new(Session, Turn, item, answer);
 
+    public ToolCalled Called(ItemId item, string tool, string input) => new(Session, Turn, item, tool, input);
+
+    public ToolReturned Returned(ItemId item, ToolResult result) => new(Session, Turn, item, result);
+
     public IEnumerable<IAgentEvent> Of(IStep step) => step switch
     {
         Say say => Stream(Opened(say.Item, say.Kind, say.Title), say.Item, say.Chunks),
@@ -59,6 +63,8 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         PermissionResolved resolved => resolved with { Session = Session, Turn = Turn },
         FormRequested requested => requested with { Session = Session, Turn = Turn },
         FormAnswered answered => answered with { Session = Session, Turn = Turn },
+        ToolCalled called => called with { Session = Session, Turn = Turn },
+        ToolReturned returned => returned with { Session = Session, Turn = Turn },
         PlanUpdated plan => plan with { Session = Session, Turn = Turn },
         UsageReported usage => usage with { Session = Session, Turn = Turn },
         LimitReported limit => limit with { Session = Session, Turn = Turn },

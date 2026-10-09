@@ -220,8 +220,36 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario FollowUp { get; } = new("follow-up",
+    [
+        [
+            Thought("I will start a changelog. ", "The team should hear about it afterwards."),
+            new WriteFile(new ItemId("changelog"), "CHANGELOG.md", "# Changelog\n\n- Started by the simulator.\n"),
+            new CallTool(
+                new ItemId("propose"),
+                ProposeFollowUp,
+                """{ "instruction": "[simulate: reply] Announce the changelog to the team", "reason": "The team should hear about the changelog." }"""),
+            Message("Started the changelog ", "and proposed announcing it."),
+            .. Bill(2_500, 180, 0.0120m, 0.25),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario NearLimit { get; } = new("near-limit",
+    [
+        [
+            Thought("A long piece of work ", "that uses most of the window."),
+            Message("Done, ", "though the usage window is nearly spent."),
+            new ReportUsage(new TokenUsage(9_000, 700, 4_500, 900, 175), new Cost(0.0600m, "USD")),
+            new ReportLimitResetting("5h", 0.95, TimeSpan.FromSeconds(2)),
+            new Finish(),
+        ],
+    ]);
+
     public static IReadOnlyList<Scenario> All { get; } =
-        [Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas, Processes];
+        [Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, RepeatedPermission, OutsideEdit, Question, PlanApproval, Crash, LeftOpen, Hang, Canvas, Processes, FollowUp, NearLimit];
+
+    public const string ProposeFollowUp = "propose_follow_up";
 
     public static string NameIn(string firstMessage) =>
         Tagged(firstMessage, ReplayRequest.TimedTag).Match(

@@ -163,6 +163,30 @@ public sealed class TurnTests
     }
 
     [Fact]
+    public void AToolCallOpensAnItemThatWaitsForItsResultAndThenCompletes()
+    {
+        var turn = Given.Turn();
+        IAgentEvent[] life = [Given.Called("propose"), Given.Returned("propose", "propose"), Given.Completed("propose")];
+
+        var forwarded = life.Select(agentEvent => (Outcomes.Succeeds(turn.Apply(agentEvent, Given.Now)).Events, turn.PendingCalls.ToList())).ToList();
+
+        Assert.Equal(life.Select(agentEvent => new[] { agentEvent }), forwarded.Select(step => step.Events));
+        Assert.Equal([[Given.Item("propose")], [], []], forwarded.Select(step => step.Item2));
+        Assert.Equal((TurnState.Working, 0), (turn.State, turn.OpenItems.Count));
+    }
+
+    [Fact]
+    public void RejectsResultsThatAnswerNoPendingCall()
+    {
+        var turn = Given.Turn(Given.Started("build"), Given.Called("propose"));
+
+        Assert.Equal(TurnError.NoPendingCall, Outcomes.FailsWith(turn.Apply(Given.Returned("build", "build"), Given.Now)));
+        Assert.Equal(TurnError.NoPendingCall, Outcomes.FailsWith(turn.Apply(Given.Returned("propose", "other"), Given.Now)));
+        Assert.Equal(TurnError.ItemAlreadyStarted, Outcomes.FailsWith(turn.Apply(Given.Called("build"), Given.Now)));
+        Assert.Equal([Given.Item("propose")], turn.PendingCalls);
+    }
+
+    [Fact]
     public void EndsInTheStateOfItsOutcome()
     {
         var states = Enum.GetValues<TurnOutcome>().Select(outcome =>

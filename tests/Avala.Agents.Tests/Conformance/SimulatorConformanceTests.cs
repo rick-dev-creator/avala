@@ -21,6 +21,8 @@ public sealed class SimulatorConformanceTests
     [InlineData("repeated-permission")]
     [InlineData("question")]
     [InlineData("plan-approval")]
+    [InlineData("follow-up")]
+    [InlineData("near-limit")]
     public async Task AWellBehavedScenarioConformsAsync(string scenario)
     {
         using var folder = new TemporaryFolder();
@@ -96,6 +98,19 @@ public sealed class SimulatorConformanceTests
             services.GetRequiredService<IAgentProvider>(),
             new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
             new UserTurn("[simulate: canvas] conformance"),
+            Deadline));
+    }
+
+    [Fact]
+    public async Task TheSimulatorCallsAHarnessToolAndReportsTheResultItWasGivenAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await AgentConformance.CheckHarnessToolAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new UserTurn("[simulate: follow-up] conformance"),
             Deadline));
     }
 

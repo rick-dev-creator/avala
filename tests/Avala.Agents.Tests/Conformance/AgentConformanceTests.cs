@@ -182,6 +182,30 @@ public sealed class AgentConformanceTests
     }
 
     [Fact]
+    public async Task ReportsACallOfAToolTheSessionWasNotGivenAsync()
+    {
+        var provider = new ScriptedAgentProvider(Calling);
+
+        Assert.Equal(["the tool propose_follow_up was called although the session was not given it"], await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
+    [Theory]
+    [InlineData(true, "a result for a call that is not pending was accepted")]
+    [InlineData(false, "no call of the tool propose_follow_up was made")]
+    public async Task AProviderThatAcceptsToolsMustAcceptOnlyResultsOfPendingCallsAndReportThemAsync(bool calls, string expected)
+    {
+        var provider = new ScriptedAgentProvider(calls ? Calling : ScriptedAgentProvider.Reply)
+        {
+            Capabilities = Declared with { AcceptsTools = true },
+        };
+
+        var violations = await AgentConformance.CheckHarnessToolAsync(provider, Options, new UserTurn("conformance"), Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+        Assert.Equal([AgentConformance.ExecutedTool], Assert.Single(provider.Sessions).Options.Tools);
+    }
+
+    [Fact]
     public async Task ReportsTwoConnectionsThatShareAnAccountAResumeTokenOrAConversationAsync()
     {
         var provider = new ScriptedAgentProvider(IssuingAToken)
@@ -328,6 +352,20 @@ public sealed class AgentConformanceTests
         new ItemCompleted(session, turn, new ItemId("diagram"), ItemOutcome.Succeeded),
         new TurnCompleted(session, turn, TurnOutcome.Finished),
     ];
+
+    private static IEnumerable<IAgentEvent> Calling(SessionId session, TurnId turn)
+    {
+        var item = new ItemId("propose");
+
+        return
+        [
+            new TurnStarted(session, turn),
+            new ToolCalled(session, turn, item, AgentConformance.ExecutedTool.Name, """{ "instruction": "Document it" }"""),
+            new ToolReturned(session, turn, item, AgentConformance.KitResult(item)),
+            new ItemCompleted(session, turn, item, ItemOutcome.Succeeded),
+            new TurnCompleted(session, turn, TurnOutcome.Finished),
+        ];
+    }
 
     private static IEnumerable<IAgentEvent> AskingPermission(SessionId session, TurnId turn, ItemKind kind, string target)
     {

@@ -13,4 +13,5 @@ internal enum TurnError
     MalformedForm,
     FormAlreadyPending,
     NoPendingForm,
+    NoPendingCall,
 }
