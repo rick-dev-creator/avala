@@ -96,6 +96,26 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ACaretSitsUnderTheLiveBlockUntilTheReplyEndsAndHoldsStillWithReducedMotionAsync() =>
+        ui.RunAsync(() =>
+        {
+            var message = Message("JPY has no minor", done: false);
+            var view = Screen.Show(message);
+            var caret = view.Find("Caret");
+            var streaming = (view.Shows("Caret"), caret.Classes.Contains("caret"), caret.Bounds.Top >= Viewer(view, "Tail").Bounds.Bottom);
+            Components.UI.Theme.Motion.SetIsReduced(view.Window, true);
+            view.Settle();
+            var still = caret.Opacity;
+
+            message.Update(new MessageEntry("m", "JPY has no minor units.", ItemOutcome.Succeeded));
+            view.Settle();
+
+            Assert.Equal((true, true, true), streaming);
+            Assert.Equal(1, still);
+            Assert.False(view.Shows("Caret"));
+        }, Cancellation);
+
+    [Fact]
     public Task AWebLinkOpensThroughTheLinkOpenerAsync() =>
         ui.RunAsync(async () =>
         {

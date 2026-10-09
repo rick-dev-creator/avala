@@ -2,6 +2,7 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml.Styling;
 using Markdig;
 using MarkView.Avalonia;
@@ -24,6 +25,7 @@ public sealed class MarkdownText : StackPanel
 
     private readonly MarkdownViewer settled;
     private readonly MarkdownViewer tail;
+    private readonly Border caret;
 
     public MarkdownText()
         : this(OfflineMarkdown.WithoutImages)
@@ -37,6 +39,9 @@ public sealed class MarkdownText : StackPanel
         tail.IsVisible = false;
         Children.Add(settled);
         Children.Add(tail);
+        caret = new Border { Name = "Caret", Width = 2, Height = 16, HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false, Classes = { "caret" } };
+        caret.Bind(Border.BackgroundProperty, caret.GetResourceObservable("AccentBrush"));
+        Children.Add(caret);
         Styles.Add(new StyleInclude(Base) { Source = new Uri("Markdown/MarkdownStyles.axaml", UriKind.Relative) });
         AddHandler(MarkdownViewer.LinkClickedEvent, OnLinkClicked);
     }
@@ -90,6 +95,7 @@ public sealed class MarkdownText : StackPanel
 
         tail.Markdown = growing;
         tail.IsVisible = growing.Length > 0;
+        caret.IsVisible = live;
     }
 
     private void OnLinkClicked(object? sender, LinkClickedEventArgs link)
