@@ -201,7 +201,7 @@ Status: done.
 
 ## Phase 8c: Connections and delegation
 
-Status: connections done with the simulator; delegation and resources planned. Both parts are built and proven with the simulator before the user interface and before the real Claude Code adapter, which then only translates its protocol.
+Status: connections and resources done with the simulator; delegation planned. Both parts are built and proven with the simulator before the user interface and before the real Claude Code adapter, which then only translates its protocol.
 
 ### Connections
 
@@ -245,7 +245,7 @@ Done when: a simulated orchestrator delegates to simulated children on two conne
 
 ### Resources
 
-Status: planned, after connections and before delegation, since delegation multiplies the processes, ports and worktrees an unattended run leaves behind.
+Status: done with the simulator, after connections and before delegation, since delegation multiplies the processes, ports and worktrees an unattended run leaves behind. See [Process trees](../design/core.md#process-trees) and [Resources](../design/core.md#resources). Linux and Windows contain processes and run in CI; macOS compiles and is best effort, untested by CI. Deferred: a delegated cgroup on Linux where systemd user delegation is available, for memory and CPU measured and limited by the kernel; starting a Windows process inside its job rather than assigning it right after it starts, which needs `CreateProcess` with a job list; persisting samples, orphan reports, leases and the retention due of ended jobs across restarts; an approval command in Jobs, so an approved job's worktree retention applies through the application; admitting continuations and recoveries against the limit of running jobs; a memory cap across the jobs of a machine; CPU caps; checking that the real Claude Code adapter starts its process through the session's launcher and passes the port variables on, with phase 6; and the views of resources, with phases 9 and 10.
 
 Agents and the commands they run leave resources behind: processes that outlive their session, such as test hosts and build servers, ports two worktrees fight over, and worktrees that pile up on disk. Avala accounts for every resource its jobs use and reclaims what they leave.
 
@@ -256,15 +256,15 @@ Agents and the commands they run leave resources behind: processes that outlive 
 - Worktrees of finished or discarded jobs are reclaimed by a retention policy, and worktrees on disk that no workspace knows, or workspaces whose folder is gone, are reported.
 - Budgets may also cap resources: memory per job and the number of jobs running at once, so parallel builds cannot exhaust the machine.
 
-1. Process trees per session with containment and reaping, behind the platform port, starting with Linux and Windows, which CI runs.
-2. Sampling of memory, CPU and listening ports per tree, and disk per worktree and data folder, published as throttled integration events and queryable globally and by job, session, connection and provider.
-3. Orphan detection and reaping, with the audit.
-4. Port leases per worktree.
-5. Worktree retention and the reconciliation of worktrees on disk with the workspaces store.
-6. Resource caps in Budgets and a limit on concurrent jobs.
-7. Simulator scenarios that start real child processes, leave one running past the session and listen on a port, and host simulation tests: the orphan is found and reaped, the port lease reaches the agent, usage is attributed to its job, and a discarded job's worktree is reclaimed.
+1. Done. Process trees per session behind `IProcessTrees` in the SDK and the runtime's `IContainment` port: `setsid`, the tree's environment marker and descent on Linux, a job object on Windows, the marker and descent through `ps` on macOS. The harness hands every session a launcher, `SessionOptions.Processes`, that starts processes inside its tree, announced by `SessionOpened.ProcessTree`; `IProcessRunner` starts processes run in a tree's folder, the checks and the checkpoint commands, inside that tree. The simulator starts its processes through the launcher, and `CheckProcessesAsync` reports a provider that starts none through it.
+2. Done. The Resources module samples the memory, CPU time and load, and listening ports of every tree, and the disk of every worktree and of the data folder, on a `TimeProvider` timer, as one `ResourcesSampled` per interval, queryable through `IResources` globally and by job, session, connection and provider.
+3. Done. A session that ends with processes alive in its tree reports them as `OrphansFound` with its job; the default policy kills them, `report` leaves them to `IOrphans.ReapAsync`; every report is audited. Jobs stops the session of a job that ends, and discards a job through `IJobs.DiscardAsync`.
+4. Done. Port leases per worktree from the range in `resources.json`, handed to every process of the worktree's trees as `AVALA_PORT` and `AVALA_PORTS`, released when the job ends; a leased port held outside its worktree is published as `PortConflictObserved`.
+5. Done. Worktrees of ended jobs are reclaimed by the retention in `resources.json`, and `IWorkspaces` reconciles the worktree root with the store, reported at startup and cleaned by policy or command.
+6. Done. `memoryPerJobMegabytes` in `.avala/budget.json` holds a job as `MemoryExceeded`; `budgets.json` in the data folder limits the jobs running at once through `IJobAdmission`, and queued jobs start, in order, when a slot frees.
+7. Done. The simulator's `processes` scenario starts real processes of the `Avala.Simulator.Workload` program, leaves a server running past the session listening on the leased port. Host simulation tests: the orphan is reported with its job and reaped, and is gone; the lease reaches the server's environment; usage is attributed to its job, its connection and provider, and counted globally; a discarded job's worktree is reclaimed; and the limit of running jobs queues a job until a slot frees.
 
-Done when: a simulated job that leaks a process and holds a port is reaped and reclaimed, with every resource attributed to its job and visible globally.
+Done when: a simulated job that leaks a process and holds a port is reaped and reclaimed, with every resource attributed to its job and visible globally. Met.
 
 ## Phase 9: View models of the usable core
 
