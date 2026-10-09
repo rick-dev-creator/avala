@@ -29,19 +29,26 @@ internal sealed class CompositionRoot : IAsyncDisposable
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher) =>
         Create(pluginDirectory, paths, dispatcher, new AvaloniaFileOpener());
 
-    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher, IFileOpener opener)
+    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher, IFileOpener opener) =>
+        Create(pluginDirectory, paths, new Surroundings(dispatcher, opener, TimeProvider.System, []));
+
+    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher, TimeProvider clock, IReadOnlyList<IPlugin> replacements) =>
+        Create(pluginDirectory, paths, new Surroundings(dispatcher, new AvaloniaFileOpener(), clock, replacements));
+
+    private static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, Surroundings surroundings)
     {
         var services = new ServiceCollection()
             .AddLogging()
+            .AddSingleton(surroundings.Clock)
             .AddRuntime(paths)
             .AddShell()
-            .AddSingleton(dispatcher)
-            .AddSingleton(opener);
+            .AddSingleton(surroundings.Dispatcher)
+            .AddSingleton(surroundings.Opener);
         var views = new ViewRegistry();
         views.AddComponentViews();
         var registrar = new PluginRegistrar(services);
 
-        foreach (var plugin in PluginLoader.Load(pluginDirectory))
+        foreach (var plugin in PluginLoader.Load(pluginDirectory).Select(surroundings.Replaced))
         {
             plugin.Register(registrar);
 
@@ -62,5 +69,10 @@ internal sealed class CompositionRoot : IAsyncDisposable
         await Running;
         await Services.DisposeAsync();
         lifetime.Dispose();
+    }
+
+    private sealed record Surroundings(IUiDispatcher Dispatcher, IFileOpener Opener, TimeProvider Clock, IReadOnlyList<IPlugin> Replacements)
+    {
+        public IPlugin Replaced(IPlugin loaded) => Replacements.FirstOrDefault(replacement => replacement.GetType() == loaded.GetType()) ?? loaded;
     }
 }

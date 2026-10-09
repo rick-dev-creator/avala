@@ -13,8 +13,10 @@ using Avala.Supervision.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
+using Avala.Simulator;
 using Avala.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Host.Tests;
 
@@ -22,24 +24,29 @@ internal sealed class SimulatedRun : IAsyncDisposable
 {
     private static readonly JobStatus[] Settled = [JobStatus.AwaitingReview, JobStatus.NeedsHelp, JobStatus.Failed];
 
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
+
     private readonly PublishedPlugins plugins;
     private readonly TemporaryFolder data;
     private readonly TemporaryRepository repository;
     private Application application;
     private bool stopped;
 
-    private SimulatedRun(PublishedPlugins plugins, TemporaryFolder data, TemporaryRepository repository, CompositionRoot root, TestUiDispatcher ui)
+    private SimulatedRun(PublishedPlugins plugins, TemporaryFolder data, TemporaryRepository repository, CompositionRoot root, Surroundings surroundings)
     {
         this.plugins = plugins;
         this.data = data;
         this.repository = repository;
         application = new Application(root);
-        Ui = ui;
+        Ui = surroundings.Ui;
+        Clock = surroundings.Clock;
     }
 
     public TemporaryRepository Repository => repository;
 
     public TestUiDispatcher Ui { get; }
+
+    public FakeTimeProvider Clock { get; }
 
     public ICanvases Canvases => Get<ICanvases>();
 
@@ -121,8 +128,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var ui = new TestUiDispatcher();
-        var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path), ui);
+        var surroundings = new Surroundings(new TestUiDispatcher(), new FakeTimeProvider(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) });
+        var root = surroundings.Compose(plugins, data);
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 
         foreach (var (path, content) in committed)
@@ -130,10 +137,32 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await repository.CommitAsync(path, content, Cancellation);
         }
 
-        var run = new SimulatedRun(plugins, data, repository, root, ui);
+        var run = new SimulatedRun(plugins, data, repository, root, surroundings);
         root.Start();
 
         return run;
+    }
+
+    public async Task DeliveredAsync() =>
+        await application.Root.Services.GetRequiredService<IEventFeed>().DeliveredAsync(Cancellation).WaitAsync(HangGuard, Cancellation);
+
+    public async Task QuietAsync()
+    {
+        _ = await application.Progress.UntilAsync(update => update.Job == Job && update.Status == JobStatus.Running);
+        await ResumableAsync();
+        await DeliveredAsync();
+    }
+
+    public async Task SilentForAsync(TimeSpan window)
+    {
+        await QuietAsync();
+        Clock.Advance(window);
+    }
+
+    public void AdvanceTo(DateTimeOffset moment)
+    {
+        var now = Clock.GetUtcNow();
+        Clock.Advance(moment > now ? moment - now : TimeSpan.Zero);
     }
 
     public EventWatch<TEvent> Watch<TEvent>()
@@ -175,7 +204,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     public async Task RestartAsync()
     {
         await application.DisposeAsync();
-        application = new Application(CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path), Ui));
+        application = new Application(new Surroundings(Ui, Clock).Compose(plugins, data));
         application.Root.Start();
     }
 
@@ -252,13 +281,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         Ui.Dispose();
     }
 
-    public Bound Workbench()
-    {
-        var page = Page("Jobs");
-        ((IActivatable)page.Target).Activate();
-
-        return page;
-    }
+    public Task<OpenWorkbench> WorkbenchAsync() => OpenWorkbench.ActivateAsync(this);
 
     public Bound Page(string title) => new(Assert.Single(Get<IEnumerable<IPage>>(), page => page.Title == title));
 
@@ -271,6 +294,12 @@ internal sealed class SimulatedRun : IAsyncDisposable
         }
     }
 
+
+    private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock)
+    {
+        public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
+            CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path), Ui, Clock, [new SimulatorPlugin(TimeSpan.Zero)]);
+    }
 
     private sealed class Application : IAsyncDisposable
     {

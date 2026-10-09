@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Spending;
@@ -8,8 +9,16 @@ namespace Avala.Workbench.Usage;
 
 internal sealed record UsageState(SpendingState Spending, IReadOnlyList<UsageWindow> Windows);
 
-internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, LiveFeed feed) : IPage, IActivatable, IDisposable
+internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, LiveFeed feed) : IPage, IActivatable, IPresentation, IDisposable
 {
+    public event EventHandler<Presented>? Presented
+    {
+        add => feed.Presented += value;
+        remove => feed.Presented -= value;
+    }
+
+    public long Revision => feed.Revision;
+
     public string Title => "Usage";
 
     public ObservableCollection<ConnectionMeterViewModel> Connections { get; } = [];

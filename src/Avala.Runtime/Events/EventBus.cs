@@ -42,6 +42,16 @@ internal sealed partial class EventBus(IServiceProvider services, ILogger<EventB
         return subscription.Reader.ReadAllAsync(CancellationToken.None);
     }
 
+    public async Task DeliveredAsync(CancellationToken cancellationToken)
+    {
+        var marked = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        if (routes.Writer.TryWrite(_ => marked.TrySetResult(Task.WhenAll(mailboxes.Values.Select(mailbox => mailbox.MarkAsync()).ToList()))))
+        {
+            await (await marked.Task.WaitAsync(cancellationToken)).WaitAsync(cancellationToken);
+        }
+    }
+
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         try
@@ -128,7 +138,26 @@ internal sealed partial class EventBus(IServiceProvider services, ILogger<EventB
 
         public void Post(Func<CancellationToken, ValueTask> letter) => letters.Writer.TryWrite(letter);
 
+        public Task MarkAsync()
+        {
+            var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            if (!letters.Writer.TryWrite(_ => ReachedAsync(reached)))
+            {
+                reached.TrySetResult();
+            }
+
+            return reached.Task;
+        }
+
         public void Close() => letters.Writer.TryComplete();
+
+        private static ValueTask ReachedAsync(TaskCompletionSource reached)
+        {
+            reached.TrySetResult();
+
+            return ValueTask.CompletedTask;
+        }
 
         private async Task DeliverAsync(CancellationToken cancellationToken)
         {

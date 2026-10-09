@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Workbench.Board;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Inspector;
@@ -12,7 +13,7 @@ using CommunityToolkit.Mvvm.Input;
 namespace Avala.Workbench.Navigation;
 
 [INotifyPropertyChanged]
-internal sealed partial class WorkbenchViewModel : IPage, IActivatable, IDisposable
+internal sealed partial class WorkbenchViewModel : IPage, IActivatable, IPresentation, IDisposable
 {
     private readonly JobBoard board;
     private readonly IUiDispatcher ui;
@@ -27,6 +28,10 @@ internal sealed partial class WorkbenchViewModel : IPage, IActivatable, IDisposa
         Sidebar = sidebar;
         Sidebar.PropertyChanged += OnSidebarChanged;
     }
+
+    public event EventHandler<Presented>? Presented;
+
+    public long Revision { get; private set; }
 
     public string Title => "Jobs";
 
@@ -138,6 +143,8 @@ internal sealed partial class WorkbenchViewModel : IPage, IActivatable, IDisposa
         if (!following.IsCancellationRequested)
         {
             Show(refreshes);
+            Revision++;
+            Presented?.Invoke(this, new Presented(Revision));
         }
     }
 
