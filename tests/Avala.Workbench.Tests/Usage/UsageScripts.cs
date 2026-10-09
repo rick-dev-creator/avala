@@ -12,6 +12,7 @@ using Avala.Workbench.Following;
 using Avala.Workbench.Spending;
 using Avala.Workbench.Timeline;
 using Avala.Workbench.Usage;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Workbench.Tests.Usage;
 
@@ -33,7 +34,7 @@ public sealed class UsageViewModelScripts : IDisposable
 
         page.Activate();
 
-        await ui.PresentedAsync(page, () => page.Connections.Count == 1 && page.Windows.Count == 2 && page.Jobs.Count == 1, () => $"{page.Connections.Count} connections, {page.Jobs.Count} jobs");
+        await ui.PresentedAsync(page, () => page.Connections.Count == 1 && page.Range.Days.Count == 7 && page.Jobs.Count == 1, () => $"{page.Connections.Count} connections, {page.Jobs.Count} jobs");
         Assert.Equal(("Usage", "claude-work", "1 USD"), await ui.ReadAsync(() => (page.Title, page.Connections[0].Name, page.Jobs[0].Cost)));
     }
 
@@ -43,7 +44,7 @@ public sealed class UsageViewModelScripts : IDisposable
         var board = Pages.Board();
         using var page = Page(board);
         page.Activate();
-        await ui.PresentedAsync(page, () => page.Windows.Count == 2, () => $"{page.Windows.Count} windows");
+        await ui.PresentedAsync(page, () => page.Range.Days.Count == 7, () => $"{page.Range.Days.Count} days");
 
         usage.Connections.Add(new ConnectionUsage(new ConnectionName("claude-personal"), Pages.Simulator, Pages.Used(0.84m)));
         board.Publish(board.Jobs);
@@ -59,17 +60,98 @@ public sealed class UsageViewModelScripts : IDisposable
 
         page.Activate();
 
-        await ui.PresentedAsync(page, () => page.Windows.Count == 2, () => $"{page.Windows.Count} windows");
+        await ui.PresentedAsync(page, () => page.Range.Days.Count == 7, () => $"{page.Range.Days.Count} days");
         Assert.Equal((0, 0, 0), await ui.ReadAsync(() => (page.Connections.Count, page.Jobs.Count, page.Interventions.Count)));
+    }
+
+    [Fact]
+    public async Task ChoosingAWindowRereadsItsDaysAndItsTotalByTokenTypeAsync()
+    {
+        var history = new FakeUsageHistory();
+        using var page = Page(Pages.Board(), history);
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.Range.Days.Count == 7, () => $"{page.Range.Days.Count} days");
+
+        await ui.InvokeAsync(() => page.Range.ShowMonthCommand.Execute(null), TestContext.Current.CancellationToken);
+        await ui.PresentedAsync(page, () => page.Range.Days.Count == 30, () => $"{page.Range.Days.Count} days");
+        var month = await ui.ReadAsync(() => (page.Range.ShowsMonth, page.Range.ShowsWeek, page.Range.Total!.Label, page.Range.Days[0].Day, page.Range.Caption));
+
+        await ui.InvokeAsync(() => page.Range.ShowTodayCommand.Execute(null), TestContext.Current.CancellationToken);
+        await ui.PresentedAsync(page, () => page.Range.Days.Count == 1, () => $"{page.Range.Days.Count} days");
+
+        Assert.Equal((true, false, "Last 30 days", "Fri 9 Oct · today", "Since Thu 10 Sep, in this computer's time zone · newest first"), month);
+        Assert.Equal(("Today", "Today, in this computer's time zone"), await ui.ReadAsync(() => (page.Range.Total!.Label, page.Range.Caption)));
+        Assert.Equal([(new DateOnly(2026, 10, 3), new DateOnly(2026, 10, 9)), (new DateOnly(2026, 9, 10), new DateOnly(2026, 10, 9)), (new DateOnly(2026, 10, 9), new DateOnly(2026, 10, 9))], history.Daily);
     }
 
     public void Dispose() => ui.Dispose();
 
-    private UsageViewModel Page(JobBoard board) =>
+    private UsageViewModel Page(JobBoard board, FakeUsageHistory? history = null) =>
         new(
             new UsageReader(Pages.Readings(usage), new JobSpending(usage, budgets, supervision, sessions), board),
-            new UsageWindows(new FakeUsageHistory(), TimeProvider.System),
+            new UsageWindows(history ?? new FakeUsageHistory(), Clock),
             new LiveFeed(new Pulse(board), ui));
+
+    private static FakeTimeProvider Clock
+    {
+        get
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 9, 15, 0, 0, TimeSpan.Zero));
+            clock.SetLocalTimeZone(TimeZoneInfo.Utc);
+
+            return clock;
+        }
+    }
+}
+
+public sealed class UsageRangeViewModelScripts
+{
+    [Fact]
+    public void TheDaysOfAWindowAreNewestFirstWithABarAgainstTheBusiestDay() =>
+        ViewModelScript.Given(new UsageRangeViewModel())
+            .When(range => range.Show(new UsageRange(
+                UsageSpan.LastSevenDays,
+                new DateOnly(2026, 10, 3),
+                new DateOnly(2026, 10, 4),
+                new UsagePeriod(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, Pages.Used(3m), [], []),
+                [Day(new DateOnly(2026, 10, 3), 200), Day(new DateOnly(2026, 10, 4), 100)])))
+            .ThenNotified(nameof(UsageRangeViewModel.Total), nameof(UsageRangeViewModel.Caption))
+            .Then(range => Assert.Equal(
+                [("Sun 4 Oct · today", 0.5, true), ("Sat 3 Oct", 1d, false)],
+                range.Days.Select(day => (day.Day, day.Share, day.IsToday))))
+            .Then(range => Assert.Equal(("Last 7 days", "3 USD"), (range.Total!.Label, range.Total.Cost)));
+
+    [Fact]
+    public void ChoosingTheShownWindowAgainAsksForNothing()
+    {
+        var range = new UsageRangeViewModel();
+        var chosen = 0;
+        range.Chosen += (_, _) => chosen++;
+
+        range.ShowWeekCommand.Execute(null);
+        range.ShowTodayCommand.Execute(null);
+
+        Assert.Equal((1, true), (chosen, range.ShowsToday));
+    }
+
+    [Fact]
+    public void ARangeReadForAnotherWindowIsNotShown() =>
+        ViewModelScript.Given(new UsageRangeViewModel())
+            .When(range => range.Show(new UsageRange(UsageSpan.Today, new DateOnly(2026, 10, 4), new DateOnly(2026, 10, 4), Day(new DateOnly(2026, 10, 4), 1), [Day(new DateOnly(2026, 10, 4), 1)])))
+            .Then(range => Assert.Equal((0, (IUsageWindowViewModel?)null), (range.Days.Count, range.Total)));
+
+    private static UsagePeriod Day(DateOnly day, long input) =>
+        new(new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero), new DateTimeOffset(day.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero), Pages.Used(1m) with { Tokens = new TokenUsage(input, 0, 0, 0, 0) }, [], []);
+}
+
+public sealed class UsageDayViewModelScripts
+{
+    [Fact]
+    public void ADaySaysItsTokensByTypeAndItsCost() =>
+        ViewModelScript.Given(new UsageDayViewModel(new UsagePeriod(new DateTimeOffset(2026, 10, 9, 0, 0, 0, TimeSpan.FromHours(2)), DateTimeOffset.UnixEpoch, Pages.Used(2m), [], []), 0, false))
+            .Then(day => Assert.Equal(
+                ("Fri 9 Oct", "159 tokens", "2 USD", "input 100 · output 20 · cache read 30 · cache write 4 · reasoning 5", 0d),
+                (day.Day, day.Tokens, day.Cost, day.Types, day.Share)));
 }
 
 public sealed class LimitViewModelScripts
@@ -143,7 +225,7 @@ public sealed class UsageWindowViewModelScripts
 {
     [Fact]
     public void AWindowCountsItsTurnsAndTokensByType() =>
-        ViewModelScript.Given(new UsageWindowViewModel(new UsageWindow(UsageSpan.LastSevenDays, new UsagePeriod(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, Pages.Used(7m), [], []))))
+        ViewModelScript.Given(new UsageWindowViewModel("Last 7 days", new UsagePeriod(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, Pages.Used(7m), [], [])))
             .Then(window => Assert.Equal(("Last 7 days", "7 USD", 100L, 20L, 30L, 4L, 5L, "159 tokens", "1 turns finished, 0 interrupted, 0 failed"), (window.Label, window.Cost, window.Input, window.Output, window.CacheRead, window.CacheWrite, window.Reasoning, window.Tokens, window.Turns)));
 }
 

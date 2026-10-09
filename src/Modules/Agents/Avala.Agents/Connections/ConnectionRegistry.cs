@@ -28,14 +28,39 @@ internal sealed class ConnectionRegistry(
             return ConnectionError.InvalidName;
         }
 
+        return await ChangeAsync(new DefaultChange(connection), cancellationToken);
+    }
+
+    public async ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(
+        Option<ConnectionName> replacing,
+        ConnectionEdit connection,
+        CancellationToken cancellationToken) =>
+        !ConnectionDeclaration.IsValidName(connection.Name.Value) || connection.Name.Value == ConnectionDeclarations.Auto ? ConnectionError.InvalidName
+        : !providers.Any(provider => provider.Info.Id == connection.Provider) ? ConnectionError.UnknownProvider
+        : connection.Credential.Match(credential => !sources.Any(source => source.Source == credential.Source), () => false) ? ConnectionError.UnknownSource
+        : connection.Credential.Match(credential => string.IsNullOrWhiteSpace(credential.Reference), () => false) ? ConnectionError.MissingReference
+        : await ChangeAsync(
+            new DeclarationChange(
+                replacing,
+                connection.Name,
+                connection.Provider,
+                connection.Credential.Map(credential => new CredentialDeclaration(credential.Source, credential.Reference.Trim()))),
+            cancellationToken);
+
+    public async ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken) =>
+        await ChangeAsync(new RemovalChange(connection), cancellationToken);
+
+    private async Task<Result<ConnectionCatalog, ConnectionError>> ChangeAsync(IConnectionChange change, CancellationToken cancellationToken)
+    {
         var loaded = await file.LoadAsync(cancellationToken);
         var discovered = await DiscoveredAsync(cancellationToken);
         var accepted = loaded
-            .Bind(found => (found.Match(declarations => declarations, () => ConnectionDeclarations.Nothing) with { Fixed = connection }).Merged(providers, discovered))
+            .Bind(found => change.ApplyTo(found.Match(declarations => declarations, () => ConnectionDeclarations.Nothing)))
+            .Bind(changed => changed.Merged(providers, discovered))
             .MapError(error => error == ConnectionError.UnknownDefault ? ConnectionError.UnknownConnection : error);
 
         if (!accepted.TryGetValue(out _, out var refused)
-            || !(await file.ChangeDefaultAsync(connection, cancellationToken)).TryGetValue(out _, out refused))
+            || !(await file.ChangeAsync(change, cancellationToken)).TryGetValue(out _, out refused))
         {
             return refused;
         }
@@ -110,7 +135,7 @@ internal sealed class ConnectionRegistry(
                 : Result<ConnectionEnvironment, ConnectionError>.Failure(ConnectionError.UnknownSource),
             () => Task.FromResult(Result<ConnectionEnvironment, ConnectionError>.Success(ConnectionEnvironment.Default)));
 
-    private static ConnectionCatalog Catalog(ConnectionFileStatus status, ConnectionDeclarations declarations) =>
+    private ConnectionCatalog Catalog(ConnectionFileStatus status, ConnectionDeclarations declarations) =>
         new(
             status,
             Option<ConnectionError>.None,
@@ -118,6 +143,8 @@ internal sealed class ConnectionRegistry(
             declarations.Default)
         {
             DefaultMode = declarations.Mode,
+            Providers = [.. providers.Select(provider => provider.Info).DistinctBy(info => info.Id, StringComparer.Ordinal)],
+            Sources = [.. sources.Select(source => source.Source).Distinct(StringComparer.Ordinal)],
         };
 
     private sealed record MergedConnections(ConnectionFileStatus Status, ConnectionDeclarations Declarations);

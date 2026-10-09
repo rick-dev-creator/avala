@@ -18,13 +18,16 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
     {
     }
 
-    public DesignComposerViewModel(JobStatus status)
+    public DesignComposerViewModel(JobStatus status, bool takesMessagesMidTurn = true, string queued = "")
     {
         Status = status;
+        TakesMessagesMidTurn = takesMessagesMidTurn;
+        Queued = queued;
         Draft = string.Empty;
         SendCommand = new AsyncRelayCommand(() => Task.CompletedTask, () => AcceptsMessages && Draft.Length > 0);
         InterruptCommand = new AsyncRelayCommand(() => Task.CompletedTask, () => status == JobStatus.Running);
         StopCommand = new AsyncRelayCommand(() => Task.CompletedTask, () => status == JobStatus.Running);
+        WithdrawCommand = new RelayCommand(() => { }, () => Queued.Length > 0);
     }
 
     [ObservableProperty]
@@ -32,11 +35,21 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
     public JobStatus Status { get; }
 
+    public bool TakesMessagesMidTurn { get; }
+
     public string Error => string.Empty;
 
-    public string Placeholder => ConversationPhrases.Placeholder(Status);
+    public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn);
 
-    public bool AcceptsMessages => Status is JobStatus.NeedsHelp or JobStatus.AwaitingReview;
+    public string SendHint => ConversationPhrases.SendHint(Status, TakesMessagesMidTurn);
+
+    public string Queued { get; }
+
+    public string QueuedCaption => ConversationPhrases.QueuedCaption(Status);
+
+    public IRelayCommand WithdrawCommand { get; }
+
+    public bool AcceptsMessages => Status is not (JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed);
 
     public IAsyncRelayCommand SendCommand { get; }
 
@@ -63,6 +76,13 @@ internal sealed class DesignPromptViewModel(string text) : IPromptViewModel
     public string Text { get; } = text;
 
     public string Outcome => "running";
+}
+
+internal sealed class DesignInterjectionViewModel : IInterjectionViewModel
+{
+    public string Note => "You, while it worked · joined the turn";
+
+    public string Text => "Keep the old Purchases namespace as an alias until the next release.";
 }
 
 internal sealed class DesignMessageViewModel(string text, bool isStreaming) : IMessageViewModel

@@ -28,6 +28,8 @@ public sealed record ToolCalled(SessionId Session, TurnId Turn, ItemId Item, str
 
 public sealed record ToolReturned(SessionId Session, TurnId Turn, ItemId Item, ToolResult Result) : IAgentEvent;
 
+public sealed record MessageQueued(SessionId Session, TurnId Turn, string Text) : IAgentEvent;
+
 public sealed record PlanUpdated(SessionId Session, TurnId Turn, IReadOnlyList<PlanStep> Steps) : IAgentEvent;
 
 public sealed record UsageReported(SessionId Session, TurnId Turn, TokenUsage Tokens, Option<Cost> Cost) : IAgentEvent;

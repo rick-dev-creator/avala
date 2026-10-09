@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:usage="using:Avala.Workbench.Usage"
+             x:Class="Avala.Workbench.UI.UsageDayView"
+             x:ClassModifier="internal"
+             x:DataType="usage:IUsageDayViewModel">
+  <Design.DataContext>
+    <usage:DesignUsageDayViewModel />
+  </Design.DataContext>
+  <Border BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,0,1" Padding="0,9" ToolTip.Tip="{Binding Types}">
+    <Grid ColumnDefinitions="150,*,150,110" ColumnSpacing="16">
+      <TextBlock x:Name="Day" Text="{Binding Day}" Classes.secondary="{Binding !IsToday}" VerticalAlignment="Center" />
+      <ProgressBar x:Name="Share" Grid.Column="1" Classes="bar" Value="{Binding Share}" Maximum="1" VerticalAlignment="Center" />
+      <TextBlock x:Name="Tokens" Grid.Column="2" Classes="caption" HorizontalAlignment="Right" Text="{Binding Tokens}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Cost" Grid.Column="3" FontSize="{DynamicResource FontSizeMono}" HorizontalAlignment="Right" Text="{Binding Cost}" VerticalAlignment="Center" />
+    </Grid>
+  </Border>
+</UserControl>

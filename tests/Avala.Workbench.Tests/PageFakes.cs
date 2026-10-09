@@ -67,6 +67,8 @@ internal sealed class FakeConnections(params string[] names) : IConnections
         names.Length > 0 ? new ConnectionName(names[0]) : Option<ConnectionName>.None)
     {
         DefaultMode = DefaultMode.Fixed,
+        Providers = [new ProviderInfo("simulator", "Simulator"), new ProviderInfo("claude-code", "Claude Code")],
+        Sources = ["login", "apiKey"],
     };
 
     public List<Option<ConnectionName>> Changes { get; } = [];
@@ -101,6 +103,46 @@ internal sealed class FakeConnections(params string[] names) : IConnections
             Default = connection.IsSome ? connection : Catalog.Connections.Select(declared => Option<ConnectionName>.Some(declared.Name)).FirstOrDefault(),
             DefaultMode = connection.IsSome ? DefaultMode.Fixed : DefaultMode.Auto,
         };
+
+        return ValueTask.FromResult(Result<ConnectionCatalog, ConnectionError>.Success(Catalog));
+    }
+
+    public List<string> Edits { get; } = [];
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken)
+    {
+        var credential = connection.Credential.Match(found => $" {found.Source}:{found.Reference}", () => string.Empty);
+        Edits.Add($"declare {replacing.Match(name => $"{name.Value}->", () => string.Empty)}{connection.Name.Value} {connection.Provider}{credential}");
+
+        if (Refusal.IsSome)
+        {
+            return ValueTask.FromResult(Refusal.Match(Result<ConnectionCatalog, ConnectionError>.Failure, () => throw new InvalidOperationException()));
+        }
+
+        var declared = new DeclaredConnection(connection.Name, connection.Provider, connection.Credential.Map(found => found.Source))
+        {
+            Reference = connection.Credential.Map(found => found.Reference),
+        };
+        Catalog = Catalog with
+        {
+            Connections = replacing.IsSome
+                ? [.. Catalog.Connections.Select(known => replacing == known.Name ? declared : known)]
+                : [.. Catalog.Connections.Where(known => known.Origin != ConnectionOrigin.Implicit), declared],
+        };
+
+        return ValueTask.FromResult(Result<ConnectionCatalog, ConnectionError>.Success(Catalog));
+    }
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken)
+    {
+        Edits.Add($"remove {connection.Value}");
+
+        if (Refusal.IsSome)
+        {
+            return ValueTask.FromResult(Refusal.Match(Result<ConnectionCatalog, ConnectionError>.Failure, () => throw new InvalidOperationException()));
+        }
+
+        Catalog = Catalog with { Connections = [.. Catalog.Connections.Where(known => known.Name != connection)] };
 
         return ValueTask.FromResult(Result<ConnectionCatalog, ConnectionError>.Success(Catalog));
     }
@@ -171,12 +213,21 @@ internal sealed class FakeUsageHistory : IUsageHistory
         return ValueTask.FromResult(new UsagePeriod(from, to, Pages.Used(7m), [], []));
     }
 
+    public Func<DateOnly, UsageSummary> Day { get; init; } = _ => Pages.Used(2m) with { UnpricedReports = 3 };
+
     public ValueTask<IReadOnlyList<UsagePeriod>> DailyAsync(DateOnly first, DateOnly last, TimeZoneInfo zone, CancellationToken cancellationToken)
     {
         Daily.Add((first, last));
 
-        return ValueTask.FromResult<IReadOnlyList<UsagePeriod>>([new UsagePeriod(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, Pages.Used(2m) with { UnpricedReports = 3 }, [], [])]);
+        return ValueTask.FromResult<IReadOnlyList<UsagePeriod>>(
+        [
+            .. Enumerable.Range(0, last.DayNumber - first.DayNumber + 1).Select(first.AddDays).Select(day =>
+                new UsagePeriod(Midnight(day, zone), Midnight(day.AddDays(1), zone), Day(day), [], [])),
+        ]);
     }
+
+    private static DateTimeOffset Midnight(DateOnly day, TimeZoneInfo zone) =>
+        new(day.ToDateTime(TimeOnly.MinValue), zone.GetUtcOffset(day.ToDateTime(TimeOnly.MinValue)));
 }
 
 internal sealed class FakeBudgets : IBudgets
@@ -370,6 +421,41 @@ internal sealed class FakeOpener : IFileOpener
     }
 }
 
+internal sealed class FakeWorkingFiles : IWorkingFiles
+{
+    public Dictionary<string, string> Files { get; } = new(StringComparer.Ordinal);
+
+    public List<string> Written { get; } = [];
+
+    public Option<WorkspaceFailure> Refusal { get; set; }
+
+    public ValueTask<Result<Option<string>, WorkspaceFailure>> ReadAsync(string repository, string path, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Refusal.Match(
+            Result<Option<string>, WorkspaceFailure>.Failure,
+            () => Result<Option<string>, WorkspaceFailure>.Success(Files.GetValueOrDefault(path).ToOption())));
+
+    public ValueTask<Result<string, WorkspaceFailure>> WriteAsync(string repository, string path, string content, CancellationToken cancellationToken)
+    {
+        if (Refusal.IsSome)
+        {
+            return ValueTask.FromResult(Refusal.Match(Result<string, WorkspaceFailure>.Failure, () => throw new InvalidOperationException()));
+        }
+
+        Written.Add(path);
+        Files[path] = content;
+
+        return ValueTask.FromResult(Result<string, WorkspaceFailure>.Success(Path.Combine(repository, path)));
+    }
+}
+
+internal sealed class BudgetLikeFormat : IRuleFileFormat
+{
+    public string Path => ".avala/budget.json";
+
+    public Option<RuleFileRejection> Rejection(string content) =>
+        content.Contains("\"holdAtLimit\": 2", StringComparison.Ordinal) ? RuleFileRejection.Of("Budgets", BudgetError.InvalidThreshold) : Option<RuleFileRejection>.None;
+}
+
 internal sealed class FakeRules : IRepositoryPolicies, IRepositoryBudgets, IRepositoryChecks
 {
     public static FileOrigin Origin { get; } = new("0123456789abcdef0123456789abcdef01234567", false);
@@ -421,6 +507,8 @@ internal sealed class SubmittingJobs : IJobs
         throw new NotSupportedException();
 
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     public ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
 

@@ -198,6 +198,7 @@ internal static class LayerMap
             ["Provisioning"] = Layer.Application,
             ["BaseFiles"] = Layer.Application,
             ["Changes"] = Layer.Application,
+            ["WorkingFiles"] = Layer.Infrastructure,
             ["Git"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,

@@ -45,6 +45,8 @@ internal interface IReviewViewModel
 
     string Feedback { get; set; }
 
+    string Queued { get; }
+
     string Outcome { get; }
 
     bool IsClosed { get; }
@@ -58,6 +60,8 @@ internal interface IReviewViewModel
     IAsyncRelayCommand ApproveCommand { get; }
 
     IAsyncRelayCommand SendBackCommand { get; }
+
+    IAsyncRelayCommand SendBackQueuedCommand { get; }
 
     IRelayCommand RequestDiscardCommand { get; }
 
@@ -107,6 +111,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
         Changes = string.Empty;
         Totals = string.Empty;
         Feedback = string.Empty;
+        Queued = string.Empty;
         Outcome = string.Empty;
         Refusal = string.Empty;
         Conflicts = [];
@@ -132,7 +137,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Heading))]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
     public partial JobStatus Status { get; private set; }
 
     [ObservableProperty]
@@ -170,8 +175,12 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     public partial string Feedback { get; set; }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendBackQueuedCommand))]
+    public partial string Queued { get; private set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Heading), nameof(IsClosed))]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
     public partial string Outcome { get; private set; }
 
     [ObservableProperty]
@@ -181,11 +190,11 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     public partial IReadOnlyList<string> Conflicts { get; private set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
     public partial bool ConfirmingDiscard { get; private set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
     public partial bool IsActing { get; private set; }
 
     public void Track(JobStatus status)
@@ -231,6 +240,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
         Proof = facts.Evidence.Match(ReviewPhrases.Proof, () => string.Empty);
         Quiet = facts.Evidence.Match(evidence => ReviewPhrases.Quiet(evidence, facts.Usage), () => string.Empty);
         ShowExceptions(facts.Evidence.Match(ReviewExceptions.Of, () => []));
+        Queued = desk.Queued(Job).Match(message => message, () => string.Empty);
         Changes = ReviewPhrases.Changes(facts.Diff);
         Totals = ReviewPhrases.Totals(facts.Diff);
         var kept = files.ToDictionary(file => (file.Path, file.Kind, file.Counts));
@@ -269,6 +279,15 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
             var sent = await desk.SendBackAsync(Job, Feedback.Trim(), cancellationToken);
             Feedback = sent.IsSuccess ? string.Empty : Feedback;
             Settle("Sent back", sent.Map(_ => "Sent back with your feedback"), ReviewPhrases.Refusal);
+        });
+
+    [RelayCommand(CanExecute = nameof(CanSendBackQueued))]
+    private Task SendBackQueuedAsync(CancellationToken cancellationToken) =>
+        ActAsync(async () =>
+        {
+            var sent = await desk.SendBackQueuedAsync(Job, cancellationToken);
+            Queued = sent.IsSuccess ? string.Empty : Queued;
+            Settle("Sent back", sent.Map(_ => "Sent back with the message you queued"), ReviewPhrases.Refusal);
         });
 
     [RelayCommand(CanExecute = nameof(CanRequestDiscard))]
@@ -321,6 +340,8 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     private bool CanApprove() => IsOpen() && !ConfirmingDiscard && Status == JobStatus.AwaitingReview;
 
     private bool CanSendBack() => CanApprove() && !string.IsNullOrWhiteSpace(Feedback);
+
+    private bool CanSendBackQueued() => CanApprove() && Queued.Length > 0;
 
     private bool CanRequestDiscard() => IsOpen() && Status.CanBeDiscarded && !ConfirmingDiscard;
 

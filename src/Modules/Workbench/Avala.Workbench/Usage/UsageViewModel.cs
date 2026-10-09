@@ -7,7 +7,7 @@ using Avala.Workbench.Spending;
 
 namespace Avala.Workbench.Usage;
 
-internal sealed record UsageState(SpendingState Spending, IReadOnlyList<UsageWindow> Windows);
+internal sealed record UsageState(SpendingState Spending, UsageRange Range);
 
 internal interface IUsageViewModel
 {
@@ -17,19 +17,30 @@ internal interface IUsageViewModel
 
     IReadOnlyList<IConnectionMeterViewModel> Connections { get; }
 
-    IReadOnlyList<IUsageWindowViewModel> Windows { get; }
+    IUsageRangeViewModel Range { get; }
 
     IReadOnlyList<IJobMeterViewModel> Jobs { get; }
 
     IReadOnlyList<IInterventionViewModel> Interventions { get; }
 }
 
-internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, LiveFeed feed) : IUsageViewModel, IPage, IActivatable, IPresentation, IDisposable
+internal sealed class UsageViewModel : IUsageViewModel, IPage, IActivatable, IPresentation, IDisposable
 {
     private readonly ObservableCollection<ConnectionMeterViewModel> connections = [];
-    private readonly ObservableCollection<UsageWindowViewModel> periods = [];
     private readonly ObservableCollection<JobMeterViewModel> jobs = [];
     private readonly ObservableCollection<InterventionViewModel> interventions = [];
+    private readonly UsageRangeViewModel range = new();
+    private readonly UsageReader reader;
+    private readonly UsageWindows windows;
+    private readonly LiveFeed feed;
+
+    public UsageViewModel(UsageReader reader, UsageWindows windows, LiveFeed feed)
+    {
+        this.reader = reader;
+        this.windows = windows;
+        this.feed = feed;
+        range.Chosen += (_, _) => feed.Refresh();
+    }
 
     public event EventHandler<Presented>? Presented
     {
@@ -47,7 +58,7 @@ internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, L
 
     public IReadOnlyList<IConnectionMeterViewModel> Connections => connections;
 
-    public IReadOnlyList<IUsageWindowViewModel> Windows => periods;
+    public IUsageRangeViewModel Range => range;
 
     public IReadOnlyList<IJobMeterViewModel> Jobs => jobs;
 
@@ -62,13 +73,13 @@ internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, L
     public void Dispose() => feed.Dispose();
 
     private async ValueTask<UsageState> ReadAsync(CancellationToken cancellationToken) =>
-        new(reader.Read(), await windows.ReadAsync(cancellationToken));
+        new(reader.Read(), await windows.ReadAsync(range.Span, cancellationToken));
 
     private void Show(UsageState state)
     {
         var titles = state.Spending.Jobs.ToDictionary(cost => cost.Job.Job, cost => cost.Job.Summary.Instruction);
         connections.ShowOnly(state.Spending.Connections.Select(connection => new ConnectionMeterViewModel(connection)));
-        periods.ShowOnly(state.Windows.Select(window => new UsageWindowViewModel(window)));
+        range.Show(state.Range);
         jobs.ShowOnly(state.Spending.Jobs.Select(cost => new JobMeterViewModel(cost)));
         interventions.ShowOnly(state.Spending.Interventions.Select(intervention => new InterventionViewModel(intervention, titles[intervention.Job])));
     }

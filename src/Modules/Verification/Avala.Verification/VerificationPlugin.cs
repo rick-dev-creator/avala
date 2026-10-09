@@ -2,8 +2,10 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
 using Avala.Verification.Evidence;
+using Avala.Verification.Checks;
 using Avala.Verification.Storage;
 using Avala.Verification.Verifying;
+using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -26,6 +28,7 @@ public sealed class VerificationPlugin : IPlugin
             .AddSingleton<EvidenceLedger>()
             .AddSingleton<CheckRunner>()
             .AddSingleton<ICompletionGate, ChecksGate>()
-            .AddSingleton<IRepositoryChecks, DeclaredChecks>();
+            .AddSingleton<IRepositoryChecks, DeclaredChecks>()
+            .AddSingleton<IRuleFileFormat, CheckFileFormat>();
     }
 }

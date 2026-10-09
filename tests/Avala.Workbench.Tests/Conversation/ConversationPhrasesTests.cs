@@ -20,22 +20,24 @@ public sealed class ConversationPhrasesTests
     [InlineData(JobRejection.UnusableConnection, "The job's connection cannot be used.")]
     [InlineData(JobRejection.AgentUnavailable, "The agent could not start.")]
     [InlineData(JobRejection.NotAwaitingReview, "The job no longer awaits review.")]
+    [InlineData(JobRejection.NotSteerable, "This agent takes no message while it works.")]
     [InlineData(JobRejection.InvalidRequest, "The job refused the command.")]
     public void ARefusedCommandToAJobSaysWhy(JobRejection rejection, string phrase) =>
         Assert.Equal(phrase, ConversationPhrases.Rejection(rejection));
 
     [Theory]
-    [InlineData(JobStatus.Running, "The agent is working · interrupt it to step in")]
-    [InlineData(JobStatus.NeedsHelp, "Continue the job with a message…")]
-    [InlineData(JobStatus.AwaitingReview, "Send the agent more to do before you review…")]
-    [InlineData(JobStatus.Checking, "The checks are running…")]
-    [InlineData(JobStatus.Preparing, "The agent is starting…")]
-    [InlineData(JobStatus.Draft, "The agent is starting…")]
-    [InlineData(JobStatus.Approved, "This job has ended")]
-    [InlineData(JobStatus.Discarded, "This job has ended")]
-    [InlineData(JobStatus.Failed, "This job has ended")]
-    public void TheComposerSaysWhatAMessageDoesForEachStatus(JobStatus status, string phrase) =>
-        Assert.Equal(phrase, ConversationPhrases.Placeholder(status));
+    [InlineData(JobStatus.Running, true, "Message the agent while it works…", "Send into the running turn (Ctrl+Enter)")]
+    [InlineData(JobStatus.Running, false, "This agent takes no message mid-turn · queue one for when it stops…", "Queue for when the agent stops (Ctrl+Enter)")]
+    [InlineData(JobStatus.NeedsHelp, true, "Continue the job with a message…", "Send (Ctrl+Enter)")]
+    [InlineData(JobStatus.AwaitingReview, false, "Send the agent more to do before you review…", "Send (Ctrl+Enter)")]
+    [InlineData(JobStatus.Checking, true, "The checks are running · queue a message for when they end…", "Queue for when the agent stops (Ctrl+Enter)")]
+    [InlineData(JobStatus.Preparing, true, "The agent is starting · queue a message for when it stops…", "Queue for when the agent stops (Ctrl+Enter)")]
+    [InlineData(JobStatus.Draft, false, "The agent is starting · queue a message for when it stops…", "Queue for when the agent stops (Ctrl+Enter)")]
+    [InlineData(JobStatus.Approved, true, "This job has ended", "Send (Ctrl+Enter)")]
+    [InlineData(JobStatus.Discarded, false, "This job has ended", "Send (Ctrl+Enter)")]
+    [InlineData(JobStatus.Failed, true, "This job has ended", "Send (Ctrl+Enter)")]
+    public void TheComposerSaysWhatAMessageDoesForEachStatus(JobStatus status, bool takesMessagesMidTurn, string phrase, string hint) =>
+        Assert.Equal((phrase, hint), (ConversationPhrases.Placeholder(status, takesMessagesMidTurn), ConversationPhrases.SendHint(status, takesMessagesMidTurn)));
 
     [Theory]
     [InlineData(JobStatus.Running, "", "Running")]

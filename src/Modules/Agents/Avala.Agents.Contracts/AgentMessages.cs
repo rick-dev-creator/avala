@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -23,6 +24,8 @@ public sealed record SessionOpened(SessionId Session, ProviderInfo Provider, str
     public Option<AgentAccount> Account { get; init; }
 
     public Option<ProcessTreeId> ProcessTree { get; init; }
+
+    public CapabilitySet Capabilities { get; init; } = CapabilitySet.None;
 }
 
 public sealed record SessionStopped(SessionId Session) : IIntegrationEvent;

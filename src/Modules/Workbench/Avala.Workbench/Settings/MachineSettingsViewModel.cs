@@ -15,6 +15,8 @@ internal interface IMachineSettingsViewModel
 {
     IDefaultConnectionViewModel DefaultConnection { get; }
 
+    IConnectionEditorViewModel Editor { get; }
+
     IReadOnlyList<IMachineConnectionViewModel> Connections { get; }
 
     string ConnectionsFile { get; }
@@ -68,16 +70,26 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     private readonly ObservableCollection<MachineConnectionViewModel> connections = [];
     private readonly MachineSettings settings;
     private readonly SettingsFiles files;
+    private readonly ConnectionEditorViewModel editor;
 
-    public MachineSettingsViewModel(MachineSettings settings, SettingsFiles files, IDefaultConnectionViewModel defaultConnection)
+    public MachineSettingsViewModel(MachineSettings settings, SettingsFiles files, IDefaultConnectionViewModel defaultConnection, ConnectionEditorViewModel editor)
     {
         this.settings = settings;
         this.files = files;
+        this.editor = editor;
         DefaultConnection = defaultConnection;
         defaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
+        editor.Edited += (_, edited) =>
+        {
+            ShowConnections(edited.Catalog);
+            DefaultConnection.Show(edited.Catalog);
+            Notice = edited.Notice;
+        };
     }
 
     public IDefaultConnectionViewModel DefaultConnection { get; }
+
+    public IConnectionEditorViewModel Editor => editor;
 
     public IReadOnlyList<IMachineConnectionViewModel> Connections => connections;
 
@@ -156,8 +168,13 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     private void ShowConnections(ConnectionCatalog catalog)
     {
         ConnectionsFile = SettingsPhrases.Status(catalog.File, catalog.Error);
+        editor.Show(catalog);
         connections.ShowOnly(catalog.Connections.Select(connection =>
-            new MachineConnectionViewModel(connection, catalog.DefaultMode == DefaultMode.Fixed && catalog.Default == Option<ConnectionName>.Some(connection.Name))));
+            new MachineConnectionViewModel(
+                connection,
+                catalog.DefaultMode == DefaultMode.Fixed && catalog.Default == Option<ConnectionName>.Some(connection.Name),
+                new RelayCommand(() => editor.Edit(connection)),
+                new RelayCommand(() => editor.AskToRemove(connection.Name)))));
     }
 
     private void ShowSupervision(SupervisionSettings supervision)

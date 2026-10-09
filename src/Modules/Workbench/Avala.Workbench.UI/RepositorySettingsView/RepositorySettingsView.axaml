@@ -44,6 +44,7 @@
                    Text="Choose a repository to see the rules its .avala files give every job." />
       </StackPanel>
     </Border>
+    <ContentControl x:Name="Editor" Content="{Binding Editor}" IsVisible="{Binding Editor.IsOpen}" />
     <StackPanel x:Name="Rules" Spacing="30" IsVisible="{Binding Shown, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <StackPanel Spacing="2">
         <TextBlock x:Name="RepositoryName" Classes="title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
@@ -60,6 +61,7 @@
               <Path Classes="icon external" Data="{StaticResource IconExternal}" />
             </StackPanel>
           </Button>
+          <Button x:Name="EditAutonomyHere" DockPanel.Dock="Right" Classes="link emphasis" Margin="0,0,12,0" Content="Edit here" Command="{Binding EditHereCommand}" CommandParameter="{Binding PermissionsFile}" />
           <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
             <TextBlock Classes="section" Text="Autonomy" VerticalAlignment="Center" />
             <TextBlock Classes="hint mono" Text="{Binding PermissionsFile.Path}" VerticalAlignment="Center" />
@@ -118,6 +120,7 @@
               <Path Classes="icon external" Data="{StaticResource IconExternal}" />
             </StackPanel>
           </Button>
+          <Button x:Name="EditBudgetHere" DockPanel.Dock="Right" Classes="link emphasis" Margin="0,0,12,0" Content="Edit here" Command="{Binding EditHereCommand}" CommandParameter="{Binding BudgetFile}" />
           <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
             <TextBlock Classes="section" Text="Budget caps · per job" VerticalAlignment="Center" />
             <TextBlock Classes="hint mono" Text="{Binding BudgetFile.Path}" VerticalAlignment="Center" />
