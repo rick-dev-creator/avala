@@ -1,3 +1,5 @@
+using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
@@ -10,16 +12,18 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
 
     public ProviderInfo Info { get; } = new(Id, "Claude Code");
 
-    public AgentCapabilities Capabilities { get; } = new(
-        StreamsPartialOutput: true,
-        ExposesReasoning: true,
-        CanInterrupt: true,
-        CanResume: true,
-        AcceptsTools: true,
-        ReportsUsage: true,
-        ReportsCost: true,
-        ReportsLimits: true,
-        AsksQuestions: true);
+    private static readonly CapabilitySet Declared = CapabilitySet.Of(
+        new StreamsPartialOutput(),
+        new ExposesReasoning(),
+        new Interruptible(),
+        new Resumable(),
+        new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
+        new AsksForms(),
+        new ReportsUsage(),
+        new ReportsCost(Telemetry.Currency));
+
+    public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) =>
+        connection.ApiKey.IsSome ? Declared : Declared.With(new ReportsLimits(Telemetry.SubscriptionWindows));
 
     public async ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken)
     {
@@ -37,8 +41,11 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         return await cli.Start(CommandLine.For(workingDirectory, options.Connection, resumed, home), options.Processes, transcripts).Match(
             async process => Result<IAgentSession, AgentError>.Success(await ClaudeCodeSession.OpenAsync(
                 process,
-                session => new Conversation(session, options, workingDirectory, resumed),
+                session => new Conversation(session, options, Places(workingDirectory, options.Connection), resumed),
                 account)),
             error => Task.FromResult(Result<IAgentSession, AgentError>.Failure(error)));
     }
+
+    private Places Places(string workingDirectory, ConnectionEnvironment connection) =>
+        new(workingDirectory, Path.Combine(connection.ConfigurationDirectory.Match(folder => folder, () => home.DefaultFolder), Protocol.Places.PlansFolder));
 }

@@ -1,5 +1,6 @@
 using Avala.Agents.Connections;
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Sessions;
@@ -48,6 +49,21 @@ public sealed class ConnectionsTests
             catalog.Connections);
         Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("first")), catalog.Default);
         Assert.Equal(new ConnectionInfo(new ConnectionName("first"), first.Info), Outcomes.Succeeds(await registry.CheckAsync(Option<ConnectionName>.None, Cancellation)));
+    }
+
+    [Fact]
+    public async Task AProviderThatOffersNoImplicitConnectionHasNoneWithoutAFileButADeclaredOneStillOpensOnItAsync()
+    {
+        var quiet = new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { Info = new ProviderInfo("quiet", "quiet") { OffersImplicitConnection = false } };
+        var implicitOnly = Connected.Registry([first, quiet]);
+        var declared = Connected.Registry("""{ "connections": [ { "name": "demo", "provider": "quiet" } ] }""", [first, quiet], new Vault());
+
+        var catalog = await implicitOnly.CatalogAsync(Cancellation);
+
+        Assert.Equal([new ConnectionName("first")], catalog.Connections.Select(connection => connection.Name));
+        Assert.Equal(
+            new ConnectionInfo(new ConnectionName("demo"), quiet.Info),
+            Outcomes.Succeeds(await declared.CheckAsync(new ConnectionName("demo"), Cancellation)));
     }
 
     [Fact]
@@ -121,6 +137,25 @@ public sealed class ConnectionsTests
         Assert.Equal((ConnectionFileStatus.Rejected, Option<ConnectionError>.Some(ConnectionError.MissingProvider), 0), (catalog.File, catalog.Error, catalog.Connections.Count));
         Assert.Equal(AgentError.UnusableConnection, Outcomes.FailsWith(await agents.OpenAsync(Request, Cancellation)));
         Assert.Empty(first.Sessions);
+    }
+
+    [Theory]
+    [InlineData("work", true)]
+    [InlineData("personal", false)]
+    public async Task TheCapabilitiesASessionIsTreatedByAreThoseOfTheConnectionItOpensOnAsync(string connection, bool resumed)
+    {
+        var refining = new ScriptedAgentProvider(ScriptedAgentProvider.Reply)
+        {
+            Info = first.Info,
+            OnConnection = (environment, declared) => environment.Settings.ContainsKey("model") ? declared.With(new Resumable()) : declared,
+        };
+        await using var agents = Agents(new RecordingBus(), Connected.Registry(Declared, [refining, second], new Vault()));
+
+        var opened = Outcomes.Succeeds(await agents.OpenAsync(
+            Request with { Connection = new ConnectionName(connection), Resume = new ResumeToken("conversation-1") },
+            Cancellation));
+
+        Assert.Equal((resumed, resumed), (opened.Resumed, Assert.Single(refining.Sessions).Options.Resume.IsSome));
     }
 
     private static ScriptedAgentProvider Provider(string id) => new(ScriptedAgentProvider.Reply) { Info = new ProviderInfo(id, id) };

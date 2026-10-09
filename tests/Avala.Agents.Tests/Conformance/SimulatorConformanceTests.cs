@@ -258,6 +258,67 @@ public sealed class SimulatorConformanceTests
         Assert.Equal(["the turn did not complete before the deadline"], await check);
     }
 
+    [Theory]
+    [InlineData("login")]
+    [InlineData("apiKey")]
+    public async Task TheSimulatorReportsTheUsageCostAndLimitsItsConnectionDeclaresAndNoOthersAsync(string credential)
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await CapabilityConformance.CheckReportsAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Connection = Credential(credential, "work") },
+            new UserTurn("[simulate: near-limit] conformance"),
+            Deadline));
+    }
+
+    [Theory]
+    [InlineData("withoutCapabilities", "streamsPartialOutput", "reply")]
+    [InlineData("withoutCapabilities", "exposesReasoning", "reply")]
+    [InlineData("withoutCapabilities", "reportsUsage", "near-limit")]
+    [InlineData("withoutCapabilities", "reportsCost", "near-limit")]
+    [InlineData("withoutCapabilities", "reportsLimits", "near-limit")]
+    [InlineData("withoutCapabilities", "resumable", "fix-after-feedback")]
+    [InlineData("withoutCapabilities", "asksForms", "question")]
+    [InlineData("withoutCapabilities", "acceptsTools", "follow-up")]
+    [InlineData("withoutCapabilities", "interruptible", "reply")]
+    [InlineData("toolSurfaces", "executed", "canvas")]
+    public async Task ASimulatorConnectionThatLacksAComponentBehavesAsItDeclaresAsync(string setting, string value, string scenario)
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+        var provider = services.GetRequiredService<IAgentProvider>();
+        var options = new SessionOptions(folder.Path, PermissionMode.AskEveryTime)
+        {
+            Connection = new ConnectionEnvironment { Settings = new Dictionary<string, string> { [setting] = value } },
+        };
+        var instruction = new UserTurn($"[simulate: {scenario}] conformance");
+
+        Assert.Empty(await (value switch
+        {
+            "resumable" => AgentConformance.CheckResumeAsync(provider, options, instruction, Deadline),
+            "asksForms" => AgentConformance.CheckFormsAsync(provider, options, instruction, Deadline),
+            "acceptsTools" => AgentConformance.CheckHarnessToolAsync(provider, options, instruction, Deadline),
+            "executed" => AgentConformance.CheckCanvasToolAsync(provider, options, instruction, Deadline),
+            "interruptible" => CapabilityConformance.CheckInterruptAsync(provider, options, instruction, Deadline),
+            _ => CapabilityConformance.CheckReportsAsync(provider, options, instruction, Deadline),
+        }));
+    }
+
+    [Fact]
+    public async Task TheSimulatorEndsAHangingTurnItIsAskedToInterruptAsInterruptedAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await CapabilityConformance.CheckInterruptAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new UserTurn("[simulate: hang] conformance"),
+            Deadline));
+    }
+
     private static Task<IReadOnlyList<string>> CheckAsync(
         ServiceProvider services,
         TemporaryFolder folder,

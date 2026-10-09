@@ -85,9 +85,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
         JobRequest request,
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed,
-        bool harnesses = false)
+        bool harnesses = false,
+        Option<IPlugin> claudeCode = default)
     {
-        var run = await PreparedAsync(plugins, settings, committed, harnesses);
+        var run = await PreparedAsync(plugins, settings, committed, harnesses, claudeCode: claudeCode);
         run.Job = Outcomes.Succeeds(await run.SubmitAsync(request));
 
         return run;
@@ -125,6 +126,14 @@ internal sealed class SimulatedRun : IAsyncDisposable
         IReadOnlyList<(string Path, string Content)> committed) =>
         StartAsync(plugins, new JobRequest(string.Empty, instruction), data, committed, harnesses: true);
 
+    public static Task<SimulatedRun> TranscribedAsync(
+        PublishedPlugins plugins,
+        IPlugin claudeCode,
+        JobRequest request,
+        IReadOnlyList<(string File, string Content)> data,
+        IReadOnlyList<(string Path, string Content)> committed) =>
+        StartAsync(plugins, request, data, committed, claudeCode: Option<IPlugin>.Some(claudeCode));
+
     public static Task<SimulatedRun> PreparedAsync(PublishedPlugins plugins, params (string Path, string Content)[] committed) =>
         PreparedAsync(plugins, [], committed);
 
@@ -132,7 +141,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
         PublishedPlugins plugins,
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed,
-        bool harnesses = false)
+        bool harnesses = false,
+        bool developer = true,
+        Option<IPlugin> claudeCode = default)
     {
         var data = new TemporaryFolder();
 
@@ -143,7 +154,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var surroundings = new Surroundings(new TestUiDispatcher(), new FakeTimeProvider(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses);
+        var surroundings = new Surroundings(new TestUiDispatcher(), new FakeTimeProvider(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode);
         var root = surroundings.Compose(plugins, data);
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 
@@ -310,7 +321,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     }
 
 
-    private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock, bool Harnesses)
+    private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock, bool Harnesses, bool Developer, Option<IPlugin> ClaudeCode)
     {
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
@@ -318,8 +329,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 new AvalaPaths(data.Path),
                 Ui,
                 Clock,
-                [new SimulatorPlugin(TimeSpan.Zero)],
-                Harnesses ? [] : [typeof(ClaudeCodePlugin)]);
+                [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
+                Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)]);
     }
 
     private sealed class Application : IAsyncDisposable

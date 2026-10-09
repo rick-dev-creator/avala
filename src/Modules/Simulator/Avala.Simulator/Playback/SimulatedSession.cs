@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
@@ -15,6 +16,7 @@ internal sealed class SimulatedSession : IAgentSession
     private readonly Performer performer;
     private readonly SessionOptions options;
     private readonly Stagecraft craft;
+    private readonly Adaptation adaptation;
     private Option<Conversation> conversation;
     private Option<Act> act;
     private bool closed;
@@ -26,7 +28,9 @@ internal sealed class SimulatedSession : IAgentSession
             new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission),
             new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm),
             new ReplyGate<ToolResult>(stage, AgentError.NoPendingCall));
-        performer = new Performer(options, craft, gates);
+        var capabilities = SimulatedCapabilities.On(options.Connection);
+        performer = new Performer(options, craft, gates, capabilities);
+        adaptation = new Adaptation(capabilities);
         this.options = options;
         this.craft = craft;
         this.conversation = conversation;
@@ -113,8 +117,11 @@ internal sealed class SimulatedSession : IAgentSession
         {
             await foreach (var cue in performer.PlayAsync(cues, played, interruption))
             {
-                await craft.Pacing.WaitAsync(interruption);
-                ended |= await PublishAsync(current, cue);
+                foreach (var adapted in adaptation.Adapt(cue))
+                {
+                    await craft.Pacing.WaitAsync(interruption);
+                    ended |= await PublishAsync(current, adapted);
+                }
             }
 
             if (performer.Closing)

@@ -79,7 +79,7 @@ Done when: a job goes from submitted to awaiting review with the fake provider, 
 
 ## Phase 6: First provider
 
-Status: done. Real jobs ran end to end with Claude Code: an edit with a canvas, a question answered by the autonomous policy and a command denied by a repository rule, plus direct sessions that called a harness tool, resumed and ran on a second login. The provider contract covered what the adapter needed beyond a turn, so the adapter only translates its protocol, see [the Claude Code provider](../design/claude-code.md). Left for later: a canvas streamed in chunks from Claude's partial input, the `Task*` tools as a plan, and a resumed session recorded as the continuation of the one before.
+Status: done. Real jobs ran end to end with Claude Code: an edit with a canvas, a question answered by the autonomous policy and a command denied by a repository rule, plus direct sessions that called a harness tool, resumed and ran on a second login. The provider contract covered what the adapter needed beyond a turn, so the adapter only translates its protocol, see [the Claude Code provider](../design/claude-code.md). Left for later: a resumed session recorded as the continuation of the one before. The canvas streamed in chunks and the `Task*` tools as a plan were done in [phase D](#phase-d-claude-code-gaps).
 
 1. A simulated Claude Code provider that uses only the public agent contracts: declarative scenarios chosen by a tag in the first message, real file edits, permission requests answered through `IAgents.RespondAsync`, and failure scenarios that the conformance kit must report.
 2. Done. The Claude Code provider plugin, `Avala.ClaudeCode`: the CLI in its streaming JSON mode, started through the session's launcher with only the connection's configuration folder or key; its stream translated into items, plan, usage with cost, limits, resume tokens and turn ends; every acting tool sent to Avala's policy through a `PreToolUse` hook and the permission prompt tool of Avala's own MCP server, which runs in the session over the CLI's control channel; `AskUserQuestion` and plan approval as forms; the harness tools served by the same server; and a discovery of the machine's logins, one connection per configuration folder. Later: the user's configuration of that folder alone, `CLAUDE.md`, skills, plugins and MCP servers, loaded under Avala's permissions with the user's hooks off, switched per connection by `userConfiguration` and `userHooks`, see [the user's configuration](../design/claude-code.md#the-users-configuration).
@@ -95,9 +95,9 @@ Done when: a real job runs end to end with Claude Code.
 
 ## Phase 6b: Capabilities as components
 
-Status: planned, right after the Claude Code adapter and before any second real harness, so the contract changes while it has one real provider and the simulator.
+Status: done, with Claude Code and the simulator, before any second real harness. See [capability components](../design/core.md#capability-components).
 
-Today a provider declares its capabilities as a closed record of booleans: every new capability changes the contract and every provider, and nothing says how a capability works or lets it differ per connection. Capabilities become components, in the spirit of an entity component system:
+A provider declared its capabilities as a closed record of booleans: every new capability changed the contract and every provider, and nothing said how a capability works or let it differ per connection. Capabilities became components, in the spirit of an entity component system:
 
 - A component is an immutable record in the contracts that states a capability and its data, such as `Resumable(Scope)`, `ReportsLimits(Windows)`, `AcceptsTools(Surfaces)` or `StreamsPartialOutput(Granularity)`.
 - Providers attach the components they support; a connection may add or refine components, such as cost reporting for an API key or the limit windows of a subscription.
@@ -106,6 +106,33 @@ Today a provider declares its capabilities as a closed record of booleans: every
 - Components are listed in a documented catalog, like the data catalog, and are never a bag of strings.
 
 The components are designed from what the Claude Code adapter and the selection by capacity actually need.
+
+What was built:
+
+1. Done. `Avala.Agents.Contracts.Capabilities`: `ICapability`, the typed `CapabilitySet` keyed by component type, with `Get<T>()` as an `Option<T>`, `Has<T>()`, `With` to attach or refine and `Without<T>()`, and `ValueSet<T>`, a set with value equality for a component's data. `AgentCapabilities` is removed.
+2. Done. The catalog: `StreamsPartialOutput`, `ExposesReasoning`, `Interruptible`, `Resumable`, `AcceptsTools(Surfaces)`, `AsksForms`, `ReportsUsage`, `ReportsCost(Currency)` and `ReportsLimits(Windows)`, the nine booleans with the data the core and the kit read. Planning, a resume scope and a streaming granularity were left out: no system reads them.
+3. Done. Per connection: `IAgentProvider.CapabilitiesOn(ConnectionEnvironment)`. Claude Code and the simulator declare `ReportsLimits` with the subscription's windows on a login and none on an API key, and the simulator then leaves out the limits it would report.
+4. Done. Agents reads the set once per session, on its connection: `SessionStarter` gives a provider only the harness tools of the surfaces it accepts and a resume token only when it is `Resumable`, and `AgentSessions` decides interruption, forms, tool results and `SessionResumable` from the set kept with the live session.
+5. Done. The recorder writes the components of the session's connection, each named after its type with its data, a plugin's own component included; the committed recordings carry the new shape.
+6. Done. The conformance kit checks, on every turn, usage, cost and its currency, limits and their windows, reasoning and partial output against the declared components; `CheckReportsAsync` and `CheckInterruptAsync` check that what is declared happens. The simulator, on a login and on an API key, and Claude Code, through its recorded transcripts, pass them.
+7. Done. An architecture rule: every component is a sealed immutable record in a `Contracts` namespace.
+8. Done. End to end through the simulator: its connection settings `withoutCapabilities` and `toolSurfaces` play a harness that lacks a component, its sessions adapt to what they declare, and `CapabilityTests` in the host tests prove every component, and the API key refinement of `ReportsLimits`, inside the composed application; the conformance kit checks each of those connections.
+
+Deferred: whether Claude Code emits `rate_limit_event` on an API key, to be observed with a real key; a view of a connection's capabilities in the settings page, when a person needs it; and a reader of the recorded capabilities, which nothing interprets yet.
+
+## Phase D: Claude Code gaps
+
+Status: done, proven through the simulator and through crafted Claude Code transcripts replayed by the real adapter in the composed application; one real run confirmed the plan-mode shape. See [the Claude Code provider](../design/claude-code.md).
+
+An audit found Claude Code behaviour tested only with synthetic JSON, or not handled. Each gap got acceptance criteria, a simulator scenario where the behaviour is agnostic, a transcript in `tests/transcripts/claude-code` crafted from the CLI's shapes, the agnostic recording that transcript produces in `tests/recordings`, and a conformance check.
+
+1. Done. **Plans.** AC1: given `TaskCreate` calls, each subject is a pending step of `PlanUpdated` and no item opens. AC2: given the result `Task #<id> created successfully`, `TaskUpdate` of that id moves its step to in progress or done, and `deleted` removes it. AC3: a failed `TaskCreate` drops its step. AC4: a subagent's `TodoWrite` never changes the job's plan. `CLAUDE_CODE_ENABLE_TASKS=0` is no longer forced. Recording `claude-code-tasks`.
+2. Done. **Tool rows.** AC5: every tool's `ItemStarted` carries its input: an edit's replaced and new lines, a `MultiEdit`'s edits, a `Write`'s content, a command line with its heredoc, a search's pattern and path, a fetch's URL and prompt, a web search's query, a subagent's prompt, a `ToolSearch` query titled `Load <tools>`; the conversation's tool rows show it. AC6: a subagent's forwarded text grows its own item, never a message of the parent, and its final result is not repeated; its tool calls are items of their own. AC7: a file written through a command is captured by the recorder and recreated by the replay. AC8: plan approval as observed: the plan Claude writes to its configuration folder's `plans` folder is not asked as an edit, and is the context of the approval form when `ExitPlanMode`'s input is empty. AC9: a turn stopped mid-reply by supervision ends `Interrupted`, its open message cancelled, the job held as stalled, also when the recording is replayed by the simulator. Simulator scenario `tools`; recordings `tools`, `claude-code-tools`, `claude-code-plan-approval`, `claude-code-interrupt`; real recording `claude-code-real-plan-approval`.
+3. Done. **Streamed canvas.** AC10: the canvas opens once its title and media type are complete in the partial input and grows with every `input_json_delta` that lengthens its content, an escape split across chunks held back; the final input adds only what is missing. Recording `claude-code-canvas`.
+4. Done. **Resume.** AC11: a Claude Code job cut short by a restart is recovered with its token, resumed with `--resume` and the same session id, and reports only the cost the resumed turn added. Recording `claude-code-resume`.
+5. Done. **Long harness calls.** AC12: the CLI is given the longest MCP tool timeout it accepts, through the server's `timeout` and `MCP_TOOL_TIMEOUT`, with auto-backgrounding off. AC13: a delegated call whose child waits two hours of the test clock on a person is answered with the child's report when it finishes, and the parent is never held as stalled, through the adapter and through the simulator's replay, which now replays recorded tool calls. Simulator scenario `delegate-waiting`; recording `claude-code-delegate`.
+
+Deferred: a run on a model that enables the task tools, a real subagent with forwarded text, and whether the CLI writes the plan file without a prompt once the hook leaves it alone; nesting a subagent's tool items under its own item, which the contract cannot express.
 
 ## Phase 7: Observability
 
@@ -404,7 +431,7 @@ Done when: the harness replaces a terminal for daily work.
 
 ## Screen honesty
 
-An audit found screens that present as durable what lives only in memory, so after a restart the interface lied: a verified job read as merely ready for review, an audit as empty, a cap as unknown, a reading of a reset window as current. Every phase of this section ends with a host simulation test that restarts the application and proves the screen shows the same thing as before.
+Nothing on a screen may mislead: every label says exactly what its figure covers, every control says what it will do, and nothing offers an action that cannot be completed there without saying so. An audit also found screens that present as durable what lives only in memory, so after a restart the interface lied: a verified job read as merely ready for review, an audit as empty, a cap as unknown, a reading of a reset window as current.
 
 ### A1: Persistence
 
@@ -422,7 +449,7 @@ Every module that owns data keeps it in its own SQLite database through EF Core,
 7. Limit readings: a reading whose window has reset is shown as reset on the Usage page and the Overview, live through a `TimeProvider` timer and after a restart; capacity treats it as fresh capacity, as before.
 8. Pending decisions: by design they do not survive a restart, since the session that waits died; the count shows only what a live session waits for, and the audit marks the abandoned decision "unanswered, its session ended".
 
-Acceptance criteria, each a host simulation test in `ScreenHonestyTests` that captures what the screens show, restarts the application with `SimulatedRun.RestartAsync` over the same data folder and clock, and compares:
+Acceptance criteria, each a host simulation test in `RestartTests` that captures what the screens show, restarts the application with `SimulatedRun.RestartAsync` over the same data folder and clock, and compares:
 
 ```
 AC1  Given a job verified on attempt 2 of 2, when the application restarts, then the sidebar row, the inspector's evidence
@@ -444,3 +471,20 @@ AC8  Given a permission left to a person when the application stops, when it res
 ```
 
 Unit tests cover each store's round trip and its exclusion of what the current run wrote, each book's restore, the adoption of a database created without migrations, the stored JSON of options and enums, the judgment of readings against the clock and the timer that refreshes a page at a reset. The simulator gained the `governed` and `waiting-permission` scenarios.
+
+### A2: nothing misleading
+
+Done. Each item has its acceptance criteria as view model scripts, headless view scripts where the view changed, and a host simulation test in `ScreenHonestyTests` that drives the composed application on the simulator.
+
+1. **Usage over all time.** The usage page and each connection's meter show all recorded usage, earlier runs included; they say "All recorded usage, kept across restarts" and "… in total" instead of "since Avala started".
+2. **Resources of Avala's agents.** The resources page and the sidebar indicator measure the process trees and worktrees of Avala's agents, and say so instead of "This computer".
+3. **Don't ask again, for the session.** The session rule lasts as long as the agent session; the card, the decisions popover, which offers it too, and the inspector say "Don't ask again this session", with the exact scope in its hint.
+4. **The autonomy a new job runs at.** The New job page reads the repository's declared autonomy at its current commit, offers "Repository's level: …" and "Supervised" only when it tightens it, and says what the choice means.
+5. **The simulator outside developer mode.** A provider declares through `ProviderInfo.OffersImplicitConnection` whether it has an implicit connection; outside developer mode, `AVALA_DEVELOPER`, the simulator offers none and discovers none, and only a simulator connection declared in `connections.json` is listed.
+6. **Auto across providers.** Auto compares the usable connections of every provider, and Autopilot watches the same connections; the New job line says when there is no reading to compare. The simulator registers a second harness, `simulator-second`, reached only through a declared connection, to prove it end to end.
+7. **Edit a file that does not exist yet.** "Edit in repository" and "Open connections.json" create a missing file from a minimal valid template, then open it, and say what was created and when it applies; `IFileOpener` takes the template.
+8. **Every form answerable from the popover.** A form of one choice field without free text keeps its numbered options; any other form is filled in a box under the list with the conversation's own field components, where typing never moves the selection.
+9. **The wait of a decision.** The popover re-ages its decisions on a `TimeProvider` timer while open, and a decision without a timestamp shows no wait.
+10. **Thinking the harness did not share.** A thought that streamed no text reads "Thought for Ns · content not shared by the harness" and does not open; the simulator's `unshared-thought` scenario plays it.
+11. **The sidebar's decision badge.** Each row draws the count of decisions waiting on its job.
+12. **The overview's limits.** Hovering a connection's hub lists every limit window of the connection.

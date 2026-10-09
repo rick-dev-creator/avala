@@ -10,7 +10,7 @@ namespace Avala.Permissions.Answering;
 
 internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IEventBus bus, TimeProvider clock) : IPermissionAnswers
 {
-    public const string DontAskAgain = "don't ask again";
+    public const string DontAskAgain = "don't ask again this session";
 
     public async ValueTask<Result<HumanAnswer, PolicyError>> AnswerAsync(SessionId session, PermissionReply reply, CancellationToken cancellationToken)
     {

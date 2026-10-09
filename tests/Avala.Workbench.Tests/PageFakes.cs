@@ -329,17 +329,44 @@ internal sealed class FakeHousekeeping : IWorktreeHousekeeping
     }
 }
 
+internal sealed class FakePolicies : IRepositoryPolicies
+{
+    public RepositoryPolicy Policy { get; set; } = Declaring(Autonomy.Autonomous);
+
+    public List<string> Asked { get; } = [];
+
+    public static RepositoryPolicy Declaring(Autonomy autonomy) =>
+        new(PolicyFileStatus.Applied, Option<PolicyError>.None, [], Option<FileOrigin>.None) { Autonomy = autonomy };
+
+    public ValueTask<RepositoryPolicy> OfRepositoryAsync(string repository, CancellationToken cancellationToken)
+    {
+        Asked.Add(repository);
+
+        return ValueTask.FromResult(Policy);
+    }
+}
+
 internal sealed class FakeOpener : IFileOpener
 {
     public List<string> Opened { get; } = [];
 
     public Option<FileOpenError> Refusal { get; set; }
 
-    public ValueTask<Result<string, FileOpenError>> OpenAsync(string path, CancellationToken cancellationToken)
+    public HashSet<string> Existing { get; } = [];
+
+    public Dictionary<string, string> Created { get; } = [];
+
+    public ValueTask<Result<OpenedFile, FileOpenError>> OpenAsync(string path, string template, CancellationToken cancellationToken)
     {
         Opened.Add(path);
+        var created = Existing.Add(path);
 
-        return ValueTask.FromResult(Refusal.Match(Result<string, FileOpenError>.Failure, () => Result<string, FileOpenError>.Success(path)));
+        if (created)
+        {
+            Created[path] = template;
+        }
+
+        return ValueTask.FromResult(Refusal.Match(Result<OpenedFile, FileOpenError>.Failure, () => Result<OpenedFile, FileOpenError>.Success(new OpenedFile(path, created))));
     }
 }
 

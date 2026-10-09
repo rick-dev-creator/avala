@@ -226,6 +226,64 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             Assert.True(target.Bounds.Height > 40);
         }, Cancellation);
 
+    [Fact]
+    public Task AFormWithFieldsIsFilledBelowTheListWhereTypedKeysNeverMoveTheSelectionAndEnterAnswersAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var decisions = bench.Decisions();
+            decisions.Show(Bench.Of(Releasing(bench)));
+            var view = Tall(Screen.Show(decisions));
+            var shown = (view.Shows("FormBox"), view.Shows("FieldsBelow"), view.Shows("Options"));
+
+            view.Type("Text", "jk 1.4");
+            view.Click(view.All<CheckBox>().Single(box => box.Name == "Confirmed"));
+            view.Find("Text").Focus();
+            view.Press(Key.Enter);
+            await (decisions.Items[0].AnswerCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal((true, true, false), shown);
+            var answer = Assert.Single(bench.Agents.Answers).Answer;
+            Assert.Equal([("tag", "jk 1.4", false), ("notes", string.Empty, true)], answer.Fields.Select(field => (field.Field, field.Text.Match(text => text, () => string.Empty), field.Confirmed)));
+        }, Cancellation);
+
+    [Fact]
+    public Task DontAskAgainThisSessionIsOfferedOnAPermissionAndSentWithTheAnswerAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var decisions = bench.Decisions();
+            decisions.Show(Bench.Of(Asking(bench)));
+            var view = Tall(Screen.Show(decisions));
+
+            view.Click("DontAskAgain");
+            view.Click("Answer");
+            await (decisions.Items[0].AnswerCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal("Don't ask again this session", view.Find<CheckBox>("DontAskAgain").Content);
+            Assert.True(Assert.Single(bench.Permissions.Replies).Reply.DontAskAgain);
+        }, Cancellation);
+
+    private static BoardJob Releasing(Bench bench)
+    {
+        var session = SessionId.New();
+        var turn = TurnId.New();
+        var asked = bench.Time.GetUtcNow();
+        var form = new AgentForm(
+            FormPurpose.Other,
+            "Prepare the release",
+            string.Empty,
+            [new FormField("tag", "Tag", "Which tag?", FieldKind.FreeText, []), new FormField("notes", "Notes", "Publish the notes?", FieldKind.Confirmation, [])]);
+
+        return Bench.OnBoard(bench.Job("Ship 1.4", JobStatus.Running)) with
+        {
+            Transcript = Transcript.Empty
+                .Apply(new TurnStarted(session, turn), asked)
+                .Apply(new FormRequested(session, turn, new ItemId("release"), form), asked)
+                .Apply(new FormDecision(session, turn, new ItemId("release"), Option<JobId>.None, form, Autonomy.Supervised, Option<FormAnswer>.None, [], DecisionDelivery.LeftToHuman, asked)),
+        };
+    }
+
     private static ViewScript Tall(ViewScript view)
     {
         view.Window.Height = 900;

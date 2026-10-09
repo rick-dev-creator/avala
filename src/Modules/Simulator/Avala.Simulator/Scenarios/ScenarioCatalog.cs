@@ -68,6 +68,31 @@ internal static class ScenarioCatalog
         FixedCalculator,
     ]);
 
+    public static Scenario Tools { get; } = new("tools",
+    [
+        [
+            Thought("I will look around, ", "then write the greeting and the notes."),
+            Plan(PlanStepStatus.InProgress, PlanStepStatus.Pending),
+            new UseTool(new ItemId("search"), ItemKind.Search, "Search greeting", "greeting", "greeting in src/**/*.cs", "src/Greeter.cs:3: // greeting goes here", AsksPermission: false),
+            new UseTool(new ItemId("fetch"), ItemKind.Web, "Fetch https://example.com/style", "https://example.com/style", "https://example.com/style\nHow should a greeting be written?", "Greetings start with a heading.", AsksPermission: true),
+            new UseTool(new ItemId("load"), ItemKind.Other, "Load the canvas tool", "canvas", "canvas", "canvas", AsksPermission: false),
+            new UseTool(
+                new ItemId("explore"),
+                ItemKind.Subagent,
+                "Subagent: Find the greeting style",
+                "Find the greeting style",
+                "Read the repository and say how greetings are written.",
+                "Reading the repository.\n\nGreetings are a single heading line.",
+                AsksPermission: false),
+            new WriteFile(new ItemId("edit"), "GREETING.md", "# Hello\n"),
+            new WriteThroughCommand(new ItemId("notes"), "cat > NOTES.md <<'EOF'\n# Notes\nWritten through the shell.\nEOF", "NOTES.md", "# Notes\nWritten through the shell.\n"),
+            Plan(PlanStepStatus.Done, PlanStepStatus.Done),
+            Message("Wrote GREETING.md ", "and NOTES.md."),
+            .. Bill(3_600, 410, 0.0210m, 0.19),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario Permission { get; } = new("permission",
     [
         [
@@ -139,6 +164,40 @@ internal static class ScenarioCatalog
             .. Bill(2_500, 160, 0.0100m, 0.28),
             new RunCommand(new ItemId("migrate"), "dotnet ef database update", "Applied 2 migrations.", AsksPermission: true),
             Message("The orders are stored ", "and the database is migrated."),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario UnsharedThought { get; } = new("unshared-thought",
+    [
+        [
+            Thought(),
+            Message("Done, ", "without sharing how I got there."),
+            .. Bill(1_100, 70, 0.0040m, 0.12),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario Fields { get; } = new("fields",
+    [
+        [
+            Thought("The release needs three answers ", "before it can be tagged."),
+            new Ask(new ItemId("release"), new AgentForm(
+                FormPurpose.Other,
+                "Prepare the release",
+                "The changelog is drafted; the tag and its notes are not.",
+                [
+                    new FormField("tag", "Tag", "Which tag should the release get?", FieldKind.FreeText, []),
+                    new FormField(
+                        "targets",
+                        "Targets",
+                        "Where should it be published?",
+                        FieldKind.MultipleChoice,
+                        [new FormOption("NuGet", "The package feed.", Recommended: true), new FormOption("GitHub", "A release page.")]),
+                    new FormField("notes", "Notes", "Publish the drafted notes as they are?", FieldKind.Confirmation, []),
+                ])),
+            Message("The release is prepared."),
+            .. Bill(1_900, 110, 0.0070m, 0.22),
             new Finish(),
         ],
     ]);
@@ -328,6 +387,17 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario DelegatedWaiting { get; } = new("delegate-waiting",
+    [
+        [
+            Thought("The migration needs a person's approval. ", "A sub-agent will ask for it."),
+            Delegation("delegate-migrate", """{ "instruction": "[simulate: permission] Migrate the database" }"""),
+            Message("The migration came back."),
+            .. Bill(1_700, 120, 0.0065m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario DelegatedLoosely { get; } = new("delegate-loosen",
     [
         [
@@ -412,8 +482,9 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Reply, Edit, FixAfterFeedback, RewriteChecks, Permission, WaitingPermission, RepeatedPermission, OutsideEdit, Question, Governed, PlanApproval, Crash, LeftOpen, Hang, Canvas, UnofferedCanvas,
-        Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedLoosely, DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
+        Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, WaitingPermission, RepeatedPermission, OutsideEdit, Question, Governed, UnsharedThought, Fields, PlanApproval,
+        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely,
+        DelegatedExpensively, Recursive, Notes, RevisedNotes, Todo, Expensive,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";

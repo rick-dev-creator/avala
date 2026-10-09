@@ -65,6 +65,21 @@ public sealed class RecorderTests
         Assert.Equal(recording.Entries.Select(entry => entry.At).Order(), recording.Entries.Select(entry => entry.At));
     }
 
+    [Theory]
+    [InlineData("notes.md")]
+    [InlineData("no\0tes.md")]
+    public async Task AnEditOfAFileThatCannotBeReadIsRecordedWithoutContentEvenFromARelativeWorkingDirectoryAsync(string path)
+    {
+        var store = new MemoryStore();
+        var provider = new ScriptedAgentProvider((session, turn) => Edit(session, turn, path));
+        await using var recorded = Outcomes.Succeeds(await Recorder(new RecordingSettings(true, []), store).Decorate(provider).StartAsync(Options("missing"), Cancellation));
+
+        var turn = Outcomes.Succeeds(await recorded.SendAsync(new UserTurn("Write the notes"), Cancellation));
+
+        Assert.Equal(Edit(recorded.Id, turn, path), await ReadTurnAsync(recorded));
+        Assert.DoesNotContain(store.Of(recorded.Id).Entries, entry => entry.Fact is FileCaptured);
+    }
+
     [Fact]
     public async Task AnInputTheProviderRefusesIsRecordedWithItsRefusalAsync()
     {

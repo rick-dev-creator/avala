@@ -41,8 +41,12 @@ internal static class CommandLine
         ConfigurationVariable, KeyVariable, "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN",
         "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_BRIDGE_SESSION_ID",
         "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN", "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_EXECPATH",
-        "CLAUDE_CODE_SSE_PORT", "CLAUDE_PID", "CLAUDE_EFFORT",
+        "CLAUDE_CODE_SSE_PORT", "CLAUDE_PID", "CLAUDE_EFFORT", "CLAUDE_AUTO_BACKGROUND_TASKS", "CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS",
     ];
+
+    public const string ToolTimeoutVariable = "MCP_TOOL_TIMEOUT";
+
+    public const int ToolTimeoutMilliseconds = int.MaxValue;
 
     public static string Qualified(string tool) => $"mcp__{Server}__{tool}";
 
@@ -54,7 +58,13 @@ internal static class CommandLine
 
     private static List<string> Arguments(ConnectionEnvironment connection, Option<ConversationMark> resume, UserHome home)
     {
-        var servers = new JsonObject { ["mcpServers"] = new JsonObject { [Server] = new JsonObject { ["type"] = "sdk", ["name"] = Server } } };
+        var servers = new JsonObject
+        {
+            ["mcpServers"] = new JsonObject
+            {
+                [Server] = new JsonObject { ["type"] = "sdk", ["name"] = Server, ["timeout"] = ToolTimeoutMilliseconds, ["disableAutoBackground"] = true },
+            },
+        };
 
         return
         [
@@ -63,6 +73,7 @@ internal static class CommandLine
             "--output-format", "stream-json",
             "--verbose",
             "--include-partial-messages",
+            "--forward-subagent-text",
             "--permission-mode", "default",
             "--permission-prompt-tool", Qualified(PermissionTool),
             "--mcp-config", servers.ToJsonString(),
@@ -77,8 +88,8 @@ internal static class CommandLine
     {
         var environment = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["CLAUDE_CODE_ENABLE_TASKS"] = "0",
             ["DISABLE_AUTOUPDATER"] = "1",
+            [ToolTimeoutVariable] = ToolTimeoutMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
 
         foreach (var folder in connection.ConfigurationDirectory.Match<string[]>(folder => home.IsDefault(folder) ? [] : [folder], () => []))

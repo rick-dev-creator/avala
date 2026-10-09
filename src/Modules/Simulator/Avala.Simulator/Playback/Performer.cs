@@ -1,11 +1,12 @@
 using System.Runtime.CompilerServices;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
 
-internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates gates)
+internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates gates, CapabilitySet declared)
 {
     private readonly Replayer replayer = new(options, craft.Files, gates, craft.Pacing);
 
@@ -43,6 +44,10 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
 
     private IAsyncEnumerable<IAgentEvent> PlayAsync(Cues cues, IStep step, CancellationToken cancellationToken) => step switch
     {
+        Ask ask when !declared.Has<AsksForms>() =>
+            cues.Of(Reply(ask.Item, $"I would ask: {ask.Form.Title}, but the harness takes no forms, so I stop here."))
+                .Append(cues.Ended(TurnOutcome.Finished))
+                .ToAsyncEnumerable(),
         Ask ask => AskAsync(cues, ask, cancellationToken),
         CallTool call => PlayAsync(cues, new CallTools([call]), cancellationToken),
         CallTools calls when calls.Calls.All(call => options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed)) =>
@@ -61,7 +66,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
     {
         WriteFile write => ActAsync(
             cues,
-            new Deed(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", $"Edit {write.Path}", Path.Combine(options.WorkingDirectory, write.Path)),
+            new Deed(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", $"Edit {write.Path}", Path.Combine(options.WorkingDirectory, write.Path), write.Content),
             options.Permissions == PermissionMode.AskEveryTime,
             async token =>
             {
@@ -72,13 +77,30 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             cancellationToken),
         RunCommand run => ActAsync(
             cues,
-            new Deed(run.Item, ItemKind.Command, run.Command, $"Run {run.Command}", run.Command),
+            new Deed(run.Item, ItemKind.Command, run.Command, $"Run {run.Command}", run.Command, run.Command),
             options.Permissions == PermissionMode.AskEveryTime || (options.Permissions == PermissionMode.AllowEdits && run.AsksPermission),
             _ => Task.FromResult(run.Output),
             cancellationToken),
+        WriteThroughCommand write => ActAsync(
+            cues,
+            new Deed(write.Item, ItemKind.Command, FirstLine(write.Command), $"Run {FirstLine(write.Command)}", write.Command, write.Command),
+            options.Permissions != PermissionMode.AllowAll,
+            async token =>
+            {
+                await craft.Files.WriteAsync(Path.Combine(options.WorkingDirectory, write.Path), write.Content, token);
+
+                return string.Empty;
+            },
+            cancellationToken),
+        UseTool use => ActAsync(
+            cues,
+            new Deed(use.Item, use.Kind, use.Title, use.Title, use.Target, use.Input),
+            use.AsksPermission && options.Permissions != PermissionMode.AllowAll,
+            _ => Task.FromResult(use.Output),
+            cancellationToken),
         Spawn spawn => ActAsync(
             cues,
-            new Deed(spawn.Item, ItemKind.Command, spawn.Command, $"Run {spawn.Command}", spawn.Command),
+            new Deed(spawn.Item, ItemKind.Command, spawn.Command, $"Run {spawn.Command}", spawn.Command, spawn.Command),
             options.Permissions != PermissionMode.AllowAll,
             token => craft.Workloads.StartAsync(options.Processes, spawn.Workload, options.WorkingDirectory, token),
             cancellationToken),
@@ -92,7 +114,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         Func<CancellationToken, Task<string>> perform,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        yield return cues.Opened(deed.Item, deed.Kind, deed.Title);
+        yield return cues.Opened(deed.Item, deed.Kind, deed.Title, deed.Input);
 
         if (asks)
         {
@@ -116,7 +138,13 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             }
         }
 
-        yield return cues.Progressed(deed.Item, await perform(cancellationToken));
+        var output = await perform(cancellationToken);
+
+        if (output.Length > 0)
+        {
+            yield return cues.Progressed(deed.Item, output);
+        }
+
         yield return cues.Closed(deed.Item, ItemOutcome.Succeeded);
     }
 
@@ -173,6 +201,8 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         }
     }
 
+    private static string FirstLine(string text) => text.Split('\n', 2)[0];
+
     private static Say Reply(ItemId item, string text) => new(new ItemId($"{item.Value}-reply"), ItemKind.Message, "Reply", [text]);
 
     private static string Echo(AgentForm form, FormAnswer answer) =>
@@ -186,5 +216,5 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             ? (given.Confirmed ? "approved" : "not approved") + given.Text.Match(text => $" ({text})", () => string.Empty)
             : string.Join(", ", [.. given.Chosen, .. given.Text.Match<string[]>(text => [text], () => [])]);
 
-    private sealed record Deed(ItemId Item, ItemKind Kind, string Title, string Request, string Target);
+    private sealed record Deed(ItemId Item, ItemKind Kind, string Title, string Request, string Target, string Input);
 }

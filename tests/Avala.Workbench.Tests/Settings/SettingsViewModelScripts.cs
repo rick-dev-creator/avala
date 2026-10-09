@@ -56,6 +56,8 @@ public sealed class SettingsViewModelScripts
 
         public string Error => string.Empty;
 
+        public string Notice => string.Empty;
+
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand ReadCommand => repository.ReadCommand;
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<IRuleFileViewModel> EditCommand => repository.EditCommand;

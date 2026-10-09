@@ -33,6 +33,8 @@ internal interface IMachineSettingsViewModel
 
     string Error { get; }
 
+    string Notice { get; }
+
     IAsyncRelayCommand SaveSilenceCommand { get; }
 
     IAsyncRelayCommand OpenConnectionsCommand { get; }
@@ -108,6 +110,9 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     [ObservableProperty]
     public partial string Error { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial string Notice { get; private set; } = string.Empty;
+
     public async Task LoadAsync(CancellationToken cancellationToken) => Show(await settings.ReadAsync(cancellationToken));
 
     [RelayCommand(CanExecute = nameof(CanSaveSilence))]
@@ -129,8 +134,14 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     }
 
     [RelayCommand]
-    private async Task OpenConnectionsAsync(CancellationToken cancellationToken) =>
-        Error = (await files.OpenInDataFolderAsync(SettingsFiles.Connections, cancellationToken)).Match(_ => string.Empty, SettingsPhrases.Opening);
+    private async Task OpenConnectionsAsync(CancellationToken cancellationToken)
+    {
+        var created = await settings.CreateConnectionsFileAsync(cancellationToken);
+        var opened = await files.OpenInDataFolderAsync(SettingsFiles.Connections, cancellationToken);
+        Error = opened.Match(_ => string.Empty, error => SettingsPhrases.Opening(error, files.InDataFolder(SettingsFiles.Connections)));
+        Notice = created || opened.Match(done => done.Created, _ => false) ? SettingsPhrases.CreatedConnections : string.Empty;
+        await LoadAsync(cancellationToken);
+    }
 
     private bool CanSaveSilence() => !string.IsNullOrWhiteSpace(SilenceDraft);
 

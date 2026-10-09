@@ -11,6 +11,7 @@ internal static class LayerMap
             ["Contracts.Events"] = Layer.Contracts,
             ["Contracts.Sessions"] = Layer.Contracts,
             ["Contracts.Connections"] = Layer.Contracts,
+            ["Contracts.Capabilities"] = Layer.Contracts,
             ["Turns"] = Layer.Domain,
             ["Sessions"] = Layer.Application,
             ["Connections"] = Layer.Application,

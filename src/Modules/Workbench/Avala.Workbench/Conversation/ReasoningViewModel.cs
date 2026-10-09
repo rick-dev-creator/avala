@@ -16,6 +16,8 @@ internal interface IReasoningViewModel
 
     bool IsExpanded { get; }
 
+    bool HasText { get; }
+
     IRelayCommand ToggleCommand { get; }
 }
 
@@ -32,7 +34,11 @@ internal sealed partial class ReasoningViewModel : IReasoningViewModel, ITimelin
     public bool IsShown => true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasText))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleCommand))]
     public partial string Text { get; private set; }
+
+    public bool HasText => !string.IsNullOrWhiteSpace(Text);
 
     [ObservableProperty]
     public partial bool IsThinking { get; private set; }
@@ -53,10 +59,13 @@ internal sealed partial class ReasoningViewModel : IReasoningViewModel, ITimelin
             Text = reasoning.Text;
             IsThinking = reasoning.Outcome.IsNone;
             Duration = reasoning.Duration.Match(duration => duration, () => TimeSpan.Zero);
-            Summary = reasoning.Duration.Match(ConversationPhrases.Thought, () => "Thinking");
+            Summary = reasoning.Duration.Match(
+                duration => HasText ? ConversationPhrases.Thought(duration) : ConversationPhrases.ThoughtUnshared(duration),
+                () => "Thinking");
+            IsExpanded = IsExpanded && HasText;
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasText))]
     private void Toggle() => IsExpanded = !IsExpanded;
 }

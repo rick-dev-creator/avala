@@ -135,10 +135,11 @@ public sealed class LoopTests
     }
 
     [Fact]
-    public async Task ALoopNamingNoConnectionGoesOnWhileAnotherConnectionOfItsProviderHasCapacityAsync()
+    public async Task ALoopNamingNoConnectionGoesOnWhileAnotherConnectionOfAnyProviderHasCapacityAsync()
     {
         await using var pilot = new Pilot();
         pilot.Connections.Names.Add(new ConnectionName("personal"));
+        pilot.Connections.Providers[new ConnectionName("personal")] = "another-harness";
         pilot.Backlog.Add("one", "Greet the team");
         pilot.Backlog.Add("two", "Document the greeting");
         await pilot.StartAsync();

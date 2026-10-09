@@ -78,15 +78,16 @@ public sealed class ConnectionTests
     }
 
     [Fact]
-    public async Task AJobWithoutAnyPreferenceRunsOnTheUsableConnectionOfTheDefaultProviderThatCapacityChoosesAsync()
+    public async Task AJobWithoutAnyPreferenceRunsOnTheUsableConnectionOfAnyProviderThatCapacityChoosesAsync()
     {
         var flow = JobFlow.With();
-        var selector = new FakeSelector(Personal);
+        var other = new ConnectionName("other-harness");
+        var selector = new FakeSelector(other);
         flow.Selectors.Add(selector);
         flow.Connections.Declared.AddRange(
         [
             Declared(Work),
-            Declared(new ConnectionName("other-harness")) with { Provider = "other" },
+            Declared(other) with { Provider = "other" },
             Declared(new ConnectionName("broken")),
             Declared(Personal),
         ]);
@@ -95,12 +96,12 @@ public sealed class ConnectionTests
         var job = await flow.RunningAsync();
 
         var question = Assert.Single(selector.Questions);
-        Assert.Equal([Work, Personal], question.Candidates);
+        Assert.Equal([Work, other, Personal], question.Candidates);
         Assert.Equal(Assert.Single(flow.Defaults.Read), question.Worktree);
-        Assert.Equal(Option<ConnectionName>.Some(Personal), Assert.Single(flow.Agents.Requests).Connection);
-        Assert.Equal(Option<ConnectionName>.Some(Personal), job.Connection);
+        Assert.Equal(Option<ConnectionName>.Some(other), Assert.Single(flow.Agents.Requests).Connection);
+        Assert.Equal(Option<ConnectionName>.Some(other), job.Connection);
         var chosen = Assert.Single(flow.Bus.Published.OfType<ConnectionChosen>());
-        Assert.Equal((job.Id, Personal, 2), (chosen.Job, chosen.Choice.Connection, chosen.Choice.Compared.Count));
+        Assert.Equal((job.Id, other, 3), (chosen.Job, chosen.Choice.Connection, chosen.Choice.Compared.Count));
         Assert.Equal(Option<ConnectionChoice>.Some(chosen.Choice), Outcomes.Present(await flow.Catalog.HistoryAsync(job.Id, TestContext.Current.CancellationToken)).Choice);
     }
 

@@ -69,11 +69,13 @@
                          IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Classes="section" Text="Autonomy" />
-                <CheckBox x:Name="Supervised" IsChecked="{Binding Supervised}">
-                  <TextBlock Classes="caption secondary" TextWrapping="Wrap" Text="Supervised: ask me before anything a rule does not allow" />
-                </CheckBox>
+                <ComboBox x:Name="Autonomy" ItemsSource="{Binding Autonomies}" SelectedItem="{Binding Autonomy}" />
               </StackPanel>
             </Grid>
+            <TextBlock x:Name="AutonomyNote"
+                       Classes="caption fade-in"
+                       TextWrapping="Wrap"
+                       Text="{Binding AutonomyNote}" />
             <Border x:Name="Error"
                     Classes="quiet"
                     BorderBrush="{DynamicResource FailureBorderBrush}"

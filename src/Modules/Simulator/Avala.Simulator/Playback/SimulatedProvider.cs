@@ -1,25 +1,29 @@
+using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
 
-internal sealed class SimulatedProvider(Stagecraft craft) : IAgentProvider
+internal sealed class SimulatedProvider(Stagecraft craft, ProviderInfo info) : IAgentProvider
 {
     public const string Id = "simulator";
 
-    public ProviderInfo Info { get; } = new(Id, "Simulated Claude Code");
+    public const string SecondId = "simulator-second";
 
-    public AgentCapabilities Capabilities { get; } = new(
-        StreamsPartialOutput: true,
-        ExposesReasoning: true,
-        CanInterrupt: true,
-        CanResume: true,
-        AcceptsTools: true,
-        ReportsUsage: true,
-        ReportsCost: true,
-        ReportsLimits: true,
-        AsksQuestions: true);
+    public SimulatedProvider(Stagecraft craft)
+        : this(craft, First(developer: true))
+    {
+    }
+
+    public static ProviderInfo Second { get; } = new(SecondId, "Second simulated harness") { OffersImplicitConnection = false };
+
+    public ProviderInfo Info { get; } = info;
+
+    public static ProviderInfo First(bool developer) => new(Id, "Simulated Claude Code") { OffersImplicitConnection = developer };
+
+    public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) => SimulatedCapabilities.On(connection);
 
     public async ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken)
     {
