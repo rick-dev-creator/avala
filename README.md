@@ -35,7 +35,7 @@ Avala is an open-source desktop harness for coding agents. It runs each agent in
 
 ## Status
 
-Beta-ready. Everything below runs in the application today, with Claude Code as the first real harness and a built-in simulator for trying Avala without spending tokens:
+Preparing the first beta: proven end to end on the simulator, with Claude Code as the first real harness, and now being used on real work before the first release. Everything below runs in the application today, and a built-in simulator lets you try Avala without spending tokens:
 
 - jobs in their own worktrees, verified by your repository's checks and reviewed from a verdict and a diff before they are merged or kept;
 - permissions, questions and plan approvals answered in place or by the rules of your repository, at the autonomy you allow;
