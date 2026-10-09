@@ -21,6 +21,7 @@ public sealed class CanvasPlugin : IPlugin
     {
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
+            .AddSingleton(provider => new CanvasOffer(provider.GetServices<CanvasFormat>()))
             .AddSingleton<CanvasGallery>()
             .AddSingleton<ICanvases>(provider => provider.GetRequiredService<CanvasGallery>())
             .AddSingleton(provider => new SnapshotThrottle(
@@ -29,6 +30,6 @@ public sealed class CanvasPlugin : IPlugin
                 provider.GetRequiredService<TimeProvider>(),
                 SnapshotInterval))
             .AddSingleton<IHandle<AgentActivity>, CanvasFeed>()
-            .AddSingleton(CanvasTool.Definition);
+            .AddSingleton(provider => CanvasTool.For(provider.GetRequiredService<CanvasOffer>()));
     }
 }

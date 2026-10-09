@@ -124,11 +124,11 @@ public sealed class CanvasSurfaceViewModelScripts
     }
 
     [Fact]
-    public void TheDesignTimeSurfaceIsTheBriefsSmallMermaidCanvas()
+    public void TheDesignTimeSurfaceIsTheBriefsSmallDiagramDrawnAsSvg()
     {
         var surface = new DesignCanvasSurfaceViewModel();
 
-        Assert.Equal(("Mermaid", CanvasMediaTypes.Mermaid, true), (surface.MediaLabel, surface.Shown.Essence, surface.HasVersions));
+        Assert.Equal(("SVG", CanvasMediaTypes.Svg, true, true), (surface.MediaLabel, surface.Shown.Essence, surface.Shown.IsOffered, surface.HasVersions));
     }
 
     private static CanvasSurfaceViewModel Drawn(params string[] versions)

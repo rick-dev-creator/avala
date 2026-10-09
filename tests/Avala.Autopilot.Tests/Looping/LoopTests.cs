@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Looping;
@@ -131,6 +132,26 @@ public sealed class LoopTests
         Assert.Equal(new LoopPause(PauseReason.UsageLimit, resets.AddHours(-2), resets) { Window = "5h" }, paused.Pause);
         Assert.Equal(resets, resumed.At);
         Assert.Equal(2, pilot.Jobs.Submitted.Count);
+    }
+
+    [Fact]
+    public async Task ALoopNamingNoConnectionGoesOnWhileAnotherConnectionOfItsProviderHasCapacityAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Connections.Names.Add(new ConnectionName("personal"));
+        pilot.Backlog.Add("one", "Greet the team");
+        pilot.Backlog.Add("two", "Document the greeting");
+        await pilot.StartAsync();
+        var job = await pilot.TakenAsync(1);
+        pilot.Usage.Limits = [new UsageLimit("5h", 0.95, pilot.Clock.GetUtcNow().AddHours(2))];
+        pilot.Passed(job);
+        pilot.Work.Changed(job, "GREETING.md");
+
+        await pilot.ProgressAsync(job, JobStatus.AwaitingReview);
+        await pilot.TakenAsync(2);
+
+        Assert.Empty(pilot.Bus.Published.OfType<LoopPaused>());
+        Assert.All(pilot.Jobs.Submitted, submitted => Assert.True(submitted.Request.Connection.IsNone));
     }
 
     [Fact]

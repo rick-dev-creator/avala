@@ -76,6 +76,8 @@ internal interface IMachineConnectionViewModel
 
     string Source { get; }
 
+    string Origin { get; }
+
     bool IsDefault { get; }
 }
 
@@ -143,6 +145,13 @@ internal sealed class MachineConnectionViewModel(DeclaredConnection connection, 
     public string Provider { get; } = connection.Provider;
 
     public string Source { get; } = connection.Source.Match(source => source, () => "the provider's own login");
+
+    public string Origin { get; } = connection.Origin switch
+    {
+        ConnectionOrigin.Discovered => "discovered on this machine",
+        ConnectionOrigin.Implicit => "implicit",
+        _ => "declared in connections.json",
+    };
 
     public bool IsDefault { get; } = isDefault;
 }

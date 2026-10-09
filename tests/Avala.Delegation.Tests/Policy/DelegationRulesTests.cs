@@ -5,6 +5,7 @@ using Avala.Delegation.Policy;
 using Avala.Delegation.RepositoryFiles;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Delegation.Tests.Delegating;
 using Avala.Testing;
 
 namespace Avala.Delegation.Tests.Policy;
@@ -18,13 +19,21 @@ public sealed class DelegationRulesTests
     public void ADeclaredSectionNamesItsConnectionsRoutingDepthAndChildrenAndDefaultsTheRest()
     {
         var full = Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse(
-            """{ "approval": "merge", "delegation": { "connections": ["work", "personal"], "routing": "leastUsed", "maxDepth": 3, "maxChildren": 4 } }""")));
+            """{ "approval": "merge", "delegation": { "connections": ["work", "personal"], "routing": "roundRobin", "maxDepth": 3, "maxChildren": 4 } }""")));
         var bare = Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse("""{ "delegation": {} }""")));
 
         Assert.Equal([Work, Personal], full.Connections);
-        Assert.Equal((Routing.LeastUsed, 3, 4), (full.Routing, full.MaxDepth, full.MaxChildren));
-        Assert.Equal((0, Routing.RoundRobin, 1, 2), (bare.Connections.Count, bare.Routing, bare.MaxDepth, bare.MaxChildren));
+        Assert.Equal((Routing.RoundRobin, 3, 4), (full.Routing, full.MaxDepth, full.MaxChildren));
+        Assert.Equal((0, Routing.Capacity, 1, 2), (bare.Connections.Count, bare.Routing, bare.MaxDepth, bare.MaxChildren));
     }
+
+    [Theory]
+    [InlineData("capacity")]
+    [InlineData("leastUsed")]
+    public void CapacityAndItsEarlierNameLeastUsedRouteByCapacity(string routing) =>
+        Assert.Equal(
+            Routing.Capacity,
+            Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse($$"""{ "delegation": { "routing": "{{routing}}" } }"""))).Routing);
 
     [Fact]
     public void AJobFileWithoutADelegationSectionDeclaresNone() =>
@@ -59,21 +68,43 @@ public sealed class DelegationRulesTests
 
         Assert.Equal(
             [Work, Personal, Work],
-            Enumerable.Range(0, 3).Select(earlier => Outcomes.Present(rules.Route(earlier, _ => 0))));
+            Enumerable.Range(0, 3).Select(earlier => Outcomes.Present(rules.InTurn(earlier))));
     }
 
     [Fact]
-    public void LeastUsedPicksTheConnectionWhoseLimitIsLeastUsedAndTheFirstListedOnATie()
+    public async Task CapacityRoutingAsksTheSelectorAmongTheListedConnectionsAndKeepsItsChoiceAsync()
     {
-        var rules = new DelegationRules([Work, Personal, new ConnectionName("spare")], Routing.LeastUsed, 1, 2);
+        var selector = new FixedSelector { Chosen = Personal };
 
-        Assert.Equal(Personal, Outcomes.Present(rules.Route(0, connection => connection == Work ? 0.9 : 0.4)));
-        Assert.Equal(Work, Outcomes.Present(rules.Route(5, _ => 0.4)));
+        var routed = await new ConnectionRouter([selector]).RouteAsync(
+            new DelegationRules([Work, Personal], Routing.Capacity, 1, 2),
+            0,
+            Desk.Worktree,
+            TestContext.Current.CancellationToken);
+
+        var question = Assert.Single(selector.Questions);
+        Assert.Equal(Desk.Worktree, question.Worktree);
+        Assert.Equal([Work, Personal], question.Candidates);
+        Assert.Equal(Option<ConnectionName>.Some(Personal), routed.Connection);
+        Assert.Equal(Option<ConnectionName>.Some(Personal), routed.Choice.Map(choice => choice.Connection));
     }
 
-    [Fact]
-    public void WithoutListedConnectionsNoConnectionIsRouted() =>
-        Assert.Equal(Option<ConnectionName>.None, new DelegationRules([], Routing.RoundRobin, 1, 2).Route(0, _ => 0));
+    [Theory]
+    [InlineData("capacity", true, "work")]
+    [InlineData("roundRobin", true, "personal")]
+    [InlineData("capacity", false, "")]
+    public async Task WithoutASelectorCapacityTakesTheFirstListedRoundRobinIgnoresItAndNoListRoutesNothingAsync(string routing, bool listed, string expected)
+    {
+        var selector = new FixedSelector { Chosen = Personal };
+        var rules = new DelegationRules(listed ? [Work, Personal] : [], routing == "capacity" ? Routing.Capacity : Routing.RoundRobin, 1, 2);
+        var selectors = routing == "capacity" ? Array.Empty<IConnectionSelector>() : [selector];
+
+        var routed = await new ConnectionRouter(selectors).RouteAsync(rules, 1, Desk.Worktree, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected.Length == 0 ? Option<ConnectionName>.None : new ConnectionName(expected), routed.Connection);
+        Assert.True(routed.Choice.IsNone);
+        Assert.Empty(selector.Questions);
+    }
 
     [Theory]
     [InlineData(2, 0, "", "Autonomous", "DepthExceeded")]

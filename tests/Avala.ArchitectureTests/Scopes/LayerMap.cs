@@ -34,6 +34,7 @@ internal static class LayerMap
             ["UI.Svg"] = Layer.None,
             ["UI.Source"] = Layer.None,
             ["Highlighting"] = Layer.Domain,
+            ["Offer"] = Layer.Application,
             ["Sanitizing"] = Layer.Application,
         }),
         .. Module("Avala.Jobs", new()
@@ -118,6 +119,8 @@ internal static class LayerMap
             ["Caps"] = Layer.Domain,
             ["Enforcement"] = Layer.Application,
             ["Admission"] = Layer.Application,
+            ["Capacity"] = Layer.Domain,
+            ["Routing"] = Layer.Application,
             ["BudgetFiles"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
         }),

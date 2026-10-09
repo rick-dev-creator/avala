@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Simulator.FileSystem;
@@ -30,6 +31,7 @@ public sealed class SimulatorPlugin(TimeSpan pace) : IPlugin
             .AddSingleton<IWorkloads, DotnetWorkloads>()
             .AddSingleton<ScenarioLibrary>()
             .AddSingleton<Stagecraft>()
-            .AddSingleton<IAgentProvider, SimulatedProvider>();
+            .AddSingleton<IAgentProvider, SimulatedProvider>()
+            .AddSingleton<IConnectionDiscovery, LoginDiscovery>();
     }
 }

@@ -9,14 +9,22 @@ internal sealed record ResolvedConnection(ConnectionName Name, IAgentProvider Pr
 internal sealed class ConnectionRegistry(
     IConnectionFile file,
     IEnumerable<IAgentProvider> providers,
-    IEnumerable<ICredentialSource> sources) : IConnections
+    IEnumerable<ICredentialSource> sources,
+    IEnumerable<IConnectionDiscovery> discoveries) : IConnections
 {
-    public async ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
-        (await file.LoadAsync(cancellationToken)).Match(
+    private Task<IReadOnlyList<ConnectionDeclaration>>? discovering;
+
+    public async ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken)
+    {
+        var loaded = await file.LoadAsync(cancellationToken);
+        var discovered = await DiscoveredAsync(cancellationToken);
+
+        return loaded.Match(
             declared => declared.Match(
-                declarations => Catalog(ConnectionFileStatus.Applied, declarations),
-                () => Catalog(ConnectionFileStatus.Absent, ConnectionDeclarations.Implicit(providers))),
+                declarations => Catalog(ConnectionFileStatus.Applied, declarations.With(discovered)),
+                () => Catalog(ConnectionFileStatus.Absent, ConnectionDeclarations.Implicit(providers, discovered))),
             error => new ConnectionCatalog(ConnectionFileStatus.Rejected, error, [], Option<ConnectionName>.None));
+    }
 
     public async ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(
         Option<ConnectionName> connection,
@@ -27,8 +35,10 @@ internal sealed class ConnectionRegistry(
         Option<ConnectionName> connection,
         CancellationToken cancellationToken)
     {
-        var declared = (await file.LoadAsync(cancellationToken))
-            .Map(found => found.Match(declarations => declarations, () => ConnectionDeclarations.Implicit(providers)))
+        var loaded = await file.LoadAsync(cancellationToken);
+        var discovered = await DiscoveredAsync(cancellationToken);
+        var declared = loaded
+            .Map(found => found.Match(declarations => declarations.With(discovered), () => ConnectionDeclarations.Implicit(providers, discovered)))
             .Bind(declarations => declarations.Named(connection));
 
         if (!declared.TryGetValue(out var declaration, out var error))
@@ -44,6 +54,29 @@ internal sealed class ConnectionRegistry(
         return (await CredentialAsync(declaration, cancellationToken)).Map(environment =>
             new ResolvedConnection(declaration.Name, registered, environment with { Settings = declaration.Settings }));
     }
+
+    private async Task<IReadOnlyList<ConnectionDeclaration>> DiscoveredAsync(CancellationToken cancellationToken) =>
+        await LazyInitializer.EnsureInitialized(ref discovering, DiscoverAsync).WaitAsync(cancellationToken);
+
+    private async Task<IReadOnlyList<ConnectionDeclaration>> DiscoverAsync()
+    {
+        var found = new List<DiscoveredConnection>();
+
+        foreach (var discovery in discoveries)
+        {
+            found.AddRange(await discovery.DiscoverAsync(CancellationToken.None));
+        }
+
+        return ConnectionDeclarations.Distinct(found
+            .Where(Acceptable)
+            .Select(ConnectionDeclaration.From));
+    }
+
+    private bool Acceptable(DiscoveredConnection discovered) =>
+        ConnectionDeclaration.IsValidName(discovered.Name.Value)
+        && providers.Any(provider => provider.Info.Id == discovered.Provider)
+        && !string.IsNullOrWhiteSpace(discovered.Credential.Source)
+        && !string.IsNullOrWhiteSpace(discovered.Credential.Reference);
 
     private async Task<Result<ConnectionEnvironment, ConnectionError>> CredentialAsync(
         ConnectionDeclaration declaration,

@@ -1,5 +1,5 @@
-using Avala.Components.Canvases;
 using Avala.Components.UI.Canvases;
+using Avala.Rendering.Offer;
 using Avala.Rendering.Sanitizing;
 using Avala.Sdk;
 using Avalonia.Controls;
@@ -11,7 +11,7 @@ namespace Avala.Rendering.UI.Svg;
 
 internal sealed class SvgRenderer : ICanvasRenderer
 {
-    public bool Renders(string mediaType) => mediaType == CanvasMediaTypes.Svg;
+    public string MediaType => RenderedFormats.Svg.MediaType;
 
     public Option<Control> Render(string content) =>
         SvgSanitizer.Sanitize(content).Bind(Draw);

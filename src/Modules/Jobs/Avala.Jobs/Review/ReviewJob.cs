@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Launching;
@@ -12,6 +13,13 @@ internal sealed class ReviewJob(JobLedger ledger, JobLauncher launcher, Approval
 {
     public Task<Result<JobContinuation, JobRejection>> ContinueAsync(Job job, Feedback guidance, CancellationToken cancellationToken) =>
         launcher.ContinueAsync(job, guidance, cancellationToken);
+
+    public Task<Result<JobContinuation, JobRejection>> ContinueOnAsync(
+        Job job,
+        ConnectionName connection,
+        Feedback guidance,
+        CancellationToken cancellationToken) =>
+        launcher.ContinueOnAsync(job, connection, guidance, cancellationToken);
 
     public Task<Result<JobContinuation, JobRejection>> SendBackAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
         launcher.SendBackAsync(job, feedback, cancellationToken);

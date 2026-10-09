@@ -35,6 +35,74 @@ public sealed class CarveTests
     }
 
     [Fact]
+    public async Task AChildSubmittedBeforeItsParentsBudgetIsLoadedIsCarvedFromThatBudgetOnceItIsLoadedAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.TiedAsync();
+        var child = JobId.New();
+
+        await budgeted.SubmittedAsync(budgeted.Job, child);
+        Assert.Equal(Option<BudgetCarve>.None, budgeted.Book.CarveOf(child));
+        Assert.Empty(budgeted.Bus.Published.OfType<BudgetCarved>());
+        await budgeted.OpenAsync(Capped);
+
+        var carved = Outcomes.Present(budgeted.Book.CarveOf(child));
+        Assert.Equal((budgeted.Job, child, 0.50m, Option<long>.Some(500)), (carved.Parent, carved.Child, carved.Cost.Single().Amount, carved.Tokens));
+        Assert.Equal(new BudgetCarved(carved), Assert.Single(budgeted.Bus.Published.OfType<BudgetCarved>()));
+    }
+
+    [Fact]
+    public async Task AChildWhoseCarveAwaitsItsParentsBudgetIsHeldAgainstThatCarveOnceItIsKnownAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.TiedAsync();
+        var child = JobId.New();
+        await budgeted.SubmittedAsync(budgeted.Job, child);
+        await budgeted.RunningAsync(child, SessionId.New(), Capped);
+
+        await budgeted.SpendAsync(child, new TokenUsage(10, 10, 0, 0, 0), new Cost(0.60m, "USD"));
+        Assert.Empty(budgeted.Jobs.Holds);
+        await budgeted.OpenAsync(Capped);
+
+        Assert.Equal([(child, HoldReason.BudgetExceeded)], budgeted.Jobs.Holds);
+        Assert.Equal(new BudgetBreach(BudgetMeasure.Cost, "USD", 0.60m, 0.50m, Option<BudgetError>.None), Assert.Single(budgeted.Book.OfJob(child)).Breach);
+    }
+
+    [Fact]
+    public async Task AChildWhoseCarveAwaitsItsParentsBudgetIsStillHeldByItsOwnCapsAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.TiedAsync();
+        var child = JobId.New();
+        await budgeted.SubmittedAsync(budgeted.Job, child);
+        await budgeted.RunningAsync(child, SessionId.New(), Capped);
+
+        await budgeted.SpendAsync(child, new TokenUsage(10, 10, 0, 0, 0), new Cost(1.20m, "USD"));
+
+        Assert.Equal([(child, HoldReason.BudgetExceeded)], budgeted.Jobs.Holds);
+        Assert.Equal(new BudgetBreach(BudgetMeasure.Cost, "USD", 1.20m, 1.00m, Option<BudgetError>.None), Assert.Single(budgeted.Book.OfJob(child)).Breach);
+    }
+
+    [Fact]
+    public async Task AGrandchildSubmittedWhileItsParentsCarveAwaitsIsCarvedWithinThatCarveAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.TiedAsync();
+        var child = JobId.New();
+        var grandchild = JobId.New();
+        await budgeted.SubmittedAsync(budgeted.Job, child);
+        await budgeted.RunningAsync(child, SessionId.New(), Capped);
+
+        await budgeted.SubmittedAsync(child, grandchild);
+        Assert.Empty(budgeted.Bus.Published.OfType<BudgetCarved>());
+        await budgeted.OpenAsync(Capped);
+
+        Assert.Equal(
+            [(budgeted.Job, child, 0.50m), (child, grandchild, 0.25m)],
+            budgeted.Bus.Published.OfType<BudgetCarved>().Select(carved => (carved.Carve.Parent, carved.Carve.Child, carved.Carve.Cost.Single().Amount)));
+    }
+
+    [Fact]
     public async Task AChildIsHeldWhenItReachesItsCarveEvenBelowItsRepositorysCapAsync()
     {
         var budgeted = new Budgeted();

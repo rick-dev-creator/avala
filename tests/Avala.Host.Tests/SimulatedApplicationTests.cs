@@ -176,15 +176,16 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "canvas");
 
-        var snapshots = await run.CanvasSnapshotsAsync(canvasCount: 2);
+        var snapshots = await run.CanvasSnapshotsAsync(canvasCount: 3);
 
         Assert.Equal("svg", XDocument.Parse(Canvas(snapshots, "diagram", "image/svg+xml")).Root?.Name.LocalName);
+        Assert.Equal("svg", XDocument.Parse(Canvas(snapshots, "flow", "image/svg+xml")).Root?.Name.LocalName);
         Assert.Equal(
-            "flowchart LR\n  Submitted --> Running\n  Running --> Checking --> AwaitingReview\n",
-            Canvas(snapshots, "flow", "text/vnd.mermaid"));
+            "# The host and its plugins\n\n- The host knows no module.\n- Every module is a **plugin**.\n",
+            Canvas(snapshots, "notes", "text/markdown"));
         Assert.Equal(
-            [("diagram", CanvasStatus.Completed), ("flow", CanvasStatus.Completed)],
-            run.Canvases.InSession(snapshots[0].Session).Select(canvas => (canvas.Canvas.Item.Value, canvas.Status)));
+            [("diagram", CanvasStatus.Completed, true), ("flow", CanvasStatus.Completed, true), ("notes", CanvasStatus.Completed, true)],
+            run.Canvases.InSession(snapshots[0].Session).Select(canvas => (canvas.Canvas.Item.Value, canvas.Status, canvas.IsOffered)));
     }
 
     [Fact]

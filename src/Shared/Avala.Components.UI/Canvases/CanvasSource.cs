@@ -9,6 +9,9 @@ namespace Avala.Components.UI.Canvases;
 
 public static class CanvasSource
 {
+    public static string NotOffered(CanvasRendering rendering) =>
+        $"Avala does not offer {CanvasMediaTypes.Label(rendering.MediaType)} canvases to agents, so this one is not drawn. Showing its source.";
+
     public static Control Show(string note, string content) => Show(note, content, static text => [new Run(text)]);
 
     public static Control Show(string note, string content, Func<string, IEnumerable<Inline>> highlight)

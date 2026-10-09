@@ -7,7 +7,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Launching;
 
-internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaults defaults, JobQueues queues)
+internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaults defaults, JobQueues queues, ConnectionChooser chooser)
 {
     public async Task<Result<WorkspaceInfo, WorkspaceFailure>> PrepareAsync(Job job, CancellationToken cancellationToken) =>
         await job.Parent.Match(
@@ -17,8 +17,20 @@ internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaul
     public async Task<Result<Option<ConnectionName>, JobRejection>> ConnectionOfAsync(
         Job job,
         WorkspaceInfo workspace,
-        CancellationToken cancellationToken) =>
-        job.Connection.IsSome ? job.Connection : await defaults.ConnectionAsync(workspace.Path, cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        if (job.Connection.IsSome)
+        {
+            return job.Connection;
+        }
+
+        if (!(await defaults.ConnectionAsync(workspace.Path, cancellationToken)).TryGetValue(out var preferred, out var rejection))
+        {
+            return rejection;
+        }
+
+        return preferred.IsSome ? preferred : await chooser.ChooseAsync(job.Id, workspace.Path, cancellationToken);
+    }
 
     private async Task<Result<WorkspaceInfo, WorkspaceFailure>> FromParentAsync(Job child, JobId parent, CancellationToken cancellationToken) =>
         (await queues.RunAsync(parent, (found, token) => StartFromAsync(found, child, token), cancellationToken))
