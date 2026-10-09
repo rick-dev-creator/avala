@@ -235,7 +235,7 @@ public sealed class ProviderTests
     private static ClaudeCodeProvider Provider(FakeCli cli, string? home = null) =>
         Provider(cli, new UserHome(home ?? Path.Combine(Path.GetTempPath(), "avala-no-home"), []));
 
-    private static ClaudeCodeProvider Provider(FakeCli cli, UserHome home) => new(cli, new ConfigurationFolders(home), home);
+    private static ClaudeCodeProvider Provider(FakeCli cli, UserHome home) => new(cli, new ConfigurationFolders(home), home, new ImplicitSignIn(true));
 
     private static IAgentSession Started(Result<IAgentSession, AgentError> started) =>
         started.Match(session => session, error => throw new InvalidOperationException(error.ToString()));

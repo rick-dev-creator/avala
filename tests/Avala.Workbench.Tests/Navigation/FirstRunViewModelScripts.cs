@@ -25,25 +25,14 @@ public sealed class FirstRunViewModelScripts
             (firstRun.IsShown, firstRun.Heading, firstRun.Explanation));
     }
 
-    [Fact]
-    public async Task WithOnlyImplicitConnectionsItSaysNoLoginWasFoundAndNamesThem()
-    {
-        using var bench = new Bench();
-        var firstRun = FirstRun(bench, Catalog(ConnectionFileStatus.Absent, Connection("claude-code", ConnectionOrigin.Implicit)));
-
-        await firstRun.CheckAsync(Cancellation);
-
-        Assert.Equal((true, "No login found"), (firstRun.IsShown, firstRun.Heading));
-        Assert.Contains("so jobs run on claude-code, as the harness itself is set up", firstRun.Explanation, StringComparison.Ordinal);
-    }
-
     [Theory]
+    [InlineData(nameof(ConnectionOrigin.Implicit))]
     [InlineData(nameof(ConnectionOrigin.Declared))]
     [InlineData(nameof(ConnectionOrigin.Discovered))]
-    public async Task ADeclaredOrDiscoveredConnectionHidesTheGuide(string origin)
+    public async Task AnyConnectionThatCanRunAJobHidesTheGuide(string origin)
     {
         using var bench = new Bench();
-        var firstRun = FirstRun(bench, Catalog(ConnectionFileStatus.Applied, Connection("claude-code", ConnectionOrigin.Implicit), Connection("claude-work", Enum.Parse<ConnectionOrigin>(origin))));
+        var firstRun = FirstRun(bench, Catalog(ConnectionFileStatus.Applied, Connection("claude-work", Enum.Parse<ConnectionOrigin>(origin))));
 
         await firstRun.CheckAsync(Cancellation);
 
