@@ -13,6 +13,8 @@ internal sealed record WriteFile(ItemId Item, string Path, string Content) : ISt
 
 internal sealed record RunCommand(ItemId Item, string Command, string Output, bool AsksPermission) : IStep;
 
+internal sealed record WithdrawnPermission(RunCommand Withdrawn, RunCommand Kept) : IStep;
+
 internal sealed record WriteThroughCommand(ItemId Item, string Command, string Path, string Content) : IStep;
 
 internal sealed record UseTool(ItemId Item, ItemKind Kind, string Title, string Target, string Input, string Output, bool AsksPermission) : IStep;

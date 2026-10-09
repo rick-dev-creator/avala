@@ -133,6 +133,19 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario Withdrawal { get; } = new("withdrawn-permission",
+    [
+        [
+            Thought("Two databases need the migration, ", "so I will ask for both at once."),
+            .. Bill(2_600, 170, 0.0120m, 0.31),
+            new WithdrawnPermission(
+                new RunCommand(new ItemId("migrate-orders"), "dotnet ef database update --context Orders", "Applied 2 migrations.", AsksPermission: true),
+                new RunCommand(new ItemId("migrate-billing"), "dotnet ef database update --context Billing", "Applied 1 migration.", AsksPermission: true)),
+            Message("I dropped the orders migration and ran the billing one."),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario OutsideEdit { get; } = new("outside-edit",
     [
         [
@@ -407,7 +420,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Steer, Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, WaitingPermission, RepeatedPermission, OutsideEdit, Question, Governed, UnsharedThought, Fields, PlanApproval,
+        Steer, Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, Question, Governed, UnsharedThought, Fields, PlanApproval,
         Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, .. DelegationScenarios.All,
     ];
 

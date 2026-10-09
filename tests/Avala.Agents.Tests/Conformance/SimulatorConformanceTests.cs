@@ -21,6 +21,7 @@ public sealed class SimulatorConformanceTests
     [InlineData("canvas")]
     [InlineData("permission")]
     [InlineData("repeated-permission")]
+    [InlineData("withdrawn-permission")]
     [InlineData("question")]
     [InlineData("plan-approval")]
     [InlineData("follow-up")]

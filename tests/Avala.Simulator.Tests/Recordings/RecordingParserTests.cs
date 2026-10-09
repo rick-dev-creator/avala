@@ -33,18 +33,20 @@ public sealed class RecordingParserTests
     }
 
     [Fact]
-    public void ACanvasAndAUsageLimitThatResetsAreReplayedWithTheirFields()
+    public void ACanvasAUsageLimitThatResetsAndAWithdrawnRequestAreReplayedWithTheirFields()
     {
         var recorded = Outcomes.Succeeds(RecordingParser.Parse(
             Recorded.Session(
                 """{ "at": 0, "event": { "type": "canvasStarted", "turn": 1, "item": "sketch", "title": "Sketch of ${workingDirectory}", "mediaType": "image/svg+xml" } }""",
-                """{ "at": 5, "event": { "type": "limitReported", "turn": 1, "limit": { "window": "fiveHours", "usedFraction": 0.5, "resetsAt": "2026-10-09T13:30:00+00:00" } } }"""),
+                """{ "at": 5, "event": { "type": "limitReported", "turn": 1, "limit": { "window": "fiveHours", "usedFraction": 0.5, "resetsAt": "2026-10-09T13:30:00+00:00" } } }""",
+                """{ "at": 6, "event": { "type": "requestWithdrawn", "turn": 1, "item": "migrate" } }"""),
             "/work"));
 
         Assert.Equal(
             [
                 new CanvasStarted(default, default, new ItemId("sketch"), "Sketch of /work", "image/svg+xml"),
                 new LimitReported(default, default, new UsageLimit("fiveHours", 0.5, new DateTimeOffset(2026, 10, 9, 13, 30, 0, TimeSpan.Zero))),
+                new RequestWithdrawn(default, default, new ItemId("migrate")),
             ],
             recorded.Steps.Cast<Emit>().Select(emit => emit.Event));
     }

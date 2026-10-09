@@ -365,6 +365,7 @@ internal static class AgentConformance
         var events = new List<IAgentEvent>();
         var kinds = new Dictionary<ItemId, ItemKind>();
         var asked = new HashSet<ItemId>();
+        var requests = new Requests();
         Turn? turn = null;
 
         await foreach (var agentEvent in session.Events.WithCancellation(deadline))
@@ -385,15 +386,16 @@ internal static class AgentConformance
                 violations.AddRange(Unasked(agentEvent, kinds, asked));
             }
 
-            violations.AddRange(await ReplyAsync(session, agentEvent, replies, kinds, asked, deadline));
+            violations.AddRange(await requests.FollowAsync(session, agentEvent, deadline));
+            violations.AddRange(await ReplyAsync(session, agentEvent, replies, kinds, asked, requests, deadline));
 
             if (agentEvent is TurnCompleted completed)
             {
-                return new Run(completed.Outcome == TurnOutcome.Finished ? violations : [.. violations, $"the turn ended {completed.Outcome}"], events);
+                return new Run([.. violations, .. requests.Unanswered, .. completed.Outcome == TurnOutcome.Finished ? [] : new[] { $"the turn ended {completed.Outcome}" }], events);
             }
         }
 
-        return new Run([.. violations, "the event stream ended before TurnCompleted"], events);
+        return new Run([.. violations, .. requests.Unanswered, "the event stream ended before TurnCompleted"], events);
     }
 
     private static async Task<IEnumerable<string>> ReplyAsync(
@@ -402,14 +404,16 @@ internal static class AgentConformance
         Replies replies,
         Dictionary<ItemId, ItemKind> kinds,
         HashSet<ItemId> asked,
+        Requests requests,
         CancellationToken deadline)
     {
         switch (agentEvent)
         {
             case PermissionRequested requested:
                 asked.Add(requested.Item);
+                requests.Refused(requested.Item, await RespondAsync(session, replies.Permission(requested), deadline));
 
-                return [.. Describes(requested, kinds), .. await RespondAsync(session, replies.Permission(requested), deadline)];
+                return [.. Describes(requested, kinds)];
             case FormRequested form:
                 return await replies.Form(session, form, deadline);
             case ToolCalled called:
@@ -529,6 +533,54 @@ internal static class AgentConformance
 
             return schema.RootElement.GetProperty("properties").GetProperty("mediaType").TryGetProperty("enum", out var offered)
                 && offered.EnumerateArray().Any(type => string.Equals(type.GetString(), essence, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    private sealed class Requests
+    {
+        private readonly HashSet<ItemId> permissions = [];
+        private readonly Dictionary<ItemId, AgentForm> forms = [];
+        private readonly Dictionary<ItemId, IReadOnlyList<string>> refused = [];
+
+        public IEnumerable<string> Unanswered => refused.Values.SelectMany(violations => violations);
+
+        public void Refused(ItemId item, IReadOnlyList<string> violations)
+        {
+            if (violations.Count > 0)
+            {
+                refused[item] = violations;
+            }
+        }
+
+        public async Task<IReadOnlyList<string>> FollowAsync(IAgentSession session, IAgentEvent agentEvent, CancellationToken deadline)
+        {
+            switch (agentEvent)
+            {
+                case PermissionRequested requested:
+                    permissions.Add(requested.Item);
+
+                    return [];
+                case FormRequested requested:
+                    forms[requested.Item] = requested.Form;
+
+                    return [];
+                case RequestWithdrawn withdrawn:
+                    refused.Remove(withdrawn.Item);
+
+                    return await AnsweredAfterWithdrawalAsync(session, withdrawn.Item, deadline);
+                default:
+                    return [];
+            }
+        }
+
+        private async Task<IReadOnlyList<string>> AnsweredAfterWithdrawalAsync(IAgentSession session, ItemId item, CancellationToken deadline)
+        {
+            var permission = permissions.Contains(item)
+                && (await session.RespondAsync(new PermissionDecision(item, PermissionAnswer.Allow), deadline)).IsSuccess;
+            var form = forms.TryGetValue(item, out var asked)
+                && (await session.AnswerAsync(Fill(item, asked), deadline)).IsSuccess;
+
+            return permission || form ? [$"the request {item.Value} was answered after the harness withdrew it"] : [];
         }
     }
 

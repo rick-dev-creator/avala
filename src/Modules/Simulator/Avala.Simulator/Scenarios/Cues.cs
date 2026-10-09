@@ -29,6 +29,8 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 
     public FormAnswered Answered(ItemId item, FormAnswer answer) => new(Session, Turn, item, answer);
 
+    public RequestWithdrawn Withdrawn(ItemId item) => new(Session, Turn, item);
+
     public ToolCalled Called(ItemId item, string tool, string input) => new(Session, Turn, item, tool, input);
 
     public ToolReturned Returned(ItemId item, ToolResult result) => new(Session, Turn, item, result);
@@ -85,6 +87,7 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         PermissionResolved resolved => resolved with { Session = Session, Turn = Turn },
         FormRequested requested => requested with { Session = Session, Turn = Turn },
         FormAnswered answered => answered with { Session = Session, Turn = Turn },
+        RequestWithdrawn withdrawn => withdrawn with { Session = Session, Turn = Turn },
         _ => recorded,
     };
 
