@@ -16,6 +16,24 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Delegation.Tests.Delegating;
 
+internal sealed class FixedSelector : IConnectionSelector
+{
+    public ConcurrentQueue<ConnectionQuestion> Questions { get; } = [];
+
+    public Option<ConnectionName> Chosen { get; set; }
+
+    public ValueTask<Option<ConnectionChoice>> ChooseAsync(ConnectionQuestion question, CancellationToken cancellationToken)
+    {
+        Questions.Enqueue(question);
+
+        return ValueTask.FromResult(Chosen.Map(connection => new ConnectionChoice(
+            connection,
+            ChoiceReason.MostCapacity,
+            [.. question.Candidates.Select(candidate => new CandidateCapacity(candidate, candidate == connection ? 0 : 0.95, Option<UsageLimit>.None, 0.9, candidate == connection))],
+            DateTimeOffset.UnixEpoch)));
+    }
+}
+
 internal sealed class ReturningAgents : IAgents
 {
     private readonly ConcurrentQueue<(SessionId Session, ToolResult Result)> results = new();

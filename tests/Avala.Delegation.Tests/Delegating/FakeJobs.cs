@@ -30,6 +30,9 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
         return job;
     }
 
+    public void RanOn(JobId job, ConnectionName connection) =>
+        histories[job] = histories[job] with { Summary = histories[job].Summary with { Connection = connection } };
+
     public void Attempted(JobId job, AttemptOutcome outcome) =>
         histories[job] = histories[job] with { Attempts = [new AttemptRecord(1, AttemptOrigin.Initial, outcome, Option<string>.None, Option<Agents.Contracts.Sessions.SessionId>.None)] };
 
@@ -74,6 +77,9 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
         throw new NotSupportedException();
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, string message, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>

@@ -11,6 +11,7 @@ internal enum Operation
     RequestHelp,
     Hint,
     HintInNewSession,
+    ContinueOnAnotherConnection,
     SendBack,
     SendBackInNewSession,
     Approve,

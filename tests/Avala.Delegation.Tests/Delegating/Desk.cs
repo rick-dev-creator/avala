@@ -28,7 +28,7 @@ internal sealed class Desk : IAsyncDisposable
     {
         Book = new DelegationBook();
         var journal = new DelegationJournal(Book, Bus, Agents, Clock);
-        var policy = new DelegationPolicy(new FixedRules(rules), Jobs, Audit, new ConnectionGauge(Usage, Clock));
+        var policy = new DelegationPolicy(new FixedRules(rules), Jobs, Audit, new ConnectionRouter([Selector]));
         reporter = new ChildReporter(
             Jobs,
             new ChildEvidence(Changes, Verifications, Jobs, new ChildSpending(Usage, [Budgets])),
@@ -54,6 +54,8 @@ internal sealed class Desk : IAsyncDisposable
     public FixedAudit Audit { get; } = new();
 
     public FixedUsage Usage { get; } = new();
+
+    public FixedSelector Selector { get; } = new();
 
     public FixedBudgets Budgets { get; } = new();
 

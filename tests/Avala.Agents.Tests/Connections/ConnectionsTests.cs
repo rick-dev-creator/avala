@@ -41,7 +41,10 @@ public sealed class ConnectionsTests
 
         Assert.Equal((ConnectionFileStatus.Absent, true), (catalog.File, catalog.Error.IsNone));
         Assert.Equal(
-            [new DeclaredConnection(new ConnectionName("first"), "first", Option<string>.None), new DeclaredConnection(new ConnectionName("second"), "second", Option<string>.None)],
+            [
+                new DeclaredConnection(new ConnectionName("first"), "first", Option<string>.None) { Origin = ConnectionOrigin.Implicit },
+                new DeclaredConnection(new ConnectionName("second"), "second", Option<string>.None) { Origin = ConnectionOrigin.Implicit },
+            ],
             catalog.Connections);
         Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("first")), catalog.Default);
         Assert.Equal(new ConnectionInfo(new ConnectionName("first"), first.Info), Outcomes.Succeeds(await registry.CheckAsync(Option<ConnectionName>.None, Cancellation)));

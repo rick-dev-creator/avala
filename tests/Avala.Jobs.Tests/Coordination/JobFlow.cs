@@ -28,7 +28,7 @@ internal sealed class JobFlow
         Agents = agents;
         var ledger = new JobLedger(Store, Bus, agents);
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
-        var launcher = new JobLauncher(ledger, workspaces, agents, new WorkspacePlanner(workspaces, Defaults, Queues));
+        var launcher = new JobLauncher(ledger, workspaces, agents, new WorkspacePlanner(workspaces, Defaults, Queues, new ConnectionChooser(Connections, Selectors, Bus)));
         Submit = new SubmitJob(ledger, Bus, Connections, Clock);
         Hold = new HoldJob(ledger, agents, Bus);
         Jobs = new JobsEntry(Submit, Hold, new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), Bus), Queues);
@@ -50,6 +50,8 @@ internal sealed class JobFlow
     public InMemoryJobStore Store { get; } = new();
 
     public FakeConnections Connections { get; } = new();
+
+    public List<IConnectionSelector> Selectors { get; } = [];
 
     public FakeRepositoryDefaults Defaults { get; } = new();
 

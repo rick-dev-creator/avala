@@ -63,7 +63,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
             [
                 (".avala/checks.json", PassingChecks),
                 (".avala/permissions.json", """{ "autonomy": "autonomous" }"""),
-                (".avala/jobs.json", """{ "delegation": { "connections": ["work", "personal"], "maxChildren": 2 } }"""),
+                (".avala/jobs.json", """{ "delegation": { "connections": ["work", "personal"], "routing": "roundRobin", "maxChildren": 2 } }"""),
             ]);
         var orchestrator = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate] Ship the release")));
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(orchestrator)));

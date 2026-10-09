@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Holding;
 using Avala.Jobs.Jobs;
@@ -17,6 +18,13 @@ internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, ReviewJob review
 
     public async ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
         await WithFeedbackAsync(job, message, review.ContinueAsync, cancellationToken);
+
+    public async ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(
+        JobId job,
+        ConnectionName connection,
+        string message,
+        CancellationToken cancellationToken) =>
+        await WithFeedbackAsync(job, message, (found, guidance, token) => review.ContinueOnAsync(found, connection, guidance, token), cancellationToken);
 
     public async ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
         await InQueueAsync(job, review.DiscardAsync, cancellationToken);
