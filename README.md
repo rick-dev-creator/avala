@@ -16,9 +16,10 @@
 
 Avala is an open-source desktop harness for coding agents. It runs each agent in its own git worktree and lets it work unattended, while every decision is governed by your rules, every result is backed by evidence, and every cost is accounted for.
 
-![Avala's main window, from the approved design](docs/assets/avala-main-window.png)
-
-<sub>The approved design of the main window. The application is being built to it.</sub>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/avala-main-dark.png">
+  <img src="docs/assets/avala-main-light.png" alt="Avala's main window: four jobs waiting on a person, one verified and ready for review, and a job asking permission to run its tests">
+</picture>
 
 ## What it does
 
@@ -27,9 +28,26 @@ Avala is an open-source desktop harness for coding agents. It runs each agent in
 - **Nothing runs away.** Stalled or lost sessions are caught, spending stops at your caps, and leftover processes, ports and worktrees are reclaimed.
 - **Any agent, any account.** Harnesses plug in behind one contract, with several connections per harness, and sub-agents run as governed jobs of their own.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/avala-question-dark.png">
+  <img src="docs/assets/avala-question-light.png" alt="An agent's question drawn as a form, the recommended answer preselected">
+</picture>
+
 ## Status
 
-Early and built in public. The core, the trust layer and the view models run end to end against a simulated agent; the views and the first real harness, Claude Code, come next.
+Beta-ready. Everything below runs in the application today, with Claude Code as the first real harness and a built-in simulator for trying Avala without spending tokens:
+
+- jobs in their own worktrees, verified by your repository's checks and reviewed from a verdict and a diff before they are merged or kept;
+- permissions, questions and plan approvals answered in place or by the rules of your repository, at the autonomy you allow;
+- supervision of stalled sessions, budgets per job and per connection, and reclaimed processes, ports and worktrees;
+- several connections and accounts per harness, delegation to sub-agents and an autopilot for a backlog;
+- usage and limits per connection, canvases drawn as Markdown, SVG and Mermaid, a light and a dark theme, and jobs that survive a restart.
+
+Screenshots are taken from the real application, driven headless by the simulator.
+
+## Install
+
+Coming soon: builds for Windows, macOS and Linux will be published on the [releases page](https://github.com/rick-dev-creator/avala/releases). Until then, build it from source.
 
 ## Build
 
@@ -44,6 +62,7 @@ dotnet test --solution Avala.slnx
 
 - [Architecture](docs/architecture.md): the rules every change must pass.
 - [Core design](docs/design/core.md) and [plan](docs/plan/core.md).
+- [Releasing](docs/release.md): packages, signing and the update check.
 - [AGENTS.md](AGENTS.md): how to contribute, with or without an agent.
 
 ## A note on T3 Code
