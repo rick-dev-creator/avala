@@ -69,6 +69,12 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     public ValueTask<Option<JobHistory>> HistoryAsync(JobId job, CancellationToken cancellationToken) =>
         ValueTask.FromResult(histories.TryGetValue(job, out var history) ? history : Option<JobHistory>.None);
 
+    public ValueTask<IReadOnlyList<JobSummary>> ChildrenAsync(JobId parent, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public ValueTask<Option<JobTree>> TreeAsync(JobId root, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 

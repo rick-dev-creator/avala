@@ -44,6 +44,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Option<ConnectionName> Connection { get; private set; }
 
+    public Option<JobId> Parent { get; private init; }
+
     public IReadOnlyList<Attempt> Attempts => attempts;
 
     public static Result<Job, JobError> Create(
@@ -53,8 +55,9 @@ internal sealed class Job : IAggregateRoot<JobId>
         RepositoryPath repository,
         DateTimeOffset submitted,
         Option<Autonomy> autonomy = default,
-        Option<ConnectionName> connection = default) =>
-        new Job(id, instruction, budget, repository) { Submitted = submitted, Autonomy = autonomy, Connection = connection };
+        Option<ConnectionName> connection = default,
+        Option<JobId> parent = default) =>
+        new Job(id, instruction, budget, repository) { Submitted = submitted, Autonomy = autonomy, Connection = connection, Parent = parent };
 
     public Result<JobSubmitted, JobError> Submit() =>
         machine.TryFire(JobTrigger.Submit, JobError.CannotSubmit)

@@ -55,5 +55,28 @@ public sealed class JobCatalogTests
     public async Task AnUnknownJobHasNoHistoryAsync() =>
         Assert.Equal(Option<JobHistory>.None, await JobFlow.With().Catalog.HistoryAsync(JobId.New(), Cancellation));
 
+    [Fact]
+    public async Task AJobsChildrenAndItsWholeTreeAreListedInSubmissionOrderWithTheirParentAsync()
+    {
+        var flow = JobFlow.With();
+        var root = await flow.RunningAsync();
+        var first = await flow.RunningAsync(JobFlow.Request() with { Parent = root.Id });
+        var second = await flow.SubmittedAsync(JobFlow.Request() with { Parent = root.Id });
+        var grandchild = await flow.SubmittedAsync(JobFlow.Request() with { Parent = first.Id });
+
+        var children = await flow.Catalog.ChildrenAsync(root.Id, Cancellation);
+        var tree = Outcomes.Present(await flow.Catalog.TreeAsync(root.Id, Cancellation));
+
+        Assert.Equal([(first.Id, Option<JobId>.Some(root.Id)), (second.Id, Option<JobId>.Some(root.Id))], children.Select(child => (child.Job, child.Parent)));
+        Assert.Equal(
+            $"{root.Id.Value}({first.Id.Value}({grandchild.Id.Value}),{second.Id.Value})",
+            Shape(tree));
+        Assert.Equal(Option<JobId>.None, tree.Job.Parent);
+        Assert.Equal(Option<JobTree>.None, await flow.Catalog.TreeAsync(JobId.New(), Cancellation));
+    }
+
+    private static string Shape(JobTree tree) =>
+        tree.Children.Count == 0 ? $"{tree.Job.Job.Value}" : $"{tree.Job.Job.Value}({string.Join(',', tree.Children.Select(Shape))})";
+
     private static DateTimeOffset At(int second) => new(2026, 10, 9, 8, 0, second, TimeSpan.Zero);
 }

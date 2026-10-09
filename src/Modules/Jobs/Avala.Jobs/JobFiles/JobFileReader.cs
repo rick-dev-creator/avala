@@ -21,7 +21,9 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private const string Autopilot = "autopilot";
 
-    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 2, AllowDuplicateProperties = false };
+    private const string Delegation = "delegation";
+
+    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
 
     public async ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken) =>
         (await DeclaredAsync(worktree, cancellationToken))
@@ -62,18 +64,32 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
             return Rejected("it is not a JSON object");
         }
 
-        if (root.EnumerateObject().Any(property => property.Name is not (Connection or Approval or Autopilot)))
+        if (root.EnumerateObject().Any(property => property.Name is not (Connection or Approval or Autopilot or Delegation)))
         {
             return Rejected("it has a field the format does not define");
         }
 
-        if (root.TryGetProperty(Autopilot, out var autopilot) && autopilot.ValueKind != JsonValueKind.Object)
+        if (root.TryGetProperty(Autopilot, out var autopilot) && !IsSection(autopilot, listsAllowed: false))
         {
-            return Rejected($"its {Autopilot} is not an object");
+            return Rejected($"its {Autopilot} is not an object of plain values");
+        }
+
+        if (root.TryGetProperty(Delegation, out var delegation) && !IsSection(delegation, listsAllowed: true))
+        {
+            return Rejected($"its {Delegation} is not an object of plain values and lists of them");
         }
 
         return Named(root, Connection).Bind(connection => Named(root, Approval).Map(approval => new Declaration(connection, approval)));
     }
+
+    private static bool IsSection(JsonElement section, bool listsAllowed) =>
+        section.ValueKind == JsonValueKind.Object
+        && section.EnumerateObject().All(field => field.Value.ValueKind switch
+        {
+            JsonValueKind.Object => false,
+            JsonValueKind.Array => listsAllowed && field.Value.EnumerateArray().All(item => item.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array)),
+            _ => true,
+        });
 
     private Result<Option<string>, JobRejection> Named(JsonElement root, string field)
     {

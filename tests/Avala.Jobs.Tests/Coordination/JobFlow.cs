@@ -27,11 +27,11 @@ internal sealed class JobFlow
         Workspaces = workspaces;
         Agents = agents;
         var ledger = new JobLedger(Store, Bus, agents);
-        var launcher = new JobLauncher(ledger, workspaces, agents, Defaults);
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
+        var launcher = new JobLauncher(ledger, workspaces, agents, new WorkspacePlanner(workspaces, Defaults, Queues));
         Submit = new SubmitJob(ledger, Bus, Connections, Clock);
         Hold = new HoldJob(ledger, agents, Bus);
-        Jobs = new JobsEntry(Submit, Hold, new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies), Bus), Queues);
+        Jobs = new JobsEntry(Submit, Hold, new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), Bus), Queues);
         Prepare = new PrepareJob(Queues, launcher, Admissions);
         Check = new CheckTurn(ledger, Queues, new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents), Hold);
         Recovery = new JobRecovery(new JobLedger(Store, Bus, agents), Queues, launcher);
@@ -97,7 +97,7 @@ internal sealed class JobFlow
     public async Task<Job> RunningAsync(JobRequest request)
     {
         var job = await SubmittedAsync(request);
-        await Prepare.HandleAsync(new JobAnnouncement(job.Id), Cancellation);
+        await Prepare.HandleAsync(new JobAnnouncement(job.Id) { Parent = job.Parent }, Cancellation);
         await SettledAsync(job);
 
         return job;

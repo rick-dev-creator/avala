@@ -28,7 +28,10 @@ internal static class Given
             Outcomes.Succeeds(AttemptBudget.Create(attemptsPerRound)),
             Repository,
             Submitted,
-            Autonomy.Supervised));
+            Autonomy.Supervised,
+            parent: Parent));
+
+    public static JobId Parent { get; } = JobId.New();
 
     public static DateTimeOffset Submitted { get; } = new(2026, 10, 9, 8, 0, 0, TimeSpan.Zero);
 

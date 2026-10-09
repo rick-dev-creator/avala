@@ -9,7 +9,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Launching;
 
-internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAgents agents, IRepositoryDefaults defaults)
+internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAgents agents, WorkspacePlanner planner)
 {
     public const string RestartNote = "The harness restarted while you were working on this job. Continue where you left off.";
 
@@ -20,13 +20,13 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             return;
         }
 
-        if (!(await workspaces.PrepareAsync(new WorkspaceRequest(job.Repository.Value), cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!(await planner.PrepareAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             await FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken);
             return;
         }
 
-        if (!(await ConnectionOfAsync(job, workspace, cancellationToken)).TryGetValue(out var connection, out _))
+        if (!(await planner.ConnectionOfAsync(job, workspace, cancellationToken)).TryGetValue(out var connection, out _))
         {
             await FailAsync(job, FailureReason.ConnectionUnavailable, cancellationToken);
             return;
@@ -135,12 +135,6 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
 
     private async Task<Result<OpenedSession, AgentError>> OpenAsync(Job job, WorkspaceInfo workspace, CancellationToken cancellationToken) =>
         await agents.OpenAsync(new AgentRequest(workspace.Path) { Resume = job.Resume, Connection = job.Connection }, cancellationToken);
-
-    private async Task<Result<Option<ConnectionName>, JobRejection>> ConnectionOfAsync(
-        Job job,
-        WorkspaceInfo workspace,
-        CancellationToken cancellationToken) =>
-        job.Connection.IsSome ? job.Connection : await defaults.ConnectionAsync(workspace.Path, cancellationToken);
 
     private static FailureReason Failure(AgentError error) =>
         error is AgentError.UnknownConnection or AgentError.UnusableConnection ? FailureReason.ConnectionUnavailable : FailureReason.AgentUnavailable;

@@ -9,7 +9,7 @@ internal sealed class PrepareJob(JobQueues queues, JobLauncher launcher, IEnumer
 {
     public async ValueTask HandleAsync(JobAnnouncement integrationEvent, CancellationToken cancellationToken)
     {
-        foreach (var admission in admissions)
+        foreach (var admission in integrationEvent.Parent.IsSome ? Enumerable.Empty<IJobAdmission>() : admissions)
         {
             await admission.AdmitAsync(integrationEvent.Job, cancellationToken);
         }
