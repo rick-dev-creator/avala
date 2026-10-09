@@ -29,6 +29,12 @@
             IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <TextBlock Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
     </Border>
+    <Border x:Name="Notice"
+            Classes="quiet"
+            Padding="12,8"
+            IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock x:Name="NoticeText" Classes="caption" Text="{Binding Notice}" TextWrapping="Wrap" />
+    </Border>
     <Border x:Name="NothingRead"
             Classes="empty"
             IsVisible="{Binding Shown, Converter={x:Static StringConverters.IsNullOrEmpty}}">
@@ -101,7 +107,7 @@
             <ItemsControl x:Name="RuleList" Classes="rows" ItemsSource="{Binding Rules}" />
           </Panel>
         </Border>
-        <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="Rules created with 'Don't ask again' apply to their session only and appear in that job's inspector." />
+        <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="Rules created with 'Don't ask again this session' apply to that agent session only and appear in that job's inspector." />
       </StackPanel>
 
       <StackPanel Spacing="8">

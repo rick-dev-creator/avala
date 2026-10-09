@@ -55,11 +55,13 @@ internal sealed record ConnectionDeclarations(IReadOnlyList<ConnectionDeclaratio
     public static ConnectionDeclarations Implicit(IEnumerable<IAgentProvider> providers, IReadOnlyList<ConnectionDeclaration> discovered) =>
         new(
             Distinct(providers
-                .Select(provider => provider.Info.Id)
-                .Distinct(StringComparer.Ordinal)
-                .SelectMany(id => discovered.Any(found => found.Provider == id)
-                    ? discovered.Where(found => found.Provider == id)
-                    : [new ConnectionDeclaration(new ConnectionName(id), id) { Origin = ConnectionOrigin.Implicit }])),
+                .Select(provider => provider.Info)
+                .DistinctBy(info => info.Id, StringComparer.Ordinal)
+                .SelectMany(info => discovered.Any(found => found.Provider == info.Id)
+                    ? discovered.Where(found => found.Provider == info.Id)
+                    : info.OffersImplicitConnection
+                    ? [new ConnectionDeclaration(new ConnectionName(info.Id), info.Id) { Origin = ConnectionOrigin.Implicit }]
+                    : [])),
             Option<ConnectionName>.None);
 
     public static IReadOnlyList<ConnectionDeclaration> Distinct(IEnumerable<ConnectionDeclaration> connections) =>

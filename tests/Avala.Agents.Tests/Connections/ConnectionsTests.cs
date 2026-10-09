@@ -51,6 +51,21 @@ public sealed class ConnectionsTests
     }
 
     [Fact]
+    public async Task AProviderThatOffersNoImplicitConnectionHasNoneWithoutAFileButADeclaredOneStillOpensOnItAsync()
+    {
+        var quiet = new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { Info = new ProviderInfo("quiet", "quiet") { OffersImplicitConnection = false } };
+        var implicitOnly = Connected.Registry([first, quiet]);
+        var declared = Connected.Registry("""{ "connections": [ { "name": "demo", "provider": "quiet" } ] }""", [first, quiet], new Vault());
+
+        var catalog = await implicitOnly.CatalogAsync(Cancellation);
+
+        Assert.Equal([new ConnectionName("first")], catalog.Connections.Select(connection => connection.Name));
+        Assert.Equal(
+            new ConnectionInfo(new ConnectionName("demo"), quiet.Info),
+            Outcomes.Succeeds(await declared.CheckAsync(new ConnectionName("demo"), Cancellation)));
+    }
+
+    [Fact]
     public async Task ASessionOpensOnItsNamedConnectionWithTheResolvedEnvironmentAndIsAnnouncedWithItAsync()
     {
         var bus = new RecordingBus();
