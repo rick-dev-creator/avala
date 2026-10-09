@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.AgentView"
+             x:ClassModifier="internal"
+             x:DataType="overview:AgentViewModel">
+  <StackPanel Orientation="Horizontal" Spacing="8">
+    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+    <TextBlock Text="{Binding Fact}" Opacity="0.6" />
+  </StackPanel>
+</UserControl>

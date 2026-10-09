@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.RepositorySettingsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:RepositorySettingsViewModel">
+  <StackPanel Spacing="8">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <AutoCompleteBox Width="420" Text="{Binding Repository}" ItemsSource="{Binding Repositories}" />
+      <Button Content="Read" Command="{Binding ReadCommand}" />
+    </StackPanel>
+    <TextBlock Text="{Binding Error}" Foreground="IndianRed" />
+    <TextBlock Text="{Binding Autonomy, StringFormat='Autonomy: {0}'}" />
+    <TextBlock Text="{Binding FormStrategy, StringFormat='Forms are answered with: {0}'}" />
+    <ItemsControl ItemsSource="{Binding Files}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="settings:RuleFileViewModel">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ContentControl Content="{Binding}" />
+            <Button Content="Edit in repository"
+                    Command="{Binding $parent[UserControl].((settings:RepositorySettingsViewModel)DataContext).EditCommand}"
+                    CommandParameter="{Binding}" />
+          </StackPanel>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <TextBlock Text="Rules, in decision order" FontWeight="SemiBold" />
+    <ItemsControl ItemsSource="{Binding Rules}" />
+    <TextBlock Text="Budget caps" FontWeight="SemiBold" />
+    <ItemsControl ItemsSource="{Binding Caps}" />
+    <TextBlock Text="Checks" FontWeight="SemiBold" />
+    <ItemsControl ItemsSource="{Binding Checks}" />
+    <TextBlock Text="jobs.json" FontWeight="SemiBold" />
+    <ItemsControl ItemsSource="{Binding JobSections}" />
+  </StackPanel>
+</UserControl>

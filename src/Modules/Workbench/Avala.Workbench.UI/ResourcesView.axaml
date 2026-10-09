@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:resources="using:Avala.Workbench.Resources"
+             x:Class="Avala.Workbench.UI.ResourcesView"
+             x:ClassModifier="internal"
+             x:DataType="resources:ResourcesViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="8">
+      <StackPanel Orientation="Horizontal" Spacing="16">
+        <TextBlock Text="{Binding Memory, StringFormat='Memory {0}'}" />
+        <TextBlock Text="{Binding Cpu, StringFormat='CPU {0}'}" />
+        <TextBlock Text="{Binding Processes, StringFormat='{}{0} processes'}" />
+        <TextBlock Text="{Binding Disk, StringFormat='Disk {0}'}" />
+        <TextBlock Text="{Binding Ports, StringFormat='Ports {0}'}" />
+      </StackPanel>
+      <TextBlock Text="{Binding Error}" Foreground="IndianRed" />
+      <TextBlock Text="Agents" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Trees}" />
+      <TextBlock Text="Leftover processes" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Orphans}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="resources:OrphanViewModel">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ContentControl Content="{Binding}" />
+              <Button Content="Clean up"
+                      IsVisible="{Binding CanReap}"
+                      Command="{Binding $parent[UserControl].((resources:ResourcesViewModel)DataContext).ReapCommand}"
+                      CommandParameter="{Binding}" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="Stale worktrees" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Button Content="Look again" Command="{Binding ReconcileCommand}" />
+        <Button Content="Clean up" Command="{Binding CleanCommand}" />
+      </StackPanel>
+      <ItemsControl ItemsSource="{Binding StaleWorktrees}" />
+      <TextBlock Text="Port leases" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Leases}" />
+      <ItemsControl ItemsSource="{Binding Conflicts}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
