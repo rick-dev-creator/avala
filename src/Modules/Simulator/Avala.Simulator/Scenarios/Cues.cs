@@ -19,9 +19,9 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 
     public PermissionRequested Asked(ItemId item, string title, ItemKind kind, string target) => new(Session, Turn, item, title, kind, target);
 
-    public PermissionResolved Answered(ItemId item, PermissionAnswer answer) => new(Session, Turn, item, answer);
-
     public FormRequested Asked(ItemId item, AgentForm form) => new(Session, Turn, item, form);
+
+    public PermissionResolved Answered(ItemId item, PermissionAnswer answer) => new(Session, Turn, item, answer);
 
     public FormAnswered Answered(ItemId item, FormAnswer answer) => new(Session, Turn, item, answer);
 

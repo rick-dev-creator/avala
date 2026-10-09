@@ -28,7 +28,7 @@ public sealed class RecordedSessionTests(PublishedPlugins plugins)
     {
         var fixture = await RegressionFixture.LoadAsync(name, Cancellation);
         Assert.SkipWhen(fixture.Record is null, $"{name} was recorded from a provider the tests cannot run.");
-        await using var run = await SimulatedRun.InstructedAsync(plugins, fixture.Record!, [("recording.json", """{ "enabled": true }""")], fixture.Committed);
+        await using var run = await SimulatedRun.InstructedAsync(plugins, fixture.Record, [("recording.json", """{ "enabled": true }""")], fixture.Committed);
 
         var recorded = await OutcomeAsync(run, fixture);
         var recording = Assert.Single(await run.StopAndReadRecordingsAsync());

@@ -90,12 +90,12 @@ public sealed class RecordingTree(ProcessTreeId id, string home, IReadOnlyDictio
     {
         var members = new List<TreeProcess>();
 
-        foreach (var id in started)
+        foreach (var member in started)
         {
-            if (!await Workloads.IsGoneAsync(id))
+            if (!await Workloads.IsGoneAsync(member))
             {
-                using var process = Process.GetProcessById(id);
-                members.Add(new TreeProcess(id, process.ProcessName, process.WorkingSet64, process.TotalProcessorTime));
+                using var process = Process.GetProcessById(member);
+                members.Add(new TreeProcess(member, process.ProcessName, process.WorkingSet64, process.TotalProcessorTime));
             }
         }
 
@@ -104,11 +104,11 @@ public sealed class RecordingTree(ProcessTreeId id, string home, IReadOnlyDictio
 
     public async Task KillAsync()
     {
-        foreach (var id in started)
+        foreach (var member in started)
         {
             try
             {
-                using var process = Process.GetProcessById(id);
+                using var process = Process.GetProcessById(member);
                 process.Kill(entireProcessTree: true);
                 await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
             }

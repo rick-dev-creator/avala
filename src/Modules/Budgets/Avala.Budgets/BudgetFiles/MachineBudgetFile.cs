@@ -25,20 +25,25 @@ internal sealed class MachineBudgetFile(AvalaPaths paths) : IMachineBudgetFile
         try
         {
             using var document = JsonDocument.Parse(text, Options);
-            var root = document.RootElement;
 
-            return root.ValueKind != JsonValueKind.Object ? BudgetError.Malformed
-                : root.EnumerateObject().Any(property => property.Name != RunningJobs) ? BudgetError.UnknownField
-                : !root.TryGetProperty(RunningJobs, out var limit) ? Option<int>.None
-                : limit.ValueKind != JsonValueKind.Number ? BudgetError.Malformed
-                : limit.TryGetInt32(out var jobs) && jobs > 0 ? Option<int>.Some(jobs)
-                : BudgetError.InvalidRunningJobs;
+            return Limit(document.RootElement);
         }
         catch (JsonException)
         {
             return BudgetError.Malformed;
         }
     }
+
+    private static Result<Option<int>, BudgetError> Limit(JsonElement root) =>
+        root.ValueKind != JsonValueKind.Object ? BudgetError.Malformed
+        : root.EnumerateObject().Any(property => property.Name != RunningJobs) ? BudgetError.UnknownField
+        : !root.TryGetProperty(RunningJobs, out var limit) ? Option<int>.None
+        : RunningJobsLimit(limit);
+
+    private static Result<Option<int>, BudgetError> RunningJobsLimit(JsonElement limit) =>
+        limit.ValueKind != JsonValueKind.Number ? BudgetError.Malformed
+        : limit.TryGetInt32(out var jobs) && jobs > 0 ? Option<int>.Some(jobs)
+        : BudgetError.InvalidRunningJobs;
 
     private static async Task<MachineBudget> ReadAsync(string path) =>
         !File.Exists(path)
