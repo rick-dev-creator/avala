@@ -10,6 +10,8 @@ public interface IUsage
 
     IReadOnlyList<AccountUsage> ByAccount();
 
+    IReadOnlyList<ConnectionUsage> ByConnection();
+
     Option<UsageSummary> OfSession(SessionId session);
 
     Option<UsageSummary> OfJob(JobId job);

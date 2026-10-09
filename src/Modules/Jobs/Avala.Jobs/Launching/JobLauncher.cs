@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
@@ -8,7 +9,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.Launching;
 
-internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAgents agents)
+internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAgents agents, IRepositoryDefaults defaults)
 {
     public const string RestartNote = "The harness restarted while you were working on this job. Continue where you left off.";
 
@@ -25,13 +26,19 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             return;
         }
 
-        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path), cancellationToken)).TryGetValue(out var opened, out _))
+        if (!(await ConnectionOfAsync(job, workspace, cancellationToken)).TryGetValue(out var connection, out _))
         {
-            await FailAsync(job, FailureReason.AgentUnavailable, cancellationToken);
+            await FailAsync(job, FailureReason.ConnectionUnavailable, cancellationToken);
             return;
         }
 
-        if (job.Start(workspace.Id, opened.Session).IsSuccess)
+        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = connection }, cancellationToken)).TryGetValue(out var opened, out var error))
+        {
+            await FailAsync(job, Failure(error), cancellationToken);
+            return;
+        }
+
+        if (job.Start(workspace.Id, opened.Session, opened.Connection).IsSuccess)
         {
             await BeginAsync(job, opened.Session, job.Instruction.Text, cancellationToken);
         }
@@ -50,9 +57,9 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             return;
         }
 
-        if (!(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out _))
+        if (!(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out var error))
         {
-            await FailAsync(job, FailureReason.AgentUnavailable, cancellationToken);
+            await FailAsync(job, Failure(error), cancellationToken);
             return;
         }
 
@@ -99,9 +106,14 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
             return JobRejection.WorkspaceUnavailable;
         }
 
-        if (!(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out _))
+        if (!(await OpenAsync(job, workspace, cancellationToken)).TryGetValue(out var opened, out var error))
         {
-            return JobRejection.AgentUnavailable;
+            return error switch
+            {
+                AgentError.UnknownConnection => JobRejection.UnknownConnection,
+                AgentError.UnusableConnection => JobRejection.UnusableConnection,
+                _ => JobRejection.AgentUnavailable,
+            };
         }
 
         _ = job.Hint(guidance, opened.Session, opened.Resumed);
@@ -115,7 +127,16 @@ internal sealed class JobLauncher(JobLedger ledger, IWorkspaces workspaces, IAge
     }
 
     private async Task<Result<OpenedSession, AgentError>> OpenAsync(Job job, WorkspaceInfo workspace, CancellationToken cancellationToken) =>
-        await agents.OpenAsync(new AgentRequest(workspace.Path) { Resume = job.Resume }, cancellationToken);
+        await agents.OpenAsync(new AgentRequest(workspace.Path) { Resume = job.Resume, Connection = job.Connection }, cancellationToken);
+
+    private async Task<Result<Option<ConnectionName>, JobRejection>> ConnectionOfAsync(
+        Job job,
+        WorkspaceInfo workspace,
+        CancellationToken cancellationToken) =>
+        job.Connection.IsSome ? job.Connection : await defaults.ConnectionAsync(workspace.Path, cancellationToken);
+
+    private static FailureReason Failure(AgentError error) =>
+        error is AgentError.UnknownConnection or AgentError.UnusableConnection ? FailureReason.ConnectionUnavailable : FailureReason.AgentUnavailable;
 
     private async Task BeginAsync(Job job, SessionId session, string message, CancellationToken cancellationToken)
     {

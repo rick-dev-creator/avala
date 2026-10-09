@@ -23,9 +23,9 @@ internal sealed class JobFlow
         Workspaces = workspaces;
         Agents = agents;
         var ledger = new JobLedger(Store, Bus);
-        var launcher = new JobLauncher(ledger, workspaces, agents);
+        var launcher = new JobLauncher(ledger, workspaces, agents, Defaults);
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
-        Submit = new SubmitJob(ledger, Bus);
+        Submit = new SubmitJob(ledger, Bus, Connections);
         Hold = new HoldJob(ledger, agents, Bus);
         Jobs = new JobsEntry(Submit, Hold, launcher, Queues);
         Prepare = new PrepareJob(Queues, launcher);
@@ -34,6 +34,10 @@ internal sealed class JobFlow
     }
 
     public InMemoryJobStore Store { get; } = new();
+
+    public FakeConnections Connections { get; } = new();
+
+    public FakeRepositoryDefaults Defaults { get; } = new();
 
     public RecordingBus Bus { get; } = new();
 
@@ -59,16 +63,24 @@ internal sealed class JobFlow
 
     public static JobFlow With(params ICompletionGate[] gates) => new(new FakeWorkspaces(), new FakeAgents(), gates);
 
-    public async Task<Job> SubmittedAsync(int attemptsPerRound = 3, Option<Autonomy> autonomy = default)
+    public static JobRequest Request(int attemptsPerRound = 3) => new("/repos/shop", "Add GitHub login", attemptsPerRound);
+
+    public async Task<Job> SubmittedAsync(int attemptsPerRound = 3, Option<Autonomy> autonomy = default) =>
+        await SubmittedAsync(Request(attemptsPerRound) with { Autonomy = autonomy });
+
+    public async Task<Job> SubmittedAsync(JobRequest request)
     {
-        var id = Outcomes.Succeeds(await Submit.ExecuteAsync("/repos/shop", "Add GitHub login", attemptsPerRound, autonomy, Cancellation));
+        var id = Outcomes.Succeeds(await Submit.ExecuteAsync(request, Cancellation));
 
         return Store.Jobs.Single(job => job.Id == id);
     }
 
-    public async Task<Job> RunningAsync(int attemptsPerRound = 3, Option<Autonomy> autonomy = default)
+    public async Task<Job> RunningAsync(int attemptsPerRound = 3, Option<Autonomy> autonomy = default) =>
+        await RunningAsync(Request(attemptsPerRound) with { Autonomy = autonomy });
+
+    public async Task<Job> RunningAsync(JobRequest request)
     {
-        var job = await SubmittedAsync(attemptsPerRound, autonomy);
+        var job = await SubmittedAsync(request);
         await Prepare.HandleAsync(new JobAnnouncement(job.Id), Cancellation);
         await SettledAsync(job);
 

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
@@ -8,16 +9,16 @@ namespace Avala.Budgets.Enforcement;
 
 internal sealed class BudgetBook : IBudgets
 {
-    private ImmutableDictionary<SessionId, (SessionBudget Budget, ProviderInfo Provider)> sessions =
-        ImmutableDictionary<SessionId, (SessionBudget Budget, ProviderInfo Provider)>.Empty;
+    private ImmutableDictionary<SessionId, (SessionBudget Budget, ConnectionName Connection)> sessions =
+        ImmutableDictionary<SessionId, (SessionBudget Budget, ConnectionName Connection)>.Empty;
 
     private ImmutableList<BudgetIntervention> interventions = [];
 
-    public void Keep(SessionBudget budget, ProviderInfo provider) =>
-        ImmutableInterlocked.AddOrUpdate(ref sessions, budget.Session, (budget, provider), (_, _) => (budget, provider));
+    public void Keep(SessionBudget budget, ConnectionName connection) =>
+        ImmutableInterlocked.AddOrUpdate(ref sessions, budget.Session, (budget, connection), (_, _) => (budget, connection));
 
-    public Option<(SessionBudget Budget, ProviderInfo Provider)> Budgeted(SessionId session) =>
-        Volatile.Read(ref sessions).TryGetValue(session, out var budgeted) ? budgeted : Option<(SessionBudget, ProviderInfo)>.None;
+    public Option<(SessionBudget Budget, ConnectionName Connection)> Budgeted(SessionId session) =>
+        Volatile.Read(ref sessions).TryGetValue(session, out var budgeted) ? budgeted : Option<(SessionBudget, ConnectionName)>.None;
 
     public void Record(BudgetIntervention intervention) =>
         ImmutableInterlocked.Update(ref interventions, recorded => recorded.Add(intervention));

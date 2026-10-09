@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 
@@ -15,3 +16,5 @@ public readonly record struct TurnTally(int Finished, int Interrupted, int Faile
 public sealed record ProviderUsage(ProviderInfo Provider, UsageSummary Usage);
 
 public sealed record AccountUsage(ProviderInfo Provider, AgentAccount Account, UsageSummary Usage);
+
+public sealed record ConnectionUsage(ConnectionName Connection, ProviderInfo Provider, UsageSummary Usage);
