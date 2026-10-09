@@ -22,20 +22,20 @@ public sealed class PermissionsPlugin : IPlugin
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton<SqliteGovernanceStore>()
-            .AddSingleton<IGovernanceStore>(services => services.GetRequiredService<SqliteGovernanceStore>())
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteGovernanceStore>())
+            .AddForwarded<IGovernanceStore, SqliteGovernanceStore>()
+            .AddForwarded<IStartupTask, SqliteGovernanceStore>()
             .AddSingleton<GovernanceBook>()
-            .AddSingleton<IPermissionAudit>(services => services.GetRequiredService<GovernanceBook>())
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<GovernanceBook>())
+            .AddForwarded<IPermissionAudit, GovernanceBook>()
+            .AddForwarded<IStartupTask, GovernanceBook>()
             .AddSingleton<PolicyFileReader>()
             .AddSingleton<IRuleFileFormat, PolicyFileFormat>()
-            .AddSingleton<IPolicyFiles>(services => services.GetRequiredService<PolicyFileReader>())
-            .AddSingleton<IRepositoryPolicies>(services => services.GetRequiredService<PolicyFileReader>())
+            .AddForwarded<IPolicyFiles, PolicyFileReader>()
+            .AddForwarded<IRepositoryPolicies, PolicyFileReader>()
             .AddSingleton<PermissionResponder>()
             .AddSingleton<IPermissionAnswers, HumanAnswers>()
             .AddSingleton<SessionGovernor>()
-            .AddSingleton<IHandle<SessionOpened>>(services => services.GetRequiredService<SessionGovernor>())
-            .AddSingleton<IHandle<JobSessionStarted>>(services => services.GetRequiredService<SessionGovernor>())
-            .AddSingleton<IHandle<AgentActivity>>(services => services.GetRequiredService<SessionGovernor>());
+            .AddForwarded<IHandle<SessionOpened>, SessionGovernor>()
+            .AddForwarded<IHandle<JobSessionStarted>, SessionGovernor>()
+            .AddForwarded<IHandle<AgentActivity>, SessionGovernor>();
     }
 }

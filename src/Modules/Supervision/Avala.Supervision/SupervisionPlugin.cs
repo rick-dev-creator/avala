@@ -21,17 +21,17 @@ public sealed class SupervisionPlugin : IPlugin
         registrar.Services
             .AddSingleton<ISupervisionSettings, SettingsFile>()
             .AddSingleton<SqliteInterventionStore>()
-            .AddSingleton<IInterventionStore>(services => services.GetRequiredService<SqliteInterventionStore>())
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteInterventionStore>())
+            .AddForwarded<IInterventionStore, SqliteInterventionStore>()
+            .AddForwarded<IStartupTask, SqliteInterventionStore>()
             .AddSingleton<SupervisionBook>()
-            .AddSingleton<ISupervision>(services => services.GetRequiredService<SupervisionBook>())
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SupervisionBook>())
+            .AddForwarded<ISupervision, SupervisionBook>()
+            .AddForwarded<IStartupTask, SupervisionBook>()
             .AddSingleton<SilenceAlarms>()
             .AddSingleton<Intervener>()
             .AddSingleton<Watchdog>()
-            .AddSingleton<IHandle<JobProgressed>>(services => services.GetRequiredService<Watchdog>())
-            .AddSingleton<IHandle<JobSessionStarted>>(services => services.GetRequiredService<Watchdog>())
-            .AddSingleton<IHandle<AgentActivity>>(services => services.GetRequiredService<Watchdog>())
-            .AddSingleton<IHandle<SilenceNoticed>>(services => services.GetRequiredService<Watchdog>());
+            .AddForwarded<IHandle<JobProgressed>, Watchdog>()
+            .AddForwarded<IHandle<JobSessionStarted>, Watchdog>()
+            .AddForwarded<IHandle<AgentActivity>, Watchdog>()
+            .AddForwarded<IHandle<SilenceNoticed>, Watchdog>();
     }
 }

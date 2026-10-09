@@ -20,11 +20,11 @@ public sealed class VerificationPlugin : IPlugin
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton<SqliteEvidenceStore>()
-            .AddSingleton<IEvidenceStore>(services => services.GetRequiredService<SqliteEvidenceStore>())
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteEvidenceStore>())
+            .AddForwarded<IEvidenceStore, SqliteEvidenceStore>()
+            .AddForwarded<IStartupTask, SqliteEvidenceStore>()
             .AddSingleton<EvidenceBook>()
-            .AddSingleton<IVerifications>(services => services.GetRequiredService<EvidenceBook>())
-            .AddSingleton<IStartupTask>(services => services.GetRequiredService<EvidenceBook>())
+            .AddForwarded<IVerifications, EvidenceBook>()
+            .AddForwarded<IStartupTask, EvidenceBook>()
             .AddSingleton<EvidenceLedger>()
             .AddSingleton<CheckRunner>()
             .AddSingleton<ICompletionGate, ChecksGate>()
