@@ -18,6 +18,7 @@ internal sealed class Conversation
     private bool interrupting;
     private int interruptions;
     private int queued;
+    private int stale;
 
     public Conversation(SessionId session, SessionOptions options, Places places, Option<ConversationMark> resumed)
     {
@@ -58,10 +59,12 @@ internal sealed class Conversation
     public Reaction Receive(JsonNode message) => message.TextOr("type", string.Empty) switch
     {
         "system" when message.TextOr("subtype", string.Empty) == "init" => Initialized(message),
+        "stream_event" or "assistant" or "user" when stale > 0 => Reaction.None,
         "stream_event" or "assistant" or "user" => live.Match(stamp => translator.Receive(message, stamp), () => Reaction.None),
         "rate_limit_event" => live.Match(
             stamp => Reaction.Of([.. Telemetry.Limits(message).Select(limit => new LimitReported(session, stamp.Turn, limit))]),
             () => Reaction.None),
+        "result" when stale > 0 => Swallowed(),
         "result" => live.Match(stamp => queued > 0 && !interrupting ? Carried(message, stamp) : Ended(message, stamp), () => Reaction.None),
         "control_request" => desk.Receive(message, live),
         "control_cancel_request" => desk.Cancel(message),
@@ -113,6 +116,13 @@ internal sealed class Conversation
         return translator.Close(stamp, interrupted: false).Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), Spent(result))));
     }
 
+    private Reaction Swallowed()
+    {
+        stale--;
+
+        return Reaction.None;
+    }
+
     private Option<Cost> Spent(JsonNode result)
     {
         var total = Telemetry.TotalCost(result);
@@ -125,6 +135,7 @@ internal sealed class Conversation
     private Reaction Ended(JsonNode result, Stamp stamp)
     {
         var cost = Spent(result);
+        stale = interrupting ? queued : 0;
         queued = 0;
         var outcome = interrupting
             ? TurnOutcome.Interrupted
