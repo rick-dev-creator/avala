@@ -47,9 +47,11 @@ internal sealed record PermissionEntry(string Key, SessionId Session, TurnId Tur
 
     public bool Closed { get; init; }
 
+    public bool Withdrawn { get; init; }
+
     public bool WentToHuman => Decision.Match(decision => decision.Delivery != DecisionDelivery.Answered, () => false);
 
-    public bool AwaitsHuman => WentToHuman && Resolution.IsNone && !Closed;
+    public bool AwaitsHuman => WentToHuman && Resolution.IsNone && !Closed && !Withdrawn;
 }
 
 internal sealed record FormEntry(string Key, SessionId Session, TurnId Turn, ItemId Item, AgentForm Form) : ITimelineEntry
@@ -62,9 +64,11 @@ internal sealed record FormEntry(string Key, SessionId Session, TurnId Turn, Ite
 
     public bool Closed { get; init; }
 
+    public bool Withdrawn { get; init; }
+
     public bool WentToHuman => Decision.Match(decision => decision.Answer.IsNone || decision.Delivery != DecisionDelivery.Answered, () => false);
 
-    public bool AwaitsHuman => WentToHuman && Answer.IsNone && Outcome.IsNone && !Closed;
+    public bool AwaitsHuman => WentToHuman && Answer.IsNone && Outcome.IsNone && !Closed && !Withdrawn;
 }
 
 internal sealed record TurnEndEntry(string Key, TurnOutcome Outcome, TimeSpan Duration, TokenUsage Tokens, IReadOnlyList<Cost> Costs) : ITimelineEntry;

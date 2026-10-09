@@ -65,10 +65,15 @@ internal sealed record Transcript
         PermissionResolved resolved => Change(EntryKeys.Permission(resolved.Turn, resolved.Item), entry => entry is PermissionEntry permission ? permission with { Resolution = resolved.Answer } : entry),
         FormRequested requested => Add(new FormEntry(EntryKeys.Item(requested.Turn, requested.Item), requested.Session, requested.Turn, requested.Item, requested.Form)),
         FormAnswered answered => Change(EntryKeys.Item(answered.Turn, answered.Item), entry => entry is FormEntry form ? form with { Answer = answered.Answer } : entry),
+        RequestWithdrawn withdrawn => Withdrawn(withdrawn),
         ToolCalled called => Add(new ToolEntry(EntryKeys.Item(called.Turn, called.Item), ItemKind.Other, called.Tool, string.Empty, Option<ItemOutcome>.None) { Input = called.Input }),
         ToolReturned returned => Change(EntryKeys.Item(returned.Turn, returned.Item), entry => entry is ToolEntry tool ? tool with { Output = returned.Result.Content } : entry),
         _ => this,
     };
+
+    private Transcript Withdrawn(RequestWithdrawn withdrawn) =>
+        Change(EntryKeys.Permission(withdrawn.Turn, withdrawn.Item), entry => entry is PermissionEntry permission ? permission with { Withdrawn = true } : entry)
+            .Change(EntryKeys.Item(withdrawn.Turn, withdrawn.Item), entry => entry is FormEntry form ? form with { Withdrawn = true } : entry);
 
     private static PromptEntry Prompt(string instruction, AttemptRecord attempt) =>
         new(

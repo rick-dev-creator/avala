@@ -9,20 +9,22 @@ internal static class CardPhrases
 {
     public const string DontAskAgain = "Don't ask again this session";
 
+    public const string Withdrawn = "Withdrawn by the harness";
+
     public static string DontAskAgainScope(ItemKind kind) =>
         $"Your answer is reused only for this exact {Requested(kind)} and only until this agent session ends: a new session of the job, after a hold or a restart, asks again.";
 
     public static string Verdict(PermissionEntry permission) =>
         permission.Resolution.Match(
             answer => answer == PermissionAnswer.Allow ? "Allowed" : "Denied",
-            () => permission.Closed ? "No longer waiting" : permission.AwaitsHuman ? "Waiting for you" : "Deciding");
+            () => permission.Withdrawn ? Withdrawn : permission.Closed ? "No longer waiting" : permission.AwaitsHuman ? "Waiting for you" : "Deciding");
 
     public static string Verdict(FormEntry form) =>
         form.Answer.Match(
             answer => answer.Declined
                 ? "Declined"
                 : form.WentToHuman ? $"Answered: {Chosen(answer)}" : $"Answered for you: {Chosen(answer)}",
-            () => form.Closed || form.Outcome.IsSome ? "No longer waiting" : form.AwaitsHuman ? "Waiting for you" : "Deciding");
+            () => form.Withdrawn ? Withdrawn : form.Closed || form.Outcome.IsSome ? "No longer waiting" : form.AwaitsHuman ? "Waiting for you" : "Deciding");
 
     public static string Headline(ItemKind kind) => kind switch
     {

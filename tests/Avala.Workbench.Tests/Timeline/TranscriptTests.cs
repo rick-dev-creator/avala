@@ -4,6 +4,7 @@ using Avala.Canvas.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
+using Avala.Workbench.Cards;
 using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Tests.Timeline;
@@ -119,6 +120,29 @@ public sealed class TranscriptTests
         var resolved = left.Apply(new PermissionResolved(Session, Turn, new ItemId("migrate"), PermissionAnswer.Allow), Start);
 
         Assert.Equal([false, true, false], new[] { asked, left, resolved }.Select(transcript => transcript.Awaiting.Any()));
+    }
+
+    [Fact]
+    public void APermissionOrAFormTheHarnessWithdrawsNoLongerAwaitsAHumanAndSaysItWasWithdrawn()
+    {
+        var waiting = Played(new PermissionRequested(Session, Turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update"))
+            .Apply(Decision(DecisionDelivery.LeftToHuman))
+            .Apply(new FormRequested(Session, Turn, new ItemId("question"), Question), Start)
+            .Apply(FormDecision(Option<FormAnswer>.None));
+
+        var withdrawn = waiting
+            .Apply(new RequestWithdrawn(Session, Turn, new ItemId("migrate")), Start)
+            .Apply(new RequestWithdrawn(Session, Turn, new ItemId("question")), Start);
+
+        Assert.Equal((2, 0), (waiting.Awaiting.Count(), withdrawn.Awaiting.Count()));
+        Assert.Equal(
+            ["Withdrawn by the harness", "Withdrawn by the harness"],
+            withdrawn.Entries.Select(entry => entry switch
+            {
+                PermissionEntry permission => CardPhrases.Verdict(permission),
+                FormEntry form => CardPhrases.Verdict(form),
+                _ => string.Empty,
+            }));
     }
 
     [Fact]
