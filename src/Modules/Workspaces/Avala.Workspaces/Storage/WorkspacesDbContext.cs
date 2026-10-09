@@ -1,3 +1,4 @@
+using Avala.Sdk;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Workspaces;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,9 @@ internal sealed class WorkspacesDbContext(string database) : DbContext
             workspace.Property(entity => entity.Location).HasConversion(location => Stored.Write(location), json => Stored.Location(json));
             workspace.Property(entity => entity.Branch).HasConversion(branch => branch.Value, name => Stored.Branch(name));
             workspace.Property(entity => entity.Base).HasConversion(commit => commit.Value, sha => Stored.Commit(sha));
+            workspace.Property(entity => entity.BaseBranch).HasConversion(
+                option => option.Match(branch => branch.Value, () => string.Empty),
+                name => name.Length == 0 ? Option<BranchName>.None : Option<BranchName>.Some(Stored.Branch(name)));
             workspace.Property(entity => entity.State).HasConversion<string>();
             workspace.OwnsMany(entity => entity.Checkpoints, checkpoint =>
             {

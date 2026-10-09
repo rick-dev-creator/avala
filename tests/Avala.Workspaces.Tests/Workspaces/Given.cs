@@ -14,7 +14,8 @@ internal static class Given
             WorkspaceId.New(),
             Outcomes.Succeeds(WorkspaceLocation.Create("/repos/shop", path)),
             Outcomes.Succeeds(BranchName.Create("avala/1")),
-            Commit(0)));
+            Commit(0),
+            Outcomes.Succeeds(BranchName.Create("main"))));
 
         var error = state switch
         {

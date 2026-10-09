@@ -55,6 +55,10 @@ internal static class WorkspaceDescriptions
 {
     extension(Workspace workspace)
     {
-        public WorkspaceInfo Describe() => new(workspace.Id, workspace.Location.Path, workspace.Branch.Value, workspace.Base.Value);
+        public WorkspaceInfo Describe() =>
+            new(workspace.Id, workspace.Location.Path, workspace.Branch.Value, workspace.Base.Value)
+            {
+                BaseBranch = workspace.BaseBranch.Map(branch => branch.Value),
+            };
     }
 }

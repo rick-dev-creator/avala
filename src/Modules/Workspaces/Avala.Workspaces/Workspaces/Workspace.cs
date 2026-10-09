@@ -27,12 +27,19 @@ internal sealed class Workspace : IAggregateRoot<WorkspaceId>
 
     public CommitSha Base { get; }
 
+    public Option<BranchName> BaseBranch { get; private init; }
+
     public WorkspaceState State { get; private set; } = WorkspaceState.Creating;
 
     public IReadOnlyList<Checkpoint> Checkpoints => checkpoints;
 
-    public static Result<Workspace, WorkspaceError> Create(WorkspaceId id, WorkspaceLocation location, BranchName branch, CommitSha @base) =>
-        new Workspace(id, location, branch, @base);
+    public static Result<Workspace, WorkspaceError> Create(
+        WorkspaceId id,
+        WorkspaceLocation location,
+        BranchName branch,
+        CommitSha @base,
+        Option<BranchName> baseBranch = default) =>
+        new Workspace(id, location, branch, @base) { BaseBranch = baseBranch };
 
     public Result<WorkspaceReady, WorkspaceError> MarkReady() =>
         machine.TryFire(WorkspaceTrigger.MarkReady, WorkspaceError.CannotMarkReady)
