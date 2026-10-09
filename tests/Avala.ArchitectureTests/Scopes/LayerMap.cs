@@ -146,6 +146,16 @@ internal static class LayerMap
             ["RepositoryFiles"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
         }),
+        .. Module("Avala.Delegation", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Policy"] = Layer.Domain,
+            ["Delegating"] = Layer.Application,
+            ["Reporting"] = Layer.Application,
+            ["Records"] = Layer.Application,
+            ["RepositoryFiles"] = Layer.Infrastructure,
+        }),
         .. Module("Avala.Fixtures.Compliant", new()
         {
             ["Contracts"] = Layer.Contracts,
