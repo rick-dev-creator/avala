@@ -10,5 +10,7 @@ public interface IBudgets
 
     IReadOnlyList<BudgetIntervention> OfJob(JobId job);
 
+    Option<BudgetCarve> CarveOf(JobId child);
+
     ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken);
 }

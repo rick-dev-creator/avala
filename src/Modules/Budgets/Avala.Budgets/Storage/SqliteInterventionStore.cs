@@ -9,7 +9,32 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
 {
     private readonly SerialExecutor serial = new();
     private readonly HashSet<int> written = [];
+    private readonly HashSet<int> carved = [];
     private BudgetsDbContext? context;
+
+    public Task RecordAsync(BudgetCarve carve, CancellationToken cancellationToken) =>
+        RunAsync(
+            async database =>
+            {
+                var row = StoredCarve.Of(carve);
+                await database.Carves.AddAsync(row, cancellationToken);
+                var saved = await database.SaveChangesAsync(cancellationToken);
+                carved.Add(row.Key);
+                database.ChangeTracker.Clear();
+
+                return saved;
+            },
+            cancellationToken);
+
+    public Task<IReadOnlyList<BudgetCarve>> EarlierCarvesAsync(CancellationToken cancellationToken) =>
+        RunAsync<IReadOnlyList<BudgetCarve>>(
+            async database =>
+            [
+                .. (await database.Carves.AsNoTracking().OrderBy(row => row.Key).ToListAsync(cancellationToken))
+                    .Where(row => !carved.Contains(row.Key))
+                    .Select(row => row.Carve()),
+            ],
+            cancellationToken);
 
     public Task RecordAsync(BudgetIntervention intervention, CancellationToken cancellationToken) =>
         RunAsync(

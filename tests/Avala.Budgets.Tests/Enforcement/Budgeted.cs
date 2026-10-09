@@ -26,7 +26,7 @@ internal sealed class Budgeted
     {
         Jobs = new HoldingJobs(rejection);
         Book = new BudgetBook(new FixedMachine(), Store);
-        enforcer = new BudgetEnforcer(Book, usage, [Resources], new BudgetHolds(Book, Jobs, Bus, Clock));
+        enforcer = new BudgetEnforcer(Book, usage, [Resources], new BudgetActions(Book, Jobs, Bus, Clock));
     }
 
     public MeasuredResources Resources { get; } = new();
@@ -49,31 +49,44 @@ internal sealed class Budgeted
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    public async Task OpenAsync(Result<Option<BudgetCaps>, BudgetError> file)
+    public async Task OpenAsync(Result<Option<BudgetCaps>, BudgetError> file) => await OpenAsync(Session, file);
+
+    public async Task RunningAsync(Result<Option<BudgetCaps>, BudgetError> file) => await RunningAsync(Job, Session, file);
+
+    public async Task RunningAsync(JobId job, SessionId session, Result<Option<BudgetCaps>, BudgetError> file)
+    {
+        await OpenAsync(session, file);
+        await TiedAsync(job, session);
+    }
+
+    public async Task TiedAsync() => await TiedAsync(Job, Session);
+
+    public async Task SubmittedAsync(JobId parent, JobId child) =>
+        await enforcer.HandleAsync(new JobSubmitted(child) { Parent = parent }, Cancellation);
+
+    public async Task ProgressAsync(JobStatus status) => await ProgressAsync(Job, status);
+
+    public async Task ProgressAsync(JobId job, JobStatus status) => await enforcer.HandleAsync(new JobProgressed(job, status), Cancellation);
+
+    public async Task SpendAsync(TokenUsage tokens, params Cost[] costs) => await SpendAsync(Job, tokens, costs);
+
+    public async Task SpendAsync(JobId job, TokenUsage tokens, params Cost[] costs)
+    {
+        usage.Jobs[job] = new UsageSummary(tokens, costs, 0, default, []);
+        await enforcer.HandleAsync(new UsageRecorded(SessionId.New(), job), Cancellation);
+    }
+
+    private async Task OpenAsync(SessionId session, Result<Option<BudgetCaps>, BudgetError> file)
     {
         await new BudgetLoader(Book, new FixedFiles(file, ReadFor), Bus)
-            .HandleAsync(new SessionOpened(Session, Provider, "/worktrees/1", Connection), Cancellation);
+            .HandleAsync(new SessionOpened(session, Provider, "/worktrees/1", Connection), Cancellation);
         await enforcer.HandleAsync(Bus.Published.OfType<BudgetLoaded>().Last(), Cancellation);
     }
 
-    public async Task RunningAsync(Result<Option<BudgetCaps>, BudgetError> file)
+    private async Task TiedAsync(JobId job, SessionId session)
     {
-        await OpenAsync(file);
-        await TiedAsync();
-    }
-
-    public async Task TiedAsync()
-    {
-        await ProgressAsync(JobStatus.Running);
-        await enforcer.HandleAsync(new JobSessionStarted(Job, Session), Cancellation);
-    }
-
-    public async Task ProgressAsync(JobStatus status) => await enforcer.HandleAsync(new JobProgressed(Job, status), Cancellation);
-
-    public async Task SpendAsync(TokenUsage tokens, params Cost[] costs)
-    {
-        usage.Job = new UsageSummary(tokens, costs, 0, default, []);
-        await enforcer.HandleAsync(new UsageRecorded(Session, Job), Cancellation);
+        await ProgressAsync(job, JobStatus.Running);
+        await enforcer.HandleAsync(new JobSessionStarted(job, session), Cancellation);
     }
 
     public async Task ReachAsync(UsageLimit limit)
@@ -151,7 +164,7 @@ internal sealed class Budgeted
 
     private sealed class Usage : IUsage
     {
-        public Option<UsageSummary> Job { get; set; }
+        public Dictionary<JobId, UsageSummary> Jobs { get; } = [];
 
         public IReadOnlyList<UsageLimit> Limits { get; set; } = [];
 
@@ -168,7 +181,7 @@ internal sealed class Budgeted
 
         public Option<UsageSummary> OfSession(SessionId session) => Option<UsageSummary>.None;
 
-        public Option<UsageSummary> OfJob(JobId job) => Job;
+        public Option<UsageSummary> OfJob(JobId job) => Jobs.TryGetValue(job, out var spent) ? spent : Option<UsageSummary>.None;
     }
 
     private sealed class FixedFiles(Result<Option<BudgetCaps>, BudgetError> file, List<ConnectionName> readFor) : IBudgetFiles
