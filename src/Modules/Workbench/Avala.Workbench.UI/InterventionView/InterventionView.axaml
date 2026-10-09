@@ -7,12 +7,12 @@
   <Design.DataContext>
     <usage:DesignInterventionViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
-    <TextBlock x:Name="At" Classes="caption mono" Text="{Binding At}" Margin="0,0,12,0" />
-    <StackPanel Grid.Column="1" Spacing="1">
-      <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-      <TextBlock x:Name="Detail" Classes="caption" Text="{Binding Detail}" TextWrapping="Wrap" />
-    </StackPanel>
-    <TextBlock x:Name="Reason" Grid.Column="2" Classes="caption attention" Text="{Binding Reason}" Margin="12,0,0,0" />
+  <Grid ColumnDefinitions="128,*" ColumnSpacing="12">
+    <TextBlock x:Name="At" Classes="tertiary" FontSize="{DynamicResource FontSizeMono}" Text="{Binding At}" />
+    <WrapPanel Grid.Column="1" ItemSpacing="6">
+      <TextBlock x:Name="Title" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Reason" Classes="attention" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Reason, StringFormat='held: {0}'}" />
+      <TextBlock x:Name="Detail" Classes="secondary" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Detail, StringFormat='— {0}'}" TextWrapping="Wrap" />
+    </WrapPanel>
   </Grid>
 </UserControl>

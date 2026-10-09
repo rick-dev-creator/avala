@@ -20,7 +20,7 @@ internal sealed class FleetReader(IConnections connections, IUsage usage, Sessio
         var used = usage.ByConnection().ToDictionary(found => found.Connection);
         var declared = catalog.Connections.ToDictionary(connection => connection.Name);
         var agents = board.Jobs.Values
-            .Where(job => job.Status.IsUnderway())
+            .Where(job => job.Group != JobGroup.Done)
             .Select(job => (Job: job, Connection: ConnectionOf(job)))
             .Where(found => found.Connection.IsSome)
             .ToLookup(found => found.Connection.Match(name => name, () => default), found => found.Job);
@@ -48,12 +48,4 @@ internal sealed class FleetReader(IConnections connections, IUsage usage, Sessio
         sessions.LatestOn(name).Match(
             seen => seen.Provider.Name,
             () => used.TryGetValue(name, out var reported) ? reported.Provider.Name : declared.TryGetValue(name, out var connection) ? connection.Provider : string.Empty);
-}
-
-internal static class JobProgress
-{
-    extension(JobStatus status)
-    {
-        public bool IsUnderway() => status is JobStatus.Preparing or JobStatus.Running or JobStatus.Checking;
-    }
 }

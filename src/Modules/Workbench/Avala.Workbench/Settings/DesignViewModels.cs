@@ -4,51 +4,52 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Settings;
 
-internal sealed class DesignRuleFileViewModel(string path, string status, string commit, bool editedInCheckout) : IRuleFileViewModel
+internal sealed record DesignRuleFileViewModel(string Path, string Status, string Commit, bool EditedInCheckout, string Summary) : IRuleFileViewModel
 {
     public DesignRuleFileViewModel()
-        : this(".avala/permissions.json", "Applied", "4f2c9e1", true)
+        : this(".avala/permissions.json", "Applied", "4be19c2", false, "Autonomous, recommended options, 6 rules")
     {
     }
 
-    public string Path { get; } = path;
-
-    public string Status { get; } = status;
-
-    public string Commit { get; } = commit;
-
-    public bool EditedInCheckout { get; } = editedInCheckout;
+    public bool IsRejected => Status.StartsWith("Rejected", StringComparison.Ordinal);
 }
 
-internal sealed record DesignRuleViewModel(string Name, string Origin, string Kind, string Target, PolicyAnswer Answer) : IRuleViewModel
+internal sealed record DesignRuleViewModel(int Order, string Name, string Origin, string Kind, string Target, PolicyAnswer Answer) : IRuleViewModel
 {
     public DesignRuleViewModel()
-        : this("tests", "Repository", "Command", "npm test*", PolicyAnswer.Allow)
+        : this(3, "tests", "Repository", "Command", "go test *, go vet *, golangci-lint *", PolicyAnswer.Allow)
     {
     }
 
     public RuleScope Scope => RuleScope.Anywhere;
 }
 
-internal sealed class DesignCapsViewModel(string scope, string caps) : ICapsViewModel
+internal sealed class DesignCapsViewModel(string scope, string caps, IReadOnlyList<SettingLine> lines) : ICapsViewModel
 {
     public DesignCapsViewModel()
-        : this("Every connection", "5 USD per job, holds at 90% of a limit")
+        : this("Every connection", "3 USD per job, 400,000 tokens per job, holds at 90% of a limit", [new("Cost per job", "3 USD"), new("Tokens per job", "400,000"), new("Hold when a usage window reaches", "90%")])
     {
     }
 
     public string Scope { get; } = scope;
 
     public string Caps { get; } = caps;
+
+    public IReadOnlyList<SettingLine> Lines { get; } = lines;
 }
 
-internal sealed class DesignCheckViewModel : ICheckViewModel
+internal sealed class DesignCheckViewModel(string name, string command, string timeout) : ICheckViewModel
 {
-    public string Name => "tests";
+    public DesignCheckViewModel()
+        : this("test", "go test ./...", "300s")
+    {
+    }
 
-    public string Command => "npm test";
+    public string Name { get; } = name;
 
-    public string Timeout => "300s";
+    public string Command { get; } = command;
+
+    public string Timeout { get; } = timeout;
 }
 
 internal sealed class DesignJobSectionViewModel : IJobSectionViewModel
@@ -77,47 +78,62 @@ internal sealed class DesignMachineConnectionViewModel(string name, string sourc
 [INotifyPropertyChanged]
 internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySettingsViewModel
 {
-    public IReadOnlyList<string> Repositories { get; } = ["~/code/shop-api", "~/code/shop-web"];
+    public IReadOnlyList<string> Repositories { get; } = ["~/code/ledger-api", "~/code/web-console", "~/code/billing-worker", "~/code/mobile-sync"];
 
     public IReadOnlyList<IRuleFileViewModel> Files { get; } =
     [
         new DesignRuleFileViewModel(),
-        new DesignRuleFileViewModel(".avala/budget.json", "Applied", "4f2c9e1", false),
-        new DesignRuleFileViewModel(".avala/checks.json", "Declared", "4f2c9e1", false),
-        new DesignRuleFileViewModel(".avala/jobs.json", "Absent", "no commit", false),
+        new DesignRuleFileViewModel(".avala/budget.json", "Applied", "4be19c2", false, "1 scope"),
+        new DesignRuleFileViewModel(".avala/checks.json", "Applied", "4be19c2", true, "lint, vet, test, build"),
+        new DesignRuleFileViewModel(".avala/jobs.json", "Absent", "no commit", false, "0 sections"),
     ];
 
     public IReadOnlyList<IRuleViewModel> Rules { get; } =
     [
+        new DesignRuleViewModel(1, "Anything outside the worktree", "Built-in", "any", "anything", PolicyAnswer.Deny),
+        new DesignRuleViewModel(2, "Ask before editing applied migrations", "Repository", "FileEdit", "migrations/applied/**", PolicyAnswer.Ask),
         new DesignRuleViewModel(),
-        new DesignRuleViewModel("migrations", "Repository", "Command", "dotnet ef database update", PolicyAnswer.Ask),
-        new DesignRuleViewModel("outside the worktree", "Built-in", "FileEdit", "anything", PolicyAnswer.Deny),
+        new DesignRuleViewModel(4, "No pushes", "Repository", "Command", "git push *", PolicyAnswer.Deny),
+        new DesignRuleViewModel(5, "Docs", "Repository", "Web", "pkg.go.dev", PolicyAnswer.Allow),
+        new DesignRuleViewModel(6, "Anything else inside the worktree", "Built-in", "any", "anything", PolicyAnswer.Allow),
     ];
 
-    public IReadOnlyList<ICapsViewModel> Caps { get; } =
+    public IReadOnlyList<ICapsViewModel> Caps { get; } = [new DesignCapsViewModel()];
+
+    public IReadOnlyList<ICheckViewModel> Checks { get; } =
     [
-        new DesignCapsViewModel(),
-        new DesignCapsViewModel("claude-personal", "2 USD per job"),
+        new DesignCheckViewModel("lint", "golangci-lint run", "120s"),
+        new DesignCheckViewModel("vet", "go vet ./...", "120s"),
+        new DesignCheckViewModel(),
+        new DesignCheckViewModel("build", "go build ./...", "300s"),
     ];
-
-    public IReadOnlyList<ICheckViewModel> Checks { get; } = [new DesignCheckViewModel()];
 
     public IReadOnlyList<IJobSectionViewModel> JobSections { get; } = [];
 
     [ObservableProperty]
-    public partial string Repository { get; set; } = "~/code/shop-api";
+    public partial string Repository { get; set; } = "~/code/ledger-api";
 
-    public string Shown => "~/code/shop-api";
+    public string Shown => "~/code/ledger-api";
 
-    public string Autonomy => "Supervised";
+    public string Name => "ledger-api";
+
+    public string Autonomy => "Autonomous";
+
+    public string AutonomyNote => SettingsPhrases.Autonomy(Autonomy);
 
     public string FormStrategy => "Recommended options";
 
     public string Error => string.Empty;
 
+    public IRuleFileViewModel? PermissionsFile => Files[0];
+
+    public IRuleFileViewModel? BudgetFile => Files[1];
+
     public IAsyncRelayCommand ReadCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand<IRuleFileViewModel> EditCommand { get; } = new AsyncRelayCommand<IRuleFileViewModel>(_ => Task.CompletedTask);
+
+    public IAsyncRelayCommand<string> OpenCommand { get; } = new AsyncRelayCommand<string>(_ => Task.CompletedTask);
 
     public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
@@ -138,7 +154,16 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
     public string SupervisionFile => "Applied";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSilenceChanged), nameof(SilenceMinutes))]
     public partial string SilenceDraft { get; set; } = "600";
+
+    public bool IsSilenceChanged => SilenceDraft != "600";
+
+    public double SilenceMinutes
+    {
+        get => SilenceDial.Minutes(SilenceDraft, Silence);
+        set => SilenceDraft = SilenceDial.Draft(SilenceDraft, Silence, value);
+    }
 
     public string Resources => "Applied: samples every 5s, orphans Kill, ports 41000-41999 by 10";
 

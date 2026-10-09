@@ -4,6 +4,7 @@ using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
+using Avala.Workbench.Navigation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -23,7 +24,13 @@ internal interface IDelegationViewModel : IActivatable, IPresentation
 
     IOrchestratorViewModel? Selected { get; }
 
+    IOrchestratorCardViewModel? Root { get; }
+
+    string Caption { get; }
+
     IRelayCommand<IOrchestratorViewModel> SelectCommand { get; }
+
+    IRelayCommand<JobId> OpenCommand { get; }
 }
 
 internal interface IOrchestratorViewModel
@@ -36,7 +43,7 @@ internal interface IOrchestratorViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class DelegationViewModel(DelegationReader reader, LiveFeed feed) : IDelegationViewModel, IDisposable
+internal sealed partial class DelegationViewModel(DelegationReader reader, LiveFeed feed, JobFocus focus) : IDelegationViewModel, IDisposable
 {
     private readonly ObservableCollection<OrchestratorViewModel> orchestrators = [];
     private readonly ObservableCollection<DelegationNodeViewModel> children = [];
@@ -60,6 +67,12 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
     [ObservableProperty]
     public partial IOrchestratorViewModel? Selected { get; private set; }
 
+    [ObservableProperty]
+    public partial IOrchestratorCardViewModel? Root { get; private set; }
+
+    [ObservableProperty]
+    public partial string Caption { get; private set; } = string.Empty;
+
     public Task Following => feed.Following;
 
     public void Activate() => feed.Start(ReadAsync, Show);
@@ -79,6 +92,9 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
         }
     }
 
+    [RelayCommand]
+    private void Open(JobId job) => focus.Select(job);
+
     private async ValueTask<DelegationState> ReadAsync(CancellationToken cancellationToken)
     {
         var found = await reader.OrchestratorsAsync(cancellationToken);
@@ -93,10 +109,14 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
 
     private void Show(DelegationState state)
     {
-        orchestrators.ShowOnly(state.Orchestrators.Select(job => new OrchestratorViewModel(job)));
+        orchestrators.Reconcile(state.Orchestrators, orchestrator => orchestrator.Job, job => job.Job, job => new OrchestratorViewModel(job), (_, _) => { });
         Selected = state.Tree.Match<IOrchestratorViewModel?>(tree => orchestrators.FirstOrDefault(orchestrator => orchestrator.Job == tree.Root.Job), () => null);
         children.ShowOnly(state.Tree.Match(tree => tree.Children.Select(node => new DelegationNodeViewModel(node)), () => []));
         refused.ShowOnly(state.Tree.Match(tree => tree.Refused.Select(record => new DelegationRefusalViewModel(record)), () => []));
+        Root = state.Tree.Match<IOrchestratorCardViewModel?>(tree => new OrchestratorCardViewModel(tree), () => null);
+        Caption = state.Tree.Match(
+            tree => $"{FactPhrases.Title(tree.Root.Instruction)} · {OverviewPhrases.Count(state.Orchestrators.Count, "orchestrator")}, {OverviewPhrases.Count(tree.Children.Count, "sub-agent")}",
+            () => "No job has delegated work yet");
     }
 }
 

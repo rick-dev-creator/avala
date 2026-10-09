@@ -7,23 +7,41 @@
   <Design.DataContext>
     <overview:DesignOverviewViewModel />
   </Design.DataContext>
-  <DockPanel Margin="24,16">
-    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
-      <TextBlock Classes="title" Text="{Binding Title}" VerticalAlignment="Center" />
-      <Button x:Name="ShowConnections"
-              Classes="ghost"
-              Classes.selected="{Binding !ShowsDelegation}"
-              Content="Connections"
-              Command="{Binding ShowConnectionsCommand}" />
-      <Button x:Name="ShowDelegation"
-              Classes="ghost"
-              Classes.selected="{Binding ShowsDelegation}"
-              Content="Delegation"
-              Command="{Binding ShowDelegationCommand}" />
-    </StackPanel>
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="pageHeader">
+      <Grid ColumnDefinitions="Auto,Auto,*">
+        <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
+        <Border Grid.Column="1" Classes="segments" Margin="14,0,0,0" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="ShowConnections"
+                    Classes="segment"
+                    Classes.selected="{Binding !ShowsDelegation}"
+                    Content="Connections"
+                    Command="{Binding ShowConnectionsCommand}" />
+            <Button x:Name="ShowDelegation"
+                    Classes="segment"
+                    Classes.selected="{Binding ShowsDelegation}"
+                    Content="Delegation"
+                    Command="{Binding ShowDelegationCommand}" />
+          </StackPanel>
+        </Border>
+        <Panel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="14,0,0,0">
+          <TextBlock x:Name="ConnectionsCaption"
+                     Classes="caption"
+                     Text="{Binding Connections.Caption}"
+                     TextTrimming="CharacterEllipsis"
+                     IsVisible="{Binding !ShowsDelegation}" />
+          <TextBlock x:Name="DelegationCaption"
+                     Classes="caption"
+                     Text="{Binding Delegation.Caption}"
+                     TextTrimming="CharacterEllipsis"
+                     IsVisible="{Binding ShowsDelegation}" />
+        </Panel>
+      </Grid>
+    </Border>
     <Panel>
-      <ContentControl x:Name="Connections" Content="{Binding Connections}" IsVisible="{Binding !ShowsDelegation}" />
-      <ContentControl x:Name="Delegation" Content="{Binding Delegation}" IsVisible="{Binding ShowsDelegation}" />
+      <ContentControl x:Name="Connections" Classes="fade-in" Content="{Binding Connections}" IsVisible="{Binding !ShowsDelegation}" />
+      <ContentControl x:Name="Delegation" Classes="fade-in" Content="{Binding Delegation}" IsVisible="{Binding ShowsDelegation}" />
     </Panel>
   </DockPanel>
 </UserControl>

@@ -1,19 +1,85 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.SettingsView"
              x:ClassModifier="internal"
              x:DataType="settings:ISettingsViewModel">
   <Design.DataContext>
     <settings:DesignSettingsViewModel />
   </Design.DataContext>
-  <ScrollViewer>
-    <StackPanel Margin="24,16" Spacing="16" MaxWidth="{DynamicResource ReadingWidth}" HorizontalAlignment="Left">
-      <TextBlock Classes="title" Text="{Binding Title}" />
-      <TextBlock Classes="section" Text="Repository" />
-      <ContentControl x:Name="Repository" Content="{Binding Repository}" />
-      <TextBlock Classes="section" Text="This machine" />
-      <ContentControl x:Name="Machine" Content="{Binding Machine}" />
-    </StackPanel>
-  </ScrollViewer>
+  <Grid ColumnDefinitions="240,*">
+    <Border Classes="panel" BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,1,0">
+      <DockPanel Margin="10,16">
+        <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,12,0,0">
+          <TextBlock Classes="section" Margin="10,0" Text="Another repository" />
+          <TextBox x:Name="RepositoryPath"
+                   Classes="mono"
+                   PlaceholderText="~/code/repository"
+                   Text="{Binding Repository.Repository}">
+            <TextBox.KeyBindings>
+              <KeyBinding Gesture="Enter" Command="{Binding Repository.ReadCommand}" />
+            </TextBox.KeyBindings>
+          </TextBox>
+          <Button x:Name="Read" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Read its rules" Command="{Binding Repository.ReadCommand}" />
+        </StackPanel>
+        <ScrollViewer>
+          <StackPanel Spacing="1">
+            <TextBlock Classes="section" Margin="10,4" Text="Repositories" />
+            <TextBlock x:Name="NoRepositories"
+                       Classes="caption"
+                       Margin="10,4"
+                       TextWrapping="Wrap"
+                       Text="Repositories appear here once a job runs in them."
+                       IsVisible="{Binding !Repository.Repositories.Count}" />
+            <ItemsControl x:Name="Repositories" ItemsSource="{Binding Repository.Repositories}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <Button Classes="row"
+                          Padding="0"
+                          AutomationProperties.Name="{Binding}"
+                          ToolTip.Tip="{Binding}"
+                          Command="{Binding $parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.OpenCommand}"
+                          CommandParameter="{Binding}">
+                    <Panel>
+                      <Border Background="{DynamicResource FillSelectedBrush}" CornerRadius="{DynamicResource RadiusButton}">
+                        <Border.IsVisible>
+                          <MultiBinding Converter="{x:Static states:Texts.Same}">
+                            <Binding />
+                            <Binding Path="$parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.Shown" />
+                          </MultiBinding>
+                        </Border.IsVisible>
+                      </Border>
+                      <TextBlock Margin="{DynamicResource PaddingRow}" Text="{Binding Converter={x:Static states:Texts.Leaf}}" TextTrimming="CharacterEllipsis">
+                        <TextBlock.IsVisible>
+                          <MultiBinding Converter="{x:Static states:Texts.Same}">
+                            <Binding />
+                            <Binding Path="$parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.Shown" />
+                          </MultiBinding>
+                        </TextBlock.IsVisible>
+                      </TextBlock>
+                      <TextBlock Classes="secondary" Margin="{DynamicResource PaddingRow}" Text="{Binding Converter={x:Static states:Texts.Leaf}}" TextTrimming="CharacterEllipsis">
+                        <TextBlock.IsVisible>
+                          <MultiBinding Converter="{x:Static states:Texts.Differ}">
+                            <Binding />
+                            <Binding Path="$parent[UserControl].((settings:ISettingsViewModel)DataContext).Repository.Shown" />
+                          </MultiBinding>
+                        </TextBlock.IsVisible>
+                      </TextBlock>
+                    </Panel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+    <ScrollViewer Grid.Column="1">
+      <StackPanel Margin="24,32,24,48" Spacing="30" MaxWidth="680">
+        <ContentControl x:Name="Repository" Content="{Binding Repository}" />
+        <ContentControl x:Name="Machine" Content="{Binding Machine}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
 </UserControl>

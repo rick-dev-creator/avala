@@ -37,6 +37,8 @@ internal interface IResourcesViewModel
 
     string Error { get; }
 
+    int LeftBehind { get; }
+
     IAsyncRelayCommand<IOrphanViewModel> ReapCommand { get; }
 
     IAsyncRelayCommand ReconcileCommand { get; }
@@ -93,6 +95,9 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
     [ObservableProperty]
     public partial string Error { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial int LeftBehind { get; private set; }
+
     public Task Following => feed.Following;
 
     public void Activate() => feed.Start(_ => ValueTask.FromResult(reader.Read()), Show);
@@ -139,6 +144,7 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
             state.Stale.Strays.Select(path => new StaleWorktreeViewModel(path, "not known to any job"))
                 .Concat(state.Stale.Missing.Select(workspace => new StaleWorktreeViewModel(workspace.Path, "missing from the disk"))));
         leases.ShowOnly(state.Leases.Select(lease => string.Create(CultureInfo.InvariantCulture, $"{lease.First}-{lease.Last} for {lease.Worktree}")));
+        LeftBehind = state.LeftRunning.Count + state.Stale.Strays.Count + state.Stale.Missing.Count + state.Conflicts.Count;
         conflicts.ShowOnly(state.Conflicts.Select(conflict => string.Create(CultureInfo.InvariantCulture, $"port {conflict.Port} held outside {conflict.Lease.Worktree}")));
     }
 }

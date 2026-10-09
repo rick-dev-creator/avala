@@ -1,20 +1,27 @@
 using Avala.Jobs.Contracts;
+using Avala.Workbench.Overview;
 using Avala.Workbench.Presenting;
 
 namespace Avala.Workbench.Usage;
 
-internal sealed record DesignLimitViewModel(string Window, double Used, string UsedText, string Resets, string HoldAt, bool ReachesHold) : ILimitViewModel
+internal sealed record DesignLimitViewModel(string Window, string Label, double Used, string UsedText, string Resets, double Hold, bool ReachesHold) : ILimitViewModel
 {
     public DesignLimitViewModel()
-        : this("5h", 0.88, "88% used", "resets 2026-10-09 16:20", "jobs are held at 90%", false)
+        : this("5h", "5-hour window", 0.88, "88%", "resets 2026-10-09 16:20", 0.9, false)
     {
     }
+
+    public string HoldAt => IsNear ? $"Jobs on this connection hold at the {Amounts.Percent(Hold)} threshold." : string.Empty;
+
+    public bool HasHold => Hold > 0;
+
+    public bool IsNear => HasHold && Used >= Hold - 0.1;
 }
 
-internal sealed class DesignConnectionMeterViewModel(string name, string cost, string tokens, ILimitViewModel limit) : IConnectionMeterViewModel
+internal sealed class DesignConnectionMeterViewModel(string name, string cost, string tokens, IReadOnlyList<ILimitViewModel> limits) : IConnectionMeterViewModel
 {
     public DesignConnectionMeterViewModel()
-        : this("claude-work", "3.2140 USD", "412,880 tokens", new DesignLimitViewModel())
+        : this("claude-work", "9.86 USD", "1,412,880 tokens", [new DesignLimitViewModel(), new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false)])
     {
     }
 
@@ -28,59 +35,49 @@ internal sealed class DesignConnectionMeterViewModel(string name, string cost, s
 
     public string Unpriced => string.Empty;
 
-    public string Caps => "5 USD per job, holds at 90% of a limit";
+    public string Caps => "3 USD per job, holds at 90% of a limit";
 
-    public IReadOnlyList<ILimitViewModel> Limits { get; } = [limit];
+    public IReadOnlyList<ILimitViewModel> Limits { get; } = limits;
 }
 
-internal sealed class DesignUsageWindowViewModel : IUsageWindowViewModel
+internal sealed record DesignUsageWindowViewModel(string Label, string Cost, long Input, long Output, long CacheRead, long CacheWrite, long Reasoning, string Unpriced) : IUsageWindowViewModel
 {
-    public string Label => "Today";
+    public DesignUsageWindowViewModel()
+        : this("Today", "4.0540 USD", 310_400, 58_120, 1_204_300, 92_000, 21_700, string.Empty)
+    {
+    }
 
-    public string Cost => "4.0540 USD";
-
-    public long Input => 310_400;
-
-    public long Output => 58_120;
-
-    public long CacheRead => 1_204_300;
-
-    public long CacheWrite => 92_000;
-
-    public long Reasoning => 21_700;
-
-    public string Tokens => "1,686,520 tokens";
-
-    public string Unpriced => string.Empty;
+    public string Tokens => Amounts.Tokens(Input + Output + CacheRead + CacheWrite + Reasoning);
 
     public string Turns => "37 turns finished, 2 interrupted, 0 failed";
 }
 
-internal sealed record DesignJobMeterViewModel(JobId Job, string Title, JobStatus Status, string Cost, string Tokens, int Interventions) : IJobMeterViewModel
+internal sealed record DesignJobMeterViewModel(JobId Job, string Title, JobStatus Status, string Connection, string Cost, double Used, string Cap, int Interventions) : IJobMeterViewModel
 {
     public DesignJobMeterViewModel()
-        : this(SampleJobs.LoginRateLimit, "Rate-limit POST /login", JobStatus.AwaitingReview, "0.84 USD", "61,250 tokens", 0)
+        : this(SampleJobs.LoginRateLimit, "Rate-limit POST /login", JobStatus.AwaitingReview, "claude-work", "1.12 USD", 0.37, "3 USD", 0)
     {
     }
 
+    public string Tokens => "61,250 tokens";
+
     public string Unpriced => string.Empty;
 
-    public string Caps => "5 USD per job";
+    public string Caps => $"{Cap} per job";
 
     public string Carve => string.Empty;
+
+    public bool HasCap => Cap.Length > 0;
+
+    public bool IsNearCap => HasCap && Used >= 0.9;
 }
 
-internal sealed class DesignInterventionViewModel : IInterventionViewModel
+internal sealed record DesignInterventionViewModel(JobId Job, string Title, string At, HoldReason Reason, string Detail) : IInterventionViewModel
 {
-    public JobId Job => SampleJobs.SyncQueue;
-
-    public string Title => "Extract sync queue into a module";
-
-    public string At => "2026-10-09 14:52";
-
-    public HoldReason Reason => HoldReason.Stalled;
-
-    public string Detail => "silent for 600s, window 600s";
+    public DesignInterventionViewModel()
+        : this(SampleJobs.SyncQueue, "Extract sync queue into a module", "2026-10-09 14:52", HoldReason.Stalled, "silent for 600s, window 600s")
+    {
+    }
 }
 
 internal sealed class DesignUsageViewModel : IUsageViewModel
@@ -90,16 +87,35 @@ internal sealed class DesignUsageViewModel : IUsageViewModel
     public IReadOnlyList<IConnectionMeterViewModel> Connections { get; } =
     [
         new DesignConnectionMeterViewModel(),
-        new DesignConnectionMeterViewModel("claude-personal", "0.8400 USD", "61,250 tokens", new DesignLimitViewModel("5h", 0.31, "31% used", "resets 2026-10-09 17:05", "jobs are held at 90%", false)),
+        new DesignConnectionMeterViewModel(
+            "claude-personal",
+            "4.21 USD",
+            "548,120 tokens",
+            [
+                new DesignLimitViewModel("5h", "5-hour window", 0.31, "31%", "resets 2026-10-09 17:05", 0.9, false),
+                new DesignLimitViewModel("7d", "7-day window", 0.22, "22%", "resets 2026-10-15 21:00", 0.9, false),
+            ]),
     ];
 
-    public IReadOnlyList<IUsageWindowViewModel> Windows { get; } = [new DesignUsageWindowViewModel()];
+    public IReadOnlyList<IUsageWindowViewModel> Windows { get; } =
+    [
+        new DesignUsageWindowViewModel(),
+        new DesignUsageWindowViewModel("Last 7 days", "14.0700 USD", 588_000, 157_000, 1_020_000, 78_000, 118_000, "2 usage reports had no cost"),
+    ];
 
     public IReadOnlyList<IJobMeterViewModel> Jobs { get; } =
     [
         new DesignJobMeterViewModel(),
-        new DesignJobMeterViewModel(SampleJobs.SyncQueue, "Extract sync queue into a module", JobStatus.NeedsHelp, "1.9200 USD", "240,410 tokens", 1),
+        new DesignJobMeterViewModel(SampleAgents.ZodUpdate, "Update zod to 3.23", JobStatus.Checking, "claude-work", "0.71 USD", 0.24, "3 USD", 0),
+        new DesignJobMeterViewModel(SampleJobs.SyncQueue, "Extract sync queue into a module", JobStatus.NeedsHelp, "claude-personal", "0.66 USD", 0.33, "2 USD", 1),
+        new DesignJobMeterViewModel(SampleJobs.JpyRounding, "Fix JPY rounding in invoice totals", JobStatus.Running, "claude-work", "0.41 USD", 0.14, "3 USD", 0),
+        new DesignJobMeterViewModel(SampleJobs.FlakyCheckout, "Fix flaky CheckoutForm test", JobStatus.NeedsHelp, "claude-personal", "0.29 USD", 0.1, "3 USD", 0),
+        new DesignJobMeterViewModel(SampleJobs.InvoicePdf, "Add invoice PDF endpoint", JobStatus.NeedsHelp, "claude-work", "0.18 USD", 0.06, "3 USD", 0),
     ];
 
-    public IReadOnlyList<IInterventionViewModel> Interventions { get; } = [new DesignInterventionViewModel()];
+    public IReadOnlyList<IInterventionViewModel> Interventions { get; } =
+    [
+        new DesignInterventionViewModel(),
+        new DesignInterventionViewModel(SampleJobs.LoginRateLimit, "Paginate audit log export", "2026-10-08 18:12", HoldReason.BudgetExceeded, "cost job: 3.04 against 3"),
+    ];
 }

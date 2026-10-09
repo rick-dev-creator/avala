@@ -7,42 +7,145 @@
   <Design.DataContext>
     <settings:DesignRepositorySettingsViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="10">
-    <Grid ColumnDefinitions="*,Auto">
-      <AutoCompleteBox x:Name="Repository" Text="{Binding Repository}" ItemsSource="{Binding Repositories}" />
-      <Button x:Name="Read" Grid.Column="1" Margin="8,0,0,0" Content="Read" Command="{Binding ReadCommand}" />
-    </Grid>
-    <TextBlock x:Name="Error"
-               Classes="caption failure"
-               Text="{Binding Error}"
-               TextWrapping="Wrap"
-               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-    <StackPanel x:Name="Rules" Spacing="10" IsVisible="{Binding Shown, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-      <TextBlock x:Name="Autonomy" Text="{Binding Autonomy, StringFormat='Autonomy: {0}'}" />
-      <TextBlock x:Name="FormStrategy" Text="{Binding FormStrategy, StringFormat='Forms are answered with: {0}'}" />
-      <ItemsControl x:Name="Files" ItemsSource="{Binding Files}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="settings:IRuleFileViewModel">
-            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-              <ContentControl Content="{Binding}" />
-              <Button Grid.Column="1"
-                      Classes="ghost"
-                      Content="Edit in repository"
-                      Command="{Binding $parent[UserControl].((settings:IRepositorySettingsViewModel)DataContext).EditCommand}"
-                      CommandParameter="{Binding}" />
-            </Grid>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <TextBlock Classes="section" Text="Rules, in decision order" />
-      <ItemsControl x:Name="RuleList" ItemsSource="{Binding Rules}" />
-      <TextBlock Classes="section" Text="Budget caps" />
-      <ItemsControl x:Name="Caps" ItemsSource="{Binding Caps}" />
-      <TextBlock Classes="section" Text="Checks" />
-      <ItemsControl x:Name="Checks" ItemsSource="{Binding Checks}" />
-      <StackPanel x:Name="JobsFile" Spacing="4" IsVisible="{Binding !!JobSections.Count}">
-        <TextBlock Classes="section" Text="jobs.json" />
-        <ItemsControl x:Name="JobSections" ItemsSource="{Binding JobSections}" />
+  <UserControl.Styles>
+    <Style Selector="ItemsControl.rows > ContentPresenter:not(:nth-child(1))">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+      <Setter Property="Margin" Value="16,0" />
+    </Style>
+    <Style Selector="ItemsControl.rows > ContentPresenter:nth-child(1)">
+      <Setter Property="Margin" Value="16,0" />
+    </Style>
+    <Style Selector="Path.external">
+      <Setter Property="Width" Value="10" />
+      <Setter Property="Height" Value="10" />
+      <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="30">
+    <Border x:Name="Error"
+            Classes="quiet"
+            Padding="12,8"
+            IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
+    </Border>
+    <Border x:Name="NothingRead"
+            Classes="empty"
+            IsVisible="{Binding Shown, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+      <StackPanel Spacing="6" HorizontalAlignment="Center">
+        <TextBlock Classes="strong" HorizontalAlignment="Center" Text="No repository read yet" />
+        <TextBlock Classes="caption" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
+                   Text="Choose a repository to see the rules its .avala files give every job." />
+      </StackPanel>
+    </Border>
+    <StackPanel x:Name="Rules" Spacing="30" IsVisible="{Binding Shown, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <StackPanel Spacing="2">
+        <TextBlock x:Name="RepositoryName" Classes="title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="Shown" Classes="caption mono" Text="{Binding Shown}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Classes="caption" Margin="0,6,0,0" TextWrapping="Wrap"
+                   Text="Read from the repository's .avala files as committed. Each job uses the copy at its own base commit, so its rules never change while it runs." />
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <DockPanel>
+          <Button x:Name="EditAutonomy" DockPanel.Dock="Right" Classes="link emphasis" Command="{Binding EditCommand}" CommandParameter="{Binding PermissionsFile}">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <TextBlock Text="Edit in repository" />
+              <Path Classes="icon external" Data="{StaticResource IconExternal}" />
+            </StackPanel>
+          </Button>
+          <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <TextBlock Classes="section" Text="Autonomy" VerticalAlignment="Center" />
+            <TextBlock Classes="hint mono" Text="{Binding PermissionsFile.Path}" VerticalAlignment="Center" />
+            <TextBlock Classes="hint mono" Text="{Binding PermissionsFile.Commit}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="grouped">
+          <StackPanel>
+            <DockPanel Margin="16,14">
+              <TextBlock x:Name="Autonomy" DockPanel.Dock="Right" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Autonomy}" VerticalAlignment="Center" Margin="16,0,0,0" />
+              <StackPanel>
+                <TextBlock Text="Most a job may do" />
+                <TextBlock Classes="caption" Text="{Binding AutonomyNote}" TextWrapping="Wrap" />
+              </StackPanel>
+            </DockPanel>
+            <Border Classes="separator" Margin="16,0" />
+            <DockPanel Margin="16,14">
+              <TextBlock x:Name="FormStrategy" DockPanel.Dock="Right" FontSize="{DynamicResource FontSizeMono}" Text="{Binding FormStrategy}" VerticalAlignment="Center" Margin="16,0,0,0" />
+              <StackPanel>
+                <TextBlock Text="When a form asks something" />
+                <TextBlock Classes="caption" Text="Every answer is recorded as an assumption on the job." TextWrapping="Wrap" />
+              </StackPanel>
+            </DockPanel>
+          </StackPanel>
+        </Border>
+        <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="A job can be stricter than this, never looser. Asking to loosen it is refused and recorded." />
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <DockPanel>
+          <Button x:Name="EditRules" DockPanel.Dock="Right" Classes="link emphasis" Command="{Binding EditCommand}" CommandParameter="{Binding PermissionsFile}">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <TextBlock Text="Edit in repository" />
+              <Path Classes="icon external" Data="{StaticResource IconExternal}" />
+            </StackPanel>
+          </Button>
+          <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <TextBlock Classes="section" Text="Rules · checked in this order" VerticalAlignment="Center" />
+            <TextBlock Classes="hint mono" Text="{Binding PermissionsFile.Path}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="grouped">
+          <Panel>
+            <TextBlock x:Name="NoRules" Classes="caption" Margin="16,12" Text="No rule is declared: every action asks you first." IsVisible="{Binding !Rules.Count}" />
+            <ItemsControl x:Name="RuleList" Classes="rows" ItemsSource="{Binding Rules}" />
+          </Panel>
+        </Border>
+        <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="Rules created with 'Don't ask again' apply to their session only and appear in that job's inspector." />
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <DockPanel>
+          <Button x:Name="EditBudget" DockPanel.Dock="Right" Classes="link emphasis" Command="{Binding EditCommand}" CommandParameter="{Binding BudgetFile}">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <TextBlock Text="Edit in repository" />
+              <Path Classes="icon external" Data="{StaticResource IconExternal}" />
+            </StackPanel>
+          </Button>
+          <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <TextBlock Classes="section" Text="Budget caps · per job" VerticalAlignment="Center" />
+            <TextBlock Classes="hint mono" Text="{Binding BudgetFile.Path}" VerticalAlignment="Center" />
+            <TextBlock Classes="hint mono" Text="{Binding BudgetFile.Commit}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DockPanel>
+        <ItemsControl x:Name="Caps" ItemsSource="{Binding Caps}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="12" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+
+      <StackPanel Spacing="8" IsVisible="{Binding !!Checks.Count}">
+        <TextBlock Classes="section" Text="Checks · run after every attempt" />
+        <Border Classes="grouped">
+          <ItemsControl x:Name="Checks" Classes="rows" ItemsSource="{Binding Checks}" />
+        </Border>
+      </StackPanel>
+
+      <StackPanel x:Name="JobsFile" Spacing="8" IsVisible="{Binding !!JobSections.Count}">
+        <TextBlock Classes="section" Text="Jobs · .avala/jobs.json" />
+        <Border Classes="grouped" Padding="16,10">
+          <ItemsControl x:Name="JobSections" ItemsSource="{Binding JobSections}" />
+        </Border>
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <TextBlock Classes="section" Text="Rule files · read from each job's base commit" />
+        <Border Classes="grouped">
+          <ItemsControl x:Name="Files" Classes="rows" ItemsSource="{Binding Files}" />
+        </Border>
       </StackPanel>
     </StackPanel>
   </StackPanel>

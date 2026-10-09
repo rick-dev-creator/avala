@@ -1,26 +1,62 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:states="using:Avala.Components.UI.States"
+             xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.DelegationNodeView"
              x:ClassModifier="internal"
-             x:DataType="overview:IDelegationNodeViewModel">
+             x:DataType="overview:IDelegationNodeViewModel"
+             graphs:Graph.Depth="{Binding Depth}"
+             graphs:Graph.Edge="{Binding Dot.Kind, Converter={x:Static graphs:Graph.EdgeOfStatus}}"
+             Classes.attention="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}">
   <Design.DataContext>
     <overview:DesignDelegationNodeViewModel />
   </Design.DataContext>
-  <Border Classes="quiet" Padding="12,8">
-    <StackPanel Spacing="2">
-      <Grid ColumnDefinitions="Auto,*,Auto">
-        <TextBlock x:Name="Depth" Classes="caption" Text="{Binding Depth, StringFormat='L{0}'}" Margin="0,0,8,0" />
-        <TextBlock x:Name="Title" Grid.Column="1" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="Status" Grid.Column="2" Classes="caption" Text="{Binding Status}" Margin="8,0,0,0" />
-      </Grid>
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <TextBlock x:Name="Harness" Classes="caption" Text="{Binding Harness}" />
-        <TextBlock x:Name="Connection" Classes="caption mono" Text="{Binding Connection}" />
-        <TextBlock x:Name="Activity" Classes="caption secondary" Text="{Binding Activity}" />
-        <TextBlock x:Name="Spent" Classes="caption" Text="{Binding Spent}" />
-        <TextBlock x:Name="Carve" Classes="caption" Text="{Binding Carve, StringFormat='of {0}'}" />
+  <UserControl.Styles>
+    <Style Selector="TextBlock#State">
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector=".attention TextBlock#State">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Open"
+          Classes="bare arrive-gentle"
+          Width="380"
+          AutomationProperties.Name="{Binding Title}"
+          Command="{Binding $parent[local:DelegationView].((overview:IDelegationViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"
+          CommandParameter="{Binding Job}">
+    <Border x:Name="Card"
+            Classes="node"
+            Classes.attention="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}"
+            CornerRadius="{DynamicResource RadiusCard}"
+            Padding="16,14">
+      <StackPanel Spacing="6">
+        <DockPanel>
+          <Border DockPanel.Dock="Left" Classes="tag" Margin="0,0,8,0" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding Harness, Converter={x:Static graphs:Graph.Initials}}" />
+          </Border>
+          <TextBlock x:Name="State" DockPanel.Dock="Right" Classes="caption" Text="{Binding State}" Margin="8,0,0,0" />
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock x:Name="Harness" Classes="caption" Text="{Binding Harness}" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <TextBlock Classes="caption" Text="·" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <TextBlock x:Name="Connection" Classes="caption" Text="{Binding Connection}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+        </DockPanel>
+        <DockPanel>
+          <ContentControl x:Name="Dot" DockPanel.Dock="Left" Content="{Binding Dot}" Width="7" Height="7" Margin="0,0,10,0" VerticalAlignment="Center" />
+          <TextBlock x:Name="Title" Classes="medium" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+        </DockPanel>
+        <TextBlock x:Name="Activity" Classes="caption secondary" Text="{Binding Activity}" TextTrimming="CharacterEllipsis" />
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="8,0,0,0">
+            <TextBlock x:Name="Spent" Classes="hint" Text="{Binding Spent}" />
+            <TextBlock x:Name="Carve" Classes="hint" Text="{Binding Carve, StringFormat='of {0}'}" />
+          </StackPanel>
+          <ProgressBar x:Name="Share" Classes="bar" Height="3" Value="{Binding SpentShare}" VerticalAlignment="Center" />
+        </DockPanel>
       </StackPanel>
-    </StackPanel>
-  </Border>
+    </Border>
+  </Button>
 </UserControl>

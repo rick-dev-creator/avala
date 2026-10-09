@@ -7,21 +7,57 @@
   <Design.DataContext>
     <usage:DesignUsageViewModel />
   </Design.DataContext>
-  <ScrollViewer>
-    <StackPanel Margin="24,16" Spacing="12" MaxWidth="{DynamicResource ReadingWidth}" HorizontalAlignment="Left">
-      <TextBlock Classes="title" Text="{Binding Title}" />
-      <TextBlock Classes="section" Text="Connections" />
-      <TextBlock x:Name="NoConnections" Classes="caption" Text="No connection has reported usage yet." IsVisible="{Binding !Connections.Count}" />
-      <ItemsControl x:Name="Connections" ItemsSource="{Binding Connections}" />
-      <TextBlock Classes="section" Text="Over time" />
-      <ItemsControl x:Name="Windows" ItemsSource="{Binding Windows}" />
-      <TextBlock Classes="section" Text="Jobs" />
-      <TextBlock x:Name="NoJobs" Classes="caption" Text="No job has spent anything yet." IsVisible="{Binding !Jobs.Count}" />
-      <ItemsControl x:Name="Jobs" ItemsSource="{Binding Jobs}" />
-      <StackPanel x:Name="InterventionsGroup" Spacing="6" IsVisible="{Binding !!Interventions.Count}">
-        <TextBlock Classes="section" Text="Interventions" />
-        <ItemsControl x:Name="InterventionList" ItemsSource="{Binding Interventions}" />
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="pageHeader">
+      <DockPanel>
+        <TextBlock x:Name="Since" DockPanel.Dock="Right" Classes="caption" Text="Since Avala started" VerticalAlignment="Center" />
+        <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+    <ScrollViewer>
+      <StackPanel Margin="24,36,24,48" Spacing="36" MaxWidth="772">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="section" Text="Connections" />
+          <Border x:Name="NoConnections" Classes="empty" IsVisible="{Binding !Connections.Count}">
+            <TextBlock Classes="caption" HorizontalAlignment="Center" Text="No connection has reported usage yet. Limits and costs appear once an agent reports them." TextWrapping="Wrap" TextAlignment="Center" />
+          </Border>
+          <ItemsControl x:Name="Connections" ItemsSource="{Binding Connections}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="12" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Right" Classes="hint" Text="caps from each repository's budget file" VerticalAlignment="Bottom" />
+            <TextBlock Classes="section" Text="Jobs · cost against their cap" VerticalAlignment="Bottom" />
+          </DockPanel>
+          <TextBlock x:Name="NoJobs" Classes="caption" Margin="0,8,0,0" Text="No job has spent anything yet." IsVisible="{Binding !Jobs.Count}" />
+          <ItemsControl x:Name="Jobs" ItemsSource="{Binding Jobs}" />
+        </StackPanel>
+
+        <ItemsControl x:Name="Windows" ItemsSource="{Binding Windows}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+
+        <StackPanel x:Name="InterventionsGroup" Spacing="8" IsVisible="{Binding !!Interventions.Count}">
+          <TextBlock Classes="section" Text="Interventions across jobs" />
+          <ItemsControl x:Name="InterventionList" ItemsSource="{Binding Interventions}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
       </StackPanel>
-    </StackPanel>
-  </ScrollViewer>
+    </ScrollViewer>
+  </DockPanel>
 </UserControl>

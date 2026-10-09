@@ -1,30 +1,52 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
              x:Class="Avala.Workbench.UI.ConnectionsView"
              x:ClassModifier="internal"
              x:DataType="overview:IConnectionsViewModel">
   <Design.DataContext>
     <overview:DesignConnectionsViewModel />
   </Design.DataContext>
-  <ScrollViewer>
-    <StackPanel Spacing="12">
-      <TextBlock x:Name="FileNote"
-                 Classes="caption failure"
-                 Text="{Binding FileNote}"
-                 TextWrapping="Wrap"
-                 IsVisible="{Binding FileNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock x:Name="NoConnections"
-                 Classes="caption"
-                 Text="No connection is declared or has reported usage yet."
-                 IsVisible="{Binding !Connections.Count}" />
-      <ItemsControl x:Name="Connections" ItemsSource="{Binding Connections}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <StackPanel Spacing="12" />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-      </ItemsControl>
-    </StackPanel>
-  </ScrollViewer>
+  <DockPanel>
+    <Border x:Name="FileNoteBanner"
+            DockPanel.Dock="Top"
+            Classes="quiet"
+            Margin="24,16,24,0"
+            Padding="12,8"
+            HorizontalAlignment="Center"
+            IsVisible="{Binding FileNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock x:Name="FileNote" Classes="caption failure" Text="{Binding FileNote}" TextWrapping="Wrap" />
+    </Border>
+    <Panel>
+      <Border x:Name="NoConnections"
+              Classes="empty"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              IsVisible="{Binding !Connections.Count}">
+        <StackPanel Spacing="6" HorizontalAlignment="Center">
+          <TextBlock Classes="strong" HorizontalAlignment="Center" Text="No connection yet" />
+          <TextBlock Classes="caption"
+                     HorizontalAlignment="Center"
+                     TextAlignment="Center"
+                     TextWrapping="Wrap"
+                     MaxWidth="320"
+                     Text="Declare a connection in connections.json or start a job: its agents gather here around the connection they run on." />
+        </StackPanel>
+      </Border>
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <ItemsControl x:Name="Connections"
+                      ItemsSource="{Binding Connections}"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      Margin="24">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <graphs:HubGraphPanel x:Name="Graph" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </ScrollViewer>
+    </Panel>
+  </DockPanel>
 </UserControl>

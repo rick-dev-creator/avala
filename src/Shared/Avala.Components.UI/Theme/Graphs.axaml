@@ -1,0 +1,278 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:graphs="using:Avala.Components.UI.Graphs">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="EdgeFlowingBrush" Color="#59FFFFFF" />
+          <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#80E5A13A" />
+          <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#59E5A13A" />
+          <SolidColorBrush x:Key="EdgeQuietBrush" Color="#24FFFFFF" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#D1282930" />
+          <SolidColorBrush x:Key="NodeBorderBrush" Color="#17FFFFFF" />
+          <SolidColorBrush x:Key="NodeTipBrush" Color="#F02C2D34" />
+          <SolidColorBrush x:Key="HubCoreBrush" Color="#1E1F24" />
+          <SolidColorBrush x:Key="HubTrackBrush" Color="#12FFFFFF" />
+          <SolidColorBrush x:Key="MeterMarkerBrush" Color="#B3FFFFFF" />
+          <SolidColorBrush x:Key="MeterMarkerQuietBrush" Color="#66FFFFFF" />
+          <SolidColorBrush x:Key="SurfaceSectionBrush" Color="#09FFFFFF" />
+          <SolidColorBrush x:Key="BorderSectionBrush" Color="#12FFFFFF" />
+          <SolidColorBrush x:Key="BorderProposedBrush" Color="#38FFFFFF" />
+          <SolidColorBrush x:Key="ShareStrongBrush" Color="#A3A3AD" />
+          <SolidColorBrush x:Key="ShareMiddleBrush" Color="#6E6E78" />
+          <SolidColorBrush x:Key="ShareQuietBrush" Color="#4E4E56" />
+          <SolidColorBrush x:Key="ShareFaintBrush" Color="#5A5A63" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <BoxShadows x:Key="ShadowNode">0 12 28 -12 #B3000000</BoxShadows>
+      <BoxShadows x:Key="ShadowHub">0 0 0 1 #12FFFFFF, 0 24 48 -16 #B3000000</BoxShadows>
+      <BoxShadows x:Key="ShadowTip">0 16 32 -10 #B3000000</BoxShadows>
+      <BoxShadows x:Key="ShadowOrchestrator">0 20 40 -16 #BF000000</BoxShadows>
+      <CornerRadius x:Key="RadiusNode">12</CornerRadius>
+      <CornerRadius x:Key="RadiusSection">12</CornerRadius>
+      <CornerRadius x:Key="RadiusOrchestrator">16</CornerRadius>
+      <x:Double x:Key="FontSizeTitleSmall">14</x:Double>
+      <x:Double x:Key="FontSizeFigure">22</x:Double>
+      <x:Double x:Key="FontSizeNode">12.5</x:Double>
+    </ResourceDictionary>
+  </Styles.Resources>
+
+  <Style Selector="graphs|HubGraphPanel, graphs|TreeGraphPanel">
+    <Setter Property="graphs:EdgeBrushes.Flowing" Value="{DynamicResource EdgeFlowingBrush}" />
+    <Setter Property="graphs:EdgeBrushes.Attention" Value="{DynamicResource EdgeAttentionBrush}" />
+    <Setter Property="graphs:EdgeBrushes.Waiting" Value="{DynamicResource EdgeWaitingBrush}" />
+    <Setter Property="graphs:EdgeBrushes.Quiet" Value="{DynamicResource EdgeQuietBrush}" />
+    <Style.Animations>
+      <Animation Duration="0:0:1.4" IterationCount="INFINITE">
+        <KeyFrame Cue="0%">
+          <Setter Property="graphs:EdgeBrushes.Phase" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="graphs:EdgeBrushes.Phase" Value="-20" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <Style Selector=":is(Visual).float">
+    <Setter Property="RenderTransform">
+      <TranslateTransform />
+    </Setter>
+    <Style.Animations>
+      <Animation Duration="0:0:4.8" IterationCount="INFINITE" Easing="SineEaseInOut">
+        <KeyFrame Cue="0%">
+          <Setter Property="TranslateTransform.X" Value="0" />
+          <Setter Property="TranslateTransform.Y" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="50%">
+          <Setter Property="TranslateTransform.X" Value="2" />
+          <Setter Property="TranslateTransform.Y" Value="-4" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="TranslateTransform.X" Value="0" />
+          <Setter Property="TranslateTransform.Y" Value="0" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <Style Selector=":is(Visual).arrive-scale">
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform">
+      <ScaleTransform />
+    </Setter>
+    <Style.Animations>
+      <Animation Duration="0:0:0.42" Easing="0.22,1,0.36,1" FillMode="Forward">
+        <KeyFrame Cue="0%">
+          <Setter Property="ScaleTransform.ScaleX" Value="0.94" />
+          <Setter Property="ScaleTransform.ScaleY" Value="0.94" />
+          <Setter Property="Opacity" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="ScaleTransform.ScaleX" Value="1" />
+          <Setter Property="ScaleTransform.ScaleY" Value="1" />
+          <Setter Property="Opacity" Value="1" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <Style Selector="Border.grouped">
+    <Setter Property="Background" Value="{DynamicResource SurfaceSectionBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderSectionBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSection}" />
+  </Style>
+
+  <Style Selector="Border.node">
+    <Setter Property="Background" Value="{DynamicResource NodeBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NodeBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusNode}" />
+    <Setter Property="BoxShadow" Value="{DynamicResource ShadowNode}" />
+  </Style>
+  <Style Selector="Border.node.attention">
+    <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
+  </Style>
+
+  <Style Selector="Border.tag.proposed">
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderProposedBrush}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+
+  <Style Selector="Border.pageHeader">
+    <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="24,12" />
+  </Style>
+
+  <Style Selector="TextBlock.pageTitle">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeTitleSmall}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LineHeight" Value="20" />
+  </Style>
+  <Style Selector="TextBlock.figure">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeFigure}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="-0.44" />
+    <Setter Property="LineHeight" Value="28" />
+  </Style>
+  <Style Selector="TextBlock.node">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeNode}" />
+  </Style>
+  <Style Selector="TextBlock.hint.mono">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeSection}" />
+    <Setter Property="LineHeight" Value="16" />
+  </Style>
+  <Style Selector="TextBlock.caption.mono">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+  </Style>
+  <Style Selector="TextBlock.hint">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+  </Style>
+
+  <Style Selector="Button.link.emphasis">
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="Padding" Value="8,3" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+  </Style>
+  <Style Selector="Button.link.emphasis:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentHoverBrush}" />
+  </Style>
+  <Style Selector="Button.link:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextDisabledBrush}" />
+  </Style>
+
+  <Style Selector="ProgressBar.bar">
+    <Setter Property="Minimum" Value="0" />
+    <Setter Property="Maximum" Value="1" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Height" Value="4" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Background" Value="{DynamicResource MeterTrackBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="ProgressBar.bar.thick">
+    <Setter Property="Height" Value="6" />
+  </Style>
+  <Style Selector="ProgressBar.bar.attention">
+    <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+  </Style>
+  <Style Selector="ProgressBar.marker">
+    <Setter Property="Minimum" Value="0" />
+    <Setter Property="Maximum" Value="1" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="Transparent" />
+  </Style>
+  <Style Selector="ProgressBar.marker /template/ Border#PART_Indicator">
+    <Setter Property="BorderBrush" Value="{DynamicResource MeterMarkerQuietBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,1.5,0" />
+    <Setter Property="CornerRadius" Value="0" />
+  </Style>
+  <Style Selector="ProgressBar.marker.attention /template/ Border#PART_Indicator">
+    <Setter Property="BorderBrush" Value="{DynamicResource MeterMarkerBrush}" />
+  </Style>
+
+  <Style Selector="Border.segments">
+    <Setter Property="Background" Value="{DynamicResource FillWellBrush}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+    <Setter Property="Padding" Value="2" />
+  </Style>
+  <Style Selector="Button.segment">
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="12,4" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.2" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.segment.selected">
+    <Setter Property="Background" Value="{DynamicResource SurfaceSelectedTabBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="Button.segment.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfaceSelectedTabBrush}" />
+  </Style>
+
+  <Style Selector="Button.bare">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform" Value="scale(1)" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.26" Easing="0.34,1.4,0.64,1" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Button.bare:pointerover">
+    <Setter Property="RenderTransform" Value="scale(1.03)" />
+  </Style>
+  <Style Selector="Button.bare:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.bare:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+
+  <Style Selector="Expander.disclosure">
+    <Style.Resources>
+      <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderHeaderBackgroundPointerOver" Color="#0DFFFFFF" />
+      <SolidColorBrush x:Key="ExpanderHeaderBackgroundPressed" Color="#14FFFFFF" />
+      <SolidColorBrush x:Key="ExpanderHeaderBackgroundDisabled" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderHeaderBorderBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPointerOver" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPressed" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderHeaderBorderBrushDisabled" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderContentBackground" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderContentBorderBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderChevronBackground" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderChevronBackgroundPointerOver" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderChevronBackgroundPressed" Color="Transparent" />
+      <SolidColorBrush x:Key="ExpanderChevronForeground" Color="#80808A" />
+      <SolidColorBrush x:Key="ExpanderChevronForegroundPointerOver" Color="#EDEDEF" />
+      <SolidColorBrush x:Key="ExpanderChevronForegroundPressed" Color="#EDEDEF" />
+    </Style.Resources>
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderSectionBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSection}" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+  </Style>
+</Styles>

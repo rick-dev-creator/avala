@@ -63,6 +63,20 @@ public sealed class MachineSettingsViewModelScripts
     }
 
     [Fact]
+    public async Task EditingTheWindowMarksItChangedUntilItIsSavedAsync()
+    {
+        var machine = Machine();
+        await machine.LoadAsync(Cancellation);
+        var loaded = machine.IsSilenceChanged;
+
+        machine.SilenceDraft = "120";
+        var edited = machine.IsSilenceChanged;
+        await machine.SaveSilenceCommand.ExecuteAsync(null);
+
+        Assert.Equal((false, true, false), (loaded, edited, machine.IsSilenceChanged));
+    }
+
+    [Fact]
     public void AnEmptyDraftCannotBeSaved() =>
         ViewModelScript.Given(Machine())
             .When(machine => machine.SilenceDraft = " ")
