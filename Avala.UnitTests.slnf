@@ -40,6 +40,8 @@
       "src/Modules/Workbench/Avala.Workbench.Contracts/Avala.Workbench.Contracts.csproj",
       "src/Modules/Workbench/Avala.Workbench/Avala.Workbench.csproj",
       "src/Modules/Workbench/Avala.Workbench.UI/Avala.Workbench.UI.csproj",
+      "src/Modules/Rendering/Avala.Rendering/Avala.Rendering.csproj",
+      "src/Modules/Rendering/Avala.Rendering.UI/Avala.Rendering.UI.csproj",
       "tests/Avala.Agents.Tests/Avala.Agents.Tests.csproj",
       "tests/Avala.Canvas.Tests/Avala.Canvas.Tests.csproj",
       "tests/Avala.Jobs.Tests/Avala.Jobs.Tests.csproj",
@@ -62,7 +64,8 @@
       "tests/Avala.Workspaces.Tests/Avala.Workspaces.Tests.csproj",
       "tests/Avala.Autopilot.Tests/Avala.Autopilot.Tests.csproj",
       "tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj",
-      "tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj"
+      "tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj",
+      "tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj"
     ]
   }
 }

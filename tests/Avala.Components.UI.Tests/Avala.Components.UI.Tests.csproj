@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Shared\Avala.Components\Avala.Components.csproj" />
     <ProjectReference Include="..\..\src\Shared\Avala.Components.UI\Avala.Components.UI.csproj" />
     <ProjectReference Include="..\Avala.Testing.UI\Avala.Testing.UI.csproj" />

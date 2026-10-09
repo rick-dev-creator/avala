@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AvalaPlugin>true</AvalaPlugin>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="MarkView.Avalonia" />
+    <PackageReference Include="Svg.Controls.Skia.Avalonia" ExcludeAssets="native" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Avala.Rendering\Avala.Rendering.csproj" />
+    <ProjectReference Include="..\..\..\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Avala.Components.UI\Avala.Components.UI.csproj" />
+  </ItemGroup>
+</Project>

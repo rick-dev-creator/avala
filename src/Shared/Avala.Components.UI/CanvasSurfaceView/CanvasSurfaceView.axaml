@@ -1,0 +1,190 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:canvases="using:Avala.Components.Canvases"
+             xmlns:ui="using:Avala.Components.UI"
+             x:Class="Avala.Components.UI.CanvasSurfaceView"
+             x:ClassModifier="internal"
+             x:DataType="canvases:ICanvasSurfaceViewModel">
+  <Design.DataContext>
+    <canvases:DesignCanvasSurfaceViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border.figure">
+      <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+      <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.caption">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="14,7" />
+    </Style>
+    <Style Selector="Button.step">
+      <Setter Property="Padding" Value="4" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.step Path.icon">
+      <Setter Property="Width" Value="10" />
+      <Setter Property="Height" Value="10" />
+    </Style>
+    <Style Selector="Button.step:disabled Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextDisabledBrush}" />
+    </Style>
+    <Style Selector="ui|CanvasPresenter#Drawing Image">
+      <Setter Property="StretchDirection" Value="DownOnly" />
+    </Style>
+    <Style Selector="Ellipse.streaming">
+      <Setter Property="Width" Value="6" />
+      <Setter Property="Height" Value="6" />
+      <Setter Property="Fill" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.status">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Panel>
+    <Border x:Name="Figure" Classes="figure">
+      <DockPanel>
+        <Border DockPanel.Dock="Top" Classes="caption">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+            <TextBlock x:Name="Title"
+                       Classes="caption strong"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"
+                       Text="{Binding Title}" />
+            <TextBlock x:Name="MediaLabel"
+                       Grid.Column="1"
+                       Margin="8,0,0,0"
+                       Classes="caption"
+                       VerticalAlignment="Center"
+                       Text="{Binding MediaLabel}" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+              <Panel x:Name="Streaming" Margin="10,0,0,0" VerticalAlignment="Center" IsVisible="{Binding IsStreaming}">
+                <Ellipse Classes="streaming pulse" />
+                <Ellipse Classes="streaming" />
+              </Panel>
+              <TextBlock x:Name="Status"
+                         Margin="6,0,0,0"
+                         Classes="status"
+                         VerticalAlignment="Center"
+                         IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                         Text="{Binding StatusText}" />
+            </StackPanel>
+            <StackPanel x:Name="Versions"
+                        Grid.Column="4"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding HasVersions}">
+              <Button x:Name="PreviousVersion"
+                      Classes="step"
+                      AutomationProperties.Name="Previous version"
+                      Command="{Binding PreviousVersionCommand}">
+                <Path Classes="icon" Data="{StaticResource IconChevronRight}" RenderTransform="scale(-1,1)" />
+              </Button>
+              <Button x:Name="VersionLabel"
+                      Classes="ghost"
+                      Padding="4,2"
+                      Command="{Binding LatestVersionCommand}">
+                <TextBlock x:Name="VersionText" Classes="caption" Text="{Binding VersionText}" />
+              </Button>
+              <Button x:Name="NextVersion"
+                      Classes="step"
+                      AutomationProperties.Name="Next version"
+                      Command="{Binding NextVersionCommand}">
+                <Path Classes="icon" Data="{StaticResource IconChevronRight}" />
+              </Button>
+            </StackPanel>
+            <Button x:Name="Open"
+                    Grid.Column="5"
+                    Margin="4,0,0,0"
+                    Classes="ghost"
+                    Content="Open"
+                    Command="{Binding OpenCommand}" />
+          </Grid>
+        </Border>
+        <ui:CanvasPresenter x:Name="Drawing"
+                            Margin="{DynamicResource PaddingCard}"
+                            MaxHeight="480"
+                            VerticalAlignment="Top"
+                            Rendering="{Binding Shown}" />
+      </DockPanel>
+    </Border>
+    <Popup x:Name="Focused"
+           Placement="Center"
+           IsLightDismissEnabled="False"
+           IsOpen="{Binding IsOpen, Mode=OneWay}">
+      <Border x:Name="FocusedCard" Classes="float" Padding="0" Focusable="True">
+        <Border.KeyBindings>
+          <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+        </Border.KeyBindings>
+        <DockPanel>
+          <Border DockPanel.Dock="Top" Classes="caption">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+              <TextBlock x:Name="FocusedTitle"
+                         Classes="body strong"
+                         VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis"
+                         Text="{Binding Title}" />
+              <TextBlock Grid.Column="1"
+                         Margin="8,0,0,0"
+                         Classes="caption"
+                         VerticalAlignment="Center"
+                         Text="{Binding MediaLabel}" />
+              <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <Panel Margin="10,0,0,0" VerticalAlignment="Center" IsVisible="{Binding IsStreaming}">
+                  <Ellipse Classes="streaming pulse" />
+                  <Ellipse Classes="streaming" />
+                </Panel>
+                <TextBlock Margin="6,0,0,0"
+                           Classes="status"
+                           VerticalAlignment="Center"
+                           IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           Text="{Binding StatusText}" />
+              </StackPanel>
+              <StackPanel Grid.Column="4"
+                          Orientation="Horizontal"
+                          VerticalAlignment="Center"
+                          IsVisible="{Binding HasVersions}">
+                <Button x:Name="FocusedPreviousVersion"
+                        Classes="step"
+                        AutomationProperties.Name="Previous version"
+                        Command="{Binding PreviousVersionCommand}">
+                  <Path Classes="icon" Data="{StaticResource IconChevronRight}" RenderTransform="scale(-1,1)" />
+                </Button>
+                <Button Classes="ghost"
+                        Padding="4,2"
+                        Command="{Binding LatestVersionCommand}">
+                  <TextBlock x:Name="FocusedVersionText" Classes="caption" Text="{Binding VersionText}" />
+                </Button>
+                <Button x:Name="FocusedNextVersion"
+                        Classes="step"
+                        AutomationProperties.Name="Next version"
+                        Command="{Binding NextVersionCommand}">
+                  <Path Classes="icon" Data="{StaticResource IconChevronRight}" />
+                </Button>
+              </StackPanel>
+              <Button x:Name="Close"
+                      Grid.Column="5"
+                      Margin="4,0,0,0"
+                      Classes="ghost"
+                      AutomationProperties.Name="Close"
+                      Command="{Binding CloseCommand}">
+                <Path Classes="icon" Data="{StaticResource IconCross}" />
+              </Button>
+            </Grid>
+          </Border>
+          <ScrollViewer>
+            <ui:CanvasPresenter x:Name="FocusedDrawing"
+                                Margin="24"
+                                Rendering="{Binding Shown}" />
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Popup>
+  </Panel>
+</UserControl>

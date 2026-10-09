@@ -356,4 +356,6 @@ Done when: the full job flow runs end to end through view models in tests.
 1. Avalonia views for every view model, following the approved [design brief](../design/ui-brief.md), semi-transparent with themes, Inter for the interface and JetBrains Mono for code.
 2. The canvas surface for each media type, with renderer plugins registered by media type.
 
+   Done: the shared canvas surface, with versions, streaming without flicker and the focused view; `ICanvasRenderer`, registered through the view registry; the Rendering plugin, with Markdown, sanitized SVG, and Mermaid and HTML as highlighted source. Remains: the Mermaid and HTML renderers, once the [decision](../design/canvas-rendering.md#mermaid-and-html-the-decision) is made.
+
 Done when: the harness replaces a terminal for daily work.
