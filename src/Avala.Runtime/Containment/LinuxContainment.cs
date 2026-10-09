@@ -34,21 +34,9 @@ internal sealed class LinuxContainer(ProcessTreeId tree, long since, Option<stri
 
     public async ValueTask<IReadOnlyList<int>> MemberIdsAsync(CancellationToken cancellationToken)
     {
-        var candidates = new List<Stat>();
-
-        foreach (var folder in Directory.EnumerateDirectories("/proc"))
-        {
-            if (int.TryParse(Path.GetFileName(folder), NumberStyles.None, CultureInfo.InvariantCulture, out var id)
-                && id != Environment.ProcessId
-                && (await StatAsync(id, cancellationToken)).TryGetValue(out var stat, out _)
-                && stat is { Zombie: false } && stat.Start >= since)
-            {
-                candidates.Add(stat);
-            }
-        }
-
+        var candidates = await CandidatesAsync(cancellationToken);
         var known = Volatile.Read(ref roots);
-        var members = new HashSet<int>();
+        var members = new List<int>();
 
         foreach (var candidate in candidates)
         {
@@ -58,12 +46,7 @@ internal sealed class LinuxContainer(ProcessTreeId tree, long since, Option<stri
             }
         }
 
-        while (candidates.Where(candidate => !members.Contains(candidate.Id) && members.Contains(candidate.Parent)).ToList() is { Count: > 0 } descendants)
-        {
-            members.UnionWith(descendants.Select(descendant => descendant.Id));
-        }
-
-        return [.. members];
+        return ProcessFamilies.Of([.. candidates.Select(candidate => new Kin(candidate.Id, candidate.Parent))], members);
     }
 
     public void Dispose()
@@ -84,6 +67,24 @@ internal sealed class LinuxContainer(ProcessTreeId tree, long since, Option<stri
         }
 
         return info;
+    }
+
+    private async Task<List<Stat>> CandidatesAsync(CancellationToken cancellationToken)
+    {
+        var candidates = new List<Stat>();
+
+        foreach (var folder in Directory.EnumerateDirectories("/proc"))
+        {
+            if (int.TryParse(Path.GetFileName(folder), NumberStyles.None, CultureInfo.InvariantCulture, out var id)
+                && id != Environment.ProcessId
+                && (await StatAsync(id, cancellationToken)).TryGetValue(out var stat, out _)
+                && stat is { Zombie: false } && stat.Start >= since)
+            {
+                candidates.Add(stat);
+            }
+        }
+
+        return candidates;
     }
 
     private static async Task<Result<Stat, ProcessError>> StatAsync(int id, CancellationToken cancellationToken)

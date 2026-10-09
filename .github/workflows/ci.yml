@@ -25,6 +25,18 @@ jobs:
         run: dotnet build Avala.slnx
       - name: Test
         run: dotnet test --solution Avala.slnx --no-build
+      - name: Unit tests with coverage
+        run: >-
+          dotnet test --solution Avala.UnitTests.slnf --no-build
+          --coverage --coverage-output-format cobertura
+          --results-directory TestResults/coverage
+      - name: Coverage paths relative to the repository
+        run: dotnet run scripts/coverage-paths.cs -- TestResults/coverage
+      - uses: actions/upload-artifact@v7
+        with:
+          name: unit-coverage-${{ matrix.os }}
+          path: TestResults/coverage/*.cobertura.xml
+          if-no-files-found: error
 
   quality:
     name: Coverage, code metrics and technical debt
@@ -37,15 +49,16 @@ jobs:
           global-json-file: global.json
       - name: Restore tools
         run: dotnet tool restore
-      - name: Unit tests with coverage
-        run: >-
-          dotnet test --solution Avala.UnitTests.slnf
-          --coverage --coverage-output-format cobertura
-          --results-directory TestResults
+      - name: Restore
+        run: dotnet restore Avala.slnx
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: unit-coverage-*
+          path: TestResults/coverage
       - name: Coverage report, badges and risk hotspots
         run: >-
           dotnet tool run reportgenerator
-          -reports:"TestResults/*.cobertura.xml"
+          -reports:"TestResults/coverage/*/*.cobertura.xml"
           -targetdir:TestResults/report
           -reporttypes:"MarkdownSummaryGithub;Html;Badges;Cobertura"
           -assemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing"

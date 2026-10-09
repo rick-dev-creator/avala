@@ -52,40 +52,41 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
         }
     }
 
-    private async Task<Played> StepAsync(IStep step, Play play, CancellationToken cancellationToken)
+    private Task<Played> StepAsync(IStep step, Play play, CancellationToken cancellationToken) =>
+        Unanswered(step) is { } unanswered
+            ? Task.FromResult(Diverged(play, unanswered))
+            : ActAsync(step, play, cancellationToken);
+
+    private Task<Played> ActAsync(IStep step, Play play, CancellationToken cancellationToken) => step switch
     {
-        if (Unanswered(step) is { } unanswered)
-        {
-            return Diverged(play, unanswered);
-        }
+        Emit emit => EmittedAsync(emit, play, cancellationToken),
+        AwaitPermission expected => PermittedAsync(expected, play, cancellationToken),
+        AwaitAnswer expected => AnsweredAsync(expected, play, cancellationToken),
+        PutFile put => PutAsync(put, play, cancellationToken),
+        AwaitInterrupt => InterruptedAsync(cancellationToken),
+        Crash crash => Task.FromException<Played>(new InvalidOperationException(crash.Reason)),
+        Hangup => Task.FromResult(Played.Hangup),
+        Diverge diverge => Task.FromResult(Diverged(play, diverge.Reason)),
+        _ => Task.FromResult(Played.Nothing),
+    };
 
-        switch (step)
-        {
-            case Emit emit:
-                return new Played([await EmitAsync(emit, play, cancellationToken)], Ends: false);
-            case AwaitPermission expected:
-                return Settled(play, await PermittedAsync(expected, cancellationToken));
-            case AwaitAnswer expected:
-                return Settled(play, await AnsweredAsync(expected, cancellationToken));
-            case PutFile put:
-                await pacing.DelayAsync(play.Timed ? put.Gap : TimeSpan.Zero, cancellationToken);
-                await files.WriteAsync(Path.Combine(options.WorkingDirectory, put.Path), put.Content, cancellationToken);
+    private async Task<Played> EmittedAsync(Emit emit, Play play, CancellationToken cancellationToken) =>
+        new([await EmitAsync(emit, play, cancellationToken)], Ends: false);
 
-                return Played.Nothing;
-            case AwaitInterrupt:
-                AwaitsInterrupt = true;
-                await cancellationToken.UntilCancelledAsync();
+    private async Task<Played> PutAsync(PutFile put, Play play, CancellationToken cancellationToken)
+    {
+        await pacing.DelayAsync(play.Timed ? put.Gap : TimeSpan.Zero, cancellationToken);
+        await files.WriteAsync(Path.Combine(options.WorkingDirectory, put.Path), put.Content, cancellationToken);
 
-                return Played.Nothing;
-            case Crash crash:
-                throw new InvalidOperationException(crash.Reason);
-            case Hangup:
-                return Played.Hangup;
-            case Diverge diverge:
-                return Diverged(play, diverge.Reason);
-            default:
-                return Played.Nothing;
-        }
+        return Played.Nothing;
+    }
+
+    private async Task<Played> InterruptedAsync(CancellationToken cancellationToken)
+    {
+        AwaitsInterrupt = true;
+        await cancellationToken.UntilCancelledAsync();
+
+        return Played.Nothing;
     }
 
     private async Task<IAgentEvent> EmitAsync(Emit emit, Play play, CancellationToken cancellationToken)
@@ -103,24 +104,24 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
         return cue;
     }
 
-    private async Task<string?> PermittedAsync(AwaitPermission expected, CancellationToken cancellationToken)
+    private async Task<Played> PermittedAsync(AwaitPermission expected, Play play, CancellationToken cancellationToken)
     {
         var divergence = permission?.Item == expected.Decision.Item
             ? Compare(expected.Decision, await gates.Permissions.AwaitAsync(permission.Item, permission.Reply, cancellationToken))
             : Divergence.NeverAsked(expected.Decision.Item);
         permission = null;
 
-        return divergence;
+        return Settled(play, divergence);
     }
 
-    private async Task<string?> AnsweredAsync(AwaitAnswer expected, CancellationToken cancellationToken)
+    private async Task<Played> AnsweredAsync(AwaitAnswer expected, Play play, CancellationToken cancellationToken)
     {
         var divergence = form?.Item == expected.Answer.Item
             ? Compare(expected.Answer, await gates.Forms.AwaitAsync(form.Item, form.Reply, cancellationToken))
             : Divergence.NeverAsked(expected.Answer.Item);
         form = null;
 
-        return divergence;
+        return Settled(play, divergence);
     }
 
     private Played Settled(Play play, string? divergence) =>

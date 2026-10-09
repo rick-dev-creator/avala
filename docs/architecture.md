@@ -268,13 +268,16 @@ The CI builds and tests on Linux and Windows, then measures coverage, code metri
 
 ```
 dotnet tool restore
-dotnet test --solution Avala.UnitTests.slnf --coverage --coverage-output-format cobertura --results-directory TestResults
-dotnet tool run reportgenerator -reports:"TestResults/*.cobertura.xml" -targetdir:TestResults/report -reporttypes:"TextSummary;Html;Badges;Cobertura" -assemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing" -riskhotspotassemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing" -filefilters:"-*.g.cs"
+dotnet test --solution Avala.UnitTests.slnf --coverage --coverage-output-format cobertura --results-directory TestResults/coverage/linux
+dotnet run scripts/coverage-paths.cs -- TestResults/coverage
+dotnet tool run reportgenerator -reports:"TestResults/coverage/*/*.cobertura.xml" -targetdir:TestResults/report -reporttypes:"TextSummary;Html;Badges;Cobertura" -assemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing" -riskhotspotassemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing" -filefilters:"-*.g.cs"
 dotnet run scripts/code-metrics.cs
 dotnet run scripts/metrics.cs -- --badges TestResults/badges
 ```
 
 - **Coverage** comes from the unit tests only, listed in `Avala.UnitTests.slnf`. The architecture tests run without instrumentation, because the coverage tooling rewrites the code they inspect. Generated code and the shared test helpers of `Avala.Testing` are excluded. ReportGenerator writes the HTML report with its risk hotspots, its own coverage badges and one merged Cobertura file the grade reads.
+- **Coverage is measured on every operating system the CI runs.** Code for one platform, such as the Windows job objects and TCP tables, only runs on that platform, so each build job collects the unit tests' coverage on its own system and uploads it as `unit-coverage-<os>`. `scripts/coverage-paths.cs` first rewrites the source paths of the reports relative to the repository, because each runner checks out to a different folder and Windows writes backslashes; with the same paths, ReportGenerator merges the reports line by line instead of counting a file once per system. The quality job downloads every report and merges them before anything is measured, so the coverage, the risk hotspots and the grade all come from the merged report. A local run on one system measures that system only: Windows-only code counts as uncovered on Linux.
+- **macOS code is a thin call around pure parsing.** No CI job runs macOS, so the macOS containment and listening ports only run `ps` and `lsof` and hand the output to `MacListings`, whose parsing and process-family walk are unit tested on every system. What stays macOS-only is the call itself.
 - **Code metrics** are the maintainability index, cyclomatic complexity, class coupling, depth of inheritance and lines of every production assembly, namespace, type and member. `scripts/code-metrics.cs` computes them with `CodeAnalysisMetricData` from Microsoft.CodeAnalysis.AnalyzerUtilities, the library behind `Microsoft.CodeAnalysis.Metrics`, whose `Metrics.exe` runs only on Windows, and writes them in the same layout to `TestResults/metrics/CodeMetrics.xml`.
 - **Lines of code** are physical lines of C#, counted the same way as the reference figure for T3 Code: about 907,000 lines of non-test TypeScript at commit `a4c9494b0`, on 2026-10-08. The goal is a better product in no more than 15% of that.
 

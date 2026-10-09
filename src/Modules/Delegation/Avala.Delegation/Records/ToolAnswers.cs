@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -20,34 +21,12 @@ internal static class ToolAnswers
             ["connection"] = delegation.Connection.Match(name => name.Value, () => string.Empty),
             ["autonomy"] = delegation.Autonomy.Match(level => Camel(level), () => string.Empty),
             ["summary"] = report.Summary.Match(text => text, () => string.Empty),
-            ["files"] = new JsonArray([.. report.Files.Select(file => Node(new JsonObject
-            {
-                ["path"] = file.Path,
-                ["change"] = Camel(file.Kind),
-                ["added"] = file.Added.Match(lines => lines, () => 0),
-                ["removed"] = file.Removed.Match(lines => lines, () => 0),
-                ["binary"] = file.Added.IsNone,
-            }))]),
-            ["verification"] = report.Verification.Match<JsonNode>(
-                verified => new JsonObject
-                {
-                    ["outcome"] = Camel(verified.Outcome),
-                    ["checks"] = new JsonArray([.. verified.Checks.Select(check => Node(new JsonObject
-                    {
-                        ["name"] = check.Name,
-                        ["status"] = Camel(check.Status),
-                        ["exitCode"] = check.ExitCode.Match(code => code.ToString(System.Globalization.CultureInfo.InvariantCulture), () => string.Empty),
-                    }))]),
-                },
-                () => new JsonObject { ["outcome"] = "none" }),
+            ["files"] = Files(report),
+            ["verification"] = Verification(report),
             ["spent"] = Costs(report.Spent),
             ["tokens"] = report.Tokens,
-            ["carve"] = report.Carve.Match<JsonNode>(
-                carve => new JsonObject { ["cost"] = Costs(carve.Cost), ["tokens"] = carve.Tokens.Match(tokens => tokens.ToString(System.Globalization.CultureInfo.InvariantCulture), () => "uncapped") },
-                () => new JsonObject()),
-            ["integrated"] = report.Delivery.Match<JsonNode>(
-                delivery => new JsonObject { ["branch"] = delivery.Branch, ["commit"] = delivery.Commit.Match(commit => commit, () => string.Empty) },
-                () => new JsonObject()),
+            ["carve"] = Carve(report),
+            ["integrated"] = Integrated(report),
             ["conflicts"] = new JsonArray([.. report.Conflicts.Select(path => Node(JsonValue.Create(path)))]),
             ["hold"] = report.Hold.Match(reason => Camel(reason), () => string.Empty),
             ["refusal"] = report.Refusal.Match(rejection => Camel(rejection), () => string.Empty),
@@ -55,6 +34,40 @@ internal static class ToolAnswers
 
         return new ToolResult(item, answer.ToJsonString());
     }
+
+    private static JsonArray Files(ChildReport report) =>
+        new([.. report.Files.Select(file => Node(new JsonObject
+        {
+            ["path"] = file.Path,
+            ["change"] = Camel(file.Kind),
+            ["added"] = file.Added.Match(lines => lines, () => 0),
+            ["removed"] = file.Removed.Match(lines => lines, () => 0),
+            ["binary"] = file.Added.IsNone,
+        }))]);
+
+    private static JsonNode Verification(ChildReport report) =>
+        report.Verification.Match<JsonNode>(
+            verified => new JsonObject
+            {
+                ["outcome"] = Camel(verified.Outcome),
+                ["checks"] = new JsonArray([.. verified.Checks.Select(check => Node(new JsonObject
+                {
+                    ["name"] = check.Name,
+                    ["status"] = Camel(check.Status),
+                    ["exitCode"] = check.ExitCode.Match(code => code.ToString(CultureInfo.InvariantCulture), () => string.Empty),
+                }))]),
+            },
+            () => new JsonObject { ["outcome"] = "none" });
+
+    private static JsonNode Carve(ChildReport report) =>
+        report.Carve.Match<JsonNode>(
+            carve => new JsonObject { ["cost"] = Costs(carve.Cost), ["tokens"] = carve.Tokens.Match(tokens => tokens.ToString(CultureInfo.InvariantCulture), () => "uncapped") },
+            () => new JsonObject());
+
+    private static JsonNode Integrated(ChildReport report) =>
+        report.Delivery.Match<JsonNode>(
+            delivery => new JsonObject { ["branch"] = delivery.Branch, ["commit"] = delivery.Commit.Match(commit => commit, () => string.Empty) },
+            () => new JsonObject());
 
     private static JsonArray Costs(IReadOnlyList<Cost> costs) =>
         new([.. costs.Select(cost => Node(new JsonObject { ["amount"] = cost.Amount, ["currency"] = cost.Currency }))]);
