@@ -15,6 +15,8 @@ internal sealed class SettingsViewModel(IRepositorySettingsViewModel repository,
 {
     public string Title => "Settings";
 
+    public string Icon => "IconSettings";
+
     public IRepositorySettingsViewModel Repository { get; } = repository;
 
     public IMachineSettingsViewModel Machine { get; } = machine;

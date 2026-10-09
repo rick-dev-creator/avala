@@ -5,8 +5,11 @@ using Avala.Sdk.Processes;
 using Avala.Testing;
 using Avala.Workbench.Board;
 using Avala.Workbench.Following;
+using Avala.Workbench.Navigation;
 using Avala.Workbench.Resources;
 using Avala.Workbench.Upkeep;
+using Avala.Sdk.Presentation;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Resources;
 
@@ -49,13 +52,14 @@ public sealed class AgentTreeViewModelScripts
 public sealed class ResourceIndicatorViewModelScripts : IDisposable
 {
     private readonly TestUiDispatcher ui = new();
+    private readonly IMessenger messenger = new StrongReferenceMessenger();
 
     [Fact]
     public async Task TheIndicatorShowsTheMemoryInUseAndTheLeftoversAsync()
     {
         var orphans = new FakeOrphans();
         orphans.Reports.Add(new OrphanReport(new ProcessTreeId(Guid.NewGuid()), [], OrphanDisposal.LeftRunning, [], DateTimeOffset.UnixEpoch) { Job = JobId.New() });
-        using var indicator = new ResourceIndicatorViewModel(new ResourceReader(new FakeResources(), orphans, new Leftovers(), new JobBoard()), new LiveFeed(new Pulse(new JobBoard()), ui));
+        using var indicator = Indicator(orphans);
 
         indicator.Activate();
 
@@ -64,12 +68,43 @@ public sealed class ResourceIndicatorViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task TheIndicatorMetersTheCpuLoadOfTheMachineAsync()
+    {
+        using var indicator = Indicator(new FakeOrphans());
+
+        indicator.Activate();
+
+        await ui.PresentedAsync(indicator, () => indicator.Cpu.Reading == "25%", () => indicator.Cpu.Reading);
+        Assert.Equal(("CPU", 0.25, false), await ui.ReadAsync(() => (indicator.Cpu.Label, indicator.Cpu.Fraction, indicator.Cpu.HasThreshold)));
+    }
+
+    [Fact]
+    public void OpeningTheIndicatorAsksTheShellForTheResourcesPage()
+    {
+        var requested = new List<IPage>();
+        messenger.Register<List<IPage>, PageRequested>(requested, (list, message) => list.Add(message.Page));
+        using var indicator = Indicator(new FakeOrphans());
+
+        indicator.OpenCommand.Execute(null);
+
+        Assert.IsType<ResourcesViewModel>(Assert.Single(requested));
+    }
+
+    [Fact]
     public void WithNothingLeftOverTheIndicatorShowsNoLeftovers()
     {
-        using var indicator = new ResourceIndicatorViewModel(new ResourceReader(new FakeResources(), new FakeOrphans(), new Leftovers(), new JobBoard()), new LiveFeed(new Pulse(new JobBoard()), ui));
+        using var indicator = Indicator(new FakeOrphans());
 
         Assert.Equal((0, false), (indicator.Leftovers, indicator.HasLeftovers));
     }
 
     public void Dispose() => ui.Dispose();
+
+    private ResourceIndicatorViewModel Indicator(FakeOrphans orphans)
+    {
+        var reader = new ResourceReader(new FakeResources(), orphans, new Leftovers(), new JobBoard());
+        var resources = new ResourcesViewModel(reader, new Housekeeping(orphans, new FakeHousekeeping()), new LiveFeed(new Pulse(new JobBoard()), ui));
+
+        return new ResourceIndicatorViewModel(reader, new LiveFeed(new Pulse(new JobBoard()), ui), new JobFocus(new TestRegions(), messenger), resources);
+    }
 }

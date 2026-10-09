@@ -1,35 +1,89 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.ToolView"
              x:ClassModifier="internal"
-             x:DataType="conversation:IToolViewModel">
+             x:DataType="conversation:IToolViewModel"
+             Classes="arrive-snappy"
+             Classes.running="{Binding IsRunning}"
+             Classes.failed="{Binding Failed}"
+             Margin="0,1">
   <Design.DataContext>
     <conversation:DesignToolViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="4">
-    <Button x:Name="Toggle" Classes="ghost" Command="{Binding ToggleCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-      <Grid ColumnDefinitions="Auto,*,Auto">
-        <TextBlock x:Name="Kind" Classes="caption" Text="{Binding Kind}" Margin="0,0,10,0" VerticalAlignment="Center" />
-        <TextBlock x:Name="Title" Grid.Column="1" Classes="mono" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+  <UserControl.Styles>
+    <Style Selector="Path#Icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="TextBlock#Title">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCode}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="SelectableTextBlock.output">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeOutput}" />
+      <Setter Property="LineHeight" Value="18" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="2">
+    <Button x:Name="Toggle"
+            Classes="line"
+            Command="{Binding ToggleCommand}"
+            AutomationProperties.Name="{Binding Title}">
+      <Grid ColumnDefinitions="14,*,Auto" ColumnSpacing="10">
+        <Path x:Name="Icon"
+              Classes="icon"
+              VerticalAlignment="Center"
+              Data="{Binding Kind, Converter={x:Static states:ThemeIcon.Named}, ConverterParameter=Icon}"
+              IsVisible="{Binding !IsRunning}" />
+        <Arc x:Name="Spinner"
+             Width="12"
+             Height="12"
+             StartAngle="0"
+             SweepAngle="270"
+             Stroke="{DynamicResource TextSecondaryBrush}"
+             StrokeThickness="1.5"
+             VerticalAlignment="Center"
+             HorizontalAlignment="Center"
+             IsVisible="{Binding IsRunning}"
+             Classes.spin="{Binding IsRunning}" />
+        <TextBlock x:Name="Title"
+                   Grid.Column="1"
+                   VerticalAlignment="Center"
+                   Text="{Binding Title}"
+                   TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="Outcome"
                    Grid.Column="2"
-                   Classes="caption"
-                   Classes.failure="{Binding Failed}"
-                   Classes.pulse="{Binding IsRunning}"
+                   Classes="caption failure"
+                   VerticalAlignment="Center"
                    Text="{Binding Outcome}"
-                   Margin="10,0,0,0"
-                   VerticalAlignment="Center" />
+                   IsVisible="{Binding Failed}" />
       </Grid>
     </Button>
-    <Border x:Name="Details" Classes="well" IsVisible="{Binding IsExpanded}">
+    <Border x:Name="Details"
+            Classes.fold-in="{Binding IsExpanded}"
+            Background="{DynamicResource FillQuietBrush}"
+            CornerRadius="{DynamicResource RadiusButton}"
+            Padding="34,8,10,10"
+            Margin="0,0,0,4"
+            IsVisible="{Binding IsExpanded}">
       <StackPanel Spacing="6">
         <SelectableTextBlock x:Name="Input"
-                             Classes="mono"
+                             Classes="output"
                              Text="{Binding Input}"
-                             TextWrapping="Wrap"
                              IsVisible="{Binding Input, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-        <SelectableTextBlock x:Name="Output" Classes="mono" Text="{Binding Output}" TextWrapping="Wrap" />
+        <SelectableTextBlock x:Name="Output"
+                             Classes="output"
+                             Text="{Binding Output}"
+                             IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock x:Name="NoOutput"
+                   Classes="caption"
+                   Text="No output."
+                   IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
       </StackPanel>
     </Border>
   </StackPanel>

@@ -7,17 +7,42 @@
   <Design.DataContext>
     <cards:DesignFormChoiceViewModel />
   </Design.DataContext>
-  <CheckBox x:Name="Choice" IsChecked="{Binding IsSelected}">
-    <StackPanel Spacing="2">
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <TextBlock x:Name="Label" Classes="body" Text="{Binding Label}" />
-        <TextBlock x:Name="Recommended" Classes="caption" Text="recommended" IsVisible="{Binding Recommended}" />
+  <UserControl.Styles>
+    <Style Selector="Ellipse#Radio">
+      <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
+      <Setter Property="StrokeThickness" Value="1.5" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="StrokeThickness" Duration="0:0:0.2" Easing="0.34,1.4,0.64,1" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="ToggleButton:checked Ellipse#Radio">
+      <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="StrokeThickness" Value="4" />
+    </Style>
+  </UserControl.Styles>
+  <ToggleButton x:Name="Choice"
+                Classes="choice"
+                IsChecked="{Binding IsSelected}"
+                AutomationProperties.Name="{Binding Label}">
+    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+      <Ellipse x:Name="Radio" Width="12" Height="12" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1">
+        <TextBlock x:Name="Label" Classes="body" TextWrapping="Wrap" Text="{Binding Label}" />
+        <TextBlock x:Name="Description"
+                   Classes="caption"
+                   TextWrapping="Wrap"
+                   Text="{Binding Description}"
+                   IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
-      <TextBlock x:Name="Description"
-                 Classes="caption"
-                 Text="{Binding Description}"
-                 TextWrapping="Wrap"
-                 IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-    </StackPanel>
-  </CheckBox>
+      <TextBlock x:Name="Recommended"
+                 Grid.Column="2"
+                 Classes="secondary"
+                 FontSize="{DynamicResource FontSizeHint}"
+                 VerticalAlignment="Center"
+                 Text="Recommended"
+                 IsVisible="{Binding Recommended}" />
+    </Grid>
+  </ToggleButton>
 </UserControl>

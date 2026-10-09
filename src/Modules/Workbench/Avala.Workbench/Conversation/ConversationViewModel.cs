@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
 using Avala.Workbench.Sidebar;
@@ -14,7 +15,11 @@ internal interface IConversationViewModel
 
     string Title { get; }
 
+    string Place { get; }
+
     JobStatus Status { get; }
+
+    IStatusPillViewModel Pill { get; }
 
     string Plan { get; }
 
@@ -28,6 +33,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
 {
     private readonly ComposerViewModel composer;
     private readonly TimelineItems items;
+    private readonly StatusPillViewModel pill = new(StatusKind.Working, string.Empty);
     private readonly Dictionary<string, (ITimelineEntry Entry, ITimelineItem Item)> known = [];
     private Transcript shown = Transcript.Empty;
 
@@ -37,6 +43,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         this.composer = composer;
         this.items = items;
         Title = string.Empty;
+        Place = string.Empty;
         Plan = string.Empty;
     }
 
@@ -44,12 +51,17 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
 
     public IComposerViewModel Composer => composer;
 
+    public IStatusPillViewModel Pill => pill;
+
     public ObservableCollection<ITimelineItem> Entries { get; } = [];
 
     IReadOnlyList<object> IConversationViewModel.Entries => Entries;
 
     [ObservableProperty]
     public partial string Title { get; private set; }
+
+    [ObservableProperty]
+    public partial string Place { get; private set; }
 
     [ObservableProperty]
     public partial JobStatus Status { get; private set; }
@@ -60,7 +72,10 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     public void Show(BoardJob job)
     {
         Title = FactPhrases.Title(job.Summary.Instruction);
+        Place = ConversationPhrases.Place(job.Summary);
         Status = job.Status;
+        pill.Kind = FactPhrases.Dot(job);
+        pill.Text = ConversationPhrases.Pill(job);
         composer.Track(job.Status);
 
         if (ReferenceEquals(job.Transcript, shown))
@@ -72,10 +87,10 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         Plan = job.Transcript.Plan.Match(
             plan => string.Create(CultureInfo.InvariantCulture, $"{plan.Done} of {plan.Total}"),
             () => string.Empty);
-        Place(job.Transcript);
+        Arrange(job.Transcript);
     }
 
-    private void Place(Transcript transcript)
+    private void Arrange(Transcript transcript)
     {
         var position = 0;
 

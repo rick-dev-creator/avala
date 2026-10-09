@@ -2,12 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="using:Avala.Shell"
         xmlns:sdk="using:Avala.Sdk"
+        xmlns:states="using:Avala.Components.UI.States"
         x:Class="Avala.Host.ShellView"
         x:ClassModifier="internal"
         x:DataType="shell:IShellViewModel"
         Title="Avala"
-        Width="1280"
-        Height="800"
+        Width="1440"
+        Height="900"
         MinWidth="720"
         MinHeight="480"
         Background="Transparent"
@@ -15,13 +16,30 @@
   <Design.DataContext>
     <shell:DesignShellViewModel />
   </Design.DataContext>
+  <Window.Styles>
+    <Style Selector="ListBox#PageNavigation ListBoxItem">
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="ListBox#PageNavigation ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ListBox#PageNavigation ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ListBox#PageNavigation ListBoxItem Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+  </Window.Styles>
   <Grid ColumnDefinitions="Auto,*,Auto">
     <Panel x:Name="SidebarPane"
-           Width="{DynamicResource SidebarWidth}"
+           Width="{DynamicResource ShellSidebarWidth}"
            IsVisible="{Binding HasSidebar}">
       <ExperimentalAcrylicBorder Material="{StaticResource PanelMaterial}" IsHitTestVisible="False" />
       <DockPanel>
-        <Grid DockPanel.Dock="Top"
+        <Grid x:Name="Titlebar"
+              DockPanel.Dock="Top"
               ColumnDefinitions="Auto,*,Auto"
               Margin="18,16,14,10">
           <Viewbox Width="18" Height="18" VerticalAlignment="Center">
@@ -49,38 +67,45 @@
             </ItemsControl.ItemsPanel>
           </ItemsControl>
         </Grid>
-        <StackPanel DockPanel.Dock="Bottom" IsVisible="{Binding SidebarFooter.HasItems}">
+        <StackPanel x:Name="Footer" DockPanel.Dock="Bottom">
           <Border Classes="separator" />
-          <ItemsControl x:Name="SidebarFooterRegion"
-                        Margin="10"
-                        ItemsSource="{Binding SidebarFooter.Items}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Spacing="8" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-          </ItemsControl>
-        </StackPanel>
-        <ScrollViewer>
-          <StackPanel Margin="10,4,10,10" Spacing="14">
-            <ListBox x:Name="PageNavigation"
-                     IsVisible="{Binding HasNavigation}"
-                     ItemsSource="{Binding Pages}"
-                     SelectedItem="{Binding SelectedPage}">
-              <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="sdk:IPage">
-                  <TextBlock Text="{Binding Title}" />
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-            <ItemsControl x:Name="SidebarRegion" ItemsSource="{Binding Sidebar.Items}">
+          <StackPanel Margin="10" Spacing="2">
+            <ItemsControl x:Name="SidebarFooterRegion"
+                          ItemsSource="{Binding SidebarFooter.Items}"
+                          IsVisible="{Binding SidebarFooter.HasItems}"
+                          Margin="0,0,0,8">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                  <StackPanel Spacing="2" />
+                  <StackPanel Spacing="8" />
                 </ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
             </ItemsControl>
+            <ListBox x:Name="PageNavigation"
+                     IsVisible="{Binding HasNavigation}"
+                     ItemsSource="{Binding NavigationPages}"
+                     SelectedItem="{Binding SelectedPage, Converter={x:Static states:Kept.Selection}}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="sdk:IPage">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Path Classes="icon"
+                          Data="{Binding Icon, Converter={x:Static states:ThemeIcon.Named}}"
+                          IsVisible="{Binding Icon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                          VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
           </StackPanel>
+        </StackPanel>
+        <ScrollViewer x:Name="SidebarScroller">
+          <ItemsControl x:Name="SidebarRegion" Margin="10,4,10,10" ItemsSource="{Binding Sidebar.Items}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="2" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
         </ScrollViewer>
       </DockPanel>
       <Border Classes="edge" HorizontalAlignment="Right" />
@@ -105,7 +130,8 @@
     <Panel x:Name="InspectorPane"
            Grid.Column="2"
            Width="{DynamicResource InspectorWidth}"
-           IsVisible="{Binding IsInspectorShown}">
+           IsVisible="{Binding IsInspectorShown}"
+           Classes.arrive-gentle="{Binding IsInspectorShown}">
       <ExperimentalAcrylicBorder Material="{StaticResource PanelMaterial}" IsHitTestVisible="False" />
       <Border Classes="edge" HorizontalAlignment="Left" />
       <ScrollViewer>

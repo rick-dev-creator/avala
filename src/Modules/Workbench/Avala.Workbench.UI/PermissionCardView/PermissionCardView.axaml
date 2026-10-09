@@ -3,46 +3,96 @@
              xmlns:cards="using:Avala.Workbench.Cards"
              x:Class="Avala.Workbench.UI.PermissionCardView"
              x:ClassModifier="internal"
-             x:DataType="cards:IPermissionCardViewModel">
+             x:DataType="cards:IPermissionCardViewModel"
+             Classes="arrive-snappy"
+             Classes.waiting="{Binding AwaitsYou}"
+             Margin="0,10">
   <Design.DataContext>
     <cards:DesignPermissionCardViewModel />
   </Design.DataContext>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding AllowCommand}" />
+    <KeyBinding Gesture="Ctrl+Back" Command="{Binding DenyCommand}" />
+  </UserControl.KeyBindings>
   <UserControl.Styles>
-    <Style Selector="Border#Card.waiting">
-      <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
+    <Style Selector="Border#Card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceFloatBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderCardBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowRaised}" />
+      <Setter Property="Padding" Value="{DynamicResource PaddingCard}" />
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
     </Style>
   </UserControl.Styles>
-  <Border x:Name="Card"
-          Classes="card"
-          Classes.waiting="{Binding AwaitsYou}"
-          BorderThickness="1"
-          Padding="{DynamicResource PaddingCard}">
-    <StackPanel Spacing="8">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock x:Name="Title" Classes="strong" Text="{Binding Title}" TextWrapping="Wrap" />
-        <TextBlock x:Name="Verdict"
-                   Grid.Column="1"
-                   Classes="caption"
-                   Classes.attention="{Binding AwaitsYou}"
-                   Text="{Binding Verdict}"
-                   Margin="12,0,0,0" />
-      </Grid>
-      <Border Classes="well">
-        <SelectableTextBlock x:Name="Target" Classes="mono" Text="{Binding Target}" TextWrapping="Wrap" />
-      </Border>
-      <StackPanel x:Name="Answer" Spacing="8" IsVisible="{Binding AwaitsYou}">
-        <TextBox x:Name="Note" Text="{Binding Note}" PlaceholderText="A note for the agent" />
-        <CheckBox x:Name="DontAskAgain" Content="Don't ask again" IsChecked="{Binding DontAskAgain}" />
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button x:Name="Allow" Classes="primary" Content="Allow" Command="{Binding AllowCommand}" />
-          <Button x:Name="Deny" Classes="destructive" Content="Deny" Command="{Binding DenyCommand}" />
+  <StackPanel Spacing="6">
+    <Border x:Name="Card" IsVisible="{Binding AwaitsYou}">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+          <Ellipse Width="6" Height="6" Fill="{DynamicResource AttentionBrush}" VerticalAlignment="Center" />
+          <TextBlock x:Name="Headline" Grid.Column="1" Classes="caption attention" Text="{Binding Headline}" />
+          <TextBlock x:Name="Verdict" Grid.Column="2" Classes="caption" Text="{Binding Verdict}" />
+        </Grid>
+        <TextBlock x:Name="Title" Classes="body" TextWrapping="Wrap" Text="{Binding Title}" />
+        <Border Classes="well">
+          <SelectableTextBlock x:Name="Target" Classes="mono" TextWrapping="Wrap" Text="{Binding Target}" />
+        </Border>
+        <StackPanel x:Name="NoteField" Spacing="6" IsVisible="{Binding #AddNote.IsChecked}">
+          <TextBlock Classes="label" Text="Note for the agent" />
+          <TextBox x:Name="Note"
+                   Text="{Binding Note}"
+                   TextWrapping="Wrap"
+                   PlaceholderText="Say why, or what to do instead"
+                   AutomationProperties.Name="Note for the agent" />
         </StackPanel>
+        <Grid x:Name="Answer" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
+          <CheckBox x:Name="DontAskAgain"
+                    Content="Don't ask again"
+                    IsChecked="{Binding DontAskAgain}"
+                    VerticalAlignment="Center" />
+          <ToggleButton x:Name="AddNote"
+                        Grid.Column="1"
+                        Classes="quiet"
+                        Content="Add a note"
+                        VerticalAlignment="Center" />
+          <Button x:Name="Deny"
+                  Grid.Column="3"
+                  Content="Deny"
+                  Command="{Binding DenyCommand}"
+                  ToolTip.Tip="Deny (Ctrl+Backspace)" />
+          <Button x:Name="Allow"
+                  Grid.Column="4"
+                  Classes="primary"
+                  Content="Allow"
+                  Command="{Binding AllowCommand}"
+                  ToolTip.Tip="Allow (Ctrl+Enter)" />
+        </Grid>
       </StackPanel>
-      <TextBlock x:Name="Error"
-                 Classes="caption failure"
-                 TextWrapping="Wrap"
-                 Text="{Binding Error}"
-                 IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-    </StackPanel>
-  </Border>
+    </Border>
+    <Grid x:Name="Resolved"
+          ColumnDefinitions="14,Auto,*"
+          ColumnSpacing="10"
+          Margin="10,6"
+          Classes.fold-in="{Binding !AwaitsYou}"
+          IsVisible="{Binding !AwaitsYou}">
+      <Path Classes="icon" Data="{StaticResource IconPolicy}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Outcome" Grid.Column="1" Classes="secondary" Text="{Binding Verdict}" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="2"
+                 Classes="mono tertiary"
+                 Margin="4,0,0,0"
+                 FontSize="{DynamicResource FontSizeCode}"
+                 Text="{Binding Target}"
+                 TextTrimming="CharacterEllipsis"
+                 VerticalAlignment="Center" />
+    </Grid>
+    <TextBlock x:Name="Error"
+               Classes="caption failure"
+               Margin="10,0"
+               TextWrapping="Wrap"
+               Text="{Binding Error}"
+               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
 </UserControl>

@@ -405,13 +405,25 @@ public sealed class StaleWorktreeViewScripts(HeadlessUi ui)
 public sealed class ResourceIndicatorViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task TheIndicatorShowsMemoryAndLeftoversInAmberAsync() =>
+    public Task TheIndicatorShowsMemoryCpuAndLeftoversInAmberAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignResourceIndicatorViewModel());
 
-            Assert.Equal(("Memory 1,204.3 MB", "2 left over"), (view.TextOf("Memory"), view.TextOf("Leftovers")));
+            Assert.Equal(("1,204.3 MB", "2 left over"), (view.TextOf("Memory"), view.TextOf("Leftovers")));
+            Assert.Contains("38%", view.VisibleTexts);
             Assert.True(view.HasClass("Leftovers", "attention"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheWholeIndicatorOpensTheResourcesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var indicator = new DesignResourceIndicatorViewModel();
+            var view = Screen.Show(indicator);
+
+            Assert.Same(indicator.OpenCommand, view.Find<Button>("Open").Command);
+            Assert.True(view.Find("Open").Focusable);
         }, TestContext.Current.CancellationToken);
 }
 

@@ -7,28 +7,31 @@
   <Design.DataContext>
     <conversation:DesignConversationViewModel />
   </Design.DataContext>
-  <DockPanel Margin="24,8,24,16">
-    <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,0,0,16">
-      <TextBlock x:Name="Title" Classes="heading" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <TextBlock x:Name="Status" Classes="caption" Text="{Binding Status}" />
-        <TextBlock x:Name="Plan"
-                   Classes="caption"
-                   Text="{Binding Plan, StringFormat='Plan {0}'}"
-                   IsVisible="{Binding Plan, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  <DockPanel>
+    <ContentControl x:Name="Composer"
+                    DockPanel.Dock="Bottom"
+                    Margin="28,0,28,20"
+                    MaxWidth="{DynamicResource ReadingWidth}"
+                    Content="{Binding Composer}" />
+    <Panel>
+      <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl x:Name="Entries"
+                      ItemsSource="{Binding Entries}"
+                      Margin="28,18,28,14"
+                      MaxWidth="{DynamicResource ReadingWidth}" />
+      </ScrollViewer>
+      <StackPanel x:Name="Quiet"
+                  Spacing="8"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  IsVisible="{Binding !Entries.Count}">
+        <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+          <Ellipse Classes="think-dot" Width="4" Height="4" Fill="{DynamicResource TextSecondaryBrush}" />
+          <Ellipse Classes="think-dot second" Width="4" Height="4" Fill="{DynamicResource TextSecondaryBrush}" />
+          <Ellipse Classes="think-dot third" Width="4" Height="4" Fill="{DynamicResource TextSecondaryBrush}" />
+        </StackPanel>
+        <TextBlock Classes="caption" Text="Nothing said yet. The conversation appears here as the agent works." />
       </StackPanel>
-    </StackPanel>
-    <ContentControl x:Name="Composer" DockPanel.Dock="Bottom" Content="{Binding Composer}" />
-    <ScrollViewer x:Name="Scroller">
-      <ItemsControl x:Name="Entries"
-                    ItemsSource="{Binding Entries}"
-                    MaxWidth="{DynamicResource ReadingWidth}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <StackPanel Spacing="12" />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-      </ItemsControl>
-    </ScrollViewer>
+    </Panel>
   </DockPanel>
 </UserControl>

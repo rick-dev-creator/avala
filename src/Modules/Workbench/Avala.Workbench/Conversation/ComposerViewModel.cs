@@ -14,6 +14,8 @@ internal interface IComposerViewModel
 
     string Error { get; }
 
+    string Placeholder { get; }
+
     bool AcceptsMessages { get; }
 
     IAsyncRelayCommand SendCommand { get; }
@@ -42,7 +44,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     public partial string Draft { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AcceptsMessages))]
+    [NotifyPropertyChangedFor(nameof(AcceptsMessages), nameof(Placeholder))]
     [NotifyCanExecuteChangedFor(nameof(SendCommand), nameof(InterruptCommand), nameof(StopCommand))]
     public partial JobStatus Status { get; private set; }
 
@@ -50,6 +52,8 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     public partial string Error { get; private set; }
 
     public bool AcceptsMessages => Status.AcceptsMessages;
+
+    public string Placeholder => ConversationPhrases.Placeholder(Status);
 
     public void Track(JobStatus status) => Status = status;
 

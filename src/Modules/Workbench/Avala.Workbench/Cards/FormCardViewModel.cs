@@ -12,6 +12,8 @@ internal interface IFormCardViewModel
 {
     FormPurpose Purpose { get; }
 
+    string Headline { get; }
+
     string Title { get; }
 
     string Context { get; }
@@ -56,6 +58,8 @@ internal sealed partial class FormCardViewModel : IFormCardViewModel, ITimelineI
     }
 
     public FormPurpose Purpose => form.Form.Purpose;
+
+    public string Headline => CardPhrases.Headline(form.Form.Purpose);
 
     public string Title => form.Form.Title;
 

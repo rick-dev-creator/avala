@@ -7,44 +7,88 @@
   <Design.DataContext>
     <conversation:DesignComposerViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="6" Margin="0,12,0,0">
+  <UserControl.Styles>
+    <Style Selector="Border#Field">
+      <Setter Property="Background" Value="{DynamicResource SurfaceComposerBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowComposer}" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.14" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border#Field:focus-within">
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorStrongBrush}" />
+    </Style>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Button.send Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+      <Setter Property="StrokeThickness" Value="1.8" />
+    </Style>
+    <Style Selector="TextBox#Draft">
+      <Setter Property="FocusAdorner" Value="{x:Null}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="6">
     <TextBlock x:Name="Error"
                Classes="caption failure"
+               Margin="16,0"
                TextWrapping="Wrap"
                Text="{Binding Error}"
                IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-    <Border Classes="quiet" Padding="12,6">
+    <Border x:Name="Field"
+            BorderThickness="1"
+            CornerRadius="{DynamicResource RadiusCard}"
+            Padding="16,8,8,8">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <TextBox x:Name="Draft"
                  Classes="bare"
+                 VerticalAlignment="Center"
                  Text="{Binding Draft}"
                  AcceptsReturn="True"
                  TextWrapping="Wrap"
-                 PlaceholderText="Message the agent when it needs you or awaits review">
+                 MaxHeight="180"
+                 PlaceholderText="{Binding Placeholder}"
+                 AutomationProperties.Name="Message">
           <TextBox.KeyBindings>
             <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SendCommand}" />
           </TextBox.KeyBindings>
         </TextBox>
         <Button x:Name="Interrupt"
                 Grid.Column="1"
-                Classes="ghost"
+                Classes="glyph"
+                Padding="8"
+                Margin="6,0,0,0"
+                VerticalAlignment="Center"
                 Command="{Binding InterruptCommand}"
-                AutomationProperties.Name="Interrupt">
-          <Path Classes="icon" Data="{StaticResource IconInterrupt}" />
+                ToolTip.Tip="Interrupt the turn"
+                AutomationProperties.Name="Interrupt the turn">
+          <Path Classes="icon solid" StrokeThickness="0" Data="{StaticResource IconInterrupt}" />
         </Button>
         <Button x:Name="Stop"
                 Grid.Column="2"
-                Classes="ghost"
+                Classes="glyph"
+                Padding="8"
+                Margin="6,0,0,0"
+                VerticalAlignment="Center"
                 Command="{Binding StopCommand}"
-                AutomationProperties.Name="Stop">
-          <Path Classes="icon" Data="{StaticResource IconStop}" />
+                ToolTip.Tip="Stop the session"
+                AutomationProperties.Name="Stop the session">
+          <Path Classes="icon solid" StrokeThickness="0" Data="{StaticResource IconStop}" />
         </Button>
         <Button x:Name="Send"
                 Grid.Column="3"
-                Classes="primary"
+                Classes="send"
                 Margin="6,0,0,0"
-                Content="Send"
-                Command="{Binding SendCommand}" />
+                VerticalAlignment="Center"
+                Command="{Binding SendCommand}"
+                ToolTip.Tip="Send (Ctrl+Enter)"
+                AutomationProperties.Name="Send">
+          <Path Classes="icon" Data="{StaticResource IconSend}" />
+        </Button>
       </Grid>
     </Border>
   </StackPanel>

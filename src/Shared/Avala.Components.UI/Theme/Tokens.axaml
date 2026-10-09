@@ -54,6 +54,21 @@
       <SolidColorBrush x:Key="FailureBorderBrush" Color="#59EF6461" />
       <SolidColorBrush x:Key="ScrimBrush" Color="#6108080A" />
 
+      <SolidColorBrush x:Key="FillBubbleBrush" Color="#12FFFFFF" />
+      <SolidColorBrush x:Key="FillRowSelectedBrush" Color="#14FFFFFF" />
+      <SolidColorBrush x:Key="SurfaceCanvasBrush" Color="#17181C" />
+      <SolidColorBrush x:Key="SurfaceComposerBrush" Color="#C7282930" />
+      <SolidColorBrush x:Key="BorderCardBrush" Color="#17FFFFFF" />
+      <SolidColorBrush x:Key="BorderBlockBrush" Color="#12FFFFFF" />
+      <SolidColorBrush x:Key="BorderNodeBrush" Color="#24FFFFFF" />
+      <SolidColorBrush x:Key="BorderTagBrush" Color="#38FFFFFF" />
+      <SolidColorBrush x:Key="AccentSelectedBrush" Color="#148DA2FB" />
+      <LinearGradientBrush x:Key="ShimmerMaskBrush" StartPoint="0%,50%" EndPoint="100%,50%">
+        <GradientStop Offset="0" Color="#00FFFFFF" />
+        <GradientStop Offset="0.5" Color="#FFFFFFFF" />
+        <GradientStop Offset="1" Color="#00FFFFFF" />
+      </LinearGradientBrush>
+
       <SolidColorBrush x:Key="SystemControlFocusVisualPrimaryBrush" Color="#8DA2FB" />
       <SolidColorBrush x:Key="SystemControlFocusVisualSecondaryBrush" Color="Transparent" />
       <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#8DA2FB" />

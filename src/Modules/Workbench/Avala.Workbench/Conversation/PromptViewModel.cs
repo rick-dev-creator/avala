@@ -12,6 +12,8 @@ internal interface IPromptViewModel
 
     bool IsFromPerson { get; }
 
+    bool ShowsOrigin { get; }
+
     string Text { get; }
 
     string Outcome { get; }
@@ -25,6 +27,7 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
         Attempt = entry.Attempt;
         Origin = ConversationPhrases.Origin(entry.Origin);
         IsFromPerson = entry.Origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack;
+        ShowsOrigin = entry.Origin != AttemptOrigin.Initial;
         Text = entry.Text.Match(text => text, () => string.Empty);
         Outcome = string.Empty;
         Update(entry);
@@ -35,6 +38,8 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
     public string Origin { get; }
 
     public bool IsFromPerson { get; }
+
+    public bool ShowsOrigin { get; }
 
     public string Text { get; }
 

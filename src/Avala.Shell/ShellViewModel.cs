@@ -23,6 +23,7 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         Inspector = Region.Of(ShellRegions.Inspector, contributed);
         Content = new Region(ShellRegions.Content, [.. pages, .. Region.Of(ShellRegions.Content, contributed).Items.Select(AsPage)]);
         Pages = [.. Content.Items.Cast<IPage>()];
+        NavigationPages = [.. Pages.Where(page => page.Placement == PagePlacement.Navigation)];
         SelectedPage = Pages.Count > 0 ? Pages[0] : null;
 
         foreach (var region in Regions)
@@ -49,10 +50,12 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
 
     public IReadOnlyList<IPage> Pages { get; }
 
+    public IReadOnlyList<IPage> NavigationPages { get; }
+
     [ObservableProperty]
     public partial IPage? SelectedPage { get; set; }
 
-    public bool HasNavigation => Pages.Count > 1;
+    public bool HasNavigation => Pages.Count > 1 && NavigationPages.Count > 0;
 
     public bool HasSidebar => HasNavigation || Toolbar.HasItems || Sidebar.HasItems || SidebarFooter.HasItems;
 

@@ -7,26 +7,54 @@
   <Design.DataContext>
     <navigation:DesignWorkbenchViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="TextBlock#JobTitle">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
+      <Setter Property="LineHeight" Value="20" />
+    </Style>
+  </UserControl.Styles>
   <DockPanel>
-    <StackPanel x:Name="Actions"
-                DockPanel.Dock="Top"
-                Orientation="Horizontal"
-                HorizontalAlignment="Right"
-                Spacing="4"
-                Margin="16,12,16,0">
-      <Button x:Name="OpenReview"
-              Content="Review"
-              Command="{Binding OpenReviewCommand}"
-              HotKey="Ctrl+R" />
-      <Button x:Name="ToggleInspector"
-              Classes="ghost"
-              Classes.selected="{Binding IsInspectorOpen}"
-              Command="{Binding ToggleInspectorCommand}"
-              HotKey="Ctrl+I"
-              AutomationProperties.Name="Inspector">
-        <Path Classes="icon" Data="{StaticResource IconInspector}" />
-      </Button>
-    </StackPanel>
+    <Border x:Name="Header"
+            DockPanel.Dock="Top"
+            Padding="28,12,18,12"
+            BorderBrush="{DynamicResource EdgeBrush}"
+            BorderThickness="0,0,0,1"
+            IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="Place" Classes="caption" Text="{Binding Conversation.Place}" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <ContentControl x:Name="Pill"
+                        Grid.Column="1"
+                        Margin="12,0,0,0"
+                        VerticalAlignment="Center"
+                        Content="{Binding Conversation.Pill}" />
+        <Button x:Name="OpenReview"
+                Grid.Column="2"
+                Classes="primary"
+                Margin="12,0,0,0"
+                Content="Review"
+                Command="{Binding OpenReviewCommand}"
+                IsVisible="{Binding $self.IsEffectivelyEnabled}"
+                ToolTip.Tip="Open the review (Ctrl+R)"
+                HotKey="Ctrl+R" />
+        <Button x:Name="ToggleInspector"
+                Grid.Column="3"
+                Classes="glyph"
+                Classes.selected="{Binding IsInspectorOpen}"
+                Margin="12,0,0,0"
+                Command="{Binding ToggleInspectorCommand}"
+                HotKey="Ctrl+I"
+                ToolTip.Tip="Inspector (Ctrl+I)"
+                AutomationProperties.Name="Toggle inspector">
+          <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconInspector}" />
+        </Button>
+      </Grid>
+    </Border>
     <Panel>
       <ContentControl x:Name="Conversation" Content="{Binding Conversation}" />
       <Border x:Name="NoJob"
@@ -40,7 +68,7 @@
         </StackPanel>
       </Border>
       <Border x:Name="ReviewSheet"
-              Classes="float"
+              Classes="float arrive-snappy"
               Margin="24"
               IsVisible="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}">
         <DockPanel>

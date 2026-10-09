@@ -117,6 +117,20 @@ public sealed class ConversationViewModelScripts
         Assert.Equal([typeof(PromptViewModel), typeof(RestartViewModel)], conversation.Entries.Select(entry => entry.GetType()));
     }
 
+    [Fact]
+    public void TheConversationPlacesItsJobAndItsPillFollowsTheBoard()
+    {
+        var conversation = Open();
+        var running = Board(Job().WithPrompts("Fix JPY rounding in invoice totals", []));
+        conversation.Show(running with { Summary = running.Summary with { Connection = new Agents.Contracts.Connections.ConnectionName("claude-work") } });
+        var first = (conversation.Place, conversation.Pill.Kind, conversation.Pill.Text);
+
+        conversation.Show(running with { Summary = running.Summary with { Status = JobStatus.NeedsHelp }, Hold = HoldReason.Stalled });
+
+        Assert.Equal(("repo · claude-work", Components.Status.StatusKind.Working, "Running"), first);
+        Assert.Equal((Components.Status.StatusKind.Held, "Held · stalled"), (conversation.Pill.Kind, conversation.Pill.Text));
+    }
+
     private static Transcript Job() => Transcript.Empty;
 
     private static BoardJob Board(Transcript transcript, JobStatus status = JobStatus.Running) =>
