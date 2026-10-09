@@ -81,44 +81,43 @@ internal static class PolicyFileParser
         return parsed;
     }
 
-    private static Result<PolicyRule, PolicyError> Rule(JsonElement element, int position)
+    private static Result<PolicyRule, PolicyError> Rule(JsonElement element, int position) =>
+        element.ValueKind != JsonValueKind.Object ? PolicyError.Malformed
+        : element.EnumerateObject().Any(property => !Fields.Contains(property.Name, StringComparer.Ordinal)) ? PolicyError.UnknownField
+        : Declared(element, position);
+
+    private static Result<PolicyRule, PolicyError> Declared(JsonElement element, int position)
     {
-        if (element.ValueKind != JsonValueKind.Object)
-        {
-            return PolicyError.Malformed;
-        }
-
-        if (element.EnumerateObject().Any(property => !Fields.Contains(property.Name, StringComparer.Ordinal)))
-        {
-            return PolicyError.UnknownField;
-        }
-
         if (!Text(element, "name").TryGetValue(out var name, out var error)
-            || !Text(element, "kind").Bind(text => Named<ItemKind>(text, PolicyError.UnknownKind)).TryGetValue(out var kind, out error)
+            || !Kind(element).TryGetValue(out var kind, out error)
             || !Text(element, "target").TryGetValue(out var target, out error)
-            || !Text(element, "within").Bind(text => Named<RuleScope>(text, PolicyError.UnknownScope)).Bind(Declarable).TryGetValue(out var scope, out error)
-            || !Text(element, "answer").Bind(text => text.IsSome
-                ? Named<PolicyAnswer>(text, PolicyError.UnknownAnswer)
-                : PolicyError.MissingAnswer).TryGetValue(out var answer, out error))
+            || !Scope(element).TryGetValue(out var scope, out error)
+            || !Answer(element).TryGetValue(out var answer, out error))
         {
             return error;
         }
 
         var within = scope.Match(value => value, () => RuleScope.Anywhere);
 
-        if (within == RuleScope.Workspace && kind.Match(value => value != ItemKind.FileEdit, () => false))
-        {
-            return PolicyError.ScopeNeedsFileEdits;
-        }
-
-        return new PolicyRule(
-            RuleOrigin.Repository,
-            name.Match(value => value, () => $"rule {position}"),
-            kind,
-            target,
-            within,
-            answer.Match(value => value, () => PolicyAnswer.Ask));
+        return within == RuleScope.Workspace && kind.Match(value => value != ItemKind.FileEdit, () => false)
+            ? PolicyError.ScopeNeedsFileEdits
+            : new PolicyRule(
+                RuleOrigin.Repository,
+                name.Match(value => value, () => $"rule {position}"),
+                kind,
+                target,
+                within,
+                answer.Match(value => value, () => PolicyAnswer.Ask));
     }
+
+    private static Result<Option<ItemKind>, PolicyError> Kind(JsonElement element) =>
+        Text(element, "kind").Bind(text => Named<ItemKind>(text, PolicyError.UnknownKind));
+
+    private static Result<Option<RuleScope>, PolicyError> Scope(JsonElement element) =>
+        Text(element, "within").Bind(text => Named<RuleScope>(text, PolicyError.UnknownScope)).Bind(Declarable);
+
+    private static Result<Option<PolicyAnswer>, PolicyError> Answer(JsonElement element) =>
+        Text(element, "answer").Bind(text => text.IsSome ? Named<PolicyAnswer>(text, PolicyError.UnknownAnswer) : PolicyError.MissingAnswer);
 
     private static Result<Option<RuleScope>, PolicyError> Declarable(Option<RuleScope> scope) =>
         scope == Option<RuleScope>.Some(RuleScope.OutsideWorkspace) ? PolicyError.UnknownScope : scope;

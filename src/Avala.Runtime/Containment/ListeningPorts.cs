@@ -119,23 +119,6 @@ internal static class TcpTables
 
 internal sealed class MacListeningPorts : IListeningPorts
 {
-    public async ValueTask<IReadOnlyList<Listener>> ListAsync(IReadOnlySet<int> owners, CancellationToken cancellationToken)
-    {
-        var listeners = new List<Listener>();
-        var owner = 0;
-
-        foreach (var line in (await Commands.OutputAsync("lsof", ["-nP", "-iTCP", "-sTCP:LISTEN", "-Fpn"], cancellationToken)).Match(output => output, () => string.Empty).Split('\n'))
-        {
-            if (line.StartsWith('p'))
-            {
-                owner = int.Parse(line[1..], CultureInfo.InvariantCulture);
-            }
-            else if (line.StartsWith('n'))
-            {
-                listeners.Add(new Listener(int.Parse(line[(line.LastIndexOf(':') + 1)..], CultureInfo.InvariantCulture), owner));
-            }
-        }
-
-        return [.. listeners.Distinct()];
-    }
+    public async ValueTask<IReadOnlyList<Listener>> ListAsync(IReadOnlySet<int> owners, CancellationToken cancellationToken) =>
+        MacListings.Listeners(await Commands.OutputAsync("lsof", MacListings.ListenerArguments, cancellationToken));
 }
