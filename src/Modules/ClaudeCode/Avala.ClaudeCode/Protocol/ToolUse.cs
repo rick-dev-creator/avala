@@ -32,6 +32,11 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
     public bool Gated => Name is not ("Read" or "Grep" or "Glob" or "LS" or "NotebookRead" or "TodoWrite" or "ToolSearch" or "Skill"
         or "AskUserQuestion" or "ExitPlanMode" or "EnterPlanMode" or "Task" or "Agent" or "BashOutput" or "TaskOutput");
 
+    public bool ReadsOutside(string workingDirectory) =>
+        Name is "Read" or "NotebookRead" or "Grep" or "Glob" or "LS"
+        && Path.GetRelativePath(workingDirectory, Resolved(Input.TextOr("file_path", Input.TextOr("notebook_path", Input.TextOr("path", string.Empty))), workingDirectory)) is var relative
+        && (relative == ".." || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) || Path.IsPathRooted(relative));
+
     public string Title(string workingDirectory) => Shorten(Kind switch
     {
         ItemKind.FileEdit => $"{(Name == "Write" ? "Write" : "Edit")} {Relative(Target(workingDirectory), workingDirectory)}",

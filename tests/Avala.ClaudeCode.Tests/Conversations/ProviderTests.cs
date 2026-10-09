@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
@@ -30,8 +31,32 @@ public sealed class ProviderTests
         Assert.Contains("--include-partial-messages", arguments);
         Assert.Equal("mcp__avala__permission_prompt", After(arguments, "--permission-prompt-tool"));
         Assert.Equal("""{"mcpServers":{"avala":{"type":"sdk","name":"avala"}}}""", After(arguments, "--mcp-config"));
-        Assert.Equal(string.Empty, After(arguments, "--setting-sources"));
-        Assert.Equal("initialize", (string?)System.Text.Json.Nodes.JsonNode.Parse(await cli.Written.Reader.ReadAsync(Cancellation))!["request"]!["subtype"]);
+        Assert.Equal("default", After(arguments, "--permission-mode"));
+        Assert.Equal("initialize", (string?)JsonNode.Parse(await cli.Written.Reader.ReadAsync(Cancellation))!["request"]!["subtype"]);
+    }
+
+    [Theory]
+    [InlineData(null, null, "user,project,local", true)]
+    [InlineData("true", "false", "user,project,local", true)]
+    [InlineData("true", "true", "user,project,local", false)]
+    [InlineData("false", null, "", false)]
+    [InlineData("false", "true", "", false)]
+    public async Task TheConnectionDecidesWhetherTheUsersConfigurationAndHooksLoadAsync(string? configuration, string? hooks, string sources, bool hooksOff)
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        var settings = new Dictionary<string, string?> { ["userConfiguration"] = configuration, ["userHooks"] = hooks }
+            .Where(setting => setting.Value is not null)
+            .ToDictionary(setting => setting.Key, setting => setting.Value!);
+        var connection = new ConnectionEnvironment { Settings = settings };
+
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Connection = connection }, Cancellation));
+        var arguments = cli.Launches.Single().Arguments;
+
+        Assert.Equal(sources, After(arguments, "--setting-sources"));
+        Assert.Equal(sources.Length == 0, arguments.Contains("--strict-mcp-config"));
+        Assert.Equal(hooksOff, Settings(arguments)?["disableAllHooks"]?.GetValue<bool>() ?? false);
+        Assert.Equal("""{"mcpServers":{"avala":{"type":"sdk","name":"avala"}}}""", After(arguments, "--mcp-config"));
     }
 
     [Fact]
@@ -53,6 +78,9 @@ public sealed class ProviderTests
         Assert.Contains("ANTHROPIC_API_KEY", launch.Cleared);
         Assert.Contains("CLAUDECODE", launch.Cleared);
         Assert.Equal("haiku", After(launch.Arguments, "--model"));
+        Assert.Equal(
+            [$"{Path.Combine(Path.GetTempPath(), "avala-no-home", ".claude").Replace('\\', '/')}/**"],
+            Settings(launch.Arguments)!["claudeMdExcludes"]!.AsArray().Select(exclude => (string?)exclude));
     }
 
     [Fact]
@@ -66,6 +94,7 @@ public sealed class ProviderTests
 
         Assert.False(cli.Launches.Single().Variables.ContainsKey("CLAUDE_CONFIG_DIR"));
         Assert.Contains("CLAUDE_CONFIG_DIR", cli.Launches.Single().Cleared);
+        Assert.Null(Settings(cli.Launches.Single().Arguments)!["claudeMdExcludes"]);
     }
 
     [Fact]
@@ -79,6 +108,8 @@ public sealed class ProviderTests
 
         Assert.Equal("sk-test", cli.Launches.Single().Variables["ANTHROPIC_API_KEY"]);
         Assert.False(cli.Launches.Single().Variables.ContainsKey("CLAUDE_CONFIG_DIR"));
+        Assert.Equal(string.Empty, After(cli.Launches.Single().Arguments, "--setting-sources"));
+        Assert.Contains("--strict-mcp-config", cli.Launches.Single().Arguments);
         Assert.StartsWith("api-key:", session.Account.Match(account => account.Id, () => string.Empty), StringComparison.Ordinal);
     }
 
@@ -164,6 +195,9 @@ public sealed class ProviderTests
 
     private static string? After(IReadOnlyList<string> arguments, string flag) =>
         arguments.SkipWhile(argument => argument != flag).Skip(1).FirstOrDefault();
+
+    private static JsonNode? Settings(IReadOnlyList<string> arguments) =>
+        After(arguments, "--settings") is { } settings ? JsonNode.Parse(settings) : null;
 
     private static async Task<TemporaryFolder> HomeAsync()
     {

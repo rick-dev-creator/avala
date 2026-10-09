@@ -156,12 +156,15 @@ internal static class ConnectionFileParser
         }
 
         if (settings.ValueKind != JsonValueKind.Object
-            || settings.EnumerateObject().Any(setting => setting.Value.ValueKind != JsonValueKind.String || setting.Name.Length == 0))
+            || settings.EnumerateObject().Any(setting => setting.Value.ValueKind is not (JsonValueKind.String or JsonValueKind.True or JsonValueKind.False) || setting.Name.Length == 0))
         {
             return ConnectionError.Malformed;
         }
 
-        return settings.EnumerateObject().ToImmutableDictionary(setting => setting.Name, setting => setting.Value.GetString() ?? string.Empty, StringComparer.Ordinal);
+        return settings.EnumerateObject().ToImmutableDictionary(
+            setting => setting.Name,
+            setting => setting.Value.ValueKind == JsonValueKind.String ? setting.Value.GetString() ?? string.Empty : setting.Value.GetBoolean() ? "true" : "false",
+            StringComparer.Ordinal);
     }
 
     private static Result<Option<string>, ConnectionError> Text(JsonElement element, string field) =>

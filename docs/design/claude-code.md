@@ -8,11 +8,13 @@
 
 | Source | What it settles |
 | --- | --- |
-| [CLI reference](https://code.claude.com/docs/en/cli-reference) | `-p`, `--input-format`/`--output-format stream-json`, `--verbose`, `--include-partial-messages`, `--permission-prompt-tool`, `--permission-mode`, `--mcp-config`, `--strict-mcp-config`, `--setting-sources`, `--resume`, `--model`, `--effort` |
+| [CLI reference](https://code.claude.com/docs/en/cli-reference) | `-p`, `--input-format`/`--output-format stream-json`, `--verbose`, `--include-partial-messages`, `--permission-prompt-tool`, `--permission-mode`, `--mcp-config`, `--strict-mcp-config`, `--setting-sources`, `--settings`, `--resume`, `--model`, `--effort`; `--permission-mode` overrides `defaultMode` of the settings files |
 | [Headless mode](https://code.claude.com/docs/en/headless) | Streaming JSON in and out; one process for several turns; a `result` message ends each turn |
 | [Agent SDK, TypeScript reference](https://code.claude.com/docs/en/agent-sdk/typescript) | The message types: `system` `init`, `assistant`, `user`, `stream_event`, `result` with `usage`, `total_cost_usd` and `modelUsage`, `rate_limit_event`; `PermissionResult`; `AskUserQuestion` input and answers |
 | [Handling user input](https://code.claude.com/docs/en/agent-sdk/user-input) and [SDK permissions](https://code.claude.com/docs/en/agent-sdk/permissions) | `AskUserQuestion` and `ExitPlanMode` reach the host as permission requests; answers go back in `updatedInput.answers`; the order in which hooks, rules, modes and the prompt are consulted |
-| [Hooks](https://code.claude.com/docs/en/hooks) | A `PreToolUse` hook's `permissionDecision` of `ask` sends a call to the permission prompt even when a rule or Claude's own read-only classification would allow it |
+| [Hooks](https://code.claude.com/docs/en/hooks) | A `PreToolUse` hook's `permissionDecision` of `ask` sends a call to the permission prompt even when a rule or Claude's own read-only classification would allow it; when hooks disagree, `deny` > `defer` > `ask` > `allow`; `--settings '{"disableAllHooks": true}'` turns off the hooks of settings files and plugins for one run |
+| [Settings](https://code.claude.com/docs/en/settings) | The layers, managed > `--settings` > local > project > user; lists such as `permissions.allow` merge across layers instead of overriding; `CLAUDE_CONFIG_DIR` moves the user layer, skills, plugins and `.claude.json` with its MCP servers |
+| [Memory](https://code.claude.com/docs/en/memory) and the [settings reference](https://code.claude.com/docs/en/settings-reference) | `CLAUDE.md` files are read from the working directory and each of its ancestors, `.claude/CLAUDE.md` included; `claudeMdExcludes` skips files by glob |
 | [MCP](https://code.claude.com/docs/en/mcp) | `mcp__<server>__<tool>` names; server types, `sdk` among them, registered by the host only |
 | [Environment variables](https://code.claude.com/docs/en/env-vars) and [authentication](https://code.claude.com/docs/en/authentication) | `CLAUDE_CONFIG_DIR`; `ANTHROPIC_API_KEY` wins over a subscription login in `-p`; `CLAUDE_CODE_ENABLE_TASKS`; `DISABLE_AUTOUPDATER` |
 | [Sessions](https://code.claude.com/docs/en/agent-sdk/sessions) | Session ids, `--resume`, transcripts under `<config>/projects/<encoded cwd>/<id>.jsonl` |
@@ -26,15 +28,64 @@ The adapter starts one `claude` process per session through `SessionOptions.Proc
 ```
 claude -p --input-format stream-json --output-format stream-json --verbose --include-partial-messages
        --permission-mode default --permission-prompt-tool mcp__avala__permission_prompt
-       --mcp-config {"mcpServers":{"avala":{"type":"sdk","name":"avala"}}} --strict-mcp-config
-       --setting-sources "" [--model <model>] [--effort <effort>] [--resume <session id>]
+       --mcp-config {"mcpServers":{"avala":{"type":"sdk","name":"avala"}}}
+       --setting-sources user,project,local
+       --settings {"disableAllHooks":true,"claudeMdExcludes":["<home>/.claude/**"]}
+       [--model <model>] [--effort <effort>] [--resume <session id>]
 ```
 
 - **One process, many turns** (headless docs, observed). Each user turn is a line `{"type":"user","message":{"role":"user","content":"…"}}` on stdin; the turn ends with a `result` line. The process stays alive between turns.
-- **Settings are not read** (`--setting-sources ""`): no user, project or local `settings.json`, so no allow rule and no hook of the user or of the repository can let an action past Avala's policy. `--strict-mcp-config` likewise loads no MCP server but Avala's. The repository's `CLAUDE.md` still applies. The connection's `model` and `effort` settings are passed as flags.
+- **The user's configuration** is loaded, see [below](#the-users-configuration): `--setting-sources user,project,local` and no `--strict-mcp-config`, with Avala's MCP server next to the user's. `--settings` carries what Avala imposes over every settings file: hooks off unless the connection turns them on, and no other login's `CLAUDE.md`; the flag is left out when it has nothing to say. The connection's `model` and `effort` settings are passed as flags.
 - **The connection is the account.** The adapter removes every inherited credential and session variable (`CLAUDE_CONFIG_DIR`, `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, and the variables a parent Claude Code session sets, such as `CLAUDECODE` and `CLAUDE_CODE_MESSAGING_TOKEN`) and sets only what the connection resolved to: its configuration folder as `CLAUDE_CONFIG_DIR`, its key as `ANTHROPIC_API_KEY`. The default folder `~/.claude` is left unset instead, because the CLI keeps that login's global configuration in `~/.claude.json` and, on macOS, its keychain entry under the default name. It also sets `CLAUDE_CODE_ENABLE_TASKS=0`, so the agent keeps its plan with `TodoWrite`, whose input is the whole plan, and `DISABLE_AUTOUPDATER=1`.
 - **Interrupt** is a control request, `{"type":"control_request","request_id":"…","request":{"subtype":"interrupt"}}`; the CLI acknowledges it and ends the turn with a `result` of subtype `error_during_execution` (observed). **Stop** closes stdin and kills the process tree. A process that ends on its own fails the event stream, which Agents reports as `SessionEnded` with `Crashed`.
 - **Transcripts.** A connection setting `transcripts` names a folder where the adapter writes every line it exchanges with the CLI, one JSON Lines file per process, for debugging and for the replay fixtures below.
+
+## The user's configuration
+
+A session runs with what the user configured for that login: their `CLAUDE.md` and auto memory, skills, plugins and their own MCP servers, which give the agent context and capabilities. What decides whether an action runs stays Avala's policy alone, and the user's hooks stay off unless the connection asks for them.
+
+### Why, against T3 Code
+
+T3 Code loads all of the user's Claude Code configuration, with no switch. Its users report four failures that this design avoids:
+
+| T3 Code issue | What happens there | Avala |
+| --- | --- | --- |
+| #15353 | The user's `permissions.ask` rules run unprompted in its auto mode | Every acting tool and every read outside the worktree reaches Avala's policy through its `PreToolUse` hook; an `ask` rule only reaches the same prompt |
+| #17531 | A user hook waiting on a terminal hangs the session | The user's hooks are off unless the connection sets `userHooks` |
+| #8818 | Configuration leaks across accounts | Each connection reads only its own configuration folder; another login's `CLAUDE.md` met in the working directory's ancestors is excluded |
+| #3089 | The processes of MCP plugins are never killed | They run inside the session's process tree and end with it |
+
+### Connection settings
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `userConfiguration` | `true` | `false` restores the isolated launch: `--setting-sources ""` and `--strict-mcp-config`, so no settings file, no `CLAUDE.md`, not even the repository's (observed), no skill of the user and no MCP server but Avala's |
+| `userHooks` | `false` | `true` leaves the hooks of the user's, the repository's and the plugins' settings on; Avala's own hook is on either way |
+
+They are read as `true` or `false`, written as JSON booleans or as the strings `"true"` and `"false"`; any other value keeps the default. A connection holding only an API key has no configuration folder of its own, so it runs isolated whatever it says, rather than reading the default login's configuration.
+
+```json
+{ "name": "work", "provider": "claude-code", "credential": { "source": "login", "reference": "/home/ana/.claude-work" }, "settings": { "userHooks": true } }
+```
+
+### Avala stays the only authority over permissions
+
+The CLI settles a tool call in this order (SDK permissions docs): hooks, then `deny` rules, then `ask` rules, then the permission mode, then `allow` rules and Claude's own read-only classification, and only then the permission prompt tool. Settings cannot remove a rule another layer added, since lists merge, so Avala does not try to strip the user's rules; it puts its decision before them:
+
+- **The hook comes first.** Avala's `PreToolUse` hook answers `ask` for every acting tool and for every `Read`, `Grep`, `Glob` or `LS` whose path lies outside the working directory, so a user `allow` rule, a read-only classification or `additionalDirectories` never settles one of them: the call goes to `permission_prompt`, which is Avala's policy. Avala's hook is an SDK callback registered in `initialize`, which `disableAllHooks` does not turn off (observed).
+- **The mode is Avala's.** `--permission-mode default` overrides `permissions.defaultMode` of every settings file (CLI reference; observed: `bypassPermissions` in the repository's settings, the session in `default`).
+- **What the user's configuration can still do** is refuse: a `deny` rule blocks a call before Avala is asked, and an `ask` rule only sends it to the same prompt. With `userHooks` on, a user hook can deny or defer a call, since `deny` and `defer` outrank `ask`, but its `allow` never outranks Avala's `ask`; a user `PermissionRequest` hook could answer a prompt itself, which is why hooks stay off unless the connection's owner turns them on.
+- **Proven for real.** `RealClaudeCodeTests.TheRepositorysAllowRuleAndHooksNeverAnswerForAvalaAsync` gives a temporary repository a `.claude/settings.json` with `allow: ["Bash(ls:*)"]`, `defaultMode: "bypassPermissions"` and a `PreToolUse` command hook that leaves a marker, then asks for `ls` twice on the real login: with the defaults, Avala is asked and the hook does not run; with `userHooks` on, the hook runs and Avala is still asked. A project file stands in for the user's: authenticating a throwaway `CLAUDE_CONFIG_DIR` would mean copying a login's credentials. Both layers are merged the same way.
+
+### One connection, one folder
+
+- **Its own folder.** `CLAUDE_CONFIG_DIR`, or nothing for the default `~/.claude`, decides the user layer: `settings.json`, `CLAUDE.md`, `skills`, `agents`, `plugins`, and `.claude.json` with the user's MCP servers (the default folder keeps it as `~/.claude.json`). The project layer is read from the working directory, the worktree, and is the repository's, the same for every connection.
+- **The ancestors' memory.** The CLI reads `CLAUDE.md` and `.claude/CLAUDE.md` in every ancestor of the working directory, and a worktree under the home folder has the home folder as an ancestor: a session on `~/.claude-work` read `~/.claude/CLAUDE.md`, the default login's own memory, as project memory (observed with `get_context_usage`). For every connection whose folder is not the default one, `--settings` therefore carries `claudeMdExcludes: ["<home>/.claude/**"]`. Skills and settings files are not read from ancestors (observed).
+- **Proven.** `UserConfigurationTests` starts the real CLI, gated by `AVALA_REAL_CLAUDE=1` but free: it never sends a turn, only `get_context_usage` and `mcp_status` control requests, which need no login. A temporary home holds a default login and a `.claude-work` one, each with its `CLAUDE.md`, a skill and an MCP server, and a repository under it: each connection loads its own memory, skill and server and the repository's `CLAUDE.md`, nothing of the other, and the isolated launch loads none.
+
+### The user's MCP servers
+
+The CLI starts the user's `stdio` servers as its own children, with its environment, so they belong to the session's [process tree](core.md#process-trees) and are reaped with it. `RealClaudeCodeTests.TheUsersMcpServersRunInTheSessionsProcessTreeAndEndWithItAsync`, also free since its login is a temporary folder that cannot authenticate, registers a server that writes its process id and sleeps, starts a session in a real tree, finds the server among the tree's members, then stops the session and closes the tree with no survivor and the server gone. A pending server can delay the first turn: with `-p`, the CLI waits for servers still connecting, up to `MCP_TIMEOUT`, 30 seconds by default (CLI reference).
 
 ## Protocol mapping
 
@@ -71,7 +122,7 @@ The adapter is itself the MCP server it gives Claude Code, of type `sdk`: the CL
 ### Permissions
 
 - **The prompt tool.** `--permission-prompt-tool mcp__avala__permission_prompt` makes the CLI call `permission_prompt` with `{ tool_name, input, tool_use_id }` for every call its rules do not settle, and expects a text result holding `{"behavior":"allow","updatedInput":{…}}` or `{"behavior":"deny","message":"…"}` (observed).
-- **Every action reaches the policy.** The CLI allows read-only commands such as `ls` or `sleep` on its own (observed: `sleep 20 && echo done` ran unasked). So the adapter registers a `PreToolUse` hook for every tool in the `initialize` control request; the CLI calls it as a `hook_callback`, and the adapter answers `permissionDecision: "ask"` for every tool that acts, which sends it to the prompt (observed: `ls` then asked). Reading tools, `Read`, `Grep`, `Glob`, the plan and question tools, `ToolSearch`, `Skill` and the subagent tool, are left to Claude Code, which asks only outside the working directory.
+- **Every action reaches the policy.** The CLI allows read-only commands such as `ls` or `sleep` on its own (observed: `sleep 20 && echo done` ran unasked). So the adapter registers a `PreToolUse` hook for every tool in the `initialize` control request; the CLI calls it as a `hook_callback`, and the adapter answers `permissionDecision: "ask"` for every tool that acts, which sends it to the prompt (observed: `ls` then asked). Reading tools, `Read`, `Grep`, `Glob`, the plan and question tools, `ToolSearch`, `Skill` and the subagent tool, are left to Claude Code inside the working directory; a read whose path lies outside it is answered `ask` too, so no `allow` rule of the user's settings settles it.
 - **The prompt becomes `PermissionRequested`** with the item of its `tool_use_id`, its kind, title and target, in `AskEveryTime`; `AllowEdits` answers edits itself and `AllowAll` everything. The answer of `RespondAsync` goes back as `allow` with the input unchanged, or `deny` with the decision's message, and the adapter reports `PermissionResolved`. Prompts arrive one after the other or at once; the adapter asks one at a time, as the contract requires.
 - Avala's own tools are allowed at once, and `permission_prompt` itself is always denied if the model calls it.
 
@@ -98,8 +149,8 @@ The token is `<session id>/<total cost so far>`. The session id resumes the conv
 ## Recording and replay
 
 - **Agnostic recordings.** The real jobs of `RealClaudeCodeTests` were recorded by the Recording plugin and committed as `tests/recordings/claude-code-*.json` with their expectations; the host tests replay them in the application, and the conformance kit checks them through the simulator, answering each permission as recorded.
-- **Protocol transcripts.** The same sessions' transcripts, redacted, are in `tests/transcripts/claude-code`. `Avala.ClaudeCode.Replay`, a small program in the tests, plays one as a fake `claude`: it writes the recorded output, reads the adapter's input and checks that each line matches the recorded one by type, request and decision. The conformance kit runs the real adapter against it, the plugin given the replayer as its executable: canvas, processes, forms, denial, harness tool, resume and two logins.
-- **Real runs.** `RealClaudeCodeTests` in the host tests run real Claude Code only with `AVALA_REAL_CLAUDE=1`, in temporary repositories, with `haiku`, on the login of `AVALA_REAL_CLAUDE_LOGIN` (default `~/.claude-work`) and, for the second account, `AVALA_REAL_CLAUDE_SECOND_LOGIN` (default `~/.claude`). They write recordings, expectations, redacted transcripts and the cost to `AVALA_REAL_CLAUDE_OUT`, to be read before anything is committed.
+- **Protocol transcripts.** The same sessions' transcripts, redacted, are in `tests/transcripts/claude-code`. They were recorded with the isolated launch, `--setting-sources ""` and `--strict-mcp-config`, which their first line keeps; the replay does not compare launch arguments, and loading the user's configuration changes nothing on the wire Avala reads, so they were not re-recorded. `Avala.ClaudeCode.Replay`, a small program in the tests, plays one as a fake `claude`: it writes the recorded output, reads the adapter's input and checks that each line matches the recorded one by type, request and decision. The conformance kit runs the real adapter against it, the plugin given the replayer as its executable: canvas, processes, forms, denial, harness tool, resume and two logins.
+- **Real runs.** `RealClaudeCodeTests` in the host tests and `UserConfigurationTests` in the plugin's tests run real Claude Code only with `AVALA_REAL_CLAUDE=1`, in temporary repositories, with `haiku`, on the login of `AVALA_REAL_CLAUDE_LOGIN` (default `~/.claude-work`) and, for the second account, `AVALA_REAL_CLAUDE_SECOND_LOGIN` (default `~/.claude`). They write recordings, expectations, redacted transcripts and the cost to `AVALA_REAL_CLAUDE_OUT`, to be read before anything is committed.
 
 ## Differences from the simulator
 

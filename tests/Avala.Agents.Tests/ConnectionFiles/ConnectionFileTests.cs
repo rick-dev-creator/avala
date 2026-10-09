@@ -76,6 +76,17 @@ public sealed class ConnectionFileTests
         Assert.Equal(expected, Outcomes.FailsWith(ConnectionFileParser.Parse(text)));
 
     [Fact]
+    public void ASwitchSettingMayBeWrittenAsABooleanAndReachesTheProviderAsText()
+    {
+        var declared = Outcomes.Succeeds(ConnectionFileParser.Parse(
+            """{ "connections": [ { "name": "a", "provider": "x", "settings": { "userHooks": true, "userConfiguration": false } } ] }"""));
+
+        Assert.Equal(
+            ["userConfiguration=false", "userHooks=true"],
+            declared.Connections.Single().Settings.Select(setting => $"{setting.Key}={setting.Value}").Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
     public async Task WithoutAConnectionsFileNothingIsDeclaredAsync()
     {
         using var data = new TemporaryFolder();
