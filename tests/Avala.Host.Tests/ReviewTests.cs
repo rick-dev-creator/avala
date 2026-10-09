@@ -58,7 +58,7 @@ public sealed class ReviewTests(PublishedPlugins plugins)
         Assert.Equal(commit, await run.Repository.GitAsync(Cancellation, "rev-parse", "main"));
         Assert.Equal(before, await run.Repository.GitAsync(Cancellation, "rev-parse", $"{commit}^"));
         Assert.Equal(SimulatedRun.Simulate("fix-after-feedback"), await run.Repository.GitAsync(Cancellation, "log", "-1", "--format=%s", commit));
-        Assert.Equal(Fixed, await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "calculator.txt"), Cancellation));
+        Assert.Equal(Fixed, (await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "calculator.txt"), Cancellation)).ReplaceLineEndings("\n"));
         Assert.Empty(await run.Repository.GitAsync(Cancellation, "status", "--porcelain"));
         Assert.Equal(JobStatus.Approved, await StatusAsync(run));
     }

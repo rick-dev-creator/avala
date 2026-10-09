@@ -12,12 +12,19 @@ public static class RuntimeHost
         {
             var loop = services.GetRequiredService<EventBus>().RunAsync(cancellationToken);
 
-            foreach (var task in services.GetServices<IStartupTask>())
+            try
             {
-                await task.RunAsync(cancellationToken);
+                foreach (var task in services.GetServices<IStartupTask>())
+                {
+                    await task.RunAsync(cancellationToken);
+                }
+
+                await services.GetRequiredService<EventBus>().PublishAsync(new StartupCompleted(), cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
             }
 
-            await services.GetRequiredService<EventBus>().PublishAsync(new StartupCompleted(), cancellationToken);
             await loop;
         }
     }
