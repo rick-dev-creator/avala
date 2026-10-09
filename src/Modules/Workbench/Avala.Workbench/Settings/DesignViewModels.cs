@@ -127,6 +127,8 @@ internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySet
 
     public string Error => string.Empty;
 
+    public string Notice { get; init; } = string.Empty;
+
     public IRuleFileViewModel? PermissionsFile => Files[0];
 
     public IRuleFileViewModel? BudgetFile => Files[1];
@@ -172,6 +174,8 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
     public string Resources => "Applied: samples every 5s, orphans Kill, ports 41000-41999 by 10";
 
     public string Error => string.Empty;
+
+    public string Notice { get; init; } = string.Empty;
 
     public IAsyncRelayCommand SaveSilenceCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 

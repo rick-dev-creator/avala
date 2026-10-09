@@ -4,11 +4,22 @@ using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
 
-internal sealed class SimulatedProvider(Stagecraft craft) : IAgentProvider
+internal sealed class SimulatedProvider(Stagecraft craft, ProviderInfo info) : IAgentProvider
 {
     public const string Id = "simulator";
 
-    public ProviderInfo Info { get; } = new(Id, "Simulated Claude Code");
+    public const string SecondId = "simulator-second";
+
+    public SimulatedProvider(Stagecraft craft)
+        : this(craft, First(developer: true))
+    {
+    }
+
+    public static ProviderInfo Second { get; } = new(SecondId, "Second simulated harness") { OffersImplicitConnection = false };
+
+    public ProviderInfo Info { get; } = info;
+
+    public static ProviderInfo First(bool developer) => new(Id, "Simulated Claude Code") { OffersImplicitConnection = developer };
 
     public AgentCapabilities Capabilities { get; } = new(
         StreamsPartialOutput: true,
