@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Catalog;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Holding;
 using Avala.Jobs.Jobs;
@@ -12,6 +13,7 @@ using Avala.Jobs.TurnChecks;
 using Avala.Sdk;
 using Avala.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
 namespace Avala.Jobs.Tests.Coordination;
@@ -25,13 +27,18 @@ internal sealed class JobFlow
         var ledger = new JobLedger(Store, Bus, agents);
         var launcher = new JobLauncher(ledger, workspaces, agents, Defaults);
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
-        Submit = new SubmitJob(ledger, Bus, Connections);
+        Submit = new SubmitJob(ledger, Bus, Connections, Clock);
         Hold = new HoldJob(ledger, agents, Bus);
         Jobs = new JobsEntry(Submit, Hold, launcher, Queues);
         Prepare = new PrepareJob(Queues, launcher, Admissions);
         Check = new CheckTurn(ledger, Queues, new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents), Hold);
         Recovery = new JobRecovery(ledger, Queues, launcher);
+        Catalog = new JobCatalog(Store);
     }
+
+    public IJobCatalog Catalog { get; }
+
+    public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 8, 0, 0, TimeSpan.Zero)) { AutoAdvanceAmount = TimeSpan.FromSeconds(1) };
 
     public List<IJobAdmission> Admissions { get; } = [];
 

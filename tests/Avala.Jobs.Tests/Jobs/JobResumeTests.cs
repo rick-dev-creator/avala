@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Testing;
+using AttemptOrigin = Avala.Jobs.Contracts.AttemptOrigin;
 
 namespace Avala.Jobs.Tests.Jobs;
 
