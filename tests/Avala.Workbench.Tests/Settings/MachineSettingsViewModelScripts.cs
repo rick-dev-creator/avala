@@ -1,0 +1,73 @@
+using Avala.Sdk;
+using Avala.Testing;
+using Avala.Workbench.Machine;
+using Avala.Workbench.Settings;
+
+namespace Avala.Workbench.Tests.Settings;
+
+public sealed class MachineSettingsViewModelScripts
+{
+    private readonly FakeOpener opener = new();
+    private readonly FakeSupervision supervision = new();
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task TheMachineSettingsListTheConnectionsAndOpenTheirFileAsync()
+    {
+        var machine = Machine();
+        await machine.LoadAsync(Cancellation);
+
+        await machine.OpenConnectionsCommand.ExecuteAsync(null);
+
+        Assert.Equal([("work", true, "login"), ("personal", false, "login")], machine.Connections.Select(connection => (connection.Name, connection.IsDefault, connection.Source)));
+        Assert.Equal([Path.Combine("/data", "connections.json")], opener.Opened);
+        Assert.Equal(("Applied", "900s", "Absent", "900"), (machine.ConnectionsFile, machine.Silence, machine.SupervisionFile, machine.SilenceDraft));
+    }
+
+    [Fact]
+    public async Task AConnectionsFileThePlatformCannotOpenSaysWhy()
+    {
+        var machine = Machine();
+        opener.Refusal = FileOpenError.Unavailable;
+
+        await machine.OpenConnectionsCommand.ExecuteAsync(null);
+
+        Assert.Equal("No application is available to open the file.", machine.Error);
+    }
+
+    [Fact]
+    public async Task AValidSilenceWindowIsSavedAndShownAsync()
+    {
+        var machine = Machine();
+        machine.SilenceDraft = " 90 ";
+
+        await machine.SaveSilenceCommand.ExecuteAsync(null);
+
+        Assert.Equal([TimeSpan.FromSeconds(90)], supervision.Changes);
+        Assert.Equal(("90s", "Applied", string.Empty), (machine.Silence, machine.SupervisionFile, machine.Error));
+    }
+
+    [Theory]
+    [InlineData("soon", "Enter the window in seconds.", 0)]
+    [InlineData("NaN", "Enter the window in seconds.", 0)]
+    [InlineData("0", "The window must be more than 0 and at most 86,400 seconds.", 1)]
+    public async Task AnInvalidSilenceWindowIsRefusedWithItsReasonAsync(string draft, string error, int changes)
+    {
+        var machine = Machine();
+        machine.SilenceDraft = draft;
+
+        await machine.SaveSilenceCommand.ExecuteAsync(null);
+
+        Assert.Equal((error, changes), (machine.Error, supervision.Changes.Count));
+    }
+
+    [Fact]
+    public void AnEmptyDraftCannotBeSaved() =>
+        ViewModelScript.Given(Machine())
+            .When(machine => machine.SilenceDraft = " ")
+            .Then(machine => Assert.False(machine.SaveSilenceCommand.CanExecute(null)));
+
+    private MachineSettingsViewModel Machine() =>
+        new(new MachineSettings(new FakeConnections("work", "personal"), supervision, new FakeResources()), new SettingsFiles(opener, new AvalaPaths("/data")));
+}
