@@ -14,7 +14,7 @@ namespace Avala.Workbench.Tests.Fleet;
 
 public sealed class FleetTests
 {
-    private readonly SessionBook sessions = new();
+    private readonly SessionBook sessions = new(new FakeUsage());
     private readonly FakeUsage usage = new();
     private readonly FakeBudgets budgets = new();
 

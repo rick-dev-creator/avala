@@ -17,7 +17,7 @@ namespace Avala.Workbench.Tests.Usage;
 
 public sealed class UsageViewModelScripts : IDisposable
 {
-    private readonly SessionBook sessions = new();
+    private readonly SessionBook sessions = new(new FakeUsage());
     private readonly FakeUsage usage = new();
     private readonly FakeBudgets budgets = new();
     private readonly FakeSupervision supervision = new();

@@ -47,7 +47,9 @@ public sealed class SqliteUsageStoreTests
         var stored = await second.EarlierRunsAsync(Cancellation);
 
         var session = Assert.Single(stored.Sessions);
-        Assert.Equal((earlier.Session, earlier.Provider, earlier.Account, earlier.Connection, earlier.Job), (session.Session, session.Provider, session.Account, session.Connection, session.Job));
+        Assert.Equal(
+            (earlier.Session, earlier.Provider, earlier.Account, earlier.Connection, earlier.Job, earlier.Opened),
+            (session.Session, session.Provider, session.Account, session.Connection, session.Job, session.Opened));
         Assert.Equal(facts, stored.Facts);
     }
 
@@ -71,5 +73,5 @@ public sealed class SqliteUsageStoreTests
     }
 
     private static SessionUsage Attributed(SessionId session, JobId job) =>
-        new SessionUsage(session).Attributed(Claude, new AgentAccount("team", "Team"), new ConnectionName("work"), job);
+        new SessionUsage(session).Attributed(Claude, new AgentAccount("team", "Team"), new ConnectionName("work"), job).OpenedAt(Nine.AddMinutes(-5));
 }

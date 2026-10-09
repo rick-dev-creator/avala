@@ -24,6 +24,7 @@ public sealed class ObservabilityPlugin : IPlugin
             .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteUsageStore>())
             .AddSingleton<UsageBook>()
             .AddSingleton<IUsage>(services => services.GetRequiredService<UsageBook>())
+            .AddSingleton<IUsageSessions>(services => services.GetRequiredService<UsageBook>())
             .AddSingleton<IUsageHistory, UsageHistory>()
             .AddSingleton<IStartupTask>(services => services.GetRequiredService<UsageBook>())
             .AddSingleton<IUsageMetrics, UsageMeter>()

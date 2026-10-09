@@ -91,6 +91,30 @@ namespace Avala.Budgets.Storage.Migrations
 
                     b.ToTable("Interventions", (string)null);
                 });
+
+            modelBuilder.Entity("Avala.Budgets.Storage.StoredSessionBudget", b =>
+                {
+                    b.Property<int>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Budget")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Connection")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("Session")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("Session");
+
+                    b.ToTable("SessionBudgets", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }

@@ -18,6 +18,8 @@ internal sealed record SessionUsage(SessionId Session)
 
     public Option<JobId> Job { get; private init; }
 
+    public DateTimeOffset Opened { get; private init; }
+
     public TokenUsage Tokens { get; private init; }
 
     public ImmutableDictionary<string, decimal> Costs { get; private init; } = ImmutableDictionary<string, decimal>.Empty;
@@ -32,13 +34,18 @@ internal sealed record SessionUsage(SessionId Session)
 
     private ImmutableHashSet<TurnId> EndedTurns { get; init; } = [];
 
-    public SessionUsage OpenedBy(ProviderInfo provider, Option<AgentAccount> account, ConnectionName connection) =>
-        this with { Provider = provider, Account = account, Connection = connection };
+    public SessionUsage OpenedBy(ProviderInfo provider, Option<AgentAccount> account, ConnectionName connection, DateTimeOffset at) =>
+        this with { Provider = provider, Account = account, Connection = connection, Opened = at };
 
     public SessionUsage WorkingOn(JobId job) => this with { Job = job };
 
     public SessionUsage Attributed(Option<ProviderInfo> provider, Option<AgentAccount> account, Option<ConnectionName> connection, Option<JobId> job) =>
         this with { Provider = provider, Account = account, Connection = connection, Job = job };
+
+    public SessionUsage OpenedAt(DateTimeOffset at) => this with { Opened = at };
+
+    public Option<UsageSession> Seen =>
+        Provider.Bind(provider => Connection.Map(connection => new UsageSession(Session, provider, Account, connection, Opened) { Job = Job }));
 
     public SessionUsage Recorded(UsageFact fact) => fact.Kind switch
     {

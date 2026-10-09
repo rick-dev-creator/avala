@@ -99,6 +99,9 @@ namespace Avala.Observability.Storage.Migrations
                     b.Property<Guid>("Job")
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("Opened")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ProviderId")
                         .IsRequired()
                         .HasColumnType("TEXT");

@@ -17,7 +17,7 @@ internal sealed class BudgetLoader(BudgetBook book, IBudgetFiles files, IEventBu
                 () => new SessionBudget(integrationEvent.Session, BudgetFileStatus.Absent, Option<BudgetError>.None, Breaches.Unlimited, read.Origin)),
             error => new SessionBudget(integrationEvent.Session, BudgetFileStatus.Rejected, error, Breaches.Unlimited, read.Origin));
 
-        book.Keep(budget, integrationEvent.Connection);
+        await book.KeepAsync(budget, integrationEvent.Connection, cancellationToken);
         await bus.PublishAsync(new BudgetLoaded(budget), cancellationToken);
     }
 }
