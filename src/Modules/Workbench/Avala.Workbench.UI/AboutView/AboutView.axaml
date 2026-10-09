@@ -27,6 +27,8 @@
           <TextBlock Text="Built from commit" VerticalAlignment="Center" />
         </DockPanel>
         <Border Classes="separator" Margin="16,0" />
+        <ContentControl x:Name="Update" Content="{Binding Update}" />
+        <Border Classes="separator" Margin="16,0" />
         <StackPanel Orientation="Horizontal" Spacing="4" Margin="4,0">
           <Button x:Name="OpenRepository" Classes="link" Padding="12,11" Content="Repository" Command="{Binding OpenRepositoryCommand}" />
           <Button x:Name="OpenLicense" Classes="link" Padding="12,11" Content="License (MIT)" Command="{Binding OpenLicenseCommand}" />

@@ -1,5 +1,6 @@
 using Avala.Permissions.Contracts;
 using Avala.Sdk.Appearance;
+using Avala.Workbench.Updates;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -317,11 +318,17 @@ internal sealed class DesignAboutViewModel : IAboutViewModel
 
     public string Note { get; init; } = string.Empty;
 
+    public IUpdateViewModel Update { get; init; } = new DesignUpdateViewModel();
+
     public IAsyncRelayCommand OpenLogFolderCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand OpenRepositoryCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand OpenLicenseCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public void Refresh()
+    {
+    }
 }
 
 internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
