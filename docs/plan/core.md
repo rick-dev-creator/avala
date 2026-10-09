@@ -79,7 +79,7 @@ Done when: a job goes from submitted to awaiting review with the fake provider, 
 
 ## Phase 6: First provider
 
-Status: done. Real jobs ran end to end with Claude Code: an edit with a canvas, a question answered by the autonomous policy and a command denied by a repository rule, plus direct sessions that called a harness tool, resumed and ran on a second login. The provider contract covered what the adapter needed beyond a turn, so the adapter only translates its protocol, see [the Claude Code provider](../design/claude-code.md). Left for later: a canvas streamed in chunks from Claude's partial input, the `Task*` tools as a plan, and a resumed session recorded as the continuation of the one before.
+Status: done. Real jobs ran end to end with Claude Code: an edit with a canvas, a question answered by the autonomous policy and a command denied by a repository rule, plus direct sessions that called a harness tool, resumed and ran on a second login. The provider contract covered what the adapter needed beyond a turn, so the adapter only translates its protocol, see [the Claude Code provider](../design/claude-code.md). Left for later: a resumed session recorded as the continuation of the one before. The canvas streamed in chunks and the `Task*` tools as a plan were done in [phase D](#phase-d-claude-code-gaps).
 
 1. A simulated Claude Code provider that uses only the public agent contracts: declarative scenarios chosen by a tag in the first message, real file edits, permission requests answered through `IAgents.RespondAsync`, and failure scenarios that the conformance kit must report.
 2. Done. The Claude Code provider plugin, `Avala.ClaudeCode`: the CLI in its streaming JSON mode, started through the session's launcher with only the connection's configuration folder or key; its stream translated into items, plan, usage with cost, limits, resume tokens and turn ends; every acting tool sent to Avala's policy through a `PreToolUse` hook and the permission prompt tool of Avala's own MCP server, which runs in the session over the CLI's control channel; `AskUserQuestion` and plan approval as forms; the harness tools served by the same server; and a discovery of the machine's logins, one connection per configuration folder. Later: the user's configuration of that folder alone, `CLAUDE.md`, skills, plugins and MCP servers, loaded under Avala's permissions with the user's hooks off, switched per connection by `userConfiguration` and `userHooks`, see [the user's configuration](../design/claude-code.md#the-users-configuration).
@@ -119,6 +119,20 @@ What was built:
 8. Done. End to end through the simulator: its connection settings `withoutCapabilities` and `toolSurfaces` play a harness that lacks a component, its sessions adapt to what they declare, and `CapabilityTests` in the host tests prove every component, and the API key refinement of `ReportsLimits`, inside the composed application; the conformance kit checks each of those connections.
 
 Deferred: whether Claude Code emits `rate_limit_event` on an API key, to be observed with a real key; a view of a connection's capabilities in the settings page, when a person needs it; and a reader of the recorded capabilities, which nothing interprets yet.
+
+## Phase D: Claude Code gaps
+
+Status: done, proven through the simulator and through crafted Claude Code transcripts replayed by the real adapter in the composed application; one real run confirmed the plan-mode shape. See [the Claude Code provider](../design/claude-code.md).
+
+An audit found Claude Code behaviour tested only with synthetic JSON, or not handled. Each gap got acceptance criteria, a simulator scenario where the behaviour is agnostic, a transcript in `tests/transcripts/claude-code` crafted from the CLI's shapes, the agnostic recording that transcript produces in `tests/recordings`, and a conformance check.
+
+1. Done. **Plans.** AC1: given `TaskCreate` calls, each subject is a pending step of `PlanUpdated` and no item opens. AC2: given the result `Task #<id> created successfully`, `TaskUpdate` of that id moves its step to in progress or done, and `deleted` removes it. AC3: a failed `TaskCreate` drops its step. AC4: a subagent's `TodoWrite` never changes the job's plan. `CLAUDE_CODE_ENABLE_TASKS=0` is no longer forced. Recording `claude-code-tasks`.
+2. Done. **Tool rows.** AC5: every tool's `ItemStarted` carries its input: an edit's replaced and new lines, a `MultiEdit`'s edits, a `Write`'s content, a command line with its heredoc, a search's pattern and path, a fetch's URL and prompt, a web search's query, a subagent's prompt, a `ToolSearch` query titled `Load <tools>`; the conversation's tool rows show it. AC6: a subagent's forwarded text grows its own item, never a message of the parent, and its final result is not repeated; its tool calls are items of their own. AC7: a file written through a command is captured by the recorder and recreated by the replay. AC8: plan approval as observed: the plan Claude writes to its configuration folder's `plans` folder is not asked as an edit, and is the context of the approval form when `ExitPlanMode`'s input is empty. AC9: a turn stopped mid-reply by supervision ends `Interrupted`, its open message cancelled, the job held as stalled, also when the recording is replayed by the simulator. Simulator scenario `tools`; recordings `tools`, `claude-code-tools`, `claude-code-plan-approval`, `claude-code-interrupt`; real recording `claude-code-real-plan-approval`.
+3. Done. **Streamed canvas.** AC10: the canvas opens once its title and media type are complete in the partial input and grows with every `input_json_delta` that lengthens its content, an escape split across chunks held back; the final input adds only what is missing. Recording `claude-code-canvas`.
+4. Done. **Resume.** AC11: a Claude Code job cut short by a restart is recovered with its token, resumed with `--resume` and the same session id, and reports only the cost the resumed turn added. Recording `claude-code-resume`.
+5. Done. **Long harness calls.** AC12: the CLI is given the longest MCP tool timeout it accepts, through the server's `timeout` and `MCP_TOOL_TIMEOUT`, with auto-backgrounding off. AC13: a delegated call whose child waits two hours of the test clock on a person is answered with the child's report when it finishes, and the parent is never held as stalled, through the adapter and through the simulator's replay, which now replays recorded tool calls. Simulator scenario `delegate-waiting`; recording `claude-code-delegate`.
+
+Deferred: a run on a model that enables the task tools, a real subagent with forwarded text, and whether the CLI writes the plan file without a prompt once the hook leaves it alone; nesting a subagent's tool items under its own item, which the contract cannot express.
 
 ## Phase 7: Observability
 
@@ -417,7 +431,46 @@ Done when: the harness replaces a terminal for daily work.
 
 ## Screen honesty
 
-Nothing on a screen may mislead: every label says exactly what its figure covers, every control says what it will do, and nothing offers an action that cannot be completed there without saying so.
+Nothing on a screen may mislead: every label says exactly what its figure covers, every control says what it will do, and nothing offers an action that cannot be completed there without saying so. An audit also found screens that present as durable what lives only in memory, so after a restart the interface lied: a verified job read as merely ready for review, an audit as empty, a cap as unknown, a reading of a reset window as current.
+
+### A1: Persistence
+
+Status: done.
+
+Every module that owns data keeps it in its own SQLite database through EF Core, with generated migrations applied at startup, see [persistence](../design/core.md#persistence) and [migrations](../design/core.md#migrations).
+
+0. Migrations: `Avala.Storage`, the shared library of `ModuleDatabase` and `StoredJson`; `scripts/migration.cs`, which scaffolds a module's migration with EF Core's design-time services and conforms the generated code to the architecture rules; an `Initial` migration for each existing database, generated from the model `EnsureCreated` built, so a database of an earlier build is adopted and upgraded in place; every store migrating on its first open and as a startup task; the architecture rules that every database has migrations and that every module's model matches its latest one.
+1. Verification evidence: every `VerificationReport`, with each check's status, exit code, duration and bounded output tails, stored in `verification.db` and restored at startup. The inspector shows each check's duration.
+2. The permission audit: policy reports, autonomy applied, permission and form decisions with their assumptions, and human answers stored in `permissions.db` and folded back into each session at startup.
+3. Budget caps: each session's `SessionBudget` and connection stored in `budgets.db`.
+4. Connection choices: the reason and the readings compared, stored in `jobs.db` and returned with the job's history.
+5. Delegation records: every version of a record stored in `delegation.db`; what resuming in-flight children needs is stored, the resumption itself is a later step.
+6. Sessions: Observability stores when each session opened and lists its sessions through `IUsageSessions`, so the Workbench finds the latest session of a connection or job of an earlier run, its account and its caps.
+7. Limit readings: a reading whose window has reset is shown as reset on the Usage page and the Overview, live through a `TimeProvider` timer and after a restart; capacity treats it as fresh capacity, as before.
+8. Pending decisions: by design they do not survive a restart, since the session that waits died; the count shows only what a live session waits for, and the audit marks the abandoned decision "unanswered, its session ended".
+
+Acceptance criteria, each a host simulation test in `RestartTests` that captures what the screens show, restarts the application with `SimulatedRun.RestartAsync` over the same data folder and clock, and compares:
+
+```
+AC1  Given a job verified on attempt 2 of 2, when the application restarts, then the sidebar row, the inspector's evidence
+     with each check's exit code and duration, and the review's verdict and failed attempt with its output tail are the same.
+AC2  Given a governed job with a denial, an assumption and its autonomy, when the application restarts, then the inspector's
+     audit, decisions, assumptions and autonomy and the review's exceptions are the same.
+AC3  Given a job near its cost cap and held at a limit, when the application restarts, then the Usage page's cap, near-cap
+     alert and hold threshold, the Overview card's account and near-limit ring, and the inspector's spending are the same.
+AC4  Given a job placed by capacity, when the application restarts, then the inspector's connection, reason and compared
+     readings are the same.
+AC5  Given an orchestrator whose children were integrated, when the application restarts, then the delegation view's root
+     with its harness and cap, its children with their outcome, harness and carve, and the inspector's children are the same.
+AC6  Covered with AC3: the Overview card's account and the caps found through the latest session of an earlier run.
+AC7  Given a reading whose window resets, when its reset time passes, then the Usage page shows it reset and the Overview
+     card no longer near its limit; after a restart they still do; and a job naming no connection treats that connection
+     as unused.
+AC8  Given a permission left to a person when the application stops, when it restarts and the conversation resumes without
+     asking again, then no decision is pending and the audit marks the decision unanswered because its session ended.
+```
+
+Unit tests cover each store's round trip and its exclusion of what the current run wrote, each book's restore, the adoption of a database created without migrations, the stored JSON of options and enums, the judgment of readings against the clock and the timer that refreshes a page at a reset. The simulator gained the `governed` and `waiting-permission` scenarios.
 
 ### A2: nothing misleading
 

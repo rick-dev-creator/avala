@@ -16,6 +16,7 @@
     <File Path=".github/workflows/ci.yml" />
     <File Path="scripts/code-metrics.cs" />
     <File Path="scripts/metrics.cs" />
+    <File Path="scripts/migration.cs" />
     <File Path="scripts/publish-badges.cs" />
     <File Path="scripts/publish-summary.cs" />
     <File Path="scripts/session-cost.cs" />
@@ -103,6 +104,7 @@
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/Avala.Components.UI/Avala.Components.UI.csproj" />
     <Project Path="src/Shared/Avala.Components/Avala.Components.csproj" />
+    <Project Path="src/Shared/Avala.Storage/Avala.Storage.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <File Path="tests/Directory.Build.props" />
@@ -132,6 +134,7 @@
     <Project Path="tests/Avala.Autopilot.Tests/Avala.Autopilot.Tests.csproj" />
     <Project Path="tests/Avala.Components.Tests/Avala.Components.Tests.csproj" />
     <Project Path="tests/Avala.Components.UI.Tests/Avala.Components.UI.Tests.csproj" />
+    <Project Path="tests/Avala.Storage.Tests/Avala.Storage.Tests.csproj" />
     <Project Path="tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj" />
     <Project Path="tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj" />
     <Project Path="tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj" />

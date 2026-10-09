@@ -17,7 +17,9 @@ public sealed class WorkspacesPlugin : IPlugin
         registrar.Services
             .AddSingleton(provider => new WorkspaceSettings(provider.GetRequiredService<AvalaPaths>().Folder("worktrees")))
             .AddSingleton<IGit, GitCli>()
-            .AddSingleton<IWorkspaceStore, SqliteWorkspaceStore>()
+            .AddSingleton<SqliteWorkspaceStore>()
+            .AddSingleton<IWorkspaceStore>(services => services.GetRequiredService<SqliteWorkspaceStore>())
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteWorkspaceStore>())
             .AddSingleton<WorktreeReconciler>()
             .AddSingleton<IWorkspaces, WorkspaceService>()
             .AddSingleton<IBaseFiles, BaseFileReader>()

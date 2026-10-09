@@ -1,0 +1,10 @@
+{
+  "repository": {
+    ".avala/permissions.json": "{ \"autonomy\": \"autonomous\" }"
+  },
+  "journey": ["Running", "Checking", "AwaitingReview"],
+  "permissions": ["edits-inside-the-workspace FileEdit GREETING.md Allow Answered"],
+  "forms": ["Answered Autonomous approve Confirmed "],
+  "verifications": ["1 NoChecksDeclared"],
+  "files": { "GREETING.md": "# Hello\n" }
+}

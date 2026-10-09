@@ -5,6 +5,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Avala.Verification.Contracts\Avala.Verification.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Avala.Storage\Avala.Storage.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Verification.Tests" />

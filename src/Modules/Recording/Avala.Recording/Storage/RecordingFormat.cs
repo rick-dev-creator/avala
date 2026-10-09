@@ -189,6 +189,7 @@ internal sealed class RecordingFormat
                 Item(started.Item);
                 json.WriteString("kind", Enum(started.Kind));
                 Text("title", started.Title);
+                Optional("input", started.Input);
                 break;
             case CanvasStarted canvas:
                 Item(canvas.Item);

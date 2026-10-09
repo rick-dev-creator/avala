@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
@@ -34,6 +35,12 @@ internal static class InspectorPhrases
     public static string Decision(PolicyDecision decision) =>
         $"{(decision.Answer == PolicyAnswer.Allow ? "Allowed" : decision.Answer == PolicyAnswer.Deny ? "Denied" : "Asked you")} {decision.Kind} {decision.Target}"
         + decision.Rule.Match(rule => $" · rule {rule.Name}", () => decision.Delivery == DecisionDelivery.Answered ? " · default" : string.Empty);
+
+    public static string Decision(PolicyDecision decision, IReadOnlyList<HumanAnswer> answers, Option<SessionId> latest) =>
+        Decision(decision)
+        + (decision.Delivery != DecisionDelivery.LeftToHuman || answers.Any(answer => answer.Session == decision.Session && answer.Item == decision.Item)
+            ? string.Empty
+            : latest == Option<SessionId>.Some(decision.Session) ? " · unanswered" : " · unanswered, its session ended");
 
     public static string Answer(HumanAnswer answer) =>
         $"You {(answer.Answer == PermissionAnswer.Allow ? "allowed" : "denied")} {answer.Kind} {answer.Target}"
@@ -139,5 +146,7 @@ internal static class InspectorPhrases
 
     private static string Check(CheckEvidence check) =>
         $"{check.Name} {check.Status.ToString().ToLowerInvariant()}"
-        + check.ExitCode.Match(code => string.Create(CultureInfo.InvariantCulture, $" (exit {code})"), () => string.Empty);
+        + (check.Status == CheckStatus.Skipped
+            ? string.Empty
+            : $" ({check.ExitCode.Match(code => string.Create(CultureInfo.InvariantCulture, $"exit {code}, "), () => string.Empty)}{Presenting.Amounts.Seconds(check.Duration)} s)");
 }

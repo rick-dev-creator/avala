@@ -11,7 +11,9 @@ internal sealed class JobCatalog(IJobStore store) : IJobCatalog
         [.. (await store.SnapshotsAsync(cancellationToken)).OrderBy(job => job.Submitted).ThenBy(job => job.Id.Value).Select(Summary)];
 
     public async ValueTask<Option<JobHistory>> HistoryAsync(JobId job, CancellationToken cancellationToken) =>
-        (await store.SnapshotAsync(job, cancellationToken)).Map(History);
+        await (await store.SnapshotAsync(job, cancellationToken)).Match(
+            async found => Option<JobHistory>.Some(History(found) with { Choice = await store.ChoiceOfAsync(job, cancellationToken) }),
+            () => Task.FromResult(Option<JobHistory>.None));
 
     public async ValueTask<IReadOnlyList<JobSummary>> ChildrenAsync(JobId parent, CancellationToken cancellationToken) =>
         [.. (await store.SnapshotsAsync(cancellationToken)).Where(job => job.Parent == Option<JobId>.Some(parent)).OrderBy(job => job.Submitted).ThenBy(job => job.Id.Value).Select(Summary)];

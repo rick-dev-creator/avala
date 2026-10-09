@@ -115,11 +115,12 @@ internal sealed partial class ConnectionCardViewModel : IConnectionCardViewModel
         Account = connection.Account.Match(account => account.Label, () => "account not reported yet");
         IsDefault = connection.IsDefault;
         Cost = connection.Usage.Match(usage => Amounts.Costs(usage.Costs), () => "no usage yet");
-        var reported = connection.Usage.Match<IReadOnlyList<Agents.Contracts.Events.UsageLimit>>(usage => usage.Limits, () => []);
-        limits.ShowOnly(reported.Select(limit => new LimitViewModel(limit, hold)));
-        var highest = reported.OrderByDescending(limit => limit.UsedFraction).Take(1).ToList();
-        Used = highest.Sum(limit => limit.UsedFraction);
-        Use = highest.Count == 0 ? "no limit" : $"{highest[0].Window} · {Amounts.Percent(Used)}";
+        limits.ShowOnly(connection.Limits.Select(limit => new LimitViewModel(limit, hold)));
+        var highest = connection.Limits.Where(limit => !limit.Expired).OrderByDescending(limit => limit.Used).Take(1).ToList();
+        Used = highest.Sum(limit => limit.Used);
+        Use = highest.Count > 0 ? $"{highest[0].Limit.Window} · {Amounts.Percent(Used)}"
+            : connection.Limits.Count > 0 ? $"{connection.Limits[0].Limit.Window} · reset"
+            : "no limit";
         IsNearLimit = highest.Count > 0 && hold.Match(threshold => Used >= threshold - MeterViewModel.AttentionMargin, () => false);
         agents.Reconcile(connection.Agents, agent => agent.Job, job => job.Job, job => new AgentViewModel(job), (agent, job) => agent.Update(job));
         IsProminent = agents.Count >= 2;

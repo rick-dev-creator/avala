@@ -84,10 +84,15 @@ internal sealed class RecordingParser
                     respond => [new AwaitPermission(new PermissionDecision(Item(respond), Enum<PermissionAnswer>(respond.GetProperty("answer"))) { Message = Optional(respond, "message") })],
                     () => Property(entry, "answer").Match<IEnumerable<IStep>>(
                         answer => [new AwaitAnswer(Answer(answer))],
-                        () => entry.TryGetProperty("interrupt", out _) ? [new AwaitInterrupt()]
-                            : Property(entry, "end").Match<IEnumerable<IStep>>(
-                                end => [end.GetProperty("crashed").GetBoolean() ? new Crash(StreamFailed) : new Hangup()],
-                                () => [])))));
+                        () => Property(entry, "return").Match<IEnumerable<IStep>>(
+                            returned => [new AwaitReturn(Result(returned))],
+                            () => entry.TryGetProperty("interrupt", out _) ? [new AwaitInterrupt()]
+                                : Property(entry, "end").Match<IEnumerable<IStep>>(
+                                    end => [end.GetProperty("crashed").GetBoolean() ? new Crash(StreamFailed) : new Hangup()],
+                                    () => []))))));
+
+    private ToolResult Result(JsonElement result) =>
+        new(Item(result), Text(result.GetProperty("content"))) { IsError = result.GetProperty("isError").GetBoolean() };
 
     private static LimitReported Limit(JsonElement recorded)
     {
@@ -112,7 +117,10 @@ internal sealed class RecordingParser
 
     private IAgentEvent ItemEvent(JsonElement recorded, string? type) => type switch
     {
-        "itemStarted" => new ItemStarted(default, default, Item(recorded), Enum<ItemKind>(recorded.GetProperty("kind")), Text(recorded.GetProperty("title"))),
+        "itemStarted" => new ItemStarted(default, default, Item(recorded), Enum<ItemKind>(recorded.GetProperty("kind")), Text(recorded.GetProperty("title")))
+        {
+            Input = Optional(recorded, "input"),
+        },
         "canvasStarted" => new CanvasStarted(default, default, Item(recorded), Text(recorded.GetProperty("title")), Plain(recorded.GetProperty("mediaType"))),
         "itemProgressed" => new ItemProgressed(default, default, Item(recorded), Text(recorded.GetProperty("text"))),
         "itemCompleted" => new ItemCompleted(default, default, Item(recorded), Enum<ItemOutcome>(recorded.GetProperty("outcome"))),
@@ -131,6 +139,8 @@ internal sealed class RecordingParser
         "permissionResolved" => new PermissionResolved(default, default, Item(recorded), Enum<PermissionAnswer>(recorded.GetProperty("answer"))),
         "formRequested" => new FormRequested(default, default, Item(recorded), Form(recorded.GetProperty("form"))),
         "formAnswered" => new FormAnswered(default, default, Item(recorded), Answer(recorded.GetProperty("answer"))),
+        "toolCalled" => new ToolCalled(default, default, Item(recorded), Plain(recorded.GetProperty("tool")), Text(recorded.GetProperty("input"))),
+        "toolReturned" => new ToolReturned(default, default, Item(recorded), Result(recorded.GetProperty("result"))),
         var unknown => throw new FormatException($"{unknown} is not an agent event."),
     };
 
@@ -186,5 +196,5 @@ internal sealed class RecordingParser
 
     private static string Plain(JsonElement element) => element.GetString() ?? throw new FormatException("A text is missing.");
 
-    private string Text(JsonElement element) => Plain(element).Replace(WorkingDirectoryMark, workingDirectory, StringComparison.Ordinal);
+    private string Text(JsonElement element) => Plain(element).Unmarking(WorkingDirectoryMark, workingDirectory, Path.DirectorySeparatorChar);
 }

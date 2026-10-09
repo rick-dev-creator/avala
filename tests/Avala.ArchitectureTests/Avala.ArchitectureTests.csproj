@@ -47,6 +47,7 @@
     <ProjectReference Include="..\..\src\Modules\Mermaid\Avala.Mermaid.UI\Avala.Mermaid.UI.csproj" />
     <ProjectReference Include="..\..\src\Shared\Avala.Components\Avala.Components.csproj" />
     <ProjectReference Include="..\..\src\Shared\Avala.Components.UI\Avala.Components.UI.csproj" />
+    <ProjectReference Include="..\..\src\Shared\Avala.Storage\Avala.Storage.csproj" />
     <ProjectReference Include="..\Avala.ArchitectureTests.Fixtures\Avala.ArchitectureTests.Fixtures.csproj" />
     <ProjectReference Include="..\Avala.ArchitectureTests.Fixtures.UI\Avala.ArchitectureTests.Fixtures.UI.csproj" />
   </ItemGroup>

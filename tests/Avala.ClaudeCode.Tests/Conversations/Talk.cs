@@ -12,8 +12,10 @@ internal sealed class Talk
 {
     public static readonly string WorkingDirectory = HostPaths.Rooted("/work");
 
-    public Talk(PermissionMode mode = PermissionMode.AskEveryTime, IReadOnlyList<HarnessTool>? tools = null, Option<ConversationMark> resumed = default) =>
-        Conversation = new Conversation(Session, new SessionOptions(WorkingDirectory, mode) { Tools = tools ?? [] }, WorkingDirectory, resumed);
+    public static readonly string Plans = HostPaths.Rooted("/home/ana/.claude-work/plans");
+
+    public Talk(PermissionMode mode = PermissionMode.AskEveryTime, IReadOnlyList<HarnessTool>? tools = null, Option<ConversationMark> resumed = default, string? plans = null) =>
+        Conversation = new Conversation(Session, new SessionOptions(WorkingDirectory, mode) { Tools = tools ?? [] }, new Places(WorkingDirectory, plans ?? Plans), resumed);
 
     public SessionId Session { get; } = SessionId.New();
 

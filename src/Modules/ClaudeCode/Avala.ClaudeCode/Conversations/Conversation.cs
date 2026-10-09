@@ -18,12 +18,12 @@ internal sealed class Conversation
     private bool interrupting;
     private int interruptions;
 
-    public Conversation(SessionId session, SessionOptions options, string workingDirectory, Option<ConversationMark> resumed)
+    public Conversation(SessionId session, SessionOptions options, Places places, Option<ConversationMark> resumed)
     {
         var tools = new ToolBook(options.Tools);
         this.session = session;
-        translator = new StreamTranslator(tools, workingDirectory);
-        desk = new ControlDesk(tools, options.Permissions, workingDirectory);
+        translator = new StreamTranslator(tools, places);
+        desk = new ControlDesk(tools, options.Permissions, places);
         conversation = resumed.Map(mark => mark.Session);
         spent = resumed.Match(mark => mark.Spent, () => 0m);
     }

@@ -10,7 +10,7 @@
   <StackPanel Spacing="7">
     <DockPanel>
       <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-        <TextBlock x:Name="UsedText" FontSize="{DynamicResource FontSizeMono}" Classes.attention="{Binding IsNear}" Text="{Binding UsedText}" />
+        <TextBlock x:Name="UsedText" FontSize="{DynamicResource FontSizeMono}" Classes.attention="{Binding IsNear}" Classes.tertiary="{Binding IsExpired}" Text="{Binding UsedText}" />
         <TextBlock x:Name="Resets" Classes="tertiary" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Resets, StringFormat=' · {0}'}" />
       </StackPanel>
       <TextBlock x:Name="Window" Classes="secondary" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />

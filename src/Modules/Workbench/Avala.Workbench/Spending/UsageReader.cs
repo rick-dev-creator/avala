@@ -5,13 +5,16 @@ using Avala.Workbench.Board;
 
 namespace Avala.Workbench.Spending;
 
-internal sealed record ConnectionSpend(ConnectionUsage Usage, Option<BudgetCaps> Caps);
+internal sealed record ConnectionSpend(ConnectionUsage Usage, Option<BudgetCaps> Caps)
+{
+    public IReadOnlyList<LimitReading> Limits { get; init; } = [];
+}
 
 internal sealed record JobCost(BoardJob Job, JobSpend Spend, IReadOnlyList<JobIntervention> Interventions);
 
 internal sealed record SpendingState(IReadOnlyList<ConnectionSpend> Connections, IReadOnlyList<JobCost> Jobs, IReadOnlyList<JobIntervention> Interventions);
 
-internal sealed class UsageReader(IUsage usage, JobSpending spending, JobBoard board)
+internal sealed class UsageReader(LimitReadings readings, JobSpending spending, JobBoard board)
 {
     public SpendingState Read()
     {
@@ -22,7 +25,12 @@ internal sealed class UsageReader(IUsage usage, JobSpending spending, JobBoard b
             .ToList();
 
         return new SpendingState(
-            [.. usage.ByConnection().Select(connection => new ConnectionSpend(connection, spending.CapsOn(connection.Connection)))],
+            [
+                .. readings.ByConnection().Select(connection => new ConnectionSpend(connection, spending.CapsOn(connection.Connection))
+                {
+                    Limits = readings.Judged(connection.Usage.Limits),
+                }),
+            ],
             jobs,
             [.. jobs.SelectMany(cost => cost.Interventions).OrderByDescending(intervention => intervention.At)]);
     }

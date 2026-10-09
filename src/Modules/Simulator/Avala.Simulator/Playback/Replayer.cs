@@ -8,6 +8,8 @@ namespace Avala.Simulator.Playback;
 
 internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates gates, Pacing pacing)
 {
+    private readonly Dictionary<ItemId, Task<ToolResult>> calls = [];
+    private readonly Dictionary<ItemId, ToolResult> returned = [];
     private Pending<PermissionDecision>? permission;
     private Pending<FormAnswer>? form;
     private bool started;
@@ -24,6 +26,8 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
         var play = new Play(cues, conversation.Scenario.AsRecorded, conversation.Advanced.Token);
         permission = null;
         form = null;
+        calls.Clear();
+        returned.Clear();
         started = false;
         AwaitsInterrupt = false;
 
@@ -64,6 +68,7 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
         Emit emit => EmittedAsync(emit, play, cancellationToken),
         AwaitPermission expected => PermittedAsync(expected, play, cancellationToken),
         AwaitAnswer expected => AnsweredAsync(expected, play, cancellationToken),
+        AwaitReturn expected => ReturnedAsync(expected, play, cancellationToken),
         PutFile put => PutAsync(put, play, cancellationToken),
         AwaitInterrupt => InterruptedAsync(cancellationToken),
         Crash crash => Task.FromException<Played>(new InvalidOperationException(crash.Reason)),
@@ -94,8 +99,18 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
     private async Task<IAgentEvent> EmitAsync(Emit emit, Play play, CancellationToken cancellationToken)
     {
         await pacing.DelayAsync(play.Timed ? emit.Gap : TimeSpan.Zero, cancellationToken);
-        var cue = play.Cues.Readdress(emit.Event, play.Token);
-        permission = cue is PermissionRequested asked
+        var cue = play.Cues.Readdress(emit.Event, play.Token) switch
+        {
+            ToolReturned recorded when returned.Remove(recorded.Item, out var given) => recorded with { Result = given },
+            var readdressed => readdressed,
+        };
+
+        if (cue is ToolCalled called)
+        {
+            calls[called.Item] = await gates.Tools.ExpectAsync(called.Item, cancellationToken);
+        }
+
+        permission =cue is PermissionRequested asked
             ? new Pending<PermissionDecision>(asked.Item, await gates.Permissions.ExpectAsync(asked.Item, cancellationToken))
             : permission;
         form = cue is FormRequested opened
@@ -124,6 +139,19 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
         form = null;
 
         return Settled(play, divergence);
+    }
+
+    private async Task<Played> ReturnedAsync(AwaitReturn expected, Play play, CancellationToken cancellationToken)
+    {
+        if (!calls.Remove(expected.Result.Item, out var reply))
+        {
+            return Diverged(play, Divergence.NeverAsked(expected.Result.Item));
+        }
+
+        var given = await gates.Tools.AwaitAsync(expected.Result.Item, reply, cancellationToken);
+        returned[given.Item] = given;
+
+        return Settled(play, given.IsError == expected.Result.IsError ? null : Divergence.Return(expected.Result, given));
     }
 
     private Played Settled(Play play, string? divergence) =>
@@ -155,6 +183,11 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
         if (form is not null)
         {
             await gates.Forms.WithdrawAsync(form.Item);
+        }
+
+        foreach (var item in calls.Keys.ToList())
+        {
+            await gates.Tools.WithdrawAsync(item);
         }
     }
 

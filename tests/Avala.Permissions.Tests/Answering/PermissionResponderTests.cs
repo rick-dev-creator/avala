@@ -18,7 +18,7 @@ public sealed class PermissionResponderTests
     private static readonly DateTimeOffset Now = new(2026, 10, 9, 9, 0, 0, TimeSpan.Zero);
 
     private readonly FakeTimeProvider clock = new(Now);
-    private readonly GovernanceBook book = new();
+    private readonly GovernanceBook book = new(new Governance.InMemoryGovernance());
     private readonly RecordingBus bus = new();
     private readonly AnsweringAgents agents = new();
     private readonly SessionId session = SessionId.New();

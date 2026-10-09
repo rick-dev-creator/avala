@@ -80,6 +80,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IWorkspaceChanges>(new FakeChanges())
             .AddSingleton<IWorkspaces>(new FakeWorkspaces())
             .AddSingleton<IUsage>(new FakeUsage())
+            .AddSingleton<IUsageSessions>(new FakeUsage())
             .AddSingleton<IUsageHistory>(new FakeUsageHistory())
             .AddSingleton<IVerifications>(audit)
             .AddSingleton<IPermissionAudit>(audit)

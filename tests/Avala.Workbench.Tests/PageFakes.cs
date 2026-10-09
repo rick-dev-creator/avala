@@ -14,6 +14,7 @@ using Avala.Supervision.Contracts;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Board;
 using Avala.Workbench.Following;
+using Avala.Workbench.Spending;
 using Avala.Workbench.Timeline;
 using Avala.Workspaces.Contracts;
 
@@ -22,6 +23,11 @@ namespace Avala.Workbench.Tests;
 internal static class Pages
 {
     public static ProviderInfo Simulator { get; } = new("simulator", "Simulator");
+
+    public static LimitReadings Readings(FakeUsage usage) =>
+        new(usage, new Pulse(new JobBoard()), new Microsoft.Extensions.Time.Testing.FakeTimeProvider(DateTimeOffset.UnixEpoch.AddHours(-1)));
+
+    public static LimitReading Current(UsageLimit limit) => new(limit, Expired: false);
 
     public static UsageSummary Used(decimal dollars, params UsageLimit[] limits) =>
         new(new TokenUsage(100, 20, 30, 4, 5), [new Cost(dollars, "USD")], 0, new TurnTally(1, 0, 0, TimeSpan.FromSeconds(3)), limits);
@@ -131,9 +137,13 @@ internal sealed class FakePreview : IConnectionPreview
     }
 }
 
-internal sealed class FakeUsage : IUsage
+internal sealed class FakeUsage : IUsage, IUsageSessions
 {
     public List<ConnectionUsage> Connections { get; } = [];
+
+    public List<UsageSession> Stored { get; } = [];
+
+    public IReadOnlyList<UsageSession> Sessions() => Stored;
 
     public Dictionary<JobId, UsageSummary> Jobs { get; } = [];
 
