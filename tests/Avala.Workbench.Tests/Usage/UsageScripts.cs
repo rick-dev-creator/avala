@@ -77,7 +77,26 @@ public sealed class LimitViewModelScripts
     [Fact]
     public void ALimitNearItsHoldThresholdSaysJobsAreHeldThere() =>
         ViewModelScript.Given(new LimitViewModel(new UsageLimit("5h", 0.88, Option<DateTimeOffset>.None), 0.9))
-            .Then(limit => Assert.Equal(("5h", 0.88, "88% used", "no reset reported", "jobs are held at 90%", false), (limit.Window, limit.Used, limit.UsedText, limit.Resets, limit.HoldAt, limit.ReachesHold)));
+            .Then(limit => Assert.Equal(("5h", "5-hour window", 0.88, "88%", "no reset reported", "Jobs on this connection hold at the 90% threshold.", false), (limit.Window, limit.Label, limit.Used, limit.UsedText, limit.Resets, limit.HoldAt, limit.ReachesHold)))
+            .Then(limit => Assert.Equal((true, 0.9, true), (limit.HasHold, limit.Hold, limit.IsNear)));
+
+    [Fact]
+    public void ALimitPastItsThresholdReachesTheHoldAndItsBarStopsAtFull() =>
+        ViewModelScript.Given(new LimitViewModel(new UsageLimit("5h", 1.04, Option<DateTimeOffset>.None), 0.9))
+            .Then(limit => Assert.Equal((true, true, 1d, "104%"), (limit.ReachesHold, limit.IsNear, limit.Used, limit.UsedText)));
+
+    [Fact]
+    public void ALimitFarFromItsThresholdIsNotNear() =>
+        ViewModelScript.Given(new LimitViewModel(new UsageLimit("7d", 0.43, Option<DateTimeOffset>.None), 0.9))
+            .Then(limit => Assert.Equal((false, false, "7-day window"), (limit.IsNear, limit.ReachesHold, limit.Label)));
+
+    [Theory]
+    [InlineData("5h", "5-hour window")]
+    [InlineData("7d", "7-day window")]
+    [InlineData("weekly", "Weekly window")]
+    [InlineData("", "Usage window")]
+    public void EachWindowIsNamedInWords(string window, string label) =>
+        Assert.Equal(label, UsagePhrases.Window(window));
 
     [Fact]
     public void ALimitAtItsThresholdReachesTheHold() =>
@@ -87,7 +106,7 @@ public sealed class LimitViewModelScripts
     [Fact]
     public void ALimitWithoutCapsHasNoThreshold() =>
         ViewModelScript.Given(new LimitViewModel(new UsageLimit("week", 0.31, DateTimeOffset.UnixEpoch), Option<double>.None))
-            .Then(limit => Assert.Equal((string.Empty, false, true), (limit.HoldAt, limit.ReachesHold, limit.Resets.StartsWith("resets ", StringComparison.Ordinal))));
+            .Then(limit => Assert.Equal((string.Empty, false, false, true), (limit.HoldAt, limit.HasHold, limit.ReachesHold, limit.Resets.StartsWith("resets ", StringComparison.Ordinal))));
 }
 
 public sealed class ConnectionMeterViewModelScripts
@@ -101,7 +120,7 @@ public sealed class ConnectionMeterViewModelScripts
             {
                 Assert.Equal(("claude-work", "Simulator", "3.214 USD", "159 tokens", "1 usage report had no cost"), (meter.Name, meter.Provider, meter.Cost, meter.Tokens, meter.Unpriced));
                 Assert.Equal("5 USD per job, holds at 90% of a limit", meter.Caps);
-                Assert.Equal("jobs are held at 90%", Assert.Single(meter.Limits).HoldAt);
+                Assert.Equal("Jobs on this connection hold at the 90% threshold.", Assert.Single(meter.Limits).HoldAt);
             });
 
     [Fact]
@@ -126,7 +145,20 @@ public sealed class JobMeterViewModelScripts
                 new BoardJob(Pages.Summary("Rate-limit POST /login", JobStatus.AwaitingReview), Transcript.Empty),
                 new JobSpend(Option<SessionSeen>.None, Pages.Used(0.84m), Option<BudgetCaps>.None, Option<BudgetCarve>.None),
                 [])))
-            .Then(meter => Assert.Equal(("Rate-limit POST /login", JobStatus.AwaitingReview, "0.84 USD", "159 tokens", "no caps known", string.Empty, 0), (meter.Title, meter.Status, meter.Cost, meter.Tokens, meter.Caps, meter.Carve, meter.Interventions)));
+            .Then(meter => Assert.Equal(("Rate-limit POST /login", JobStatus.AwaitingReview, "0.84 USD", "159 tokens", "no caps known", string.Empty, 0), (meter.Title, meter.Status, meter.Cost, meter.Tokens, meter.Caps, meter.Carve, meter.Interventions)))
+            .Then(meter => Assert.Equal((false, "no cap", 0d, false), (meter.HasCap, meter.Cap, meter.Used, meter.IsNearCap)));
+
+    [Theory]
+    [InlineData(1.5, 0.5, false)]
+    [InlineData(2.7, 0.9, true)]
+    [InlineData(3.6, 1, true)]
+    public void AJobsCostIsMeasuredAgainstItsCapAndTurnsAmberNearIt(double spent, double used, bool near) =>
+        ViewModelScript.Given(new JobMeterViewModel(new JobCost(
+                new BoardJob(Pages.Summary("Extract sync queue into a module", JobStatus.Running, connection: "claude-work"), Transcript.Empty),
+                new JobSpend(Option<SessionSeen>.None, Pages.Used((decimal)spent), new BudgetCaps([new Cost(3m, "USD")], Option<long>.None, Option<double>.None), Option<BudgetCarve>.None),
+                [])))
+            .Then(meter => Assert.Equal((true, "3 USD", "claude-work", near), (meter.HasCap, meter.Cap, meter.Connection, meter.IsNearCap)))
+            .Then(meter => Assert.Equal(used, meter.Used, 3));
 }
 
 public sealed class InterventionViewModelScripts

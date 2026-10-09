@@ -7,24 +7,31 @@
   <Design.DataContext>
     <usage:DesignConnectionMeterViewModel />
   </Design.DataContext>
-  <Border Classes="card" Padding="{DynamicResource PaddingCard}" Margin="0,0,0,8">
-    <StackPanel Spacing="6">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock x:Name="ConnectionName" Classes="strong mono" Text="{Binding Name}" />
-          <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" VerticalAlignment="Center" />
-        </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-          <TextBlock x:Name="Cost" Text="{Binding Cost}" />
-          <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens}" VerticalAlignment="Center" />
-        </StackPanel>
-      </Grid>
-      <TextBlock x:Name="Unpriced"
-                 Classes="caption"
-                 Text="{Binding Unpriced}"
-                 IsVisible="{Binding Unpriced, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock x:Name="Caps" Classes="caption" Text="{Binding Caps}" />
-      <ItemsControl x:Name="Limits" ItemsSource="{Binding Limits}" />
+  <Border Classes="grouped arrive-snappy" Padding="22,20">
+    <StackPanel Spacing="18">
+      <StackPanel Spacing="2">
+        <DockPanel>
+          <TextBlock x:Name="Cost" DockPanel.Dock="Right" Text="{Binding Cost, StringFormat='{}{0} since Avala started'}" VerticalAlignment="Bottom" Margin="12,0,0,0" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <TextBlock x:Name="ConnectionName" Classes="heading" Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="320" />
+            <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" VerticalAlignment="Bottom" Margin="0,0,0,2" />
+          </StackPanel>
+        </DockPanel>
+        <TextBlock x:Name="Tokens" Classes="caption">
+          <Run Text="{Binding Tokens}" />
+          <Run Text=" · " />
+          <Run Text="{Binding Caps}" />
+        </TextBlock>
+        <TextBlock x:Name="Unpriced" Classes="caption" Text="{Binding Unpriced}" IsVisible="{Binding Unpriced, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+      <TextBlock x:Name="NoLimits" Classes="caption" Text="This connection reports no usage limit." IsVisible="{Binding !Limits.Count}" />
+      <ItemsControl x:Name="Limits" ItemsSource="{Binding Limits}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="18" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
     </StackPanel>
   </Border>
 </UserControl>

@@ -1,4 +1,7 @@
+using System.Collections.ObjectModel;
 using Avala.Agents.Contracts.Connections;
+using Avala.Components.Meters;
+using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
@@ -6,6 +9,7 @@ using Avala.Workbench.Fleet;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
 using Avala.Workbench.Usage;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Overview;
 
@@ -24,6 +28,16 @@ internal interface IConnectionCardViewModel
     IReadOnlyList<ILimitViewModel> Limits { get; }
 
     IReadOnlyList<IAgentViewModel> Agents { get; }
+
+    double Used { get; }
+
+    string Use { get; }
+
+    bool IsNearLimit { get; }
+
+    bool IsProminent { get; }
+
+    string Summary { get; }
 }
 
 internal interface IAgentViewModel
@@ -35,35 +49,122 @@ internal interface IAgentViewModel
     JobStatus Status { get; }
 
     string Fact { get; }
+
+    string State { get; }
+
+    IStatusDotViewModel Dot { get; }
+
+    string Summary { get; }
 }
 
-internal sealed class ConnectionCardViewModel(ConnectionState connection) : IConnectionCardViewModel
+[INotifyPropertyChanged]
+internal sealed partial class ConnectionCardViewModel : IConnectionCardViewModel
 {
-    public ConnectionName Connection { get; } = connection.Name;
+    private readonly ObservableCollection<ILimitViewModel> limits = [];
+    private readonly ObservableCollection<AgentViewModel> agents = [];
 
-    public string Name { get; } = connection.Name.Value;
+    public ConnectionCardViewModel(ConnectionState connection, Option<double> hold)
+    {
+        Connection = connection.Name;
+        Name = connection.Name.Value;
+        Provider = string.Empty;
+        Account = string.Empty;
+        Cost = string.Empty;
+        Use = string.Empty;
+        Update(connection, hold);
+    }
 
-    public string Provider { get; } = connection.Provider;
+    public ConnectionName Connection { get; }
 
-    public string Account { get; } = connection.Account.Match(account => account.Label, () => "account not reported yet");
+    public string Name { get; }
 
-    public bool IsDefault { get; } = connection.IsDefault;
+    [ObservableProperty]
+    public partial string Provider { get; private set; }
 
-    public string Cost { get; } = connection.Usage.Match(usage => Amounts.Costs(usage.Costs), () => "no usage yet");
+    [ObservableProperty]
+    public partial string Account { get; private set; }
 
-    public IReadOnlyList<ILimitViewModel> Limits { get; } =
-        connection.Usage.Match<IReadOnlyList<ILimitViewModel>>(usage => [.. usage.Limits.Select(limit => new LimitViewModel(limit, Option<double>.None))], () => []);
+    [ObservableProperty]
+    public partial bool IsDefault { get; private set; }
 
-    public IReadOnlyList<IAgentViewModel> Agents { get; } = [.. connection.Agents.Select(job => new AgentViewModel(job))];
+    [ObservableProperty]
+    public partial string Cost { get; private set; }
+
+    [ObservableProperty]
+    public partial double Used { get; private set; }
+
+    [ObservableProperty]
+    public partial string Use { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsNearLimit { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsProminent { get; private set; }
+
+    [ObservableProperty]
+    public partial string Summary { get; private set; } = string.Empty;
+
+    public IReadOnlyList<ILimitViewModel> Limits => limits;
+
+    public IReadOnlyList<IAgentViewModel> Agents => agents;
+
+    public void Update(ConnectionState connection, Option<double> hold)
+    {
+        Provider = connection.Provider;
+        Account = connection.Account.Match(account => account.Label, () => "account not reported yet");
+        IsDefault = connection.IsDefault;
+        Cost = connection.Usage.Match(usage => Amounts.Costs(usage.Costs), () => "no usage yet");
+        var reported = connection.Usage.Match<IReadOnlyList<Agents.Contracts.Events.UsageLimit>>(usage => usage.Limits, () => []);
+        limits.ShowOnly(reported.Select(limit => new LimitViewModel(limit, hold)));
+        var highest = reported.OrderByDescending(limit => limit.UsedFraction).Take(1).ToList();
+        Used = highest.Sum(limit => limit.UsedFraction);
+        Use = highest.Count == 0 ? "no limit" : $"{highest[0].Window} · {Amounts.Percent(Used)}";
+        IsNearLimit = highest.Count > 0 && hold.Match(threshold => Used >= threshold - MeterViewModel.AttentionMargin, () => false);
+        agents.Reconcile(connection.Agents, agent => agent.Job, job => job.Job, job => new AgentViewModel(job), (agent, job) => agent.Update(job));
+        IsProminent = agents.Count >= 2;
+        Summary = OverviewPhrases.Hub(Account, Cost, IsDefault);
+    }
 }
 
-internal sealed class AgentViewModel(BoardJob job) : IAgentViewModel
+[INotifyPropertyChanged]
+internal sealed partial class AgentViewModel : IAgentViewModel
 {
-    public JobId Job { get; } = job.Job;
+    private readonly StatusDotViewModel dot = new(StatusKind.Working);
 
-    public string Title { get; } = FactPhrases.Title(job.Summary.Instruction);
+    public AgentViewModel(BoardJob job)
+    {
+        Job = job.Job;
+        Title = FactPhrases.Title(job.Summary.Instruction);
+        Fact = string.Empty;
+        State = string.Empty;
+        Update(job);
+    }
 
-    public JobStatus Status { get; } = job.Status;
+    public JobId Job { get; }
 
-    public string Fact { get; } = FactPhrases.Of(job.Fact);
+    public string Title { get; }
+
+    public IStatusDotViewModel Dot => dot;
+
+    [ObservableProperty]
+    public partial JobStatus Status { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Summary))]
+    public partial string Fact { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Summary))]
+    public partial string State { get; private set; }
+
+    public string Summary => $"{State} — {Fact}";
+
+    public void Update(BoardJob job)
+    {
+        Status = job.Status;
+        Fact = FactPhrases.Of(job.Fact);
+        dot.Kind = FactPhrases.Dot(job);
+        State = OverviewPhrases.State(dot.Kind);
+    }
 }

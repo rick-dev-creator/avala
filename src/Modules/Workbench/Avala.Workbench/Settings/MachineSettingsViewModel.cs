@@ -23,6 +23,10 @@ internal interface IMachineSettingsViewModel
 
     string SilenceDraft { get; set; }
 
+    bool IsSilenceChanged { get; }
+
+    double SilenceMinutes { get; set; }
+
     string Resources { get; }
 
     string Error { get; }
@@ -32,6 +36,26 @@ internal interface IMachineSettingsViewModel
     IAsyncRelayCommand OpenConnectionsCommand { get; }
 
     Task LoadAsync(CancellationToken cancellationToken);
+}
+
+internal static class SilenceDial
+{
+    public const double Fewest = 1;
+
+    public const double Most = 60;
+
+    public static double Minutes(string draft, string saved) =>
+        Seconds(draft) is { } seconds ? Math.Clamp(seconds / 60, Fewest, Most)
+        : Seconds(saved.TrimEnd('s')) is { } kept ? Math.Clamp(kept / 60, Fewest, Most)
+        : Fewest;
+
+    public static string Draft(string draft, string saved, double minutes) =>
+        !double.IsFinite(minutes) || Math.Abs(minutes - Minutes(draft, saved)) < 1e-6
+            ? draft
+            : (Math.Round(Math.Clamp(minutes, Fewest, Most)) * 60).ToString("0", CultureInfo.InvariantCulture);
+
+    private static double? Seconds(string text) =>
+        double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && double.IsFinite(seconds) && seconds > 0 ? seconds : null;
 }
 
 [INotifyPropertyChanged]
@@ -45,6 +69,7 @@ internal sealed partial class MachineSettingsViewModel(MachineSettings settings,
     public partial string ConnectionsFile { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSilenceChanged), nameof(SilenceMinutes))]
     public partial string Silence { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -52,7 +77,16 @@ internal sealed partial class MachineSettingsViewModel(MachineSettings settings,
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveSilenceCommand))]
+    [NotifyPropertyChangedFor(nameof(IsSilenceChanged), nameof(SilenceMinutes))]
     public partial string SilenceDraft { get; set; } = string.Empty;
+
+    public double SilenceMinutes
+    {
+        get => SilenceDial.Minutes(SilenceDraft, Silence);
+        set => SilenceDraft = SilenceDial.Draft(SilenceDraft, Silence, value);
+    }
+
+    public bool IsSilenceChanged => Silence.Length > 0 && SilenceDraft.Trim() + "s" != Silence;
 
     [ObservableProperty]
     public partial string Resources { get; private set; } = string.Empty;

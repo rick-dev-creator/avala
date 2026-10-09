@@ -106,6 +106,30 @@ public sealed class RepositorySettingsViewModelScripts
         Assert.Equal((Repository, 4), (settings.Shown, settings.Files.Count));
     }
 
+    [Fact]
+    public async Task ChoosingARepositoryReadsItsRulesInDecisionOrderWithEachSectionsFileAsync()
+    {
+        var settings = RepositorySettings();
+
+        await settings.OpenCommand.ExecuteAsync(Repository);
+
+        Assert.Equal((Repository, Repository, "shop"), (settings.Repository, settings.Shown, settings.Name));
+        Assert.Equal([1, 2], settings.Rules.Select(rule => rule.Order));
+        Assert.Equal((".avala/permissions.json", ".avala/budget.json", true), (settings.PermissionsFile?.Path, settings.BudgetFile?.Path, settings.BudgetFile?.IsRejected));
+        Assert.Equal("Autonomous, the agent's best judgment, 2 rules", settings.Files[0].Summary);
+        Assert.Equal("build", settings.Files[2].Summary);
+    }
+
+    [Fact]
+    public async Task ChoosingNoRepositoryReadsNothingAsync()
+    {
+        var settings = RepositorySettings();
+
+        await settings.OpenCommand.ExecuteAsync("  ");
+
+        Assert.Equal((string.Empty, 0), (settings.Shown, settings.Files.Count));
+    }
+
     private RepositorySettingsViewModel RepositorySettings(params JobSummary[] jobs) =>
         new(Reader(new CommittedFiles().Workspace(Repository)), new SettingsFiles(opener, new AvalaPaths("/data")), Pages.Board(jobs));
 
