@@ -176,6 +176,8 @@ internal static class LayerMap
             ["Checks"] = Layer.Domain,
             ["Verifying"] = Layer.Application,
             ["Evidence"] = Layer.Application,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Workspaces", new()
         {

@@ -1,17 +1,24 @@
 using System.Collections.Immutable;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Verification.Contracts;
 
 namespace Avala.Verification.Evidence;
 
-internal sealed class EvidenceBook : IVerifications
+internal sealed class EvidenceBook(IEvidenceStore store) : IVerifications, IStartupTask
 {
-    private ImmutableDictionary<JobId, ImmutableList<VerificationReport>> jobs =
-        ImmutableDictionary<JobId, ImmutableList<VerificationReport>>.Empty;
+    private ImmutableList<VerificationReport> earlier = [];
+    private ImmutableList<VerificationReport> reports = [];
 
-    public void Keep(VerificationReport report) =>
-        ImmutableInterlocked.AddOrUpdate(ref jobs, report.Job, _ => [report], (_, reports) => reports.Add(report));
+    public async Task KeepAsync(VerificationReport report, CancellationToken cancellationToken)
+    {
+        ImmutableInterlocked.Update(ref reports, kept => kept.Add(report));
+        await store.RecordAsync(report, cancellationToken);
+    }
+
+    public async Task RunAsync(CancellationToken cancellationToken) =>
+        Volatile.Write(ref earlier, [.. await store.EarlierRunsAsync(cancellationToken)]);
 
     public IReadOnlyList<VerificationReport> OfJob(JobId job) =>
-        Volatile.Read(ref jobs).TryGetValue(job, out var reports) ? reports : [];
+        [.. Volatile.Read(ref earlier).Concat(Volatile.Read(ref reports)).Where(report => report.Job == job)];
 }

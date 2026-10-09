@@ -36,6 +36,27 @@ internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar,
         return await run.Ui.ReadAsync(() => page["Conversation"]);
     }
 
+    public async Task<IReadOnlyList<Bound>> InspectAsync(JobId job, params string[] kinds)
+    {
+        _ = await SelectAsync(job);
+        var sections = kinds.Select(Section).ToList();
+        await run.Ui.InvokeAsync(() => page.Execute("ToggleInspectorCommand"), TestContext.Current.CancellationToken);
+
+        foreach (var section in sections)
+        {
+            await run.Ui.PresentedAsync(section.Presentation, () => section["IsLoaded"].Value<bool>(), () => $"{section.Kind} did not load");
+        }
+
+        return sections;
+    }
+
+    public async Task<(string Group, string Fact)> RowAsync(JobId job)
+    {
+        await ShowsAsync(() => Row(job) is not null);
+
+        return await run.Ui.ReadAsync(() => GroupOf(job));
+    }
+
     public Task ShowsInGroupAsync(JobId job, string group) => ShowsAsync(() => GroupOf(job).Group == group);
 
     public Task ShowsInGroupAsync(JobId job, string group, string fact) => ShowsAsync(() => GroupOf(job) == (group, fact));
