@@ -13,6 +13,8 @@ internal interface IUsageViewModel
 {
     string Title { get; }
 
+    string Scope { get; }
+
     IReadOnlyList<IConnectionMeterViewModel> Connections { get; }
 
     IReadOnlyList<IUsageWindowViewModel> Windows { get; }
@@ -38,6 +40,8 @@ internal sealed class UsageViewModel(UsageReader reader, UsageWindows windows, L
     public long Revision => feed.Revision;
 
     public string Title => "Usage";
+
+    public string Scope => Scopes.Usage;
 
     public string Icon => "IconUsage";
 
