@@ -306,6 +306,26 @@ public sealed class SimulatedSessionTests
     }
 
     [Fact]
+    public async Task AnInterruptedTurnHasEndedWhenTheInterruptionReturnsSoTheNextTurnStartsAtOnceAsync()
+    {
+        var refusals = new List<AgentError>();
+
+        for (var round = 0; round < 200; round++)
+        {
+            await using var stage = new Stage();
+            await stage.SendAsync("[simulate: hang] Wait", Cancellation);
+            Outcomes.Succeeds(await stage.Session.InterruptAsync(Cancellation));
+
+            if (!(await stage.Session.SendAsync(new UserTurn("Carry on where you stopped."), Cancellation)).TryGetValue(out _, out var refusal))
+            {
+                refusals.Add(refusal);
+            }
+        }
+
+        Assert.Empty(refusals);
+    }
+
+    [Fact]
     public async Task GivenTheCanvasToolTheCanvasScenarioStreamsAnSvgThroughItInSeveralChunksAsync()
     {
         await using var stage = new Stage(PermissionMode.AskEveryTime, Stage.CanvasTool);
