@@ -7,8 +7,10 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | Path | Role |
 | --- | --- |
 | `src/Avala.Sdk` | Public contracts for plugins. No Avalonia, no other Avala dependency. |
-| `src/Avala.Sdk.UI` | Public contracts for plugin views. Depends only on the SDK. |
-| `src/Avala.Shell` | Shell view models. Depends only on the SDK. |
+| `src/Avala.Sdk.UI` | Public contracts for plugin views and the `ViewRegistry`, the data template that resolves a view model's view, by its exact type or by an interface it implements. Depends only on the SDK and Avalonia. |
+| `src/Avala.Shell` | Shell view models and the regions of the main window. Depends only on the SDK and the shared view models. |
+| `src/Shared/Avala.Components` | Shared view models reused across modules, such as the status dot, status pill, meter and keycap hint, each with its interface and design-time implementation. No UI framework. |
+| `src/Shared/Avala.Components.UI` | Their views, in a folder per view, and Avala's [design system](#design-system): the theme, the fonts and the icons. |
 | `src/Avala.Runtime` | Runtime services shared by every module: the event bus, the process runner and the process trees, with their platform containment in `Containment`. Depends only on the SDK. |
 | `src/Avala.Host` | Avalonia application, composition root and plugin loader. References only the SDK, the runtime and the shell. |
 | `src/Modules/<Module>/Avala.<Module>` | Module core: domain, use cases, infrastructure and view models, in feature folders. Everything is `internal`. |
@@ -25,7 +27,9 @@ Avala is a modular monolith. The host knows nothing about the features it runs: 
 | `tests/recordings` | Recorded sessions committed as regression tests, each with its expected outcome, see the [core design](design/core.md#regression-fixtures). Refresh the ones recorded from the simulator with `AVALA_UPDATE_RECORDINGS=1 dotnet test --solution Avala.slnx`. |
 | `tests/Avala.<Project>.Tests` | Unit tests. |
 | `tests/Avala.Integration.Tests` | End-to-end tests that compose the real modules through their public plugin entries, over a real git repository and SQLite. Not part of `Avala.UnitTests.slnf`. |
-| `tests/Avala.Host.Tests` | Simulation tests of the real application: the composition root built from the published plugin folder, driven by the simulator over a real git repository, and its view models driven the way a view binds them. Not part of `Avala.UnitTests.slnf`. |
+| `tests/Avala.Host.Tests` | Simulation tests of the real application: the composition root built from the published plugin folder, driven by the simulator over a real git repository, its view models driven the way a view binds them, and the shell rendered headless. Not part of `Avala.UnitTests.slnf`. |
+| `tests/Avala.Testing.UI` | Helpers for headless view scripts: `HeadlessApp`, the application with Avala's theme and a view registry, `HeadlessUi` and `ViewScript`. |
+| `tests/Avala.ArchitectureTests.Fixtures.UI` | The views of the compliant and violating fixtures, and a view model that knows Avalonia. |
 
 ## Screaming architecture
 
@@ -60,16 +64,12 @@ A namespace missing from the map fails the architecture tests. A new folder ther
 
 Enforced by `tests/Avala.ArchitectureTests`:
 
-- The host references only the SDK, the runtime and the shell, and depends on no module.
+- The host references only the SDK, the runtime, the shell and the shared components, and depends on no module. The shared view models depend only on the SDK, their views only on the SDK, `Avala.Sdk.UI` and their view models, and every module may depend on both.
 - A module depends only on the SDK, its own projects and other modules' `Contracts`.
 - A module's `Contracts` depend only on the SDK and other modules' `Contracts`: identifiers such as `JobId` or `SessionId` are a vocabulary the modules share, never their internals.
 - A module exposes exactly one public type outside its `Contracts`: its `IPlugin` entry.
-- `InternalsVisibleTo` targets only the project's own module and its test project. The shell and the runtime may also open to the host.
-- View models live in assemblies that do not reference Avalonia.
-- Every `XViewModel` has an `XView` and the other way around. Views are resolved view-model-first through the view registry.
-- Code-behind holds only presentation concerns: it references no service, module contract or other view model, takes no constructor dependencies, and stays under 400 lines. A XAML view stays under 800 lines and a view model under 400.
-- Every view model has an interface its view binds to with compiled bindings (`x:DataType`), and a design-time implementation the view declares as its design-time `DataContext`, so every view renders in the designer.
-- Pages are composed of named regions filled with components registered by plugins.
+- `InternalsVisibleTo` targets only the project's own module and its test project. The shell and the runtime may also open to the host and the host's tests.
+- The [view rules](#view-rules) below.
 - No class takes more than four constructor dependencies. Records holding data are exempt.
 - Every class is `sealed`. Only framework types may be inherited: Avalonia types for views and the application, and EF Core's `DbContext` for each module's database.
 - No non-private member exposes a nullable type in its signature: properties, fields, parameters and return types, generic arguments such as `Task<T?>` included. Absence is an `Option<T>`. Exempt: members that implement framework interfaces or override framework members, such as Avalonia's `IDataTemplate`; properties of view models, since an empty selection is `null` in Avalonia; the `Optional` bridge; unconstrained generic type parameters; and generated code.
@@ -93,6 +93,42 @@ Enforced by the compiler through `BannedSymbols.txt` and the threading analyzers
 - No coordination primitive in `src/`: `src/BannedSymbols.Concurrency.txt` bans the types above for every source project, so a violation fails the build before the architecture tests run. A `lock` on a plain object names no banned type, so only the architecture rule catches it.
 
 Every rule is checked against the production modules, a compliant fixture module and a violating fixture module. A rule must pass on the first two and find exactly the expected violations in the third, so it can never pass vacuously.
+
+### View rules
+
+`tests/Avala.ArchitectureTests/Views` checks every view and view model of `src`, the compliant fixture and the violating fixture. The fixtures' views live in `Avala.ArchitectureTests.Fixtures.UI`; the violating views are kept out of the XAML compiler, since a broken view would not build, and read as files. Each failure names the type or the file and line, and says how to fix it. A view model is a class named `XViewModel`; its interface is `IXViewModel` and its design-time implementation `DesignXViewModel`, which no other rule counts as a view model.
+
+| Rule | Checks |
+| --- | --- |
+| `ViewForEveryViewModel`, `ViewModelForEveryView` | Every `XViewModel` has an `XView` and the other way around. |
+| `CompiledBindings` | Every view declares `x:DataType`; compiled bindings are the default in every project, so a broken binding fails the build. |
+| `DesignTimeDataContext` | Every view declares its design-time `DataContext`, as `<Design.DataContext>` or `d:DataContext`. |
+| `ViewModelInterfaces`, `DesignTimeImplementations` | Every view model implements `IXViewModel`, and every `IXViewModel` has a `DesignXViewModel`. The interfaces do not extend `INotifyPropertyChanged`: CommunityToolkit's `[INotifyPropertyChanged]` refuses a class whose interfaces already declare it, and compiled bindings still observe the class. |
+| `NoUiFrameworkInViewModels` | No view model, view model interface or design-time implementation lives in an assembly that references a UI framework: Avalonia, MAUI, Uno, WPF, Windows Forms, WinUI, Blazor's components, Terminal.Gui, Xamarin.Forms, Eto or GTK. |
+| `PresentationOnlyCodeBehind` | A view's code-behind uses only `System` and `Avalonia` namespaces, names no view model, takes no constructor parameters and declares one type. |
+| `ComponentSize` | A XAML file has at most 800 lines, a code-behind at most 400 and a view model at most 400. |
+| `DeclaredRegions` | Only a static class named `<Page>Regions` creates a `RegionName`, so every region a plugin registers into is a declared one. |
+| `NoParentOrSiblingReferences` | Over the graph of view models that reference each other through their fields, within one assembly, no view model references its parent or a sibling under the same parent. |
+| `ScriptedAcceptanceTests` | Every view model and every view has a test class named after it with the suffix `Scripts`, such as `MeterViewModelScripts` and `MeterViewScripts`, anywhere under `tests`. |
+| `ThemeResourcesOnly` | No view hard-codes a color, brush, font size, family or weight, corner radius or shadow, in an attribute or a style setter: it uses the theme's resources or typography classes. `Transparent` and a zero radius are allowed. The message names the matching resource when the theme has one, such as "use {DynamicResource AccentBrush} from the theme instead of #8DA2FB". |
+| `CommandsNotEventHandlers` | No XAML attribute attaches an event handler, such as `Click` or `PointerPressed`: a user action is a command binding. |
+| `NamedIconButtons` | A button whose content is only an icon declares `AutomationProperties.Name`. |
+| `TypedRegionReferences` | A XAML attribute that names a region, or holds a declared region's key, uses `{x:Static}` of its typed name, never a string. |
+
+Not enforced yet: a spacing scale, rules on visible text and duplicated styles.
+
+#### Rules scoped until the Workbench retrofit
+
+The Workbench's view models and placeholder views were written before these rules. `PendingRetrofit` lists, by rule and module, the findings the production test skips until the retrofit of phase 10, and nothing else is exempt:
+
+| Rule | Module | Why |
+| --- | --- | --- |
+| `ViewModelInterfaces` | Workbench | Its view models have no interfaces yet. |
+| `DesignTimeDataContext` | Workbench | Its views declare no design-time `DataContext`, which needs those interfaces and their design-time implementations. |
+| `ScriptedAcceptanceTests` | Workbench | Its tests predate the `Scripts` convention. |
+| `ThemeResourcesOnly` | Workbench | Its placeholder views hard-code colors, sizes and weights. |
+
+The list only shrinks: `TheRetrofitScopeOnlyShrinks` fails when an entry no longer finds any violation, so the entry must be removed as soon as its rule passes, and when an entry is not part of the `Ceiling` the list started from. Every other rule already holds for the Workbench, and a new Workbench view model or view must meet it; once it declares interfaces, `DesignTimeImplementations` holds for it as well.
 
 ## Extending Avala
 
@@ -120,13 +156,43 @@ The interface follows the same rule as the rest: a module never references anoth
 | A typed view model from another module's contracts | A view model must host and drive another module's component | The review hosts Observability's job usage meter, created through a factory for the job under review |
 
 - **Regions.** A page declares named regions; a plugin registers its view models into them through the registrar, with an order. A region holds view models, never views: the view registry resolves each one's view from its module's `.UI` assembly. A region activates and deactivates the view models it holds.
-- **Region names are typed** constants in `Avala.Sdk.UI`, never strings, and an architecture test checks that every region a plugin registers into exists.
+- **Region names are typed** constants, never strings, and an architecture test checks that every region a plugin registers into exists.
 - **Region context first.** A page sets its region's context, such as the selected job, and every view model in the region receives it through `IRegionAware`. Sections never subscribe to selection messages.
 - **UI messages** travel over an injected `IMessenger`. A message is a small immutable record in the publishing module's `Contracts`, under `Presentation`, listed in the data catalog like any other data. It states what happened in the interface and never replaces a command to the core.
 - **Typed composition** is the exception. The owning module exposes the view model's interface and a factory in its `Contracts`, under `Presentation`; the interface depends only on `INotifyPropertyChanged` and `ICommand` from .NET, so contracts stay free of any UI framework. The implementation stays internal to its module, and its view stays in its module's `.UI` assembly.
 - **Design time.** Regions have design-time content too, so the shell renders in the designer filled with design-time view models.
 
-We take Prism's concepts, regions, region context and the event aggregator, and implement the minimum Avala needs in `Avala.Sdk.UI` and the shell, rather than depending on Prism itself.
+We take Prism's concepts, regions, region context and the event aggregator, and implement the minimum Avala needs in the SDK and the shell, rather than depending on Prism itself.
+
+#### How regions are built
+
+The contracts live in `Avala.Sdk.Regions`, in the framework-free SDK rather than `Avala.Sdk.UI`, because the view models that receive a region's context live in module cores that know no UI framework, and another UI technology reuses them unchanged:
+
+| Type | Role |
+| --- | --- |
+| `RegionName` | A region's identity. Declared once, as a static property of a static class named `<Page>Regions`; `ShellRegions` declares the main window's `Toolbar`, `Sidebar`, `SidebarFooter`, `Content` and `Inspector`, after the approved window design. |
+| `registrar.AddToRegion<TViewModel>(region, order)` | An extension of `IPluginRegistrar` that registers a `RegionContribution`, resolved from the view model the plugin registered in the container. |
+| `IRegionAware<TContext>` | A view model that receives the region's context as an `Option<TContext>`: `None` when the region has no context or one of another type. |
+| `IRegions` | Sets or clears a region's context, such as the inspector's selected job. |
+| `IPresentation` | The signal a component raises with a new `Revision` once it has applied a change, so a test awaits it instead of polling or waiting. |
+
+The shell implements the rest. `Region` holds a region's view models in ascending order, activates and deactivates those that are `IActivatable` and delivers its context. `RegionContexts` implements `IRegions`; it holds no view model, so a view model may depend on it without a cycle in the container, and it hands a context set before the shell exists to the region once attached. `ShellViewModel` builds the five regions from every contribution; its content region holds the pages, those registered as `IPage` and those registered into `ShellRegions.Content`, which must be pages, and shows the selected one. The shell activates its regions and the selected page when it is activated, and raises `Presented` after a page is selected or a region context is delivered. The shell also registers an `IMessenger` for UI messages. `ShellView`, in the host, draws each region as a list of view models whose views the registry resolves, shows the sidebar column only when it has content or there are several pages, the inspector only when it has sections, and an empty state when there is no page. `DesignShellViewModel` fills every region with shared components, so the shell renders in the designer.
+
+## Design system
+
+Avala's design system is the approved [visual language](design/ui-brief.md), translated to Avalonia in `src/Shared/Avala.Components.UI/Theme` and included by the application as one style, `AvalaTheme.axaml`, over Fluent:
+
+| File | Holds |
+| --- | --- |
+| `Tokens.axaml` | Colors and brushes, dark first: surfaces (window `#101114`, panel `#18191D`, float `#212228`), fills, text levels (`#EDEDEF`, `#A3A3AD`, `#80808A`), separators, the accent `#8DA2FB`, attention `#E5A13A` and failure `#EF6461`, and the Fluent keys Avala overrides, such as the focus visual and the toggle switch. The application requests the dark variant; light comes once the visual language is approved. |
+| `Metrics.axaml` | Radii (6 control, 8 button, 10 row, 14 card, 20 sheet), the spacing scale (4 to 48), widths, the type scale and the shadows of each material level. |
+| `Typography.axaml` | Inter for the interface and JetBrains Mono for code, embedded in `Fonts` with its license, `JetBrainsMono-OFL.txt`, and the text classes of the type scale: `title`, `heading`, `reading`, `body`, `caption`, `section`, `mono`, `strong` and the tones. |
+| `Materials.axaml` | The three material levels. The window is opaque; panels such as the sidebar and the inspector draw `PanelMaterial`, an acrylic material that shows the platform's translucency, vibrancy on macOS and Mica on Windows, through the window's `TransparencyLevelHint`, and falls back to the solid panel color on Linux or wherever the platform gives none. Floating cards and popovers are solid with their shadow on every platform, since Avalonia blurs only behind a window. |
+| `Motion.axaml` | The durations and easings of the design, its springs approximated by the cubic curves its prototype uses, and the presets as classes: `pulse` (working), `spin` (checking), `arrive-snappy`, `arrive-gentle`, `fade-in` and `eased`. Reduced motion is not handled yet. |
+| `Controls.axaml` | Buttons (default secondary, `primary`, `ghost`, `destructive`), text boxes, check boxes, toggle switches, segmented tabs, scroll bars, list rows, the focus ring and icon paths. |
+| `Icons.axaml` | Vector geometry for every item kind of a conversation (message, reasoning, file edit, command, search, web, MCP, sub-agent, policy) and the window's glyphs. |
+
+`ExperimentalAcrylicBorder` takes its material as a local value: set through a style, Avalonia 12 throws when the window closes.
 
 ## Analyzer exceptions
 
@@ -163,6 +229,17 @@ Unit tests are the default. Integration tests are added only when a behavior can
 A test that starts real processes reaps them before it deletes the folders they ran in: on Windows a running process's current directory cannot be deleted. Even then, Windows releases a killed process's handles, and its console host's, a moment after the process the test waited for has exited, with nothing to await, so `TemporaryFolder.DisposeAsync` retries a failed deletion every 100 ms for up to five seconds. Tests whose processes ran in a temporary folder dispose it with `await using`.
 
 View models are tested twice. Their unit tests, next to the module's other tests, give them fakes of the contracts they use. The host simulation tests compose the real application with a `TestUiDispatcher` in place of Avalonia's, resolve the shell's page, activate it and drive it through `Bound`, which reads properties and runs commands by the names a view binds, since the view models are internal to their module. Every read and every command runs on the test's UI thread, and a test awaits the state it expects with `UntilAsync`, never a delay.
+
+### Scripted acceptance tests
+
+Every finished component and page has scripted acceptance tests, in a class named after it with the suffix `Scripts`, which an [architecture rule](#view-rules) requires. Each test is one acceptance criterion played as the user would: it selects, types, presses a key or invokes a command, then asserts what the user would see. Two helpers write them:
+
+- `ViewModelScript`, in `Avala.Testing`, drives a view model with fakes or its design-time data: `Given(viewModel)`, `When(action)`, `Invoke("SaveCommand")` by the name a view binds, `Then(assertion)`, `ThenNotified(properties)`, which checks the change notifications a view relies on, and `WhenPresentedAsync(action)`, which awaits the component's `Presented` signal.
+- `ViewScript`, in `Avala.Testing.UI`, drives a view headless with Avalonia.Headless and Avala's theme: `Show(viewModel)` resolves the view through the registry, `Present(window, viewModel)` opens a window such as the shell, then `Click`, `Type` and `Press` play input, and `TextOf`, `Shows`, `HasClass`, `Find` and `VisibleTexts` read what is on screen. `HeadlessUi`, an assembly fixture, runs each script on Avalonia's thread and closes its windows afterwards; the session is not disposed, since disposing it hangs the runner.
+
+A page that composes regions has scripts of its composition too: `ShellViewScripts` renders the design-time shell with every region filled, the application composed from the published plugins with its page in the content region, and a choice in the sidebar region reaching the inspector region through the region context.
+
+Waits are deterministic and driven by events, never by polling state or by time. A component states in its contract when it has applied a change: `IPresentation.Presented`, with its revision, raised by production code. A script awaits that signal or a core event through `EventWatch`, then asserts. Headless scripts need no wait at all: input and layout run synchronously on Avalonia's thread. A safety timeout guards only against a hang and, when it fires, reports the last state it observed, as `TestUiDispatcher.UntilAsync` does. Behavior about time runs on a `FakeTimeProvider`.
 
 Every `XViewModel` needs its `XView`, even before the views of phase 10 are designed: a view model gets a plain placeholder view in the same change, bound to what it exposes, which phase 10 restyles. An item a view model lists, such as a sidebar row or a timeline entry, is a view model with its own view too, resolved through the view registry, so each kind of entry has one view model and one template.
 
