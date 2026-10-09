@@ -10,6 +10,7 @@ using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Sdk.Regions;
 using Avala.Sdk.UI;
+using Avala.Sdk.Updates;
 using Avala.Supervision.Contracts;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Board;
@@ -36,6 +37,7 @@ using Avala.Workbench.Sidebar;
 using Avala.Workbench.Spending;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Submitting;
+using Avala.Workbench.Updates;
 using Avala.Workbench.Upkeep;
 using Avala.Workbench.Usage;
 using Microsoft.Extensions.DependencyInjection;
@@ -98,6 +100,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterInspector(registrar);
         RegisterGlobalPages(registrar.Services);
         registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
+        registrar.AddToRegion<UpdateNoticeViewModel>(ShellRegions.SidebarFooter, 10);
     }
 
     public void RegisterViews(IViewRegistrar views)
@@ -175,6 +178,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IHandle<BudgetCarved>>(Get<Pulse>)
             .AddSingleton<IHandle<BudgetIntervened>>(Get<Pulse>)
             .AddSingleton<IHandle<SupervisorIntervened>>(Get<Pulse>)
+            .AddSingleton<IHandle<UpdateFound>>(Get<Pulse>)
             .AddSingleton<SessionBook>()
             .AddSingleton<IHandle<SessionOpened>>(Get<SessionBook>)
             .AddSingleton<IHandle<JobSessionStarted>>(Get<SessionBook>)
@@ -202,7 +206,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ConnectionEditorViewModel>()
             .AddSingleton<IMachineSettingsViewModel, MachineSettingsViewModel>()
             .AddSingleton<IAppearanceViewModel, AppearanceViewModel>()
+            .AddSingleton<IUpdateViewModel, UpdateViewModel>()
             .AddSingleton<IAboutViewModel, AboutViewModel>()
+            .AddSingleton<UpdateNoticeViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
             .AddSingleton<NewJobViewModel>()
             .AddSingleton<OverviewViewModel>()
@@ -240,6 +246,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IMachineSettingsViewModel, MachineSettingsView>();
         views.Register<IAppearanceViewModel, AppearanceView>();
         views.Register<IAboutViewModel, AboutView>();
+        views.Register<IUpdateViewModel, UpdateView>();
+        views.Register<IUpdateNoticeViewModel, UpdateNoticeView>();
         views.Register<IRuleFileViewModel, RuleFileView>();
         views.Register<IRuleViewModel, RuleView>();
         views.Register<ICapsViewModel, CapsView>();

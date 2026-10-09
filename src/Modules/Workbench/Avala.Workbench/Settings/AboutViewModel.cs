@@ -1,4 +1,5 @@
 using Avala.Sdk;
+using Avala.Workbench.Updates;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -14,23 +15,29 @@ internal interface IAboutViewModel
 
     string Note { get; }
 
+    IUpdateViewModel Update { get; }
+
     IAsyncRelayCommand OpenLogFolderCommand { get; }
 
     IAsyncRelayCommand OpenRepositoryCommand { get; }
 
     IAsyncRelayCommand OpenLicenseCommand { get; }
+
+    void Refresh();
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class AboutViewModel(AvalaBuild build, AvalaPaths paths, IFileOpener files, ILinkOpener links) : IAboutViewModel
+internal sealed partial class AboutViewModel(IUpdateViewModel update, AvalaPaths paths, IFileOpener files, ILinkOpener links) : IAboutViewModel
 {
-    private const int ShortCommit = 12;
+    public string Version => update.Version;
 
-    public string Version => build.Version;
+    public string Commit => update.Commit;
 
-    public string Commit => build.Commit.Match(commit => commit.Length > ShortCommit ? commit[..ShortCommit] : commit, () => AvalaBuild.Unknown);
+    public IUpdateViewModel Update => update;
 
     public string LogFolder => paths.Logs;
+
+    public void Refresh() => update.Refresh();
 
     [ObservableProperty]
     public partial string Note { get; private set; } = string.Empty;
