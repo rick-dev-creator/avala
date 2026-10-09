@@ -34,7 +34,7 @@ internal sealed class Tracked : IDisposable
     public async Task<SessionId> OpenAsync(ProviderInfo provider)
     {
         var session = SessionId.New();
-        await tracker.HandleAsync(new SessionOpened(session, provider), Cancellation);
+        await tracker.HandleAsync(new SessionOpened(session, provider, "."), Cancellation);
 
         return session;
     }

@@ -31,7 +31,7 @@ internal sealed partial class AgentSessions(
             return error;
         }
 
-        await bus.PublishAsync(new SessionOpened(session.Id, provider.Info), cancellationToken);
+        await bus.PublishAsync(new SessionOpened(session.Id, provider.Info, request.WorkingDirectory), cancellationToken);
         live.TryAdd(session.Id, new LiveSession(session, PumpAsync));
 
         return session.Id;

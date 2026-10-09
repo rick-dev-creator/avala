@@ -110,6 +110,18 @@ Status: done. The MCP canvas tool moved to phase 6, with the real provider; the 
 
 Done when: a canvas streamed by the simulator reaches the bus as snapshots in order, with unit tests. Met.
 
+## Phase 8b: Permissions
+
+Status: done with the simulator. Reading the policy from the committed base rather than the worktree, and opening sessions in `AskEveryTime` so that edits also reach the policy, wait for the real Claude Code provider of phase 6.
+
+1. `PermissionRequested` names its item kind and its target, `SessionOpened` its working directory, and the conformance kit reports requests that name no target or another kind than their item.
+2. The Permissions module, a plugin of its own: ordered rules with first-match semantics and a default `Ask`, scoped to the workspace for file edits, with a built-in guard that sends edits of the policy file to a human.
+3. A repository policy in `.avala/permissions.json`, parsed strictly; an invalid file is reported with a typed `PolicyError` and falls back to the built-in policy.
+4. `PermissionResponder` answers `Allow` and `Deny` through `IAgents.RespondAsync` and leaves `Ask` pending; every decision is published as `PermissionDecided` with the rule that made it, and is queryable by session and job through `IPermissionAudit`.
+5. Host simulation tests with the `permission` scenario: an allowing policy lets the job finish unattended, a denying policy is answered `Deny`, and without a policy the request awaits a human, with the decision audited in each case.
+
+Done when: a simulated job that asks permission finishes unattended under a repository policy, and every decision is audited. Met.
+
 ## Phase 9: View models of the usable core
 
 The whole application works through view models, with no user interface.
