@@ -11,6 +11,13 @@ public interface IJobs
     ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken);
 
     ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken);
+
+    ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken);
+}
+
+public interface IJobAdmission
+{
+    ValueTask AdmitAsync(JobId job, CancellationToken cancellationToken);
 }
 
 public sealed record JobRequest(string RepositoryPath, string Instruction, int AttemptsPerRound = 3)
@@ -43,4 +50,5 @@ public enum JobRejection
     AgentUnavailable,
     UnknownConnection,
     UnusableConnection,
+    NotDiscardable,
 }

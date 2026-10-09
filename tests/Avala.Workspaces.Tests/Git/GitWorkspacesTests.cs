@@ -115,6 +115,80 @@ public sealed class GitWorkspacesTests
     }
 
     [Fact]
+    public async Task ReconcilingReportsStrayFoldersAndMissingWorktreesWithoutTouchingThemAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var service = Service(repository);
+        var kept = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+        var lost = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+        Directory.Delete(lost.Path, recursive: true);
+        var stray = Directory.CreateDirectory(Path.Combine(repository.WorktreeRoot, "left-behind")).FullName;
+
+        var found = await service.ReconcileAsync(Cancellation);
+
+        Assert.Equal([stray], found.Strays);
+        Assert.Equal([lost], found.Missing);
+        Assert.True(Directory.Exists(stray));
+        Assert.Equal(lost, Outcomes.Succeeds(await service.FindAsync(lost.Id, Cancellation)));
+        Assert.Equal(kept, Outcomes.Succeeds(await service.FindAtAsync(kept.Path, Cancellation)));
+    }
+
+    [Fact]
+    public async Task CleaningDeletesTheStrayFoldersAndForgetsTheMissingWorktreesButKeepsTheirBranchesAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var service = Service(repository);
+        var lost = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+        Directory.Delete(lost.Path, recursive: true);
+        var stray = Directory.CreateDirectory(Path.Combine(repository.WorktreeRoot, "left-behind")).FullName;
+        await File.WriteAllTextAsync(Path.Combine(stray, "output.log"), "built", Cancellation);
+
+        var cleaned = await service.CleanAsync(await service.ReconcileAsync(Cancellation), Cancellation);
+
+        Assert.Equal([stray], cleaned.Strays);
+        Assert.Equal([lost], cleaned.Missing);
+        Assert.False(Directory.Exists(stray));
+        Assert.Equal(WorkspaceFailure.UnknownWorkspace, Outcomes.FailsWith(await service.FindAsync(lost.Id, Cancellation)));
+        Assert.DoesNotContain(lost.Path, await repository.GitAsync(Cancellation, "worktree", "list"), StringComparison.Ordinal);
+        Assert.NotEmpty(await repository.GitAsync(Cancellation, "branch", "--list", lost.Branch));
+        var after = await service.ReconcileAsync(Cancellation);
+        Assert.Empty(after.Strays);
+        Assert.Empty(after.Missing);
+    }
+
+    [Fact]
+    public async Task CheckpointingRunsGitInTheWorktreeSoItsProcessesJoinTheWorktreesTreeAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var recording = new RecordingRunner(Processes);
+        var store = new InMemoryWorkspaceStore();
+        var settings = new WorkspaceSettings(repository.WorktreeRoot);
+        var git = new GitCli(recording);
+        var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
+        var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
+
+        Outcomes.Succeeds(await service.CheckpointAsync(workspace.Id, "turn 1", Cancellation));
+
+        Assert.Equal(
+            ["add", "commit", "rev-parse"],
+            recording.Requests.Where(request => request.WorkingDirectory == Option<string>.Some(workspace.Path)).Select(request => request.Arguments.SkipWhile(argument => argument != workspace.Path).ElementAt(1)));
+    }
+
+    private sealed class RecordingRunner(IProcessRunner inner) : IProcessRunner
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<ProcessRequest> requests = new();
+
+        public IReadOnlyList<ProcessRequest> Requests => [.. requests];
+
+        public ValueTask<Result<ProcessOutcome, ProcessError>> RunAsync(ProcessRequest request, CancellationToken cancellationToken)
+        {
+            requests.Enqueue(request);
+
+            return inner.RunAsync(request, cancellationToken);
+        }
+    }
+
+    [Fact]
     public async Task AFolderOutsideAnyRepositoryIsRefusedAsync()
     {
         var outside = Directory.CreateTempSubdirectory("avala-outside-");
@@ -134,8 +208,14 @@ public sealed class GitWorkspacesTests
     private static WorkspaceService Service(TemporaryRepository repository, InMemoryWorkspaceStore? store = null) =>
         Service(repository.WorktreeRoot, store);
 
-    private static WorkspaceService Service(string worktreeRoot, InMemoryWorkspaceStore? store = null) =>
-        new(new GitCli(Processes), store ?? new InMemoryWorkspaceStore(), new WorkspaceSettings(worktreeRoot));
+    private static WorkspaceService Service(string worktreeRoot, InMemoryWorkspaceStore? store = null)
+    {
+        var git = new GitCli(Processes);
+        var kept = store ?? new InMemoryWorkspaceStore();
+        var settings = new WorkspaceSettings(worktreeRoot);
+
+        return new(git, kept, settings, new WorktreeReconciler(git, kept, settings));
+    }
 
     private static BaseFileReader BaseFiles(InMemoryWorkspaceStore store) => new(new GitCli(Processes), store);
 }
