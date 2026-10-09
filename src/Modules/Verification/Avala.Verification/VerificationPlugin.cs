@@ -2,7 +2,6 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
 using Avala.Verification.Evidence;
-using Avala.Verification.FileSystem;
 using Avala.Verification.Verifying;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -20,7 +19,6 @@ public sealed class VerificationPlugin : IPlugin
             .AddSingleton<EvidenceBook>()
             .AddSingleton<IVerifications>(services => services.GetRequiredService<EvidenceBook>())
             .AddSingleton<EvidenceLedger>()
-            .AddSingleton<ICheckDeclarations, RepositoryDeclarations>()
             .AddSingleton<CheckRunner>()
             .AddSingleton<ICompletionGate, ChecksGate>();
     }

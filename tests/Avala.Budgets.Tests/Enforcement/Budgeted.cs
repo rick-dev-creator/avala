@@ -106,7 +106,7 @@ internal sealed class Budgeted
 
     private sealed class FixedFiles(Result<Option<BudgetCaps>, BudgetError> file) : IBudgetFiles
     {
-        public ValueTask<Result<Option<BudgetCaps>, BudgetError>> ReadAsync(string workingDirectory, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(file);
+        public ValueTask<BudgetFile> ReadAsync(string workingDirectory, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new BudgetFile(CommittedFiles.Origin(), file));
     }
 }

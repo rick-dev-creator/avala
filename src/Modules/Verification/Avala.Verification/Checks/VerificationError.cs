@@ -5,4 +5,5 @@ internal enum VerificationError
     MalformedDeclaration,
     MissingCommand,
     InvalidTimeout,
+    UnreadableDeclaration,
 }

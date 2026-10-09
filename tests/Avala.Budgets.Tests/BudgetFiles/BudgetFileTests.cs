@@ -3,11 +3,15 @@ using Avala.Budgets.BudgetFiles;
 using Avala.Budgets.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Budgets.Tests.BudgetFiles;
 
 public sealed class BudgetFileTests
 {
+    private const string Worktree = "/worktrees/1";
+    private const string BudgetFile = ".avala/budget.json";
+
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
@@ -47,36 +51,48 @@ public sealed class BudgetFileTests
         Assert.Equal(expected, Outcomes.FailsWith(BudgetFileParser.Parse(text)));
 
     [Fact]
-    public async Task AWorkingDirectoryWithoutABudgetFileHasNoCapsAsync()
+    public async Task ABaseCommitWithoutABudgetFileHasNoCapsAsync()
     {
-        using var folder = new TemporaryFolder();
+        var file = await new BudgetFileReader(new CommittedFiles().Workspace(Worktree)).ReadAsync(Worktree, Cancellation);
 
-        Assert.True(Outcomes.Succeeds(await new BudgetFileReader().ReadAsync(folder.Path, Cancellation)).IsNone);
+        Assert.True(Outcomes.Succeeds(file.Caps).IsNone);
+        Assert.Equal(Option<FileOrigin>.Some(CommittedFiles.Origin()), file.Origin);
     }
 
     [Fact]
-    public async Task TheBudgetFileOfTheWorkingDirectoryIsReadAndParsedAsync()
+    public async Task TheBudgetFileOfTheBaseCommitIsParsedWithItsOriginAsync()
     {
-        using var folder = new TemporaryFolder();
-        await WriteAsync(folder, """{ "tokensPerJob": 1000 }""");
+        var committed = new CommittedFiles().With(Worktree, BudgetFile, """{ "tokensPerJob": 1000 }""", editedInWorktree: true);
 
-        var caps = Outcomes.Present(Outcomes.Succeeds(await new BudgetFileReader().ReadAsync(folder.Path, Cancellation)));
+        var file = await new BudgetFileReader(committed).ReadAsync(Worktree, Cancellation);
 
-        Assert.Equal(Option<long>.Some(1_000), caps.TokensPerJob);
+        Assert.Equal(Option<long>.Some(1_000), Outcomes.Present(Outcomes.Succeeds(file.Caps)).TokensPerJob);
+        Assert.Equal(Option<FileOrigin>.Some(CommittedFiles.Origin(editedInWorktree: true)), file.Origin);
+        Assert.Equal([(Worktree, BudgetFile)], committed.Reads);
     }
 
     [Fact]
     public async Task ABudgetFileOverTheSizeLimitIsRejectedUnparsedAsync()
     {
-        using var folder = new TemporaryFolder();
-        await WriteAsync(folder, new string(' ', BudgetFileReader.MaximumBytes + 1));
+        var committed = new CommittedFiles().With(Worktree, BudgetFile, new string(' ', BudgetFileReader.MaximumBytes + 1));
 
-        Assert.Equal(BudgetError.TooLarge, Outcomes.FailsWith(await new BudgetFileReader().ReadAsync(folder.Path, Cancellation)));
+        Assert.Equal(BudgetError.TooLarge, Outcomes.FailsWith((await new BudgetFileReader(committed).ReadAsync(Worktree, Cancellation)).Caps));
     }
 
-    private static async Task WriteAsync(TemporaryFolder folder, string content)
+    [Fact]
+    public async Task AFolderThatIsNoJobWorkspaceHasNoCapsAndNoOriginAsync()
     {
-        Directory.CreateDirectory(Path.Combine(folder.Path, ".avala"));
-        await File.WriteAllTextAsync(Path.Combine(folder.Path, ".avala", "budget.json"), content, Cancellation);
+        var file = await new BudgetFileReader(new CommittedFiles()).ReadAsync("/elsewhere", Cancellation);
+
+        Assert.True(Outcomes.Succeeds(file.Caps).IsNone);
+        Assert.True(file.Origin.IsNone);
+    }
+
+    [Fact]
+    public async Task ABaseCommitThatCannotBeReadIsUnreadableAsync()
+    {
+        var file = await new BudgetFileReader(new CommittedFiles().Failing(Worktree, WorkspaceFailure.GitFailed)).ReadAsync(Worktree, Cancellation);
+
+        Assert.Equal(BudgetError.Unreadable, Outcomes.FailsWith(file.Caps));
     }
 }

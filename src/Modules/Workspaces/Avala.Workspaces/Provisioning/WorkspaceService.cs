@@ -10,9 +10,10 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
         WorkspaceRequest request,
         CancellationToken cancellationToken) =>
         await git.FindRepositoryRootAsync(request.RepositoryPath, cancellationToken)
-            .BindAsync(Plan)
+            .BindAsync(repository => git.ResolveCommitAsync(repository, request.BaseRef, cancellationToken)
+                .BindAsync(commit => Plan(repository, commit)))
             .BindAsync(workspace => EnsureBranchIsFreeAsync(workspace, cancellationToken))
-            .BindAsync(workspace => OpenAsync(workspace, request.BaseRef, cancellationToken))
+            .BindAsync(workspace => OpenAsync(workspace, cancellationToken))
             .MapAsync(Describe);
 
     public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> FindAsync(
@@ -47,13 +48,13 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
                 return Result<WorkspaceId, WorkspaceFailure>.Success(removed.Workspace);
             });
 
-    private Result<Workspace, WorkspaceFailure> Plan(string repository)
+    private Result<Workspace, WorkspaceFailure> Plan(string repository, CommitSha commit)
     {
         var id = WorkspaceId.New();
 
         return Valid(WorkspaceLocation.Create(repository, Path.Combine(settings.Root, $"{id.Value:N}"))
             .Bind(location => BranchName.Create($"avala/{id.Value:N}")
-                .Bind(branch => Workspace.Create(id, location, branch))));
+                .Bind(branch => Workspace.Create(id, location, branch, commit))));
     }
 
     private async Task<Result<Workspace, WorkspaceFailure>> EnsureBranchIsFreeAsync(
@@ -64,10 +65,9 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
 
     private async Task<Result<Workspace, WorkspaceFailure>> OpenAsync(
         Workspace workspace,
-        string baseRef,
         CancellationToken cancellationToken)
     {
-        var opened = await git.AddWorktreeAsync(workspace.Location, workspace.Branch, baseRef, cancellationToken)
+        var opened = await git.AddWorktreeAsync(workspace.Location, workspace.Branch, workspace.Base, cancellationToken)
             .BindAsync(_ => Valid(workspace.MarkReady()));
 
         if (opened.IsFailure)
@@ -91,7 +91,7 @@ internal sealed class WorkspaceService(IGit git, IWorkspaceStore store, Workspac
     }
 
     private static WorkspaceInfo Describe(Workspace workspace) =>
-        new(workspace.Id, workspace.Location.Path, workspace.Branch.Value);
+        new(workspace.Id, workspace.Location.Path, workspace.Branch.Value, workspace.Base.Value);
 
     private static Result<T, WorkspaceFailure> Valid<T>(Result<T, WorkspaceError> result) =>
         result.MapError(_ => WorkspaceFailure.InvalidState);

@@ -1,4 +1,5 @@
 using Avala.Sdk;
+using Avala.Workspaces.BaseFiles;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Git;
 using Avala.Workspaces.Provisioning;
@@ -16,5 +17,6 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddSingleton(provider => new WorkspaceSettings(provider.GetRequiredService<AvalaPaths>().Folder("worktrees")))
             .AddSingleton<IGit, GitCli>()
             .AddSingleton<IWorkspaceStore, SqliteWorkspaceStore>()
-            .AddSingleton<IWorkspaces, WorkspaceService>();
+            .AddSingleton<IWorkspaces, WorkspaceService>()
+            .AddSingleton<IBaseFiles, BaseFileReader>();
 }

@@ -11,7 +11,7 @@ public sealed class SimulatedSessionTests
     [Fact]
     public async Task TheEditScenarioWritesItsFileIntoTheWorkingDirectoryAsync()
     {
-        await using var stage = new Stage();
+        await using var stage = new Stage(PermissionMode.AllowAll);
         await stage.SendAsync("[simulate: edit] Add a greeting", Cancellation);
 
         var events = await stage.ReadTurnAsync(Cancellation);
@@ -25,7 +25,7 @@ public sealed class SimulatedSessionTests
     [Fact]
     public async Task FixAfterFeedbackWritesABrokenFileFirstAndFixesItAfterFeedbackAsync()
     {
-        await using var stage = new Stage();
+        await using var stage = new Stage(PermissionMode.AllowAll);
         var calculator = Path.Combine(stage.WorkingDirectory, "calculator.txt");
 
         await stage.SendAsync("[simulate: fix-after-feedback] Add a calculator", Cancellation);
@@ -36,6 +36,76 @@ public sealed class SimulatedSessionTests
 
         Assert.Contains("BROKEN", first, StringComparison.Ordinal);
         Assert.Equal("add(2, 2) = 4\n", await File.ReadAllTextAsync(calculator, Cancellation));
+    }
+
+    [Fact]
+    public async Task RewriteChecksEmptiesTheCheckDeclarationWithABrokenFileAndFixesTheFileAfterFeedbackAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+        var calculator = Path.Combine(stage.WorkingDirectory, "calculator.txt");
+
+        await stage.SendAsync("[simulate: rewrite-checks] Add a calculator", Cancellation);
+        await stage.ReadTurnAsync(Cancellation);
+        var first = await File.ReadAllTextAsync(calculator, Cancellation);
+        await stage.SendAsync("add(2, 2) should be 4", Cancellation);
+        await stage.ReadTurnAsync(Cancellation);
+
+        Assert.Equal("{ \"checks\": [] }\n", await File.ReadAllTextAsync(Path.Combine(stage.WorkingDirectory, ".avala", "checks.json"), Cancellation));
+        Assert.Contains("BROKEN", first, StringComparison.Ordinal);
+        Assert.Equal("add(2, 2) = 4\n", await File.ReadAllTextAsync(calculator, Cancellation));
+    }
+
+    [Fact]
+    public async Task AskingEveryTimeAnEditAsksPermissionForItsFileBeforeWritingItAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AskEveryTime);
+        var greeting = Path.Combine(stage.WorkingDirectory, "GREETING.md");
+        await stage.SendAsync("[simulate: edit] Add a greeting", Cancellation);
+
+        var requested = Assert.IsType<PermissionRequested>((await stage.ReadUntilAsync<PermissionRequested>(Cancellation))[^1]);
+
+        Assert.Equal((new ItemId("edit"), ItemKind.FileEdit, greeting), (requested.Item, requested.Kind, requested.Target));
+        Assert.False(File.Exists(greeting));
+        Outcomes.Succeeds(await stage.Session.RespondAsync(new PermissionDecision(requested.Item, PermissionAnswer.Allow), Cancellation));
+        await stage.ReadUntilAsync<ItemCompleted>(Cancellation);
+        Assert.True(File.Exists(greeting));
+    }
+
+    [Fact]
+    public async Task AskingEveryTimeADeniedEditIsCancelledWithoutWritingAndTheTurnFinishesAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AskEveryTime);
+        var turn = await stage.SendAsync("[simulate: edit] Add a greeting", Cancellation);
+        var requested = Assert.IsType<PermissionRequested>((await stage.ReadUntilAsync<PermissionRequested>(Cancellation))[^1]);
+
+        Outcomes.Succeeds(await stage.Session.RespondAsync(new PermissionDecision(requested.Item, PermissionAnswer.Deny), Cancellation));
+
+        Assert.Equal(
+            [
+                new PermissionResolved(stage.Session.Id, turn, requested.Item, PermissionAnswer.Deny),
+                new ItemCompleted(stage.Session.Id, turn, requested.Item, ItemOutcome.Cancelled),
+                new TurnCompleted(stage.Session.Id, turn, TurnOutcome.Finished),
+            ],
+            await stage.ReadTurnAsync(Cancellation));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(stage.WorkingDirectory));
+    }
+
+    [Theory]
+    [InlineData(PermissionMode.AskEveryTime, "edit", "edit test")]
+    [InlineData(PermissionMode.AllowEdits, "edit", "")]
+    [InlineData(PermissionMode.AllowAll, "edit", "")]
+    [InlineData(PermissionMode.AskEveryTime, "permission", "migrate")]
+    [InlineData(PermissionMode.AllowEdits, "permission", "migrate")]
+    [InlineData(PermissionMode.AllowAll, "permission", "")]
+    public async Task EachPermissionModeAsksForTheActionsItDoesNotAllowAsync(PermissionMode mode, string scenario, string asked)
+    {
+        await using var stage = new Stage(mode);
+        await stage.SendAsync($"[simulate: {scenario}] Work", Cancellation);
+
+        var turn = await stage.ReadTurnAllowingEveryRequestAsync(Cancellation);
+
+        Assert.Equal(asked, string.Join(' ', turn.OfType<PermissionRequested>().Select(requested => requested.Item.Value)));
+        Assert.Equal(TurnOutcome.Finished, Assert.IsType<TurnCompleted>(turn[^1]).Outcome);
     }
 
     [Fact]

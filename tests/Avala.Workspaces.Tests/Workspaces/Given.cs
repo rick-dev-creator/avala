@@ -8,12 +8,13 @@ internal static class Given
 {
     public static CommitSha Commit(int number) => Outcomes.Succeeds(CommitSha.Create($"{number:x40}"));
 
-    public static Workspace Workspace(WorkspaceState state = WorkspaceState.Creating)
+    public static Workspace Workspace(WorkspaceState state = WorkspaceState.Creating, string path = "/worktrees/1")
     {
         var workspace = Outcomes.Succeeds(Avala.Workspaces.Workspaces.Workspace.Create(
             WorkspaceId.New(),
-            Outcomes.Succeeds(WorkspaceLocation.Create("/repos/shop", "/worktrees/1")),
-            Outcomes.Succeeds(BranchName.Create("avala/1"))));
+            Outcomes.Succeeds(WorkspaceLocation.Create("/repos/shop", path)),
+            Outcomes.Succeeds(BranchName.Create("avala/1")),
+            Commit(0)));
 
         var error = state switch
         {

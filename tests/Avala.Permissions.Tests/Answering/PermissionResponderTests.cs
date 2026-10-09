@@ -8,6 +8,7 @@ using Avala.Permissions.Governance;
 using Avala.Permissions.Policies;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Permissions.Tests.Answering;
@@ -126,7 +127,7 @@ public sealed class PermissionResponderTests
         return rule;
     }
 
-    private SessionPolicy Report() => new(session, PolicyFileStatus.Applied, Option<PolicyError>.None, []);
+    private SessionPolicy Report() => new(session, PolicyFileStatus.Applied, Option<PolicyError>.None, [], CommittedFiles.Origin());
 
     private Task RequestAsync(ItemKind kind, string target) =>
         governor.HandleAsync(Requested(session, kind, target), Cancellation).AsTask();
@@ -138,8 +139,8 @@ public sealed class PermissionResponderTests
 
     private sealed class NoPolicyFiles : IPolicyFiles
     {
-        public ValueTask<Result<Option<IReadOnlyList<PolicyRule>>, PolicyError>> ReadAsync(string workingDirectory, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Result<Option<IReadOnlyList<PolicyRule>>, PolicyError>.Success(Option<IReadOnlyList<PolicyRule>>.None));
+        public ValueTask<PolicyFile> ReadAsync(string workingDirectory, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new PolicyFile(Option<FileOrigin>.None, Option<IReadOnlyList<PolicyRule>>.None));
     }
 
     private sealed class AnsweringAgents : IAgents

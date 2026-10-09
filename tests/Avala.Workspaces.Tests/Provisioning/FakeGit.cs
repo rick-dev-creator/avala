@@ -26,13 +26,36 @@ internal sealed class FakeGit : IGit
     public Task<Result<string, WorkspaceFailure>> FindRepositoryRootAsync(string path, CancellationToken cancellationToken) =>
         Task.FromResult<Result<string, WorkspaceFailure>>(InsideRepository ? Repository : WorkspaceFailure.NotAGitRepository);
 
+    public CommitSha Head { get; init; } = Given.Commit(0);
+
+    public IReadOnlyList<CommitSha> CheckedOut { get; private set; } = [];
+
+    public Task<Result<CommitSha, WorkspaceFailure>> ResolveCommitAsync(string repository, string reference, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<CommitSha, WorkspaceFailure>>(Head);
+
+    public Task<Result<Option<string>, WorkspaceFailure>> CommittedBlobAsync(
+        string repository,
+        CommitSha commit,
+        string path,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<Result<Option<string>, WorkspaceFailure>>(Option<string>.None);
+
+    public Task<Result<string, WorkspaceFailure>> BlobContentAsync(string repository, string blob, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<string, WorkspaceFailure>>(WorkspaceFailure.GitFailed);
+
+    public Task<Result<Option<string>, WorkspaceFailure>> WorktreeBlobAsync(
+        WorkspaceLocation location,
+        string path,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<Result<Option<string>, WorkspaceFailure>>(Option<string>.None);
+
     public Task<Result<bool, WorkspaceFailure>> BranchExistsAsync(string repository, BranchName branch, CancellationToken cancellationToken) =>
         Task.FromResult<Result<bool, WorkspaceFailure>>(BranchTaken);
 
     public Task<Result<WorkspaceLocation, WorkspaceFailure>> AddWorktreeAsync(
         WorkspaceLocation location,
         BranchName branch,
-        string baseRef,
+        CommitSha commit,
         CancellationToken cancellationToken)
     {
         if (WorktreeFails)
@@ -41,6 +64,7 @@ internal sealed class FakeGit : IGit
         }
 
         worktrees.Add(location);
+        CheckedOut = [.. CheckedOut, commit];
         Branches = [.. Branches, branch];
 
         return Task.FromResult<Result<WorkspaceLocation, WorkspaceFailure>>(location);

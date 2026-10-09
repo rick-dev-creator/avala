@@ -3,6 +3,7 @@ using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Budgets.Tests.Enforcement;
 
@@ -86,6 +87,7 @@ public sealed class BudgetEnforcementTests
 
         var loaded = Assert.IsType<BudgetLoaded>(budgeted.Bus.Published[0]).Budget;
         Assert.Equal((BudgetFileStatus.Rejected, BudgetError.InvalidCost), (loaded.File, Outcomes.Present(loaded.Error)));
+        Assert.Equal(Option<FileOrigin>.Some(CommittedFiles.Origin()), loaded.Origin);
         Assert.Equal(Outcomes.Present(budgeted.Book.BudgetOf(budgeted.Session)), loaded);
         Assert.Equal([(budgeted.Job, HoldReason.InvalidBudget)], budgeted.Jobs.Holds);
         Assert.Equal(

@@ -21,6 +21,8 @@ public sealed class WorkspaceServiceTests
         Assert.Equal($"avala/{info.Id.Value:N}", info.Branch);
         Assert.Equal([info.Path], git.Worktrees.Select(worktree => worktree.Path));
         Assert.Equal("/repos/shop", Assert.Single(git.Worktrees).Repository);
+        Assert.Equal(git.Head.Value, info.BaseCommit);
+        Assert.Equal([git.Head], git.CheckedOut);
     }
 
     [Fact]

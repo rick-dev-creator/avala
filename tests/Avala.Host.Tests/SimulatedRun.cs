@@ -106,6 +106,13 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public async Task<PolicyDecision> DecisionAsync() => (await decisions.UntilAsync(_ => true)).Decision;
 
+    public async Task<IReadOnlyList<PolicyDecision>> DecisionsAsync(int count)
+    {
+        var decided = 0;
+
+        return [.. (await decisions.CollectUntilAsync(_ => ++decided == count)).Select(update => update.Decision)];
+    }
+
     public async Task<JobHold> HoldAsync() => (await holds.UntilAsync(_ => true)).Hold;
 
     public async Task<SupervisionIntervention> SupervisorInterventionAsync() => (await supervision.UntilAsync(_ => true)).Intervention;

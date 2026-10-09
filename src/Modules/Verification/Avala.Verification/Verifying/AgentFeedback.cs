@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.Text;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Verification.Checks;
 using Avala.Verification.Contracts;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Verification.Verifying;
 
@@ -15,8 +17,14 @@ internal static class AgentFeedback
 
     public static GateVerdict Invalid(VerificationError error) =>
         GateVerdict.Retry(
-            $"The check declaration in {CheckDeclaration.RelativePath} is invalid: {Problem(error)}. "
-            + "Fix the file so its checks can run, then finish the turn again.");
+            $"The check declaration in {CheckDeclaration.RelativePath} of the commit this job started from is invalid: {Problem(error)}. "
+            + "The job is verified against that commit, so changing the file in the worktree does not fix it: the repository has to.");
+
+    public static GateVerdict Noting(GateVerdict verdict, Option<FileOrigin> declaration) =>
+        verdict.Decision == GateDecision.Retry && declaration.Match(origin => origin.EditedInWorktree, () => false)
+            ? GateVerdict.Retry(
+                $"{verdict.Feedback}\n\nYour changes to {CheckDeclaration.RelativePath} do not apply to this job: its checks come from the commit it started from.")
+            : verdict;
 
     private static string Describe(CheckEvidence check)
     {
@@ -42,6 +50,7 @@ internal static class AgentFeedback
     {
         VerificationError.MissingCommand => "a check has no command",
         VerificationError.InvalidTimeout => "a check has a timeout that is not a number of seconds between 0 and 86400",
+        VerificationError.UnreadableDeclaration => "it could not be read from that commit",
         _ => "it is not a JSON object with a \"checks\" array of check objects",
     };
 
