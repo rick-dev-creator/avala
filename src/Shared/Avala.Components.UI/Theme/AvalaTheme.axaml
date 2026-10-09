@@ -17,6 +17,11 @@
                              RegionColor="#101114"
                              BaseHigh="#EDEDEF"
                              ErrorText="#EF6461" />
+      <ColorPaletteResources x:Key="Light"
+                             Accent="#4458CC"
+                             RegionColor="#FBFBFC"
+                             BaseHigh="#1D1D1F"
+                             ErrorText="#C2362F" />
     </FluentTheme.Palettes>
   </FluentTheme>
   <StyleInclude Source="avares://Avala.Components.UI/Theme/Typography.axaml" />
