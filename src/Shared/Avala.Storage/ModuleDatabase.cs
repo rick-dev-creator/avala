@@ -12,9 +12,16 @@ public static class ModuleDatabase
         WHERE "type" = 'table' AND "name" NOT LIKE 'sqlite\_%' ESCAPE '\' AND "name" NOT LIKE '\_\_EFMigrations%' ESCAPE '\'
         """;
 
+    private const string OrphanedLock = """DROP TABLE IF EXISTS "__EFMigrationsLock" """;
+
     public static async Task MigrateAsync(DbContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (await context.GetService<IRelationalDatabaseCreator>().ExistsAsync(CancellationToken.None))
+        {
+            await context.Database.ExecuteSqlRawAsync(OrphanedLock, CancellationToken.None);
+        }
 
         if (await CreatedWithoutMigrationsAsync(context, CancellationToken.None))
         {

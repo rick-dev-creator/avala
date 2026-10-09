@@ -589,3 +589,33 @@ R2  Given a Mermaid diagram, then it is translated to SVG in pure .NET with the 
 R3  Given Mermaid that cannot be parsed, then nothing is drawn while it streams and its source is shown once it is final.
 R4  Given the simulator's mermaid-canvas scenario in the composed application, then its diagram is drawn as SVG in the conversation; given the unoffered-canvas scenario, now an HTML canvas, then its highlighted source is shown with the note.
 ```
+
+## Beta prep (E)
+
+What a first public build needs before anyone outside the project runs it: an icon, one Avala per data folder, a startup that survives a migration killed halfway, an honest first run, a log to send when something breaks, and an About section. Each item has its acceptance criteria below, played by unit tests, view model and view scripts and host simulation tests that drive the composed application on the simulator, never a real harness. The design is in [beta prep](../design/core.md#beta-prep).
+
+1. **Icon.** The brand's icon, `docs/assets/brand`, is the main window's icon on every system and the executable's icon.
+2. **One Avala per data folder.** A second Avala started on a data folder another one runs on never opens its databases: it says the folder is in use and quits.
+3. **A migration lock left by a killed process.** Since only one Avala owns a data folder, a `__EFMigrationsLock` row found at startup can only belong to a process that died while migrating, so it is cleared before migrating.
+4. **First run.** With no connection to run a job on, the jobs page says so and guides: log in to Claude Code or add a connection in Settings.
+5. **Diagnostics.** A rolling log in the data folder records startup failures, unhandled exceptions and what a provider's process writes to its standard error, never a secret; Settings shows its folder and opens it.
+6. **About.** Settings shows Avala's version, the commit it was built from, and links to the repository and the license.
+
+```
+I1  Given the main window, then its Icon is set from the brand's avala.ico; the host's project declares the same file as its ApplicationIcon.
+O1  Given a data folder claimed by a running Avala, when another claim of the same folder is attempted, then it is refused, and once the first claim is released the folder can be claimed again; a folder that does not exist yet is created and claimed.
+O2  Given the claim is held through an operating system's exclusive file handle, avala.lock in the data folder, then it is released by the system when the process dies, so a crashed Avala never blocks the next one.
+O3  Given a second Avala on a claimed data folder, then it composes nothing, shows "Avala is already running" with the folder and why it stops, and its Quit command ends the application; the view says the same headless.
+M1  Given a database whose migration was killed after taking EF Core's lock, so __EFMigrationsLock still holds its row, when the database is migrated, then the lock is cleared and every migration applies instead of waiting forever.
+F1  Given developer mode off, no login of any harness and no connections.json, when the jobs page opens, then it says "No connections yet", explains that a job needs a harness to run on, and shows how to log in to Claude Code and how to add a connection in Settings.
+F2  Given F1, when "Open Settings" is chosen, then the shell shows the Settings page.
+F3  Given only implicit connections, none declared or discovered, then the jobs page says no login was found and names the connections jobs would try; given a declared or discovered connection, or a job on the board, the guide is not shown.
+F4  End to end: given F1 in the composed application on the simulator, the jobs page shows the guide; once a connection is added in Settings, the guide is gone when the page is shown again.
+D1  Given the composed application, then a log file named by the day exists under logs in the data folder and every ILogger message of every module reaches it, with its time, level, category and exception.
+D2  Given a message that holds the value of a secret-looking environment variable (a key, token, secret or password), an Anthropic key or a bearer token, then the log holds [redacted] in its place.
+D3  Given a log file over its size limit, a new file is started; only the newest files are kept.
+D4  Given an unhandled exception of the application domain, an unobserved task or the UI dispatcher, or a startup task that fails, then it is logged as an error with its exception.
+D5  Given a provider process that writes to its standard error, then each line reaches the log under the provider's category.
+D6  Given Settings, then it shows the log folder, and "Open" opens it through IFileOpener; a folder the platform cannot open shows why.
+A1  Given Settings, then About shows the version and the commit from the host's informational version, "unknown" when it has none, and Repository and License open their links through ILinkOpener.
+```

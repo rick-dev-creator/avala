@@ -76,6 +76,23 @@ public sealed class ModuleDatabaseTests
     }
 
     [Fact]
+    public async Task ALockLeftByAProcessKilledWhileMigratingIsClearedAndEveryMigrationAppliesAsync()
+    {
+        await using var folder = new TemporaryFolder();
+        var path = Path.Combine(folder.Path, "notes.db");
+        await using (var killed = new NotesContext(path, Before.Stopping(Before.CreatingTheHistory), Before.Stopping(Before.ReleasingTheLock)))
+        {
+            await Assert.ThrowsAsync<IOException>(() => ModuleDatabase.MigrateAsync(killed, Cancellation));
+            Assert.Equal(1, await killed.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM \"__EFMigrationsLock\"").SingleAsync(Cancellation));
+        }
+
+        await using var context = new NotesContext(path);
+        await ModuleDatabase.MigrateAsync(context, Cancellation).WaitAsync(TimeSpan.FromSeconds(30), Cancellation);
+
+        Assert.Equal(["20260101000000_Initial", "20260201000000_Tags"], await context.Database.GetAppliedMigrationsAsync(Cancellation));
+    }
+
+    [Fact]
     public async Task AnOperationAfterAFailedOpeningRunsOnTheMigratedDatabaseAsync()
     {
         await using var folder = new TemporaryFolder();

@@ -86,6 +86,8 @@ internal sealed class Before(string statement, Action interruption) : IDbCommand
 
     public const string CreatingTheHistory = "CREATE TABLE IF NOT EXISTS \"__EFMigrationsHistory\"";
 
+    public const string ReleasingTheLock = "DELETE FROM \"__EFMigrationsLock\"";
+
     private bool interrupted;
 
     public static Before Stopping(string statement) => new(statement, () => throw new IOException($"Stopped before {statement}"));
