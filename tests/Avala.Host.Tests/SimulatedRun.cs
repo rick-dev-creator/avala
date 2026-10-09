@@ -104,7 +104,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         return run;
     }
 
-    private static async Task<SimulatedRun> PreparedAsync(
+    public static async Task<SimulatedRun> PreparedAsync(
         PublishedPlugins plugins,
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed)
