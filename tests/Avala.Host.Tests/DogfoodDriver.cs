@@ -478,16 +478,37 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
     private async Task ShootAsync(string name)
     {
         OverlayPopups();
-        Pump();
         var file = Path.Combine(screens, $"{++shots:D2}-{name}");
-        window.CaptureRenderedFrame()?.Save(file + ".png", new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
-        var texts = window.GetVisualDescendants().OfType<TextBlock>()
-            .Where(text => text.IsEffectivelyVisible && !string.IsNullOrWhiteSpace(text.Text) && text.Bounds.Width > 0)
-            .Select(text => text.Text!.ReplaceLineEndings(" ⏎ "))
-            .ToList();
+        var (frame, texts) = Steady();
+        frame?.Save(file + ".png", new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
         await File.WriteAllLinesAsync(file + ".txt", texts, Cancellation);
         await journal.NoteAsync($"Screenshot {file}.png");
     }
+
+    private (Avalonia.Media.Imaging.WriteableBitmap? Frame, List<string> Texts) Steady()
+    {
+        var attempts = 0;
+
+        while (true)
+        {
+            Pump();
+            var before = Texts();
+            var frame = window.CaptureRenderedFrame();
+            var after = Texts();
+
+            if (before.SequenceEqual(after, StringComparer.Ordinal) || ++attempts == 10)
+            {
+                return (frame, after);
+            }
+        }
+    }
+
+    private List<string> Texts() =>
+        [
+            .. window.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.IsEffectivelyVisible && !string.IsNullOrWhiteSpace(text.Text) && text.Bounds.Width > 0)
+                .Select(text => text.Text!.ReplaceLineEndings(" ⏎ ")),
+        ];
 
     private void OverlayPopups()
     {
