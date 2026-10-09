@@ -268,6 +268,27 @@ public sealed class AgentConformanceTests
         Assert.Equal(expected, string.Join('|', violations));
     }
 
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, "no process was started through the session's launcher")]
+    public async Task AProviderMustStartItsProcessesThroughTheSessionsLauncherAsync(bool launches, string expected)
+    {
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply)
+        {
+            Launching = options =>
+            {
+                if (launches)
+                {
+                    _ = options.Processes.Start(Workloads.Command("work", "0"));
+                }
+            },
+        };
+
+        var violations = await AgentConformance.CheckProcessesAsync(provider, Options, new UserTurn("conformance"), Deadline);
+
+        Assert.Equal(expected, string.Join('|', violations));
+    }
+
     private static readonly AgentForm Question = new(
         FormPurpose.Question,
         "Choose a database",

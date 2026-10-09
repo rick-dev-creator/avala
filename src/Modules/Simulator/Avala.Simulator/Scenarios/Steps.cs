@@ -13,6 +13,14 @@ internal sealed record WriteFile(ItemId Item, string Path, string Content) : ISt
 
 internal sealed record RunCommand(ItemId Item, string Command, string Output, bool AsksPermission) : IStep;
 
+internal sealed record Spawn(ItemId Item, string Command, Workload Workload) : IStep;
+
+internal enum Workload
+{
+    Build,
+    Server,
+}
+
 internal sealed record Ask(ItemId Item, AgentForm Form) : IStep;
 
 internal sealed record UpdatePlan(IReadOnlyList<PlanStep> Steps) : IStep;

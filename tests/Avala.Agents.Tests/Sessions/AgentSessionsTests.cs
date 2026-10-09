@@ -82,19 +82,41 @@ public sealed class AgentSessionsTests
     }
 
     [Fact]
-    public async Task OpeningASessionAnnouncesItWithItsProviderAccountAndWorkingDirectoryBeforeAnyActivityAsync()
+    public async Task OpeningASessionAnnouncesItWithItsProviderAccountWorkingDirectoryAndProcessTreeBeforeAnyActivityAsync()
     {
         var account = new AgentAccount("acct-1", "Team account");
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { Account = () => account };
         var bus = new RecordingBus();
-        await using var agents = Agents(bus, provider);
+        await using var trees = new RecordingProcessTrees();
+        await using var agents = new AgentSessions(
+            Connected.Starter(Connected.Registry([provider]), [], [], trees),
+            bus,
+            TimeProvider.System,
+            NullLogger<AgentSessions>.Instance);
 
         var turn = await StartAsync(agents, "Add GitHub login");
         await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
 
+        var tree = Assert.Single(trees.Opened);
+        Assert.Equal(Request.WorkingDirectory, tree.Home);
+        Assert.Same(tree, Assert.Single(provider.Sessions).Options.Processes);
         Assert.Equal(
-            new SessionOpened(turn.Session, provider.Info, Request.WorkingDirectory, new ConnectionName("scripted")) { Account = account },
+            new SessionOpened(turn.Session, provider.Info, Request.WorkingDirectory, new ConnectionName("scripted")) { Account = account, ProcessTree = tree.Id },
             bus.Published[0]);
+    }
+
+    [Fact]
+    public async Task TheProcessTreeOfASessionThatCannotStartIsClosedAsync()
+    {
+        await using var trees = new RecordingProcessTrees();
+        await using var agents = new AgentSessions(
+            Connected.Starter(Connected.Registry([new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { RefusesToStart = true }]), [], [], trees),
+            new RecordingBus(),
+            TimeProvider.System,
+            NullLogger<AgentSessions>.Instance);
+
+        Assert.Equal(AgentError.CannotResume, Outcomes.FailsWith(await agents.OpenAsync(Request, Cancellation)));
+        Assert.Equal([Assert.Single(trees.Opened).Id], trees.Closed);
     }
 
     [Fact]
@@ -237,14 +259,17 @@ public sealed class AgentSessionsTests
     }
 
     [Fact]
-    public async Task StoppingASessionIsNotReportedAsItsEndAsync()
+    public async Task StoppingASessionIsReportedAsStoppedOnceItIsDisposedAndNeverAsItsEndAsync()
     {
         var bus = new RecordingBus();
-        await using var agents = Agents(bus, new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]));
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)]);
+        await using var agents = Agents(bus, provider);
         var turn = await StartAsync(agents, "Add GitHub login");
 
         Outcomes.Succeeds(await agents.StopAsync(turn.Session, Cancellation));
 
+        Assert.True(Assert.Single(provider.Sessions).IsDisposed);
+        Assert.Equal(new SessionStopped(turn.Session), bus.Published[^1]);
         Assert.DoesNotContain(bus.Published, published => published is SessionEnded or TurnFinished);
     }
 
