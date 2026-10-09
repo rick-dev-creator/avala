@@ -1,5 +1,6 @@
 using Avala.Runtime.Appearance;
 using Avala.Runtime.Containment;
+using Avala.Runtime.Diagnostics;
 using Avala.Runtime.Events;
 using Avala.Runtime.Processes;
 using Avala.Sdk;
@@ -8,6 +9,7 @@ using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Avala.Runtime;
 
@@ -18,8 +20,10 @@ public static class RuntimeServices
         public IServiceCollection AddRuntime(AvalaPaths paths)
         {
             services.TryAddSingleton(TimeProvider.System);
+            services.TryAddSingleton(provider => new LogFile(paths, provider.GetRequiredService<TimeProvider>()));
 
             return services
+                .AddSingleton<ILoggerProvider>(provider => provider.GetRequiredService<LogFile>())
                 .AddSingleton(paths)
                 .AddSingleton<EventBus>()
                 .AddSingleton<IEventBus>(provider => provider.GetRequiredService<EventBus>())
