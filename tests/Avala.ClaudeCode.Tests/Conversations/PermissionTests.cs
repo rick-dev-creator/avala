@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 
@@ -80,6 +81,7 @@ public sealed class PermissionTests
     [InlineData("Read", """{ "file_path": "src/a.cs" }""", false)]
     [InlineData("Read", """{ "file_path": "/etc/passwd" }""", true)]
     [InlineData("Read", """{ "file_path": "../secrets.txt" }""", true)]
+    [InlineData("Read", """{ "file_path": "src/\u0000a.cs" }""", true)]
     [InlineData("Grep", """{ "pattern": "x" }""", false)]
     [InlineData("Grep", """{ "pattern": "x", "path": "/home" }""", true)]
     [InlineData("Glob", """{ "pattern": "*", "path": "/work-other" }""", true)]
@@ -88,9 +90,22 @@ public sealed class PermissionTests
     [InlineData("mcp__avala__canvas", "{}", false)]
     public void ThePreToolUseHookSendsEveryActingToolAndEveryReadOutsideTheWorkingDirectoryToThePermissionPrompt(string tool, string input, bool asks)
     {
-        var talk = new Talk().Begin().Receive(Cli.Hook("h1", tool, input));
+        var talk = new Talk().Begin().Receive(Cli.Hook("h1", tool, Cli.OnHost(input)));
 
         Assert.Equal(asks ? "ask" : null, (string?)talk.HookAnswer("h1")["hookSpecificOutput"]?["permissionDecision"]);
+    }
+
+    [Theory]
+    [InlineData("/work/src/a.cs")]
+    [InlineData(@"\work\src\a.cs")]
+    [InlineData("C:work/src/a.cs")]
+    public void AReadOfAPathRootedOnNoParticularDriveIsSentToThePermissionPrompt(string path)
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Only Windows has paths that are rooted without being fully qualified.");
+
+        var talk = new Talk().Begin().Receive(Cli.Hook("h1", "Read", new JsonObject { ["file_path"] = path }.ToJsonString()));
+
+        Assert.Equal("ask", (string?)talk.HookAnswer("h1")["hookSpecificOutput"]?["permissionDecision"]);
     }
 
     [Theory]
@@ -100,7 +115,8 @@ public sealed class PermissionTests
     [InlineData(PermissionMode.AskEveryTime, "Write", """{ "file_path": "/work/a.txt", "content": "a" }""", true)]
     public void ThePermissionModeDecidesWhatIsAskedAndWhatIsAllowedAtOnce(PermissionMode mode, string tool, string input, bool asks)
     {
-        var talk = new Talk(mode).Begin().Receive(Cli.ToolUse("t1", tool, input), Cli.Prompt("r1", tool, input, "t1"));
+        var onHost = Cli.OnHost(input);
+        var talk = new Talk(mode).Begin().Receive(Cli.ToolUse("t1", tool, onHost), Cli.Prompt("r1", tool, onHost, "t1"));
 
         Assert.Equal(asks, talk.Events.OfType<PermissionRequested>().Any());
         Assert.Equal(asks ? null : "allow", (string?)(asks ? null : talk.Decision("r1")["behavior"]));

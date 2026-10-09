@@ -282,7 +282,7 @@ public sealed class AgentConformanceTests
         string reference,
         string expected)
     {
-        var discovery = new ListedDiscovery([[new DiscoveredConnection(new ConnectionName(name), provider, new CredentialReference(source, reference))]]);
+        var discovery = new ListedDiscovery([[new DiscoveredConnection(new ConnectionName(name), provider, new CredentialReference(source, HostPaths.Rooted(reference)))]]);
 
         var violations = await AgentConformance.CheckDiscoveryAsync(Scripted, discovery, Deadline);
 
@@ -292,17 +292,17 @@ public sealed class AgentConformanceTests
     [Fact]
     public async Task ReportsADiscoveryThatRepeatsANameOrACredentialOrChangesBetweenTwoCallsAsync()
     {
-        var work = new DiscoveredConnection(new ConnectionName("work"), "scripted", new CredentialReference("login", "/logins/work"));
+        var work = new DiscoveredConnection(new ConnectionName("work"), "scripted", new CredentialReference("login", HostPaths.Rooted("/logins/work")));
         var discovery = new ListedDiscovery(
         [
-            [work, work with { Credential = new CredentialReference("login", "/logins/other") }, work with { Name = new ConnectionName("copy") }],
+            [work, work with { Credential = new CredentialReference("login", HostPaths.Rooted("/logins/other")) }, work with { Name = new ConnectionName("copy") }],
             [work],
         ]);
 
         var violations = await AgentConformance.CheckDiscoveryAsync(Scripted, discovery, Deadline);
 
         Assert.Equal(
-            ["the connection work is discovered twice", "the credential /logins/work is discovered twice", "two discoveries found different connections"],
+            ["the connection work is discovered twice", $"the credential {HostPaths.Rooted("/logins/work")} is discovered twice", "two discoveries found different connections"],
             violations);
     }
 

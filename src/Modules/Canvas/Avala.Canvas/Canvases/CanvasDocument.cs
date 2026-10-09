@@ -10,6 +10,8 @@ namespace Avala.Canvas.Canvases;
 
 internal sealed class CanvasDocument : IAggregateRoot<CanvasId>
 {
+    public const string PlainText = "text/plain";
+
     private readonly StringBuilder content = new();
     private readonly StateMachine<CanvasState, CanvasTrigger> machine;
 
@@ -18,8 +20,9 @@ internal sealed class CanvasDocument : IAggregateRoot<CanvasId>
         Id = new CanvasId(started.Turn, started.Item);
         Session = started.Session;
         Title = started.Title;
-        MediaType = started.MediaType;
-        IsOffered = offered;
+        HasMediaType = !string.IsNullOrWhiteSpace(started.MediaType);
+        MediaType = HasMediaType ? started.MediaType : PlainText;
+        IsOffered = offered && HasMediaType;
         machine = CanvasLifecycle.Create(() => State, state => State = state);
     }
 
@@ -33,14 +36,18 @@ internal sealed class CanvasDocument : IAggregateRoot<CanvasId>
 
     public bool IsOffered { get; }
 
-    public Option<CanvasError> Rejection => IsOffered ? Option<CanvasError>.None : CanvasError.NotOffered;
+    public Option<CanvasError> Rejection =>
+        !HasMediaType ? CanvasError.MissingMediaType
+        : IsOffered ? Option<CanvasError>.None
+        : CanvasError.NotOffered;
 
     public CanvasState State { get; private set; } = CanvasState.Streaming;
 
     public string Content => content.ToString();
 
-    public static Result<CanvasDocument, CanvasError> Open(CanvasStarted started, bool offered) =>
-        string.IsNullOrWhiteSpace(started.MediaType) ? CanvasError.MissingMediaType : new CanvasDocument(started, offered);
+    private bool HasMediaType { get; }
+
+    public static Result<CanvasDocument, CanvasError> Open(CanvasStarted started, bool offered) => new CanvasDocument(started, offered);
 
     public Result<ContentAppended, CanvasError> Append(ItemProgressed progressed)
     {
