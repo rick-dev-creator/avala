@@ -132,7 +132,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         PublishedPlugins plugins,
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed,
-        bool harnesses = false)
+        bool harnesses = false,
+        bool developer = true)
     {
         var data = new TemporaryFolder();
 
@@ -143,7 +144,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var surroundings = new Surroundings(new TestUiDispatcher(), new FakeTimeProvider(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses);
+        var surroundings = new Surroundings(new TestUiDispatcher(), new FakeTimeProvider(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer);
         var root = surroundings.Compose(plugins, data);
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 
@@ -310,7 +311,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     }
 
 
-    private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock, bool Harnesses)
+    private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock, bool Harnesses, bool Developer)
     {
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
@@ -318,7 +319,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 new AvalaPaths(data.Path),
                 Ui,
                 Clock,
-                [new SimulatorPlugin(TimeSpan.Zero)],
+                [new SimulatorPlugin(TimeSpan.Zero, Developer)],
                 Harnesses ? [] : [typeof(ClaudeCodePlugin)]);
     }
 
