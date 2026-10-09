@@ -82,10 +82,15 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         _ = await run.SettledAsync();
         var usage = await ActivatedAsync(run, "Usage");
 
-        await run.Ui.UntilAsync(() => usage["Connections"].Items.Count == 1
-            && usage["Connections"].Items[0]["Limits"].Items.Count == 1
-            && usage["Jobs"].Items.Count == 1
-            && usage["Interventions"].Items.Count == 1);
+        await run.Ui.UntilAsync(
+            () => usage["Connections"].Items.Count == 1
+                && usage["Connections"].Items[0]["Limits"].Items.Count == 1
+                && usage["Jobs"].Items.Count == 1
+                && usage["Interventions"].Items.Count == 1,
+            () => $"connections {usage["Connections"].Items.Count}, "
+                + $"limits {(usage["Connections"].Items.Count > 0 ? usage["Connections"].Items[0]["Limits"].Items.Count : -1)}, "
+                + $"jobs {usage["Jobs"].Items.Count}, interventions {usage["Interventions"].Items.Count}, "
+                + $"job status {run.Job}");
 
         var (cost, limit, job, intervention) = await run.Ui.ReadAsync(() => (
             usage["Connections"].Items[0]["Cost"].Text,
