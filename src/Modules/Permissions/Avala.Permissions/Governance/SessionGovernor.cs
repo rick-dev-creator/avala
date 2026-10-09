@@ -22,7 +22,7 @@ internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, P
             Autonomy = policy.Declared,
             Strategy = policy.Strategy,
         };
-        book.Keep(book.Of(integrationEvent.Session).OpenedIn(integrationEvent.WorkingDirectory, policy, report));
+        await book.OpenedAsync(book.Of(integrationEvent.Session).OpenedIn(integrationEvent.WorkingDirectory, policy, report), report, cancellationToken);
 
         await bus.PublishAsync(new PolicyLoaded(report), cancellationToken);
     }
@@ -30,7 +30,7 @@ internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, P
     public async ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
     {
         var governed = book.Of(integrationEvent.Session).WorkingOn(integrationEvent.Job, integrationEvent.Autonomy);
-        book.Keep(governed);
+        await book.WorkingOnAsync(governed, cancellationToken);
 
         await governed.Autonomy.Match(
             applied => bus.PublishAsync(new AutonomyApplied(applied), cancellationToken).AsTask(),
@@ -43,12 +43,12 @@ internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, P
         {
             case PermissionRequested requested:
                 var decision = await responder.DecideAsync(book.Of(requested.Session), requested, book.SessionRulesOf(requested.Session), cancellationToken);
-                book.Keep(book.Of(requested.Session).Decided(decision));
+                await book.DecidedAsync(decision, cancellationToken);
                 await bus.PublishAsync(new PermissionDecided(decision), cancellationToken);
                 break;
             case FormRequested asked:
                 var form = await responder.DecideAsync(book.Of(asked.Session), asked, cancellationToken);
-                book.Keep(book.Of(asked.Session).Asked(form));
+                await book.AskedAsync(form, cancellationToken);
                 await bus.PublishAsync(new FormDecided(form), cancellationToken);
                 break;
         }

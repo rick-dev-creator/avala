@@ -7,10 +7,11 @@ using Avala.Sdk;
 
 namespace Avala.Permissions.Governance;
 
-internal sealed class GovernanceBook : IPermissionAudit
+internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit, IStartupTask
 {
     private ImmutableDictionary<SessionId, GovernedSession> sessions = ImmutableDictionary<SessionId, GovernedSession>.Empty;
     private ImmutableDictionary<SessionId, ImmutableList<PolicyRule>> rules = ImmutableDictionary<SessionId, ImmutableList<PolicyRule>>.Empty;
+    private ImmutableList<HumanAnswer> earlierAnswers = [];
     private ImmutableList<HumanAnswer> answers = [];
 
     public GovernedSession Of(SessionId session) => Volatile.Read(ref sessions).GetValueOrDefault(session) ?? new GovernedSession(session);
@@ -18,13 +19,53 @@ internal sealed class GovernanceBook : IPermissionAudit
     public void Keep(GovernedSession session) =>
         ImmutableInterlocked.AddOrUpdate(ref sessions, session.Session, session, (_, _) => session);
 
+    public async Task OpenedAsync(GovernedSession session, SessionPolicy report, CancellationToken cancellationToken)
+    {
+        Keep(session);
+        await store.RecordAsync(report, cancellationToken);
+    }
+
+    public async Task WorkingOnAsync(GovernedSession session, CancellationToken cancellationToken)
+    {
+        Keep(session);
+        await session.Autonomy.Match(autonomy => store.RecordAsync(autonomy, cancellationToken), () => Task.CompletedTask);
+    }
+
+    public async Task DecidedAsync(PolicyDecision decision, CancellationToken cancellationToken)
+    {
+        Keep(Of(decision.Session).Decided(decision));
+        await store.RecordAsync(decision, cancellationToken);
+    }
+
+    public async Task AskedAsync(FormDecision decision, CancellationToken cancellationToken)
+    {
+        Keep(Of(decision.Session).Asked(decision));
+        await store.RecordAsync(decision, cancellationToken);
+    }
+
+    public async Task RecordAsync(HumanAnswer answer, CancellationToken cancellationToken)
+    {
+        ImmutableInterlocked.Update(ref answers, recorded => recorded.Add(answer));
+        await store.RecordAsync(answer, cancellationToken);
+    }
+
     public void Remember(SessionId session, PolicyRule rule) =>
         ImmutableInterlocked.AddOrUpdate(ref rules, session, [rule], (_, kept) => kept.Add(rule));
 
     public void Forget(SessionId session, PolicyRule rule) =>
         ImmutableInterlocked.AddOrUpdate(ref rules, session, [], (_, kept) => kept.Remove(rule));
 
-    public void Record(HumanAnswer answer) => ImmutableInterlocked.Update(ref answers, recorded => recorded.Add(answer));
+    public async Task RunAsync(CancellationToken cancellationToken)
+    {
+        var history = await store.EarlierRunsAsync(cancellationToken);
+
+        foreach (var restored in Restored(history))
+        {
+            ImmutableInterlocked.TryAdd(ref sessions, restored.Session, restored);
+        }
+
+        Volatile.Write(ref earlierAnswers, [.. history.Answers]);
+    }
 
     public Option<SessionPolicy> PolicyOf(SessionId session) => Of(session).Report;
 
@@ -43,7 +84,33 @@ internal sealed class GovernanceBook : IPermissionAudit
         [.. OfEverySession(job).SelectMany(session => session.Forms).OrderBy(decision => decision.At)];
 
     public IReadOnlyList<HumanAnswer> AnswersOfJob(JobId job) =>
-        [.. Volatile.Read(ref answers).Where(answer => answer.Job == Option<JobId>.Some(job))];
+        [.. Volatile.Read(ref earlierAnswers).Concat(Volatile.Read(ref answers)).Where(answer => answer.Job == Option<JobId>.Some(job))];
+
+    private static IEnumerable<GovernedSession> Restored(GovernanceHistory history) =>
+        history.Policies.Select(policy => policy.Session)
+            .Concat(history.Autonomies.Select(autonomy => autonomy.Session))
+            .Concat(history.Decisions.Select(decision => decision.Session))
+            .Concat(history.Forms.Select(form => form.Session))
+            .Distinct()
+            .Select(session => Restored(history, session));
+
+    private static GovernedSession Restored(GovernanceHistory history, SessionId session)
+    {
+        var autonomy = history.Autonomies.LastOrDefault(found => found.Session == session).ToOption();
+        var decisions = history.Decisions.Where(decision => decision.Session == session).ToList();
+        var forms = history.Forms.Where(form => form.Session == session).ToList();
+
+        return new GovernedSession(session) with
+        {
+            Report = history.Policies.LastOrDefault(policy => policy.Session == session).ToOption(),
+            Job = autonomy.Map(found => found.Job).Match(
+                Option<JobId>.Some,
+                () => decisions.Select(decision => decision.Job).Concat(forms.Select(form => form.Job)).FirstOrDefault(job => job.IsSome)),
+            Autonomy = autonomy,
+            Decisions = decisions,
+            Forms = forms,
+        };
+    }
 
     private IEnumerable<GovernedSession> OfEverySession(JobId job) =>
         Volatile.Read(ref sessions).Values.Where(session => session.Job == Option<JobId>.Some(job));

@@ -3,6 +3,7 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
 using Avala.Permissions.PolicyFiles;
+using Avala.Permissions.Storage;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Testing;
@@ -29,6 +30,9 @@ public sealed class PermissionsPluginTests
         await using var composition = Compose(data);
 
         Assert.Same(composition.Get<GovernanceBook>(), composition.Get<IPermissionAudit>());
+        Assert.Contains(composition.Get<GovernanceBook>(), composition.All<IStartupTask>());
+        Assert.Same(composition.Get<SqliteGovernanceStore>(), composition.Get<IGovernanceStore>());
+        Assert.Contains(composition.Get<SqliteGovernanceStore>(), composition.All<IStartupTask>());
         Assert.Same(composition.Get<PolicyFileReader>(), composition.Get<IPolicyFiles>());
         Assert.Same(composition.Get<PolicyFileReader>(), composition.Get<IRepositoryPolicies>());
         Assert.Same(composition.Get<SessionGovernor>(), composition.Get<IHandle<SessionOpened>>());

@@ -4,6 +4,7 @@ using Avala.Permissions.Answering;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
 using Avala.Permissions.PolicyFiles;
+using Avala.Permissions.Storage;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,8 +20,12 @@ public sealed class PermissionsPlugin : IPlugin
     {
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
+            .AddSingleton<SqliteGovernanceStore>()
+            .AddSingleton<IGovernanceStore>(services => services.GetRequiredService<SqliteGovernanceStore>())
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteGovernanceStore>())
             .AddSingleton<GovernanceBook>()
             .AddSingleton<IPermissionAudit>(services => services.GetRequiredService<GovernanceBook>())
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<GovernanceBook>())
             .AddSingleton<PolicyFileReader>()
             .AddSingleton<IPolicyFiles>(services => services.GetRequiredService<PolicyFileReader>())
             .AddSingleton<IRepositoryPolicies>(services => services.GetRequiredService<PolicyFileReader>())
