@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:newJob="using:Avala.Workbench.NewJob"
+             x:Class="Avala.Workbench.UI.ConnectionOptionView"
+             x:ClassModifier="internal"
+             x:DataType="newJob:IConnectionOptionViewModel">
+  <Design.DataContext>
+    <newJob:DesignConnectionOptionViewModel />
+  </Design.DataContext>
+  <DockPanel>
+    <TextBlock x:Name="Reading"
+               DockPanel.Dock="Right"
+               Margin="12,0,0,0"
+               VerticalAlignment="Center"
+               Classes="caption"
+               Classes.attention="{Binding IsNearLimit}"
+               Text="{Binding Reading}"
+               IsVisible="{Binding Reading, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <TextBlock x:Name="Connection" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Text="{Binding Name}" />
+  </DockPanel>
+</UserControl>
