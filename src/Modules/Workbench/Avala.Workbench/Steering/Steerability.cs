@@ -10,6 +10,10 @@ internal static class Steerability
 
         public bool CanBeInterrupted => status == JobStatus.Running;
 
-        public bool CanBeStopped => status is not (JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed);
+        public bool CanBeStopped => status == JobStatus.Running;
+
+        public bool CanBeReviewed => status is JobStatus.AwaitingReview or JobStatus.NeedsHelp;
+
+        public bool CanBeDiscarded => status is not (JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed);
     }
 }

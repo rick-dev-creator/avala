@@ -1,28 +1,22 @@
-using System.Collections.Immutable;
+using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
-using Avala.Testing;
+using Avala.Observability.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Navigation;
-using Avala.Workbench.Replies;
-using Avala.Workbench.Sidebar;
-using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Tests.Navigation;
 
 public sealed class WorkbenchViewModelTests : IDisposable
 {
-    private readonly JobBoard board = new();
-    private readonly TestUiDispatcher ui = new();
+    private readonly Bench bench = new();
     private readonly WorkbenchViewModel workbench;
 
-    public WorkbenchViewModelTests() =>
-        workbench = new WorkbenchViewModel(
-            board,
-            ui,
-            new SidebarViewModel(),
-            new Conversations(new JobSteering(new FakeJobs(), board), new HumanReplies(new FakePermissionAnswers(), new FakeAgents())));
+    public WorkbenchViewModelTests() => workbench = bench.Workbench();
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
     public async Task WhileActiveTheSidebarFollowsTheBoardAndSelectingAJobOpensItsConversation()
@@ -30,11 +24,11 @@ public sealed class WorkbenchViewModelTests : IDisposable
         var summary = new FakeCatalog().Add("Fix the failing test", JobStatus.Running).Summary;
         workbench.Activate();
 
-        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(summary.Job, new BoardJob(summary, Transcript.Empty.WithPrompts(summary.Instruction, []))));
-        await ui.UntilAsync(() => workbench.Sidebar.Running.Count == 1);
-        await ui.InvokeAsync(() => workbench.Sidebar.SelectCommand.Execute(workbench.Sidebar.Running[0]), TestContext.Current.CancellationToken);
+        bench.Board.Publish(Bench.Of(new BoardJob(summary, Transcript.Empty.WithPrompts(summary.Instruction, []))));
+        await bench.Ui.UntilAsync(() => workbench.Sidebar.Running.Count == 1);
+        await bench.Ui.InvokeAsync(() => workbench.Sidebar.SelectCommand.Execute(workbench.Sidebar.Running[0]), Cancellation);
 
-        var conversation = await ui.ReadAsync(() => workbench.Conversation);
+        var conversation = await bench.Ui.ReadAsync(() => workbench.Conversation);
         Assert.Equal((summary.Job, "Fix the failing test"), (conversation?.Job, conversation?.Title));
         Assert.IsType<PromptViewModel>(Assert.Single(conversation!.Entries));
     }
@@ -47,9 +41,9 @@ public sealed class WorkbenchViewModelTests : IDisposable
         workbench.Deactivate();
         await workbench.Following;
 
-        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(summary.Job, new BoardJob(summary, Transcript.Empty)));
+        bench.Board.Publish(Bench.Of(new BoardJob(summary, Transcript.Empty)));
 
-        Assert.Empty(await ui.ReadAsync(() => workbench.Sidebar.Running));
+        Assert.Empty(await bench.Ui.ReadAsync(() => workbench.Sidebar.Running));
     }
 
     [Fact]
@@ -62,9 +56,90 @@ public sealed class WorkbenchViewModelTests : IDisposable
         Assert.Equal((false, true), (closed, workbench.IsInspectorOpen));
     }
 
+    [Fact]
+    public async Task AReviewOpensOnlyForAJobAwaitingReviewOrHeldAndClosesWhenAnotherJobIsSelected()
+    {
+        var reviewed = bench.Job("Fix the failing test", JobStatus.AwaitingReview);
+        var running = bench.Job("Add an endpoint", JobStatus.Running);
+        workbench.Activate();
+        bench.Publish(Bench.OnBoard(reviewed), Bench.OnBoard(running));
+        await bench.Ui.UntilAsync(() => workbench.Sidebar.ReadyForReview.Count == 1 && workbench.Sidebar.Running.Count == 1);
+
+        await bench.Ui.InvokeAsync(() => workbench.Sidebar.SelectCommand.Execute(workbench.Sidebar.ReadyForReview[0]), Cancellation);
+        await bench.Ui.InvokeAsync(() => workbench.OpenReviewCommand.Execute(null), Cancellation);
+        await bench.Ui.UntilAsync(() => workbench.Review is { IsLoaded: true });
+        var opened = await bench.Ui.ReadAsync(() => workbench.Review?.Job);
+        await bench.Ui.InvokeAsync(() => workbench.Sidebar.SelectCommand.Execute(workbench.Sidebar.Running[0]), Cancellation);
+
+        Assert.Equal(
+            (reviewed.Job, false, false),
+            (opened, await bench.Ui.ReadAsync(() => workbench.Review is not null), await bench.Ui.ReadAsync(() => workbench.OpenReviewCommand.CanExecute(null))));
+    }
+
+    [Fact]
+    public async Task TheOpenInspectorShowsTheSelectedJobAndReloadsWhenItsRevisionMoves()
+    {
+        var job = bench.Job("Fix the failing test", JobStatus.Running);
+        workbench.Activate();
+        bench.Publish(Bench.OnBoard(job));
+        await bench.Ui.UntilAsync(() => workbench.Sidebar.Running.Count == 1);
+        await bench.Ui.InvokeAsync(
+            () =>
+            {
+                workbench.Sidebar.SelectCommand.Execute(workbench.Sidebar.Running[0]);
+                workbench.ToggleInspectorCommand.Execute(null);
+            },
+            Cancellation);
+        await bench.Ui.UntilAsync(() => workbench.Inspector is { IsLoaded: true });
+        var before = await bench.Ui.ReadAsync(() => workbench.Inspector!.Usage.Spent);
+
+        bench.Usage.Jobs[job.Job] = new UsageSummary(new TokenUsage(1200, 300, 0, 0, 0), [new Cost(0.25m, "USD")], 0, default, []);
+        bench.Publish(Bench.OnBoard(job, revision: 1));
+
+        await bench.Ui.UntilAsync(() => workbench.Inspector!.Usage.Spent == "USD 0.25 · 1,500 tokens");
+        Assert.Equal("No usage reported", before);
+    }
+
+    [Fact]
+    public async Task ALoadQueuedForTheUiBeforeTheWorkbenchWasDeactivatedIsNeverShown()
+    {
+        var hooked = new HookedDispatcher(bench.Ui);
+        using var deactivated = bench.Workbench(hooked);
+        var job = bench.Job("Fix the failing test", JobStatus.Running);
+        deactivated.Activate();
+        bench.Publish(Bench.OnBoard(job));
+        await bench.Ui.UntilAsync(() => deactivated.Sidebar.Running.Count == 1);
+        await bench.Ui.InvokeAsync(() => deactivated.Sidebar.SelectCommand.Execute(deactivated.Sidebar.Running[0]), Cancellation);
+        hooked.BeforeNext = deactivated.Deactivate;
+
+        await bench.Ui.InvokeAsync(() => deactivated.ToggleInspectorCommand.Execute(null), Cancellation);
+        await (await bench.Ui.ReadAsync(() => deactivated.Loading));
+
+        Assert.Equal((true, false), (hooked.Hooked, await bench.Ui.ReadAsync(() => deactivated.Inspector!.IsLoaded)));
+    }
+
+    private sealed class HookedDispatcher(IUiDispatcher inner) : IUiDispatcher
+    {
+        public Action? BeforeNext { get; set; }
+
+        public bool Hooked { get; private set; }
+
+        public ValueTask InvokeAsync(Action action, CancellationToken cancellationToken)
+        {
+            if (BeforeNext is { } hook)
+            {
+                BeforeNext = null;
+                Hooked = true;
+                hook();
+            }
+
+            return inner.InvokeAsync(action, CancellationToken.None);
+        }
+    }
+
     public void Dispose()
     {
         workbench.Dispose();
-        ui.Dispose();
+        bench.Dispose();
     }
 }

@@ -30,7 +30,7 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
 
     private async Task<SessionHalt> HaltAsync(SessionId session, HoldReason reason, CancellationToken cancellationToken)
     {
-        if (reason == HoldReason.SessionLost)
+        if (reason is HoldReason.SessionLost or HoldReason.Stopped)
         {
             return await StopAsync(session, cancellationToken);
         }

@@ -55,6 +55,11 @@ internal static class LayerMap
             ["Sidebar"] = Layer.ViewModels,
             ["Conversation"] = Layer.ViewModels,
             ["Cards"] = Layer.ViewModels,
+            ["Reviewing"] = Layer.Application,
+            ["Inspection"] = Layer.Application,
+            ["Review"] = Layer.ViewModels,
+            ["Decisions"] = Layer.ViewModels,
+            ["Inspector"] = Layer.ViewModels,
         }),
         .. Module("Avala.Observability", new()
         {

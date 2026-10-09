@@ -55,6 +55,7 @@ internal static class FactPhrases
         HoldReason.LimitNearlyReached => "held: near its usage limit",
         HoldReason.InvalidBudget => "held: invalid budget",
         HoldReason.MemoryExceeded => "held: out of memory",
+        HoldReason.Stopped => "stopped",
         _ => "interrupted",
     };
 }

@@ -36,7 +36,7 @@ public sealed class JobSteeringTests
     }
 
     [Fact]
-    public async Task InterruptingHoldsTheJobAndStoppingDiscardsIt()
+    public async Task InterruptingAndStoppingBothHoldTheJobWithTheirOwnReasonAndNeitherDiscardsIt()
     {
         var job = OnBoard(JobStatus.Running);
         var steering = new JobSteering(jobs, board);
@@ -44,20 +44,22 @@ public sealed class JobSteeringTests
         Outcomes.Succeeds(await steering.InterruptAsync(job, Cancellation));
         Outcomes.Succeeds(await steering.StopAsync(job, Cancellation));
 
-        Assert.Equal(["hold Interrupted", "discard"], jobs.Calls);
+        Assert.Equal(["hold Interrupted", "hold Stopped"], jobs.Calls);
     }
 
     [Theory]
-    [InlineData("Running", false, true, true)]
-    [InlineData("NeedsHelp", true, false, true)]
-    [InlineData("AwaitingReview", true, false, true)]
-    [InlineData("Checking", false, false, true)]
-    [InlineData("Approved", false, false, false)]
-    public void WhatAJobAcceptsDependsOnItsStatus(string status, bool messages, bool interrupt, bool stop)
+    [InlineData("Running", false, true, true, false, true)]
+    [InlineData("NeedsHelp", true, false, false, true, true)]
+    [InlineData("AwaitingReview", true, false, false, true, true)]
+    [InlineData("Checking", false, false, false, false, true)]
+    [InlineData("Approved", false, false, false, false, false)]
+    public void WhatAJobAcceptsDependsOnItsStatus(string status, bool messages, bool interrupt, bool stop, bool review, bool discard)
     {
         var parsed = Enum.Parse<JobStatus>(status);
 
-        Assert.Equal((messages, interrupt, stop), (parsed.AcceptsMessages, parsed.CanBeInterrupted, parsed.CanBeStopped));
+        Assert.Equal(
+            (messages, interrupt, stop, review, discard),
+            (parsed.AcceptsMessages, parsed.CanBeInterrupted, parsed.CanBeStopped, parsed.CanBeReviewed, parsed.CanBeDiscarded));
     }
 
     private JobId OnBoard(JobStatus status)

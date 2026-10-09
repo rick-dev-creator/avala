@@ -1,0 +1,87 @@
+using System.Collections.Immutable;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
+using Avala.Testing;
+using Avala.Workbench.Board;
+using Avala.Workbench.Conversation;
+using Avala.Workbench.Decisions;
+using Avala.Workbench.Inspection;
+using Avala.Workbench.Navigation;
+using Avala.Workbench.Replies;
+using Avala.Workbench.Reviewing;
+using Avala.Workbench.Sidebar;
+using Avala.Workbench.Steering;
+using Avala.Workbench.Timeline;
+using Avala.Workspaces.Contracts;
+using Microsoft.Extensions.Time.Testing;
+
+namespace Avala.Workbench.Tests;
+
+internal sealed class Bench : IDisposable
+{
+    public FakeCatalog Catalog { get; } = new();
+
+    public FakeJobs Jobs { get; } = new();
+
+    public JobBoard Board { get; } = new();
+
+    public FakeRunEvidence Evidence { get; } = new();
+
+    public FakeChanges Changes { get; } = new();
+
+    public FakeUsage Usage { get; } = new();
+
+    public FakeAudit Audit { get; } = new();
+
+    public FakeWorkspaces Workspaces { get; } = new();
+
+    public FakeResources Resources { get; } = new();
+
+    public FakePermissionAnswers Permissions { get; } = new();
+
+    public FakeAgents Agents { get; } = new();
+
+    public FakeTimeProvider Time { get; } = new(new DateTimeOffset(2026, 10, 9, 10, 0, 0, TimeSpan.Zero));
+
+    public TestUiDispatcher Ui { get; } = new();
+
+    public HumanReplies Replies => new(Permissions, Agents);
+
+    public ReviewReader Reader => new(Evidence, Catalog, Changes, Usage);
+
+    public ReviewDesk Desk => new(Jobs, Catalog, Changes);
+
+    public JobInspection Inspection => new(new JobRecords(Catalog, Workspaces, Resources, Resources), new JobAudit(Audit, Audit, Usage, Audit));
+
+    public DecisionsViewModel Decisions() => new(Replies, Time);
+
+    public WorkbenchViewModel Workbench() => Workbench(Ui);
+
+    public WorkbenchViewModel Workbench(IUiDispatcher ui) =>
+        new(
+            Board,
+            ui,
+            new SidebarViewModel(Decisions()),
+            new JobScreens(new Conversations(new JobSteering(Jobs, Board), Replies), new Reviews(Reader, Desk, ui), new Inspectors(Inspection, ui)));
+
+    public JobSummary Job(string instruction, JobStatus status)
+    {
+        var summary = Catalog.Add(instruction, status).Summary;
+        var workspace = new WorkspaceId(Guid.NewGuid());
+        Catalog.Change(summary.Job, history => history with { Summary = history.Summary with { Workspace = workspace } });
+        Workspaces.Known[workspace] = new WorkspaceInfo(workspace, $"/worktrees/{summary.Job.Value}", "avala/fix-the-test", "ba5eba5eba5e") { BaseBranch = "main" };
+
+        return Catalog.Summary(summary.Job);
+    }
+
+    public void Publish(params BoardJob[] jobs) =>
+        Board.Publish(jobs.Aggregate(Board.Jobs, (all, job) => all.SetItem(job.Job, job)));
+
+    public static BoardJob OnBoard(JobSummary summary, int revision = 0) =>
+        new(summary, Transcript.Empty.WithPrompts(summary.Instruction, [])) { Revision = revision };
+
+    public static ImmutableDictionary<JobId, BoardJob> Of(params BoardJob[] jobs) =>
+        jobs.ToImmutableDictionary(job => job.Job);
+
+    public void Dispose() => Ui.Dispose();
+}
