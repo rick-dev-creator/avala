@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RunAnalyzers>false</RunAnalyzers>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Avala.ArchitectureTests.Fixtures\Avala.ArchitectureTests.Fixtures.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaXaml Remove="Violating\**\*.axaml" />
+    <None Include="Violating\**\*.axaml" />
+  </ItemGroup>
+</Project>

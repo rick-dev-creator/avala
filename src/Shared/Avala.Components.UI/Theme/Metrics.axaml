@@ -1,0 +1,38 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <CornerRadius x:Key="RadiusControl">6</CornerRadius>
+  <CornerRadius x:Key="RadiusButton">8</CornerRadius>
+  <CornerRadius x:Key="RadiusRow">10</CornerRadius>
+  <CornerRadius x:Key="RadiusCard">14</CornerRadius>
+  <CornerRadius x:Key="RadiusSheet">20</CornerRadius>
+  <CornerRadius x:Key="RadiusPill">99</CornerRadius>
+
+  <x:Double x:Key="Space1">4</x:Double>
+  <x:Double x:Key="Space2">8</x:Double>
+  <x:Double x:Key="Space3">12</x:Double>
+  <x:Double x:Key="Space4">16</x:Double>
+  <x:Double x:Key="Space5">24</x:Double>
+  <x:Double x:Key="Space6">32</x:Double>
+  <x:Double x:Key="Space7">48</x:Double>
+
+  <Thickness x:Key="PaddingRow">10,7</Thickness>
+  <Thickness x:Key="PaddingCard">16</Thickness>
+  <Thickness x:Key="PaddingPill">9,3</Thickness>
+
+  <x:Double x:Key="SidebarWidth">260</x:Double>
+  <x:Double x:Key="InspectorWidth">320</x:Double>
+  <x:Double x:Key="ReadingWidth">720</x:Double>
+
+  <x:Double x:Key="FontSizeTitle">22</x:Double>
+  <x:Double x:Key="FontSizeHeading">15</x:Double>
+  <x:Double x:Key="FontSizeReading">14</x:Double>
+  <x:Double x:Key="FontSizeBody">13</x:Double>
+  <x:Double x:Key="FontSizeMono">12.5</x:Double>
+  <x:Double x:Key="FontSizeCaption">12</x:Double>
+  <x:Double x:Key="FontSizeHint">11.5</x:Double>
+  <x:Double x:Key="FontSizeSection">11</x:Double>
+
+  <BoxShadows x:Key="ShadowHairline">0 0 0 1 #0FFFFFFF</BoxShadows>
+  <BoxShadows x:Key="ShadowCard">inset 0 0.5 0 0 #0FFFFFFF, 0 1 2 0 #66000000, 0 8 20 -8 #80000000</BoxShadows>
+  <BoxShadows x:Key="ShadowFloat">inset 0 0.5 0 0 #14FFFFFF, 0 2 8 0 #4D000000, 0 24 48 -12 #A6000000</BoxShadows>
+</ResourceDictionary>

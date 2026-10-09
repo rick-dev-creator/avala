@@ -2,22 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Avala.Host.App"
              x:ClassModifier="internal"
-             RequestedThemeVariant="Default">
-  <Application.Resources>
-    <ResourceDictionary>
-      <ResourceDictionary.ThemeDictionaries>
-        <ResourceDictionary x:Key="Dark">
-          <SolidColorBrush x:Key="ShellBackgroundBrush" Color="#D91D1E22" />
-          <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#F225262B" />
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="ShellBackgroundBrush" Color="#D9F3F3F5" />
-          <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#F2FFFFFF" />
-        </ResourceDictionary>
-      </ResourceDictionary.ThemeDictionaries>
-    </ResourceDictionary>
-  </Application.Resources>
+             RequestedThemeVariant="Dark">
   <Application.Styles>
-    <FluentTheme />
+    <StyleInclude Source="avares://Avala.Components.UI/Theme/AvalaTheme.axaml" />
   </Application.Styles>
 </Application>

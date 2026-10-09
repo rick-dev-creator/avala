@@ -16,6 +16,8 @@
     <ProjectReference Include="..\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />
     <ProjectReference Include="..\Avala.Runtime\Avala.Runtime.csproj" />
     <ProjectReference Include="..\Avala.Shell\Avala.Shell.csproj" />
+    <ProjectReference Include="..\Shared\Avala.Components\Avala.Components.csproj" />
+    <ProjectReference Include="..\Shared\Avala.Components.UI\Avala.Components.UI.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Host.Tests" />
