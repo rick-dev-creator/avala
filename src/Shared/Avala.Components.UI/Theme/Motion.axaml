@@ -1,0 +1,115 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="using:System">
+  <Styles.Resources>
+    <SplineEasing x:Key="SnappyEasing" X1="0.34" Y1="1.4" X2="0.64" Y2="1" />
+    <SplineEasing x:Key="GentleEasing" X1="0.22" Y1="1" X2="0.36" Y2="1" />
+    <sys:TimeSpan x:Key="FadeDuration">0:0:0.12</sys:TimeSpan>
+    <sys:TimeSpan x:Key="HoverDuration">0:0:0.14</sys:TimeSpan>
+    <sys:TimeSpan x:Key="StreamDuration">0:0:0.18</sys:TimeSpan>
+    <sys:TimeSpan x:Key="SnappyDuration">0:0:0.24</sys:TimeSpan>
+    <sys:TimeSpan x:Key="GentleDuration">0:0:0.42</sys:TimeSpan>
+    <sys:TimeSpan x:Key="PulseDuration">0:0:2</sys:TimeSpan>
+    <sys:TimeSpan x:Key="SpinDuration">0:0:1</sys:TimeSpan>
+  </Styles.Resources>
+
+  <Style Selector=":is(Visual).pulse">
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform">
+      <ScaleTransform />
+    </Setter>
+    <Style.Animations>
+      <Animation Duration="0:0:2" IterationCount="INFINITE" Easing="CubicEaseOut">
+        <KeyFrame Cue="0%">
+          <Setter Property="ScaleTransform.ScaleX" Value="1" />
+          <Setter Property="ScaleTransform.ScaleY" Value="1" />
+          <Setter Property="Opacity" Value="0.7" />
+        </KeyFrame>
+        <KeyFrame Cue="80%">
+          <Setter Property="ScaleTransform.ScaleX" Value="2.6" />
+          <Setter Property="ScaleTransform.ScaleY" Value="2.6" />
+          <Setter Property="Opacity" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="ScaleTransform.ScaleX" Value="2.6" />
+          <Setter Property="ScaleTransform.ScaleY" Value="2.6" />
+          <Setter Property="Opacity" Value="0" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <Style Selector=":is(Visual).spin">
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform">
+      <RotateTransform />
+    </Setter>
+    <Style.Animations>
+      <Animation Duration="0:0:1" IterationCount="INFINITE">
+        <KeyFrame Cue="0%">
+          <Setter Property="RotateTransform.Angle" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="RotateTransform.Angle" Value="360" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <Style Selector=":is(Visual).arrive-snappy">
+    <Setter Property="RenderTransform">
+      <TranslateTransform />
+    </Setter>
+    <Style.Animations>
+      <Animation Duration="0:0:0.24" Easing="0.34,1.4,0.64,1" FillMode="Forward">
+        <KeyFrame Cue="0%">
+          <Setter Property="TranslateTransform.Y" Value="10" />
+          <Setter Property="Opacity" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="TranslateTransform.Y" Value="0" />
+          <Setter Property="Opacity" Value="1" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <Style Selector=":is(Visual).arrive-gentle">
+    <Setter Property="RenderTransform">
+      <TranslateTransform />
+    </Setter>
+    <Style.Animations>
+      <Animation Duration="0:0:0.42" Easing="0.22,1,0.36,1" FillMode="Forward">
+        <KeyFrame Cue="0%">
+          <Setter Property="TranslateTransform.X" Value="24" />
+          <Setter Property="Opacity" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="TranslateTransform.X" Value="0" />
+          <Setter Property="Opacity" Value="1" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <Style Selector=":is(Visual).fade-in">
+    <Style.Animations>
+      <Animation Duration="0:0:0.12" FillMode="Forward">
+        <KeyFrame Cue="0%">
+          <Setter Property="Opacity" Value="0" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="Opacity" Value="1" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <Style Selector=":is(Visual).eased">
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.24" Easing="0.34,1.4,0.64,1" />
+      </Transitions>
+    </Setter>
+  </Style>
+</Styles>

@@ -4,6 +4,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Avala.Sdk\Avala.Sdk.csproj" />
+    <ProjectReference Include="..\Shared\Avala.Components\Avala.Components.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Host" />

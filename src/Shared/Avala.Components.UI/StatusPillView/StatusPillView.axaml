@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:status="using:Avala.Components.Status"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Components.UI.StatusPillView"
+             x:ClassModifier="internal"
+             x:DataType="status:IStatusPillViewModel"
+             HorizontalAlignment="Left"
+             Classes.attention="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}"
+             Classes.failure="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Failed}">
+  <Design.DataContext>
+    <status:DesignStatusPillViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Pill">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderPillBrush}" />
+    </Style>
+    <Style Selector="TextBlock#Label">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector=".attention Border#Pill">
+      <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
+    </Style>
+    <Style Selector=".attention TextBlock#Label">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector=".failure Border#Pill">
+      <Setter Property="BorderBrush" Value="{DynamicResource FailureBorderBrush}" />
+    </Style>
+    <Style Selector=".failure TextBlock#Label">
+      <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Pill"
+          BorderThickness="1"
+          CornerRadius="{DynamicResource RadiusPill}"
+          Padding="{DynamicResource PaddingPill}">
+    <StackPanel Orientation="Horizontal" Spacing="6">
+      <ContentControl x:Name="Dot"
+                      Content="{Binding Dot}"
+                      Width="6"
+                      Height="6"
+                      VerticalAlignment="Center" />
+      <TextBlock x:Name="Label"
+                 Text="{Binding Text}"
+                 FontSize="{DynamicResource FontSizeCaption}"
+                 VerticalAlignment="Center" />
+    </StackPanel>
+  </Border>
+</UserControl>

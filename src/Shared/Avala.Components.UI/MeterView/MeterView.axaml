@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:meters="using:Avala.Components.Meters"
+             x:Class="Avala.Components.UI.MeterView"
+             x:ClassModifier="internal"
+             x:DataType="meters:IMeterViewModel"
+             Classes.near="{Binding IsNearThreshold}">
+  <Design.DataContext>
+    <meters:DesignMeterViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ProgressBar">
+      <Setter Property="Minimum" Value="0" />
+      <Setter Property="Maximum" Value="1" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    </Style>
+    <Style Selector="ProgressBar#Fill">
+      <Setter Property="Height" Value="4" />
+      <Setter Property="Background" Value="{DynamicResource MeterTrackBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector=".near ProgressBar#Fill">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="ProgressBar#Tick">
+      <Setter Property="Height" Value="10" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="Transparent" />
+    </Style>
+    <Style Selector="ProgressBar#Tick /template/ Border#PART_Indicator">
+      <Setter Property="BorderBrush" Value="{DynamicResource MeterTickBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,1.5,0" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector=".near ProgressBar#Tick /template/ Border#PART_Indicator">
+      <Setter Property="BorderBrush" Value="{DynamicResource MeterTickNearBrush}" />
+    </Style>
+    <Style Selector="TextBlock#Reading">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector=".near TextBlock#Reading">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="6">
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock x:Name="Label"
+                 Text="{Binding Label}"
+                 FontSize="{DynamicResource FontSizeCaption}"
+                 Foreground="{DynamicResource TextSecondaryBrush}"
+                 TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Reading"
+                 Grid.Column="1"
+                 Margin="12,0,0,0"
+                 Text="{Binding Reading}"
+                 FontSize="{DynamicResource FontSizeCaption}" />
+    </Grid>
+    <Panel>
+      <ProgressBar x:Name="Fill" Value="{Binding Fraction}" />
+      <ProgressBar x:Name="Tick"
+                   Value="{Binding Threshold}"
+                   IsVisible="{Binding HasThreshold}" />
+    </Panel>
+  </StackPanel>
+</UserControl>

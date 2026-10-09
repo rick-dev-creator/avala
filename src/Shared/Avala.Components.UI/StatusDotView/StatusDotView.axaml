@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:status="using:Avala.Components.Status"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Components.UI.StatusDotView"
+             x:ClassModifier="internal"
+             x:DataType="status:IStatusDotViewModel"
+             MinWidth="6"
+             MinHeight="6"
+             Classes.working="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Working}"
+             Classes.checking="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Checking}"
+             Classes.needsYou="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=NeedsYou}"
+             Classes.held="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Held}"
+             Classes.review="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=ReadyForReview}"
+             Classes.done="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Done}"
+             Classes.failed="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Failed}">
+  <Design.DataContext>
+    <status:DesignStatusDotViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Ellipse#Core">
+      <Setter Property="Fill" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="StrokeThickness" Value="1.5" />
+    </Style>
+    <Style Selector=".needsYou Ellipse#Core">
+      <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector=".held Ellipse#Core">
+      <Setter Property="Fill" Value="Transparent" />
+      <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector=".review Ellipse#Core">
+      <Setter Property="Fill" Value="Transparent" />
+      <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector=".done Ellipse#Core">
+      <Setter Property="Fill" Value="{DynamicResource DotDoneBrush}" />
+    </Style>
+    <Style Selector=".failed Ellipse#Core">
+      <Setter Property="Fill" Value="{DynamicResource FailureBrush}" />
+    </Style>
+    <Style Selector=".checking Ellipse#Core">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+  </UserControl.Styles>
+  <Panel>
+    <Ellipse x:Name="Pulse"
+             Fill="{DynamicResource TextPrimaryBrush}"
+             IsVisible="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Working}"
+             Classes.pulse="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Working}" />
+    <Ellipse x:Name="Core" />
+    <Arc x:Name="Spinner"
+         StartAngle="0"
+         SweepAngle="270"
+         Stroke="{DynamicResource TextSecondaryBrush}"
+         StrokeThickness="1.5"
+         IsVisible="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Checking}"
+         Classes.spin="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Checking}" />
+  </Panel>
+</UserControl>

@@ -84,6 +84,10 @@
     <Project Path="src/Modules/Simulator/Avala.Simulator.Workload/Avala.Simulator.Workload.csproj" />
     <Project Path="src/Modules/Simulator/Avala.Simulator/Avala.Simulator.csproj" />
   </Folder>
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/Avala.Components.UI/Avala.Components.UI.csproj" />
+    <Project Path="src/Shared/Avala.Components/Avala.Components.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <File Path="tests/Directory.Build.props" />
     <Project Path="tests/Avala.Agents.Tests/Avala.Agents.Tests.csproj" />
@@ -101,6 +105,7 @@
     <Project Path="tests/Avala.Runtime.Tests/Avala.Runtime.Tests.csproj" />
     <Project Path="tests/Avala.Sdk.Tests/Avala.Sdk.Tests.csproj" />
     <Project Path="tests/Avala.Simulator.Tests/Avala.Simulator.Tests.csproj" />
+    <Project Path="tests/Avala.Testing.UI/Avala.Testing.UI.csproj" />
     <Project Path="tests/Avala.Testing/Avala.Testing.csproj" />
     <Project Path="tests/Avala.Verification.Tests/Avala.Verification.Tests.csproj" />
     <Project Path="tests/Avala.Simulator.Workload.Tests/Avala.Simulator.Workload.Tests.csproj" />
@@ -108,6 +113,8 @@
     <Project Path="tests/Avala.Budgets.Tests/Avala.Budgets.Tests.csproj" />
     <Project Path="tests/Avala.Workspaces.Tests/Avala.Workspaces.Tests.csproj" />
     <Project Path="tests/Avala.Autopilot.Tests/Avala.Autopilot.Tests.csproj" />
+    <Project Path="tests/Avala.Components.Tests/Avala.Components.Tests.csproj" />
+    <Project Path="tests/Avala.Components.UI.Tests/Avala.Components.UI.Tests.csproj" />
     <Project Path="tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj" />
     <Project Path="tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj" />
   </Folder>
