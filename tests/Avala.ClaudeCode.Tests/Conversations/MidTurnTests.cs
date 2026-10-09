@@ -52,6 +52,26 @@ public sealed class MidTurnTests
     }
 
     [Fact]
+    public void TheLateAnswerToAMessageQueuedBeforeAnInterruptionNeverLeaksIntoTheNextTurn()
+    {
+        var talk = new Talk().Begin().Receive(Cli.Init());
+        talk.Take(talk.Conversation.Begin(Steering).Match(begun => begun.Reaction, _ => Reaction.None));
+        talk.Take(talk.Conversation.Interrupt().Match(begun => begun.Reaction, _ => Reaction.None));
+        talk.Receive(Cli.Result(0.010m, "error_during_execution", isError: true));
+        talk.Drain();
+
+        talk.Begin("Reply with the single word ok.");
+        talk.Receive([Cli.Init(), .. Cli.Streamed("msg_late", 0, "text", "1\n2\ncherry"), Cli.Said("msg_late", "text", "1\n2\ncherry"), Cli.Result(0.020m)]);
+        var whileLate = talk.Events.ToList();
+        talk.Receive([Cli.Init(), .. Cli.Streamed("msg_ok", 0, "text", "ok"), Cli.Said("msg_ok", "text", "ok"), Cli.Result(0.025m)]);
+
+        Assert.DoesNotContain(whileLate, agentEvent => agentEvent is ItemStarted or ItemProgressed or TurnCompleted or UsageReported);
+        Assert.Equal(["ok"], talk.Events.OfType<ItemProgressed>().Select(progressed => progressed.Text));
+        Assert.Equal(new TurnCompleted(talk.Session, talk.Turn, TurnOutcome.Finished), talk.Events[^1]);
+        Assert.Equal(0.015m, talk.Events.OfType<UsageReported>().Single().Cost.Match(cost => cost.Amount, () => 0m));
+    }
+
+    [Fact]
     public void AMessageMidTurnOutsideATurnIsRefused() =>
         Assert.Equal(AgentError.NoTurnInProgress, new Talk().Conversation.Begin(Steering).Match(_ => default, error => error));
 }

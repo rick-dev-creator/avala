@@ -117,6 +117,69 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AMessageSentMidTurnJoinsTheTurnAndAnInterruptionLeavesTheNextTurnWholeAsync()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
+        using var data = new TemporaryFolder();
+        using var repository = new TemporaryFolder();
+        await using var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
+        var provider = root.Services.GetServices<IAgentProvider>().Single(candidate => candidate.Info.Id == "claude-code");
+        var transcripts = Path.Combine(data.Path, "transcripts");
+        var session = (await provider.StartAsync(new SessionOptions(repository.Path, PermissionMode.AskEveryTime) { Connection = Connection(Login, transcripts) }, Cancellation))
+            .Match(started => started, error => throw new InvalidOperationException(error.ToString()));
+        var steered = new List<IAgentEvent>();
+        var interrupted = new List<IAgentEvent>();
+        var after = new List<IAgentEvent>();
+
+        await using (session)
+        {
+            await using var events = session.Events.GetAsyncEnumerator(Cancellation);
+            await TurnAsync(session, events, steered, "Count from 1 to 40, one number per line, nothing else.", "Then end with the single word banana.", interrupt: false);
+            await TurnAsync(session, events, interrupted, "Count from 1 to 60, one number per line, nothing else.", "Then end with the single word cherry.", interrupt: true);
+            await TurnAsync(session, events, after, "Reply with the single word ok.", string.Empty, interrupt: false);
+        }
+
+        await SaveTranscriptsAsync(transcripts, "mid-turn", repository.Path);
+        await SaveCostAsync("mid-turn", [.. steered, .. interrupted, .. after]);
+
+        Assert.Single(steered.OfType<TurnCompleted>());
+        Assert.Contains(steered, agentEvent => agentEvent is MessageQueued);
+        Assert.Contains("banana", string.Concat(steered.OfType<ItemProgressed>().Select(progressed => progressed.Text)), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(TurnOutcome.Interrupted, interrupted.OfType<TurnCompleted>().Single().Outcome);
+        Assert.Equal(TurnOutcome.Finished, after.OfType<TurnCompleted>().Single().Outcome);
+        Assert.Contains("ok", string.Concat(after.OfType<ItemProgressed>().Select(progressed => progressed.Text)), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("cherry", string.Concat(after.OfType<ItemProgressed>().Select(progressed => progressed.Text)), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task TurnAsync(IAgentSession session, IAsyncEnumerator<IAgentEvent> events, List<IAgentEvent> seen, string instruction, string steering, bool interrupt)
+    {
+        var turn = (await session.SendAsync(new UserTurn(instruction), Cancellation)).Match(started => started, error => throw new InvalidOperationException(error.ToString()));
+        var steeredYet = steering.Length == 0;
+
+        while (await events.MoveNextAsync())
+        {
+            var agentEvent = events.Current;
+            seen.Add(agentEvent);
+
+            if (!steeredYet && agentEvent is ItemProgressed)
+            {
+                steeredYet = true;
+                _ = (await session.SendAsync(new UserTurn(steering) { MidTurn = true }, Cancellation)).Match(joined => joined, error => throw new InvalidOperationException(error.ToString()));
+
+                if (interrupt)
+                {
+                    _ = (await session.InterruptAsync(Cancellation)).Match(stopped => stopped, error => throw new InvalidOperationException(error.ToString()));
+                }
+            }
+
+            if (agentEvent is TurnCompleted completed && completed.Turn == turn)
+            {
+                return;
+            }
+        }
+    }
+
+    [Fact]
     public async Task TheRepositorysAllowRuleAndHooksNeverAnswerForAvalaAsync()
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
