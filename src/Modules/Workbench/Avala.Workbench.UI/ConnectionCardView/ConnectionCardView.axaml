@@ -46,8 +46,21 @@
     <Border x:Name="Core"
             Background="{DynamicResource HubCoreBrush}"
             CornerRadius="{DynamicResource RadiusPill}"
-            BoxShadow="{DynamicResource ShadowHub}"
-            ToolTip.Tip="{Binding Summary}" />
+            BoxShadow="{DynamicResource ShadowHub}">
+      <ToolTip.Tip>
+        <StackPanel x:Name="Detail" Spacing="10" Width="260">
+          <TextBlock x:Name="Summary" Text="{Binding Summary}" TextWrapping="Wrap" />
+          <TextBlock x:Name="NoLimits" Classes="caption" Text="This connection reports no usage limit." IsVisible="{Binding !Limits.Count}" />
+          <ItemsControl x:Name="LimitList" ItemsSource="{Binding Limits}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="10" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+      </ToolTip.Tip>
+    </Border>
     <Ellipse Margin="2" Stroke="{DynamicResource HubTrackBrush}" StrokeThickness="3" IsHitTestVisible="False" />
     <Arc x:Name="Ring"
          Margin="2"

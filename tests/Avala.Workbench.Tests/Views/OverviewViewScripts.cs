@@ -18,6 +18,7 @@ using Avalonia.Controls.Shapes;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
 
@@ -208,6 +209,24 @@ public sealed class ConnectionCardViewScripts(HeadlessUi ui)
             Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Arc>("Ring").Stroke).Color);
             Assert.Equal(0.88 * 360, view.Find<Arc>("Ring").SweepAngle, 3);
             Assert.Equal(128, view.Find<Panel>("Hub").Bounds.Width, 1);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task HoveringAHubListsEveryLimitWindowOfItsConnectionAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignConnectionCardViewModel());
+            var core = view.Find("Core");
+
+            ToolTip.SetIsOpen(core, true);
+            view.Settle();
+
+            var detail = Assert.IsType<StackPanel>(ToolTip.GetTip(core));
+            var texts = detail.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible).Select(text => text.Text).ToList();
+            Assert.Equal(2, detail.GetLogicalDescendants().OfType<ItemsControl>().Single(list => list.Name == "LimitList").ItemCount);
+            Assert.Contains("5-hour window", texts);
+            Assert.Contains("7-day window", texts);
+            Assert.DoesNotContain("This connection reports no usage limit.", texts);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
