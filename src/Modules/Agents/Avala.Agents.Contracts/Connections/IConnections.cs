@@ -30,7 +30,17 @@ public enum ConnectionFileStatus
     Rejected,
 }
 
-public sealed record DeclaredConnection(ConnectionName Name, string Provider, Option<string> Source);
+public enum ConnectionOrigin
+{
+    Declared,
+    Discovered,
+    Implicit,
+}
+
+public sealed record DeclaredConnection(ConnectionName Name, string Provider, Option<string> Source)
+{
+    public ConnectionOrigin Origin { get; init; }
+}
 
 public sealed record ConnectionCatalog(
     ConnectionFileStatus File,

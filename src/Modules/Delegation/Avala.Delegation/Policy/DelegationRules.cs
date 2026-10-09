@@ -7,8 +7,8 @@ namespace Avala.Delegation.Policy;
 
 internal enum Routing
 {
+    Capacity,
     RoundRobin,
-    LeastUsed,
 }
 
 internal sealed record DelegationRules(IReadOnlyList<ConnectionName> Connections, Routing Routing, int MaxDepth, int MaxChildren)
@@ -25,8 +25,6 @@ internal sealed record DelegationRules(IReadOnlyList<ConnectionName> Connections
         : asked == Option<Autonomy>.Some(Autonomy.Autonomous) && granted != Autonomy.Autonomous ? DelegationError.AutonomyLoosened
         : Option<DelegationError>.None;
 
-    public Option<ConnectionName> Route(int earlierChildren, Func<ConnectionName, double> used) =>
-        Connections.Count == 0 ? Option<ConnectionName>.None
-        : Routing == Routing.RoundRobin ? Connections[earlierChildren % Connections.Count]
-        : Connections.OrderBy(used).First();
+    public Option<ConnectionName> InTurn(int earlierChildren) =>
+        Connections.Count == 0 ? Option<ConnectionName>.None : Connections[earlierChildren % Connections.Count];
 }

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Avala.Agents.Connections;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Agents.Turns;
@@ -241,6 +243,39 @@ internal static class AgentConformance
                 () => Task.FromResult<IReadOnlyList<string>>([])),
         ];
     }
+
+    public static async Task<IReadOnlyList<string>> CheckDiscoveryAsync(IAgentProvider provider, IConnectionDiscovery discovery, CancellationToken deadline)
+    {
+        var found = await discovery.DiscoverAsync(deadline);
+        var again = await discovery.DiscoverAsync(deadline);
+
+        return
+        [
+            .. found.Where(connection => connection.Provider != provider.Info.Id)
+                .Select(connection => $"the connection {connection.Name.Value} names the provider {connection.Provider}"),
+            .. found.Where(connection => !ConnectionDeclaration.IsValidName(connection.Name.Value))
+                .Select(connection => $"the connection name {connection.Name.Value} is not valid"),
+            .. found.GroupBy(connection => connection.Name).Where(named => named.Count() > 1)
+                .Select(named => $"the connection {named.Key.Value} is discovered twice"),
+            .. found.GroupBy(connection => connection.Credential).Where(shared => shared.Count() > 1)
+                .Select(shared => $"the credential {shared.Key.Reference} is discovered twice"),
+            .. found.Where(connection => !IsReference(connection.Credential))
+                .Select(connection => $"the connection {connection.Name.Value} holds a credential of {connection.Credential.Source} that is not a reference"),
+            .. found.Select(Fingerprint).SequenceEqual(again.Select(Fingerprint)) ? [] : new[] { "two discoveries found different connections" },
+        ];
+    }
+
+    private static bool IsReference(CredentialReference credential) => credential.Source switch
+    {
+        "login" => Path.IsPathFullyQualified(credential.Reference),
+        "apiKey" => credential.Reference.Length > 0
+            && (char.IsAsciiLetter(credential.Reference[0]) || credential.Reference[0] == '_')
+            && credential.Reference.All(character => char.IsAsciiLetterOrDigit(character) || character == '_'),
+        _ => !string.IsNullOrWhiteSpace(credential.Reference),
+    };
+
+    private static string Fingerprint(DiscoveredConnection connection) =>
+        $"{connection.Name.Value}|{connection.Provider}|{connection.Credential}|{string.Join(';', connection.Settings.OrderBy(setting => setting.Key, StringComparer.Ordinal))}";
 
     private static IEnumerable<string> Shared<T>(Option<T> one, Option<T> other, Func<T, string> violation)
         where T : notnull =>

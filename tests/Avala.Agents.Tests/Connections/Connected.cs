@@ -32,10 +32,17 @@ internal static class Connected
         new(registry, new ProviderChain(tools, decorators), trees, NullLogger<SessionStarter>.Instance);
 
     public static ConnectionRegistry Registry(IEnumerable<IAgentProvider> providers, params ICredentialSource[] sources) =>
-        new(new DeclaredFile(Option<ConnectionDeclarations>.None), providers, sources);
+        new(new DeclaredFile(Option<ConnectionDeclarations>.None), providers, sources, []);
 
     public static ConnectionRegistry Registry(string file, IEnumerable<IAgentProvider> providers, params ICredentialSource[] sources) =>
-        new(new DeclaredFile(ConnectionFileParser.Parse(file).Map(Option<ConnectionDeclarations>.Some)), providers, sources);
+        new(new DeclaredFile(ConnectionFileParser.Parse(file).Map(Option<ConnectionDeclarations>.Some)), providers, sources, []);
+
+    public static ConnectionRegistry Discovering(
+        Result<Option<ConnectionDeclarations>, ConnectionError> file,
+        IEnumerable<IAgentProvider> providers,
+        IEnumerable<IConnectionDiscovery> discoveries,
+        params ICredentialSource[] sources) =>
+        new(new DeclaredFile(file), providers, sources, discoveries);
 
     private sealed class DeclaredFile(Result<Option<ConnectionDeclarations>, ConnectionError> declared) : IConnectionFile
     {

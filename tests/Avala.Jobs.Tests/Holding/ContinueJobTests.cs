@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
@@ -84,4 +85,42 @@ public sealed class ContinueJobTests
         Assert.Equal((JobState.Running, JobState.NeedsHelp), (running.State, held.State));
         Assert.Equal(sent, flow.Agents.Sent.Count);
     }
+
+    [Fact]
+    public async Task ContinuingAHeldJobOnAnotherConnectionStartsANewConversationThereAndStopsTheOldSessionAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await flow.HeldAsync(HoldReason.LimitNearlyReached, Token);
+        var old = Outcomes.Present(job.Session);
+
+        var continued = Outcomes.Succeeds(await flow.Jobs.ContinueOnAsync(job.Id, Personal, Message, Cancellation));
+
+        Assert.Equal(new JobContinuation(job.Id, Outcomes.Present(job.Session), ContinuedIn.NewConversation), continued);
+        Assert.Equal((Option<ConnectionName>.Some(Personal), Option<ResumeToken>.None), (flow.Agents.Requests[^1].Connection, flow.Agents.Requests[^1].Resume));
+        Assert.Equal((continued.Session, $"Add GitHub login\n\n{Message}"), flow.Agents.Sent[^1]);
+        Assert.Equal((JobState.Running, AttemptOrigin.Hint), (job.State, job.Attempts[^1].Origin));
+        Assert.Equal((Option<ConnectionName>.Some(Personal), Option<ResumeToken>.None), (job.Connection, job.Resume));
+        Assert.Contains(old, flow.Agents.Stopped);
+    }
+
+    [Fact]
+    public async Task OnlyAHeldJobMovesAndOnlyToAnotherConnectionThatOpensWithAMessageAsync()
+    {
+        var flow = JobFlow.With();
+        var running = await flow.RunningAsync();
+        var held = await flow.HeldAsync(HoldReason.LimitNearlyReached);
+        flow.Agents.UnknownConnections.Add("nowhere");
+        var sent = flow.Agents.Sent.Count;
+
+        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(running.Id, Personal, Message, Cancellation)));
+        Assert.Equal(JobRejection.UnknownJob, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(JobId.New(), Personal, Message, Cancellation)));
+        Assert.Equal(JobRejection.EmptyMessage, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(held.Id, Personal, " ", Cancellation)));
+        Assert.Equal(JobRejection.SameConnection, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(held.Id, FakeAgents.DefaultConnection, Message, Cancellation)));
+        Assert.Equal(JobRejection.UnknownConnection, Outcomes.FailsWith(await flow.Jobs.ContinueOnAsync(held.Id, new ConnectionName("nowhere"), Message, Cancellation)));
+        Assert.Equal((JobState.Running, JobState.NeedsHelp), (running.State, held.State));
+        Assert.Equal(Option<ConnectionName>.Some(FakeAgents.DefaultConnection), held.Connection);
+        Assert.Equal(sent, flow.Agents.Sent.Count);
+    }
+
+    private static ConnectionName Personal => new("personal");
 }

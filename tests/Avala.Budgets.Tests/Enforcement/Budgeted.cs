@@ -152,6 +152,13 @@ internal sealed class Budgeted
         public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotHeld));
 
+        public ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(
+            JobId job,
+            Avala.Agents.Contracts.Connections.ConnectionName connection,
+            string message,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotHeld));
+
         public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobId, JobRejection>.Failure(JobRejection.NotDiscardable));
 

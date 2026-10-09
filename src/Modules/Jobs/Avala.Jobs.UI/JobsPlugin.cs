@@ -31,6 +31,7 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<IRepositoryDefaults, JobFileReader>()
             .AddSingleton<JobLedger>()
             .AddSingleton<JobQueues>()
+            .AddSingleton<ConnectionChooser>()
             .AddSingleton<WorkspacePlanner>()
             .AddSingleton<JobLauncher>()
             .AddSingleton<CompletionGates>()

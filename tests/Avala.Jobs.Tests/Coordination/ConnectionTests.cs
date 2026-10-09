@@ -31,9 +31,12 @@ public sealed class ConnectionTests
     }
 
     [Fact]
-    public async Task AJobNamingAConnectionRunsOnItWhateverItsRepositoryPrefersAsync()
+    public async Task AJobNamingAConnectionRunsOnItWhateverItsRepositoryPrefersOrCapacitySaysAsync()
     {
         var flow = JobFlow.With();
+        var selector = new FakeSelector(Personal);
+        flow.Selectors.Add(selector);
+        flow.Connections.Declared.AddRange([Declared(Work), Declared(Personal)]);
         flow.Defaults.Connection = Option<ConnectionName>.Some(Personal);
 
         var job = await flow.RunningAsync(JobFlow.Request() with { Connection = Work });
@@ -41,12 +44,16 @@ public sealed class ConnectionTests
         Assert.Equal(Option<ConnectionName>.Some(Work), Assert.Single(flow.Agents.Requests).Connection);
         Assert.Equal((JobState.Running, Option<ConnectionName>.Some(Work)), (job.State, job.Connection));
         Assert.Empty(flow.Defaults.Read);
+        Assert.Empty(selector.Questions);
     }
 
     [Fact]
-    public async Task AJobWithoutAConnectionRunsOnItsRepositorysDefaultAsync()
+    public async Task AJobWithoutAConnectionRunsOnItsRepositorysDefaultWhateverCapacitySaysAsync()
     {
         var flow = JobFlow.With();
+        var selector = new FakeSelector(Work);
+        flow.Selectors.Add(selector);
+        flow.Connections.Declared.AddRange([Declared(Work), Declared(Personal)]);
         flow.Defaults.Connection = Option<ConnectionName>.Some(Personal);
 
         var job = await flow.RunningAsync();
@@ -54,18 +61,49 @@ public sealed class ConnectionTests
         Assert.Equal(Option<ConnectionName>.Some(Personal), Assert.Single(flow.Agents.Requests).Connection);
         Assert.Equal([Assert.Single(flow.Agents.Sessions).Value], flow.Defaults.Read);
         Assert.Equal(Option<ConnectionName>.Some(Personal), job.Connection);
+        Assert.Empty(selector.Questions);
     }
 
     [Fact]
-    public async Task AJobWithoutAnyPreferenceKeepsTheDefaultConnectionItsSessionOpenedOnAsync()
+    public async Task AJobWithoutAnyPreferenceKeepsTheDefaultConnectionItsSessionOpenedOnWhenNothingSelectsByCapacityAsync()
     {
         var flow = JobFlow.With();
+        flow.Connections.Declared.AddRange([Declared(Work), Declared(Personal)]);
 
         var job = await flow.RunningAsync();
 
         Assert.True(Assert.Single(flow.Agents.Requests).Connection.IsNone);
         Assert.Equal(Option<ConnectionName>.Some(FakeAgents.DefaultConnection), job.Connection);
+        Assert.Empty(flow.Bus.Published.OfType<ConnectionChosen>());
     }
+
+    [Fact]
+    public async Task AJobWithoutAnyPreferenceRunsOnTheUsableConnectionOfTheDefaultProviderThatCapacityChoosesAsync()
+    {
+        var flow = JobFlow.With();
+        var selector = new FakeSelector(Personal);
+        flow.Selectors.Add(selector);
+        flow.Connections.Declared.AddRange(
+        [
+            Declared(Work),
+            Declared(new ConnectionName("other-harness")) with { Provider = "other" },
+            Declared(new ConnectionName("broken")),
+            Declared(Personal),
+        ]);
+        flow.Connections.Refused["broken"] = ConnectionError.MissingFolder;
+
+        var job = await flow.RunningAsync();
+
+        var question = Assert.Single(selector.Questions);
+        Assert.Equal([Work, Personal], question.Candidates);
+        Assert.Equal(Assert.Single(flow.Defaults.Read), question.Worktree);
+        Assert.Equal(Option<ConnectionName>.Some(Personal), Assert.Single(flow.Agents.Requests).Connection);
+        Assert.Equal(Option<ConnectionName>.Some(Personal), job.Connection);
+        var chosen = Assert.Single(flow.Bus.Published.OfType<ConnectionChosen>());
+        Assert.Equal((job.Id, Personal, 2), (chosen.Job, chosen.Choice.Connection, chosen.Choice.Compared.Count));
+    }
+
+    private static DeclaredConnection Declared(ConnectionName name) => new(name, FakeConnections.Provider.Id, Option<string>.None);
 
     [Theory]
     [InlineData(true)]

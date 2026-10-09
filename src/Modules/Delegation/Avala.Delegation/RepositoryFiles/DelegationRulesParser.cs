@@ -81,12 +81,12 @@ internal static class DelegationRulesParser
     }
 
     private static Result<Routing, DelegationError> RoutingIn(JsonElement section) =>
-        !section.TryGetProperty(RoutingField, out var routing) ? Routing.RoundRobin
+        !section.TryGetProperty(RoutingField, out var routing) ? Routing.Capacity
         : routing.ValueKind != JsonValueKind.String ? DelegationError.Malformed
         : routing.GetString() switch
         {
+            "capacity" or "leastUsed" => Routing.Capacity,
             "roundRobin" => Routing.RoundRobin,
-            "leastUsed" => Routing.LeastUsed,
             _ => DelegationError.UnknownRouting,
         };
 

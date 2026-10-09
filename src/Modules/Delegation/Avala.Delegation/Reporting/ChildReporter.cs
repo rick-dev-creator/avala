@@ -29,7 +29,9 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
         var integrated = settlement.Status == JobStatus.AwaitingReview ? await IntegrateAsync(settled, cancellationToken) : settled;
         var report = await evidence.GatherAsync(integrated, summary, cancellationToken);
 
-        await journal.ReportedAsync(delegation with { Report = report }, report, cancellationToken);
+        var connection = delegation.Connection.IsSome ? delegation.Connection : await evidence.ConnectionOfAsync(child, cancellationToken);
+
+        await journal.ReportedAsync(delegation with { Report = report, Connection = connection }, report, cancellationToken);
     }
 
     private async Task<ChildReport> IntegrateAsync(ChildReport settled, CancellationToken cancellationToken) =>
