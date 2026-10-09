@@ -77,6 +77,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IRunEvidence>(new FakeRunEvidence())
             .AddSingleton<IWorkspaceChanges>(new FakeChanges())
             .AddSingleton<IWorkspaces>(new FakeWorkspaces())
+            .AddSingleton<IWorkingFiles>(new FakeWorkingFiles())
             .AddSingleton<IUsage>(new FakeUsage())
             .AddSingleton<IUsageHistory>(new FakeUsageHistory())
             .AddSingleton<IVerifications>(audit)

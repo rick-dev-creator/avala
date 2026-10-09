@@ -23,6 +23,8 @@ internal interface IRuleFileViewModel
     bool IsRejected { get; }
 
     string Summary { get; }
+
+    bool CanEditHere { get; }
 }
 
 internal interface IRuleViewModel
@@ -103,6 +105,8 @@ internal sealed class RuleFileViewModel(string path, string status, Option<FileO
     public string Commit { get; } = Amounts.Commit(origin);
 
     public bool EditedInCheckout { get; } = origin.Match(found => found.EditedInWorktree, () => false);
+
+    public bool CanEditHere { get; init; }
 }
 
 internal sealed class RuleViewModel(PolicyRule rule, int order) : IRuleViewModel

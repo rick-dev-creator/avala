@@ -5,6 +5,7 @@ using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Git;
 using Avala.Workspaces.Provisioning;
 using Avala.Workspaces.Storage;
+using Avala.Workspaces.WorkingFiles;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.Workspaces;
@@ -21,6 +22,7 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddSingleton<WorktreeReconciler>()
             .AddSingleton<IWorkspaces, WorkspaceService>()
             .AddSingleton<IBaseFiles, BaseFileReader>()
+            .AddSingleton<IWorkingFiles, WorkingFileStore>()
             .AddSingleton<IGitChanges, GitChangesCli>()
             .AddSingleton<IWorkspaceChanges, WorkspaceChanges>();
 }

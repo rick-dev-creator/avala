@@ -14,7 +14,7 @@
       <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
     </Style>
   </UserControl.Styles>
-  <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10" Margin="0,8">
+  <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="10" Margin="0,8">
     <StackPanel VerticalAlignment="Center">
       <TextBlock x:Name="Path" Classes="mono" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
       <TextBlock x:Name="Edited" Classes="hint attention" Text="changed in the repository's working tree, not committed yet" IsVisible="{Binding EditedInCheckout}" />
@@ -24,8 +24,15 @@
       <TextBlock x:Name="Status" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Status}" TextTrimming="CharacterEllipsis" MaxWidth="240" />
       <TextBlock x:Name="Commit" Classes="hint mono" Margin="6,0,0,0" Text="{Binding Commit}" VerticalAlignment="Center" />
     </StackPanel>
-    <Button x:Name="Edit"
+    <Button x:Name="EditHere"
             Grid.Column="3"
+            Classes="link emphasis"
+            Content="Edit here"
+            IsVisible="{Binding CanEditHere}"
+            Command="{Binding $parent[local:RepositorySettingsView].((settings:IRepositorySettingsViewModel)DataContext).EditHereCommand, FallbackValue={x:Null}}"
+            CommandParameter="{Binding}" />
+    <Button x:Name="Edit"
+            Grid.Column="4"
             Classes="link emphasis"
             Content="Edit in repository"
             Command="{Binding $parent[local:RepositorySettingsView].((settings:IRepositorySettingsViewModel)DataContext).EditCommand, FallbackValue={x:Null}}"
