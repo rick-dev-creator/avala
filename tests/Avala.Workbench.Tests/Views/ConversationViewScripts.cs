@@ -122,7 +122,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
     private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript) Open(JobStatus status)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
-        var conversation = new Conversations(new JobSteering(new FakeJobs(), new JobBoard(), new QueuedMessages(new FakeJobs())), new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening).Open(summary.Job);
+        var conversation = new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening).Open(summary.Job);
         var transcript = Transcript.Empty.WithPrompts(summary.Instruction, []);
         conversation.Show(new BoardJob(summary, transcript));
 
@@ -232,12 +232,10 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
 
     private static (ComposerViewModel Composer, FakeJobs Jobs) Composer(JobStatus status)
     {
-        var jobs = new FakeJobs();
-        var board = new JobBoard();
+        var jobs = new FakeJobs { Status = status, Steerable = false };
         var summary = new FakeCatalog().Add("Extract sync queue into a module", status).Summary;
         var shown = new BoardJob(summary, Transcript.Empty);
-        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty.Add(summary.Job, shown));
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, board, new QueuedMessages(jobs)));
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)));
         composer.Track(shown);
 
         return (composer, jobs);

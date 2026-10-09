@@ -139,5 +139,5 @@ public sealed class ConversationViewModelScripts
         new(new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary, transcript);
 
     private static ConversationViewModel Open() =>
-        new Conversations(new JobSteering(new FakeJobs(), new JobBoard(), new QueuedMessages(new FakeJobs())), new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening).Open(JobId.New());
+        new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening).Open(JobId.New());
 }

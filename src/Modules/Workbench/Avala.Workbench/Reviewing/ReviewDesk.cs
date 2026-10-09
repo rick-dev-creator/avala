@@ -12,19 +12,7 @@ internal sealed class ReviewDesk(IJobs jobs, IJobCatalog catalog, IWorkspaceChan
     public Option<string> Queued(JobId job) => queue.Find(job);
 
     public async Task<Result<JobId, JobRejection>> SendBackQueuedAsync(JobId job, CancellationToken cancellationToken) =>
-        await queue.Find(job).Match(
-            async message =>
-            {
-                var sent = await SendBackAsync(job, message, cancellationToken);
-
-                if (sent.IsSuccess)
-                {
-                    queue.Withdraw(job);
-                }
-
-                return sent;
-            },
-            () => Task.FromResult(Result<JobId, JobRejection>.Failure(JobRejection.EmptyMessage)));
+        (await queue.SendBackAsync(job, cancellationToken)).Map(continued => continued.Job);
 
     public async Task<ApprovalAttempt> ApproveAsync(JobId job, CancellationToken cancellationToken)
     {

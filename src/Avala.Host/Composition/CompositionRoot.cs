@@ -44,7 +44,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
         TimeProvider clock,
         IReadOnlyList<IPlugin> replacements,
         IReadOnlyList<Type> left) =>
-        Create(pluginDirectory, paths, dispatcher, clock, replacements, left, new AvaloniaLinkOpener());
+        Create(pluginDirectory, paths, dispatcher, clock, replacements, left, new AvaloniaLinkOpener(), []);
 
     public static CompositionRoot Create(
         string pluginDirectory,
@@ -53,8 +53,9 @@ internal sealed class CompositionRoot : IAsyncDisposable
         TimeProvider clock,
         IReadOnlyList<IPlugin> replacements,
         IReadOnlyList<Type> left,
-        ILinkOpener links) =>
-        Create(pluginDirectory, paths, new Surroundings(dispatcher, new AvaloniaFileOpener(), clock, replacements) { Left = left, Links = links });
+        ILinkOpener links,
+        IReadOnlyList<IPlugin> additions) =>
+        Create(pluginDirectory, paths, new Surroundings(dispatcher, new AvaloniaFileOpener(), clock, replacements) { Left = left, Links = links, Additions = additions });
 
     private static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, Surroundings surroundings)
     {
@@ -70,7 +71,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
         views.AddComponentViews();
         var registrar = new PluginRegistrar(services);
 
-        foreach (var plugin in PluginLoader.Load(pluginDirectory).Where(surroundings.Kept).Select(surroundings.Replaced))
+        foreach (var plugin in PluginLoader.Load(pluginDirectory).Where(surroundings.Kept).Select(surroundings.Replaced).Concat(surroundings.Additions))
         {
             plugin.Register(registrar);
 
@@ -105,6 +106,8 @@ internal sealed class CompositionRoot : IAsyncDisposable
         public IReadOnlyList<Type> Left { get; init; } = [];
 
         public ILinkOpener Links { get; init; } = new AvaloniaLinkOpener();
+
+        public IReadOnlyList<IPlugin> Additions { get; init; } = [];
 
         public bool Kept(IPlugin loaded) => !Left.Contains(loaded.GetType());
 

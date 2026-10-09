@@ -6,6 +6,7 @@ using Avala.Sdk;
 using Avala.Testing;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Review;
+using Avala.Workbench.Steering;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Tests.Review;
@@ -214,7 +215,8 @@ public sealed class ReviewViewModelScripts : IDisposable
     [Fact]
     public async Task AMessageQueuedWhileTheAgentWorkedIsOfferedAndSentBackOnlyWhenChosen()
     {
-        bench.Queue.Queue(job.Job, "Keep the old namespace as an alias");
+        bench.Jobs.Status = JobStatus.AwaitingReview;
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await bench.Queue.DeliverAsync(job.Job, JobStatus.Running, "Keep the old namespace as an alias", Cancellation)));
         var review = Review();
         var before = review.SendBackQueuedCommand.CanExecute(null);
 
