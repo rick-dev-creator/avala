@@ -174,6 +174,9 @@ internal static class LayerMap
             ["Application"] = Layer.Application,
             ["Infrastructure"] = Layer.Infrastructure,
             ["ViewModels"] = Layer.ViewModels,
+            ["Regions"] = Layer.None,
+            ["Scripts"] = Layer.None,
+            ["Views"] = Layer.None,
         }),
         .. Module("Avala.Fixtures.Violating", new()
         {
@@ -182,6 +185,8 @@ internal static class LayerMap
             ["Application"] = Layer.Application,
             ["Infrastructure"] = Layer.Infrastructure,
             ["ViewModels"] = Layer.ViewModels,
+            ["Regions"] = Layer.None,
+            ["Views"] = Layer.None,
         }),
         .. Module("Avala.Fixtures.Violating.Other", new()
         {

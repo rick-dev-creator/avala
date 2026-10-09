@@ -36,7 +36,7 @@
           <TextBlock Grid.Column="1"
                      Margin="8,0,0,0"
                      Text="Avala"
-                     FontWeight="SemiBold"
+                     Classes="strong"
                      VerticalAlignment="Center" />
           <ItemsControl x:Name="ToolbarRegion"
                         Grid.Column="2"
@@ -95,7 +95,7 @@
                 VerticalAlignment="Center"
                 IsVisible="{Binding SelectedPage, Converter={x:Static ObjectConverters.IsNull}}">
           <StackPanel Spacing="6" HorizontalAlignment="Center">
-            <TextBlock Text="Nothing to show yet" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Text="Nothing to show yet" Classes="strong" HorizontalAlignment="Center" />
             <TextBlock Classes="caption" Text="Plugins add their pages to this window." HorizontalAlignment="Center" />
           </StackPanel>
         </Border>

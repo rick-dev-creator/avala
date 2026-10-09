@@ -5,9 +5,11 @@ namespace Avala.ArchitectureTests.Rules;
 
 public sealed class ModularMonolithTests
 {
-    private static readonly string[] HostDependencies = ["Avala.Runtime", "Avala.Sdk", "Avala.Sdk.UI", "Avala.Shell"];
+    private static readonly string[] SharedComponents = ["Avala.Components", "Avala.Components.UI"];
 
-    private static readonly string[] ProjectsWithLogic = ["Avala.Runtime", "Avala.Sdk", "Avala.Shell"];
+    private static readonly string[] HostDependencies = ["Avala.Runtime", "Avala.Sdk", "Avala.Sdk.UI", "Avala.Shell", .. SharedComponents];
+
+    private static readonly string[] ProjectsWithLogic = ["Avala.Runtime", "Avala.Sdk", "Avala.Shell", "Avala.Components"];
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -30,8 +32,16 @@ public sealed class ModularMonolithTests
     }
 
     [Fact]
-    public void ShellDependsOnlyOnTheSdk() =>
-        Assert.Empty(AvalaAssemblies.Load("Avala.Shell").ReferencedAvalaAssemblies.Except(["Avala.Sdk"]));
+    public void ShellDependsOnlyOnTheSdkAndTheSharedViewModels() =>
+        Assert.Empty(AvalaAssemblies.Load("Avala.Shell").ReferencedAvalaAssemblies.Except(["Avala.Sdk", "Avala.Components"]));
+
+    [Fact]
+    public void SharedViewModelsDependOnlyOnTheSdk() =>
+        Assert.Empty(AvalaAssemblies.Load("Avala.Components").ReferencedAvalaAssemblies.Except(["Avala.Sdk"]));
+
+    [Fact]
+    public void SharedViewsDependOnlyOnTheSdkAndTheirViewModels() =>
+        Assert.Empty(AvalaAssemblies.Load("Avala.Components.UI").ReferencedAvalaAssemblies.Except(["Avala.Sdk", "Avala.Sdk.UI", "Avala.Components"]));
 
     [Fact]
     public void SdkDependsOnNothingFromAvalaNorAvalonia()
@@ -143,6 +153,7 @@ public sealed class ModularMonolithTests
 
     private static bool IsAllowedModuleDependency(SourceProject project, string reference) =>
         reference is "Avala.Sdk" or "Avala.Sdk.UI"
+        || SharedComponents.Contains(reference)
         || SolutionLayout.ModuleProjects.Any(other =>
             other.Name == reference && (other.Module == project.Module || other.Kind == ProjectKind.Contracts));
 }
