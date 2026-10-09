@@ -10,18 +10,21 @@
   <UserControl.KeyBindings>
     <KeyBinding Gesture="Down" Command="{Binding MoveNextCommand}" />
     <KeyBinding Gesture="Up" Command="{Binding MovePreviousCommand}" />
-    <KeyBinding Gesture="D1" Command="{Binding ChooseCommand}" CommandParameter="1" />
-    <KeyBinding Gesture="D2" Command="{Binding ChooseCommand}" CommandParameter="2" />
-    <KeyBinding Gesture="D3" Command="{Binding ChooseCommand}" CommandParameter="3" />
-    <KeyBinding Gesture="D4" Command="{Binding ChooseCommand}" CommandParameter="4" />
     <KeyBinding Gesture="Ctrl+Enter" Command="{Binding AnswerCommand}" />
-    <KeyBinding Gesture="Ctrl+Back" Command="{Binding DenyCommand}" />
   </UserControl.KeyBindings>
   <Border Classes="float">
     <StackPanel Spacing="10">
       <TextBlock x:Name="Empty" Classes="caption" Text="{Binding Empty}" IsVisible="{Binding IsEmpty}" />
-      <ListBox x:Name="Items" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" IsVisible="{Binding !IsEmpty}" />
-      <TextBox x:Name="Note" Text="{Binding Note}" PlaceholderText="A note for the agent" IsVisible="{Binding !IsEmpty}" />
+      <ListBox x:Name="Items" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" IsVisible="{Binding !IsEmpty}">
+        <ListBox.KeyBindings>
+          <KeyBinding Gesture="D1" Command="{Binding ChooseCommand}" CommandParameter="1" />
+          <KeyBinding Gesture="D2" Command="{Binding ChooseCommand}" CommandParameter="2" />
+          <KeyBinding Gesture="D3" Command="{Binding ChooseCommand}" CommandParameter="3" />
+          <KeyBinding Gesture="D4" Command="{Binding ChooseCommand}" CommandParameter="4" />
+          <KeyBinding Gesture="Ctrl+Back" Command="{Binding DenyCommand}" />
+        </ListBox.KeyBindings>
+      </ListBox>
+      <TextBox x:Name="DecisionNote" Text="{Binding Note}" PlaceholderText="A note for the agent" IsVisible="{Binding !IsEmpty}" />
       <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsEmpty}">
         <Button x:Name="Answer" Classes="primary" Content="Answer" Command="{Binding AnswerCommand}" />
         <Button x:Name="Deny" Classes="destructive" Content="Deny" Command="{Binding DenyCommand}" />
