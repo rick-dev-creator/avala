@@ -58,6 +58,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IHandle<JobProgressed>>(Keeper)
             .AddSingleton<IHandle<JobHeld>>(Keeper)
             .AddSingleton<IHandle<JobApproved>>(Keeper)
+            .AddSingleton<IHandle<SessionOpened>>(Keeper)
             .AddSingleton<IHandle<JobSessionStarted>>(Keeper)
             .AddSingleton<IHandle<ConnectionChosen>>(Keeper)
             .AddSingleton<IHandle<AgentActivity>>(Keeper)
@@ -75,6 +76,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddTransient<BoardFeed>()
             .AddSingleton<JobFocus>()
             .AddSingleton<JobSteering>()
+            .AddSingleton<QueuedMessages>()
+            .AddSingleton<IHandle<JobProgressed>>(Get<QueuedMessages>)
             .AddSingleton<HumanReplies>()
             .AddSingleton<Links>()
             .AddSingleton<Conversations>()
@@ -104,6 +107,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IConversationViewModel, ConversationView>();
         views.Register<IComposerViewModel, ComposerView>();
         views.Register<IPromptViewModel, PromptView>();
+        views.Register<IInterjectionViewModel, InterjectionView>();
         views.Register<IRestartViewModel, RestartView>();
         views.Register<IMessageViewModel, MessageView>();
         views.Register<IReasoningViewModel, ReasoningView>();
@@ -181,6 +185,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<UsageReader>()
             .AddSingleton<UsageWindows>()
             .AddSingleton<RulesReader>()
+            .AddSingleton<RuleFileEditing>()
+            .AddSingleton<RuleFileEditorViewModel>()
             .AddSingleton<MachineSettings>()
             .AddSingleton<SettingsFiles>()
             .AddSingleton<ResourceReader>()
@@ -190,6 +196,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IDelegationViewModel, DelegationViewModel>()
             .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
             .AddSingleton<IDefaultConnectionViewModel, DefaultConnectionViewModel>()
+            .AddSingleton<ConnectionEditorViewModel>()
             .AddSingleton<IMachineSettingsViewModel, MachineSettingsViewModel>()
             .AddSingleton<IAppearanceViewModel, AppearanceViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
@@ -219,10 +226,13 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IUsageViewModel, UsageView>();
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();
         views.Register<IUsageWindowViewModel, UsageWindowView>();
+        views.Register<IUsageRangeViewModel, UsageRangeView>();
+        views.Register<IUsageDayViewModel, UsageDayView>();
         views.Register<IJobMeterViewModel, JobMeterView>();
         views.Register<IInterventionViewModel, InterventionView>();
         views.Register<ISettingsViewModel, SettingsView>();
         views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
+        views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
         views.Register<IMachineSettingsViewModel, MachineSettingsView>();
         views.Register<IAppearanceViewModel, AppearanceView>();
         views.Register<IRuleFileViewModel, RuleFileView>();
@@ -232,6 +242,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IJobSectionViewModel, JobSectionView>();
         views.Register<IMachineConnectionViewModel, MachineConnectionView>();
         views.Register<IDefaultConnectionViewModel, DefaultConnectionView>();
+        views.Register<IConnectionEditorViewModel, ConnectionEditorView>();
         views.Register<IResourcesViewModel, ResourcesView>();
         views.Register<IAgentTreeViewModel, AgentTreeView>();
         views.Register<IOrphanViewModel, OrphanView>();

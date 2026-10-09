@@ -118,6 +118,45 @@ public sealed class CapabilityConformanceTests
         Assert.Equal(0, Assert.Single(provider.Sessions).Interruptions);
     }
 
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, "the message mid-turn was not queued into the running turn")]
+    public async Task AProviderThatAcceptsMessagesMidTurnQueuesOneIntoTheRunningTurnAsync(bool queues, string expected)
+    {
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)])
+        {
+            Capabilities = Everything.With(new AcceptsMessagesMidTurn()),
+            MidTurn = (session, turn, text) =>
+            [
+                .. queues ? [new MessageQueued(session, turn, text)] : Array.Empty<IAgentEvent>(),
+                new TurnCompleted(session, turn, TurnOutcome.Finished),
+            ],
+        };
+
+        Assert.Equal(expected, string.Join('|', await CapabilityConformance.CheckMidTurnAsync(provider, Options, Instruction, Deadline)));
+    }
+
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, "a message was queued into the turn although the provider does not declare AcceptsMessagesMidTurn")]
+    public async Task AMessageIsQueuedIntoATurnOnlyByAProviderThatAcceptsMessagesMidTurnAsync(bool declared, string expected)
+    {
+        var provider = Reporting(
+            new MessageQueued(default, default, "Keep the alias"),
+            declared ? Everything.With(new AcceptsMessagesMidTurn()) : Everything);
+
+        Assert.Equal(expected, string.Join('|', await AgentConformance.CheckTurnAsync(provider, Deadline)));
+    }
+
+    [Fact]
+    public async Task AProviderThatAcceptsNoMessageMidTurnIsNeverSentOneAndRunsTheTurnCheckAsync()
+    {
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
+
+        Assert.Empty(await CapabilityConformance.CheckMidTurnAsync(provider, Options, Instruction, Deadline));
+        Assert.DoesNotContain(Assert.Single(provider.Sessions).Turns, turn => turn.MidTurn);
+    }
+
     private static CapabilitySet Everything => ScriptedAgentProvider.Declared;
 
     private static ScriptedAgentProvider Reporting(IAgentEvent report, CapabilitySet declared) =>
@@ -147,6 +186,7 @@ public sealed class CapabilityConformanceTests
     {
         UsageReported usage => usage with { Session = session, Turn = turn },
         LimitReported limit => limit with { Session = session, Turn = turn },
+        MessageQueued queued => queued with { Session = session, Turn = turn },
         _ => report,
     };
 }

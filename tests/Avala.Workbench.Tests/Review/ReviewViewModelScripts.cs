@@ -212,6 +212,22 @@ public sealed class ReviewViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AMessageQueuedWhileTheAgentWorkedIsOfferedAndSentBackOnlyWhenChosen()
+    {
+        bench.Queue.Queue(job.Job, "Keep the old namespace as an alias");
+        var review = Review();
+        var before = review.SendBackQueuedCommand.CanExecute(null);
+
+        await review.Request(0)(Cancellation);
+        var shown = (review.Queued, review.SendBackQueuedCommand.CanExecute(null), bench.Jobs.Calls.Count);
+        await review.SendBackQueuedCommand.ExecuteAsync(null);
+
+        Assert.Equal((false, ("Keep the old namespace as an alias", true, 0)), (before, shown));
+        Assert.Equal(["send back Keep the old namespace as an alias"], bench.Jobs.Calls);
+        Assert.Equal((string.Empty, false, "Sent back with the message you queued"), (review.Queued, bench.Queue.Find(job.Job).IsSome, review.Outcome));
+    }
+
+    [Fact]
     public async Task DiscardingTakesARequestAndAConfirmation()
     {
         var review = Review();

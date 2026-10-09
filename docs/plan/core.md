@@ -489,6 +489,38 @@ Done. Each item has its acceptance criteria as view model scripts, headless view
 11. **The sidebar's decision badge.** Each row draws the count of decisions waiting on its job.
 12. **The overview's limits.** Hovering a connection's hub lists every limit window of the connection.
 
+## Gaps against the brief
+
+### C2: steer while the agent works, usage windows, settings editing
+
+Each item has its acceptance criteria as unit tests, view model scripts, headless view scripts where the view changed, and a host simulation test that drives the composed application on the simulator.
+
+1. **Write while the agent works.** A capability component, `AcceptsMessagesMidTurn`, declared by Claude Code and the simulator, lets a message join the running turn; without it the composer queues the message honestly and delivers it when the job next stops for a person.
+   - AC1 Given a session whose provider declares the component and a running turn, when `IAgents.SteerAsync` is called, then the provider receives a `UserTurn` marked `MidTurn`, the call returns the running turn, and the turn announces `MessageQueued` with the text.
+   - AC2 Given a provider that does not declare it, `SteerAsync` returns `Unsupported` without asking the provider; a session that is not open returns `SessionClosed`.
+   - AC3 The conformance kit: `CheckMidTurnAsync` passes for a provider that queues the message into the running turn and reports one that does not; `MessageQueued` from a provider that does not declare the component is a violation; the simulator passes both, with and without the component.
+   - AC4 Given a running job, `IJobs.SteerAsync` reaches its session and leaves it running; a job that is not running returns `NotRunning`, a provider that refuses returns `NotSteerable`, an empty message `EmptyMessage`.
+   - AC5 Given a running job whose session takes messages mid-turn, the composer says "Message the agent while it works…" and Send joins the turn; the conversation shows the message as "You, while it worked · joined the turn".
+   - AC6 Given a job working without the component, or starting, or checking, Send queues the message, the composer shows it with Withdraw, and the hint says it waits for when the agent stops; a refusal mid-turn falls back to the queue.
+   - AC7 Given queued messages, when the job next needs help they continue it, all at once; when it awaits review they are never sent on their own: the review sheet offers "Send back with this message" and sending back clears them; a withdrawn message is never delivered; a job that ends drops them.
+   - AC8 The simulator's `steer` scenario waits for a message mid-turn and answers it in the same turn; Claude Code writes the message to the CLI and keeps the turn open until the result of the queued message.
+   - AC9 End to end in `SteeringTests`: on the default simulator connection a message sent from the composer joins the running turn and is answered before the single turn end; on a connection without the component it is queued, and after an interruption it continues the job as "You"; a message queued while a permission waits stays queued when the job reaches review, the review sheet shows it, and "Send back with this message" starts a round with it as "Sent back".
+   - AC10 Given a Claude Code turn interrupted while a message sent mid-turn is still queued, when the next message is sent, then the CLI's late answer to the queued message never opens, fills or ends the next turn, which shows only its own reply: a unit test, and `ClaudeCodeSteeringTests` replaying the real run committed in `tests/transcripts/claude-code/real-mid-turn` (one haiku run, 0.0044 USD) through the composed application.
+2. **Choose a usage window and see it day by day.** The usage page offers Today, 7 days and 30 days.
+   - AC1 Given a window, `UsageWindows` reads its whole from the local midnight of its first day to now and each local calendar day of it, 1, 7 or 30.
+   - AC2 Given the page shows the last 7 days, when 30 days is chosen, then the page reads again and shows 30 days newest first, today marked, the total labelled "Last 30 days" with its tokens by type, and the caption names the first day; choosing today shows one day and the total "Today".
+   - AC3 Each day shows its tokens, its cost, a bar against the busiest day of the window and, on hover, its tokens by type; choosing the window already shown reads nothing again; a range read for another window is not shown.
+   - AC4 End to end in `UsageWindowTests`: after a simulated job reports usage, the week shows today's tokens on its first day and none on the day before, and choosing today shows the same tokens as its total.
+3. **Edit settings in the app where it is safe and honest.** Machine files through their module's contract, repository rule files as their working copy.
+   - AC1 Given `connections.json`, when a connection is declared, renamed, re-credentialed or removed through `IConnections`, then only that connection changes in the file, its settings and the other fields are kept, a renamed fixed default stays the default, and the catalog and new sessions read it at once.
+   - AC2 A declaration the machine cannot use is refused before the file is touched: `InvalidName` (also `auto`), `UnknownProvider`, `UnknownSource`, `MissingReference`, `DuplicateName`, `UnknownConnection`; the fixed default cannot be removed (`RemovesTheDefault`); removing the last declared connection leaves a file the parser accepts.
+   - AC3 Given the Settings page, "Add a connection" opens a form of name, harness, credential source and where it is; Save is offered only once the form is complete; an API key is declared by the name of its variable and the form says Avala never reads the key; a saved connection joins the list with a line that says what happened, and the first one names the implicit connections it replaces.
+   - AC4 A declared connection offers Edit, prefilled from its declaration, and Remove, which asks first and does nothing when kept; discovered and implicit connections offer neither; a refusal is shown with its reason and the list stays as it was.
+   - AC5 A rule file whose module registers a format offers "Edit here"; the editor starts from the working copy or the template and says the change applies to new jobs once committed; text the module would reject is never written and its error is shown; accepted text is written to the working tree and the page reads the repository again; a working tree that cannot be written keeps the editor open with the reason; `.avala/jobs.json` offers only "Edit in repository".
+   - AC6 `IWorkingFiles` writes inside the repository only, refuses a path that leaves it, content over 64 KiB and a folder that is not a repository, and leaves the change uncommitted.
+   - AC7 End to end in `SettingsEditingTests`: a connection added in Settings is written to the data folder and a job runs on it at once, then removing it makes it unknown; a budget file edited in Settings is refused with `InvalidThreshold`, then written, while the caps shown are still the committed ones; every format registered in the application accepts its template and rejects malformed text.
+   - Not done: dedicated controls for autonomy, form strategy and caps, which are edited as the text of their file; the machine's running-jobs limit of Budgets, left to its module's owner.
+
 ## Polish
 
 ### C1: light theme, reduced motion, Markdown replies and Mermaid

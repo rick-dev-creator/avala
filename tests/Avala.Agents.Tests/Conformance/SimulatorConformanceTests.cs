@@ -283,6 +283,7 @@ public sealed class SimulatorConformanceTests
     [InlineData("withoutCapabilities", "asksForms", "question")]
     [InlineData("withoutCapabilities", "acceptsTools", "follow-up")]
     [InlineData("withoutCapabilities", "interruptible", "reply")]
+    [InlineData("withoutCapabilities", "acceptsMessagesMidTurn", "steer")]
     [InlineData("toolSurfaces", "executed", "canvas")]
     public async Task ASimulatorConnectionThatLacksAComponentBehavesAsItDeclaresAsync(string setting, string value, string scenario)
     {
@@ -302,8 +303,22 @@ public sealed class SimulatorConformanceTests
             "acceptsTools" => AgentConformance.CheckHarnessToolAsync(provider, options, instruction, Deadline),
             "executed" => AgentConformance.CheckCanvasToolAsync(provider, options, instruction, Deadline),
             "interruptible" => CapabilityConformance.CheckInterruptAsync(provider, options, instruction, Deadline),
+            "acceptsMessagesMidTurn" => CapabilityConformance.CheckMidTurnAsync(provider, options, instruction, Deadline),
             _ => CapabilityConformance.CheckReportsAsync(provider, options, instruction, Deadline),
         }));
+    }
+
+    [Fact]
+    public async Task TheSimulatorFoldsAMessageSentMidTurnIntoTheRunningTurnAsync()
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+
+        Assert.Empty(await CapabilityConformance.CheckMidTurnAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AllowAll),
+            new UserTurn("[simulate: steer] conformance"),
+            Deadline));
     }
 
     [Fact]

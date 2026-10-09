@@ -60,7 +60,9 @@ internal sealed class Bench : IDisposable
 
     public ReviewReader Reader => new(Evidence, Catalog, Changes, Usage);
 
-    public ReviewDesk Desk => new(Jobs, Catalog, Changes);
+    public QueuedMessages Queue => field ??= new(Jobs);
+
+    public ReviewDesk Desk => new(Jobs, Catalog, Changes, Queue);
 
     public JobInspection Inspection => new(new JobRecords(Catalog, Workspaces, Resources, Resources), new JobAudit(Audit, Audit, Usage, Audit), Board);
 
@@ -85,7 +87,7 @@ internal sealed class Bench : IDisposable
     public WorkbenchViewModel Workbench() => Workbench(Ui);
 
     public WorkbenchViewModel Workbench(IUiDispatcher ui) =>
-        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Board), Replies, FakeLinks.Opening), new Reviews(Reader, Desk, ui)), Focus);
+        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Board, Queue), Replies, FakeLinks.Opening), new Reviews(Reader, Desk, ui)), Focus);
 
     public JobSummary Job(string instruction, JobStatus status)
     {

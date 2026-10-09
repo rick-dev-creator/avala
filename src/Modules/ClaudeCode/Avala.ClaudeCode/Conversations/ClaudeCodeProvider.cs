@@ -19,6 +19,7 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         new Resumable(),
         new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
         new AsksForms(),
+        new AcceptsMessagesMidTurn(),
         new ReportsUsage(),
         new ReportsCost(Telemetry.Currency));
 

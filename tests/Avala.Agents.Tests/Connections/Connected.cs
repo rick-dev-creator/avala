@@ -49,9 +49,9 @@ internal static class Connected
         public ValueTask<Result<Option<ConnectionDeclarations>, ConnectionError>> LoadAsync(CancellationToken cancellationToken) =>
             ValueTask.FromResult(declared);
 
-        public ValueTask<Result<ConnectionDeclarations, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken)
+        public ValueTask<Result<ConnectionDeclarations, ConnectionError>> ChangeAsync(IConnectionChange change, CancellationToken cancellationToken)
         {
-            var changed = declared.Map(found => found.Match(declarations => declarations, () => ConnectionDeclarations.Nothing) with { Fixed = connection });
+            var changed = declared.Bind(found => change.ApplyTo(found.Match(declarations => declarations, () => ConnectionDeclarations.Nothing)));
             declared = changed.Map(Option<ConnectionDeclarations>.Some);
 
             return ValueTask.FromResult(changed);

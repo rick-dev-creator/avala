@@ -1,4 +1,5 @@
 using Avala.Agents.ConnectionFiles;
+using Avala.Agents.Connections;
 using Avala.Agents.Contracts.Connections;
 using Avala.Sdk;
 using Avala.Testing;
@@ -137,8 +138,8 @@ public sealed class ConnectionFileTests
         await using var reader = new ConnectionFileReader(new AvalaPaths(data.Path));
         _ = await reader.LoadAsync(Cancellation);
 
-        var changed = Outcomes.Succeeds(await reader.ChangeDefaultAsync(new ConnectionName("work"), Cancellation));
-        var automatic = Outcomes.Succeeds(await reader.ChangeDefaultAsync(Option<ConnectionName>.None, Cancellation));
+        var changed = Outcomes.Succeeds(await reader.ChangeAsync(new DefaultChange(new ConnectionName("work")), Cancellation));
+        var automatic = Outcomes.Succeeds(await reader.ChangeAsync(new DefaultChange(Option<ConnectionName>.None), Cancellation));
 
         Assert.Equal(DefaultMode.Fixed, changed.Mode);
         Assert.Equal((DefaultMode.Auto, 3), (automatic.Mode, automatic.Connections.Count));
@@ -155,7 +156,7 @@ public sealed class ConnectionFileTests
         using var data = new TemporaryFolder();
         await using var reader = new ConnectionFileReader(new AvalaPaths(data.Path));
 
-        var changed = Outcomes.Succeeds(await reader.ChangeDefaultAsync(new ConnectionName("claude-work"), Cancellation));
+        var changed = Outcomes.Succeeds(await reader.ChangeAsync(new DefaultChange(new ConnectionName("claude-work")), Cancellation));
 
         Assert.Equal((0, Option<ConnectionName>.Some(new ConnectionName("claude-work"))), (changed.Connections.Count, changed.Fixed));
         Assert.Equal(
@@ -171,7 +172,7 @@ public sealed class ConnectionFileTests
         await File.WriteAllTextAsync(path, """{ "connection": [] }""", Cancellation);
         await using var reader = new ConnectionFileReader(new AvalaPaths(data.Path));
 
-        var refused = await reader.ChangeDefaultAsync(Option<ConnectionName>.None, Cancellation);
+        var refused = await reader.ChangeAsync(new DefaultChange(Option<ConnectionName>.None), Cancellation);
 
         Assert.Equal(ConnectionError.UnknownField, Outcomes.FailsWith(refused));
         Assert.Equal("""{ "connection": [] }""", await File.ReadAllTextAsync(path, Cancellation));
@@ -185,6 +186,66 @@ public sealed class ConnectionFileTests
         await File.WriteAllTextAsync(blocked, string.Empty, Cancellation);
         await using var reader = new ConnectionFileReader(new AvalaPaths(Path.Combine(blocked, "data")));
 
-        Assert.Equal(ConnectionError.Unwritable, Outcomes.FailsWith(await reader.ChangeDefaultAsync(Option<ConnectionName>.None, Cancellation)));
+        Assert.Equal(ConnectionError.Unwritable, Outcomes.FailsWith(await reader.ChangeAsync(new DefaultChange(Option<ConnectionName>.None), Cancellation)));
+    }
+
+    [Fact]
+    public async Task DeclaringRenamingAndRemovingRewriteOnlyTheirConnectionKeepTheSettingsAndFollowTheDefaultAsync()
+    {
+        using var data = new TemporaryFolder();
+        var path = Path.Combine(data.Path, ConnectionFileReader.FileName);
+        await File.WriteAllTextAsync(path, Declared, Cancellation);
+        await using var reader = new ConnectionFileReader(new AvalaPaths(data.Path));
+
+        Outcomes.Succeeds(await reader.ChangeAsync(new DeclarationChange(Option<ConnectionName>.None, new ConnectionName("team"), "simulator", new CredentialDeclaration("apiKey", "TEAM_KEY")), Cancellation));
+        Outcomes.Succeeds(await reader.ChangeAsync(new DeclarationChange(new ConnectionName("personal"), new ConnectionName("home"), "simulator", Option<CredentialDeclaration>.None), Cancellation));
+        Outcomes.Succeeds(await reader.ChangeAsync(new DeclarationChange(new ConnectionName("work"), new ConnectionName("work"), "simulator", new CredentialDeclaration("login", "/logins/office")), Cancellation));
+        Outcomes.Succeeds(await reader.ChangeAsync(new RemovalChange(new ConnectionName("plain")), Cancellation));
+
+        var reread = Outcomes.Present(Outcomes.Succeeds(await new ConnectionFileReader(new AvalaPaths(data.Path)).LoadAsync(Cancellation)));
+        Assert.Equal(
+            [("work", "login", "/logins/office", "model=large"), ("home", "-", "-", string.Empty), ("team", "apiKey", "TEAM_KEY", string.Empty)],
+            reread.Connections.Select(connection => (
+                connection.Name.Value,
+                connection.Credential.Match(credential => credential.Source, () => "-"),
+                connection.Credential.Bind(credential => credential.Reference).Match(reference => reference, () => "-"),
+                string.Join(',', connection.Settings.Select(setting => $"{setting.Key}={setting.Value}")))));
+        Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("home")), reread.Fixed);
+    }
+
+    [Theory]
+    [InlineData("rename-onto", "DuplicateName")]
+    [InlineData("rename-missing", "UnknownConnection")]
+    [InlineData("remove-default", "RemovesTheDefault")]
+    [InlineData("remove-missing", "UnknownConnection")]
+    public async Task AChangeTheFileCannotTakeIsRefusedAndTheFileStaysAsItWasAsync(string change, string refusal)
+    {
+        using var data = new TemporaryFolder();
+        var path = Path.Combine(data.Path, ConnectionFileReader.FileName);
+        await File.WriteAllTextAsync(path, Declared, Cancellation);
+        await using var reader = new ConnectionFileReader(new AvalaPaths(data.Path));
+        IConnectionChange refused = change switch
+        {
+            "rename-onto" => new DeclarationChange(new ConnectionName("work"), new ConnectionName("plain"), "simulator", Option<CredentialDeclaration>.None),
+            "rename-missing" => new DeclarationChange(new ConnectionName("gone"), new ConnectionName("back"), "simulator", Option<CredentialDeclaration>.None),
+            "remove-default" => new RemovalChange(new ConnectionName("personal")),
+            _ => new RemovalChange(new ConnectionName("gone")),
+        };
+
+        Assert.Equal(Enum.Parse<ConnectionError>(refusal), Outcomes.FailsWith(await reader.ChangeAsync(refused, Cancellation)));
+        Assert.Equal(Declared, await File.ReadAllTextAsync(path, Cancellation));
+    }
+
+    [Fact]
+    public async Task RemovingTheLastDeclaredConnectionLeavesAFileTheParserAcceptsAsync()
+    {
+        using var data = new TemporaryFolder();
+        await using var reader = new ConnectionFileReader(new AvalaPaths(data.Path));
+        Outcomes.Succeeds(await reader.ChangeAsync(new DeclarationChange(Option<ConnectionName>.None, new ConnectionName("solo"), "simulator", Option<CredentialDeclaration>.None), Cancellation));
+
+        var removed = Outcomes.Succeeds(await reader.ChangeAsync(new RemovalChange(new ConnectionName("solo")), Cancellation));
+
+        Assert.Empty(removed.Connections);
+        Assert.Empty(Outcomes.Present(Outcomes.Succeeds(await new ConnectionFileReader(new AvalaPaths(data.Path)).LoadAsync(Cancellation))).Connections);
     }
 }

@@ -61,6 +61,45 @@ public sealed class HoldJobTests
     }
 
     [Fact]
+    public async Task AMessageToARunningJobJoinsTheTurnOfItsSessionAndLeavesItRunningAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
+
+        var steered = Outcomes.Succeeds(await flow.Jobs.SteerAsync(job.Id, " Keep the alias ", Cancellation));
+
+        Assert.Equal((job.Id, session), (steered.Job, steered.Session));
+        Assert.Equal(["Keep the alias"], flow.Agents.Steered);
+        Assert.Equal(JobState.Running, job.State);
+    }
+
+    [Theory]
+    [InlineData(AgentError.Unsupported, JobRejection.NotSteerable)]
+    [InlineData(AgentError.NoTurnInProgress, JobRejection.NotRunning)]
+    public async Task AMessageTheSessionCannotTakeMidTurnIsRefusedWithItsReasonAsync(AgentError refusal, JobRejection expected)
+    {
+        var flow = JobFlow.With();
+        flow.Agents.SteerRejection = refusal;
+        var job = await flow.RunningAsync();
+
+        Assert.Equal(expected, Outcomes.FailsWith(await flow.Jobs.SteerAsync(job.Id, "Keep the alias", Cancellation)));
+    }
+
+    [Fact]
+    public async Task OnlyARunningJobTakesAMessageMidTurnAndNeverAnEmptyOneAsync()
+    {
+        var flow = JobFlow.With();
+        var preparing = await flow.SubmittedAsync();
+        var running = await flow.RunningAsync();
+
+        Assert.Equal(JobRejection.NotRunning, Outcomes.FailsWith(await flow.Jobs.SteerAsync(preparing.Id, "Keep the alias", Cancellation)));
+        Assert.Equal(JobRejection.EmptyMessage, Outcomes.FailsWith(await flow.Jobs.SteerAsync(running.Id, "  ", Cancellation)));
+        Assert.Equal(JobRejection.UnknownJob, Outcomes.FailsWith(await flow.Jobs.SteerAsync(JobId.New(), "Keep the alias", Cancellation)));
+        Assert.Empty(flow.Agents.Steered);
+    }
+
+    [Fact]
     public async Task OnlyARunningJobCanBeHeldAsync()
     {
         var flow = JobFlow.With();

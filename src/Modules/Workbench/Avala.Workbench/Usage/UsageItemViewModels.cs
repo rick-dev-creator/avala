@@ -111,27 +111,27 @@ internal sealed class ConnectionMeterViewModel(ConnectionSpend connection) : ICo
         [.. connection.Limits.Select(limit => new LimitViewModel(limit, connection.Caps.Bind(caps => caps.HoldAtLimit)))];
 }
 
-internal sealed class UsageWindowViewModel(UsageWindow window) : IUsageWindowViewModel
+internal sealed class UsageWindowViewModel(string label, UsagePeriod period) : IUsageWindowViewModel
 {
-    public string Label { get; } = window.Span == UsageSpan.Today ? "Today" : "Last 7 days";
+    public string Label { get; } = label;
 
-    public string Cost { get; } = Amounts.Costs(window.Period.Usage.Costs);
+    public string Cost { get; } = Amounts.Costs(period.Usage.Costs);
 
-    public long Input { get; } = window.Period.Usage.Tokens.Input;
+    public long Input { get; } = period.Usage.Tokens.Input;
 
-    public long Output { get; } = window.Period.Usage.Tokens.Output;
+    public long Output { get; } = period.Usage.Tokens.Output;
 
-    public long CacheRead { get; } = window.Period.Usage.Tokens.CacheRead;
+    public long CacheRead { get; } = period.Usage.Tokens.CacheRead;
 
-    public long CacheWrite { get; } = window.Period.Usage.Tokens.CacheWrite;
+    public long CacheWrite { get; } = period.Usage.Tokens.CacheWrite;
 
-    public long Reasoning { get; } = window.Period.Usage.Tokens.Reasoning;
+    public long Reasoning { get; } = period.Usage.Tokens.Reasoning;
 
-    public string Tokens { get; } = Amounts.Tokens(window.Period.Usage.Tokens.Total());
+    public string Tokens { get; } = Amounts.Tokens(period.Usage.Tokens.Total());
 
-    public string Unpriced { get; } = Amounts.Unpriced(window.Period.Usage.UnpricedReports);
+    public string Unpriced { get; } = Amounts.Unpriced(period.Usage.UnpricedReports);
 
-    public string Turns { get; } = Phrase(window.Period.Usage.Turns);
+    public string Turns { get; } = Phrase(period.Usage.Turns);
 
     private static string Phrase(TurnTally turns) =>
         string.Create(CultureInfo.InvariantCulture, $"{turns.Finished} turns finished, {turns.Interrupted} interrupted, {turns.Failed} failed");

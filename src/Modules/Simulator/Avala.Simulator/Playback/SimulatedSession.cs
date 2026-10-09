@@ -17,6 +17,7 @@ internal sealed class SimulatedSession : IAgentSession
     private readonly SessionOptions options;
     private readonly Stagecraft craft;
     private readonly Adaptation adaptation;
+    private readonly bool midTurn;
     private Option<Conversation> conversation;
     private Option<Act> act;
     private bool closed;
@@ -27,8 +28,10 @@ internal sealed class SimulatedSession : IAgentSession
         gates = new Gates(
             new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission),
             new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm),
-            new ReplyGate<ToolResult>(stage, AgentError.NoPendingCall));
+            new ReplyGate<ToolResult>(stage, AgentError.NoPendingCall),
+            Channel.CreateUnbounded<string>());
         var capabilities = SimulatedCapabilities.On(options.Connection);
+        midTurn = capabilities.Has<AcceptsMessagesMidTurn>();
         performer = new Performer(options, craft, gates, capabilities);
         adaptation = new Adaptation(capabilities);
         this.options = options;
@@ -44,7 +47,7 @@ internal sealed class SimulatedSession : IAgentSession
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
     public async ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken) =>
-        await stage.RunAsync(token => BeginAsync(turn, token), cancellationToken);
+        await stage.RunAsync(token => turn.MidTurn ? Task.FromResult(Queue(turn)) : BeginAsync(turn, token), cancellationToken);
 
     public async ValueTask<Result<ItemId, AgentError>> RespondAsync(PermissionDecision decision, CancellationToken cancellationToken) =>
         await gates.Permissions.RespondAsync(decision.Item, decision, cancellationToken);
@@ -83,6 +86,19 @@ internal sealed class SimulatedSession : IAgentSession
         await stage.DisposeAsync();
         lifetime.Dispose();
     }
+
+    private Result<TurnId, AgentError> Queue(UserTurn turn) =>
+        closed ? AgentError.SessionClosed
+        : !midTurn ? AgentError.Unsupported
+        : act.Match(
+            running =>
+            {
+                events.Writer.TryWrite(new MessageQueued(Id, running.Turn, turn.Text));
+                gates.Messages.Writer.TryWrite(turn.Text);
+
+                return Result<TurnId, AgentError>.Success(running.Turn);
+            },
+            () => Result<TurnId, AgentError>.Failure(AgentError.NoTurnInProgress));
 
     private async Task<Result<TurnId, AgentError>> BeginAsync(UserTurn turn, CancellationToken cancellationToken)
     {
