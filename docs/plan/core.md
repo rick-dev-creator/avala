@@ -521,7 +521,10 @@ AC7  Given a Claude Code orchestrator replayed from its transcript, when it dele
 
 Unit tests cover the deferral, resumption, briefing and refusals in Jobs (`DeferredRecoveryTests`) and the rebuilt desk, the owed reports and the resumption of deferred parents in Delegation (`RestartedDeskTests`).
 
-Open: whether Claude Code, resumed with `--resume` after its process died mid tool call, accepts a new user message after the unanswered `tool_use`, which needs one real run; a provider that loses a tool result it received before dying in a parallel call; delivering a report to a parent that is running a later turn in a live session, which waits for its next round.
+5. **Confirmed with real Claude Code.** One real run on haiku, `RealClaudeCodeTests.AConversationThatDiedWaitingOnAHarnessCallResumesAndTakesItsResultInAMessageAsync`, about 0.02 USD: a session that died while its `delegate` call was unanswered, resumed with `--resume`, accepts the new user message carrying the report and answers from it without calling the tool again; its redacted transcripts are in `tests/transcripts/claude-code/real-delegate-resumed`. No adaptation was needed.
+6. **Reports mid-turn.** A report whose call can no longer receive it goes to a parent that runs a later turn in a live session through `IJobs.SteerAsync`, when the parent's harness declares `AcceptsMessagesMidTurn`; otherwise it waits for the parent's next round as before. Host test `DelegationTests.AReportForAParentRunningALaterTurnArrivesMidTurnOnceWhenItsHarnessAcceptsMessagesAsync`, simulator scenario `delegate-steered`.
+
+Open: a provider that loses a tool result it received before dying in a parallel call.
 
 ## Gaps against the brief
 

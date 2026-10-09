@@ -117,6 +117,56 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AConversationThatDiedWaitingOnAHarnessCallResumesAndTakesItsResultInAMessageAsync()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
+        using var data = new TemporaryFolder();
+        using var repository = new TemporaryFolder();
+        await using var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
+        var provider = root.Services.GetServices<IAgentProvider>().Single(candidate => candidate.Info.Id == "claude-code");
+        var transcripts = Path.Combine(data.Path, "transcripts");
+        var delegation = new HarnessTool(
+            "delegate",
+            "Hand a piece of work to a sub-agent; the result arrives when it finishes.",
+            """{ "type": "object", "properties": { "instruction": { "type": "string" } }, "required": ["instruction"] }""",
+            ToolSurface.Executed);
+        var died = new List<IAgentEvent>();
+        var first = (await provider.StartAsync(new SessionOptions(repository.Path, PermissionMode.AskEveryTime) { Connection = Connection(Login, transcripts), Tools = [delegation] }, Cancellation))
+            .Match(started => started, error => throw new InvalidOperationException(error.ToString()));
+
+        await using (first)
+        {
+            _ = await first.SendAsync(new UserTurn("Call the delegate tool once with the instruction 'Write NOTES.md'. Do nothing else."), Cancellation);
+
+            await foreach (var agentEvent in first.Events.WithCancellation(Cancellation))
+            {
+                died.Add(agentEvent);
+
+                if (agentEvent is ToolCalled or TurnCompleted)
+                {
+                    break;
+                }
+            }
+        }
+
+        var called = Assert.Single(died.OfType<ToolCalled>());
+        var resumed = await TalkAsync(
+            provider,
+            new SessionOptions(repository.Path, PermissionMode.AskEveryTime) { Connection = Connection(Login, transcripts), Tools = [delegation], Resume = died.OfType<ResumeTokenIssued>().Last().Token },
+            "The harness restarted while you were working on this job. Continue where you left off.\n\n"
+            + "These delegate calls of yours were answered while you could not receive their results; each result is what its call returns. Do not delegate this work again.\n"
+            + $$"""delegate call {{called.Item.Value}}: {"outcome":"integrated","summary":"Wrote NOTES.md with the word papaya."}""" + "\n"
+            + "Reply with the single word the sub-agent wrote, nothing else.");
+
+        await SaveTranscriptsAsync(transcripts, "delegate-resumed", repository.Path);
+        await SaveCostAsync("delegate-resumed", [.. died, .. resumed]);
+
+        Assert.Equal(TurnOutcome.Finished, resumed.OfType<TurnCompleted>().Single().Outcome);
+        Assert.DoesNotContain(resumed, agentEvent => agentEvent is ToolCalled);
+        Assert.Contains("papaya", string.Concat(resumed.OfType<ItemProgressed>().Select(progressed => progressed.Text)), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task AMessageSentMidTurnJoinsTheTurnAndAnInterruptionLeavesTheNextTurnWholeAsync()
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
