@@ -5,6 +5,7 @@
              x:Class="Avala.Components.UI.StatusDotView"
              x:ClassModifier="internal"
              x:DataType="status:IStatusDotViewModel"
+             ClipToBounds="False"
              MinWidth="6"
              MinHeight="6"
              Classes.working="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Working}"
