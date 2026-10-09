@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Xml.Linq;
 using Avala.Host.Composition;
 using Avala.Sdk;
 using Avala.Sdk.Regions;
@@ -35,6 +36,32 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
                 view.VisibleTexts.ToHashSet());
             Assert.All(view.Find<ListBox>("PageNavigation").GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Path>(), icon => Assert.NotNull(icon.Data));
         }, Cancellation);
+
+    [Fact]
+    public Task TheMainWindowCarriesTheBrandIconAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var view = ViewScript.Present(new ShellView(), new DesignShellViewModel());
+            using var shipped = new MemoryStream();
+            await using (var resource = Avalonia.Platform.AssetLoader.Open(new Uri("avares://Avala.Host/Assets/avala.ico")))
+            {
+                await resource.CopyToAsync(shipped, Cancellation);
+            }
+
+            Assert.NotNull(view.Window.Icon);
+            Assert.Equal(await File.ReadAllBytesAsync(BrandIcon, Cancellation), shipped.ToArray());
+        }, Cancellation);
+
+    [Fact]
+    public async Task TheExecutableCarriesTheBrandIconAsync()
+    {
+        var project = XDocument.Parse(await File.ReadAllTextAsync(Path.Combine(Repository.Root.FullName, "src", "Avala.Host", "Avala.Host.csproj"), Cancellation));
+        var declared = Assert.Single(project.Descendants("ApplicationIcon")).Value.Replace("$(AvalaRoot)", string.Empty, StringComparison.Ordinal);
+
+        Assert.Equal(BrandIcon, Path.Combine(Repository.Root.FullName, declared.Replace('\\', Path.DirectorySeparatorChar)));
+    }
+
+    private static string BrandIcon => Path.Combine(Repository.Root.FullName, "docs", "assets", "brand", "avala.ico");
 
     [Theory]
     [InlineData("Dark")]

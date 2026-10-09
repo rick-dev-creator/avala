@@ -7,6 +7,7 @@
         x:ClassModifier="internal"
         x:DataType="shell:IShellViewModel"
         Title="Avala"
+        Icon="avares://Avala.Host/Assets/avala.ico"
         Width="1440"
         Height="900"
         MinWidth="720"
