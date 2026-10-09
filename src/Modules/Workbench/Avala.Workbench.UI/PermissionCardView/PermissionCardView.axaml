@@ -38,8 +38,15 @@
         </Grid>
         <TextBlock x:Name="Title" Classes="body" TextWrapping="Wrap" Text="{Binding Title}" />
         <Border Classes="well">
-          <SelectableTextBlock x:Name="Target" Classes="mono" TextWrapping="Wrap" Text="{Binding Target}" />
+          <ScrollViewer x:Name="TargetScroll" MaxHeight="220" HorizontalScrollBarVisibility="Disabled">
+            <SelectableTextBlock x:Name="Target" Classes="mono" TextWrapping="Wrap" Text="{Binding Target}" />
+          </ScrollViewer>
         </Border>
+        <TextBlock x:Name="Writes"
+                   Classes="caption attention"
+                   TextWrapping="Wrap"
+                   Text="{Binding Writes}"
+                   IsVisible="{Binding Writes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         <StackPanel x:Name="NoteField" Spacing="6" IsVisible="{Binding #AddNote.IsChecked}">
           <TextBlock Classes="label" Text="Note for the agent" />
           <TextBox x:Name="Note"

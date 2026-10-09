@@ -82,7 +82,7 @@ internal sealed partial class DesignReviewViewModel : IReviewViewModel
 
     public bool HasExceptions => true;
 
-    public IReadOnlyList<IReviewExceptionViewModel> Exceptions { get; } =
+    public IReadOnlyList<IReviewExceptionViewModel> Exceptions { get; init; } =
     [
         new DesignReviewExceptionViewModel(),
         new DesignReviewExceptionViewModel

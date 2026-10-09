@@ -32,6 +32,20 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ALongCommandShowsWholeInABoundedScrollingWellWithWhatItWritesAboveAllowAsync() =>
+        ui.RunAsync(() =>
+        {
+            var command = string.Join('\n', Enumerable.Range(1, 60).Select(line => $"echo {line} >> /tmp/out.txt"));
+            var decision = Workbench.Decisions.DesignDecisionViewModel.Permission(Jobs.Contracts.JobId.New(), "Build a timer", "Run 60 commands: echo > /tmp/out.txt", command, "1m", isSelected: true, writes: "Writes to /tmp/out.txt");
+            var view = Tall(Screen.Show(decision));
+            var scroll = view.Find<ScrollViewer>("TargetScroll");
+
+            Assert.Equal((command, "Writes to /tmp/out.txt"), (view.Find<SelectableTextBlock>("Target").Text, view.TextOf("Writes")));
+            Assert.True(scroll.Bounds.Height <= 160 && scroll.Extent.Height > scroll.Viewport.Height, $"the well is {scroll.Bounds.Height} high for {scroll.Extent.Height}");
+            Assert.True(view.Shows("Answer"));
+        }, Cancellation);
+
+    [Fact]
     public Task WithNothingWaitingThePopoverSaysSoAndOffersNoAnswerAsync() =>
         ui.RunAsync(() =>
         {
