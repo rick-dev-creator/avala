@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
@@ -11,16 +13,16 @@ public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IA
 
     public ProviderInfo Info { get; init; } = new("scripted", "Scripted");
 
-    public AgentCapabilities Capabilities { get; init; } = new(
-        StreamsPartialOutput: true,
-        ExposesReasoning: true,
-        CanInterrupt: canInterrupt,
-        CanResume: false,
-        AcceptsTools: false,
-        ReportsUsage: true,
-        ReportsCost: true,
-        ReportsLimits: true,
-        AsksQuestions: false);
+    public CapabilitySet Capabilities { get; init; } = Declared.With(canInterrupt ? [new Interruptible()] : []);
+
+    public Func<ConnectionEnvironment, CapabilitySet, CapabilitySet> OnConnection { get; init; } = (_, declared) => declared;
+
+    public static CapabilitySet Declared { get; } = CapabilitySet.Of(
+        new StreamsPartialOutput(),
+        new ExposesReasoning(),
+        new ReportsUsage(),
+        new ReportsCost("USD"),
+        new ReportsLimits(["5h", "7d"]));
 
     public bool RejectsResume { get; init; }
 
@@ -40,6 +42,8 @@ public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IA
         new ItemCompleted(session, turn, new ItemId("reply"), ItemOutcome.Succeeded),
         new TurnCompleted(session, turn, TurnOutcome.Finished),
     ];
+
+    public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) => OnConnection(connection, Capabilities);
 
     public ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken)
     {

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avala.Agents.Connections;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -53,14 +54,14 @@ internal static class AgentConformance
     {
         var first = await RunAsync(provider, options, instruction, deadline);
 
-        if (!provider.Capabilities.CanResume)
+        if (!provider.CapabilitiesOn(options.Connection).Has<Resumable>())
         {
             return first.Violations;
         }
 
         if (first.Events.OfType<ResumeTokenIssued>().LastOrDefault() is not { } issued)
         {
-            return [.. first.Violations, "no resume token was issued although the provider declares CanResume"];
+            return [.. first.Violations, "no resume token was issued although the provider declares Resumable"];
         }
 
         var resumed = await RunAsync(provider, options with { Resume = issued.Token }, new UserTurn("continue"), deadline);
@@ -74,7 +75,7 @@ internal static class AgentConformance
         UserTurn instruction,
         CancellationToken deadline)
     {
-        if (!provider.Capabilities.AcceptsTools)
+        if (!Accepts(provider, options, ToolSurface.Canvas))
         {
             return await CheckTurnAsync(provider, options with { Tools = [] }, instruction, deadline);
         }
@@ -93,7 +94,7 @@ internal static class AgentConformance
         UserTurn instruction,
         CancellationToken deadline)
     {
-        if (!provider.Capabilities.AcceptsTools)
+        if (!Accepts(provider, options, ToolSurface.Executed))
         {
             return await CheckTurnAsync(provider, options with { Tools = [] }, instruction, deadline);
         }
@@ -124,7 +125,7 @@ internal static class AgentConformance
         UserTurn instruction,
         CancellationToken deadline)
     {
-        if (!provider.Capabilities.AcceptsTools)
+        if (!Accepts(provider, options, ToolSurface.Executed))
         {
             return await CheckTurnAsync(provider, options with { Tools = [] }, instruction, deadline);
         }
@@ -171,7 +172,7 @@ internal static class AgentConformance
         UserTurn instruction,
         CancellationToken deadline)
     {
-        if (!provider.Capabilities.AsksQuestions)
+        if (!provider.CapabilitiesOn(options.Connection).Has<AsksForms>())
         {
             return await CheckTurnAsync(provider, options, instruction, deadline);
         }
@@ -185,7 +186,7 @@ internal static class AgentConformance
                 ],
             AfterTurn = async (session, events, token) => events.OfType<FormRequested>().LastOrDefault() is { } last
                 ? await RefusedAsync(session, Fill(last.Item, last.Form), "a form that was already answered", token)
-                : ["no form was asked although the provider declares AsksQuestions"],
+                : ["no form was asked although the provider declares AsksForms"],
         };
 
         return (await RunAsync(provider, options, instruction, replies, deadline)).Violations;
@@ -273,6 +274,9 @@ internal static class AgentConformance
         ];
     }
 
+    private static bool Accepts(IAgentProvider provider, SessionOptions options, ToolSurface surface) =>
+        provider.CapabilitiesOn(options.Connection).Get<AcceptsTools>().Match(accepted => accepted.Accepts(surface), () => false);
+
     private static bool IsReference(CredentialReference credential) => credential.Source switch
     {
         "login" => Path.IsPathFullyQualified(credential.Reference),
@@ -291,7 +295,7 @@ internal static class AgentConformance
 
     private static async Task<IReadOnlyList<string>> ForeignResumeAsync(IAgentProvider provider, SessionOptions options, CancellationToken deadline)
     {
-        if (!provider.Capabilities.CanResume || !(await provider.StartAsync(options, deadline)).TryGetValue(out var session, out _))
+        if (!provider.CapabilitiesOn(options.Connection).Has<Resumable>() || !(await provider.StartAsync(options, deadline)).TryGetValue(out var session, out _))
         {
             return [];
         }
@@ -301,7 +305,7 @@ internal static class AgentConformance
         return ["a resume token of one connection was accepted on another"];
     }
 
-    private static Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, CancellationToken deadline) =>
+    internal static Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, CancellationToken deadline) =>
         RunAsync(provider, options, instruction, Allowing, deadline);
 
     private static async Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, Replies replies, CancellationToken deadline)
@@ -324,10 +328,16 @@ internal static class AgentConformance
                     return new Run([$"the turn was not accepted: {sendError}"], []);
                 }
 
-                var audit = await AuditAsync(session, turn, new Rules(options, provider.Capabilities), replies, deadline);
+                var declared = provider.CapabilitiesOn(options.Connection);
+                var audit = await AuditAsync(session, turn, new Rules(options, declared), replies, deadline);
                 audit = audit with
                 {
-                    Violations = [.. audit.Violations, .. await replies.AfterTurn(session, audit.Events, deadline)],
+                    Violations =
+                    [
+                        .. audit.Violations,
+                        .. DeclaredCapabilities.Breaches(declared, audit.Events),
+                        .. await replies.AfterTurn(session, audit.Events, deadline),
+                    ],
                     Session = session.Id,
                     Account = account,
                 };
@@ -477,7 +487,7 @@ internal static class AgentConformance
 
     private static string Name(IAgentEvent agentEvent) => agentEvent.GetType().Name;
 
-    private sealed record Run(IReadOnlyList<string> Violations, IReadOnlyList<IAgentEvent> Events)
+    internal sealed record Run(IReadOnlyList<string> Violations, IReadOnlyList<IAgentEvent> Events)
     {
         public Option<SessionId> Session { get; init; }
 
@@ -486,18 +496,18 @@ internal static class AgentConformance
         public Option<ResumeToken> Token => Events.OfType<ResumeTokenIssued>().LastOrDefault() is { } issued ? issued.Token : Option<ResumeToken>.None;
     }
 
-    private sealed record Rules(SessionOptions Options, AgentCapabilities Capabilities)
+    private sealed record Rules(SessionOptions Options, CapabilitySet Capabilities)
     {
         public bool AsksEveryTime => Options.Permissions == PermissionMode.AskEveryTime;
 
         public IEnumerable<string> Breaches(IAgentEvent agentEvent) => agentEvent switch
         {
-            ResumeTokenIssued when !Capabilities.CanResume => ["a resume token was issued although the provider does not declare CanResume"],
+            ResumeTokenIssued when !Capabilities.Has<Resumable>() => ["a resume token was issued although the provider does not declare Resumable"],
             CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
                 [$"the canvas {started.Item.Value} was drawn without the canvas tool"],
             CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas && Offers(tool, started.MediaType)) =>
                 [$"the canvas {started.Item.Value} was drawn in {started.MediaType}, which the canvas tool does not offer"],
-            FormRequested asked when !Capabilities.AsksQuestions => [$"the form {asked.Item.Value} was asked although the provider does not declare AsksQuestions"],
+            FormRequested asked when !Capabilities.Has<AsksForms>() => [$"the form {asked.Item.Value} was asked although the provider does not declare AsksForms"],
             ToolCalled called when !Options.Tools.Any(tool => tool.Name == called.Tool && tool.Surface == ToolSurface.Executed) =>
                 [$"the tool {called.Tool} was called although the session was not given it"],
             _ => [],

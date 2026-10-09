@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Conversations;
@@ -183,6 +184,35 @@ public sealed class ProviderTests
             {
             }
         });
+    }
+
+    [Theory]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    public void ASubscriptionLoginReportsItsLimitWindowsAndAnApiKeyDoesNot(bool folder, bool key, bool limits)
+    {
+        var connection = new ConnectionEnvironment
+        {
+            ConfigurationDirectory = folder ? "/logins/work" : Option<string>.None,
+            ApiKey = key ? new Secret("sk-ant-1") : Option<Secret>.None,
+        };
+
+        var declared = Provider(new FakeCli()).CapabilitiesOn(connection);
+
+        Assert.Equal(limits ? new ReportsLimits(["5h", "7d", "7d opus", "7d sonnet"]) : Option<ReportsLimits>.None, declared.Get<ReportsLimits>());
+        Assert.Equal(
+            CapabilitySet.Of(
+                new StreamsPartialOutput(),
+                new ExposesReasoning(),
+                new Interruptible(),
+                new Resumable(),
+                new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
+                new AsksForms(),
+                new ReportsUsage(),
+                new ReportsCost("USD")),
+            declared.Without<ReportsLimits>());
     }
 
     private static ClaudeCodeProvider Provider(FakeCli cli, string? home = null) =>

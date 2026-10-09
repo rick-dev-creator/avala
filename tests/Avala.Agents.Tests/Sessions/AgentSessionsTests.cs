@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Connections;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -274,20 +275,25 @@ public sealed class AgentSessionsTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task OnlyAProviderThatAcceptsToolsIsGivenTheHarnessToolsAsync(bool accepts)
+    [InlineData(new[] { ToolSurface.Canvas, ToolSurface.Executed }, new[] { "canvas", "propose_follow_up" })]
+    [InlineData(new[] { ToolSurface.Executed }, new[] { "propose_follow_up" })]
+    [InlineData(new ToolSurface[0], new string[0])]
+    [InlineData(null, new string[0])]
+    public async Task AProviderIsGivenOnlyTheHarnessToolsOfTheSurfacesItAcceptsAsync(ToolSurface[]? surfaces, string[] given)
     {
-        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { Capabilities = Declared with { AcceptsTools = accepts } };
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply)
+        {
+            Capabilities = surfaces is null ? Declared : Declared.With(new AcceptsTools([.. surfaces])),
+        };
         await using var agents = new AgentSessions(
-            Connected.Starter([provider], [Canvas], []),
+            Connected.Starter([provider], [Canvas, FollowUp], []),
             new RecordingBus(),
             TimeProvider.System,
             NullLogger<AgentSessions>.Instance);
 
         Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));
 
-        Assert.Equal(accepts ? [Canvas] : [], Assert.Single(provider.Sessions).Options.Tools);
+        Assert.Equal(given, Assert.Single(provider.Sessions).Options.Tools.Select(tool => tool.Name));
     }
 
     [Theory]
@@ -302,7 +308,7 @@ public sealed class AgentSessionsTests
         var token = new ResumeToken("conversation-1");
         var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply)
         {
-            Capabilities = Declared with { CanResume = canResume },
+            Capabilities = canResume ? Declared.With(new Resumable()) : Declared,
             RejectsResume = rejects,
         };
         await using var agents = Agents(new RecordingBus(), provider);
@@ -323,7 +329,7 @@ public sealed class AgentSessionsTests
         var provider = new ScriptedAgentProvider((session, turn) =>
             [new TurnStarted(session, turn), new ResumeTokenIssued(session, turn, token), new TurnCompleted(session, turn, TurnOutcome.Finished)])
         {
-            Capabilities = Declared with { CanResume = canResume },
+            Capabilities = canResume ? Declared.With(new Resumable()) : Declared,
         };
         await using var agents = Agents(bus, provider);
 
@@ -348,7 +354,7 @@ public sealed class AgentSessionsTests
     public async Task OnlyAnAnswerThatFitsTheOpenFormReachesTheSessionAsync()
     {
         var bus = new RecordingBus();
-        var provider = new ScriptedAgentProvider(Asking) { Capabilities = Declared with { AsksQuestions = true } };
+        var provider = new ScriptedAgentProvider(Asking) { Capabilities = Declared.With(new AsksForms()) };
         await using var agents = Agents(bus, provider);
         var turn = await StartTurnAsync(agents, "Choose a database");
         await bus.WaitForAsync<AgentActivity>(activity => activity.Event is FormRequested, Cancellation);
@@ -365,7 +371,7 @@ public sealed class AgentSessionsTests
         var bus = new RecordingBus();
         var provider = new ScriptedAgentProvider((session, turn) => [.. Asking(session, turn), new TurnCompleted(session, turn, TurnOutcome.Finished)])
         {
-            Capabilities = Declared with { AsksQuestions = true },
+            Capabilities = Declared.With(new AsksForms()),
         };
         await using var agents = Agents(bus, provider);
         var turn = await StartTurnAsync(agents, "Choose a database");
@@ -379,7 +385,7 @@ public sealed class AgentSessionsTests
     public async Task OnlyTheResultOfAPendingToolCallReachesTheSessionAsync()
     {
         var bus = new RecordingBus();
-        var provider = new ScriptedAgentProvider(Calling) { Capabilities = Declared with { AcceptsTools = true } };
+        var provider = new ScriptedAgentProvider(Calling) { Capabilities = Declared.With(new AcceptsTools([ToolSurface.Executed])) };
         await using var agents = Agents(bus, provider);
         var turn = await StartTurnAsync(agents, "Propose a follow-up");
         await bus.WaitForAsync<AgentActivity>(activity => activity.Event is ToolCalled, Cancellation);
@@ -391,11 +397,13 @@ public sealed class AgentSessionsTests
         Assert.Equal(AgentError.SessionClosed, Outcomes.FailsWith(await agents.ReturnAsync(SessionId.New(), result, Cancellation)));
     }
 
-    [Fact]
-    public async Task ReturningAToolResultIsUnsupportedWhenTheProviderAcceptsNoToolsAsync()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReturningAToolResultIsUnsupportedWhenTheProviderAcceptsNoExecutedToolsAsync(bool acceptsCanvas)
     {
         var bus = new RecordingBus();
-        var provider = new ScriptedAgentProvider(Calling) { Capabilities = Declared with { AcceptsTools = false } };
+        var provider = new ScriptedAgentProvider(Calling) { Capabilities = acceptsCanvas ? Declared.With(new AcceptsTools([ToolSurface.Canvas])) : Declared };
         await using var agents = Agents(bus, provider);
         var turn = await StartTurnAsync(agents, "Propose a follow-up");
         await bus.WaitForAsync<AgentActivity>(activity => activity.Event is ToolCalled, Cancellation);
@@ -424,7 +432,9 @@ public sealed class AgentSessionsTests
 
     private static readonly HarnessTool Canvas = new("canvas", "Draw a canvas", "{}", ToolSurface.Canvas);
 
-    private static AgentCapabilities Declared { get; } = new ScriptedAgentProvider(ScriptedAgentProvider.Reply).Capabilities;
+    private static readonly HarnessTool FollowUp = new("propose_follow_up", "Propose a follow-up", "{}", ToolSurface.Executed);
+
+    private static CapabilitySet Declared => ScriptedAgentProvider.Declared;
 
     private static async Task<AgentTurn> StartTurnAsync(AgentSessions agents, string instruction)
     {
@@ -465,7 +475,7 @@ public sealed class AgentSessionsTests
     {
         public ProviderInfo Info { get; } = inner.Info with { Id = $"{tag}({inner.Info.Id})" };
 
-        public AgentCapabilities Capabilities => inner.Capabilities;
+        public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) => inner.CapabilitiesOn(connection);
 
         public ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken) =>
             inner.StartAsync(options, cancellationToken);

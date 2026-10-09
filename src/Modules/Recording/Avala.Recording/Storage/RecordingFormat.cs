@@ -1,6 +1,8 @@
 using System.Buffers;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Recording.Recordings;
@@ -15,6 +17,12 @@ internal sealed class RecordingFormat
     public const int Version = 1;
 
     private static readonly JsonWriterOptions Options = new() { Indented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    private static readonly JsonSerializerOptions ComponentData = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+    };
 
     private readonly Dictionary<TurnId, int> turns = [];
     private readonly Utf8JsonWriter json;
@@ -74,18 +82,47 @@ internal sealed class RecordingFormat
         json.WriteEndObject();
     }
 
-    private void Capabilities(AgentCapabilities declared) => Object("capabilities", () =>
+    private void Capabilities(CapabilitySet declared) => Object("capabilities", () =>
     {
-        json.WriteBoolean("streamsPartialOutput", declared.StreamsPartialOutput);
-        json.WriteBoolean("exposesReasoning", declared.ExposesReasoning);
-        json.WriteBoolean("canInterrupt", declared.CanInterrupt);
-        json.WriteBoolean("canResume", declared.CanResume);
-        json.WriteBoolean("acceptsTools", declared.AcceptsTools);
-        json.WriteBoolean("reportsUsage", declared.ReportsUsage);
-        json.WriteBoolean("reportsCost", declared.ReportsCost);
-        json.WriteBoolean("reportsLimits", declared.ReportsLimits);
-        json.WriteBoolean("asksQuestions", declared.AsksQuestions);
+        foreach (var component in declared.Components)
+        {
+            json.WritePropertyName(JsonNamingPolicy.CamelCase.ConvertName(component.GetType().Name));
+            Data(JsonSerializer.SerializeToElement(component, component.GetType(), ComponentData));
+        }
     });
+
+    private void Data(JsonElement data)
+    {
+        switch (data.ValueKind)
+        {
+            case JsonValueKind.Object:
+                Object(() =>
+                {
+                    foreach (var property in data.EnumerateObject())
+                    {
+                        json.WritePropertyName(property.Name);
+                        Data(property.Value);
+                    }
+                });
+                break;
+            case JsonValueKind.Array:
+                json.WriteStartArray();
+
+                foreach (var item in data.EnumerateArray())
+                {
+                    Data(item);
+                }
+
+                json.WriteEndArray();
+                break;
+            case JsonValueKind.String:
+                json.WriteStringValue(redaction.Apply(data.GetString()!));
+                break;
+            default:
+                data.WriteTo(json);
+                break;
+        }
+    }
 
     private void Entry(RecordedEntry entry) => Object(() =>
     {

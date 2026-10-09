@@ -29,6 +29,18 @@ public sealed class ClaudeCodeConformanceTests
     }
 
     [Fact]
+    public async Task ARecordedLoginReportsTheUsageCostAndLimitWindowsItDeclaresAsync()
+    {
+        await using var replay = await ReplayAsync("edit");
+
+        Assert.Empty(await CapabilityConformance.CheckReportsAsync(
+            replay.Provider,
+            replay.Options(WorkLogin) with { Tools = [AgentConformance.CanvasTool] },
+            Instruction,
+            Deadline));
+    }
+
+    [Fact]
     public async Task ARecordedSessionStartsClaudeCodeThroughTheSessionsLauncherAsync()
     {
         await using var replay = await ReplayAsync("edit");

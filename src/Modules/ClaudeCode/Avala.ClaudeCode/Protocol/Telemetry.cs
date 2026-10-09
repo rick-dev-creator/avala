@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Sdk;
 
@@ -17,6 +18,10 @@ internal static class Telemetry
         ["seven_day_opus"] = "7d opus",
         ["seven_day_sonnet"] = "7d sonnet",
     };
+
+    public const string Currency = "USD";
+
+    public static ValueSet<string> SubscriptionWindows { get; } = new(Windows.Values);
 
     public static TokenUsage Tokens(JsonNode result)
     {

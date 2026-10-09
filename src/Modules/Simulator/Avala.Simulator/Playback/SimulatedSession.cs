@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
@@ -15,6 +16,7 @@ internal sealed class SimulatedSession : IAgentSession
     private readonly Performer performer;
     private readonly SessionOptions options;
     private readonly Stagecraft craft;
+    private readonly CapabilitySet capabilities;
     private Option<Conversation> conversation;
     private Option<Act> act;
     private bool closed;
@@ -29,6 +31,7 @@ internal sealed class SimulatedSession : IAgentSession
         performer = new Performer(options, craft, gates);
         this.options = options;
         this.craft = craft;
+        capabilities = SimulatedCapabilities.On(options.Connection);
         this.conversation = conversation;
         Account = account;
     }
@@ -113,6 +116,11 @@ internal sealed class SimulatedSession : IAgentSession
         {
             await foreach (var cue in performer.PlayAsync(cues, played, interruption))
             {
+                if (!capabilities.Reports(cue))
+                {
+                    continue;
+                }
+
                 await craft.Pacing.WaitAsync(interruption);
                 ended |= await PublishAsync(current, cue);
             }
