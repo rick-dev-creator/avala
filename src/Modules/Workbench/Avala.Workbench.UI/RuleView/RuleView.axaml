@@ -1,20 +1,36 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:states="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.RuleView"
              x:ClassModifier="internal"
-             x:DataType="settings:IRuleViewModel">
+             x:DataType="settings:IRuleViewModel"
+             Classes.deny="{Binding Answer, Converter={x:Static states:Answers.Is}, ConverterParameter=Deny}"
+             Classes.ask="{Binding Answer, Converter={x:Static states:Answers.Is}, ConverterParameter=Ask}">
   <Design.DataContext>
     <settings:DesignRuleViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="90,*,Auto" Margin="0,2">
-    <TextBlock x:Name="Origin" Classes="caption" Text="{Binding Origin}" />
-    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-      <TextBlock x:Name="RuleName" Text="{Binding Name}" />
-      <TextBlock x:Name="Kind" Classes="caption" Text="{Binding Kind}" VerticalAlignment="Center" />
-      <TextBlock x:Name="Target" Classes="mono" Text="{Binding Target}" />
-      <TextBlock x:Name="Scope" Classes="caption" Text="{Binding Scope}" VerticalAlignment="Center" />
+  <UserControl.Styles>
+    <Style Selector="TextBlock#Answer">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector=".deny TextBlock#Answer">
+      <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+    </Style>
+    <Style Selector=".ask TextBlock#Answer">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="22,*,Auto,52" ColumnSpacing="10" Margin="0,11">
+    <TextBlock x:Name="Order" Classes="hint mono" Text="{Binding Order}" VerticalAlignment="Center" />
+    <StackPanel Grid.Column="1">
+      <TextBlock x:Name="RuleName" FontSize="{DynamicResource FontSizeMono}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock x:Name="Kind" Classes="hint" Text="{Binding Kind}" />
+        <TextBlock x:Name="Target" Classes="hint mono" Text="{Binding Target}" TextTrimming="CharacterEllipsis" />
+      </StackPanel>
     </StackPanel>
-    <TextBlock x:Name="Answer" Grid.Column="2" Classes="strong" Text="{Binding Answer}" />
+    <TextBlock x:Name="Origin" Grid.Column="2" Classes="caption" Text="{Binding Origin}" VerticalAlignment="Center" />
+    <TextBlock x:Name="Answer" Grid.Column="3" FontSize="{DynamicResource FontSizeCaption}" Text="{Binding Answer}" HorizontalAlignment="Right" VerticalAlignment="Center" />
   </Grid>
 </UserControl>

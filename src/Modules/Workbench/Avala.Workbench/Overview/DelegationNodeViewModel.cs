@@ -1,5 +1,8 @@
+using System.Globalization;
+using Avala.Components.Status;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Workbench.Board;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
@@ -25,6 +28,12 @@ internal interface IDelegationNodeViewModel
     string Spent { get; }
 
     string Carve { get; }
+
+    double SpentShare { get; }
+
+    string State { get; }
+
+    IStatusDotViewModel Dot { get; }
 }
 
 internal interface IDelegationRefusalViewModel
@@ -56,6 +65,12 @@ internal sealed class DelegationNodeViewModel(DelegationNode node) : IDelegation
     public string Spent { get; } = Amounts.Costs(node.Spend.Spent);
 
     public string Carve { get; } = node.Spend.Carve.Match(carve => Amounts.Costs(carve.Cost), () => "no carve");
+
+    public double SpentShare { get; } = node.Spend.Carve.Match(carve => Math.Clamp(Shares.Of(node.Spend.Spent, carve.Cost), 0, 1), () => 0d);
+
+    public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status)));
+
+    public string State => OverviewPhrases.State(Dot.Kind);
 }
 
 internal sealed class DelegationRefusalViewModel(DelegationRecord record) : IDelegationRefusalViewModel
@@ -65,7 +80,7 @@ internal sealed class DelegationRefusalViewModel(DelegationRecord record) : IDel
     public string Reason { get; } = record.Refusal.Match(OverviewPhrases.Refusal, () => string.Empty);
 }
 
-internal static class OverviewPhrases
+internal static partial class OverviewPhrases
 {
     public static string Outcome(ChildOutcome outcome) => outcome switch
     {
@@ -89,4 +104,25 @@ internal static class OverviewPhrases
         DelegationError.NoJob => "the caller is not a job",
         _ => "the delegation rules cannot be read",
     };
+
+    public static StatusKind Dot(JobStatus status) => status switch
+    {
+        JobStatus.Checking => StatusKind.Checking,
+        JobStatus.NeedsHelp => StatusKind.NeedsYou,
+        JobStatus.AwaitingReview => StatusKind.ReadyForReview,
+        JobStatus.Approved or JobStatus.Discarded => StatusKind.Done,
+        JobStatus.Failed => StatusKind.Failed,
+        _ => StatusKind.Working,
+    };
+
+    public static string Repository(string path)
+    {
+        var trimmed = path.TrimEnd('/', '\\');
+        var slash = trimmed.LastIndexOfAny(['/', '\\']);
+
+        return slash < 0 ? trimmed : trimmed[(slash + 1)..];
+    }
+
+    public static string Waiting(int children) =>
+        children == 0 ? "no sub-agent at work" : string.Create(CultureInfo.InvariantCulture, $"waiting on {Count(children, "sub-agent")}");
 }

@@ -58,6 +58,20 @@ public sealed class SettingsViewModelScripts
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<IRuleFileViewModel> EditCommand => repository.EditCommand;
 
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<string> OpenCommand => repository.OpenCommand;
+
+        public string Name => repository.Name;
+
+        public string AutonomyNote => repository.AutonomyNote;
+
+        public IRuleFileViewModel? PermissionsFile => repository.PermissionsFile;
+
+        public IRuleFileViewModel? BudgetFile => repository.BudgetFile;
+
+        public bool IsSilenceChanged => false;
+
+        public double SilenceMinutes { get; set; } = 10;
+
         public IReadOnlyList<IMachineConnectionViewModel> Connections => machine.Connections;
 
         public string ConnectionsFile => machine.ConnectionsFile;

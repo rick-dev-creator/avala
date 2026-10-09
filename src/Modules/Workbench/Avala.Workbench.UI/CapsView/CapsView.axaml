@@ -7,8 +7,25 @@
   <Design.DataContext>
     <settings:DesignCapsViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="140,*" Margin="0,2">
-    <TextBlock x:Name="Scope" Classes="caption mono" Text="{Binding Scope}" TextTrimming="CharacterEllipsis" />
-    <TextBlock x:Name="Caps" Grid.Column="1" Text="{Binding Caps}" TextWrapping="Wrap" />
-  </Grid>
+  <UserControl.Styles>
+    <Style Selector="ItemsControl#Lines > ContentPresenter:not(:nth-child(1))">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="6">
+    <TextBlock x:Name="Scope" Classes="hint" Margin="4,0" Text="{Binding Scope}" ToolTip.Tip="{Binding Caps}" />
+    <Border Classes="grouped" Padding="16,0">
+      <ItemsControl x:Name="Lines" ItemsSource="{Binding Lines}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="settings:SettingLine">
+            <DockPanel Margin="0,12">
+              <TextBlock DockPanel.Dock="Right" Text="{Binding Value}" />
+              <TextBlock Text="{Binding Name}" />
+            </DockPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
+  </StackPanel>
 </UserControl>

@@ -1,47 +1,89 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
              x:Class="Avala.Workbench.UI.DelegationView"
              x:ClassModifier="internal"
              x:DataType="overview:IDelegationViewModel">
   <Design.DataContext>
     <overview:DesignDelegationViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="240,*">
-    <StackPanel Spacing="4">
-      <TextBlock Classes="section" Text="Orchestrators" Margin="10,0,10,4" />
-      <TextBlock x:Name="NoOrchestrators"
-                 Classes="caption"
-                 Margin="10,0"
-                 TextWrapping="Wrap"
-                 Text="No job has delegated work yet."
-                 IsVisible="{Binding !Orchestrators.Count}" />
-      <ItemsControl x:Name="Orchestrators" ItemsSource="{Binding Orchestrators}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="overview:IOrchestratorViewModel">
-            <Button Classes="row"
-                    Command="{Binding $parent[UserControl].((overview:IDelegationViewModel)DataContext).SelectCommand}"
-                    CommandParameter="{Binding}">
-              <ContentControl Content="{Binding}" />
-            </Button>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </StackPanel>
-    <ScrollViewer Grid.Column="1">
-      <StackPanel Spacing="8" Margin="16,0">
-        <ItemsControl x:Name="Children" ItemsSource="{Binding Children}">
+  <DockPanel>
+    <ScrollViewer DockPanel.Dock="Top"
+                  HorizontalScrollBarVisibility="Auto"
+                  VerticalScrollBarVisibility="Disabled"
+                  IsVisible="{Binding Orchestrators.Count, Converter={x:Static graphs:Graph.Many}}">
+      <Border Classes="segments" Margin="24,16,24,0" HorizontalAlignment="Center">
+        <ItemsControl x:Name="Orchestrators" ItemsSource="{Binding Orchestrators}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <StackPanel Spacing="8" />
+              <StackPanel Orientation="Horizontal" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="overview:IOrchestratorViewModel">
+              <Button Classes="segment"
+                      MaxWidth="260"
+                      Command="{Binding $parent[UserControl].((overview:IDelegationViewModel)DataContext).SelectCommand}"
+                      CommandParameter="{Binding}">
+                <ContentControl Content="{Binding}" />
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <StackPanel x:Name="RefusedGroup" Spacing="4" IsVisible="{Binding !!Refused.Count}">
-          <TextBlock Classes="section" Text="Refused" />
-          <ItemsControl x:Name="Refused" ItemsSource="{Binding Refused}" />
-        </StackPanel>
-      </StackPanel>
+      </Border>
     </ScrollViewer>
-  </Grid>
+    <StackPanel x:Name="RefusedGroup"
+                DockPanel.Dock="Bottom"
+                Spacing="6"
+                Margin="24,0,24,20"
+                MaxWidth="760"
+                IsVisible="{Binding !!Refused.Count}">
+      <TextBlock Classes="section" Text="Refused delegations" />
+      <ItemsControl x:Name="Refused" ItemsSource="{Binding Refused}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </StackPanel>
+    <Panel>
+      <Border x:Name="NoOrchestrators"
+              Classes="empty"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              IsVisible="{Binding Root, Converter={x:Static ObjectConverters.IsNull}}">
+        <StackPanel Spacing="6" HorizontalAlignment="Center">
+          <TextBlock Classes="strong" HorizontalAlignment="Center" Text="No job has delegated work yet" />
+          <TextBlock Classes="caption"
+                     HorizontalAlignment="Center"
+                     TextAlignment="Center"
+                     TextWrapping="Wrap"
+                     MaxWidth="340"
+                     Text="When a job hands work to sub-agents, its tree appears here with the budget carved for each child." />
+        </StackPanel>
+      </Border>
+      <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Auto"
+                    IsVisible="{Binding Root, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <Grid ColumnDefinitions="Auto,Auto" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+          <ContentControl x:Name="Root"
+                          Classes="arrive-scale"
+                          Content="{Binding Root}"
+                          VerticalAlignment="Center" />
+          <ItemsControl x:Name="Children"
+                        Grid.Column="1"
+                        ItemsSource="{Binding Children}"
+                        VerticalAlignment="Center">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <graphs:TreeGraphPanel Lead="240" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </Grid>
+      </ScrollViewer>
+    </Panel>
+  </DockPanel>
 </UserControl>

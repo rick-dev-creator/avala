@@ -1,27 +1,89 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
              x:Class="Avala.Workbench.UI.ConnectionCardView"
              x:ClassModifier="internal"
-             x:DataType="overview:IConnectionCardViewModel">
+             x:DataType="overview:IConnectionCardViewModel"
+             Classes.prominent="{Binding IsProminent}"
+             Classes.near="{Binding IsNearLimit}"
+             ClipToBounds="False">
   <Design.DataContext>
     <overview:DesignConnectionCardViewModel />
   </Design.DataContext>
-  <Border Classes="card" Padding="{DynamicResource PaddingCard}">
-    <StackPanel Spacing="8">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock x:Name="ConnectionName" Classes="heading mono" Text="{Binding Name}" />
-          <TextBlock x:Name="Default" Classes="caption" Text="default" IsVisible="{Binding IsDefault}" VerticalAlignment="Center" />
-        </StackPanel>
-        <TextBlock x:Name="Cost" Grid.Column="1" Text="{Binding Cost}" VerticalAlignment="Center" />
-      </Grid>
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" />
-        <TextBlock x:Name="Account" Classes="caption" Text="{Binding Account}" />
-      </StackPanel>
-      <ItemsControl x:Name="Limits" ItemsSource="{Binding Limits}" />
-      <ItemsControl x:Name="Agents" ItemsSource="{Binding Agents}" />
+  <UserControl.Styles>
+    <Style Selector="Panel#Hub">
+      <Setter Property="Width" Value="92" />
+      <Setter Property="Height" Value="92" />
+    </Style>
+    <Style Selector=".prominent Panel#Hub">
+      <Setter Property="Width" Value="128" />
+      <Setter Property="Height" Value="128" />
+    </Style>
+    <Style Selector="Arc#Ring">
+      <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector=".near Arc#Ring">
+      <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="TextBlock#ConnectionName">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
+    </Style>
+    <Style Selector=".prominent TextBlock#ConnectionName">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeNode}" />
+    </Style>
+    <Style Selector=".near TextBlock#Use">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Panel x:Name="Hub">
+    <Panel.Transitions>
+      <Transitions>
+        <DoubleTransition Property="Width" Duration="0:0:0.42" Easing="0.22,1,0.36,1" />
+        <DoubleTransition Property="Height" Duration="0:0:0.42" Easing="0.22,1,0.36,1" />
+      </Transitions>
+    </Panel.Transitions>
+    <Border x:Name="Core"
+            Background="{DynamicResource HubCoreBrush}"
+            CornerRadius="{DynamicResource RadiusPill}"
+            BoxShadow="{DynamicResource ShadowHub}"
+            ToolTip.Tip="{Binding Summary}" />
+    <Ellipse Margin="2" Stroke="{DynamicResource HubTrackBrush}" StrokeThickness="3" IsHitTestVisible="False" />
+    <Arc x:Name="Ring"
+         Margin="2"
+         StartAngle="-90"
+         SweepAngle="{Binding Used, Converter={x:Static graphs:Graph.Degrees}}"
+         StrokeThickness="3"
+         StrokeLineCap="Round"
+         IsHitTestVisible="False" />
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="1" IsHitTestVisible="False">
+      <TextBlock x:Name="ConnectionName"
+                 Classes="strong"
+                 HorizontalAlignment="Center"
+                 MaxWidth="110"
+                 TextTrimming="CharacterEllipsis"
+                 Text="{Binding Name}" />
+      <TextBlock x:Name="Provider"
+                 Classes="hint"
+                 HorizontalAlignment="Center"
+                 MaxWidth="100"
+                 TextTrimming="CharacterEllipsis"
+                 Text="{Binding Provider}" />
+      <TextBlock x:Name="Use"
+                 Classes="hint secondary"
+                 HorizontalAlignment="Center"
+                 MaxWidth="100"
+                 TextTrimming="CharacterEllipsis"
+                 Text="{Binding Use}" />
     </StackPanel>
-  </Border>
+    <ItemsControl x:Name="Agents"
+                  ClipToBounds="False"
+                  ItemsSource="{Binding Agents}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <graphs:OrbitPanel />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+  </Panel>
 </UserControl>

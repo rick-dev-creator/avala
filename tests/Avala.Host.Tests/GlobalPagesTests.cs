@@ -107,7 +107,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
             usage["Interventions"].Items[0]));
         Assert.Equal("0.06 USD", cost);
         Assert.Equal(
-            ("5h", "95% used", "jobs are held at 90%", true, true),
+            ("5h", "95%", "Jobs on this connection hold at the 90% threshold.", true, true),
             await run.Ui.ReadAsync(() => (limit["Window"].Text, limit["UsedText"].Text, limit["HoldAt"].Text, limit["ReachesHold"].Value<bool>(), limit["Resets"].Text.StartsWith("resets ", StringComparison.Ordinal))));
         Assert.Equal(
             ("0.06 USD", "holds at 90% of a limit", HoldReason.LimitNearlyReached),

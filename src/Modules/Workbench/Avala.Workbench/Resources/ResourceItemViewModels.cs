@@ -1,4 +1,5 @@
 using System.Globalization;
+using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
@@ -23,6 +24,8 @@ internal interface IAgentTreeViewModel
     string Cpu { get; }
 
     string Ports { get; }
+
+    IStatusDotViewModel Dot { get; }
 }
 
 internal interface IOrphanViewModel
@@ -38,6 +41,8 @@ internal interface IOrphanViewModel
     string Disposal { get; }
 
     string At { get; }
+
+    string Memory { get; }
 }
 
 internal interface IStaleWorktreeViewModel
@@ -62,6 +67,8 @@ internal sealed class AgentTreeViewModel(TreeState state) : IAgentTreeViewModel
     public string Cpu { get; } = Amounts.Percent(state.Tree.CpuLoad);
 
     public string Ports { get; } = string.Join(", ", state.Tree.Processes.SelectMany(process => process.Ports).Select(port => port.ToString(CultureInfo.InvariantCulture)));
+
+    public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(state.Job.Match(FactPhrases.Dot, () => StatusKind.Working));
 }
 
 internal sealed class OrphanViewModel(OrphanReport report) : IOrphanViewModel
@@ -80,6 +87,8 @@ internal sealed class OrphanViewModel(OrphanReport report) : IOrphanViewModel
         : "left running";
 
     public string At { get; } = Amounts.Time(report.At);
+
+    public string Memory { get; } = Amounts.Megabytes(report.Processes.Sum(process => process.MemoryBytes));
 }
 
 internal sealed class StaleWorktreeViewModel(string path, string reason) : IStaleWorktreeViewModel

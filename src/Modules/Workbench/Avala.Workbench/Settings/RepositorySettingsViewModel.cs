@@ -37,6 +37,16 @@ internal interface IRepositorySettingsViewModel
 
     IAsyncRelayCommand<IRuleFileViewModel> EditCommand { get; }
 
+    IAsyncRelayCommand<string> OpenCommand { get; }
+
+    string Name { get; }
+
+    string AutonomyNote { get; }
+
+    IRuleFileViewModel? PermissionsFile { get; }
+
+    IRuleFileViewModel? BudgetFile { get; }
+
     Task LoadAsync(CancellationToken cancellationToken);
 }
 
@@ -79,6 +89,18 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
     [ObservableProperty]
     public partial string Error { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial string Name { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string AutonomyNote { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial IRuleFileViewModel? PermissionsFile { get; private set; }
+
+    [ObservableProperty]
+    public partial IRuleFileViewModel? BudgetFile { get; private set; }
+
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
         repositories.ShowOnly(board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct());
@@ -97,6 +119,16 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
     [RelayCommand(CanExecute = nameof(CanRead))]
     private async Task ReadAsync(CancellationToken cancellationToken) => Show(await reader.ReadAsync(Repository.Trim(), cancellationToken));
 
+    [RelayCommand]
+    private async Task OpenAsync(string? repository, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(repository))
+        {
+            Repository = repository;
+            await ReadAsync(cancellationToken);
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanEdit))]
     private async Task EditAsync(IRuleFileViewModel? file, CancellationToken cancellationToken) =>
         Error = file is null
@@ -110,23 +142,27 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
     private void Show(RulesOfRepository read)
     {
         Shown = read.Repository;
+        Name = SettingsPhrases.Name(read.Repository);
+        AutonomyNote = SettingsPhrases.Autonomy(read.Policy.Autonomy.ToString());
         Error = string.Empty;
         Autonomy = read.Policy.Autonomy.ToString();
         FormStrategy = SettingsPhrases.Strategy(read.Policy.Strategy);
         RuleFileViewModel[] declared =
         [
-            new(RuleFiles.Permissions, SettingsPhrases.Status(read.Policy.File, read.Policy.Error), read.Policy.Origin),
-            new(RuleFiles.Budget, SettingsPhrases.Status(read.Budget.File, read.Budget.Error), read.Budget.Origin),
-            new(RuleFiles.Checks, read.Checks.File.ToString(), read.Checks.Origin),
-            new(RuleFiles.Jobs, read.Jobs.File.ToString(), read.Jobs.Origin),
+            new(RuleFiles.Permissions, SettingsPhrases.Status(read.Policy.File, read.Policy.Error), read.Policy.Origin, $"{Autonomy}, {FormStrategy.ToLowerInvariant()}, {Overview.OverviewPhrases.Count(read.Policy.Rules.Count, "rule")}"),
+            new(RuleFiles.Budget, SettingsPhrases.Status(read.Budget.File, read.Budget.Error), read.Budget.Origin, Overview.OverviewPhrases.Count(read.Budget.Connections.Count + 1, "scope")),
+            new(RuleFiles.Checks, read.Checks.File.ToString(), read.Checks.Origin, read.Checks.Checks.Count == 0 ? "no checks" : string.Join(", ", read.Checks.Checks.Select(check => check.Name))),
+            new(RuleFiles.Jobs, read.Jobs.File.ToString(), read.Jobs.Origin, Overview.OverviewPhrases.Count(read.Jobs.Sections.Count, "section")),
         ];
         CapsViewModel[] capped =
         [
-            new("Every connection", Amounts.Caps(read.Budget.Caps)),
-            .. read.Budget.Connections.Select(connection => new CapsViewModel(connection.Connection.Value, Amounts.Caps(connection.Caps))),
+            new("Every connection", Amounts.Caps(read.Budget.Caps), SettingsPhrases.Lines(read.Budget.Caps)),
+            .. read.Budget.Connections.Select(connection => new CapsViewModel(connection.Connection.Value, Amounts.Caps(connection.Caps), SettingsPhrases.Lines(connection.Caps))),
         ];
         ruleFiles.ShowOnly(declared);
-        rules.ShowOnly(read.Policy.Rules.Select(rule => new RuleViewModel(rule)));
+        rules.ShowOnly(read.Policy.Rules.Select((rule, index) => new RuleViewModel(rule, index + 1)));
+        PermissionsFile = declared[0];
+        BudgetFile = declared[1];
         caps.ShowOnly(capped);
         checks.ShowOnly(read.Checks.Checks.Select(check => new CheckViewModel(check)));
         jobSections.ShowOnly(read.Jobs.Sections.Select(section => new JobSectionViewModel(section.Name, section.Value)));

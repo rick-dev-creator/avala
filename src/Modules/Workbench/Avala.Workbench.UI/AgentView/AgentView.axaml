@@ -1,14 +1,59 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:states="using:Avala.Components.UI.States"
+             xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.AgentView"
              x:ClassModifier="internal"
-             x:DataType="overview:IAgentViewModel">
+             x:DataType="overview:IAgentViewModel"
+             graphs:Graph.Edge="{Binding Dot.Kind, Converter={x:Static graphs:Graph.EdgeOfStatus}}">
   <Design.DataContext>
     <overview:DesignAgentViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-    <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-    <TextBlock x:Name="Fact" Grid.Column="1" Classes="caption" Text="{Binding Fact}" Margin="12,0,0,0" />
-  </Grid>
+  <UserControl.Styles>
+    <Style Selector="ToolTip">
+      <Setter Property="Background" Value="{DynamicResource NodeTipBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusRow}" />
+      <Setter Property="Padding" Value="12,9" />
+      <Setter Property="MaxWidth" Value="280" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    </Style>
+    <Style Selector="TextBlock#Title.quiet">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Open"
+          Classes="bare"
+          Width="210"
+          AutomationProperties.Name="{Binding Title}"
+          ToolTip.Tip="{Binding Summary}"
+          ToolTip.ShowDelay="120"
+          Command="{Binding $parent[local:ConnectionsView].((overview:IConnectionsViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"
+          CommandParameter="{Binding Job}">
+    <Border x:Name="Node"
+            Classes="node"
+            Classes.float="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='Working,Checking'}"
+            Classes.attention="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}"
+            Height="40"
+            Padding="13,0">
+      <DockPanel VerticalAlignment="Center">
+        <ContentControl x:Name="Dot"
+                        DockPanel.Dock="Left"
+                        Content="{Binding Dot}"
+                        Width="7"
+                        Height="7"
+                        Margin="0,0,9,0"
+                        VerticalAlignment="Center" />
+        <TextBlock x:Name="Title"
+                   Classes="node"
+                   Classes.quiet="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='ReadyForReview,Done'}"
+                   Text="{Binding Title}"
+                   TextTrimming="CharacterEllipsis"
+                   VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+  </Button>
 </UserControl>
