@@ -13,6 +13,10 @@ public interface IJobs
     ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken);
 
     ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken);
+
+    ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken);
+
+    ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken);
 }
 
 public interface IJobAdmission
@@ -51,4 +55,12 @@ public enum JobRejection
     UnknownConnection,
     UnusableConnection,
     NotDiscardable,
+    NotAwaitingReview,
+    InvalidJobFile,
+    UnknownApprovalStrategy,
+    NoBaseBranch,
+    MergeConflict,
+    BaseCheckoutDirty,
+    BaseMoved,
+    DeliveryFailed,
 }

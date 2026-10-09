@@ -31,10 +31,15 @@ internal sealed class FakeRepositoryDefaults : IRepositoryDefaults
 
     public List<string> Read { get; } = [];
 
+    public Result<Option<string>, JobRejection> Approval { get; set; } = Option<string>.None;
+
     public ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken)
     {
         Read.Add(worktree);
 
         return ValueTask.FromResult(Connection);
     }
+
+    public ValueTask<Result<Option<string>, JobRejection>> ApprovalAsync(string worktree, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Approval);
 }

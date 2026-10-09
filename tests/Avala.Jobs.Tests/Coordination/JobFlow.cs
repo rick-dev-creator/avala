@@ -3,11 +3,13 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Catalog;
 using Avala.Jobs.Contracts;
+using Avala.Jobs.Delivery;
 using Avala.Jobs.Holding;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Launching;
 using Avala.Jobs.Ledger;
 using Avala.Jobs.Recovery;
+using Avala.Jobs.Review;
 using Avala.Jobs.Submission;
 using Avala.Jobs.TurnChecks;
 using Avala.Sdk;
@@ -29,7 +31,7 @@ internal sealed class JobFlow
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
         Submit = new SubmitJob(ledger, Bus, Connections, Clock);
         Hold = new HoldJob(ledger, agents, Bus);
-        Jobs = new JobsEntry(Submit, Hold, launcher, Queues);
+        Jobs = new JobsEntry(Submit, Hold, new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies), Bus), Queues);
         Prepare = new PrepareJob(Queues, launcher, Admissions);
         Check = new CheckTurn(ledger, Queues, new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents), Hold);
         Recovery = new JobRecovery(ledger, Queues, launcher);
@@ -37,6 +39,8 @@ internal sealed class JobFlow
     }
 
     public IJobCatalog Catalog { get; }
+
+    public List<IApprovalStrategy> Strategies { get; } = [new KeepStrategy()];
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 8, 0, 0, TimeSpan.Zero)) { AutoAdvanceAmount = TimeSpan.FromSeconds(1) };
 
