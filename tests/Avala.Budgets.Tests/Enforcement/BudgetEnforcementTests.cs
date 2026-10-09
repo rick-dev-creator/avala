@@ -67,6 +67,16 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
+    public async Task ASessionIsBudgetedWithTheCapsOfItsConnectionAsync()
+    {
+        var budgeted = new Budgeted();
+
+        await budgeted.OpenAsync(Caps(tokens: 100));
+
+        Assert.Equal([Budgeted.Connection], budgeted.ReadFor);
+    }
+
+    [Fact]
     public async Task WithoutABudgetFileNothingIsCappedAsync()
     {
         var budgeted = new Budgeted();
