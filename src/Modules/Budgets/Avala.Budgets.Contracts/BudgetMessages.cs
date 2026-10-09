@@ -18,6 +18,7 @@ public enum BudgetError
     InvalidThreshold,
     InvalidMemory,
     InvalidRunningJobs,
+    InvalidCarve,
 }
 
 public enum BudgetFileStatus
@@ -39,7 +40,13 @@ public enum BudgetMeasure
 public sealed record BudgetCaps(IReadOnlyList<Cost> CostPerJob, Option<long> TokensPerJob, Option<double> HoldAtLimit)
 {
     public Option<long> MemoryPerJobMegabytes { get; init; }
+
+    public Option<double> CarvePerChild { get; init; }
 }
+
+public sealed record BudgetCarve(JobId Parent, JobId Child, IReadOnlyList<Cost> Cost, Option<long> Tokens, double Share, DateTimeOffset At);
+
+public sealed record BudgetCarved(BudgetCarve Carve) : IIntegrationEvent;
 
 public sealed record MachineBudget(Option<int> RunningJobs, BudgetFileStatus File, Option<BudgetError> Error);
 

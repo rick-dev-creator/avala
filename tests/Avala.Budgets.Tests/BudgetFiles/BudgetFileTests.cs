@@ -20,14 +20,14 @@ public sealed class BudgetFileTests
     [Fact]
     public void AValidFileDeclaresCostCapsPerCurrencyATokenCapALimitThresholdAndAMemoryCap()
     {
-        const string File = """{ "costPerJob": { "USD": 5, "EUR": 4.5 }, "tokensPerJob": 2000000, "holdAtLimit": 0.9, "memoryPerJobMegabytes": 4096 }""";
+        const string File = """{ "costPerJob": { "USD": 5, "EUR": 4.5 }, "tokensPerJob": 2000000, "holdAtLimit": 0.9, "memoryPerJobMegabytes": 4096, "carvePerChild": 0.25 }""";
 
         var caps = Outcomes.Succeeds(BudgetFileParser.Parse(File)).Caps;
 
         Assert.Equal([new Cost(5m, "USD"), new Cost(4.5m, "EUR")], caps.CostPerJob);
         Assert.Equal(
-            (2_000_000L, 0.9, 4_096L),
-            (Outcomes.Present(caps.TokensPerJob), Outcomes.Present(caps.HoldAtLimit), Outcomes.Present(caps.MemoryPerJobMegabytes)));
+            (2_000_000L, 0.9, 4_096L, 0.25),
+            (Outcomes.Present(caps.TokensPerJob), Outcomes.Present(caps.HoldAtLimit), Outcomes.Present(caps.MemoryPerJobMegabytes), Outcomes.Present(caps.CarvePerChild)));
     }
 
     [Fact]
@@ -71,6 +71,9 @@ public sealed class BudgetFileTests
     [InlineData("""{ "memoryPerJobMegabytes": 0 }""", BudgetError.InvalidMemory)]
     [InlineData("""{ "memoryPerJobMegabytes": 1.5 }""", BudgetError.InvalidMemory)]
     [InlineData("""{ "memoryPerJobMegabytes": "512" }""", BudgetError.Malformed)]
+    [InlineData("""{ "carvePerChild": 0 }""", BudgetError.InvalidCarve)]
+    [InlineData("""{ "carvePerChild": 1 }""", BudgetError.InvalidCarve)]
+    [InlineData("""{ "carvePerChild": "half" }""", BudgetError.Malformed)]
     [InlineData("""{ "connections": [] }""", BudgetError.Malformed)]
     [InlineData("""{ "connections": { " ": {} } }""", BudgetError.Malformed)]
     [InlineData("""{ "connections": { "api": { "connections": {} } } }""", BudgetError.UnknownField)]

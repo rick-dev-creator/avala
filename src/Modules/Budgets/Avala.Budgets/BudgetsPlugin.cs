@@ -31,13 +31,14 @@ public sealed class BudgetsPlugin : IPlugin
             .AddSingleton<IBudgets>(services => services.GetRequiredService<BudgetBook>())
             .AddSingleton<IStartupTask>(services => services.GetRequiredService<BudgetBook>())
             .AddSingleton<IBudgetFiles, BudgetFileReader>()
-            .AddSingleton<BudgetHolds>()
+            .AddSingleton<BudgetActions>()
             .AddSingleton<IHandle<SessionOpened>, BudgetLoader>()
             .AddSingleton<BudgetEnforcer>()
             .AddSingleton<IHandle<BudgetLoaded>>(services => services.GetRequiredService<BudgetEnforcer>())
             .AddSingleton<IHandle<JobSessionStarted>>(services => services.GetRequiredService<BudgetEnforcer>())
             .AddSingleton<IHandle<JobProgressed>>(services => services.GetRequiredService<BudgetEnforcer>())
             .AddSingleton<IHandle<UsageRecorded>>(services => services.GetRequiredService<BudgetEnforcer>())
-            .AddSingleton<IHandle<ResourcesSampled>>(services => services.GetRequiredService<BudgetEnforcer>());
+            .AddSingleton<IHandle<ResourcesSampled>>(services => services.GetRequiredService<BudgetEnforcer>())
+            .AddSingleton<IHandle<JobSubmitted>>(services => services.GetRequiredService<BudgetEnforcer>());
     }
 }

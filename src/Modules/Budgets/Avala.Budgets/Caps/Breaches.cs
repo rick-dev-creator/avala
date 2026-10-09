@@ -18,15 +18,13 @@ internal static class Breaches
 
     public static BudgetCaps Unlimited { get; } = new([], Option<long>.None, Option<double>.None);
 
-    public static UsageSummary NothingSpent { get; } = new(default, [], 0, default, []);
-
     extension(SessionBudget budget)
     {
-        public Option<BudgetBreach> BreachBy(UsageSummary spent, IReadOnlyList<UsageLimit> limits, long memoryBytes) =>
+        public Option<BudgetBreach> BreachBy(Commitment committed, IReadOnlyList<UsageLimit> limits, long memoryBytes) =>
             budget.Error.Match(
                 error => new BudgetBreach(BudgetMeasure.Declaration, BudgetFile, 0, 0, error),
-                () => Costs(budget.Caps, spent)
-                    .Concat(Tokens(budget.Caps, spent))
+                () => Costs(budget.Caps, committed)
+                    .Concat(Tokens(budget.Caps, committed))
                     .Concat(Limits(budget.Caps, limits))
                     .Concat(Memory(budget.Caps, memoryBytes))
                     .FirstOrDefault()
@@ -44,21 +42,16 @@ internal static class Breaches
         };
     }
 
-    private static IEnumerable<BudgetBreach> Costs(BudgetCaps caps, UsageSummary spent) =>
+    private static IEnumerable<BudgetBreach> Costs(BudgetCaps caps, Commitment committed) =>
         from cap in caps.CostPerJob
-        let amount = spent.Costs.Where(cost => cost.Currency == cap.Currency).Sum(cost => cost.Amount)
+        let amount = committed.In(cap.Currency)
         where amount >= cap.Amount
         select new BudgetBreach(BudgetMeasure.Cost, cap.Currency, amount, cap.Amount, Option<BudgetError>.None);
 
-    private static IEnumerable<BudgetBreach> Tokens(BudgetCaps caps, UsageSummary spent)
-    {
-        var tokens = spent.Tokens;
-        var total = tokens.Input + tokens.Output + tokens.CacheRead + tokens.CacheWrite + tokens.Reasoning;
-
-        return caps.TokensPerJob.Match<IEnumerable<BudgetBreach>>(
-            cap => total >= cap ? [new BudgetBreach(BudgetMeasure.Tokens, TokenUnit, total, cap, Option<BudgetError>.None)] : [],
+    private static IEnumerable<BudgetBreach> Tokens(BudgetCaps caps, Commitment committed) =>
+        caps.TokensPerJob.Match<IEnumerable<BudgetBreach>>(
+            cap => committed.Tokens >= cap ? [new BudgetBreach(BudgetMeasure.Tokens, TokenUnit, committed.Tokens, cap, Option<BudgetError>.None)] : [],
             () => []);
-    }
 
     private static IEnumerable<BudgetBreach> Limits(BudgetCaps caps, IReadOnlyList<UsageLimit> limits) =>
         caps.HoldAtLimit.Match(

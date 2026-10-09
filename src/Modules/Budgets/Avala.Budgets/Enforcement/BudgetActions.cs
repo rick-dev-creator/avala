@@ -5,7 +5,7 @@ using Avala.Sdk.Events;
 
 namespace Avala.Budgets.Enforcement;
 
-internal sealed class BudgetHolds(BudgetBook book, IJobs jobs, IEventBus bus, TimeProvider clock)
+internal sealed class BudgetActions(BudgetBook book, IJobs jobs, IEventBus bus, TimeProvider clock)
 {
     public DateTimeOffset Now => clock.GetUtcNow();
 
@@ -19,5 +19,11 @@ internal sealed class BudgetHolds(BudgetBook book, IJobs jobs, IEventBus bus, Ti
         var intervention = new BudgetIntervention(hold, breach, clock.GetUtcNow());
         await book.RecordAsync(intervention, cancellationToken);
         await bus.PublishAsync(new BudgetIntervened(intervention), cancellationToken);
+    }
+
+    public async Task CarveAsync(BudgetCarve carve, CancellationToken cancellationToken)
+    {
+        await book.RecordAsync(carve, cancellationToken);
+        await bus.PublishAsync(new BudgetCarved(carve), cancellationToken);
     }
 }

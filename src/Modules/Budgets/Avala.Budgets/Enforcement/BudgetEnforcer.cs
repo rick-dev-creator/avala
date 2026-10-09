@@ -11,11 +11,20 @@ using Avala.Sdk.Events;
 
 namespace Avala.Budgets.Enforcement;
 
-internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<IResources> resources, BudgetHolds holds)
-    : IHandle<BudgetLoaded>, IHandle<JobSessionStarted>, IHandle<JobProgressed>, IHandle<UsageRecorded>, IHandle<ResourcesSampled>
+internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<IResources> resources, BudgetActions actions)
+    : IHandle<BudgetLoaded>, IHandle<JobSessionStarted>, IHandle<JobProgressed>, IHandle<UsageRecorded>, IHandle<ResourcesSampled>, IHandle<JobSubmitted>
 {
     private readonly Dictionary<JobId, SessionId> sessions = [];
     private readonly Dictionary<JobId, JobStatus> statuses = [];
+
+    private Lineage Tree => new(book.Carves, Spent, Ended);
+
+    public async ValueTask HandleAsync(JobSubmitted integrationEvent, CancellationToken cancellationToken) =>
+        await integrationEvent.Parent.Match(
+            parent => actions.CarveAsync(
+                AllowanceOf(parent).CarveFor(parent, integrationEvent.Job, Tree.CommittedBy(parent), actions.Now),
+                cancellationToken),
+            () => Task.CompletedTask);
 
     public async ValueTask HandleAsync(BudgetLoaded integrationEvent, CancellationToken cancellationToken)
     {
@@ -37,8 +46,13 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
         await EnforceAsync(integrationEvent.Job, cancellationToken);
     }
 
-    public async ValueTask HandleAsync(UsageRecorded integrationEvent, CancellationToken cancellationToken) =>
-        await integrationEvent.Job.Match(job => EnforceAsync(job, cancellationToken), () => Task.CompletedTask);
+    public async ValueTask HandleAsync(UsageRecorded integrationEvent, CancellationToken cancellationToken)
+    {
+        foreach (var job in integrationEvent.Job.Match(LineOf, () => []))
+        {
+            await EnforceAsync(job, cancellationToken);
+        }
+    }
 
     public async ValueTask HandleAsync(ResourcesSampled integrationEvent, CancellationToken cancellationToken)
     {
@@ -56,20 +70,34 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
         }
 
         await book.Budgeted(session)
-            .Bind(budgeted =>
-            {
-                var spent = usage.OfJob(job).Match(summary => summary, () => Breaches.NothingSpent);
-
-                return budgeted.Budget.BreachBy(spent, LimitsOf(budgeted.Connection), resources.Sum(measured => measured.OfJob(job).MemoryBytes));
-            })
-            .Match(breach => holds.HoldAsync(job, breach, cancellationToken), () => Task.CompletedTask);
+            .Bind(budgeted => (budgeted.Budget with { Caps = budgeted.Budget.Caps.Within(book.CarveOf(job)) }).BreachBy(
+                Tree.CommittedBy(job),
+                LimitsOf(budgeted.Connection),
+                resources.Sum(measured => measured.OfJob(job).MemoryBytes)))
+            .Match(breach => actions.HoldAsync(job, breach, cancellationToken), () => Task.CompletedTask);
     }
+
+    private BudgetCaps AllowanceOf(JobId job)
+    {
+        var own = sessions.TryGetValue(job, out var session)
+            ? book.Budgeted(session).Match(budgeted => budgeted.Budget.Caps, () => Breaches.Unlimited)
+            : Breaches.Unlimited;
+
+        return own.Within(book.CarveOf(job));
+    }
+
+    private IReadOnlyList<JobId> LineOf(JobId job) =>
+        [job, .. book.CarveOf(job).Match(carve => LineOf(carve.Parent), () => [])];
+
+    private Commitment Spent(JobId job) => usage.OfJob(job).Match(Commitment.Of, () => Commitment.Nothing);
+
+    private bool Ended(JobId job) => statuses.GetValueOrDefault(job) is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed;
 
     private IReadOnlyList<UsageLimit> LimitsOf(ConnectionName connection) =>
         [
             .. usage.ByConnection()
                 .Where(used => used.Connection == connection)
                 .SelectMany(used => used.Usage.Limits)
-                .Where(limit => limit.ResetsAt.Match(resets => resets > holds.Now, () => true)),
+                .Where(limit => limit.ResetsAt.Match(resets => resets > actions.Now, () => true)),
         ];
 }

@@ -13,10 +13,11 @@ internal static class BudgetFileParser
     private const string HoldAtLimit = "holdAtLimit";
     private const string MemoryPerJob = "memoryPerJobMegabytes";
     private const string Connections = "connections";
+    private const string CarvePerChild = "carvePerChild";
 
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 4, AllowDuplicateProperties = false };
 
-    private static readonly string[] Fields = [CostPerJob, TokensPerJob, HoldAtLimit, MemoryPerJob];
+    private static readonly string[] Fields = [CostPerJob, TokensPerJob, HoldAtLimit, MemoryPerJob, CarvePerChild];
 
     private static readonly string[] Sections = [.. Fields, Connections];
 
@@ -86,13 +87,20 @@ internal static class BudgetFileParser
         if (!Costs(root).TryGetValue(out var costs, out var error)
             || !Tokens(root).TryGetValue(out var tokens, out error)
             || !Threshold(root).TryGetValue(out var threshold, out error)
-            || !Memory(root).TryGetValue(out var memory, out error))
+            || !Memory(root).TryGetValue(out var memory, out error)
+            || !Carve(root).TryGetValue(out var carve, out error))
         {
             return error;
         }
 
-        return new BudgetCaps(costs, tokens, threshold) { MemoryPerJobMegabytes = memory };
+        return new BudgetCaps(costs, tokens, threshold) { MemoryPerJobMegabytes = memory, CarvePerChild = carve };
     }
+
+    private static Result<Option<double>, BudgetError> Carve(JsonElement root) =>
+        !root.TryGetProperty(CarvePerChild, out var share) ? Option<double>.None
+        : share.ValueKind != JsonValueKind.Number ? BudgetError.Malformed
+        : share.TryGetDouble(out var fraction) && fraction > 0 && fraction < 1 ? Option<double>.Some(fraction)
+        : BudgetError.InvalidCarve;
 
     private static Result<Option<long>, BudgetError> Memory(JsonElement root) =>
         !root.TryGetProperty(MemoryPerJob, out var cap) ? Option<long>.None
