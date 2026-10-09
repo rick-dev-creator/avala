@@ -40,7 +40,7 @@ internal sealed record JobWatch(JobId Job)
             ToolCalled called => this with { LastActivity = at, PendingCalls = PendingCalls.Add(called.Item) },
             ToolReturned returned => this with { LastActivity = at, PendingCalls = PendingCalls.Remove(returned.Item) },
             ItemCompleted completed => this with { LastActivity = at, PendingCalls = PendingCalls.Remove(completed.Item) },
-            PermissionResolved or FormAnswered => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None },
+            PermissionResolved or FormAnswered or RequestWithdrawn => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None },
             TurnCompleted => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None, PendingCalls = [] },
             _ => this with { LastActivity = at },
         };

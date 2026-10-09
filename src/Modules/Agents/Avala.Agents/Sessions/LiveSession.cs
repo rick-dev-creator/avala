@@ -36,6 +36,7 @@ internal sealed class LiveSession : IAsyncDisposable
         {
             FormRequested requested => forms.SetItem(requested.Item, requested.Form),
             FormAnswered answered => forms.Remove(answered.Item),
+            RequestWithdrawn withdrawn => forms.Remove(withdrawn.Item),
             ItemCompleted completed => forms.Remove(completed.Item),
             TurnCompleted => forms.Clear(),
             _ => forms,

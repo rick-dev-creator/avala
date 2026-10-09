@@ -20,11 +20,13 @@ internal static class TurnLifecycle
 
         machine.Configure(TurnState.AwaitingPermission)
             .SubstateOf(TurnState.Live)
-            .Permit(TurnTrigger.ResolvePermission, TurnState.Working);
+            .Permit(TurnTrigger.ResolvePermission, TurnState.Working)
+            .Permit(TurnTrigger.Withdraw, TurnState.Working);
 
         machine.Configure(TurnState.AwaitingAnswer)
             .SubstateOf(TurnState.Live)
-            .Permit(TurnTrigger.AnswerForm, TurnState.Working);
+            .Permit(TurnTrigger.AnswerForm, TurnState.Working)
+            .Permit(TurnTrigger.Withdraw, TurnState.Working);
 
         return machine;
     }

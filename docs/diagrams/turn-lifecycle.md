@@ -15,6 +15,8 @@ stateDiagram-v2
 	Working --> AwaitingPermission : RequestPermission
 	Working --> AwaitingAnswer : AskForm
 	AwaitingPermission --> Working : ResolvePermission
+	AwaitingPermission --> Working : Withdraw
 	AwaitingAnswer --> Working : AnswerForm
+	AwaitingAnswer --> Working : Withdraw
 [*] --> Working
 ```
