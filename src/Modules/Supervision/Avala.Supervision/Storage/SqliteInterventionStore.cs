@@ -8,9 +8,8 @@ namespace Avala.Supervision.Storage;
 
 internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionStore, IStartupTask, IAsyncDisposable
 {
-    private readonly SerialExecutor serial = new();
+    private readonly DatabaseOwner<SupervisionDbContext> owner = new(paths.Database("supervision"), file => new SupervisionDbContext(file));
     private readonly HashSet<int> written = [];
-    private SupervisionDbContext? context;
 
     public Task RecordAsync(SupervisionIntervention intervention, CancellationToken cancellationToken) =>
         RunAsync(
@@ -36,30 +35,10 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
             ],
             cancellationToken);
 
-    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+    public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await serial.DisposeAsync();
-
-        if (context is not null)
-        {
-            await context.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private Task<T> RunAsync<T>(Func<SupervisionDbContext, Task<T>> work, CancellationToken cancellationToken) =>
-        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
-
-    private async Task<SupervisionDbContext> OpenAsync(CancellationToken cancellationToken)
-    {
-        if (context is null)
-        {
-            Directory.CreateDirectory(paths.Data);
-            context = new SupervisionDbContext(paths.Database("supervision"));
-            await ModuleDatabase.MigrateAsync(context, cancellationToken);
-        }
-
-        return context;
-    }
+        owner.RunAsync(work, cancellationToken);
 }

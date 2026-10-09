@@ -9,8 +9,9 @@ namespace Avala.Workspaces.Storage;
 
 internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, IStartupTask, IAsyncDisposable
 {
-    private readonly SerialExecutor serial = new();
-    private WorkspacesDbContext? context;
+    private readonly DatabaseOwner<WorkspacesDbContext> owner = new(
+        paths.Database("workspaces"),
+        file => new WorkspacesDbContext(file) { ChangeTracker = { AutoDetectChangesEnabled = false } });
 
     public Task SaveAsync(Workspace workspace, CancellationToken cancellationToken) =>
         RunAsync(
@@ -53,31 +54,10 @@ internal sealed class SqliteWorkspaceStore(AvalaPaths paths) : IWorkspaceStore, 
             },
             cancellationToken);
 
-    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+    public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await serial.DisposeAsync();
-
-        if (context is not null)
-        {
-            await context.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private Task<T> RunAsync<T>(Func<WorkspacesDbContext, Task<T>> work, CancellationToken cancellationToken) =>
-        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
-
-    private async Task<WorkspacesDbContext> OpenAsync(CancellationToken cancellationToken)
-    {
-        if (context is null)
-        {
-            Directory.CreateDirectory(paths.Data);
-            context = new WorkspacesDbContext(paths.Database("workspaces"));
-            context.ChangeTracker.AutoDetectChangesEnabled = false;
-            await ModuleDatabase.MigrateAsync(context, cancellationToken);
-        }
-
-        return context;
-    }
+        owner.RunAsync(work, cancellationToken);
 }
