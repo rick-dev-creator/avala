@@ -44,6 +44,7 @@ Every module is internal. Only its `Contracts` project is public, and only when 
 | Canvas | Accumulates the canvases agents stream and publishes throttled snapshots | `CanvasId`, `CanvasUpdated`, `ICanvases` |
 | Timeline | Read model of everything that happened in a job, for the activity view | Queries |
 | Observability | Tokens, cost, limits and turns by provider, session and job, and their metrics | `IUsage` and its summaries |
+| Verification | Runs the checks a repository declares as a completion gate and keeps the evidence of every attempt | `AttemptVerified`, `VerificationReport`, `IVerifications` |
 
 Agent providers such as Claude Code or Codex are plugins of their own. They depend only on `Agents.Contracts`. **Accepted**
 
@@ -255,7 +256,7 @@ public interface ICompletionGate
 
 - With no gate registered, every attempt passes, so the core works on its own.
 - Gates run in registration order, and the first `Retry` wins: its feedback goes back to the agent.
-- Verification registers a gate that runs the checks. Future plugins, such as security policy or a review by a second agent, are further gates.
+- Verification registers a gate that runs the checks, see [Verification](#verification). Future plugins, such as security policy or a review by a second agent, are further gates.
 
 ## Agents
 
@@ -444,6 +445,74 @@ The bus dispatches in publishing order, so both arrive before the first activity
 | `avala.agent.limit.used` | Gauge | `1` | `avala.provider`, `avala.limit.window` |
 
 The provider tag is the provider's identifier, and it is left out when the session's provider is unknown.
+
+## Verification
+
+**Accepted**
+
+A job's completion depends on evidence, not on the agent's word. The Verification module is a plugin that registers an `ICompletionGate`: after every finished turn, once Jobs has checkpointed the worktree, it runs the checks the repository declares inside the job's worktree and turns their results into the gate's verdict. Jobs knows only the gate contract, never the module.
+
+### Declaring checks
+
+A repository declares its checks in `.avala/checks.json`, at the root of the repository and therefore of every worktree:
+
+```json
+{
+  "checks": [
+    { "name": "build", "command": "dotnet", "arguments": ["build"] },
+    { "name": "tests", "command": "dotnet", "arguments": ["test", "--no-build"], "timeoutSeconds": 900 }
+  ]
+}
+```
+
+- `command` is a program found on the `PATH` and `arguments` its arguments, one per item. No shell runs them, so quoting, pipes and globs mean nothing, and the same declaration works on Linux, macOS and Windows. A check that needs a shell names it as its command.
+- `name` is optional and defaults to the command line. `arguments` is optional. `timeoutSeconds` is optional, defaults to 600 and must be greater than 0 and at most 86,400.
+- Comments and trailing commas are tolerated.
+- The checks run in declaration order, in the worktree, through `IProcessRunner`.
+
+### Rules
+
+- **No declaration.** A worktree without `.avala/checks.json`, or with an empty `checks` array, passes, and the evidence says so: the report's outcome is `NoChecksDeclared`. A repository is never verified silently.
+- **Invalid declaration.** A file that is not a JSON object with a `checks` array of objects, a check without a command, or a timeout out of range fails closed: nothing runs, the outcome is `InvalidDeclaration` and the verdict is `Retry` with feedback naming the file and the problem. The agent can fix it; if it does not, the attempt budget runs out and the job asks for help.
+- **Failure.** A check fails when it exits with a code other than 0, when its command is not found, or when it outlasts its timeout. The checks after the first failure are not run and are recorded as `Skipped`, since a broken build makes the tests meaningless.
+- **Timeout.** Each check runs with a cancellation token that fires after its timeout, measured with `TimeProvider`. The runner kills the process tree and the check is `TimedOut`. When the job flow itself is cancelled, at shutdown, the cancellation propagates and nothing is recorded.
+- **Feedback.** A failure becomes `GateVerdict.Retry` with feedback naming the check, its command line, its exit code or the reason it stopped, its duration and the tails of its output and error streams. Jobs sends it back to the same agent session through the existing retry path, and asks for help once the attempt budget is spent. Verification adds no second path.
+- **Evidence.** Every evaluation, whatever its outcome, produces one `VerificationReport`, kept in memory and published as `AttemptVerified` before the gate returns. Output tails keep the last 4,000 characters of each stream, prefixed by `[...]` when cut.
+- **Trust.** The declaration is read from the worktree, so an agent could edit it. The report lists every command that ran, which the reviewer sees; reading the declaration from the job's base commit instead needs that commit in `CompletedAttempt` and is deferred.
+
+### The module
+
+| Folder | Holds | Layer |
+| --- | --- | --- |
+| `Checks` | `DeclaredCheck`, the parsing of the declaration with `JsonDocument`, the evidence of a check and its bounded tails, and `VerificationError` | Domain |
+| `Verifying` | `ChecksGate`, the `ICompletionGate`; `CheckRunner`, which runs one check with its timeout; `AgentFeedback`, which writes the verdict; and the `ICheckDeclarations` port | Application |
+| `Evidence` | `EvidenceBook`, the in-memory book behind `IVerifications`, and `EvidenceLedger`, which keeps a report and publishes it | Application |
+| `FileSystem` | `RepositoryDeclarations`, which reads `.avala/checks.json` from the worktree | Infrastructure |
+
+- The domain has no aggregate: it parses a declaration and describes facts. `VerificationError` is its single error enum, for the declaration it can reject: `MalformedDeclaration`, `MissingCommand` and `InvalidTimeout`.
+- The reports live in memory and start empty with the application, like the usage aggregates. Persisting them arrives with the review screens that need them across restarts.
+
+## Data the harness produces
+
+The user interface is designed from the data the harness produces, so every module that produces data lists it here: its integration events on the bus and its queries, with their shape, when and how often they are produced, and their cardinality.
+
+### Verification
+
+| Data | Kind | Shape | When | Cardinality |
+| --- | --- | --- | --- | --- |
+| `AttemptVerified` | Integration event | `Report`: a `VerificationReport` | Once per evaluation of the gate, after the checks of an attempt ran and before Jobs moves the job on, so it precedes the `JobProgressed` of the retry, the review or the request for help | One per finished turn of every job that reaches the gates, including recovery attempts. A repository without checks produces one too |
+| `IVerifications.OfJob(JobId)` | Query | `IReadOnlyList<VerificationReport>` in the order the attempts were verified; empty for an unknown job | At any time, from memory | One report per evaluation of that job since the application started |
+
+`VerificationReport` and its parts, in `Avala.Verification.Contracts`:
+
+| Type | Fields |
+| --- | --- |
+| `VerificationReport` | `Job`: `JobId`; `Attempt`: the attempt number Jobs gave the gate; `Outcome`: `VerificationOutcome`; `Checks`: `IReadOnlyList<CheckEvidence>` in declaration order, empty when none were declared or the declaration is invalid; `Verdict`: the `GateVerdict` returned to Jobs, whose `Feedback` is the text sent back to the agent on `Retry` and empty on `Pass`; `VerifiedAt`: `DateTimeOffset` |
+| `VerificationOutcome` | `Passed`, `Failed`, `NoChecksDeclared`, `InvalidDeclaration` |
+| `CheckEvidence` | `Name`; `Command`: the command line as run, arguments containing spaces or quotes quoted; `Status`: `CheckStatus`; `ExitCode`: `Option<int>`, absent unless the process exited; `Duration`: `TimeSpan`, zero when skipped; `OutputTail` and `ErrorTail`: at most 4,000 characters each, plus the `[...]` marker |
+| `CheckStatus` | `Passed`, `Failed`, `TimedOut`, `NotFound`, `Skipped` |
+
+Live progress of a check while it runs is not published yet: the job's `JobProgressed` with `Checking` marks the whole evaluation.
 
 ## Delivery
 

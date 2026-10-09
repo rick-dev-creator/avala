@@ -65,13 +65,14 @@ Done when: a workspace is created, checkpointed and disposed on Linux and Window
 
 ## Phase 5: Job flow
 
-Status: items 1 to 5 are done, with `Option<T>`, the rule that keeps nullable types out of signatures and the persistence rules that keep EF Core in `Infrastructure` and database work off the UI thread. An end-to-end integration test of the flow is being finished.
+Status: items 1 to 6 are done, with `Option<T>`, the rule that keeps nullable types out of signatures and the persistence rules that keep EF Core in `Infrastructure` and database work off the UI thread. An end-to-end integration test of the flow is being finished.
 
 1. The job flow coordinator as event handlers.
 2. `ICompletionGate`, with every attempt passing when no gate is registered.
 3. Recovery on startup from stored state.
 4. Persistence for Jobs and Workspaces with EF Core and SQLite, one `DbContext` and one database file per module.
 5. Keep database work off the UI thread, with an architecture rule that verifies it.
+6. The [Verification](../design/core.md#verification) module, a plugin of its own: a completion gate that runs the checks a repository declares in `.avala/checks.json` inside the worktree, each with its timeout, sends the failures back to the agent through the retry path, and publishes the evidence of every attempt as `AttemptVerified`, queryable through `IVerifications`. A host simulation test proves that a job whose declared check fails reaches review only after the agent fixes it. Deferred: reading the declaration from the job's base commit so the agent cannot change it, live progress of a running check, and persisting the reports.
 
 Done when: a job goes from submitted to awaiting review with the fake provider, survives a restart midway, and handlers stay idempotent.
 

@@ -21,6 +21,8 @@
     <ProjectReference Include="..\..\src\Modules\Canvas\Avala.Canvas\Avala.Canvas.csproj" />
     <ProjectReference Include="..\..\src\Modules\Observability\Avala.Observability\Avala.Observability.csproj" />
     <ProjectReference Include="..\..\src\Modules\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Verification\Avala.Verification\Avala.Verification.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Verification\Avala.Verification.Contracts\Avala.Verification.Contracts.csproj" />
     <ProjectReference Include="..\Avala.ArchitectureTests.Fixtures\Avala.ArchitectureTests.Fixtures.csproj" />
   </ItemGroup>
 </Project>
