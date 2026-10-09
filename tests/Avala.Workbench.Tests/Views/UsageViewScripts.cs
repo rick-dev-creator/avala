@@ -79,7 +79,7 @@ public sealed class UsageDayViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignUsageDayViewModel());
 
-            Assert.Equal(("Sat 10 Oct · today", "1,686,520 tokens", "4.054 USD", 0.82), (view.TextOf("Day"), view.TextOf("Tokens"), view.TextOf("Cost"), view.Find<ProgressBar>("Share").Value));
+            Assert.Equal(("Sat 10 Oct · today", "620,400 tokens", "4.05 USD", 0.88), (view.TextOf("Day"), view.TextOf("Tokens"), view.TextOf("Cost"), view.Find<ProgressBar>("Share").Value));
             Assert.False(view.HasClass("Day", "secondary"));
         }, TestContext.Current.CancellationToken);
 }
