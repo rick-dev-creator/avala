@@ -55,6 +55,17 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
+    public async Task ALimitWindowThatHasAlreadyResetHoldsNothingAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.RunningAsync(Caps(threshold: 0.9));
+
+        await budgeted.ReachAsync(new UsageLimit("5h", 0.95, budgeted.Clock.GetUtcNow()));
+
+        Assert.Empty(budgeted.Jobs.Holds);
+    }
+
+    [Fact]
     public async Task SpendingBelowEveryCapOfItsConnectionLeavesTheJobRunningWhateverAnotherConnectionReachedAsync()
     {
         var budgeted = new Budgeted();

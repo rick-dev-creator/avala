@@ -25,7 +25,7 @@ public sealed class ScenarioCatalogTests
         Assert.All(scripts, turn =>
         {
             Assert.Contains(turn.Script, step => step is ReportUsage { Cost.Amount: > 0 });
-            Assert.Contains(turn.Script, step => step is ReportLimit);
+            Assert.Contains(turn.Script, step => step is ReportLimit or ReportLimitResetting);
         });
     }
 }

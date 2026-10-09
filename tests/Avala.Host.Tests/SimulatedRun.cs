@@ -89,9 +89,23 @@ internal sealed class SimulatedRun : IAsyncDisposable
         IReadOnlyList<(string Path, string Content)> committed) =>
         StartAsync(plugins, new JobRequest(string.Empty, instruction) { Autonomy = autonomy }, settings, committed);
 
+    public static Task<SimulatedRun> PreparedAsync(PublishedPlugins plugins, params (string Path, string Content)[] committed) =>
+        PreparedAsync(plugins, [], committed);
+
     private static async Task<SimulatedRun> StartAsync(
         PublishedPlugins plugins,
         JobRequest request,
+        IReadOnlyList<(string File, string Content)> settings,
+        IReadOnlyList<(string Path, string Content)> committed)
+    {
+        var run = await PreparedAsync(plugins, settings, committed);
+        run.Job = Outcomes.Succeeds(await run.SubmitAsync(request));
+
+        return run;
+    }
+
+    private static async Task<SimulatedRun> PreparedAsync(
+        PublishedPlugins plugins,
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed)
     {
@@ -114,10 +128,13 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         var run = new SimulatedRun(plugins, data, repository, root);
         root.Start();
-        run.Job = Outcomes.Succeeds(await run.SubmitAsync(request with { RepositoryPath = repository.Path }));
 
         return run;
     }
+
+    public EventWatch<TEvent> Watch<TEvent>()
+        where TEvent : IIntegrationEvent =>
+        application.Watch<TEvent>();
 
     public string DataFolder => data.Path;
 
@@ -312,7 +329,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             subscriptions.Dispose();
         }
 
-        private EventWatch<TEvent> Watch<TEvent>()
+        public EventWatch<TEvent> Watch<TEvent>()
             where TEvent : IIntegrationEvent =>
             new(Root.Services.GetRequiredService<IEventFeed>().SubscribeAsync<TEvent>(subscriptions.Token), Cancellation);
     }

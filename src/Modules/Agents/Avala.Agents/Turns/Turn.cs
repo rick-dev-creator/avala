@@ -10,6 +10,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 {
     private readonly Dictionary<ItemId, DateTimeOffset> openItems = [];
     private readonly HashSet<ItemId> completedItems = [];
+    private readonly HashSet<ItemId> pendingCalls = [];
     private readonly StateMachine<TurnState, TurnTrigger> machine;
 
     private Turn(SessionId session, TurnId id)
@@ -32,6 +33,8 @@ internal sealed class Turn : IAggregateRoot<TurnId>
     public Option<ItemId> PendingForm { get; private set; }
 
     public IReadOnlyCollection<ItemId> OpenItems => openItems.Keys;
+
+    public IReadOnlyCollection<ItemId> PendingCalls => pendingCalls;
 
     public static Result<Turn, TurnError> Begin(TurnStarted started) => new Turn(started.Session, started.Turn);
 
@@ -58,6 +61,13 @@ internal sealed class Turn : IAggregateRoot<TurnId>
             PermissionResolved resolved => ResolvePermission(resolved, at),
             FormRequested requested => AskForm(requested, at),
             FormAnswered answered => AnswerForm(answered, at),
+            ToolCalled called => Open(called, called.Item, at).Map(progress =>
+            {
+                pendingCalls.Add(called.Item);
+
+                return progress;
+            }),
+            ToolReturned returned => Return(returned, at),
             TurnCompleted completed => End(completed),
             _ => new TurnProgress([agentEvent]),
         };
@@ -71,7 +81,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         }
 
         var stale = openItems
-            .Where(item => !IsAwaitingHuman(item.Key) && now - item.Value >= patience)
+            .Where(item => !IsAwaitingAnswer(item.Key) && now - item.Value >= patience)
             .OrderBy(item => item.Value)
             .Select(item => item.Key)
             .ToList();
@@ -121,6 +131,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         }
 
         completedItems.Add(completed.Item);
+        pendingCalls.Remove(completed.Item);
 
         return new TurnProgress([completed]);
     }
@@ -184,8 +195,18 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         });
     }
 
-    private bool IsAwaitingHuman(ItemId item) =>
-        PendingPermission == Option<ItemId>.Some(item) || PendingForm == Option<ItemId>.Some(item);
+    private Result<TurnProgress, TurnError> Return(ToolReturned returned, DateTimeOffset at)
+    {
+        if (returned.Result.Item != returned.Item || !pendingCalls.Remove(returned.Item))
+        {
+            return TurnError.NoPendingCall;
+        }
+
+        return Touch(returned, returned.Item, at);
+    }
+
+    private bool IsAwaitingAnswer(ItemId item) =>
+        PendingPermission == Option<ItemId>.Some(item) || PendingForm == Option<ItemId>.Some(item) || pendingCalls.Contains(item);
 
     private Result<TurnProgress, TurnError> End(TurnCompleted completed)
     {
@@ -201,6 +222,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
             var abandoned = openItems.OrderBy(item => item.Value).Select(item => item.Key).ToList();
             PendingPermission = Option<ItemId>.None;
             PendingForm = Option<ItemId>.None;
+            pendingCalls.Clear();
 
             return new TurnProgress([.. abandoned.Select(item => Conclude(item, ItemOutcome.Abandoned)), completed]);
         });
@@ -209,6 +231,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
     private ItemCompleted Conclude(ItemId item, ItemOutcome outcome)
     {
         openItems.Remove(item);
+        pendingCalls.Remove(item);
         completedItems.Add(item);
 
         return new ItemCompleted(Session, Id, item, outcome);

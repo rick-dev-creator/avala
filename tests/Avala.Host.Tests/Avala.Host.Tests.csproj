@@ -12,5 +12,6 @@
     <ProjectReference Include="..\..\src\Modules\Supervision\Avala.Supervision.Contracts\Avala.Supervision.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Budgets\Avala.Budgets.Contracts\Avala.Budgets.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Resources\Avala.Resources.Contracts\Avala.Resources.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\Autopilot\Avala.Autopilot.Contracts\Avala.Autopilot.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>

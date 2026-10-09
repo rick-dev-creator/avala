@@ -16,6 +16,14 @@ internal static class AgentConformance
         """{ "type": "object", "properties": { "title": { "type": "string" }, "mediaType": { "type": "string" }, "content": { "type": "string" } } }""",
         ToolSurface.Canvas);
 
+    public static HarnessTool ExecutedTool { get; } = new(
+        "propose_follow_up",
+        "Propose a task to do after this one.",
+        """{ "type": "object", "properties": { "instruction": { "type": "string" } }, "required": ["instruction"] }""",
+        ToolSurface.Executed);
+
+    public static ToolResult KitResult(ItemId item) => new(item, "Answered by the conformance kit.");
+
     public static Task<IReadOnlyList<string>> CheckTurnAsync(IAgentProvider provider, CancellationToken deadline) =>
         CheckTurnAsync(provider, Options, new UserTurn("conformance"), deadline);
 
@@ -66,6 +74,36 @@ internal static class AgentConformance
         return run.Events.OfType<ItemCompleted>().Any(completed => completed.Outcome == ItemOutcome.Succeeded && drawn.Contains(completed.Item))
             ? run.Violations
             : [.. run.Violations, "no canvas was drawn through the canvas tool"];
+    }
+
+    public static async Task<IReadOnlyList<string>> CheckHarnessToolAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
+        CancellationToken deadline)
+    {
+        if (!provider.Capabilities.AcceptsTools)
+        {
+            return await CheckTurnAsync(provider, options with { Tools = [] }, instruction, deadline);
+        }
+
+        var replies = Allowing with
+        {
+            Tool = async (session, called, token) =>
+                [
+                    .. (await session.ReturnAsync(KitResult(new ItemId($"not-{called.Item.Value}")), token)).Match<IReadOnlyList<string>>(
+                        _ => ["a result for a call that is not pending was accepted"],
+                        _ => []),
+                    .. await ReturnAsync(session, called, token),
+                ],
+            AfterTurn = (_, events, _) => Task.FromResult<IReadOnlyList<string>>(events.OfType<ToolCalled>().LastOrDefault() is { } last
+                ? events.OfType<ToolReturned>().Any(returned => returned.Result == KitResult(last.Item))
+                    ? []
+                    : [$"the result of the call {last.Item.Value} was not reported"]
+                : [$"no call of the tool {ExecutedTool.Name} was made"]),
+        };
+
+        return (await RunAsync(provider, options with { Tools = [ExecutedTool] }, instruction, replies, deadline)).Violations;
     }
 
     public static async Task<IReadOnlyList<string>> CheckFormsAsync(
@@ -249,6 +287,11 @@ internal static class AgentConformance
                 violations.AddRange(await replies.Form(session, form, deadline));
             }
 
+            if (agentEvent is ToolCalled called)
+            {
+                violations.AddRange(await replies.Tool(session, called, deadline));
+            }
+
             if (agentEvent is TurnCompleted completed)
             {
                 return new Run(completed.Outcome == TurnOutcome.Finished ? violations : [.. violations, $"the turn ended {completed.Outcome}"], events);
@@ -296,6 +339,11 @@ internal static class AgentConformance
         (await session.AnswerAsync(Fill(requested.Item, requested.Form), deadline)).Match<IReadOnlyList<string>>(
             _ => [],
             error => [$"the form {requested.Item.Value} could not be answered: {error}"]);
+
+    private static async Task<IReadOnlyList<string>> ReturnAsync(IAgentSession session, ToolCalled called, CancellationToken deadline) =>
+        (await session.ReturnAsync(KitResult(called.Item), deadline)).Match<IReadOnlyList<string>>(
+            _ => [],
+            error => [$"the result of the call {called.Item.Value} could not be returned: {error}"]);
 
     private static async Task<IReadOnlyList<string>> RefusedAsync(IAgentSession session, FormAnswer answer, string form, CancellationToken deadline) =>
         (await session.AnswerAsync(answer, deadline)).Match<IReadOnlyList<string>>(
@@ -348,6 +396,8 @@ internal static class AgentConformance
             CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
                 [$"the canvas {started.Item.Value} was drawn without the canvas tool"],
             FormRequested asked when !Capabilities.AsksQuestions => [$"the form {asked.Item.Value} was asked although the provider does not declare AsksQuestions"],
+            ToolCalled called when !Options.Tools.Any(tool => tool.Name == called.Tool && tool.Surface == ToolSurface.Executed) =>
+                [$"the tool {called.Tool} was called although the session was not given it"],
             _ => [],
         };
     }
@@ -355,10 +405,12 @@ internal static class AgentConformance
     private sealed record Replies(
         Func<PermissionRequested, PermissionDecision> Permission,
         Func<IAgentSession, FormRequested, CancellationToken, Task<IReadOnlyList<string>>> Form,
+        Func<IAgentSession, ToolCalled, CancellationToken, Task<IReadOnlyList<string>>> Tool,
         Func<IAgentSession, IReadOnlyList<IAgentEvent>, CancellationToken, Task<IReadOnlyList<string>>> AfterTurn);
 
     private static Replies Allowing { get; } = new(
         requested => new PermissionDecision(requested.Item, PermissionAnswer.Allow),
         FillAsync,
+        ReturnAsync,
         (_, _, _) => Task.FromResult<IReadOnlyList<string>>([]));
 }

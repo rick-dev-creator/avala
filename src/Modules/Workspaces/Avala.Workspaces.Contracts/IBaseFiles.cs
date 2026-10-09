@@ -5,6 +5,8 @@ namespace Avala.Workspaces.Contracts;
 public interface IBaseFiles
 {
     ValueTask<Result<BaseFile, WorkspaceFailure>> ReadAsync(string worktree, string path, CancellationToken cancellationToken);
+
+    ValueTask<Result<BaseFile, WorkspaceFailure>> ReadCurrentAsync(string repository, string path, CancellationToken cancellationToken);
 }
 
 public sealed record FileOrigin(string Commit, bool EditedInWorktree);

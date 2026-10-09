@@ -13,4 +13,5 @@ public enum AgentError
     InvalidAnswer,
     UnknownConnection,
     UnusableConnection,
+    NoPendingCall,
 }
