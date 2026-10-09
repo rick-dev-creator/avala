@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
+using Avala.Testing;
 using Avala.Workbench.Board;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Conversation;
@@ -12,7 +13,7 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Tests.Conversation;
 
-public sealed class ConversationViewModelTests
+public sealed class ConversationViewModelScripts
 {
     private static readonly DateTimeOffset Now = DateTimeOffset.UnixEpoch;
     private readonly SessionId session = SessionId.New();
@@ -64,10 +65,62 @@ public sealed class ConversationViewModelTests
         Assert.Equal((JobStatus.NeedsHelp, true), (conversation.Composer.Status, conversation.Composer.AcceptsMessages));
     }
 
+    [Fact]
+    public void TheHeaderShowsTheJobsTitleStatusAndPlanProgress()
+    {
+        var planned = Job().Apply(new TurnStarted(session, turn), Now)
+            .Apply(new PlanUpdated(session, turn, [new PlanStep("Find the rounding", PlanStepStatus.Done), new PlanStep("Round to minor units", PlanStepStatus.InProgress)]), Now);
+
+        ViewModelScript.Given(Open())
+            .When(conversation => conversation.Show(Board(planned)))
+            .ThenNotified(nameof(ConversationViewModel.Title), nameof(ConversationViewModel.Status), nameof(ConversationViewModel.Plan))
+            .Then(conversation => Assert.Equal(("Fix JPY rounding in invoice totals", JobStatus.Running, "1 of 2"), (conversation.Title, conversation.Status, conversation.Plan)));
+    }
+
+    [Fact]
+    public void ACanvasStreamsInPlaceUntilItCompletes()
+    {
+        var started = Job().Apply(new TurnStarted(session, turn), Now)
+            .Apply(new CanvasStarted(session, turn, new ItemId("diagram"), "Rounding before and after", "text/vnd.mermaid"), Now);
+        var conversation = Open();
+        conversation.Show(Board(started));
+        var canvas = Assert.IsType<CanvasViewModel>(Assert.Single(conversation.Entries));
+        var streaming = canvas.IsStreaming;
+
+        conversation.Show(Board(started.Apply(new ItemCompleted(session, turn, new ItemId("diagram"), ItemOutcome.Succeeded), Now)));
+
+        Assert.Same(canvas, Assert.Single(conversation.Entries));
+        Assert.Equal((true, false), (streaming, canvas.IsStreaming));
+    }
+
+    [Fact]
+    public void ShowingAnUnchangedTranscriptLeavesTheEntriesUntouched()
+    {
+        var job = Board(Job().WithPrompts("Fix JPY rounding in invoice totals", []));
+        var conversation = Open();
+        conversation.Show(job);
+        var changes = 0;
+        conversation.Entries.CollectionChanged += (_, _) => changes++;
+
+        conversation.Show(job with { Summary = job.Summary with { Status = JobStatus.Checking } });
+
+        Assert.Equal((0, JobStatus.Checking), (changes, conversation.Status));
+    }
+
+    [Fact]
+    public void AJobOfAnEarlierRunShowsWhereWhatTheBoardSawBegins()
+    {
+        var conversation = Open();
+
+        conversation.Show(Board(Job().WithPrompts("Fix JPY rounding in invoice totals", []).WithRestart()));
+
+        Assert.Equal([typeof(PromptViewModel), typeof(RestartViewModel)], conversation.Entries.Select(entry => entry.GetType()));
+    }
+
     private static Transcript Job() => Transcript.Empty;
 
     private static BoardJob Board(Transcript transcript, JobStatus status = JobStatus.Running) =>
-        new(new FakeCatalog().Add("Fix the failing test", status).Summary, transcript);
+        new(new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary, transcript);
 
     private static ConversationViewModel Open() =>
         new Conversations(new JobSteering(new FakeJobs(), new JobBoard()), new HumanReplies(new FakePermissionAnswers(), new FakeAgents())).Open(JobId.New());
