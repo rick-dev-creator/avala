@@ -26,8 +26,8 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
 
         var offered = schema.RootElement.GetProperty("properties").GetProperty("mediaType").GetProperty("enum").EnumerateArray().Select(type => type.GetString()!).ToList();
 
-        Assert.Equal(["image/svg+xml", "text/markdown", "text/vnd.mermaid"], offered.Order(StringComparer.Ordinal));
-        Assert.Equal(offered, root.Services.GetServices<CanvasFormat>().Select(format => format.MediaType));
+        Assert.Equal(["image/svg+xml", "text/markdown", "text/vnd.mermaid"], offered);
+        Assert.Equal(offered.Order(StringComparer.Ordinal), root.Services.GetServices<CanvasFormat>().Select(format => format.MediaType).Order(StringComparer.Ordinal));
         Assert.All(offered, mediaType => Assert.True(root.Views.Match(new CanvasRendering(mediaType, "x", true, 1))));
         Assert.False(root.Views.Match(new CanvasRendering("text/html", "x", true, 1)));
     }
@@ -46,6 +46,19 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
         Assert.Equal(["image/svg+xml", "text/markdown"], offered);
         Assert.False(root.Views.Match(new CanvasRendering("text/vnd.mermaid", "x", true, 1)));
         Assert.True(root.Views.Match(new CanvasRendering("text/vnd.mermaid", "x", true, 1) { IsOffered = false }));
+    }
+
+    [Fact]
+    public async Task WithoutTheSvgRendererMermaidWhichDrawsThroughItIsNotOfferedAsync()
+    {
+        await using var data = new TemporaryFolder();
+        using var dispatcher = new TestUiDispatcher();
+        await using var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path), dispatcher, TimeProvider.System, [], [typeof(Rendering.UI.RenderingPlugin)]);
+
+        Assert.Equal(["text/vnd.mermaid"], root.Services.GetServices<CanvasFormat>().Select(format => format.MediaType));
+        Assert.DoesNotContain(
+            root.Services.GetServices<HarnessTool>().Where(tool => tool.Surface == ToolSurface.Canvas),
+            tool => tool.InputSchema.Contains("text/vnd.mermaid", StringComparison.Ordinal));
     }
 
     [Fact]
