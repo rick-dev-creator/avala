@@ -7,6 +7,8 @@ namespace Avala.Budgets.Enforcement;
 
 internal sealed class BudgetHolds(BudgetBook book, IJobs jobs, IEventBus bus, TimeProvider clock)
 {
+    public DateTimeOffset Now => clock.GetUtcNow();
+
     public async Task HoldAsync(JobId job, BudgetBreach breach, CancellationToken cancellationToken)
     {
         if (!(await jobs.HoldAsync(job, breach.Reason, cancellationToken)).TryGetValue(out var hold, out _))

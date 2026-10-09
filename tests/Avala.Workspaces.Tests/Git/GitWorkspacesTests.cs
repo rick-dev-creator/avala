@@ -87,6 +87,39 @@ public sealed class GitWorkspacesTests
     }
 
     [Fact]
+    public async Task ACurrentFileIsReadFromTheCommitTheRepositorysHeadPointsAtEachTimeWithItsUncommittedEditReportedAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        await repository.CommitAsync(Rules, "committed", Cancellation);
+        await File.WriteAllTextAsync(Path.Combine(repository.Path, Rules), "edited in the checkout", Cancellation);
+        var reader = BaseFiles(new InMemoryWorkspaceStore());
+
+        var first = Outcomes.Succeeds(await reader.ReadCurrentAsync(Path.Combine(repository.Path, ".avala"), Rules, Cancellation));
+        await repository.CommitAsync(Rules, "committed later", Cancellation);
+        var second = Outcomes.Succeeds(await reader.ReadCurrentAsync(repository.Path, Rules, Cancellation));
+
+        Assert.Equal(new BaseFile(Rules, new FileOrigin(await repository.GitAsync(Cancellation, "rev-parse", "HEAD~1"), EditedInWorktree: true), "committed"), first);
+        Assert.Equal(new BaseFile(Rules, new FileOrigin(await repository.GitAsync(Cancellation, "rev-parse", "HEAD"), EditedInWorktree: false), "committed later"), second);
+    }
+
+    [Fact]
+    public async Task AFolderOutsideAnyRepositoryHasNoCurrentFileAsync()
+    {
+        var outside = Directory.CreateTempSubdirectory("avala-outside-");
+
+        try
+        {
+            var failure = Outcomes.FailsWith(await BaseFiles(new InMemoryWorkspaceStore()).ReadCurrentAsync(outside.FullName, Rules, Cancellation));
+
+            Assert.Equal(WorkspaceFailure.NotAGitRepository, failure);
+        }
+        finally
+        {
+            outside.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ACheckpointCommitsEveryChangeInTheWorktreeAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);

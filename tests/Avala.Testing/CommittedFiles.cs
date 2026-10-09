@@ -37,6 +37,9 @@ public sealed class CommittedFiles : IBaseFiles
         return Workspace(worktree);
     }
 
+    public ValueTask<Result<BaseFile, WorkspaceFailure>> ReadCurrentAsync(string repository, string path, CancellationToken cancellationToken) =>
+        ReadAsync(repository, path, cancellationToken);
+
     public ValueTask<Result<BaseFile, WorkspaceFailure>> ReadAsync(string worktree, string path, CancellationToken cancellationToken)
     {
         reads.Enqueue((worktree, path));
