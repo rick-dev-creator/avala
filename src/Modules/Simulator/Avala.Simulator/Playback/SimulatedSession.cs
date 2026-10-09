@@ -52,10 +52,11 @@ internal sealed class SimulatedSession : IAgentSession
         await gates.Tools.RespondAsync(result.Item, result, cancellationToken);
 
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) =>
-        await (await stage.RunAsync(_ => Task.FromResult(act), cancellationToken)).Match(
+        await (await stage.RunAsync(_ => Task.FromResult(act.Map(running => (running.Turn, running.Interruption, Conducted: conducting))), cancellationToken)).Match(
             async running =>
             {
                 await running.Interruption.CancelAsync();
+                await running.Conducted;
 
                 return Result<TurnId, AgentError>.Success(running.Turn);
             },

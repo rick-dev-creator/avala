@@ -11,6 +11,7 @@ internal sealed class FakeAgents : IAgents
     private readonly ConcurrentDictionary<SessionId, string> sessions = new();
     private readonly ConcurrentQueue<(SessionId Session, string Message)> sent = new();
     private readonly ConcurrentQueue<SessionId> interrupted = new();
+    private readonly ConcurrentQueue<TurnId> interruptedTurns = new();
     private readonly ConcurrentQueue<SessionId> stopped = new();
 
     private readonly ConcurrentQueue<AgentRequest> requests = new();
@@ -28,6 +29,8 @@ internal sealed class FakeAgents : IAgents
     public IReadOnlyList<AgentRequest> Requests => [.. requests];
 
     public IReadOnlyList<SessionId> Interrupted => [.. interrupted];
+
+    public IReadOnlyList<TurnId> InterruptedTurns => [.. interruptedTurns];
 
     public IReadOnlyList<SessionId> Stopped => [.. stopped];
 
@@ -96,7 +99,13 @@ internal sealed class FakeAgents : IAgents
 
         return ValueTask.FromResult(InterruptRejection.Match(
             Result<TurnId, AgentError>.Failure,
-            () => Result<TurnId, AgentError>.Success(TurnId.New())));
+            () =>
+            {
+                var turn = TurnId.New();
+                interruptedTurns.Enqueue(turn);
+
+                return Result<TurnId, AgentError>.Success(turn);
+            }));
     }
 
     public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)

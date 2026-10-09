@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -11,6 +12,10 @@ namespace Avala.Jobs.Holding;
 
 internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
 {
+    private ImmutableHashSet<TurnId> interrupted = [];
+
+    public bool Settled(TurnId turn) => ImmutableInterlocked.Update(ref interrupted, turns => turns.Remove(turn));
+
     public async Task<Result<JobHold, JobRejection>> ExecuteAsync(Job job, HoldReason reason, CancellationToken cancellationToken) =>
         await job.Session.Match(
             session => job.Hold(reason).IsSuccess
@@ -36,7 +41,12 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
         }
 
         return await (await agents.InterruptAsync(session, cancellationToken)).Match(
-            _ => Task.FromResult(SessionHalt.Interrupted),
+            turn =>
+            {
+                ImmutableInterlocked.Update(ref interrupted, turns => turns.Add(turn));
+
+                return Task.FromResult(SessionHalt.Interrupted);
+            },
             error => error switch
             {
                 AgentError.NoTurnInProgress => Task.FromResult(SessionHalt.Idle),
