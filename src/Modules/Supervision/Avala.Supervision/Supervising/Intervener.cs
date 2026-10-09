@@ -14,7 +14,7 @@ internal sealed class Intervener(SupervisionBook book, IJobs jobs, IEventBus bus
         }
 
         var intervention = new SupervisionIntervention(hold, silence, clock.GetUtcNow());
-        book.Record(intervention);
+        await book.RecordAsync(intervention, cancellationToken);
         await bus.PublishAsync(new SupervisorIntervened(intervention), cancellationToken);
     }
 }

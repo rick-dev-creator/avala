@@ -50,7 +50,7 @@ public sealed class UsageHistoryTests
             [new SessionUsage(earlier).Attributed(Claude, Option<AgentAccount>.None, new ConnectionName("work"), job)],
             [UsageFact.Of(Usage(earlier, 100, "USD"), Nine.AddDays(-1)), UsageFact.Of(Limit(earlier, "5h", 0.9), Nine.AddDays(-1))]);
 
-        await new UsageRestore(tracked.Book, tracked.Store).RunAsync(Cancellation);
+        await tracked.Book.RunAsync(Cancellation);
         var live = await tracked.OpenAsync(Claude, job);
         await tracked.SeeAsync(Usage(live, 50, "USD"));
 

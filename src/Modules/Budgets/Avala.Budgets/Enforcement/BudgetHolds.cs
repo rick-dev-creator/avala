@@ -15,7 +15,7 @@ internal sealed class BudgetHolds(BudgetBook book, IJobs jobs, IEventBus bus, Ti
         }
 
         var intervention = new BudgetIntervention(hold, breach, clock.GetUtcNow());
-        book.Record(intervention);
+        await book.RecordAsync(intervention, cancellationToken);
         await bus.PublishAsync(new BudgetIntervened(intervention), cancellationToken);
     }
 }

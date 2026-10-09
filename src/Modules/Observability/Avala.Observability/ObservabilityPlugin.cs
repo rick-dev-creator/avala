@@ -23,7 +23,7 @@ public sealed class ObservabilityPlugin : IPlugin
             .AddSingleton<UsageBook>()
             .AddSingleton<IUsage>(services => services.GetRequiredService<UsageBook>())
             .AddSingleton<IUsageHistory, UsageHistory>()
-            .AddSingleton<IStartupTask, UsageRestore>()
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<UsageBook>())
             .AddSingleton<IUsageMetrics, UsageMeter>()
             .AddSingleton<UsageTracker>()
             .AddSingleton<IHandle<SessionOpened>>(services => services.GetRequiredService<UsageTracker>())
