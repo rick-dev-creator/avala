@@ -87,20 +87,16 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
 internal sealed partial class DesignDecisionsViewModel : IDecisionsViewModel
 {
     public DesignDecisionsViewModel()
-        : this(
+    {
+        var question = new DesignDecisionViewModel();
+        Items =
         [
-            new DesignDecisionViewModel(),
+            question,
             DesignDecisionViewModel.Permission(SampleJobs.FlakyCheckout, "Fix flaky CheckoutForm test", "Run pnpm add -D @testing-library/user-event", "pnpm add -D @testing-library/user-event@14.5.2", "2m"),
             DesignDecisionViewModel.Permission(SampleJobs.CheckoutSplit, "Rewrite webhook tests", "Run go generate ./internal/webhooks/...", "go generate ./internal/webhooks/...", "1m"),
-        ])
-    {
-    }
-
-    public DesignDecisionsViewModel(IReadOnlyList<IDecisionViewModel> items)
-    {
-        Items = items;
-        Selected = items.FirstOrDefault(item => item.IsSelected);
-        Hints = Selected is null ? DecisionHints.Idle : DecisionHints.For(Selected);
+        ];
+        Selected = question;
+        Hints = DecisionHints.For(question);
     }
 
     public event EventHandler? CloseRequested
@@ -111,7 +107,7 @@ internal sealed partial class DesignDecisionsViewModel : IDecisionsViewModel
 
     public string Empty => "Nothing needs you";
 
-    public string Pending => Items.Count == 0 ? "all answered" : $"{Items.Count} pending";
+    public string Pending => $"{Items.Count} pending";
 
     public IReadOnlyList<IDecisionViewModel> Items { get; }
 
