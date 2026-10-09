@@ -79,12 +79,9 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
                 return write.Content;
             },
             cancellationToken),
-        RunCommand run => ActAsync(
-            cues,
-            new Deed(run.Item, ItemKind.Command, run.Command, $"Run {run.Command}", run.Command, run.Command),
-            options.Permissions == PermissionMode.AskEveryTime || (options.Permissions == PermissionMode.AllowEdits && run.AsksPermission),
-            _ => Task.FromResult(run.Output),
-            cancellationToken),
+        RunCommand run => ActAsync(cues, Command(run), Asks(run), _ => Task.FromResult(run.Output), cancellationToken),
+        WithdrawnPermission race when Asks(race.Withdrawn) && Asks(race.Kept) => WithdrawAsync(cues, race, cancellationToken),
+        WithdrawnPermission race => DeedAsync(cues, race.Withdrawn, cancellationToken).Concat(DeedAsync(cues, race.Kept, cancellationToken)),
         WriteThroughCommand write => ActAsync(
             cues,
             new Deed(write.Item, ItemKind.Command, FirstLine(write.Command), $"Run {FirstLine(write.Command)}", write.Command, write.Command),
@@ -111,15 +108,36 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         _ => cues.Of(step).ToAsyncEnumerable(),
     };
 
-    private async IAsyncEnumerable<IAgentEvent> ActAsync(
+    private IAsyncEnumerable<IAgentEvent> ActAsync(
+        Cues cues,
+        Deed deed,
+        bool asks,
+        Func<CancellationToken, Task<string>> perform,
+        CancellationToken cancellationToken) =>
+        GoAheadAsync(cues, deed, asks, perform, cancellationToken).Prepend(cues.Opened(deed.Item, deed.Kind, deed.Title, deed.Input));
+
+    private async IAsyncEnumerable<IAgentEvent> WithdrawAsync(Cues cues, WithdrawnPermission race, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var (withdrawn, kept) = (Command(race.Withdrawn), Command(race.Kept));
+        yield return cues.Opened(withdrawn.Item, withdrawn.Kind, withdrawn.Title, withdrawn.Input);
+        yield return cues.Opened(kept.Item, kept.Kind, kept.Title, kept.Input);
+        yield return cues.Asked(withdrawn.Item, withdrawn.Request, withdrawn.Kind, withdrawn.Target);
+        yield return cues.Withdrawn(withdrawn.Item);
+        yield return cues.Closed(withdrawn.Item, ItemOutcome.Cancelled);
+
+        await foreach (var cue in GoAheadAsync(cues, kept, asks: true, _ => Task.FromResult(race.Kept.Output), cancellationToken))
+        {
+            yield return cue;
+        }
+    }
+
+    private async IAsyncEnumerable<IAgentEvent> GoAheadAsync(
         Cues cues,
         Deed deed,
         bool asks,
         Func<CancellationToken, Task<string>> perform,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        yield return cues.Opened(deed.Item, deed.Kind, deed.Title, deed.Input);
-
         if (asks)
         {
             var pending = await gates.Permissions.ExpectAsync(deed.Item, cancellationToken);
@@ -227,6 +245,11 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
 
     private IEnumerable<IAgentEvent> Acknowledged(Cues cues, string message) =>
         cues.Of(new Say(new ItemId($"heard-{++acknowledged}"), ItemKind.Message, "Reply", [$"Noted: {message} ", "I am folding it into this turn."]));
+
+    private bool Asks(RunCommand run) =>
+        options.Permissions == PermissionMode.AskEveryTime || (options.Permissions == PermissionMode.AllowEdits && run.AsksPermission);
+
+    private static Deed Command(RunCommand run) => new(run.Item, ItemKind.Command, run.Command, $"Run {run.Command}", run.Command, run.Command);
 
     private static string FirstLine(string text) => text.Split('\n', 2)[0];
 

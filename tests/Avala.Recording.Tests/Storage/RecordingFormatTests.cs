@@ -55,11 +55,12 @@ public sealed class RecordingFormatTests
             (21, new Observed(new UsageReported(Session, First, new TokenUsage(10, 2, 1, 0, 3), new Cost(0.5m, "USD")))),
             (30, new Observed(new TurnStarted(Session, Second))),
             (31, new Interrupted(3)),
+            (31, new Observed(new RequestWithdrawn(Session, Second, new ItemId("migrate")))),
             (32, new Sent(4, new UserTurn("And the tests") { MidTurn = true })),
             (40, new StreamEnded(Crashed: true)),
         ])).GetProperty("entries");
 
-        Assert.Equal([0, 5, 9, 12, 20, 21, 30, 31, 32, 40], entries.EnumerateArray().Select(entry => entry.GetProperty("at").GetInt64()));
+        Assert.Equal([0, 5, 9, 12, 20, 21, 30, 31, 31, 32, 40], entries.EnumerateArray().Select(entry => entry.GetProperty("at").GetInt64()));
         Assert.Equal("Use [redacted]", entries[0].GetProperty("send").GetProperty("text").GetString());
         Assert.Equal(("turnStarted", 1), Event(entries[1]));
         Assert.Equal(("permissionRequested", 1), Event(entries[2]));
@@ -76,8 +77,9 @@ public sealed class RecordingFormatTests
         Assert.Equal((10, 3, 0.5m, "USD"), Usage(entries[5].GetProperty("event")));
         Assert.Equal(("turnStarted", 2), Event(entries[6]));
         Assert.Equal(JsonValueKind.Object, entries[7].GetProperty("interrupt").ValueKind);
-        Assert.True(entries[9].GetProperty("end").GetProperty("crashed").GetBoolean());
-        Assert.Equal((false, true), (entries[0].GetProperty("send").TryGetProperty("midTurn", out _), entries[8].GetProperty("send").GetProperty("midTurn").GetBoolean()));
+        Assert.Equal((("requestWithdrawn", 2), "migrate"), (Event(entries[8]), entries[8].GetProperty("event").GetProperty("item").GetString()));
+        Assert.True(entries[10].GetProperty("end").GetProperty("crashed").GetBoolean());
+        Assert.Equal((false, true), (entries[0].GetProperty("send").TryGetProperty("midTurn", out _), entries[9].GetProperty("send").GetProperty("midTurn").GetBoolean()));
     }
 
     [Fact]

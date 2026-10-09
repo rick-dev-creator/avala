@@ -139,6 +139,7 @@ internal sealed class RecordingParser
         "permissionResolved" => new PermissionResolved(default, default, Item(recorded), Enum<PermissionAnswer>(recorded.GetProperty("answer"))),
         "formRequested" => new FormRequested(default, default, Item(recorded), Form(recorded.GetProperty("form"))),
         "formAnswered" => new FormAnswered(default, default, Item(recorded), Answer(recorded.GetProperty("answer"))),
+        "requestWithdrawn" => new RequestWithdrawn(default, default, Item(recorded)),
         "toolCalled" => new ToolCalled(default, default, Item(recorded), Plain(recorded.GetProperty("tool")), Text(recorded.GetProperty("input"))),
         "toolReturned" => new ToolReturned(default, default, Item(recorded), Result(recorded.GetProperty("result"))),
         var unknown => throw new FormatException($"{unknown} is not an agent event."),

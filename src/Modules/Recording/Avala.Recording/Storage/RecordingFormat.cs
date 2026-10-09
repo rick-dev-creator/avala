@@ -233,6 +233,9 @@ internal sealed class RecordingFormat
                 Item(answered.Item);
                 Object("answer", () => Answer(answered.Answer));
                 break;
+            case RequestWithdrawn withdrawn:
+                Item(withdrawn.Item);
+                break;
         }
     }
 

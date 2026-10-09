@@ -119,6 +119,29 @@ public sealed class AgentConformanceTests
             Deadline));
     }
 
+    [Theory]
+    [InlineData(true, "the request migrate was answered after the harness withdrew it")]
+    [InlineData(false, "RequestWithdrawn was rejected: NoPendingRequest")]
+    public async Task AWithdrawnRequestMustHaveBeenPendingAndIsNeverAnsweredAfterwardsAsync(bool asks, string expected)
+    {
+        var provider = new ScriptedAgentProvider((session, turn) =>
+        {
+            var item = new ItemId("migrate");
+
+            return
+            [
+                new TurnStarted(session, turn),
+                new ItemStarted(session, turn, item, ItemKind.Command, "dotnet ef database update"),
+                .. asks ? [new PermissionRequested(session, turn, item, "Run dotnet ef database update", ItemKind.Command, "dotnet ef database update")] : Array.Empty<IAgentEvent>(),
+                new RequestWithdrawn(session, turn, item),
+                new ItemCompleted(session, turn, item, ItemOutcome.Cancelled),
+                new TurnCompleted(session, turn, TurnOutcome.Finished),
+            ];
+        });
+
+        Assert.Equal([expected], await AgentConformance.CheckTurnAsync(provider, Deadline));
+    }
+
     [Fact]
     public async Task ReportsATurnThatNeverEndsAsync()
     {

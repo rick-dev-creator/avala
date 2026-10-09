@@ -265,6 +265,33 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ARequestTheHarnessWithdrawsClosesItsCardLeavesTheNextInThePopoverAndIsAuditedAsWithdrawnAsync()
+    {
+        const string Orders = "dotnet ef database update --context Orders";
+        const string Billing = "dotnet ef database update --context Billing";
+        await using var run = await SimulatedRun.StartAsync(plugins, "withdrawn-permission");
+        var decided = await run.DecisionsAsync(count: 3);
+        var workbench = await run.WorkbenchAsync();
+        var decisions = await run.Ui.ReadAsync(() => workbench.Toolbar["Decisions"]);
+        await workbench.ShowsAsync(() => decisions["Items"].Items.Count == 1 && Row(workbench, run.Job) is { } row && row["PendingDecisions"].Value<int>() == 1);
+        var conversation = await workbench.SelectAsync(run.Job);
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "PermissionCardViewModel", "Verdict").Contains("Withdrawn by the harness"));
+        var waiting = await run.Ui.ReadAsync(() => decisions["Items"].Items[0]["Target"].Text);
+
+        await run.Ui.RunAsync(() => decisions.ExecuteAsync("AnswerCommand"));
+
+        Assert.Equal(
+            [(Orders, DecisionDelivery.LeftToHuman), (Orders, DecisionDelivery.Withdrawn), (Billing, DecisionDelivery.LeftToHuman)],
+            decided.Select(decision => (decision.Target, decision.Delivery)));
+        Assert.Equal(Billing, waiting);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await workbench.ShowsAsync(() => Row(workbench, run.Job) is { } row && !row["HasPendingDecisions"].Value<bool>());
+        var audit = Assert.Single(await workbench.InspectAsync(run.Job, "AuditSectionViewModel"));
+        await workbench.ShowsAsync(() => audit["Decisions"].Value<IReadOnlyList<string>>().Contains($"Asked you Command {Orders} · withdrawn by the harness"));
+        Assert.Equal(1, run.Get<IPermissionAudit>().OfJob(run.Job).Count(decision => decision.Target == Orders));
+    }
+
+    [Fact]
     public async Task TheOverviewCardOfAConnectionListsItsLimitWindowsAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "spent-window", (".avala/budget.json", """{ "holdAtLimit": 0.9 }"""));
