@@ -297,7 +297,7 @@ Done when: the person chooses the default connection in Settings, New job says w
 
 ### Delegation
 
-Status: done with the simulator, see [Delegation](../design/core.md#delegation). Deferred: persisting the delegation records and answering a parent's new session with the results of the children that settled while it was gone, after a restart or a hold, which today only keep their records and wait for a person; replaying a recorded tool call in the simulator, and the MCP transport of the harness tools with the real Claude Code adapter in phase 6, whose parallel calls `CheckParallelToolCallsAsync` will check; checking that the real adapter keeps a call pending for hours; routing by cost, by a connection's own caps or by the provider's declared strengths, and routing rules from the machine as well as the repository; a child's own attempts per round and a timeout for a child; letting the orchestrator cancel a child, or ask for its partial progress; admitting children against the machine's limit of running jobs, which today they bypass inside their parent's slot; a memory cap carved like cost and tokens; the status of ended children across restarts, which carves count as open until told otherwise; a child integrated into a parent that waits for review or is being checked, which is refused rather than queued; EF Core migrations for the new `Parent`, `Rules` and `Carves` schema; and the delegation tree as a view, with phases 9 and 10, from the queries and events already listed in the data catalog.
+Status: done with the simulator, see [Delegation](../design/core.md#delegation). Persisting the records and answering a parent with the results of the children that settled while it was gone, after a restart or a hold, are done in [Phase B](#b-delegation-robust). Deferred: replaying a recorded tool call in the simulator, and the MCP transport of the harness tools with the real Claude Code adapter in phase 6, whose parallel calls `CheckParallelToolCallsAsync` will check; checking that the real adapter keeps a call pending for hours; routing by cost, by a connection's own caps or by the provider's declared strengths, and routing rules from the machine as well as the repository; a child's own attempts per round and a timeout for a child; letting the orchestrator cancel a child, or ask for its partial progress; admitting children against the machine's limit of running jobs, which today they bypass inside their parent's slot; a memory cap carved like cost and tokens; the status of ended children across restarts, which carves count as open until told otherwise; a child integrated into a parent that waits for review or is being checked, which is refused rather than queued; EF Core migrations for the new `Parent`, `Rules` and `Carves` schema; and the delegation tree as a view, with phases 9 and 10, from the queries and events already listed in the data catalog.
 
 An orchestrating agent delegates work to sub-agents that may run on any connection: another Claude Code subscription, another harness. Unlike a harness's native sub-agents, each one is a full Avala job, governed like any other.
 
@@ -444,7 +444,7 @@ Every module that owns data keeps it in its own SQLite database through EF Core,
 2. The permission audit: policy reports, autonomy applied, permission and form decisions with their assumptions, and human answers stored in `permissions.db` and folded back into each session at startup.
 3. Budget caps: each session's `SessionBudget` and connection stored in `budgets.db`.
 4. Connection choices: the reason and the readings compared, stored in `jobs.db` and returned with the job's history.
-5. Delegation records: every version of a record stored in `delegation.db`; what resuming in-flight children needs is stored, the resumption itself is a later step.
+5. Delegation records: every version of a record stored in `delegation.db`; the resumption of in-flight children is done in [B](#b-delegation-robust).
 6. Sessions: Observability stores when each session opened and lists its sessions through `IUsageSessions`, so the Workbench finds the latest session of a connection or job of an earlier run, its account and its caps.
 7. Limit readings: a reading whose window has reset is shown as reset on the Usage page and the Overview, live through a `TimeProvider` timer and after a restart; capacity treats it as fresh capacity, as before.
 8. Pending decisions: by design they do not survive a restart, since the session that waits died; the count shows only what a live session waits for, and the audit marks the abandoned decision "unanswered, its session ended".
@@ -488,3 +488,37 @@ Done. Each item has its acceptance criteria as view model scripts, headless view
 10. **Thinking the harness did not share.** A thought that streamed no text reads "Thought for Ns · content not shared by the harness" and does not open; the simulator's `unshared-thought` scenario plays it.
 11. **The sidebar's decision badge.** Each row draws the count of decisions waiting on its job.
 12. **The overview's limits.** Hovering a connection's hub lists every limit window of the connection.
+
+### B: delegation robust
+
+Done. A delegation tree survives a restart and runs across harnesses, proven end to end on the simulator, and with a Claude Code orchestrator replayed from its transcript; see [children across a restart](../design/core.md#children-across-a-restart) and [deferred recovery](../design/core.md#deferred-recovery).
+
+1. **Children survive a restart.** A child that was running is recovered like any job; the desk rebuilds its pending calls from the stored records and settles at startup a child that settled unreported. Recovery defers a running parent that is owed a report, through Jobs' new `IRecoveryDeferral`, and resumes it through `IJobs.ResumeAsync` once its children reported: its conversation resumes, by its resume token, with the restart note and the owed reports, through Jobs' new `IJobBriefing`. A parent whose harness is not `Resumable` is held as `NotResumable` with the reports shown, and receives them when a person continues it.
+2. **Answered exactly once.** Each record stores how its report reached the parent, as a tool result or in a message, and `ReportDelivered` announces it; a report owed to a held parent is briefed once when the parent continues, with or without a restart.
+3. **Across harnesses.** A parent on `simulator` delegates by capacity to `simulator-second` and to a second `simulator` account, each child with its carve, both integrated into the parent's worktree; a Claude Code orchestrator, replayed from the `delegate` transcript by the fake CLI, delegates to a simulated child and receives its integrated report as the call's result.
+4. **The simulator** gained the `Recall` step, which replies with what its turn was told, and the `delegate-paused`, `notes-paused` and `delegate-across` scenarios; `delegate-waiting` recalls what it is told when resumed.
+
+Acceptance criteria, host simulation tests in `DelegationRestartTests` and `DelegationTests`:
+
+```
+AC1  Given a parent waiting on a running child, when the application restarts, then the child resumes and is integrated,
+     the parent is not relaunched until then, its resumed conversation is told the report once after the restart note,
+     and the Overview shows the child integrated and the inspector "Integrated · told to its parent in a message".
+AC2  Given a child waiting for a person, when the application restarts twice, then the child asks again each time, and once
+     answered its report reaches the parent once, with the same views.
+AC3  Given a child that finished while its parent was held, when the application restarts, then the inspector says the report
+     is not yet told to its parent; when a person continues the parent, the person's message is followed by the report, once.
+AC4  Given each of AC1 to AC3, when the application restarts again, then nothing is delivered again, the parent has one child,
+     and the parent's branch holds at most one integration of it.
+AC5  Given a parent whose harness is not resumable, when the application restarts and its child reports, then the parent is
+     held as NotResumable, shown as "held: its conversation cannot resume", with the report shown and not yet told.
+AC6  Given a parent on simulator routing by capacity to simulator-second and a second simulator account, then the first child
+     goes to the first listed, the second to the account with more left after the first reported, each with a carve of at
+     most half the parent's cap, and both are integrated into the parent's worktree, the Overview naming each harness.
+AC7  Given a Claude Code orchestrator replayed from its transcript, when it delegates to a simulated child, then the child is
+     integrated and its report returns as the call's result, recorded by the recorder.
+```
+
+Unit tests cover the deferral, resumption, briefing and refusals in Jobs (`DeferredRecoveryTests`) and the rebuilt desk, the owed reports and the resumption of deferred parents in Delegation (`RestartedDeskTests`).
+
+Open: whether Claude Code, resumed with `--resume` after its process died mid tool call, accepts a new user message after the unanswered `tool_use`, which needs one real run; a provider that loses a tool result it received before dying in a parallel call; delivering a report to a parent that is running a later turn in a live session, which waits for its next round.
