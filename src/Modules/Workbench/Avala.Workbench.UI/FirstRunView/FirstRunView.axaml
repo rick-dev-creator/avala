@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:navigation="using:Avala.Workbench.Navigation"
+             x:Class="Avala.Workbench.UI.FirstRunView"
+             x:ClassModifier="internal"
+             x:DataType="navigation:IFirstRunViewModel">
+  <Design.DataContext>
+    <navigation:DesignFirstRunViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="16" MaxWidth="520" Classes="rise-in">
+    <StackPanel Spacing="6">
+      <TextBlock x:Name="Heading" Classes="heading" Text="{Binding Heading}" HorizontalAlignment="Center" />
+      <TextBlock x:Name="Explanation" Classes="body secondary" Text="{Binding Explanation}" TextWrapping="Wrap" TextAlignment="Center" />
+    </StackPanel>
+    <Border Classes="grouped">
+      <StackPanel>
+        <StackPanel Margin="16,12" Spacing="2">
+          <TextBlock x:Name="LogIn" Text="Log in to Claude Code" />
+          <TextBlock Classes="caption"
+                     TextWrapping="Wrap"
+                     Text="Run claude in a terminal and sign in, then restart Avala: it finds the logins of this computer when it starts." />
+        </StackPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <StackPanel Margin="16,12" Spacing="2">
+          <TextBlock x:Name="AddConnection" Text="Or add a connection in Settings" />
+          <TextBlock Classes="caption"
+                     TextWrapping="Wrap"
+                     Text="Under Connections, choose Add a connection: another login folder or the environment variable that holds an API key. Avala stores the name, never the key." />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <Button x:Name="OpenSettings"
+            Classes="primary"
+            HorizontalAlignment="Center"
+            Content="Open Settings"
+            Command="{Binding OpenSettingsCommand}" />
+  </StackPanel>
+</UserControl>

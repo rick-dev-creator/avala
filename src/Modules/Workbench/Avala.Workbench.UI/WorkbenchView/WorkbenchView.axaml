@@ -64,10 +64,13 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}">
-          <StackPanel Spacing="6">
-            <TextBlock Classes="strong" Text="No job selected" HorizontalAlignment="Center" />
-            <TextBlock Classes="caption" Text="Choose a job in the sidebar to follow its conversation." HorizontalAlignment="Center" />
-          </StackPanel>
+          <Panel>
+            <StackPanel x:Name="NoJobHint" Spacing="6" IsVisible="{Binding !FirstRun.IsShown}">
+              <TextBlock Classes="strong" Text="No job selected" HorizontalAlignment="Center" />
+              <TextBlock Classes="caption" Text="Choose a job in the sidebar to follow its conversation." HorizontalAlignment="Center" />
+            </StackPanel>
+            <ContentControl x:Name="FirstRun" Content="{Binding FirstRun}" IsVisible="{Binding FirstRun.IsShown}" />
+          </Panel>
         </Border>
       </Panel>
     </DockPanel>

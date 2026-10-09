@@ -29,6 +29,8 @@ internal interface IWorkbenchViewModel
     IAsyncRelayCommand OpenReviewCommand { get; }
 
     IRelayCommand CloseReviewCommand { get; }
+
+    IFirstRunViewModel FirstRun { get; }
 }
 
 [INotifyPropertyChanged]
@@ -39,13 +41,18 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     private readonly JobFocus focus;
     private Option<JobId> inspected;
 
-    public WorkbenchViewModel(BoardFeed feed, JobScreens screens, JobFocus focus)
+    public WorkbenchViewModel(BoardFeed feed, JobScreens screens, JobFocus focus, IFirstRunViewModel firstRun)
     {
         this.feed = feed;
         this.screens = screens;
         this.focus = focus;
+        FirstRun = firstRun;
         focus.Follow(this);
     }
+
+    public IFirstRunViewModel FirstRun { get; }
+
+    public Task Checking { get; private set; } = Task.CompletedTask;
 
     public string Title => "Jobs";
 
@@ -80,6 +87,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     public void Activate()
     {
         feed.Start(Show);
+        Checking = FirstRun.CheckAsync(CancellationToken.None);
         Inspect();
     }
 
