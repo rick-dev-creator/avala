@@ -99,6 +99,10 @@ internal sealed partial class DesignPermissionCardViewModel : IPermissionCardVie
     [ObservableProperty]
     public partial bool DontAskAgain { get; set; }
 
+    public string DontAskAgainLabel => CardPhrases.DontAskAgain;
+
+    public string DontAskAgainScope => CardPhrases.DontAskAgainScope(Kind);
+
     public string Error => string.Empty;
 
     public IAsyncRelayCommand AllowCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);

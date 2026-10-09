@@ -13,7 +13,7 @@ public sealed class InspectorPhrasesTests
 
     [Theory]
     [InlineData("Allow", false, "You allowed FileEdit src/auth/login.ts")]
-    [InlineData("Allow", true, "You allowed FileEdit src/auth/login.ts · don't ask again")]
+    [InlineData("Allow", true, "You allowed FileEdit src/auth/login.ts · don't ask again this session")]
     [InlineData("Deny", false, "You denied FileEdit src/auth/login.ts")]
     public void APersonsAnswerSaysWhatWasAnsweredAndWhetherToAskAgain(string answer, bool dontAskAgain, string phrase) =>
         Assert.Equal(

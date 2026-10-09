@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Sidebar;
@@ -30,7 +31,17 @@ internal interface IDecisionViewModel
 
     IReadOnlyList<DecisionOption> Options { get; }
 
+    IReadOnlyList<IFormFieldViewModel> Fields { get; }
+
+    bool HasFields { get; }
+
     bool IsSingleChoice { get; }
+
+    bool DontAskAgain { get; set; }
+
+    string DontAskAgainLabel { get; }
+
+    string DontAskAgainScope { get; }
 
     string Waiting { get; }
 
@@ -48,7 +59,7 @@ internal sealed record DecisionOption(int Number, IFormChoiceViewModel Choice);
 [INotifyPropertyChanged]
 internal sealed partial class DecisionViewModel : IDecisionViewModel
 {
-    public DecisionViewModel(JobId job, string jobTitle, ITimelineItem card, DateTimeOffset since)
+    public DecisionViewModel(JobId job, string jobTitle, ITimelineItem card, Option<DateTimeOffset> since)
     {
         Job = job;
         JobTitle = jobTitle;
@@ -56,9 +67,11 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
         Since = since;
         Waiting = string.Empty;
         Note = string.Empty;
-        var field = (card as IFormCardViewModel)?.Fields.FirstOrDefault(found => found.Choices.Count > 0);
-        Options = field is null ? [] : [.. field.Choices.Select((choice, index) => new DecisionOption(index + 1, choice))];
-        IsSingleChoice = field?.Kind != FieldKind.MultipleChoice;
+        var fields = (card as IFormCardViewModel)?.Fields ?? [];
+        var numbered = fields is [{ Choices.Count: > 0, AcceptsText: false } only] ? only : null;
+        Options = numbered is null ? [] : [.. numbered.Choices.Select((choice, index) => new DecisionOption(index + 1, choice))];
+        HasFields = numbered is null && fields.Count > 0;
+        IsSingleChoice = numbered?.Kind != FieldKind.MultipleChoice;
         (Title, Asking, Target, Context) = card switch
         {
             IPermissionCardViewModel permission => (permission.Title, FactPhrases.Asking(permission.Kind), permission.Target, string.Empty),
@@ -88,9 +101,30 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
 
     public IReadOnlyList<DecisionOption> Options { get; }
 
+    public IReadOnlyList<IFormFieldViewModel> Fields => HasFields && Card is IFormCardViewModel form ? form.Fields : [];
+
+    public bool HasFields { get; }
+
     public bool IsSingleChoice { get; }
 
-    public DateTimeOffset Since { get; }
+    public Option<DateTimeOffset> Since { get; }
+
+    public bool DontAskAgain
+    {
+        get => Card is IPermissionCardViewModel { DontAskAgain: true };
+        set
+        {
+            if (Card is IPermissionCardViewModel permission && permission.DontAskAgain != value)
+            {
+                permission.DontAskAgain = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string DontAskAgainLabel => CardPhrases.DontAskAgain;
+
+    public string DontAskAgainScope => Card is IPermissionCardViewModel permission ? permission.DontAskAgainScope : string.Empty;
 
     object IDecisionViewModel.Card => Card;
 
@@ -105,8 +139,10 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
     public void Update(ITimelineEntry entry, DateTimeOffset now)
     {
         Card.Update(entry);
-        Waiting = Waited(now - Since);
+        Age(now);
     }
+
+    public void Age(DateTimeOffset now) => Waiting = Since.Match(since => Waited(now - since), () => string.Empty);
 
     [RelayCommand(CanExecute = nameof(CanAnswer))]
     private Task AnswerAsync() => Card switch
