@@ -14,9 +14,11 @@
     <File Path="Avala.UnitTests.slnf" />
     <File Path="dotnet-tools.json" />
     <File Path=".github/workflows/ci.yml" />
+    <File Path=".github/workflows/release.yml" />
     <File Path="scripts/code-metrics.cs" />
     <File Path="scripts/metrics.cs" />
     <File Path="scripts/migration.cs" />
+    <File Path="scripts/package.cs" />
     <File Path="scripts/publish-badges.cs" />
     <File Path="scripts/publish-summary.cs" />
     <File Path="scripts/session-cost.cs" />
