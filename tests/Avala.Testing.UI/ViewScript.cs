@@ -64,8 +64,17 @@ public sealed class ViewScript
 
     public ViewScript Click(Control target)
     {
+        Settle();
         var center = target.TranslatePoint(new Point(target.Bounds.Width / 2, target.Bounds.Height / 2), Window)
-            ?? throw new InvalidOperationException($"{target.Name ?? target.GetType().Name} is not laid out.");
+            ?? throw new InvalidOperationException($"{Describe(target)} is not laid out.");
+        Window.MouseMove(center);
+        var under = Window.InputHitTest(center, enabledElementsOnly: false) as Visual;
+        var owner = target.FindAncestorOfType<Button>(includeSelf: true) ?? target;
+        if (under is null || (under != owner && !owner.IsVisualAncestorOf(under)))
+        {
+            throw new InvalidOperationException($"{Describe(target)} is not under the pointer at {center}: the click would land on {(under is null ? "nothing" : Describe(under))}.");
+        }
+
         Window.MouseDown(center, MouseButton.Left);
         Window.MouseUp(center, MouseButton.Left);
 
@@ -74,7 +83,11 @@ public sealed class ViewScript
 
     public ViewScript Type(string name, string text)
     {
-        Find(name).Focus();
+        if (!Find(name).Focus())
+        {
+            throw new InvalidOperationException($"{name} cannot take the keyboard focus, so it would not receive {text}.");
+        }
+
         Window.KeyTextInput(text);
 
         return Settle();
@@ -109,6 +122,10 @@ public sealed class ViewScript
         Open.Clear();
         Dispatcher.UIThread.RunJobs();
     }
+
+    private static string Describe(Visual visual) =>
+        string.Join(" in ", visual.GetVisualAncestors().Where(ancestor => ancestor is Control { Name: not null }).Take(2).Prepend(visual)
+            .Select(each => $"{each.GetType().Name} {(each as Control)?.Name}".TrimEnd()));
 
     private Control? Named(string name) =>
         Window.GetVisualDescendants().OfType<Control>().FirstOrDefault(control => control.Name == name)

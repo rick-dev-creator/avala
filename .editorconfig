@@ -51,6 +51,9 @@ dotnet_diagnostic.RS0030.severity = none
 [tests/Avala.Testing/TemporaryFolder.cs]
 dotnet_diagnostic.RS0030.severity = none
 
+[tests/Avala.Testing.UI/AnimationClock.cs]
+dotnet_diagnostic.S3011.severity = none
+
 [tests/**.cs]
 dotnet_diagnostic.CA1506.severity = none
 
