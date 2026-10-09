@@ -113,6 +113,7 @@ internal static class LayerMap
             ["Policies"] = Layer.Domain,
             ["Governance"] = Layer.Application,
             ["Answering"] = Layer.Application,
+            ["Links"] = Layer.Infrastructure,
             ["PolicyFiles"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,

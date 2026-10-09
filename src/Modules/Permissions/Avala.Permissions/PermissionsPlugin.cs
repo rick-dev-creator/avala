@@ -3,6 +3,7 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Answering;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
+using Avala.Permissions.Links;
 using Avala.Permissions.PolicyFiles;
 using Avala.Permissions.Storage;
 using Avala.Sdk;
@@ -31,6 +32,7 @@ public sealed class PermissionsPlugin : IPlugin
             .AddSingleton<IRuleFileFormat, PolicyFileFormat>()
             .AddForwarded<IPolicyFiles, PolicyFileReader>()
             .AddForwarded<IRepositoryPolicies, PolicyFileReader>()
+            .AddSingleton<IRealPaths, SymbolicLinks>()
             .AddSingleton<PermissionResponder>()
             .AddSingleton<IPermissionAnswers, HumanAnswers>()
             .AddSingleton<SessionGovernor>()
