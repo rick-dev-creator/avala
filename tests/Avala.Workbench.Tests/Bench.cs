@@ -85,7 +85,7 @@ internal sealed class Bench : IDisposable
     public WorkbenchViewModel Workbench() => Workbench(Ui);
 
     public WorkbenchViewModel Workbench(IUiDispatcher ui) =>
-        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Board), Replies), new Reviews(Reader, Desk, ui)), Focus);
+        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Board), Replies, FakeLinks.Opening), new Reviews(Reader, Desk, ui)), Focus);
 
     public JobSummary Job(string instruction, JobStatus status)
     {

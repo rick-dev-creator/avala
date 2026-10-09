@@ -74,6 +74,7 @@ internal static class LayerMap
             ["Spending"] = Layer.Application,
             ["RepositoryRules"] = Layer.Application,
             ["Machine"] = Layer.Application,
+            ["Linking"] = Layer.Application,
             ["Upkeep"] = Layer.Application,
             ["Submitting"] = Layer.Application,
             ["Presenting"] = Layer.ViewModels,

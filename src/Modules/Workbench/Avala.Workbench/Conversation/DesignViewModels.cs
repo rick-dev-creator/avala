@@ -68,13 +68,17 @@ internal sealed class DesignPromptViewModel(string text) : IPromptViewModel
 internal sealed class DesignMessageViewModel(string text, bool isStreaming) : IMessageViewModel
 {
     public DesignMessageViewModel()
-        : this("I'm using the ISO 4217 exponent for each currency instead of a fixed 100, so yen amounts stay whole and tax is rounded exactly once. Money.Total() keeps its signature. Running the", true)
+        : this("I'm using the **ISO 4217 exponent** for each currency instead of a fixed 100, so yen amounts stay whole and tax is rounded exactly once. `Money.Total()` keeps its signature. Running the", true)
     {
     }
 
     public string Text { get; } = text;
 
     public bool IsStreaming { get; } = isStreaming;
+
+    public string LinkNotice { get; init; } = string.Empty;
+
+    public IAsyncRelayCommand<string> OpenLinkCommand { get; } = new AsyncRelayCommand<string>(_ => Task.CompletedTask);
 }
 
 internal sealed class DesignReasoningViewModel(string summary, bool isThinking) : IReasoningViewModel
