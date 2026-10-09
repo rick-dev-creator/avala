@@ -26,9 +26,10 @@ public sealed class SqliteJobStoreTests
         var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
 
         Assert.Equal(
-            (job.Id, job.State, job.Instruction, job.Budget, job.Repository, job.Workspace, job.Session, job.Resume, job.Autonomy, job.Connection, job.Submitted),
-            (reloaded.Id, reloaded.State, reloaded.Instruction, reloaded.Budget, reloaded.Repository, reloaded.Workspace, reloaded.Session, reloaded.Resume, reloaded.Autonomy, reloaded.Connection, reloaded.Submitted));
+            (job.Id, job.State, job.Instruction, job.Budget, job.Repository, job.Workspace, job.Session, job.Resume, job.Autonomy, job.Connection, job.Submitted, job.Parent),
+            (reloaded.Id, reloaded.State, reloaded.Instruction, reloaded.Budget, reloaded.Repository, reloaded.Workspace, reloaded.Session, reloaded.Resume, reloaded.Autonomy, reloaded.Connection, reloaded.Submitted, reloaded.Parent));
         Assert.Equal(Option<ConnectionName>.Some(Given.Connection), reloaded.Connection);
+        Assert.Equal(Option<JobId>.Some(Given.Parent), reloaded.Parent);
         Assert.Equal(
             job.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance, attempt.Session)),
             reloaded.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance, attempt.Session)));

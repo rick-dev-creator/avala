@@ -43,7 +43,10 @@ public enum SessionHalt
 
 public sealed record JobHold(JobId Job, SessionId Session, HoldReason Reason, SessionHalt Halt);
 
-public sealed record JobSubmitted(JobId Job) : IIntegrationEvent;
+public sealed record JobSubmitted(JobId Job) : IIntegrationEvent
+{
+    public Option<JobId> Parent { get; init; }
+}
 
 public sealed record JobHeld(JobHold Hold) : IIntegrationEvent;
 

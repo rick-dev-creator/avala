@@ -41,6 +41,9 @@ internal sealed class JobsDbContext(string database) : DbContext
             job.Property(entity => entity.Connection).HasConversion(
                 option => option.Match(name => name.Value, () => string.Empty),
                 text => text.Length == 0 ? Option<ConnectionName>.None : Option<ConnectionName>.Some(new ConnectionName(text)));
+            job.Property(entity => entity.Parent).HasConversion(
+                option => option.Match(id => id.Value, () => Guid.Empty),
+                value => value == Guid.Empty ? Option<JobId>.None : Option<JobId>.Some(new JobId(value)));
             job.OwnsMany(entity => entity.Attempts, attempt =>
             {
                 attempt.ToTable("JobAttempts");

@@ -33,6 +33,7 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
             .AddSingleton<IRepositoryDefaults, JobFileReader>()
             .AddSingleton<JobLedger>()
             .AddSingleton<JobQueues>()
+            .AddSingleton<WorkspacePlanner>()
             .AddSingleton<JobLauncher>()
             .AddSingleton<CompletionGates>()
             .AddSingleton<EvaluateTurn>()

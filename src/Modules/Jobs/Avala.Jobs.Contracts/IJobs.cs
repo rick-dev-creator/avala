@@ -29,6 +29,8 @@ public sealed record JobRequest(string RepositoryPath, string Instruction, int A
     public Option<Autonomy> Autonomy { get; init; }
 
     public Option<ConnectionName> Connection { get; init; }
+
+    public Option<JobId> Parent { get; init; }
 }
 
 public enum ContinuedIn
@@ -63,4 +65,6 @@ public enum JobRejection
     BaseCheckoutDirty,
     BaseMoved,
     DeliveryFailed,
+    UnknownParent,
+    ParentNotRunning,
 }

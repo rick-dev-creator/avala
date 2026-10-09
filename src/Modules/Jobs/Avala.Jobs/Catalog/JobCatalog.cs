@@ -13,8 +13,25 @@ internal sealed class JobCatalog(IJobStore store) : IJobCatalog
     public async ValueTask<Option<JobHistory>> HistoryAsync(JobId job, CancellationToken cancellationToken) =>
         (await store.SnapshotAsync(job, cancellationToken)).Map(History);
 
+    public async ValueTask<IReadOnlyList<JobSummary>> ChildrenAsync(JobId parent, CancellationToken cancellationToken) =>
+        [.. (await store.SnapshotsAsync(cancellationToken)).Where(job => job.Parent == Option<JobId>.Some(parent)).OrderBy(job => job.Submitted).ThenBy(job => job.Id.Value).Select(Summary)];
+
+    public async ValueTask<Option<JobTree>> TreeAsync(JobId root, CancellationToken cancellationToken)
+    {
+        var jobs = (await store.SnapshotsAsync(cancellationToken)).OrderBy(job => job.Submitted).ThenBy(job => job.Id.Value).ToList();
+        var children = jobs.Where(job => job.Parent.IsSome).ToLookup(job => job.Parent.Match(parent => parent, () => default));
+
+        return jobs.FirstOrDefault(job => job.Id == root).ToOption().Map(found => Grow(found, children));
+    }
+
+    private static JobTree Grow(Job job, ILookup<JobId, Job> children) =>
+        new(Summary(job), [.. children[job.Id].Select(child => Grow(child, children))]);
+
     private static JobSummary Summary(Job job) =>
-        new(job.Id, job.Repository.Value, job.Instruction.Text, job.Submitted, job.State.Status, job.Connection, job.Autonomy, job.Workspace);
+        new(job.Id, job.Repository.Value, job.Instruction.Text, job.Submitted, job.State.Status, job.Connection, job.Autonomy, job.Workspace)
+        {
+            Parent = job.Parent,
+        };
 
     private static JobHistory History(Job job) =>
         new(
