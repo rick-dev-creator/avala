@@ -1,0 +1,307 @@
+using System.Buffers;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
+using Avala.Recording.Recordings;
+using Avala.Sdk;
+
+namespace Avala.Recording.Storage;
+
+internal sealed class RecordingFormat
+{
+    public const string Name = "avala-recording";
+
+    public const int Version = 1;
+
+    private static readonly JsonWriterOptions Options = new() { Indented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    private readonly Dictionary<TurnId, int> turns = [];
+    private readonly Utf8JsonWriter json;
+    private readonly Redaction redaction;
+
+    private RecordingFormat(Utf8JsonWriter json, Redaction redaction)
+    {
+        this.json = json;
+        this.redaction = redaction;
+    }
+
+    public static byte[] Write(SessionRecording recording)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+
+        using (var json = new Utf8JsonWriter(buffer, Options))
+        {
+            new RecordingFormat(json, recording.Redaction).Recording(recording);
+        }
+
+        return buffer.WrittenSpan.ToArray();
+    }
+
+    private static string Enum<TEnum>(TEnum value)
+        where TEnum : struct, System.Enum =>
+        JsonNamingPolicy.CamelCase.ConvertName(value.ToString());
+
+    private void Recording(SessionRecording recording)
+    {
+        var header = recording.Header;
+        json.WriteStartObject();
+        json.WriteString("format", Name);
+        json.WriteNumber("version", Version);
+        json.WriteString("recordedAt", header.RecordedAt);
+        Object("provider", () =>
+        {
+            json.WriteString("id", header.Provider.Id);
+            json.WriteString("name", header.Provider.Name);
+        });
+        Capabilities(header.Capabilities);
+        Present(header.Account, account => Object("account", () =>
+        {
+            Text("id", account.Id);
+            Text("label", account.Label);
+        }));
+        Object("options", () =>
+        {
+            json.WriteString("permissions", Enum(header.Options.Permissions));
+            json.WriteBoolean("resumed", header.Options.Resume.IsSome);
+            Array("tools", header.Options.Tools, tool => Object(() =>
+            {
+                json.WriteString("name", tool.Name);
+                json.WriteString("surface", Enum(tool.Surface));
+            }));
+        });
+        Array("entries", recording.Entries, Entry);
+        json.WriteEndObject();
+    }
+
+    private void Capabilities(AgentCapabilities declared) => Object("capabilities", () =>
+    {
+        json.WriteBoolean("streamsPartialOutput", declared.StreamsPartialOutput);
+        json.WriteBoolean("exposesReasoning", declared.ExposesReasoning);
+        json.WriteBoolean("canInterrupt", declared.CanInterrupt);
+        json.WriteBoolean("canResume", declared.CanResume);
+        json.WriteBoolean("acceptsTools", declared.AcceptsTools);
+        json.WriteBoolean("reportsUsage", declared.ReportsUsage);
+        json.WriteBoolean("reportsCost", declared.ReportsCost);
+        json.WriteBoolean("reportsLimits", declared.ReportsLimits);
+        json.WriteBoolean("asksQuestions", declared.AsksQuestions);
+    });
+
+    private void Entry(RecordedEntry entry) => Object(() =>
+    {
+        json.WriteNumber("at", (long)entry.At.TotalMilliseconds);
+
+        switch (entry.Fact)
+        {
+            case Observed observed:
+                Object("event", () => Event(observed.Event));
+                break;
+            case FileCaptured file:
+                Object("file", () =>
+                {
+                    json.WriteString("item", file.Item.Value);
+                    Text("path", file.Path);
+                    Text("content", file.Content);
+                });
+                break;
+            case Sent sent:
+                Object("send", () => Text("text", sent.Turn.Text));
+                break;
+            case Responded responded:
+                Object("respond", () =>
+                {
+                    json.WriteString("item", responded.Decision.Item.Value);
+                    json.WriteString("answer", Enum(responded.Decision.Answer));
+                    Optional("message", responded.Decision.Message);
+                });
+                break;
+            case Answered answered:
+                Object("answer", () => Answer(answered.Answer));
+                break;
+            case Interrupted:
+                Object("interrupt", () => { });
+                break;
+            case StreamEnded ended:
+                Object("end", () => json.WriteBoolean("crashed", ended.Crashed));
+                break;
+            case Stopped:
+                Object("stop", () => { });
+                break;
+        }
+
+        Present(entry.Refusal, error => json.WriteString("refused", Enum(error)));
+    });
+
+    private void Event(IAgentEvent recorded)
+    {
+        json.WriteString("type", JsonNamingPolicy.CamelCase.ConvertName(recorded.GetType().Name));
+        json.WriteNumber("turn", Turn(recorded.Turn));
+
+        switch (recorded)
+        {
+            case ItemStarted started:
+                Item(started.Item);
+                json.WriteString("kind", Enum(started.Kind));
+                Text("title", started.Title);
+                break;
+            case CanvasStarted canvas:
+                Item(canvas.Item);
+                Text("title", canvas.Title);
+                json.WriteString("mediaType", canvas.MediaType);
+                break;
+            case ItemProgressed progressed:
+                Item(progressed.Item);
+                Text("text", progressed.Text);
+                break;
+            case ItemCompleted completed:
+                Item(completed.Item);
+                json.WriteString("outcome", Enum(completed.Outcome));
+                break;
+            case PermissionRequested requested:
+                Item(requested.Item);
+                Text("title", requested.Title);
+                json.WriteString("kind", Enum(requested.Kind));
+                Text("target", requested.Target);
+                break;
+            case PermissionResolved resolved:
+                Item(resolved.Item);
+                json.WriteString("answer", Enum(resolved.Answer));
+                break;
+            case FormRequested form:
+                Item(form.Item);
+                Form(form.Form);
+                break;
+            case FormAnswered answered:
+                Item(answered.Item);
+                Object("answer", () => Answer(answered.Answer));
+                break;
+            case PlanUpdated plan:
+                Array("steps", plan.Steps, step => Object(() =>
+                {
+                    Text("title", step.Title);
+                    json.WriteString("status", Enum(step.Status));
+                }));
+                break;
+            case UsageReported usage:
+                Usage(usage);
+                break;
+            case LimitReported limit:
+                Object("limit", () =>
+                {
+                    json.WriteString("window", limit.Limit.Window);
+                    json.WriteNumber("usedFraction", limit.Limit.UsedFraction);
+                    Present(limit.Limit.ResetsAt, resets => json.WriteString("resetsAt", resets));
+                });
+                break;
+            case ResumeTokenIssued issued:
+                Text("token", issued.Token.Value);
+                break;
+            case TurnCompleted completed:
+                json.WriteString("outcome", Enum(completed.Outcome));
+                break;
+        }
+    }
+
+    private void Usage(UsageReported usage)
+    {
+        Object("tokens", () =>
+        {
+            json.WriteNumber("input", usage.Tokens.Input);
+            json.WriteNumber("output", usage.Tokens.Output);
+            json.WriteNumber("cacheRead", usage.Tokens.CacheRead);
+            json.WriteNumber("cacheWrite", usage.Tokens.CacheWrite);
+            json.WriteNumber("reasoning", usage.Tokens.Reasoning);
+        });
+        Present(usage.Cost, cost => Object("cost", () =>
+        {
+            json.WriteNumber("amount", cost.Amount);
+            json.WriteString("currency", cost.Currency);
+        }));
+    }
+
+    private void Form(AgentForm form) => Object("form", () =>
+    {
+        json.WriteString("purpose", Enum(form.Purpose));
+        Text("title", form.Title);
+        Text("context", form.Context);
+        Array("fields", form.Fields, field => Object(() =>
+        {
+            json.WriteString("id", field.Id);
+            Text("header", field.Header);
+            Text("prompt", field.Prompt);
+            json.WriteString("kind", Enum(field.Kind));
+            Array("options", field.Options, option => Object(() =>
+            {
+                Text("label", option.Label);
+                Text("description", option.Description);
+                json.WriteBoolean("recommended", option.Recommended);
+            }));
+            json.WriteBoolean("acceptsFreeText", field.AcceptsFreeText);
+        }));
+    });
+
+    private void Answer(FormAnswer answer)
+    {
+        Item(answer.Item);
+        Array("fields", answer.Fields, field => Object(() =>
+        {
+            json.WriteString("field", field.Field);
+            Array("chosen", field.Chosen, chosen => json.WriteStringValue(redaction.Apply(chosen)));
+            Optional("text", field.Text);
+            json.WriteBoolean("confirmed", field.Confirmed);
+        }));
+        json.WriteBoolean("declined", answer.Declined);
+        Optional("message", answer.Message);
+    }
+
+    private int Turn(TurnId turn)
+    {
+        if (!turns.TryGetValue(turn, out var ordinal))
+        {
+            ordinal = turns.Count + 1;
+            turns[turn] = ordinal;
+        }
+
+        return ordinal;
+    }
+
+    private void Item(ItemId item) => json.WriteString("item", item.Value);
+
+    private void Text(string name, string value) => json.WriteString(name, redaction.Apply(value));
+
+    private static void Present<T>(Option<T> value, Action<T> write)
+        where T : notnull
+    {
+        foreach (var present in value.Match<T[]>(given => [given], () => []))
+        {
+            write(present);
+        }
+    }
+
+    private void Optional(string name, Option<string> value) => Present(value, present => Text(name, present));
+
+    private void Object(Action write)
+    {
+        json.WriteStartObject();
+        write();
+        json.WriteEndObject();
+    }
+
+    private void Object(string name, Action write)
+    {
+        json.WritePropertyName(name);
+        Object(write);
+    }
+
+    private void Array<T>(string name, IEnumerable<T> items, Action<T> write)
+    {
+        json.WriteStartArray(name);
+
+        foreach (var item in items)
+        {
+            write(item);
+        }
+
+        json.WriteEndArray();
+    }
+}

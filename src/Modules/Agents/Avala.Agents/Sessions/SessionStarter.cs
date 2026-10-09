@@ -4,14 +4,19 @@ using Avala.Sdk;
 
 namespace Avala.Agents.Sessions;
 
-internal sealed class SessionStarter(IEnumerable<IAgentProvider> providers, IEnumerable<HarnessTool> tools)
+internal sealed class SessionStarter(
+    IEnumerable<IAgentProvider> providers,
+    IEnumerable<HarnessTool> tools,
+    IEnumerable<IAgentProviderDecorator> decorators)
 {
     public async Task<Result<StartedSession, AgentError>> StartAsync(AgentRequest request, CancellationToken cancellationToken)
     {
-        if (providers.FirstOrDefault() is not { } provider)
+        if (providers.FirstOrDefault() is not { } registered)
         {
             return AgentError.ProviderUnavailable;
         }
+
+        var provider = decorators.Aggregate(registered, (inner, decorator) => decorator.Decorate(inner));
 
         var fresh = new SessionOptions(request.WorkingDirectory, PermissionMode.AskEveryTime)
         {

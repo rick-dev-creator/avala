@@ -76,6 +76,15 @@ internal static class LayerMap
             ["Scenarios"] = Layer.Domain,
             ["Playback"] = Layer.Application,
             ["FileSystem"] = Layer.Infrastructure,
+            ["Recordings"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.Recording", new()
+        {
+            [""] = Layer.None,
+            ["Recordings"] = Layer.Domain,
+            ["Capturing"] = Layer.Application,
+            ["Settings"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Verification", new()
         {
