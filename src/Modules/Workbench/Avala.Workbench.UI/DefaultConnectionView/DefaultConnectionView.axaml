@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.DefaultConnectionView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IDefaultConnectionViewModel">
+  <Design.DataContext>
+    <settings:DesignDefaultConnectionViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ComboBox">
+      <Setter Property="MinWidth" Value="240" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border Classes="grouped" Padding="16,14">
+    <StackPanel Spacing="8">
+      <DockPanel>
+        <Button x:Name="Save"
+                DockPanel.Dock="Right"
+                Classes="primary"
+                Margin="8,0,0,0"
+                Content="Save"
+                IsVisible="{Binding IsChanged}"
+                Command="{Binding SaveCommand}" />
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ComboBox x:Name="Choices"
+                    ItemsSource="{Binding Choices}"
+                    SelectedItem="{Binding Draft}"
+                    AutomationProperties.Name="Default connection" />
+          <Border x:Name="Recommended" Classes="tag" IsVisible="{Binding IsRecommended}">
+            <TextBlock Text="recommended" />
+          </Border>
+        </StackPanel>
+      </DockPanel>
+      <TextBlock x:Name="Explanation" Classes="caption" TextWrapping="Wrap" Text="{Binding Explanation}" />
+      <TextBlock x:Name="Error"
+                 Classes="caption failure"
+                 TextWrapping="Wrap"
+                 Text="{Binding Error}"
+                 IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -16,7 +16,13 @@ internal interface IAutonomySectionViewModel
     string Fact { get; }
 
     string Connection { get; }
+
+    string Reason { get; }
+
+    IReadOnlyList<CapacityLine> Compared { get; }
 }
+
+internal sealed record CapacityLine(string Connection, string Reading, bool IsChosen, bool IsAtLimit);
 
 [INotifyPropertyChanged]
 internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewModel, IRegionAware<JobId>, IActivatable, IPresentation, IDisposable
@@ -51,6 +57,12 @@ internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewMod
     [ObservableProperty]
     public partial string Connection { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial string Reason { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial IReadOnlyList<CapacityLine> Compared { get; private set; } = [];
+
     public void OnRegionContextChanged(Option<JobId> context) => inspected.Focus(context);
 
     public void Activate() => inspected.Activate();
@@ -75,5 +87,14 @@ internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewMod
         Connection = facts.Match(
             found => found.Record.History.Summary.Connection.Match(connection => connection.Value, () => "The default connection"),
             () => string.Empty);
+        var choice = facts.Bind(found => found.Choice);
+        Reason = choice.Match(InspectorPhrases.Chosen, () => string.Empty);
+        Compared = choice.Match<IReadOnlyList<CapacityLine>>(
+            chosen => [.. chosen.Compared.Select(candidate => new CapacityLine(
+                candidate.Connection.Value,
+                InspectorPhrases.Capacity(candidate),
+                candidate.Connection == chosen.Connection,
+                !candidate.Available))],
+            () => []);
     }
 }

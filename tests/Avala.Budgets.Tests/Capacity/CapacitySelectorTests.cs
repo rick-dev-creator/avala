@@ -7,6 +7,7 @@ using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Budgets.Tests.Capacity;
@@ -102,6 +103,19 @@ public sealed class CapacitySelectorTests
         Assert.Equal([false, true], choice.Compared.Select(candidate => candidate.Available));
     }
 
+    [Fact]
+    public async Task AQuestionAboutARepositoryReadsTheThresholdsOfItsCurrentCommitAsync()
+    {
+        readings.Of[Work] = [Window(0.6)];
+        readings.Of[Personal] = [Window(0.7)];
+        var selector = new CapacitySelector(new BudgetFileReader(new HeadOnlyFiles("""{ "holdAtLimit": 0.65 }""")), readings, clock);
+
+        var choice = Outcomes.Present(await selector.ChooseAsync(new ConnectionQuestion("/repositories/shop", [Personal, Work]) { AtHead = true }, Cancellation));
+
+        Assert.Equal((Work, ChoiceReason.MostCapacity), (choice.Connection, choice.Reason));
+        Assert.Equal([(Personal, 0.65, false), (Work, 0.65, true)], choice.Compared.Select(candidate => (candidate.Connection, candidate.Threshold, candidate.Available)));
+    }
+
     private Task<ConnectionChoice> ChooseAsync(params ConnectionName[] candidates) =>
         ChooseAsync(new CommittedFiles().Workspace(Worktree), candidates);
 
@@ -127,5 +141,14 @@ public sealed class CapacitySelectorTests
         public Option<UsageSummary> OfSession(SessionId session) => Option<UsageSummary>.None;
 
         public Option<UsageSummary> OfJob(JobId job) => Option<UsageSummary>.None;
+    }
+
+    private sealed class HeadOnlyFiles(string budget) : IBaseFiles
+    {
+        public ValueTask<Result<BaseFile, WorkspaceFailure>> ReadAsync(string worktree, string path, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<BaseFile, WorkspaceFailure>.Failure(WorkspaceFailure.UnknownWorkspace));
+
+        public ValueTask<Result<BaseFile, WorkspaceFailure>> ReadCurrentAsync(string repository, string path, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<BaseFile, WorkspaceFailure>.Success(new BaseFile(path, CommittedFiles.Origin(), budget)));
     }
 }

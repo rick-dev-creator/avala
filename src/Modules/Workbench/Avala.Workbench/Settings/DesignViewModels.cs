@@ -143,9 +143,11 @@ internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySet
 [INotifyPropertyChanged]
 internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsViewModel
 {
+    public IDefaultConnectionViewModel DefaultConnection { get; } = new DesignDefaultConnectionViewModel();
+
     public IReadOnlyList<IMachineConnectionViewModel> Connections { get; } =
     [
-        new DesignMachineConnectionViewModel(),
+        new DesignMachineConnectionViewModel("claude-work", "keychain: claude-work", false),
         new DesignMachineConnectionViewModel("claude-personal", "the provider's own login", false),
     ];
 
@@ -176,6 +178,38 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
     public IAsyncRelayCommand OpenConnectionsCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DesignDefaultConnectionViewModel : IDefaultConnectionViewModel
+{
+    public event EventHandler<Agents.Contracts.Connections.ConnectionCatalog>? Changed
+    {
+        add { }
+        remove { }
+    }
+
+    public IReadOnlyList<string> Choices { get; } = [DefaultPhrases.Auto, "claude-work", "claude-personal"];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChanged), nameof(IsRecommended))]
+    public partial string Draft { get; set; } = DefaultPhrases.Auto;
+
+    public string Saved => DefaultPhrases.Auto;
+
+    public bool IsChanged => Draft != Saved;
+
+    public bool IsRecommended => Draft == DefaultPhrases.Auto;
+
+    public string Explanation => "Recommended. A job that names no connection, in a repository that names none, runs on the connection with the most capacity left.";
+
+    public string Error => string.Empty;
+
+    public IAsyncRelayCommand SaveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public void Show(Agents.Contracts.Connections.ConnectionCatalog catalog)
+    {
+    }
 }
 
 internal sealed class DesignSettingsViewModel : ISettingsViewModel

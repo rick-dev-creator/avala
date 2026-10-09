@@ -127,14 +127,22 @@ internal sealed class FakeConnections : IConnections
 {
     public List<ConnectionName> Names { get; } = [new("work")];
 
+    public Option<ConnectionName> Fixed { get; set; }
+
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult(new ConnectionCatalog(
             ConnectionFileStatus.Absent,
             Option<ConnectionError>.None,
             [.. Names.Select(name => new DeclaredConnection(name, "simulator", Option<string>.None))],
-            Names[0]));
+            Fixed.IsSome ? Fixed : Names[0])
+        {
+            DefaultMode = Fixed.IsSome ? DefaultMode.Fixed : DefaultMode.Auto,
+        });
 
     public ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 }
 

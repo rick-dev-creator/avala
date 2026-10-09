@@ -41,10 +41,16 @@ internal sealed class JobAudit(IVerifications verifications, IPermissionAudit au
     }
 }
 
-internal sealed record InspectorFacts(JobRecord Record, AuditFacts Audit);
+internal sealed record InspectorFacts(JobRecord Record, AuditFacts Audit)
+{
+    public Option<ConnectionChoice> Choice { get; init; }
+}
 
-internal sealed class JobInspection(JobRecords records, JobAudit audit)
+internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.JobBoard board)
 {
     public async Task<Option<InspectorFacts>> ReadAsync(JobId job, CancellationToken cancellationToken) =>
-        (await records.ReadAsync(job, cancellationToken)).Map(record => new InspectorFacts(record, audit.Of(record.History)));
+        (await records.ReadAsync(job, cancellationToken)).Map(record => new InspectorFacts(record, audit.Of(record.History))
+        {
+            Choice = board.Find(job).Bind(found => found.Choice),
+        });
 }

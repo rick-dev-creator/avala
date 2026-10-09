@@ -19,6 +19,8 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
 
     public Option<ApprovalDelivery> Delivery { get; init; }
 
+    public Option<ConnectionChoice> Choice { get; init; }
+
     public int Revision { get; init; }
 
     public int PendingDecisions => Transcript.Awaiting.Count();

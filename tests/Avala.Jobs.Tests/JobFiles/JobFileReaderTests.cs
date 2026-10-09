@@ -78,5 +78,26 @@ public sealed class JobFileReaderTests
         Assert.Equal(JobRejection.InvalidJobFile, Outcomes.FailsWith(await failing.ApprovalAsync(Worktree, Cancellation)));
     }
 
+    [Theory]
+    [InlineData("""{ "connection": "work" }""", "work", "")]
+    [InlineData("""{ "connection": "auto" }""", "", "")]
+    [InlineData("""{ "connection": 1 }""", "", "InvalidJobFile")]
+    public async Task TheRepositorysCurrentCommitTellsWhichConnectionAJobSubmittedNowWouldPreferAsync(string text, string connection, string rejection)
+    {
+        var current = await Reader(new CommittedFiles().With("/repositories/shop", JobFileReader.JobFile, text)).CurrentConnectionAsync("/repositories/shop", Cancellation);
+
+        Assert.Equal(
+            (connection, rejection),
+            current.Match(found => (found.Match(name => name.Value, () => string.Empty), string.Empty), error => (string.Empty, error.ToString())));
+    }
+
+    [Fact]
+    public async Task APathThatIsNoRepositoryYetPrefersNoConnectionAsync()
+    {
+        var current = await Reader(new CommittedFiles().Failing("/repositories/sho", WorkspaceFailure.GitFailed)).CurrentConnectionAsync("/repositories/sho", Cancellation);
+
+        Assert.True(Outcomes.Succeeds(current).IsNone);
+    }
+
     private static JobFileReader Reader(CommittedFiles files) => new(files, NullLogger<JobFileReader>.Instance);
 }

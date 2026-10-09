@@ -8,6 +8,8 @@ namespace Avala.Budgets.Enforcement;
 internal interface IBudgetFiles
 {
     ValueTask<BudgetFile> ReadAsync(string workingDirectory, ConnectionName connection, CancellationToken cancellationToken);
+
+    ValueTask<BudgetFile> ReadCurrentAsync(string repository, ConnectionName connection, CancellationToken cancellationToken);
 }
 
 internal sealed record BudgetFile(Option<FileOrigin> Origin, Result<Option<BudgetCaps>, BudgetError> Caps);
