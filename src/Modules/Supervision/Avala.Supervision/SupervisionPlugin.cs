@@ -20,7 +20,9 @@ public sealed class SupervisionPlugin : IPlugin
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton<ISupervisionSettings, SettingsFile>()
-            .AddSingleton<IInterventionStore, SqliteInterventionStore>()
+            .AddSingleton<SqliteInterventionStore>()
+            .AddSingleton<IInterventionStore>(services => services.GetRequiredService<SqliteInterventionStore>())
+            .AddSingleton<IStartupTask>(services => services.GetRequiredService<SqliteInterventionStore>())
             .AddSingleton<SupervisionBook>()
             .AddSingleton<ISupervision>(services => services.GetRequiredService<SupervisionBook>())
             .AddSingleton<IStartupTask>(services => services.GetRequiredService<SupervisionBook>())

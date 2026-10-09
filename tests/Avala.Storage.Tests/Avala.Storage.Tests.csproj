@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\Avala.Storage\Avala.Storage.csproj" />
+    <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+  </ItemGroup>
+</Project>

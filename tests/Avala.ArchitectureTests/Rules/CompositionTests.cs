@@ -14,16 +14,28 @@ public sealed class CompositionTests
         Assert.Empty(violations);
     }
 
+    private static readonly Type[] FrameworkBaseTypes =
+    [
+        typeof(object),
+        typeof(Microsoft.EntityFrameworkCore.DbContext),
+        typeof(Microsoft.EntityFrameworkCore.Migrations.Migration),
+        typeof(Microsoft.EntityFrameworkCore.Infrastructure.ModelSnapshot),
+        typeof(System.Text.Json.Serialization.JsonConverterFactory),
+    ];
+
     [Fact]
     public void OnlyFrameworkBaseTypesMayBeInherited()
     {
         var violations = Classes
             .Where(type => type.BaseType is { } baseType
-                && baseType != typeof(object)
-                && baseType != typeof(Microsoft.EntityFrameworkCore.DbContext)
+                && !FrameworkBaseTypes.Contains(baseType)
+                && !IsJsonConverter(baseType)
                 && baseType.Assembly.GetName().Name?.StartsWith("Avalonia", StringComparison.Ordinal) != true)
             .Select(type => $"{type.FullName} : {type.BaseType}");
 
         Assert.Empty(violations);
     }
+
+    private static bool IsJsonConverter(Type baseType) =>
+        baseType.IsGenericType && baseType.GetGenericTypeDefinition() == typeof(System.Text.Json.Serialization.JsonConverter<>);
 }
