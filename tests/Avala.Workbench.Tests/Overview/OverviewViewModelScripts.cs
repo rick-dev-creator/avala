@@ -19,7 +19,7 @@ namespace Avala.Workbench.Tests.Overview;
 public sealed class OverviewViewModelScripts : IDisposable
 {
     private readonly TestUiDispatcher ui = new();
-    private readonly SessionBook sessions = new();
+    private readonly SessionBook sessions = new(new FakeUsage());
     private readonly TreeCatalog catalog = new();
     private readonly JobBoard board = new();
 
@@ -157,7 +157,7 @@ public sealed class ConnectionsViewModelScripts : IDisposable
     {
         var board = new JobBoard();
         var connections = new FakeConnections("work") { Catalog = new FakeConnections("work").Catalog with { File = ConnectionFileStatus.Rejected, Error = ConnectionError.Malformed } };
-        using var page = new ConnectionsViewModel(new FleetReader(connections, new FakeUsage(), new SessionBook(), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook()));
+        using var page = new ConnectionsViewModel(new FleetReader(connections, new FakeUsage(), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
 
         page.Activate();
 
@@ -169,7 +169,7 @@ public sealed class ConnectionsViewModelScripts : IDisposable
     public async Task WithoutDeclaredOrUsedConnectionsTheListIsEmptyAsync()
     {
         var board = new JobBoard();
-        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), new FakeUsage(), new SessionBook(), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook()));
+        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), new FakeUsage(), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), ui), Focusing.Focus(), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
 
         await page.PresentsAfterAsync(page.Activate, () => "never presented", TestContext.Current.CancellationToken);
 
@@ -242,7 +242,7 @@ public sealed class ConnectionsOpeningScripts
         var opened = new List<JobId>();
         CommunityToolkit.Mvvm.Messaging.IMessengerExtensions.Register<List<JobId>, Contracts.Presentation.JobSelected>(messenger, opened, (recipient, message) => recipient.Add(message.Job));
         var board = new JobBoard();
-        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), new FakeUsage(), new SessionBook(), board), new LiveFeed(new Pulse(board), new TestUiDispatcher()), new Avala.Workbench.Navigation.JobFocus(new TestRegions(), messenger), Focusing.Spending(new FakeUsage(), new SessionBook()));
+        using var page = new ConnectionsViewModel(new FleetReader(new FakeConnections(), new FakeUsage(), new SessionBook(new FakeUsage()), board), new LiveFeed(new Pulse(board), new TestUiDispatcher()), new Avala.Workbench.Navigation.JobFocus(new TestRegions(), messenger), Focusing.Spending(new FakeUsage(), new SessionBook(new FakeUsage())));
         var agent = new AgentViewModel(new BoardJob(Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running), Transcript.Empty));
 
         page.OpenCommand.Execute(agent.Job);
@@ -309,7 +309,7 @@ public sealed class DelegationViewModelScripts : IDisposable
     {
         var board = new JobBoard();
         var usage = new FakeUsage();
-        var sessions = new SessionBook();
+        var sessions = new SessionBook(new FakeUsage());
         using var page = new DelegationViewModel(
             new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), sessions), board),
             new LiveFeed(new Pulse(board), ui),
@@ -325,7 +325,7 @@ public sealed class DelegationViewModelScripts : IDisposable
     {
         var board = new JobBoard();
         using var page = new DelegationViewModel(
-            new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(new FakeUsage(), new FakeBudgets(), new FakeSupervision(), new SessionBook()), board),
+            new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(new FakeUsage(), new FakeBudgets(), new FakeSupervision(), new SessionBook(new FakeUsage())), board),
             new LiveFeed(new Pulse(board), ui),
             Focusing.Focus());
 

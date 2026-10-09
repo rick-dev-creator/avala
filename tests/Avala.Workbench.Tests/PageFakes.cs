@@ -131,9 +131,13 @@ internal sealed class FakePreview : IConnectionPreview
     }
 }
 
-internal sealed class FakeUsage : IUsage
+internal sealed class FakeUsage : IUsage, IUsageSessions
 {
     public List<ConnectionUsage> Connections { get; } = [];
+
+    public List<UsageSession> Stored { get; } = [];
+
+    public IReadOnlyList<UsageSession> Sessions() => Stored;
 
     public Dictionary<JobId, UsageSummary> Jobs { get; } = [];
 

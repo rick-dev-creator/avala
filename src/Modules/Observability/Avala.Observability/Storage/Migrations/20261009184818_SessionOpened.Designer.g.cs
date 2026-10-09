@@ -2,6 +2,7 @@ using System;
 using Avala.Observability.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -9,9 +10,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Avala.Observability.Storage.Migrations
 {
     [DbContext(typeof(ObservabilityDbContext))]
-    internal sealed partial class ObservabilityDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261009184818_SessionOpened")]
+    internal sealed partial class SessionOpened
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");

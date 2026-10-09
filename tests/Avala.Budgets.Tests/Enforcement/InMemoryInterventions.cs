@@ -8,6 +8,7 @@ internal sealed class InMemoryInterventions : IInterventionStore
 {
     private readonly ConcurrentQueue<BudgetIntervention> recorded = new();
     private readonly ConcurrentQueue<BudgetCarve> carves = new();
+    private readonly ConcurrentQueue<BudgetedSession> budgets = new();
 
     public IReadOnlyList<BudgetIntervention> Recorded => [.. recorded];
 
@@ -16,6 +17,10 @@ internal sealed class InMemoryInterventions : IInterventionStore
     public IReadOnlyList<BudgetIntervention> Earlier { get; set; } = [];
 
     public IReadOnlyList<BudgetCarve> EarlierCarves { get; set; } = [];
+
+    public IReadOnlyList<BudgetedSession> Budgets => [.. budgets];
+
+    public IReadOnlyList<BudgetedSession> EarlierBudgets { get; set; } = [];
 
     public Task RecordAsync(BudgetIntervention intervention, CancellationToken cancellationToken)
     {
@@ -30,6 +35,15 @@ internal sealed class InMemoryInterventions : IInterventionStore
 
         return Task.CompletedTask;
     }
+
+    public Task RecordAsync(BudgetedSession budgeted, CancellationToken cancellationToken)
+    {
+        budgets.Enqueue(budgeted);
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<BudgetedSession>> EarlierBudgetsAsync(CancellationToken cancellationToken) => Task.FromResult(EarlierBudgets);
 
     public Task<IReadOnlyList<BudgetIntervention>> EarlierRunsAsync(CancellationToken cancellationToken) => Task.FromResult(Earlier);
 

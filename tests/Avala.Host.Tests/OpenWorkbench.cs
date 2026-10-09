@@ -50,9 +50,9 @@ internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar,
         return sections;
     }
 
-    public async Task<(string Group, string Fact)> RowAsync(JobId job)
+    public async Task<(string Group, string Fact)> RowAsync(JobId job, string group)
     {
-        await ShowsAsync(() => Row(job) is not null);
+        await ShowsInGroupAsync(job, group);
 
         return await run.Ui.ReadAsync(() => GroupOf(job));
     }

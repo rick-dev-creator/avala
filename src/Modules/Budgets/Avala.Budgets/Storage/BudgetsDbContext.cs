@@ -8,6 +8,8 @@ internal sealed class BudgetsDbContext(string database) : DbContext
 
     public DbSet<StoredCarve> Carves => Set<StoredCarve>();
 
+    public DbSet<StoredSessionBudget> SessionBudgets => Set<StoredSessionBudget>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
@@ -24,6 +26,13 @@ internal sealed class BudgetsDbContext(string database) : DbContext
             carve.ToTable("Carves");
             carve.HasKey(row => row.Key);
             carve.Property(row => row.Key).ValueGeneratedOnAdd();
+        });
+        modelBuilder.Entity<StoredSessionBudget>(budget =>
+        {
+            budget.ToTable("SessionBudgets");
+            budget.HasKey(row => row.Key);
+            budget.Property(row => row.Key).ValueGeneratedOnAdd();
+            budget.HasIndex(row => row.Session);
         });
     }
 }
