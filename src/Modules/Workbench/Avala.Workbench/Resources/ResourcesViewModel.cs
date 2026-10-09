@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Upkeep;
@@ -12,8 +13,16 @@ using CommunityToolkit.Mvvm.Input;
 namespace Avala.Workbench.Resources;
 
 [INotifyPropertyChanged]
-internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekeeping housekeeping, LiveFeed feed) : IPage, IActivatable, IDisposable
+internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekeeping housekeeping, LiveFeed feed) : IPage, IActivatable, IPresentation, IDisposable
 {
+    public event EventHandler<Presented>? Presented
+    {
+        add => feed.Presented += value;
+        remove => feed.Presented -= value;
+    }
+
+    public long Revision => feed.Revision;
+
     public string Title => "Resources";
 
     public ObservableCollection<AgentTreeViewModel> Trees { get; } = [];

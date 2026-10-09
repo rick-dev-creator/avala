@@ -1,10 +1,15 @@
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 
 namespace Avala.Workbench.Following;
 
-internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IDisposable
+internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IPresentation, IDisposable
 {
     private CancellationTokenSource? active;
+
+    public event EventHandler<Presented>? Presented;
+
+    public long Revision { get; private set; }
 
     public Task Following { get; private set; } = Task.CompletedTask;
 
@@ -46,11 +51,13 @@ internal sealed class LiveFeed(Pulse pulse, IUiDispatcher ui) : IDisposable
         }
     }
 
-    private static void ShowWhileFollowing<T>(T state, Action<T> show, CancellationToken following)
+    private void ShowWhileFollowing<T>(T state, Action<T> show, CancellationToken following)
     {
         if (!following.IsCancellationRequested)
         {
             show(state);
+            Revision++;
+            Presented?.Invoke(this, new Presented(Revision));
         }
     }
 }
