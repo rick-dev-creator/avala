@@ -114,6 +114,8 @@ The CLI starts the user's `stdio` servers as its own children, with its environm
 | `Agent`, `Task` | `Subagent` | Its description |
 | Anything else, `Read` included | `Other` | `Read`'s path, or the tool's name |
 
+A `Bash` or `PowerShell` command line reaches the policy whole, as the agent wrote it; the policy decides it from its simple commands and the files it redirects into, reading it so that neither shell can run a command the reading did not see, see [command lines](core.md#command-lines).
+
 ### Tool rows
 
 A tool's `ItemStarted` carries its input as text, at most 16 KiB, so the conversation shows what the agent asked for and not only its title: an `Edit` as its replaced lines marked `- ` and its new lines `+ `, a `MultiEdit` as each of its edits, a `Write` as its content, a `NotebookEdit` as its new source, a `Bash` command as its whole command line, a heredoc included, while its title keeps the first line, a `Grep` or `Glob` as its pattern, `in` its path and its glob, a `WebFetch` as its URL and prompt, a `WebSearch` as its query, an `Agent` or `Task` as its prompt, a `ToolSearch` as its query, titled `Load <tools>` for a `select:` query and `Find tools for <query>` otherwise, a `Read` as its path, and any other tool as its input JSON. The 2.1.295 native build replaces `Grep` and `Glob` by search commands run through `Bash` and lists neither (observed in its `init` tools); other builds still call them.
