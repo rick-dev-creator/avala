@@ -59,4 +59,6 @@ internal sealed record PutFile(TimeSpan Gap, string Path, string Content) : ISte
 
 internal sealed record Hangup : IStep;
 
+internal sealed record Recall(ItemId Item) : IStep;
+
 internal sealed record Diverge(string Reason) : IStep;

@@ -5,6 +5,8 @@ namespace Avala.Simulator.Scenarios;
 
 internal sealed record Cues(SessionId Session, TurnId Turn)
 {
+    public string Told { get; init; } = string.Empty;
+
     public TurnStarted Started => new(Session, Turn);
 
     public TurnCompleted Ended(TurnOutcome outcome) => new(Session, Turn, outcome);
@@ -39,6 +41,7 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         ReportUsage usage => [new UsageReported(Session, Turn, usage.Tokens, usage.Cost)],
         ReportLimit limit => [new LimitReported(Session, Turn, limit.Limit)],
         Open open => [Opened(open.Item, open.Kind, open.Title)],
+        Recall recall => Stream(Opened(recall.Item, ItemKind.Message, "Reply"), recall.Item, ["I was told: ", Told]),
         Finish => [Ended(TurnOutcome.Finished)],
         _ => [],
     };
