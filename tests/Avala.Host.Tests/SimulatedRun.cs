@@ -254,11 +254,13 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public Bound Workbench()
     {
-        var page = Assert.Single(Get<IEnumerable<IPage>>());
-        ((IActivatable)page).Activate();
+        var page = Page("Jobs");
+        ((IActivatable)page.Target).Activate();
 
-        return new Bound(page);
+        return page;
     }
+
+    public Bound Page(string title) => new(Assert.Single(Get<IEnumerable<IPage>>(), page => page.Title == title));
 
     private async Task StopAsync()
     {
