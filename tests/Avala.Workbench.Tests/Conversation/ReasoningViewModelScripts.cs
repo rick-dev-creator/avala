@@ -26,6 +26,14 @@ public sealed class ReasoningViewModelScripts
             .Then(reasoning => Assert.Equal((summary, false), (reasoning.Summary, reasoning.IsThinking)));
 
     [Fact]
+    public void AThoughtTheHarnessDidNotShareSaysSoAndCannotBeExpanded() =>
+        ViewModelScript.Given(new ReasoningViewModel(new ReasoningEntry("r", string.Empty, Started, Option<TimeSpan>.None, Option<ItemOutcome>.None)))
+            .When(reasoning => reasoning.Update(new ReasoningEntry("r", "  ", Started, TimeSpan.FromSeconds(12), ItemOutcome.Succeeded)))
+            .Then(reasoning => Assert.Equal(
+                ("Thought for 12s · content not shared by the harness", false, false, false),
+                (reasoning.Summary, reasoning.HasText, reasoning.IsExpanded, reasoning.ToggleCommand.CanExecute(null))));
+
+    [Fact]
     public void TheThoughtExpandsOnDemandAndKeepsStreamingWhileOpen() =>
         ViewModelScript.Given(new ReasoningViewModel(new ReasoningEntry("r", "JPY has", Started, Option<TimeSpan>.None, Option<ItemOutcome>.None)))
             .Invoke(nameof(ReasoningViewModel.ToggleCommand))

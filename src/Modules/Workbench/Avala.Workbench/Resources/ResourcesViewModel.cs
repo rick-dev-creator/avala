@@ -15,6 +15,8 @@ internal interface IResourcesViewModel
 {
     string Title { get; }
 
+    string Scope { get; }
+
     IReadOnlyList<IAgentTreeViewModel> Trees { get; }
 
     IReadOnlyList<IOrphanViewModel> Orphans { get; }
@@ -64,6 +66,8 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
     public long Revision => feed.Revision;
 
     public string Title => "Resources";
+
+    public string Scope => Scopes.Resources;
 
     public PagePlacement Placement => PagePlacement.Hidden;
 

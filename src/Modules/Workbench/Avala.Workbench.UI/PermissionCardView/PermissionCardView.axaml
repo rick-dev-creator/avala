@@ -50,7 +50,8 @@
         </StackPanel>
         <Grid x:Name="Answer" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
           <CheckBox x:Name="DontAskAgain"
-                    Content="Don't ask again"
+                    Content="{Binding DontAskAgainLabel}"
+                    ToolTip.Tip="{Binding DontAskAgainScope}"
                     IsChecked="{Binding DontAskAgain}"
                     VerticalAlignment="Center" />
           <ToggleButton x:Name="AddNote"

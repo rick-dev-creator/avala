@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Machine;
@@ -34,7 +35,34 @@ public sealed class MachineSettingsViewModelScripts
 
         await machine.OpenConnectionsCommand.ExecuteAsync(null);
 
-        Assert.Equal("No application is available to open the file.", machine.Error);
+        Assert.Equal($"No application is available to open files: edit {Path.Combine("/data", "connections.json")} yourself.", machine.Error);
+    }
+
+    [Fact]
+    public async Task AddingAConnectionWithoutAConnectionsFileCreatesItWithTheAutoDefaultThenOpensItAsync()
+    {
+        var connections = new FakeConnections("simulator").Automatic();
+        connections.Catalog = connections.Catalog with { File = ConnectionFileStatus.Absent };
+        var machine = Machine(connections);
+
+        await machine.OpenConnectionsCommand.ExecuteAsync(null);
+
+        Assert.Equal([Option<ConnectionName>.None], connections.Changes);
+        Assert.Equal([Path.Combine("/data", "connections.json")], opener.Opened);
+        Assert.Equal((string.Empty, SettingsPhrases.CreatedConnections, "Applied"), (machine.Error, machine.Notice, machine.ConnectionsFile));
+    }
+
+    [Fact]
+    public async Task OpeningAnExistingConnectionsFileChangesNothingInItAsync()
+    {
+        var connections = new FakeConnections("work");
+        var machine = Machine(connections);
+        opener.Existing.Add(Path.Combine("/data", "connections.json"));
+
+        await machine.OpenConnectionsCommand.ExecuteAsync(null);
+
+        Assert.Empty(connections.Changes);
+        Assert.Equal(string.Empty, machine.Notice);
     }
 
     [Fact]

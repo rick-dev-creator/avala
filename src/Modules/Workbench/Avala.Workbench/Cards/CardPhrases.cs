@@ -7,6 +7,11 @@ namespace Avala.Workbench.Cards;
 
 internal static class CardPhrases
 {
+    public const string DontAskAgain = "Don't ask again this session";
+
+    public static string DontAskAgainScope(ItemKind kind) =>
+        $"Your answer is reused only for this exact {Requested(kind)} and only until this agent session ends: a new session of the job, after a hold or a restart, asks again.";
+
     public static string Verdict(PermissionEntry permission) =>
         permission.Resolution.Match(
             answer => answer == PermissionAnswer.Allow ? "Allowed" : "Denied",
@@ -49,6 +54,15 @@ internal static class CardPhrases
         AgentError.InvalidAnswer => "The answer does not fit the form.",
         AgentError.Unsupported => "This agent does not take answers to forms.",
         _ => "The answer did not reach the agent.",
+    };
+
+    private static string Requested(ItemKind kind) => kind switch
+    {
+        ItemKind.Command => "command",
+        ItemKind.FileEdit => "file",
+        ItemKind.Web => "address",
+        ItemKind.Mcp => "tool call",
+        _ => "request",
     };
 
     private static string Chosen(FormAnswer answer) =>

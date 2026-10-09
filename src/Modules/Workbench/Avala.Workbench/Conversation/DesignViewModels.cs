@@ -94,6 +94,8 @@ internal sealed class DesignReasoningViewModel(string summary, bool isThinking) 
 
     public bool IsExpanded => false;
 
+    public bool HasText => true;
+
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
 }
 

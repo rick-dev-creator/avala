@@ -16,6 +16,7 @@ public sealed class ResourcesViewScripts(HeadlessUi ui)
         {
             var view = Wide(new DesignResourcesViewModel());
 
+            Assert.Equal("Avala's agents and worktrees, not the whole computer", view.TextOf("Scope"));
             Assert.Equal(("7,168.0 MB", "34%", "23 processes", "4 leased", "Left behind · 5"), (view.TextOf("Memory"), view.TextOf("Cpu"), view.TextOf("Processes"), view.TextOf("LeaseCount"), view.TextOf("LeftBehind")));
             Assert.Equal((4, 2, 2, 1, 4), (view.Find<ItemsControl>("Trees").ItemCount, view.Find<ItemsControl>("Orphans").ItemCount, view.Find<ItemsControl>("StaleWorktrees").ItemCount, view.Find<ItemsControl>("Conflicts").ItemCount, view.Find<ItemsControl>("Leases").ItemCount));
             Assert.Equal((false, true, false), (view.Shows("NothingLeft"), view.Shows("Clean"), view.Shows("NoAgents")));
@@ -64,6 +65,8 @@ public sealed class ResourcesViewScripts(HeadlessUi ui)
         public List<JobId> Reaped { get; } = [];
 
         public string Title => design.Title;
+
+        public string Scope => design.Scope;
 
         public IReadOnlyList<IAgentTreeViewModel> Trees { get; init; } = new DesignResourcesViewModel().Trees;
 
@@ -152,7 +155,7 @@ public sealed class ResourceIndicatorViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignResourceIndicatorViewModel());
 
-            Assert.Equal(("7,168.0 MB", "2 left over"), (view.TextOf("Memory"), view.TextOf("Leftovers")));
+            Assert.Equal(("Avala's agents", "7,168.0 MB", "2 left over"), (view.TextOf("Scope"), view.TextOf("Memory"), view.TextOf("Leftovers")));
             Assert.Contains("38%", view.VisibleTexts);
             Assert.True(view.HasClass("Leftovers", "attention"));
         }, TestContext.Current.CancellationToken);
@@ -183,12 +186,29 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task TheAutonomyShowsTheRepositorysLevelAndChoosingSupervisedSaysItAppliesToThisJobAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
+            await page.LoadAsync(TestContext.Current.CancellationToken);
+            var view = Screen.Show(page);
+            var shown = (view.Find<ComboBox>("Autonomy").SelectedItem, view.Find<ComboBox>("Autonomy").ItemCount);
+
+            view.Find<ComboBox>("Autonomy").SelectedItem = "Supervised";
+            view.Settle();
+
+            Assert.Equal(("Repository's level: autonomous", 2), shown);
+            Assert.Equal("Supervised for this job only: whatever the rules leave open asks you first.", view.TextOf("AutonomyNote"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AutoIsPreselectedWithWhatItWouldPickNowAsync() =>
         ui.RunAsync(async () =>
         {
             using var bench = new Bench();
             var preview = new FakePreview { Answer = FakePreview.ByCapacity("claude-personal", ChoiceReason.MostCapacity, ("claude-work", 0.88, true), ("claude-personal", 0.31, true)) };
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview, new FakePolicies()), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
             await page.LoadAsync(TestContext.Current.CancellationToken);
             var view = Screen.Show(page);
 
@@ -201,7 +221,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var preview = new FakePreview { Answer = FakePreview.ByCapacity("claude-personal", ChoiceReason.MostCapacity, ("claude-work", 0.95, false), ("claude-personal", 0.31, true)) };
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview, new FakePolicies()), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
             await page.LoadAsync(TestContext.Current.CancellationToken);
             var view = Screen.Show(page);
 
@@ -217,7 +237,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview()), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
             var view = Screen.Show(page);
 
             var empty = view.Find<Button>("Submit").IsEffectivelyEnabled;
@@ -232,7 +252,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var jobs = new SubmittingJobs { Refusal = JobRejection.UnknownConnection };
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(jobs, new FakeConnections("claude-work"), new FakePreview()), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(jobs, new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), bench.Board, bench.Messenger) { Repository = "~/code/shop-api" };
             var view = Screen.Show(page);
 
             view.Type("Instruction", "Add invoice PDF endpoint");

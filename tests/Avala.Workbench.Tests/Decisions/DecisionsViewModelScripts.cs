@@ -128,6 +128,25 @@ public sealed class DecisionsViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task WhileOpenTheWaitGrowsWithTheClockWithoutAnyBoardChangeAndStopsOnceClosed()
+    {
+        var decisions = bench.Decisions();
+        await bench.Ui.InvokeAsync(decisions.Activate, TestContext.Current.CancellationToken);
+        bench.Publish(Asking());
+        await bench.Ui.PresentedAsync(decisions, () => decisions.Items.Count == 1, () => $"{decisions.Items.Count} decisions");
+        var (shown, aged) = await bench.Ui.ReadAsync(() => (decisions.Items[0].Waiting, decisions.Revision));
+
+        bench.Time.Advance(TimeSpan.FromMinutes(70));
+        await bench.Ui.PresentedAsync(decisions, () => decisions.Revision > aged && decisions.Items[0].Waiting != shown, () => $"revision {decisions.Revision}, {decisions.Items[0].Waiting}");
+        var later = await bench.Ui.ReadAsync(() => decisions.Items[0].Waiting);
+        await bench.Ui.InvokeAsync(decisions.Deactivate, TestContext.Current.CancellationToken);
+        bench.Time.Advance(TimeSpan.FromMinutes(70));
+
+        Assert.Equal(("5m", "1h 15m"), (shown, later));
+        Assert.Equal("1h 15m", await bench.Ui.ReadAsync(() => decisions.Items[0].Waiting));
+    }
+
+    [Fact]
     public void WithNothingWaitingNoAnswerCanBeGiven() =>
         ViewModelScript.Given(bench.Decisions())
             .When(decisions => decisions.Show(Bench.Of(Bench.OnBoard(bench.Job("Update lodash to 4.17.21", JobStatus.Running)))))

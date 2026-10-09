@@ -47,6 +47,19 @@ internal sealed class BoardFeed(JobBoard board, IUiDispatcher ui) : IPresentatio
             await ui.InvokeAsync(() => ApplyWhileFollowing(state, apply, following), following);
         });
 
+    public Task ShowAgainAsync(Action show) =>
+        RunAsync(following => ui.InvokeAsync(
+            () =>
+            {
+                if (!following.IsCancellationRequested)
+                {
+                    show();
+                    Revision++;
+                    Presented?.Invoke(this, new Presented(Revision));
+                }
+            },
+            following).AsTask());
+
     public Task RunAsync(Func<CancellationToken, Task> load) =>
         active is { } following ? GuardedAsync(load, following.Token) : Task.CompletedTask;
 
