@@ -109,6 +109,25 @@ A new capability, such as GitHub, Linear or another way to isolate work than git
 - A plugin owns its data, in its own database. The mapping between a Linear issue and its job lives in the Linear plugin; the core never learns what an issue is.
 - A new extension point follows the agent contract's discipline: the interface in a `Contracts` project, a simulated or fake implementation, and tests every implementation must pass.
 
+### Composing the interface across modules
+
+The interface follows the same rule as the rest: a module never references another module's internals. A screen made of several modules' parts is composed view model first, in three ways, preferred in this order.
+
+| Mechanism | Use it when | Example |
+| --- | --- | --- |
+| A region and its context | A page shows parts it does not need to know, about the thing it has in focus | The shell declares `Inspector`; Workbench, Resources and Observability each register a section; the shell sets the region's context to the selected job and every section shows that job |
+| A UI message | Something that happened in one region must reach parts elsewhere | "Open the review of this job", published by a sidebar row and handled by the page that hosts the review |
+| A typed view model from another module's contracts | A view model must host and drive another module's component | The review hosts Observability's job usage meter, created through a factory for the job under review |
+
+- **Regions.** A page declares named regions; a plugin registers its view models into them through the registrar, with an order. A region holds view models, never views: the view registry resolves each one's view from its module's `.UI` assembly. A region activates and deactivates the view models it holds.
+- **Region names are typed** constants in `Avala.Sdk.UI`, never strings, and an architecture test checks that every region a plugin registers into exists.
+- **Region context first.** A page sets its region's context, such as the selected job, and every view model in the region receives it through `IRegionAware`. Sections never subscribe to selection messages.
+- **UI messages** travel over an injected `IMessenger`. A message is a small immutable record in the publishing module's `Contracts`, under `Presentation`, listed in the data catalog like any other data. It states what happened in the interface and never replaces a command to the core.
+- **Typed composition** is the exception. The owning module exposes the view model's interface and a factory in its `Contracts`, under `Presentation`; the interface depends only on `INotifyPropertyChanged` and `ICommand` from .NET, so contracts stay free of any UI framework. The implementation stays internal to its module, and its view stays in its module's `.UI` assembly.
+- **Design time.** Regions have design-time content too, so the shell renders in the designer filled with design-time view models.
+
+We take Prism's concepts, regions, region context and the event aggregator, and implement the minimum Avala needs in `Avala.Sdk.UI` and the shell, rather than depending on Prism itself.
+
 ## Analyzer exceptions
 
 Comments are banned, so every exception to an analyzer is recorded here.

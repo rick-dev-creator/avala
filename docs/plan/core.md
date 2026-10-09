@@ -336,7 +336,7 @@ Done when: the full job flow runs end to end through view models in tests.
 ## Phase 10: Views
 
 0. The view rules, enforced before any view is designed, applied to the placeholder views and view models of phase 9:
-   - regions: named regions on pages, filled with components plugins register through the registrar, in `Avala.Sdk.UI`;
+   - regions, as [composing the interface across modules](../architecture.md#composing-the-interface-across-modules) describes: typed region names in `Avala.Sdk.UI`, registration of view models into regions through the registrar with an order, region context received through `IRegionAware`, UI messages in each module's `Contracts` under `Presentation`, typed view model interfaces and factories there for the exceptional case, and design-time region content;
    - an interface for every view model and a design-time implementation with realistic data, declared as each view's design-time `DataContext`, so every view renders in the designer;
    - compiled bindings with `x:DataType` on every view;
    - code-behind limited to presentation concerns, replacing the rule that allowed only `InitializeComponent()`;
