@@ -4,12 +4,13 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Conversations;
 using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
+using Avala.Testing;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
 
 internal sealed class Talk
 {
-    public const string WorkingDirectory = "/work";
+    public static readonly string WorkingDirectory = HostPaths.Rooted("/work");
 
     public Talk(PermissionMode mode = PermissionMode.AskEveryTime, IReadOnlyList<HarnessTool>? tools = null, Option<ConversationMark> resumed = default) =>
         Conversation = new Conversation(Session, new SessionOptions(WorkingDirectory, mode) { Tools = tools ?? [] }, WorkingDirectory, resumed);

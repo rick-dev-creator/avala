@@ -29,7 +29,7 @@ internal sealed class ProviderRecorder(
     {
         store.Begin(session.Id, new RecordingHeader(clock.GetUtcNow(), provider.Info, provider.CapabilitiesOn(options.Connection), session.Account, options), current);
 
-        return new RecordedSession(session, options.WorkingDirectory, new Journal(session.Id, store, clock), files);
+        return new RecordedSession(session, Path.GetFullPath(options.WorkingDirectory), new Journal(session.Id, store, clock), files);
     }
 }
 

@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Avala.Testing;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
 
@@ -97,4 +98,9 @@ internal static class Cli
             """);
 
     public static JsonNode Parse(string json) => JsonNode.Parse(json)!;
+
+    public static string OnHost(string input) =>
+        new JsonObject(Parse(input).AsObject().Select(member => KeyValuePair.Create(
+            member.Key,
+            member.Value is JsonValue value && value.TryGetValue<string>(out var text) ? JsonValue.Create(HostPaths.Rooted(text)) : member.Value?.DeepClone()))).ToJsonString();
 }

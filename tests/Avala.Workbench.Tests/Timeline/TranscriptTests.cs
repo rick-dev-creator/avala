@@ -93,30 +93,22 @@ public sealed class TranscriptTests
         Assert.Equal(("graph TD; A-->B", CanvasStatus.Completed, false), (entry.Content, entry.Status, entry.IsOffered));
     }
 
-    [Theory]
-    [InlineData("Succeeded", "Completed")]
-    [InlineData("Failed", "Failed")]
-    [InlineData("Cancelled", "Cancelled")]
-    [InlineData("Abandoned", "Abandoned")]
-    [InlineData("Expired", "Expired")]
-    public void ACanvasStillStreamingWhenItsItemEndsTakesTheItemsOutcome(string outcome, string status)
-    {
-        var transcript = Played(
-            new CanvasStarted(Session, Turn, new ItemId("diagram"), "Flow", "text/vnd.mermaid"),
-            new ItemCompleted(Session, Turn, new ItemId("diagram"), Enum.Parse<ItemOutcome>(outcome)));
-
-        Assert.Equal(Enum.Parse<CanvasStatus>(status), Assert.IsType<CanvasEntry>(Assert.Single(transcript.Entries)).Status);
-    }
-
     [Fact]
-    public void ACanvasAlreadyClosedBySnapshotKeepsItsStatusWhenItsItemEnds()
+    public void ACanvasClosesOnlyWithTheFinalSnapshotThatCarriesItsWholeContentWhetherItsItemEndsBeforeOrAfter()
     {
         var canvas = new CanvasId(Turn, new ItemId("diagram"));
-        var transcript = Played(new CanvasStarted(Session, Turn, canvas.Item, "Flow", "text/vnd.mermaid"))
-            .Apply(new CanvasSnapshot(canvas, Session, "Flow", "text/vnd.mermaid", "graph TD", CanvasStatus.Completed, false))
-            .Apply(new ItemCompleted(Session, Turn, canvas.Item, ItemOutcome.Failed), Start);
+        var started = Played(new CanvasStarted(Session, Turn, canvas.Item, "Flow", "text/vnd.mermaid"))
+            .Apply(new CanvasSnapshot(canvas, Session, "Flow", "text/vnd.mermaid", "graph TD", CanvasStatus.Streaming, false));
+        var final = new CanvasSnapshot(canvas, Session, "Flow", "text/vnd.mermaid", "graph TD; A-->B", CanvasStatus.Failed, false);
 
-        Assert.Equal(CanvasStatus.Completed, Assert.IsType<CanvasEntry>(Assert.Single(transcript.Entries)).Status);
+        var endedFirst = started.Apply(new ItemCompleted(Session, Turn, canvas.Item, ItemOutcome.Succeeded), Start);
+        var closedFirst = started.Apply(final).Apply(new ItemCompleted(Session, Turn, canvas.Item, ItemOutcome.Succeeded), Start);
+
+        Assert.Equal(
+            [("graph TD", CanvasStatus.Streaming), ("graph TD; A-->B", CanvasStatus.Failed), ("graph TD; A-->B", CanvasStatus.Failed)],
+            new[] { endedFirst, endedFirst.Apply(final), closedFirst }
+                .Select(transcript => Assert.IsType<CanvasEntry>(Assert.Single(transcript.Entries)))
+                .Select(entry => (entry.Content, entry.Status)));
     }
 
     [Fact]

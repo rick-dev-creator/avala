@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
+using Avala.Testing;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
 
@@ -57,11 +58,12 @@ public sealed class StreamTests
     [InlineData("Read", """{ "file_path": "/work/a.txt" }""", ItemKind.Other, "Read a.txt", "/work/a.txt")]
     public void EveryToolUseIsAnItemOfItsKindWithATitleAndTheTargetItsPermissionNames(string tool, string input, ItemKind kind, string title, string target)
     {
-        var talk = new Talk().Begin().Receive(Cli.ToolUse("t1", tool, input)).Receive(Cli.Prompt("r1", tool, input, "t1"));
+        var onHost = Cli.OnHost(input);
+        var talk = new Talk().Begin().Receive(Cli.ToolUse("t1", tool, onHost)).Receive(Cli.Prompt("r1", tool, onHost, "t1"));
 
         Assert.Equal(new ItemStarted(talk.Session, talk.Turn, new ItemId("t1"), kind, title), talk.Events.OfType<ItemStarted>().Single());
         Assert.Equal(
-            new PermissionRequested(talk.Session, talk.Turn, new ItemId("t1"), title, kind, target),
+            new PermissionRequested(talk.Session, talk.Turn, new ItemId("t1"), title, kind, HostPaths.Rooted(target)),
             talk.Events.OfType<PermissionRequested>().Single());
     }
 

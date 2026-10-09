@@ -61,7 +61,7 @@ internal sealed class RecordedSession(IAgentSession inner, string workingDirecto
         {
             var agentEvent = events.Current;
 
-            if (agentEvent is PermissionRequested { Kind: ItemKind.FileEdit } requested)
+            if (agentEvent is PermissionRequested { Kind: ItemKind.FileEdit } requested && !requested.Target.Contains('\0', StringComparison.Ordinal))
             {
                 edits[requested.Item] = requested.Target;
             }
