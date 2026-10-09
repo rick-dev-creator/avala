@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Avala.Agents.Contracts.Events;
-using Avala.Agents.Contracts.Sessions;
 using Avala.Observability.Tracking;
 using Avala.Sdk;
 
@@ -29,23 +28,23 @@ internal sealed class UsageMeter : IUsageMetrics, IDisposable
 
     public Meter Meter { get; }
 
-    public void RecordUsage(Option<ProviderInfo> provider, TokenUsage tokens, Option<Cost> cost)
+    public void RecordUsage(UsageSource source, TokenUsage tokens, Option<Cost> cost)
     {
-        Count(provider, "input", tokens.Input);
-        Count(provider, "output", tokens.Output);
-        Count(provider, "cache_read", tokens.CacheRead);
-        Count(provider, "cache_write", tokens.CacheWrite);
-        Count(provider, "reasoning", tokens.Reasoning);
+        Count(source, "input", tokens.Input);
+        Count(source, "output", tokens.Output);
+        Count(source, "cache_read", tokens.CacheRead);
+        Count(source, "cache_write", tokens.CacheWrite);
+        Count(source, "reasoning", tokens.Reasoning);
 
         foreach (var reported in cost.Match<Cost[]>(reported => [reported], () => []))
         {
-            this.cost.Add((double)reported.Amount, Tags(provider, ("avala.currency", reported.Currency)));
+            this.cost.Add((double)reported.Amount, Tags(source, ("avala.currency", reported.Currency)));
         }
     }
 
-    public void RecordTurn(Option<ProviderInfo> provider, TurnOutcome outcome, Option<TimeSpan> duration)
+    public void RecordTurn(UsageSource source, TurnOutcome outcome, Option<TimeSpan> duration)
     {
-        var tags = Tags(provider, ("avala.turn.outcome", outcome.ToString()));
+        var tags = Tags(source, ("avala.turn.outcome", outcome.ToString()));
         turns.Add(1, tags);
 
         foreach (var elapsed in duration.Match<TimeSpan[]>(elapsed => [elapsed], () => []))
@@ -54,23 +53,28 @@ internal sealed class UsageMeter : IUsageMetrics, IDisposable
         }
     }
 
-    public void RecordLimit(Option<ProviderInfo> provider, UsageLimit limit) =>
-        limitUsed.Record(limit.UsedFraction, Tags(provider, ("avala.limit.window", limit.Window)));
+    public void RecordLimit(UsageSource source, UsageLimit limit) =>
+        limitUsed.Record(limit.UsedFraction, Tags(source, ("avala.limit.window", limit.Window)));
 
     public void Dispose() => Meter.Dispose();
 
-    private static TagList Tags(Option<ProviderInfo> provider, (string Key, string Value) tag)
+    private static TagList Tags(UsageSource source, (string Key, string Value) tag)
     {
         var tags = new TagList { { tag.Key, tag.Value } };
 
-        foreach (var known in provider.Match<ProviderInfo[]>(known => [known], () => []))
+        foreach (var provider in source.Provider.Match<string[]>(known => [known.Id], () => []))
         {
-            tags.Add("avala.provider", known.Id);
+            tags.Add("avala.provider", provider);
+        }
+
+        foreach (var connection in source.Connection.Match<string[]>(known => [known.Value], () => []))
+        {
+            tags.Add("avala.connection", connection);
         }
 
         return tags;
     }
 
-    private void Count(Option<ProviderInfo> provider, string type, long amount) =>
-        tokens.Add(amount, Tags(provider, ("avala.token.type", type)));
+    private void Count(UsageSource source, string type, long amount) =>
+        tokens.Add(amount, Tags(source, ("avala.token.type", type)));
 }

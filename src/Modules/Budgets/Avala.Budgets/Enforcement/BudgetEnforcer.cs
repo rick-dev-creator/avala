@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Caps;
 using Avala.Budgets.Contracts;
@@ -50,11 +51,11 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, BudgetHolds 
             {
                 var spent = usage.OfJob(job).Match(summary => summary, () => Breaches.NothingSpent);
 
-                return budgeted.Budget.BreachBy(spent, LimitsOf(budgeted.Provider));
+                return budgeted.Budget.BreachBy(spent, LimitsOf(budgeted.Connection));
             })
             .Match(breach => holds.HoldAsync(job, breach, cancellationToken), () => Task.CompletedTask);
     }
 
-    private IReadOnlyList<UsageLimit> LimitsOf(ProviderInfo provider) =>
-        [.. usage.ByProvider().Where(used => used.Provider == provider).SelectMany(used => used.Usage.Limits)];
+    private IReadOnlyList<UsageLimit> LimitsOf(ConnectionName connection) =>
+        [.. usage.ByConnection().Where(used => used.Connection == connection).SelectMany(used => used.Usage.Limits)];
 }

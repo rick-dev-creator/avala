@@ -40,7 +40,11 @@ internal static class Recorded
 
     public static string Session(params string[] entries) => SessionIn("askEveryTime", entries);
 
-    public static string SessionIn(string permissions, params string[] entries) =>
+    public static string SessionIn(string permissions, params string[] entries) => Recording(permissions, string.Empty, entries);
+
+    public static string SessionOf(string account, params string[] entries) => Recording("askEveryTime", $"\"account\": {account},", entries);
+
+    private static string Recording(string permissions, string account, string[] entries) =>
         $$"""
         {
           "format": "avala-recording",
@@ -48,6 +52,7 @@ internal static class Recorded
           "recordedAt": "2026-10-09T08:30:00+00:00",
           "provider": { "id": "claude-code", "name": "Claude Code" },
           "capabilities": { "streamsPartialOutput": true, "exposesReasoning": true, "canInterrupt": true, "canResume": true, "acceptsTools": true, "reportsUsage": true, "reportsCost": true, "reportsLimits": true, "asksQuestions": true },
+          {{account}}
           "options": { "permissions": "{{permissions}}", "resumed": false, "tools": [] },
           "entries": [ {{string.Join(",\n", entries)}} ]
         }

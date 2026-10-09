@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -37,10 +38,13 @@ internal sealed class Tracked : IDisposable
 
     public Task<SessionId> OpenAsync(ProviderInfo provider) => OpenAsync(provider, Option<AgentAccount>.None);
 
-    public async Task<SessionId> OpenAsync(ProviderInfo provider, Option<AgentAccount> account)
+    public Task<SessionId> OpenAsync(ProviderInfo provider, Option<AgentAccount> account) =>
+        OpenAsync(provider, new ConnectionName(provider.Id), account);
+
+    public async Task<SessionId> OpenAsync(ProviderInfo provider, ConnectionName connection, Option<AgentAccount> account)
     {
         var session = SessionId.New();
-        await tracker.HandleAsync(new SessionOpened(session, provider, ".") { Account = account }, Cancellation);
+        await tracker.HandleAsync(new SessionOpened(session, provider, ".", connection) { Account = account }, Cancellation);
 
         return session;
     }

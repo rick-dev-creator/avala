@@ -1,14 +1,17 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 
 namespace Avala.Observability.Tracking;
 
+internal sealed record UsageSource(Option<ProviderInfo> Provider, Option<ConnectionName> Connection);
+
 internal interface IUsageMetrics
 {
-    void RecordUsage(Option<ProviderInfo> provider, TokenUsage tokens, Option<Cost> cost);
+    void RecordUsage(UsageSource source, TokenUsage tokens, Option<Cost> cost);
 
-    void RecordTurn(Option<ProviderInfo> provider, TurnOutcome outcome, Option<TimeSpan> duration);
+    void RecordTurn(UsageSource source, TurnOutcome outcome, Option<TimeSpan> duration);
 
-    void RecordLimit(Option<ProviderInfo> provider, UsageLimit limit);
+    void RecordLimit(UsageSource source, UsageLimit limit);
 }

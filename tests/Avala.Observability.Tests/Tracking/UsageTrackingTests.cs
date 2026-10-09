@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -60,6 +61,30 @@ public sealed class UsageTrackingTests
                 ("codex", team, new TokenUsage(7, 7, 0, 0, 0)),
             ],
             tracked.Book.ByAccount().Select(usage => (usage.Provider.Id, usage.Account, usage.Usage.Tokens)));
+    }
+
+    [Fact]
+    public async Task UsageAndLimitsAddUpByConnectionKeepingTwoConnectionsOfOneProviderApartAsync()
+    {
+        using var tracked = new Tracked();
+        var work = new ConnectionName("work");
+        var first = await tracked.OpenAsync(Claude, work, Option<AgentAccount>.None);
+        var second = await tracked.OpenAsync(Claude, work, Option<AgentAccount>.None);
+        var personal = await tracked.OpenAsync(Claude, new ConnectionName("personal"), Option<AgentAccount>.None);
+
+        await tracked.SeeAsync(
+            Usage(first, new TokenUsage(100, 10, 0, 0, 0), new Cost(0.01m, "USD")),
+            Usage(second, new TokenUsage(200, 20, 0, 0, 0), new Cost(0.02m, "USD")),
+            Limit(second, "5h", 0.2),
+            Usage(personal, new TokenUsage(5, 5, 0, 0, 0), new Cost(0.05m, "USD")),
+            Limit(personal, "5h", 0.8));
+
+        Assert.Equal(
+            [
+                ("personal", "claude", new TokenUsage(5, 5, 0, 0, 0), 0.8),
+                ("work", "claude", new TokenUsage(300, 30, 0, 0, 0), 0.2),
+            ],
+            tracked.Book.ByConnection().Select(usage => (usage.Connection.Value, usage.Provider.Id, usage.Usage.Tokens, Assert.Single(usage.Usage.Limits).UsedFraction)));
     }
 
     [Fact]
@@ -128,7 +153,7 @@ public sealed class UsageTrackingTests
     }
 
     [Fact]
-    public async Task ASessionWhoseProviderWasNeverAnnouncedIsTrackedOutsideEveryProviderAsync()
+    public async Task ASessionWhoseProviderWasNeverAnnouncedIsTrackedOutsideEveryProviderAndConnectionAsync()
     {
         using var tracked = new Tracked();
         var session = SessionId.New();
@@ -137,6 +162,7 @@ public sealed class UsageTrackingTests
 
         Assert.Equal(new TokenUsage(100, 10, 0, 0, 0), Outcomes.Present(tracked.Book.OfSession(session)).Tokens);
         Assert.Empty(tracked.Book.ByProvider());
+        Assert.Empty(tracked.Book.ByConnection());
     }
 
     [Fact]

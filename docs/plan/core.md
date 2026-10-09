@@ -201,26 +201,28 @@ Status: done.
 
 ## Phase 8c: Connections and delegation
 
-Status: planned. Both parts are built and proven with the simulator before the user interface and before the real Claude Code adapter, which then only translates its protocol.
+Status: connections done with the simulator; delegation and resources planned. Both parts are built and proven with the simulator before the user interface and before the real Claude Code adapter, which then only translates its protocol.
 
 ### Connections
 
-A user may hold several subscriptions of the same harness, such as a work and a personal Claude Code account, or an API key next to a subscription. Today Agents starts every session on the first registered provider, so it cannot tell them apart.
+Status: done with the simulator, see [Connections](../design/core.md#connections). Deferred: a command that creates a connection's login folder and runs the harness's own login in it; credential sources beyond the first two, such as the operating system's keychain, Bedrock, Vertex or a corporate gateway, and a `ConnectionEnvironment` field for a gateway's address when the first one needs it; validating a repository's default connection at submission, which needs the base commit before the workspace exists, like autonomy; the job's connection on an event of Jobs, for the views; caps across the jobs of a connection, such as a daily spend per API key, which need spending kept across restarts; replaying a recording with the recorded provider's identity and capabilities, which belong to a provider in the contract, so only the recorded account is lifted; an architecture rule against test classes whose static fields name a contract type; and checking the isolation of the real Claude Code adapter's connections, with phase 6.
+
+A user may hold several subscriptions of the same harness, such as a work and a personal Claude Code account, or an API key next to a subscription. Agents used to start every session on the first registered provider, so it could not tell them apart.
 
 - A provider is the adapter that speaks one harness's protocol, one per harness, inside its plugin. A connection is a configured instance of a provider: a name, a credential source and settings. A user has any number of connections per provider.
 - A connection is composed, never inherited: provider, plus credential source, plus settings. The provider receives the resolved environment when a session opens and never learns where it came from.
 - The credential source is an extension point. First implementations: a subscription login kept apart per connection through the harness's own configuration folder, and an API key held as a reference to an environment variable. Later ones, such as the operating system's keychain, Bedrock, Vertex or a corporate gateway, add an implementation without touching the core or an adapter.
 - Connections are declared in the data folder, never in a repository: they belong to the machine. Secrets are never stored in the file, only references to them.
 
-1. The connection model and the credential source extension point, with the strict, documented `connections.json` and its typed errors.
-2. Agents opens a session on a named connection, carries the connection on `SessionOpened`, and keeps the first registered provider as the default only when no connection is declared.
-3. A job names its connection at submission, or takes the repository's default; recovery and continuation reuse the job's connection.
-4. Observability and Budgets aggregate and cap by connection as well as by provider and account.
-5. The simulator offers several connections with distinct simulated accounts; a replayed recording plays on its own connection, which lifts the replay's identity limitation.
-6. The conformance kit checks that two connections of the same provider stay isolated: no shared session, resume token or account.
-7. Host simulation tests: two jobs on two connections of the simulator run side by side with their usage apart, and a job recovered after a restart keeps its connection.
+1. Done. The connection model, composed of a provider, a credential source and settings; `ICredentialSource` in `Agents.Contracts`, with the `login` and `apiKey` sources registered by Agents; the strict, documented `connections.json` in the data folder and its typed `ConnectionError`; `IConnections` to list and check connections without their secrets.
+2. Done. Agents opens a session on the connection `AgentRequest.Connection` names, hands the provider the resolved `ConnectionEnvironment` in `SessionOptions.Connection`, and carries the connection on `OpenedSession` and `SessionOpened`. Without `connections.json`, every registered provider has one implicit connection and the first one is the default; a rejected file never falls back to them.
+3. Done. `JobRequest.Connection` names a job's connection, checked at submission, or the job takes its repository's default from `.avala/jobs.json` at its base commit, or the machine's default. The job stores the connection its session opened on, in a new column, and recovery and continuation reuse it; an unknown or unusable connection is a typed rejection or fails the job as `ConnectionUnavailable`.
+4. Done. `IUsage.ByConnection` with limits per connection, and the `avala.connection` tag on every metric; Budgets judges limit thresholds by the session's connection and gives a connection its own caps through the `connections` section of `.avala/budget.json`.
+5. Done. The simulator reports the account of each connection's credential, binds its resume tokens to that account, and replays the recording a connection's `replay` setting names, with the recorded account. The recorded provider identity and capabilities stay the simulator's, see the deferred list.
+6. Done. `CheckConnectionsAsync`: two connections of one provider share no session, account or resume token, and a token of one is refused on the other. The simulator passes it, and a scripted provider that shares its account and tokens is reported.
+7. Done. Host simulation tests: two jobs on two connections of the simulator run side by side with their usage and accounts apart; a job recovered after a restart keeps its connection and resumes its conversation there; a job without a connection runs on its repository's default; and a job naming an unknown connection is rejected.
 
-Done when: two connections of one provider run jobs side by side with their usage, limits and caps apart, proven with the simulator.
+Done when: two connections of one provider run jobs side by side with their usage, limits and caps apart, proven with the simulator. Met.
 
 ### Delegation
 

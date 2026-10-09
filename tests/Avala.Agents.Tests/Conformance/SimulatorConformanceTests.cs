@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Simulator;
@@ -62,6 +63,28 @@ public sealed class SimulatorConformanceTests
             new UserTurn("[simulate: fix-after-feedback] conformance"),
             Deadline));
     }
+
+    [Theory]
+    [InlineData("login", "login")]
+    [InlineData("login", "apiKey")]
+    public async Task TwoConnectionsOfTheSimulatorShareNoSessionResumeTokenOrAccountAsync(string first, string second)
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+        var options = new SessionOptions(folder.Path, PermissionMode.AskEveryTime);
+
+        Assert.Empty(await AgentConformance.CheckConnectionsAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            options with { Connection = Credential(first, "work") },
+            options with { Connection = Credential(second, "personal") },
+            new UserTurn("[simulate: fix-after-feedback] conformance"),
+            Deadline));
+    }
+
+    private static ConnectionEnvironment Credential(string kind, string name) =>
+        kind == "login"
+            ? new ConnectionEnvironment { ConfigurationDirectory = Path.Combine("/logins", name) }
+            : new ConnectionEnvironment { ApiKey = new Secret($"sk-{name}") };
 
     [Fact]
     public async Task TheSimulatorDrawsTheCanvasScenarioThroughTheCanvasToolAsync()

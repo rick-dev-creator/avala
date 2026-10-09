@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
@@ -8,13 +9,15 @@ namespace Avala.Agents.Contracts;
 public sealed record AgentRequest(string WorkingDirectory)
 {
     public Option<ResumeToken> Resume { get; init; }
+
+    public Option<ConnectionName> Connection { get; init; }
 }
 
-public sealed record OpenedSession(SessionId Session, bool Resumed);
+public sealed record OpenedSession(SessionId Session, bool Resumed, ConnectionName Connection);
 
 public sealed record AgentTurn(SessionId Session, TurnId Turn);
 
-public sealed record SessionOpened(SessionId Session, ProviderInfo Provider, string WorkingDirectory) : IIntegrationEvent
+public sealed record SessionOpened(SessionId Session, ProviderInfo Provider, string WorkingDirectory, ConnectionName Connection) : IIntegrationEvent
 {
     public Option<AgentAccount> Account { get; init; }
 }

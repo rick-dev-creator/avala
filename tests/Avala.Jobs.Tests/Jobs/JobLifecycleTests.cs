@@ -27,16 +27,17 @@ public sealed class JobLifecycleTests
     }
 
     [Fact]
-    public void StartingOpensTheFirstAttemptInItsWorkspaceAndSession()
+    public void StartingOpensTheFirstAttemptInItsWorkspaceSessionAndConnection()
     {
         var job = Given.JobIn(JobState.Preparing);
 
-        var started = Outcomes.Succeeds(job.Start(Given.Workspace, Given.Session));
+        var started = Outcomes.Succeeds(job.Start(Given.Workspace, Given.Session, Given.Connection));
 
         Assert.Equal(new AttemptStarted(job.Id, AttemptNumber.First, AttemptOrigin.Initial, Option<Feedback>.None), started);
         Assert.Equal(AttemptOutcome.Running, Assert.Single(job.Attempts).Outcome);
         Assert.Equal(Given.Workspace, job.Workspace);
         Assert.Equal(Given.Session, job.Session);
+        Assert.Equal(Given.Connection, job.Connection);
     }
 
     [Fact]

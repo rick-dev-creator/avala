@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -37,6 +38,18 @@ internal sealed class UsageBook : IUsage
             .OrderBy(owner => owner.Key.Provider.Id, StringComparer.Ordinal)
             .ThenBy(owner => owner.Key.Account.Id, StringComparer.Ordinal)
             .Select(owner => new AccountUsage(owner.Key.Provider, owner.Key.Account, owner.ToList().Summary)),
+    ];
+
+    public IReadOnlyList<ConnectionUsage> ByConnection() =>
+    [
+        .. Sessions.Values
+            .SelectMany(
+                usage => usage.Connection.Bind(connection => usage.Provider.Map(provider => (connection, provider)))
+                    .Match<(ConnectionName Connection, ProviderInfo Provider)[]>(owner => [owner], () => []),
+                (usage, owner) => (usage, owner))
+            .GroupBy(pair => pair.owner, pair => pair.usage)
+            .OrderBy(owner => owner.Key.Connection.Value, StringComparer.Ordinal)
+            .Select(owner => new ConnectionUsage(owner.Key.Connection, owner.Key.Provider, owner.ToList().Summary)),
     ];
 
     public Option<UsageSummary> OfSession(SessionId session) =>

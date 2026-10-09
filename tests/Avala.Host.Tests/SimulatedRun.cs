@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
@@ -69,12 +70,27 @@ internal sealed class SimulatedRun : IAsyncDisposable
         IReadOnlyList<(string Path, string Content)> committed) =>
         StartAsync(plugins, instruction, Option<Autonomy>.None, data, committed);
 
-    private static string Simulate(string scenario) => $"[simulate: {scenario}] Greet the team";
+    public static Task<SimulatedRun> ConnectedAsync(
+        PublishedPlugins plugins,
+        string scenario,
+        Option<ConnectionName> connection,
+        IReadOnlyList<(string File, string Content)> data,
+        params (string Path, string Content)[] committed) =>
+        StartAsync(plugins, new JobRequest(string.Empty, Simulate(scenario)) { Connection = connection }, data, committed);
 
-    private static async Task<SimulatedRun> StartAsync(
+    public static string Simulate(string scenario) => $"[simulate: {scenario}] Greet the team";
+
+    private static Task<SimulatedRun> StartAsync(
         PublishedPlugins plugins,
         string instruction,
         Option<Autonomy> autonomy,
+        IReadOnlyList<(string File, string Content)> settings,
+        IReadOnlyList<(string Path, string Content)> committed) =>
+        StartAsync(plugins, new JobRequest(string.Empty, instruction) { Autonomy = autonomy }, settings, committed);
+
+    private static async Task<SimulatedRun> StartAsync(
+        PublishedPlugins plugins,
+        JobRequest request,
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed)
     {
@@ -97,10 +113,33 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         var run = new SimulatedRun(plugins, data, repository, root);
         root.Start();
-        await run.SubmitAsync(instruction, autonomy);
+        run.Job = Outcomes.Succeeds(await run.SubmitAsync(request with { RepositoryPath = repository.Path }));
 
         return run;
     }
+
+    public string DataFolder => data.Path;
+
+    public async Task<Result<JobId, JobRejection>> SubmitAsync(JobRequest request) =>
+        await Get<IJobs>().SubmitAsync(request with { RepositoryPath = repository.Path }, Cancellation);
+
+    public async Task<IReadOnlyList<JobStatus>> SettledAsync(params JobId[] jobs)
+    {
+        var settled = new Dictionary<JobId, JobStatus>();
+        _ = await application.Progress.UntilAsync(update =>
+        {
+            if (jobs.Contains(update.Job) && Settled.Contains(update.Status))
+            {
+                settled[update.Job] = update.Status;
+            }
+
+            return settled.Count == jobs.Length;
+        });
+
+        return [.. jobs.Select(job => settled[job])];
+    }
+
+    public async Task<SessionOpened> OpenedAsync() => await application.Opened.UntilAsync(_ => true);
 
     public T Get<T>()
         where T : notnull =>
@@ -186,9 +225,6 @@ internal sealed class SimulatedRun : IAsyncDisposable
         }
     }
 
-    private async Task SubmitAsync(string instruction, Option<Autonomy> autonomy) =>
-        Job = Outcomes.Succeeds(await Get<IJobs>()
-            .SubmitAsync(new JobRequest(repository.Path, instruction) { Autonomy = autonomy }, Cancellation));
 
     private sealed class Application : IAsyncDisposable
     {
@@ -208,7 +244,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
             Usage = Watch<UsageRecorded>();
             Forms = Watch<FormDecided>();
             Autonomies = Watch<AutonomyApplied>();
+            Opened = Watch<SessionOpened>();
         }
+
+        public EventWatch<SessionOpened> Opened { get; }
 
         public EventWatch<FormDecided> Forms { get; }
 

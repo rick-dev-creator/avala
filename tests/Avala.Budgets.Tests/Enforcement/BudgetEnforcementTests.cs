@@ -41,7 +41,7 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
-    public async Task ALimitWindowOfTheJobsProviderAtTheThresholdHoldsTheJobAsLimitNearlyReachedAsync()
+    public async Task ALimitWindowOfTheJobsConnectionAtTheThresholdHoldsTheJobAsLimitNearlyReachedAsync()
     {
         var budgeted = new Budgeted();
         await budgeted.RunningAsync(Caps(threshold: 0.9));
@@ -55,7 +55,7 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
-    public async Task SpendingBelowEveryCapLeavesTheJobRunningAsync()
+    public async Task SpendingBelowEveryCapOfItsConnectionLeavesTheJobRunningWhateverAnotherConnectionReachedAsync()
     {
         var budgeted = new Budgeted();
         await budgeted.RunningAsync(Caps(cost: [new Cost(1m, "USD")], tokens: 1_000, threshold: 0.9));
@@ -64,6 +64,16 @@ public sealed class BudgetEnforcementTests
         await budgeted.ReachAsync(new UsageLimit("5h", 0.89, Option<DateTimeOffset>.None));
 
         Assert.Empty(budgeted.Jobs.Holds);
+    }
+
+    [Fact]
+    public async Task ASessionIsBudgetedWithTheCapsOfItsConnectionAsync()
+    {
+        var budgeted = new Budgeted();
+
+        await budgeted.OpenAsync(Caps(tokens: 100));
+
+        Assert.Equal([Budgeted.Connection], budgeted.ReadFor);
     }
 
     [Fact]
