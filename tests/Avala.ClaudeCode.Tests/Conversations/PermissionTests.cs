@@ -58,6 +58,18 @@ public sealed class PermissionTests
     }
 
     [Fact]
+    public void APromptTheCliCancelsCanNoLongerBeAnsweredAndSendsNothing()
+    {
+        var talk = Asked().Receive(Cli.Parse("""{ "type": "control_cancel_request", "request_id": "r1" }"""));
+        talk.Drain();
+
+        Assert.Equal(
+            AgentError.NoPendingPermission,
+            talk.Conversation.Respond(new PermissionDecision(Item, PermissionAnswer.Allow)).Match(_ => default, error => error));
+        Assert.Empty(talk.Sent);
+    }
+
+    [Fact]
     public void ASecondPromptWaitsUntilTheFirstIsAnswered()
     {
         var talk = Asked().Receive(Cli.ToolUse("t2", "Bash", Command), Cli.Prompt("r2", "Bash", Command, "t2"));
