@@ -1,0 +1,9 @@
+{
+  "record": "[simulate: question] Greet the team",
+  "repository": {
+    ".avala/permissions.json": "{ \"autonomy\": \"autonomous\" }"
+  },
+  "journey": ["Running", "Checking", "AwaitingReview"],
+  "forms": ["Answered Autonomous database RecommendedOption PostgreSQL"],
+  "verifications": ["1 NoChecksDeclared"]
+}

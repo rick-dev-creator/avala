@@ -1,0 +1,17 @@
+{
+  "record": "[simulate: fix-after-feedback] Greet the team",
+  "repository": {
+    ".avala/checks.json": "{ \"checks\": [ { \"name\": \"calculator\", \"command\": \"git\", \"arguments\": [\"grep\", \"--quiet\", \"--fixed-strings\", \"add(2, 2) = 4\", \"--\", \"calculator.txt\"], \"timeoutSeconds\": 60 } ] }",
+    ".avala/permissions.json": "{ \"rules\": [ { \"name\": \"tests\", \"kind\": \"command\", \"target\": \"dotnet test*\", \"answer\": \"allow\" } ] }"
+  },
+  "journey": ["Running", "Checking", "Running", "Checking", "AwaitingReview"],
+  "permissions": [
+    "edits-inside-the-workspace FileEdit calculator.txt Allow Answered",
+    "edits-inside-the-workspace FileEdit calculator.txt Allow Answered",
+    "tests Command dotnet test Allow Answered"
+  ],
+  "verifications": ["1 Failed", "2 Passed"],
+  "files": {
+    "calculator.txt": "add(2, 2) = 4\n"
+  }
+}

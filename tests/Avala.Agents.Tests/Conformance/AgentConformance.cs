@@ -191,9 +191,9 @@ internal static class AgentConformance
                 violations.AddRange(await replies.Form(session, form, deadline));
             }
 
-            if (agentEvent is TurnCompleted)
+            if (agentEvent is TurnCompleted completed)
             {
-                return new Run(violations, events);
+                return new Run(completed.Outcome == TurnOutcome.Finished ? violations : [.. violations, $"the turn ended {completed.Outcome}"], events);
             }
         }
 

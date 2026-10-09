@@ -28,6 +28,28 @@ public sealed class SimulatorConformanceTests
         Assert.Empty(await CheckAsync(services, folder, scenario, Deadline));
     }
 
+    public static TheoryData<string> Recordings => [.. RecordingFixtures.Names];
+
+    [Theory]
+    [MemberData(nameof(Recordings))]
+    public async Task EveryCommittedRecordingConformsWhenTheSimulatorReplaysItAsync(string name)
+    {
+        using var folder = new TemporaryFolder();
+        using var data = new TemporaryFolder();
+        var recordings = Directory.CreateDirectory(Path.Combine(data.Path, "recordings")).FullName;
+        await File.WriteAllTextAsync(
+            Path.Combine(recordings, $"{name}.json"),
+            await File.ReadAllTextAsync(RecordingFixtures.RecordingOf(name), Deadline),
+            Deadline);
+        await using var services = Simulated(new AvalaPaths(data.Path));
+
+        Assert.Empty(await AgentConformance.CheckTurnAsync(
+            services.GetRequiredService<IAgentProvider>(),
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            new UserTurn($"[replay: {name}] conformance"),
+            Deadline));
+    }
+
     [Fact]
     public async Task TheSimulatorIssuesAResumeTokenAndAcceptsItToContinueTheConversationAsync()
     {

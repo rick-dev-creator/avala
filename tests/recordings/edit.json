@@ -1,0 +1,341 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T04:51:10.7262651+00:00",
+  "provider": {
+    "id": "simulator",
+    "name": "Simulated Claude Code"
+  },
+  "capabilities": {
+    "streamsPartialOutput": true,
+    "exposesReasoning": true,
+    "canInterrupt": true,
+    "canResume": true,
+    "acceptsTools": true,
+    "reportsUsage": true,
+    "reportsCost": true,
+    "reportsLimits": true,
+    "asksQuestions": true
+  },
+  "account": {
+    "id": "simulated-account",
+    "label": "Simulated account"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 1,
+      "send": {
+        "text": "[simulate: edit] Greet the team"
+      }
+    },
+    {
+      "at": 62,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 122,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "367de4be1e5a41c99ab4182605afc76d/edit/1"
+      }
+    },
+    {
+      "at": 182,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "thinking",
+        "kind": "reasoning",
+        "title": "Thinking"
+      }
+    },
+    {
+      "at": 242,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "thinking",
+        "text": "I will add a greeting "
+      }
+    },
+    {
+      "at": 302,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "thinking",
+        "text": "and run the tests."
+      }
+    },
+    {
+      "at": 363,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "thinking",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 423,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write the change",
+            "status": "inProgress"
+          },
+          {
+            "title": "Run the tests",
+            "status": "pending"
+          }
+        ]
+      }
+    },
+    {
+      "at": 483,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "edit",
+        "kind": "fileEdit",
+        "title": "Edit GREETING.md"
+      }
+    },
+    {
+      "at": 543,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "edit",
+        "title": "Edit GREETING.md",
+        "kind": "fileEdit",
+        "target": "${workingDirectory}/GREETING.md"
+      }
+    },
+    {
+      "at": 543,
+      "respond": {
+        "item": "edit",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 604,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "edit",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 664,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "edit",
+        "text": "# Hello\n\nWritten by the simulator.\n"
+      }
+    },
+    {
+      "at": 724,
+      "file": {
+        "item": "edit",
+        "path": "GREETING.md",
+        "content": "# Hello\n\nWritten by the simulator.\n"
+      }
+    },
+    {
+      "at": 724,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "edit",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 784,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write the change",
+            "status": "done"
+          },
+          {
+            "title": "Run the tests",
+            "status": "inProgress"
+          }
+        ]
+      }
+    },
+    {
+      "at": 844,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "test",
+        "kind": "command",
+        "title": "dotnet test"
+      }
+    },
+    {
+      "at": 905,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "test",
+        "title": "Run dotnet test",
+        "kind": "command",
+        "target": "dotnet test"
+      }
+    },
+    {
+      "at": 905,
+      "respond": {
+        "item": "test",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 965,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "test",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 1025,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "test",
+        "text": "Passed: 12, Failed: 0"
+      }
+    },
+    {
+      "at": 1085,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "test",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 1145,
+      "event": {
+        "type": "planUpdated",
+        "turn": 1,
+        "steps": [
+          {
+            "title": "Write the change",
+            "status": "done"
+          },
+          {
+            "title": "Run the tests",
+            "status": "done"
+          }
+        ]
+      }
+    },
+    {
+      "at": 1205,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "reply",
+        "kind": "message",
+        "title": "Reply"
+      }
+    },
+    {
+      "at": 1265,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "reply",
+        "text": "Added GREETING.md "
+      }
+    },
+    {
+      "at": 1325,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "reply",
+        "text": "and the tests pass."
+      }
+    },
+    {
+      "at": 1385,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "reply",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 1445,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 4800,
+          "output": 620,
+          "cacheRead": 2400,
+          "cacheWrite": 480,
+          "reasoning": 155
+        },
+        "cost": {
+          "amount": 0.0310,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 1505,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.18
+        }
+      }
+    },
+    {
+      "at": 1566,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 1587,
+      "stop": {}
+    }
+  ]
+}

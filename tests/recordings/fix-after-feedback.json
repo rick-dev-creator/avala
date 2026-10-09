@@ -1,0 +1,476 @@
+{
+  "format": "avala-recording",
+  "version": 1,
+  "recordedAt": "2026-10-09T04:51:05.1704816+00:00",
+  "provider": {
+    "id": "simulator",
+    "name": "Simulated Claude Code"
+  },
+  "capabilities": {
+    "streamsPartialOutput": true,
+    "exposesReasoning": true,
+    "canInterrupt": true,
+    "canResume": true,
+    "acceptsTools": true,
+    "reportsUsage": true,
+    "reportsCost": true,
+    "reportsLimits": true,
+    "asksQuestions": true
+  },
+  "account": {
+    "id": "simulated-account",
+    "label": "Simulated account"
+  },
+  "options": {
+    "permissions": "askEveryTime",
+    "resumed": false,
+    "tools": [
+      {
+        "name": "canvas",
+        "surface": "canvas"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "at": 121,
+      "send": {
+        "text": "[simulate: fix-after-feedback] Greet the team"
+      }
+    },
+    {
+      "at": 206,
+      "event": {
+        "type": "turnStarted",
+        "turn": 1
+      }
+    },
+    {
+      "at": 267,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 1,
+        "token": "45d5463c93654250830c18d1de89d6e2/fix-after-feedback/1"
+      }
+    },
+    {
+      "at": 333,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "thinking",
+        "kind": "reasoning",
+        "title": "Thinking"
+      }
+    },
+    {
+      "at": 393,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "thinking",
+        "text": "A quick change "
+      }
+    },
+    {
+      "at": 453,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "thinking",
+        "text": "to the calculator."
+      }
+    },
+    {
+      "at": 514,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "thinking",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 577,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "edit",
+        "kind": "fileEdit",
+        "title": "Edit calculator.txt"
+      }
+    },
+    {
+      "at": 640,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 1,
+        "item": "edit",
+        "title": "Edit calculator.txt",
+        "kind": "fileEdit",
+        "target": "${workingDirectory}/calculator.txt"
+      }
+    },
+    {
+      "at": 655,
+      "respond": {
+        "item": "edit",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 719,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 1,
+        "item": "edit",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 780,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "edit",
+        "text": "add(2, 2) = 5 BROKEN\n"
+      }
+    },
+    {
+      "at": 847,
+      "file": {
+        "item": "edit",
+        "path": "calculator.txt",
+        "content": "add(2, 2) = 5 BROKEN\n"
+      }
+    },
+    {
+      "at": 847,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "edit",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 901,
+      "event": {
+        "type": "itemStarted",
+        "turn": 1,
+        "item": "reply",
+        "kind": "message",
+        "title": "Reply"
+      }
+    },
+    {
+      "at": 961,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 1,
+        "item": "reply",
+        "text": "The calculator is ready."
+      }
+    },
+    {
+      "at": 1022,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 1,
+        "item": "reply",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 1083,
+      "event": {
+        "type": "usageReported",
+        "turn": 1,
+        "tokens": {
+          "input": 3100,
+          "output": 240,
+          "cacheRead": 1550,
+          "cacheWrite": 310,
+          "reasoning": 60
+        },
+        "cost": {
+          "amount": 0.0150,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 1143,
+      "event": {
+        "type": "limitReported",
+        "turn": 1,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.21
+        }
+      }
+    },
+    {
+      "at": 1204,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 1,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 1340,
+      "send": {
+        "text": "The repository check \"calculator\" did not pass: `git grep --quiet --fixed-strings \"add(2, 2) = 4\" -- calculator.txt` exited with code 1 after 0.0 s. Fix the cause, then finish the turn again."
+      }
+    },
+    {
+      "at": 1400,
+      "event": {
+        "type": "turnStarted",
+        "turn": 2
+      }
+    },
+    {
+      "at": 1460,
+      "event": {
+        "type": "resumeTokenIssued",
+        "turn": 2,
+        "token": "45d5463c93654250830c18d1de89d6e2/fix-after-feedback/2"
+      }
+    },
+    {
+      "at": 1521,
+      "event": {
+        "type": "itemStarted",
+        "turn": 2,
+        "item": "thinking",
+        "kind": "reasoning",
+        "title": "Thinking"
+      }
+    },
+    {
+      "at": 1581,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 2,
+        "item": "thinking",
+        "text": "The feedback says the sum is wrong. "
+      }
+    },
+    {
+      "at": 1641,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 2,
+        "item": "thinking",
+        "text": "I will fix it."
+      }
+    },
+    {
+      "at": 1701,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 2,
+        "item": "thinking",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 1762,
+      "event": {
+        "type": "itemStarted",
+        "turn": 2,
+        "item": "fix",
+        "kind": "fileEdit",
+        "title": "Edit calculator.txt"
+      }
+    },
+    {
+      "at": 1822,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 2,
+        "item": "fix",
+        "title": "Edit calculator.txt",
+        "kind": "fileEdit",
+        "target": "${workingDirectory}/calculator.txt"
+      }
+    },
+    {
+      "at": 1822,
+      "respond": {
+        "item": "fix",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 1882,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 2,
+        "item": "fix",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 1943,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 2,
+        "item": "fix",
+        "text": "add(2, 2) = 4\n"
+      }
+    },
+    {
+      "at": 2003,
+      "file": {
+        "item": "fix",
+        "path": "calculator.txt",
+        "content": "add(2, 2) = 4\n"
+      }
+    },
+    {
+      "at": 2003,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 2,
+        "item": "fix",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 2063,
+      "event": {
+        "type": "itemStarted",
+        "turn": 2,
+        "item": "test",
+        "kind": "command",
+        "title": "dotnet test"
+      }
+    },
+    {
+      "at": 2124,
+      "event": {
+        "type": "permissionRequested",
+        "turn": 2,
+        "item": "test",
+        "title": "Run dotnet test",
+        "kind": "command",
+        "target": "dotnet test"
+      }
+    },
+    {
+      "at": 2124,
+      "respond": {
+        "item": "test",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 2184,
+      "event": {
+        "type": "permissionResolved",
+        "turn": 2,
+        "item": "test",
+        "answer": "allow"
+      }
+    },
+    {
+      "at": 2245,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 2,
+        "item": "test",
+        "text": "Passed: 12, Failed: 0"
+      }
+    },
+    {
+      "at": 2305,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 2,
+        "item": "test",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 2365,
+      "event": {
+        "type": "itemStarted",
+        "turn": 2,
+        "item": "reply",
+        "kind": "message",
+        "title": "Reply"
+      }
+    },
+    {
+      "at": 2425,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 2,
+        "item": "reply",
+        "text": "Fixed the sum, "
+      }
+    },
+    {
+      "at": 2485,
+      "event": {
+        "type": "itemProgressed",
+        "turn": 2,
+        "item": "reply",
+        "text": "the tests pass now."
+      }
+    },
+    {
+      "at": 2545,
+      "event": {
+        "type": "itemCompleted",
+        "turn": 2,
+        "item": "reply",
+        "outcome": "succeeded"
+      }
+    },
+    {
+      "at": 2606,
+      "event": {
+        "type": "usageReported",
+        "turn": 2,
+        "tokens": {
+          "input": 3900,
+          "output": 310,
+          "cacheRead": 1950,
+          "cacheWrite": 390,
+          "reasoning": 77
+        },
+        "cost": {
+          "amount": 0.0190,
+          "currency": "USD"
+        }
+      }
+    },
+    {
+      "at": 2666,
+      "event": {
+        "type": "limitReported",
+        "turn": 2,
+        "limit": {
+          "window": "5h",
+          "usedFraction": 0.24
+        }
+      }
+    },
+    {
+      "at": 2726,
+      "event": {
+        "type": "turnCompleted",
+        "turn": 2,
+        "outcome": "finished"
+      }
+    },
+    {
+      "at": 2803,
+      "stop": {}
+    }
+  ]
+}
