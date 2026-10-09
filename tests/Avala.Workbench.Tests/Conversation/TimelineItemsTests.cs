@@ -44,6 +44,6 @@ public sealed class TimelineItemsTests
         "permission" => Asked.Permission(),
         "form" => Asked.Form(),
         "turn" => new TurnEndEntry("turn", TurnOutcome.Finished, TimeSpan.FromSeconds(3), default, []),
-        _ => new RestartEntry(EntryKeys.Restart),
+        _ => new RestartEntry(EntryKeys.Restart, Kept: true),
     };
 }

@@ -49,6 +49,6 @@ public sealed class MessageViewModelScripts
     [Fact]
     public void AnEntryOfAnotherKindChangesNothing() =>
         ViewModelScript.Given(new MessageViewModel(new MessageEntry("m", "Hello", Option<ItemOutcome>.None), FakeLinks.Opening))
-            .When(message => message.Update(new RestartEntry("m")))
+            .When(message => message.Update(new RestartEntry("m", Kept: true)))
             .Then(message => Assert.Equal(("Hello", true, true), (message.Text, message.IsStreaming, message.IsShown)));
 }

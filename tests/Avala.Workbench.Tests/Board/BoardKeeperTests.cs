@@ -9,6 +9,7 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Transcripts.Contracts;
 using Avala.Verification.Contracts;
 using Avala.Workspaces.Contracts;
 using Avala.Workbench.Board;
@@ -26,7 +27,9 @@ public sealed class BoardKeeperTests
 
     private readonly FakeAudit audit = new();
 
-    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, audit, board, time);
+    private readonly FakeTranscripts transcripts = new();
+
+    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, new BoardJoiner(audit, transcripts), board, time);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -140,6 +143,27 @@ public sealed class BoardKeeperTests
         Assert.Equal(Option<VerificationReport>.Some(verified), Joined(earlier).Verification);
         Assert.Equal(Option<ConnectionChoice>.Some(choice), Joined(earlier).Choice);
         Assert.Equal([typeof(PromptEntry)], Joined(live).Transcript.Entries.Select(entry => entry.GetType()));
+    }
+
+    [Fact]
+    public async Task AJobOfAnEarlierRunJoinsWithTheConversationItsTranscriptKeptThenTheRestartMark()
+    {
+        var session = SessionId.New();
+        var turn = TurnId.New();
+        var earlier = catalog.Add("Update the dependency", JobStatus.AwaitingReview, Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Passed)).Summary.Job;
+        var run = Guid.CreateVersion7();
+        transcripts.Kept[earlier] =
+        [
+            new KeptFact(run, time.GetUtcNow(), new AttemptBegan(1)),
+            new KeptFact(run, time.GetUtcNow(), new AgentActed(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"))),
+            new KeptFact(run, time.GetUtcNow(), new AgentActed(new ItemProgressed(session, turn, new ItemId("reply"), "Bumped it."))),
+        ];
+
+        await keeper.HandleAsync(new StartupCompleted(), Cancellation);
+
+        var entries = Joined(earlier).Transcript.Entries;
+        Assert.Equal([typeof(PromptEntry), typeof(MessageEntry), typeof(RestartEntry)], entries.Select(entry => entry.GetType()));
+        Assert.Equal(("Bumped it.", true), (((MessageEntry)entries[1]).Text, ((RestartEntry)entries[2]).Kept));
     }
 
     [Fact]

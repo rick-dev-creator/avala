@@ -6,9 +6,10 @@ namespace Avala.Workbench.Tests.Conversation;
 
 public sealed class RestartViewModelScripts
 {
-    [Fact]
-    public void TheRestartNoteSaysWhyWhatCameBeforeIsSummarized() =>
-        ViewModelScript.Given(new RestartViewModel())
-            .When(restart => restart.Update(new RestartEntry(EntryKeys.Restart)))
-            .Then(restart => Assert.Equal(("Avala restarted. The agent's work before this point is summarized by its attempts above.", true), (restart.Note, restart.IsShown)));
+    [Theory]
+    [InlineData(true, "Avala restarted. Everything above happened before the restart.")]
+    [InlineData(false, "Avala restarted. This job ran before conversations were kept, so its work before this point is summarized by its attempts above.")]
+    public void TheRestartNoteSaysWhetherTheConversationAboveIsWhatHappenedOrOnlyItsAttempts(bool kept, string note) =>
+        ViewModelScript.Given(new RestartViewModel(new RestartEntry(EntryKeys.Restart, kept)))
+            .Then(restart => Assert.Equal((note, true), (restart.Note, restart.IsShown)));
 }
