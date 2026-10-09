@@ -2,12 +2,13 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 
 namespace Avala.Simulator.WorkloadModes;
 
 internal static class Modes
 {
-    private const string Usage = "Usage: work | env <variable> | serve <harness> | spawn <harness> | hold <harness>";
+    private const string Usage = "Usage: work | env <variable> | serve <harness> | spawn <harness> | hold <harness> | stubborn <harness>";
 
     public static Task<int> RunAsync(string[] args)
     {
@@ -20,6 +21,7 @@ internal static class Modes
             "serve" => ServeAsync(Harness(argument)),
             "spawn" => Task.FromResult(Spawn(Harness(argument))),
             "hold" => HoldAsync(Harness(argument)),
+            "stubborn" => StubbornAsync(Harness(argument)),
             _ => RefuseAsync(),
         };
     }
@@ -59,6 +61,19 @@ internal static class Modes
     private static async Task<int> HoldAsync(int harness)
     {
         Console.WriteLine($"holding {Environment.ProcessId}");
+        await AwaitHarnessAsync(harness);
+
+        return 0;
+    }
+
+    private static async Task<int> StubbornAsync(int harness)
+    {
+        using var refusal = PosixSignalRegistration.Create(PosixSignal.SIGTERM, context =>
+        {
+            context.Cancel = true;
+            Console.WriteLine("ignored");
+        });
+        Console.WriteLine($"stubborn {Environment.ProcessId}");
         await AwaitHarnessAsync(harness);
 
         return 0;

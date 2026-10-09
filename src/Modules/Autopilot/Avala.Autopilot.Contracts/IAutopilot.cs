@@ -75,6 +75,7 @@ public enum LoopEnding
     Stopped,
     BreakerTripped,
     SourceFailed,
+    Failed,
 }
 
 public sealed record LoopState(LoopId Loop, string Repository, LoopStatus Status, DateTimeOffset Started, int Iterations, Option<JobId> Current)
@@ -88,6 +89,8 @@ public sealed record LoopState(LoopId Loop, string Repository, LoopStatus Status
     public Option<Breaker> Breaker { get; init; }
 
     public Option<AutopilotError> Error { get; init; }
+
+    public Option<string> Fault { get; init; }
 }
 
 public enum AutopilotError

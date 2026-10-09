@@ -56,7 +56,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     });
 
     public Task<Result<LoopId, AutopilotError>> PauseAsync(CancellationToken cancellationToken) =>
-        executor.RunAsync<Result<LoopId, AutopilotError>>(
+        CommandAsync(
             async token =>
             {
                 if (record.Status is LoopStatus.Ended or LoopStatus.Paused)
@@ -74,7 +74,7 @@ internal sealed class LoopRunner : IAsyncDisposable
             cancellationToken);
 
     public Task<Result<LoopId, AutopilotError>> ResumeAsync(CancellationToken cancellationToken) =>
-        executor.RunAsync<Result<LoopId, AutopilotError>>(
+        CommandAsync(
             async token =>
             {
                 if (record.Status != LoopStatus.Paused)
@@ -89,7 +89,7 @@ internal sealed class LoopRunner : IAsyncDisposable
             cancellationToken);
 
     public Task<Result<LoopId, AutopilotError>> StopAsync(CancellationToken cancellationToken) =>
-        executor.RunAsync<Result<LoopId, AutopilotError>>(
+        CommandAsync(
             async token =>
             {
                 if (record.Status == LoopStatus.Ended)
@@ -371,7 +371,43 @@ internal sealed class LoopRunner : IAsyncDisposable
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !token.IsCancellationRequested)
         {
-            journal.Failed(Id, exception);
+            await FaultAsync(exception, token);
+        }
+    }
+
+    private Task<Result<LoopId, AutopilotError>> CommandAsync(Func<CancellationToken, Task<Result<LoopId, AutopilotError>>> command, CancellationToken cancellationToken) =>
+        executor.RunAsync<Result<LoopId, AutopilotError>>(
+            async token =>
+            {
+                try
+                {
+                    return await command(token);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException || !token.IsCancellationRequested)
+                {
+                    await FaultAsync(exception, token);
+
+                    return AutopilotError.LoopEnded;
+                }
+            },
+            cancellationToken);
+
+    private async Task FaultAsync(Exception exception, CancellationToken token)
+    {
+        journal.Failed(Id, exception);
+
+        if (record.Status == LoopStatus.Ended)
+        {
+            return;
+        }
+
+        try
+        {
+            await EndAsync(record.Faulted($"{exception.GetType().Name}: {exception.Message}"), token);
+        }
+        catch (Exception ending) when (ending is not OperationCanceledException || !token.IsCancellationRequested)
+        {
+            journal.Failed(Id, ending);
         }
     }
 

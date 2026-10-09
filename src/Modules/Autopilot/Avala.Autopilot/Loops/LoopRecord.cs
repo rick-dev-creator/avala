@@ -26,6 +26,8 @@ internal sealed record LoopRecord(LoopId Id, LoopRequest Request, DateTimeOffset
 
     public Option<AutopilotError> Error { get; init; }
 
+    public Option<string> Fault { get; init; }
+
     public Option<Underway> Current { get; init; }
 
     public Option<ConnectionName> Connection { get; init; }
@@ -52,6 +54,7 @@ internal sealed record LoopRecord(LoopId Id, LoopRequest Request, DateTimeOffset
         Ending = Ending,
         Breaker = Breaker,
         Error = Error,
+        Fault = Fault,
     };
 
     public LoopDigest Digest => new(State, Iterations, Approvals, Trips, Pauses, Spent);
@@ -95,4 +98,6 @@ internal sealed record LoopRecord(LoopId Id, LoopRequest Request, DateTimeOffset
     public LoopRecord Tripped(BreakerTrip trip) => Ended(LoopEnding.BreakerTripped) with { Breaker = trip.Breaker, Trips = Trips.Add(trip) };
 
     public LoopRecord Failed(AutopilotError error) => Ended(LoopEnding.SourceFailed) with { Error = error };
+
+    public LoopRecord Faulted(string fault) => Ended(LoopEnding.Failed) with { Fault = fault };
 }
