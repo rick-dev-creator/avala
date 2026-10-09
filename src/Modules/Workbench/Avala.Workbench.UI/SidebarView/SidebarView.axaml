@@ -12,6 +12,15 @@
       <Setter Property="Margin" Value="10,4" />
       <Setter Property="LetterSpacing" Value="0" />
     </Style>
+    <Style Selector="Border.children">
+      <Setter Property="Margin" Value="13,0,0,4" />
+      <Setter Property="Padding" Value="8,0,0,0" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="BorderThickness" Value="1,0,0,0" />
+    </Style>
+    <Style Selector="Button.row.child">
+      <Setter Property="Padding" Value="8,5" />
+    </Style>
     <Style Selector="ItemsControl.rows">
       <Setter Property="ItemsPanel">
         <ItemsPanelTemplate>
@@ -22,12 +31,18 @@
   </UserControl.Styles>
   <UserControl.Resources>
     <DataTemplate x:Key="Row" x:DataType="sidebar:IJobRowViewModel">
-      <Button Classes="row"
-              Classes.selected="{Binding IsSelected}"
-              Command="{Binding $parent[UserControl].((sidebar:ISidebarViewModel)DataContext).SelectCommand}"
-              CommandParameter="{Binding}">
-        <ContentControl ClipToBounds="False" Content="{Binding}" />
-      </Button>
+      <StackPanel>
+        <Button Classes="row"
+                Classes.child="{Binding IsChild}"
+                Classes.selected="{Binding IsSelected}"
+                Command="{Binding $parent[UserControl].((sidebar:ISidebarViewModel)DataContext).SelectCommand}"
+                CommandParameter="{Binding}">
+          <ContentControl ClipToBounds="False" Content="{Binding}" />
+        </Button>
+        <Border Classes="children" IsVisible="{Binding !!Children.Count}">
+          <ItemsControl Classes="rows" ItemsSource="{Binding Children}" ItemTemplate="{DynamicResource Row}" />
+        </Border>
+      </StackPanel>
     </DataTemplate>
   </UserControl.Resources>
   <StackPanel Spacing="14">

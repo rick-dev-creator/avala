@@ -164,10 +164,65 @@ public sealed class SidebarViewModelScripts : IDisposable
         Assert.Single(await bench.Ui.ReadAsync(() => sidebar.Running.ToList()));
     }
 
+    [Fact]
+    public void ASubAgentsJobSitsUnderItsOrchestratorInsteadOfAGroup()
+    {
+        var orchestrator = Job("Migrate payments to stripe-go v79", JobStatus.Running);
+        var child = ChildOf(orchestrator, "Update call sites in internal/payments", JobStatus.Running);
+
+        ViewModelScript.Given(bench.Sidebar())
+            .When(sidebar => sidebar.Show(Board(orchestrator, child)))
+            .Then(sidebar =>
+            {
+                var parent = Assert.Single(sidebar.Running);
+                Assert.Equal(("Migrate payments to stripe-go v79", false), (parent.Title, parent.IsChild));
+                Assert.Equal(("Update call sites in internal/payments", true), (Assert.Single(parent.Children).Title, parent.Children[0].IsChild));
+            });
+    }
+
+    [Fact]
+    public void ASubAgentSeenBeforeItsOrchestratorMovesUnderItOnceItArrivesAndStaysThere()
+    {
+        var orchestrator = Job("Migrate payments to stripe-go v79", JobStatus.Running);
+        var child = ChildOf(orchestrator, "Rewrite webhook signature tests", JobStatus.Running);
+        var sidebar = bench.Sidebar();
+        sidebar.Show(Board(child));
+        var early = Assert.Single(sidebar.Running);
+
+        sidebar.Show(Board(orchestrator, child));
+        sidebar.Show(Board(orchestrator, child with { Summary = child.Summary with { Status = JobStatus.AwaitingReview } }));
+
+        var parent = Assert.Single(sidebar.Running);
+        Assert.Same(early, Assert.Single(parent.Children));
+        Assert.Empty(sidebar.ReadyForReview);
+        Assert.Equal("ready for review", early.Fact);
+    }
+
+    [Fact]
+    public void SelectingASubAgentSelectsItsJobAlone()
+    {
+        var orchestrator = Job("Migrate payments to stripe-go v79", JobStatus.Running);
+        var child = ChildOf(orchestrator, "Regenerate the API reference", JobStatus.Running);
+        var sidebar = bench.Sidebar();
+        sidebar.Show(Board(orchestrator, child));
+        var parent = Assert.Single(sidebar.Running);
+
+        sidebar.SelectCommand.Execute(parent.Children[0]);
+
+        Assert.Equal((false, true), (parent.IsSelected, parent.Children[0].IsSelected));
+    }
+
     public void Dispose() => bench.Dispose();
 
     private static IEnumerable<IJobRowViewModel> Rows(SidebarViewModel sidebar) =>
         sidebar.NeedsYou.Concat(sidebar.Running).Concat(sidebar.ReadyForReview).Concat(sidebar.Done);
+
+    private BoardJob ChildOf(BoardJob parent, string instruction, JobStatus status)
+    {
+        var job = Job(instruction, status);
+
+        return job with { Summary = job.Summary with { Parent = parent.Job } };
+    }
 
     private BoardJob Job(string instruction, JobStatus status) =>
         new(catalog.Add(instruction, status).Summary, Transcript.Empty);
