@@ -104,6 +104,7 @@ Avala exists partly as an answer to harnesses whose code grew out of control. Do
 - No god class: an orchestrator, a view or a service that keeps growing with every feature. Split responsibilities into modules and small types.
 - No patch on top of a patch. Fix the cause, add the test that would have caught it, and keep the design coherent.
 - No provider-specific branches outside a provider's own plugin. The core decides by declared capabilities.
+- Avala offers, harnesses adapt. The core is agnostic: it offers its tools, such as the canvas, delegation or follow-ups, together with what it supports, such as the media types its renderers draw, and every harness adapts to that offer through its plugin. Never bend the core to what one harness happens to produce.
 - No big-bang rewrites. Change in small, verified steps.
 
 ## Documentation
