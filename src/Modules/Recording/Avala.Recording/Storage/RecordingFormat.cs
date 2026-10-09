@@ -136,29 +136,16 @@ internal sealed class RecordingFormat
             case FileCaptured file:
                 Object("file", () =>
                 {
-                    json.WriteString("item", file.Item.Value);
+                    Item(file.Item);
                     Text("path", file.Path);
                     Text("content", file.Content);
                 });
                 break;
             case Sent sent:
-                Object("send", () =>
-                {
-                    Text("text", sent.Turn.Text);
-
-                    if (sent.Turn.MidTurn)
-                    {
-                        json.WriteBoolean("midTurn", true);
-                    }
-                });
+                Object("send", () => Send(sent.Turn));
                 break;
             case Responded responded:
-                Object("respond", () =>
-                {
-                    json.WriteString("item", responded.Decision.Item.Value);
-                    json.WriteString("answer", Enum(responded.Decision.Answer));
-                    Optional("message", responded.Decision.Message);
-                });
+                Object("respond", () => Decision(responded.Decision));
                 break;
             case Answered answered:
                 Object("answer", () => Answer(answered.Answer));
@@ -320,6 +307,23 @@ internal sealed class RecordingFormat
             json.WriteBoolean("acceptsFreeText", field.AcceptsFreeText);
         }));
     });
+
+    private void Send(UserTurn turn)
+    {
+        Text("text", turn.Text);
+
+        if (turn.MidTurn)
+        {
+            json.WriteBoolean("midTurn", true);
+        }
+    }
+
+    private void Decision(PermissionDecision decision)
+    {
+        Item(decision.Item);
+        json.WriteString("answer", Enum(decision.Answer));
+        Optional("message", decision.Message);
+    }
 
     private void Answer(FormAnswer answer)
     {
