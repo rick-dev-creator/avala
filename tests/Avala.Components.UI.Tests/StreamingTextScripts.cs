@@ -31,6 +31,23 @@ public sealed class StreamingTextScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task WithReducedMotionArrivingTextAppearsAtOnceWithItsCaretAsync() =>
+        ui.RunAsync(() =>
+        {
+            var text = new StreamingText { IsLive = true };
+            var view = ViewScript.Show(text, new object());
+            Theme.Motion.SetIsReduced(view.Window, true);
+
+            text.Stream = "Totals now";
+            text.Stream = "Totals now round";
+            view.Settle();
+
+            Assert.Equal(0, text.Arriving);
+            Assert.Equal("Totals now round", string.Concat(text.Inlines!.OfType<Run>().Select(run => run.Text)));
+            Assert.True(text.ShowsCaret);
+        }, Cancellation);
+
+    [Fact]
     public Task OnlyTheLatestChunksStaySeparateSoLongMessagesStayLightAsync() =>
         ui.RunAsync(() =>
         {

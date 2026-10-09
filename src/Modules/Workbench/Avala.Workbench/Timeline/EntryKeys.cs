@@ -15,5 +15,7 @@ internal static class EntryKeys
 
     public static string Plan(TurnId turn) => $"plan:{turn.Value}";
 
+    public static string Interjection(TurnId turn, int position) => string.Create(CultureInfo.InvariantCulture, $"interjection:{turn.Value}:{position}");
+
     public static string TurnEnd(TurnId turn) => $"turn:{turn.Value}";
 }

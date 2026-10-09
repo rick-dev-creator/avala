@@ -64,6 +64,9 @@ internal sealed class FakeJobs : IJobs
     public ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
         AnswerAsync("discard", job);
 
+    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
+        AnswerAsync($"steer {message}", new JobSteered(job, SessionId.New(), TurnId.New()));
+
     public TaskCompletionSource? Gate { get; set; }
 
     public async ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken)
@@ -131,6 +134,8 @@ internal sealed class FakeAgents : IAgents
     public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<AgentTurn, AgentError>> SteerAsync(SessionId session, string message, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) => throw new NotSupportedException();
 }

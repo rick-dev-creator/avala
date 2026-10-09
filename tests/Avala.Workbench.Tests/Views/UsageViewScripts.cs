@@ -15,7 +15,7 @@ public sealed class UsageViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignUsageViewModel());
 
-            Assert.Equal((2, 2, 6, 2), (view.Find<ItemsControl>("Connections").ItemCount, view.Find<ItemsControl>("Windows").ItemCount, view.Find<ItemsControl>("Jobs").ItemCount, view.Find<ItemsControl>("InterventionList").ItemCount));
+            Assert.Equal((2, 7, 6, 2), (view.Find<ItemsControl>("Connections").ItemCount, view.Find<ItemsControl>("Days").ItemCount, view.Find<ItemsControl>("Jobs").ItemCount, view.Find<ItemsControl>("InterventionList").ItemCount));
             Assert.Equal((false, false, true, "All recorded usage, kept across restarts"), (view.Shows("NoConnections"), view.Shows("NoJobs"), view.Shows("InterventionsGroup"), view.TextOf("Scope")));
         }, TestContext.Current.CancellationToken);
 
@@ -36,12 +36,52 @@ public sealed class UsageViewScripts(HeadlessUi ui)
 
         public IReadOnlyList<IConnectionMeterViewModel> Connections => [];
 
-        public IReadOnlyList<IUsageWindowViewModel> Windows => [];
+        public IUsageRangeViewModel Range { get; } = new UsageRangeViewModel();
 
         public IReadOnlyList<IJobMeterViewModel> Jobs => [];
 
         public IReadOnlyList<IInterventionViewModel> Interventions => [];
     }
+}
+
+public sealed class UsageRangeViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task TheWindowIsChosenWithSegmentsAndItsDaysListUnderItsTotalAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageRangeViewModel());
+
+            Assert.Equal((false, true, false), (view.HasClass("ShowToday", "selected"), view.HasClass("ShowWeek", "selected"), view.HasClass("ShowMonth", "selected")));
+            Assert.Equal(("Since Sun 4 Oct, in this computer's time zone · newest first", 7), (view.TextOf("Caption"), view.Find<ItemsControl>("Days").ItemCount));
+            Assert.Contains("Tokens by type · Last 7 days", view.VisibleTexts);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ClickingASegmentChoosesThatWindowAsync() =>
+        ui.RunAsync(() =>
+        {
+            var range = new UsageRangeViewModel();
+            var view = Screen.Show(range);
+
+            view.Click("ShowMonth");
+            view.Settle();
+
+            Assert.Equal((true, false), (view.HasClass("ShowMonth", "selected"), view.HasClass("ShowWeek", "selected")));
+        }, TestContext.Current.CancellationToken);
+}
+
+public sealed class UsageDayViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task ADayShowsItsDateABarItsTokensAndCostWithTheTypesOnHoverAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignUsageDayViewModel());
+
+            Assert.Equal(("Sat 10 Oct · today", "620,400 tokens", "4.05 USD", 0.88), (view.TextOf("Day"), view.TextOf("Tokens"), view.TextOf("Cost"), view.Find<ProgressBar>("Share").Value));
+            Assert.False(view.HasClass("Day", "secondary"));
+        }, TestContext.Current.CancellationToken);
 }
 
 public sealed class ConnectionMeterViewScripts(HeadlessUi ui)

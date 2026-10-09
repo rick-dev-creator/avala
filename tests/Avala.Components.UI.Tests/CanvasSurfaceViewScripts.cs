@@ -65,6 +65,22 @@ public sealed class CanvasSurfaceViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task WithReducedMotionANewDrawingReplacesThePreviousOneWithoutFadingAsync() =>
+        ui.RunAsync(() =>
+        {
+            var surface = Surface(Draft("circle", CanvasPhase.Streaming));
+            var view = Show(surface);
+            Theme.Motion.SetIsReduced(view.Window, true);
+            var presenter = view.Find<CanvasPresenter>("Drawing");
+
+            surface.Show(Draft("circle, square", CanvasPhase.Streaming));
+            view.Settle();
+
+            Assert.Equal((false, 1d), (presenter.IsArriving, presenter.Children[0].Opacity));
+            Assert.Equal(["drawn: circle, square"], Drawings(view));
+        }, Cancellation);
+
+    [Fact]
     public Task ACanvasThatWasNotOfferedShowsItsSourceWithANoteEvenWhenARendererKnowsItsKindAsync() =>
         ui.RunAsync(() =>
         {

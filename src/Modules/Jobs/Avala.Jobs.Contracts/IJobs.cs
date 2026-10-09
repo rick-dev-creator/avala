@@ -14,6 +14,8 @@ public interface IJobs
 
     ValueTask<Result<JobContinuation, JobRejection>> ContinueOnAsync(JobId job, ConnectionName connection, string message, CancellationToken cancellationToken);
 
+    ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken);
+
     ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken);
 
     ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken);
@@ -56,6 +58,8 @@ public enum ContinuedIn
 
 public sealed record JobContinuation(JobId Job, SessionId Session, ContinuedIn Conversation);
 
+public sealed record JobSteered(JobId Job, SessionId Session, TurnId Turn);
+
 public enum JobRejection
 {
     EmptyRepository,
@@ -84,4 +88,5 @@ public enum JobRejection
     SameConnection,
     NotDeferred,
     NotResumable,
+    NotSteerable,
 }

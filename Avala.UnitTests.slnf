@@ -43,6 +43,8 @@
       "src/Modules/Workbench/Avala.Workbench.UI/Avala.Workbench.UI.csproj",
       "src/Modules/Rendering/Avala.Rendering/Avala.Rendering.csproj",
       "src/Modules/Rendering/Avala.Rendering.UI/Avala.Rendering.UI.csproj",
+      "src/Modules/Mermaid/Avala.Mermaid/Avala.Mermaid.csproj",
+      "src/Modules/Mermaid/Avala.Mermaid.UI/Avala.Mermaid.UI.csproj",
       "tests/Avala.Agents.Tests/Avala.Agents.Tests.csproj",
       "tests/Avala.Canvas.Tests/Avala.Canvas.Tests.csproj",
       "tests/Avala.Jobs.Tests/Avala.Jobs.Tests.csproj",
@@ -68,6 +70,7 @@
       "tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj",
       "tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj",
       "tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj",
+      "tests/Avala.Mermaid.Tests/Avala.Mermaid.Tests.csproj",
       "src/Modules/ClaudeCode/Avala.ClaudeCode/Avala.ClaudeCode.csproj",
       "tests/Avala.ClaudeCode.Tests/Avala.ClaudeCode.Tests.csproj",
       "tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj"

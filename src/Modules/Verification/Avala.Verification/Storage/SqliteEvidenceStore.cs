@@ -8,9 +8,8 @@ namespace Avala.Verification.Storage;
 
 internal sealed class SqliteEvidenceStore(AvalaPaths paths) : IEvidenceStore, IStartupTask, IAsyncDisposable
 {
-    private readonly SerialExecutor serial = new();
+    private readonly DatabaseOwner<VerificationDbContext> owner = new(paths.Database("verification"), file => new VerificationDbContext(file));
     private readonly HashSet<int> written = [];
-    private VerificationDbContext? context;
 
     public Task RecordAsync(VerificationReport report, CancellationToken cancellationToken) =>
         RunAsync(
@@ -36,30 +35,10 @@ internal sealed class SqliteEvidenceStore(AvalaPaths paths) : IEvidenceStore, IS
             ],
             cancellationToken);
 
-    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+    public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await serial.DisposeAsync();
-
-        if (context is not null)
-        {
-            await context.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private Task<T> RunAsync<T>(Func<VerificationDbContext, Task<T>> work, CancellationToken cancellationToken) =>
-        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
-
-    private async Task<VerificationDbContext> OpenAsync(CancellationToken cancellationToken)
-    {
-        if (context is null)
-        {
-            Directory.CreateDirectory(paths.Data);
-            context = new VerificationDbContext(paths.Database("verification"));
-            await ModuleDatabase.MigrateAsync(context, cancellationToken);
-        }
-
-        return context;
-    }
+        owner.RunAsync(work, cancellationToken);
 }

@@ -132,6 +132,10 @@ internal sealed partial class DesignReviewViewModel : IReviewViewModel
     [ObservableProperty]
     public partial string Feedback { get; set; } = string.Empty;
 
+    public string Queued { get; init; } = string.Empty;
+
+    public IAsyncRelayCommand SendBackQueuedCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
     public string Outcome { get; init; } = string.Empty;
 
     public bool IsClosed => Outcome.Length > 0;

@@ -39,6 +39,10 @@ internal interface IRepositorySettingsViewModel
 
     IAsyncRelayCommand<IRuleFileViewModel> EditCommand { get; }
 
+    IAsyncRelayCommand<IRuleFileViewModel> EditHereCommand { get; }
+
+    IRuleFileEditorViewModel Editor { get; }
+
     IAsyncRelayCommand<string> OpenCommand { get; }
 
     string Name { get; }
@@ -53,8 +57,26 @@ internal interface IRepositorySettingsViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class RepositorySettingsViewModel(RulesReader reader, SettingsFiles files, JobBoard board) : IRepositorySettingsViewModel
+internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsViewModel
 {
+    private readonly RulesReader reader;
+    private readonly SettingsFiles files;
+    private readonly JobBoard board;
+    private readonly RuleFileEditorViewModel editor;
+
+    public RepositorySettingsViewModel(RulesReader reader, SettingsFiles files, JobBoard board, RuleFileEditorViewModel editor)
+    {
+        this.reader = reader;
+        this.files = files;
+        this.board = board;
+        this.editor = editor;
+        editor.Saved += (_, path) => Refreshing = RefreshAsync(path);
+    }
+
+    public IRuleFileEditorViewModel Editor => editor;
+
+    public Task Refreshing { get; private set; } = Task.CompletedTask;
+
     private readonly ObservableCollection<string> repositories = [];
     private readonly ObservableCollection<RuleFileViewModel> ruleFiles = [];
     private readonly ObservableCollection<RuleViewModel> rules = [];
@@ -79,7 +101,7 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
     public partial string Repository { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(EditCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EditCommand), nameof(EditHereCommand))]
     public partial string Shown { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -147,6 +169,24 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
         Notice = opened.Match(done => done.Created ? SettingsPhrases.CreatedInRepository(file.Path) : string.Empty, _ => string.Empty);
     }
 
+    [RelayCommand(CanExecute = nameof(CanEditHere))]
+    private async Task EditHereAsync(IRuleFileViewModel? file, CancellationToken cancellationToken)
+    {
+        if (file is not null)
+        {
+            Notice = string.Empty;
+            await editor.OpenAsync(Shown, file.Path, cancellationToken);
+        }
+    }
+
+    private async Task RefreshAsync(string saved)
+    {
+        await ReadCommand.ExecuteAsync(null);
+        Notice = RuleFilePhrases.Saved(saved);
+    }
+
+    private bool CanEditHere(IRuleFileViewModel? file) => file is { CanEditHere: true } && Shown.Length > 0;
+
     private bool CanRead() => !string.IsNullOrWhiteSpace(Repository);
 
     private bool CanEdit(IRuleFileViewModel? file) => file is not null && Shown.Length > 0;
@@ -162,10 +202,10 @@ internal sealed partial class RepositorySettingsViewModel(RulesReader reader, Se
         FormStrategy = SettingsPhrases.Strategy(read.Policy.Strategy);
         RuleFileViewModel[] declared =
         [
-            new(RuleFiles.Permissions, SettingsPhrases.Status(read.Policy.File, read.Policy.Error), read.Policy.Origin, $"{Autonomy}, {FormStrategy.ToLowerInvariant()}, {Overview.OverviewPhrases.Count(read.Policy.Rules.Count, "rule")}"),
-            new(RuleFiles.Budget, SettingsPhrases.Status(read.Budget.File, read.Budget.Error), read.Budget.Origin, Overview.OverviewPhrases.Count(read.Budget.Connections.Count + 1, "scope")),
-            new(RuleFiles.Checks, read.Checks.File.ToString(), read.Checks.Origin, read.Checks.Checks.Count == 0 ? "no checks" : string.Join(", ", read.Checks.Checks.Select(check => check.Name))),
-            new(RuleFiles.Jobs, read.Jobs.File.ToString(), read.Jobs.Origin, Overview.OverviewPhrases.Count(read.Jobs.Sections.Count, "section")),
+            new(RuleFiles.Permissions, SettingsPhrases.Status(read.Policy.File, read.Policy.Error), read.Policy.Origin, $"{Autonomy}, {FormStrategy.ToLowerInvariant()}, {Overview.OverviewPhrases.Count(read.Policy.Rules.Count, "rule")}") { CanEditHere = editor.CanEdit(RuleFiles.Permissions) },
+            new(RuleFiles.Budget, SettingsPhrases.Status(read.Budget.File, read.Budget.Error), read.Budget.Origin, Overview.OverviewPhrases.Count(read.Budget.Connections.Count + 1, "scope")) { CanEditHere = editor.CanEdit(RuleFiles.Budget) },
+            new(RuleFiles.Checks, read.Checks.File.ToString(), read.Checks.Origin, read.Checks.Checks.Count == 0 ? "no checks" : string.Join(", ", read.Checks.Checks.Select(check => check.Name))) { CanEditHere = editor.CanEdit(RuleFiles.Checks) },
+            new(RuleFiles.Jobs, read.Jobs.File.ToString(), read.Jobs.Origin, Overview.OverviewPhrases.Count(read.Jobs.Sections.Count, "section")) { CanEditHere = editor.CanEdit(RuleFiles.Jobs) },
         ];
         CapsViewModel[] capped =
         [

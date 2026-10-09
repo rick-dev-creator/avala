@@ -22,6 +22,8 @@ public sealed record AcceptsTools(ValueSet<ToolSurface> Surfaces) : ICapability
 
 public sealed record AsksForms : ICapability;
 
+public sealed record AcceptsMessagesMidTurn : ICapability;
+
 public sealed record ReportsUsage : ICapability;
 
 public sealed record ReportsCost(string Currency) : ICapability;

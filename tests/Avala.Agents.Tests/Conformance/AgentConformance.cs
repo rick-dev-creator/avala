@@ -516,6 +516,7 @@ internal static class AgentConformance
             CanvasStarted started when !Options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas && Offers(tool, started.MediaType)) =>
                 [$"the canvas {started.Item.Value} was drawn in {started.MediaType}, which the canvas tool does not offer"],
             FormRequested asked when !Capabilities.Has<AsksForms>() => [$"the form {asked.Item.Value} was asked although the provider does not declare AsksForms"],
+            MessageQueued when !Capabilities.Has<AcceptsMessagesMidTurn>() => ["a message was queued into the turn although the provider does not declare AcceptsMessagesMidTurn"],
             ToolCalled called when !Options.Tools.Any(tool => tool.Name == called.Tool && tool.Surface == ToolSurface.Executed) =>
                 [$"the tool {called.Tool} was called although the session was not given it"],
             _ => [],

@@ -8,11 +8,10 @@ namespace Avala.Budgets.Storage;
 
 internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionStore, IStartupTask, IAsyncDisposable
 {
-    private readonly SerialExecutor serial = new();
+    private readonly DatabaseOwner<BudgetsDbContext> owner = new(paths.Database("budgets"), file => new BudgetsDbContext(file));
     private readonly HashSet<int> written = [];
     private readonly HashSet<int> carved = [];
     private readonly HashSet<int> budgets = [];
-    private BudgetsDbContext? context;
 
     public Task RecordAsync(BudgetCarve carve, CancellationToken cancellationToken) =>
         RunAsync(
@@ -86,30 +85,10 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
             ],
             cancellationToken);
 
-    public Task RunAsync(CancellationToken cancellationToken) => RunAsync(_ => Task.FromResult(true), cancellationToken);
+    public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await serial.DisposeAsync();
-
-        if (context is not null)
-        {
-            await context.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private Task<T> RunAsync<T>(Func<BudgetsDbContext, Task<T>> work, CancellationToken cancellationToken) =>
-        serial.RunAsync(token => Task.Run(async () => await work(await OpenAsync(token)), token), cancellationToken);
-
-    private async Task<BudgetsDbContext> OpenAsync(CancellationToken cancellationToken)
-    {
-        if (context is null)
-        {
-            Directory.CreateDirectory(paths.Data);
-            context = new BudgetsDbContext(paths.Database("budgets"));
-            await ModuleDatabase.MigrateAsync(context, cancellationToken);
-        }
-
-        return context;
-    }
+        owner.RunAsync(work, cancellationToken);
 }

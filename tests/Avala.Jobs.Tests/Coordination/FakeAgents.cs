@@ -88,6 +88,27 @@ internal sealed class FakeAgents : IAgents
     public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.Unsupported));
 
+    public Option<AgentError> SteerRejection { get; set; }
+
+    public ConcurrentQueue<string> Steered { get; } = new();
+
+    public ValueTask<Result<AgentTurn, AgentError>> SteerAsync(SessionId session, string message, CancellationToken cancellationToken)
+    {
+        if (!sessions.ContainsKey(session))
+        {
+            return ValueTask.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.SessionClosed));
+        }
+
+        return ValueTask.FromResult(SteerRejection.Match(
+            Result<AgentTurn, AgentError>.Failure,
+            () =>
+            {
+                Steered.Enqueue(message);
+
+                return Result<AgentTurn, AgentError>.Success(new AgentTurn(session, TurnId.New()));
+            }));
+    }
+
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken)
     {
         if (!sessions.ContainsKey(session))

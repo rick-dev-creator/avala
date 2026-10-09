@@ -53,6 +53,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public FakeTimeProvider Clock { get; }
 
+    public RecordingLinks Links => surroundings.Links;
+
     public ICanvases Canvases => Get<ICanvases>();
 
     public ViewRegistry Views => application.Root.Views;
@@ -333,6 +335,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock, bool Harnesses, bool Developer, Option<IPlugin> ClaudeCode)
     {
+        public RecordingLinks Links { get; } = new();
+
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
                 plugins.Directory,
@@ -340,7 +344,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 Ui,
                 Clock,
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
-                Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)]);
+                Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
+                Links);
     }
 
     private sealed class Application : IAsyncDisposable

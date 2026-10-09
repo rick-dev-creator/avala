@@ -9,6 +9,47 @@ public sealed class SimulatedSessionTests
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
+    private static string Said(IEnumerable<IAgentEvent> events, string item) =>
+        string.Concat(events.OfType<ItemProgressed>().Where(progressed => progressed.Item.Value == item).Select(progressed => progressed.Text));
+
+    [Fact]
+    public async Task TheSteerScenarioWaitsForAMessageMidTurnAndRepliesToItInTheSameTurnAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+        var turn = await stage.SendAsync("[simulate: steer] Rename the orders module", Cancellation);
+        await stage.ReadUntilAsync<ItemCompleted>(Cancellation);
+
+        Assert.Equal(turn, Outcomes.Succeeds(await stage.Session.SendAsync(new UserTurn("Keep the alias") { MidTurn = true }, Cancellation)));
+        var events = await stage.ReadTurnAsync(Cancellation);
+
+        Assert.Contains(new MessageQueued(stage.Session.Id, turn, "Keep the alias"), events);
+        Assert.Equal("Noted: Keep the alias I am folding it into this turn.", Said(events, "heard-1"));
+        Assert.Equal(new TurnCompleted(stage.Session.Id, turn, TurnOutcome.Finished), events[^1]);
+    }
+
+    [Fact]
+    public async Task AMessageMidTurnNeedsARunningTurnAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+
+        Assert.Equal(AgentError.NoTurnInProgress, Outcomes.FailsWith(await stage.Session.SendAsync(new UserTurn("Keep the alias") { MidTurn = true }, Cancellation)));
+    }
+
+    [Fact]
+    public async Task AMessageThatArrivesWhileNoStepWaitsIsAnsweredBeforeTheTurnFinishesAsync()
+    {
+        await using var stage = new Stage(PermissionMode.AskEveryTime);
+        var turn = await stage.SendAsync("[simulate: permission] Migrate the database", Cancellation);
+        var asked = (await stage.ReadUntilAsync<PermissionRequested>(Cancellation)).OfType<PermissionRequested>().Single();
+
+        Outcomes.Succeeds(await stage.Session.SendAsync(new UserTurn("Back it up first") { MidTurn = true }, Cancellation));
+        Outcomes.Succeeds(await stage.Session.RespondAsync(new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+        var events = await stage.ReadTurnAsync(Cancellation);
+
+        Assert.Equal("Noted: Back it up first I am folding it into this turn.", Said(events, "heard-1"));
+        Assert.Equal(new TurnCompleted(stage.Session.Id, turn, TurnOutcome.Finished), events[^1]);
+    }
+
     [Fact]
     public async Task TheEditScenarioWritesItsFileIntoTheWorkingDirectoryAsync()
     {

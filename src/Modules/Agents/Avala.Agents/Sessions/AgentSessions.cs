@@ -27,7 +27,7 @@ internal sealed partial class AgentSessions(
 
         var session = started.Session;
         await bus.PublishAsync(
-            new SessionOpened(session.Id, started.Provider,request.WorkingDirectory, started.Connection) { Account = session.Account, ProcessTree = started.Tree },
+            new SessionOpened(session.Id, started.Provider,request.WorkingDirectory, started.Connection) { Account = session.Account, ProcessTree = started.Tree, Capabilities = started.Capabilities },
             cancellationToken);
         ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, started.Capabilities, PumpAsync));
 
@@ -43,6 +43,14 @@ internal sealed partial class AgentSessions(
         Volatile.Read(ref live).TryGetValue(session, out var running)
             ? (await running.Session.SendAsync(new UserTurn(message), cancellationToken)).Map(turn => new AgentTurn(session, turn))
             : AgentError.SessionClosed;
+
+    public async ValueTask<Result<AgentTurn, AgentError>> SteerAsync(
+        SessionId session,
+        string message,
+        CancellationToken cancellationToken) =>
+        !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
+        : !running.Capabilities.Has<AcceptsMessagesMidTurn>() ? AgentError.Unsupported
+        : (await running.Session.SendAsync(new UserTurn(message) { MidTurn = true }, cancellationToken)).Map(turn => new AgentTurn(session, turn));
 
     public async ValueTask<Result<ItemId, AgentError>> RespondAsync(
         SessionId session,

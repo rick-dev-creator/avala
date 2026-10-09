@@ -1,12 +1,13 @@
 {
   "format": "avala-recording",
   "version": 1,
-  "recordedAt": "2026-10-09T19:26:17.7610112+00:00",
+  "recordedAt": "2026-10-09T20:29:42.3400138+00:00",
   "provider": {
     "id": "claude-code",
     "name": "Claude Code"
   },
   "capabilities": {
+    "acceptsMessagesMidTurn": {},
     "acceptsTools": {
       "surfaces": [
         "canvas",

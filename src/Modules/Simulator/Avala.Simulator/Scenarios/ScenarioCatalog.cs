@@ -293,13 +293,43 @@ internal static class ScenarioCatalog
     public static Scenario UnofferedCanvas { get; } = new("unoffered-canvas",
     [
         [
+            new Draw(new ItemId("report"), "Job report", "text/html",
+            [
+                "<h1>Job report</h1>\n",
+                "<p>Submitted, then running.</p>\n",
+            ]),
+            Message("I wrote the job report in HTML."),
+            .. Bill(1_200, 80, 0.0040m, 0.30),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario MermaidCanvas { get; } = new("mermaid-canvas",
+    [
+        [
             new Draw(new ItemId("flow"), "Job flow", "text/vnd.mermaid",
             [
                 "flowchart LR\n",
                 "  Submitted --> Running\n",
+                "  Running --> Checking\n",
             ]),
             Message("I drew the job flow in Mermaid."),
             .. Bill(1_200, 80, 0.0040m, 0.30),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario Markdown { get; } = new("markdown",
+    [
+        [
+            Message(
+                "## Rounding fixed\n\nJPY has **no minor ",
+                "units**, so `ToMinor` now reads the exponent:\n\n- JPY: 0 decimals\n",
+                "- USD: 2 decimals\n\n```go\nfunc ToMinor(amount Money) int64 {\n",
+                "    return amount.Units * pow10(amount.Currency.Exponent)\n}\n```\n\n",
+                "| Currency | Exponent |\n| --- | --- |\n| JPY | 0 |\n\n",
+                "See [ISO 4217](https://www.iso.org/iso-4217-currency-codes.html) and [the notes](file:///etc/passwd)."),
+            .. Bill(1_400, 260, 0.0060m, 0.20),
             new Finish(),
         ],
     ]);
@@ -357,174 +387,28 @@ internal static class ScenarioCatalog
         ],
     ]);
 
-    public static Scenario Delegated { get; } = new("delegate",
+    public static Scenario Steer { get; } = new("steer",
     [
         [
-            Thought("Two independent pieces of work. ", "I will hand each to a sub-agent."),
-            new CallTools(
-            [
-                Delegation("delegate-notes", """{ "instruction": "[simulate: notes] Write the release notes" }"""),
-                Delegation("delegate-todo", """{ "instruction": "[simulate: todo] Write the to-do list" }"""),
-            ]),
-            Message("Both pieces of work came back ", "with their evidence."),
-            .. Bill(2_100, 160, 0.0080m, 0.22),
+            Thought("Renaming the orders module ", "one folder at a time."),
+            new WriteFile(new ItemId("rename"), "ORDERS.md", "# Orders\n\nRenamed from Purchases.\n"),
+            Message("Renamed the folder. ", "Tell me if anything else should change while I work."),
+            new AwaitMessage(),
+            .. Bill(2_900, 210, 0.0130m, 0.23),
             new Finish(),
         ],
-    ]);
-
-    public static Scenario DelegatedConflict { get; } = new("delegate-conflict",
-    [
         [
-            Thought("Two takes on the notes. ", "I will ask two sub-agents."),
-            new CallTools(
-            [
-                Delegation("delegate-notes", """{ "instruction": "[simulate: notes] Write the release notes" }"""),
-                Delegation("delegate-revised", """{ "instruction": "[simulate: notes-revised] Revise the release notes" }"""),
-            ]),
-            Message("The sub-agents reported back."),
-            .. Bill(2_000, 150, 0.0075m, 0.22),
-            new Finish(),
-        ],
-    ]);
-
-    public static Scenario DelegatedWaiting { get; } = new("delegate-waiting",
-    [
-        [
-            Thought("The migration needs a person's approval. ", "A sub-agent will ask for it."),
-            Delegation("delegate-migrate", """{ "instruction": "[simulate: permission] Migrate the database" }"""),
-            Message("The migration came back."),
-            .. Bill(1_700, 120, 0.0065m, 0.22),
-            new Finish(),
-        ],
-        Resumed("The migration came back after the restart."),
-    ]);
-
-    public static Scenario DelegatedPaused { get; } = new("delegate-paused",
-    [
-        [
-            Thought("The notes can be written ", "by a sub-agent."),
-            Delegation("delegate-notes", """{ "instruction": "[simulate: notes-paused] Write the release notes" }"""),
-            Message("The notes came back."),
-            .. Bill(1_700, 120, 0.0065m, 0.22),
-            new Finish(),
-        ],
-        Resumed("The notes came back after the restart."),
-    ]);
-
-    public static Scenario DelegatedAcross { get; } = new("delegate-across",
-    [
-        [
-            Thought("Two pieces of work, ", "one sub-agent after the other."),
-            Delegation("delegate-notes", """{ "instruction": "[simulate: notes] Write the release notes" }"""),
-            Delegation("delegate-todo", """{ "instruction": "[simulate: todo] Write the to-do list" }"""),
-            Message("Both pieces of work came back ", "with their evidence."),
-            .. Bill(2_100, 160, 0.0080m, 0.22),
-            new Finish(),
-        ],
-    ]);
-
-    public static Scenario PausedNotes { get; } = new("notes-paused",
-    [
-        [
-            Thought("Gathering what changed ", "for the release notes."),
-            .. Bill(900, 40, 0.0030m, 0.18),
-        ],
-        [
-            Thought("Back at the notes ", "after the restart."),
-            new WriteFile(new ItemId("notes"), "NOTES.md", "# Notes\n\nWritten by a delegated simulator after a restart.\n"),
-            Message("Wrote NOTES.md."),
-            .. Bill(1_400, 90, 0.0050m, 0.20),
-            new Finish(),
-        ],
-    ]);
-
-    public static Scenario DelegatedLoosely { get; } = new("delegate-loosen",
-    [
-        [
-            Thought("The notes could be written unattended."),
-            Delegation("delegate-autonomous", """{ "instruction": "[simulate: notes] Write the release notes", "autonomy": "autonomous" }"""),
-            Delegation("delegate-notes", """{ "instruction": "[simulate: notes] Write the release notes" }"""),
-            Message("The notes came back."),
-            .. Bill(1_900, 140, 0.0070m, 0.22),
-            new Finish(),
-        ],
-    ]);
-
-    public static Scenario DelegatedExpensively { get; } = new("delegate-expensive",
-    [
-        [
-            Thought("The index needs rebuilding. ", "A sub-agent will do it."),
-            Delegation("delegate-index", """{ "instruction": "[simulate: expensive] Rebuild the search index" }"""),
-            Message("The sub-agent reported back."),
-            .. Bill(1_800, 130, 0.0100m, 0.22),
-            new Finish(),
-        ],
-    ]);
-
-    public static Scenario Recursive { get; } = new("recursive",
-    [
-        [
-            Thought("This is better done by a sub-agent."),
-            Delegation("delegate-again", """{ "instruction": "[simulate: recursive] Delegate the work again" }"""),
-            Message("The delegation came back."),
-            .. Bill(1_600, 110, 0.0060m, 0.22),
-            new Finish(),
-        ],
-    ]);
-
-    public static Scenario Notes { get; } = new("notes",
-    [
-        [
-            Thought("Writing the release notes."),
-            new WriteFile(new ItemId("notes"), "NOTES.md", "# Notes\n\nWritten by a delegated simulator.\n"),
-            Message("Wrote NOTES.md."),
-            .. Bill(1_400, 90, 0.0050m, 0.20),
-            new Finish(),
-        ],
-    ]);
-
-    public static Scenario RevisedNotes { get; } = new("notes-revised",
-    [
-        [
-            Thought("Revising the release notes."),
-            new WriteFile(new ItemId("notes"), "NOTES.md", "# Notes\n\nRevised by another delegated simulator.\n"),
-            Message("Revised NOTES.md."),
-            .. Bill(1_450, 95, 0.0052m, 0.20),
-            new Finish(),
-        ],
-    ]);
-
-    public static Scenario Todo { get; } = new("todo",
-    [
-        [
-            Thought("Writing the to-do list."),
-            new WriteFile(new ItemId("todo"), "TODO.md", "# To do\n\n- Ship the release.\n"),
-            Message("Wrote TODO.md."),
-            .. Bill(1_300, 85, 0.0048m, 0.20),
-            new Finish(),
-        ],
-    ]);
-
-    public static Scenario Expensive { get; } = new("expensive",
-    [
-        [
-            Thought("Rebuilding the whole index ", "takes a lot of tokens."),
-            new WriteFile(new ItemId("index"), "INDEX.md", "# Index\n\nHalf rebuilt.\n"),
-            new ReportUsage(new TokenUsage(90_000, 7_000, 45_000, 9_000, 1_750), new Cost(0.6000m, "USD")),
-            new ReportLimit(new UsageLimit("5h", 0.30, Option<DateTimeOffset>.None)),
-        ],
-        [
-            Message("Stopped where the budget ran out."),
-            .. Bill(1_000, 60, 0.0030m, 0.30),
+            Thought("The note arrived ", "after my turn ended."),
+            Message("Picked up your note ", "and applied it in this turn."),
+            .. Bill(1_200, 90, 0.0050m, 0.24),
             new Finish(),
         ],
     ]);
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, WaitingPermission, RepeatedPermission, OutsideEdit, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, Processes, FollowUp, NearLimit, SpentWindow, Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely,
-        DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, Notes, RevisedNotes, Todo, Expensive, PausedNotes,
+        Steer, Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, WaitingPermission, RepeatedPermission, OutsideEdit, Question, Governed, UnsharedThought, Fields, PlanApproval,
+        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, .. DelegationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";
@@ -566,24 +450,14 @@ internal static class ScenarioCatalog
                 AcceptsFreeText: true),
         ]));
 
-    private static Say Thought(params string[] chunks) => new(new ItemId("thinking"), ItemKind.Reasoning, "Thinking", chunks);
+    public static Say Thought(params string[] chunks) => new(new ItemId("thinking"), ItemKind.Reasoning, "Thinking", chunks);
 
-    private static Say Message(params string[] chunks) => new(new ItemId("reply"), ItemKind.Message, "Reply", chunks);
-
-    private static CallTool Delegation(string item, string input) => new(new ItemId(item), Delegate, input);
-
-    private static IStep[] Resumed(string message) =>
-    [
-        new Recall(new ItemId("told")),
-        Message(message),
-        .. Bill(1_100, 70, 0.0040m, 0.24),
-        new Finish(),
-    ];
+    public static Say Message(params string[] chunks) => new(new ItemId("reply"), ItemKind.Message, "Reply", chunks);
 
     private static UpdatePlan Plan(PlanStepStatus change, PlanStepStatus tests) =>
         new([new PlanStep("Write the change", change), new PlanStep("Run the tests", tests)]);
 
-    private static IStep[] Bill(long input, long output, decimal cost, double used) =>
+    public static IStep[] Bill(long input, long output, decimal cost, double used) =>
     [
         new ReportUsage(new TokenUsage(input, output, input / 2, input / 10, output / 4), new Cost(cost, "USD")),
         new ReportLimit(new UsageLimit("5h", used, Option<DateTimeOffset>.None)),

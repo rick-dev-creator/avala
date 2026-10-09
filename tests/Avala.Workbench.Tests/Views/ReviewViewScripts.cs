@@ -34,6 +34,17 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task AQueuedMessageShowsAboveTheFeedbackWithItsOwnSendBackAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Tall(Screen.Show(new DesignReviewViewModel { Queued = "Keep the old namespace as an alias" }));
+            var without = Tall(Screen.Show(new DesignReviewViewModel()));
+
+            Assert.Equal((true, "Keep the old namespace as an alias", true), (view.Shows("QueuedDraft"), view.TextOf("QueuedText"), view.Shows("SendBackQueued")));
+            Assert.False(without.Shows("QueuedDraft"));
+        }, Cancellation);
+
+    [Fact]
     public Task WhileTheEvidenceLoadsTheSheetSaysSoAsync() =>
         ui.RunAsync(() =>
         {

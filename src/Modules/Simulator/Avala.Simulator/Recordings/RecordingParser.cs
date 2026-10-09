@@ -196,5 +196,5 @@ internal sealed class RecordingParser
 
     private static string Plain(JsonElement element) => element.GetString() ?? throw new FormatException("A text is missing.");
 
-    private string Text(JsonElement element) => Plain(element).Replace(WorkingDirectoryMark, workingDirectory, StringComparison.Ordinal);
+    private string Text(JsonElement element) => Plain(element).Unmarking(WorkingDirectoryMark, workingDirectory, Path.DirectorySeparatorChar);
 }

@@ -20,19 +20,19 @@ internal sealed class ConnectionFileReader(AvalaPaths paths) : IConnectionFile, 
     public async ValueTask<Result<Option<ConnectionDeclarations>, ConnectionError>> LoadAsync(CancellationToken cancellationToken) =>
         await LazyInitializer.EnsureInitialized(ref loading, () => ReadAsync(FilePath)).WaitAsync(cancellationToken);
 
-    public async ValueTask<Result<ConnectionDeclarations, ConnectionError>> ChangeDefaultAsync(
-        Option<ConnectionName> connection,
+    public async ValueTask<Result<ConnectionDeclarations, ConnectionError>> ChangeAsync(
+        IConnectionChange change,
         CancellationToken cancellationToken) =>
-        await writes.RunAsync(token => WriteAsync(connection, token), cancellationToken);
+        await writes.RunAsync(token => WriteAsync(change, token), cancellationToken);
 
     public ValueTask DisposeAsync() => writes.DisposeAsync();
 
-    private async Task<Result<ConnectionDeclarations, ConnectionError>> WriteAsync(Option<ConnectionName> connection, CancellationToken cancellationToken)
+    private async Task<Result<ConnectionDeclarations, ConnectionError>> WriteAsync(IConnectionChange change, CancellationToken cancellationToken)
     {
         var current = File.Exists(FilePath) ? await ReadTextAsync(FilePath) : Empty;
 
         return await current
-            .Bind(text => ConnectionFileParser.WithDefault(text, connection))
+            .Bind(text => ConnectionFileEdits.Apply(text, change))
             .BindAsync(text => SaveAsync(text, cancellationToken));
     }
 

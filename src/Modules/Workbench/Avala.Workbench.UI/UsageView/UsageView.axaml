@@ -39,13 +39,7 @@
           <ItemsControl x:Name="Jobs" ItemsSource="{Binding Jobs}" />
         </StackPanel>
 
-        <ItemsControl x:Name="Windows" ItemsSource="{Binding Windows}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Spacing="8" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-        </ItemsControl>
+        <ContentControl x:Name="Range" Content="{Binding Range}" />
 
         <StackPanel x:Name="InterventionsGroup" Spacing="8" IsVisible="{Binding !!Interventions.Count}">
           <TextBlock Classes="section" Text="Interventions across jobs" />

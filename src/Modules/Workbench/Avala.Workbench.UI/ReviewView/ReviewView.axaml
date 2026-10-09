@@ -176,6 +176,31 @@
           </Border>
         </StackPanel>
 
+        <Border x:Name="QueuedDraft"
+                Margin="28,16,28,0"
+                Padding="14,12"
+                CornerRadius="{DynamicResource RadiusItem}"
+                Background="{DynamicResource FillQuietBrush}">
+          <Border.IsVisible>
+            <MultiBinding Converter="{x:Static BoolConverters.And}">
+              <Binding Path="Queued" Converter="{x:Static StringConverters.IsNotNullOrEmpty}" />
+              <Binding Path="!IsClosed" />
+            </MultiBinding>
+          </Border.IsVisible>
+          <DockPanel>
+            <Button x:Name="SendBackQueued"
+                    DockPanel.Dock="Right"
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Center"
+                    Content="Send back with this message"
+                    Command="{Binding SendBackQueuedCommand}" />
+            <StackPanel Spacing="4">
+              <TextBlock Classes="caption" Text="You queued this while the agent worked. It is not sent unless you choose." />
+              <TextBlock x:Name="QueuedText" TextWrapping="Wrap" Text="{Binding Queued}" />
+            </StackPanel>
+          </DockPanel>
+        </Border>
+
         <StackPanel x:Name="FeedbackBox"
                     Margin="28,16,28,0"
                     Spacing="6"

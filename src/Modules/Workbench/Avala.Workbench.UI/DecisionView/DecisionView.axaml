@@ -64,7 +64,7 @@
   <UserControl.DataTemplates>
     <DataTemplate x:DataType="decisions:DecisionOption">
       <Grid ColumnDefinitions="20,*,Auto">
-        <TextBlock Classes="mono tertiary"
+        <TextBlock Classes="mono secondary"
                    FontSize="{DynamicResource FontSizeSection}"
                    VerticalAlignment="Center"
                    Text="{Binding Number}" />
