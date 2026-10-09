@@ -6,6 +6,7 @@ using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Contracts.Presentation;
 using Avala.Workbench.Presenting;
+using Avala.Workbench.Spending;
 using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -20,6 +21,8 @@ internal interface INewJobViewModel
     IReadOnlyList<string> Repositories { get; }
 
     IReadOnlyList<string> Connections { get; }
+
+    IReadOnlyList<IConnectionOptionViewModel> Options { get; }
 
     string Repository { get; set; }
 
@@ -45,11 +48,12 @@ internal interface INewJobViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, IMessenger messenger)
+internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, IMessenger messenger, LimitReadings readings)
     : INewJobViewModel, IPage, IActivatable, IRecipient<DefaultConnectionChanged>
 {
     private readonly ObservableCollection<string> repositories = [];
     private readonly ObservableCollection<string> connections = [NewJobPhrases.Auto];
+    private readonly ObservableCollection<ConnectionOptionViewModel> options = [new(NewJobPhrases.Auto)];
     private readonly ObservableCollection<string> autonomies = [NewJobPhrases.RepositoryLevel(Option<RepositoryPolicy>.None)];
     private ConnectionCatalog catalog = new(ConnectionFileStatus.Absent, Option<ConnectionError>.None, [], Option<ConnectionName>.None);
     private Option<Result<ConnectionPreview, JobRejection>> preview;
@@ -63,6 +67,8 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
     public IReadOnlyList<string> Repositories => repositories;
 
     public IReadOnlyList<string> Connections => connections;
+
+    public IReadOnlyList<IConnectionOptionViewModel> Options => options;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SubmitCommand))]
@@ -160,8 +166,38 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
         var following = NewJobPhrases.Following(shown);
         string[] named = [.. shown.Connections.Select(connection => connection.Name.Value)];
         connections.ShowOnly([following, .. named]);
+        options.Reconcile(connections, option => option.Name, name => name, name => new ConnectionOptionViewModel(name), (_, _) => { });
         Connection = chosen.Match(name => named.Contains(name.Value, StringComparer.Ordinal) ? name.Value : following, () => following);
+        ShowReadings();
     }
+
+    private void ShowReadings()
+    {
+        var target = catalog.DefaultMode == DefaultMode.Fixed ? catalog.Default : Option<ConnectionName>.None;
+
+        foreach (var option in options)
+        {
+            var name = option == options[0] ? target : new ConnectionName(option.Name);
+            var compared = name.Bind(found => NewJobPhrases.Compared(preview, found));
+            option.Show(
+                name.Match(Reading, () => string.Empty),
+                compared.Match(candidate => !candidate.Available, () => false));
+        }
+    }
+
+    private string Reading(ConnectionName name) =>
+        NewJobPhrases.Compared(preview, name).Match(
+            NewJobPhrases.Reading,
+            () =>
+            {
+                var current = readings.Judged([.. readings.ByConnection().Where(used => used.Connection == name).SelectMany(used => used.Usage.Limits)])
+                    .Where(reading => !reading.Expired)
+                    .OrderByDescending(reading => reading.Used)
+                    .Select(reading => Option<LimitReading>.Some(reading))
+                    .FirstOrDefault();
+
+                return NewJobPhrases.Reading(current.Map(reading => reading.Limit), current.Match(reading => reading.Used, () => 0));
+            });
 
     private Option<ConnectionName> Chosen() =>
         string.IsNullOrEmpty(Connection) || connections.Count == 0 || Connection == connections[0]
@@ -195,8 +231,9 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
 
     private void ShowRoute()
     {
-        var (text, attention) = NewJobPhrases.Route(catalog, preview, Chosen());
+        var (text, attention) = NewJobPhrases.Route(catalog, preview, Chosen(), Reading);
         Route = text;
         IsRouteAttention = attention;
+        ShowReadings();
     }
 }

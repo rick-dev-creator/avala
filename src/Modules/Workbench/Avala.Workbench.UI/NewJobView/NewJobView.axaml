@@ -57,7 +57,11 @@
             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="6">
               <StackPanel Spacing="6">
                 <TextBlock Classes="section" Text="Connection" />
-                <ComboBox x:Name="Connection" ItemsSource="{Binding Connections}" SelectedItem="{Binding Connection}" />
+                <ComboBox x:Name="Connection"
+                          ItemsSource="{Binding Options}"
+                          SelectedValueBinding="{Binding Name, x:DataType=newJob:IConnectionOptionViewModel}"
+                          SelectedValue="{Binding Connection}"
+                          HorizontalContentAlignment="Stretch" />
               </StackPanel>
               <TextBlock x:Name="Route"
                          Grid.Row="1"
