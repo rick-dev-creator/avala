@@ -12,18 +12,37 @@ internal sealed class Adaptation(CapabilitySet declared)
 
     public IEnumerable<IAgentEvent> Adapt(IAgentEvent cue) => cue switch
     {
+        ItemStarted started => Start(started),
+        ItemProgressed progressed => Progress(progressed),
+        ItemCompleted completed => Complete(completed),
+        _ => Report(cue),
+    };
+
+    private IEnumerable<IAgentEvent> Report(IAgentEvent cue) => cue switch
+    {
         LimitReported when !declared.Has<ReportsLimits>() => [],
         UsageReported when !declared.Has<ReportsUsage>() => [],
         UsageReported usage when !declared.Has<ReportsCost>() => [usage with { Cost = Option<Cost>.None }],
         ResumeTokenIssued when !declared.Has<Resumable>() => [],
-        ItemStarted { Kind: ItemKind.Reasoning } started when !declared.Has<ExposesReasoning>() => Hide(started.Item),
-        ItemStarted { Kind: ItemKind.Message } started when !declared.Has<StreamsPartialOutput>() => Hold(started),
-        ItemProgressed progressed when hidden.Contains(progressed.Item) => [],
-        ItemProgressed progressed when held.TryGetValue(progressed.Item, out var parts) => Gather(parts, progressed.Text),
-        ItemCompleted completed when hidden.Remove(completed.Item) => [],
-        ItemCompleted completed when held.Remove(completed.Item, out var parts) => Release(completed, parts),
         _ => [cue],
     };
+
+    private IEnumerable<IAgentEvent> Start(ItemStarted started) => started.Kind switch
+    {
+        ItemKind.Reasoning when !declared.Has<ExposesReasoning>() => Hide(started.Item),
+        ItemKind.Message when !declared.Has<StreamsPartialOutput>() => Hold(started),
+        _ => [started],
+    };
+
+    private IEnumerable<IAgentEvent> Progress(ItemProgressed progressed) =>
+        hidden.Contains(progressed.Item) ? []
+        : held.TryGetValue(progressed.Item, out var parts) ? Gather(parts, progressed.Text)
+        : [progressed];
+
+    private IEnumerable<IAgentEvent> Complete(ItemCompleted completed) =>
+        hidden.Remove(completed.Item) ? []
+        : held.Remove(completed.Item, out var parts) ? Release(completed, parts)
+        : [completed];
 
     private IEnumerable<IAgentEvent> Hide(ItemId item)
     {

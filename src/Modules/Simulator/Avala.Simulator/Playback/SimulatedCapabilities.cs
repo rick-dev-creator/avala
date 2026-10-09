@@ -39,17 +39,19 @@ internal static class SimulatedCapabilities
     private static IEnumerable<ToolSurface> Surface(string name) =>
         Enum.TryParse<ToolSurface>(name, out var surface) ? [surface] : [];
 
-    private static CapabilitySet Remove(CapabilitySet declared, string component) => component switch
-    {
-        nameof(StreamsPartialOutput) => declared.Without<StreamsPartialOutput>(),
-        nameof(ExposesReasoning) => declared.Without<ExposesReasoning>(),
-        nameof(Interruptible) => declared.Without<Interruptible>(),
-        nameof(Resumable) => declared.Without<Resumable>(),
-        nameof(AcceptsTools) => declared.Without<AcceptsTools>(),
-        nameof(AsksForms) => declared.Without<AsksForms>(),
-        nameof(ReportsUsage) => declared.Without<ReportsUsage>().Without<ReportsCost>(),
-        nameof(ReportsCost) => declared.Without<ReportsCost>(),
-        nameof(ReportsLimits) => declared.Without<ReportsLimits>(),
-        _ => declared,
-    };
+    private static readonly (string Name, Func<CapabilitySet, CapabilitySet> Remove)[] Removals =
+    [
+        (nameof(StreamsPartialOutput), declared => declared.Without<StreamsPartialOutput>()),
+        (nameof(ExposesReasoning), declared => declared.Without<ExposesReasoning>()),
+        (nameof(Interruptible), declared => declared.Without<Interruptible>()),
+        (nameof(Resumable), declared => declared.Without<Resumable>()),
+        (nameof(AcceptsTools), declared => declared.Without<AcceptsTools>()),
+        (nameof(AsksForms), declared => declared.Without<AsksForms>()),
+        (nameof(ReportsUsage), declared => declared.Without<ReportsUsage>().Without<ReportsCost>()),
+        (nameof(ReportsCost), declared => declared.Without<ReportsCost>()),
+        (nameof(ReportsLimits), declared => declared.Without<ReportsLimits>()),
+    ];
+
+    private static CapabilitySet Remove(CapabilitySet declared, string component) =>
+        Removals.Where(removal => removal.Name == component).Aggregate(declared, (remaining, removal) => removal.Remove(remaining));
 }

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -76,6 +77,41 @@ public sealed class ConnectionTests : IDisposable
         Assert.Equal(
             ["TurnStarted", "TurnCompleted"],
             (await Stage.ReadUntilAsync<TurnCompleted>(session, Cancellation)).Select(agentEvent => agentEvent.GetType().Name));
+    }
+
+    [Theory]
+    [InlineData("streamsPartialOutput", typeof(StreamsPartialOutput))]
+    [InlineData("exposesReasoning", typeof(ExposesReasoning))]
+    [InlineData("interruptible", typeof(Interruptible))]
+    [InlineData("resumable", typeof(Resumable))]
+    [InlineData("acceptsTools", typeof(AcceptsTools))]
+    [InlineData("asksForms", typeof(AsksForms))]
+    [InlineData("reportsUsage", typeof(ReportsUsage), typeof(ReportsCost))]
+    [InlineData("reportsCost", typeof(ReportsCost))]
+    [InlineData(" reportsLimits , unknown", typeof(ReportsLimits))]
+    public void AConnectionDeclaresEveryComponentButTheOnesItsSettingsLeaveOut(string without, params Type[] removed)
+    {
+        var declared = provider.CapabilitiesOn(Login("/logins/work"));
+
+        var tailored = provider.CapabilitiesOn(Login("/logins/work") with { Settings = ImmutableDictionary<string, string>.Empty.Add("withoutCapabilities", without) });
+
+        Assert.Equal(
+            [.. declared.Components.Where(component => !removed.Contains(component.GetType()))],
+            tailored.Components);
+    }
+
+    [Fact]
+    public void AnApiKeyReportsNoLimitWindowsAndToolSurfacesRefineTheToolsAccepted()
+    {
+        var keyed = provider.CapabilitiesOn(new ConnectionEnvironment { ApiKey = new Secret("sk-secret") });
+        var executedOnly = provider.CapabilitiesOn(ConnectionEnvironment.Default with
+        {
+            Settings = ImmutableDictionary<string, string>.Empty.Add("toolSurfaces", "executed, nowhere"),
+        });
+
+        Assert.Equal(
+            (false, true, Option<AcceptsTools>.Some(new AcceptsTools([ToolSurface.Executed]))),
+            (keyed.Has<ReportsLimits>(), provider.CapabilitiesOn(ConnectionEnvironment.Default).Has<ReportsLimits>(), executedOnly.Get<AcceptsTools>()));
     }
 
     public void Dispose()
