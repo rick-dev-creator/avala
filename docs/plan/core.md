@@ -341,6 +341,8 @@ Done when: the full job flow runs end to end through view models in tests.
    - compiled bindings with `x:DataType` on every view;
    - code-behind limited to presentation concerns, replacing the rule that allowed only `InitializeComponent()`;
    - size limits: 800 lines per XAML file, 400 per code-behind, 400 per view model;
+   - view model first everywhere: regions hold view models, parents receive their children through dependency injection as interfaces or factories;
+   - view models and their interfaces in each module's core assembly, which references no UI framework, so the `.UI` assemblies alone can be replaced by another technology; shared components as a framework-free assembly of view models plus a `.UI` assembly of views, allowed as a dependency of every module; one folder per view inside each `.UI` assembly; architecture tests for the dependency rules;
    - the MVVM structure: dumb views bound to commands, parents that own and activate their children, master and detail through the parent, UI messages over an injected `IMessenger` between regions and modules, one view model per kind of item, and no view model referencing its parent or a sibling, the last checked by an architecture test over the view model dependency graph;
    - architecture tests for each rule, checked against the production views and the compliant and violating fixtures.
 1. Avalonia views for every view model, following the approved [design brief](../design/ui-brief.md), semi-transparent with themes, Inter for the interface and JetBrains Mono for code.
