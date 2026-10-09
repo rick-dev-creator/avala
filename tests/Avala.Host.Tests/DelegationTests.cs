@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
@@ -190,6 +191,104 @@ public sealed class DelegationTests(PublishedPlugins plugins)
         Assert.Contains(
             run.Get<IDelegations>().OfParent(job),
             record => record.Report.Match(report => report.Outcome == ChildOutcome.Conflict, () => false));
+    }
+
+    [Fact]
+    public async Task AnOrchestratorDelegatesByCapacityToAnotherHarnessAndASecondAccountWithCarvedBudgetsAndGetsTheirWorkAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [
+                ("connections.json", """
+                    {
+                      "default": "main",
+                      "connections": [
+                        { "name": "main", "provider": "simulator", "credential": { "source": "login" } },
+                        { "name": "second", "provider": "simulator-second", "credential": { "source": "login" } },
+                        { "name": "spare", "provider": "simulator", "credential": { "source": "login" } }
+                      ]
+                    }
+                    """),
+                ("connections/main/.login", string.Empty),
+                ("connections/second/.login", string.Empty),
+                ("connections/spare/.login", string.Empty),
+            ],
+            [
+                (".avala/checks.json", PassingChecks),
+                (".avala/budget.json", """{ "costPerJob": { "USD": 1.00 }, "carvePerChild": 0.5 }"""),
+                (".avala/jobs.json", """{ "delegation": { "connections": ["second", "spare"], "routing": "capacity" } }"""),
+            ]);
+        var delegated = run.Watch<ChildDelegated>();
+        var reported = run.Watch<ChildReported>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(
+            new JobRequest(string.Empty, "[simulate: delegate-across] Ship the release") { Connection = new ConnectionName("main") }));
+
+        var both = await delegated.CollectUntilAsync(started => started.Delegation.Item.Value == "delegate-todo");
+        var reports = await reported.CollectUntilAsync(update => update.Delegation.Item.Value == "delegate-todo");
+
+        Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(job)));
+        Assert.Equal(["second", "spare"], both.Select(started => started.Delegation.Connection.Match(name => name.Value, () => string.Empty)));
+        var choices = both.Select(started => Outcomes.Present(started.Delegation.Choice)).ToList();
+        Assert.All(choices, choice => Assert.Equal(ChoiceReason.MostCapacity, choice.Reason));
+        Assert.Equal(
+            [("second", 0d), ("spare", 0d)],
+            choices[0].Compared.Select(candidate => (candidate.Connection.Value, candidate.Used)));
+        Assert.Contains(choices[1].Compared, candidate => candidate.Connection.Value == "second" && candidate.Used > 0);
+        Assert.All(reports.Select(update => Outcomes.Present(update.Delegation.Report)), report =>
+        {
+            Assert.Equal(ChildOutcome.Integrated, report.Outcome);
+            var carved = Assert.Single(Outcomes.Present(report.Carve).Cost);
+            Assert.True(carved is { Currency: "USD", Amount: > 0m and <= 0.50m }, $"Carved {carved}");
+        });
+        var parent = Outcomes.Present(await WorkspaceOfAsync(run, job));
+        Assert.Equal(["NOTES.md", "TODO.md"], Outcomes.Succeeds(await run.Get<IWorkspaceChanges>().DiffAsync(parent.Id, Cancellation)).Files.Select(file => file.Path));
+        Assert.Equal(
+            ["Second simulated harness · second", "Simulated Claude Code · spare"],
+            await HarnessesAsync(run, child => child["Activity"].Text == "integrated into its parent"));
+    }
+
+    [Fact]
+    public async Task AClaudeCodeOrchestratorReplayedFromItsTranscriptDelegatesToASimulatedChildAndReceivesItsReportAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync("delegate");
+        await using var run = await SimulatedRun.TranscribedAsync(
+            plugins,
+            claude.Plugin,
+            new JobRequest(string.Empty, "Have a sub-agent migrate the database."),
+            claude.Data,
+            [(".avala/checks.json", PassingChecks), (".avala/jobs.json", """{ "delegation": { "connections": ["sim"] } }""")]);
+        var asked = await run.DecisionAsync();
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(asked.Session, new PermissionDecision(asked.Item, PermissionAnswer.Allow), Cancellation));
+
+        var reported = await run.ChildReportedAsync();
+        Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(run.Job)));
+        Assert.Equal(
+            (Option<JobId>.Some(run.Job), Option<ConnectionName>.Some(new ConnectionName(TranscribedClaude.Simulator)), ChildOutcome.Integrated, AnswerRoute.ToolResult),
+            (reported.Parent, reported.Connection, Outcomes.Present(reported.Report).Outcome, Outcomes.Present(reported.Answered).Route));
+        Assert.Equal(["Simulated Claude Code · sim"], await HarnessesAsync(run, child => child["Activity"].Text == "integrated into its parent"));
+        var recording = (await run.StopAndReadRecordingsAsync()).Single(text => text.Contains("\"claude-code\"", StringComparison.Ordinal));
+        var returned = System.Text.Json.Nodes.JsonNode.Parse(recording)!["entries"]!.AsArray().Select(entry => entry?["return"]).OfType<System.Text.Json.Nodes.JsonNode>().Single();
+        Assert.Contains($"\"job\":\"{Outcomes.Present(reported.Child).Value}\",\"outcome\":\"integrated\"", returned["content"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
+
+    private static async Task<IReadOnlyList<string>> HarnessesAsync(SimulatedRun run, Func<Bound, bool> settled)
+    {
+        var overview = run.Page("Overview");
+        await run.Ui.RunAsync(() =>
+        {
+            ((IActivatable)overview.Target).Activate();
+
+            return overview.Has("Loading") ? overview["Loading"].Value<Task>() : Task.CompletedTask;
+        });
+        var delegation = overview["Delegation"];
+        await run.Ui.PresentedAsync(
+            delegation.Presentation,
+            () => delegation["Children"].Items.Count > 0 && delegation["Children"].Items.All(settled),
+            () => string.Join(", ", delegation["Children"].Items.Select(child => $"{child["Activity"].Text} {child["Harness"].Text}")));
+
+        return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
+            [.. delegation["Children"].Items.Select(child => $"{child["Harness"].Text} · {child["Connection"].Text}").Order(StringComparer.Ordinal)]);
     }
 
     private static async Task<Option<WorkspaceInfo>> WorkspaceOfAsync(SimulatedRun run, JobId job) =>
