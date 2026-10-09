@@ -95,44 +95,29 @@ internal static class ConnectionFileParser
         return parsed.Count == 0 ? ConnectionError.NoConnections : parsed;
     }
 
-    private static Result<ConnectionDeclaration, ConnectionError> Connection(JsonElement element)
+    private static Result<ConnectionDeclaration, ConnectionError> Connection(JsonElement element) =>
+        element.ValueKind != JsonValueKind.Object ? ConnectionError.Malformed
+        : !Known(element, Fields) ? ConnectionError.UnknownField
+        : Declared(element);
+
+    private static Result<ConnectionDeclaration, ConnectionError> Declared(JsonElement element)
     {
-        if (element.ValueKind != JsonValueKind.Object)
-        {
-            return ConnectionError.Malformed;
-        }
-
-        if (!Known(element, Fields))
-        {
-            return ConnectionError.UnknownField;
-        }
-
         if (!Text(element, "name").TryGetValue(out var name, out var error)
             || !Text(element, "provider").TryGetValue(out var provider, out error)
             || !Credential(element).TryGetValue(out var credential, out error)
-            || !Settings(element).TryGetValue(out var settings, out error))
+            || !Settings(element).TryGetValue(out var settings, out error)
+            || !Identity(name, provider).TryGetValue(out var identity, out error))
         {
             return error;
         }
 
-        if (!name.Match(IsValidName, () => false))
-        {
-            return ConnectionError.InvalidName;
-        }
-
-        if (!provider.Match(id => !string.IsNullOrWhiteSpace(id), () => false))
-        {
-            return ConnectionError.MissingProvider;
-        }
-
-        return new ConnectionDeclaration(
-            new ConnectionName(name.Match(value => value, () => string.Empty)),
-            provider.Match(value => value, () => string.Empty))
-        {
-            Credential = credential,
-            Settings = settings,
-        };
+        return new ConnectionDeclaration(identity.Name, identity.Provider) { Credential = credential, Settings = settings };
     }
+
+    private static Result<(ConnectionName Name, string Provider), ConnectionError> Identity(Option<string> name, Option<string> provider) =>
+        !name.Match(IsValidName, () => false) ? ConnectionError.InvalidName
+        : !provider.Match(id => !string.IsNullOrWhiteSpace(id), () => false) ? ConnectionError.MissingProvider
+        : (new ConnectionName(name.Match(value => value, () => string.Empty)), provider.Match(value => value, () => string.Empty));
 
     private static Result<Option<CredentialDeclaration>, ConnectionError> Credential(JsonElement element)
     {
