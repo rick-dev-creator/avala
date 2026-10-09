@@ -8,6 +8,10 @@
   <CornerRadius x:Key="RadiusPill">99</CornerRadius>
   <CornerRadius x:Key="RadiusItem">12</CornerRadius>
   <CornerRadius x:Key="RadiusPopover">16</CornerRadius>
+  <CornerRadius x:Key="RadiusTag">4</CornerRadius>
+  <CornerRadius x:Key="RadiusChoice">9</CornerRadius>
+  <CornerRadius x:Key="RadiusBlock">12</CornerRadius>
+  <CornerRadius x:Key="RadiusBubble">14,14,4,14</CornerRadius>
 
   <x:Double x:Key="Space1">4</x:Double>
   <x:Double x:Key="Space2">8</x:Double>
@@ -22,6 +26,7 @@
   <Thickness x:Key="PaddingPill">9,3</Thickness>
 
   <x:Double x:Key="SidebarWidth">260</x:Double>
+  <x:Double x:Key="ShellSidebarWidth">376</x:Double>
   <x:Double x:Key="InspectorWidth">320</x:Double>
   <x:Double x:Key="ReadingWidth">720</x:Double>
 
@@ -33,10 +38,15 @@
   <x:Double x:Key="FontSizeCaption">12</x:Double>
   <x:Double x:Key="FontSizeHint">11.5</x:Double>
   <x:Double x:Key="FontSizeSection">11</x:Double>
+  <x:Double x:Key="FontSizeTag">10</x:Double>
+  <x:Double x:Key="FontSizeCode">12</x:Double>
+  <x:Double x:Key="FontSizeOutput">11.5</x:Double>
 
   <BoxShadows x:Key="ShadowHairline">0 0 0 1 #0FFFFFFF</BoxShadows>
   <BoxShadows x:Key="ShadowCard">inset 0 0.5 0 0 #0FFFFFFF, 0 1 2 0 #66000000, 0 8 20 -8 #80000000</BoxShadows>
   <BoxShadows x:Key="ShadowFloat">inset 0 0.5 0 0 #14FFFFFF, 0 2 8 0 #4D000000, 0 24 48 -12 #A6000000</BoxShadows>
   <BoxShadows x:Key="ShadowPopover">inset 0 0.5 0 0 #14FFFFFF, 0 2 10 0 #59000000, 0 32 64 -16 #BF000000</BoxShadows>
   <BoxShadows x:Key="ShadowSheet">inset 0 0.5 0 0 #14FFFFFF, 0 4 16 0 #59000000, 0 40 80 -20 #BF000000</BoxShadows>
+  <BoxShadows x:Key="ShadowRaised">inset 0 0.5 0 0 #0FFFFFFF, 0 18 36 -16 #A6000000</BoxShadows>
+  <BoxShadows x:Key="ShadowComposer">inset 0 0.5 0 0 #14FFFFFF, 0 20 40 -16 #99000000</BoxShadows>
 </ResourceDictionary>

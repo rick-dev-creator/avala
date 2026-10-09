@@ -43,6 +43,8 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board) 
 
     public string Title => "New job";
 
+    public PagePlacement Placement => PagePlacement.Hidden;
+
     public IReadOnlyList<string> Repositories => repositories;
 
     public IReadOnlyList<string> Connections => connections;

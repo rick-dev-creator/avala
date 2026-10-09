@@ -50,14 +50,13 @@ public sealed class SidebarViewModelScripts : IDisposable
 
         ViewModelScript.Given(sidebar)
             .When(shown => shown.Show(Board(running with { Transcript = AskingToRun() })))
-            .ThenNotified(nameof(SidebarViewModel.PendingDecisions), nameof(SidebarViewModel.HasPendingDecisions))
             .Then(shown =>
             {
                 Assert.Empty(shown.Running);
                 Assert.Same(row, Assert.Single(shown.NeedsYou));
                 Assert.Same(row, shown.Selected);
                 Assert.True(row.IsSelected);
-                Assert.Equal(("wants to run a command", 1, 1, StatusKind.NeedsYou), (row.Fact, row.PendingDecisions, shown.PendingDecisions, row.Dot.Kind));
+                Assert.Equal(("wants to run a command", 1, StatusKind.NeedsYou), (row.Fact, row.PendingDecisions, row.Dot.Kind));
             });
     }
 
@@ -166,41 +165,64 @@ public sealed class SidebarViewModelScripts : IDisposable
     }
 
     [Fact]
-    public void TogglingDecisionsOpensAndClosesThePopover()
+    public void ASubAgentsJobSitsUnderItsOrchestratorInsteadOfAGroup()
     {
+        var orchestrator = Job("Migrate payments to stripe-go v79", JobStatus.Running);
+        var child = ChildOf(orchestrator, "Update call sites in internal/payments", JobStatus.Running);
+
         ViewModelScript.Given(bench.Sidebar())
-            .Invoke(nameof(SidebarViewModel.ToggleDecisionsCommand))
-            .Then(sidebar => Assert.True(sidebar.IsDecisionsOpen))
-            .Invoke(nameof(SidebarViewModel.ToggleDecisionsCommand))
-            .ThenNotified(nameof(SidebarViewModel.IsDecisionsOpen))
-            .Then(sidebar => Assert.False(sidebar.IsDecisionsOpen));
+            .When(sidebar => sidebar.Show(Board(orchestrator, child)))
+            .Then(sidebar =>
+            {
+                var parent = Assert.Single(sidebar.Running);
+                Assert.Equal(("Migrate payments to stripe-go v79", false), (parent.Title, parent.IsChild));
+                Assert.Equal(("Update call sites in internal/payments", true), (Assert.Single(parent.Children).Title, parent.Children[0].IsChild));
+            });
     }
 
     [Fact]
-    public void ThePopoverAskingToCloseClosesIt() =>
-        ViewModelScript.Given(bench.Sidebar())
-            .Invoke(nameof(SidebarViewModel.ToggleDecisionsCommand))
-            .When(sidebar => sidebar.Decisions.CloseCommand.Execute(null))
-            .Then(sidebar => Assert.False(sidebar.IsDecisionsOpen));
+    public void ASubAgentSeenBeforeItsOrchestratorMovesUnderItOnceItArrivesAndStaysThere()
+    {
+        var orchestrator = Job("Migrate payments to stripe-go v79", JobStatus.Running);
+        var child = ChildOf(orchestrator, "Rewrite webhook signature tests", JobStatus.Running);
+        var sidebar = bench.Sidebar();
+        sidebar.Show(Board(child));
+        var early = Assert.Single(sidebar.Running);
+
+        sidebar.Show(Board(orchestrator, child));
+        sidebar.Show(Board(orchestrator, child with { Summary = child.Summary with { Status = JobStatus.AwaitingReview } }));
+
+        var parent = Assert.Single(sidebar.Running);
+        Assert.Same(early, Assert.Single(parent.Children));
+        Assert.Empty(sidebar.ReadyForReview);
+        Assert.Equal("ready for review", early.Fact);
+    }
 
     [Fact]
-    public async Task ActivatingTheSidebarActivatesItsDecisionsPopoverAsync()
+    public void SelectingASubAgentSelectsItsJobAlone()
     {
-        using var sidebar = bench.Sidebar();
-        var job = bench.Job("Fix flaky CheckoutForm test", JobStatus.Running);
-        bench.Publish(Bench.OnBoard(job) with { Transcript = AskingToRun() });
-        var decisions = Assert.IsAssignableFrom<Sdk.Presentation.IPresentation>(sidebar.Decisions);
+        var orchestrator = Job("Migrate payments to stripe-go v79", JobStatus.Running);
+        var child = ChildOf(orchestrator, "Regenerate the API reference", JobStatus.Running);
+        var sidebar = bench.Sidebar();
+        sidebar.Show(Board(orchestrator, child));
+        var parent = Assert.Single(sidebar.Running);
 
-        await decisions.PresentsAfterAsync(() => bench.Post(sidebar.Activate), () => "the popover did not show", Cancellation);
+        sidebar.SelectCommand.Execute(parent.Children[0]);
 
-        Assert.Equal(1, await bench.Ui.ReadAsync(() => sidebar.Decisions.Items.Count));
-        await bench.Ui.InvokeAsync(sidebar.Deactivate, Cancellation);
+        Assert.Equal((false, true), (parent.IsSelected, parent.Children[0].IsSelected));
     }
 
     public void Dispose() => bench.Dispose();
 
     private static IEnumerable<IJobRowViewModel> Rows(SidebarViewModel sidebar) =>
         sidebar.NeedsYou.Concat(sidebar.Running).Concat(sidebar.ReadyForReview).Concat(sidebar.Done);
+
+    private BoardJob ChildOf(BoardJob parent, string instruction, JobStatus status)
+    {
+        var job = Job(instruction, status);
+
+        return job with { Summary = job.Summary with { Parent = parent.Job } };
+    }
 
     private BoardJob Job(string instruction, JobStatus status) =>
         new(catalog.Add(instruction, status).Summary, Transcript.Empty);

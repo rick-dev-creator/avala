@@ -6,6 +6,7 @@
              x:ClassModifier="internal"
              x:DataType="status:IStatusPillViewModel"
              HorizontalAlignment="Left"
+             ClipToBounds="False"
              Classes.attention="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}"
              Classes.failure="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Failed}">
   <Design.DataContext>
@@ -37,6 +38,7 @@
           Padding="{DynamicResource PaddingPill}">
     <StackPanel Orientation="Horizontal" Spacing="6">
       <ContentControl x:Name="Dot"
+                      ClipToBounds="False"
                       Content="{Binding Dot}"
                       Width="6"
                       Height="6"

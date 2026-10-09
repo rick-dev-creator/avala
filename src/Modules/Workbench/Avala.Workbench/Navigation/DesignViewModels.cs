@@ -1,18 +1,26 @@
+using Avala.Sdk;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Review;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Navigation;
 
-internal sealed class DesignWorkbenchViewModel : IWorkbenchViewModel
+internal sealed class DesignWorkbenchViewModel(Option<IConversationViewModel> conversation, bool isInspectorOpen) : IWorkbenchViewModel, IPage
 {
+    public DesignWorkbenchViewModel()
+        : this(Option<IConversationViewModel>.Some(new DesignConversationViewModel()), false)
+    {
+    }
+
     public string Title => "Jobs";
 
-    public IConversationViewModel? Conversation { get; } = new DesignConversationViewModel();
+    public PagePlacement Placement => PagePlacement.Hidden;
+
+    public IConversationViewModel? Conversation { get; } = conversation.Match<IConversationViewModel?>(open => open, () => null);
 
     public IReviewViewModel? Review => null;
 
-    public bool IsInspectorOpen => true;
+    public bool IsInspectorOpen { get; } = isInspectorOpen;
 
     public IRelayCommand ToggleInspectorCommand { get; } = new RelayCommand(() => { });
 

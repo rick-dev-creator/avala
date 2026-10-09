@@ -17,15 +17,15 @@ internal sealed record DesignJobRowViewModel(JobId Job, string Title, JobStatus 
 
     public bool IsSelected => Job == SampleJobs.JpyRounding;
 
+    public bool IsChild { get; init; }
+
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
+
+    public IReadOnlyList<IJobRowViewModel> Children { get; init; } = [];
 }
 
 internal sealed class DesignSidebarViewModel : ISidebarViewModel
 {
-    public IDecisionsViewModel Decisions { get; } = new DesignDecisionsViewModel();
-
-    public bool IsDecisionsOpen => false;
-
     public IReadOnlyList<IJobRowViewModel> NeedsYou { get; } =
     [
         new DesignJobRowViewModel(),
@@ -36,7 +36,16 @@ internal sealed class DesignSidebarViewModel : ISidebarViewModel
     public IReadOnlyList<IJobRowViewModel> Running { get; } =
     [
         new DesignJobRowViewModel(SampleJobs.JpyRounding, "Fix JPY rounding in invoice totals", JobStatus.Running, "2 of 4", StatusKind.Working, 0),
-        new DesignJobRowViewModel(SampleJobs.LodashUpdate, "Update lodash to 4.17.21", JobStatus.Checking, "verifying", StatusKind.Checking, 0),
+        new DesignJobRowViewModel(SampleJobs.InvoicePdf, "Migrate payments to stripe-go v79", JobStatus.Running, "3 sub-agents", StatusKind.Working, 0)
+        {
+            Children =
+            [
+                new DesignJobRowViewModel(SampleJobs.FlakyCheckout, "Update call sites in internal/payments", JobStatus.Running, "9 of 14 files", StatusKind.Working, 0) { IsChild = true },
+                new DesignJobRowViewModel(SampleJobs.SyncQueue, "Rewrite webhook signature tests", JobStatus.Running, "wants to run a command", StatusKind.NeedsYou, 1) { IsChild = true },
+                new DesignJobRowViewModel(SampleJobs.LoginRateLimit, "Regenerate the API reference", JobStatus.AwaitingReview, "verified", StatusKind.ReadyForReview, 0) { IsChild = true },
+            ],
+        },
+        new DesignJobRowViewModel(SampleJobs.LodashUpdate, "Update zod to 3.23", JobStatus.Checking, "verifying", StatusKind.Checking, 0),
     ];
 
     public IReadOnlyList<IJobRowViewModel> ReadyForReview { get; } =
@@ -46,18 +55,29 @@ internal sealed class DesignSidebarViewModel : ISidebarViewModel
 
     public IReadOnlyList<IJobRowViewModel> Done { get; } =
     [
-        new DesignJobRowViewModel(SampleJobs.CheckoutSplit, "Split CheckoutPage into steps", JobStatus.Approved, "merged", StatusKind.Done, 0),
+        new DesignJobRowViewModel(SampleJobs.CheckoutSplit, "Paginate audit log export", JobStatus.Approved, "merged", StatusKind.Done, 0),
     ];
 
     public IJobRowViewModel? Selected => Running[0];
 
-    public int PendingDecisions => 2;
-
-    public bool HasPendingDecisions => true;
-
     public bool IsEmpty => false;
 
     public IRelayCommand<IJobRowViewModel> SelectCommand { get; } = new RelayCommand<IJobRowViewModel>(_ => { });
+}
+
+internal sealed class DesignToolbarViewModel : IToolbarViewModel
+{
+    public IDecisionsViewModel Decisions { get; } = new DesignDecisionsViewModel();
+
+    public bool IsDecisionsOpen => false;
+
+    public int PendingDecisions => 3;
+
+    public bool HasPendingDecisions => true;
 
     public IRelayCommand ToggleDecisionsCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand CloseDecisionsCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand NewJobCommand { get; } = new RelayCommand(() => { });
 }

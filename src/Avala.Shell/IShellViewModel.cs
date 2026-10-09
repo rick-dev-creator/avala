@@ -17,6 +17,8 @@ internal interface IShellViewModel
 
     IReadOnlyList<IPage> Pages { get; }
 
+    IReadOnlyList<IPage> NavigationPages { get; }
+
     IPage? SelectedPage { get; set; }
 
     bool HasNavigation { get; }

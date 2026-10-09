@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sidebar="using:Avala.Workbench.Sidebar"
+             x:Class="Avala.Workbench.UI.ToolbarView"
+             x:ClassModifier="internal"
+             x:DataType="sidebar:IToolbarViewModel">
+  <Design.DataContext>
+    <sidebar:DesignToolbarViewModel />
+  </Design.DataContext>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CloseDecisionsCommand}" />
+  </UserControl.KeyBindings>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Orientation="Horizontal" Spacing="4">
+    <Button x:Name="ToggleDecisions"
+            Classes="glyph"
+            Classes.selected="{Binding IsDecisionsOpen}"
+            Padding="8,4"
+            Command="{Binding ToggleDecisionsCommand}"
+            HotKey="Ctrl+D"
+            ToolTip.Tip="Pending decisions (Ctrl+D)"
+            AutomationProperties.Name="Pending decisions">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <Path Classes="icon" Data="{StaticResource IconDecisions}" VerticalAlignment="Center" />
+        <Border x:Name="PendingBadge" Classes="badge" MinWidth="16" IsVisible="{Binding HasPendingDecisions}">
+          <TextBlock x:Name="Pending" Text="{Binding PendingDecisions}" HorizontalAlignment="Center" />
+        </Border>
+      </StackPanel>
+    </Button>
+    <Button x:Name="NewJob"
+            Classes="glyph"
+            Padding="5"
+            Command="{Binding NewJobCommand}"
+            HotKey="Ctrl+N"
+            ToolTip.Tip="New job (Ctrl+N)"
+            AutomationProperties.Name="New job">
+      <Path Classes="icon" Width="15" Height="15" StrokeThickness="1.5" Data="{StaticResource IconPlus}" />
+    </Button>
+    <Popup x:Name="DecisionsPopup"
+           IsOpen="{Binding IsDecisionsOpen}"
+           PlacementTarget="{Binding #ToggleDecisions}"
+           Placement="BottomEdgeAlignedLeft"
+           HorizontalOffset="-6"
+           VerticalOffset="2"
+           IsLightDismissEnabled="False">
+      <ContentControl x:Name="DecisionsPopover" Width="420" Padding="0,3,0,0" Content="{Binding Decisions}" />
+    </Popup>
+  </StackPanel>
+</UserControl>

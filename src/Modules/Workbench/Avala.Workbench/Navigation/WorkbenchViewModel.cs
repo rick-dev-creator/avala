@@ -49,6 +49,8 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
 
     public string Title => "Jobs";
 
+    public PagePlacement Placement => PagePlacement.Hidden;
+
     public Task Following => feed.Following;
 
     public long Revision => feed.Revision;

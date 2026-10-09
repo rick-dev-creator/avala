@@ -3,12 +3,21 @@
              xmlns:conversation="using:Avala.Workbench.Conversation"
              x:Class="Avala.Workbench.UI.RestartView"
              x:ClassModifier="internal"
-             x:DataType="conversation:IRestartViewModel">
+             x:DataType="conversation:IRestartViewModel"
+             Classes="fade-in"
+             Margin="0,10">
   <Design.DataContext>
     <conversation:DesignRestartViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="8">
-    <Border Classes="separator" />
-    <TextBlock x:Name="Note" Classes="caption" Text="{Binding Note}" TextWrapping="Wrap" HorizontalAlignment="Center" />
-  </StackPanel>
+  <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
+    <Border Classes="separator" VerticalAlignment="Center" MinWidth="24" />
+    <TextBlock x:Name="Note"
+               Grid.Column="1"
+               Classes="caption"
+               MaxWidth="480"
+               TextAlignment="Center"
+               TextWrapping="Wrap"
+               Text="{Binding Note}" />
+    <Border Grid.Column="2" Classes="separator" VerticalAlignment="Center" MinWidth="24" />
+  </Grid>
 </UserControl>
