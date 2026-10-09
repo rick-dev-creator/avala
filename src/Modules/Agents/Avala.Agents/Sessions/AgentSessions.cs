@@ -26,11 +26,11 @@ internal sealed partial class AgentSessions(
 
         var session = started.Session;
         await bus.PublishAsync(
-            new SessionOpened(session.Id, started.Provider.Info, request.WorkingDirectory) { Account = session.Account },
+            new SessionOpened(session.Id, started.Provider.Info, request.WorkingDirectory, started.Connection) { Account = session.Account },
             cancellationToken);
         ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, started.Provider.Capabilities, PumpAsync));
 
-        return new OpenedSession(session.Id, started.Resumed);
+        return new OpenedSession(session.Id, started.Resumed, started.Connection);
     }
 
     public bool IsOpen(SessionId session) => Volatile.Read(ref live).TryGetValue(session, out var running) && !running.Ended;

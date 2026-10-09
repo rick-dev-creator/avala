@@ -10,14 +10,14 @@ internal sealed class BudgetLoader(BudgetBook book, IBudgetFiles files, IEventBu
 {
     public async ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
     {
-        var read = await files.ReadAsync(integrationEvent.WorkingDirectory, cancellationToken);
+        var read = await files.ReadAsync(integrationEvent.WorkingDirectory, integrationEvent.Connection, cancellationToken);
         var budget = read.Caps.Match(
             found => found.Match(
                 caps => new SessionBudget(integrationEvent.Session, BudgetFileStatus.Applied, Option<BudgetError>.None, caps, read.Origin),
                 () => new SessionBudget(integrationEvent.Session, BudgetFileStatus.Absent, Option<BudgetError>.None, Breaches.Unlimited, read.Origin)),
             error => new SessionBudget(integrationEvent.Session, BudgetFileStatus.Rejected, error, Breaches.Unlimited, read.Origin));
 
-        book.Keep(budget, integrationEvent.Provider);
+        book.Keep(budget, integrationEvent.Connection);
         await bus.PublishAsync(new BudgetLoaded(budget), cancellationToken);
     }
 }

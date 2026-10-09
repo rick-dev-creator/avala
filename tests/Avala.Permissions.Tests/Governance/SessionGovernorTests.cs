@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -103,7 +104,7 @@ public sealed class SessionGovernorTests
     {
         var governor = new SessionGovernor(book, new FixedPolicyFiles(file), new PermissionResponder(new AnsweringAgents(), TimeProvider.System), bus);
 
-        await governor.HandleAsync(new SessionOpened(session, new ProviderInfo("agent", "Agent"), "/worktrees/1"), Cancellation);
+        await governor.HandleAsync(new SessionOpened(session, new ProviderInfo("agent", "Agent"), "/worktrees/1", new ConnectionName("agent")), Cancellation);
 
         return governor;
     }

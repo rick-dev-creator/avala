@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Recording.Recordings;
@@ -18,7 +19,7 @@ public sealed class RecordingFormatTests
     private static readonly TurnId Second = TurnId.New();
 
     [Fact]
-    public void TheHeaderNamesTheFormatItsVersionTheProviderAndTheSessionWithoutItsWorkingDirectory()
+    public void TheHeaderNamesTheFormatItsVersionTheProviderAndTheSessionWithoutItsWorkingDirectoryOrItsConnection()
     {
         var root = Written(Recording([]));
 
@@ -33,6 +34,9 @@ public sealed class RecordingFormatTests
         Assert.Equal(("canvas", "canvas"), (options.GetProperty("tools")[0].GetProperty("name").GetString(), options.GetProperty("tools")[0].GetProperty("surface").GetString()));
         Assert.DoesNotContain(Folder, root.GetRawText(), StringComparison.Ordinal);
         Assert.DoesNotContain("resume-1", root.GetRawText(), StringComparison.Ordinal);
+        Assert.All(
+            ["/home/ana/.logins/work", "sk-ant-1", "large"],
+            secret => Assert.DoesNotContain(secret, root.GetRawText(), StringComparison.Ordinal));
     }
 
     [Fact]
@@ -84,6 +88,12 @@ public sealed class RecordingFormatTests
                     {
                         Resume = new ResumeToken("resume-1"),
                         Tools = [new HarnessTool("canvas", "Draw", "{}", ToolSurface.Canvas)],
+                        Connection = new ConnectionEnvironment
+                        {
+                            ConfigurationDirectory = "/home/ana/.logins/work",
+                            ApiKey = new Secret("sk-ant-1"),
+                            Settings = new Dictionary<string, string> { ["model"] = "large" },
+                        },
                     }),
                 new RecordingSettings(true, ["ana@example.com"])),
             (recording, fact) => recording.Add(TimeSpan.FromMilliseconds(fact.At), fact.Fact));

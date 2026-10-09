@@ -20,7 +20,7 @@ internal sealed class SimulatedSession : IAgentSession
     private bool closed;
     private Task conducting = Task.CompletedTask;
 
-    public SimulatedSession(SessionOptions options, Stagecraft craft, Option<Conversation> resumed)
+    public SimulatedSession(SessionOptions options, Stagecraft craft, Option<AgentAccount> account, Option<Conversation> conversation)
     {
         gates = new Gates(
             new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission),
@@ -28,14 +28,13 @@ internal sealed class SimulatedSession : IAgentSession
         performer = new Performer(options, craft.Files, gates, craft.Pacing);
         this.options = options;
         this.craft = craft;
-        conversation = resumed;
+        this.conversation = conversation;
+        Account = account;
     }
-
-    public static AgentAccount SimulatedAccount { get; } = new("simulated-account", "Simulated account");
 
     public SessionId Id { get; } = SessionId.New();
 
-    public Option<AgentAccount> Account => SimulatedAccount;
+    public Option<AgentAccount> Account { get; }
 
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
@@ -90,7 +89,7 @@ internal sealed class SimulatedSession : IAgentSession
 
         var current = await conversation.Match(
             known => Task.FromResult(known),
-            async () => Conversation.Begin(await craft.Library.ChooseAsync(turn.Text, options, cancellationToken)));
+            async () => Conversation.Begin(await craft.Library.ChooseAsync(turn.Text, options, cancellationToken), SimulatedAccounts.Holder(Account)));
         var next = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token));
         conversation = current.Advanced;
         act = next;

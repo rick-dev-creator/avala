@@ -62,7 +62,7 @@ public sealed class JobTransitionTests
     private static JobError? Apply(Job job, Operation operation) => operation switch
     {
         Operation.Submit => Outcomes.ErrorOf(job.Submit()),
-        Operation.Start => Outcomes.ErrorOf(job.Start(Given.Workspace, Given.Session)),
+        Operation.Start => Outcomes.ErrorOf(job.Start(Given.Workspace, Given.Session, Given.Connection)),
         Operation.Recover => Outcomes.ErrorOf(job.Recover(Given.Session, resumed: false)),
         Operation.CompleteTurn => Outcomes.ErrorOf(job.CompleteTurn()),
         Operation.Pass => Outcomes.ErrorOf(job.Pass()),

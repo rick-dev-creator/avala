@@ -11,4 +11,6 @@ public enum AgentError
     CannotResume,
     NoPendingForm,
     InvalidAnswer,
+    UnknownConnection,
+    UnusableConnection,
 }

@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Holding;
+using Avala.Jobs.JobFiles;
 using Avala.Jobs.JobList;
 using Avala.Jobs.Launching;
 using Avala.Jobs.Ledger;
@@ -23,6 +24,7 @@ public sealed class JobsPlugin : IPlugin, IViewContributor
     public void Register(IPluginRegistrar registrar) =>
         registrar.Services
             .AddSingleton<IJobStore, SqliteJobStore>()
+            .AddSingleton<IRepositoryDefaults, JobFileReader>()
             .AddSingleton<JobLedger>()
             .AddSingleton<JobQueues>()
             .AddSingleton<JobLauncher>()

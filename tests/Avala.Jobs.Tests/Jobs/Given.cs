@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
@@ -17,6 +18,8 @@ internal static class Given
     public static WorkspaceId Workspace { get; } = WorkspaceId.New();
 
     public static SessionId Session { get; } = SessionId.New();
+
+    public static ConnectionName Connection { get; } = new("work");
 
     public static Job Job(int attemptsPerRound = 3) =>
         Outcomes.Succeeds(Avala.Jobs.Jobs.Job.Create(
@@ -54,7 +57,7 @@ internal static class Given
 
     private static void Submit(Job job) => Outcomes.Succeeds(job.Submit());
 
-    private static void Start(Job job) => Outcomes.Succeeds(job.Start(Workspace, Session));
+    private static void Start(Job job) => Outcomes.Succeeds(job.Start(Workspace, Session, Connection));
 
     private static void CompleteTurn(Job job) => Outcomes.Succeeds(job.CompleteTurn());
 

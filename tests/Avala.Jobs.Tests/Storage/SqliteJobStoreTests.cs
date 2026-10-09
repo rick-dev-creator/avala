@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
@@ -24,8 +25,9 @@ public sealed class SqliteJobStoreTests
         var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
 
         Assert.Equal(
-            (job.Id, job.State, job.Instruction, job.Budget, job.Repository, job.Workspace, job.Session, job.Resume, job.Autonomy),
-            (reloaded.Id, reloaded.State, reloaded.Instruction, reloaded.Budget, reloaded.Repository, reloaded.Workspace, reloaded.Session, reloaded.Resume, reloaded.Autonomy));
+            (job.Id, job.State, job.Instruction, job.Budget, job.Repository, job.Workspace, job.Session, job.Resume, job.Autonomy, job.Connection),
+            (reloaded.Id, reloaded.State, reloaded.Instruction, reloaded.Budget, reloaded.Repository, reloaded.Workspace, reloaded.Session, reloaded.Resume, reloaded.Autonomy, reloaded.Connection));
+        Assert.Equal(Option<ConnectionName>.Some(Given.Connection), reloaded.Connection);
         Assert.Equal(
             job.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance)),
             reloaded.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance)));

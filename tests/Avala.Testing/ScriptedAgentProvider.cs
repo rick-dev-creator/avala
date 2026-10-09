@@ -9,7 +9,7 @@ public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IA
 {
     private readonly ConcurrentQueue<ScriptedSession> sessions = new();
 
-    public ProviderInfo Info { get; } = new("scripted", "Scripted");
+    public ProviderInfo Info { get; init; } = new("scripted", "Scripted");
 
     public AgentCapabilities Capabilities { get; init; } = new(
         StreamsPartialOutput: true,

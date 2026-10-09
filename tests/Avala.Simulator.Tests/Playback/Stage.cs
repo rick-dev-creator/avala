@@ -19,7 +19,11 @@ internal sealed class Stage : IAsyncDisposable
     public Stage(PermissionMode permissions = PermissionMode.AskEveryTime, params HarnessTool[] tools)
     {
         Craft = Crafted(new AvalaPaths(data.Path));
-        Session = new SimulatedSession(new SessionOptions(folder.Path, permissions) { Tools = tools }, Craft, Option<Conversation>.None);
+        Session = new SimulatedSession(
+            new SessionOptions(folder.Path, permissions) { Tools = tools },
+            Craft,
+            SimulatedAccounts.Default,
+            Option<Conversation>.None);
     }
 
     public Stagecraft Craft { get; }

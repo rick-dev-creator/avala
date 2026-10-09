@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 
@@ -15,6 +16,8 @@ public interface IJobs
 public sealed record JobRequest(string RepositoryPath, string Instruction, int AttemptsPerRound = 3)
 {
     public Option<Autonomy> Autonomy { get; init; }
+
+    public Option<ConnectionName> Connection { get; init; }
 }
 
 public enum ContinuedIn
@@ -38,4 +41,6 @@ public enum JobRejection
     EmptyMessage,
     WorkspaceUnavailable,
     AgentUnavailable,
+    UnknownConnection,
+    UnusableConnection,
 }

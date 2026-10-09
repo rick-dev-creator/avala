@@ -182,7 +182,11 @@ public sealed class ReplayTests
         Directory.CreateDirectory(Path.Combine(data.Path, RecordingFolder.FolderName));
         await File.WriteAllTextAsync(Path.Combine(data.Path, RecordingFolder.FolderName, "recorded.json"), Recorded.Session(Recorded.TurnStarted, Recorded.Finished), Cancellation);
         var craft = Stage.Crafted(new AvalaPaths(data.Path)) with { Pacing = new Pacing(clock, TimeSpan.Zero) };
-        await using var session = new SimulatedSession(new SessionOptions(folder.Path, PermissionMode.AskEveryTime), craft, Option<Conversation>.None);
+        await using var session = new SimulatedSession(
+            new SessionOptions(folder.Path, PermissionMode.AskEveryTime),
+            craft,
+            SimulatedAccounts.Default,
+            Option<Conversation>.None);
 
         Outcomes.Succeeds(await session.SendAsync(new UserTurn(asRecorded ? "[replay as recorded: recorded] Go" : "[replay: recorded] Go"), Cancellation));
 

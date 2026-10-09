@@ -10,8 +10,12 @@ internal static class LayerMap
             ["Contracts"] = Layer.Contracts,
             ["Contracts.Events"] = Layer.Contracts,
             ["Contracts.Sessions"] = Layer.Contracts,
+            ["Contracts.Connections"] = Layer.Contracts,
             ["Turns"] = Layer.Domain,
             ["Sessions"] = Layer.Application,
+            ["Connections"] = Layer.Application,
+            ["ConnectionFiles"] = Layer.Infrastructure,
+            ["Credentials"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Canvas", new()
         {
@@ -35,6 +39,7 @@ internal static class LayerMap
             ["Holding"] = Layer.Application,
             ["Ledger"] = Layer.Application,
             ["Storage"] = Layer.Infrastructure,
+            ["JobFiles"] = Layer.Infrastructure,
             ["JobList"] = Layer.ViewModels,
         }),
         .. Module("Avala.Observability", new()
