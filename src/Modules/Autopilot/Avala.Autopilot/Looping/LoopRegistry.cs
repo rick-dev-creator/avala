@@ -62,7 +62,7 @@ internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, TimePro
 
     public async ValueTask DisposeAsync()
     {
-        foreach (var runner in Volatile.Read(ref runners).Values)
+        foreach (var runner in Interlocked.Exchange(ref runners, ImmutableDictionary<LoopId, LoopRunner>.Empty).Values)
         {
             await runner.DisposeAsync();
         }
