@@ -8,9 +8,13 @@
     <settings:DesignMachineConnectionViewModel />
   </Design.DataContext>
   <DockPanel Margin="0,12">
-    <Border x:Name="Default" DockPanel.Dock="Right" Classes="tag" IsVisible="{Binding IsDefault}">
-      <TextBlock Text="default" />
-    </Border>
+    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+      <Border x:Name="Default" Classes="tag" IsVisible="{Binding IsDefault}">
+        <TextBlock Text="default" />
+      </Border>
+      <Button x:Name="Edit" Classes="link" Content="Edit" IsVisible="{Binding IsDeclared}" Command="{Binding EditCommand}" />
+      <Button x:Name="Remove" Classes="link" Content="Remove" IsVisible="{Binding IsDeclared}" Command="{Binding RemoveCommand}" />
+    </StackPanel>
     <StackPanel>
       <TextBlock x:Name="ConnectionName" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
       <StackPanel Orientation="Horizontal" Spacing="6">

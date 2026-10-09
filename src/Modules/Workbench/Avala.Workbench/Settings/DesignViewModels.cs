@@ -75,6 +75,56 @@ internal sealed class DesignMachineConnectionViewModel(string name, string sourc
     public string Origin { get; } = isDefault ? "declared in connections.json" : "discovered on this machine";
 
     public bool IsDefault { get; } = isDefault;
+
+    public bool IsDeclared { get; init; } = isDefault;
+
+    public string Reference => string.Empty;
+
+    public IRelayCommand EditCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand RemoveCommand { get; } = new RelayCommand(() => { });
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DesignConnectionEditorViewModel : IConnectionEditorViewModel
+{
+    public bool IsOpen { get; init; } = true;
+
+    public string Title => "New connection";
+
+    [ObservableProperty]
+    public partial string Name { get; set; } = "claude-team";
+
+    public IReadOnlyList<string> Providers { get; } = ["Claude Code · claude-code"];
+
+    [ObservableProperty]
+    public partial int Provider { get; set; }
+
+    public IReadOnlyList<string> Sources { get; } = [ConnectionPhrases.OwnLogin, ConnectionPhrases.Source("login"), ConnectionPhrases.Source("apiKey")];
+
+    [ObservableProperty]
+    public partial int Source { get; set; } = 2;
+
+    [ObservableProperty]
+    public partial string Reference { get; set; } = "TEAM_API_KEY";
+
+    public bool NeedsReference => true;
+
+    public string ReferenceHint => ConnectionPhrases.ReferenceHint("apiKey");
+
+    public string Error => string.Empty;
+
+    public string Removing { get; init; } = string.Empty;
+
+    public IRelayCommand NewCommand { get; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand SaveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand CancelCommand { get; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand RemoveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand KeepCommand { get; } = new RelayCommand(() => { });
 }
 
 [INotifyPropertyChanged]
@@ -147,9 +197,11 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 {
     public IDefaultConnectionViewModel DefaultConnection { get; } = new DesignDefaultConnectionViewModel();
 
+    public IConnectionEditorViewModel Editor { get; init; } = new DesignConnectionEditorViewModel { IsOpen = false };
+
     public IReadOnlyList<IMachineConnectionViewModel> Connections { get; } =
     [
-        new DesignMachineConnectionViewModel("claude-work", "keychain: claude-work", false),
+        new DesignMachineConnectionViewModel("claude-work", "keychain: claude-work", false) { IsDeclared = true },
         new DesignMachineConnectionViewModel("claude-personal", "the provider's own login", false),
     ];
 

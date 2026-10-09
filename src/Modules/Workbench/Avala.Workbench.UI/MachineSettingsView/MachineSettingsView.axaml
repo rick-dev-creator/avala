@@ -55,14 +55,24 @@
           <TextBlock x:Name="NoConnections" Classes="caption" Margin="16,12" Text="No connection is declared: jobs use each provider's own login." IsVisible="{Binding !Connections.Count}" />
           <ItemsControl x:Name="Connections" Margin="16,0" ItemsSource="{Binding Connections}" />
           <Border Classes="separator" Margin="16,0" />
-          <Button x:Name="OpenConnections" Classes="link emphasis" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,11" FontSize="{DynamicResource FontSizeBody}" Command="{Binding OpenConnectionsCommand}">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Path Classes="icon add" Data="{StaticResource IconPlus}" />
-              <TextBlock Text="Add a connection in connections.json" />
-            </StackPanel>
-          </Button>
+          <DockPanel>
+            <Button x:Name="OpenConnections"
+                    DockPanel.Dock="Right"
+                    Classes="link"
+                    Padding="16,11"
+                    Content="Open connections.json"
+                    ToolTip.Tip="For a connection's settings, which the form does not edit"
+                    Command="{Binding OpenConnectionsCommand}" />
+            <Button x:Name="AddConnection" Classes="link emphasis" HorizontalContentAlignment="Left" Padding="16,11" FontSize="{DynamicResource FontSizeBody}" Command="{Binding Editor.NewCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Path Classes="icon add" Data="{StaticResource IconPlus}" />
+                <TextBlock Text="Add a connection" />
+              </StackPanel>
+            </Button>
+          </DockPanel>
         </StackPanel>
       </Border>
+      <ContentControl x:Name="Editor" Content="{Binding Editor}" />
     </StackPanel>
 
     <StackPanel Spacing="8">

@@ -13,8 +13,6 @@ internal static class ConnectionFileParser
 
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 4, AllowDuplicateProperties = false };
 
-    private static readonly JsonSerializerOptions Written = new() { WriteIndented = true };
-
     private static readonly string[] Sections = [Default, "connections"];
 
     private static readonly string[] Fields = ["name", "provider", "credential", "settings"];
@@ -56,23 +54,6 @@ internal static class ConnectionFileParser
         return new ConnectionDeclarations(
             connections,
             named.Bind(name => name == ConnectionDeclarations.Auto ? Option<ConnectionName>.None : new ConnectionName(name)));
-    }
-
-    public static Result<string, ConnectionError> WithDefault(string text, Option<ConnectionName> connection)
-    {
-        if (!Parse(text).TryGetValue(out _, out var error))
-        {
-            return error;
-        }
-
-        if (JsonNode.Parse(text) is not JsonObject root)
-        {
-            return ConnectionError.Malformed;
-        }
-
-        root[Default] = connection.Match(name => name.Value, () => ConnectionDeclarations.Auto);
-
-        return root.ToJsonString(Written);
     }
 
     private static Result<IReadOnlyList<ConnectionDeclaration>, ConnectionError> Connections(JsonElement root)

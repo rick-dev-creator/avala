@@ -206,8 +206,67 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
     {
         var settings = new MachineSettings(connections, supervision, new FakeResources());
 
-        return new(settings, new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")), new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()));
+        return new(
+            settings,
+            new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")),
+            new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()),
+            new ConnectionEditorViewModel(settings));
     }
+
+    [Fact]
+    public Task AddingAConnectionOpensTheFormUnderTheListAndSavingClosesItAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var connections = new FakeConnections("claude-work");
+            var machine = Machine(connections, new FakeSupervision());
+            await machine.LoadAsync(TestContext.Current.CancellationToken);
+            var view = Screen.Show(machine);
+
+            view.Click("AddConnection");
+            view.Settle();
+            var opened = (view.Shows("Form"), view.Find<Button>("SaveConnection").IsEffectivelyEnabled);
+            view.Type("NameField", "claude-team");
+            view.Settle();
+            await Assert.IsAssignableFrom<CommunityToolkit.Mvvm.Input.IAsyncRelayCommand>(view.Find<Button>("SaveConnection").Command).ExecuteAsync(null);
+            view.Settle();
+
+            Assert.Equal((true, false), opened);
+            Assert.Equal(["declare claude-team simulator"], connections.Edits);
+            Assert.Equal((false, 2), (view.Shows("Form"), view.Find<ItemsControl>("Connections").ItemCount));
+            Assert.Equal("Added claude-team to connections.json. New jobs can run on it now.", view.TextOf("NoticeText"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ADeclaredConnectionOffersEditAndRemoveAndRemovingAsksFirstAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var connections = new FakeConnections("claude-work", "claude-personal");
+            var machine = Machine(connections, new FakeSupervision());
+            await machine.LoadAsync(TestContext.Current.CancellationToken);
+            var view = Screen.Show(machine);
+
+            var remove = view.All<Button>().Where(button => button.Name == "Remove").ToList();
+            remove[1].Command!.Execute(null);
+            view.Settle();
+
+            Assert.Equal(2, view.All<Button>().Count(button => button.Name == "Edit" && button.IsEffectivelyVisible));
+            Assert.Equal((true, "Remove claude-personal from connections.json? Jobs already running on it go on."), (view.Shows("Confirm"), view.TextOf("RemoveQuestion")));
+        }, TestContext.Current.CancellationToken);
+}
+
+public sealed class ConnectionEditorViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task TheFormAsksForANameAHarnessAndWhereTheCredentialIsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignConnectionEditorViewModel());
+
+            Assert.Equal(("New connection", "claude-team", "TEAM_API_KEY"), (view.TextOf("Title"), view.Find<TextBox>("NameField").Text, view.Find<TextBox>("Reference").Text));
+            Assert.Equal((1, 3), (view.Find<ComboBox>("Provider").ItemCount, view.Find<ComboBox>("Source").ItemCount));
+            Assert.Contains("never reads or writes the key", view.TextOf("ReferenceHint"), StringComparison.Ordinal);
+            Assert.False(view.Shows("Confirm"));
+        }, TestContext.Current.CancellationToken);
 }
 
 public sealed class DefaultConnectionViewScripts(HeadlessUi ui)
