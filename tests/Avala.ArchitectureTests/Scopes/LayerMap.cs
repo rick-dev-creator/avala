@@ -43,7 +43,18 @@ internal static class LayerMap
             ["Delivery"] = Layer.Application,
             ["Storage"] = Layer.Infrastructure,
             ["JobFiles"] = Layer.Infrastructure,
-            ["JobList"] = Layer.ViewModels,
+        }),
+        .. Module("Avala.Workbench", new()
+        {
+            ["UI"] = Layer.None,
+            ["Timeline"] = Layer.Application,
+            ["Board"] = Layer.Application,
+            ["Steering"] = Layer.Application,
+            ["Replies"] = Layer.Application,
+            ["Navigation"] = Layer.ViewModels,
+            ["Sidebar"] = Layer.ViewModels,
+            ["Conversation"] = Layer.ViewModels,
+            ["Cards"] = Layer.ViewModels,
         }),
         .. Module("Avala.Observability", new()
         {

@@ -4,10 +4,6 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Avalonia" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\Avala.Jobs\Avala.Jobs.csproj" />
-    <ProjectReference Include="..\..\..\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />
   </ItemGroup>
 </Project>

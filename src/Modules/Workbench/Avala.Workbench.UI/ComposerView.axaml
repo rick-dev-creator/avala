@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.ComposerView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:ComposerViewModel">
+  <StackPanel Spacing="4" Margin="0,12,0,0">
+    <TextBlock Text="{Binding Error}" Foreground="#E5484D" />
+    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+      <TextBox Text="{Binding Draft}" AcceptsReturn="True" />
+      <Button Grid.Column="1" Margin="8,0,0,0" Content="Send" Command="{Binding SendCommand}" />
+      <Button Grid.Column="2" Margin="8,0,0,0" Content="Interrupt" Command="{Binding InterruptCommand}" />
+      <Button Grid.Column="3" Margin="8,0,0,0" Content="Stop" Command="{Binding StopCommand}" />
+    </Grid>
+  </StackPanel>
+</UserControl>

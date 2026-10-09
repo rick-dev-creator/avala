@@ -16,4 +16,17 @@ internal sealed partial class ShellViewModel
 
     [ObservableProperty]
     public partial IPage? SelectedPage { get; set; }
+
+    partial void OnSelectedPageChanged(IPage? oldValue, IPage? newValue)
+    {
+        if (oldValue is IActivatable left)
+        {
+            left.Deactivate();
+        }
+
+        if (newValue is IActivatable entered)
+        {
+            entered.Activate();
+        }
+    }
 }

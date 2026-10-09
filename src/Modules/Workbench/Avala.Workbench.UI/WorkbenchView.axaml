@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:navigation="using:Avala.Workbench.Navigation"
+             x:Class="Avala.Workbench.UI.WorkbenchView"
+             x:ClassModifier="internal"
+             x:DataType="navigation:WorkbenchViewModel">
+  <Grid ColumnDefinitions="260,*,Auto">
+    <ContentControl Content="{Binding Sidebar}" />
+    <DockPanel Grid.Column="1">
+      <Button DockPanel.Dock="Top"
+              HorizontalAlignment="Right"
+              Margin="8"
+              Content="Inspector"
+              Command="{Binding ToggleInspectorCommand}" />
+      <ContentControl Content="{Binding Conversation}" />
+    </DockPanel>
+    <Border Grid.Column="2"
+            Width="300"
+            IsVisible="{Binding IsInspectorOpen}">
+      <TextBlock Margin="16" Text="Inspector" />
+    </Border>
+  </Grid>
+</UserControl>

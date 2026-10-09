@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.ConversationView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:ConversationViewModel">
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
+      <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding Plan}" Opacity="0.6" VerticalAlignment="Center" />
+    </StackPanel>
+    <ContentControl DockPanel.Dock="Bottom" Content="{Binding Composer}" />
+    <ScrollViewer>
+      <ItemsControl ItemsSource="{Binding Entries}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="8" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>
