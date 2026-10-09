@@ -212,6 +212,17 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AWorkingRowPulsesBeyondItsDotUnclippedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignJobRowViewModel(Presenting.SampleJobs.JpyRounding, "Fix JPY rounding in invoice totals", JobStatus.Running, "writing a fix", Components.Status.StatusKind.Working, 0));
+
+            Assert.All(
+                view.Find("Pulse").GetVisualAncestors().OfType<Avalonia.Visual>().TakeWhile(ancestor => ancestor is not Window),
+                ancestor => Assert.False(ancestor.ClipToBounds, ancestor.GetType().Name));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AFinishedJobFadesToTheTertiaryTextAndDropsItsFactAsync() =>
         ui.RunAsync(() =>
         {

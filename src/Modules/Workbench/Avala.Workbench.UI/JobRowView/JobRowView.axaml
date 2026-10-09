@@ -5,6 +5,7 @@
              x:Class="Avala.Workbench.UI.JobRowView"
              x:ClassModifier="internal"
              x:DataType="sidebar:IJobRowViewModel"
+             ClipToBounds="False"
              Classes.ended="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Approved,Discarded'}">
   <Design.DataContext>
     <sidebar:DesignJobRowViewModel />
@@ -22,6 +23,7 @@
   </UserControl.Styles>
   <Grid ColumnDefinitions="Auto,*,Auto">
     <ContentControl x:Name="Dot"
+                    ClipToBounds="False"
                     Content="{Binding Dot}"
                     Width="7"
                     Height="7"

@@ -2,6 +2,7 @@ using Avala.Components.Status;
 using Avala.Testing.UI;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 
 namespace Avala.Components.UI.Tests;
 
@@ -18,6 +19,17 @@ public sealed class StatusDotViewScripts(HeadlessUi ui)
             Assert.True(view.Shows("Pulse"));
             Assert.True(view.HasClass("Pulse", "pulse"));
             Assert.False(view.Shows("Spinner"));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheWorkingPulseSpreadsBeyondTheDotUnclippedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = ViewScript.Show(new StatusPillViewModel(StatusKind.Working, "Running"));
+
+            Assert.All(
+                view.Find("Pulse").GetVisualAncestors().OfType<Avalonia.Visual>().TakeWhile(ancestor => ancestor is not Avalonia.Controls.Window && ancestor.GetType().Name != "StatusPillView"),
+                ancestor => Assert.False(ancestor.ClipToBounds, ancestor.GetType().Name));
         }, Cancellation);
 
     [Fact]

@@ -26,7 +26,7 @@
               Classes.selected="{Binding IsSelected}"
               Command="{Binding $parent[UserControl].((sidebar:ISidebarViewModel)DataContext).SelectCommand}"
               CommandParameter="{Binding}">
-        <ContentControl Content="{Binding}" />
+        <ContentControl ClipToBounds="False" Content="{Binding}" />
       </Button>
     </DataTemplate>
   </UserControl.Resources>
