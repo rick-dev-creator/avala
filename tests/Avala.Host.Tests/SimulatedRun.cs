@@ -28,15 +28,18 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private Application application;
     private bool stopped;
 
-    private SimulatedRun(PublishedPlugins plugins, TemporaryFolder data, TemporaryRepository repository, CompositionRoot root)
+    private SimulatedRun(PublishedPlugins plugins, TemporaryFolder data, TemporaryRepository repository, CompositionRoot root, TestUiDispatcher ui)
     {
         this.plugins = plugins;
         this.data = data;
         this.repository = repository;
         application = new Application(root);
+        Ui = ui;
     }
 
     public TemporaryRepository Repository => repository;
+
+    public TestUiDispatcher Ui { get; }
 
     public ICanvases Canvases => Get<ICanvases>();
 
@@ -118,7 +121,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
+        var ui = new TestUiDispatcher();
+        var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path), ui);
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 
         foreach (var (path, content) in committed)
@@ -126,7 +130,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await repository.CommitAsync(path, content, Cancellation);
         }
 
-        var run = new SimulatedRun(plugins, data, repository, root);
+        var run = new SimulatedRun(plugins, data, repository, root, ui);
         root.Start();
 
         return run;
@@ -168,7 +172,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     public async Task RestartAsync()
     {
         await application.DisposeAsync();
-        application = new Application(CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path)));
+        application = new Application(CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path), Ui));
         application.Root.Start();
     }
 
@@ -245,6 +249,15 @@ internal sealed class SimulatedRun : IAsyncDisposable
         await StopAsync();
         await repository.DisposeAsync();
         await data.DisposeAsync();
+        Ui.Dispose();
+    }
+
+    public Bound Workbench()
+    {
+        var page = Assert.Single(Get<IEnumerable<IPage>>());
+        ((IActivatable)page).Activate();
+
+        return new Bound(page);
     }
 
     private async Task StopAsync()

@@ -20,13 +20,22 @@ public sealed class TestUiDispatcher : SynchronizationContext, IUiDispatcher, ID
     public ValueTask InvokeAsync(Action action, CancellationToken cancellationToken)
     {
         var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        work.Add(() =>
-        {
-            action();
-            done.SetResult();
-        }, cancellationToken);
+        work.Add(
+            () =>
+            {
+                try
+                {
+                    action();
+                    done.SetResult();
+                }
+                catch (Exception failure)
+                {
+                    done.SetException(failure);
+                }
+            },
+            cancellationToken);
 
-        return new ValueTask(done.Task);
+        return new ValueTask(done.Task.WaitAsync(Patience, cancellationToken));
     }
 
     public async Task<T> ReadAsync<T>(Func<T> read)
@@ -55,13 +64,44 @@ public sealed class TestUiDispatcher : SynchronizationContext, IUiDispatcher, ID
 
         foreach (var next in work.GetConsumingEnumerable())
         {
-            next();
-
-            foreach (var waiter in waiters.Where(waiter => waiter.Condition()).ToList())
+            try
             {
-                waiters.Remove(waiter);
-                waiter.Reached.SetResult();
+                next();
+            }
+            catch (Exception failure)
+            {
+                Fail(failure);
+            }
+
+            Check();
+        }
+    }
+
+    private void Check()
+    {
+        foreach (var waiter in waiters.ToList())
+        {
+            try
+            {
+                if (waiter.Condition())
+                {
+                    waiters.Remove(waiter);
+                    waiter.Reached.SetResult();
+                }
+            }
+            catch (InvalidOperationException)
+            {
             }
         }
+    }
+
+    private void Fail(Exception failure)
+    {
+        foreach (var waiter in waiters)
+        {
+            waiter.Reached.TrySetException(failure);
+        }
+
+        waiters.Clear();
     }
 }
