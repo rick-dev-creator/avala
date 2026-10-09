@@ -3,24 +3,12 @@ using Avala.Workbench.Presenting;
 
 namespace Avala.Workbench.Usage;
 
-internal sealed class DesignLimitViewModel(string window, double used, string usedText, string resets, string holdAt, bool reachesHold) : ILimitViewModel
+internal sealed record DesignLimitViewModel(string Window, double Used, string UsedText, string Resets, string HoldAt, bool ReachesHold) : ILimitViewModel
 {
     public DesignLimitViewModel()
         : this("5h", 0.88, "88% used", "resets 2026-10-09 16:20", "jobs are held at 90%", false)
     {
     }
-
-    public string Window { get; } = window;
-
-    public double Used { get; } = used;
-
-    public string UsedText { get; } = usedText;
-
-    public string Resets { get; } = resets;
-
-    public string HoldAt { get; } = holdAt;
-
-    public bool ReachesHold { get; } = reachesHold;
 }
 
 internal sealed class DesignConnectionMeterViewModel(string name, string cost, string tokens, ILimitViewModel limit) : IConnectionMeterViewModel
@@ -68,30 +56,18 @@ internal sealed class DesignUsageWindowViewModel : IUsageWindowViewModel
     public string Turns => "37 turns finished, 2 interrupted, 0 failed";
 }
 
-internal sealed class DesignJobMeterViewModel(JobId job, string title, JobStatus status, string cost, string tokens, int interventions) : IJobMeterViewModel
+internal sealed record DesignJobMeterViewModel(JobId Job, string Title, JobStatus Status, string Cost, string Tokens, int Interventions) : IJobMeterViewModel
 {
     public DesignJobMeterViewModel()
         : this(SampleJobs.LoginRateLimit, "Rate-limit POST /login", JobStatus.AwaitingReview, "0.84 USD", "61,250 tokens", 0)
     {
     }
 
-    public JobId Job { get; } = job;
-
-    public string Title { get; } = title;
-
-    public JobStatus Status { get; } = status;
-
-    public string Cost { get; } = cost;
-
-    public string Tokens { get; } = tokens;
-
     public string Unpriced => string.Empty;
 
     public string Caps => "5 USD per job";
 
     public string Carve => string.Empty;
-
-    public int Interventions { get; } = interventions;
 }
 
 internal sealed class DesignInterventionViewModel : IInterventionViewModel

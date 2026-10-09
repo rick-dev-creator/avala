@@ -20,24 +20,14 @@ internal sealed class DesignRuleFileViewModel(string path, string status, string
     public bool EditedInCheckout { get; } = editedInCheckout;
 }
 
-internal sealed class DesignRuleViewModel(string name, string origin, string kind, string target, PolicyAnswer answer) : IRuleViewModel
+internal sealed record DesignRuleViewModel(string Name, string Origin, string Kind, string Target, PolicyAnswer Answer) : IRuleViewModel
 {
     public DesignRuleViewModel()
         : this("tests", "Repository", "Command", "npm test*", PolicyAnswer.Allow)
     {
     }
 
-    public string Name { get; } = name;
-
-    public string Origin { get; } = origin;
-
-    public string Kind { get; } = kind;
-
-    public string Target { get; } = target;
-
     public RuleScope Scope => RuleScope.Anywhere;
-
-    public PolicyAnswer Answer { get; } = answer;
 }
 
 internal sealed class DesignCapsViewModel(string scope, string caps) : ICapsViewModel

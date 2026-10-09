@@ -5,26 +5,14 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Resources;
 
-internal sealed class DesignAgentTreeViewModel(string job, string connection, int processes, string memory, string cpu, string ports) : IAgentTreeViewModel
+internal sealed record DesignAgentTreeViewModel(string Job, string Connection, int Processes, string Memory, string Cpu, string Ports) : IAgentTreeViewModel
 {
     public DesignAgentTreeViewModel()
         : this("Fix JPY rounding in invoice totals", "claude-work", 4, "412.6 MB", "18%", "41000")
     {
     }
 
-    public string Job { get; } = job;
-
-    public string Connection { get; } = connection;
-
     public string Provider => "claude-code";
-
-    public int Processes { get; } = processes;
-
-    public string Memory { get; } = memory;
-
-    public string Cpu { get; } = cpu;
-
-    public string Ports { get; } = ports;
 }
 
 internal sealed class DesignOrphanViewModel : IOrphanViewModel

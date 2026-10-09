@@ -27,22 +27,17 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
     public IAsyncRelayCommand StopCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
-internal sealed class DesignPromptViewModel(int attempt, string origin, bool isFromPerson, string text, string outcome) : IPromptViewModel
+internal sealed class DesignPromptViewModel : IPromptViewModel
 {
-    public DesignPromptViewModel()
-        : this(1, "Instruction", true, "Fix JPY rounding in invoice totals: yen has no minor unit, so totals must round to whole yen, not to two decimals.", "running")
-    {
-    }
+    public int Attempt => 1;
 
-    public int Attempt { get; } = attempt;
+    public string Origin => "Instruction";
 
-    public string Origin { get; } = origin;
+    public bool IsFromPerson => true;
 
-    public bool IsFromPerson { get; } = isFromPerson;
+    public string Text => "Fix JPY rounding in invoice totals: yen has no minor unit, so totals must round to whole yen, not to two decimals.";
 
-    public string Text { get; } = text;
-
-    public string Outcome { get; } = outcome;
+    public string Outcome => "running";
 }
 
 internal sealed class DesignMessageViewModel(string text, bool isStreaming) : IMessageViewModel
@@ -72,26 +67,20 @@ internal sealed class DesignReasoningViewModel : IReasoningViewModel
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
 }
 
-internal sealed class DesignToolViewModel(ItemKind kind, string title, string output, bool isRunning, bool failed, string outcome) : IToolViewModel
+internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string Output) : IToolViewModel
 {
     public DesignToolViewModel()
-        : this(ItemKind.Command, "npm test -- money.test.ts", "PASS src/money/money.test.ts\n  ✓ rounds JPY to whole yen (3 ms)\n  ✓ rounds EUR to cents (1 ms)", false, false, "done")
+        : this(ItemKind.Command, "npm test -- money.test.ts", "PASS src/money/money.test.ts\n  ✓ rounds JPY to whole yen (3 ms)\n  ✓ rounds EUR to cents (1 ms)")
     {
     }
 
-    public ItemKind Kind { get; } = kind;
-
-    public string Title { get; } = title;
-
     public string Input => string.Empty;
 
-    public string Output { get; } = output;
+    public bool IsRunning => false;
 
-    public bool IsRunning { get; } = isRunning;
+    public bool Failed => false;
 
-    public bool Failed { get; } = failed;
-
-    public string Outcome { get; } = outcome;
+    public string Outcome => "done";
 
     public bool IsExpanded => false;
 
@@ -159,8 +148,8 @@ internal sealed class DesignConversationViewModel : IConversationViewModel
         new DesignPromptViewModel(),
         new DesignReasoningViewModel(),
         new DesignPlanViewModel(),
-        new DesignToolViewModel(ItemKind.Search, "Search for Math.round in src/invoices", "src/invoices/invoice.ts:41", false, false, "done"),
-        new DesignToolViewModel(ItemKind.FileEdit, "Edit src/money/money.ts", "+ return round(amount, minorUnits(currency))", false, false, "done"),
+        new DesignToolViewModel(ItemKind.Search, "Search for Math.round in src/invoices", "src/invoices/invoice.ts:41"),
+        new DesignToolViewModel(ItemKind.FileEdit, "Edit src/money/money.ts", "+ return round(amount, minorUnits(currency))"),
         new DesignCanvasViewModel(),
         new DesignPermissionCardViewModel(),
         new DesignToolViewModel(),
