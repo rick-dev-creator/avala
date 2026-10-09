@@ -43,6 +43,15 @@ internal sealed class FakeWorkspaces : IWorkspaces
             new CheckpointInfo(workspace, checkpoints.Count, new string('a', 40), label)));
     }
 
+    public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> FindAtAsync(string folder, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(prepared.Values.FirstOrDefault(info => info.Path == folder).ToOption().ToResult(WorkspaceFailure.UnknownWorkspace));
+
+    public ValueTask<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken) =>
+        ValueTask.FromResult(new WorktreeReconciliation([], []));
+
+    public ValueTask<WorktreeReconciliation> CleanAsync(WorktreeReconciliation found, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(new WorktreeReconciliation([], []));
+
     public ValueTask<Result<WorkspaceId, WorkspaceFailure>> RemoveAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
         ValueTask.FromResult(prepared.TryRemove(workspace, out _)
             ? Result<WorkspaceId, WorkspaceFailure>.Success(workspace)

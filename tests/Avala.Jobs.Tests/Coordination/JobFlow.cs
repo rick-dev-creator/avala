@@ -22,16 +22,18 @@ internal sealed class JobFlow
     {
         Workspaces = workspaces;
         Agents = agents;
-        var ledger = new JobLedger(Store, Bus);
+        var ledger = new JobLedger(Store, Bus, agents);
         var launcher = new JobLauncher(ledger, workspaces, agents, Defaults);
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
         Submit = new SubmitJob(ledger, Bus, Connections);
         Hold = new HoldJob(ledger, agents, Bus);
         Jobs = new JobsEntry(Submit, Hold, launcher, Queues);
-        Prepare = new PrepareJob(Queues, launcher);
+        Prepare = new PrepareJob(Queues, launcher, Admissions);
         Check = new CheckTurn(ledger, Queues, new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents), Hold);
         Recovery = new JobRecovery(ledger, Queues, launcher);
     }
+
+    public List<IJobAdmission> Admissions { get; } = [];
 
     public InMemoryJobStore Store { get; } = new();
 

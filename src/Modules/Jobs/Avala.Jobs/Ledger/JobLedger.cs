@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
@@ -6,7 +7,7 @@ using Avala.Sdk.Events;
 
 namespace Avala.Jobs.Ledger;
 
-internal sealed class JobLedger(IJobStore store, IEventBus bus)
+internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents)
 {
     public Task<Option<Job>> FindAsync(JobId id, CancellationToken cancellationToken) => store.FindAsync(id, cancellationToken);
 
@@ -18,6 +19,12 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus)
     public async Task RecordAsync(Job job, CancellationToken cancellationToken)
     {
         await store.SaveAsync(job, cancellationToken);
+
+        if (job.State is JobState.Approved or JobState.Discarded or JobState.Failed)
+        {
+            await job.Session.Match<Task>(session => agents.StopAsync(session, cancellationToken).AsTask(), () => Task.CompletedTask);
+        }
+
         await bus.PublishAsync(new JobProgressed(job.Id, job.State.Status), cancellationToken);
     }
 

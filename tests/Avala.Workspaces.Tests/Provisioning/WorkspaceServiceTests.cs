@@ -101,6 +101,10 @@ public sealed class WorkspaceServiceTests
         Assert.Equal(WorkspaceFailure.UnknownWorkspace, Outcomes.FailsWith(await service.CheckpointAsync(workspace, "late", Cancellation)));
     }
 
-    private static WorkspaceService Service(FakeGit git, InMemoryWorkspaceStore? store = null) =>
-        new(git, store ?? new InMemoryWorkspaceStore(), new WorkspaceSettings(Root));
+    private static WorkspaceService Service(FakeGit git, InMemoryWorkspaceStore? store = null)
+    {
+        var kept = store ?? new InMemoryWorkspaceStore();
+
+        return new(git, kept, new WorkspaceSettings(Root), new WorktreeReconciler(git, kept, new WorkspaceSettings(Root)));
+    }
 }

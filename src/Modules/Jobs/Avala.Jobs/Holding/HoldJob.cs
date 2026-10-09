@@ -18,6 +18,18 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
                 : Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)),
             () => Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)));
 
+    public async Task<Result<JobId, JobRejection>> DiscardAsync(Job job, CancellationToken cancellationToken)
+    {
+        if (job.Discard().IsFailure)
+        {
+            return JobRejection.NotDiscardable;
+        }
+
+        await ledger.RecordAsync(job, cancellationToken);
+
+        return job.Id;
+    }
+
     private async Task<Result<JobHold, JobRejection>> HeldAsync(Job job, SessionId session, HoldReason reason, CancellationToken cancellationToken)
     {
         await ledger.RecordAsync(job, cancellationToken);
