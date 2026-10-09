@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
@@ -61,7 +62,7 @@ internal sealed class Replayer(SessionOptions options, IFileWriter files, Gates 
                         break;
                     case AwaitInterrupt when divergence is null:
                         AwaitsInterrupt = true;
-                        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                        await cancellationToken.UntilCancelledAsync();
                         break;
                     case Crash crash when divergence is null:
                         throw new InvalidOperationException(crash.Reason);

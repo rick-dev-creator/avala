@@ -60,28 +60,14 @@ static ProcessStartInfo Hold(int harness)
 
 static async Task HoldAsync(int harness)
 {
-    var deadline = DateTime.UtcNow.AddMinutes(10);
+    using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(10));
 
-    while (DateTime.UtcNow < deadline && Alive(harness))
-    {
-        await Task.Delay(TimeSpan.FromMilliseconds(250));
-    }
-}
-
-static bool Alive(int harness)
-{
     try
     {
         using var process = Process.GetProcessById(harness);
-
-        return !process.HasExited;
+        await process.WaitForExitAsync(deadline.Token);
     }
-    catch (ArgumentException)
+    catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or OperationCanceledException)
     {
-        return false;
-    }
-    catch (InvalidOperationException)
-    {
-        return false;
     }
 }

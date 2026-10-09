@@ -25,6 +25,7 @@ public sealed class ConcurrencyTests
                 "ContendedLedger: Monitor",
                 "ContendedLedger: SemaphoreSlim",
                 "ContendedLedger: lock",
+                "ImpatientLedger: SpinWait",
             ],
             await CoordinationRules.CoordinateThreadsAsync(CodeScopes.Of(Scope.Violating).SourceDirectory, Cancellation));
 }

@@ -6,7 +6,6 @@ T:System.Threading.Mutex;Coordinate through the event bus or a channel, never a 
 T:System.Threading.ReaderWriterLock;Coordinate through the event bus or a channel, never a lock.
 T:System.Threading.ReaderWriterLockSlim;Coordinate through the event bus or a channel, never a lock.
 T:System.Threading.SpinLock;Coordinate through the event bus or a channel, never a lock.
-T:System.Threading.SpinWait;Coordinate through the event bus or a channel, never a spin.
 T:System.Threading.Barrier;Coordinate through the event bus or a channel, never a barrier.
 T:System.Threading.CountdownEvent;Coordinate through the event bus or a channel, never a wait handle.
 T:System.Threading.ManualResetEvent;Coordinate through the event bus or a channel, never a wait handle.
