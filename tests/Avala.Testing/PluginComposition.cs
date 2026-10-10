@@ -41,6 +41,17 @@ public sealed class PluginComposition : IAsyncDisposable
     public IReadOnlyDictionary<Type, int> ResolveEveryRegistration() =>
         registered.Keys.ToDictionary(type => type, type => services.GetServices(type).OfType<object>().Count());
 
+    public IReadOnlyList<string> EventsHandledButNotSubscribed() =>
+        [.. registered.Keys
+            .SelectMany(type => services.GetServices(type).OfType<object>())
+            .Select(instance => instance.GetType())
+            .Distinct()
+            .SelectMany(handler => handler.GetInterfaces()
+                .Where(contract => contract.IsGenericType && contract.GetGenericTypeDefinition() == typeof(IHandle<>))
+                .Where(contract => !services.GetServices(contract).OfType<object>().Any(subscribed => subscribed.GetType() == handler))
+                .Select(contract => $"{handler.Name} handles {contract.GenericTypeArguments[0].Name} but is not registered as IHandle<{contract.GenericTypeArguments[0].Name}>"))
+            .Order()];
+
     public T Get<T>()
         where T : notnull =>
         services.GetRequiredService<T>();

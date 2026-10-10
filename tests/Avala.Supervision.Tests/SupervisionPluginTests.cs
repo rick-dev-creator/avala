@@ -22,6 +22,15 @@ public sealed class SupervisionPluginTests
     }
 
     [Fact]
+    public async Task EveryHandlerIsSubscribedToEachEventItHandlesAsync()
+    {
+        await using var data = new TemporaryFolder();
+        await using var composition = Compose(data);
+
+        Assert.Empty(composition.EventsHandledButNotSubscribed());
+    }
+
+    [Fact]
     public async Task EachServiceOfferedUnderSeveralContractsIsOneInstanceAsync()
     {
         await using var data = new TemporaryFolder();

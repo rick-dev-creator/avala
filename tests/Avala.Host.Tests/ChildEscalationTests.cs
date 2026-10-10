@@ -51,6 +51,21 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AParentsConversationShowsTheSubAgentWaitingForItsAnswerAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", AsksParent));
+        var told = run.Watch<ParentAsked>();
+        var workbench = await run.WorkbenchAsync();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the orders database")));
+        _ = await told.UntilAsync(_ => true);
+
+        var conversation = await workbench.SelectAsync(parent);
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "ChildAskingViewModel") is not null);
+
+        Assert.Matches("^Sub-agent \".+Migrate the.+\" is waiting for this job$", Assert.Single(await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "ChildAskingViewModel", "Headline"))));
+    }
+
+    [Fact]
     public async Task AParentBlockedOnTwoDelegateCallsHearsEachChildThroughItsCallsAndGetsBothReportsByWaitingAgainAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", AsksParent));
