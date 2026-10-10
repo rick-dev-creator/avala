@@ -68,10 +68,19 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
                 ("one", "[simulate: reply] Greet the team"),
                 ("two", "[simulate: reply] Greet the new hires"),
                 ("three", "[simulate: reply] Greet the customers"))));
+        var taken = run.Watch<LoopTaskTaken>();
+        var iterated = run.Watch<LoopIterated>();
         var tripped = run.Watch<BreakerTripped>();
         var ended = run.Watch<LoopEnded>();
 
         _ = Outcomes.Succeeds(await run.Get<IAutopilot>().StartAsync(new LoopRequest(run.Repository.Path) { AttemptsPerRound = 1 }, Cancellation));
+
+        foreach (var number in (int[])[1, 2])
+        {
+            _ = await taken.UntilAsync(task => task.Iteration == number);
+            _ = await iterated.UntilAsync(iteration => iteration.Iteration.Number == number);
+        }
+
         var trip = (await tripped.UntilAsync(_ => true)).Trip;
         var state = (await ended.UntilAsync(_ => true)).State;
 
