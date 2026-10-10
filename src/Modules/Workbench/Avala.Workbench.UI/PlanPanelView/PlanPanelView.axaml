@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:events="using:Avala.Agents.Contracts.Events"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.PlanPanelView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IPlanPanelViewModel"
+             Classes.expanded="{Binding IsExpanded}"
+             IsVisible="{Binding IsShown}">
+  <Design.DataContext>
+    <conversation:DesignPlanPanelViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#PlanToggle">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Button#PlanToggle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Path#PlanChevron">
+      <Setter Property="Data" Value="{StaticResource IconChevronRight}" />
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector=":is(UserControl).expanded Path#PlanChevron">
+      <Setter Property="Data" Value="{StaticResource IconChevronDown}" />
+    </Style>
+    <Style Selector="Grid.step TextBlock.step">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="Grid.step.done TextBlock.step">
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+      <Setter Property="TextDecorations" Value="Strikethrough" />
+    </Style>
+    <Style Selector="Grid.step.active TextBlock.step">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="PlanBox"
+          Margin="0,0,0,8"
+          Padding="6,4"
+          BorderBrush="{DynamicResource SeparatorBrush}"
+          BorderThickness="1"
+          CornerRadius="{DynamicResource RadiusBlock}"
+          Background="{DynamicResource FillQuietBrush}">
+    <StackPanel Spacing="4">
+      <Button x:Name="PlanToggle"
+              Classes="line"
+              Command="{Binding ToggleCommand}"
+              AutomationProperties.Name="Show the plan">
+        <Grid ColumnDefinitions="14,Auto,*,Auto,Auto" ColumnSpacing="8">
+          <Ellipse Width="11"
+                   Height="11"
+                   Stroke="{DynamicResource RingBrush}"
+                   StrokeThickness="1.5"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+          <TextBlock x:Name="PlanCaption" Grid.Column="1" Classes="caption" Text="Plan" VerticalAlignment="Center" />
+          <TextBlock x:Name="PlanCurrent"
+                     Grid.Column="2"
+                     Text="{Binding Current}"
+                     TextTrimming="CharacterEllipsis"
+                     VerticalAlignment="Center" />
+          <TextBlock x:Name="PlanProgress" Grid.Column="3" Classes="caption" Text="{Binding Progress}" VerticalAlignment="Center" />
+          <Path x:Name="PlanChevron" Grid.Column="4" Classes="icon small" VerticalAlignment="Center" />
+        </Grid>
+      </Button>
+      <ItemsControl x:Name="PlanSteps"
+                    Margin="6,2,6,6"
+                    ItemsSource="{Binding Steps}"
+                    Classes.fold-in="{Binding IsExpanded}"
+                    IsVisible="{Binding IsExpanded}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="events:PlanStep">
+            <Grid ColumnDefinitions="13,*"
+                  ColumnSpacing="10"
+                  Classes="step"
+                  Classes.done="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Done}"
+                  Classes.active="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=InProgress}">
+              <Path Width="13"
+                    Height="13"
+                    Stretch="Uniform"
+                    StrokeThickness="1.6"
+                    StrokeLineCap="Round"
+                    StrokeJoin="Round"
+                    Stroke="{DynamicResource TextTertiaryBrush}"
+                    Data="{StaticResource IconCheck}"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Done}" />
+              <Ellipse Width="11"
+                       Height="11"
+                       Stroke="{DynamicResource DotPendingBrush}"
+                       StrokeThickness="1.5"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Pending}" />
+              <Ellipse Width="7"
+                       Height="7"
+                       Fill="{DynamicResource TextPrimaryBrush}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=InProgress}" />
+              <TextBlock Grid.Column="1" Classes="step" Text="{Binding Title}" VerticalAlignment="Center" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
+</UserControl>

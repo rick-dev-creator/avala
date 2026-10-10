@@ -60,6 +60,19 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ThePlansFinalStateShowsWithTheStepsLeftAndNothingWithoutAPlanAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Tall(Screen.Show(new DesignReviewViewModel()));
+            var without = Tall(Screen.Show(new DesignReviewViewModel { Plan = string.Empty, PlanLeft = [] }));
+
+            Assert.Equal((true, "Plan · 3 of 4 steps done"), (view.Shows("PlanState"), view.TextOf("PlanSummary")));
+            Assert.Contains("In progress · Document the new limit", view.VisibleTexts);
+            Assert.True(view.Shows("Approve"));
+            Assert.False(without.Shows("PlanState"));
+        }, Cancellation);
+
+    [Fact]
     public Task AQueuedMessageShowsAboveTheFeedbackWithItsOwnSendBackAsync() =>
         ui.RunAsync(() =>
         {
