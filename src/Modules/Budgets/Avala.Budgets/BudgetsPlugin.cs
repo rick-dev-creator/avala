@@ -41,6 +41,7 @@ public sealed class BudgetsPlugin : IPlugin
             .AddSingleton<IConnectionSelector, CapacitySelector>()
             .AddSingleton<BudgetActions>()
             .AddSingleton<IHandle<SessionOpened>, BudgetLoader>()
+            .AddSingleton<JobBreaches>()
             .AddSingleton<BudgetEnforcer>()
             .AddForwarded<IHandle<BudgetLoaded>, BudgetEnforcer>()
             .AddForwarded<IHandle<JobSessionStarted>, BudgetEnforcer>()

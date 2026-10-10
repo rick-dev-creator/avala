@@ -17,7 +17,7 @@ internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn
             integrationEvent.Session,
             (found, token) => hold.Settled(integrationEvent.Turn)
                 ? Task.CompletedTask
-                : evaluate.ExecuteAsync(found, integrationEvent.Session, integrationEvent.Outcome, token),
+                : evaluate.ExecuteAsync(found, new FinishedTurn(integrationEvent.Session, integrationEvent.Turn), integrationEvent.Outcome, token),
             cancellationToken);
 
     public async ValueTask HandleAsync(SessionEnded integrationEvent, CancellationToken cancellationToken) =>

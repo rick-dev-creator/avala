@@ -15,6 +15,8 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
 
     private ImmutableDictionary<JobId, BudgetBreach> overspent = ImmutableDictionary<JobId, BudgetBreach>.Empty;
 
+    private ImmutableHashSet<JobId> ended = [];
+
     private ImmutableList<BudgetIntervention> earlier = [];
     private ImmutableList<BudgetIntervention> interventions = [];
     private ImmutableList<BudgetCarve> earlierCarves = [];
@@ -66,6 +68,11 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
 
     public void KeepSpending(JobId job, Option<BudgetBreach> breach) =>
         ImmutableInterlocked.Update(ref overspent, kept => breach.Match(found => kept.SetItem(job, found), () => kept.Remove(job)));
+
+    public bool Ended(JobId job) => Volatile.Read(ref ended).Contains(job);
+
+    public void KeepStatus(JobId job, JobStatus status) =>
+        ImmutableInterlocked.Update(ref ended, known => status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed ? known.Add(job) : known.Remove(job));
 
     public Option<BudgetCarve> CarveOf(JobId child) => Carves.LastOrDefault(carve => carve.Child == child).ToOption();
 }

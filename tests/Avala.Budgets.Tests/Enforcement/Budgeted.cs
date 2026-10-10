@@ -20,13 +20,15 @@ internal sealed class Budgeted
     public static readonly ConnectionName Connection = new("work");
 
     private readonly BudgetEnforcer enforcer;
+    private readonly JobBreaches breaches;
     private readonly Usage usage = new();
 
     public Budgeted(Option<JobRejection> rejection = default)
     {
         Jobs = new HoldingJobs(rejection);
         Book = new BudgetBook(new FixedMachine(), Store);
-        enforcer = new BudgetEnforcer(Book, usage, [Resources], new BudgetActions(Book, Jobs, Bus, Clock));
+        breaches = new JobBreaches(Book, usage);
+        enforcer = new BudgetEnforcer(Book, breaches, [Resources], new BudgetActions(Book, Jobs, Bus, Clock));
     }
 
     public MeasuredResources Resources { get; } = new();
@@ -40,6 +42,8 @@ internal sealed class Budgeted
     public BudgetBook Book { get; }
 
     public HoldingJobs Jobs { get; }
+
+    public HeldTallies Tallies { get; } = new();
 
     public List<ConnectionName> ReadFor { get; } = [];
 
@@ -85,9 +89,11 @@ internal sealed class Budgeted
 
     public async Task SpendAsync(JobId job, TokenUsage tokens, params Cost[] costs)
     {
-        usage.Jobs[job] = new UsageSummary(tokens, costs, 0, default, []);
+        Tally(job, tokens, costs);
         await enforcer.HandleAsync(new UsageRecorded(SessionId.New(), job), Cancellation);
     }
+
+    public void Tally(JobId job, TokenUsage tokens, params Cost[] costs) => usage.Jobs[job] = new UsageSummary(tokens, costs, 0, default, []);
 
     public async Task ReachAsync(UsageLimit limit)
     {
@@ -97,8 +103,10 @@ internal sealed class Budgeted
 
     public async Task HeldAsync(JobHold hold) => await enforcer.HandleAsync(new JobHeld(hold), Cancellation);
 
-    public ValueTask<GateVerdict> JudgeTurnAsync() =>
-        new SpendGate(Book).EvaluateAsync(new CompletedAttempt(Job, 1, "/worktrees/1", "Greet the team"), Cancellation);
+    public ValueTask<GateVerdict> JudgeTurnAsync() => JudgeAsync(Option<FinishedTurn>.None);
+
+    public ValueTask<GateVerdict> JudgeAsync(Option<FinishedTurn> turn) =>
+        new SpendGate(Book, breaches, Tallies).EvaluateAsync(new CompletedAttempt(Job, 1, "/worktrees/1", "Greet the team") { Turn = turn }, Cancellation);
 
     public async Task MeasureAsync(long memoryBytes)
     {
@@ -127,6 +135,22 @@ internal sealed class Budgeted
         public IReadOnlyList<PortConflict> Conflicts() => [];
 
         public ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    internal sealed class HeldTallies : IUsageTally
+    {
+        private readonly TaskCompletionSource asked = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource tallied = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Asked => asked.Task;
+
+        public void Release() => tallied.TrySetResult();
+
+        public async Task TalliedAsync(SessionId session, TurnId turn, CancellationToken cancellationToken)
+        {
+            asked.TrySetResult();
+            await tallied.Task.WaitAsync(cancellationToken);
+        }
     }
 
     internal sealed class FixedMachine : Avala.Budgets.Admission.IMachineBudgetFile

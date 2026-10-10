@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 
 namespace Avala.Jobs.Contracts;
@@ -7,7 +8,12 @@ public interface ICompletionGate
     ValueTask<GateVerdict> EvaluateAsync(CompletedAttempt attempt, CancellationToken cancellationToken);
 }
 
-public sealed record CompletedAttempt(JobId Job, int Attempt, string WorkingDirectory, string Instruction);
+public sealed record CompletedAttempt(JobId Job, int Attempt, string WorkingDirectory, string Instruction)
+{
+    public Option<FinishedTurn> Turn { get; init; }
+}
+
+public sealed record FinishedTurn(SessionId Session, TurnId Turn);
 
 public enum GateDecision
 {

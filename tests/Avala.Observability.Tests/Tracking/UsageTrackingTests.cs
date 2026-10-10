@@ -194,6 +194,27 @@ public sealed class UsageTrackingTests
             tracked.Bus.Published);
     }
 
+    [Fact]
+    public async Task ATurnIsTalliedOnceItsCompletionIsSeenAfterItsUsageAsync()
+    {
+        using var tracked = new Tracked();
+        var job = JobId.New();
+        var session = await tracked.OpenAsync(Claude, job);
+        var turn = TurnId.New();
+        var earlier = TurnId.New();
+        await tracked.SeeAsync(new TurnStarted(session, earlier), new TurnCompleted(session, earlier, TurnOutcome.Finished), new TurnStarted(session, turn));
+
+        var tallied = tracked.Book.TalliedAsync(session, turn, TestContext.Current.CancellationToken);
+        var waited = !tallied.IsCompleted;
+        await tracked.SeeAsync(new UsageReported(session, turn, new TokenUsage(100, 10, 0, 0, 0), new Cost(0.02m, "USD")), new TurnCompleted(session, turn, TurnOutcome.Finished));
+        await tallied;
+        var spent = Outcomes.Present(tracked.Book.OfJob(job));
+        await tracked.Book.TalliedAsync(session, earlier, TestContext.Current.CancellationToken);
+
+        Assert.True(waited);
+        Assert.Equal([new Cost(0.02m, "USD")], spent.Costs);
+    }
+
     private static async Task TurnAsync(Tracked tracked, SessionId session, TurnOutcome outcome, TimeSpan duration)
     {
         var turn = TurnId.New();

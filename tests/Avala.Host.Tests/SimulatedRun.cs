@@ -404,7 +404,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             Leased = Watch<PortsLeased>();
             Queued = Watch<JobQueued>();
             Sampled = Watch<ResourcesSampled>();
-            Started = Watch<StartupCompleted>();
+            Started = new(Feed.SubscribeAsync<StartupCompleted>(subscriptions.Token), Feed.SubscribeAsync<StartupProgressed>(subscriptions.Token), Cancellation);
             Reported = Watch<ChildReported>();
             Delivered = Watch<ReportDelivered>();
         }

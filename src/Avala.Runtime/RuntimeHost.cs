@@ -23,6 +23,7 @@ public static partial class RuntimeHost
                 foreach (var task in services.GetServices<IStartupTask>().OrderBy(task => task.Stage))
                 {
                     await task.RunAsync(cancellationToken);
+                    await bus.PublishAsync(new StartupProgressed(task.GetType().Name, task.Stage), cancellationToken);
                 }
 
                 await bus.PublishAsync(new StartupCompleted(), cancellationToken);

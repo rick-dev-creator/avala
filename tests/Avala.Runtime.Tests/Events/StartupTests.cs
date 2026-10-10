@@ -13,7 +13,7 @@ public sealed class StartupTests
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task StartupCompletedIsPublishedOnceEveryStartupTaskRanAsync()
+    public async Task EachStartupTaskReportsItsProgressAndStartupCompletesOnceEveryOneRanAsync()
     {
         using var data = new TemporaryFolder();
         var ran = new List<string>();
@@ -25,11 +25,15 @@ public sealed class StartupTests
             .BuildServiceProvider();
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
         var completions = new EventWatch<StartupCompleted>(services.GetRequiredService<IEventFeed>().SubscribeAsync<StartupCompleted>(lifetime.Token), lifetime.Token);
+        var progress = new EventWatch<StartupProgressed>(services.GetRequiredService<IEventFeed>().SubscribeAsync<StartupProgressed>(lifetime.Token), lifetime.Token);
         var running = services.RunAsync(lifetime.Token);
 
         _ = await completions.UntilAsync(_ => true);
+        var noted = 0;
+        var finished = await progress.CollectUntilAsync(progressed => progressed.Task == nameof(Noting) && ++noted == 2);
 
         Assert.Equal(["first", "second"], ran);
+        Assert.Equal([new StartupProgressed(nameof(Noting), StartupStage.Restore), new StartupProgressed(nameof(Noting), StartupStage.Restore)], finished.TakeLast(2));
         await lifetime.CancelAsync();
         await running;
     }
