@@ -140,7 +140,10 @@ internal sealed class DelegationDesk(Delegator delegator, ChildReporter reporter
             called.Session,
             parent,
             worktrees.TryGetValue(called.Session, out var worktree) ? worktree : Option<string>.None,
-            pending.Values.Count(waiting => parent.IsSome && waiting.Parent == parent));
+            pending.Values.Count(waiting => parent.IsSome && waiting.Parent == parent))
+        {
+            Role = parent.Bind(book.OfChild).Match(record => record.Role, () => ChildRole.Worker),
+        };
         var delegated = await delegator.DelegateAsync(called, caller, cancellationToken);
 
         foreach (var (child, record) in delegated.Match<Delegated[]>(started => [started], () => []))

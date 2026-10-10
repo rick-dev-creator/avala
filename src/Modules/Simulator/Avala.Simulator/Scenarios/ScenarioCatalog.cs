@@ -502,6 +502,10 @@ internal static class ScenarioCatalog
 
     public const string Delegate = "delegate";
 
+    public const string AnswerChild = "answer_child";
+
+    public const string WaitChild = "wait_child";
+
     public static string NameIn(string firstMessage) =>
         Tagged(firstMessage, ReplayRequest.TimedTag).Match(
             recording => new ReplayRequest(recording, AsRecorded: true).Scenario,

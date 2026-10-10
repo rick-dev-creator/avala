@@ -59,6 +59,8 @@ internal sealed class FakeAudit : IVerifications, IPermissionAudit, IBudgets
 
     public List<HumanAnswer> Answers { get; } = [];
 
+    public List<HumanAnswer> Given { get; } = [];
+
     public Dictionary<SessionId, SessionAutonomy> Autonomies { get; } = [];
 
     public Dictionary<SessionId, SessionBudget> Budgets { get; } = [];
@@ -84,6 +86,8 @@ internal sealed class FakeAudit : IVerifications, IPermissionAudit, IBudgets
     public IReadOnlyList<FormDecision> FormsOfJob(JobId job) => Forms;
 
     public IReadOnlyList<HumanAnswer> AnswersOfJob(JobId job) => Answers;
+
+    public IReadOnlyList<HumanAnswer> AnswersGivenBy(JobId parent) => Given;
 
     public Option<SessionBudget> BudgetOf(SessionId session) => Budgets.TryGetValue(session, out var found) ? found : Option<SessionBudget>.None;
 

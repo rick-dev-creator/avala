@@ -33,7 +33,7 @@ public sealed class FormDecisionTests
     private readonly SessionGovernor governor;
 
     public FormDecisionTests() =>
-        governor = new SessionGovernor(book, new NoPolicyFiles(), new PermissionResponder(agents, new SymbolicLinks(), new FakeTimeProvider(Now)), bus);
+        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(agents, new SymbolicLinks(), new FakeTimeProvider(Now)), bus);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 

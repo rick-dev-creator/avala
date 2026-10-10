@@ -32,6 +32,20 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ASubAgentsDecisionShowsItsParentsHeadingAndThatItWaitsForItsParentAsync() =>
+        ui.RunAsync(() =>
+        {
+            var child = Workbench.Decisions.DesignDecisionViewModel.Permission(JobId.New(), "Migrate the database", "Run dotnet ef database update", "dotnet ef database update", "1m", heading: "Sub-agents of Ship the release", status: "Waiting for its parent");
+            var root = Workbench.Decisions.DesignDecisionViewModel.Permission(JobId.New(), "Ship the release", "Run dotnet test", "dotnet test", "2m");
+
+            var shown = Screen.Show(child);
+            var plain = Screen.Show(root);
+
+            Assert.Equal(("Sub-agents of Ship the release", "Waiting for its parent"), (shown.TextOf("Heading"), shown.TextOf("Status")));
+            Assert.Equal((false, "Waiting for you"), (plain.Shows("Heading"), plain.TextOf("Status")));
+        }, Cancellation);
+
+    [Fact]
     public Task ALongCommandShowsWholeInABoundedScrollingWellWithWhatItWritesAboveAllowAsync() =>
         ui.RunAsync(() =>
         {

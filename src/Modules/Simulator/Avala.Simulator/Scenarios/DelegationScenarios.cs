@@ -200,10 +200,65 @@ internal static class DelegationScenarios
         ],
     ]);
 
+    public static Scenario DelegatedAsking { get; } = new("delegate-asks-parent",
+    [
+        [
+            Thought("The migration is routine. ", "A supervised sub-agent will run it and ask me first."),
+            new CallTools([Delegation("delegate-migrate", """{ "instruction": "[simulate: permission] Migrate the database", "autonomy": "supervised" }""")])
+            {
+                AnswersChildren = "allow",
+            },
+            Message("The migration came back."),
+            .. Bill(1_800, 130, 0.0070m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario DelegatedAskingAlongside { get; } = new("delegate-asks-parent-alongside",
+    [
+        [
+            Thought("Two pieces of work at once. ", "Each sub-agent will ask me first."),
+            new CallTools(
+            [
+                Delegation("delegate-migrate", """{ "instruction": "[simulate: permission] Migrate the database", "autonomy": "supervised" }"""),
+                Delegation("delegate-seed", """{ "instruction": "[simulate: permission] Seed the database", "autonomy": "supervised" }"""),
+            ])
+            {
+                AnswersChildren = "allow",
+            },
+            Message("Both pieces of work came back."),
+            .. Bill(2_000, 150, 0.0075m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario DelegatedReview { get; } = new("delegate-review",
+    [
+        [
+            Thought("The notes need a second pair of eyes. ", "A reviewer will read them."),
+            Delegation("delegate-review", """{ "instruction": "[simulate: review] Review the release notes", "role": "reviewer" }"""),
+            Message("The review came back."),
+            .. Bill(1_600, 110, 0.0060m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario Review { get; } = new("review",
+    [
+        [
+            Thought("Reading the notes. ", "I will write my findings down."),
+            new WriteFile(new ItemId("review"), "REVIEW.md", "# Review\n\nThe notes read well.\n"),
+            Message("The notes read well."),
+            .. Bill(1_200, 80, 0.0045m, 0.20),
+            new Finish(),
+        ],
+    ]);
+
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedOnModels, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
-        Notes, RevisedNotes, Todo, Expensive, PausedNotes,
+        DelegatedAsking, DelegatedAskingAlongside, DelegatedReview,
+        Notes, RevisedNotes, Todo, Expensive, PausedNotes, Review,
     ];
 
     private static CallTool Delegation(string item, string input) => new(new ItemId(item), ScenarioCatalog.Delegate, input);

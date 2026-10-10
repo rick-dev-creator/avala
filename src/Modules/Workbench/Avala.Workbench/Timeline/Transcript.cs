@@ -24,6 +24,22 @@ internal sealed record Transcript
     public IEnumerable<ITimelineEntry> Awaiting =>
         Entries.Where(entry => entry is PermissionEntry { AwaitsHuman: true } or FormEntry { AwaitsHuman: true });
 
+    public IEnumerable<ITimelineEntry> Pending =>
+        Entries.Where(entry => entry is PermissionEntry { AwaitsHuman: true } or PermissionEntry { AwaitsParent: true } or FormEntry { AwaitsHuman: true } or FormEntry { AwaitsParent: true });
+
+    public Transcript Asked(SessionId session, ItemId item, string child, string asking, string note)
+    {
+        var told = Entries.OfType<InterjectionEntry>().LastOrDefault(entry => entry.Text == note);
+        var key = told is null ? EntryKeys.ChildAsking(session, item) : told.Key;
+
+        return Put(new ChildAskingEntry(key, session, item, child, asking));
+    }
+
+    public Transcript ChildDecided(SessionId session, ItemId item, Func<ChildAskingEntry, ChildAskingEntry> change) =>
+        Entries.OfType<ChildAskingEntry>().LastOrDefault(entry => entry.Session == session && entry.Item == item) is { } asked
+            ? Put(change(asked))
+            : this;
+
     public Option<ModelReported> Ran { get; private init; }
 
     public Option<PlanEntry> Plan => Entries.OfType<PlanEntry>().LastOrDefault().ToOption();

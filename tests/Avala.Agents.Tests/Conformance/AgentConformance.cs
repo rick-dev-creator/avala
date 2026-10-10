@@ -282,7 +282,7 @@ internal static class AgentConformance
         ];
     }
 
-    private static bool Accepts(IAgentProvider provider, SessionOptions options, ToolSurface surface) =>
+    internal static bool Accepts(IAgentProvider provider, SessionOptions options, ToolSurface surface) =>
         provider.CapabilitiesOn(options.Connection).Get<AcceptsTools>().Match(accepted => accepted.Accepts(surface), () => false);
 
     private static bool IsReference(CredentialReference credential) => credential.Source switch
@@ -316,7 +316,7 @@ internal static class AgentConformance
     internal static Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, CancellationToken deadline) =>
         RunAsync(provider, options, instruction, Allowing, deadline);
 
-    private static async Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, Replies replies, CancellationToken deadline)
+    internal static async Task<Run> RunAsync(IAgentProvider provider, SessionOptions options, UserTurn instruction, Replies replies, CancellationToken deadline)
     {
         try
         {
@@ -462,7 +462,7 @@ internal static class AgentConformance
             _ => [],
             error => [$"the form {requested.Item.Value} could not be answered: {error}"]);
 
-    private static async Task<IReadOnlyList<string>> ReturnAsync(IAgentSession session, ToolCalled called, CancellationToken deadline) =>
+    internal static async Task<IReadOnlyList<string>> ReturnAsync(IAgentSession session, ToolCalled called, CancellationToken deadline) =>
         (await session.ReturnAsync(KitResult(called.Item), deadline)).Match<IReadOnlyList<string>>(
             _ => [],
             error => [$"the result of the call {called.Item.Value} could not be returned: {error}"]);
@@ -584,13 +584,13 @@ internal static class AgentConformance
         }
     }
 
-    private sealed record Replies(
+    internal sealed record Replies(
         Func<PermissionRequested, PermissionDecision> Permission,
         Func<IAgentSession, FormRequested, CancellationToken, Task<IReadOnlyList<string>>> Form,
         Func<IAgentSession, ToolCalled, CancellationToken, Task<IReadOnlyList<string>>> Tool,
         Func<IAgentSession, IReadOnlyList<IAgentEvent>, CancellationToken, Task<IReadOnlyList<string>>> AfterTurn);
 
-    private static Replies Allowing { get; } = new(
+    internal static Replies Allowing { get; } = new(
         requested => new PermissionDecision(requested.Item, PermissionAnswer.Allow),
         FillAsync,
         ReturnAsync,

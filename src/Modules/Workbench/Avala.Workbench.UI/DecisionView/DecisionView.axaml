@@ -80,6 +80,7 @@
     </DataTemplate>
   </UserControl.DataTemplates>
   <StackPanel>
+    <TextBlock x:Name="Heading" Classes="caption" Margin="12,10,12,0" TextTrimming="CharacterEllipsis" Text="{Binding Heading}" IsVisible="{Binding HasHeading}" />
     <Grid x:Name="Row" ColumnDefinitions="Auto,*,Auto" Margin="12,10">
       <Border x:Name="Dot" Margin="0,0,10,0" VerticalAlignment="Center" />
       <StackPanel Grid.Column="1">
@@ -92,6 +93,7 @@
             </MultiBinding>
           </TextBlock.Text>
         </TextBlock>
+        <TextBlock x:Name="Status" Classes="caption" TextTrimming="CharacterEllipsis" Text="{Binding Status}" />
       </StackPanel>
       <TextBlock x:Name="Waiting" Grid.Column="2" Classes="caption" Text="{Binding Waiting}" Margin="12,0,0,0" VerticalAlignment="Center" />
     </Grid>
