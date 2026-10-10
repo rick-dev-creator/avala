@@ -446,6 +446,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public EventWatch<TEvent> Watch<TEvent>()
             where TEvent : IIntegrationEvent =>
-            new(Root.Services.GetRequiredService<IEventFeed>().SubscribeAsync<TEvent>(subscriptions.Token), Cancellation);
+            new(Feed.SubscribeAsync<TEvent>(subscriptions.Token), Feed.SubscribeAsync<JobProgressed>(subscriptions.Token), Cancellation);
+
+        private IEventFeed Feed => Root.Services.GetRequiredService<IEventFeed>();
     }
 }
