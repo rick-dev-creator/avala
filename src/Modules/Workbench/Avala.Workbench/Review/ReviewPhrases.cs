@@ -75,28 +75,12 @@ internal static class ReviewPhrases
 
     public static ExceptionPhrase Exception(IReviewException exception) => exception switch
     {
-        FailedAttempt failed => new(
-            string.Create(CultureInfo.InvariantCulture, $"Attempt {failed.Attempt} failed"),
-            string.Join(", ", failed.Checks.Select(Check)),
-            string.Empty,
-            string.Join("\n", failed.Checks.Select(Tail).Where(tail => tail.Length > 0))),
-        PolicyDenial denial => new(
-            $"Denied: {Request(denial.Decision.Kind, denial.Decision.Target)}",
-            denial.Decision.Rule.Match(rule => $"rule {rule.Name}", () => "default policy"),
-            denial.Decision.Rule.Match(rule => $"Denied by the rule {rule.Name}.", () => "Denied by the default policy."),
-            denial.Decision.Target),
-        HumanDenial denial => new(
-            $"You denied: {Request(denial.Answer.Kind, denial.Answer.Target)}",
-            "by you",
-            denial.Answer.Message.Match(message => message, () => string.Empty),
-            denial.Answer.Target),
+        FailedAttempt failed => Failed(failed),
+        PolicyDenial denial => Denied(denial.Decision),
+        HumanDenial denial => Denied(denial.Answer),
         DeclinedForm declined => new($"Declined: {declined.Form.Form.Title}", "form", string.Empty, string.Empty),
         MadeAssumption assumed => Assumed(assumed.Assumption),
-        ContinuedAfterHold held => new(
-            string.Create(CultureInfo.InvariantCulture, $"Held, then continued on attempt {held.Attempt.Number}"),
-            "held",
-            held.Attempt.Guidance.Match(guidance => guidance, () => string.Empty),
-            string.Empty),
+        ContinuedAfterHold held => Continued(held.Attempt),
         EditedRuleFile edited => new("The agent edited a rule file", edited.Path, "Its rules apply from the base commit, not from this edit.", string.Empty),
         _ => new("The diff could not be read", "rule files unproven", "Nothing proves the rule files are untouched.", string.Empty),
     };
@@ -186,6 +170,30 @@ internal static class ReviewPhrases
             (0, _) => string.Create(CultureInfo.InvariantCulture, $"−{removed}"),
             _ => string.Create(CultureInfo.InvariantCulture, $"+{added} −{removed}"),
         };
+
+    private static ExceptionPhrase Failed(FailedAttempt failed) => new(
+        string.Create(CultureInfo.InvariantCulture, $"Attempt {failed.Attempt} failed"),
+        string.Join(", ", failed.Checks.Select(Check)),
+        string.Empty,
+        string.Join("\n", failed.Checks.Select(Tail).Where(tail => tail.Length > 0)));
+
+    private static ExceptionPhrase Denied(PolicyDecision decision) => new(
+        $"Denied: {Request(decision.Kind, decision.Target)}",
+        decision.Rule.Match(rule => $"rule {rule.Name}", () => "default policy"),
+        decision.Rule.Match(rule => $"Denied by the rule {rule.Name}.", () => "Denied by the default policy."),
+        decision.Target);
+
+    private static ExceptionPhrase Denied(HumanAnswer answer) => new(
+        $"You denied: {Request(answer.Kind, answer.Target)}",
+        "by you",
+        answer.Message.Match(message => message, () => string.Empty),
+        answer.Target);
+
+    private static ExceptionPhrase Continued(AttemptRecord attempt) => new(
+        string.Create(CultureInfo.InvariantCulture, $"Held, then continued on attempt {attempt.Number}"),
+        "held",
+        attempt.Guidance.Match(guidance => guidance, () => string.Empty),
+        string.Empty);
 
     private static ExceptionPhrase Assumed(Assumption assumption) => new(
         $"Assumed {(assumption.Chosen.Count > 0 ? string.Join(", ", assumption.Chosen) : "the agent's judgment")} for \"{assumption.Prompt}\"",
