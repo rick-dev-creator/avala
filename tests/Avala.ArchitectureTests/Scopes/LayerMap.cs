@@ -96,6 +96,8 @@ internal static class LayerMap
             ["Resources"] = Layer.ViewModels,
             ["NewJob"] = Layer.ViewModels,
             ["ModelChoices"] = Layer.ViewModels,
+            ["Automation"] = Layer.Application,
+            ["Triggers"] = Layer.ViewModels,
         }),
         .. Module("Avala.Observability", new()
         {
@@ -247,6 +249,23 @@ internal static class LayerMap
             ["Briefing"] = Layer.Application,
             ["Records"] = Layer.Application,
             ["RuleFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.Triggers", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Declarations"] = Layer.Domain,
+            ["Webhooks"] = Layer.Domain,
+            ["Catalog"] = Layer.Application,
+            ["Scheduling"] = Layer.Application,
+            ["Firing"] = Layer.Application,
+            ["Looping"] = Layer.Application,
+            ["Receiving"] = Layer.Application,
+            ["Records"] = Layer.Application,
+            ["TriggerFiles"] = Layer.Infrastructure,
+            ["Listening"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
         }),

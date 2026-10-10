@@ -47,9 +47,22 @@ public sealed class PortBookTests
         var conflicts = PortBook.Conflicts(
             [one],
             [(30_000, 11), (30_001, 22), (30_002, Option<int>.None), (40_000, 22)],
-            homes);
+            homes,
+            own: 99);
 
         Assert.Equal([(30_001, one, Option<int>.Some(22)), (30_002, one, Option<int>.None)], conflicts);
+    }
+
+    [Fact]
+    public void ALeaseForAvalasOwnListenerIsMarkedOwnAndAvalaListeningOnItIsNoConflict()
+    {
+        var (_, lease) = PortBook.Open(new PortRange(30_000, 30_009, 10)).Lease("avala-webhooks", new HashSet<int>(), own: true);
+        var own = Outcomes.Present(lease);
+
+        var conflicts = PortBook.Conflicts([own], [(30_000, 99), (30_001, 22)], new Dictionary<int, string>(), own: 99);
+
+        Assert.Equal(new PortLease("avala-webhooks", 30_000, 30_009) { Own = true }, own);
+        Assert.Equal([(30_001, own, Option<int>.Some(22))], conflicts);
     }
 
     [Fact]

@@ -14,7 +14,7 @@ internal sealed record PortBook(PortRange Range, ImmutableList<PortLease> Leases
 
     public Option<PortLease> Of(string worktree) => Leases.FirstOrDefault(lease => lease.Worktree == worktree).ToOption();
 
-    public (PortBook Book, Option<PortLease> Lease) Lease(string worktree, IReadOnlySet<int> busy)
+    public (PortBook Book, Option<PortLease> Lease) Lease(string worktree, IReadOnlySet<int> busy, bool own = false)
     {
         if (Of(worktree).IsSome)
         {
@@ -25,9 +25,11 @@ internal sealed record PortBook(PortRange Range, ImmutableList<PortLease> Leases
             !Leases.Any(lease => lease.First == block.First)
             && !Enumerable.Range(block.First, block.Last - block.First + 1).Any(busy.Contains));
 
-        return free is null
+        var leased = free is null ? null : free with { Worktree = worktree, Own = own };
+
+        return leased is null
             ? (this, Option<PortLease>.None)
-            : (this with { Leases = Leases.Add(free with { Worktree = worktree }) }, free with { Worktree = worktree });
+            : (this with { Leases = Leases.Add(leased) }, leased);
     }
 
     public (PortBook Book, Option<PortLease> Released) Release(string worktree) =>
@@ -38,12 +40,13 @@ internal sealed record PortBook(PortRange Range, ImmutableList<PortLease> Leases
     public static IReadOnlyList<(int Port, PortLease Lease, Option<int> Process)> Conflicts(
         IReadOnlyList<PortLease> leases,
         IEnumerable<(int Port, Option<int> Process)> listening,
-        IReadOnlyDictionary<int, string> homes) =>
+        IReadOnlyDictionary<int, string> homes,
+        int own) =>
     [
         .. from listener in listening
            from lease in leases
            where listener.Port >= lease.First && listener.Port <= lease.Last
-           where !listener.Process.Match(process => homes.TryGetValue(process, out var home) && home == lease.Worktree, () => false)
+           where !listener.Process.Match(process => (lease.Own && process == own) || (homes.TryGetValue(process, out var home) && home == lease.Worktree), () => false)
            select (listener.Port, lease, listener.Process),
     ];
 

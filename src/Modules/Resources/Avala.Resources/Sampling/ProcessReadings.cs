@@ -44,7 +44,7 @@ internal sealed class ProcessReadings(IProcessTrees trees, IListeningPorts liste
             read.Add((tree, await tree.MembersAsync(cancellationToken)));
         }
 
-        var owners = read.SelectMany(tree => tree.Members).Select(member => member.Id).ToImmutableHashSet();
+        var owners = read.SelectMany(tree => tree.Members).Select(member => member.Id).Append(Environment.ProcessId).ToImmutableHashSet();
 
         return (read, await listening.ListAsync(owners, cancellationToken));
     }

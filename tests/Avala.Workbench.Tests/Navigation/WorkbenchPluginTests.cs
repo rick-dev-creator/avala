@@ -52,10 +52,10 @@ public sealed class WorkbenchPluginTests : IDisposable
         Assert.Equal(
             [typeof(EvidenceSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(DelegationSectionViewModel)],
             regions[ShellRegions.Inspector]);
-        Assert.Equal(["Jobs", "New job", "Overview", "Usage", "Resources", "Settings"], composition.All<IPage>().Select(page => page.Title));
+        Assert.Equal(["Jobs", "New job", "Overview", "Usage", "Resources", "Triggers", "Settings"], composition.All<IPage>().Select(page => page.Title));
         Assert.IsType<WorkbenchViewModel>(composition.All<IPage>()[0]);
         Assert.Equal(
-            [("Overview", "IconOverview"), ("Usage", "IconUsage"), ("Settings", "IconSettings")],
+            [("Overview", "IconOverview"), ("Usage", "IconUsage"), ("Triggers", "IconTriggers"), ("Settings", "IconSettings")],
             composition.All<IPage>().Where(page => page.Placement == PagePlacement.Navigation).Select(page => (page.Title, page.Icon)));
     }
 
@@ -90,6 +90,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IVerifications>(audit)
             .AddSingleton<Transcripts.Contracts.ITranscripts>(new FakeTranscripts())
             .AddSingleton<Handoffs.Contracts.IHandoffs>(new FakeHandoffs())
+            .AddSingleton<Avala.Triggers.Contracts.ITriggers>(new FakeTriggers())
             .AddSingleton<IPermissionAudit>(audit)
             .AddSingleton<IBudgets>(audit)
             .AddSingleton<IResources>(sources)
