@@ -7,7 +7,7 @@ if (args is not [var transcript])
 }
 
 var root = Repository.Root();
-var pricingPath = Path.Combine(root.FullName, ".method", "sessions", "pricing.json");
+var pricingPath = Path.Combine(root.FullName, ".method", "docs", "sessions", "pricing.json");
 
 if (!File.Exists(pricingPath))
 {
