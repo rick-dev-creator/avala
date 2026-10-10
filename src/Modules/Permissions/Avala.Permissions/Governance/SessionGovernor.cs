@@ -11,8 +11,16 @@ using Avala.Sdk.Events;
 namespace Avala.Permissions.Governance;
 
 internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, PermissionResponder responder, IEventBus bus)
-    : IHandle<SessionOpened>, IHandle<JobSessionStarted>, IHandle<AgentActivity>
+    : IHandle<SessionOpened>, IHandle<JobSessionStarted>, IHandle<AgentActivity>, IHandle<JobProgressed>
 {
+    public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
+    {
+        if (integrationEvent.Status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed)
+        {
+            await book.EndedAsync(new EndedJob(integrationEvent.Job, integrationEvent.Status), cancellationToken);
+        }
+    }
+
     public async ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
     {
         var read = await files.ReadAsync(integrationEvent.WorkingDirectory, cancellationToken);
@@ -43,7 +51,8 @@ internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, P
         switch (integrationEvent.Event)
         {
             case PermissionRequested requested:
-                var decision = await responder.DecideAsync(book.Of(requested.Session), requested, book.SessionRulesOf(requested.Session), cancellationToken);
+                var governed = book.Of(requested.Session);
+                var decision = await responder.DecideAsync(governed, requested, book.RulesOf(governed), cancellationToken);
                 await book.DecidedAsync(decision, cancellationToken);
                 await bus.PublishAsync(new PermissionDecided(decision), cancellationToken);
                 break;

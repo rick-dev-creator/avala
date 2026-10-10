@@ -119,6 +119,27 @@ public sealed class SessionGovernorTests
         Assert.Equal(effective, book.Of(session).Policy.Autonomy);
     }
 
+    [Theory]
+    [InlineData(JobStatus.Approved, true)]
+    [InlineData(JobStatus.Discarded, true)]
+    [InlineData(JobStatus.Failed, true)]
+    [InlineData(JobStatus.AwaitingReview, false)]
+    [InlineData(JobStatus.NeedsHelp, false)]
+    public async Task AJobLosesItsRulesWhenItEndsAndTheEndIsStoredAsync(JobStatus status, bool ends)
+    {
+        var (job, other) = (JobId.New(), JobId.New());
+        var rule = Remembering.ForJob(ItemKind.Command, "dotnet ef database update", PolicyAnswer.Allow);
+        book.Remember(job, rule);
+        book.Remember(other, rule);
+        var governor = await OpenAsync(PermissionPolicy.BuiltIn);
+
+        await governor.HandleAsync(new JobProgressed(job, status), Cancellation);
+
+        Assert.Equal(ends ? [] : [rule], book.JobRulesOf(job));
+        Assert.Equal([rule], book.JobRulesOf(other));
+        Assert.Equal(ends ? [new EndedJob(job, status)] : [], store.Recorded.OfType<EndedJob>());
+    }
+
     private Task<SessionGovernor> OpenAsync(PermissionPolicy policy) => OpenAsync(Option<PermissionPolicy>.Some(policy));
 
     private async Task<SessionGovernor> OpenAsync(Result<Option<PermissionPolicy>, PolicyError> file)

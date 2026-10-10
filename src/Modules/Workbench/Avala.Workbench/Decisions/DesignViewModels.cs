@@ -75,6 +75,14 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
 
     public string DontAskAgainScope => IsPermission ? CardPhrases.DontAskAgainScope(Agents.Contracts.Events.ItemKind.Command) : string.Empty;
 
+    public bool OffersAlwaysInRepository => IsPermission;
+
+    public bool AlwaysInRepository { get; set; }
+
+    public string AlwaysInRepositoryLabel => CardPhrases.AlwaysInRepository;
+
+    public string AlwaysInRepositoryScope => Card is IPermissionCardViewModel permission ? permission.AlwaysInRepositoryScope : string.Empty;
+
     public string Waiting { get; init; }
 
     public bool IsSelected { get; init; }

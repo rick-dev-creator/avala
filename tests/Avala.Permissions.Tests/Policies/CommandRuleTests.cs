@@ -125,15 +125,26 @@ public sealed class CommandRuleTests
     }
 
     [Fact]
-    public void ATargetlessCommandRuleAndASessionRuleForTheExactLineCoverWhatCannotBeAnalysed()
+    public void ATargetlessCommandRuleAndAJobRuleForTheExactLineCoverWhatCannotBeAnalysed()
     {
         var anything = PermissionPolicy.With([new(RuleOrigin.Repository, "any command", ItemKind.Command, Option<string>.None, RuleScope.Anywhere, PolicyAnswer.Allow)]);
-        PolicyRule[] session = [new(RuleOrigin.Session, "don't ask again", ItemKind.Command, "echo $(date) > when.log", RuleScope.Anywhere, PolicyAnswer.Allow)];
+        PolicyRule[] job = [new(RuleOrigin.Job, "don't ask again for this job", ItemKind.Command, "echo $(date) > when.log", RuleScope.Anywhere, PolicyAnswer.Allow)];
 
         Assert.Equal(PolicyAnswer.Allow, anything.Decide(Command("echo $(date) | sudo tee x")).Answer);
         Assert.Equal(PolicyAnswer.Ask, anything.Decide(Command("echo x > /tmp/when.log")).Answer);
-        Assert.Equal(PolicyAnswer.Allow, Policy.Decide(Command("echo $(date) > when.log"), session).Answer);
-        Assert.Equal(PolicyAnswer.Ask, Policy.Decide(Command("echo $(date) > other.log"), session).Answer);
+        Assert.Equal(PolicyAnswer.Allow, Policy.Decide(Command("echo $(date) > when.log"), job).Answer);
+        Assert.Equal(PolicyAnswer.Ask, Policy.Decide(Command("echo $(date) > other.log"), job).Answer);
+    }
+
+    [Fact]
+    public void AJobRuleFromAChainedLineAnswersExactlyThatLineAndNeverBroadensToWhatItChains()
+    {
+        PolicyRule[] job = [Remembering.ForJob(ItemKind.Command, "make build; make deploy", PolicyAnswer.Allow)];
+
+        Assert.Equal(PolicyAnswer.Allow, PermissionPolicy.BuiltIn.Decide(Command("make build; make deploy"), job).Answer);
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command("make deploy"), job).Answer);
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command("make build; make deploy; make clean"), job).Answer);
+        Assert.Equal(PolicyAnswer.Ask, PermissionPolicy.BuiltIn.Decide(Command("make build; make deploy > /tmp/deploy.log"), job).Answer);
     }
 
     [Fact]

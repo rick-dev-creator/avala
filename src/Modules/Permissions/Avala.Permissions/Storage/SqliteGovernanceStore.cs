@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
@@ -27,6 +28,9 @@ internal sealed class SqliteGovernanceStore(AvalaPaths paths) : IGovernanceStore
     public Task RecordAsync(HumanAnswer answer, CancellationToken cancellationToken) =>
         AddAsync(StoredFact.Of(FactKind.Answer, answer.Session, answer.Job, answer.At, answer), cancellationToken);
 
+    public Task RecordAsync(EndedJob ended, CancellationToken cancellationToken) =>
+        AddAsync(StoredFact.Of(FactKind.Ended, new SessionId(Guid.Empty), ended.Job, DateTimeOffset.MinValue, ended), cancellationToken);
+
     public Task<GovernanceHistory> EarlierRunsAsync(CancellationToken cancellationToken) =>
         RunAsync(
             async database =>
@@ -40,7 +44,10 @@ internal sealed class SqliteGovernanceStore(AvalaPaths paths) : IGovernanceStore
                     [.. rows[FactKind.Autonomy].Select(row => row.Read<SessionAutonomy>())],
                     [.. rows[FactKind.Decision].Select(row => row.Read<PolicyDecision>())],
                     [.. rows[FactKind.Form].Select(row => row.Read<FormDecision>())],
-                    [.. rows[FactKind.Answer].Select(row => row.Read<HumanAnswer>())]);
+                    [.. rows[FactKind.Answer].Select(row => row.Read<HumanAnswer>())])
+                {
+                    Ended = rows[FactKind.Ended].Select(row => row.Read<EndedJob>().Job).ToHashSet(),
+                };
             },
             cancellationToken);
 

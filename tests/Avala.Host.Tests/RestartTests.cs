@@ -5,6 +5,7 @@ using System.Text.Json;
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 
@@ -285,6 +286,42 @@ public sealed class RestartTests(PublishedPlugins plugins)
         Assert.Contains(
             "Asked you Command dotnet ef database update · unanswered, its session ended",
             await run.Ui.ReadAsync(() => audit["Decisions"].Value<IReadOnlyList<string>>()));
+    }
+
+    [Fact]
+    public async Task DontAskAgainForThisJobAnswersTheSameRequestInTheNewSessionARestartAndARetryOpenAsync()
+    {
+        using var verdicts = new TcpListener(IPAddress.Loopback, 0);
+        verdicts.Start();
+        await using var run = await SimulatedRun.StartAsync(plugins, "permission", (".avala/checks.json", VerdictChecks(verdicts)));
+        var first = await run.DecisionAsync();
+        var answer = Outcomes.Succeeds(await run.Get<IPermissionAnswers>().AnswerAsync(
+            first.Session,
+            new PermissionReply(first.Item, Agents.Contracts.Events.PermissionAnswer.Allow) { Remember = Remember.ForThisJob },
+            Cancellation));
+
+        using (await verdicts.AcceptTcpClientAsync(Cancellation).AsTask().WaitAsync(HangGuard, Cancellation))
+        {
+            await run.RestartAsync();
+        }
+
+        using (var failing = await verdicts.AcceptTcpClientAsync(Cancellation).AsTask().WaitAsync(HangGuard, Cancellation))
+        {
+            await failing.GetStream().WriteAsync(new byte[] { 1 }, Cancellation);
+        }
+
+        var again = await run.DecisionAsync();
+        using var passing = await verdicts.AcceptTcpClientAsync(Cancellation).AsTask().WaitAsync(HangGuard, Cancellation);
+        await passing.GetStream().WriteAsync(new byte[] { 0 }, Cancellation);
+
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var rule = Outcomes.Present(answer.Rule);
+        Assert.Equal((RuleOrigin.Job, "don't ask again for this job", "dotnet ef database update"), (rule.Origin, rule.Name, Outcomes.Present(rule.Target)));
+        Assert.NotEqual(first.Session, again.Session);
+        Assert.Equal((first.Target, PolicyAnswer.Allow, DecisionDelivery.Answered, Option<PolicyRule>.Some(rule)), (again.Target, again.Answer, again.Delivery, again.Rule));
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));
+        Assert.Equal([AttemptOrigin.Initial, AttemptOrigin.Retry], history.Attempts.Select(attempt => attempt.Origin));
+        Assert.Equal([rule], run.Get<IPermissionAudit>().JobRulesOf(run.Job));
     }
 
     private static string LimitOf(Bound usage) =>

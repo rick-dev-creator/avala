@@ -109,7 +109,7 @@
             <ItemsControl x:Name="RuleList" Classes="rows" ItemsSource="{Binding Rules}" />
           </Panel>
         </Border>
-        <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="Rules created with 'Don't ask again this session' apply to that agent session only and appear in that job's inspector." />
+        <TextBlock Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="Rules created with 'Don't ask again for this job' apply to every session of that job until it ends and appear in its inspector. 'Always in this repository' adds its rule to this file, for new jobs once committed." />
       </StackPanel>
 
       <StackPanel Spacing="8">

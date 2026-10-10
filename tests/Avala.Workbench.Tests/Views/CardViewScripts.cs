@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Permissions.Contracts;
 using Avala.Testing.UI;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Tests.Cards;
@@ -53,8 +54,28 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
             view.Settle();
 
             var reply = Assert.Single(permissions.Replies).Reply;
-            Assert.Equal(("Only the checkout tests", true), (reply.Message.Match(note => note, () => string.Empty), reply.DontAskAgain));
+            Assert.Equal(("Only the checkout tests", Remember.ForThisJob), (reply.Message.Match(note => note, () => string.Empty), reply.Remember));
             Assert.Equal(("Allowed", false, true), (view.TextOf("Outcome"), view.Shows("Card"), view.Shows("Resolved")));
+            Assert.False(view.Shows("AlwaysInRepository"));
+        }, Cancellation);
+
+    [Fact]
+    public Task AlwaysInThisRepositoryIsShownWhenOfferedAndItsAnswerSaysTheRuleAwaitsACommitAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var asking = new Asking();
+            var permissions = new FakePermissionAnswers();
+            var card = new PermissionCardViewModel(asking.OfferingTheRepository(), new(permissions, new FakeAgents()));
+            var view = Screen.Show(card);
+
+            view.Click("AlwaysInRepository").Click("Allow");
+            await (card.AllowCommand.ExecutionTask ?? Task.CompletedTask);
+            card.Update(asking.OfferingTheRepository() with { Resolution = PermissionAnswer.Allow });
+            view.Settle();
+
+            Assert.Equal(("Always in this repository", true), (view.Find<CheckBox>("AlwaysInRepository").Content, view.Find<CheckBox>("DontAskAgain").IsChecked == true));
+            Assert.Equal(Remember.InThisRepository, Assert.Single(permissions.Replies).Reply.Remember);
+            Assert.Equal("Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again.", view.TextOf("Notice"));
         }, Cancellation);
 
     [Fact]

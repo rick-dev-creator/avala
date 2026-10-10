@@ -7,12 +7,22 @@ namespace Avala.Workbench.Cards;
 
 internal static class CardPhrases
 {
-    public const string DontAskAgain = "Don't ask again this session";
+    public const string DontAskAgain = "Don't ask again for this job";
+
+    public const string AlwaysInRepository = "Always in this repository";
 
     public const string Withdrawn = "Withdrawn by the harness";
 
     public static string DontAskAgainScope(ItemKind kind) =>
-        $"Your answer is reused only for this exact {Requested(kind)} and only until this agent session ends: a new session of the job, after a hold or a restart, asks again.";
+        $"Your answer is reused only for this exact {Requested(kind)}, in every session of this job, after a restart, a retry or a send back too, until the job ends. Other jobs still ask.";
+
+    public static string AlwaysInRepositoryScope(PolicyRule rule) =>
+        $"Adds a rule for exactly {rule.Target.Match(target => target, () => string.Empty)} to .avala/permissions.json in the repository. It applies to new jobs once committed; this job stops asking now.";
+
+    public static string Remembered(HumanAnswer answer) =>
+        answer.RepositoryRule.Match(
+            _ => "Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again.",
+            () => answer.RepositoryError.Match(error => $"Not added to .avala/permissions.json: {NotAdded(error)} This job won't ask again.", () => string.Empty));
 
     public static string Verdict(PermissionEntry permission) =>
         permission.Resolution.Match(
@@ -59,6 +69,13 @@ internal static class CardPhrases
         AgentError.InvalidAnswer => "The answer does not fit the form.",
         AgentError.Unsupported => "This agent does not take answers to forms.",
         _ => "The answer did not reach the agent.",
+    };
+
+    private static string NotAdded(PolicyError error) => error switch
+    {
+        PolicyError.NotARepositoryRule => "this request cannot be written as one exact rule.",
+        PolicyError.RepositoryUnwritable => "the repository's file could not be written.",
+        _ => "the repository's file is not valid; fix it in Settings first.",
     };
 
     private static string Requested(ItemKind kind) => kind switch

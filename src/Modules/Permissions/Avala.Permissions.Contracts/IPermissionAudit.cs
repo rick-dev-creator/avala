@@ -10,7 +10,7 @@ public interface IPermissionAudit
 
     Option<SessionAutonomy> AutonomyOf(SessionId session);
 
-    IReadOnlyList<PolicyRule> SessionRulesOf(SessionId session);
+    IReadOnlyList<PolicyRule> JobRulesOf(JobId job);
 
     IReadOnlyList<PolicyDecision> OfSession(SessionId session);
 
