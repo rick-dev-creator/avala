@@ -56,12 +56,7 @@ public sealed class TemporaryRepository : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        foreach (var file in scratch.EnumerateFiles("*", SearchOption.AllDirectories))
-        {
-            file.Attributes = FileAttributes.Normal;
-        }
-
-        scratch.Delete(recursive: true);
+        TemporaryFolder.Remove(scratch);
 
         return ValueTask.CompletedTask;
     }

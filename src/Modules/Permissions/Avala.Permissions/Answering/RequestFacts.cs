@@ -31,14 +31,17 @@ internal static class RequestFacts
     private static PermissionRequest Located(string target, string root, IRealPaths paths)
     {
         var workspace = Path.GetFullPath(root);
-        var lexical = Path.GetFullPath(target, workspace);
+        var asked = Path.Combine(workspace, target).Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+        var lexical = Path.GetFullPath(asked);
+        var real = paths.Resolve(asked);
+        var shown = real == paths.Resolve(lexical) ? lexical : asked;
 
         return paths.Resolve(workspace).Match(
-            real => paths.Resolve(Path.Combine(workspace, target)).Match(full => Within(real, full), () => Outside(lexical)),
-            () => Outside(lexical));
+            inside => real.Match(full => Within(inside, full, shown), () => Outside(shown)),
+            () => Outside(shown));
     }
 
-    private static PermissionRequest Within(string workspace, string full)
+    private static PermissionRequest Within(string workspace, string full, string shown)
     {
         var relative = Path.GetRelativePath(workspace, full);
         var inside = relative != ".."
@@ -47,6 +50,6 @@ internal static class RequestFacts
 
         return inside
             ? new PermissionRequest(ItemKind.FileEdit, relative.Replace(Path.DirectorySeparatorChar, '/'), InsideWorkspace: true)
-            : Outside(full);
+            : Outside(shown);
     }
 }
