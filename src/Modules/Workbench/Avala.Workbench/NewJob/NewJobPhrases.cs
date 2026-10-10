@@ -73,6 +73,8 @@ internal static class NewJobPhrases
         JobRejection.AgentUnavailable => "The agent could not start.",
         JobRejection.InvalidRequest => "The request is invalid.",
         JobRejection.InvalidAttemptBudget => "The number of attempts is invalid.",
+        JobRejection.UnofferedModel => "That connection does not offer this model.",
+        JobRejection.UnofferedEffort => "That connection does not offer this effort level.",
         _ => "The job was refused.",
     };
 

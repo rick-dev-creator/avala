@@ -14,4 +14,6 @@ public enum AgentError
     UnknownConnection,
     UnusableConnection,
     NoPendingCall,
+    UnofferedModel,
+    UnofferedEffort,
 }

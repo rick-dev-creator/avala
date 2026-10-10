@@ -23,7 +23,7 @@ internal sealed class SimulatedProvider(Stagecraft craft, ProviderInfo info) : I
 
     public static ProviderInfo First(bool developer) => new(Id, "Simulated Claude Code") { OffersImplicitConnection = developer };
 
-    public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) => SimulatedCapabilities.On(connection);
+    public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) => SimulatedCapabilities.On(Info.Id, connection);
 
     public async ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken)
     {
@@ -51,5 +51,5 @@ internal sealed class SimulatedProvider(Stagecraft craft, ProviderInfo info) : I
                 () => Task.FromResult(Result<IAgentSession, AgentError>.Failure(AgentError.CannotResume)));
 
     private Result<IAgentSession, AgentError> Start(SessionOptions options, Option<AgentAccount> account, Option<Conversation> conversation) =>
-        Result<IAgentSession, AgentError>.Success(new SimulatedSession(options, craft, account, conversation));
+        Result<IAgentSession, AgentError>.Success(new SimulatedSession(options, craft, new Casting(account, CapabilitiesOn(options.Connection)), conversation));
 }

@@ -100,6 +100,18 @@ internal static class DelegationScenarios
         ],
     ]);
 
+    public static Scenario DelegatedOnModels { get; } = new("delegate-model",
+    [
+        [
+            Thought("The notes need a careful model."),
+            Delegation("delegate-huge", """{ "instruction": "[simulate: notes] Write the release notes", "model": "huge" }"""),
+            Delegation("delegate-small", """{ "instruction": "[simulate: notes] Write the release notes", "model": "simulated-small", "effort": "low" }"""),
+            Message("The notes came back."),
+            .. Bill(1_900, 140, 0.0070m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario DelegatedExpensively { get; } = new("delegate-expensive",
     [
         [
@@ -190,7 +202,7 @@ internal static class DelegationScenarios
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
+        Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedOnModels, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
         Notes, RevisedNotes, Todo, Expensive, PausedNotes,
     ];
 

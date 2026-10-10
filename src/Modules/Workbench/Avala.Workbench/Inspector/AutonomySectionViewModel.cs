@@ -3,6 +3,7 @@ using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Workbench.Inspection;
+using Avala.Workbench.ModelChoices;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Inspector;
@@ -16,6 +17,8 @@ internal interface IAutonomySectionViewModel
     string Fact { get; }
 
     string Connection { get; }
+
+    string Model { get; }
 
     string Reason { get; }
 
@@ -64,6 +67,9 @@ internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewMod
     public partial string Connection { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    public partial string Model { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial string Reason { get; private set; } = string.Empty;
 
     [ObservableProperty]
@@ -99,6 +105,7 @@ internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewMod
         Connection = facts.Match(
             found => found.Record.History.Summary.Connection.Match(connection => connection.Value, () => "The default connection"),
             () => string.Empty);
+        Model = facts.Bind(found => found.Ran).Match(ModelPhrases.Ran, () => string.Empty);
         var choice = facts.Bind(found => found.Choice);
         Reason = choice.Match(InspectorPhrases.Chosen, () => string.Empty);
         Compared = choice.Match<IReadOnlyList<CapacityLine>>(

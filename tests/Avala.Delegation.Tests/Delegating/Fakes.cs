@@ -89,7 +89,7 @@ internal sealed class FixedAudit : IPermissionAudit
 
     public Option<SessionPolicy> PolicyOf(SessionId session) => Option<SessionPolicy>.None;
 
-    public IReadOnlyList<PolicyRule> SessionRulesOf(SessionId session) => [];
+    public IReadOnlyList<PolicyRule> JobRulesOf(JobId job) => [];
 
     public IReadOnlyList<PolicyDecision> OfSession(SessionId session) => [];
 

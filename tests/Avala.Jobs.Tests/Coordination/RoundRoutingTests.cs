@@ -116,6 +116,24 @@ public sealed class RoundRoutingTests
     }
 
     [Fact]
+    public async Task AHandoffToAConnectionThatDoesNotOfferTheJobsModelRunsWithItsDefaultInsteadOfFailingAsync()
+    {
+        var flow = JobFlow.With();
+        flow.Agents.UnofferedOn.Add((Personal.Value, "large"));
+        var job = await flow.RunningAsync(JobFlow.Request() with { Model = new ModelChoice("large", Option<string>.None) });
+        Outcomes.Succeeds(await flow.Jobs.HoldAsync(job.Id, HoldReason.LimitNearlyReached, Cancellation));
+
+        var continued = Outcomes.Succeeds(await flow.Jobs.HandOffAsync(job.Id, new JobHandoff(ToPersonal, Brief), Cancellation));
+
+        Assert.Equal(
+            [new ModelChoice("large", Option<string>.None), ModelChoice.Default],
+            flow.Agents.Requests.Where(request => request.Connection == Option<ConnectionName>.Some(Personal)).Select(request => request.Model));
+        var handedOff = flow.Bus.Published.OfType<JobHandedOff>().Single();
+        Assert.Equal((true, new ModelChoice("large", Option<string>.None), continued.Session), (handedOff.ModelFellBack, handedOff.Wanted, handedOff.Session));
+        Assert.Equal(new ModelChoice("large", Option<string>.None), job.Model);
+    }
+
+    [Fact]
     public async Task OnlyAHeldJobIsHandedOffAndOnlyToAnotherConnectionThatOpensAsync()
     {
         var flow = JobFlow.With();

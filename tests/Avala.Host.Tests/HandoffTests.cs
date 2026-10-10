@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -88,6 +89,27 @@ public sealed class HandoffTests(PublishedPlugins plugins)
         Assert.Equal("simulator-second", other.Provider.Id);
         Assert.StartsWith("This job was handed off to you from one, which reached 95% of its 5-hour window. You continue it on other in a new conversation.", brief, StringComparison.Ordinal);
         Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("other")), Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Connection);
+    }
+
+    [Fact]
+    public async Task AJobWhoseModelTheOtherHarnessDoesNotOfferIsStillHandedOffAndRunsWithThatHarnesssDefaultAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoHarnesses, Committed(AnyHarness));
+        var recorded = run.Watch<HandoffRecorded>();
+        var activity = run.Watch<AgentActivity>();
+        var opened = run.Watch<SessionOpened>();
+        var progress = run.Watch<JobProgressed>();
+        var large = new ModelChoice("simulated-large", Option<string>.None);
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Instruction) { Model = large }));
+        var other = await opened.UntilAsync(session => session.Connection == new ConnectionName("other"));
+        var ran = (ModelReported)(await activity.UntilAsync(update => update.Event is ModelReported && update.Event.Session == other.Session)).Event;
+        var handoff = (await recorded.UntilAsync(announced => announced.Handoff.Job == job)).Handoff;
+        await ReviewedAsync(progress, job);
+
+        Assert.Equal("second-fast", ran.Model);
+        Assert.Equal(new ModelFallback(large, new ModelChoice("second-fast", Option<string>.None)), Outcomes.Present(handoff.Model));
+        Assert.Equal(large, Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Model);
     }
 
     [Fact]

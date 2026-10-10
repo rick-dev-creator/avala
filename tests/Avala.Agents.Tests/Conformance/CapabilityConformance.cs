@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 
 namespace Avala.Agents.Tests.Conformance;
 
@@ -23,6 +24,44 @@ internal static class CapabilityConformance
             .. Missing<ReportsLimits>(declared, run.Events.OfType<LimitReported>().Any(), "no limit was reported although the provider declares ReportsLimits"),
         ];
     }
+
+    public static async Task<IReadOnlyList<string>> CheckModelChoiceAsync(
+        IAgentProvider provider,
+        SessionOptions options,
+        UserTurn instruction,
+        CancellationToken deadline)
+    {
+        var declared = provider.CapabilitiesOn(options.Connection).Get<OffersModels>();
+
+        if (declared.IsNone)
+        {
+            return await AgentConformance.CheckTurnAsync(provider, options, instruction, deadline);
+        }
+
+        var offered = declared.Match(found => found, () => new OffersModels([], []));
+        var choice = new ModelChoice(
+            offered.Models.Count > 0 ? offered.Models[^1] : Option<string>.None,
+            offered.Efforts.Count > 0 ? offered.Efforts[^1] : Option<string>.None);
+        var run = await AgentConformance.RunAsync(provider, options with { Model = choice }, instruction, deadline);
+        var reported = run.Events.OfType<ModelReported>().ToList();
+
+        return
+        [
+            .. run.Violations,
+            .. reported.Count == 0 ? ["no model was reported although the provider declares OffersModels"] : Array.Empty<string>(),
+            .. reported.SelectMany(report => RanOtherThan(report, offered, choice)),
+        ];
+    }
+
+    private static IEnumerable<string> RanOtherThan(ModelReported report, OffersModels offered, ModelChoice choice) =>
+    [
+        .. offered.Models.Contains(report.Model) && choice.Model != Option<string>.Some(report.Model)
+            ? [$"the model {report.Model} was reported although {choice.Model.Match(model => model, () => "the default")} was chosen"]
+            : Array.Empty<string>(),
+        .. choice.Effort.IsSome && report.Effort != choice.Effort
+            ? [$"the effort {report.Effort.Match(effort => effort, () => "none")} was reported although {choice.Effort.Match(effort => effort, () => "none")} was chosen"]
+            : Array.Empty<string>(),
+    ];
 
     public static async Task<IReadOnlyList<string>> CheckInterruptAsync(
         IAgentProvider provider,

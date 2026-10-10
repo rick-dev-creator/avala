@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -84,8 +85,18 @@ internal sealed class FakeConnections(params string[] names) : IConnections
 
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Catalog);
 
-    public ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
-        throw new NotSupportedException();
+    public Dictionary<string, CapabilitySet> Offers { get; } = new(StringComparer.Ordinal);
+
+    public ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken)
+    {
+        var name = connection.Match(named => named, () => Catalog.Default.Match(found => found, () => new ConnectionName("none")));
+
+        return ValueTask.FromResult(Result<ConnectionInfo, ConnectionError>.Success(
+            new ConnectionInfo(name, new ProviderInfo("simulator", "Simulator")) { Capabilities = Offers.GetValueOrDefault(name.Value, CapabilitySet.None) }));
+    }
+
+    public ValueTask<Result<CapabilitySet, ConnectionError>> CapabilitiesAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<CapabilitySet, ConnectionError>.Success(Offers.GetValueOrDefault(connection.Provider, CapabilitySet.None)));
 
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken)
     {
@@ -112,7 +123,10 @@ internal sealed class FakeConnections(params string[] names) : IConnections
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken)
     {
         var credential = connection.Credential.Match(found => $" {found.Source}:{found.Reference}", () => string.Empty);
-        Edits.Add($"declare {replacing.Match(name => $"{name.Value}->", () => string.Empty)}{connection.Name.Value} {connection.Provider}{credential}");
+        var model = connection.Model.Match(
+            chosen => $" model:{chosen.Model.Match(found => found, () => "default")} effort:{chosen.Effort.Match(found => found, () => "default")}",
+            () => string.Empty);
+        Edits.Add($"declare {replacing.Match(name => $"{name.Value}->", () => string.Empty)}{connection.Name.Value} {connection.Provider}{credential}{model}");
 
         if (Refusal.IsSome)
         {

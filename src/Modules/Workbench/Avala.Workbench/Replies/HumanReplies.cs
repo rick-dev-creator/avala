@@ -13,11 +13,11 @@ internal sealed class HumanReplies(IPermissionAnswers permissions, IAgents agent
         PermissionEntry request,
         PermissionAnswer answer,
         Option<string> message,
-        bool dontAskAgain,
+        Remember remember,
         CancellationToken cancellationToken) =>
         await permissions.AnswerAsync(
             request.Session,
-            new PermissionReply(request.Item, answer) { Message = message, DontAskAgain = dontAskAgain },
+            new PermissionReply(request.Item, answer) { Message = message, Remember = remember },
             cancellationToken);
 
     public async Task<Result<ItemId, AgentError>> AnswerAsync(FormEntry form, FormAnswer answer, CancellationToken cancellationToken) =>

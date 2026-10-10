@@ -26,11 +26,32 @@ internal sealed partial class SessionStarter(
 
         var provider = chain.Decorate(connection.Provider);
         var capabilities = provider.CapabilitiesOn(connection.Environment);
+
+        return await OffersModels.RefusalOn(capabilities, request.Model).Match(
+            refusal => Task.FromResult(Refused(connection.Name, refusal)),
+            () => OpenAsync(request, connection, provider, capabilities, cancellationToken));
+    }
+
+    private Result<StartedSession, AgentError> Refused(ConnectionName connection, ModelRefusal refusal)
+    {
+        LogUnoffered(connection.Value, refusal);
+
+        return refusal == ModelRefusal.UnofferedModel ? AgentError.UnofferedModel : AgentError.UnofferedEffort;
+    }
+
+    private async Task<Result<StartedSession, AgentError>> OpenAsync(
+        AgentRequest request,
+        ResolvedConnection connection,
+        IAgentProvider provider,
+        CapabilitySet capabilities,
+        CancellationToken cancellationToken)
+    {
         var tree = await trees.OpenAsync(request.WorkingDirectory, cancellationToken);
 
         var fresh = new SessionOptions(request.WorkingDirectory, PermissionMode.AskEveryTime)
         {
             Tools = chain.ToolsFor(capabilities),
+            Model = request.Model,
             Connection = connection.Environment,
             Processes = tree,
         };
@@ -63,8 +84,13 @@ internal sealed partial class SessionStarter(
     {
         ConnectionError.UnknownConnection => AgentError.UnknownConnection,
         ConnectionError.NoConnections or ConnectionError.UnknownProvider => AgentError.ProviderUnavailable,
+        ConnectionError.UnofferedModel => AgentError.UnofferedModel,
+        ConnectionError.UnofferedEffort => AgentError.UnofferedEffort,
         _ => AgentError.UnusableConnection,
     };
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Cannot open a session on {Connection}: the model choice is refused as {Refusal}")]
+    private partial void LogUnoffered(string connection, ModelRefusal refusal);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Cannot open a session on {Connection}: {Error}")]
     private partial void LogUnavailable(string connection, ConnectionError error);

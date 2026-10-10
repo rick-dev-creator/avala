@@ -24,6 +24,7 @@ internal sealed class Adaptation(CapabilitySet declared)
         UsageReported when !declared.Has<ReportsUsage>() => [],
         UsageReported usage when !declared.Has<ReportsCost>() => [usage with { Cost = Option<Cost>.None }],
         ResumeTokenIssued when !declared.Has<Resumable>() => [],
+        ModelReported when !declared.Has<OffersModels>() => [],
         _ => [cue],
     };
 

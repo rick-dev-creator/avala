@@ -1,4 +1,6 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
@@ -28,6 +30,60 @@ public sealed class ConnectionTests
         Assert.Equal(Enum.Parse<JobRejection>(rejection), Outcomes.FailsWith(submitted));
         Assert.Empty(flow.Store.Jobs);
         Assert.Empty(flow.Bus.Published);
+    }
+
+    [Theory]
+    [InlineData("huge", "", "UnofferedModel")]
+    [InlineData("large", "max", "UnofferedEffort")]
+    public async Task AJobAskingForAModelItsConnectionDoesNotOfferIsRejectedAtSubmissionAsync(string model, string effort, string rejection)
+    {
+        var flow = JobFlow.With();
+        flow.Connections.Offers[Work.Value] = CapabilitySet.Of(new OffersModels(["large", "small"], ["low", "high"]));
+        var choice = new ModelChoice(model, effort.Length == 0 ? Option<string>.None : effort);
+
+        var submitted = await flow.Jobs.SubmitAsync(JobFlow.Request() with { Connection = Work, Model = choice }, Cancellation);
+
+        Assert.Equal(Enum.Parse<JobRejection>(rejection), Outcomes.FailsWith(submitted));
+        Assert.Empty(flow.Store.Jobs);
+        Assert.Empty(flow.Bus.Published);
+    }
+
+    [Fact]
+    public async Task AJobRunsWithItsOwnChoiceFieldByFieldOverItsRepositorysAndKeepsItAsync()
+    {
+        var flow = JobFlow.With();
+        flow.Connections.Offers[Work.Value] = CapabilitySet.Of(new OffersModels(["large", "small"], ["low", "high"]));
+        flow.Defaults.Model = new ModelChoice("small", "low");
+
+        var job = await flow.RunningAsync(JobFlow.Request() with { Connection = Work, Model = new ModelChoice("large", Option<string>.None) });
+
+        Assert.Equal(new ModelChoice("large", "low"), Assert.Single(flow.Agents.Requests).Model);
+        Assert.Equal(new ModelChoice("large", Option<string>.None), job.Model);
+        Assert.Equal(new ModelChoice("large", Option<string>.None), Outcomes.Present(await flow.Catalog.HistoryAsync(job.Id, Cancellation)).Summary.Model);
+    }
+
+    [Fact]
+    public async Task AJobThatNamesNoModelRunsWithItsRepositorysChoiceAsync()
+    {
+        var flow = JobFlow.With();
+        flow.Defaults.Model = new ModelChoice("small", Option<string>.None);
+
+        await flow.RunningAsync();
+
+        Assert.Equal(new ModelChoice("small", Option<string>.None), Assert.Single(flow.Agents.Requests).Model);
+    }
+
+    [Fact]
+    public async Task AModelTheChosenConnectionDoesNotOfferFailsTheJobBeforeItStartsAsync()
+    {
+        var flow = JobFlow.With();
+        flow.Agents.UnofferedModels.Add("small");
+        flow.Defaults.Model = new ModelChoice("small", Option<string>.None);
+
+        var job = await flow.RunningAsync();
+
+        Assert.Equal(JobState.Failed, job.State);
+        Assert.Empty(flow.Agents.Sessions);
     }
 
     [Fact]

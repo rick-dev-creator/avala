@@ -10,10 +10,11 @@ internal sealed class PolicyFileFormat : IRuleFileFormat
 {
     public string Path => PermissionPolicy.PolicyFile;
 
-    public Option<RuleFileRejection> Rejection(string content) =>
+    public static Option<PolicyError> Problem(string content) =>
         Encoding.UTF8.GetByteCount(content) > PolicyFileReader.MaximumBytes
-            ? Rejected(PolicyError.TooLarge)
-            : PolicyFileParser.Parse(content).Match(_ => Option<RuleFileRejection>.None, Rejected);
+            ? PolicyError.TooLarge
+            : PolicyFileParser.Parse(content).Match(_ => Option<PolicyError>.None, Option<PolicyError>.Some);
 
-    private static Option<RuleFileRejection> Rejected(PolicyError error) => RuleFileRejection.Of("Permissions", error);
+    public Option<RuleFileRejection> Rejection(string content) =>
+        Problem(content).Bind(error => RuleFileRejection.Of("Permissions", error).ToOption());
 }

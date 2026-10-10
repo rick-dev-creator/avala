@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -75,6 +76,25 @@ public sealed class AutonomySectionViewModelScripts : IDisposable
             ],
             section.Handoffs);
         Assert.Equal(string.Empty, section.Waiting);
+    }
+
+    [Fact]
+    public async Task AHandoffThatFellBackToTheDestinationsDefaultModelSaysSoAsync()
+    {
+        var job = bench.Job("Fix the flaky checkout test", JobStatus.Running);
+        var at = new DateTimeOffset(2026, 10, 10, 10, 42, 0, TimeSpan.Zero);
+        var handoff = new HandoffRecord(job.Job, 2, Work, Personal, new LimitReason(Work, "5h", 0.91, 0.9), at)
+        {
+            Model = new ModelFallback(new ModelChoice("claude-opus-5-5", Option<string>.None), new ModelChoice("gpt-codex", Option<string>.None)),
+        };
+        bench.Publish(Bench.OnBoard(job) with { Handoffs = [handoff] });
+        using var section = new AutonomySectionViewModel(bench.Inspected());
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal(
+            $"Handed off from claude-work to claude-personal at 91% of the 5-hour window · model claude-opus-5-5 not offered by claude-personal, ran with its default gpt-codex · {Amounts.Time(at)}",
+            section.Handoffs[0].Moved);
     }
 
     [Fact]

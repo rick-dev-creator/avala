@@ -1,7 +1,7 @@
 {
   "format": "avala-recording",
   "version": 1,
-  "recordedAt": "2026-10-09T20:29:41.5197596+00:00",
+  "recordedAt": "2026-10-10T04:49:39.9393608+00:00",
   "provider": {
     "id": "claude-code",
     "name": "Claude Code"
@@ -17,6 +17,27 @@
     "asksForms": {},
     "exposesReasoning": {},
     "interruptible": {},
+    "offersModels": {
+      "models": [
+        "best",
+        "fable",
+        "opus",
+        "sonnet",
+        "haiku",
+        "opus[1m]",
+        "sonnet[1m]",
+        "opusplan"
+      ],
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultModel": null,
+      "defaultEffort": null
+    },
     "reportsCost": {
       "currency": "USD"
     },
@@ -74,6 +95,14 @@
         "type": "resumeTokenIssued",
         "turn": 1,
         "token": "0c2a4b66-5d7e-4f82-9a03-9d5e7f9a1b06/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "modelReported",
+        "turn": 1,
+        "model": "claude-haiku-5-5"
       }
     },
     {
@@ -143,7 +172,7 @@
       "at": 7200000,
       "return": {
         "item": "toolu_01DelegateMigrate000002",
-        "content": "{\"job\":\"01a1225b-75e5-78fa-943a-a5cb917ec2ed\",\"outcome\":\"integrated\",\"status\":\"approved\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a1225b754475d293710e792c21190c\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\"}",
+        "content": "{\"job\":\"01a12425-38e2-78ac-9408-06403fc8be1d\",\"outcome\":\"integrated\",\"status\":\"approved\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a12425345b767f8db0815c291d2311\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\"}",
         "isError": false
       }
     },
@@ -155,7 +184,7 @@
         "item": "toolu_01DelegateMigrate000002",
         "result": {
           "item": "toolu_01DelegateMigrate000002",
-          "content": "{\"job\":\"01a1225b-75e5-78fa-943a-a5cb917ec2ed\",\"outcome\":\"integrated\",\"status\":\"approved\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a1225b754475d293710e792c21190c\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\"}",
+          "content": "{\"job\":\"01a12425-38e2-78ac-9408-06403fc8be1d\",\"outcome\":\"integrated\",\"status\":\"approved\",\"connection\":\"sim\",\"autonomy\":\"supervised\",\"summary\":\"The database is up to date.\",\"files\":[],\"verification\":{\"outcome\":\"noChecksDeclared\",\"checks\":[]},\"spent\":[{\"amount\":0.0110,\"currency\":\"USD\"}],\"tokens\":4027,\"carve\":{\"cost\":[],\"tokens\":\"uncapped\"},\"integrated\":{\"branch\":\"avala/01a12425345b767f8db0815c291d2311\",\"commit\":\"\"},\"conflicts\":[],\"hold\":\"\",\"refusal\":\"\"}",
           "isError": false
         }
       }

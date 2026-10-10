@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -38,7 +39,11 @@ public sealed record HandoffRecord(JobId Job, int Attempt, ConnectionName From, 
     public IReadOnlyList<Cost> Spent { get; init; } = [];
 
     public long Tokens { get; init; }
+
+    public Option<ModelFallback> Model { get; init; }
 }
+
+public sealed record ModelFallback(ModelChoice Wanted, ModelChoice RanWith);
 
 public sealed record ResetWait(JobId Job, ConnectionName Connection, string Window, Option<DateTimeOffset> ResumesAt, DateTimeOffset Since);
 

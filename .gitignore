@@ -7,3 +7,4 @@ TestResults/
 *.user
 *.suo
 .claude/worktrees/
+.method/

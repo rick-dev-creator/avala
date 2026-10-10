@@ -1,5 +1,6 @@
 using Avala.Permissions.Contracts;
 using Avala.Sdk.Appearance;
+using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Updates;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -103,6 +104,8 @@ internal sealed class DesignMachineConnectionViewModel(string name, string sourc
 
     public string Reference => string.Empty;
 
+    public string Problem { get; init; } = string.Empty;
+
     public IRelayCommand EditCommand { get; } = new RelayCommand(() => { });
 
     public IRelayCommand RemoveCommand { get; } = new RelayCommand(() => { });
@@ -134,6 +137,13 @@ internal sealed partial class DesignConnectionEditorViewModel : IConnectionEdito
     public bool NeedsReference => true;
 
     public string ReferenceHint => ConnectionPhrases.ReferenceHint("apiKey");
+
+    public IModelPickerViewModel Models { get; } = new DesignModelPickerViewModel
+    {
+        Models = [ModelPhrases.HarnessDefault, "opus", "sonnet", "haiku"],
+        Efforts = [ModelPhrases.HarnessDefault, "low", "medium", "high", "xhigh", "max"],
+        Note = ModelPhrases.ConnectionNote,
+    };
 
     public string Error => string.Empty;
 

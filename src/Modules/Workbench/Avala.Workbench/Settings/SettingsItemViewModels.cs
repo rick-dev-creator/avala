@@ -87,6 +87,8 @@ internal interface IMachineConnectionViewModel
 
     string Reference { get; }
 
+    string Problem { get; }
+
     IRelayCommand EditCommand { get; }
 
     IRelayCommand RemoveCommand { get; }
@@ -175,6 +177,8 @@ internal sealed class MachineConnectionViewModel(DeclaredConnection connection, 
     };
 
     public bool IsDefault { get; } = isDefault;
+
+    public string Problem { get; } = connection.Problem.Match(problem => $"Refused: {ConnectionPhrases.Refused(problem)}", () => string.Empty);
 }
 
 internal static class SettingsPhrases

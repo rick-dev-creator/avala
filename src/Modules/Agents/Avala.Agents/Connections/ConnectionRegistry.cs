@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
@@ -15,9 +16,9 @@ internal sealed class ConnectionRegistry(
     private Task<IReadOnlyList<ConnectionDeclaration>>? discovering;
 
     public async ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
-        (await MergedAsync(cancellationToken)).Match(
-            merged => Catalog(merged.Status, merged.Declarations),
-            error => new ConnectionCatalog(ConnectionFileStatus.Rejected, error, [], Option<ConnectionName>.None));
+        await (await MergedAsync(cancellationToken)).Match(
+            merged => CatalogAsync(merged.Status, merged.Declarations, cancellationToken),
+            error => Task.FromResult(new ConnectionCatalog(ConnectionFileStatus.Rejected, error, [], Option<ConnectionName>.None)));
 
     public async ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(
         Option<ConnectionName> connection,
@@ -39,13 +40,45 @@ internal sealed class ConnectionRegistry(
         : !providers.Any(provider => provider.Info.Id == connection.Provider) ? ConnectionError.UnknownProvider
         : connection.Credential.Match(credential => !sources.Any(source => source.Source == credential.Source), () => false) ? ConnectionError.UnknownSource
         : connection.Credential.Match(credential => string.IsNullOrWhiteSpace(credential.Reference), () => false) ? ConnectionError.MissingReference
-        : await ChangeAsync(
-            new DeclarationChange(
-                replacing,
-                connection.Name,
-                connection.Provider,
-                connection.Credential.Map(credential => new CredentialDeclaration(credential.Source, credential.Reference.Trim()))),
-            cancellationToken);
+        : await DeclareCheckedAsync(Change(replacing, connection), cancellationToken);
+
+    public async ValueTask<Result<CapabilitySet, ConnectionError>> CapabilitiesAsync(
+        Option<ConnectionName> replacing,
+        ConnectionEdit connection,
+        CancellationToken cancellationToken) =>
+        providers.FirstOrDefault(provider => provider.Info.Id == connection.Provider) is not { } registered
+            ? ConnectionError.UnknownProvider
+            : await (await MergedAsync(cancellationToken)).Match(
+                async merged => Result<CapabilitySet, ConnectionError>.Success(
+                    await CapabilitiesOfAsync(registered, Change(replacing, connection).Edited(Replaced(merged.Declarations, replacing)), cancellationToken)),
+                error => Task.FromResult(Result<CapabilitySet, ConnectionError>.Failure(error)));
+
+    private static DeclarationChange Change(Option<ConnectionName> replacing, ConnectionEdit connection) =>
+        new(
+            replacing,
+            connection.Name,
+            connection.Provider,
+            connection.Credential.Map(credential => new CredentialDeclaration(credential.Source, credential.Reference.Trim())))
+        {
+            Model = connection.Model,
+        };
+
+    private static Option<ConnectionDeclaration> Replaced(ConnectionDeclarations declarations, Option<ConnectionName> replacing) =>
+        replacing.Bind(name => declarations.Connections.FirstOrDefault(connection => connection.Name == name).ToOption());
+
+    private async Task<Result<ConnectionCatalog, ConnectionError>> DeclareCheckedAsync(DeclarationChange change, CancellationToken cancellationToken)
+    {
+        var provider = providers.First(provider => provider.Info.Id == change.Provider);
+        var refused = change.Model.IsSome
+            ? await (await MergedAsync(cancellationToken)).Match(
+                async merged => Refusal(OffersModels.DefaultsRefusedOn(await CapabilitiesOfAsync(provider, change.Edited(Replaced(merged.Declarations, change.Replacing)), cancellationToken))),
+                _ => Task.FromResult(Option<ConnectionError>.None))
+            : Option<ConnectionError>.None;
+
+        return await refused.Match(
+            error => Task.FromResult(Result<ConnectionCatalog, ConnectionError>.Failure(error)),
+            () => ChangeAsync(change, cancellationToken));
+    }
 
     public async ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken) =>
         await ChangeAsync(new RemovalChange(connection), cancellationToken);
@@ -71,7 +104,8 @@ internal sealed class ConnectionRegistry(
     public async ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(
         Option<ConnectionName> connection,
         CancellationToken cancellationToken) =>
-        (await ResolveAsync(connection, cancellationToken)).Map(resolved => new ConnectionInfo(resolved.Name, resolved.Provider.Info));
+        (await ResolveAsync(connection, cancellationToken)).Map(resolved =>
+            new ConnectionInfo(resolved.Name, resolved.Provider.Info) { Capabilities = resolved.Provider.CapabilitiesOn(resolved.Environment) });
 
     public async Task<Result<ResolvedConnection, ConnectionError>> ResolveAsync(
         Option<ConnectionName> connection,
@@ -89,9 +123,26 @@ internal sealed class ConnectionRegistry(
             return ConnectionError.UnknownProvider;
         }
 
-        return (await CredentialAsync(declaration, cancellationToken)).Map(environment =>
-            new ResolvedConnection(declaration.Name, registered, environment with { Settings = declaration.Settings }));
+        return (await CredentialAsync(declaration, cancellationToken))
+            .Map(environment => new ResolvedConnection(declaration.Name, registered, environment with { Settings = declaration.Settings }))
+            .Bind(resolved => Refusal(OffersModels.DefaultsRefusedOn(registered.CapabilitiesOn(resolved.Environment))).Match(
+                Result<ResolvedConnection, ConnectionError>.Failure,
+                () => resolved));
     }
+
+    private static Option<ConnectionError> Refusal(Option<ModelRefusal> refusal) =>
+        refusal.Map(refused => refused == ModelRefusal.UnofferedModel ? ConnectionError.UnofferedModel : ConnectionError.UnofferedEffort);
+
+    private async Task<CapabilitySet> CapabilitiesOfAsync(IAgentProvider provider, ConnectionDeclaration declaration, CancellationToken cancellationToken) =>
+        provider.CapabilitiesOn((await CredentialAsync(declaration, cancellationToken)).Match(environment => environment, _ => ConnectionEnvironment.Default) with
+        {
+            Settings = declaration.Settings,
+        });
+
+    private async Task<Option<ConnectionError>> ProblemOfAsync(ConnectionDeclaration declaration, CancellationToken cancellationToken) =>
+        providers.FirstOrDefault(provider => provider.Info.Id == declaration.Provider) is { } registered
+            ? Refusal(OffersModels.DefaultsRefusedOn(await CapabilitiesOfAsync(registered, declaration, cancellationToken)))
+            : Option<ConnectionError>.None;
 
     private async Task<Result<MergedConnections, ConnectionError>> MergedAsync(CancellationToken cancellationToken)
     {
@@ -135,11 +186,23 @@ internal sealed class ConnectionRegistry(
                 : Result<ConnectionEnvironment, ConnectionError>.Failure(ConnectionError.UnknownSource),
             () => Task.FromResult(Result<ConnectionEnvironment, ConnectionError>.Success(ConnectionEnvironment.Default)));
 
-    private ConnectionCatalog Catalog(ConnectionFileStatus status, ConnectionDeclarations declarations) =>
+    private async Task<ConnectionCatalog> CatalogAsync(ConnectionFileStatus status, ConnectionDeclarations declarations, CancellationToken cancellationToken)
+    {
+        var connections = new List<DeclaredConnection>();
+
+        foreach (var connection in declarations.Connections)
+        {
+            connections.Add(connection.Declared with { Problem = await ProblemOfAsync(connection, cancellationToken) });
+        }
+
+        return Catalog(status, declarations, connections);
+    }
+
+    private ConnectionCatalog Catalog(ConnectionFileStatus status, ConnectionDeclarations declarations, IReadOnlyList<DeclaredConnection> connections) =>
         new(
             status,
             Option<ConnectionError>.None,
-            [.. declarations.Connections.Select(connection => connection.Declared)],
+            connections,
             declarations.Default)
         {
             DefaultMode = declarations.Mode,

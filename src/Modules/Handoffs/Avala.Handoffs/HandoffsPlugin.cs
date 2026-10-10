@@ -25,6 +25,7 @@ public sealed class HandoffsPlugin : IPlugin
             .AddForwarded<IHandoffStore, SqliteHandoffStore>()
             .AddForwarded<IStartupTask, SqliteHandoffStore>()
             .AddSingleton<ILimitRules, LimitRulesReader>()
+            .AddSingleton<JobSpending>()
             .AddSingleton<HandoffBook>()
             .AddForwarded<IHandoffs, HandoffBook>()
             .AddForwarded<IStartupTask, HandoffBook>()

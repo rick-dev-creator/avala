@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
@@ -49,6 +50,8 @@ internal sealed record InspectorFacts(JobRecord Record, AuditFacts Audit)
     public IReadOnlyList<HandoffRecord> Handoffs { get; init; } = [];
 
     public Option<ResetWait> Wait { get; init; }
+
+    public Option<ModelReported> Ran { get; init; }
 }
 
 internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.JobBoard board)
@@ -59,5 +62,6 @@ internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.Jo
             Choice = record.History.Choice.IsSome ? record.History.Choice : board.Find(job).Bind(found => found.Choice),
             Handoffs = board.Find(job).Match(found => found.Handoffs, () => []),
             Wait = board.Find(job).Bind(found => found.Wait),
+            Ran = board.Find(job).Bind(found => found.Transcript.Ran),
         });
 }

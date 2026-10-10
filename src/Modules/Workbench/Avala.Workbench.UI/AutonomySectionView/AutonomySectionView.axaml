@@ -33,6 +33,17 @@
                    TextTrimming="CharacterEllipsis"
                    Text="{Binding Connection}" />
       </Grid>
+      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Model, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Classes="caption secondary" Text="Ran with" />
+        <TextBlock x:Name="Model"
+                   Grid.Column="1"
+                   Classes="mono"
+                   Margin="12,0,0,0"
+                   FontSize="{DynamicResource FontSizeCaption}"
+                   TextAlignment="Right"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{Binding Model}" />
+      </Grid>
       <TextBlock x:Name="Reason"
                  Classes="caption"
                  TextWrapping="Wrap"

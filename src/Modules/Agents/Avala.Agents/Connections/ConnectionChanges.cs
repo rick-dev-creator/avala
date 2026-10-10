@@ -1,4 +1,7 @@
+using System.Collections.Immutable;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 
 namespace Avala.Agents.Connections;
@@ -16,6 +19,23 @@ internal sealed record DefaultChange(Option<ConnectionName> Connection) : IConne
 
 internal sealed record DeclarationChange(Option<ConnectionName> Replacing, ConnectionName Name, string Provider, Option<CredentialDeclaration> Credential) : IConnectionChange
 {
+    public Option<ModelChoice> Model { get; init; }
+
+    public ConnectionDeclaration Edited(Option<ConnectionDeclaration> replaced) =>
+        replaced.Match(found => found, () => new ConnectionDeclaration(Name, Provider)) with
+        {
+            Name = Name,
+            Provider = Provider,
+            Credential = Credential,
+            Settings = Model.Match(chosen => Chosen(replaced.Match(found => found.Settings, () => ImmutableDictionary<string, string>.Empty), chosen), () => replaced.Match(found => found.Settings, () => ImmutableDictionary<string, string>.Empty)),
+        };
+
+    private static ImmutableDictionary<string, string> Chosen(IReadOnlyDictionary<string, string> settings, ModelChoice chosen) =>
+        Put(Put(settings.ToImmutableDictionary(), OffersModels.ModelSetting, chosen.Model), OffersModels.EffortSetting, chosen.Effort);
+
+    private static ImmutableDictionary<string, string> Put(ImmutableDictionary<string, string> settings, string name, Option<string> value) =>
+        value.Match(set => settings.SetItem(name, set), () => settings.Remove(name));
+
     public Result<ConnectionDeclarations, ConnectionError> ApplyTo(ConnectionDeclarations declarations)
     {
         var replaced = Replacing.Bind(name => declarations.Connections.FirstOrDefault(connection => connection.Name == name).ToOption());
@@ -30,7 +50,7 @@ internal sealed record DeclarationChange(Option<ConnectionName> Replacing, Conne
             return ConnectionError.DuplicateName;
         }
 
-        var declared = replaced.Match(found => found, () => new ConnectionDeclaration(Name, Provider)) with { Name = Name, Provider = Provider, Credential = Credential };
+        var declared = Edited(replaced);
 
         return declarations with
         {

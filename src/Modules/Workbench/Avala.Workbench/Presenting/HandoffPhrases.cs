@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avala.Handoffs.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Usage;
 
 namespace Avala.Workbench.Presenting;
@@ -11,6 +12,11 @@ internal static class HandoffPhrases
     public static string Moved(HandoffRecord handoff) => $"Handed off to {handoff.To.Value}{Reason(handoff)}";
 
     public static string Moves(HandoffRecord handoff) => $"Handed off from {handoff.From.Value} to {handoff.To.Value}{Reason(handoff)}";
+
+    public static Option<string> Model(HandoffRecord handoff) =>
+        handoff.Model.Map(fallback => fallback.Wanted.Model.Match(
+            wanted => $"model {wanted} not offered by {handoff.To.Value}, ran with its default {fallback.RanWith.Model.Match(model => model, () => "model")}",
+            () => $"effort {fallback.Wanted.Effort.Match(effort => effort, () => "chosen")} not offered by {handoff.To.Value}, ran with its default {fallback.RanWith.Effort.Match(effort => $"{effort} effort", () => "effort")}"));
 
     public static string Waits(ResetWait wait) =>
         wait.ResumesAt.Match(

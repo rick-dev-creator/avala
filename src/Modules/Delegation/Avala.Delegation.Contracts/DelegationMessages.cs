@@ -27,6 +27,8 @@ public enum DelegationError
     TooManyChildren,
     AutonomyLoosened,
     NotSubmitted,
+    UnofferedModel,
+    UnofferedEffort,
 }
 
 public enum ChildOutcome

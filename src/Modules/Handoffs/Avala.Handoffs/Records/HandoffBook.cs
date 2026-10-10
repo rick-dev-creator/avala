@@ -1,15 +1,16 @@
 using System.Collections.Immutable;
-using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Handoffs.Contracts;
 using Avala.Handoffs.Watching;
 using Avala.Jobs.Contracts;
-using Avala.Observability.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 
 namespace Avala.Handoffs.Records;
 
-internal sealed class HandoffBook(IHandoffStore store, IUsage usage, IUsageSessions sessions, IEventBus bus) : IHandoffs, IHandle<JobHandedOff>, IStartupTask
+internal sealed class HandoffBook(IHandoffStore store, JobSpending spending, IConnections connections, IEventBus bus) : IHandoffs, IHandle<JobHandedOff>, IStartupTask
 {
     private ImmutableDictionary<JobId, ImmutableList<HandoffRecord>> handoffs = ImmutableDictionary<JobId, ImmutableList<HandoffRecord>>.Empty;
     private ImmutableDictionary<JobId, ResetWait> waits = ImmutableDictionary<JobId, ResetWait>.Empty;
@@ -33,14 +34,14 @@ internal sealed class HandoffBook(IHandoffStore store, IUsage usage, IUsageSessi
             .Where(candidate => candidate.Connection == integrationEvent.From)
             .Select(from => from.Window.Map(window => new LimitReason(from.Connection, window.Window, from.Used, from.Threshold)))
             .FirstOrDefault();
-        var spent = sessions.Sessions()
-            .Where(session => session.Job == Option<JobId>.Some(integrationEvent.Job) && session.Connection == integrationEvent.From)
-            .SelectMany(session => usage.OfSession(session.Session).Match<UsageSummary[]>(summary => [summary], () => []))
-            .ToList();
+        var (costs, tokens) = spending.On(integrationEvent.Job, integrationEvent.From);
         var handoff = new HandoffRecord(integrationEvent.Job, integrationEvent.Attempt, integrationEvent.From, integrationEvent.To, why, integrationEvent.Choice.At)
         {
-            Spent = [.. spent.SelectMany(summary => summary.Costs).GroupBy(cost => cost.Currency, StringComparer.Ordinal).Select(currency => new Cost(currency.Sum(cost => cost.Amount), currency.Key))],
-            Tokens = spent.Sum(summary => summary.Tokens.Input + summary.Tokens.Output + summary.Tokens.CacheRead + summary.Tokens.CacheWrite + summary.Tokens.Reasoning),
+            Spent = costs,
+            Tokens = tokens,
+            Model = integrationEvent.ModelFellBack
+                ? new ModelFallback(integrationEvent.Wanted, await DefaultsOfAsync(integrationEvent.To, cancellationToken))
+                : Option<ModelFallback>.None,
         };
 
         await store.AddAsync(handoff, cancellationToken);
@@ -55,6 +56,13 @@ internal sealed class HandoffBook(IHandoffStore store, IUsage usage, IUsageSessi
     }
 
     public void Ended(JobId job) => ImmutableInterlocked.Update(ref waits, known => known.Remove(job));
+
+    private async Task<ModelChoice> DefaultsOfAsync(ConnectionName connection, CancellationToken cancellationToken) =>
+        (await connections.CheckAsync(connection, cancellationToken)).Match(
+            found => found.Capabilities.Get<OffersModels>().Match(
+                offered => offered.DefaultChoice() with { Model = offered.DefaultModel.IsSome ? offered.DefaultModel : (offered.Models.Count > 0 ? Option<string>.Some(offered.Models[0]) : Option<string>.None) },
+                () => ModelChoice.Default),
+            _ => ModelChoice.Default);
 
     private void Remember(HandoffRecord handoff) =>
         ImmutableInterlocked.Update(ref handoffs, known => known.SetItem(handoff.Job, known.GetValueOrDefault(handoff.Job, []).Add(handoff)));

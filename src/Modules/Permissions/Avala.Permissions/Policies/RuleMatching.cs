@@ -11,7 +11,7 @@ internal static class RuleMatching
     {
         public bool Matches(PermissionRequest request) =>
             rule.Kind.Match(kind => kind == request.Kind, () => true)
-            && rule.Target.Match(pattern => rule.Origin == RuleOrigin.Session ? pattern == request.Target : Globs(pattern, request.Target), () => true)
+            && rule.Target.Match(pattern => rule.Answered ? pattern == request.Target : Globs(pattern, request.Target), () => true)
             && rule.Scope switch
             {
                 RuleScope.Workspace => request.InsideWorkspace,
@@ -20,7 +20,9 @@ internal static class RuleMatching
             };
 
         public bool Covers(PermissionRequest line) =>
-            rule.Matches(line) && (rule.Target.IsNone || rule.Origin == RuleOrigin.Session);
+            rule.Matches(line) && (rule.Target.IsNone || rule.Answered);
+
+        public bool Answered => rule.Origin is RuleOrigin.Session or RuleOrigin.Job;
     }
 
     extension(IReadOnlyList<PolicyRule> rules)
@@ -34,7 +36,7 @@ internal static class RuleMatching
             Verdict[] verdicts =
             [
                 .. line.Commands.Select(command => rules.First(rule => rule.Covers(request) || rule.Matches(request with { Target = command.Text }))),
-                .. line.Writes.Select(path => rules.First(rule => (rule.Origin == RuleOrigin.Session && rule.Covers(request)) || rule.Matches(Written(line, path, request)))),
+                .. line.Writes.Select(path => rules.First(rule => (rule.Answered && rule.Covers(request)) || rule.Matches(Written(line, path, request)))),
                 .. line.Opaque ? [rules.First(rule => rule.Covers(request))] : Array.Empty<Verdict>(),
             ];
 

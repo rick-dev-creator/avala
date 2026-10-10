@@ -73,6 +73,8 @@ internal sealed class DesignAutonomySectionViewModel : IAutonomySectionViewModel
 
     public string Connection => "claude-personal";
 
+    public string Model => "claude-opus-5-5 · high effort";
+
     public string Reason => "Chosen by capacity: claude-personal had the most left";
 
     public IReadOnlyList<CapacityLine> Compared { get; } =
