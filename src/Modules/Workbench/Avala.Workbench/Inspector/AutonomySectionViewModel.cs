@@ -33,6 +33,44 @@ internal sealed record CapacityLine(string Connection, string Reading, bool IsCh
 
 internal sealed record HandoffLine(string Moved, string Spent);
 
+internal sealed record AutonomyLines(
+    string Fact,
+    string Autonomy,
+    string Connection,
+    string Model,
+    string Reason,
+    IReadOnlyList<CapacityLine> Compared,
+    IReadOnlyList<HandoffLine> Handoffs,
+    string Waiting)
+{
+    public static AutonomyLines None { get; } = new(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, [], [], string.Empty);
+
+    public static AutonomyLines Of(InspectorFacts found)
+    {
+        var summary = found.Record.History.Summary;
+
+        return new(
+            found.Audit.Autonomy.Match(
+                autonomy => autonomy.Effective.ToString(),
+                () => summary.Autonomy.Match(requested => requested.ToString(), () => "not started")),
+            found.Audit.Autonomy.Match(
+                InspectorPhrases.Autonomy,
+                () => summary.Autonomy.Match(requested => $"{requested}, as asked", () => "Not started yet")),
+            summary.Connection.Match(connection => connection.Value, () => "The default connection"),
+            found.Ran.Match(ModelPhrases.Ran, () => string.Empty),
+            found.Choice.Match(InspectorPhrases.Chosen, () => string.Empty),
+            found.Choice.Match<IReadOnlyList<CapacityLine>>(
+                chosen => [.. chosen.Compared.Select(candidate => new CapacityLine(
+                    candidate.Connection.Value,
+                    InspectorPhrases.Capacity(candidate),
+                    candidate.Connection == chosen.Connection,
+                    !candidate.Available))],
+                () => []),
+            InspectorPhrases.Handoffs(found.Handoffs, found.Audit.Usage),
+            found.Wait.Match(InspectorPhrases.Waiting, () => string.Empty));
+    }
+}
+
 [INotifyPropertyChanged]
 internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewModel, IRegionAware<JobId>, IActivatable, IPresentation, IDisposable
 {
@@ -91,31 +129,15 @@ internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewMod
 
     private void Show(Option<InspectorFacts> facts)
     {
+        var lines = facts.Match(AutonomyLines.Of, () => AutonomyLines.None);
         IsLoaded = facts.IsSome;
-        Fact = facts.Match(
-            found => found.Audit.Autonomy.Match(
-                autonomy => autonomy.Effective.ToString(),
-                () => found.Record.History.Summary.Autonomy.Match(requested => requested.ToString(), () => "not started")),
-            () => string.Empty);
-        Autonomy = facts.Match(
-            found => found.Audit.Autonomy.Match(
-                InspectorPhrases.Autonomy,
-                () => found.Record.History.Summary.Autonomy.Match(requested => $"{requested}, as asked", () => "Not started yet")),
-            () => string.Empty);
-        Connection = facts.Match(
-            found => found.Record.History.Summary.Connection.Match(connection => connection.Value, () => "The default connection"),
-            () => string.Empty);
-        Model = facts.Bind(found => found.Ran).Match(ModelPhrases.Ran, () => string.Empty);
-        var choice = facts.Bind(found => found.Choice);
-        Reason = choice.Match(InspectorPhrases.Chosen, () => string.Empty);
-        Compared = choice.Match<IReadOnlyList<CapacityLine>>(
-            chosen => [.. chosen.Compared.Select(candidate => new CapacityLine(
-                candidate.Connection.Value,
-                InspectorPhrases.Capacity(candidate),
-                candidate.Connection == chosen.Connection,
-                !candidate.Available))],
-            () => []);
-        Handoffs = facts.Match(found => InspectorPhrases.Handoffs(found.Handoffs, found.Audit.Usage), () => []);
-        Waiting = facts.Bind(found => found.Wait).Match(wait => InspectorPhrases.Waiting(wait), () => string.Empty);
+        Fact = lines.Fact;
+        Autonomy = lines.Autonomy;
+        Connection = lines.Connection;
+        Model = lines.Model;
+        Reason = lines.Reason;
+        Compared = lines.Compared;
+        Handoffs = lines.Handoffs;
+        Waiting = lines.Waiting;
     }
 }
