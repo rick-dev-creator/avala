@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
@@ -38,11 +39,14 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         var workingDirectory = Path.GetFullPath(options.WorkingDirectory);
         var transcripts = options.Connection.Settings.TryGetValue(CommandLine.TranscriptsSetting, out var folder) ? folder : Option<string>.None;
         var account = await folders.AccountAsync(options.Connection, cancellationToken);
+        var earlier = await resumed.Match(
+            mark => folders.EarlierAsync(options.Connection, mark.Session, cancellationToken),
+            () => Task.FromResult<IReadOnlyList<JsonNode>>([]));
 
         return await cli.Start(CommandLine.For(workingDirectory, options, resumed, home), options.Processes, transcripts).Match(
             async process => Result<IAgentSession, AgentError>.Success(await ClaudeCodeSession.OpenAsync(
                 process,
-                session => new Conversation(session, options, Places(workingDirectory, options.Connection), resumed),
+                session => new Conversation(session, options, Places(workingDirectory, options.Connection), resumed).Recalling(earlier),
                 account)),
             error => Task.FromResult(Result<IAgentSession, AgentError>.Failure(error)));
     }

@@ -88,6 +88,35 @@ public sealed class RealClaudeCodeTests(PublishedPlugins plugins)
             ("README.md", "# A service that greets the team\n"));
 
     [Fact]
+    public async Task ACurrentModelIsOfferedTheTaskToolsAsync()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");
+        using var data = new TemporaryFolder();
+        using var repository = new TemporaryFolder();
+        await using var root = CompositionRoot.Create(plugins.Directory, new AvalaPaths(data.Path));
+        var provider = root.Services.GetServices<IAgentProvider>().Single(candidate => candidate.Info.Id == "claude-code");
+        var transcripts = Path.Combine(data.Path, "transcripts");
+        var connection = new ConnectionEnvironment
+        {
+            ConfigurationDirectory = Login,
+            Settings = new Dictionary<string, string> { ["model"] = "sonnet", ["effort"] = "low", ["userConfiguration"] = "false", ["transcripts"] = transcripts },
+        };
+
+        var events = await TalkAsync(provider, new SessionOptions(repository.Path, PermissionMode.AskEveryTime) { Connection = connection }, "Reply with the single word: ready.");
+
+        await SaveTranscriptsAsync(transcripts, "real-plan-tools", repository.Path);
+        await SaveCostAsync("real-plan-tools", events);
+        var lines = (await File.ReadAllLinesAsync(Assert.Single(Directory.GetFiles(transcripts, "*.jsonl")), Cancellation)).Select(line => JsonNode.Parse(line)!).ToList();
+        var init = lines.Select(line => line["out"]).Single(message => message?["type"]?.GetValue<string>() == "system" && message["subtype"]?.GetValue<string>() == "init")!;
+        Assert.Equal("1", lines[0]["todoTools"]?.GetValue<string>());
+        Assert.DoesNotContain(init["model"]!.GetValue<string>(), (string[])["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-7"]);
+        Assert.Superset(
+            new HashSet<string>(["TaskCreate", "TaskUpdate", "TaskList", "TaskGet"]),
+            init["tools"]!.AsArray().Select(tool => tool!.GetValue<string>()).ToHashSet());
+        Assert.Equal(TurnOutcome.Finished, events.OfType<TurnCompleted>().Single().Outcome);
+    }
+
+    [Fact]
     public async Task SessionsResumeCallHarnessToolsAndKeepTwoLoginsApartAsync()
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to run real Claude Code sessions.");

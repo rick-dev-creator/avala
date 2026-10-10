@@ -29,6 +29,10 @@ internal static class CommandLine
 
     public const string UserHooksSetting = "userHooks";
 
+    public const string PlanToolsSetting = "planTools";
+
+    public const string TodoToolsVariable = "CLAUDE_CODE_ENABLE_TODO_TOOLS";
+
     public const string ConfigurationVariable = "CLAUDE_CONFIG_DIR";
 
     public const string KeyVariable = "ANTHROPIC_API_KEY";
@@ -51,7 +55,11 @@ internal static class CommandLine
         tool.StartsWith($"mcp__{Server}__", StringComparison.Ordinal) ? tool[$"mcp__{Server}__".Length..] : Option<string>.None;
 
     public static CliLaunch For(string workingDirectory, SessionOptions options, Option<ConversationMark> resume, UserHome home) =>
-        new(workingDirectory, Arguments(options, resume, home), Inherited, Variables(options.Connection, home));
+        new(
+            workingDirectory,
+            Arguments(options, resume, home),
+            Switch(options.Connection, PlanToolsSetting, true) ? Inherited : [.. Inherited, TodoToolsVariable],
+            Variables(options.Connection, home));
 
     private static List<string> Arguments(SessionOptions options, Option<ConversationMark> resume, UserHome home)
     {
@@ -90,6 +98,11 @@ internal static class CommandLine
             ["DISABLE_AUTOUPDATER"] = "1",
             [ToolTimeoutVariable] = ToolTimeoutMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
+
+        if (Switch(connection, PlanToolsSetting, true) && home.TodoTools.IsNone)
+        {
+            environment[TodoToolsVariable] = "1";
+        }
 
         foreach (var folder in connection.ConfigurationDirectory.Match<string[]>(folder => home.IsDefault(folder) ? [] : [folder], () => []))
         {

@@ -35,6 +35,16 @@ internal sealed class Conversation
 
     public Option<TurnId> Live => live.Map(stamp => stamp.Turn);
 
+    public Conversation Recalling(IEnumerable<JsonNode> earlier)
+    {
+        foreach (var message in earlier)
+        {
+            translator.Recall(message);
+        }
+
+        return this;
+    }
+
     public Result<(TurnId Turn, Reaction Reaction), AgentError> Begin(UserTurn turn)
     {
         if (turn.MidTurn)

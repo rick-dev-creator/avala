@@ -43,6 +43,25 @@ public sealed class ReviewViewModelScripts : IDisposable
     }
 
     [Fact]
+    public void TheSheetShowsHowFarTheJobsPlanGotAndWhichStepsAreLeft()
+    {
+        var session = Agents.Contracts.Sessions.SessionId.New();
+        var turn = Agents.Contracts.Sessions.TurnId.New();
+        var planned = Workbench.Timeline.Transcript.Empty.Apply(new TurnStarted(session, turn), DateTimeOffset.UnixEpoch).Apply(
+            new PlanUpdated(session, turn, [new PlanStep("Read the code", PlanStepStatus.Done), new PlanStep("Write the change", PlanStepStatus.InProgress), new PlanStep("Run the tests", PlanStepStatus.Pending)]),
+            DateTimeOffset.UnixEpoch);
+
+        ViewModelScript.Given(Review())
+            .When(review => review.Track(new Workbench.Board.BoardJob(job, planned)))
+            .ThenNotified(nameof(ReviewViewModel.Plan), nameof(ReviewViewModel.PlanLeft))
+            .Then(review => Assert.Equal(
+                ("Plan · 1 of 3 steps done", "In progress · Write the change | Pending · Run the tests", JobStatus.AwaitingReview),
+                (review.Plan, string.Join(" | ", review.PlanLeft), review.Status)))
+            .When(review => review.Track(new Workbench.Board.BoardJob(job, Workbench.Timeline.Transcript.Empty)))
+            .Then(review => Assert.Equal((string.Empty, 0), (review.Plan, review.PlanLeft.Count)));
+    }
+
+    [Fact]
     public async Task TheHeaderNamesTheJobWhereItRunsAndWhereItStands()
     {
         var review = Review();

@@ -22,7 +22,7 @@ public sealed class PermissionCardViewModelScripts
             });
 
     [Fact]
-    public async Task AllowingSendsTheTrimmedNoteAndDontAskAgainToTheSessionOfTheRequest()
+    public async Task AllowingSendsTheTrimmedNoteAndDontAskAgainForThisJobToTheSessionOfTheRequest()
     {
         var card = Card();
         card.Note = " Only the checkout tests ";
@@ -32,8 +32,57 @@ public sealed class PermissionCardViewModelScripts
 
         var (answered, reply) = Assert.Single(permissions.Replies);
         Assert.Equal(
-            (asking.Session, new ItemId("run"), PermissionAnswer.Allow, Option<string>.Some("Only the checkout tests"), true),
-            (answered, reply.Item, reply.Answer, reply.Message, reply.DontAskAgain));
+            (asking.Session, new ItemId("run"), PermissionAnswer.Allow, Option<string>.Some("Only the checkout tests"), Remember.ForThisJob),
+            (answered, reply.Item, reply.Answer, reply.Message, reply.Remember));
+        Assert.Equal(("Don't ask again for this job", string.Empty), (card.DontAskAgainLabel, card.Notice));
+        Assert.StartsWith("Your answer is reused only for this exact command, in every session of this job", card.DontAskAgainScope, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AlwaysInThisRepositoryIsOfferedOnlyWhenThePolicyFoundAnExactRuleForTheRequest() =>
+        ViewModelScript.Given(new PermissionCardViewModel(asking.OfferingTheRepository("dotnet test"), new(permissions, new FakeAgents())))
+            .Then(card =>
+            {
+                Assert.Equal((true, "Always in this repository"), (card.OffersAlwaysInRepository, card.AlwaysInRepositoryLabel));
+                Assert.Equal(
+                    "Adds a rule for exactly dotnet test to .avala/permissions.json in the repository. It applies to new jobs once committed; this job stops asking now.",
+                    card.AlwaysInRepositoryScope);
+                Assert.False(Card().OffersAlwaysInRepository);
+            });
+
+    [Fact]
+    public void AlwaysInThisRepositoryAlsoStopsThisJobAskingAndGivingThatUpGivesUpTheRepositoryToo() =>
+        ViewModelScript.Given(new PermissionCardViewModel(asking.OfferingTheRepository(), new(permissions, new FakeAgents())))
+            .When(card => card.AlwaysInRepository = true)
+            .Then(card => Assert.Equal((true, true), (card.AlwaysInRepository, card.DontAskAgain)))
+            .When(card => card.DontAskAgain = false)
+            .Then(card => Assert.Equal((false, false), (card.AlwaysInRepository, card.DontAskAgain)));
+
+    [Theory]
+    [InlineData(null, "Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again.")]
+    [InlineData(PolicyError.Malformed, "Not added to .avala/permissions.json: the repository's file is not valid; fix it in Settings first. This job won't ask again.")]
+    [InlineData(PolicyError.RepositoryUnwritable, "Not added to .avala/permissions.json: the repository's file could not be written. This job won't ask again.")]
+    public async Task AlwaysInThisRepositoryIsSentAndTheCardSaysWhetherTheRuleWasAdded(PolicyError? refusal, string notice)
+    {
+        permissions.RepositoryRefusal = refusal.ToOption();
+        var card = new PermissionCardViewModel(asking.OfferingTheRepository(), new(permissions, new FakeAgents()));
+        card.AlwaysInRepository = true;
+
+        await card.AllowCommand.ExecuteAsync(null);
+
+        Assert.Equal(Remember.InThisRepository, Assert.Single(permissions.Replies).Reply.Remember);
+        Assert.Equal(notice, card.Notice);
+    }
+
+    [Fact]
+    public async Task AlwaysInThisRepositoryIsNeverSentForARequestItWasNotOfferedFor()
+    {
+        var card = Card();
+        card.AlwaysInRepository = true;
+
+        await card.AllowCommand.ExecuteAsync(null);
+
+        Assert.Equal(Remember.ForThisJob, Assert.Single(permissions.Replies).Reply.Remember);
     }
 
     [Fact]
