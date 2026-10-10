@@ -73,6 +73,50 @@ public sealed class RestartTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AJobCheckingAgainAfterARestartShowsTheSameSpendingDecisionsAndAutonomyInTheInspectorBeforeItsChecksEndAsync()
+    {
+        using var verdicts = new TcpListener(IPAddress.Loopback, 0);
+        verdicts.Start();
+        await using var run = await SimulatedRun.StartAsync(
+            plugins,
+            "governed",
+            (".avala/checks.json", VerdictChecks(verdicts)),
+            (".avala/permissions.json", GovernedPolicy));
+        IReadOnlyList<string> before;
+
+        using (await verdicts.AcceptTcpClientAsync(Cancellation).AsTask().WaitAsync(HangGuard, Cancellation))
+        {
+            before = await InspectedWhileCheckingAsync(run);
+            await run.RestartAsync();
+        }
+
+        using var rerun = await verdicts.AcceptTcpClientAsync(Cancellation).AsTask().WaitAsync(HangGuard, Cancellation);
+        var after = await InspectedWhileCheckingAsync(run);
+        await rerun.GetStream().WriteAsync(new byte[] { 0 }, Cancellation);
+
+        Assert.Contains(before, line => line.StartsWith("usage: USD 0.01", StringComparison.Ordinal));
+        Assert.Contains(before, line => line.StartsWith("audit: 1 denied", StringComparison.Ordinal));
+        Assert.Contains("autonomy: Autonomous · Autonomous, as the repository declares", before);
+        Assert.Equal(before, after);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    private static async Task<IReadOnlyList<string>> InspectedWhileCheckingAsync(SimulatedRun run)
+    {
+        var workbench = await run.WorkbenchAsync();
+        var sections = await workbench.InspectAsync(run.Job, "UsageSectionViewModel", "AuditSectionViewModel", "AutonomySectionViewModel");
+        var (usage, audit, autonomy) = (sections[0], sections[1], sections[2]);
+
+        return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
+        [
+            $"usage: {usage["Fact"].Text} · {usage["Spent"].Text}",
+            $"audit: {audit["Fact"].Text} · {audit["Summary"].Text}",
+            .. audit["Decisions"].Value<IReadOnlyList<string>>().Select(decision => $"decision: {decision}"),
+            $"autonomy: {autonomy["Fact"].Text} · {autonomy["Autonomy"].Text}",
+        ]);
+    }
+
+    [Fact]
     public async Task TheAuditOfAGovernedJobShowsTheSameDecisionsDenialsAssumptionsAndAutonomyAfterARestartAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "governed", (".avala/permissions.json", GovernedPolicy));

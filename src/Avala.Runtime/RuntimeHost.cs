@@ -20,7 +20,7 @@ public static partial class RuntimeHost
 
             try
             {
-                foreach (var task in services.GetServices<IStartupTask>())
+                foreach (var task in services.GetServices<IStartupTask>().OrderBy(task => task.Stage))
                 {
                     await task.RunAsync(cancellationToken);
                 }
