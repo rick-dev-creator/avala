@@ -75,6 +75,8 @@ internal sealed record DecisionOption(int Number, IFormChoiceViewModel Choice);
 [INotifyPropertyChanged]
 internal sealed partial class DecisionViewModel : IDecisionViewModel
 {
+    private static readonly IReadOnlyList<IFormFieldViewModel> NoFields = [];
+
     public DecisionViewModel(JobId job, string jobTitle, ITimelineItem card, Option<DateTimeOffset> since)
     {
         Job = job;
@@ -83,18 +85,17 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
         Since = since;
         Waiting = string.Empty;
         Note = string.Empty;
-        var fields = (card as IFormCardViewModel)?.Fields ?? [];
+        IReadOnlyList<IFormFieldViewModel> fields;
+        (Title, Asking, Target, Context, Writes, fields) = card switch
+        {
+            IPermissionCardViewModel permission => (permission.Title, FactPhrases.Asking(permission.Kind), permission.Target, string.Empty, permission.Writes, NoFields),
+            IFormCardViewModel form => (form.Title, FactPhrases.Asking(form.Purpose), string.Empty, form.Context, string.Empty, form.Fields),
+            _ => (string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, NoFields),
+        };
         var numbered = fields is [{ Choices.Count: > 0, AcceptsText: false } only] ? only : null;
         Options = numbered is null ? [] : [.. numbered.Choices.Select((choice, index) => new DecisionOption(index + 1, choice))];
         HasFields = numbered is null && fields.Count > 0;
         IsSingleChoice = numbered?.Kind != FieldKind.MultipleChoice;
-        (Title, Asking, Target, Context) = card switch
-        {
-            IPermissionCardViewModel permission => (permission.Title, FactPhrases.Asking(permission.Kind), permission.Target, string.Empty),
-            IFormCardViewModel form => (form.Title, FactPhrases.Asking(form.Purpose), string.Empty, form.Context),
-            _ => (string.Empty, string.Empty, string.Empty, string.Empty),
-        };
-        Writes = (card as IPermissionCardViewModel)?.Writes ?? string.Empty;
         Forward(card);
     }
 
