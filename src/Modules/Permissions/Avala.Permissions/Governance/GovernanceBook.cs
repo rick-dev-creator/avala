@@ -31,28 +31,58 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
         await session.Autonomy.Match(autonomy => store.RecordAsync(autonomy, cancellationToken), () => Task.CompletedTask);
     }
 
-    public async Task DecidedAsync(PolicyDecision decision, CancellationToken cancellationToken)
+    public Task DecidedAsync(PolicyDecision decision, CancellationToken cancellationToken) =>
+        DecidedAsync(decision, Option<PermissionRequest>.None, cancellationToken);
+
+    public async Task DecidedAsync(PolicyDecision decision, Option<PermissionRequest> escalated, CancellationToken cancellationToken)
     {
-        Keep(Of(decision.Session).Decided(decision));
+        Change(decision.Session, kept => decision.Delivery == DecisionDelivery.LeftToParent ? kept.Decided(decision).Escalating(decision.Item, escalated) : kept.Decided(decision));
         await store.RecordAsync(decision, cancellationToken);
     }
 
     public async Task AskedAsync(FormDecision decision, CancellationToken cancellationToken)
     {
-        Keep(Of(decision.Session).Asked(decision));
+        Change(decision.Session, kept => decision.Delivery == DecisionDelivery.LeftToParent ? kept.Asked(decision).Escalating(decision.Item, Option<PermissionRequest>.None) : kept.Asked(decision));
         await store.RecordAsync(decision, cancellationToken);
     }
 
-    public async Task WithdrawnAsync(PolicyDecision decision, CancellationToken cancellationToken)
+    public Task WithdrawnAsync(PolicyDecision decision, CancellationToken cancellationToken) => ReplacedAsync(decision, cancellationToken);
+
+    public Task WithdrawnAsync(FormDecision decision, CancellationToken cancellationToken) => ReplacedAsync(decision, cancellationToken);
+
+    public async Task ReplacedAsync(PolicyDecision decision, CancellationToken cancellationToken)
     {
-        Keep(Of(decision.Session).Withdrawn(decision));
+        Change(decision.Session, kept => kept.Replaced(decision).Settled(decision.Item));
         await store.RecordAsync(decision, cancellationToken);
     }
 
-    public async Task WithdrawnAsync(FormDecision decision, CancellationToken cancellationToken)
+    public async Task ReplacedAsync(FormDecision decision, CancellationToken cancellationToken)
     {
-        Keep(Of(decision.Session).Withdrawn(decision));
+        Change(decision.Session, kept => kept.Replaced(decision).Settled(decision.Item));
         await store.RecordAsync(decision, cancellationToken);
+    }
+
+    public void Settle(SessionId session, ItemId item) => Change(session, kept => kept.Settled(item));
+
+    public void Reopen(SessionId session, ItemId item) => Change(session, kept => kept.Escalating(item, Option<PermissionRequest>.None));
+
+    public bool Claim(SessionId session, ItemId item) =>
+        Take(session, kept => kept.Escalated.ContainsKey(item) ? Option<ItemId>.Some(item) : Option<ItemId>.None, (kept, _) => kept.Settled(item)).IsSome;
+
+    public async Task<Option<PolicyDecision>> PassedAsync(SessionId session, ItemId item, Func<PolicyDecision, PolicyDecision> pass, CancellationToken cancellationToken)
+    {
+        var passed = Take(session, kept => kept.WaitingParent(item).Map(pass), (kept, taken) => kept.Replaced(taken).Settled(item));
+        await passed.Match(decision => store.RecordAsync(decision, cancellationToken), () => Task.CompletedTask);
+
+        return passed;
+    }
+
+    public async Task<Option<FormDecision>> PassedAsync(SessionId session, ItemId item, Func<FormDecision, FormDecision> pass, CancellationToken cancellationToken)
+    {
+        var passed = Take(session, kept => kept.FormWaitingParent(item).Map(pass), (kept, taken) => kept.Replaced(taken).Settled(item));
+        await passed.Match(decision => store.RecordAsync(decision, cancellationToken), () => Task.CompletedTask);
+
+        return passed;
     }
 
     public async Task RecordAsync(HumanAnswer answer, CancellationToken cancellationToken)
@@ -110,6 +140,27 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
 
     public IReadOnlyList<HumanAnswer> AnswersOfJob(JobId job) =>
         [.. Volatile.Read(ref earlierAnswers).Concat(Volatile.Read(ref answers)).Where(answer => answer.Job == Option<JobId>.Some(job))];
+
+    public IReadOnlyList<HumanAnswer> AnswersGivenBy(JobId parent) =>
+        [.. Volatile.Read(ref earlierAnswers).Concat(Volatile.Read(ref answers)).Where(answer => answer.Parent == Option<JobId>.Some(parent))];
+
+    private void Change(SessionId session, Func<GovernedSession, GovernedSession> change) =>
+        ImmutableInterlocked.AddOrUpdate(ref sessions, session, id => change(new GovernedSession(id)), (_, kept) => change(kept));
+
+    private Option<T> Take<T>(SessionId session, Func<GovernedSession, Option<T>> find, Func<GovernedSession, T, GovernedSession> change)
+        where T : notnull
+    {
+        var taken = Option<T>.None;
+        ImmutableInterlocked.Update(ref sessions, current =>
+        {
+            var kept = current.GetValueOrDefault(session) ?? new GovernedSession(session);
+            taken = find(kept);
+
+            return taken.Match(found => current.SetItem(session, change(kept, found)), () => current);
+        });
+
+        return taken;
+    }
 
     private static IEnumerable<GovernedSession> Restored(GovernanceHistory history) =>
         history.Policies.Select(policy => policy.Session)

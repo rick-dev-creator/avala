@@ -37,6 +37,8 @@ public sealed class PermissionsPlugin : IPlugin
             .AddSingleton<IRepositoryRuleFiles, RepositoryRuleWriter>()
             .AddSingleton<AnswerLedger>()
             .AddSingleton<IPermissionAnswers, HumanAnswers>()
+            .AddSingleton<IParentAnswers, ParentAnswers>()
+            .AddSingleton<SessionTerms>()
             .AddSingleton<SessionGovernor>()
             .AddForwarded<IHandle<SessionOpened>, SessionGovernor>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionGovernor>()

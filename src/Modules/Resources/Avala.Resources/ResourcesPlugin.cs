@@ -28,6 +28,7 @@ public sealed class ResourcesPlugin : IPlugin
             .AddSingleton<IFolderSizes, FolderSizes>()
             .AddSingleton<PortLeases>()
             .AddForwarded<IProcessEnvironment, PortLeases>()
+            .AddForwarded<IPortLeases, PortLeases>()
             .AddSingleton<ResourceBook>()
             .AddForwarded<IResources, ResourceBook>()
             .AddSingleton<ProcessReadings>()

@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:triggers="using:Avala.Workbench.Triggers"
+             xmlns:local="using:Avala.Workbench.UI"
+             x:Class="Avala.Workbench.UI.TriggerItemView"
+             x:ClassModifier="internal"
+             x:DataType="triggers:ITriggerItemViewModel"
+             Classes.off="{Binding !IsEnabled}">
+  <Design.DataContext>
+    <triggers:DesignTriggerItemViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Ellipse#Mark">
+      <Setter Property="Fill" Value="{DynamicResource DotDoneBrush}" />
+    </Style>
+    <Style Selector=".off Ellipse#Mark">
+      <Setter Property="Fill" Value="{DynamicResource EdgeBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel Margin="0,11">
+    <Ellipse x:Name="Mark" DockPanel.Dock="Left" Width="7" Height="7" Margin="0,6,12,0" VerticalAlignment="Top" />
+    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Top">
+      <Button x:Name="Toggle"
+              Classes="ghost"
+              Padding="12,5"
+              Content="{Binding Toggle}"
+              Command="{Binding $parent[local:TriggersView].((triggers:ITriggersViewModel)DataContext).ToggleCommand, FallbackValue={x:Null}}"
+              CommandParameter="{Binding}" />
+      <Button x:Name="RunNow"
+              Padding="12,5"
+              Content="Run now"
+              Command="{Binding $parent[local:TriggersView].((triggers:ITriggersViewModel)DataContext).RunNowCommand, FallbackValue={x:Null}}"
+              CommandParameter="{Binding}" />
+    </StackPanel>
+    <StackPanel Spacing="2">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock x:Name="TriggerName" Text="{Binding Name}" />
+        <TextBlock x:Name="Fires" Classes="secondary" Text="{Binding Fires}" />
+      </StackPanel>
+      <TextBlock x:Name="Repository" Classes="caption mono" Text="{Binding Repository}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Repository}" />
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock x:Name="Next" Classes="caption" Text="{Binding Next}" />
+        <TextBlock x:Name="Running" Classes="caption" Text="{Binding Running, StringFormat='· {0}'}" />
+        <TextBlock x:Name="Target" Classes="caption" Text="{Binding Target, StringFormat='· {0}'}" />
+      </StackPanel>
+      <ItemsControl x:Name="Runs" Margin="0,4,0,0" ItemsSource="{Binding Runs}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="caption" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </DockPanel>
+</UserControl>

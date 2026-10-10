@@ -6,7 +6,7 @@ internal static class LeasedPorts
 
     private const int PerTest = 100;
 
-    private const int Tests = 4;
+    private const int Tests = 5;
 
     private const int Runs = 18;
 

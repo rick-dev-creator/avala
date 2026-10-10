@@ -7,6 +7,7 @@ using Avala.Resources.Contracts;
 using Avala.Sdk.Events;
 using Avala.Sdk.Updates;
 using Avala.Supervision.Contracts;
+using Avala.Triggers.Contracts;
 using Avala.Workbench.Board;
 
 namespace Avala.Workbench.Following;
@@ -24,7 +25,10 @@ internal sealed class Pulse(JobBoard board)
         IHandle<BudgetCarved>,
         IHandle<BudgetIntervened>,
         IHandle<SupervisorIntervened>,
-        IHandle<UpdateFound>
+        IHandle<UpdateFound>,
+        IHandle<TriggerFired>,
+        IHandle<WebhookReceived>,
+        IHandle<TriggersChanged>
 {
     private ImmutableList<ChannelWriter<bool>> watchers = [];
 
@@ -53,6 +57,12 @@ internal sealed class Pulse(JobBoard board)
     public ValueTask HandleAsync(SupervisorIntervened integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(UpdateFound integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(TriggerFired integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(WebhookReceived integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(TriggersChanged integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public void Beat()
     {

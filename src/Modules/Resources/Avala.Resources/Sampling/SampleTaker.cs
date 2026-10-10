@@ -40,7 +40,8 @@ internal sealed class SampleTaker(ProcessReadings readings, ResourceBook book, I
         foreach (var (port, lease, process) in PortBook.Conflicts(
             book.Leases(),
             listeners.Select(listener => (listener.Port, listener.Process)),
-            holders.ToDictionary(held => held.Key, held => held.Value.Home)))
+            holders.ToDictionary(held => held.Key, held => held.Value.Home),
+            Environment.ProcessId))
         {
             if (reported.Add((port, lease.Worktree, process.Match<int?>(id => id, () => null))))
             {

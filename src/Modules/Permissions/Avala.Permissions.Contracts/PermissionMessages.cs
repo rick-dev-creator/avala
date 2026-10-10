@@ -24,6 +24,8 @@ public enum PolicyError
     NotAwaitingAnswer,
     NotARepositoryRule,
     RepositoryUnwritable,
+    BeyondParent,
+    InvalidAnswer,
 }
 
 public enum PolicyFileStatus
@@ -39,6 +41,15 @@ public enum DecisionDelivery
     LeftToHuman,
     Undelivered,
     Withdrawn,
+    LeftToParent,
+}
+
+public enum PassReason
+{
+    PassedByParent,
+    BeyondParent,
+    ParentTimedOut,
+    ParentUnreachable,
 }
 
 public sealed record SessionPolicy(
@@ -79,9 +90,16 @@ public sealed record PolicyDecision(
     public Autonomy Autonomy { get; init; }
 
     public Option<PolicyRule> RepositoryRule { get; init; }
+
+    public Option<JobId> Parent { get; init; }
+
+    public Option<PassReason> Passed { get; init; }
 }
 
-public sealed record SessionAutonomy(SessionId Session, JobId Job, Autonomy Declared, Option<Autonomy> Requested, Autonomy Effective, bool Refused);
+public sealed record SessionAutonomy(SessionId Session, JobId Job, Autonomy Declared, Option<Autonomy> Requested, Autonomy Effective, bool Refused)
+{
+    public bool ReadOnly { get; init; }
+}
 
 public enum AssumptionBasis
 {
@@ -103,7 +121,12 @@ public sealed record FormDecision(
     Option<FormAnswer> Answer,
     IReadOnlyList<Assumption> Assumptions,
     DecisionDelivery Delivery,
-    DateTimeOffset At);
+    DateTimeOffset At)
+{
+    public Option<JobId> Parent { get; init; }
+
+    public Option<PassReason> Passed { get; init; }
+}
 
 public enum Remember
 {
@@ -133,6 +156,8 @@ public sealed record HumanAnswer(
     public Option<PolicyRule> RepositoryRule { get; init; }
 
     public Option<PolicyError> RepositoryError { get; init; }
+
+    public Option<JobId> Parent { get; init; }
 }
 
 public sealed record PolicyLoaded(SessionPolicy Policy) : IIntegrationEvent;

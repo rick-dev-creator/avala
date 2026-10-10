@@ -1,6 +1,8 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Cards;
@@ -24,17 +26,53 @@ internal static class CardPhrases
             _ => "Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again.",
             () => answer.RepositoryError.Match(error => $"Not added to .avala/permissions.json: {NotAdded(error)} This job won't ask again.", () => string.Empty));
 
+    public const string WaitingForParent = "Waiting for its parent";
+
     public static string Verdict(PermissionEntry permission) =>
         permission.Resolution.Match(
-            answer => answer == PermissionAnswer.Allow ? "Allowed" : "Denied",
-            () => permission.Withdrawn ? Withdrawn : permission.Closed ? "No longer waiting" : permission.AwaitsHuman ? "Waiting for you" : "Deciding");
+            answer => (answer == PermissionAnswer.Allow ? "Allowed" : "Denied") + ByParent(permission.Decision.Map(decision => (decision.Parent, decision.Delivery))),
+            () => Waiting(
+                permission.Withdrawn,
+                permission.Closed,
+                permission.AwaitsParent,
+                permission.AwaitsHuman,
+                permission.Decision.Bind(decision => decision.Passed)));
 
     public static string Verdict(FormEntry form) =>
         form.Answer.Match(
-            answer => answer.Declined
-                ? "Declined"
-                : form.WentToHuman ? $"Answered: {Chosen(answer)}" : $"Answered for you: {Chosen(answer)}",
-            () => form.Withdrawn ? Withdrawn : form.Closed || form.Outcome.IsSome ? "No longer waiting" : form.AwaitsHuman ? "Waiting for you" : "Deciding");
+            answer => Answered(form, answer),
+            () => Waiting(form.Withdrawn, form.Closed || form.Outcome.IsSome, form.AwaitsParent, form.AwaitsHuman, form.Decision.Bind(decision => decision.Passed)));
+
+    private static string Answered(FormEntry form, FormAnswer answer)
+    {
+        var byParent = ByParent(form.Decision.Map(decision => (decision.Parent, decision.Delivery)));
+
+        return answer.Declined ? $"Declined{byParent}"
+            : byParent.Length > 0 ? $"Answered{byParent}: {Chosen(answer)}"
+            : form.WentToHuman ? $"Answered: {Chosen(answer)}"
+            : $"Answered for you: {Chosen(answer)}";
+    }
+
+    private static string Waiting(bool withdrawn, bool closed, bool awaitsParent, bool awaitsHuman, Option<PassReason> passed) =>
+        withdrawn ? Withdrawn
+        : closed ? "No longer waiting"
+        : awaitsParent ? WaitingForParent
+        : awaitsHuman ? WaitingForYou(passed)
+        : "Deciding";
+
+    public static string Passed(PassReason reason) => reason switch
+    {
+        PassReason.PassedByParent => "its parent passed it to you",
+        PassReason.BeyondParent => "its parent's own rules do not allow it",
+        PassReason.ParentTimedOut => "its parent did not answer in time",
+        _ => "its parent could not be asked",
+    };
+
+    private static string WaitingForYou(Option<PassReason> passed) =>
+        passed.Match(reason => $"Waiting for you · {Passed(reason)}", () => "Waiting for you");
+
+    private static string ByParent(Option<(Option<JobId> Parent, DecisionDelivery Delivery)> decision) =>
+        decision.Match(found => found.Parent.IsSome && found.Delivery == DecisionDelivery.Answered, () => false) ? " by its parent" : string.Empty;
 
     public static string Writes(IReadOnlyList<string> paths) =>
         paths.Count == 0 ? string.Empty : $"Writes to {string.Join(", ", paths)}";

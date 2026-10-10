@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
@@ -9,6 +10,7 @@ namespace Avala.Simulator.Playback;
 internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates gates, CapabilitySet declared)
 {
     private readonly Replayer replayer = new(options, craft.Files, gates, craft.Pacing);
+    private readonly ToolCaller caller = new(options, gates, declared);
     private int acknowledged;
 
     public bool Closing => replayer.Closing;
@@ -61,7 +63,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         Finish => Heard(cues).Append(cues.Ended(TurnOutcome.Finished)).ToAsyncEnumerable(),
         CallTool call => PlayAsync(cues, new CallTools([call]), cancellationToken),
         CallTools calls when calls.Calls.All(call => options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed)) =>
-            CallAsync(cues, calls.Calls, cancellationToken),
+            caller.CallAsync(cues, calls, cancellationToken),
         CallTools calls => calls.Calls
             .SelectMany(call => cues.Of(Reply(call.Item, $"I would call {call.Tool} with {call.Input}, but the harness did not offer it.")))
             .ToAsyncEnumerable(),
@@ -196,38 +198,6 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         if (!goesOn)
         {
             yield return cues.Ended(TurnOutcome.Finished);
-        }
-    }
-
-    private async IAsyncEnumerable<IAgentEvent> CallAsync(
-        Cues cues,
-        IReadOnlyList<CallTool> calls,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        var waiting = new List<Task<ToolResult>>();
-
-        foreach (var call in calls)
-        {
-            var pending = await gates.Tools.ExpectAsync(call.Item, cancellationToken);
-            waiting.Add(gates.Tools.AwaitAsync(call.Item, pending, cancellationToken));
-            yield return cues.Called(call.Item, call.Tool, call.Input);
-        }
-
-        var answers = new List<string>();
-
-        while (waiting.Count > 0)
-        {
-            var answered = await Task.WhenAny(waiting);
-            waiting.Remove(answered);
-            var result = await answered;
-            answers.Add(result.Content);
-            yield return cues.Returned(result.Item, result);
-            yield return cues.Closed(result.Item, result.IsError ? ItemOutcome.Failed : ItemOutcome.Succeeded);
-        }
-
-        foreach (var cue in cues.Of(Reply(calls[0].Item, $"The harness answered: {string.Join(' ', answers)}")))
-        {
-            yield return cue;
         }
     }
 

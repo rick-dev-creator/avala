@@ -46,6 +46,8 @@ internal sealed class FakeEvidence : IVerifications, IPermissionAudit
     public IReadOnlyList<FormDecision> FormsOfSession(SessionId session) => [];
 
     public IReadOnlyList<HumanAnswer> AnswersOfJob(JobId job) => [];
+
+    public IReadOnlyList<HumanAnswer> AnswersGivenBy(JobId parent) => [];
 }
 
 internal sealed class FakeWork : IWorkspaces, IWorkspaceChanges

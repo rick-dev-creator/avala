@@ -6,6 +6,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Delegating;
+using Avala.Delegation.Escalating;
 using Avala.Delegation.Policy;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -42,6 +43,13 @@ internal sealed class ReturningAgents : IAgents
 
     public bool Closed { get; set; }
 
+    private readonly ConcurrentDictionary<ItemId, TaskCompletionSource<ToolResult>> signals = new();
+
+    public Task<ToolResult> ResultOfAsync(string item, CancellationToken cancellationToken) => Signal(new ItemId(item)).Task.WaitAsync(cancellationToken);
+
+    private TaskCompletionSource<ToolResult> Signal(ItemId item) =>
+        signals.GetOrAdd(item, _ => new TaskCompletionSource<ToolResult>(TaskCreationOptions.RunContinuationsAsynchronously));
+
     public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken)
     {
         if (Closed)
@@ -49,7 +57,13 @@ internal sealed class ReturningAgents : IAgents
             return ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.SessionClosed));
         }
 
+        if (results.Any(returned => returned.Session == session && returned.Result.Item == result.Item))
+        {
+            return ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.NoPendingCall));
+        }
+
         results.Enqueue((session, result));
+        Signal(result.Item).TrySetResult(result);
 
         return ValueTask.FromResult(Result<ItemId, AgentError>.Success(result.Item));
     }
@@ -82,9 +96,15 @@ internal sealed class FixedAudit : IPermissionAudit
 {
     public Dictionary<SessionId, Autonomy> Effective { get; } = [];
 
+    public Dictionary<SessionId, JobId> Working { get; } = [];
+
+    public List<PolicyDecision> Decisions { get; } = [];
+
+    public List<FormDecision> Forms { get; } = [];
+
     public Option<SessionAutonomy> AutonomyOf(SessionId session) =>
         Effective.TryGetValue(session, out var level)
-            ? new SessionAutonomy(session, JobId.New(), Autonomy.Autonomous, Option<Autonomy>.None, level, Refused: false)
+            ? new SessionAutonomy(session, Working.TryGetValue(session, out var job) ? job : JobId.New(), Autonomy.Autonomous, Option<Autonomy>.None, level, Refused: false)
             : Option<SessionAutonomy>.None;
 
     public Option<SessionPolicy> PolicyOf(SessionId session) => Option<SessionPolicy>.None;
@@ -93,13 +113,15 @@ internal sealed class FixedAudit : IPermissionAudit
 
     public IReadOnlyList<PolicyDecision> OfSession(SessionId session) => [];
 
-    public IReadOnlyList<PolicyDecision> OfJob(JobId job) => [];
+    public IReadOnlyList<PolicyDecision> OfJob(JobId job) => [.. Decisions.Where(decision => decision.Job == Option<JobId>.Some(job))];
 
     public IReadOnlyList<FormDecision> FormsOfSession(SessionId session) => [];
 
-    public IReadOnlyList<FormDecision> FormsOfJob(JobId job) => [];
+    public IReadOnlyList<FormDecision> FormsOfJob(JobId job) => [.. Forms.Where(decision => decision.Job == Option<JobId>.Some(job))];
 
     public IReadOnlyList<HumanAnswer> AnswersOfJob(JobId job) => [];
+
+    public IReadOnlyList<HumanAnswer> AnswersGivenBy(JobId parent) => [];
 }
 
 internal sealed class FixedUsage : IUsage
@@ -157,4 +179,59 @@ internal sealed class FixedVerifications : IVerifications
     public Dictionary<JobId, VerificationReport> Reports { get; } = [];
 
     public IReadOnlyList<VerificationReport> OfJob(JobId job) => Reports.TryGetValue(job, out var report) ? [report] : [];
+}
+
+internal sealed class RecordingParentAnswers : IParentAnswers
+{
+    public List<(SessionId Child, ParentReply Reply)> Replies { get; } = [];
+
+    public List<(SessionId Child, ParentFormReply Reply)> FormReplies { get; } = [];
+
+    public ConcurrentQueue<(SessionId Child, ItemId Item, PassReason Reason)> Passed { get; } = [];
+
+    public Option<PolicyError> Refusal { get; set; }
+
+    public ValueTask<Result<HumanAnswer, PolicyError>> AnswerAsync(SessionId child, ParentReply reply, CancellationToken cancellationToken)
+    {
+        Replies.Add((child, reply));
+
+        return ValueTask.FromResult(Refusal.Match(
+            Result<HumanAnswer, PolicyError>.Failure,
+            () => Result<HumanAnswer, PolicyError>.Success(new HumanAnswer(child, Option<JobId>.None, reply.Item, ItemKind.Command, "dotnet ef database update", reply.Answer, reply.Message, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch))));
+    }
+
+    public ValueTask<Result<FormDecision, PolicyError>> AnswerFormAsync(SessionId child, ParentFormReply reply, CancellationToken cancellationToken)
+    {
+        FormReplies.Add((child, reply));
+
+        return ValueTask.FromResult(Refusal.Match(
+            Result<FormDecision, PolicyError>.Failure,
+            () => Result<FormDecision, PolicyError>.Failure(PolicyError.NotAwaitingAnswer)));
+    }
+
+    public HashSet<ItemId> Waiting { get; } = [];
+
+    public bool Waits(SessionId child, ItemId item) => Waiting.Contains(item);
+
+    public Task<PassReason> FirstPass => first.Task;
+
+    private readonly TaskCompletionSource<PassReason> first = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public ValueTask<bool> PassAsync(SessionId child, ItemId item, PassReason reason, CancellationToken cancellationToken)
+    {
+        Passed.Enqueue((child, item, reason));
+        first.TrySetResult(reason);
+
+        return ValueTask.FromResult(true);
+    }
+}
+
+internal sealed class FixedMachine(EscalationTerms terms) : IMachineDelegation
+{
+    public FixedMachine()
+        : this(EscalationTerms.Undeclared)
+    {
+    }
+
+    public ValueTask<EscalationTerms> LoadAsync(CancellationToken cancellationToken) => ValueTask.FromResult(terms);
 }
