@@ -59,16 +59,16 @@ internal sealed class WebhookGate(ISecrets secrets, RunJournal journal) : IStart
 
     private DeliveryVerdict Signed(TriggerDeclaration trigger, WebhookRule rule, WebhookRequest request, DateTimeOffset now)
     {
-        var timestamp = request.Header(WebhookSignature.TimestampHeader).Match(text => text, () => string.Empty);
-        var nonce = request.Header(WebhookSignature.NonceHeader).Match(text => text, () => string.Empty);
-        var signature = request.Header(WebhookSignature.SignatureHeader).Match(text => text, () => string.Empty);
+        var timestamp = OrEmpty(request.Header(WebhookSignature.TimestampHeader));
+        var nonce = OrEmpty(request.Header(WebhookSignature.NonceHeader));
+        var signature = OrEmpty(request.Header(WebhookSignature.SignatureHeader));
 
         if (timestamp.Length == 0 || signature.Length == 0 || !WebhookSignature.WellFormedNonce(nonce))
         {
             return DeliveryVerdict.NotSigned;
         }
 
-        var secret = secrets.Of(rule.SecretVariable).Match(value => value, () => string.Empty);
+        var secret = OrEmpty(secrets.Of(rule.SecretVariable));
 
         if (secret.Length == 0)
         {
@@ -94,6 +94,8 @@ internal sealed class WebhookGate(ISecrets secrets, RunJournal journal) : IStart
 
         return JsonObject(request.Body) ? DeliveryVerdict.Accepted : DeliveryVerdict.Malformed;
     }
+
+    private static string OrEmpty(Option<string> text) => text.Match(found => found, () => string.Empty);
 
     private static bool JsonObject(byte[] body)
     {
