@@ -107,7 +107,7 @@ public sealed class ModuleDatabaseTests
     }
 
     [Fact]
-    public async Task MigratingAnUpToDateDatabaseAgainChangesNothingAsync()
+    public async Task MigratingAnUpToDateDatabaseAgainWritesNothingAsync()
     {
         await using var folder = new TemporaryFolder();
         var path = Path.Combine(folder.Path, "notes.db");
@@ -118,7 +118,7 @@ public sealed class ModuleDatabaseTests
             await first.SaveChangesAsync(Cancellation);
         }
 
-        await using var again = new NotesContext(path);
+        await using var again = new NotesContext(path, Before.Stopping(Before.ClearingTheLock), Before.Stopping(Before.TakingTheLock));
         await ModuleDatabase.MigrateAsync(again, Cancellation);
 
         Assert.Equal(2, (await again.Database.GetAppliedMigrationsAsync(Cancellation)).Count());

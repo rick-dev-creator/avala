@@ -54,6 +54,8 @@ internal sealed record SessionUsage(SessionId Session)
         _ => fact.Outcome.Match(outcome => this with { Turns = Turns.Counting(outcome, fact.Duration) }, () => this),
     };
 
+    public bool Ended(TurnId turn) => EndedTurns.Contains(turn);
+
     public Option<TimeSpan> Elapsed(TurnId turn, DateTimeOffset at) =>
         OpenTurns.TryGetValue(turn, out var started) ? at - started : Option<TimeSpan>.None;
 

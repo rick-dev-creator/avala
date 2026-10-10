@@ -20,6 +20,11 @@ public static class ModuleDatabase
 
         if (await context.GetService<IRelationalDatabaseCreator>().ExistsAsync(CancellationToken.None))
         {
+            if (await CurrentAsync(context))
+            {
+                return;
+            }
+
             await context.Database.ExecuteSqlRawAsync(OrphanedLock, CancellationToken.None);
         }
 
@@ -30,6 +35,10 @@ public static class ModuleDatabase
 
         await context.Database.MigrateAsync(CancellationToken.None);
     }
+
+    private static async Task<bool> CurrentAsync(DbContext context) =>
+        await context.GetService<IHistoryRepository>().ExistsAsync(CancellationToken.None)
+        && !(await context.Database.GetPendingMigrationsAsync(CancellationToken.None)).Any();
 
     private static async Task<bool> CreatedWithoutMigrationsAsync(DbContext context, CancellationToken cancellationToken) =>
         await context.GetService<IRelationalDatabaseCreator>().ExistsAsync(cancellationToken)

@@ -13,9 +13,9 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
 {
     private const string DefaultFeedback = "The checks did not pass. Review the failures and fix them.";
 
-    public async Task ExecuteAsync(Job job, SessionId session, TurnOutcome outcome, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(Job job, FinishedTurn turn, TurnOutcome outcome, CancellationToken cancellationToken)
     {
-        if (job.State != JobState.Running || job.Session != Option<SessionId>.Some(session))
+        if (job.State != JobState.Running || job.Session != Option<SessionId>.Some(turn.Session))
         {
             return;
         }
@@ -28,11 +28,14 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
 
         _ = job.CompleteTurn();
         await ledger.RecordAsync(job, cancellationToken);
-        await JudgeAsync(job, round.InSameSessionAsync, cancellationToken);
+        await JudgeAsync(job, turn, round.InSameSessionAsync, cancellationToken);
     }
 
-    public async Task JudgeAsync(Job job, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken) =>
-        await (await EvaluateAsync(job, cancellationToken)).Match(
+    public Task JudgeAsync(Job job, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken) =>
+        JudgeAsync(job, Option<FinishedTurn>.None, retry, cancellationToken);
+
+    private async Task JudgeAsync(Job job, Option<FinishedTurn> turn, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken) =>
+        await (await EvaluateAsync(job, turn, cancellationToken)).Match(
             verdict => verdict.Hold.Match(
                 reason => round.HoldAsync(job, reason, cancellationToken),
                 () => verdict.Decision == GateDecision.Pass
@@ -40,7 +43,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
                     : RetryAsync(job, verdict.Feedback, retry, cancellationToken)),
             () => FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken));
 
-    private async Task<Option<GateVerdict>> EvaluateAsync(Job job, CancellationToken cancellationToken)
+    private async Task<Option<GateVerdict>> EvaluateAsync(Job job, Option<FinishedTurn> turn, CancellationToken cancellationToken)
     {
         var attempt = job.Attempts[^1].Number.Value;
 
@@ -50,7 +53,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
             return Option<GateVerdict>.None;
         }
 
-        return await gates.EvaluateAsync(new CompletedAttempt(job.Id, attempt, workspace.Path, job.Instruction.Text), cancellationToken);
+        return await gates.EvaluateAsync(new CompletedAttempt(job.Id, attempt, workspace.Path, job.Instruction.Text) { Turn = turn }, cancellationToken);
     }
 
     private async Task PassAsync(Job job, CancellationToken cancellationToken)

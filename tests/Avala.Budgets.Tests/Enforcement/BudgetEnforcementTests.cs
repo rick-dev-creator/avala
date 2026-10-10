@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -182,6 +183,23 @@ public sealed class BudgetEnforcementTests
 
         Assert.Equal(GateVerdict.Pass, within);
         Assert.Equal(GateVerdict.HoldFor(HoldReason.BudgetExceeded), over);
+    }
+
+    [Fact]
+    public async Task TheSpendGateJudgesAFinishedTurnWithItsOwnSpendOnceItsUsageIsTalliedAsync()
+    {
+        var budgeted = new Budgeted(JobRejection.NotRunning);
+        await budgeted.RunningAsync(Caps(cost: [new Cost(0.01m, "USD")]));
+        await budgeted.SpendAsync(Few, new Cost(0.005m, "USD"));
+
+        var judging = budgeted.JudgeAsync(new FinishedTurn(budgeted.Session, TurnId.New())).AsTask();
+        var waited = await Task.WhenAny(budgeted.Tallies.Asked, judging) != judging;
+        budgeted.Tally(budgeted.Job, Few, new Cost(0.012m, "USD"));
+        budgeted.Tallies.Release();
+
+        Assert.True(waited);
+        Assert.Equal(GateVerdict.HoldFor(HoldReason.BudgetExceeded), await judging);
+        Assert.Empty(budgeted.Jobs.Holds);
     }
 
     [Fact]

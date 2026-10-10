@@ -45,6 +45,7 @@ public sealed class BudgetsPluginTests
         PluginComposition.Of(new BudgetsPlugin(), new AvalaPaths(data.Path), services => services
             .AddSingleton<IJobs>(new Budgeted.HoldingJobs(default))
             .AddSingleton<IUsage>(new Budgeted.Usage())
+            .AddSingleton<IUsageTally>(new Budgeted.HeldTallies())
             .AddSingleton<IResources>(new Budgeted.MeasuredResources())
             .AddSingleton<IBaseFiles>(new CommittedFiles()));
 }

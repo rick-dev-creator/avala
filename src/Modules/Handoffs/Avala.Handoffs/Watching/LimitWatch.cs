@@ -128,8 +128,8 @@ internal sealed class LimitWatch(Situations situations, LimitActions actions, IH
     {
         if (await DisarmAsync(job))
         {
-            await store.DropAsync(job, token);
             actions.Ended(job);
+            await store.DropAsync(job, token);
         }
     }
 

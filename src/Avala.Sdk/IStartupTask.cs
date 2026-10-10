@@ -15,4 +15,6 @@ public enum StartupStage
     Recovery,
 }
 
+public sealed record StartupProgressed(string Task, StartupStage Stage) : IIntegrationEvent;
+
 public sealed record StartupCompleted : IIntegrationEvent;

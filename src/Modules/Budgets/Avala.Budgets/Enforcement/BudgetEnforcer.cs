@@ -11,14 +11,12 @@ using Avala.Sdk.Events;
 
 namespace Avala.Budgets.Enforcement;
 
-internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<IResources> resources, BudgetActions actions)
+internal sealed class BudgetEnforcer(BudgetBook book, JobBreaches breaches, IEnumerable<IResources> resources, BudgetActions actions)
     : IHandle<BudgetLoaded>, IHandle<JobSessionStarted>, IHandle<JobProgressed>, IHandle<UsageRecorded>, IHandle<ResourcesSampled>, IHandle<JobSubmitted>, IHandle<JobHeld>
 {
     private readonly Dictionary<JobId, SessionId> sessions = [];
     private readonly Dictionary<JobId, JobStatus> statuses = [];
     private readonly List<(JobId Child, JobId Parent)> uncarved = [];
-
-    private Lineage Tree => new(book.Carves, Spent, Ended);
 
     public async ValueTask HandleAsync(JobSubmitted integrationEvent, CancellationToken cancellationToken)
     {
@@ -45,6 +43,7 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
     public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
     {
         statuses[integrationEvent.Job] = integrationEvent.Status;
+        book.KeepStatus(integrationEvent.Job, integrationEvent.Status);
         await EnforceAsync(integrationEvent.Job, cancellationToken);
     }
 
@@ -70,7 +69,8 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
 
         if (hold.Reason == HoldReason.BudgetExceeded && !book.OfJob(hold.Job).Any(recorded => recorded.Hold == hold))
         {
-            await book.Overspent(hold.Job).Match(breach => actions.RecordAsync(hold, breach, cancellationToken), () => Task.CompletedTask);
+            var breach = sessions.TryGetValue(hold.Job, out var session) ? breaches.Overspent(hold.Job, session) : book.Overspent(hold.Job);
+            await breach.Match(found => actions.RecordAsync(hold, found, cancellationToken), () => Task.CompletedTask);
         }
     }
 
@@ -83,7 +83,7 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
     private async Task CarveAsync(JobId child, JobId parent, BudgetCaps allowance, CancellationToken cancellationToken)
     {
         uncarved.Remove((child, parent));
-        await actions.CarveAsync(allowance.CarveFor(parent, child, Tree.CommittedBy(parent), actions.Now), cancellationToken);
+        await actions.CarveAsync(allowance.CarveFor(parent, child, breaches.Tree.CommittedBy(parent), actions.Now), cancellationToken);
         foreach (var job in LineOf(child))
         {
             await EnforceAsync(job, cancellationToken);
@@ -101,12 +101,12 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
             return;
         }
 
-        var breach = book.Budgeted(session)
-            .Bind(budgeted => (budgeted.Budget with { Caps = budgeted.Budget.Caps.Within(book.CarveOf(job)) }).BreachBy(
-                Tree.CommittedBy(job),
-                LimitsOf(budgeted.Connection),
-                resources.Sum(measured => measured.OfJob(job).MemoryBytes)));
-        var overspent = breach.Bind(found => found.Reason == HoldReason.BudgetExceeded ? found : Option<BudgetBreach>.None);
+        var breach = book.Budgeted(session).Bind(budgeted => breaches.Of(
+            job,
+            session,
+            breaches.LimitsOf(budgeted.Connection, actions.Now),
+            resources.Sum(measured => measured.OfJob(job).MemoryBytes)));
+        var overspent = JobBreaches.Overspending(breach);
         book.KeepSpending(job, overspent);
 
         await (status == JobStatus.Running ? breach : overspent)
@@ -120,16 +120,4 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
 
     private IReadOnlyList<JobId> LineOf(JobId job) =>
         [job, .. book.CarveOf(job).Match(carve => LineOf(carve.Parent), () => [])];
-
-    private Commitment Spent(JobId job) => usage.OfJob(job).Match(Commitment.Of, () => Commitment.Nothing);
-
-    private bool Ended(JobId job) => statuses.GetValueOrDefault(job) is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed;
-
-    private IReadOnlyList<UsageLimit> LimitsOf(ConnectionName connection) =>
-        [
-            .. usage.ByConnection()
-                .Where(used => used.Connection == connection)
-                .SelectMany(used => used.Usage.Limits)
-                .Where(limit => limit.ResetsAt.Match(resets => resets > actions.Now, () => true)),
-        ];
 }

@@ -25,6 +25,7 @@ public sealed class ObservabilityPlugin : IPlugin
             .AddSingleton<UsageBook>()
             .AddForwarded<IUsage, UsageBook>()
             .AddForwarded<IUsageSessions, UsageBook>()
+            .AddForwarded<IUsageTally, UsageBook>()
             .AddSingleton<IUsageHistory, UsageHistory>()
             .AddForwarded<IStartupTask, UsageBook>()
             .AddSingleton<IUsageMetrics, UsageMeter>()
