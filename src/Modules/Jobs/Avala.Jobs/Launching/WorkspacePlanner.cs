@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Ledger;
@@ -33,6 +34,9 @@ internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaul
 
         return preferred.IsSome ? preferred : await chooser.ChooseAsync(job.Id, workspace.Path, cancellationToken);
     }
+
+    public async Task<ModelChoice> ModelOfAsync(Job job, WorkspaceInfo workspace, CancellationToken cancellationToken) =>
+        job.Model.Or((await defaults.ModelAsync(workspace.Path, cancellationToken)).Match(declared => declared, _ => ModelChoice.Default));
 
     private async Task<Result<WorkspaceInfo, WorkspaceFailure>> FromParentAsync(Job child, JobId parent, CancellationToken cancellationToken) =>
         (await queues.RunAsync(parent, (found, token) => StartFromAsync(found, child, token), cancellationToken))

@@ -48,7 +48,7 @@ public sealed class ConnectionsTests
             ],
             catalog.Connections);
         Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("first")), catalog.Default);
-        Assert.Equal(new ConnectionInfo(new ConnectionName("first"), first.Info), Outcomes.Succeeds(await registry.CheckAsync(Option<ConnectionName>.None, Cancellation)));
+        Assert.Equal(new ConnectionInfo(new ConnectionName("first"), first.Info) { Capabilities = first.CapabilitiesOn(ConnectionEnvironment.Default) }, Outcomes.Succeeds(await registry.CheckAsync(Option<ConnectionName>.None, Cancellation)));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class ConnectionsTests
 
         Assert.Equal([new ConnectionName("first")], catalog.Connections.Select(connection => connection.Name));
         Assert.Equal(
-            new ConnectionInfo(new ConnectionName("demo"), quiet.Info),
+            new ConnectionInfo(new ConnectionName("demo"), quiet.Info) { Capabilities = quiet.CapabilitiesOn(ConnectionEnvironment.Default) },
             Outcomes.Succeeds(await declared.CheckAsync(new ConnectionName("demo"), Cancellation)));
     }
 

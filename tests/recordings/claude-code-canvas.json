@@ -1,7 +1,7 @@
 {
   "format": "avala-recording",
   "version": 1,
-  "recordedAt": "2026-10-09T20:29:38.8626085+00:00",
+  "recordedAt": "2026-10-10T04:49:38.6193062+00:00",
   "provider": {
     "id": "claude-code",
     "name": "Claude Code"
@@ -17,6 +17,27 @@
     "asksForms": {},
     "exposesReasoning": {},
     "interruptible": {},
+    "offersModels": {
+      "models": [
+        "best",
+        "fable",
+        "opus",
+        "sonnet",
+        "haiku",
+        "opus[1m]",
+        "sonnet[1m]",
+        "opusplan"
+      ],
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultModel": null,
+      "defaultEffort": null
+    },
     "reportsCost": {
       "currency": "USD"
     },
@@ -74,6 +95,14 @@
         "type": "resumeTokenIssued",
         "turn": 1,
         "token": "6f8c0e33-2b4d-4f60-9e81-7b3c5d7e9f04/0"
+      }
+    },
+    {
+      "at": 0,
+      "event": {
+        "type": "modelReported",
+        "turn": 1,
+        "model": "claude-haiku-5-5"
       }
     },
     {

@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 
 namespace Avala.Simulator.Scenarios;
 
@@ -12,6 +13,8 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
     public TurnCompleted Ended(TurnOutcome outcome) => new(Session, Turn, outcome);
 
     public ResumeTokenIssued Resumable(ResumeToken token) => new(Session, Turn, token);
+
+    public ModelReported Ran(string model, Option<string> effort) => new(Session, Turn, model) { Effort = effort };
 
     public ItemStarted Opened(ItemId item, ItemKind kind, string title) => new(Session, Turn, item, kind, title);
 
@@ -65,6 +68,7 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         PlanUpdated plan => plan with { Session = Session, Turn = Turn },
         UsageReported usage => usage with { Session = Session, Turn = Turn },
         LimitReported limit => limit with { Session = Session, Turn = Turn },
+        ModelReported model => model with { Session = Session, Turn = Turn },
         _ => ReaddressItem(recorded),
     };
 

@@ -29,6 +29,12 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         yield return cues.Started;
         yield return cues.Resumable(conversation.Advanced.Token);
 
+        foreach (var offered in declared.Get<OffersModels>().Match<OffersModels[]>(found => [found], () => []))
+        {
+            var ran = offered.Applied(options.Model);
+            yield return cues.Ran(ran.Model.Match(model => model, () => offered.Models.Count > 0 ? offered.Models[0] : "simulated"), ran.Effort);
+        }
+
         foreach (var step in script)
         {
             await foreach (var cue in PlayAsync(cues, step, cancellationToken))

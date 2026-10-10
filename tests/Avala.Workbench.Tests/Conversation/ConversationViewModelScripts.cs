@@ -133,6 +133,19 @@ public sealed class ConversationViewModelScripts
         Assert.Equal((Components.Status.StatusKind.Held, "Held · stalled"), (conversation.Pill.Kind, conversation.Pill.Text));
     }
 
+    [Fact]
+    public void TheHeaderAddsTheModelAndEffortTheSessionReportsItRanWithOnlyOnceReported()
+    {
+        var conversation = Open();
+        var running = Board(Job().WithPrompts("Fix JPY rounding in invoice totals", []).Apply(new TurnStarted(session, turn), Now));
+        conversation.Show(running);
+        var before = conversation.Place;
+
+        conversation.Show(running with { Transcript = running.Transcript.Apply(new ModelReported(session, turn, "claude-opus-5-5") { Effort = "high" }, Now) });
+
+        Assert.Equal(("repo", "repo · claude-opus-5-5 · high effort"), (before, conversation.Place));
+    }
+
     private static Transcript Job() => Transcript.Empty;
 
     private static BoardJob Board(Transcript transcript, JobStatus status = JobStatus.Running) =>

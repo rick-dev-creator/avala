@@ -8,6 +8,8 @@ public sealed record SessionOptions(string WorkingDirectory, PermissionMode Perm
 {
     public Option<ResumeToken> Resume { get; init; }
 
+    public ModelChoice Model { get; init; } = ModelChoice.Default;
+
     public IReadOnlyList<HarnessTool> Tools { get; init; } = [];
 
     public ConnectionEnvironment Connection { get; init; } = ConnectionEnvironment.Default;

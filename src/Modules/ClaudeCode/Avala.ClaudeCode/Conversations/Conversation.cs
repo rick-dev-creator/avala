@@ -11,10 +11,12 @@ internal sealed class Conversation
     private readonly SessionId session;
     private readonly StreamTranslator translator;
     private readonly ControlDesk desk;
+    private readonly Option<string> effort;
     private Option<Stamp> live;
     private Option<Guid> conversation;
     private decimal spent;
     private bool tokenIssued;
+    private bool modelReported;
     private bool interrupting;
     private int interruptions;
     private int queued;
@@ -28,6 +30,7 @@ internal sealed class Conversation
         desk = new ControlDesk(tools, options.Permissions, places);
         conversation = resumed.Map(mark => mark.Session);
         spent = resumed.Match(mark => mark.Spent, () => 0m);
+        effort = ClaudeModels.Chosen(options).Effort;
     }
 
     public Option<TurnId> Live => live.Map(stamp => stamp.Turn);
@@ -52,6 +55,7 @@ internal sealed class Conversation
         var stamp = new Stamp(session, TurnId.New());
         live = stamp;
         tokenIssued = false;
+        modelReported = false;
 
         return (stamp.Turn, new Reaction([new TurnStarted(session, stamp.Turn)], [Messages.User(turn)]));
     }
@@ -99,16 +103,32 @@ internal sealed class Conversation
         return live.Match(
             stamp =>
             {
+                var model = Ran(message, stamp);
+
                 if (tokenIssued && !changed)
                 {
-                    return Reaction.None;
+                    return model;
                 }
 
                 tokenIssued = conversation.IsSome;
 
-                return Token(stamp);
+                return Token(stamp).Then(model);
             },
             () => Reaction.None);
+    }
+
+    private Reaction Ran(JsonNode message, Stamp stamp)
+    {
+        var model = message.TextOr("model", string.Empty);
+
+        if (modelReported || model.Length == 0)
+        {
+            return Reaction.None;
+        }
+
+        modelReported = true;
+
+        return Reaction.Of(new ModelReported(session, stamp.Turn, model) { Effort = effort });
     }
 
     private Reaction Carried(JsonNode result, Stamp stamp)

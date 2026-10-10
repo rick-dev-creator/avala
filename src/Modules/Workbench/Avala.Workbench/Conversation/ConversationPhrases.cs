@@ -1,8 +1,10 @@
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Linking;
+using Avala.Workbench.ModelChoices;
 
 namespace Avala.Workbench.Conversation;
 
@@ -83,12 +85,15 @@ internal static class ConversationPhrases
         },
     };
 
-    public static string Place(JobSummary job)
+    public static string Place(JobSummary job) => Place(job, Option<ModelReported>.None);
+
+    public static string Place(JobSummary job, Option<ModelReported> ran)
     {
         var repository = job.Repository.TrimEnd('/', '\\');
         var name = repository[(repository.LastIndexOfAny(['/', '\\']) + 1)..];
+        var place = job.Connection.Match(connection => $"{name} · {connection.Value}", () => name);
 
-        return job.Connection.Match(connection => $"{name} · {connection.Value}", () => name);
+        return ran.Match(reported => $"{place} · {ModelPhrases.Ran(reported)}", () => place);
     }
 
     public static string Thought(TimeSpan duration) =>

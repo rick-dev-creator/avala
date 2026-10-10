@@ -157,6 +157,48 @@ public sealed class CapabilityConformanceTests
         Assert.DoesNotContain(Assert.Single(provider.Sessions).Turns, turn => turn.MidTurn);
     }
 
+    [Theory]
+    [InlineData("large", "high", "")]
+    [InlineData("small", "high", "the model small was reported although large was chosen")]
+    [InlineData("large-2026", "high", "")]
+    [InlineData("large", "low", "the effort low was reported although high was chosen")]
+    [InlineData("", "", "no model was reported although the provider declares OffersModels")]
+    public async Task AProviderThatOffersModelsRunsWithTheChosenOneAndReportsItAsync(string model, string effort, string expected)
+    {
+        var provider = new ScriptedAgentProvider((session, turn) =>
+        [
+            new TurnStarted(session, turn),
+            .. model.Length == 0 ? Array.Empty<IAgentEvent>() : [new ModelReported(session, turn, model) { Effort = effort }],
+            new TurnCompleted(session, turn, TurnOutcome.Finished),
+        ])
+        {
+            Capabilities = Everything.With(new OffersModels(["small", "large"], ["low", "high"])),
+        };
+
+        Assert.Equal(expected, string.Join('|', await CapabilityConformance.CheckModelChoiceAsync(provider, Options, Instruction, Deadline)));
+    }
+
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, "the model large was reported although the provider does not declare OffersModels")]
+    public async Task AModelIsReportedOnlyByAProviderThatOffersModelsAsync(bool declared, string expected)
+    {
+        var provider = Reporting(
+            new ModelReported(default, default, "large"),
+            declared ? Everything.With(new OffersModels(["large"], [])) : Everything);
+
+        Assert.Equal(expected, string.Join('|', await AgentConformance.CheckTurnAsync(provider, Deadline)));
+    }
+
+    [Fact]
+    public async Task AProviderThatOffersNoModelsIsGivenNoChoiceAndRunsTheTurnCheckAsync()
+    {
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply);
+
+        Assert.Empty(await CapabilityConformance.CheckModelChoiceAsync(provider, Options, Instruction, Deadline));
+        Assert.True(Assert.Single(provider.Sessions).Options.Model.IsDefault);
+    }
+
     private static CapabilitySet Everything => ScriptedAgentProvider.Declared;
 
     private static ScriptedAgentProvider Reporting(IAgentEvent report, CapabilitySet declared) =>
@@ -187,6 +229,7 @@ public sealed class CapabilityConformanceTests
         UsageReported usage => usage with { Session = session, Turn = turn },
         LimitReported limit => limit with { Session = session, Turn = turn },
         MessageQueued queued => queued with { Session = session, Turn = turn },
+        ModelReported model => model with { Session = session, Turn = turn },
         _ => report,
     };
 }

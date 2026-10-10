@@ -38,6 +38,11 @@ public sealed record UsageReported(SessionId Session, TurnId Turn, TokenUsage To
 
 public sealed record LimitReported(SessionId Session, TurnId Turn, UsageLimit Limit) : IAgentEvent;
 
+public sealed record ModelReported(SessionId Session, TurnId Turn, string Model) : IAgentEvent
+{
+    public Option<string> Effort { get; init; }
+}
+
 public sealed record ResumeTokenIssued(SessionId Session, TurnId Turn, ResumeToken Token) : IAgentEvent;
 
 public sealed record TurnCompleted(SessionId Session, TurnId Turn, TurnOutcome Outcome) : IAgentEvent;

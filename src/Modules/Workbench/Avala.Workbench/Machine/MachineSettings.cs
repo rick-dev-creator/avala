@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
@@ -30,6 +31,9 @@ internal sealed class MachineSettings(IConnections connections, ISupervision sup
 
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken) =>
         connections.DeclareAsync(replacing, connection, cancellationToken);
+
+    public ValueTask<Result<CapabilitySet, ConnectionError>> CapabilitiesAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken) =>
+        connections.CapabilitiesAsync(replacing, connection, cancellationToken);
 
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken) =>
         connections.RemoveAsync(connection, cancellationToken);

@@ -343,7 +343,7 @@ public sealed class SimulatedSessionTests
         Assert.Equal(turn, Outcomes.Succeeds(await stage.Session.InterruptAsync(Cancellation)));
         Assert.Equal(
             [new TurnStarted(stage.Session.Id, turn), new TurnCompleted(stage.Session.Id, turn, TurnOutcome.Interrupted)],
-            (await stage.ReadTurnAsync(Cancellation)).Where(agentEvent => agentEvent is not ResumeTokenIssued));
+            (await stage.ReadTurnAsync(Cancellation)).Where(agentEvent => agentEvent is not (ResumeTokenIssued or ModelReported)));
     }
 
     [Fact]

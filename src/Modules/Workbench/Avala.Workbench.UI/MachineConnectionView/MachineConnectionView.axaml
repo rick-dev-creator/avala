@@ -24,6 +24,11 @@
         <TextBlock Classes="caption" Text="·" />
         <TextBlock x:Name="Origin" Classes="caption" Text="{Binding Origin}" TextTrimming="CharacterEllipsis" />
       </StackPanel>
+      <TextBlock x:Name="Problem"
+                 Classes="caption failure"
+                 TextWrapping="Wrap"
+                 Text="{Binding Problem}"
+                 IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
   </DockPanel>
 </UserControl>

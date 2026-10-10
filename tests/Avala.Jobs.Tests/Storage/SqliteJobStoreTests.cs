@@ -30,6 +30,7 @@ public sealed class SqliteJobStoreTests
             (reloaded.Id, reloaded.State, reloaded.Instruction, reloaded.Budget, reloaded.Repository, reloaded.Workspace, reloaded.Session, reloaded.Resume, reloaded.Autonomy, reloaded.Connection, reloaded.Submitted, reloaded.Parent));
         Assert.Equal(Option<ConnectionName>.Some(Given.Connection), reloaded.Connection);
         Assert.Equal(Option<JobId>.Some(Given.Parent), reloaded.Parent);
+        Assert.Equal(Given.Model, reloaded.Model);
         Assert.Equal(
             job.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance, attempt.Session)),
             reloaded.Attempts.Select(attempt => (attempt.Number, attempt.Origin, attempt.Outcome, attempt.Guidance, attempt.Session)));

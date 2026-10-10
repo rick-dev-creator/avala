@@ -150,6 +150,9 @@ internal sealed class FakeConnections : IConnections
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public ValueTask<Result<Avala.Agents.Contracts.Capabilities.CapabilitySet, ConnectionError>> CapabilitiesAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 }

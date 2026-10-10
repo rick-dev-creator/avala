@@ -28,11 +28,13 @@ internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJ
             Parent = plan.Parent.Job,
             Connection = plan.Connection,
             Autonomy = plan.Autonomy,
+            Model = plan.Model,
         };
 
         if (!(await jobs.SubmitAsync(request, cancellationToken)).TryGetValue(out var child, out var rejection))
         {
-            await journal.RefusedAsync(planned with { Refusal = DelegationError.NotSubmitted, Rejection = rejection }, DelegationError.NotSubmitted, cancellationToken);
+            var refused = Refusal(rejection);
+            await journal.RefusedAsync(planned with { Refusal = refused, Rejection = rejection }, refused, cancellationToken);
 
             return Option<Delegated>.None;
         }
@@ -42,4 +44,11 @@ internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJ
 
         return new Delegated(child, delegated);
     }
+
+    private static DelegationError Refusal(JobRejection rejection) => rejection switch
+    {
+        JobRejection.UnofferedModel => DelegationError.UnofferedModel,
+        JobRejection.UnofferedEffort => DelegationError.UnofferedEffort,
+        _ => DelegationError.NotSubmitted,
+    };
 }

@@ -21,7 +21,7 @@ internal sealed class RecordingFormat
     private static readonly JsonSerializerOptions ComponentData = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase), new OptionalTextConverter() },
     };
 
     private readonly Dictionary<TurnId, int> turns = [];
@@ -72,6 +72,8 @@ internal sealed class RecordingFormat
         {
             json.WriteString("permissions", Enum(header.Options.Permissions));
             json.WriteBoolean("resumed", header.Options.Resume.IsSome);
+            Optional("model", header.Options.Model.Model);
+            Optional("effort", header.Options.Model.Effort);
             Array("tools", header.Options.Tools, tool => Object(() =>
             {
                 json.WriteString("name", tool.Name);
@@ -263,6 +265,10 @@ internal sealed class RecordingFormat
                 break;
             case MessageQueued queued:
                 Text("text", queued.Text);
+                break;
+            case ModelReported model:
+                Text("model", model.Model);
+                Optional("effort", model.Effort);
                 break;
             case ResumeTokenIssued issued:
                 Text("token", issued.Token.Value);

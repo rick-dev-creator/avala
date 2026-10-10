@@ -22,6 +22,8 @@ internal sealed class FakeAgents : IAgents
 
     public ISet<string> UnknownConnections { get; } = new HashSet<string>(StringComparer.Ordinal);
 
+    public ISet<string> UnofferedModels { get; } = new HashSet<string>(StringComparer.Ordinal);
+
     public bool Resumes { get; init; }
 
     public Option<AgentError> InterruptRejection { get; init; }
@@ -52,6 +54,11 @@ internal sealed class FakeAgents : IAgents
         if (UnknownConnections.Contains(connection.Value))
         {
             return ValueTask.FromResult(Result<OpenedSession, AgentError>.Failure(AgentError.UnknownConnection));
+        }
+
+        if (request.Model.Model.Match(UnofferedModels.Contains, () => false))
+        {
+            return ValueTask.FromResult(Result<OpenedSession, AgentError>.Failure(AgentError.UnofferedModel));
         }
 
         var session = SessionId.New();
