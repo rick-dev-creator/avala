@@ -44,7 +44,7 @@ public sealed class CommandPhrasesTests
     {
         var shown = CommandPhrases.OneLine($"{new string('x', 120)}\nsecond\nthird");
 
-        Assert.Equal($"{new string('x', 79)}… +2 lines", shown);
+        Assert.Equal($"{new string('x', 55)}… +2 lines", shown);
     }
 
     [Fact]

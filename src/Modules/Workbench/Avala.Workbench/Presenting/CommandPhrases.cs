@@ -14,6 +14,8 @@ internal static partial class CommandPhrases
 {
     private const int LineWidth = 80;
 
+    private const int ShownWidth = 56;
+
     private static readonly HashSet<string> Prefixes = ["if", "then", "else", "elif", "do", "while", "until", "!", "{", "time"];
 
     private static readonly HashSet<string> Closings = ["fi", "done", "esac", "}", "in"];
@@ -24,7 +26,7 @@ internal static partial class CommandPhrases
     {
         var lines = Lines(text);
         var first = lines[0].TrimEnd();
-        var shown = first.Length > LineWidth ? $"{first[..(LineWidth - 1)].TrimEnd()}…" : first;
+        var shown = first.Length > ShownWidth ? $"{first[..(ShownWidth - 1)].TrimEnd()}…" : first;
 
         return lines.Length > 1 ? string.Create(CultureInfo.InvariantCulture, $"{shown} +{lines.Length - 1} lines") : shown;
     }
