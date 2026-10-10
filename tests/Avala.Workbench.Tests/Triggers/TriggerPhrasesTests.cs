@@ -55,6 +55,24 @@ public sealed class TriggerPhrasesTests
             ]);
     }
 
+    [Theory]
+    [InlineData(DeliveryVerdict.Accepted, "accepted")]
+    [InlineData(DeliveryVerdict.NotPost, "not a POST")]
+    [InlineData(DeliveryVerdict.UnknownTrigger, "no such trigger")]
+    [InlineData(DeliveryVerdict.TooLarge, "too large")]
+    [InlineData(DeliveryVerdict.RateLimited, "rate limited")]
+    [InlineData(DeliveryVerdict.NotSigned, "not signed")]
+    [InlineData(DeliveryVerdict.NoSecret, "secret not set")]
+    [InlineData(DeliveryVerdict.BadSignature, "bad signature")]
+    [InlineData(DeliveryVerdict.Stale, "stale timestamp")]
+    [InlineData(DeliveryVerdict.Replayed, "replayed")]
+    [InlineData(DeliveryVerdict.Malformed, "not a JSON object")]
+    [InlineData(DeliveryVerdict.Disabled, "trigger disabled")]
+    public void ADeliverySaysWhenItCameWhereToAndItsVerdict(DeliveryVerdict verdict, string phrase) =>
+        Assert.Equal(
+            $"2026-10-09 13:00:00 · /hooks/issue · {phrase}",
+            TriggerPhrases.Delivery(new WebhookDelivery(Guid.NewGuid(), At, "/hooks/issue", verdict), TimeZoneInfo.Utc));
+
     [Fact]
     public void TheEndpointSaysWhereItListensOrWhyWebhooksAreOff() =>
         Assert.Equal(
