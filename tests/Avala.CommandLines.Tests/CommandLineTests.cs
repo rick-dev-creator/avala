@@ -1,6 +1,6 @@
-using Avala.Permissions.Policies;
+using Avala.CommandLines;
 
-namespace Avala.Permissions.Tests.Policies;
+namespace Avala.CommandLines.Tests;
 
 public sealed class CommandLineTests
 {
@@ -67,8 +67,26 @@ public sealed class CommandLineTests
     {
         var line = CommandLine.Parse(text);
 
-        Assert.Equal(commands, line.Commands);
+        Assert.Equal(commands, line.Commands.Select(command => command.Text));
         Assert.Equal(writes, line.Writes);
         Assert.Equal(opaque, line.Opaque);
+    }
+
+    [Fact]
+    public void EachCommandKeepsItsUnquotedWordsAndItsOwnWritesAndTheRestatementsARuleMayNameAreMarked()
+    {
+        var line = CommandLine.Parse("FOO=1 sudo /bin/rm x > log.txt; echo 'a b' $(ls > inner.txt) > out.txt");
+
+        Assert.Equal(
+            [
+                ("FOO=1 sudo /bin/rm x", "FOO=1|sudo|/bin/rm|x", "log.txt", false),
+                ("sudo /bin/rm x", "sudo|/bin/rm|x", "", true),
+                ("/bin/rm x", "/bin/rm|x", "", false),
+                ("rm x", "rm|x", "", true),
+                ("ls", "ls", "inner.txt", false),
+                ("echo 'a b' $(ls > inner.txt)", "echo|a b|$(ls > inner.txt)", "out.txt", false),
+            ],
+            line.Commands.Select(command => (command.Text, string.Join('|', command.Words), string.Join('|', command.Writes), command.Restated)));
+        Assert.Equal(["log.txt", "inner.txt", "out.txt"], line.Writes);
     }
 }

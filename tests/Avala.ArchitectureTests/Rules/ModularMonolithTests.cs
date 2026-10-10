@@ -9,9 +9,9 @@ public sealed class ModularMonolithTests
 
     private static readonly string[] HostDependencies = ["Avala.Runtime", "Avala.Sdk", "Avala.Sdk.UI", "Avala.Shell", .. SharedComponents];
 
-    private static readonly string[] SharedLibraries = [.. SharedComponents, "Avala.Storage"];
+    private static readonly string[] SharedLibraries = [.. SharedComponents, "Avala.Storage", "Avala.CommandLines"];
 
-    private static readonly string[] ProjectsWithLogic = ["Avala.Runtime", "Avala.Sdk", "Avala.Shell", "Avala.Components", "Avala.Storage"];
+    private static readonly string[] ProjectsWithLogic = ["Avala.Runtime", "Avala.Sdk", "Avala.Shell", "Avala.Components", "Avala.Storage", "Avala.CommandLines"];
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -52,6 +52,15 @@ public sealed class ModularMonolithTests
 
         Assert.Empty(storage.ReferencedAvalaAssemblies.Except(["Avala.Sdk"]));
         Assert.False(storage.ReferencesAvalonia);
+    }
+
+    [Fact]
+    public void SharedCommandLinesDependOnNothingFromAvalaNorAvalonia()
+    {
+        var commandLines = AvalaAssemblies.Load("Avala.CommandLines");
+
+        Assert.Empty(commandLines.ReferencedAvalaAssemblies);
+        Assert.False(commandLines.ReferencesAvalonia);
     }
 
     [Fact]

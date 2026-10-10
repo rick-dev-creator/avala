@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Collections.Frozen;
 using System.Text;
 
-namespace Avala.Permissions.Policies;
+namespace Avala.CommandLines;
 
 internal readonly record struct ShellWord(string Raw, string Value, bool Literal);
 
@@ -16,8 +16,9 @@ internal sealed class ShellReader(string text)
 
     private static readonly string[] Operators = ["&>>", "&>", "<<<", "<<-", "<<", "<>", "<&", "<(", ">>", ">|", ">&", ">(", "<", ">"];
 
-    private readonly List<string> commands = [];
+    private readonly List<ShellCommand> commands = [];
     private readonly List<string> writes = [];
+    private List<string> redirected = [];
     private readonly Queue<(string Delimiter, bool Quoted, bool Tabs)> heredocs = new();
     private int at;
     private int depth;
@@ -31,10 +32,8 @@ internal sealed class ShellReader(string text)
         return new CommandLine(
             commands,
             writes,
-            opaque || heredocs.Count > 0 || (commands.Count == 0 && writes.Count == 0) || (movesDirectory && writes.Exists(path => !CommandLine.Rooted(path))))
-        {
-            MovesDirectory = movesDirectory,
-        };
+            opaque || heredocs.Count > 0 || (commands.Count == 0 && writes.Count == 0) || (movesDirectory && writes.Exists(path => !CommandLine.Rooted(path))),
+            movesDirectory);
     }
 
     private static bool Diverges(char c) => c is '"' or '\'' or '`' or '$' or '#' or ';' or '&' or '|' or '<' or '>' or '(' or ')' or '{' or '}';
@@ -88,14 +87,16 @@ internal sealed class ShellReader(string text)
 
     private void ReadCommand()
     {
-        var words = new List<ShellWord>();
+        var (words, outer) = (new List<ShellWord>(), redirected);
+        redirected = [];
 
         while (!CommandEnds())
         {
             ReadPart(words);
         }
 
-        SimpleCommands.Analyse(words, this);
+        SimpleCommands.Analyse(words, this, redirected);
+        redirected = outer;
     }
 
     private bool CommandEnds()
@@ -178,6 +179,7 @@ internal sealed class ShellReader(string text)
         else if (!Discarded.Contains(target.Value))
         {
             writes.Add(target.Value);
+            redirected.Add(target.Value);
         }
     }
 
@@ -400,7 +402,8 @@ internal sealed class ShellReader(string text)
         Merge(inner.ToString(), opaque: true);
     }
 
-    public void Found(string command) => commands.Add(command);
+    public void Found(List<ShellWord> words, IReadOnlyList<string> written, bool restated) =>
+        commands.Add(new ShellCommand(string.Join(' ', words.Select(word => word.Raw)), [.. words.Select(word => word.Value)], written, restated));
 
     public void Unanalysable() => opaque = true;
 
@@ -408,7 +411,7 @@ internal sealed class ShellReader(string text)
 
     public void Merge(string script, bool opaque)
     {
-        var line = depth < Deepest ? new ShellReader(script) { depth = depth + 1 }.Read() : new CommandLine([], [], Opaque: true);
+        var line = depth < Deepest ? new ShellReader(script) { depth = depth + 1 }.Read() : new CommandLine([], [], Opaque: true, MovesDirectory: false);
         commands.AddRange(line.Commands);
         writes.AddRange(line.Writes);
         this.opaque |= opaque || line.Opaque;
