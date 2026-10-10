@@ -35,6 +35,29 @@ public sealed class StartupTests
     }
 
     [Fact]
+    public async Task ARecoveryRunsAfterEveryRestoreWhateverOrderTheyWereRegisteredInAsync()
+    {
+        using var data = new TemporaryFolder();
+        var ran = new List<string>();
+        await using var services = new ServiceCollection()
+            .AddSingleton(typeof(ILogger<>), typeof(NullLogger<>))
+            .AddRuntime(new AvalaPaths(data.Path))
+            .AddSingleton<IStartupTask>(new Noting(ran, "recovery", StartupStage.Recovery))
+            .AddSingleton<IStartupTask>(new Noting(ran, "first restore"))
+            .AddSingleton<IStartupTask>(new Noting(ran, "second restore"))
+            .BuildServiceProvider();
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        var completions = new EventWatch<StartupCompleted>(services.GetRequiredService<IEventFeed>().SubscribeAsync<StartupCompleted>(lifetime.Token), lifetime.Token);
+        var running = services.RunAsync(lifetime.Token);
+
+        _ = await completions.UntilAsync(_ => true);
+
+        Assert.Equal(["first restore", "second restore", "recovery"], ran);
+        await lifetime.CancelAsync();
+        await running;
+    }
+
+    [Fact]
     public async Task StoppingWhileAStartupTaskRunsEndsTheHostQuietlyAndSkipsTheRestAsync()
     {
         using var data = new TemporaryFolder();
@@ -168,8 +191,10 @@ public sealed class StartupTests
         }
     }
 
-    private sealed class Noting(List<string> ran, string name) : IStartupTask
+    private sealed class Noting(List<string> ran, string name, StartupStage stage = StartupStage.Restore) : IStartupTask
     {
+        public StartupStage Stage => stage;
+
         public Task RunAsync(CancellationToken cancellationToken)
         {
             ran.Add(name);
