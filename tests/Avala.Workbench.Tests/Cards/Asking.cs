@@ -34,6 +34,21 @@ internal sealed class Asking
             .Apply(new PolicyDecision(Session, Turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, delivery, Now) { RepositoryRule = repository })
             .Entries));
 
+    public PermissionEntry AskingParent(JobId parent, DecisionDelivery delivery, Option<PassReason> passed, Option<PermissionAnswer> resolution)
+    {
+        var decided = Transcript.Empty
+            .Apply(new TurnStarted(Session, Turn), Now)
+            .Apply(new PermissionRequested(Session, Turn, new ItemId("run"), "Migrate the database", ItemKind.Command, "dotnet ef database update"), Now)
+            .Apply(new PolicyDecision(Session, Turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, delivery, Now)
+            {
+                Parent = parent,
+                Passed = passed,
+            });
+        var resolved = resolution.Match(answer => decided.Apply(new PermissionResolved(Session, Turn, new ItemId("run"), answer), Now), () => decided);
+
+        return Assert.IsType<PermissionEntry>(Assert.Single(resolved.Entries));
+    }
+
     public FormEntry Form(params FormField[] fields) => Form(FormPurpose.Question, fields.Length == 0 ? Database : fields);
 
     public FormEntry Form(FormPurpose purpose, FormField[] fields)

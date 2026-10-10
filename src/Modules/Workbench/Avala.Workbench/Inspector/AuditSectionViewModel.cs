@@ -78,17 +78,20 @@ internal sealed partial class AuditSectionViewModel : IAuditSectionViewModel, IR
         var audit = facts.Match(found => found.Audit, () => new AuditFacts([], [], []));
         var assumptions = audit.Forms.SelectMany(form => form.Assumptions).ToList();
         var denied = audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Deny) + audit.Answers.Count(answer => answer.Answer == PermissionAnswer.Deny);
-        Fact = facts.IsNone ? string.Empty : InspectorPhrases.Decided(audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Allow), audit.Answers.Count, denied, assumptions.Count);
+        var byYou = audit.Answers.Count(answer => answer.Parent.IsNone);
+        Fact = facts.IsNone ? string.Empty : InspectorPhrases.Decided(audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Allow), byYou, denied, assumptions.Count);
         IsAttention = denied > 0;
         Summary = facts.IsNone
             ? string.Empty
-            : InspectorPhrases.Audit(
-                audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Allow),
-                audit.Answers.Count,
-                audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Deny) + audit.Answers.Count(answer => answer.Answer == PermissionAnswer.Deny),
-                assumptions.Count);
+            : InspectorPhrases.Audit(audit.Decisions.Count(decision => decision.Answer == PolicyAnswer.Allow), byYou, denied, assumptions.Count)
+                + InspectorPhrases.ByParent(audit.Answers.Count - byYou, audit.Given.Count);
         var latest = facts.Bind(found => found.Record.History.Sessions.Count > 0 ? found.Record.History.Sessions[^1].Session : Option<SessionId>.None);
-        Decisions = [.. audit.Decisions.Select(decision => InspectorPhrases.Decision(decision, audit.Answers, latest)), .. audit.Answers.Select(InspectorPhrases.Answer)];
+        Decisions =
+        [
+            .. audit.Decisions.Select(decision => InspectorPhrases.Decision(decision, audit.Answers, latest)),
+            .. audit.Answers.Select(InspectorPhrases.Answer),
+            .. audit.Given.Select(InspectorPhrases.Given),
+        ];
         Assumptions = [.. assumptions.Select(InspectorPhrases.Assumption)];
     }
 }

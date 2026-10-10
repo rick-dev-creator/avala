@@ -53,9 +53,13 @@ internal sealed record PermissionEntry(string Key, SessionId Session, TurnId Tur
 
     public bool Withdrawn { get; init; }
 
-    public bool WentToHuman => Decision.Match(decision => decision.Delivery != DecisionDelivery.Answered, () => false);
+    public bool WentToHuman => Decision.Match(decision => decision.Delivery is not (DecisionDelivery.Answered or DecisionDelivery.LeftToParent), () => false);
+
+    public bool WentToParent => Decision.Match(decision => decision.Parent.IsSome, () => false);
 
     public bool AwaitsHuman => WentToHuman && Resolution.IsNone && !Closed && !Withdrawn;
+
+    public bool AwaitsParent => Decision.Match(decision => decision.Delivery == DecisionDelivery.LeftToParent, () => false) && Resolution.IsNone && !Closed && !Withdrawn;
 }
 
 internal sealed record FormEntry(string Key, SessionId Session, TurnId Turn, ItemId Item, AgentForm Form) : ITimelineEntry
@@ -70,9 +74,30 @@ internal sealed record FormEntry(string Key, SessionId Session, TurnId Turn, Ite
 
     public bool Withdrawn { get; init; }
 
-    public bool WentToHuman => Decision.Match(decision => decision.Answer.IsNone || decision.Delivery != DecisionDelivery.Answered, () => false);
+    public bool WentToHuman => Decision.Match(decision => decision.Delivery != DecisionDelivery.LeftToParent && (decision.Answer.IsNone || decision.Delivery != DecisionDelivery.Answered), () => false);
+
+    public bool WentToParent => Decision.Match(decision => decision.Parent.IsSome, () => false);
 
     public bool AwaitsHuman => WentToHuman && Answer.IsNone && Outcome.IsNone && !Closed && !Withdrawn;
+
+    public bool AwaitsParent => Decision.Match(decision => decision.Delivery == DecisionDelivery.LeftToParent, () => false) && Answer.IsNone && Outcome.IsNone && !Closed && !Withdrawn;
+}
+
+internal enum ChildAskingState
+{
+    Waiting,
+    Allowed,
+    Denied,
+    Answered,
+    AnsweredByPerson,
+    Passed,
+}
+
+internal sealed record ChildAskingEntry(string Key, SessionId Session, ItemId Item, string Child, string Asking) : ITimelineEntry
+{
+    public ChildAskingState State { get; init; }
+
+    public Option<PassReason> Passed { get; init; }
 }
 
 internal sealed record TurnEndEntry(string Key, TurnOutcome Outcome, TimeSpan Duration, TokenUsage Tokens, IReadOnlyList<Cost> Costs) : ITimelineEntry;

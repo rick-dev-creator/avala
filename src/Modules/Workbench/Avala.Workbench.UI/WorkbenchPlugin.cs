@@ -14,7 +14,9 @@ using Avala.Sdk.Regions;
 using Avala.Sdk.UI;
 using Avala.Sdk.Updates;
 using Avala.Supervision.Contracts;
+using Avala.Triggers.Contracts;
 using Avala.Verification.Contracts;
+using Avala.Workbench.Automation;
 using Avala.Workbench.Board;
 using Avala.Workbench.Cards;
 using Avala.Workbench.ModelChoices;
@@ -40,6 +42,7 @@ using Avala.Workbench.Sidebar;
 using Avala.Workbench.Spending;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Submitting;
+using Avala.Workbench.Triggers;
 using Avala.Workbench.Updates;
 using Avala.Workbench.Upkeep;
 using Avala.Workbench.Usage;
@@ -124,6 +127,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IComposerViewModel, ComposerView>();
         views.Register<IPromptViewModel, PromptView>();
         views.Register<IInterjectionViewModel, InterjectionView>();
+        views.Register<IChildAskingViewModel, ChildAskingView>();
         views.Register<IRestartViewModel, RestartView>();
         views.Register<IMessageViewModel, MessageView>();
         views.Register<IReasoningViewModel, ReasoningView>();
@@ -193,6 +197,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<BudgetIntervened>, Pulse>()
             .AddForwarded<IHandle<SupervisorIntervened>, Pulse>()
             .AddForwarded<IHandle<UpdateFound>, Pulse>()
+            .AddForwarded<IHandle<TriggerFired>, Pulse>()
+            .AddForwarded<IHandle<WebhookReceived>, Pulse>()
+            .AddForwarded<IHandle<TriggersChanged>, Pulse>()
             .AddSingleton<SessionBook>()
             .AddForwarded<IHandle<SessionOpened>, SessionBook>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionBook>()
@@ -213,6 +220,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ResourceReader>()
             .AddSingleton<Housekeeping>()
             .AddSingleton<JobLaunch>()
+            .AddSingleton<TriggerControls>()
             .AddSingleton<IConnectionsViewModel, ConnectionsViewModel>()
             .AddSingleton<IDelegationViewModel, DelegationViewModel>()
             .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
@@ -231,10 +239,12 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<UsageViewModel>()
             .AddSingleton<ResourcesViewModel>()
             .AddSingleton<SettingsViewModel>()
+            .AddSingleton<TriggersViewModel>()
             .AddForwarded<IPage, NewJobViewModel>()
             .AddForwarded<IPage, OverviewViewModel>()
             .AddForwarded<IPage, UsageViewModel>()
             .AddForwarded<IPage, ResourcesViewModel>()
+            .AddForwarded<IPage, TriggersViewModel>()
             .AddForwarded<IPage, SettingsViewModel>();
 
     private static void RegisterGlobalViews(IViewRegistrar views)
@@ -281,5 +291,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<INewJobViewModel, NewJobView>();
         views.Register<IConnectionOptionViewModel, ConnectionOptionView>();
         views.Register<IModelPickerViewModel, ModelPickerView>();
+        views.Register<ITriggersViewModel, TriggersView>();
+        views.Register<ITriggerItemViewModel, TriggerItemView>();
     }
 }

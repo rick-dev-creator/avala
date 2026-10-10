@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Avala.Resources.Leasing;
 
 internal sealed partial class PortLeases(IListeningPorts listening, IResourceSettings settings, IEventBus bus, ILogger<PortLeases> logger)
-    : IProcessEnvironment, IAsyncDisposable
+    : IProcessEnvironment, IPortLeases, IAsyncDisposable
 {
     private readonly SerialExecutor owner = new();
     private Option<PortBook> book;
@@ -18,15 +18,29 @@ internal sealed partial class PortLeases(IListeningPorts listening, IResourceSet
 
     public IReadOnlyList<PortLease> Current => Volatile.Read(ref current);
 
-    public async ValueTask<IReadOnlyDictionary<string, string>> ForAsync(string home, CancellationToken cancellationToken)
+    public async ValueTask<IReadOnlyDictionary<string, string>> ForAsync(string home, CancellationToken cancellationToken) =>
+        (await LeaseAsync(Folders.Key(home), own: false, cancellationToken)).Match(PortBook.Variables, () => ImmutableDictionary<string, string>.Empty);
+
+    public ValueTask<Option<PortLease>> LeaseAsync(string holder, CancellationToken cancellationToken) => LeaseAsync(holder, own: true, cancellationToken);
+
+    public Task ReleaseWorktreeAsync(string home, CancellationToken cancellationToken) => ReleaseAsync(Folders.Key(home), cancellationToken);
+
+    public async Task ReleaseAsync(string holder, CancellationToken cancellationToken) =>
+        await (await owner.RunAsync(_ => Task.FromResult(Release(holder)), cancellationToken)).Match(
+            released => bus.PublishAsync(new PortsReleased(released), cancellationToken).AsTask(),
+            () => Task.CompletedTask);
+
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
+
+    private async ValueTask<Option<PortLease>> LeaseAsync(string holder, bool own, CancellationToken cancellationToken)
     {
         var range = (await settings.LoadAsync(cancellationToken)).Ports;
         var busy = (await listening.ListAsync(ImmutableHashSet<int>.Empty, cancellationToken)).Select(listener => listener.Port).ToHashSet();
-        var (lease, fresh) = await owner.RunAsync(_ => Task.FromResult(Lease(range, Folders.Key(home), busy)), cancellationToken);
+        var (lease, fresh) = await owner.RunAsync(_ => Task.FromResult(Lease(range, holder, busy, own)), cancellationToken);
 
         if (lease.IsNone)
         {
-            LogExhausted(home);
+            LogExhausted(holder);
         }
 
         if (fresh)
@@ -34,20 +48,13 @@ internal sealed partial class PortLeases(IListeningPorts listening, IResourceSet
             await lease.Match(leased => bus.PublishAsync(new PortsLeased(leased), cancellationToken).AsTask(), () => Task.CompletedTask);
         }
 
-        return lease.Match(PortBook.Variables, () => ImmutableDictionary<string, string>.Empty);
+        return lease;
     }
 
-    public async Task ReleaseAsync(string home, CancellationToken cancellationToken) =>
-        await (await owner.RunAsync(_ => Task.FromResult(Release(Folders.Key(home))), cancellationToken)).Match(
-            released => bus.PublishAsync(new PortsReleased(released), cancellationToken).AsTask(),
-            () => Task.CompletedTask);
-
-    public ValueTask DisposeAsync() => owner.DisposeAsync();
-
-    private (Option<PortLease> Lease, bool Fresh) Lease(PortRange range, string worktree, IReadOnlySet<int> busy)
+    private (Option<PortLease> Lease, bool Fresh) Lease(PortRange range, string worktree, IReadOnlySet<int> busy, bool own)
     {
         var opened = book.Match(known => known, () => PortBook.Open(range));
-        var (next, lease) = opened.Lease(worktree, busy);
+        var (next, lease) = opened.Lease(worktree, busy, own);
         Keep(next);
 
         return (lease, opened.Of(worktree).IsNone && lease.IsSome);

@@ -27,9 +27,20 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
         IsSelected = true;
     }
 
-    public static DesignDecisionViewModel Permission(JobId job, string jobTitle, string title, string target, string waiting, bool isSelected = false, string writes = "") =>
+    public static DesignDecisionViewModel Permission(
+        JobId job,
+        string jobTitle,
+        string title,
+        string target,
+        string waiting,
+        bool isSelected = false,
+        string writes = "",
+        string heading = "",
+        string status = "Waiting for you") =>
         new()
         {
+            Heading = heading,
+            Status = status,
             Job = job,
             JobTitle = jobTitle,
             Title = title,
@@ -85,6 +96,12 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
 
     public string Waiting { get; init; }
 
+    public string Heading { get; init; } = string.Empty;
+
+    public bool HasHeading => Heading.Length > 0;
+
+    public string Status { get; init; } = "Waiting for you";
+
     public bool IsSelected { get; init; }
 
     public IAsyncRelayCommand AnswerCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
@@ -104,7 +121,7 @@ internal sealed partial class DesignDecisionsViewModel : IDecisionsViewModel
         [
             question,
             DesignDecisionViewModel.Permission(SampleJobs.FlakyCheckout, "Fix flaky CheckoutForm test", "Run pnpm add -D @testing-library/user-event", "pnpm add -D @testing-library/user-event@14.5.2", "2m"),
-            DesignDecisionViewModel.Permission(SampleJobs.CheckoutSplit, "Rewrite webhook tests", "Run go generate ./internal/webhooks/...", "go generate ./internal/webhooks/...", "1m"),
+            DesignDecisionViewModel.Permission(SampleJobs.CheckoutSplit, "Rewrite webhook tests", "Run go generate ./internal/webhooks/...", "go generate ./internal/webhooks/...", "1m", heading: "Sub-agents of Split checkout into services", status: "Waiting for its parent"),
         ];
         Selected = question;
         Hints = DecisionHints.For(question);

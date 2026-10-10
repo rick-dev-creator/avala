@@ -104,6 +104,39 @@ public sealed class InspectorPhrasesTests
             ]);
     }
 
+    [Fact]
+    public void ARequestAskedOfTheParentSaysWhoAnsweredItAndAParentListsTheAnswersItGave()
+    {
+        var asked = SessionId.New();
+        var parent = JobId.New();
+        var decision = new PolicyDecision(asked, TurnId.New(), new ItemId("migrate"), Option<JobId>.None, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToParent, DateTimeOffset.UnixEpoch) { Parent = parent };
+        var answer = new HumanAnswer(asked, Option<JobId>.None, new ItemId("migrate"), ItemKind.Command, "dotnet ef database update", PermissionAnswer.Allow, Option<string>.None, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch) { Parent = parent };
+
+        Assert.Equal(
+            [
+                "Asked its parent Command dotnet ef database update · waiting for its parent",
+                "Asked its parent Command dotnet ef database update",
+                "Asked its parent Command dotnet ef database update · went to you, its parent did not answer in time · unanswered",
+                "Its parent allowed Command dotnet ef database update",
+                "Allowed for a sub-agent: Command dotnet ef database update",
+                " · 1 answered by its parent · 2 answers given to its sub-agents",
+            ],
+            [
+                InspectorPhrases.Decision(decision, [], asked),
+                InspectorPhrases.Decision(decision with { Delivery = DecisionDelivery.Answered }, [answer], asked),
+                InspectorPhrases.Decision(decision with { Delivery = DecisionDelivery.LeftToHuman, Passed = PassReason.ParentTimedOut }, [], asked),
+                InspectorPhrases.Answer(answer),
+                InspectorPhrases.Given(answer),
+                InspectorPhrases.ByParent(1, 2),
+            ]);
+    }
+
+    [Fact]
+    public void AReadOnlyJobsAutonomySaysItIsReadOnly() =>
+        Assert.Equal(
+            "Autonomous, as the repository declares · read-only",
+            InspectorPhrases.Autonomy(new SessionAutonomy(SessionId.New(), JobId.New(), Autonomy.Autonomous, Option<Autonomy>.None, Autonomy.Autonomous, Refused: false) { ReadOnly = true }));
+
     [Theory]
     [InlineData("Supervised", "Supervised", false, "Supervised, as the repository declares")]
     [InlineData("Autonomous", "Supervised", false, "Supervised, tightened from the repository's Autonomous")]
