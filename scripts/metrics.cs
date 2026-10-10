@@ -146,7 +146,7 @@ internal static class Summary
     private const string NotGraded = """
         ## Technical debt
 
-        Not graded: run `dotnet run scripts/code-metrics.cs` and the coverage report first, as in docs/architecture.md.
+        Not graded: run `dotnet run scripts/code-metrics.cs` and the coverage report first, as the quality job of `.github/workflows/ci.yml` does.
 
         """;
 

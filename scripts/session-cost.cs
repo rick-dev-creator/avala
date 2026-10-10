@@ -7,7 +7,15 @@ if (args is not [var transcript])
 }
 
 var root = Repository.Root();
-var pricing = await PricingFile.LoadAsync(Path.Combine(root.FullName, "docs", "sessions", "pricing.json"));
+var pricingPath = Path.Combine(root.FullName, ".method", "sessions", "pricing.json");
+
+if (!File.Exists(pricingPath))
+{
+    await Console.Error.WriteLineAsync($"No price list at {pricingPath}. The script prices sessions with the private method checkout in .method/, which this checkout does not have.");
+    return 1;
+}
+
+var pricing = await PricingFile.LoadAsync(pricingPath);
 var session = await Transcripts.ReadAsync(transcript);
 
 Console.WriteLine(CostReport.Of(session, pricing));

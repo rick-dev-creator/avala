@@ -58,6 +58,16 @@ public sealed class SourceCodeTests
         Assert.Empty(ScriptLanguages.ForeignScripts(SolutionLayout.FilesUnder(SolutionLayout.Root.FullName, "*")));
 
     [Fact]
+    public async Task TheRepositoryTracksNothingOfThePrivateMethodAsync()
+    {
+        string[] tracked = [.. TrackedFiles.InPrivateMethod(await TrackedFiles.ListAsync(SolutionLayout.Root.FullName, Cancellation))];
+
+        Assert.True(
+            tracked.Length == 0,
+            $"{string.Join(", ", tracked)}: {TrackedFiles.PrivateMethodFolder} is a private checkout and is never committed. Remove it from the index with `git rm -r --cached {TrackedFiles.PrivateMethodFolder}` and keep it in .gitignore.");
+    }
+
+    [Fact]
     public async Task WorkflowsOnlyRunDotnetAsync()
     {
         var workflows = await SourceFile.ReadAllAsync(
