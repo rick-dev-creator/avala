@@ -158,6 +158,42 @@ public sealed class WorktreeSectionViewScripts(HeadlessUi ui)
             Assert.Equal(("avala/rate-limit-post-login", "main at 4f2c9e1", "Ports 41000–41009"), (view.TextOf("Branch"), view.TextOf("Base"), view.TextOf("Ports")));
             Assert.False(view.Shows("NoWorktree"));
         }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ALongWorktreeIdIsEllipsizedAndNeverTruncatesTheSectionsHeaderAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new LongWorktree(), Avalonia.Styling.ThemeVariant.Dark, 300, 400);
+            var texts = view.Find<Fold>("Section").GetVisualDescendants().OfType<TextBlock>().ToList();
+            var header = texts.Single(text => text.Text == "Worktree");
+            var fact = texts.Single(text => text.Name == "PART_Fact");
+
+            Assert.True(header.Bounds.Width >= Natural(header) - 0.5, $"the header is {header.Bounds.Width} wide of {Natural(header)}");
+            Assert.True(fact.Bounds.Width is > 40 and var shown && shown < Natural(fact), $"the id is {fact.Bounds.Width} wide of {Natural(fact)}");
+        }, TestContext.Current.CancellationToken);
+
+    private static double Natural(TextBlock text)
+    {
+        var probe = new TextBlock { Text = text.Text, FontSize = text.FontSize, FontFamily = text.FontFamily, FontWeight = text.FontWeight, Margin = text.Margin };
+        probe.Measure(Avalonia.Size.Infinity);
+
+        return probe.DesiredSize.Width;
+    }
+
+    private sealed class LongWorktree : IWorktreeSectionViewModel
+    {
+        public bool IsLoaded => true;
+
+        public string Branch => "avala/01a122dd1eef75e58739993947fac499";
+
+        public string Fact => "01a122dd1eef75e58739993947fac499";
+
+        public string Base => "main at 4f2c9e1";
+
+        public string Path => "~/.avala/worktrees/dogfood/01a122dd1eef75e58739993947fac499";
+
+        public string Ports => string.Empty;
+    }
 }
 
 public sealed class DelegationSectionViewScripts(HeadlessUi ui)

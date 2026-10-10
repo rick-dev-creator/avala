@@ -15,6 +15,7 @@ public sealed class NewJobViewModelScripts
     private readonly FakePreview preview = new();
     private readonly FakePolicies policies = new();
     private readonly IMessenger messenger = new StrongReferenceMessenger();
+    private readonly FakeUsage usage = new();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -142,6 +143,22 @@ public sealed class NewJobViewModelScripts
             ("Runs on work · 95% of the 5-hour window used · at its limit, the budget may hold the job", true),
             (page.Route, page.IsRouteAttention));
         Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("work")), Assert.Single(jobs.Requests).Connection);
+    }
+
+    [Fact]
+    public async Task EveryConnectionOfferedShowsItsCapacityReadingSoOneNearItsLimitSaysSoBeforeItIsPickedAsync()
+    {
+        usage.Connections.Add(new Observability.Contracts.ConnectionUsage(new ConnectionName("work"), Pages.Simulator, Pages.Used(1m, new Agents.Contracts.Events.UsageLimit("7d", 0.99, Option<DateTimeOffset>.None))));
+        var page = Page(new FakeConnections("work", "personal"));
+        await page.LoadAsync(Cancellation);
+
+        var offered = page.Options.Select(option => (option.Name, option.Reading)).ToList();
+        page.Connection = "work";
+
+        Assert.Equal(
+            [("Default (work)", "99% of the 7-day window used"), ("work", "99% of the 7-day window used"), ("personal", "no usage reported yet")],
+            offered);
+        Assert.Equal("Runs on work · 99% of the 7-day window used", page.Route);
     }
 
     [Fact]
@@ -349,5 +366,5 @@ public sealed class NewJobViewModelScripts
     private NewJobViewModel Page(params JobSummary[] known) => Page(connections, known);
 
     private NewJobViewModel Page(FakeConnections machine, params JobSummary[] known) =>
-        new(new JobLaunch(jobs, machine, preview, policies), Pages.Board(known), messenger);
+        new(new JobLaunch(jobs, machine, preview, policies), Pages.Board(known), messenger, Pages.Readings(usage));
 }

@@ -34,6 +34,32 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ALongDeniedCommandShowsInABoundedWellAndApproveStaysInSightWithoutScrollingAsync() =>
+        ui.RunAsync(() =>
+        {
+            var command = string.Join('\n', Enumerable.Range(1, 80).Select(line => $"console.log('line {line} of the smoke script');"));
+            var review = new DesignReviewViewModel
+            {
+                Exceptions =
+                [
+                    new DesignReviewExceptionViewModel
+                    {
+                        Title = "You denied: run cat > /tmp/smoke.js <<'EOF' +81 lines",
+                        Fact = "by you",
+                        Output = command,
+                        Tone = ExceptionTone.Neutral,
+                    },
+                ],
+            };
+            var view = Screen.Show(review, Avalonia.Styling.ThemeVariant.Dark, 900, 700);
+            var approve = view.Find<Button>("Approve");
+            var bottom = Avalonia.VisualExtensions.TranslatePoint(approve, new Avalonia.Point(0, approve.Bounds.Height), view.Window)?.Y ?? double.MaxValue;
+
+            Assert.True(view.Find("OutputScroll").Bounds.Height <= 240, $"the well is {view.Find("OutputScroll").Bounds.Height} high");
+            Assert.True(approve.IsEffectivelyVisible && bottom <= view.Window.Height, $"Approve ends at {bottom} of {view.Window.Height}");
+        }, Cancellation);
+
+    [Fact]
     public Task AQueuedMessageShowsAboveTheFeedbackWithItsOwnSendBackAsync() =>
         ui.RunAsync(() =>
         {

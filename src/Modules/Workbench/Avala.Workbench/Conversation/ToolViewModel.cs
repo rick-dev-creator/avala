@@ -32,8 +32,8 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     public ToolViewModel(ToolEntry entry)
     {
         Kind = entry.Kind;
-        Title = entry.Title;
         Input = entry.Input.Match(input => input, () => string.Empty);
+        Title = Presenting.CommandPhrases.Title(entry.Kind, entry.Title, Input);
         Output = string.Empty;
         Outcome = string.Empty;
         Update(entry);

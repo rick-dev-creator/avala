@@ -28,7 +28,7 @@ public sealed class HarnessShapeTests(PublishedPlugins plugins)
                 ("Other", "Load the canvas tool", "canvas", "canvas"),
                 ("Subagent", "Subagent: Find the greeting style", "Read the repository and say how greetings are written.", "Reading the repository.\n\nGreetings are a single heading line."),
                 ("FileEdit", "Edit GREETING.md", "# Hello\n", "# Hello\n"),
-                ("Command", "cat > NOTES.md <<'EOF'", "cat > NOTES.md <<'EOF'\n# Notes\nWritten through the shell.\nEOF", string.Empty),
+                ("Command", "Run cat > NOTES.md <<'EOF' +3 lines", "cat > NOTES.md <<'EOF'\n# Notes\nWritten through the shell.\nEOF", string.Empty),
             ],
             rows);
         Assert.Equal("# Notes\nWritten through the shell.\n", await File.ReadAllTextAsync(Path.Combine(run.Worktree, "NOTES.md"), Cancellation));
@@ -55,7 +55,7 @@ public sealed class HarnessShapeTests(PublishedPlugins plugins)
                 ("Web", "Search the web for team greeting conventions", "team greeting conventions"),
                 ("Subagent", "Subagent: Read the README", "Read README.md and say in one sentence how the project greets."),
                 ("Other", "Read README.md", "README.md"),
-                ("Command", "Run cat > NOTES.md <<'EOF'", "cat > NOTES.md <<'EOF'\n# Notes\nGreetings are level one headings that name the team.\nEOF"),
+                ("Command", "Run cat > NOTES.md <<'EOF' +3 lines", "cat > NOTES.md <<'EOF'\n# Notes\nGreetings are level one headings that name the team.\nEOF"),
             ],
             rows.Select(row => (row.Kind, row.Title, row.Input)));
         Assert.Equal(

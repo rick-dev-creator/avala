@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -38,9 +39,10 @@ internal static class NewJobPhrases
     public static (string Text, bool Attention) Route(
         ConnectionCatalog catalog,
         Option<Result<ConnectionPreview, JobRejection>> preview,
-        Option<ConnectionName> chosen) =>
+        Option<ConnectionName> chosen,
+        Func<ConnectionName, string> reading) =>
         chosen.Match(
-            name => Named(name, preview),
+            name => Named(name, preview, reading(name)),
             () => catalog.Error.Match(
                 error => ($"connections.json is rejected ({error}), so no job can start: choose the default connection again in Settings.", true),
                 () => catalog.Connections.Count == 0
@@ -49,10 +51,17 @@ internal static class NewJobPhrases
                         previewed => previewed.Match(found => Following(catalog, found), Refused),
                         () => (string.Empty, false))));
 
-    public static string Reading(CandidateCapacity candidate) =>
-        candidate.Window.Match(
-            window => $"{Amounts.Percent(candidate.Used)} of the {Lowered(UsagePhrases.Window(window.Window))} used",
+    public static string Reading(CandidateCapacity candidate) => Reading(candidate.Window, candidate.Used);
+
+    public static string Reading(Option<UsageLimit> window, double used) =>
+        window.Match(
+            found => $"{Amounts.Percent(used)} of the {Lowered(UsagePhrases.Window(found.Window))} used",
             () => "no usage reported yet");
+
+    public static Option<CandidateCapacity> Compared(Option<Result<ConnectionPreview, JobRejection>> preview, ConnectionName name) =>
+        preview
+            .Bind(previewed => previewed.Match(found => found.Choice, _ => Option<ConnectionChoice>.None))
+            .Bind(choice => choice.Compared.FirstOrDefault(candidate => candidate.Connection == name).ToOption());
 
     public static string Rejection(JobRejection rejection) => rejection switch
     {
@@ -67,13 +76,10 @@ internal static class NewJobPhrases
         _ => "The job was refused.",
     };
 
-    private static (string Text, bool Attention) Named(ConnectionName name, Option<Result<ConnectionPreview, JobRejection>> preview) =>
-        preview
-            .Bind(previewed => previewed.Match(found => found.Choice, _ => Option<ConnectionChoice>.None))
-            .Bind(choice => choice.Compared.FirstOrDefault(candidate => candidate.Connection == name).ToOption())
-            .Match(
-                candidate => ($"Runs on {name.Value} · {Reading(candidate)}{(candidate.Available ? string.Empty : " · at its limit, the budget may hold the job")}", !candidate.Available),
-                () => ($"Runs on {name.Value}, even near its limit", false));
+    private static (string Text, bool Attention) Named(ConnectionName name, Option<Result<ConnectionPreview, JobRejection>> preview, string reading) =>
+        Compared(preview, name).Match(
+            candidate => ($"Runs on {name.Value} · {Reading(candidate)}{(candidate.Available ? string.Empty : " · at its limit, the budget may hold the job")}", !candidate.Available),
+            () => ($"Runs on {name.Value} · {reading}", false));
 
     private static (string Text, bool Attention) Following(ConnectionCatalog catalog, ConnectionPreview previewed)
     {

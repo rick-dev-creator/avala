@@ -263,5 +263,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IStaleWorktreeViewModel, StaleWorktreeView>();
         views.Register<IResourceIndicatorViewModel, ResourceIndicatorView>();
         views.Register<INewJobViewModel, NewJobView>();
+        views.Register<IConnectionOptionViewModel, ConnectionOptionView>();
     }
 }

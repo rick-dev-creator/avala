@@ -54,7 +54,7 @@ internal sealed class DesignUsageSectionViewModel : IUsageSectionViewModel
 
     public string Spent => "USD 0.84 · 61,250 tokens";
 
-    public IReadOnlyList<string> Caps { get; } = ["Cost cap USD 5", "Held at 90% of a usage limit"];
+    public IReadOnlyList<string> Caps { get; } = ["Cost cap USD 5", "Holds at 90% of a limit"];
 
     public IReadOnlyList<string> Interventions { get; } = [];
 

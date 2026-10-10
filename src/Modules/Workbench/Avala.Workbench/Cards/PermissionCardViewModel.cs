@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Sdk;
 using Avala.Workbench.Conversation;
+using Avala.Workbench.Presenting;
 using Avala.Workbench.Replies;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -17,6 +18,8 @@ internal interface IPermissionCardViewModel
     string Headline { get; }
 
     string Target { get; }
+
+    string Writes { get; }
 
     bool AwaitsYou { get; }
 
@@ -53,13 +56,15 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
         Update(entry);
     }
 
-    public string Title => request.Title;
+    public string Title => CommandPhrases.Title(request.Kind, request.Title, request.Target);
 
     public ItemKind Kind => request.Kind;
 
     public string Headline => CardPhrases.Headline(request.Kind);
 
     public string Target => request.Target;
+
+    public string Writes => CardPhrases.Writes(CommandPhrases.Writes(request.Kind, request.Target));
 
     public string DontAskAgainLabel => CardPhrases.DontAskAgain;
 

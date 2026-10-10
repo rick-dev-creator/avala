@@ -26,6 +26,9 @@ internal static class CardPhrases
                 : form.WentToHuman ? $"Answered: {Chosen(answer)}" : $"Answered for you: {Chosen(answer)}",
             () => form.Withdrawn ? Withdrawn : form.Closed || form.Outcome.IsSome ? "No longer waiting" : form.AwaitsHuman ? "Waiting for you" : "Deciding");
 
+    public static string Writes(IReadOnlyList<string> paths) =>
+        paths.Count == 0 ? string.Empty : $"Writes to {string.Join(", ", paths)}";
+
     public static string Headline(ItemKind kind) => kind switch
     {
         ItemKind.Command => "Wants to run a command",

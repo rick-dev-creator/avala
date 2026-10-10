@@ -33,6 +33,23 @@ public sealed class DecisionViewModelScripts
                 (decision.JobTitle, decision.Title, decision.Asking, decision.Target, decision.IsPermission, decision.Options.Count)));
 
     [Fact]
+    public void APermissionForAMultiLineCommandIsTitledByEveryCommandItRunsAndNamesWhatItWritesInTheCardAndThePopover()
+    {
+        const string command = "set -o pipefail; node --test | grep -E '^# fail'\ncat > /tmp/claude-1000/smoke-app.js <<'EOF'\nconsole.log(1);\nEOF\nnode /tmp/claude-1000/smoke-app.js";
+        var card = new PermissionCardViewModel(asking.Permission(command), Replies());
+
+        ViewModelScript.Given(Decision(card))
+            .Then(decision => Assert.Equal(
+                (
+                    "Run 5 commands: set, node, grep, cat > /tmp/claude-1000/smoke-app.js",
+                    "Writes to /tmp/claude-1000/smoke-app.js",
+                    command,
+                    card.Title,
+                    card.Writes),
+                (decision.Title, decision.Writes, decision.Target, decision.Title, decision.Writes)));
+    }
+
+    [Fact]
     public void AFormNamesItsQuestionItsContextAndNumbersTheOptionsOfItsFirstChoice() =>
         ViewModelScript.Given(Decision(new FormCardViewModel(asking.Form(), Replies())))
             .Then(decision =>

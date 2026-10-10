@@ -3,6 +3,14 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.NewJob;
 
+internal sealed record DesignConnectionOptionViewModel(string Name, string Reading, bool IsNearLimit) : IConnectionOptionViewModel
+{
+    public DesignConnectionOptionViewModel()
+        : this("claude-work", "88% of the 5-hour window used", true)
+    {
+    }
+}
+
 [INotifyPropertyChanged]
 internal sealed partial class DesignNewJobViewModel : INewJobViewModel
 {
@@ -11,6 +19,13 @@ internal sealed partial class DesignNewJobViewModel : INewJobViewModel
     public IReadOnlyList<string> Repositories { get; } = ["~/code/shop-api", "~/code/shop-web"];
 
     public IReadOnlyList<string> Connections { get; } = [NewJobPhrases.Auto, "claude-work", "claude-personal"];
+
+    public IReadOnlyList<IConnectionOptionViewModel> Options { get; } =
+    [
+        new DesignConnectionOptionViewModel(NewJobPhrases.Auto, string.Empty, false),
+        new DesignConnectionOptionViewModel("claude-work", "88% of the 5-hour window used", true),
+        new DesignConnectionOptionViewModel("claude-personal", "31% of the 5-hour window used", false),
+    ];
 
     [ObservableProperty]
     public partial string Repository { get; set; } = "~/code/shop-api";

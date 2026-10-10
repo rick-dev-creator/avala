@@ -7,6 +7,7 @@ using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Conversation;
+using Avala.Workbench.Presenting;
 using Avala.Workbench.Reviewing;
 using Avala.Workspaces.Contracts;
 
@@ -190,9 +191,9 @@ internal static class ReviewPhrases
 
     private static string Request(ItemKind kind, string target) => kind switch
     {
-        ItemKind.Command => $"run {target}",
-        ItemKind.FileEdit => $"edit {target}",
-        ItemKind.Web => $"reach {target}",
-        _ => $"use {target}",
+        ItemKind.Command => $"run {CommandPhrases.OneLine(target)}",
+        ItemKind.FileEdit => $"edit {CommandPhrases.OneLine(target)}",
+        ItemKind.Web => $"reach {CommandPhrases.OneLine(target)}",
+        _ => $"use {CommandPhrases.OneLine(target)}",
     };
 }
