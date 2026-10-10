@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+using System.Collections.Frozen;
 using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
 using Avala.Sdk;
@@ -13,22 +13,40 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
 
     private const string Selected = "select:";
 
-    private static readonly ImmutableHashSet<string> Ungated = new[]
+    private static readonly FrozenDictionary<string, Traits> Known = new Dictionary<string, Traits>
     {
-        "Read", "Grep", "Glob", "LS", "NotebookRead", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "ToolSearch", "Skill",
-        "AskUserQuestion", "ExitPlanMode", "EnterPlanMode", "Task", "Agent", "BashOutput", "TaskOutput",
-    }.ToImmutableHashSet(StringComparer.Ordinal);
+        ["Edit"] = new(ItemKind.FileEdit, Gated: true, (input, _) => Replacement(input)),
+        ["MultiEdit"] = new(ItemKind.FileEdit, Gated: true, (input, _) => string.Join("\n\n", input.Items("edits").Select(Replacement))),
+        ["Write"] = new(ItemKind.FileEdit, Gated: true, Field("content")),
+        ["NotebookEdit"] = new(ItemKind.FileEdit, Gated: true, Field("new_source")),
+        ["Bash"] = new(ItemKind.Command, Gated: true, Field("command")),
+        ["PowerShell"] = new(ItemKind.Command, Gated: true, Field("command")),
+        ["Grep"] = new(ItemKind.Search, Gated: false, Searching) { Reads = true },
+        ["Glob"] = new(ItemKind.Search, Gated: false, Searching) { Reads = true },
+        ["LS"] = new(ItemKind.Search, Gated: false, Raw) { Reads = true },
+        ["WebFetch"] = new(ItemKind.Web, Gated: true, (input, _) => Joined('\n', input.TextOr("url", string.Empty), input.TextOr("prompt", string.Empty))),
+        ["WebSearch"] = new(ItemKind.Web, Gated: true, Field("query")),
+        ["Task"] = new(ItemKind.Subagent, Gated: false, Field("prompt")),
+        ["Agent"] = new(ItemKind.Subagent, Gated: false, Field("prompt")),
+        ["Read"] = new(ItemKind.Other, Gated: false, (input, workingDirectory) => Relative(input.TextOr("file_path", string.Empty), workingDirectory)) { Reads = true },
+        ["NotebookRead"] = new(ItemKind.Other, Gated: false, Raw) { Reads = true },
+        ["ToolSearch"] = new(ItemKind.Other, Gated: false, Field("query")),
+        ["TodoWrite"] = Free,
+        ["TaskCreate"] = Free,
+        ["TaskUpdate"] = Free,
+        ["TaskList"] = Free,
+        ["TaskGet"] = Free,
+        ["Skill"] = Free,
+        ["AskUserQuestion"] = Free,
+        ["ExitPlanMode"] = Free,
+        ["EnterPlanMode"] = Free,
+        ["BashOutput"] = Free,
+        ["TaskOutput"] = Free,
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    public ItemKind Kind => Name switch
-    {
-        "Edit" or "Write" or "MultiEdit" or "NotebookEdit" => ItemKind.FileEdit,
-        "Bash" or "PowerShell" => ItemKind.Command,
-        "Grep" or "Glob" or "LS" => ItemKind.Search,
-        "WebFetch" or "WebSearch" => ItemKind.Web,
-        "Task" or "Agent" => ItemKind.Subagent,
-        _ when Name.StartsWith("mcp__", StringComparison.Ordinal) => ItemKind.Mcp,
-        _ => ItemKind.Other,
-    };
+    private Traits Tool => Known.GetValueOrDefault(Name) ?? new(Name.StartsWith("mcp__", StringComparison.Ordinal) ? ItemKind.Mcp : ItemKind.Other, Gated: true, Raw);
+
+    public ItemKind Kind => Tool.Kind;
 
     public string Target(string workingDirectory) => Kind switch
     {
@@ -41,10 +59,10 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
         _ => Name,
     };
 
-    public bool Gated => !Ungated.Contains(Name);
+    public bool Gated => Tool.Gated;
 
     public bool ReadsOutside(string workingDirectory) =>
-        Name is "Read" or "NotebookRead" or "Grep" or "Glob" or "LS"
+        Tool.Reads
         && Resolved(Input.TextOr("file_path", Input.TextOr("notebook_path", Input.TextOr("path", string.Empty))), workingDirectory)
             .Match(path => Outside(path, workingDirectory), () => true);
 
@@ -78,24 +96,21 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
 
     public Option<string> Details(string workingDirectory)
     {
-        var details = Name switch
-        {
-            "Edit" => Replacement(Input),
-            "MultiEdit" => string.Join("\n\n", Input.Items("edits").Select(Replacement)),
-            "Write" => Input.TextOr("content", string.Empty),
-            "NotebookEdit" => Input.TextOr("new_source", string.Empty),
-            "Bash" or "PowerShell" => Input.TextOr("command", string.Empty),
-            "Grep" or "Glob" => string.Join(' ', new[] { Input.TextOr("pattern", string.Empty), Scope(Input, workingDirectory), Input.TextOr("glob", string.Empty) }.Where(part => part.Length > 0)),
-            "WebFetch" => string.Join('\n', new[] { Input.TextOr("url", string.Empty), Input.TextOr("prompt", string.Empty) }.Where(part => part.Length > 0)),
-            "WebSearch" => Input.TextOr("query", string.Empty),
-            "Task" or "Agent" => Input.TextOr("prompt", string.Empty),
-            "ToolSearch" => Input.TextOr("query", string.Empty),
-            "Read" => Relative(Input.TextOr("file_path", string.Empty), workingDirectory),
-            _ => Input.Count == 0 ? string.Empty : Input.ToJsonString(),
-        };
+        var details = Tool.Details(Input, workingDirectory);
 
         return details.Length == 0 ? Option<string>.None : details.Length <= DetailsLength ? details : $"{details[..DetailsLength]}…";
     }
+
+    private static Traits Free => new(ItemKind.Other, Gated: false, Raw);
+
+    private static Func<JsonObject, string, string> Field(string name) => (input, _) => input.TextOr(name, string.Empty);
+
+    private static string Raw(JsonObject input, string workingDirectory) => input.Count == 0 ? string.Empty : input.ToJsonString();
+
+    private static string Searching(JsonObject input, string workingDirectory) =>
+        Joined(' ', input.TextOr("pattern", string.Empty), Scope(input, workingDirectory), input.TextOr("glob", string.Empty));
+
+    private static string Joined(char separator, params string[] parts) => string.Join(separator, parts.Where(part => part.Length > 0));
 
     private static string Replacement(JsonNode edit) =>
         string.Join('\n', [.. Lines(edit.TextOr("old_string", string.Empty), "- "), .. Lines(edit.TextOr("new_string", string.Empty), "+ ")]);
@@ -124,4 +139,9 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
     private static string FirstLine(string text) => text.Split('\n', 2)[0];
 
     private static string Shorten(string text) => text.Length <= TitleLength ? text : $"{text[..(TitleLength - 1)]}…";
+
+    private sealed record Traits(ItemKind Kind, bool Gated, Func<JsonObject, string, string> Details)
+    {
+        public bool Reads { get; init; }
+    }
 }
