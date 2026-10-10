@@ -43,6 +43,9 @@ internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, ReviewJob review
     public async ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) =>
         await InQueueAsync(job, review.ResumeAsync, cancellationToken);
 
+    public async ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) =>
+        await InQueueAsync(job, (found, token) => review.HandOffAsync(found, handoff, token), cancellationToken);
+
     private async Task<Result<JobContinuation, JobRejection>> WithFeedbackAsync(
         JobId job,
         string message,

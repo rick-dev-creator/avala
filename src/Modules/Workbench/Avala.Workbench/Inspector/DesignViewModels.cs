@@ -80,6 +80,14 @@ internal sealed class DesignAutonomySectionViewModel : IAutonomySectionViewModel
         new("claude-work", "88% of 5h · holds at 90%", false, false),
         new("claude-personal", "31% of 5h · holds at 90%", true, false),
     ];
+
+    public IReadOnlyList<HandoffLine> Handoffs { get; } =
+    [
+        new("Handed off from claude-work to claude-personal at 91% of the 5-hour window · 2026-10-10 10:42", "Spent on claude-work: 1.84 USD · 412,880 tokens"),
+        new(string.Empty, "Spent on claude-personal: 0.31 USD · 61,200 tokens"),
+    ];
+
+    public string Waiting => string.Empty;
 }
 
 internal sealed class DesignWorktreeSectionViewModel : IWorktreeSectionViewModel

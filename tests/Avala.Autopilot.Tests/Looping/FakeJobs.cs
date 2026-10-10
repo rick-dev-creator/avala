@@ -24,6 +24,8 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public Option<JobRejection> ApprovalRefusal { get; set; }
 
+    public Option<JobRejection> ContinueRefusal { get; set; }
+
     public Option<ConnectionName> Connection { get; set; } = new ConnectionName("work");
 
     public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken)
@@ -58,6 +60,11 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken)
     {
+        if (ContinueRefusal.IsSome)
+        {
+            return ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(ContinueRefusal.Match(refusal => refusal, () => default)));
+        }
+
         continued.Enqueue((job, message));
 
         return ValueTask.FromResult(Result<JobContinuation, JobRejection>.Success(new JobContinuation(job, SessionId.New(), ContinuedIn.SameSession)));
@@ -95,5 +102,8 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
         throw new NotSupportedException();
 
     public ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 }

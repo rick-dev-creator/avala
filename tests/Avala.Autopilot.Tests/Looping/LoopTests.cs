@@ -199,6 +199,48 @@ public sealed class LoopTests
     }
 
     [Fact]
+    public async Task ALoopPausedForItsHeldJobResumesAsSoonAsTheJobRunsAgainAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Backlog.Add("one", "Greet the team");
+        await pilot.StartAsync(new LoopLimits { PauseAtLimit = 0.99 });
+        var job = await pilot.TakenAsync(1);
+        pilot.Usage.Limits = [new UsageLimit("5h", 0.91, pilot.Clock.GetUtcNow().AddMinutes(30))];
+        pilot.Jobs.Attempts(job, Pilot.Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted));
+        await pilot.ProgressAsync(job, JobStatus.NeedsHelp);
+        await pilot.Feed.HandleAsync(new JobHeld(new JobHold(job, default, HoldReason.LimitNearlyReached, SessionHalt.Interrupted)), Cancellation);
+        _ = await pilot.Bus.WaitForAsync<LoopPaused>(_ => true, Cancellation);
+
+        await pilot.ProgressAsync(job, JobStatus.Running);
+        await pilot.Bus.WaitForAsync<LoopResumed>(_ => true, Cancellation);
+        pilot.Clock.Advance(TimeSpan.FromMinutes(30));
+
+        Assert.Equal(LoopStatus.Running, Assert.Single(pilot.Registry.Loops()).Status);
+        Assert.Empty(pilot.Jobs.Continued);
+    }
+
+    [Fact]
+    public async Task AtTheResetALoopTakesAJobSomeoneAlreadyContinuedAsContinuedAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Backlog.Add("one", "Greet the team");
+        await pilot.StartAsync(new LoopLimits { PauseAtLimit = 0.99 });
+        var job = await pilot.TakenAsync(1);
+        pilot.Usage.Limits = [new UsageLimit("5h", 0.91, pilot.Clock.GetUtcNow().AddMinutes(30))];
+        pilot.Jobs.Attempts(job, Pilot.Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted));
+        await pilot.ProgressAsync(job, JobStatus.NeedsHelp);
+        await pilot.Feed.HandleAsync(new JobHeld(new JobHold(job, default, HoldReason.LimitNearlyReached, SessionHalt.Interrupted)), Cancellation);
+        _ = await pilot.Bus.WaitForAsync<LoopPaused>(_ => true, Cancellation);
+        pilot.Jobs.ContinueRefusal = JobRejection.NotHeld;
+
+        pilot.Clock.Advance(TimeSpan.FromMinutes(30));
+        await pilot.Bus.WaitForAsync<LoopResumed>(_ => true, Cancellation);
+
+        Assert.Empty(pilot.Bus.Published.OfType<LoopIterated>());
+        Assert.Equal(Option<JobId>.Some(job), Assert.Single(pilot.Registry.Loops()).Current);
+    }
+
+    [Fact]
     public async Task ALimitAtItsThresholdWithoutAResetTimeTripsTheBreakerAsync()
     {
         await using var pilot = new Pilot();

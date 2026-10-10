@@ -1,3 +1,4 @@
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
@@ -20,6 +21,10 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
     public Option<ApprovalDelivery> Delivery { get; init; }
 
     public Option<ConnectionChoice> Choice { get; init; }
+
+    public IReadOnlyList<HandoffRecord> Handoffs { get; init; } = [];
+
+    public Option<ResetWait> Wait { get; init; }
 
     public int Revision { get; init; }
 

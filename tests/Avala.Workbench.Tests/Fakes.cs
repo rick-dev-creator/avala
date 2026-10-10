@@ -97,6 +97,9 @@ internal sealed class FakeJobs : IJobs
     public ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) =>
         AnswerAsync("resume", new JobContinuation(job, SessionId.New(), ContinuedIn.ResumedConversation));
 
+    public ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) =>
+        AnswerAsync($"hand off to {handoff.Choice.Connection.Value}", new JobContinuation(job, SessionId.New(), ContinuedIn.NewConversation));
+
     private JobRejection? Unless(JobStatus accepted, JobRejection rejection) =>
         Status.Match<JobRejection?>(status => status == accepted ? null : rejection, () => null);
 

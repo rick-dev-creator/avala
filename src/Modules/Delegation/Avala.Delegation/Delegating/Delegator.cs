@@ -28,6 +28,7 @@ internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJ
             Parent = plan.Parent.Job,
             Connection = plan.Connection,
             Autonomy = plan.Autonomy,
+            Choice = plan.Route.Choice,
         };
 
         if (!(await jobs.SubmitAsync(request, cancellationToken)).TryGetValue(out var child, out var rejection))

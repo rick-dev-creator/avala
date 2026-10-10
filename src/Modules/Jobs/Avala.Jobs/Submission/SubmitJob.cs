@@ -27,6 +27,9 @@ internal sealed class SubmitJob(JobLedger ledger, IEventBus bus, IConnections co
         }
 
         await ledger.RecordAsync(job, cancellationToken);
+        await request.Choice.Match(
+            choice => job.Connection == Option<ConnectionName>.Some(choice.Connection) ? ledger.RecordChoiceAsync(job.Id, choice, cancellationToken) : Task.CompletedTask,
+            () => Task.CompletedTask);
         await bus.PublishAsync(new JobAnnouncement(job.Id) { Parent = job.Parent }, cancellationToken);
 
         return job.Id;

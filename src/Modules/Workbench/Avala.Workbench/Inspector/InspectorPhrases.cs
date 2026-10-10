@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
@@ -27,6 +28,33 @@ internal static class InspectorPhrases
             .. candidate.Threshold < 1 ? [$"holds at {Presenting.Amounts.Percent(candidate.Threshold)}"] : Array.Empty<string>(),
             .. candidate.Available ? Array.Empty<string>() : ["at its limit"],
         ]);
+
+    public static IReadOnlyList<HandoffLine> Handoffs(IReadOnlyList<HandoffRecord> handoffs, Option<UsageSummary> usage)
+    {
+        if (handoffs.Count == 0)
+        {
+            return [];
+        }
+
+        var total = usage.Match(found => (Costs: found.Costs, Tokens: found.Tokens.Input + found.Tokens.Output + found.Tokens.CacheRead + found.Tokens.CacheWrite + found.Tokens.Reasoning), () => (Costs: (IReadOnlyList<Cost>)[], Tokens: 0L));
+        var before = handoffs.Aggregate(total, (left, handoff) => (Minus(left.Costs, handoff.Spent), left.Tokens - handoff.Tokens));
+
+        return
+        [
+            .. handoffs.Select(handoff => new HandoffLine(
+                $"{Presenting.HandoffPhrases.Moves(handoff)} · {Presenting.Amounts.Time(handoff.At)}",
+                $"Spent on {handoff.From.Value}: {SpendLine(handoff.Spent, handoff.Tokens)}")),
+            new HandoffLine(string.Empty, $"Spent on {handoffs[^1].To.Value}: {SpendLine(before.Costs, Math.Max(0, before.Tokens))}"),
+        ];
+    }
+
+    public static string Waiting(ResetWait wait) => $"{char.ToUpperInvariant(Presenting.HandoffPhrases.Waits(wait)[0])}{Presenting.HandoffPhrases.Waits(wait)[1..]}";
+
+    private static IReadOnlyList<Cost> Minus(IReadOnlyList<Cost> total, IReadOnlyList<Cost> before) =>
+        [.. total.Select(cost => cost with { Amount = Math.Max(0, cost.Amount - before.Where(earlier => earlier.Currency == cost.Currency).Sum(earlier => earlier.Amount)) })];
+
+    private static string SpendLine(IReadOnlyList<Cost> costs, long tokens) =>
+        $"{Presenting.Amounts.Costs(costs)} · {Presenting.Amounts.Tokens(tokens)}";
 
     public static IReadOnlyList<string> Attempts(IReadOnlyList<AttemptRecord> attempts, IReadOnlyList<VerificationReport> reports)
     {

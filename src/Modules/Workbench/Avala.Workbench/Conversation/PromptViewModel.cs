@@ -25,7 +25,7 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
     public PromptViewModel(PromptEntry entry)
     {
         Attempt = entry.Attempt;
-        Origin = ConversationPhrases.Origin(entry.Origin);
+        Origin = ConversationPhrases.Origin(entry);
         IsFromPerson = entry.Origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack;
         ShowsOrigin = entry.Origin != AttemptOrigin.Initial;
         Text = entry.Text.Match(text => text, () => string.Empty);
@@ -35,7 +35,8 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
 
     public int Attempt { get; }
 
-    public string Origin { get; }
+    [ObservableProperty]
+    public partial string Origin { get; private set; }
 
     public bool IsFromPerson { get; }
 
@@ -53,6 +54,7 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
         if (entry is PromptEntry prompt)
         {
             Outcome = prompt.Outcome.Match(ConversationPhrases.Outcome, () => string.Empty);
+            Origin = ConversationPhrases.Origin(prompt);
         }
     }
 }

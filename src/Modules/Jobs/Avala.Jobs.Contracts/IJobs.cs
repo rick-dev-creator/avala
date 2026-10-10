@@ -23,6 +23,8 @@ public interface IJobs
     ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken);
 
     ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken);
+
+    ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken);
 }
 
 public interface IJobAdmission
@@ -47,6 +49,8 @@ public sealed record JobRequest(string RepositoryPath, string Instruction, int A
     public Option<ConnectionName> Connection { get; init; }
 
     public Option<JobId> Parent { get; init; }
+
+    public Option<ConnectionChoice> Choice { get; init; }
 }
 
 public enum ContinuedIn

@@ -427,6 +427,29 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario LimitHandoff { get; } = new("limit-handoff",
+    [
+        [
+            new Recall(new ItemId("told")),
+            new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 5 BROKEN\n"),
+            new UnlessTold("handed off", new ReportLimitResetting("5h", 0.95, TimeSpan.FromHours(1))),
+            Message("The calculator is ready, ", "though the usage window is nearly spent."),
+            new ReportUsage(new TokenUsage(9_000, 700, 4_500, 900, 175), new Cost(0.0600m, "USD")),
+            new Finish(),
+        ],
+        FixedCalculator,
+    ]);
+
+    public static Scenario SpentElsewhere { get; } = new("spent-elsewhere",
+    [
+        [
+            Message("Done, ", "and this account is nearly spent."),
+            new ReportUsage(new TokenUsage(8_000, 600, 4_000, 800, 150), new Cost(0.0500m, "USD")),
+            new ReportLimitResetting("5h", 0.97, TimeSpan.FromMinutes(30)),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario Steer { get; } = new("steer",
     [
         [
@@ -448,7 +471,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, .. DelegationScenarios.All,
+        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, LimitHandoff, SpentElsewhere, .. DelegationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";

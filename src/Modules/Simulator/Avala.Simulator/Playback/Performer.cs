@@ -59,6 +59,8 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         CallTools calls => calls.Calls
             .SelectMany(call => cues.Of(Reply(call.Item, $"I would call {call.Tool} with {call.Input}, but the harness did not offer it.")))
             .ToAsyncEnumerable(),
+        UnlessTold unless when cues.Told.Contains(unless.Fragment, StringComparison.Ordinal) => AsyncEnumerable.Empty<IAgentEvent>(),
+        UnlessTold unless => PlayAsync(cues, unless.Step, cancellationToken),
         ReportLimitResetting limit => cues.Of(new ReportLimit(new UsageLimit(limit.Window, limit.Used, craft.Pacing.Now + limit.ResetsIn))).ToAsyncEnumerable(),
         Crash crash => throw new InvalidOperationException(crash.Reason),
         Draw draw when !options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>

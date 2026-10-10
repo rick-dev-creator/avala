@@ -148,6 +148,67 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         return new JobContinuation(job.Id, opened.Session, ContinuedIn.NewConversation);
     }
 
+    public async Task RetryInSameSessionAsync(Job job, Feedback feedback, CancellationToken cancellationToken)
+    {
+        if (job.Retry(feedback).IsSuccess)
+        {
+            await ledger.RecordAsync(job, cancellationToken);
+            _ = await agents.TellAsync(job, feedback.Text, cancellationToken);
+        }
+    }
+
+    public async Task<Result<JobContinuation, JobRejection>> HandOffAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
+        job.State == JobState.NeedsHelp
+            ? await HandOffNowAsync(job, handoff, cancellationToken)
+            : JobRejection.NotHeld;
+
+    public async Task<Result<JobContinuation, JobRejection>> HandOffAfterTurnAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
+        job.State == JobState.Checking
+            ? await HandOffNowAsync(job, handoff, cancellationToken)
+            : JobRejection.NotRunning;
+
+    private async Task<Result<JobContinuation, JobRejection>> HandOffNowAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken)
+    {
+        if (job.Connection == Option<ConnectionName>.Some(handoff.Choice.Connection))
+        {
+            return JobRejection.SameConnection;
+        }
+
+        if (!Feedback.Create(handoff.Brief).TryGetValue(out var brief, out _))
+        {
+            return JobRejection.EmptyMessage;
+        }
+
+        if (!(await planner.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        {
+            return JobRejection.WorkspaceUnavailable;
+        }
+
+        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = handoff.Choice.Connection }, cancellationToken)).TryGetValue(out var opened, out var error))
+        {
+            return Rejection(error);
+        }
+
+        var (previous, from) = (job.Session, job.Connection);
+
+        if (job.HandOff(brief, opened.Session, opened.Connection).IsFailure)
+        {
+            _ = await agents.StopAsync(opened.Session, cancellationToken);
+
+            return JobRejection.NotHeld;
+        }
+
+        await BeginAsync(job, opened.Session, brief.Text, cancellationToken);
+        await previous.Match(
+            async session => _ = await agents.StopAsync(session, cancellationToken),
+            () => Task.CompletedTask);
+        await from.Match(
+            left => ledger.RecordHandoffAsync(job, left, opened.Session, handoff.Choice, cancellationToken),
+            () => ledger.RecordChoiceAsync(job.Id, handoff.Choice, cancellationToken));
+
+        return new JobContinuation(job.Id, opened.Session, ContinuedIn.NewConversation);
+    }
+
     public async Task<Result<JobContinuation, JobRejection>> SendBackAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
         job.State == JobState.AwaitingReview
             ? await NextRoundAsync(job, feedback, Round.SendBack, cancellationToken)

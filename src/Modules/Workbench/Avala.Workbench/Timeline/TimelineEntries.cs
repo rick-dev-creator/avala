@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -12,7 +13,10 @@ internal interface ITimelineEntry
     string Key { get; }
 }
 
-internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin, Option<string> Text, Option<AttemptOutcome> Outcome) : ITimelineEntry;
+internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin, Option<string> Text, Option<AttemptOutcome> Outcome) : ITimelineEntry
+{
+    public Option<HandoffRecord> Handoff { get; init; }
+}
 
 internal sealed record RestartEntry(string Key, bool Kept) : ITimelineEntry;
 

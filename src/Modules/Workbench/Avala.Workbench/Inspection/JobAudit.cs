@@ -1,4 +1,5 @@
 using Avala.Budgets.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
@@ -44,6 +45,10 @@ internal sealed class JobAudit(IVerifications verifications, IPermissionAudit au
 internal sealed record InspectorFacts(JobRecord Record, AuditFacts Audit)
 {
     public Option<ConnectionChoice> Choice { get; init; }
+
+    public IReadOnlyList<HandoffRecord> Handoffs { get; init; } = [];
+
+    public Option<ResetWait> Wait { get; init; }
 }
 
 internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.JobBoard board)
@@ -52,5 +57,7 @@ internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.Jo
         (await records.ReadAsync(job, cancellationToken)).Map(record => new InspectorFacts(record, audit.Of(record.History))
         {
             Choice = record.History.Choice.IsSome ? record.History.Choice : board.Find(job).Bind(found => found.Choice),
+            Handoffs = board.Find(job).Match(found => found.Handoffs, () => []),
+            Wait = board.Find(job).Bind(found => found.Wait),
         });
 }

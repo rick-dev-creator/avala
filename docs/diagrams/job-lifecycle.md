@@ -26,7 +26,9 @@ stateDiagram-v2
 	Checking --> AwaitingReview : Pass
 	Checking --> Running : Retry [retries left]
 	Checking --> NeedsHelp : RequestHelp [budget exhausted]
+	Checking --> Running : HandOff [retries left]
 	NeedsHelp --> Running : Hint
+	NeedsHelp --> Running : HandOff
 	AwaitingReview --> Running : SendBack
 	AwaitingReview --> Approved : Approve
 [*] --> Draft

@@ -243,6 +243,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
         var reports = 0;
         _ = await recorded.UntilAsync(_ => ++reports == 2);
         _ = await run.SettledAsync(near);
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(near, TestContext.Current.CancellationToken));
         var usage = await ActivatedAsync(run, "Usage");
         await run.Ui.PresentedAsync(usage.Presentation, () => LimitOf(usage) == "95%", () => $"limit {LimitOf(usage)}");
 

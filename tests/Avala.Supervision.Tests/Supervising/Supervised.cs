@@ -114,6 +114,9 @@ internal sealed class Supervised : IAsyncDisposable
 
         public ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotDeferred));
+
+        public ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(Result<JobContinuation, JobRejection>.Failure(JobRejection.NotHeld));
     }
 
     private sealed class FixedSettings : ISupervisionSettings

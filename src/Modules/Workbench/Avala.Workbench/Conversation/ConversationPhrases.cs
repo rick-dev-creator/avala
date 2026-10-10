@@ -3,6 +3,8 @@ using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
 using Avala.Workbench.Linking;
+using Avala.Workbench.Presenting;
+using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Conversation;
 
@@ -14,8 +16,11 @@ internal static class ConversationPhrases
         AttemptOrigin.Retry => "Verification feedback",
         AttemptOrigin.Hint => "You",
         AttemptOrigin.SendBack => "Sent back",
+        AttemptOrigin.Handoff => "Handed off",
         _ => "Resumed after a restart",
     };
+
+    public static string Origin(PromptEntry prompt) => prompt.Handoff.Match(HandoffPhrases.Moved, () => Origin(prompt.Origin));
 
     public static string Outcome(AttemptOutcome outcome) => outcome switch
     {
@@ -67,7 +72,9 @@ internal static class ConversationPhrases
 
     public static string Pill(BoardJob job) => job.Group switch
     {
-        JobGroup.NeedsYou => job.Hold.Match(reason => job.PendingDecisions == 0 ? $"Held · {Held(reason)}" : "Needs you", () => "Needs you"),
+        JobGroup.NeedsYou => job.Hold.Match(
+            reason => job.PendingDecisions == 0 ? $"Held · {job.Wait.Match(HandoffPhrases.Waits, () => Held(reason))}" : "Needs you",
+            () => job.Wait.Match(wait => $"Held · {HandoffPhrases.Waits(wait)}", () => "Needs you")),
         JobGroup.ReadyForReview => "Ready for review",
         JobGroup.Done => job.Status switch
         {

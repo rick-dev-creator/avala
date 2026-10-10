@@ -237,6 +237,18 @@ internal static class LayerMap
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
         }),
+        .. Module("Avala.Handoffs", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Policy"] = Layer.Domain,
+            ["Watching"] = Layer.Application,
+            ["Briefing"] = Layer.Application,
+            ["Records"] = Layer.Application,
+            ["RuleFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
+        }),
         .. Module("Avala.Transcripts", new()
         {
             [""] = Layer.None,

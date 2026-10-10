@@ -41,6 +41,7 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<JobLauncher>()
             .AddSingleton<ResumeJob>()
             .AddSingleton<CompletionGates>()
+            .AddSingleton<NextRound>()
             .AddSingleton<EvaluateTurn>()
             .AddSingleton<RecoverJob>()
             .AddSingleton<SubmitJob>()

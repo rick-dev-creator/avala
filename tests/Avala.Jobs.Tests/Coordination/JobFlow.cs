@@ -42,7 +42,7 @@ internal sealed class JobFlow
             new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), new ResumeJob(deferred, launcher, Hold)),
             Queues);
         Prepare = new PrepareJob(Queues, launcher, Admissions);
-        var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents);
+        var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), new NextRound(Routers, launcher, Hold));
         Check = new CheckTurn(ledger, Queues, evaluate, Hold);
         var recover = new RecoverJob(ledger, launcher, evaluate, deferred);
         Recovery = new JobRecovery(new JobLedger(Store, Bus, agents, Clock), Queues, recover);
@@ -61,6 +61,8 @@ internal sealed class JobFlow
     public List<IRecoveryDeferral> Deferrals { get; } = [];
 
     public List<IJobBriefing> Briefings { get; } = [];
+
+    public List<IRoundRouter> Routers { get; } = [];
 
     public InMemoryJobStore Store { get; } = new();
 

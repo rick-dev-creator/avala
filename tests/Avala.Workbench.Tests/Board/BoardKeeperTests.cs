@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
@@ -29,7 +30,9 @@ public sealed class BoardKeeperTests
 
     private readonly FakeTranscripts transcripts = new();
 
-    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, new BoardJoiner(audit, transcripts), board, time);
+    private readonly FakeHandoffs handoffs = new();
+
+    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, new BoardJoiner(audit, transcripts, handoffs), board, time);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -99,6 +102,56 @@ public sealed class BoardKeeperTests
         Assert.Equal(
             ["Fix the failing test", "Use the staging database"],
             resumed.Transcript.Entries.Cast<PromptEntry>().Select(prompt => prompt.Text.Match(text => text, () => string.Empty)));
+    }
+
+    [Fact]
+    public async Task AHandoffJoinsTheJobAndLabelsThePromptOfTheAttemptItStartedAsync()
+    {
+        var job = catalog.Add("Fix the failing test", JobStatus.Running, Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Rejected), Attempt(2, AttemptOrigin.Handoff, AttemptOutcome.Running, "This job was handed off to you")).Summary.Job;
+        await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+        var handoff = Handoff(job, 2);
+
+        await keeper.HandleAsync(new HandoffRecorded(handoff), Cancellation);
+        catalog.Attempted(job, Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Rejected), Attempt(2, AttemptOrigin.Handoff, AttemptOutcome.Passed, "This job was handed off to you"));
+        await keeper.HandleAsync(new JobProgressed(job, JobStatus.AwaitingReview), Cancellation);
+
+        var joined = Joined(job);
+        Assert.Equal([handoff], joined.Handoffs);
+        Assert.Equal(
+            [Option<HandoffRecord>.None, Option<HandoffRecord>.Some(handoff)],
+            joined.Transcript.Entries.OfType<PromptEntry>().Select(prompt => prompt.Handoff));
+    }
+
+    [Fact]
+    public async Task AWaitForAResetLastsUntilTheJobRunsAgainAsync()
+    {
+        var job = catalog.Add("Fix the failing test").Summary.Job;
+        await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+        await keeper.HandleAsync(new JobProgressed(job, JobStatus.NeedsHelp), Cancellation);
+        var wait = new ResetWait(job, new ConnectionName("claude-work"), "5h", time.GetUtcNow().AddHours(2), time.GetUtcNow());
+
+        await keeper.HandleAsync(new JobWaitsForReset(wait), Cancellation);
+        var waiting = Joined(job).Wait;
+        await keeper.HandleAsync(new JobProgressed(job, JobStatus.Running), Cancellation);
+
+        Assert.Equal((Option<ResetWait>.Some(wait), Option<ResetWait>.None), (waiting, Joined(job).Wait));
+    }
+
+    [Fact]
+    public async Task AJobOfAnEarlierRunJoinsWithItsHandoffsAndItsWaitAsync()
+    {
+        var job = catalog.Add("Fix the failing test", JobStatus.NeedsHelp, Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Rejected), Attempt(2, AttemptOrigin.Handoff, AttemptOutcome.Interrupted, "This job was handed off to you")).Summary.Job;
+        var handoff = Handoff(job, 2);
+        var wait = new ResetWait(job, new ConnectionName("claude-personal"), "5h", time.GetUtcNow().AddHours(2), time.GetUtcNow());
+        handoffs.Records[job] = [handoff];
+        handoffs.Waits[job] = wait;
+
+        await keeper.HandleAsync(new StartupCompleted(), Cancellation);
+
+        var joined = Joined(job);
+        Assert.Equal([handoff], joined.Handoffs);
+        Assert.Equal(Option<ResetWait>.Some(wait), joined.Wait);
+        Assert.Contains(joined.Transcript.Entries.OfType<PromptEntry>(), prompt => prompt.Handoff == Option<HandoffRecord>.Some(handoff));
     }
 
     [Fact]
@@ -225,6 +278,9 @@ public sealed class BoardKeeperTests
     }
 
     private BoardJob Joined(JobId job) => board.Find(job).Match(found => found, () => throw new InvalidOperationException("The job is not on the board."));
+
+    private HandoffRecord Handoff(JobId job, int attempt) =>
+        new(job, attempt, new ConnectionName("claude-work"), new ConnectionName("claude-personal"), new LimitReason(new ConnectionName("claude-work"), "5h", 0.91, 0.9), time.GetUtcNow());
 
     private static AttemptRecord Attempt(int number, AttemptOrigin origin, AttemptOutcome outcome, string guidance = "") =>
         new(number, origin, outcome, string.IsNullOrEmpty(guidance) ? Option<string>.None : guidance, Option<SessionId>.None);

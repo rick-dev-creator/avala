@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -18,6 +19,8 @@ internal sealed record Transcript
 
     private ImmutableDictionary<TurnId, TurnTally> Turns { get; init; } = ImmutableDictionary<TurnId, TurnTally>.Empty;
 
+    private ImmutableDictionary<int, HandoffRecord> Handoffs { get; init; } = ImmutableDictionary<int, HandoffRecord>.Empty;
+
     public IEnumerable<ITimelineEntry> Awaiting =>
         Entries.Where(entry => entry is PermissionEntry { AwaitsHuman: true } or FormEntry { AwaitsHuman: true });
 
@@ -29,9 +32,16 @@ internal sealed record Transcript
     public Transcript WithPrompts(string instruction, IReadOnlyList<AttemptRecord> attempts) =>
         attempts.Count == 0
             ? Positions.ContainsKey(EntryKeys.Attempt(1)) ? this : Add(new PromptEntry(EntryKeys.Attempt(1), 1, AttemptOrigin.Initial, instruction, Option<AttemptOutcome>.None))
-            : attempts.Aggregate(this, (transcript, attempt) => transcript.Put(Prompt(instruction, attempt)));
+            : attempts.Aggregate(this, (transcript, attempt) => transcript.Put(transcript.Prompt(instruction, attempt)));
 
     public Transcript WithPrompt(string instruction, AttemptRecord attempt) => Put(Prompt(instruction, attempt));
+
+    public Transcript WithHandoff(HandoffRecord handoff)
+    {
+        var noted = this with { Handoffs = Handoffs.SetItem(handoff.Attempt, handoff) };
+
+        return noted.Change(EntryKeys.Attempt(handoff.Attempt), entry => entry is PromptEntry prompt ? prompt with { Handoff = handoff } : entry);
+    }
 
     public Transcript WithRestart(bool kept) =>
         Entries.IsEmpty || Positions.ContainsKey(EntryKeys.Restart) ? this : Add(new RestartEntry(EntryKeys.Restart, kept));
@@ -91,13 +101,16 @@ internal sealed record Transcript
         Change(EntryKeys.Permission(withdrawn.Turn, withdrawn.Item), entry => entry is PermissionEntry permission ? permission with { Withdrawn = true } : entry)
             .Change(EntryKeys.Item(withdrawn.Turn, withdrawn.Item), entry => entry is FormEntry form ? form with { Withdrawn = true } : entry);
 
-    private static PromptEntry Prompt(string instruction, AttemptRecord attempt) =>
+    private PromptEntry Prompt(string instruction, AttemptRecord attempt) =>
         new(
             EntryKeys.Attempt(attempt.Number),
             attempt.Number,
             attempt.Origin,
             attempt.Origin == AttemptOrigin.Initial ? instruction : attempt.Guidance,
-            attempt.Outcome);
+            attempt.Outcome)
+        {
+            Handoff = Handoffs.TryGetValue(attempt.Number, out var handoff) ? handoff : Option<HandoffRecord>.None,
+        };
 
     private static ITimelineEntry Opened(ItemStarted started, DateTimeOffset now)
     {

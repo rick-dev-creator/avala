@@ -23,6 +23,7 @@ public enum AttemptOrigin
     Hint,
     SendBack,
     Recovery,
+    Handoff,
 }
 
 public enum AttemptOutcome

@@ -1,4 +1,3 @@
-using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -10,7 +9,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Jobs.TurnChecks;
 
-internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, CompletionGates gates, IAgents agents)
+internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, CompletionGates gates, NextRound round)
 {
     private const string DefaultFeedback = "The checks did not pass. Review the failures and fix them.";
 
@@ -29,7 +28,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
 
         _ = job.CompleteTurn();
         await ledger.RecordAsync(job, cancellationToken);
-        await JudgeAsync(job, RetryInSameSessionAsync, cancellationToken);
+        await JudgeAsync(job, round.InSameSessionAsync, cancellationToken);
     }
 
     public async Task JudgeAsync(Job job, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken) =>
@@ -71,16 +70,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
             return;
         }
 
-        await retry(job, feedback, cancellationToken);
-    }
-
-    private async Task RetryInSameSessionAsync(Job job, Feedback feedback, CancellationToken cancellationToken)
-    {
-        if (job.Retry(feedback).IsSuccess)
-        {
-            await ledger.RecordAsync(job, cancellationToken);
-            _ = await agents.TellAsync(job, feedback.Text, cancellationToken);
-        }
+        await round.GoOnAsync(job, feedback, retry, cancellationToken);
     }
 
     private async Task FailAsync(Job job, FailureReason reason, CancellationToken cancellationToken)
