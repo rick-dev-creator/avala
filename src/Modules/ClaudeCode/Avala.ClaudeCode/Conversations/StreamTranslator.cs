@@ -50,6 +50,34 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         return Reaction.Of(closing);
     }
 
+    public void Recall(JsonNode earlier)
+    {
+        if (earlier.Text("parent_tool_use_id").IsSome || earlier.Flag("isSidechain"))
+        {
+            return;
+        }
+
+        var content = earlier.Members("message").Items("content");
+
+        switch (earlier.TextOr("type", string.Empty))
+        {
+            case "assistant":
+                foreach (var block in content.Where(part => part.TextOr("type", string.Empty) == "tool_use" && PlanBook.Plans(part.TextOr("name", string.Empty))))
+                {
+                    plan.Use(new ToolUse(block.TextOr("id", string.Empty), block.TextOr("name", string.Empty), block.Members("input")));
+                }
+
+                break;
+            case "user":
+                foreach (var block in content.Where(part => part.TextOr("type", string.Empty) == "tool_result"))
+                {
+                    plan.Return(block.TextOr("tool_use_id", string.Empty), block.Flag("is_error"), Text(block));
+                }
+
+                break;
+        }
+    }
+
     private Reaction Nested(JsonNode received, string parent, Stamp stamp) => received.TextOr("type", string.Empty) switch
     {
         "assistant" => received.Members("message").Items("content")
@@ -222,7 +250,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
 
                 return Reaction.Of(new ItemStarted(stamp.Session, stamp.Turn, tool.Item, use.KindIn(places), use.Heading(places)) { Input = use.Details(places.WorkingDirectory) });
             case ToolRole.Plan when !nested:
-                return Planned(plan.Used(use, stamp));
+                return Planned(plan.Use(use), stamp);
             case ToolRole.Canvas:
                 return Drawn(tool, Final(use.Input), stamp);
             default:
@@ -236,15 +264,15 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
                 .Select(name => KeyValuePair.Create(name, new PartialText(input.TextOr(name, name == "title" ? "Canvas" : name == "mediaType" ? "text/plain" : string.Empty), true))),
             StringComparer.Ordinal);
 
-    private static Reaction Planned(Option<PlanUpdated> updated) =>
-        updated.Match(update => Reaction.Of(update), () => Reaction.None);
+    private Reaction Planned(bool changed, Stamp stamp) =>
+        changed ? Reaction.Of(plan.Current(stamp)) : Reaction.None;
 
     private Reaction Returned(JsonObject returned, Stamp stamp, bool nested) =>
         returned.Items("content")
             .Where(block => block.TextOr("type", string.Empty) == "tool_result")
             .Select(block => tools.Find(block.TextOr("tool_use_id", string.Empty)).Match(
                 tool => tool.Role == ToolRole.Plan
-                    ? nested ? Reaction.None : Planned(plan.Returned(tool.Use.Id, block.Flag("is_error"), Output(block), stamp))
+                    ? nested ? Reaction.None : Planned(plan.Return(tool.Use.Id, block.Flag("is_error"), Text(block)), stamp)
                     : Finished(tool, block, stamp),
                 () => Reaction.None))
             .Aggregate(Reaction.None, (all, next) => all.Then(next));
@@ -268,12 +296,11 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         ]);
     }
 
-    private static string Output(JsonNode result)
-    {
-        var text = result.Text("content").Match(
+    private static string Output(JsonNode result) =>
+        Text(result) is var text && text.Length <= OutputLength ? text : $"{text[..OutputLength]}…";
+
+    private static string Text(JsonNode result) =>
+        result.Text("content").Match(
             content => content,
             () => string.Join('\n', result.Items("content").Select(part => part.TextOr("text", part.TextOr("tool_name", string.Empty))).Where(part => part.Length > 0)));
-
-        return text.Length <= OutputLength ? text : $"{text[..OutputLength]}…";
-    }
 }
