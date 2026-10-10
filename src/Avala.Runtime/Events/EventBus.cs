@@ -113,7 +113,10 @@ internal sealed partial class EventBus(IServiceProvider services, ILogger<EventB
         {
             await handler.HandleAsync(integrationEvent, cancellationToken);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
         {
             LogHandlerFailed(handler.GetType().Name, typeof(TEvent).Name, exception);
         }
