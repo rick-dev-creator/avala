@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
@@ -17,9 +18,22 @@ internal sealed record AnswerChildInput(JobId Child, ItemId Request, ChildDecisi
 {
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 5, AllowDuplicateProperties = false };
 
-    private static readonly string[] Known = ["child", "request", "decision", "message", "fields"];
+    private static readonly Dictionary<string, Func<JsonElement, bool>> Shape = new(StringComparer.Ordinal)
+    {
+        ["child"] = IsText,
+        ["request"] = IsText,
+        ["decision"] = IsText,
+        ["message"] = IsText,
+        ["fields"] = fields => fields.ValueKind == JsonValueKind.Array,
+    };
 
-    private static readonly string[] FieldKeys = ["id", "chosen", "text", "confirmed"];
+    private static readonly Dictionary<string, Func<JsonElement, bool>> FieldShape = new(StringComparer.Ordinal)
+    {
+        ["id"] = IsText,
+        ["chosen"] = chosen => chosen.ValueKind == JsonValueKind.Array && chosen.EnumerateArray().All(IsText),
+        ["text"] = IsText,
+        ["confirmed"] = confirmed => confirmed.ValueKind is JsonValueKind.True or JsonValueKind.False,
+    };
 
     public FormAnswer FormAnswer =>
         Decision == ChildDecision.Deny
@@ -32,7 +46,7 @@ internal sealed record AnswerChildInput(JobId Child, ItemId Request, ChildDecisi
         {
             using var document = JsonDocument.Parse(input, Options);
 
-            return Read(document.RootElement);
+            return Fits(document.RootElement, Shape) ? Read(document.RootElement) : Option<AnswerChildInput>.None;
         }
         catch (JsonException)
         {
@@ -42,24 +56,24 @@ internal sealed record AnswerChildInput(JobId Child, ItemId Request, ChildDecisi
 
     private static Option<AnswerChildInput> Read(JsonElement root)
     {
-        if (root.ValueKind != JsonValueKind.Object
-            || !root.EnumerateObject().All(field => Known.Contains(field.Name, StringComparer.Ordinal))
-            || (root.TryGetProperty("message", out var message) && message.ValueKind != JsonValueKind.String))
-        {
-            return Option<AnswerChildInput>.None;
-        }
-
         var child = Text(root, "child").Bind(text => Guid.TryParse(text, out var job) ? new JobId(job) : Option<JobId>.None);
         var request = Text(root, "request").Bind(text => text.Length > 0 ? new ItemId(text) : Option<ItemId>.None);
         var decision = Text(root, "decision").Bind(DecisionIn);
         var said = Text(root, "message").Bind(text => string.IsNullOrWhiteSpace(text) ? Option<string>.None : text);
+        var fields = root.TryGetProperty("fields", out var listed) ? FieldsIn(listed) : Option<IReadOnlyList<FieldAnswer>>.Some([]);
 
-        return child.Bind(job => request.Bind(item => decision.Bind(chosen => FieldsIn(root).Map(fields =>
-            new AnswerChildInput(job, item, chosen, said, fields)))));
+        return child.Bind(job => request.Bind(item => decision.Bind(chosen => fields.Map(answers =>
+            new AnswerChildInput(job, item, chosen, said, answers)))));
     }
 
-    private static Option<string> Text(JsonElement root, string name) =>
-        root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? string.Empty : Option<string>.None;
+    private static bool IsText(JsonElement value) => value.ValueKind == JsonValueKind.String;
+
+    private static bool Fits(JsonElement element, Dictionary<string, Func<JsonElement, bool>> shape) =>
+        element.ValueKind == JsonValueKind.Object
+        && element.EnumerateObject().All(property => shape.TryGetValue(property.Name, out var fits) && fits(property.Value));
+
+    private static Option<string> Text(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) ? value.GetString() ?? string.Empty : Option<string>.None;
 
     private static Option<ChildDecision> DecisionIn(string decision) => decision switch
     {
@@ -69,46 +83,18 @@ internal sealed record AnswerChildInput(JobId Child, ItemId Request, ChildDecisi
         _ => Option<ChildDecision>.None,
     };
 
-    private static Option<IReadOnlyList<FieldAnswer>> FieldsIn(JsonElement root)
-    {
-        if (!root.TryGetProperty("fields", out var fields))
-        {
-            return Option<IReadOnlyList<FieldAnswer>>.Some([]);
-        }
+    private static Option<IReadOnlyList<FieldAnswer>> FieldsIn(JsonElement fields) =>
+        fields.EnumerateArray()
+            .Aggregate(Option<ImmutableList<FieldAnswer>>.Some([]), (answers, field) => answers.Bind(kept => FieldIn(field).Map(kept.Add)))
+            .Map(answers => (IReadOnlyList<FieldAnswer>)answers);
 
-        if (fields.ValueKind != JsonValueKind.Array)
-        {
-            return Option<IReadOnlyList<FieldAnswer>>.None;
-        }
-
-        var answers = fields.EnumerateArray().Select(FieldIn).ToList();
-
-        return answers.All(answer => answer.IsSome)
-            ? Option<IReadOnlyList<FieldAnswer>>.Some([.. answers.Select(answer => answer.Match(found => found, () => new FieldAnswer(string.Empty)))])
-            : Option<IReadOnlyList<FieldAnswer>>.None;
-    }
-
-    private static Option<FieldAnswer> FieldIn(JsonElement field)
-    {
-        if (field.ValueKind != JsonValueKind.Object || !field.EnumerateObject().All(key => FieldKeys.Contains(key.Name, StringComparer.Ordinal)))
-        {
-            return Option<FieldAnswer>.None;
-        }
-
-        var hasChosen = field.TryGetProperty("chosen", out var chosen);
-
-        if ((hasChosen && (chosen.ValueKind != JsonValueKind.Array || chosen.EnumerateArray().Any(label => label.ValueKind != JsonValueKind.String)))
-            || (field.TryGetProperty("text", out var text) && text.ValueKind != JsonValueKind.String)
-            || (field.TryGetProperty("confirmed", out var confirmed) && confirmed.ValueKind is not (JsonValueKind.True or JsonValueKind.False)))
-        {
-            return Option<FieldAnswer>.None;
-        }
-
-        return Text(field, "id").Bind(id => id.Length == 0 ? Option<FieldAnswer>.None : new FieldAnswer(id)
-        {
-            Chosen = hasChosen ? [.. chosen.EnumerateArray().Select(label => label.GetString() ?? string.Empty)] : [],
-            Text = Text(field, "text"),
-            Confirmed = field.TryGetProperty("confirmed", out var yes) && yes.ValueKind == JsonValueKind.True,
-        });
-    }
+    private static Option<FieldAnswer> FieldIn(JsonElement field) =>
+        Fits(field, FieldShape)
+            ? Text(field, "id").Bind(id => id.Length == 0 ? Option<FieldAnswer>.None : new FieldAnswer(id)
+            {
+                Chosen = field.TryGetProperty("chosen", out var chosen) ? [.. chosen.EnumerateArray().Select(label => label.GetString() ?? string.Empty)] : [],
+                Text = Text(field, "text"),
+                Confirmed = field.TryGetProperty("confirmed", out var confirmed) && confirmed.ValueKind == JsonValueKind.True,
+            })
+            : Option<FieldAnswer>.None;
 }
