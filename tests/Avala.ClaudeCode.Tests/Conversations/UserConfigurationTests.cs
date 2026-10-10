@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Cli;
 using Avala.ClaudeCode.Conversations;
 using Avala.ClaudeCode.Protocol;
@@ -58,7 +59,7 @@ public sealed class UserConfigurationTests
 
     private static async Task<Loaded> LoadedAsync(string home, string repository, ConnectionEnvironment connection)
     {
-        var launch = CommandLine.For(repository, connection, Option<ConversationMark>.None, new UserHome(home, []));
+        var launch = CommandLine.For(repository, new SessionOptions(repository, PermissionMode.AskEveryTime) { Connection = connection }, Option<ConversationMark>.None, new UserHome(home, []));
         launch = launch with { Variables = new Dictionary<string, string>(launch.Variables) { ["HOME"] = home } };
         var cli = new ProcessCli(CliCommand.Installed, TimeProvider.System, NullLogger<ProcessCli>.Instance).Start(launch, UncontainedProcesses.Instance, Option<string>.None)
             .Match(started => started, error => throw new InvalidOperationException(error.ToString()));

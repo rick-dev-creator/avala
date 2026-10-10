@@ -32,6 +32,7 @@ internal sealed class TranscriptTap : IAsyncDisposable
             ["transcript"] = 1,
             ["resume"] = resume,
             ["folder"] = folderName,
+            ["todoTools"] = launch.Variables.TryGetValue(CommandLine.TodoToolsVariable, out var todoTools) ? todoTools : null,
             ["arguments"] = new JsonArray([.. launch.Arguments.Select(argument => JsonValue.Create(argument))]),
         }.ToJsonString());
 

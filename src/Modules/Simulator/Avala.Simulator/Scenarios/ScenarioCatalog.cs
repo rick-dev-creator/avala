@@ -43,6 +43,30 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario PlanAcrossTurns { get; } = new("plan-across-turns",
+    [
+        [
+            Thought("Three steps: read, ", "change, test."),
+            new UpdatePlan([new PlanStep("Read the code", PlanStepStatus.Done), new PlanStep("Write the change", PlanStepStatus.InProgress), new PlanStep("Run the tests", PlanStepStatus.Pending)]),
+            new WriteFile(new ItemId("edit"), "GREETING.md", "# Hello\n"),
+            Message("Wrote the greeting; ", "the tests are next."),
+            .. Bill(2_800, 210, 0.0140m, 0.20),
+            new Finish(),
+        ],
+        [
+            Thought("Picking the plan ", "up where it stopped."),
+            Message("Still on the change: ", "it needs one more line."),
+            .. Bill(1_900, 140, 0.0090m, 0.22),
+            new Finish(),
+        ],
+        [
+            new UpdatePlan([new PlanStep("Read the code", PlanStepStatus.Done), new PlanStep("Write the change", PlanStepStatus.Done), new PlanStep("Run the tests", PlanStepStatus.Done)]),
+            Message("The change is written ", "and the tests pass."),
+            .. Bill(2_100, 160, 0.0100m, 0.24),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario FixAfterFeedback { get; } = new("fix-after-feedback",
     [
         [
@@ -470,7 +494,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Steer, Reply, Edit, Tools, FixAfterFeedback, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
+        Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
         Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, LimitHandoff, SpentElsewhere, .. DelegationScenarios.All,
     ];
 

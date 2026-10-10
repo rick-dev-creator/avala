@@ -34,10 +34,13 @@ public sealed class PermissionsPlugin : IPlugin
             .AddForwarded<IRepositoryPolicies, PolicyFileReader>()
             .AddSingleton<IRealPaths, SymbolicLinks>()
             .AddSingleton<PermissionResponder>()
+            .AddSingleton<IRepositoryRuleFiles, RepositoryRuleWriter>()
+            .AddSingleton<AnswerLedger>()
             .AddSingleton<IPermissionAnswers, HumanAnswers>()
             .AddSingleton<SessionGovernor>()
             .AddForwarded<IHandle<SessionOpened>, SessionGovernor>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionGovernor>()
-            .AddForwarded<IHandle<AgentActivity>, SessionGovernor>();
+            .AddForwarded<IHandle<AgentActivity>, SessionGovernor>()
+            .AddForwarded<IHandle<JobProgressed>, SessionGovernor>();
     }
 }

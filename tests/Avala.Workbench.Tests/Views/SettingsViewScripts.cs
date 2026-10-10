@@ -238,7 +238,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
             settings,
             new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")),
             new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()),
-            new ConnectionEditorViewModel(settings));
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel()));
     }
 
     [Fact]
@@ -294,6 +294,7 @@ public sealed class ConnectionEditorViewScripts(HeadlessUi ui)
             Assert.Equal((1, 3), (view.Find<ComboBox>("Provider").ItemCount, view.Find<ComboBox>("Source").ItemCount));
             Assert.Contains("never reads or writes the key", view.TextOf("ReferenceHint"), StringComparison.Ordinal);
             Assert.False(view.Shows("Confirm"));
+            Assert.Equal((true, 4, 6), (view.Shows("Model"), view.Find<ComboBox>("Model").ItemCount, view.Find<ComboBox>("Effort").ItemCount));
         }, TestContext.Current.CancellationToken);
 }
 

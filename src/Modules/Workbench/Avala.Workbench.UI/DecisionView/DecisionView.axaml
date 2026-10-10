@@ -169,7 +169,7 @@
                  Classes="caption"
                  Text="Fill in the answer below the list"
                  IsVisible="{Binding HasFields}" />
-      <Grid x:Name="Actions" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,4,0,0">
+      <Grid x:Name="Actions" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,4,0,0">
         <Button x:Name="Open"
                 Classes="link"
                 HorizontalAlignment="Left"
@@ -183,15 +183,23 @@
                   ToolTip.Tip="{Binding DontAskAgainScope}"
                   IsChecked="{Binding DontAskAgain}"
                   IsVisible="{Binding IsPermission}" />
+        <CheckBox x:Name="AlwaysInRepository"
+                  Grid.Column="2"
+                  Margin="0,0,8,0"
+                  FontSize="{DynamicResource FontSizeCaption}"
+                  Content="{Binding AlwaysInRepositoryLabel}"
+                  ToolTip.Tip="{Binding AlwaysInRepositoryScope}"
+                  IsChecked="{Binding AlwaysInRepository}"
+                  IsVisible="{Binding OffersAlwaysInRepository}" />
         <Button x:Name="Deny"
-                Grid.Column="2"
+                Grid.Column="3"
                 Classes="small"
                 Margin="0,0,8,0"
                 Content="Deny  ⌫"
                 Command="{Binding DenyCommand}"
                 IsVisible="{Binding IsPermission}" />
         <Button x:Name="Answer"
-                Grid.Column="3"
+                Grid.Column="4"
                 Classes="primary small"
                 Command="{Binding AnswerCommand}">
           <Panel>

@@ -13,6 +13,7 @@ internal enum FactKind
     Decision,
     Form,
     Answer,
+    Ended,
 }
 
 internal sealed class StoredFact

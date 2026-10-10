@@ -59,11 +59,11 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents, 
 
     public Task RecordChoiceAsync(JobId job, ConnectionChoice choice, CancellationToken cancellationToken) => store.RecordAsync(job, choice, cancellationToken);
 
-    public async Task RecordHandoffAsync(Job job, ConnectionName from, SessionId session, ConnectionChoice choice, CancellationToken cancellationToken)
+    public async Task RecordHandoffAsync(Job job, JobHandedOff handoff, CancellationToken cancellationToken)
     {
-        await store.RecordAsync(job.Id, choice, cancellationToken);
-        await bus.PublishAsync(new ConnectionChosen(job.Id, choice), cancellationToken);
-        await bus.PublishAsync(new JobHandedOff(job.Id, from, choice.Connection, session, job.Attempts[^1].Number.Value, choice), cancellationToken);
+        await store.RecordAsync(job.Id, handoff.Choice, cancellationToken);
+        await bus.PublishAsync(new ConnectionChosen(job.Id, handoff.Choice), cancellationToken);
+        await bus.PublishAsync(handoff, cancellationToken);
     }
 
     private Task SaveAsync(Job job, CancellationToken cancellationToken)

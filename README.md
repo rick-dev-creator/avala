@@ -61,9 +61,9 @@ dotnet test --solution Avala.slnx
 ## Learn more
 
 - [Architecture](docs/architecture.md): the rules every change must pass.
-- [Core design](docs/design/core.md) and [plan](docs/plan/core.md).
 - [Releasing](docs/release.md): packages, signing and the update check.
-- [AGENTS.md](AGENTS.md): how to contribute, with or without an agent.
+- [Contributing](CONTRIBUTING.md): how to build, test and send a change.
+- [AGENTS.md](AGENTS.md): what an agent working on Avala reads first.
 
 ## A note on T3 Code
 

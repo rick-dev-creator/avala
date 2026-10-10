@@ -42,7 +42,9 @@ internal static class InspectorPhrases
         return
         [
             .. handoffs.Select(handoff => new HandoffLine(
-                $"{Presenting.HandoffPhrases.Moves(handoff)} · {Presenting.Amounts.Time(handoff.At)}",
+                Presenting.HandoffPhrases.Model(handoff).Match(
+                    model => $"{Presenting.HandoffPhrases.Moves(handoff)} · {model} · {Presenting.Amounts.Time(handoff.At)}",
+                    () => $"{Presenting.HandoffPhrases.Moves(handoff)} · {Presenting.Amounts.Time(handoff.At)}"),
                 $"Spent on {handoff.From.Value}: {SpendLine(handoff.Spent, handoff.Tokens)}")),
             new HandoffLine(string.Empty, $"Spent on {handoffs[^1].To.Value}: {SpendLine(before.Costs, Math.Max(0, before.Tokens))}"),
         ];
@@ -97,7 +99,10 @@ internal static class InspectorPhrases
 
     public static string Answer(HumanAnswer answer) =>
         $"You {(answer.Answer == PermissionAnswer.Allow ? "allowed" : "denied")} {answer.Kind} {answer.Target}"
-        + answer.SessionRule.Match(_ => " · don't ask again this session",() => string.Empty);
+        + answer.Rule.Match(rule => $" · {rule.Name}", () => string.Empty)
+        + answer.RepositoryRule.Match(
+            rule => $" · {rule.Name}",
+            () => answer.RepositoryError.Match(_ => " · not added to the repository", () => string.Empty));
 
     public static string Assumption(Assumption assumption) =>
         $"{assumption.Prompt}: {(assumption.Chosen.Count > 0 ? string.Join(", ", assumption.Chosen) : "the agent's judgment")}";

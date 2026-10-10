@@ -32,7 +32,9 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return;
         }
 
-        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = connection }, cancellationToken)).TryGetValue(out var opened, out var error))
+        var model = await planner.ModelOfAsync(job, workspace, cancellationToken);
+
+        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = connection, Model = model }, cancellationToken)).TryGetValue(out var opened, out var error))
         {
             await FailAsync(job, Failure(error), cancellationToken);
             return;
@@ -133,7 +135,9 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return JobRejection.WorkspaceUnavailable;
         }
 
-        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = connection }, cancellationToken)).TryGetValue(out var opened, out var error))
+        var model = await planner.ModelOfAsync(job, workspace, cancellationToken);
+
+        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = connection, Model = model }, cancellationToken)).TryGetValue(out var opened, out var error))
         {
             return Rejection(error);
         }
@@ -184,7 +188,16 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             return JobRejection.WorkspaceUnavailable;
         }
 
-        if (!(await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = handoff.Choice.Connection }, cancellationToken)).TryGetValue(out var opened, out var error))
+        var wanted = await planner.ModelOfAsync(job, workspace, cancellationToken);
+        var opening = await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = handoff.Choice.Connection, Model = wanted }, cancellationToken);
+        var fellBack = opening.Match(_ => false, error => error is AgentError.UnofferedModel or AgentError.UnofferedEffort);
+
+        if (fellBack)
+        {
+            opening = await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = handoff.Choice.Connection }, cancellationToken);
+        }
+
+        if (!opening.TryGetValue(out var opened, out var error))
         {
             return Rejection(error);
         }
@@ -203,7 +216,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             async session => _ = await agents.StopAsync(session, cancellationToken),
             () => Task.CompletedTask);
         await from.Match(
-            left => ledger.RecordHandoffAsync(job, left, opened.Session, handoff.Choice, cancellationToken),
+            left => ledger.RecordHandoffAsync(job, new JobHandedOff(job.Id, left, handoff.Choice.Connection, opened.Session, job.Attempts[^1].Number.Value, handoff.Choice) { Wanted = wanted, ModelFellBack = fellBack }, cancellationToken),
             () => ledger.RecordChoiceAsync(job.Id, handoff.Choice, cancellationToken));
 
         return new JobContinuation(job.Id, opened.Session, ContinuedIn.NewConversation);
@@ -264,17 +277,25 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     }
 
     private async Task<Result<OpenedSession, AgentError>> OpenAsync(Job job, WorkspaceInfo workspace, CancellationToken cancellationToken) =>
-        await agents.OpenAsync(new AgentRequest(workspace.Path) { Resume = job.Resume, Connection = job.Connection }, cancellationToken);
+        await agents.OpenAsync(
+            new AgentRequest(workspace.Path) { Resume = job.Resume, Connection = job.Connection, Model = await planner.ModelOfAsync(job, workspace, cancellationToken) },
+            cancellationToken);
 
     private static JobRejection Rejection(AgentError error) => error switch
     {
         AgentError.UnknownConnection => JobRejection.UnknownConnection,
         AgentError.UnusableConnection => JobRejection.UnusableConnection,
+        AgentError.UnofferedModel => JobRejection.UnofferedModel,
+        AgentError.UnofferedEffort => JobRejection.UnofferedEffort,
         _ => JobRejection.AgentUnavailable,
     };
 
-    private static FailureReason Failure(AgentError error) =>
-        error is AgentError.UnknownConnection or AgentError.UnusableConnection ? FailureReason.ConnectionUnavailable : FailureReason.AgentUnavailable;
+    private static FailureReason Failure(AgentError error) => error switch
+    {
+        AgentError.UnknownConnection or AgentError.UnusableConnection => FailureReason.ConnectionUnavailable,
+        AgentError.UnofferedModel or AgentError.UnofferedEffort => FailureReason.ModelUnavailable,
+        _ => FailureReason.AgentUnavailable,
+    };
 
     private async Task BeginAsync(Job job, SessionId session, string message, CancellationToken cancellationToken)
     {

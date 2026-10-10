@@ -12,6 +12,8 @@ internal sealed record Caller(SessionId Session, Option<JobId> Job, Option<strin
 
 internal sealed record Plan(JobSummary Parent, Routed Route, Autonomy Autonomy)
 {
+    public ModelChoice Model { get; init; } = ModelChoice.Default;
+
     public Option<ConnectionName> Connection => Route.Connection;
 }
 
@@ -56,7 +58,7 @@ internal sealed class DelegationPolicy(IDelegationRules rules, IJobCatalog catal
         var earlier = (await catalog.ChildrenAsync(history.Summary.Job, cancellationToken)).Count;
         var routed = await router.RouteAsync(delegation, earlier, worktree, cancellationToken);
 
-        return new Decision(asked.Instruction, depth, new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)));
+        return new Decision(asked.Instruction, depth, new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)) { Model = asked.Model });
     }
 
     private async Task<int> DepthOfAsync(JobSummary job, CancellationToken cancellationToken)

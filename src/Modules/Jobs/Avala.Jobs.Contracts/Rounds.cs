@@ -34,4 +34,9 @@ public sealed record RoundRoute(RoundAction Action)
 
 public sealed record JobHandoff(ConnectionChoice Choice, string Brief);
 
-public sealed record JobHandedOff(JobId Job, ConnectionName From, ConnectionName To, SessionId Session, int Attempt, ConnectionChoice Choice) : IIntegrationEvent;
+public sealed record JobHandedOff(JobId Job, ConnectionName From, ConnectionName To, SessionId Session, int Attempt, ConnectionChoice Choice) : IIntegrationEvent
+{
+    public ModelChoice Wanted { get; init; } = ModelChoice.Default;
+
+    public bool ModelFellBack { get; init; }
+}

@@ -50,7 +50,7 @@ public sealed class ConnectionDiscoveryTests
             [("work", ConnectionOrigin.Declared), ("personal", ConnectionOrigin.Declared), ("first-c", ConnectionOrigin.Discovered)],
             catalog.Connections.Select(connection => (connection.Name.Value, connection.Origin)));
         Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("personal")), catalog.Default);
-        Assert.Equal(new ConnectionInfo(new ConnectionName("work"), first.Info), Outcomes.Succeeds(await registry.CheckAsync(new ConnectionName("work"), Cancellation)));
+        Assert.Equal(new ConnectionInfo(new ConnectionName("work"), first.Info) { Capabilities = first.CapabilitiesOn(ConnectionEnvironment.Default) }, Outcomes.Succeeds(await registry.CheckAsync(new ConnectionName("work"), Cancellation)));
     }
 
     [Fact]

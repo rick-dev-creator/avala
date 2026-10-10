@@ -9,7 +9,7 @@ namespace Avala.Workbench.Tests.Inspector;
 
 public sealed class InspectorPhrasesTests
 {
-    private static readonly PolicyRule SessionRule = new(RuleOrigin.Session, "edits", ItemKind.FileEdit, "src/**", RuleScope.Anywhere, PolicyAnswer.Allow);
+    private static readonly PolicyRule Remembered = new(RuleOrigin.Job, "don't ask again for this job", ItemKind.FileEdit, "src/auth/login.ts", RuleScope.Anywhere, PolicyAnswer.Allow);
 
     [Theory]
     [InlineData(AttemptOutcome.Running, null, "Attempt 1: the agent is working, no checks yet")]
@@ -29,10 +29,13 @@ public sealed class InspectorPhrasesTests
                 [])[0]);
 
     [Theory]
-    [InlineData("Allow", false, "You allowed FileEdit src/auth/login.ts")]
-    [InlineData("Allow", true, "You allowed FileEdit src/auth/login.ts · don't ask again this session")]
-    [InlineData("Deny", false, "You denied FileEdit src/auth/login.ts")]
-    public void APersonsAnswerSaysWhatWasAnsweredAndWhetherToAskAgain(string answer, bool dontAskAgain, string phrase) =>
+    [InlineData("Allow", "", "", "You allowed FileEdit src/auth/login.ts")]
+    [InlineData("Allow", "Session", "", "You allowed FileEdit src/auth/login.ts · don't ask again this session")]
+    [InlineData("Allow", "Job", "", "You allowed FileEdit src/auth/login.ts · don't ask again for this job")]
+    [InlineData("Allow", "Job", "Written", "You allowed FileEdit src/auth/login.ts · don't ask again for this job · always in this repository")]
+    [InlineData("Deny", "Job", "Malformed", "You denied FileEdit src/auth/login.ts · don't ask again for this job · not added to the repository")]
+    [InlineData("Deny", "", "", "You denied FileEdit src/auth/login.ts")]
+    public void APersonsAnswerSaysWhatWasAnsweredAndHowLongItIsRemembered(string answer, string remembered, string repository, string phrase) =>
         Assert.Equal(
             phrase,
             InspectorPhrases.Answer(new HumanAnswer(
@@ -43,8 +46,17 @@ public sealed class InspectorPhrasesTests
                 "src/auth/login.ts",
                 Enum.Parse<PermissionAnswer>(answer),
                 Option<string>.None,
-                dontAskAgain ? SessionRule : Option<PolicyRule>.None,
-                DateTimeOffset.UnixEpoch)));
+                remembered switch
+                {
+                    "Session" => Remembered with { Origin = RuleOrigin.Session, Name = "don't ask again this session" },
+                    "Job" => Remembered,
+                    _ => Option<PolicyRule>.None,
+                },
+                DateTimeOffset.UnixEpoch)
+            {
+                RepositoryRule = repository == "Written" ? Remembered with { Origin = RuleOrigin.Repository, Name = "always in this repository" } : Option<PolicyRule>.None,
+                RepositoryError = repository == "Malformed" ? PolicyError.Malformed : Option<PolicyError>.None,
+            }));
 
     [Fact]
     public void TheHoldAtALimitReadsAsTheThresholdItHoldsAtAsTheUsagePageSaysIt() =>

@@ -161,6 +161,20 @@
                          IsVisible="{Binding Quiet, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             </StackPanel>
 
+            <StackPanel x:Name="PlanState"
+                        Margin="28,20,28,0"
+                        Spacing="4"
+                        IsVisible="{Binding Plan, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+              <TextBlock x:Name="PlanSummary" Classes="section" Text="{Binding Plan}" />
+              <ItemsControl x:Name="PlanLeft" ItemsSource="{Binding PlanLeft}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <TextBlock Classes="secondary" TextWrapping="Wrap" Text="{Binding}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
             <Border x:Name="Diff"
                     Margin="28,20,28,0"
                     Padding="0,12,0,0"

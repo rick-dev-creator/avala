@@ -48,6 +48,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Option<JobId> Parent { get; private init; }
 
+    public ModelChoice Model { get; private init; } = ModelChoice.Default;
+
     public IReadOnlyList<Attempt> Attempts => attempts;
 
     public static Result<Job, JobError> Create(
@@ -58,8 +60,16 @@ internal sealed class Job : IAggregateRoot<JobId>
         DateTimeOffset submitted,
         Option<Autonomy> autonomy = default,
         Option<ConnectionName> connection = default,
-        Option<JobId> parent = default) =>
-        new Job(id, instruction, budget, repository) { Submitted = submitted, Autonomy = autonomy, Connection = connection, Parent = parent };
+        Option<JobId> parent = default,
+        Option<ModelChoice> model = default) =>
+        new Job(id, instruction, budget, repository)
+        {
+            Submitted = submitted,
+            Autonomy = autonomy,
+            Connection = connection,
+            Parent = parent,
+            Model = model.Match(chosen => chosen, () => ModelChoice.Default),
+        };
 
     public Result<JobSubmitted, JobError> Submit() =>
         machine.TryFire(JobTrigger.Submit, JobError.CannotSubmit)

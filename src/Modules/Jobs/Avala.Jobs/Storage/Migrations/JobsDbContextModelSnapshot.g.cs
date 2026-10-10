@@ -39,6 +39,10 @@ namespace Avala.Jobs.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("Parent")
                         .HasColumnType("TEXT");
 

@@ -38,10 +38,13 @@ public sealed class PermissionsPluginTests
         Assert.Same(composition.Get<SessionGovernor>(), composition.Get<IHandle<SessionOpened>>());
         Assert.Same(composition.Get<SessionGovernor>(), composition.Get<IHandle<JobSessionStarted>>());
         Assert.Same(composition.Get<SessionGovernor>(), composition.Get<IHandle<AgentActivity>>());
+        Assert.Same(composition.Get<SessionGovernor>(), composition.Get<IHandle<JobProgressed>>());
     }
 
     private static PluginComposition Compose(TemporaryFolder data) =>
         PluginComposition.Of(new PermissionsPlugin(), new AvalaPaths(data.Path), services => services
             .AddSingleton<IAgents>(new AnsweringAgents())
-            .AddSingleton<IBaseFiles>(new CommittedFiles()));
+            .AddSingleton<IBaseFiles>(new CommittedFiles())
+            .AddSingleton<IWorkingFiles>(new WorkingFiles())
+            .AddSingleton<IJobCatalog>(new OneJobCatalog(JobId.New(), data.Path)));
 }

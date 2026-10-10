@@ -13,6 +13,11 @@
                     Margin="28,0,28,20"
                     MaxWidth="{DynamicResource ReadingWidth}"
                     Content="{Binding Composer}" />
+    <ContentControl x:Name="PlanPanel"
+                    DockPanel.Dock="Bottom"
+                    Margin="28,0,28,0"
+                    MaxWidth="{DynamicResource ReadingWidth}"
+                    Content="{Binding Plan}" />
     <Panel>
       <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
         <ItemsControl x:Name="Entries"

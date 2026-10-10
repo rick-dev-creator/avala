@@ -12,11 +12,11 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
     public async Task<PolicyDecision> DecideAsync(
         GovernedSession session,
         PermissionRequested requested,
-        IReadOnlyList<PolicyRule> sessionRules,
+        IReadOnlyList<PolicyRule> jobRules,
         CancellationToken cancellationToken)
     {
         var request = requested.Facts(session.WorkingDirectory, paths);
-        var verdict = session.Policy.Decide(request, sessionRules);
+        var verdict = session.Policy.Decide(request, jobRules);
         var delivery = verdict.Answer switch
         {
             PolicyAnswer.Allow => await RespondAsync(requested, PermissionAnswer.Allow, cancellationToken),
@@ -37,6 +37,7 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
             clock.GetUtcNow())
         {
             Autonomy = session.Policy.Autonomy,
+            RepositoryRule = delivery == DecisionDelivery.LeftToHuman && session.Job.IsSome ? session.Policy.InRepository(request) : Option<PolicyRule>.None,
         };
     }
 

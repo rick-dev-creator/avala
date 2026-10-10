@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Permissions.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -104,6 +105,18 @@ internal sealed partial class DesignPermissionCardViewModel : IPermissionCardVie
     public string DontAskAgainLabel => CardPhrases.DontAskAgain;
 
     public string DontAskAgainScope => CardPhrases.DontAskAgainScope(Kind);
+
+    public bool OffersAlwaysInRepository => true;
+
+    [ObservableProperty]
+    public partial bool AlwaysInRepository { get; set; }
+
+    public string AlwaysInRepositoryLabel => CardPhrases.AlwaysInRepository;
+
+    public string AlwaysInRepositoryScope =>
+        CardPhrases.AlwaysInRepositoryScope(new(RuleOrigin.Repository, "always in this repository", Kind, Target, RuleScope.Anywhere, PolicyAnswer.Allow));
+
+    public string Notice => string.Empty;
 
     public string Error => string.Empty;
 
