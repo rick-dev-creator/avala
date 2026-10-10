@@ -37,21 +37,38 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
     private async Task SettleAsync(DelegationRecord delegation, JobId child, Settlement settlement, Option<string> summary, CancellationToken cancellationToken)
     {
-        var settled = new ChildReport(child, OutcomeOf(settlement), settlement.Status, journal.Now) { Hold = settlement.Hold };
-        var reviewed = settlement.Status == JobStatus.AwaitingReview;
-        var integrated = !reviewed ? settled
-            : delegation.ReadOnly ? settled with { Outcome = ChildOutcome.Reported }
-            : await IntegrateAsync(settled, cancellationToken);
-        var gathered = await evidence.GatherAsync(integrated, summary, cancellationToken);
-        var report = reviewed && delegation.ReadOnly && (await jobs.DiscardAsync(child, cancellationToken)).IsSuccess
-            ? gathered with { Status = JobStatus.Discarded }
-            : gathered;
-
+        var report = await ReportOfAsync(delegation, child, settlement, summary, cancellationToken);
         var connection = delegation.Connection.IsSome ? delegation.Connection : await evidence.ConnectionOfAsync(child, cancellationToken);
-
         var reported = await journal.ReportedAsync(delegation with { Report = report, Connection = connection }, report, cancellationToken);
 
-        foreach (var parent in reported.Answered.IsNone && !journal.Calls.Expects(child) ? reported.Parent.Match<JobId[]>(found => [found], () => []) : [])
+        if (reported.Answered.IsNone && !journal.Calls.Expects(child))
+        {
+            await BriefAsync(reported, cancellationToken);
+        }
+    }
+
+    private async Task<ChildReport> ReportOfAsync(DelegationRecord delegation, JobId child, Settlement settlement, Option<string> summary, CancellationToken cancellationToken)
+    {
+        var settled = new ChildReport(child, OutcomeOf(settlement), settlement.Status, journal.Now) { Hold = settlement.Hold };
+
+        if (settlement.Status != JobStatus.AwaitingReview)
+        {
+            return await evidence.GatherAsync(settled, summary, cancellationToken);
+        }
+
+        if (!delegation.ReadOnly)
+        {
+            return await evidence.GatherAsync(await IntegrateAsync(settled, cancellationToken), summary, cancellationToken);
+        }
+
+        var gathered = await evidence.GatherAsync(settled with { Outcome = ChildOutcome.Reported }, summary, cancellationToken);
+
+        return (await jobs.DiscardAsync(child, cancellationToken)).IsSuccess ? gathered with { Status = JobStatus.Discarded } : gathered;
+    }
+
+    private async Task BriefAsync(DelegationRecord reported, CancellationToken cancellationToken)
+    {
+        foreach (var parent in reported.Parent.Match<JobId[]>(found => [found], () => []))
         {
             if ((await jobs.SteerAsync(parent, ToolAnswers.Briefing([reported]), cancellationToken)).IsSuccess)
             {
