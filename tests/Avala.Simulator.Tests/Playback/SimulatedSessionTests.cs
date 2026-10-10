@@ -467,6 +467,17 @@ public sealed class SimulatedSessionTests
         Assert.InRange(resets, before.AddSeconds(2), TimeProvider.System.GetUtcNow().AddSeconds(2));
     }
 
+    [Theory]
+    [InlineData("[simulate: limit-handoff] Write the calculator", 1)]
+    [InlineData("[simulate: limit-handoff] Write the calculator, it was handed off to you", 0)]
+    public async Task TheLimitHandoffScenarioReportsItsNearlySpentWindowUnlessToldItWasHandedOffAsync(string message, int reported)
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+        await stage.SendAsync(message, Cancellation);
+
+        Assert.Equal(reported, (await stage.ReadTurnAsync(Cancellation)).OfType<LimitReported>().Count());
+    }
+
     [Fact]
     public async Task EveryTurnIssuesAResumeTokenThatContinuesTheConversationWithItsNextTurnAsync()
     {
