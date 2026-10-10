@@ -38,6 +38,17 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
+    public async Task AChildIsSubmittedWithTheModelAndEffortItsParentAskedForAsync()
+    {
+        await using var desk = new Desk();
+        await desk.StartedAsync();
+
+        await desk.CallAsync("call", """{ "instruction": "Write the notes", "model": "large", "effort": "high" }""");
+
+        Assert.Equal(new ModelChoice("large", "high"), Assert.Single(desk.Jobs.Submitted).Model);
+    }
+
+    [Fact]
     public async Task ACapacityRoutedChildRunsOnTheListedConnectionWithCapacityAndKeepsTheReadingsComparedAsync()
     {
         await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Routing = Routing.Capacity }));
@@ -171,6 +182,8 @@ public sealed class DelegationDeskTests
     [InlineData("malformed", "MalformedInput")]
     [InlineData("no job", "NoJob")]
     [InlineData("not submitted", "NotSubmitted")]
+    [InlineData("unoffered model", "UnofferedModel")]
+    [InlineData("unoffered effort", "UnofferedEffort")]
     public async Task ACallThePolicyRefusesIsAnsweredWithATypedErrorAndSubmitsNothingAsync(string situation, string expected)
     {
         await using var desk = new Desk(situation switch
@@ -183,7 +196,13 @@ public sealed class DelegationDeskTests
         var caller = situation == "too deep" ? desk.Jobs.Running(parent: desk.Parent) : desk.Parent;
         await (situation == "no job" ? Task.CompletedTask : desk.StartedAsync(caller));
         await (situation == "too many" ? desk.DelegateAsync("first") : Task.CompletedTask);
-        desk.Jobs.Rejection = situation == "not submitted" ? JobRejection.UnknownConnection : Option<JobRejection>.None;
+        desk.Jobs.Rejection = situation switch
+        {
+            "not submitted" => JobRejection.UnknownConnection,
+            "unoffered model" => JobRejection.UnofferedModel,
+            "unoffered effort" => JobRejection.UnofferedEffort,
+            _ => Option<JobRejection>.None,
+        };
         var submitted = desk.Jobs.Submitted.Count;
 
         await desk.CallAsync("call", situation switch
@@ -197,7 +216,7 @@ public sealed class DelegationDeskTests
 
         var refused = Assert.Single(desk.Bus.Published.OfType<DelegationRefused>()).Delegation;
         Assert.Equal(Option<DelegationError>.Some(Enum.Parse<DelegationError>(expected)), refused.Refusal);
-        Assert.Equal(situation == "not submitted" ? submitted + 1 : submitted, desk.Jobs.Submitted.Count);
+        Assert.Equal(situation is "not submitted" or "unoffered model" or "unoffered effort" ? submitted + 1 : submitted, desk.Jobs.Submitted.Count);
         var (_, result) = desk.Agents.Results[^1];
         Assert.Equal((new ItemId("call"), true), (result.Item, result.IsError));
         using var answer = JsonDocument.Parse(result.Content);

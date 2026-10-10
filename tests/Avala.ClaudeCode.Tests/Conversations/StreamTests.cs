@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
@@ -24,6 +25,25 @@ public sealed class StreamTests
             ],
             talk.Events);
         Assert.Equal("user", (string?)Assert.Single(talk.Sent)["type"]);
+    }
+
+    [Fact]
+    public void TheInitMessageReportsTheModelTheCliRunsOncePerTurnWithTheEffortItWasLaunchedWith()
+    {
+        var init = JsonNode.Parse("""{ "type": "system", "subtype": "init", "session_id": "8a0e2f44-3c5d-4e71-8f92-8c4d6e8f0a05", "model": "claude-opus-5-5" }""")!;
+        var talk = new Talk(model: new ModelChoice("opus", "high")).Begin().Receive(init, init.DeepClone());
+
+        Assert.Equal(
+            [new ModelReported(talk.Session, talk.Turn, "claude-opus-5-5") { Effort = "high" }],
+            talk.Events.OfType<ModelReported>());
+    }
+
+    [Fact]
+    public void AnInitMessageWithoutAModelReportsNone()
+    {
+        var talk = new Talk().Begin().Receive(Cli.Init());
+
+        Assert.Empty(talk.Events.OfType<ModelReported>());
     }
 
     [Fact]
@@ -121,6 +141,64 @@ public sealed class StreamTests
     }
 
     [Fact]
+    public void ATaskListReplacesTheWholePlanWithTheTasksItReturns()
+    {
+        var talk = new Talk().Begin().Receive(
+            Cli.ToolUse("c1", "TaskCreate", """{ "subject": "Write" }"""),
+            Cli.ToolResult("c1", "Task #1 created successfully: Write"),
+            Cli.ToolUse("l1", "TaskList", "{}"),
+            Cli.ToolResult("l1", "#2 [completed] Read the code\n#3 [in_progress] Write the change\n#4 [pending] Run the tests [blocked by #3]"),
+            Cli.ToolUse("u1", "TaskUpdate", """{ "taskId": "3", "status": "completed" }"""),
+            Cli.ToolUse("l2", "TaskList", "{}"),
+            Cli.ToolResult("l2", "No tasks found"));
+
+        Assert.Equal(
+            [
+                "Write Pending",
+                "Read the code Done, Write the change InProgress, Run the tests Pending",
+                "Read the code Done, Write the change Done, Run the tests Pending",
+                string.Empty,
+            ],
+            talk.Events.OfType<PlanUpdated>().Select(plan => string.Join(", ", plan.Steps.Select(step => $"{step.Title} {step.Status}"))));
+    }
+
+    [Theory]
+    [InlineData("The task list could not be read.", false)]
+    [InlineData("#1 [pending] Write", true)]
+    public void ATaskListThatFailsOrIsNotAListLeavesThePlan(string output, bool isError)
+    {
+        var talk = new Talk().Begin().Receive(
+            Cli.ToolUse("c1", "TaskCreate", """{ "subject": "Write" }"""),
+            Cli.ToolResult("c1", "Task #1 created successfully: Write"),
+            Cli.ToolUse("l1", "TaskList", "{}"),
+            Cli.ToolResult("l1", output, isError));
+
+        Assert.Equal(["Write"], talk.Events.OfType<PlanUpdated>().Select(plan => string.Join(", ", plan.Steps.Select(step => step.Title))));
+    }
+
+    [Fact]
+    public void AResumedConversationKeepsThePlanItsTasksBuiltBeforeTheRestart()
+    {
+        var talk = new Talk();
+        talk.Conversation.Recalling(
+        [
+            Cli.ToolUse("c1", "TaskCreate", """{ "subject": "Write" }"""),
+            Cli.ToolUse("c2", "TaskCreate", """{ "subject": "Test" }"""),
+            Cli.ToolResult("c1", "Task #1 created successfully: Write"),
+            Cli.ToolResult("c2", "Task #2 created successfully: Test"),
+            Cli.ToolUse("u1", "TaskUpdate", """{ "taskId": "1", "status": "completed" }"""),
+            Cli.Nested(Cli.ToolUse("s1", "TaskCreate", """{ "subject": "A subagent's step" }"""), "a1"),
+            Cli.Parse("""{ "type": "assistant", "isSidechain": true, "message": { "content": [ { "type": "tool_use", "id": "s2", "name": "TodoWrite", "input": { "todos": [ { "content": "Sidechain", "status": "pending" } ] } } ] } }"""),
+        ]);
+
+        talk.Begin().Receive(Cli.ToolUse("u2", "TaskUpdate", """{ "taskId": "2", "status": "in_progress" }"""));
+
+        Assert.Equal(
+            [new PlanStep("Write", PlanStepStatus.Done), new PlanStep("Test", PlanStepStatus.InProgress)],
+            Assert.Single(talk.Events.OfType<PlanUpdated>()).Steps);
+    }
+
+    [Fact]
     public void ATaskThatFailsToBeCreatedLeavesThePlan()
     {
         var talk = new Talk().Begin().Receive(
@@ -139,6 +217,9 @@ public sealed class StreamTests
             Cli.Nested(Cli.Said("sub-1", "text", "Reading the repository."), "a1"),
             Cli.Nested(Cli.ToolUse("r1", "Read", """{ "file_path": "/work/GREETING.md" }"""), "a1"),
             Cli.Nested(Cli.ToolUse("p1", "TodoWrite", """{ "todos": [ { "content": "Look", "status": "pending" } ] }"""), "a1"),
+            Cli.Nested(Cli.ToolUse("p2", "TaskCreate", """{ "subject": "Look" }"""), "a1"),
+            Cli.Nested(Cli.ToolResult("p2", "Task #1 created successfully: Look"), "a1"),
+            Cli.Nested(Cli.ToolUse("p3", "TaskUpdate", """{ "taskId": "1", "status": "completed" }"""), "a1"),
             Cli.Nested(Cli.ToolResult("r1", "# Hello"), "a1"),
             Cli.Nested(Cli.Said("sub-2", "text", "The greeting is a heading."), "a1"),
             Cli.ToolResult("a1", "The greeting is a heading."));

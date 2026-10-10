@@ -15,6 +15,8 @@ internal sealed record Caller(SessionId Session, Option<JobId> Job, Option<strin
 
 internal sealed record Plan(JobSummary Parent, Routed Route, Autonomy Autonomy)
 {
+    public ModelChoice Model { get; init; } = ModelChoice.Default;
+
     public Option<ConnectionName> Connection => Route.Connection;
 
     public ChildRole Role { get; init; }
@@ -68,7 +70,7 @@ internal sealed class DelegationPolicy(IDelegationRules rules, IJobCatalog catal
         return new Decision(
             asked.Instruction,
             depth,
-            new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)) { Role = role, Escalation = delegation.Escalation.Kept });
+            new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)) { Model = asked.Model, Role = role, Escalation = delegation.Escalation.Kept });
     }
 
     private async Task<int> DepthOfAsync(JobSummary job, CancellationToken cancellationToken)

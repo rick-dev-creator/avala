@@ -1,4 +1,6 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Jobs.Ledger;
@@ -15,12 +17,12 @@ internal sealed class SubmitJob(JobLedger ledger, IEventBus bus, IConnections co
         var submitted = RepositoryPath.Create(request.RepositoryPath)
             .Bind(path => Instruction.Create(request.Instruction)
                 .Bind(text => AttemptBudget.Create(request.AttemptsPerRound)
-                    .Bind(budget => Job.Create(JobId.New(), text, budget, path, clock.GetUtcNow(), request.Autonomy, request.Connection, request.Parent))))
+                    .Bind(budget => Job.Create(JobId.New(), text, budget, path, clock.GetUtcNow(), request.Autonomy, request.Connection, request.Parent, request.Model))))
             .Bind(job => job.Submit().Map(_ => job))
             .MapError(Rejection);
 
         if (!submitted.TryGetValue(out var job, out var rejection)
-            || !(await UsableAsync(request.Connection, cancellationToken)).TryGetValue(out _, out rejection)
+            || !(await UsableAsync(request.Connection, request.Model, cancellationToken)).TryGetValue(out _, out rejection)
             || !(await ParentOfAsync(job, cancellationToken)).TryGetValue(out _, out rejection))
         {
             return rejection;
@@ -32,10 +34,15 @@ internal sealed class SubmitJob(JobLedger ledger, IEventBus bus, IConnections co
         return job.Id;
     }
 
-    private async Task<Result<bool, JobRejection>> UsableAsync(Option<ConnectionName> connection, CancellationToken cancellationToken) =>
+    private async Task<Result<bool, JobRejection>> UsableAsync(Option<ConnectionName> connection, ModelChoice model, CancellationToken cancellationToken) =>
         await connection.Match(
-            async named => (await connections.CheckAsync(named, cancellationToken)).Map(_ => true).MapError(Refusal),
+            async named => (await connections.CheckAsync(named, cancellationToken)).MapError(Refusal).Bind(found => Offered(found, model)),
             () => Task.FromResult(Result<bool, JobRejection>.Success(true)));
+
+    private static Result<bool, JobRejection> Offered(ConnectionInfo connection, ModelChoice model) =>
+        OffersModels.RefusalOn(connection.Capabilities, model).Match(
+            refusal => Result<bool, JobRejection>.Failure(refusal == ModelRefusal.UnofferedModel ? JobRejection.UnofferedModel : JobRejection.UnofferedEffort),
+            () => Result<bool, JobRejection>.Success(true));
 
     private async Task<Result<bool, JobRejection>> ParentOfAsync(Job child, CancellationToken cancellationToken) =>
         await child.Parent.Match(
@@ -46,8 +53,13 @@ internal sealed class SubmitJob(JobLedger ledger, IEventBus bus, IConnections co
                 () => JobRejection.UnknownParent),
             () => Task.FromResult(Result<bool, JobRejection>.Success(true)));
 
-    private static JobRejection Refusal(ConnectionError error) =>
-        error == ConnectionError.UnknownConnection ? JobRejection.UnknownConnection : JobRejection.UnusableConnection;
+    private static JobRejection Refusal(ConnectionError error) => error switch
+    {
+        ConnectionError.UnknownConnection => JobRejection.UnknownConnection,
+        ConnectionError.UnofferedModel => JobRejection.UnofferedModel,
+        ConnectionError.UnofferedEffort => JobRejection.UnofferedEffort,
+        _ => JobRejection.UnusableConnection,
+    };
 
     private static JobRejection Rejection(JobError error) => error switch
     {

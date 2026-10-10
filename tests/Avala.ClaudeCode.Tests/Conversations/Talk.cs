@@ -14,8 +14,8 @@ internal sealed class Talk
 
     public static readonly string Plans = HostPaths.Rooted("/home/ana/.claude-work/plans");
 
-    public Talk(PermissionMode mode = PermissionMode.AskEveryTime, IReadOnlyList<HarnessTool>? tools = null, Option<ConversationMark> resumed = default, string? plans = null) =>
-        Conversation = new Conversation(Session, new SessionOptions(WorkingDirectory, mode) { Tools = tools ?? [] }, new Places(WorkingDirectory, plans ?? Plans), resumed);
+    public Talk(PermissionMode mode = PermissionMode.AskEveryTime, IReadOnlyList<HarnessTool>? tools = null, Option<ConversationMark> resumed = default, string? plans = null, ModelChoice? model = null) =>
+        Conversation = new Conversation(Session, new SessionOptions(WorkingDirectory, mode) { Tools = tools ?? [], Model = model ?? ModelChoice.Default }, new Places(WorkingDirectory, plans ?? Plans), resumed);
 
     public SessionId Session { get; } = SessionId.New();
 

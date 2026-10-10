@@ -8,6 +8,13 @@ internal sealed class ConnectionPreviewer(IConnections connections, IRepositoryD
 {
     public async ValueTask<Result<ConnectionPreview, JobRejection>> PreviewAsync(string repository, CancellationToken cancellationToken)
     {
+        var model = await defaults.CurrentModelAsync(repository, cancellationToken);
+
+        return (await RouteAsync(repository, cancellationToken)).Map(preview => preview with { Model = model });
+    }
+
+    private async Task<Result<ConnectionPreview, JobRejection>> RouteAsync(string repository, CancellationToken cancellationToken)
+    {
         if (!(await defaults.CurrentConnectionAsync(repository, cancellationToken)).TryGetValue(out var preferred, out var rejection))
         {
             return rejection;

@@ -101,7 +101,12 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     }
 
     public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken) =>
-        InSessionAsync(integrationEvent.Event.Session, job => job with { Transcript = job.Transcript.Apply(integrationEvent.Event, time.GetUtcNow()) });
+        InSessionAsync(integrationEvent.Event.Session, job =>
+        {
+            var applied = job with { Transcript = job.Transcript.Apply(integrationEvent.Event, time.GetUtcNow()) };
+
+            return integrationEvent.Event is ModelReported ? Audited(applied) : applied;
+        });
 
     public ValueTask HandleAsync(CanvasUpdated integrationEvent, CancellationToken cancellationToken) =>
         InSessionAsync(integrationEvent.Snapshot.Session, job => job with { Transcript = job.Transcript.Apply(integrationEvent.Snapshot) });

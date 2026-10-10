@@ -1,7 +1,10 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Contracts.Presentation;
+using Avala.Workbench.ModelChoices;
 using Avala.Workbench.NewJob;
 using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.Messaging;
@@ -363,8 +366,87 @@ public sealed class NewJobViewModelScripts
         Assert.Equal(("New job", 3), (page.Title, page.Connections.Count));
     }
 
+    [Fact]
+    public async Task AChosenConnectionOffersItsModelsAndEffortsWithItsDefaultFirstAsync()
+    {
+        connections.Offers["work"] = CapabilitySet.Of(Large);
+        var page = Page();
+        await page.LoadAsync(Cancellation);
+
+        page.Connection = "work";
+        await page.Offering;
+
+        Assert.Equal((true, true), (page.Models.IsShown, page.Models.CanChoose));
+        Assert.Equal(["Default (small)", "large", "small"], page.Models.Models);
+        Assert.Equal(["Default (medium)", "low", "medium", "high"], page.Models.Efforts);
+        Assert.Equal("Default is the connection's own choice, from its settings in connections.json, else the harness's.", page.Models.Note);
+    }
+
+    [Fact]
+    public async Task TheRepositorysChoiceInItsJobFileIsTheDefaultItNamesAsync()
+    {
+        connections.Offers["work"] = CapabilitySet.Of(Large);
+        preview.Answer = new ConnectionPreview(ConnectionRoute.Repository, new ConnectionName("work")) { Model = new ModelChoice("large", Option<string>.None) };
+        var page = Page();
+        await page.LoadAsync(Cancellation);
+
+        page.Connection = "work";
+        await page.Offering;
+
+        Assert.Equal(("Default (large, the repository's)", "Default (medium)"), (page.Models.Models[0], page.Models.Efforts[0]));
+        Assert.Equal("Default is the repository's choice in .avala/jobs.json, then the connection's.", page.Models.Note);
+    }
+
+    [Fact]
+    public async Task UnderAutoOnlyTheDefaultOfTheConnectionAvalaWouldChooseIsOfferedAndNamedAsync()
+    {
+        connections.Offers["personal"] = CapabilitySet.Of(Large);
+        preview.Answer = FakePreview.ByCapacity("personal", ChoiceReason.MostCapacity, ("work", 0.88, true), ("personal", 0.41, true));
+        var page = Page();
+
+        await page.LoadAsync(Cancellation);
+
+        Assert.Equal((true, false, "Default (small)"), (page.Models.IsShown, page.Models.CanChoose, Assert.Single(page.Models.Models)));
+        Assert.Equal("Auto picks the connection when the job starts and runs with its default: now personal, small · medium effort.", page.Models.Note);
+    }
+
+    [Fact]
+    public async Task AConnectionWhoseHarnessOffersNoModelsShowsNoPickersAsync()
+    {
+        var page = Page();
+        await page.LoadAsync(Cancellation);
+
+        page.Connection = "work";
+        await page.Offering;
+
+        Assert.Equal((false, "work offers no choice of model: its harness runs its own."), (page.Models.IsShown, page.Models.Note));
+    }
+
+    [Fact]
+    public async Task APickedModelAndEffortTravelWithTheJobAndARefusalIsSaidAsync()
+    {
+        connections.Offers["work"] = CapabilitySet.Of(Large);
+        var page = Page();
+        await page.LoadAsync(Cancellation);
+        page.Instruction = "Add an endpoint";
+        page.Connection = "work";
+        await page.Offering;
+
+        page.Models.Model = "large";
+        page.Models.Effort = "high";
+        await page.SubmitCommand.ExecuteAsync(null);
+        jobs.Refusal = JobRejection.UnofferedModel;
+        page.Instruction = "Add another endpoint";
+        await page.SubmitCommand.ExecuteAsync(null);
+
+        Assert.Equal(new ModelChoice("large", "high"), jobs.Requests[0].Model);
+        Assert.Equal("That connection does not offer this model.", page.Error);
+    }
+
+    private static readonly OffersModels Large = new(["large", "small"], ["low", "medium", "high"]) { DefaultModel = "small", DefaultEffort = "medium" };
+
     private NewJobViewModel Page(params JobSummary[] known) => Page(connections, known);
 
     private NewJobViewModel Page(FakeConnections machine, params JobSummary[] known) =>
-        new(new JobLaunch(jobs, machine, preview, policies), Pages.Board(known), messenger, Pages.Readings(usage));
+        new(new JobLaunch(jobs, machine, preview, policies), new NewJobReadings(Pages.Board(known), Pages.Readings(usage)), messenger, new ModelPickerViewModel());
 }

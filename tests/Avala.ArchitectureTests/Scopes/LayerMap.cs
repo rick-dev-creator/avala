@@ -95,6 +95,7 @@ internal static class LayerMap
             ["Updates"] = Layer.ViewModels,
             ["Resources"] = Layer.ViewModels,
             ["NewJob"] = Layer.ViewModels,
+            ["ModelChoices"] = Layer.ViewModels,
         }),
         .. Module("Avala.Observability", new()
         {

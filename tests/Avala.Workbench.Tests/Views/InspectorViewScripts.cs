@@ -122,6 +122,17 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task TheModelTheSessionRanWithIsShownOnlyOnceReportedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var reported = Sections.Open(Screen.Show(new DesignAutonomySectionViewModel()));
+            var unreported = Sections.Open(Screen.Show(new Named()));
+
+            Assert.Equal((true, "claude-opus-5-5 · high effort"), (reported.Shows("Model"), reported.TextOf("Model")));
+            Assert.False(unreported.Shows("Model"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AConnectionNamedOnTheJobShowsNoComparisonAsync() =>
         ui.RunAsync(() =>
         {
@@ -139,6 +150,8 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         public string Fact => "Supervised";
 
         public string Connection => "claude-work";
+
+        public string Model => string.Empty;
 
         public string Reason => string.Empty;
 

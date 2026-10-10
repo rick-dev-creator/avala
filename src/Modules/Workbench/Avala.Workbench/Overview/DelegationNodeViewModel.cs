@@ -100,6 +100,8 @@ internal static partial class OverviewPhrases
         DelegationError.TooManyChildren => "too many children",
         DelegationError.AutonomyLoosened => "it asked for more autonomy than its parent",
         DelegationError.NotSubmitted => "the child job was refused",
+        DelegationError.UnofferedModel => "its connection does not offer the model it asked for",
+        DelegationError.UnofferedEffort => "its connection does not offer the effort it asked for",
         DelegationError.MalformedInput => "the call was malformed",
         DelegationError.NoJob => "the caller is not a job",
         _ => "the delegation rules cannot be read",

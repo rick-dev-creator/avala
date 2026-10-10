@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Avala.Agents.Connections;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 
 namespace Avala.Agents.ConnectionFiles;
@@ -63,9 +65,41 @@ internal static class ConnectionFileEdits
             entry["credential"] = written;
         }
 
+        foreach (var model in declared.Model.Match<ModelChoice[]>(chosen => [chosen], () => []))
+        {
+            Choose(entry, model);
+        }
+
         if (declared.Replacing.IsSome && root[DefaultField]?.GetValue<string>() == declared.Replacing.Match(name => name.Value, () => string.Empty))
         {
             root[DefaultField] = declared.Name.Value;
+        }
+    }
+
+    private static void Choose(JsonObject entry, ModelChoice model)
+    {
+        if (entry["settings"] is not JsonObject settings)
+        {
+            settings = [];
+            entry["settings"] = settings;
+        }
+
+        Put(settings, OffersModels.ModelSetting, model.Model);
+        Put(settings, OffersModels.EffortSetting, model.Effort);
+
+        if (settings.Count == 0)
+        {
+            entry.Remove("settings");
+        }
+    }
+
+    private static void Put(JsonObject settings, string name, Option<string> value)
+    {
+        settings.Remove(name);
+
+        foreach (var set in value.Match<string[]>(found => [found], () => []))
+        {
+            settings[name] = set;
         }
     }
 

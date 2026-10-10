@@ -15,6 +15,24 @@ namespace Avala.Workbench.Tests.Review;
 
 public sealed class ReviewPhrasesTests
 {
+    [Theory]
+    [InlineData(new[] { PlanStepStatus.Done, PlanStepStatus.Done }, "Plan · all 2 steps done", "")]
+    [InlineData(new[] { PlanStepStatus.Pending }, "Plan · 0 of 1 step done", "Pending · Step 1")]
+    [InlineData(new[] { PlanStepStatus.Done, PlanStepStatus.InProgress, PlanStepStatus.Pending }, "Plan · 1 of 3 steps done", "In progress · Step 2 | Pending · Step 3")]
+    [InlineData(new PlanStepStatus[0], "", "")]
+    public void APlanReadsAsTheShareOfStepsDoneAndTheStepsLeft(PlanStepStatus[] statuses, string summary, string left)
+    {
+        var plan = new Workbench.Timeline.PlanEntry("plan", [.. statuses.Select((status, index) => new PlanStep($"Step {index + 1}", status))]);
+
+        var (read, steps) = ReviewPhrases.Plan(plan);
+
+        Assert.Equal((summary, left), (read, string.Join(" | ", steps)));
+    }
+
+    [Fact]
+    public void AJobWithoutAPlanSaysNothingOfOne() =>
+        Assert.Equal((string.Empty, 0), ReviewPhrases.Plan(Option<Workbench.Timeline.PlanEntry>.None) is var (summary, left) ? (summary, left.Count) : default);
+
     [Fact]
     public void AFailedAttemptNamesEachFailingCheckAndShowsTheTailsOfTheirOutput()
     {

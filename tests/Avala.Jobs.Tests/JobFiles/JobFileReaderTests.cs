@@ -48,7 +48,9 @@ public sealed class JobFileReaderTests
     [InlineData("""{ "connection": 1 }""")]
     [InlineData("""{ "connection": "" }""")]
     [InlineData("""{ "connection": "a", "connection": "b" }""")]
-    [InlineData("""{ "connection": "work", "model": "large" }""")]
+    [InlineData("""{ "connection": "work", "flavour": "large" }""")]
+    [InlineData("""{ "model": 1 }""")]
+    [InlineData("""{ "effort": "" }""")]
     [InlineData("""{ "approval": 1 }""")]
     [InlineData("""{ "approval": "" }""")]
     [InlineData("""{ "approval": { "name": "merge" } }""")]
@@ -89,6 +91,30 @@ public sealed class JobFileReaderTests
         Assert.Equal(
             (connection, rejection),
             current.Match(found => (found.Match(name => name.Value, () => string.Empty), string.Empty), error => (string.Empty, error.ToString())));
+    }
+
+    [Theory]
+    [InlineData("""{ "model": "large", "effort": "high" }""", "large", "high")]
+    [InlineData("""{ "effort": "low" }""", "", "low")]
+    [InlineData("""{ "connection": "work" }""", "", "")]
+    public async Task TheJobFileNamesTheRepositorysModelAndEffortAtTheBaseCommitAndTheCurrentOneAsync(string text, string model, string effort)
+    {
+        var reader = Reader(new CommittedFiles().With(Worktree, JobFileReader.JobFile, text).With("/repositories/shop", JobFileReader.JobFile, text));
+
+        var atBase = Outcomes.Succeeds(await reader.ModelAsync(Worktree, Cancellation));
+        var current = await reader.CurrentModelAsync("/repositories/shop", Cancellation);
+
+        Assert.Equal((model, effort), (atBase.Model.Match(found => found, () => string.Empty), atBase.Effort.Match(found => found, () => string.Empty)));
+        Assert.Equal(atBase, current);
+    }
+
+    [Fact]
+    public async Task ARejectedJobFileRejectsTheModelAtTheBaseCommitAndLeavesTheCurrentOneToTheDefaultsAsync()
+    {
+        var reader = Reader(new CommittedFiles().With(Worktree, JobFileReader.JobFile, """{ "model": 1 }""").With("/repositories/shop", JobFileReader.JobFile, """{ "model": 1 }"""));
+
+        Assert.Equal(JobRejection.InvalidJobFile, Outcomes.FailsWith(await reader.ModelAsync(Worktree, Cancellation)));
+        Assert.True((await reader.CurrentModelAsync("/repositories/shop", Cancellation)).IsDefault);
     }
 
     [Fact]
