@@ -10,22 +10,19 @@ internal static class Modes
 {
     private const string Usage = "Usage: work | env <variable> | serve <harness> | spawn <harness> | hold <harness> | stubborn <harness> | verdict <port>";
 
-    public static Task<int> RunAsync(string[] args)
+    private static readonly Dictionary<string, Func<string, Task<int>>> Named = new(StringComparer.Ordinal)
     {
-        var argument = args.Length > 1 ? args[1] : string.Empty;
+        ["work"] = _ => Task.FromResult(Work()),
+        ["env"] = variable => Task.FromResult(Variable(variable)),
+        ["serve"] = harness => ServeAsync(Harness(harness)),
+        ["spawn"] = harness => Task.FromResult(Spawn(Harness(harness))),
+        ["hold"] = harness => HoldAsync(Harness(harness)),
+        ["stubborn"] = harness => StubbornAsync(Harness(harness)),
+        ["verdict"] = port => VerdictAsync(Harness(port)),
+    };
 
-        return (args.Length > 0 ? args[0] : string.Empty) switch
-        {
-            "work" => Task.FromResult(Work()),
-            "env" => Task.FromResult(Variable(argument)),
-            "serve" => ServeAsync(Harness(argument)),
-            "spawn" => Task.FromResult(Spawn(Harness(argument))),
-            "hold" => HoldAsync(Harness(argument)),
-            "stubborn" => StubbornAsync(Harness(argument)),
-            "verdict" => VerdictAsync(Harness(argument)),
-            _ => RefuseAsync(),
-        };
-    }
+    public static Task<int> RunAsync(string[] args) =>
+        args.Length > 0 && Named.TryGetValue(args[0], out var mode) ? mode(args.Length > 1 ? args[1] : string.Empty) : RefuseAsync();
 
     private static async Task<int> VerdictAsync(int port)
     {
