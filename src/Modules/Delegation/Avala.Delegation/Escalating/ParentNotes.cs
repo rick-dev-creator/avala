@@ -8,7 +8,10 @@ using Avala.Sdk.Events;
 
 namespace Avala.Delegation.Escalating;
 
-internal sealed record ChildQuestion(SessionId Session, ItemId Item, Option<JobId> Child, bool Escalates, string Asking, Func<DelegationRecord, ParentEscalation, string> Note);
+internal sealed record ChildQuestion(SessionId Session, ItemId Item, Option<JobId> Child, bool Escalates, string Asking, Func<DelegationRecord, ParentEscalation, string> Note)
+{
+    public Func<DelegationRecord, ParentEscalation, ToolResult> Result { get; init; } = (child, _) => new ToolResult(child.Item, string.Empty);
+}
 
 internal sealed class ParentNotes(DelegationJournal journal, IJobs jobs, IParentAnswers answers, TimeProvider clock)
     : IHandle<PermissionDecided>, IHandle<FormDecided>, IAsyncDisposable
@@ -27,7 +30,10 @@ internal sealed class ParentNotes(DelegationJournal journal, IJobs jobs, IParent
                 decision.Job,
                 Escalates(decision.Delivery, decision.Passed),
                 ChildNotes.Asking(decision),
-                (child, escalation) => ChildNotes.Permission(child, decision, escalation)),
+                (child, escalation) => ChildNotes.Permission(child, decision, escalation))
+            {
+                Result = (child, escalation) => ChildNotes.PermissionResult(child, decision, escalation),
+            },
             cancellationToken);
     }
 
@@ -42,7 +48,10 @@ internal sealed class ParentNotes(DelegationJournal journal, IJobs jobs, IParent
                 decision.Job,
                 Escalates(decision.Delivery, decision.Passed),
                 ChildNotes.Asking(decision),
-                (child, escalation) => ChildNotes.Form(child, decision, escalation)),
+                (child, escalation) => ChildNotes.Form(child, decision, escalation))
+            {
+                Result = (child, escalation) => ChildNotes.FormResult(child, decision, escalation),
+            },
             cancellationToken);
     }
 
@@ -90,15 +99,50 @@ internal sealed class ParentNotes(DelegationJournal journal, IJobs jobs, IParent
             async () => _ = await answers.PassAsync(question.Session, question.Item, PassReason.ParentUnreachable, cancellationToken));
     }
 
+    private async Task<bool> InCallAsync(JobId child, CallRef call, ToolResult asking, CancellationToken cancellationToken)
+    {
+        journal.Calls.Expect(child);
+
+        if (!await journal.ReturnAsync(call, asking, cancellationToken))
+        {
+            return false;
+        }
+
+        foreach (var (sibling, waiting) in journal.Calls.TakeAll(call.Session))
+        {
+            foreach (var record in journal.OfChild(sibling).Match<DelegationRecord[]>(found => [found], () => []))
+            {
+                journal.Calls.Expect(sibling);
+                _ = await journal.ReturnAsync(waiting, ToolAnswers.Running(waiting.Item, record), cancellationToken);
+            }
+        }
+
+        return true;
+    }
+
     private Task<Option<ParentAsked>> TellAsync(DelegationRecord child, ChildQuestion question, CancellationToken cancellationToken) =>
         child.Parent.Bind(parent => child.Escalation.Map(escalation => (Parent: parent, Escalation: escalation))).Match(
             async found =>
             {
                 var until = clock.GetUtcNow() + found.Escalation.Window;
+                var asked = new ParentAsked(child, question.Session, question.Item, question.Asking, until);
+
+                if (await child.Child.Bind(journal.Calls.Take).Match(
+                    call => InCallAsync(child.Child.Match(job => job, () => default), call, question.Result(child, found.Escalation), cancellationToken),
+                    () => Task.FromResult(false)))
+                {
+                    return asked with { InCall = true };
+                }
+
+                foreach (var waiting in child.Child.Match<JobId[]>(job => [job], () => []))
+                {
+                    journal.Calls.Queue(waiting, new QueuedAsking(question.Session, question.Item, question.Result(child, found.Escalation)));
+                }
+
                 var note = question.Note(child, found.Escalation);
 
                 return (await jobs.SteerAsync(found.Parent, note, cancellationToken)).IsSuccess
-                    ? new ParentAsked(child, question.Session, question.Item, question.Asking, until) { Note = note }
+                    ? asked with { Note = note }
                     : Option<ParentAsked>.None;
             },
             () => Task.FromResult(Option<ParentAsked>.None));

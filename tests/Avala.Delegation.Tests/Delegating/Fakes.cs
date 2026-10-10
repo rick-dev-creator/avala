@@ -43,6 +43,13 @@ internal sealed class ReturningAgents : IAgents
 
     public bool Closed { get; set; }
 
+    private readonly ConcurrentDictionary<ItemId, TaskCompletionSource<ToolResult>> signals = new();
+
+    public Task<ToolResult> ResultOfAsync(string item, CancellationToken cancellationToken) => Signal(new ItemId(item)).Task.WaitAsync(cancellationToken);
+
+    private TaskCompletionSource<ToolResult> Signal(ItemId item) =>
+        signals.GetOrAdd(item, _ => new TaskCompletionSource<ToolResult>(TaskCreationOptions.RunContinuationsAsynchronously));
+
     public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken)
     {
         if (Closed)
@@ -50,7 +57,13 @@ internal sealed class ReturningAgents : IAgents
             return ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.SessionClosed));
         }
 
+        if (results.Any(returned => returned.Session == session && returned.Result.Item == result.Item))
+        {
+            return ValueTask.FromResult(Result<ItemId, AgentError>.Failure(AgentError.NoPendingCall));
+        }
+
         results.Enqueue((session, result));
+        Signal(result.Item).TrySetResult(result);
 
         return ValueTask.FromResult(Result<ItemId, AgentError>.Success(result.Item));
     }
@@ -195,6 +208,10 @@ internal sealed class RecordingParentAnswers : IParentAnswers
             Result<FormDecision, PolicyError>.Failure,
             () => Result<FormDecision, PolicyError>.Failure(PolicyError.NotAwaitingAnswer)));
     }
+
+    public HashSet<ItemId> Waiting { get; } = [];
+
+    public bool Waits(SessionId child, ItemId item) => Waiting.Contains(item);
 
     public Task<PassReason> FirstPass => first.Task;
 

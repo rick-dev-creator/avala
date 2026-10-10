@@ -42,6 +42,7 @@ public sealed class DelegationPluginTests
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<JobSessionStarted>>());
         Assert.Contains(composition.Get<DelegationDesk>(), composition.All<IHandle<AgentActivity>>());
         Assert.Contains(composition.Get<ChildAnswers>(), composition.All<IHandle<AgentActivity>>());
+        Assert.Contains(composition.Get<ChildWaits>(), composition.All<IHandle<AgentActivity>>());
         Assert.Same(composition.Get<ChildTerms>(), composition.Get<IJobTerms>());
         Assert.Same(composition.Get<ParentNotes>(), composition.Get<IHandle<PermissionDecided>>());
         Assert.Same(composition.Get<ParentNotes>(), composition.Get<IHandle<FormDecided>>());

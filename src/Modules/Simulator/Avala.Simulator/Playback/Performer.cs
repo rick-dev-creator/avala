@@ -10,6 +10,7 @@ namespace Avala.Simulator.Playback;
 internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates gates, CapabilitySet declared)
 {
     private readonly Replayer replayer = new(options, craft.Files, gates, craft.Pacing);
+    private readonly ToolCaller caller = new(options, gates, declared);
     private int acknowledged;
 
     public bool Closing => replayer.Closing;
@@ -62,7 +63,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         Finish => Heard(cues).Append(cues.Ended(TurnOutcome.Finished)).ToAsyncEnumerable(),
         CallTool call => PlayAsync(cues, new CallTools([call]), cancellationToken),
         CallTools calls when calls.Calls.All(call => options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed)) =>
-            CallAsync(cues, calls, cancellationToken),
+            caller.CallAsync(cues, calls, cancellationToken),
         CallTools calls => calls.Calls
             .SelectMany(call => cues.Of(Reply(call.Item, $"I would call {call.Tool} with {call.Input}, but the harness did not offer it.")))
             .ToAsyncEnumerable(),
@@ -195,86 +196,6 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         if (!goesOn)
         {
             yield return cues.Ended(TurnOutcome.Finished);
-        }
-    }
-
-    private async IAsyncEnumerable<IAgentEvent> CallAsync(
-        Cues cues,
-        CallTools step,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        var calls = step.Calls;
-        var waiting = new List<Task<ToolResult>>();
-
-        foreach (var call in calls)
-        {
-            var pending = await gates.Tools.ExpectAsync(call.Item, cancellationToken);
-            waiting.Add(gates.Tools.AwaitAsync(call.Item, pending, cancellationToken));
-            yield return cues.Called(call.Item, call.Tool, call.Input);
-        }
-
-        var answers = new List<string>();
-        var decision = step.AnswersChildren.Bind(chosen => declared.Has<AcceptsMessagesMidTurn>() && options.Tools.Any(tool => tool.Name == ScenarioCatalog.AnswerChild) ? chosen : Option<string>.None);
-        using var listening = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var heard = ListenAsync(decision, listening.Token);
-
-        while (waiting.Count > 0)
-        {
-            var next = await Task.WhenAny(waiting.Cast<Task>().Append(heard));
-
-            if (next == heard)
-            {
-                await foreach (var cue in AnswerChildAsync(cues, await heard, decision, cancellationToken))
-                {
-                    yield return cue;
-                }
-
-                heard = ListenAsync(decision, listening.Token);
-
-                continue;
-            }
-
-            var answered = waiting.First(call => call == next);
-            waiting.Remove(answered);
-            var result = await answered;
-            answers.Add(result.Content);
-            yield return cues.Returned(result.Item, result);
-            yield return cues.Closed(result.Item, result.IsError ? ItemOutcome.Failed : ItemOutcome.Succeeded);
-        }
-
-        await listening.CancelAsync();
-
-        foreach (var cue in cues.Of(Reply(calls[0].Item, $"The harness answered: {string.Join(' ', answers)}")))
-        {
-            yield return cue;
-        }
-    }
-
-    private Task<string> ListenAsync(Option<string> decision, CancellationToken cancellationToken) =>
-        decision.Match(
-            _ => gates.Messages.Reader.ReadAsync(cancellationToken).AsTask(),
-            () => new TaskCompletionSource<string>().Task);
-
-    private async IAsyncEnumerable<IAgentEvent> AnswerChildAsync(
-        Cues cues,
-        string message,
-        Option<string> decision,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        foreach (var cue in Acknowledged(cues, message))
-        {
-            yield return cue;
-        }
-
-        foreach (var input in decision.Bind(chosen => ChildRequests.Answer(message, chosen)).Match<string[]>(found => [found], () => []))
-        {
-            var item = new ItemId($"answer-child-{++acknowledged}");
-            var pending = await gates.Tools.ExpectAsync(item, cancellationToken);
-            yield return cues.Called(item, ScenarioCatalog.AnswerChild, input);
-
-            var result = await gates.Tools.AwaitAsync(item, pending, cancellationToken);
-            yield return cues.Returned(item, result);
-            yield return cues.Closed(item, result.IsError ? ItemOutcome.Failed : ItemOutcome.Succeeded);
         }
     }
 

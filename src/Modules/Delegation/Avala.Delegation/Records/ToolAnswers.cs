@@ -36,6 +36,28 @@ internal static class ToolAnswers
         return new ToolResult(item, answer.ToJsonString());
     }
 
+    public static ToolResult Running(ItemId item, DelegationRecord delegation)
+    {
+        var child = delegation.Child.Match(job => job.Value.ToString(), () => string.Empty);
+
+        return new ToolResult(item, new JsonObject
+        {
+            ["job"] = child,
+            ["outcome"] = "running",
+            ["status"] = "running",
+            ["note"] = "this sub-agent is still working; its call returned early so that you can answer another sub-agent that asks you something. Call wait_child with this child to keep waiting for its report.",
+            ["wait_child"] = new JsonObject { ["child"] = child },
+        }.ToJsonString());
+    }
+
+    public static ToolResult AlreadyTold(ItemId item, ChildReport report) =>
+        new(item, new JsonObject
+        {
+            ["job"] = report.Child.Value.ToString(),
+            ["outcome"] = Camel(report.Outcome),
+            ["note"] = "this sub-agent's report already reached you; it has nothing more to wait for.",
+        }.ToJsonString());
+
     public static string Briefing(IReadOnlyList<DelegationRecord> reported) =>
         string.Join(
             '\n',

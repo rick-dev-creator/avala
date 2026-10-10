@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Records;
 using Avala.Jobs.Contracts;
@@ -17,6 +18,14 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
     public void Report(DelegationRecord delegation, JobId child, Settlement settlement, Option<string> summary, CancellationToken cancellationToken) =>
         Post(child, token => SettleAsync(delegation, child, settlement, summary, token), cancellationToken);
+
+    public void Wait(DelegationRecord delegation, CallRef call, Option<ToolResult> asking, CancellationToken cancellationToken)
+    {
+        foreach (var child in delegation.Child.Match<JobId[]>(found => [found], () => []))
+        {
+            Post(child, token => WaitAsync(child, call, asking, token), cancellationToken);
+        }
+    }
 
     public void Discard(JobId child, CancellationToken cancellationToken) =>
         Post(child, async token => _ = await jobs.DiscardAsync(child, token), cancellationToken);
@@ -42,7 +51,7 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
 
         var reported = await journal.ReportedAsync(delegation with { Report = report, Connection = connection }, report, cancellationToken);
 
-        foreach (var parent in reported.Answered.IsNone ? reported.Parent.Match<JobId[]>(found => [found], () => []) : [])
+        foreach (var parent in reported.Answered.IsNone && !journal.Calls.Expects(child) ? reported.Parent.Match<JobId[]>(found => [found], () => []) : [])
         {
             if ((await jobs.SteerAsync(parent, ToolAnswers.Briefing([reported]), cancellationToken)).IsSuccess)
             {
@@ -50,6 +59,26 @@ internal sealed partial class ChildReporter(IJobs jobs, ChildEvidence evidence, 
             }
         }
     }
+
+    private async Task WaitAsync(JobId child, CallRef call, Option<ToolResult> asking, CancellationToken cancellationToken)
+    {
+        var reported = journal.OfChild(child).Bind(record => record.Report.Map(report => (Record: record, Report: report)));
+
+        await reported.Match(
+            found => found.Record.Answered.IsNone
+                ? journal.DeliveredAsync(found.Record, found.Report, call, cancellationToken)
+                : ReturnedAsync(call, ToolAnswers.AlreadyTold(call.Item, found.Report), cancellationToken),
+            () => asking.Match(result => ReturnedAsync(call, result, cancellationToken), () => OpenedAsync(child, call)));
+    }
+
+    private Task OpenedAsync(JobId child, CallRef call)
+    {
+        journal.Calls.Open(child, call);
+
+        return Task.CompletedTask;
+    }
+
+    private async Task ReturnedAsync(CallRef call, ToolResult result, CancellationToken cancellationToken) => _ = await journal.ReturnAsync(call, result, cancellationToken);
 
     private async Task<ChildReport> IntegrateAsync(ChildReport settled, CancellationToken cancellationToken) =>
         await (await jobs.ApproveAsync(settled.Child, cancellationToken)).Match(

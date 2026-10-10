@@ -28,12 +28,13 @@ public static class TranscriptPlayer
         var login = JsonSerializer.Serialize(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") ?? string.Empty)[1..^1];
         transcript = [.. transcript.Select(entry => JsonNode.Parse(entry.ToJsonString().Replace(ConfigurationDirectory, login, StringComparison.Ordinal))!)];
         var position = 0;
+        var results = new Dictionary<string, string>(StringComparer.Ordinal);
 
         while (position < transcript.Count)
         {
             if (transcript[position]["in"] is null)
             {
-                await ActAsync(transcript[position], output, cwd);
+                await ActAsync(transcript[position], output, cwd, results);
                 position++;
                 continue;
             }
@@ -48,7 +49,9 @@ public static class TranscriptPlayer
                     return 0;
                 }
 
-                var key = Key(JsonNode.Parse(received));
+                var message = JsonNode.Parse(received);
+                Remember(message, results);
+                var key = Key(message);
                 var match = expected.FindIndex(candidate => Key(candidate) == key);
 
                 if (match < 0)
@@ -69,11 +72,47 @@ public static class TranscriptPlayer
         return 0;
     }
 
-    private static async Task ActAsync(JsonNode entry, TextWriter output, string cwd)
+    private static void Remember(JsonNode? message, Dictionary<string, string> results)
+    {
+        var text = message?["response"]?["response"]?["mcp_response"]?["result"]?["content"]?[0]?["text"]?.GetValue<string>();
+
+        if (text is null || !text.StartsWith('{'))
+        {
+            return;
+        }
+
+        try
+        {
+            Flatten(JsonNode.Parse(text), string.Empty, results);
+        }
+        catch (JsonException)
+        {
+        }
+    }
+
+    private static void Flatten(JsonNode? node, string path, Dictionary<string, string> results)
+    {
+        if (node is JsonObject members)
+        {
+            foreach (var (name, value) in members)
+            {
+                Flatten(value, path.Length == 0 ? name : $"{path}.{name}", results);
+            }
+        }
+        else if (node is JsonValue value && value.TryGetValue<string>(out var text))
+        {
+            results[path] = text;
+        }
+    }
+
+    private static string Resolved(string line, Dictionary<string, string> results) =>
+        results.Aggregate(line, (resolved, result) => resolved.Replace($"${{result:{result.Key}}}", result.Value, StringComparison.Ordinal));
+
+    private static async Task ActAsync(JsonNode entry, TextWriter output, string cwd, Dictionary<string, string> results)
     {
         if (entry["out"] is { } line)
         {
-            await output.WriteLineAsync(line.ToJsonString().Replace(WorkingDirectory, cwd, StringComparison.Ordinal));
+            await output.WriteLineAsync(Resolved(line.ToJsonString().Replace(WorkingDirectory, cwd, StringComparison.Ordinal), results));
             await output.FlushAsync();
         }
 

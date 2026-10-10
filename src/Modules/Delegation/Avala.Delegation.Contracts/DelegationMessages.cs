@@ -127,4 +127,6 @@ public sealed record ChildReported(DelegationRecord Delegation) : IIntegrationEv
 public sealed record ParentAsked(DelegationRecord Delegation, SessionId Session, ItemId Item, string Asking, DateTimeOffset Until) : IIntegrationEvent
 {
     public string Note { get; init; } = string.Empty;
+
+    public bool InCall { get; init; }
 }

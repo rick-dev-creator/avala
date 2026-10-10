@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Sdk;
 
 namespace Avala.Delegation.Escalating;
 
@@ -25,6 +26,34 @@ internal static class ChildNotes
             $"it {Asking(decision)}",
             escalation,
             [$"fields {Fields(decision.Form)}", decision.Form.Purpose == FormPurpose.Permission ? "This asks a permission you cannot see, so you can only deny it or pass it to a person." : string.Empty]);
+
+    public static ToolResult PermissionResult(DelegationRecord child, PolicyDecision decision, ParentEscalation escalation) =>
+        Result(child, decision.Item, Asking(decision), escalation, Option<AgentForm>.None);
+
+    public static ToolResult FormResult(DelegationRecord child, FormDecision decision, ParentEscalation escalation) =>
+        Result(child, decision.Item, Asking(decision), escalation, decision.Form);
+
+    private static ToolResult Result(DelegationRecord child, ItemId request, string asking, ParentEscalation escalation, Option<AgentForm> form)
+    {
+        var result = new JsonObject
+        {
+            ["job"] = Job(child),
+            ["outcome"] = "asking",
+            ["status"] = "running",
+            ["asks"] = asking,
+            ["note"] = $"Your sub-agent \"{Title(child)}\" is still running and waits for your decision before it can go on. Answer with answer_child: allow it only if you would be allowed to do it yourself, deny it with an optional message saying what to do instead, or pass it to a person. Then call wait_child with this child to keep waiting for its report. Without your answer within {Seconds(escalation.Window)} seconds it goes to a person.",
+            ["answer_child"] = new JsonObject { ["child"] = Job(child), ["request"] = request.Value, ["decision"] = "allow" },
+            ["wait_child"] = new JsonObject { ["child"] = Job(child) },
+        };
+
+        foreach (var asked in form.Match<AgentForm[]>(found => [found], () => []))
+        {
+            result["fields"] = JsonNode.Parse(Fields(asked));
+            result["permissionForm"] = asked.Purpose == FormPurpose.Permission;
+        }
+
+        return new ToolResult(child.Item, result.ToJsonString());
+    }
 
     public static string Title(DelegationRecord child)
     {

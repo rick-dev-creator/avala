@@ -27,6 +27,7 @@ public sealed class DelegationPlugin : IPlugin
         registrar.Services
             .AddSingleton(DelegationTool.Definition)
             .AddSingleton(AnswerChildTool.Definition)
+            .AddSingleton(WaitChildTool.Definition)
             .AddSingleton<IMachineDelegation, MachineDelegation>()
             .AddSingleton<IDelegationRules, DelegationRulesReader>()
             .AddSingleton<SqliteDelegationStore>()
@@ -61,6 +62,8 @@ public sealed class DelegationPlugin : IPlugin
             .AddForwarded<IHandle<PermissionDecided>, ParentNotes>()
             .AddForwarded<IHandle<FormDecided>, ParentNotes>()
             .AddSingleton<ChildAnswers>()
-            .AddForwarded<IHandle<AgentActivity>, ChildAnswers>();
+            .AddForwarded<IHandle<AgentActivity>, ChildAnswers>()
+            .AddSingleton<ChildWaits>()
+            .AddForwarded<IHandle<AgentActivity>, ChildWaits>();
     }
 }
