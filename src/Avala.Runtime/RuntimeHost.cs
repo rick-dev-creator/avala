@@ -1,10 +1,12 @@
 using Avala.Runtime.Events;
 using Avala.Sdk;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Runtime;
 
-public static class RuntimeHost
+public static partial class RuntimeHost
 {
     private static readonly TimeSpan ShutdownGrace = TimeSpan.FromSeconds(10);
 
@@ -56,7 +58,11 @@ public static class RuntimeHost
             }
             catch (OperationCanceledException) when (grace.IsCancellationRequested)
             {
+                LogShutdownGraceElapsed(services.GetService<ILoggerFactory>()?.CreateLogger(typeof(RuntimeHost).FullName!) ?? NullLogger.Instance, ShutdownGrace.TotalSeconds);
             }
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The handlers did not drain within {Seconds} seconds of shutdown, so the event bus stopped with events still queued")]
+    private static partial void LogShutdownGraceElapsed(ILogger logger, double seconds);
 }
