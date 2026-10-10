@@ -19,7 +19,7 @@ public sealed class TranscriptTapTests
             folder.Path,
             ["--print", "--resume", "abc-123"],
             [],
-            new Dictionary<string, string> { [CommandLine.ConfigurationVariable] = Path.Combine(folder.Path, ".claude-work") + Path.DirectorySeparatorChar });
+            new Dictionary<string, string> { [CommandLine.ConfigurationVariable] = Path.Combine(folder.Path, ".claude-work") + Path.DirectorySeparatorChar, [CommandLine.TodoToolsVariable] = "1" });
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 10, 9, 30, 0, 123, TimeSpan.Zero));
 
         await using (var tap = TranscriptTap.Open(transcripts, launch, clock))
@@ -32,7 +32,7 @@ public sealed class TranscriptTapTests
         var lines = (await File.ReadAllLinesAsync(file, Cancellation)).Select(line => JsonNode.Parse(line)!).ToList();
         Assert.StartsWith("20261010T093000123Z-", Path.GetFileName(file), StringComparison.Ordinal);
         Assert.Equal(
-            ("abc-123", ".claude-work", 3, "user", "not json"),
-            ((string?)lines[0]["resume"], (string?)lines[0]["folder"], lines[0]["arguments"]!.AsArray().Count, (string?)lines[1]["in"]!["type"], (string?)lines[2]["out"]));
+            ("abc-123", ".claude-work", "1", 3, "user", "not json"),
+            ((string?)lines[0]["resume"], (string?)lines[0]["folder"], (string?)lines[0]["todoTools"], lines[0]["arguments"]!.AsArray().Count, (string?)lines[1]["in"]!["type"], (string?)lines[2]["out"]));
     }
 }

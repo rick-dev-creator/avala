@@ -9,6 +9,7 @@ using Avala.Verification.Contracts;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Reviewing;
+using Avala.Workbench.Timeline;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Review;
@@ -34,6 +35,19 @@ internal static class ReviewPhrases
         VerdictKind.InvalidDeclaration => "Not verified: the check declaration is invalid",
         _ => "Not verified",
     };
+
+    public static (string Summary, IReadOnlyList<string> Left) Plan(Option<PlanEntry> plan) =>
+        plan.Match<(string, IReadOnlyList<string>)>(
+            entry => entry.Total == 0
+                ? (string.Empty, [])
+                : entry.Done == entry.Total
+                    ? (string.Create(CultureInfo.InvariantCulture, $"Plan · all {entry.Total} {Steps(entry.Total)} done"), [])
+                    : (
+                        string.Create(CultureInfo.InvariantCulture, $"Plan · {entry.Done} of {entry.Total} {Steps(entry.Total)} done"),
+                        [.. entry.Steps.Where(step => step.Status != PlanStepStatus.Done).Select(step => $"{(step.Status == PlanStepStatus.InProgress ? "In progress" : "Pending")} · {step.Title}")]),
+            () => (string.Empty, []));
+
+    private static string Steps(int count) => count == 1 ? "step" : "steps";
 
     public static string Proof(RunEvidence evidence) =>
         evidence.Verifications.Count == 0

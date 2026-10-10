@@ -81,7 +81,7 @@ internal static class JobFacts
     private static JobFact Settled(BoardJob job) => job.Status switch
     {
         JobStatus.Running => job.Transcript.Plan.Match(
-            plan => new JobFact(FactKind.PlanProgress) { Done = plan.Done, Total = plan.Total },
+            plan => plan.Total == 0 ? new JobFact(FactKind.Working) : new JobFact(FactKind.PlanProgress) { Done = plan.Done, Total = plan.Total },
             () => new JobFact(FactKind.Working)),
         JobStatus.Checking => new JobFact(FactKind.Verifying) { Attempt = job.Attempts },
         JobStatus.NeedsHelp => job.Hold.Match(

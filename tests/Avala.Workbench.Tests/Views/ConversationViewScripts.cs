@@ -119,6 +119,33 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             summary.Instruction,
             [.. Enumerable.Range(1, count).Select(number => new AttemptRecord(number, number == 1 ? AttemptOrigin.Initial : AttemptOrigin.Hint, AttemptOutcome.Passed, "Keep going with the next currency", Option<SessionId>.None))]);
 
+    [Fact]
+    public Task ThePlanSitsJustAboveTheComposerWithItsCurrentStepAndProgressAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignConversationViewModel());
+            var plan = view.Find("PlanBox");
+            var composer = view.Find("Composer");
+
+            Assert.True(view.Shows("PlanBox"));
+            Assert.Equal(("Use each currency's exponent", "2 of 4"), (view.TextOf("PlanCurrent"), view.TextOf("PlanProgress")));
+            Assert.False(view.Shows("PlanSteps"));
+            var bottom = Avalonia.VisualExtensions.TranslatePoint(plan, new Avalonia.Point(0, plan.Bounds.Height), view.Window);
+            var top = Avalonia.VisualExtensions.TranslatePoint(composer, default, view.Window);
+            Assert.True(bottom?.Y <= top?.Y, $"plan ends at {bottom}, composer starts at {top}");
+        }, Cancellation);
+
+    [Fact]
+    public Task AJobWithoutAPlanShowsNoPlanAboveTheComposerAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (conversation, _, _) = Open(JobStatus.Running);
+            var view = Screen.Show(conversation);
+
+            Assert.False(view.Shows("PlanBox"));
+            Assert.True(view.Shows("Send"));
+        }, Cancellation);
+
     private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript) Open(JobStatus status)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
@@ -414,6 +441,38 @@ public sealed class PlanViewScripts(HeadlessUi ui)
             Assert.Equal([true, true, false, false], steps.Select(step => step.Classes.Contains("done")));
             Assert.Equal([false, false, true, false], steps.Select(step => step.Classes.Contains("active")));
             Assert.Equal(TextDecorations.Strikethrough, steps[0].GetVisualDescendants().OfType<TextBlock>().Single().TextDecorations);
+        }, TestContext.Current.CancellationToken);
+}
+
+public sealed class PlanPanelViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task ThePanelIsOneLineUntilClickedThenListsEachStepWithItsStateAsync() =>
+        ui.RunAsync(() =>
+        {
+            var panel = new PlanPanelViewModel();
+            panel.Show(new PlanEntry("plan", [new PlanStep("Read the code", PlanStepStatus.Done), new PlanStep("Write the change", PlanStepStatus.InProgress), new PlanStep("Run the tests", PlanStepStatus.Pending)]));
+            var view = Screen.Show(panel);
+            var folded = view.Shows("PlanSteps");
+
+            view.Click("PlanToggle");
+            var steps = view.All<Grid>().Where(grid => grid.Classes.Contains("step")).ToList();
+
+            Assert.Equal(("Write the change", "1 of 3", false), (view.TextOf("PlanCurrent"), view.TextOf("PlanProgress"), folded));
+            Assert.True(view.Shows("PlanSteps"));
+            Assert.Equal([true, false, false], steps.Select(step => step.Classes.Contains("done")));
+            Assert.Equal([false, true, false], steps.Select(step => step.Classes.Contains("active")));
+            Assert.Equal("Show the plan", Avalonia.Automation.AutomationProperties.GetName(view.Find("PlanToggle")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task APlanWithEveryStepDoneLeavesNoPanelAsync() =>
+        ui.RunAsync(() =>
+        {
+            var panel = new PlanPanelViewModel();
+            panel.Show(new PlanEntry("plan", [new PlanStep("Write the change", PlanStepStatus.Done)]));
+
+            Assert.False(Screen.Show(panel).Shows("PlanBox"));
         }, TestContext.Current.CancellationToken);
 }
 

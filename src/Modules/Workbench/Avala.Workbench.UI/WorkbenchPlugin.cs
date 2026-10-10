@@ -120,6 +120,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IReasoningViewModel, ReasoningView>();
         views.Register<IToolViewModel, ToolView>();
         views.Register<IPlanViewModel, PlanView>();
+        views.Register<IPlanPanelViewModel, PlanPanelView>();
         views.Register<ICanvasViewModel, CanvasView>();
         views.Register<ITurnEndViewModel, TurnEndView>();
         views.Register<IPermissionCardViewModel, PermissionCardView>();
