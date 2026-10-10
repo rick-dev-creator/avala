@@ -26,6 +26,13 @@ public interface IResources
     ValueTask<ResourceSettings> SettingsAsync(CancellationToken cancellationToken);
 }
 
+public interface IPortLeases
+{
+    ValueTask<Option<PortLease>> LeaseAsync(string holder, CancellationToken cancellationToken);
+
+    Task ReleaseAsync(string holder, CancellationToken cancellationToken);
+}
+
 public interface IOrphans
 {
     IReadOnlyList<OrphanReport> Audit();
