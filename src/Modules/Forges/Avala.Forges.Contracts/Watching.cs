@@ -18,6 +18,12 @@ public enum OnPullRequest
     WakeOnCiAndReviews,
 }
 
+public enum Redelivery
+{
+    Automatic,
+    Review,
+}
+
 public enum WatchStatus
 {
     Watching,
@@ -52,6 +58,8 @@ public enum WakeOutcome
 public sealed record PullRequestWatchState(JobId Job, ForgeName Forge, PullRequestRef PullRequest, OnPullRequest Policy, int MaxWakeUps)
 {
     public WatchStatus Status { get; init; } = WatchStatus.Watching;
+
+    public Redelivery Redelivery { get; init; }
 
     public int WakeUps { get; init; }
 

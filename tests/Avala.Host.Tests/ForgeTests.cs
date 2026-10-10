@@ -86,6 +86,45 @@ public sealed class ForgeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task UnderReviewRedeliveryAWokenFixThatPassesItsGatesWaitsForAPersonWhoseApprovalPushesItToTheSamePullRequestAsync()
+    {
+        await using var forge = await ForgeRun.StartAsync(plugins, ForgeRun.Rules("local", "wake-on-ci", 3, "review"), "ci-fails-once");
+
+        var opened = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        _ = await forge.ProgressedAsync(JobStatus.Approved);
+        _ = await forge.ProgressedAsync(JobStatus.Running);
+        _ = await forge.ProgressedAsync(JobStatus.AwaitingReview);
+        var approval = Outcomes.Succeeds(await forge.Run.Get<IOpenDeliveries>().ApproveThroughAsync(forge.Job, PullRequestDelivery.Strategy, Cancellation));
+        var redelivered = await forge.RedeliveredAsync();
+        var ended = await forge.PollUntilAsync(state => state.Status == WatchStatus.Ended);
+
+        Assert.Equal((PullRequestDelivery.Strategy, opened.PullRequest.Number), (approval.Delivery.Strategy, redelivered.PullRequest.Number));
+        Assert.Equal((Redelivery.Review, Option<WatchEnd>.Some(WatchEnd.Green)), (ended.Redelivery, ended.Ended));
+    }
+
+    [Fact]
+    public async Task AWokenRoundIsChargedToTheJobsBudgetAndAJobHeldAtItsCapIsNeverWokenAgainAsync()
+    {
+        await using var forge = await ForgeRun.StartAsync(
+            plugins,
+            ForgeRun.Rules("local", "wake-on-ci", 3),
+            "ci-always-fails",
+            "spend-on-fix",
+            (".avala/budget.json", """{ "costPerJob": { "USD": 0.02 } }"""));
+
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        var hold = await forge.HeldAsync();
+        var polled = await forge.PolledAgainAsync();
+
+        Assert.Equal(HoldReason.BudgetExceeded, hold.Reason);
+        Assert.Equal((WatchStatus.WaitingForJob, 1), (polled.Status, polled.WakeUps));
+        Assert.Equal(JobStatus.NeedsHelp, await forge.StatusAsync());
+        Assert.Single(forge.Run.Get<IPullRequests>().WakeUpsOf(forge.Job));
+    }
+
+    [Fact]
     public async Task ARestartWhileWatchingRestoresTheWatchAndItsNextPollWakesTheAgentAsync()
     {
         await using var forge = await ForgeRun.StartAsync(plugins, "wake-on-ci", 3, "ci-fails-once");
@@ -118,6 +157,8 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         private EventWatch<PullRequestWatchChanged> changes;
         private EventWatch<PullRequestWakeUp> wakeUps;
         private EventWatch<PullRequestOpened> opened;
+        private EventWatch<JobProgressed> progress;
+        private EventWatch<JobHeld> holds;
 
         private ForgeRun(SimulatedRun run, JobId job)
         {
@@ -126,20 +167,30 @@ public sealed class ForgeTests(PublishedPlugins plugins)
             changes = run.Watch<PullRequestWatchChanged>();
             wakeUps = run.Watch<PullRequestWakeUp>();
             opened = run.Watch<PullRequestOpened>();
+            progress = run.Watch<JobProgressed>();
+            holds = run.Watch<JobHeld>();
         }
+
+        public async Task<JobHold> HeldAsync() => (await holds.UntilAsync(found => found.Hold.Job == Job)).Hold;
 
         public SimulatedRun Run { get; }
 
         public JobId Job { get; }
 
-        public static string Rules(string forge, string policy, int wakeUps) =>
-            $$"""{ "approval": "pull-request", "pullRequest": { "forge": "{{forge}}", "onPullRequest": "{{policy}}", "maxWakeUps": {{wakeUps}} } }""";
+        public static string Rules(string forge, string policy, int wakeUps, string redeliver = "automatic") =>
+            $$"""{ "approval": "pull-request", "pullRequest": { "forge": "{{forge}}", "onPullRequest": "{{policy}}", "maxWakeUps": {{wakeUps}}, "redeliver": "{{redeliver}}" } }""";
 
-        public static async Task<ForgeRun> StartAsync(PublishedPlugins plugins, string policy, int wakeUps, string scenario)
+        public static Task<ForgeRun> StartAsync(PublishedPlugins plugins, string policy, int wakeUps, string scenario) =>
+            StartAsync(plugins, Rules("local", policy, wakeUps), scenario, "fix-after-feedback");
+
+        public static Task<ForgeRun> StartAsync(PublishedPlugins plugins, string rules, string scenario) =>
+            StartAsync(plugins, rules, scenario, "fix-after-feedback");
+
+        public static async Task<ForgeRun> StartAsync(PublishedPlugins plugins, string rules, string scenario, string agent, params (string Path, string Content)[] committed)
         {
-            var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/jobs.json", Rules("local", policy, wakeUps)), (".avala/permissions.json", Autonomous)]);
+            var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/jobs.json", rules), (".avala/permissions.json", Autonomous), .. committed]);
             _ = await run.Repository.PublishAsync(Cancellation);
-            var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"[simulate: fix-after-feedback] [forge: {scenario}] Fix the calculator")));
+            var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, $"[simulate: {agent}] [forge: {scenario}] Fix the calculator")));
             var forge = new ForgeRun(run, job);
             Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
 
@@ -180,6 +231,17 @@ public sealed class ForgeTests(PublishedPlugins plugins)
             return (await changes.UntilAsync(found => found.State.Job == Job && match(found.State))).State;
         }
 
+        public async Task<PullRequestWatchState> PolledAgainAsync()
+        {
+            var due = Outcomes.Present((await LatestAsync()).NextPoll);
+            Run.AdvanceTo(due);
+
+            return (await changes.UntilAsync(found => found.State.Job == Job && found.State.LastPolled.Match(polled => polled >= due, () => false))).State;
+        }
+
+        public async Task<JobStatus> ProgressedAsync(JobStatus status) =>
+            (await progress.UntilAsync(update => update.Job == Job && update.Status == status)).Status;
+
         public async Task<PullRequestWatchState> ChangedAsync(Func<PullRequestWatchState, bool> match) =>
             (await changes.UntilAsync(found => found.State.Job == Job && match(found.State))).State;
 
@@ -194,6 +256,8 @@ public sealed class ForgeTests(PublishedPlugins plugins)
                 changes = Run.Watch<PullRequestWatchChanged>();
                 wakeUps = Run.Watch<PullRequestWakeUp>();
                 opened = Run.Watch<PullRequestOpened>();
+                progress = Run.Watch<JobProgressed>();
+                holds = Run.Watch<JobHeld>();
             });
 
         public ValueTask DisposeAsync() => Run.DisposeAsync();

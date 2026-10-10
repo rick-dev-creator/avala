@@ -39,6 +39,11 @@ internal static class ForgePhrases
         _ => $"Watch ended: {state.Ended.Match(End, () => "ended")}",
     };
 
+    public static string Policy(PullRequestWatchState state) =>
+        state.Policy != OnPullRequest.WatchOnly && state.Redelivery == Redelivery.Review
+            ? $"{Policy(state.Policy, state.MaxWakeUps)}; each fix comes back to you for review"
+            : Policy(state.Policy, state.MaxWakeUps);
+
     public static string Policy(OnPullRequest policy, int wakeUps) => policy switch
     {
         OnPullRequest.WakeOnCi => string.Create(CultureInfo.InvariantCulture, $"Wakes the agent on CI failures and conflicts, at most {wakeUps} times"),

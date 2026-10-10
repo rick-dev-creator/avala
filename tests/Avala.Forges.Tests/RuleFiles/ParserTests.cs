@@ -71,6 +71,15 @@ public sealed class ParserTests
             new PullRequestRules(new ForgeName(forge), remote, Enum.Parse<OnPullRequest>(policy), wakeUps),
             Outcomes.Present(Outcomes.Succeeds(PullRequestRulesParser.ParseJobFile(text))));
 
+    [Theory]
+    [InlineData("", "Automatic")]
+    [InlineData(", \"redeliver\": \"automatic\"", "Automatic")]
+    [InlineData(", \"redeliver\": \"review\"", "Review")]
+    public void ThePullRequestSectionSaysWhetherAWokenFixIsRedeliveredOrReviewed(string field, string expected) =>
+        Assert.Equal(
+            Enum.Parse<Redelivery>(expected),
+            Outcomes.Present(Outcomes.Succeeds(PullRequestRulesParser.ParseJobFile($$"""{ "pullRequest": { "forge": "github"{{field}} } }"""))).Redelivery);
+
     [Fact]
     public void AJobFileWithoutThePullRequestSectionDeclaresNone() =>
         Assert.True(Outcomes.Succeeds(PullRequestRulesParser.ParseJobFile("""{ "approval": "merge" }""")).IsNone);
@@ -81,6 +90,7 @@ public sealed class ParserTests
     [InlineData("""{ "pullRequest": { "forge": "github", "maxWakeUps": 21 } }""", "InvalidWakeUps")]
     [InlineData("""{ "pullRequest": { "forge": "github", "maxWakeUps": -1 } }""", "InvalidWakeUps")]
     [InlineData("""{ "pullRequest": { "forge": "github", "draft": true } }""", "UnknownField")]
+    [InlineData("""{ "pullRequest": { "forge": "github", "redeliver": "never" } }""", "UnknownPolicy")]
     [InlineData("""{ "pullRequest": "github" }""", "Malformed")]
     [InlineData("""{ "pullRequest": { "forge": "" } }""", "Malformed")]
     public void AnInvalidPullRequestSectionIsRejectedWithItsError(string text, string expected) =>

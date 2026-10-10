@@ -67,6 +67,21 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario SpendOnFix { get; } = new("spend-on-fix",
+    [
+        [
+            Thought("A quick change ", "to the calculator."),
+            new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 5 BROKEN\n"),
+            Message("The calculator is ready."),
+            .. Bill(3_100, 240, 0.0150m, 0.21),
+            new Finish(),
+        ],
+        [
+            Thought("The fix needs a long look ", "at every caller."),
+            .. Bill(40_000, 2_400, 0.0500m, 0.30),
+        ],
+    ]);
+
     public static Scenario FixAfterFeedback { get; } = new("fix-after-feedback",
     [
         [
@@ -494,7 +509,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
+        Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
         Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, LimitHandoff, SpentElsewhere, .. DelegationScenarios.All,
     ];
 

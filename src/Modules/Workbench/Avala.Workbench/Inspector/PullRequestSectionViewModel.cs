@@ -140,7 +140,7 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
         Title = watch.Match(state => $"Pull request #{state.PullRequest.Number} on {state.Forge.Value}", () => facts.IsSome ? "No pull request was opened for this job." : string.Empty);
         Link = watch.Match(state => state.PullRequest.Link.ToString(), () => string.Empty);
         Status = watch.Match(ForgePhrases.Status, () => string.Empty);
-        Policy = watch.Match(state => ForgePhrases.Policy(state.Policy, state.MaxWakeUps), () => string.Empty);
+        Policy = watch.Match(ForgePhrases.Policy, () => string.Empty);
         Checks = last.Match(ForgePhrases.Checks, () => watch.IsSome ? "Not checked yet" : string.Empty);
         CheckLines = last.Match<IReadOnlyList<string>>(state => [.. state.Checks.Select(ForgePhrases.Check)], () => []);
         Mergeability = last.Match(state => ForgePhrases.Mergeability(state.Mergeability), () => string.Empty);

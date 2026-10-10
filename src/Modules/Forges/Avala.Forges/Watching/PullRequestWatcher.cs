@@ -108,7 +108,7 @@ internal sealed class PullRequestWatcher(WatchBook book, PullRequestReader reade
 
         switch (status)
         {
-            case JobStatus.AwaitingReview when kept.State.WakeUps > 0:
+            case JobStatus.AwaitingReview when kept.State.WakeUps > 0 && kept.State.Redelivery == Redelivery.Automatic:
                 _ = await waker.RedeliverAsync(job, token);
                 break;
             case JobStatus.Discarded or JobStatus.Failed:
