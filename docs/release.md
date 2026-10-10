@@ -100,4 +100,4 @@ Avala tells a person when a newer version is out; it never downloads or installs
   ```
 
   A file that cannot be read, or holds anything but that object, also turns the startup check off. Check now in About still asks, since the person asked.
-- **Where it lives.** `UpdateCheck` in `Avala.Runtime.Updates`, behind the SDK's `IUpdates`; only the host's real composition gives it the HTTP feed, so tests, the simulation and the smoke run never reach the network. The design is in [release prep](design/core.md#release-prep).
+- **Where it lives.** `UpdateCheck` in `Avala.Runtime.Updates`, behind the SDK's `IUpdates`; only the host's real composition gives it the HTTP feed, so tests, the simulation and the smoke run never reach the network.
