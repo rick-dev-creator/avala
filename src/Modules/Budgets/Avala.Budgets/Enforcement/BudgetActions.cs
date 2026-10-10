@@ -16,6 +16,11 @@ internal sealed class BudgetActions(BudgetBook book, IJobs jobs, IEventBus bus, 
             return;
         }
 
+        await RecordAsync(hold, breach, cancellationToken);
+    }
+
+    public async Task RecordAsync(JobHold hold, BudgetBreach breach, CancellationToken cancellationToken)
+    {
         var intervention = new BudgetIntervention(hold, breach, clock.GetUtcNow());
         await book.RecordAsync(intervention, cancellationToken);
         await bus.PublishAsync(new BudgetIntervened(intervention), cancellationToken);

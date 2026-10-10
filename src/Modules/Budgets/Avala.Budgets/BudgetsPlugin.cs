@@ -47,6 +47,8 @@ public sealed class BudgetsPlugin : IPlugin
             .AddForwarded<IHandle<JobProgressed>, BudgetEnforcer>()
             .AddForwarded<IHandle<UsageRecorded>, BudgetEnforcer>()
             .AddForwarded<IHandle<ResourcesSampled>, BudgetEnforcer>()
-            .AddForwarded<IHandle<JobSubmitted>, BudgetEnforcer>();
+            .AddForwarded<IHandle<JobSubmitted>, BudgetEnforcer>()
+            .AddForwarded<IHandle<JobHeld>, BudgetEnforcer>()
+            .AddSingleton<ICompletionGate, SpendGate>();
     }
 }

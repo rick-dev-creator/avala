@@ -128,18 +128,89 @@ public sealed class BudgetEnforcementTests
         Assert.Equal([(budgeted.Job, HoldReason.InvalidBudget)], budgeted.Jobs.Holds);
     }
 
-    [Fact]
-    public async Task AJobOverBudgetIsHeldOnlyOnceItRunsAgainAsync()
+    [Theory]
+    [InlineData(JobStatus.Checking)]
+    [InlineData(JobStatus.AwaitingReview)]
+    public async Task SpendReportedAfterTheTurnThatCrossesTheCapHoldsTheJobAtOnceAsBudgetExceededAsync(JobStatus status)
     {
         var budgeted = new Budgeted();
         await budgeted.RunningAsync(Caps(cost: [new Cost(0.01m, "USD")]));
-        await budgeted.ProgressAsync(JobStatus.Checking);
+        await budgeted.ProgressAsync(status);
 
         await budgeted.SpendAsync(Few, new Cost(0.02m, "USD"));
-        Assert.Empty(budgeted.Jobs.Holds);
 
-        await budgeted.ProgressAsync(JobStatus.Running);
         Assert.Equal([(budgeted.Job, HoldReason.BudgetExceeded)], budgeted.Jobs.Holds);
+        Assert.Equal(
+            new BudgetBreach(BudgetMeasure.Cost, "USD", 0.02m, 0.01m, Option<BudgetError>.None),
+            Assert.Single(budgeted.Book.OfJob(budgeted.Job)).Breach);
+    }
+
+    [Fact]
+    public async Task AfterItsTurnAJobIsNotHeldForItsProvidersLimitAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.RunningAsync(Caps(threshold: 0.9));
+        await budgeted.ProgressAsync(JobStatus.AwaitingReview);
+
+        await budgeted.ReachAsync(new UsageLimit("5h", 0.95, Option<DateTimeOffset>.None));
+
+        Assert.Empty(budgeted.Jobs.Holds);
+    }
+
+    [Fact]
+    public async Task AJobThatHasEndedIsNeverHeldWhateverItSpendsAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.RunningAsync(Caps(cost: [new Cost(0.01m, "USD")]));
+        await budgeted.ProgressAsync(JobStatus.Approved);
+
+        await budgeted.SpendAsync(Few, new Cost(0.02m, "USD"));
+
+        Assert.Empty(budgeted.Jobs.Holds);
+    }
+
+    [Fact]
+    public async Task TheSpendGateHoldsAFinishedTurnOnlyOnceTheJobsSpendHasCrossedItsCapAsync()
+    {
+        var budgeted = new Budgeted(JobRejection.NotRunning);
+        await budgeted.RunningAsync(Caps(cost: [new Cost(0.01m, "USD")]));
+
+        await budgeted.SpendAsync(Few, new Cost(0.005m, "USD"));
+        var within = await budgeted.JudgeTurnAsync();
+        await budgeted.SpendAsync(Few, new Cost(0.02m, "USD"));
+        var over = await budgeted.JudgeTurnAsync();
+
+        Assert.Equal(GateVerdict.Pass, within);
+        Assert.Equal(GateVerdict.HoldFor(HoldReason.BudgetExceeded), over);
+    }
+
+    [Fact]
+    public async Task AHoldForSpendIsAuditedOnceWithItsBreachWhoeverAskedForItAsync()
+    {
+        var budgeted = new Budgeted(JobRejection.NotRunning);
+        await budgeted.RunningAsync(Caps(cost: [new Cost(0.01m, "USD")]));
+        await budgeted.SpendAsync(Few, new Cost(0.02m, "USD"));
+        var gated = new JobHold(budgeted.Job, budgeted.Session, HoldReason.BudgetExceeded, SessionHalt.Idle);
+
+        await budgeted.HeldAsync(gated);
+        await budgeted.HeldAsync(gated);
+        await budgeted.HeldAsync(gated with { Reason = HoldReason.Stalled });
+
+        var intervention = Assert.Single(budgeted.Book.OfJob(budgeted.Job));
+        Assert.Equal(gated, intervention.Hold);
+        Assert.Equal(new BudgetBreach(BudgetMeasure.Cost, "USD", 0.02m, 0.01m, Option<BudgetError>.None), intervention.Breach);
+    }
+
+    [Fact]
+    public async Task TheEnforcersOwnHoldIsNotAuditedTwiceWhenItIsAnnouncedAsync()
+    {
+        var budgeted = new Budgeted();
+        await budgeted.RunningAsync(Caps(cost: [new Cost(0.01m, "USD")]));
+        await budgeted.SpendAsync(Few, new Cost(0.02m, "USD"));
+
+        await budgeted.HeldAsync(Assert.Single(budgeted.Book.OfJob(budgeted.Job)).Hold);
+
+        Assert.Single(budgeted.Book.OfJob(budgeted.Job));
     }
 
     [Fact]

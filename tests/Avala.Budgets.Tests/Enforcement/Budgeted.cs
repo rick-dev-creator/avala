@@ -95,6 +95,11 @@ internal sealed class Budgeted
         await enforcer.HandleAsync(new UsageRecorded(Session, Job), Cancellation);
     }
 
+    public async Task HeldAsync(JobHold hold) => await enforcer.HandleAsync(new JobHeld(hold), Cancellation);
+
+    public ValueTask<GateVerdict> JudgeTurnAsync() =>
+        new SpendGate(Book).EvaluateAsync(new CompletedAttempt(Job, 1, "/worktrees/1", "Greet the team"), Cancellation);
+
     public async Task MeasureAsync(long memoryBytes)
     {
         Resources.Memory = memoryBytes;

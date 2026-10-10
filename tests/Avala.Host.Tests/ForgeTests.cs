@@ -125,6 +125,28 @@ public sealed class ForgeTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AWokenFixWhoseFinalTurnReportsSpendOverTheCapIsHeldInsteadOfRedeliveredAsync()
+    {
+        await using var forge = await ForgeRun.StartAsync(
+            plugins,
+            ForgeRun.Rules("local", "wake-on-ci", 3),
+            "ci-fails-once",
+            "fix-after-feedback",
+            (".avala/budget.json", """{ "costPerJob": { "USD": 0.02 } }"""));
+
+        _ = await forge.ApprovedAsync();
+        _ = await forge.PollUntilWokenAsync();
+        var hold = await forge.HeldAsync();
+
+        Assert.Equal(HoldReason.BudgetExceeded, hold.Reason);
+        Assert.Equal(JobStatus.NeedsHelp, await forge.StatusAsync());
+        var history = Outcomes.Present(await forge.Run.Get<IJobCatalog>().HistoryAsync(forge.Job, Cancellation));
+        Assert.Equal(
+            [(AttemptOrigin.Initial, AttemptOutcome.Passed), (AttemptOrigin.SendBack, AttemptOutcome.Interrupted)],
+            history.Attempts.Select(attempt => (attempt.Origin, attempt.Outcome)));
+    }
+
+    [Fact]
     public async Task ARestartWhileWatchingRestoresTheWatchAndItsNextPollWakesTheAgentAsync()
     {
         await using var forge = await ForgeRun.StartAsync(plugins, "wake-on-ci", 3, "ci-fails-once");

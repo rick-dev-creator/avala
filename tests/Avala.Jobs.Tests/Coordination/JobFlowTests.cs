@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Testing;
+using HoldAnnouncement = Avala.Jobs.Contracts.JobHeld;
 using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
 namespace Avala.Jobs.Tests.Coordination;
@@ -100,6 +101,21 @@ public sealed class JobFlowTests
         Assert.Equal(2, job.Attempts.Count);
         Assert.Equal(["Add GitHub login", "Two tests fail"], flow.Agents.Sent.Select(message => message.Message));
         Assert.Single(flow.Agents.Sent.Select(message => message.Session).Distinct());
+    }
+
+    [Fact]
+    public async Task AHoldVerdictHoldsTheJobForItsReasonInsteadOfSendingItToReviewOrAskingLaterGatesAsync()
+    {
+        var later = new ScriptedGate();
+        var flow = JobFlow.With(new ScriptedGate(GateVerdict.HoldFor(HoldReason.BudgetExceeded)), later);
+        var job = await flow.RunningAsync();
+
+        await flow.FinishTurnAsync(job);
+
+        Assert.Equal(JobState.NeedsHelp, job.State);
+        Assert.Equal(HoldReason.BudgetExceeded, Assert.Single(flow.Bus.Published.OfType<HoldAnnouncement>()).Hold.Reason);
+        Assert.DoesNotContain(new JobProgressed(job.Id, JobStatus.AwaitingReview), flow.Bus.Published);
+        Assert.Empty(later.Evaluated);
     }
 
     [Fact]

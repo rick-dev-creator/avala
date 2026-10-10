@@ -133,6 +133,21 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task SpendReportedWithTheFinalTurnsResultHoldsTheJobInsteadOfSendingItToReviewAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply", (".avala/budget.json", """{ "costPerJob": { "USD": 0.004 } }"""));
+
+        var journey = await run.JourneyAsync();
+
+        var hold = await run.BudgetInterventionAsync();
+        Assert.Equal(JobStatus.NeedsHelp, journey[^1]);
+        Assert.DoesNotContain(JobStatus.AwaitingReview, journey);
+        Assert.Equal([hold], run.Get<IBudgets>().OfJob(run.Job));
+        Assert.Equal((run.Job, HoldReason.BudgetExceeded), (hold.Hold.Job, hold.Hold.Reason));
+        Assert.Equal(new BudgetBreach(BudgetMeasure.Cost, "USD", 0.0042m, 0.004m, Option<BudgetError>.None), hold.Breach);
+    }
+
+    [Fact]
     public async Task AJobWhoseProviderLimitPassesTheThresholdIsInterruptedAndHeldAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "permission", (".avala/budget.json", """{ "holdAtLimit": 0.25 }"""));

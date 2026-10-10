@@ -33,9 +33,11 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
 
     public async Task JudgeAsync(Job job, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken) =>
         await (await EvaluateAsync(job, cancellationToken)).Match(
-            verdict => verdict.Decision == GateDecision.Pass
-                ? PassAsync(job, cancellationToken)
-                : RetryAsync(job, verdict.Feedback, retry, cancellationToken),
+            verdict => verdict.Hold.Match(
+                reason => round.HoldAsync(job, reason, cancellationToken),
+                () => verdict.Decision == GateDecision.Pass
+                    ? PassAsync(job, cancellationToken)
+                    : RetryAsync(job, verdict.Feedback, retry, cancellationToken)),
             () => FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken));
 
     private async Task<Option<GateVerdict>> EvaluateAsync(Job job, CancellationToken cancellationToken)
