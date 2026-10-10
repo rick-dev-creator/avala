@@ -45,14 +45,14 @@ internal static class PullRequestRulesParser
             return ForgeError.Malformed;
         }
 
-        if (section.EnumerateObject().Any(field => field.Name is not ("forge" or "remote" or "onPullRequest" or "maxWakeUps")))
+        if (section.EnumerateObject().Any(field => field.Name is not ("forge" or "remote" or "onPullRequest" or "maxWakeUps" or "redeliver")))
         {
             return ForgeError.UnknownField;
         }
 
         return Named(section, "forge", ForgeNames.IsValid).Bind(forge => forge.Match(
-            named => Named(section, "remote", remote => remote.Length > 0).Bind(remote => Policy(section).Bind(policy => WakeUps(section)
-                .Map(wakeUps => new PullRequestRules(new ForgeName(named), remote.Match(given => given, () => PullRequestRules.DefaultRemote), policy, wakeUps)))),
+            named => Named(section, "remote", remote => remote.Length > 0).Bind(remote => Policy(section).Bind(policy => WakeUps(section).Bind(wakeUps => Redeliver(section)
+                .Map(redelivery => new PullRequestRules(new ForgeName(named), remote.Match(given => given, () => PullRequestRules.DefaultRemote), policy, wakeUps) { Redelivery = redelivery })))),
             () => ForgeError.MissingForge));
     }
 
@@ -69,6 +69,16 @@ internal static class PullRequestRulesParser
             "watch-only" => OnPullRequest.WatchOnly,
             "wake-on-ci" => OnPullRequest.WakeOnCi,
             "wake-on-ci-and-reviews" => OnPullRequest.WakeOnCiAndReviews,
+            _ => ForgeError.UnknownPolicy,
+        };
+
+    private static Result<Redelivery, ForgeError> Redeliver(JsonElement section) =>
+        !section.TryGetProperty("redeliver", out var redeliver) ? Redelivery.Automatic
+        : redeliver.ValueKind != JsonValueKind.String ? ForgeError.Malformed
+        : redeliver.GetString() switch
+        {
+            "automatic" => Redelivery.Automatic,
+            "review" => Redelivery.Review,
             _ => ForgeError.UnknownPolicy,
         };
 

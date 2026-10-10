@@ -21,12 +21,13 @@ internal sealed class WatchAdoption(WatchBook book, PullRequestReader reader, Ti
                 PullRequest = delivered.PullRequest,
                 Policy = delivered.Rules.Policy,
                 MaxWakeUps = delivered.Rules.MaxWakeUps,
+                Redelivery = delivered.Rules.Redelivery,
                 Status = kept.State.Status == WatchStatus.NeedsPerson ? WatchStatus.NeedsPerson : WatchStatus.Watching,
                 Ended = Option<WatchEnd>.None,
                 Failure = Option<ForgeError>.None,
                 Failures = 0,
             },
-            () => new PullRequestWatchState(delivered.Job, delivered.Rules.Forge, delivered.PullRequest, delivered.Rules.Policy, delivered.Rules.MaxWakeUps));
+            () => new PullRequestWatchState(delivered.Job, delivered.Rules.Forge, delivered.PullRequest, delivered.Rules.Policy, delivered.Rules.MaxWakeUps) { Redelivery = delivered.Rules.Redelivery });
         var kept = new KeptWatch(
             state with { NextPoll = clock.GetUtcNow() + poll },
             delivered.Rules.Remote,

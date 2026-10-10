@@ -20,6 +20,8 @@ internal sealed record ForgeSettings(IReadOnlyList<ForgeDeclaration> Forges, Tim
 
 internal sealed record PullRequestRules(ForgeName Forge, string Remote, OnPullRequest Policy, int MaxWakeUps)
 {
+    public Redelivery Redelivery { get; init; }
+
     public const string DefaultRemote = "origin";
 
     public const int DefaultWakeUps = 3;
