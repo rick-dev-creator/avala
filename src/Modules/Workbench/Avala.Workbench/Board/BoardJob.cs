@@ -1,3 +1,4 @@
+using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -25,6 +26,10 @@ internal sealed record BoardJob(JobSummary Summary, Transcript Transcript)
     public IReadOnlyList<HandoffRecord> Handoffs { get; init; } = [];
 
     public Option<ResetWait> Wait { get; init; }
+
+    public Option<PullRequestWatchState> PullRequest { get; init; }
+
+    public IReadOnlyList<WakeUpRecord> WakeUps { get; init; } = [];
 
     public int Revision { get; init; }
 

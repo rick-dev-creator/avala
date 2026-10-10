@@ -418,6 +418,18 @@ public sealed class ReviewExceptionViewScripts(HeadlessUi ui)
 
             Assert.Equal(("Declined: Which route?", false, false), (view.TextOf("Title"), view.Shows("Detail"), view.Shows("OutputWell")));
         }, Cancellation);
+
+    [Fact]
+    public Task TheReviewSheetOffersOpenPullRequestBesideApproveOnlyWhenAForgeIsOfferedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var offered = Screen.Show(new DesignReviewViewModel());
+            var none = Screen.Show(new DesignReviewViewModel { PullRequestOffer = string.Empty });
+
+            Assert.Equal((true, true), (offered.Shows("OpenPullRequest"), offered.Shows("Approve")));
+            Assert.Equal("Open pull request on github (GitHub, origin)", ToolTip.GetTip(offered.Find("OpenPullRequest")));
+            Assert.Equal((false, true), (none.Shows("OpenPullRequest"), none.Shows("Approve")));
+        }, Cancellation);
 }
 
 public sealed class ChangedFileViewScripts(HeadlessUi ui)

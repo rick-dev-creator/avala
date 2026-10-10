@@ -65,7 +65,7 @@ public sealed class DefaultConnectionViewModelScripts
     public async Task SavingAutoReleasesAFixedDefaultAsync()
     {
         var fixedOne = new FakeConnections("claude-work", "claude-personal");
-        var chosen = new DefaultConnectionViewModel(new MachineSettings(fixedOne, new FakeSupervision(), new FakeResources()), messenger);
+        var chosen = new DefaultConnectionViewModel(new MachineSettings(fixedOne, new FakeSupervision(), new FakeResources(), new FakeForgeCatalog()), messenger);
         chosen.Show(fixedOne.Catalog);
 
         chosen.Draft = DefaultPhrases.Auto;
@@ -120,7 +120,7 @@ public sealed class DefaultConnectionViewModelScripts
     }
 
     private DefaultConnectionViewModel Default() =>
-        new(new MachineSettings(connections, new FakeSupervision(), new FakeResources()), messenger);
+        new(new MachineSettings(connections, new FakeSupervision(), new FakeResources(), new FakeForgeCatalog()), messenger);
 
     private DefaultConnectionViewModel Shown()
     {

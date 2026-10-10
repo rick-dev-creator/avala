@@ -28,6 +28,8 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private const string LimitsField = "limits";
 
+    private const string PullRequestField = "pullRequest";
+
     private const string ModelField = "model";
 
     private const string EffortField = "effort";
@@ -88,7 +90,7 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
             return Rejected("it is not a JSON object");
         }
 
-        if (root.EnumerateObject().Any(property => property.Name is not (ConnectionField or ApprovalField or AutopilotField or DelegationField or ModelField or EffortField or LimitsField)))
+        if (root.EnumerateObject().Any(property => property.Name is not (ConnectionField or ApprovalField or AutopilotField or DelegationField or ModelField or EffortField or LimitsField or PullRequestField)))
         {
             return Rejected("it has a field the format does not define");
         }
@@ -106,6 +108,11 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
         if (root.TryGetProperty(LimitsField, out var limits) && !IsSection(limits, listsAllowed: true))
         {
             return Rejected($"its {LimitsField} is not an object of plain values and lists of them");
+        }
+
+        if (root.TryGetProperty(PullRequestField, out var pullRequest) && !IsSection(pullRequest, listsAllowed: false))
+        {
+            return Rejected($"its {PullRequestField} is not an object of plain values");
         }
 
         return Named(root, ConnectionField).Bind(connection => Named(root, ApprovalField).Bind(approval => Named(root, ModelField).Bind(model => Named(root, EffortField)

@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\Delegation\Avala.Delegation.Contracts\Avala.Delegation.Contracts.csproj" />
     <ProjectReference Include="..\..\Transcripts\Avala.Transcripts.Contracts\Avala.Transcripts.Contracts.csproj" />
     <ProjectReference Include="..\..\Handoffs\Avala.Handoffs.Contracts\Avala.Handoffs.Contracts.csproj" />
+    <ProjectReference Include="..\..\Forges\Avala.Forges.Contracts\Avala.Forges.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Workbench.UI" />

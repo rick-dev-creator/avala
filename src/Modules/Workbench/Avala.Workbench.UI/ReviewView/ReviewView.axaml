@@ -284,6 +284,11 @@
                     Content="Send feedback"
                     Command="{Binding SendBackCommand}"
                     IsVisible="{Binding #WriteFeedback.IsChecked}" />
+            <Button x:Name="OpenPullRequest"
+                    Content="Open pull request"
+                    ToolTip.Tip="{Binding PullRequestOffer}"
+                    Command="{Binding OpenPullRequestCommand}"
+                    IsVisible="{Binding PullRequestOffer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             <Button x:Name="Approve" Classes="primary" Content="Approve" Command="{Binding ApproveCommand}" />
           </StackPanel>
 

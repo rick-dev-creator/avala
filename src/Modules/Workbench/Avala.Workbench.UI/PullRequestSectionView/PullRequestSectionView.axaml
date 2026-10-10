@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inspector="using:Avala.Workbench.Inspector"
+             xmlns:ui="using:Avala.Components.UI"
+             x:Class="Avala.Workbench.UI.PullRequestSectionView"
+             x:ClassModifier="internal"
+             x:DataType="inspector:IPullRequestSectionViewModel">
+  <Design.DataContext>
+    <inspector:DesignPullRequestSectionViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBlock.value">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+  </UserControl.Styles>
+  <ui:Fold x:Name="Section" Header="Pull request" Fact="{Binding Fact}">
+    <StackPanel Margin="28,0,12,12" Spacing="7">
+      <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <TextBlock x:Name="Title" Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Title}" />
+      <StackPanel Spacing="7" IsVisible="{Binding HasPullRequest}">
+        <TextBlock x:Name="Status" Classes="value" Text="{Binding Status}" />
+        <TextBlock x:Name="Policy" Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Policy}" />
+        <TextBlock x:Name="Checks" Classes="value" Text="{Binding Checks}" />
+        <ItemsControl x:Name="CheckLines" ItemsSource="{Binding CheckLines}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Classes="caption secondary" TextWrapping="Wrap" Text="{Binding}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock x:Name="Mergeability"
+                   Classes="value"
+                   Text="{Binding Mergeability}"
+                   IsVisible="{Binding Mergeability, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <ItemsControl x:Name="Reviews" ItemsSource="{Binding Reviews}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Classes="caption secondary" TextWrapping="Wrap" Text="{Binding}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <ItemsControl x:Name="WakeUps" ItemsSource="{Binding WakeUps}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Classes="caption" TextWrapping="Wrap" Text="{Binding}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="OpenLink" Classes="ghost" Content="Open in browser" Command="{Binding OpenLinkCommand}" />
+          <Button x:Name="CheckNow" Classes="ghost" Content="Check now" Command="{Binding CheckNowCommand}" />
+        </StackPanel>
+        <TextBlock x:Name="Notice"
+                   Classes="caption attention"
+                   TextWrapping="Wrap"
+                   Text="{Binding Notice}"
+                   IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+    </StackPanel>
+  </ui:Fold>
+</UserControl>

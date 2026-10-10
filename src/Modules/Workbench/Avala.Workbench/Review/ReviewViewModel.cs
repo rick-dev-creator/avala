@@ -62,7 +62,11 @@ internal interface IReviewViewModel
 
     bool ConfirmingDiscard { get; }
 
+    string PullRequestOffer { get; }
+
     IAsyncRelayCommand ApproveCommand { get; }
+
+    IAsyncRelayCommand OpenPullRequestCommand { get; }
 
     IAsyncRelayCommand SendBackCommand { get; }
 
@@ -142,7 +146,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Heading))]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
     public partial JobStatus Status { get; private set; }
 
     [ObservableProperty]
@@ -191,21 +195,25 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Heading), nameof(IsClosed))]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
     public partial string Outcome { get; private set; }
 
     [ObservableProperty]
     public partial string Refusal { get; private set; }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenPullRequestCommand))]
+    public partial string PullRequestOffer { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial IReadOnlyList<string> Conflicts { get; private set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
     public partial bool ConfirmingDiscard { get; private set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
     public partial bool IsActing { get; private set; }
 
     public void Track(JobStatus status)
@@ -234,11 +242,13 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     private async Task LoadAsync(int revision, CancellationToken cancellationToken)
     {
         var facts = await reader.ReadAsync(Job, cancellationToken);
+        var offer = await desk.PullRequestOfferAsync(Job, cancellationToken);
         await ui.InvokeAsync(
             () =>
             {
                 if (!cancellationToken.IsCancellationRequested && revision == Requested)
                 {
+                    PullRequestOffer = offer.Match(ReviewPhrases.Offer, () => string.Empty);
                     Show(facts);
                     Revision++;
                     Presented?.Invoke(this, new Presented(Revision));
@@ -286,7 +296,15 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
         {
             var attempt = await desk.ApproveAsync(Job, cancellationToken);
             Conflicts = attempt.Conflicts;
-            Settle("Approved", attempt.Outcome.Map(ReviewPhrases.Delivered), rejection => rejection == JobRejection.MergeConflict ? ReviewPhrases.Conflicted(attempt.Conflicts) : ReviewPhrases.Refusal(rejection));
+            Settle("Approved", attempt.Outcome.Map(ReviewPhrases.Delivered), rejection => rejection == JobRejection.MergeConflict ? ReviewPhrases.Conflicted(attempt.Conflicts) : ReviewPhrases.Refusal(rejection, attempt.ForgeRefusal));
+        });
+
+    [RelayCommand(CanExecute = nameof(CanOpenPullRequest))]
+    private Task OpenPullRequestAsync(CancellationToken cancellationToken) =>
+        ActAsync(async () =>
+        {
+            var attempt = await desk.OpenPullRequestAsync(Job, cancellationToken);
+            Settle("Pull request opened", attempt.Outcome.Map(ReviewPhrases.Delivered), rejection => ReviewPhrases.Refusal(rejection, attempt.ForgeRefusal));
         });
 
     [RelayCommand(CanExecute = nameof(CanSendBack))]
@@ -355,6 +373,8 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     private bool IsOpen() => !IsActing && !IsClosed;
 
     private bool CanApprove() => IsOpen() && !ConfirmingDiscard && Status == JobStatus.AwaitingReview;
+
+    private bool CanOpenPullRequest() => CanApprove() && PullRequestOffer.Length > 0;
 
     private bool CanSendBack() => CanApprove() && !string.IsNullOrWhiteSpace(Feedback);
 

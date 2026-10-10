@@ -200,6 +200,25 @@ internal sealed class Job : IAggregateRoot<JobId>
                 return Begin(AttemptOrigin.SendBack, feedback);
             });
 
+    public Result<AttemptStarted, JobError> Reopen(Feedback feedback) =>
+        machine.TryFire(JobTrigger.Reopen, JobError.CannotReopen)
+            .Map(_ =>
+            {
+                Ended = Option<DateTimeOffset>.None;
+
+                return Begin(AttemptOrigin.SendBack, feedback);
+            });
+
+    public Result<AttemptStarted, JobError> Reopen(Feedback feedback, SessionId session, bool resumed) =>
+        machine.TryFire(JobTrigger.Reopen, JobError.CannotReopen)
+            .Map(_ =>
+            {
+                Ended = Option<DateTimeOffset>.None;
+                Join(session, resumed);
+
+                return Begin(AttemptOrigin.SendBack, feedback);
+            });
+
     public Result<JobApproved, JobError> Approve(DateTimeOffset at) =>
         machine.TryFire(JobTrigger.Approve, JobError.CannotApprove)
             .Map(_ =>

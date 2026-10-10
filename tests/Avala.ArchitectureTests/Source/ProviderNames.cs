@@ -5,6 +5,8 @@ internal static class ProviderNames
     public static IReadOnlyDictionary<string, string[]> Owned { get; } = new Dictionary<string, string[]>
     {
         [Path.Combine("Modules", "ClaudeCode")] = ["claude-code", "CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "stream-json", "mcp__"],
+        [Path.Combine("Modules", "GitHub")] = ["CHANGES_REQUESTED", "check-runs", "mergeable_state"],
+        [Path.Combine("Modules", "Gitea")] = ["REQUEST_CHANGES", "/api/v1"],
     };
 
     private const string DesignTimeData = "DesignViewModels.cs";

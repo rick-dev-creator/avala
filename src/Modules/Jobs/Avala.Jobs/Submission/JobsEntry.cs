@@ -8,7 +8,7 @@ using Avala.Sdk;
 
 namespace Avala.Jobs.Submission;
 
-internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, ReviewJob review, JobQueues queues) : IJobs
+internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, ReviewJob review, JobQueues queues) : IJobs, IOpenDeliveries
 {
     public async ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
         await submit.ExecuteAsync(request, cancellationToken);
@@ -36,6 +36,12 @@ internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, ReviewJob review
 
     public async ValueTask<Result<JobApproval, JobRejection>> ApproveAsync(JobId job, CancellationToken cancellationToken) =>
         await InQueueAsync(job, review.ApproveAsync, cancellationToken);
+
+    public async ValueTask<Result<JobApproval, JobRejection>> ApproveThroughAsync(JobId job, string strategy, CancellationToken cancellationToken) =>
+        await InQueueAsync(job, (found, token) => review.ApproveAsync(found, Option<string>.Some(strategy), token), cancellationToken);
+
+    public async ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
+        await WithFeedbackAsync(job, feedback, review.ReopenAsync, cancellationToken);
 
     public async ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         await WithFeedbackAsync(job, feedback, review.SendBackAsync, cancellationToken);

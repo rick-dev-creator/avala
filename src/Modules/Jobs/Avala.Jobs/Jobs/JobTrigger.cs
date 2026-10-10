@@ -17,4 +17,5 @@ internal enum JobTrigger
     Fail,
     Hold,
     HandOff,
+    Reopen,
 }

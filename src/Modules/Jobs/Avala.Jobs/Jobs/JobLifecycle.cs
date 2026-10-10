@@ -50,6 +50,9 @@ internal static class JobLifecycle
             .Permit(JobTrigger.SendBack, JobState.Running)
             .Permit(JobTrigger.Approve, JobState.Approved);
 
+        machine.Configure(JobState.Approved)
+            .Permit(JobTrigger.Reopen, JobState.Running);
+
         return machine;
     }
 }

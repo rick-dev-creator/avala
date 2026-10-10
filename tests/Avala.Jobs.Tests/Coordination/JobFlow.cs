@@ -86,7 +86,7 @@ internal sealed class JobFlow
 
     public HoldJob Hold { get; }
 
-    public IJobs Jobs { get; }
+    public JobsEntry Jobs { get; }
 
     public PrepareJob Prepare { get; }
 

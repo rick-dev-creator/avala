@@ -130,6 +130,57 @@ public sealed class ReviewJobTests
         Assert.Equal(sent, flow.Agents.Sent.Count);
     }
 
+    [Fact]
+    public async Task ApprovingThroughANamedStrategyDeliversThroughItInsteadOfTheRepositorysAsync()
+    {
+        var flow = JobFlow.With();
+        var named = new ScriptedStrategy("pull-request", new ApprovalDelivery("pull-request", "avala/job", "abc123"));
+        flow.Strategies.Add(named);
+        var job = await ReviewedAsync(flow);
+
+        var approval = Outcomes.Succeeds(await flow.Jobs.ApproveThroughAsync(job.Id, "pull-request", Cancellation));
+
+        Assert.Single(named.Requests);
+        Assert.Equal(new ApprovalDelivery("pull-request", "avala/job", "abc123"), approval.Delivery);
+        Assert.Equal(JobState.Approved, job.State);
+        Assert.Equal(JobRejection.UnknownApprovalStrategy, Outcomes.FailsWith(await flow.Jobs.ApproveThroughAsync((await ReviewedAsync(flow)).Id, "squash", Cancellation)));
+    }
+
+    [Fact]
+    public async Task ReopeningAnApprovedJobStartsASendBackRoundInANewSessionThatResumesItsConversationAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
+        var job = await ReviewedAsync(flow);
+        await flow.OfferResumeAsync(job, Outcomes.Present(job.Session), Token);
+        _ = Outcomes.Succeeds(await flow.Jobs.ApproveAsync(job.Id, Cancellation));
+
+        var continued = Outcomes.Succeeds(await flow.Jobs.ReopenAsync(job.Id, Feedback, Cancellation));
+
+        Assert.Equal(ContinuedIn.ResumedConversation, continued.Conversation);
+        Assert.Equal((JobState.Running, AttemptOrigin.SendBack, Option<DateTimeOffset>.None), (job.State, job.Attempts[^1].Origin, job.Ended));
+        Assert.Equal(Option<ResumeToken>.Some(Token), flow.Agents.Requests[^1].Resume);
+        Assert.Equal((continued.Session, Feedback), flow.Agents.Sent[^1]);
+        Assert.Equal(new JobProgressed(job.Id, JobStatus.Running), flow.Bus.Published.OfType<JobProgressed>().Last());
+    }
+
+    [Fact]
+    public async Task OnlyAnApprovedJobWithItsWorktreeCanBeReopenedAndOnlyWithFeedbackAsync()
+    {
+        var flow = JobFlow.With();
+        var reviewed = await ReviewedAsync(flow);
+        var gone = await ReviewedAsync(flow);
+        _ = Outcomes.Succeeds(await flow.Jobs.ApproveAsync(gone.Id, Cancellation));
+        _ = await flow.Workspaces.RemoveAsync(Outcomes.Present(gone.Workspace), Cancellation);
+        var sent = flow.Agents.Sent.Count;
+
+        Assert.Equal(JobRejection.NotApproved, Outcomes.FailsWith(await flow.Jobs.ReopenAsync(reviewed.Id, Feedback, Cancellation)));
+        Assert.Equal(JobRejection.EmptyMessage, Outcomes.FailsWith(await flow.Jobs.ReopenAsync(gone.Id, " ", Cancellation)));
+        Assert.Equal(JobRejection.WorkspaceUnavailable, Outcomes.FailsWith(await flow.Jobs.ReopenAsync(gone.Id, Feedback, Cancellation)));
+        Assert.Equal(JobRejection.UnknownJob, Outcomes.FailsWith(await flow.Jobs.ReopenAsync(JobId.New(), Feedback, Cancellation)));
+        Assert.Equal((JobState.AwaitingReview, JobState.Approved), (reviewed.State, gone.State));
+        Assert.Equal(sent, flow.Agents.Sent.Count);
+    }
+
     private static async Task<Job> ReviewedAsync(JobFlow flow)
     {
         var job = await flow.RunningAsync();

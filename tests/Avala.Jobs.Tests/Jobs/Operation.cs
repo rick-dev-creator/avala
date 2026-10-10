@@ -21,4 +21,6 @@ internal enum Operation
     Fail,
     Hold,
     HandOff,
+    Reopen,
+    ReopenInNewSession,
 }

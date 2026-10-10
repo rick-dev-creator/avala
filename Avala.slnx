@@ -96,6 +96,19 @@
     <Project Path="src/Modules/Handoffs/Avala.Handoffs.Contracts/Avala.Handoffs.Contracts.csproj" />
     <Project Path="src/Modules/Handoffs/Avala.Handoffs/Avala.Handoffs.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Forges/">
+    <Project Path="src/Modules/Forges/Avala.Forges.Contracts/Avala.Forges.Contracts.csproj" />
+    <Project Path="src/Modules/Forges/Avala.Forges/Avala.Forges.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/GitHub/">
+    <Project Path="src/Modules/GitHub/Avala.GitHub/Avala.GitHub.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Gitea/">
+    <Project Path="src/Modules/Gitea/Avala.Gitea/Avala.Gitea.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/ForgeSimulator/">
+    <Project Path="src/Modules/ForgeSimulator/Avala.ForgeSimulator/Avala.ForgeSimulator.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Transcripts/">
     <Project Path="src/Modules/Transcripts/Avala.Transcripts.Contracts/Avala.Transcripts.Contracts.csproj" />
     <Project Path="src/Modules/Transcripts/Avala.Transcripts/Avala.Transcripts.csproj" />
@@ -154,6 +167,11 @@
     <Project Path="tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj" />
     <Project Path="tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj" />
     <Project Path="tests/Avala.Mermaid.Tests/Avala.Mermaid.Tests.csproj" />
+    <Project Path="tests/Avala.Forges.Tests/Avala.Forges.Tests.csproj" />
+    <Project Path="tests/Avala.Forges.Testing/Avala.Forges.Testing.csproj" />
+    <Project Path="tests/Avala.GitHub.Tests/Avala.GitHub.Tests.csproj" />
+    <Project Path="tests/Avala.Gitea.Tests/Avala.Gitea.Tests.csproj" />
+    <Project Path="tests/Avala.ForgeSimulator.Tests/Avala.ForgeSimulator.Tests.csproj" />
     <Project Path="tests/Avala.ClaudeCode.Tests/Avala.ClaudeCode.Tests.csproj" />
     <Project Path="tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj" />
   </Folder>

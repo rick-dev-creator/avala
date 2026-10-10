@@ -10,7 +10,7 @@ namespace Avala.Jobs.Review;
 
 internal sealed class Approvals(IWorkspaces workspaces, IRepositoryDefaults defaults, IEnumerable<IApprovalStrategy> strategies, JobQueues queues)
 {
-    public async Task<Result<ApprovalDelivery, JobRejection>> DeliverAsync(Job job, CancellationToken cancellationToken)
+    public async Task<Result<ApprovalDelivery, JobRejection>> DeliverAsync(Job job, Option<string> strategy, CancellationToken cancellationToken)
     {
         if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
@@ -21,7 +21,9 @@ internal sealed class Approvals(IWorkspaces workspaces, IRepositoryDefaults defa
 
         return await job.Parent.Match(
             parent => IntoParentAsync(parent, request, cancellationToken),
-            () => ThroughRepositoryStrategyAsync(request, cancellationToken));
+            () => strategy.Match(
+                named => DeliverThroughAsync(named, request, cancellationToken),
+                () => ThroughRepositoryStrategyAsync(request, cancellationToken)));
     }
 
     private async Task<Result<ApprovalDelivery, JobRejection>> ThroughRepositoryStrategyAsync(ApprovalRequest request, CancellationToken cancellationToken)

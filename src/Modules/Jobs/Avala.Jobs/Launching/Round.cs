@@ -15,4 +15,8 @@ internal sealed record Round(
     public static Round SendBack { get; } = new(
         (job, feedback) => job.SendBack(feedback),
         (job, feedback, session, resumed) => job.SendBack(feedback, session, resumed));
+
+    public static Round Reopen { get; } = new(
+        (job, feedback) => job.Reopen(feedback),
+        (job, feedback, session, resumed) => job.Reopen(feedback, session, resumed));
 }

@@ -29,14 +29,20 @@ internal sealed class ReviewJob(JobLedger ledger, JobLauncher launcher, Approval
     public Task<Result<JobContinuation, JobRejection>> ResumeAsync(Job job, CancellationToken cancellationToken) =>
         resume.ExecuteAsync(job, cancellationToken);
 
-    public async Task<Result<JobApproval, JobRejection>> ApproveAsync(Job job, CancellationToken cancellationToken)
+    public Task<Result<JobContinuation, JobRejection>> ReopenAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
+        launcher.ReopenAsync(job, feedback, cancellationToken);
+
+    public Task<Result<JobApproval, JobRejection>> ApproveAsync(Job job, CancellationToken cancellationToken) =>
+        ApproveAsync(job, Option<string>.None, cancellationToken);
+
+    public async Task<Result<JobApproval, JobRejection>> ApproveAsync(Job job, Option<string> strategy, CancellationToken cancellationToken)
     {
         if (job.State != JobState.AwaitingReview)
         {
             return JobRejection.NotAwaitingReview;
         }
 
-        if (!(await approvals.DeliverAsync(job, cancellationToken)).TryGetValue(out var delivery, out var rejection))
+        if (!(await approvals.DeliverAsync(job, strategy, cancellationToken)).TryGetValue(out var delivery, out var rejection))
         {
             return rejection;
         }

@@ -50,7 +50,7 @@ public sealed class WorkbenchPluginTests : IDisposable
         Assert.Equal([typeof(ToolbarViewModel)], regions[ShellRegions.Toolbar]);
         Assert.Equal([typeof(ResourceIndicatorViewModel), typeof(UpdateNoticeViewModel)], regions[ShellRegions.SidebarFooter]);
         Assert.Equal(
-            [typeof(EvidenceSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(DelegationSectionViewModel)],
+            [typeof(EvidenceSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(PullRequestSectionViewModel), typeof(DelegationSectionViewModel)],
             regions[ShellRegions.Inspector]);
         Assert.Equal(["Jobs", "New job", "Overview", "Usage", "Resources", "Settings"], composition.All<IPage>().Select(page => page.Title));
         Assert.IsType<WorkbenchViewModel>(composition.All<IPage>()[0]);
@@ -90,6 +90,9 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IVerifications>(audit)
             .AddSingleton<Transcripts.Contracts.ITranscripts>(new FakeTranscripts())
             .AddSingleton<Handoffs.Contracts.IHandoffs>(new FakeHandoffs())
+            .AddSingleton<Forges.Contracts.IPullRequests>(new FakePullRequests())
+            .AddSingleton<Forges.Contracts.IForgeCatalog>(new FakeForgeCatalog())
+            .AddSingleton<IOpenDeliveries>(new FakeJobs())
             .AddSingleton<IPermissionAudit>(audit)
             .AddSingleton<IBudgets>(audit)
             .AddSingleton<IResources>(sources)

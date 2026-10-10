@@ -31,5 +31,6 @@ stateDiagram-v2
 	NeedsHelp --> Running : HandOff
 	AwaitingReview --> Running : SendBack
 	AwaitingReview --> Approved : Approve
+	Approved --> Running : Reopen
 [*] --> Draft
 ```

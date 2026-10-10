@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\ForgeSimulator\Avala.ForgeSimulator\Avala.ForgeSimulator.csproj" />
+    <ProjectReference Include="..\..\src\Avala.Runtime\Avala.Runtime.csproj" />
+    <ProjectReference Include="..\Avala.Forges.Testing\Avala.Forges.Testing.csproj" />
+    <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+  </ItemGroup>
+</Project>

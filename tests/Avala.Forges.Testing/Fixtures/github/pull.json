@@ -1,0 +1,43 @@
+{
+  "url": "https://api.github.com/repos/octo/shop/pulls/7",
+  "id": 1296269,
+  "node_id": "MDExOlB1bGxSZXF1ZXN0MQ==",
+  "html_url": "https://github.com/octo/shop/pull/7",
+  "number": 7,
+  "state": "open",
+  "locked": false,
+  "title": "Add a greeting",
+  "user": { "login": "octocat", "id": 1, "type": "User" },
+  "body": "Add a greeting\n\nOpened by Avala for job 0b5c.",
+  "created_at": "2026-10-10T08:00:00Z",
+  "updated_at": "2026-10-10T08:00:00Z",
+  "closed_at": null,
+  "merged_at": null,
+  "merge_commit_sha": null,
+  "draft": false,
+  "head": {
+    "label": "octo:avala/job-0b5c",
+    "ref": "avala/job-0b5c",
+    "sha": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "user": { "login": "octo", "id": 2 },
+    "repo": { "id": 1296269, "name": "shop", "full_name": "octo/shop" }
+  },
+  "base": {
+    "label": "octo:main",
+    "ref": "main",
+    "sha": "e5bd3914e2e596debea16f433f57875b5b90bcd6",
+    "user": { "login": "octo", "id": 2 },
+    "repo": { "id": 1296269, "name": "shop", "full_name": "octo/shop" }
+  },
+  "merged": false,
+  "mergeable": false,
+  "rebaseable": false,
+  "mergeable_state": "dirty",
+  "merged_by": null,
+  "comments": 0,
+  "review_comments": 1,
+  "commits": 3,
+  "additions": 12,
+  "deletions": 1,
+  "changed_files": 2
+}

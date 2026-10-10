@@ -120,6 +120,7 @@ internal static class ConversationPhrases
         JobRejection.AgentUnavailable => "The agent could not start.",
         JobRejection.NotAwaitingReview => "The job no longer awaits review.",
         JobRejection.NotSteerable => "This agent takes no message while it works.",
+        JobRejection.NotApproved => "The job is not approved, so it cannot be reopened.",
         _ => "The job refused the command.",
     };
 

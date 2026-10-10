@@ -119,6 +119,10 @@ public sealed class SettingsViewModelScripts
 
         public string ConnectionsFile => machine.ConnectionsFile;
 
+        public IReadOnlyList<IForgeConnectionViewModel> Forges => machine.Forges;
+
+        public string ForgesFile => machine.ForgesFile;
+
         public string Silence => machine.Silence;
 
         public string SupervisionFile => machine.SupervisionFile;

@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.ForgeConnectionView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IForgeConnectionViewModel">
+  <Design.DataContext>
+    <settings:DesignForgeConnectionViewModel />
+  </Design.DataContext>
+  <StackPanel Margin="0,12">
+    <TextBlock x:Name="ForgeName" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+    <StackPanel Orientation="Horizontal" Spacing="6">
+      <TextBlock x:Name="Forge" Classes="caption" Text="{Binding Forge}" />
+      <TextBlock Classes="caption" Text="·" />
+      <TextBlock x:Name="Url" Classes="caption" Text="{Binding Url}" TextTrimming="CharacterEllipsis" />
+      <TextBlock Classes="caption" Text="·" />
+      <TextBlock x:Name="Credential" Classes="caption" Text="{Binding Credential}" TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+    <TextBlock x:Name="Problem"
+               Classes="caption failure"
+               TextWrapping="Wrap"
+               Text="{Binding Problem}"
+               IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

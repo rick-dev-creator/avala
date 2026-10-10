@@ -39,7 +39,7 @@ internal sealed class FakeCatalog : IJobCatalog
         ValueTask.FromResult(Option<JobTree>.None);
 }
 
-internal sealed class FakeJobs : IJobs
+internal sealed class FakeJobs : IJobs, IOpenDeliveries
 {
     public List<string> Calls { get; } = [];
 
@@ -88,6 +88,12 @@ internal sealed class FakeJobs : IJobs
 
         return await answer;
     }
+
+    public ValueTask<Result<JobApproval, JobRejection>> ApproveThroughAsync(JobId job, string strategy, CancellationToken cancellationToken) =>
+        AnswerAsync($"approve through {strategy}", new JobApproval(job, new ApprovalDelivery(strategy, "avala/fix-the-test", "c0ffee0")));
+
+    public ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
+        AnswerAsync($"reopen {feedback}", new JobContinuation(job, SessionId.New(), ContinuedIn.ResumedConversation));
 
     public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         Unless(JobStatus.AwaitingReview, JobRejection.NotAwaitingReview) is { } refused

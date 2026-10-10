@@ -62,7 +62,11 @@ internal sealed class Bench : IDisposable
 
     public QueuedMessages Queue => field ??= new(Jobs);
 
-    public ReviewDesk Desk => new(Jobs, Catalog, Changes, Queue);
+    public FakePullRequests PullRequests { get; } = new();
+
+    public ReviewDesk Desk => new(Jobs, new ConflictFinder(Catalog, Changes), Queue, Forge);
+
+    public ForgeDesk Forge => new(PullRequests, Jobs);
 
     public JobInspection Inspection => new(new JobRecords(Catalog, Workspaces, Resources, Resources), new JobAudit(Audit, Audit, Usage, Audit), Board);
 

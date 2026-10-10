@@ -250,6 +250,36 @@ internal static class LayerMap
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
         }),
+        .. Module("Avala.Forges", new()
+        {
+            [""] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Policy"] = Layer.Domain,
+            ["Connecting"] = Layer.Application,
+            ["Delivering"] = Layer.Application,
+            ["Watching"] = Layer.Application,
+            ["RuleFiles"] = Layer.Infrastructure,
+            ["Transport"] = Layer.Infrastructure,
+            ["Git"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.GitHub", new()
+        {
+            [""] = Layer.None,
+            ["Api"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.Gitea", new()
+        {
+            [""] = Layer.None,
+            ["Api"] = Layer.Infrastructure,
+        }),
+        .. Module("Avala.ForgeSimulator", new()
+        {
+            [""] = Layer.None,
+            ["Scenarios"] = Layer.Domain,
+            ["Remote"] = Layer.Infrastructure,
+        }),
         .. Module("Avala.Transcripts", new()
         {
             [""] = Layer.None,
