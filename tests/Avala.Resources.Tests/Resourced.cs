@@ -26,6 +26,7 @@ internal sealed class Resourced : IAsyncDisposable
         Reaper = new OrphanReaper(Readings, Settings, Bus, Clock);
         Housekeeper = new WorktreeHousekeeper(Workspaces, Settings, Bus, Clock);
         Tracker = new ResourceTracker(Book, Reaper, Leases, Housekeeper);
+        Recovery = new RetentionRecovery(Catalog, Workspaces, Housekeeper, Reaper);
         Taker = new SampleTaker(Readings, Book, Folders, Bus);
     }
 
@@ -62,6 +63,10 @@ internal sealed class Resourced : IAsyncDisposable
 
     public ResourceTracker Tracker { get; }
 
+    public FakeCatalog Catalog { get; } = new();
+
+    public RetentionRecovery Recovery { get; }
+
     public SampleTaker Taker { get; }
 
     public static string Home(string name) => Path.Combine(Path.GetTempPath(), "avala-resources", name);
@@ -85,5 +90,9 @@ internal sealed class Resourced : IAsyncDisposable
         return Bus.Published.OfType<ResourcesSampled>().Last().Sample;
     }
 
-    public ValueTask DisposeAsync() => Leases.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await Housekeeper.DisposeAsync();
+        await Leases.DisposeAsync();
+    }
 }

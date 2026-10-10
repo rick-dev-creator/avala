@@ -26,7 +26,7 @@ internal sealed class JobFlow
     {
         Workspaces = workspaces;
         Agents = agents;
-        var ledger = new JobLedger(Store, Bus, agents);
+        var ledger = new JobLedger(Store, Bus, agents, Clock);
         Queues = new JobQueues(ledger, NullLogger<JobQueues>.Instance);
         var launcher = new JobLauncher(
             ledger,
@@ -45,7 +45,7 @@ internal sealed class JobFlow
         var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), agents);
         Check = new CheckTurn(ledger, Queues, evaluate, Hold);
         var recover = new RecoverJob(ledger, launcher, evaluate, deferred);
-        Recovery = new JobRecovery(new JobLedger(Store, Bus, agents), Queues, recover);
+        Recovery = new JobRecovery(new JobLedger(Store, Bus, agents, Clock), Queues, recover);
         RecoveryInThisRun = new JobRecovery(ledger, Queues, recover);
         Catalog = new JobCatalog(Store);
     }

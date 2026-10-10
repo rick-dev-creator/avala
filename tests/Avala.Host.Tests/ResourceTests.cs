@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Transcripts.Contracts;
 
 namespace Avala.Host.Tests;
 
@@ -81,6 +82,29 @@ public sealed class ResourceTests(PublishedPlugins plugins)
         Assert.Equal((run.Job, JobStatus.Discarded), (reclaimed.Job, reclaimed.Status));
         Assert.False(Directory.Exists(worktree));
         Assert.Equal([reclaimed], run.Get<IWorktreeHousekeeping>().Reclaimed());
+    }
+
+    [Fact]
+    public async Task ARetentionPendingWhenTheApplicationStopsReclaimsTheWorktreeAndReleasesTheConversationOnceItsDeadlinePassesAfterARestartAsync()
+    {
+        await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("reply"), [("resources.json", """{ "worktrees": { "keepDiscardedHours": 1 } }""")], []);
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var worktree = run.Worktree;
+        Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, Cancellation));
+        await run.DeliveredAsync();
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+        Assert.True(Directory.Exists(worktree));
+        run.Clock.Advance(TimeSpan.FromHours(1));
+        var reclaimed = await run.ReclaimedAsync();
+        await run.DeliveredAsync();
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        Assert.Equal((run.Job, JobStatus.Discarded), (reclaimed.Job, reclaimed.Status));
+        Assert.False(Directory.Exists(worktree));
+        Assert.Equal([new AttemptBegan(1)], (await run.Get<ITranscripts>().EarlierRunsAsync(run.Job, Cancellation)).Select(kept => kept.Fact));
     }
 
     [Fact]

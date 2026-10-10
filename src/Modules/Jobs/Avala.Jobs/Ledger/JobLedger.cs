@@ -9,9 +9,11 @@ using ApprovalAnnouncement = Avala.Jobs.Contracts.JobApproved;
 
 namespace Avala.Jobs.Ledger;
 
-internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents)
+internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents, TimeProvider clock)
 {
     private ImmutableHashSet<JobId> recorded = [];
+
+    public DateTimeOffset Now => clock.GetUtcNow();
 
     public bool RecordedInThisRun(JobId job) => Volatile.Read(ref recorded).Contains(job);
 

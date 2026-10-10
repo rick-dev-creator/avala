@@ -37,6 +37,19 @@ public sealed class SqliteJobStoreTests
     }
 
     [Fact]
+    public async Task WhenAJobEndedSurvivesAReloadAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var ended = Given.JobIn(JobState.Discarded);
+        var running = Given.JobIn(JobState.Running);
+        await SaveAsync(folder, ended, running);
+
+        var reloaded = (await ReloadAsync(folder, store => store.FindAsync(ended.Id, Cancellation)), await ReloadAsync(folder, store => store.FindAsync(running.Id, Cancellation)));
+
+        Assert.Equal((Option<DateTimeOffset>.Some(Given.Ended), Option<DateTimeOffset>.None), (reloaded.Item1.Ended, reloaded.Item2.Ended));
+    }
+
+    [Fact]
     public async Task TheLatestConnectionChoiceOfAJobSurvivesAReloadWithItsReasonAndComparedReadingsAsync()
     {
         using var folder = new TemporaryFolder();

@@ -10,8 +10,9 @@ using Avala.Workspaces.Contracts;
 namespace Avala.Resources.Housekeeping;
 
 internal sealed class WorktreeHousekeeper(IWorkspaces workspaces, IResourceSettings settings, IEventBus bus, TimeProvider clock)
-    : IWorktreeHousekeeping, IStartupTask
+    : IWorktreeHousekeeping, IStartupTask, IAsyncDisposable
 {
+    private readonly SerialExecutor owner = new();
     private readonly List<Retained> retained = [];
     private ImmutableList<ReclaimedWorktree> reclaimed = [];
 
@@ -45,19 +46,29 @@ internal sealed class WorktreeHousekeeper(IWorkspaces workspaces, IResourceSetti
         return cleaned;
     }
 
-    public async Task RetainAsync(JobId job, JobStatus status, IReadOnlyList<string> worktrees, IOrphans orphans, CancellationToken cancellationToken)
-    {
-        var now = clock.GetUtcNow();
-        var kept = (await settings.LoadAsync(cancellationToken)).Retention.KeptFor(status);
+    public Task RetainAsync(JobId job, JobStatus status, IReadOnlyList<string> worktrees, IOrphans orphans, CancellationToken cancellationToken) =>
+        RetainAsync(job, status, worktrees, clock.GetUtcNow(), orphans, cancellationToken);
 
-        retained.AddRange(kept.Match<IEnumerable<Retained>>(
-            span => worktrees.Select(worktree => new Retained(job, worktree, status, now + span)),
-            () => []));
+    public Task RetainAsync(JobId job, JobStatus status, IReadOnlyList<string> worktrees, DateTimeOffset ended, IOrphans orphans, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            async token =>
+            {
+                var kept = (await settings.LoadAsync(token)).Retention.KeptFor(status);
 
-        await SweepAsync(orphans, cancellationToken);
-    }
+                retained.AddRange(kept.Match<IEnumerable<Retained>>(
+                    span => worktrees.Where(worktree => !retained.Any(known => known.Worktree == worktree)).Select(worktree => new Retained(job, worktree, status, ended + span)),
+                    () => []));
 
-    public async Task SweepAsync(IOrphans orphans, CancellationToken cancellationToken)
+                await SweepOwnedAsync(orphans, token);
+            },
+            cancellationToken);
+
+    public Task SweepAsync(IOrphans orphans, CancellationToken cancellationToken) =>
+        owner.RunAsync(token => SweepOwnedAsync(orphans, token), cancellationToken);
+
+    public ValueTask DisposeAsync() => owner.DisposeAsync();
+
+    private async Task SweepOwnedAsync(IOrphans orphans, CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
 

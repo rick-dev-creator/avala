@@ -35,6 +35,8 @@ internal static class Given
 
     public static DateTimeOffset Submitted { get; } = new(2026, 10, 9, 8, 0, 0, TimeSpan.Zero);
 
+    public static DateTimeOffset Ended { get; } = new(2026, 10, 9, 9, 30, 0, TimeSpan.Zero);
+
     public static Job JobIn(JobState state, int attemptsPerRound = 3)
     {
         var job = Job(state == JobState.NeedsHelp ? 1 : attemptsPerRound);
@@ -71,9 +73,9 @@ internal static class Given
 
     private static void RequestHelp(Job job) => Outcomes.Succeeds(job.RequestHelp());
 
-    private static void Approve(Job job) => Outcomes.Succeeds(job.Approve());
+    private static void Approve(Job job) => Outcomes.Succeeds(job.Approve(Ended));
 
-    private static void Discard(Job job) => Outcomes.Succeeds(job.Discard());
+    private static void Discard(Job job) => Outcomes.Succeeds(job.Discard(Ended));
 
-    private static void Fail(Job job) => Outcomes.Succeeds(job.Fail(FailureReason.AgentFailed));
+    private static void Fail(Job job) => Outcomes.Succeeds(job.Fail(FailureReason.AgentFailed, Ended));
 }

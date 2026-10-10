@@ -39,6 +39,9 @@ internal sealed class JobsDbContext(string database) : DbContext
         job.Property(entity => entity.Budget).HasConversion(budget => budget.AttemptsPerRound, value => Stored.Budget(value));
         job.Property(entity => entity.Repository).HasConversion(repository => repository.Value, value => Stored.Repository(value));
         job.Property(entity => entity.Submitted).HasConversion(at => at.UtcTicks, ticks => new DateTimeOffset(ticks, TimeSpan.Zero));
+        job.Property(entity => entity.Ended).HasConversion(
+            option => option.Match(at => at.UtcTicks, () => 0L),
+            ticks => ticks == 0 ? Option<DateTimeOffset>.None : Option<DateTimeOffset>.Some(new DateTimeOffset(ticks, TimeSpan.Zero)));
         job.Property(entity => entity.State).HasConversion<string>();
         job.Property(entity => entity.Workspace).HasConversion(
             option => option.Match(id => id.Value, () => Guid.Empty),

@@ -231,7 +231,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
     private async Task FailAsync(Job job, FailureReason reason, CancellationToken cancellationToken)
     {
-        if (job.Fail(reason).IsSuccess)
+        if (job.Fail(reason, ledger.Now).IsSuccess)
         {
             await ledger.RecordAsync(job, cancellationToken);
         }

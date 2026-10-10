@@ -90,8 +90,8 @@ public sealed class JobLifecycleTests
     {
         var job = Given.JobIn(JobState.AwaitingReview);
 
-        Assert.Equal(new JobApproved(job.Id), Outcomes.Succeeds(job.Approve()));
-        Assert.Equal(JobState.Approved, job.State);
+        Assert.Equal(new JobApproved(job.Id), Outcomes.Succeeds(job.Approve(Given.Ended)));
+        Assert.Equal((JobState.Approved, Option<DateTimeOffset>.Some(Given.Ended)), (job.State, job.Ended));
     }
 
     [Fact]
@@ -110,8 +110,8 @@ public sealed class JobLifecycleTests
     {
         var job = Given.JobIn(JobState.Running);
 
-        Assert.Equal(new JobDiscarded(job.Id, JobState.Running), Outcomes.Succeeds(job.Discard()));
-        Assert.Equal(AttemptOutcome.Interrupted, job.Attempts[^1].Outcome);
+        Assert.Equal(new JobDiscarded(job.Id, JobState.Running), Outcomes.Succeeds(job.Discard(Given.Ended)));
+        Assert.Equal((AttemptOutcome.Interrupted, Option<DateTimeOffset>.Some(Given.Ended)), (job.Attempts[^1].Outcome, job.Ended));
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public sealed class JobLifecycleTests
     {
         var job = Given.JobIn(JobState.AwaitingReview);
 
-        Outcomes.Succeeds(job.Discard());
+        Outcomes.Succeeds(job.Discard(Given.Ended));
 
         Assert.Equal(AttemptOutcome.Passed, job.Attempts[^1].Outcome);
     }
@@ -129,8 +129,8 @@ public sealed class JobLifecycleTests
     {
         var job = Given.JobIn(JobState.Checking);
 
-        Assert.Equal(new JobFailed(job.Id, FailureReason.AgentUnavailable), Outcomes.Succeeds(job.Fail(FailureReason.AgentUnavailable)));
-        Assert.Equal(JobState.Failed, job.State);
+        Assert.Equal(new JobFailed(job.Id, FailureReason.AgentUnavailable), Outcomes.Succeeds(job.Fail(FailureReason.AgentUnavailable, Given.Ended)));
+        Assert.Equal((JobState.Failed, Option<DateTimeOffset>.Some(Given.Ended)), (job.State, job.Ended));
         Assert.Equal(AttemptOutcome.Interrupted, job.Attempts[^1].Outcome);
     }
 

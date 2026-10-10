@@ -80,9 +80,9 @@ public sealed class JobTransitionTests
         Operation.ContinueOnAnotherConnection => Outcomes.ErrorOf(job.ContinueOn(Given.Feedback, SessionId.New(), new ConnectionName("personal"))),
         Operation.SendBack => Outcomes.ErrorOf(job.SendBack(Given.Feedback)),
         Operation.SendBackInNewSession => Outcomes.ErrorOf(job.SendBack(Given.Feedback, SessionId.New(), resumed: true)),
-        Operation.Approve => Outcomes.ErrorOf(job.Approve()),
-        Operation.Discard => Outcomes.ErrorOf(job.Discard()),
-        Operation.Fail => Outcomes.ErrorOf(job.Fail(FailureReason.AgentFailed)),
+        Operation.Approve => Outcomes.ErrorOf(job.Approve(Given.Ended)),
+        Operation.Discard => Outcomes.ErrorOf(job.Discard(Given.Ended)),
+        Operation.Fail => Outcomes.ErrorOf(job.Fail(FailureReason.AgentFailed, Given.Ended)),
         Operation.Hold => Outcomes.ErrorOf(job.Hold(HoldReason.BudgetExceeded)),
         _ => throw new ArgumentOutOfRangeException(nameof(operation)),
     };

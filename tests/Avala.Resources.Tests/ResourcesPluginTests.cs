@@ -37,7 +37,7 @@ public sealed class ResourcesPluginTests
         Assert.Same(composition.Get<OrphanReaper>(), composition.Get<IOrphans>());
         Assert.Same(composition.Get<WorktreeHousekeeper>(), composition.Get<IWorktreeHousekeeping>());
         Assert.Equal<object>(
-            [composition.Get<WorktreeHousekeeper>(), composition.Get<ResourceSampler>()],
+            [composition.Get<WorktreeHousekeeper>(), composition.Get<RetentionRecovery>(), composition.Get<ResourceSampler>()],
             composition.All<IStartupTask>());
         Assert.Same(composition.Get<ResourceTracker>(), composition.Get<IHandle<SessionOpened>>());
         Assert.Same(composition.Get<ResourceTracker>(), composition.Get<IHandle<JobProgressed>>());
@@ -46,6 +46,7 @@ public sealed class ResourcesPluginTests
     private static PluginComposition Compose(TemporaryFolder data) =>
         PluginComposition.Of(new ResourcesPlugin(), new AvalaPaths(data.Path), services => services
             .AddSingleton<IWorkspaces>(new FakeWorkspaces())
+            .AddSingleton<IJobCatalog>(new FakeCatalog())
             .AddSingleton<IProcessTrees>(new FakeTrees())
             .AddSingleton<IListeningPorts>(new FakeListening()));
 }
