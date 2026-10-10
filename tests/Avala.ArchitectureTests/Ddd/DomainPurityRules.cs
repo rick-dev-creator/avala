@@ -11,7 +11,7 @@ internal static class DomainPurityRules
 {
     private static readonly string[] ForbiddenSystemNamespaces = ["System.IO", "System.Net", "System.Threading.Tasks"];
 
-    private static readonly string[] AllowedAvalaNamespaces = ["Avala.Sdk", "Avala.Sdk.Domain"];
+    private static readonly string[] AllowedAvalaNamespaces = ["Avala.Sdk", "Avala.Sdk.Domain", "Avala.CommandLines"];
 
     public static IEnumerable<string> DependOnDisallowedTypes(CodeScope scope) =>
         scope.ArchitectureTypes

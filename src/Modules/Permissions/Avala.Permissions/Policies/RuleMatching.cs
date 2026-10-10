@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.CommandLines;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 
@@ -32,8 +33,8 @@ internal static class RuleMatching
             var line = CommandLine.Parse(request.Target);
             Verdict[] verdicts =
             [
-                .. line.Commands.Select(command => rules.First(rule => rule.Covers(request) || rule.Matches(request with { Target = command }))),
-                .. line.Writes.Select(path => rules.First(rule => (rule.Origin == RuleOrigin.Session && rule.Covers(request)) || rule.Matches(line.Written(path, request)))),
+                .. line.Commands.Select(command => rules.First(rule => rule.Covers(request) || rule.Matches(request with { Target = command.Text }))),
+                .. line.Writes.Select(path => rules.First(rule => (rule.Origin == RuleOrigin.Session && rule.Covers(request)) || rule.Matches(Written(line, path, request)))),
                 .. line.Opaque ? [rules.First(rule => rule.Covers(request))] : Array.Empty<Verdict>(),
             ];
 
@@ -42,6 +43,9 @@ internal static class RuleMatching
                 ?? verdicts[0];
         }
     }
+
+    private static PermissionRequest Written(CommandLine line, string path, PermissionRequest request) =>
+        line.MovesDirectory && !CommandLine.Rooted(path) ? new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: false) : request.Locate(path);
 
     private static bool Globs(string pattern, string text)
     {

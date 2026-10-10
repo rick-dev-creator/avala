@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Collections.Frozen;
 
-namespace Avala.Permissions.Policies;
+namespace Avala.CommandLines;
 
 internal static class SimpleCommands
 {
@@ -13,19 +13,24 @@ internal static class SimpleCommands
 
     private static readonly SearchValues<char> Name = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
 
-    public static void Analyse(List<ShellWord> words, ShellReader reader)
+    public static void Analyse(List<ShellWord> words, ShellReader reader, IReadOnlyList<string> written) =>
+        Analyse(words, reader, written, restated: false);
+
+    private static void Analyse(List<ShellWord> words, ShellReader reader) => Analyse(words, reader, [], restated: false);
+
+    private static void Analyse(List<ShellWord> words, ShellReader reader, IReadOnlyList<string> written, bool restated)
     {
         if (words.Count == 0)
         {
             return;
         }
 
-        reader.Found(string.Join(' ', words.Select(word => word.Raw)));
+        reader.Found(words, written, restated);
         var name = words[0];
 
         if (IsAssignment(name.Value))
         {
-            Analyse([.. words.Skip(1)], reader);
+            Analyse([.. words.Skip(1)], reader, [], restated: true);
         }
         else if (!name.Literal || Reserved.Contains(name.Value))
         {
@@ -37,7 +42,7 @@ internal static class SimpleCommands
 
             if (program != name.Value)
             {
-                reader.Found(string.Join(' ', [program, .. words.Skip(1).Select(word => word.Raw)]));
+                reader.Found([new ShellWord(program, program, Literal: true), .. words.Skip(1)], [], restated: true);
             }
 
             Wrapped(program, words, reader);

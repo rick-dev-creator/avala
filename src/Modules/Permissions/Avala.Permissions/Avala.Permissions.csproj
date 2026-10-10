@@ -6,6 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\Avala.Storage\Avala.Storage.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Avala.CommandLines\Avala.CommandLines.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />

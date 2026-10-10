@@ -110,6 +110,7 @@
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/Avala.Components.UI/Avala.Components.UI.csproj" />
     <Project Path="src/Shared/Avala.Components/Avala.Components.csproj" />
+    <Project Path="src/Shared/Avala.CommandLines/Avala.CommandLines.csproj" />
     <Project Path="src/Shared/Avala.Storage/Avala.Storage.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -140,6 +141,7 @@
     <Project Path="tests/Avala.Autopilot.Tests/Avala.Autopilot.Tests.csproj" />
     <Project Path="tests/Avala.Components.Tests/Avala.Components.Tests.csproj" />
     <Project Path="tests/Avala.Components.UI.Tests/Avala.Components.UI.Tests.csproj" />
+    <Project Path="tests/Avala.CommandLines.Tests/Avala.CommandLines.Tests.csproj" />
     <Project Path="tests/Avala.Storage.Tests/Avala.Storage.Tests.csproj" />
     <Project Path="tests/Avala.Delegation.Tests/Avala.Delegation.Tests.csproj" />
     <Project Path="tests/Avala.Transcripts.Tests/Avala.Transcripts.Tests.csproj" />
