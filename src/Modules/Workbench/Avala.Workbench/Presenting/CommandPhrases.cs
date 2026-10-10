@@ -16,6 +16,8 @@ internal static partial class CommandPhrases
 
     private const int ShownWidth = 56;
 
+    private const int ListWidth = 120;
+
     private static readonly HashSet<string> Prefixes = ["if", "then", "else", "elif", "do", "while", "until", "!", "{", "time"];
 
     private static readonly HashSet<string> Closings = ["fi", "done", "esac", "}", "in"];
@@ -33,18 +35,28 @@ internal static partial class CommandPhrases
 
     public static bool IsLong(string text) => Lines(text) is { Length: > 1 } || text.Trim().Length > LineWidth;
 
-    public static string Title(ItemKind kind, string title, string command)
-    {
-        if (kind != ItemKind.Command || !IsLong(command))
-        {
-            return title;
-        }
+    public static string Title(ItemKind kind, string title, string command) =>
+        kind == ItemKind.Command && IsLong(command) ? $"Run {Running(command)}" : title;
 
-        var commands = Commands(command);
+    public static string Running(string command)
+    {
+        var commands = IsLong(command) ? Commands(command) : [];
 
         return commands.Count > 1
-            ? string.Create(CultureInfo.InvariantCulture, $"Run {commands.Count} commands: {string.Join(", ", commands.Select(found => found.Summary).Distinct(StringComparer.Ordinal))}")
-            : $"Run {OneLine(command)}";
+            ? string.Create(CultureInfo.InvariantCulture, $"{commands.Count} commands: {Listed([.. commands.Select(found => found.Summary).Distinct(StringComparer.Ordinal)])}")
+            : OneLine(command);
+    }
+
+    private static string Listed(IReadOnlyList<string> summaries)
+    {
+        var shown = summaries.Count;
+
+        while (shown > 1 && string.Join(", ", summaries.Take(shown)).Length > ListWidth)
+        {
+            shown--;
+        }
+
+        return shown == summaries.Count ? string.Join(", ", summaries) : $"{string.Join(", ", summaries.Take(shown))}, …";
     }
 
     public static IReadOnlyList<string> Writes(ItemKind kind, string command) =>

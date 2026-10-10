@@ -21,6 +21,18 @@ public sealed class CommandPhrasesTests
             CommandPhrases.Title(ItemKind.Command, "Run set -o pipefail; node --test …", Smoke));
 
     [Fact]
+    public void AScriptOfManyCommandsListsThemUpTo120CharactersCutAtAWholeCommandAndSaysMoreFollow()
+    {
+        var script = string.Join("\n", Enumerable.Range(1, 20).Select(index => $"echo {index} > notes-{index}.md"));
+
+        var title = CommandPhrases.Title(ItemKind.Command, "Run echo 1 > notes-1.md", script);
+
+        Assert.Equal(
+            "Run 20 commands: echo > notes-1.md, echo > notes-2.md, echo > notes-3.md, echo > notes-4.md, echo > notes-5.md, echo > notes-6.md, …",
+            title);
+    }
+
+    [Fact]
     public void TheWritesOfACommandAreItsRedirectionTargetsLeavingOutDescriptorsAndTheNullDevice()
     {
         Assert.Equal(["/tmp/claude-1000/smoke-app.js"], CommandPhrases.Writes(ItemKind.Command, Smoke));
