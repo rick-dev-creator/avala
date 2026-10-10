@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Avala.Agents.Contracts.Events;
 using Avala.Canvas.Contracts;
 using Avala.Jobs.Contracts;
@@ -10,6 +11,26 @@ namespace Avala.Transcripts.Storage;
 
 internal sealed class StoredFact
 {
+    private static readonly FrozenDictionary<string, Func<string, IAgentEvent>> Activities = new Dictionary<string, Func<string, IAgentEvent>>
+    {
+        [nameof(TurnStarted)] = StoredJson.Read<TurnStarted>,
+        [nameof(ItemStarted)] = StoredJson.Read<ItemStarted>,
+        [nameof(CanvasStarted)] = StoredJson.Read<CanvasStarted>,
+        [nameof(ItemProgressed)] = StoredJson.Read<ItemProgressed>,
+        [nameof(ItemCompleted)] = StoredJson.Read<ItemCompleted>,
+        [nameof(PermissionRequested)] = StoredJson.Read<PermissionRequested>,
+        [nameof(PermissionResolved)] = StoredJson.Read<PermissionResolved>,
+        [nameof(FormRequested)] = StoredJson.Read<FormRequested>,
+        [nameof(FormAnswered)] = StoredJson.Read<FormAnswered>,
+        [nameof(RequestWithdrawn)] = StoredJson.Read<RequestWithdrawn>,
+        [nameof(ToolCalled)] = StoredJson.Read<ToolCalled>,
+        [nameof(ToolReturned)] = StoredJson.Read<ToolReturned>,
+        [nameof(MessageQueued)] = StoredJson.Read<MessageQueued>,
+        [nameof(PlanUpdated)] = StoredJson.Read<PlanUpdated>,
+        [nameof(UsageReported)] = StoredJson.Read<UsageReported>,
+        [nameof(TurnCompleted)] = StoredJson.Read<TurnCompleted>,
+    }.ToFrozenDictionary(StringComparer.Ordinal);
+
     public long Key { get; init; }
 
     public Guid Job { get; init; }
@@ -58,26 +79,8 @@ internal sealed class StoredFact
 
     private static string KindOf(ITranscriptFact fact) => fact is AgentActed acted ? acted.Event.GetType().Name : fact.GetType().Name;
 
-    private Option<IAgentEvent> Activity() => Kind switch
-    {
-        nameof(TurnStarted) => StoredJson.Read<TurnStarted>(Fact),
-        nameof(ItemStarted) => StoredJson.Read<ItemStarted>(Fact),
-        nameof(CanvasStarted) => StoredJson.Read<CanvasStarted>(Fact),
-        nameof(ItemProgressed) => StoredJson.Read<ItemProgressed>(Fact),
-        nameof(ItemCompleted) => StoredJson.Read<ItemCompleted>(Fact),
-        nameof(PermissionRequested) => StoredJson.Read<PermissionRequested>(Fact),
-        nameof(PermissionResolved) => StoredJson.Read<PermissionResolved>(Fact),
-        nameof(FormRequested) => StoredJson.Read<FormRequested>(Fact),
-        nameof(FormAnswered) => StoredJson.Read<FormAnswered>(Fact),
-        nameof(RequestWithdrawn) => StoredJson.Read<RequestWithdrawn>(Fact),
-        nameof(ToolCalled) => StoredJson.Read<ToolCalled>(Fact),
-        nameof(ToolReturned) => StoredJson.Read<ToolReturned>(Fact),
-        nameof(MessageQueued) => StoredJson.Read<MessageQueued>(Fact),
-        nameof(PlanUpdated) => StoredJson.Read<PlanUpdated>(Fact),
-        nameof(UsageReported) => StoredJson.Read<UsageReported>(Fact),
-        nameof(TurnCompleted) => StoredJson.Read<TurnCompleted>(Fact),
-        _ => Option<IAgentEvent>.None,
-    };
+    private Option<IAgentEvent> Activity() =>
+        Activities.TryGetValue(Kind, out var read) ? Option<IAgentEvent>.Some(read(Fact)) : Option<IAgentEvent>.None;
 }
 
 internal sealed record PendingFact(JobId Job, DateTimeOffset At, ITranscriptFact Fact);

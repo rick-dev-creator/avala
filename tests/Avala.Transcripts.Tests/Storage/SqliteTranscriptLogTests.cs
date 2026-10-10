@@ -28,7 +28,17 @@ public sealed class SqliteTranscriptLogTests : IAsyncDisposable
         ITranscriptFact[] facts =
         [
             new AttemptBegan(1),
+            new AgentActed(new TurnStarted(Session, Turn)),
             new AgentActed(new ItemStarted(Session, Turn, new ItemId("tool"), ItemKind.Command, "dotnet test") { Input = "dotnet test" }),
+            new AgentActed(new CanvasStarted(Session, Turn, new ItemId("canvas"), "Flow", "image/svg+xml")),
+            new AgentActed(new ItemProgressed(Session, Turn, new ItemId("message"), "Testing")),
+            new AgentActed(new ItemCompleted(Session, Turn, new ItemId("tool"), ItemOutcome.Failed)),
+            new AgentActed(new PermissionRequested(Session, Turn, new ItemId("tool"), "Run dotnet test", ItemKind.Command, "dotnet test")),
+            new AgentActed(new PermissionResolved(Session, Turn, new ItemId("tool"), PermissionAnswer.Deny)),
+            new AgentActed(new RequestWithdrawn(Session, Turn, new ItemId("tool"))),
+            new AgentActed(new ToolCalled(Session, Turn, new ItemId("call"), "avala_canvas", "{\"title\":\"Flow\"}")),
+            new AgentActed(new ToolReturned(Session, Turn, new ItemId("call"), new ToolResult(new ItemId("call"), "drawn") { IsError = true })),
+            new AgentActed(new MessageQueued(Session, Turn, "Also run the linter")),
             new AgentActed(new FormRequested(Session, Turn, new ItemId("form"), new AgentForm(FormPurpose.Question, "Which database?", "context", [new FormField("db", "Database", "Which?", FieldKind.SingleChoice, [new FormOption("PostgreSQL", "relational", true)])]))),
             new AgentActed(new FormAnswered(Session, Turn, new ItemId("form"), new FormAnswer(new ItemId("form"), [new FieldAnswer("db") { Chosen = ["PostgreSQL"] }]))),
             new AgentActed(new PlanUpdated(Session, Turn, [new PlanStep("Write", PlanStepStatus.Done)])),
@@ -44,6 +54,20 @@ public sealed class SqliteTranscriptLogTests : IAsyncDisposable
         Assert.Equal(facts.Length, recalled.Count);
         Assert.All(recalled, kept => Assert.Equal((run, At), (kept.Run, kept.At)));
         Assert.Equal(facts.Select(Describe), recalled.Select(kept => Describe(kept.Fact)));
+    }
+
+    [Fact]
+    public async Task AnActivityTheTranscriptDoesNotReadBackIsSkippedAndTheRestStillComesBackAsync()
+    {
+        await KeptAsync(
+        [
+            new AgentActed(new LimitReported(Session, Turn, new UsageLimit("5h", 0.5, Option<DateTimeOffset>.None))),
+            new AttemptBegan(1),
+        ]);
+
+        var recalled = await EarlierAsync();
+
+        Assert.Equal(["attempt 1"], recalled.Select(kept => Describe(kept.Fact)));
     }
 
     [Fact]
@@ -149,6 +173,7 @@ public sealed class SqliteTranscriptLogTests : IAsyncDisposable
         AgentActed { Event: FormRequested requested } => $"{requested.Session} {requested.Form.Title} {string.Join(",", requested.Form.Fields.SelectMany(field => field.Options).Select(option => $"{option.Label}:{option.Recommended}"))}",
         AgentActed { Event: FormAnswered answered } => $"{answered.Item} {string.Join(",", answered.Answer.Fields.SelectMany(field => field.Chosen))}",
         AgentActed { Event: PlanUpdated plan } => $"{plan.Turn} {string.Join(",", plan.Steps)}",
+        AgentActed { Event: ToolReturned returned } => $"{returned.Item} {returned.Result.Content} {returned.Result.IsError}",
         AgentActed acted => acted.Event.ToString()!,
         PermissionRuled ruled => $"{ruled.Decision.Item} {ruled.Decision.Job} {ruled.Decision.Delivery} {ruled.Decision.At}",
         FormRuled ruled => $"{ruled.Decision.Form.Title} {ruled.Decision.Delivery} {ruled.Decision.Answer.IsSome}",
