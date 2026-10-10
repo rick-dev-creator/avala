@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
 
@@ -22,15 +23,15 @@ internal static class CommandLine
 
     public const string PermissionTool = "permission_prompt";
 
-    public const string ModelSetting = "model";
-
-    public const string EffortSetting = "effort";
-
     public const string TranscriptsSetting = "transcripts";
 
     public const string UserConfigurationSetting = "userConfiguration";
 
     public const string UserHooksSetting = "userHooks";
+
+    public const string PlanToolsSetting = "planTools";
+
+    public const string TodoToolsVariable = "CLAUDE_CODE_ENABLE_TODO_TOOLS";
 
     public const string ConfigurationVariable = "CLAUDE_CONFIG_DIR";
 
@@ -53,11 +54,17 @@ internal static class CommandLine
     public static Option<string> Unqualified(string tool) =>
         tool.StartsWith($"mcp__{Server}__", StringComparison.Ordinal) ? tool[$"mcp__{Server}__".Length..] : Option<string>.None;
 
-    public static CliLaunch For(string workingDirectory, ConnectionEnvironment connection, Option<ConversationMark> resume, UserHome home) =>
-        new(workingDirectory, Arguments(connection, resume, home), Inherited, Variables(connection, home));
+    public static CliLaunch For(string workingDirectory, SessionOptions options, Option<ConversationMark> resume, UserHome home) =>
+        new(
+            workingDirectory,
+            Arguments(options, resume, home),
+            Switch(options.Connection, PlanToolsSetting, true) ? Inherited : [.. Inherited, TodoToolsVariable],
+            Variables(options.Connection, home));
 
-    private static List<string> Arguments(ConnectionEnvironment connection, Option<ConversationMark> resume, UserHome home)
+    private static List<string> Arguments(SessionOptions options, Option<ConversationMark> resume, UserHome home)
     {
+        var connection = options.Connection;
+        var model = ClaudeModels.Chosen(options);
         var servers = new JsonObject
         {
             ["mcpServers"] = new JsonObject
@@ -78,8 +85,8 @@ internal static class CommandLine
             "--permission-prompt-tool", Qualified(PermissionTool),
             "--mcp-config", servers.ToJsonString(),
             .. Configuration(connection, home),
-            .. Setting(connection, ModelSetting, "--model"),
-            .. Setting(connection, EffortSetting, "--effort"),
+            .. Flag(model.Model, "--model"),
+            .. Flag(model.Effort, "--effort"),
             .. resume.Match<string[]>(mark => ["--resume", mark.Session.ToString("D")], () => []),
         ];
     }
@@ -91,6 +98,11 @@ internal static class CommandLine
             ["DISABLE_AUTOUPDATER"] = "1",
             [ToolTimeoutVariable] = ToolTimeoutMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
+
+        if (Switch(connection, PlanToolsSetting, true) && home.TodoTools.IsNone)
+        {
+            environment[TodoToolsVariable] = "1";
+        }
 
         foreach (var folder in connection.ConfigurationDirectory.Match<string[]>(folder => home.IsDefault(folder) ? [] : [folder], () => []))
         {
@@ -130,6 +142,5 @@ internal static class CommandLine
     private static bool Switch(ConnectionEnvironment connection, string name, bool fallback) =>
         connection.Settings.TryGetValue(name, out var value) && bool.TryParse(value, out var on) ? on : fallback;
 
-    private static string[] Setting(ConnectionEnvironment connection, string name, string flag) =>
-        connection.Settings.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value) ? [flag, value] : [];
+    private static string[] Flag(Option<string> value, string flag) => value.Match<string[]>(set => [flag, set], () => []);
 }

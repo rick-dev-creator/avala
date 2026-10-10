@@ -14,6 +14,8 @@ internal sealed class FakeConnections : IConnections
 
     public List<DeclaredConnection> Declared { get; } = [];
 
+    public Dictionary<string, Avala.Agents.Contracts.Capabilities.CapabilitySet> Offers { get; } = new(StringComparer.Ordinal);
+
     public Option<ConnectionName> Fixed { get; set; }
 
     public Option<ConnectionError> Rejection { get; set; }
@@ -36,6 +38,9 @@ internal sealed class FakeConnections : IConnections
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> DeclareAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public ValueTask<Result<Avala.Agents.Contracts.Capabilities.CapabilitySet, ConnectionError>> CapabilitiesAsync(Option<ConnectionName> replacing, ConnectionEdit connection, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public ValueTask<Result<ConnectionCatalog, ConnectionError>> RemoveAsync(ConnectionName connection, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
@@ -45,7 +50,10 @@ internal sealed class FakeConnections : IConnections
 
         return ValueTask.FromResult(Refused.TryGetValue(name.Value, out var error)
             ? Result<ConnectionInfo, ConnectionError>.Failure(error)
-            : Result<ConnectionInfo, ConnectionError>.Success(new ConnectionInfo(name, Provider)));
+            : Result<ConnectionInfo, ConnectionError>.Success(new ConnectionInfo(name, Provider)
+            {
+                Capabilities = Offers.GetValueOrDefault(name.Value, Avala.Agents.Contracts.Capabilities.CapabilitySet.None),
+            }));
     }
 }
 
@@ -82,6 +90,14 @@ internal sealed class FakeRepositoryDefaults : IRepositoryDefaults
 
     public ValueTask<Result<Option<string>, JobRejection>> ApprovalAsync(string worktree, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Approval);
+
+    public Avala.Agents.Contracts.Sessions.ModelChoice Model { get; set; } = Avala.Agents.Contracts.Sessions.ModelChoice.Default;
+
+    public ValueTask<Result<Avala.Agents.Contracts.Sessions.ModelChoice, JobRejection>> ModelAsync(string worktree, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<Avala.Agents.Contracts.Sessions.ModelChoice, JobRejection>.Success(Model));
+
+    public ValueTask<Avala.Agents.Contracts.Sessions.ModelChoice> CurrentModelAsync(string repository, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Model);
 
     public List<string> ReadCurrent { get; } = [];
 

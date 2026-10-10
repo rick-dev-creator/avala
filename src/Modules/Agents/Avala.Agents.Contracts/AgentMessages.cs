@@ -13,6 +13,8 @@ public sealed record AgentRequest(string WorkingDirectory)
     public Option<ResumeToken> Resume { get; init; }
 
     public Option<ConnectionName> Connection { get; init; }
+
+    public ModelChoice Model { get; init; } = ModelChoice.Default;
 }
 
 public sealed record OpenedSession(SessionId Session, bool Resumed, ConnectionName Connection);

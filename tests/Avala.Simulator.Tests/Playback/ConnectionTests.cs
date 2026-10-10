@@ -114,6 +114,54 @@ public sealed class ConnectionTests : IDisposable
             (keyed.Has<ReportsLimits>(), provider.CapabilitiesOn(ConnectionEnvironment.Default).Has<ReportsLimits>(), executedOnly.Get<AcceptsTools>()));
     }
 
+    [Fact]
+    public void EachSimulatedHarnessOffersItsOwnModelsAndAConnectionNarrowsThemOrSetsItsDefaults()
+    {
+        var second = new SimulatedProvider(Stage.Crafted(new AvalaPaths(data.Path)), SimulatedProvider.Second);
+        var narrowed = provider.CapabilitiesOn(Set(("models", "simulated-small, simulated-large"), ("model", "simulated-small"), ("effort", "high")));
+        var without = provider.CapabilitiesOn(Set(("withoutCapabilities", "offersModels")));
+
+        var first = Outcomes.Present(provider.CapabilitiesOn(ConnectionEnvironment.Default).Get<OffersModels>());
+        var other = Outcomes.Present(second.CapabilitiesOn(ConnectionEnvironment.Default).Get<OffersModels>());
+        var refined = Outcomes.Present(narrowed.Get<OffersModels>());
+
+        Assert.Equal<string>(["simulated-large", "simulated-medium", "simulated-small"], first.Models);
+        Assert.Equal<string>(["low", "medium", "high"], first.Efforts);
+        Assert.Equal(new ModelChoice("simulated-medium", "medium"), first.DefaultChoice());
+        Assert.Equal<string>(["second-fast", "second-deep"], other.Models);
+        Assert.Empty(other.Efforts);
+        Assert.Equal(new ModelChoice("second-fast", Option<string>.None), other.DefaultChoice());
+        Assert.Equal<string>(["simulated-large", "simulated-small"], refined.Models);
+        Assert.Equal(new ModelChoice("simulated-small", "high"), refined.DefaultChoice());
+        Assert.False(without.Has<OffersModels>());
+    }
+
+    [Theory]
+    [InlineData("simulated-large", "low", "simulated-large", "low")]
+    [InlineData("", "", "simulated-medium", "medium")]
+    public async Task EveryTurnReportsTheModelAndEffortTheSessionRunsWithAsync(string model, string effort, string ranModel, string ranEffort)
+    {
+        var options = Options(ConnectionEnvironment.Default) with
+        {
+            Model = new ModelChoice(model.Length == 0 ? Option<string>.None : model, effort.Length == 0 ? Option<string>.None : effort),
+        };
+        await using var session = Outcomes.Succeeds(await provider.StartAsync(options, Cancellation));
+        Outcomes.Succeeds(await session.SendAsync(new UserTurn("Hello"), Cancellation));
+
+        var reported = Assert.Single((await Stage.ReadUntilAsync<TurnCompleted>(session, Cancellation)).OfType<ModelReported>());
+
+        Assert.Equal((ranModel, Option<string>.Some(ranEffort)), (reported.Model, reported.Effort));
+    }
+
+    [Fact]
+    public async Task AConnectionWithoutTheComponentReportsNoModelAsync()
+    {
+        await using var session = Outcomes.Succeeds(await provider.StartAsync(Options(Set(("withoutCapabilities", "offersModels"))), Cancellation));
+        Outcomes.Succeeds(await session.SendAsync(new UserTurn("Hello"), Cancellation));
+
+        Assert.Empty((await Stage.ReadUntilAsync<TurnCompleted>(session, Cancellation)).OfType<ModelReported>());
+    }
+
     public void Dispose()
     {
         data.Dispose();
@@ -129,6 +177,9 @@ public sealed class ConnectionTests : IDisposable
     }
 
     private static ConnectionEnvironment Login(string folder) => new() { ConfigurationDirectory = folder };
+
+    private static ConnectionEnvironment Set(params (string Name, string Value)[] settings) =>
+        ConnectionEnvironment.Default with { Settings = settings.ToImmutableDictionary(setting => setting.Name, setting => setting.Value) };
 
     private SessionOptions Options(ConnectionEnvironment connection) => new(folder.Path, PermissionMode.AllowAll) { Connection = connection };
 }

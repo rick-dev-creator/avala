@@ -188,12 +188,27 @@ public sealed class DelegationRulesTests
     }
 
     [Theory]
+    [InlineData("""{ "instruction": "Write", "model": " large ", "effort": "high" }""", "large", "high")]
+    [InlineData("""{ "instruction": "Write", "effort": "low" }""", "", "low")]
+    [InlineData("""{ "instruction": "Write" }""", "", "")]
+    public void AnInputMayAskForTheChildsModelAndEffortAsOpaqueText(string input, string model, string effort)
+    {
+        var parsed = Outcomes.Succeeds(DelegationInput.Parse(input));
+
+        Assert.Equal(
+            (model, effort),
+            (parsed.Model.Model.Match(found => found, () => string.Empty), parsed.Model.Effort.Match(found => found, () => string.Empty)));
+    }
+
+    [Theory]
     [InlineData("write the notes")]
     [InlineData("""{ "autonomy": "supervised" }""")]
     [InlineData("""{ "instruction": " " }""")]
     [InlineData("""{ "instruction": 1 }""")]
     [InlineData("""{ "instruction": "Write", "autonomy": "trusted" }""")]
     [InlineData("""{ "instruction": "Write", "connection": "personal" }""")]
+    [InlineData("""{ "instruction": "Write", "model": 1 }""")]
+    [InlineData("""{ "instruction": "Write", "effort": " " }""")]
     public void AMalformedInputIsRefused(string input) =>
         Assert.Equal(DelegationError.MalformedInput, Outcomes.FailsWith(DelegationInput.Parse(input)));
 }

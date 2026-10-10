@@ -67,15 +67,37 @@ public sealed class ConversationViewModelScripts
     }
 
     [Fact]
-    public void TheHeaderShowsTheJobsTitleStatusAndPlanProgress()
+    public void TheHeaderShowsTheJobsTitleStatusAndThePanelItsPlanProgress()
     {
         var planned = Job().Apply(new TurnStarted(session, turn), Now)
             .Apply(new PlanUpdated(session, turn, [new PlanStep("Find the rounding", PlanStepStatus.Done), new PlanStep("Round to minor units", PlanStepStatus.InProgress)]), Now);
 
         ViewModelScript.Given(Open())
             .When(conversation => conversation.Show(Board(planned)))
-            .ThenNotified(nameof(ConversationViewModel.Title), nameof(ConversationViewModel.Status), nameof(ConversationViewModel.Plan))
-            .Then(conversation => Assert.Equal(("Fix JPY rounding in invoice totals", JobStatus.Running, "1 of 2"), (conversation.Title, conversation.Status, conversation.Plan)));
+            .ThenNotified(nameof(ConversationViewModel.Title), nameof(ConversationViewModel.Status))
+            .Then(conversation => Assert.Equal(
+                ("Fix JPY rounding in invoice totals", JobStatus.Running, "1 of 2", true),
+                (conversation.Title, conversation.Status, conversation.Plan.Progress, conversation.Plan.IsShown)));
+    }
+
+    [Fact]
+    public void ThePlanStaysAboveTheComposerAcrossTurnsUntilEveryStepIsDone()
+    {
+        var later = TurnId.New();
+        var last = TurnId.New();
+        var planned = Job().Apply(new TurnStarted(session, turn), Now)
+            .Apply(new PlanUpdated(session, turn, [new PlanStep("Write the change", PlanStepStatus.InProgress), new PlanStep("Run the tests", PlanStepStatus.Pending)]), Now)
+            .Apply(new TurnCompleted(session, turn, TurnOutcome.Finished), Now);
+        var quiet = planned.Apply(new TurnStarted(session, later), Now).Apply(new TurnCompleted(session, later, TurnOutcome.Finished), Now);
+        var done = quiet.Apply(new TurnStarted(session, last), Now)
+            .Apply(new PlanUpdated(session, last, [new PlanStep("Write the change", PlanStepStatus.Done), new PlanStep("Run the tests", PlanStepStatus.Done)]), Now);
+
+        ViewModelScript.Given(Open())
+            .When(conversation => conversation.Show(Board(planned)))
+            .When(conversation => conversation.Show(Board(quiet)))
+            .Then(conversation => Assert.Equal((true, "0 of 2", "Write the change"), (conversation.Plan.IsShown, conversation.Plan.Progress, conversation.Plan.Current)))
+            .When(conversation => conversation.Show(Board(done)))
+            .Then(conversation => Assert.Equal((false, "2 of 2"), (conversation.Plan.IsShown, conversation.Plan.Progress)));
     }
 
     [Fact]
@@ -131,6 +153,19 @@ public sealed class ConversationViewModelScripts
 
         Assert.Equal(("repo · claude-work", Components.Status.StatusKind.Working, "Running"), first);
         Assert.Equal((Components.Status.StatusKind.Held, "Held · stalled"), (conversation.Pill.Kind, conversation.Pill.Text));
+    }
+
+    [Fact]
+    public void TheHeaderAddsTheModelAndEffortTheSessionReportsItRanWithOnlyOnceReported()
+    {
+        var conversation = Open();
+        var running = Board(Job().WithPrompts("Fix JPY rounding in invoice totals", []).Apply(new TurnStarted(session, turn), Now));
+        conversation.Show(running);
+        var before = conversation.Place;
+
+        conversation.Show(running with { Transcript = running.Transcript.Apply(new ModelReported(session, turn, "claude-opus-5-5") { Effort = "high" }, Now) });
+
+        Assert.Equal(("repo", "repo · claude-opus-5-5 · high effort"), (before, conversation.Place));
     }
 
     private static Transcript Job() => Transcript.Empty;

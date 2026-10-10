@@ -161,7 +161,7 @@ public sealed class CapacityTests(PublishedPlugins plugins)
         var conversation = await workbench.SelectAsync(job);
         await workbench.ShowsInGroupAsync(job, "ReadyForReview");
         var section = await InspectedAsync(run, workbench, "AutonomySectionViewModel");
-        Assert.EndsWith("· simulator-two", await run.Ui.ReadAsync(() => conversation["Place"].Text), StringComparison.Ordinal);
+        Assert.EndsWith("· simulator-two · simulated-medium · medium effort", await run.Ui.ReadAsync(() => conversation["Place"].Text), StringComparison.Ordinal);
         Assert.Equal(
             ("simulator-two", "Chosen by capacity: simulator-two had the most left", "95% of 5h · holds at 90% · at its limit", "no usage reported · holds at 90%"),
             await run.Ui.ReadAsync(() => (

@@ -10,6 +10,18 @@ internal static class SimulatedCapabilities
 
     public const string SurfacesSetting = "toolSurfaces";
 
+    public const string ModelsSetting = "models";
+
+    public static OffersModels FirstModels { get; } = new(
+        ["simulated-large", "simulated-medium", "simulated-small"],
+        ["low", "medium", "high"])
+    {
+        DefaultModel = "simulated-medium",
+        DefaultEffort = "medium",
+    };
+
+    public static OffersModels SecondModels { get; } = new(["second-fast", "second-deep"], []) { DefaultModel = "second-fast" };
+
     private static readonly CapabilitySet Declared = CapabilitySet.Of(
         new StreamsPartialOutput(),
         new ExposesReasoning(),
@@ -23,15 +35,30 @@ internal static class SimulatedCapabilities
 
     public static ReportsLimits SubscriptionLimits { get; } = new(["5h", "7d", "7d opus", "7d sonnet"]);
 
-    public static CapabilitySet On(ConnectionEnvironment connection)
+    public static CapabilitySet On(ConnectionEnvironment connection) => On(SimulatedProvider.Id, connection);
+
+    public static CapabilitySet On(string provider, ConnectionEnvironment connection)
     {
-        var declared = connection.ApiKey.IsSome ? Declared : Declared.With(SubscriptionLimits);
+        var declared = (connection.ApiKey.IsSome ? Declared : Declared.With(SubscriptionLimits)).With(Models(provider, connection));
         var surfaced = connection.Settings.TryGetValue(SurfacesSetting, out var surfaces)
             ? declared.With(new AcceptsTools([.. Names(surfaces).SelectMany(Surface)]))
             : declared;
 
         return connection.Settings.TryGetValue(WithoutSetting, out var without) ? Names(without).Aggregate(surfaced, Remove) : surfaced;
     }
+
+    private static OffersModels Models(string provider, ConnectionEnvironment connection)
+    {
+        var offered = provider == SimulatedProvider.SecondId ? SecondModels : FirstModels;
+        var narrowed = connection.Settings.TryGetValue(ModelsSetting, out var listed)
+            ? offered with { Models = new ValueList<string>(offered.Models.Where(Listed(listed).Contains)) }
+            : offered;
+
+        return narrowed.WithDefaults(OffersModels.SettingsOf(connection.Settings));
+    }
+
+    private static HashSet<string> Listed(string listed) =>
+        [.. listed.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
 
     private static IEnumerable<string> Names(string listed) =>
         listed.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -52,6 +79,7 @@ internal static class SimulatedCapabilities
         (nameof(ReportsUsage), declared => declared.Without<ReportsUsage>().Without<ReportsCost>()),
         (nameof(ReportsCost), declared => declared.Without<ReportsCost>()),
         (nameof(ReportsLimits), declared => declared.Without<ReportsLimits>()),
+        (nameof(OffersModels), declared => declared.Without<OffersModels>()),
     ];
 
     private static CapabilitySet Remove(CapabilitySet declared, string component) =>

@@ -1,12 +1,13 @@
 using System.Collections.ObjectModel;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
-using Avala.Workbench.Board;
 using Avala.Workbench.Contracts.Presentation;
+using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Presenting;
-using Avala.Workbench.Spending;
 using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -40,6 +41,8 @@ internal interface INewJobViewModel
 
     string AutonomyNote { get; }
 
+    IModelPickerViewModel Models { get; }
+
     string Error { get; }
 
     string Submitted { get; }
@@ -48,7 +51,7 @@ internal interface INewJobViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, IMessenger messenger, LimitReadings readings)
+internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings readings, IMessenger messenger, ModelPickerViewModel models)
     : INewJobViewModel, IPage, IActivatable, IRecipient<DefaultConnectionChanged>
 {
     private readonly ObservableCollection<string> repositories = [];
@@ -59,6 +62,7 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
     private Option<Result<ConnectionPreview, JobRejection>> preview;
     private Option<RepositoryPolicy> policy;
     private int previews;
+    private int offers;
 
     public string Title => "New job";
 
@@ -97,6 +101,12 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
 
     public bool Supervised => Autonomy == NewJobPhrases.Supervised;
 
+    public IModelPickerViewModel Models => models;
+
+    public ModelPickerViewModel Picker => models;
+
+    public Task Offering { get; private set; } = Task.CompletedTask;
+
     [ObservableProperty]
     public partial string Error { get; private set; } = string.Empty;
 
@@ -125,7 +135,7 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
-        repositories.ShowOnly(board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct());
+        repositories.ShowOnly(readings.Repositories());
         ShowConnections(await launch.CatalogAsync(cancellationToken));
 
         if (string.IsNullOrWhiteSpace(Repository) && repositories.Count > 0)
@@ -139,14 +149,18 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
 
     partial void OnRepositoryChanged(string value) => Previewing = PreviewAsync(CancellationToken.None);
 
-    partial void OnConnectionChanged(string value) => ShowRoute();
+    partial void OnConnectionChanged(string value)
+    {
+        ShowRoute();
+        Offering = OfferAsync(CancellationToken.None);
+    }
 
     partial void OnAutonomyChanged(string value) => AutonomyNote = NewJobPhrases.AutonomyNote(policy, Supervised);
 
     [RelayCommand(CanExecute = nameof(CanSubmit))]
     private async Task SubmitAsync(CancellationToken cancellationToken)
     {
-        var submitted = await launch.SubmitAsync(Repository, Instruction, Chosen(), Supervised, cancellationToken);
+        var submitted = await launch.SubmitAsync(Repository, Instruction, Chosen(), Supervised, models.Chosen, cancellationToken);
         Error = submitted.Match(_ => string.Empty, NewJobPhrases.Rejection);
 
         if (submitted.TryGetValue(out var job, out _))
@@ -185,19 +199,7 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
         }
     }
 
-    private string Reading(ConnectionName name) =>
-        NewJobPhrases.Compared(preview, name).Match(
-            NewJobPhrases.Reading,
-            () =>
-            {
-                var current = readings.Judged([.. readings.ByConnection().Where(used => used.Connection == name).SelectMany(used => used.Usage.Limits)])
-                    .Where(reading => !reading.Expired)
-                    .OrderByDescending(reading => reading.Used)
-                    .Select(reading => Option<LimitReading>.Some(reading))
-                    .FirstOrDefault();
-
-                return NewJobPhrases.Reading(current.Map(reading => reading.Limit), current.Match(reading => reading.Used, () => 0));
-            });
+    private string Reading(ConnectionName name) => readings.Reading(preview, name);
 
     private Option<ConnectionName> Chosen() =>
         string.IsNullOrEmpty(Connection) || connections.Count == 0 || Connection == connections[0]
@@ -215,6 +217,40 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, JobBoard board, 
             preview = previewed;
             ShowRoute();
             ShowAutonomy(declared);
+            Offering = OfferAsync(cancellationToken);
+            await Offering;
+        }
+    }
+
+    private async Task OfferAsync(CancellationToken cancellationToken)
+    {
+        var ticket = ++offers;
+        var repository = preview.Match(previewed => previewed.Match(found => found.Model, _ => ModelChoice.Default), () => ModelChoice.Default);
+        var following = Chosen().IsNone && catalog.DefaultMode == DefaultMode.Auto;
+        var target = Chosen().IsSome ? Chosen()
+            : !following ? catalog.Default
+            : preview.Bind(previewed => previewed.Match(found => found.Connection, _ => Option<ConnectionName>.None));
+        var offered = await target.Match(
+            name => launch.OfferAsync(name, cancellationToken).AsTask(),
+            () => Task.FromResult(Option<OffersModels>.None));
+
+        if (ticket == offers)
+        {
+            offered.Match<Action>(
+                found => () => ShowModels(found, repository, following, target),
+                () => () => models.Hide(ModelPhrases.Unoffered(target, following)))();
+        }
+    }
+
+    private void ShowModels(OffersModels offered, ModelChoice repository, bool following, Option<ConnectionName> target)
+    {
+        if (following)
+        {
+            models.Follow(ModelPhrases.Job(offered, repository), offered.Efforts.Count > 0, target.Match(name => ModelPhrases.Following(name, offered, repository), () => string.Empty));
+        }
+        else
+        {
+            models.Offer(offered, ModelPhrases.Job(offered, repository), ModelChoice.Default, ModelPhrases.JobNote(repository));
         }
     }
 

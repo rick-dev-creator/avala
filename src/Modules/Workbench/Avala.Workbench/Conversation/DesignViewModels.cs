@@ -169,6 +169,21 @@ internal sealed class DesignPlanViewModel : IPlanViewModel
     public string Progress => "2 of 4";
 }
 
+internal sealed class DesignPlanPanelViewModel : IPlanPanelViewModel
+{
+    public bool IsShown { get; init; } = true;
+
+    public string Progress => "2 of 4";
+
+    public string Current => "Use each currency's exponent";
+
+    public bool IsExpanded { get; init; }
+
+    public IReadOnlyList<PlanStep> Steps { get; } = new DesignPlanViewModel().Steps;
+
+    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+}
+
 internal sealed class DesignCanvasViewModel : ICanvasViewModel
 {
     public string Title => "Rounding path";
@@ -246,7 +261,7 @@ internal sealed record DesignConversationViewModel(string Title, string Place, I
                 new DesignReasoningViewModel("Thought for 12s", false),
                 new DesignMessageViewModel("The failures happen when fireEvent changes the card number while the validator is still debouncing. user-event awaits each keystroke, which removes the race. It isn't installed in this package yet.", false),
                 new DesignPermissionCardViewModel(),
-            ]);
+            ]) { Plan = new DesignPlanPanelViewModel { IsShown = false } };
 
     public static DesignConversationViewModel Questioning =>
         new(
@@ -262,7 +277,7 @@ internal sealed record DesignConversationViewModel(string Title, string Place, I
                 new DesignFormCardViewModel(),
                 new DesignReasoningViewModel("Thinking", true),
                 new DesignTurnEndViewModel(),
-            ]);
+            ]) { Plan = new DesignPlanPanelViewModel { IsShown = false } };
 
     public static DesignConversationViewModel Empty =>
         new(
@@ -270,11 +285,11 @@ internal sealed record DesignConversationViewModel(string Title, string Place, I
             "web-console · claude-work",
             new StatusPillViewModel(StatusKind.Working, "Starting"),
             new DesignComposerViewModel(JobStatus.Preparing),
-            []);
+            []) { Plan = new DesignPlanPanelViewModel { IsShown = false } };
 
     public JobId Job => SampleJobs.JpyRounding;
 
     public JobStatus Status => JobStatus.Running;
 
-    public string Plan => "2 of 4";
+    public IPlanPanelViewModel Plan { get; init; } = new DesignPlanPanelViewModel();
 }

@@ -31,6 +31,8 @@ public enum DelegationError
     InvalidWindow,
     UnknownRole,
     RoleLoosened,
+    UnofferedModel,
+    UnofferedEffort,
 }
 
 public enum ChildOutcome

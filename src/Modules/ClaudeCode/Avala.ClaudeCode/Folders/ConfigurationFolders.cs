@@ -46,18 +46,63 @@ internal sealed class ConfigurationFolders(UserHome home) : IConfigurationFolder
         return account.Text("accountUuid").Map(id => new AgentAccount($"claude:{id}", account.TextOr("emailAddress", account.TextOr("displayName", id))));
     }
 
-    public bool Holds(ConnectionEnvironment connection, Guid conversation)
+    public bool Holds(ConnectionEnvironment connection, Guid conversation) => Conversation(connection, conversation).IsSome;
+
+    public async Task<IReadOnlyList<JsonNode>> EarlierAsync(ConnectionEnvironment connection, Guid conversation, CancellationToken cancellationToken) =>
+        await Conversation(connection, conversation).Match(
+            path => ToolMessagesAsync(path, cancellationToken),
+            () => Task.FromResult<IReadOnlyList<JsonNode>>([]));
+
+    private static async Task<IReadOnlyList<JsonNode>> ToolMessagesAsync(string path, CancellationToken cancellationToken)
+    {
+        var earlier = new List<JsonNode>();
+
+        try
+        {
+            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.Asynchronous);
+            using var reader = new StreamReader(stream);
+
+            while (await reader.ReadLineAsync(cancellationToken) is { } line)
+            {
+                earlier.AddRange(line.Contains("\"tool_use\"", StringComparison.Ordinal) || line.Contains("\"tool_result\"", StringComparison.Ordinal)
+                    ? Parsed(line).Match<JsonNode[]>(message => [message], () => [])
+                    : []);
+            }
+        }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+
+        return earlier;
+    }
+
+    private Option<string> Conversation(ConnectionEnvironment connection, Guid conversation)
     {
         var projects = Path.Combine(connection.ConfigurationDirectory.Match(folder => folder, () => DefaultFolder), "projects");
         var file = $"{conversation:D}.jsonl";
 
         try
         {
-            return Directory.Exists(projects) && Directory.EnumerateDirectories(projects).Any(project => File.Exists(Path.Combine(project, file)));
+            return Directory.Exists(projects)
+                ? Directory.EnumerateDirectories(projects).Select(project => Path.Combine(project, file)).FirstOrDefault(File.Exists).ToOption()
+                : Option<string>.None;
         }
         catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
         {
-            return false;
+            return Option<string>.None;
+        }
+    }
+
+    private static Option<JsonNode> Parsed(string line)
+    {
+        try
+        {
+            return JsonNode.Parse(line).ToOption();
+        }
+        catch (JsonException)
+        {
+            return Option<JsonNode>.None;
         }
     }
 

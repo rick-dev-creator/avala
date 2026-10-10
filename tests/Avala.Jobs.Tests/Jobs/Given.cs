@@ -29,7 +29,10 @@ internal static class Given
             Repository,
             Submitted,
             Autonomy.Supervised,
-            parent: Parent));
+            parent: Parent,
+            model: Model));
+
+    public static Avala.Agents.Contracts.Sessions.ModelChoice Model { get; } = new("large", "high");
 
     public static JobId Parent { get; } = JobId.New();
 

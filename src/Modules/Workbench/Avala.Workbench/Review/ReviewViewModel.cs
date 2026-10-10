@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
+using Avala.Workbench.Board;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Sidebar;
@@ -36,6 +37,10 @@ internal interface IReviewViewModel
     IReadOnlyList<IReviewExceptionViewModel> Exceptions { get; }
 
     string Quiet { get; }
+
+    string Plan { get; }
+
+    IReadOnlyList<string> PlanLeft { get; }
 
     string Changes { get; }
 
@@ -165,6 +170,12 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     public partial string Quiet { get; private set; }
 
     [ObservableProperty]
+    public partial string Plan { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial IReadOnlyList<string> PlanLeft { get; private set; } = [];
+
+    [ObservableProperty]
     public partial string Changes { get; private set; }
 
     [ObservableProperty]
@@ -205,6 +216,12 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
         {
             Outcome = status.ToString();
         }
+    }
+
+    public void Track(BoardJob job)
+    {
+        Track(job.Status);
+        (Plan, PlanLeft) = ReviewPhrases.Plan(job.Transcript.Plan);
     }
 
     public Func<CancellationToken, Task> Request(int revision)

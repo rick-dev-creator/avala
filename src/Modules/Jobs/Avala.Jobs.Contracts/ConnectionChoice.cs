@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 
@@ -38,6 +39,8 @@ public enum ConnectionRoute
 public sealed record ConnectionPreview(ConnectionRoute Route, Option<ConnectionName> Connection)
 {
     public Option<ConnectionChoice> Choice { get; init; }
+
+    public ModelChoice Model { get; init; } = ModelChoice.Default;
 }
 
 public interface IConnectionPreview

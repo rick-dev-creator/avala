@@ -116,6 +116,10 @@ internal sealed partial class DesignReviewViewModel : IReviewViewModel
 
     public string Quiet => "11 other decisions were allowed by rules · USD 1.12 · 186,240 tokens";
 
+    public string Plan { get; init; } = "Plan · 3 of 4 steps done";
+
+    public IReadOnlyList<string> PlanLeft { get; init; } = ["In progress · Document the new limit"];
+
     public string Changes => "5 files changed";
 
     public string Totals => "+130 −2";

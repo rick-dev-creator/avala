@@ -12,6 +12,8 @@ internal static class DeclaredCapabilities
         [
             .. events.OfType<UsageReported>().SelectMany(usage => Usage(declared, usage)),
             .. events.OfType<LimitReported>().SelectMany(limit => Limit(declared, limit.Limit)),
+            .. Undeclared<OffersModels, string>(declared, events.OfType<ModelReported>().Select(reported => reported.Model))
+                .Select(model => $"the model {model} was reported although the provider does not declare OffersModels"),
             .. Undeclared<ExposesReasoning>(declared, Started(events, ItemKind.Reasoning))
                 .Select(item => $"the reasoning {item.Value} was exposed although the provider does not declare ExposesReasoning"),
             .. Undeclared<StreamsPartialOutput>(declared, Started(events, ItemKind.Message).Where(item => events.OfType<ItemProgressed>().Count(progressed => progressed.Item == item) > 1))
@@ -39,7 +41,11 @@ internal static class DeclaredCapabilities
     private static IEnumerable<ItemId> Started(IReadOnlyList<IAgentEvent> events, ItemKind kind) =>
         events.OfType<ItemStarted>().Where(started => started.Kind == kind).Select(started => started.Item);
 
-    private static IEnumerable<ItemId> Undeclared<T>(CapabilitySet declared, IEnumerable<ItemId> items)
+    private static IEnumerable<TItem> Undeclared<T, TItem>(CapabilitySet declared, IEnumerable<TItem> items)
         where T : ICapability =>
         declared.Has<T>() ? [] : items;
+
+    private static IEnumerable<ItemId> Undeclared<T>(CapabilitySet declared, IEnumerable<ItemId> items)
+        where T : ICapability =>
+        Undeclared<T, ItemId>(declared, items);
 }
