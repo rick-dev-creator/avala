@@ -89,6 +89,20 @@ public sealed class FoldScripts(HeadlessUi ui)
             Assert.True(header.Bounds.Width < Natural(header) && header.Bounds.Right <= fact.Bounds.Left + 0.5, $"the header is {header.Bounds.Width} wide of {Natural(header)}");
         }, Cancellation);
 
+    [Fact]
+    public Task AFactThatGrowsAfterTheFirstLayoutTakesTheRoomItNeedsInsteadOfStayingClippedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var fold = new Fold { Header = "Decisions", Fact = "nothing yet", Width = 400 };
+            var view = ViewScript.Show(fold, new object());
+            var fact = fold.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Name == "PART_Fact");
+
+            fold.Fact = "4 allowed by rules · 1 denied";
+            view.Settle();
+
+            Assert.True(fact.Bounds.Width >= Natural(fact) - 0.5, $"the fact is {fact.Bounds.Width} wide of {Natural(fact)}");
+        }, Cancellation);
+
     private static double Natural(TextBlock text)
     {
         var probe = new TextBlock { Text = text.Text, FontSize = text.FontSize, FontFamily = text.FontFamily, FontWeight = text.FontWeight };
