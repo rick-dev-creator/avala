@@ -6,6 +6,12 @@ public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
 
     private static readonly TimeSpan Settling = TimeSpan.FromMilliseconds(100);
 
+    private static readonly EnumerationOptions OwnFiles = new()
+    {
+        RecurseSubdirectories = true,
+        AttributesToSkip = FileAttributes.ReparsePoint,
+    };
+
     private readonly DirectoryInfo folder = Directory.CreateTempSubdirectory("avala-");
 
     public string Path => folder.FullName;
@@ -14,12 +20,15 @@ public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
     {
         folder.Refresh();
 
-        if (!folder.Exists)
+        if (folder.Exists)
         {
-            return;
+            Remove(folder);
         }
+    }
 
-        foreach (var file in folder.EnumerateFiles("*", SearchOption.AllDirectories))
+    internal static void Remove(DirectoryInfo folder)
+    {
+        foreach (var file in folder.EnumerateFiles("*", OwnFiles))
         {
             file.Attributes = FileAttributes.Normal;
         }

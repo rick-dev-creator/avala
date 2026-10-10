@@ -1,3 +1,4 @@
+using System.IO.Enumeration;
 using Avala.Resources.Tracking;
 using Avala.Sdk;
 
@@ -20,7 +21,9 @@ internal sealed class FolderSizes(AvalaPaths paths) : IFolderSizes
     {
         try
         {
-            return Directory.Exists(folder) ? new DirectoryInfo(folder).EnumerateFiles("*", Everything).Sum(file => file.Length) : 0;
+            return Directory.Exists(folder)
+                ? new FileSystemEnumerable<long>(folder, (ref entry) => entry.Length, Everything) { ShouldIncludePredicate = (ref entry) => !entry.IsDirectory }.Sum()
+                : 0;
         }
         catch (IOException)
         {

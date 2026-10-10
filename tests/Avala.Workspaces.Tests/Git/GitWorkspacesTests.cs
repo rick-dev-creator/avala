@@ -250,7 +250,7 @@ public sealed class GitWorkspacesTests
     }
 
     [Fact]
-    public async Task CleaningDeletesTheStrayFoldersAndForgetsTheMissingWorktreesButKeepsTheirBranchesAsync()
+    public async Task CleaningDeletesTheStrayFoldersAndForgetsTheMissingWorktreesButKeepsTheirBranchesAndWhatTheirLinksLeadToAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
         var service = Service(repository);
@@ -258,9 +258,14 @@ public sealed class GitWorkspacesTests
         Directory.Delete(lost.Path, recursive: true);
         var stray = Directory.CreateDirectory(Path.Combine(repository.WorktreeRoot, "left-behind")).FullName.Canonical();
         await File.WriteAllTextAsync(Path.Combine(stray, "output.log"), "built", Cancellation);
+        var readme = new FileInfo(Path.Combine(repository.Path, "README.md")) { IsReadOnly = true };
+        File.CreateSymbolicLink(Path.Combine(stray, "readme"), readme.FullName);
+        Directory.CreateSymbolicLink(Path.Combine(stray, "loop"), stray);
 
         var cleaned = await service.CleanAsync(await service.ReconcileAsync(Cancellation), Cancellation);
 
+        readme.Refresh();
+        Assert.True(readme is { Exists: true, IsReadOnly: true });
         Assert.Equal([stray], cleaned.Strays);
         Assert.Equal([lost], cleaned.Missing);
         Assert.False(Directory.Exists(stray));

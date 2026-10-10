@@ -16,6 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
@@ -24,10 +25,14 @@ jobs:
       - name: Build
         run: dotnet build Avala.slnx
       - name: Test
-        run: dotnet test --solution Avala.slnx --no-build
+        run: >-
+          dotnet test --solution Avala.slnx --no-build
+          --hangdump --hangdump-timeout 15m --hangdump-type Mini
+          --results-directory TestResults/tests
       - name: Unit tests with coverage
         run: >-
           dotnet test --solution Avala.UnitTests.slnf --no-build
+          --hangdump --hangdump-timeout 15m --hangdump-type Mini
           --coverage --coverage-output-format cobertura
           --results-directory TestResults/coverage
       - name: Coverage paths relative to the repository
@@ -37,6 +42,14 @@ jobs:
           name: unit-coverage-${{ matrix.os }}
           path: TestResults/coverage/*.cobertura.xml
           if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: failure() || cancelled()
+        with:
+          name: hang-dumps-${{ matrix.os }}
+          path: |
+            TestResults/**/*_hang.dmp
+            TestResults/**/*_hang.log
+          if-no-files-found: ignore
 
   quality:
     name: Coverage, code metrics and technical debt
