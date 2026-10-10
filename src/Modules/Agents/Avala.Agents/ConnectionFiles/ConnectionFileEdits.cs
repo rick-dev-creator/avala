@@ -51,29 +51,25 @@ internal static class ConnectionFileEdits
         var entry = declared.Replacing.Match(name => Find(connections, name), () => null) ?? Appended(connections);
         entry["name"] = declared.Name.Value;
         entry["provider"] = declared.Provider;
-        entry.Remove("credential");
-
-        foreach (var credential in declared.Credential.Match<CredentialDeclaration[]>(found => [found], () => []))
-        {
-            var written = new JsonObject { ["source"] = credential.Source };
-
-            foreach (var reference in credential.Reference.Match<string[]>(found => [found], () => []))
-            {
-                written["reference"] = reference;
-            }
-
-            entry["credential"] = written;
-        }
+        Put(entry, "credential", declared.Credential.Map(Credential));
 
         foreach (var model in declared.Model.Match<ModelChoice[]>(chosen => [chosen], () => []))
         {
             Choose(entry, model);
         }
 
-        if (declared.Replacing.IsSome && root[DefaultField]?.GetValue<string>() == declared.Replacing.Match(name => name.Value, () => string.Empty))
+        if (declared.Replacing.Match(name => root[DefaultField]?.GetValue<string>() == name.Value, () => false))
         {
             root[DefaultField] = declared.Name.Value;
         }
+    }
+
+    private static JsonNode Credential(CredentialDeclaration credential)
+    {
+        var written = new JsonObject { ["source"] = credential.Source };
+        Put(written, "reference", credential.Reference.Map(Value));
+
+        return written;
     }
 
     private static void Choose(JsonObject entry, ModelChoice model)
@@ -84,8 +80,8 @@ internal static class ConnectionFileEdits
             entry["settings"] = settings;
         }
 
-        Put(settings, OffersModels.ModelSetting, model.Model);
-        Put(settings, OffersModels.EffortSetting, model.Effort);
+        Put(settings, OffersModels.ModelSetting, model.Model.Map(Value));
+        Put(settings, OffersModels.EffortSetting, model.Effort.Map(Value));
 
         if (settings.Count == 0)
         {
@@ -93,15 +89,17 @@ internal static class ConnectionFileEdits
         }
     }
 
-    private static void Put(JsonObject settings, string name, Option<string> value)
+    private static void Put(JsonObject target, string name, Option<JsonNode> value)
     {
-        settings.Remove(name);
+        target.Remove(name);
 
-        foreach (var set in value.Match<string[]>(found => [found], () => []))
+        foreach (var set in value.Match<JsonNode[]>(found => [found], () => []))
         {
-            settings[name] = set;
+            target[name] = set;
         }
     }
+
+    private static JsonNode Value(string text) => JsonValue.Create(text);
 
     private static void Remove(JsonObject root, ConnectionName name)
     {
