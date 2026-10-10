@@ -54,7 +54,7 @@ public sealed class RequestFactsTests
     }
 
     [Fact]
-    public void AnEditThroughASymbolicLinkIsLocatedWhereTheLinkLeads()
+    public void AnEditThroughASymbolicLinkIsLocatedWhereTheLinkLeadsAndShownAsAsked()
     {
         using var workspace = new TemporaryFolder();
         using var elsewhere = new TemporaryFolder();
@@ -66,9 +66,26 @@ public sealed class RequestFactsTests
         var climbing = Requested(ItemKind.FileEdit, "home/../outside.txt").Facts(workspace.Path, Links);
         var staying = Requested(ItemKind.FileEdit, "src/shared/app.cs").Facts(workspace.Path, Links);
 
-        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, Path.Combine(Outcomes.Present(Links.Resolve(elsewhere.Path)), ".bashrc"), InsideWorkspace: false), escaping);
-        Assert.False(climbing.InsideWorkspace);
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, Path.Combine(workspace.Path, "home", ".bashrc"), InsideWorkspace: false), escaping);
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, Path.Combine(workspace.Path, "home", "..", "outside.txt"), InsideWorkspace: false), climbing);
         Assert.Equal(new PermissionRequest(ItemKind.FileEdit, "src/app.cs", InsideWorkspace: true), staying);
+    }
+
+    [Fact]
+    public void AnEditOutsideAWorkingDirectoryReachedThroughALinkIsShownByThePathItWasAskedWith()
+    {
+        using var folder = new TemporaryFolder();
+        Directory.CreateDirectory(Path.Combine(folder.Path, "private", "var", "workspace"));
+        Directory.CreateSymbolicLink(Path.Combine(folder.Path, "var"), Path.Combine(folder.Path, "private", "var"));
+        var workspace = Path.Combine(folder.Path, "var", "workspace");
+
+        var climbing = Requested(ItemKind.FileEdit, "../escape.txt").Facts(workspace, Links);
+        var absolute = Requested(ItemKind.FileEdit, Path.Combine(folder.Path, "var", "other", "x.txt")).Facts(workspace, Links);
+        var inside = Requested(ItemKind.FileEdit, Path.Combine(folder.Path, "private", "var", "workspace", "src", "app.cs")).Facts(workspace, Links);
+
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, Path.Combine(folder.Path, "var", "escape.txt"), InsideWorkspace: false), climbing);
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, Path.Combine(folder.Path, "var", "other", "x.txt"), InsideWorkspace: false), absolute);
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, "src/app.cs", InsideWorkspace: true), inside);
     }
 
     [Fact]

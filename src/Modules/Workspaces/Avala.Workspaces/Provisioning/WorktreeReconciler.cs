@@ -5,6 +5,12 @@ namespace Avala.Workspaces.Provisioning;
 
 internal sealed class WorktreeReconciler(IGit git, IWorkspaceStore store, WorkspaceSettings settings)
 {
+    private static readonly EnumerationOptions OwnFiles = new()
+    {
+        RecurseSubdirectories = true,
+        AttributesToSkip = FileAttributes.ReparsePoint,
+    };
+
     public async Task<WorktreeReconciliation> ReconcileAsync(CancellationToken cancellationToken)
     {
         var known = await store.AllAsync(cancellationToken);
@@ -42,7 +48,7 @@ internal sealed class WorktreeReconciler(IGit git, IWorkspaceStore store, Worksp
 
     private static void Delete(string folder)
     {
-        foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", SearchOption.AllDirectories))
+        foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", OwnFiles))
         {
             file.Attributes = FileAttributes.Normal;
         }
