@@ -309,6 +309,23 @@ public sealed class SimulatorConformanceTests
         }));
     }
 
+    [Theory]
+    [InlineData("simulator", "")]
+    [InlineData("simulator-second", "")]
+    [InlineData("simulator", "offersModels")]
+    public async Task EachSimulatedHarnessRunsWithTheModelItIsGivenAndReportsItOrOffersNoneAsync(string harness, string without)
+    {
+        using var folder = new TemporaryFolder();
+        await using var services = Simulated();
+        var provider = services.GetServices<IAgentProvider>().Single(registered => registered.Info.Id == harness);
+        var options = new SessionOptions(folder.Path, PermissionMode.AskEveryTime)
+        {
+            Connection = new ConnectionEnvironment { Settings = new Dictionary<string, string> { ["withoutCapabilities"] = without } },
+        };
+
+        Assert.Empty(await CapabilityConformance.CheckModelChoiceAsync(provider, options, new UserTurn("[simulate: reply] conformance"), Deadline));
+    }
+
     [Fact]
     public async Task TheSimulatorFoldsAMessageSentMidTurnIntoTheRunningTurnAsync()
     {

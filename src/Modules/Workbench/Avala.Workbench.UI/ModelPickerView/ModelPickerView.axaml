@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:Avala.Workbench.ModelChoices"
+             x:Class="Avala.Workbench.UI.ModelPickerView"
+             x:ClassModifier="internal"
+             x:DataType="models:IModelPickerViewModel">
+  <Design.DataContext>
+    <models:DesignModelPickerViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ComboBox">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="6">
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="16" IsVisible="{Binding IsShown}">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="section" Text="Model" />
+        <ComboBox x:Name="Model"
+                  ItemsSource="{Binding Models}"
+                  SelectedItem="{Binding Model}"
+                  IsEnabled="{Binding CanChoose}"
+                  AutomationProperties.Name="Model" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Spacing="6" IsVisible="{Binding IsEffortShown}">
+        <TextBlock Classes="section" Text="Effort" />
+        <ComboBox x:Name="Effort"
+                  ItemsSource="{Binding Efforts}"
+                  SelectedItem="{Binding Effort}"
+                  IsEnabled="{Binding CanChoose}"
+                  AutomationProperties.Name="Effort" />
+      </StackPanel>
+    </Grid>
+    <TextBlock x:Name="ModelNote"
+               Classes="caption fade-in"
+               TextWrapping="Wrap"
+               Text="{Binding Note}"
+               IsVisible="{Binding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

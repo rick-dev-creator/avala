@@ -34,6 +34,7 @@ internal sealed class JobCatalog(IJobStore store) : IJobCatalog
         {
             Parent = job.Parent,
             Ended = job.Ended,
+            Model = job.Model,
         };
 
     private static JobHistory History(Job job) =>

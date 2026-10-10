@@ -47,6 +47,8 @@ public sealed record JobRequest(string RepositoryPath, string Instruction, int A
     public Option<ConnectionName> Connection { get; init; }
 
     public Option<JobId> Parent { get; init; }
+
+    public ModelChoice Model { get; init; } = ModelChoice.Default;
 }
 
 public enum ContinuedIn
@@ -89,4 +91,6 @@ public enum JobRejection
     NotDeferred,
     NotResumable,
     NotSteerable,
+    UnofferedModel,
+    UnofferedEffort,
 }

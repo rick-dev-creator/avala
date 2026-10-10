@@ -24,13 +24,18 @@ internal sealed class SimulatedSession : IAgentSession
     private Task conducting = Task.CompletedTask;
 
     public SimulatedSession(SessionOptions options, Stagecraft craft, Option<AgentAccount> account, Option<Conversation> conversation)
+        : this(options, craft, new Casting(account, SimulatedCapabilities.On(options.Connection)), conversation)
     {
+    }
+
+    public SimulatedSession(SessionOptions options, Stagecraft craft, Casting casting, Option<Conversation> conversation)
+    {
+        var (account, capabilities) = casting;
         gates = new Gates(
             new ReplyGate<PermissionDecision>(stage, AgentError.NoPendingPermission),
             new ReplyGate<FormAnswer>(stage, AgentError.NoPendingForm),
             new ReplyGate<ToolResult>(stage, AgentError.NoPendingCall),
             Channel.CreateUnbounded<string>());
-        var capabilities = SimulatedCapabilities.On(options.Connection);
         midTurn = capabilities.Has<AcceptsMessagesMidTurn>();
         performer = new Performer(options, craft, gates, capabilities);
         adaptation = new Adaptation(capabilities);
@@ -209,3 +214,5 @@ internal sealed class SimulatedSession : IAgentSession
 
     private sealed record Act(TurnId Turn, CancellationTokenSource Interruption, string Told);
 }
+
+internal sealed record Casting(Option<AgentAccount> Account, CapabilitySet Declared);

@@ -1,7 +1,9 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Machine;
+using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Settings;
 using CommunityToolkit.Mvvm.Messaging;
 
@@ -141,7 +143,7 @@ public sealed class MachineSettingsViewModelScripts
     {
         var settings = new MachineSettings(connections, supervision, new FakeResources());
 
-        return new(settings, new SettingsFiles(opener, new AvalaPaths("/data")), new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new ConnectionEditorViewModel(settings));
+        return new(settings, new SettingsFiles(opener, new AvalaPaths("/data")), new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel()));
     }
 }
 
@@ -273,9 +275,75 @@ public sealed class ConnectionEditorViewModelScripts
             settings,
             new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")),
             new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()),
-            new ConnectionEditorViewModel(settings));
+            new ConnectionEditorViewModel(settings, new ModelPickerViewModel()));
         await machine.LoadAsync(Cancellation);
 
         return machine;
+    }
+
+    private static readonly OffersModels Large = new(["large", "small"], ["low", "high"]);
+
+    [Fact]
+    public async Task AHarnessThatOffersModelsShowsThemAfterItsOwnDefaultAndSavesTheChoiceIntoTheConnectionAsync()
+    {
+        connections.Offers["simulator"] = CapabilitySet.Of(Large);
+        var machine = await MachineAsync();
+        machine.Editor.NewCommand.Execute(null);
+        await ((ConnectionEditorViewModel)machine.Editor).Offering;
+        var offered = (machine.Editor.Models.IsShown, string.Join(", ", machine.Editor.Models.Models), string.Join(", ", machine.Editor.Models.Efforts), machine.Editor.Models.Model);
+
+        machine.Editor.Name = "team";
+        machine.Editor.Models.Model = "large";
+        machine.Editor.Models.Effort = "high";
+        await machine.Editor.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, $"{ModelPhrases.HarnessDefault}, large, small", $"{ModelPhrases.HarnessDefault}, low, high", ModelPhrases.HarnessDefault), offered);
+        Assert.Equal(["declare team simulator model:large effort:high"], connections.Edits);
+    }
+
+    [Fact]
+    public async Task EditingAConnectionStartsFromTheModelItsSettingsDeclareAsync()
+    {
+        connections.Offers["claude-code"] = CapabilitySet.Of(Large with { DefaultModel = "small" });
+        connections.Catalog = connections.Catalog with
+        {
+            Connections = [new DeclaredConnection(new ConnectionName("work"), "claude-code", "login") { Reference = "/logins/work" }],
+        };
+        var machine = await MachineAsync();
+
+        machine.Connections[0].EditCommand.Execute(null);
+        await ((ConnectionEditorViewModel)machine.Editor).Offering;
+
+        Assert.Equal(("small", ModelPhrases.HarnessDefault), (machine.Editor.Models.Model, machine.Editor.Models.Effort));
+    }
+
+    [Fact]
+    public async Task AModelTheHarnessRefusesIsSaidAndTheFormStaysOpenAsync()
+    {
+        connections.Offers["simulator"] = CapabilitySet.Of(Large);
+        var machine = await MachineAsync();
+        machine.Editor.NewCommand.Execute(null);
+        await ((ConnectionEditorViewModel)machine.Editor).Offering;
+        machine.Editor.Name = "team";
+        machine.Editor.Models.Model = "large";
+        connections.Refusal = ConnectionError.UnofferedModel;
+
+        await machine.Editor.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, "The harness does not offer this model on this connection."), (machine.Editor.IsOpen, machine.Editor.Error));
+    }
+
+    [Fact]
+    public async Task AHarnessThatOffersNoModelsShowsNoPickersAndLeavesTheSettingsAloneAsync()
+    {
+        var machine = await MachineAsync();
+        machine.Editor.NewCommand.Execute(null);
+        await ((ConnectionEditorViewModel)machine.Editor).Offering;
+        machine.Editor.Name = "team";
+
+        await machine.Editor.SaveCommand.ExecuteAsync(null);
+
+        Assert.False(machine.Editor.Models.IsShown);
+        Assert.Equal(["declare team simulator"], connections.Edits);
     }
 }

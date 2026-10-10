@@ -1,6 +1,9 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Workbench.Machine;
+using Avala.Workbench.ModelChoices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -28,6 +31,8 @@ internal interface IConnectionEditorViewModel
 
     string ReferenceHint { get; }
 
+    IModelPickerViewModel Models { get; }
+
     string Error { get; }
 
     string Removing { get; }
@@ -44,10 +49,17 @@ internal interface IConnectionEditorViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class ConnectionEditorViewModel(MachineSettings settings) : IConnectionEditorViewModel
+internal sealed partial class ConnectionEditorViewModel(MachineSettings settings, ModelPickerViewModel models) : IConnectionEditorViewModel
 {
     private ConnectionCatalog catalog = new(ConnectionFileStatus.Absent, Option<ConnectionError>.None, [], Option<ConnectionName>.None);
     private Option<ConnectionName> editing;
+    private int offers;
+
+    public IModelPickerViewModel Models => models;
+
+    public ModelPickerViewModel Picker => models;
+
+    public Task Offering { get; private set; } = Task.CompletedTask;
 
     public event EventHandler<ConnectionEdited>? Edited;
 
@@ -107,6 +119,7 @@ internal sealed partial class ConnectionEditorViewModel(MachineSettings settings
         Provider = catalog.Providers.ToList().FindIndex(provider => provider.Id == connection.Provider);
         Source = connection.Source.Match(source => catalog.Sources.ToList().IndexOf(source) + 1, () => 0);
         Reference = connection.Reference.Match(reference => reference, () => string.Empty);
+        Offering = OfferAsync(CancellationToken.None);
     }
 
     public void AskToRemove(ConnectionName connection)
@@ -124,15 +137,49 @@ internal sealed partial class ConnectionEditorViewModel(MachineSettings settings
         Provider = catalog.Providers.Count > 0 ? 0 : -1;
         Source = 0;
         Reference = string.Empty;
+        Offering = OfferAsync(CancellationToken.None);
     }
+
+    partial void OnProviderChanged(int value)
+    {
+        if (IsOpen)
+        {
+            Offering = OfferAsync(CancellationToken.None);
+        }
+    }
+
+    private async Task OfferAsync(CancellationToken cancellationToken)
+    {
+        var ticket = ++offers;
+
+        if (Provider < 0 || Provider >= catalog.Providers.Count)
+        {
+            models.Hide(string.Empty);
+            return;
+        }
+
+        var offered = (await settings.CapabilitiesAsync(editing, Edit(Option<ModelChoice>.None), cancellationToken))
+            .Match(found => found.Get<OffersModels>(), _ => Option<OffersModels>.None);
+
+        if (ticket == offers)
+        {
+            offered.Match<Action>(
+                found => () => models.Offer(found, ModelPhrases.Connection, found.DefaultChoice(), ModelPhrases.ConnectionNote),
+                () => () => models.Hide(string.Empty))();
+        }
+    }
+
+    private ConnectionEdit Edit(Option<ModelChoice> model) =>
+        new(new ConnectionName(Name.Trim()), catalog.Providers[Provider].Id)
+        {
+            Credential = NeedsReference ? new CredentialReference(SourceName, Reference.Trim()) : Option<CredentialReference>.None,
+            Model = model,
+        };
 
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
-        var edit = new ConnectionEdit(new ConnectionName(Name.Trim()), catalog.Providers[Provider].Id)
-        {
-            Credential = NeedsReference ? new CredentialReference(SourceName, Reference.Trim()) : Option<CredentialReference>.None,
-        };
+        var edit = Edit(models.CanChoose ? models.Chosen : Option<ModelChoice>.None);
         var saved = await settings.DeclareAsync(editing, edit, cancellationToken);
         Error = saved.Match(_ => string.Empty, ConnectionPhrases.Refused);
 
@@ -237,6 +284,8 @@ internal static class ConnectionPhrases
         ConnectionError.MissingReference => "Say where the credential is.",
         ConnectionError.UnknownConnection => "That connection is not declared in connections.json: only declared connections can be changed here.",
         ConnectionError.RemovesTheDefault => "This is the default connection: choose another default first.",
+        ConnectionError.UnofferedModel => "The harness does not offer this model on this connection.",
+        ConnectionError.UnofferedEffort => "The harness does not offer this effort level on this connection.",
         ConnectionError.Unwritable => "connections.json could not be written.",
         _ => $"connections.json is rejected ({error}): open it to fix it.",
     };

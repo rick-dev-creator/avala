@@ -15,6 +15,7 @@ using Avala.Supervision.Contracts;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Board;
 using Avala.Workbench.Cards;
+using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Decisions;
 using Avala.Workbench.Fleet;
@@ -211,6 +212,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IAboutViewModel, AboutViewModel>()
             .AddSingleton<UpdateNoticeViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
+            .AddTransient<ModelPickerViewModel>()
+            .AddSingleton<NewJobReadings>()
             .AddSingleton<NewJobViewModel>()
             .AddSingleton<OverviewViewModel>()
             .AddSingleton<UsageViewModel>()
@@ -264,5 +267,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IResourceIndicatorViewModel, ResourceIndicatorView>();
         views.Register<INewJobViewModel, NewJobView>();
         views.Register<IConnectionOptionViewModel, ConnectionOptionView>();
+        views.Register<IModelPickerViewModel, ModelPickerView>();
     }
 }

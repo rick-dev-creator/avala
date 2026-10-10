@@ -111,6 +111,7 @@ internal sealed class RecordingParser
         "planUpdated" => Plan(recorded),
         "usageReported" => Usage(recorded),
         "limitReported" => Limit(recorded),
+        "modelReported" => new ModelReported(default, default, Text(recorded.GetProperty("model"))) { Effort = Optional(recorded, "effort") },
         "turnCompleted" => new TurnCompleted(default, default, Enum<TurnOutcome>(recorded.GetProperty("outcome"))),
         var type => ItemEvent(recorded, type),
     };

@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
@@ -24,6 +25,25 @@ public sealed class StreamTests
             ],
             talk.Events);
         Assert.Equal("user", (string?)Assert.Single(talk.Sent)["type"]);
+    }
+
+    [Fact]
+    public void TheInitMessageReportsTheModelTheCliRunsOncePerTurnWithTheEffortItWasLaunchedWith()
+    {
+        var init = JsonNode.Parse("""{ "type": "system", "subtype": "init", "session_id": "8a0e2f44-3c5d-4e71-8f92-8c4d6e8f0a05", "model": "claude-opus-5-5" }""")!;
+        var talk = new Talk(model: new ModelChoice("opus", "high")).Begin().Receive(init, init.DeepClone());
+
+        Assert.Equal(
+            [new ModelReported(talk.Session, talk.Turn, "claude-opus-5-5") { Effort = "high" }],
+            talk.Events.OfType<ModelReported>());
+    }
+
+    [Fact]
+    public void AnInitMessageWithoutAModelReportsNone()
+    {
+        var talk = new Talk().Begin().Receive(Cli.Init());
+
+        Assert.Empty(talk.Events.OfType<ModelReported>());
     }
 
     [Fact]

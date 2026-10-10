@@ -229,8 +229,58 @@ public sealed class ProviderTests
                 new AcceptsMessagesMidTurn(),
                 new ReportsUsage(),
                 new ReportsCost("USD")),
-            declared.Without<ReportsLimits>());
+            declared.Without<ReportsLimits>().Without<OffersModels>());
     }
+
+    [Fact]
+    public void ClaudeCodeOffersItsDocumentedModelsAndEffortsWithTheConnectionsSettingsAsDefaults()
+    {
+        var plain = Provider(new FakeCli()).CapabilitiesOn(ConnectionEnvironment.Default);
+        var set = Provider(new FakeCli()).CapabilitiesOn(new ConnectionEnvironment { Settings = new Dictionary<string, string> { ["model"] = "opus", ["effort"] = "high" } });
+
+        var offered = Outcomes.Present(plain.Get<OffersModels>());
+
+        Assert.Equal<string>(["best", "fable", "opus", "sonnet", "haiku", "opus[1m]", "sonnet[1m]", "opusplan"], offered.Models);
+        Assert.Equal<string>(["low", "medium", "high", "xhigh", "max"], offered.Efforts);
+        Assert.True(offered.DefaultChoice().IsDefault);
+        Assert.Equal(new ModelChoice("opus", "high"), Outcomes.Present(set.Get<OffersModels>()).DefaultChoice());
+    }
+
+    [Theory]
+    [InlineData("", "", "haiku", "", "haiku", "")]
+    [InlineData("sonnet", "max", "haiku", "low", "sonnet", "max")]
+    [InlineData("", "xhigh", "haiku", "", "haiku", "xhigh")]
+    [InlineData("", "", "", "", "", "")]
+    public async Task TheChosenModelAndEffortBecomeTheCliFlagsOverTheConnectionsSettingsAsync(string model, string effort, string settingModel, string settingEffort, string flagModel, string flagEffort)
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        var settings = new Dictionary<string, string>();
+
+        if (settingModel.Length > 0)
+        {
+            settings["model"] = settingModel;
+        }
+
+        if (settingEffort.Length > 0)
+        {
+            settings["effort"] = settingEffort;
+        }
+
+        var options = new SessionOptions(folder.Path, PermissionMode.AskEveryTime)
+        {
+            Connection = new ConnectionEnvironment { Settings = settings },
+            Model = new ModelChoice(model.Length == 0 ? Option<string>.None : model, effort.Length == 0 ? Option<string>.None : effort),
+        };
+
+        await using var session = Started(await Provider(cli).StartAsync(options, Cancellation));
+        var arguments = cli.Launches.Single().Arguments;
+
+        Assert.Equal((flagModel, flagEffort), (Flag(arguments, "--model"), Flag(arguments, "--effort")));
+    }
+
+    private static string Flag(IReadOnlyList<string> arguments, string flag) =>
+        After(arguments, flag) ?? string.Empty;
 
     private static ClaudeCodeProvider Provider(FakeCli cli, string? home = null) =>
         Provider(cli, new UserHome(home ?? Path.Combine(Path.GetTempPath(), "avala-no-home"), []));

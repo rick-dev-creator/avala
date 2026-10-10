@@ -72,7 +72,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     public void Show(BoardJob job)
     {
         Title = FactPhrases.Title(job.Summary.Instruction);
-        Place = ConversationPhrases.Place(job.Summary);
+        Place = ConversationPhrases.Place(job.Summary, job.Transcript.Ran);
         Status = job.Status;
         pill.Kind = FactPhrases.Dot(job);
         pill.Text = ConversationPhrases.Pill(job);

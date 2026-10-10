@@ -90,7 +90,9 @@ internal static class ToolAnswers
 
     private static string Reason(DelegationError error) => error switch
     {
-        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, and an autonomy of supervised or autonomous if any.",
+        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, an autonomy of supervised or autonomous if any, and a model and an effort as non-empty text if any.",
+        DelegationError.UnofferedModel => "the sub-agent's connection does not offer that model; ask for one it offers or leave the model out.",
+        DelegationError.UnofferedEffort => "the sub-agent's connection does not offer that effort level; ask for one it offers or leave the effort out.",
         DelegationError.NoJob => "this session runs no job, so there is nothing to delegate from.",
         DelegationError.NotDeclared => "the repository's .avala/jobs.json declares no delegation section, so this repository does not delegate.",
         DelegationError.DepthExceeded => "a sub-agent at this depth would be deeper than the repository's maxDepth allows; do the work yourself.",

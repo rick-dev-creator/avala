@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
@@ -99,7 +100,12 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     }
 
     public ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken) =>
-        InSessionAsync(integrationEvent.Event.Session, job => job with { Transcript = job.Transcript.Apply(integrationEvent.Event, time.GetUtcNow()) });
+        InSessionAsync(integrationEvent.Event.Session, job =>
+        {
+            var applied = job with { Transcript = job.Transcript.Apply(integrationEvent.Event, time.GetUtcNow()) };
+
+            return integrationEvent.Event is ModelReported ? Audited(applied) : applied;
+        });
 
     public ValueTask HandleAsync(CanvasUpdated integrationEvent, CancellationToken cancellationToken) =>
         InSessionAsync(integrationEvent.Snapshot.Session, job => job with { Transcript = job.Transcript.Apply(integrationEvent.Snapshot) });

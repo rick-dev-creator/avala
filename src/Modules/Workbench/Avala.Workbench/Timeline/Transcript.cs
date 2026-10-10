@@ -21,6 +21,8 @@ internal sealed record Transcript
     public IEnumerable<ITimelineEntry> Awaiting =>
         Entries.Where(entry => entry is PermissionEntry { AwaitsHuman: true } or FormEntry { AwaitsHuman: true });
 
+    public Option<ModelReported> Ran { get; private init; }
+
     public Option<PlanEntry> Plan => Entries.OfType<PlanEntry>().LastOrDefault().ToOption();
 
     public Option<ITimelineEntry> Find(string key) =>
@@ -60,6 +62,7 @@ internal sealed record Transcript
         MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text)),
         PlanUpdated plan => Put(new PlanEntry(EntryKeys.Plan(plan.Turn), plan.Steps)),
         UsageReported usage => Tally(usage.Turn, tally => tally.Add(usage.Tokens, usage.Cost)),
+        ModelReported reported => this with { Ran = reported },
         TurnCompleted completed => Ended(completed, now),
         _ => Exchange(activity),
     };

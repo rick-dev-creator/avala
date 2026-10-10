@@ -80,6 +80,7 @@
                        Classes="caption fade-in"
                        TextWrapping="Wrap"
                        Text="{Binding AutonomyNote}" />
+            <ContentControl x:Name="Models" Content="{Binding Models}" />
             <Border x:Name="Error"
                     Classes="quiet"
                     BorderBrush="{DynamicResource FailureBorderBrush}"
