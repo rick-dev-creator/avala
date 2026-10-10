@@ -80,6 +80,8 @@ internal sealed class ParentAnswers(GovernanceBook book, IAgents agents, AnswerL
     public async ValueTask<bool> PassAsync(SessionId child, ItemId item, PassReason reason, CancellationToken cancellationToken) =>
         await ledger.PassedAsync(child, item, reason, cancellationToken);
 
+    public bool Waits(SessionId child, ItemId item) => book.Of(child).Escalated.ContainsKey(item);
+
     private static bool Asks(Option<JobId> asked, GovernedSession parent) => parent.Job.IsSome && asked == parent.Job;
 
     private bool AllowedTo(GovernedSession parent, Option<PermissionRequest> request) =>

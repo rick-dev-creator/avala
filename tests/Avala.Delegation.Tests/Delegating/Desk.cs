@@ -41,6 +41,8 @@ internal sealed class Desk : IAsyncDisposable
         Parents = new DeferredParents(Book);
         Resumption = new ParentResumption(Parents, Jobs);
         Briefing = new OwedReports(Book, journal);
+        Notes = new ParentNotes(journal, Jobs, Answers, Clock);
+        Waits = new ChildWaits(reporter, journal, Audit, Answers);
         Parent = Jobs.Running();
     }
 
@@ -48,6 +50,12 @@ internal sealed class Desk : IAsyncDisposable
         : this(Option<DelegationRules>.Some(Declared))
     {
     }
+
+    public RecordingParentAnswers Answers { get; } = new();
+
+    public ParentNotes Notes { get; }
+
+    public ChildWaits Waits { get; }
 
     public DeferredParents Parents { get; }
 
@@ -144,5 +152,12 @@ internal sealed class Desk : IAsyncDisposable
     public async Task<DelegationRecord> ReportedAsync(JobId child) =>
         (await Bus.WaitForAsync<ChildReported>(reported => reported.Delegation.Child == Option<JobId>.Some(child), Cancellation)).Delegation;
 
-    public ValueTask DisposeAsync() => reporter.DisposeAsync();
+    public async Task WaitChildAsync(string item, JobId child) =>
+        await Waits.HandleAsync(new AgentActivity(new ToolCalled(Session, Turn, new ItemId(item), WaitChildTool.Name, $$"""{ "child": "{{child.Value}}" }""")), Cancellation);
+
+    public async ValueTask DisposeAsync()
+    {
+        await Notes.DisposeAsync();
+        await reporter.DisposeAsync();
+    }
 }

@@ -29,4 +29,6 @@ public interface IParentAnswers
     ValueTask<Result<FormDecision, PolicyError>> AnswerFormAsync(SessionId child, ParentFormReply reply, CancellationToken cancellationToken);
 
     ValueTask<bool> PassAsync(SessionId child, ItemId item, PassReason reason, CancellationToken cancellationToken);
+
+    bool Waits(SessionId child, ItemId item);
 }

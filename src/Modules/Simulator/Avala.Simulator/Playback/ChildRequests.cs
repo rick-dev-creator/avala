@@ -5,6 +5,8 @@ using Avala.Simulator.Scenarios;
 
 namespace Avala.Simulator.Playback;
 
+internal sealed record EarlyResult(Option<string> Answer, string Wait);
+
 internal static class ChildRequests
 {
     public static Option<string> Answer(string message, string decision) =>
@@ -13,6 +15,22 @@ internal static class ChildRequests
             .Where(line => line.StartsWith(ScenarioCatalog.AnswerChild + " ", StringComparison.Ordinal))
             .Select(line => Decided(line[(ScenarioCatalog.AnswerChild.Length + 1)..], decision))
             .FirstOrDefault(answer => answer.IsSome);
+
+    public static Option<EarlyResult> Early(string result, Option<string> decision)
+    {
+        try
+        {
+            return JsonNode.Parse(result) is JsonObject answered && answered[ScenarioCatalog.WaitChild] is JsonObject wait
+                ? new EarlyResult(
+                    answered[ScenarioCatalog.AnswerChild] is JsonObject answer ? decision.Bind(chosen => Set(answer, chosen)) : Option<string>.None,
+                    wait.ToJsonString())
+                : Option<EarlyResult>.None;
+        }
+        catch (JsonException)
+        {
+            return Option<EarlyResult>.None;
+        }
+    }
 
     private static Option<string> Decided(string example, string decision)
     {

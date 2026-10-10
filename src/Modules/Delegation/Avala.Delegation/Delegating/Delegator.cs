@@ -55,6 +55,7 @@ internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJ
         }
 
         var delegated = planned with { Child = child };
+        journal.Calls.Open(child, new CallRef(planned.Session, planned.Item));
         await journal.DelegatedAsync(delegated, cancellationToken);
 
         return new Delegated(child, delegated);
