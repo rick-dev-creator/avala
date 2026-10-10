@@ -36,6 +36,10 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private static readonly Declaration Nothing = new(Option<string>.None, Option<string>.None, ModelChoice.Default);
 
+    private static readonly string[] Names = [ConnectionField, ApprovalField, ModelField, EffortField];
+
+    private static readonly (string Field, bool ListsAllowed)[] Sections = [(AutopilotField, false), (DelegationField, true), (LimitsField, true), (PullRequestField, false)];
+
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
 
     public async ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken) =>
@@ -90,29 +94,17 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
             return Rejected("it is not a JSON object");
         }
 
-        if (root.EnumerateObject().Any(property => property.Name is not (ConnectionField or ApprovalField or AutopilotField or DelegationField or ModelField or EffortField or LimitsField or PullRequestField)))
+        if (root.EnumerateObject().Any(property => !Names.Contains(property.Name) && !Sections.Any(section => section.Field == property.Name)))
         {
             return Rejected("it has a field the format does not define");
         }
 
-        if (root.TryGetProperty(AutopilotField, out var autopilot) && !IsSection(autopilot, listsAllowed: false))
+        foreach (var (field, listsAllowed) in Sections)
         {
-            return Rejected($"its {AutopilotField} is not an object of plain values");
-        }
-
-        if (root.TryGetProperty(DelegationField, out var delegation) && !IsSection(delegation, listsAllowed: true))
-        {
-            return Rejected($"its {DelegationField} is not an object of plain values and lists of them");
-        }
-
-        if (root.TryGetProperty(LimitsField, out var limits) && !IsSection(limits, listsAllowed: true))
-        {
-            return Rejected($"its {LimitsField} is not an object of plain values and lists of them");
-        }
-
-        if (root.TryGetProperty(PullRequestField, out var pullRequest) && !IsSection(pullRequest, listsAllowed: false))
-        {
-            return Rejected($"its {PullRequestField} is not an object of plain values");
+            if (root.TryGetProperty(field, out var section) && !IsSection(section, listsAllowed))
+            {
+                return Rejected(listsAllowed ? $"its {field} is not an object of plain values and lists of them" : $"its {field} is not an object of plain values");
+            }
         }
 
         return Named(root, ConnectionField).Bind(connection => Named(root, ApprovalField).Bind(approval => Named(root, ModelField).Bind(model => Named(root, EffortField)
