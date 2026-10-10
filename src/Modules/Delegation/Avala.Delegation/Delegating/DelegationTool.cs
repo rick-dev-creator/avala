@@ -14,7 +14,8 @@ internal static class DelegationTool
           "type": "object",
           "properties": {
             "instruction": { "type": "string", "description": "What the sub-agent must do, complete enough to be done on its own." },
-            "autonomy": { "type": "string", "enum": ["supervised", "autonomous"], "description": "Optionally run the sub-agent stricter than you run; it can never run looser." }
+            "autonomy": { "type": "string", "enum": ["supervised", "autonomous"], "description": "Optionally run the sub-agent stricter than you run; it can never run looser." },
+            "role": { "type": "string", "enum": ["worker", "reviewer", "research"], "description": "worker, the default, changes files and its work is brought into yours; reviewer and research only read, cannot edit any file, and report back without changing your worktree." }
           },
           "required": ["instruction"],
           "additionalProperties": false

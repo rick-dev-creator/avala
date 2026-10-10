@@ -10,7 +10,7 @@ using Avala.Sdk.Events;
 
 namespace Avala.Permissions.Governance;
 
-internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, PermissionResponder responder, IEventBus bus)
+internal sealed class SessionGovernor(GovernanceBook book, SessionTerms terms, PermissionResponder responder, IEventBus bus)
     : IHandle<SessionOpened>, IHandle<JobSessionStarted>, IHandle<AgentActivity>, IHandle<JobProgressed>
 {
     public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
@@ -23,7 +23,7 @@ internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, P
 
     public async ValueTask HandleAsync(SessionOpened integrationEvent, CancellationToken cancellationToken)
     {
-        var read = await files.ReadAsync(integrationEvent.WorkingDirectory, cancellationToken);
+        var read = await terms.Files.ReadAsync(integrationEvent.WorkingDirectory, cancellationToken);
         var (policy, file, error) = read.Resolved;
 
         var report = new SessionPolicy(integrationEvent.Session, file, error, policy.Rules, read.Origin)
@@ -38,7 +38,7 @@ internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, P
 
     public async ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
     {
-        var governed = book.Of(integrationEvent.Session).WorkingOn(integrationEvent.Job, integrationEvent.Autonomy);
+        var governed = book.Of(integrationEvent.Session).WorkingOn(integrationEvent.Job, integrationEvent.Autonomy, await terms.OfAsync(integrationEvent.Job, cancellationToken));
         await book.WorkingOnAsync(governed, cancellationToken);
 
         await governed.Autonomy.Match(
@@ -52,9 +52,15 @@ internal sealed class SessionGovernor(GovernanceBook book, IPolicyFiles files, P
         {
             case PermissionRequested requested:
                 var governed = book.Of(requested.Session);
-                var decision = await responder.DecideAsync(governed, requested, book.RulesOf(governed), cancellationToken);
-                await book.DecidedAsync(decision, cancellationToken);
+                var (decision, request) = await responder.DecideAsync(governed, requested, book.RulesOf(governed), cancellationToken);
+                await book.DecidedAsync(decision, request, cancellationToken);
                 await bus.PublishAsync(new PermissionDecided(decision), cancellationToken);
+                break;
+            case PermissionResolved resolved:
+                book.Settle(resolved.Session, resolved.Item);
+                break;
+            case FormAnswered answered:
+                book.Settle(answered.Session, answered.Item);
                 break;
             case FormRequested asked:
                 var form = await responder.DecideAsync(book.Of(asked.Session), asked, cancellationToken);

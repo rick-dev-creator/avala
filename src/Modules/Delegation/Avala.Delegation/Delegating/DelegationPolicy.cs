@@ -8,11 +8,18 @@ using Avala.Sdk;
 
 namespace Avala.Delegation.Delegating;
 
-internal sealed record Caller(SessionId Session, Option<JobId> Job, Option<string> Worktree, int Pending);
+internal sealed record Caller(SessionId Session, Option<JobId> Job, Option<string> Worktree, int Pending)
+{
+    public ChildRole Role { get; init; }
+}
 
 internal sealed record Plan(JobSummary Parent, Routed Route, Autonomy Autonomy)
 {
     public Option<ConnectionName> Connection => Route.Connection;
+
+    public ChildRole Role { get; init; }
+
+    public Option<ParentEscalation> Escalation { get; init; }
 }
 
 internal sealed record Decision(string Instruction, int Depth, Result<Plan, DelegationError> Outcome);
@@ -46,17 +53,22 @@ internal sealed class DelegationPolicy(IDelegationRules rules, IJobCatalog catal
         }
 
         var granted = audit.AutonomyOf(caller.Session).Match(applied => applied.Effective, () => Autonomy.Supervised);
-        var refused = delegation.Refuses(depth, caller.Pending, asked.Autonomy, granted);
+        var refused = delegation.Refuses(depth, caller.Pending, asked.Autonomy, granted).Match(Option<DelegationError>.Some, () => delegation.RefusesRole(asked.Role, caller.Role));
 
         if (refused.IsSome)
         {
             return new Decision(asked.Instruction, depth, refused.Match(error => error, () => default));
         }
 
+        var role = delegation.RoleOf(asked.Role, caller.Role);
+
         var earlier = (await catalog.ChildrenAsync(history.Summary.Job, cancellationToken)).Count;
         var routed = await router.RouteAsync(delegation, earlier, worktree, cancellationToken);
 
-        return new Decision(asked.Instruction, depth, new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)));
+        return new Decision(
+            asked.Instruction,
+            depth,
+            new Plan(history.Summary, routed, asked.Autonomy.Match(stricter => stricter, () => granted)) { Role = role, Escalation = delegation.Escalation.Kept });
     }
 
     private async Task<int> DepthOfAsync(JobSummary job, CancellationToken cancellationToken)

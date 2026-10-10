@@ -140,12 +140,34 @@ public sealed class DelegationDeskTests
         Assert.Single(desk.Agents.Results);
     }
 
+    [Fact]
+    public async Task AReadOnlyChildInReviewIsReportedAndDiscardedNeverIntegratedAndKeepsItsEscalationAsync()
+    {
+        await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Escalation = new EscalationTerms(true, TimeSpan.FromSeconds(30)) }));
+        await desk.StartedAsync();
+        await desk.CallAsync("review", """{ "instruction": "Review the notes", "role": "reviewer" }""");
+        var record = Assert.Single(desk.Book.All());
+        var child = Outcomes.Present(record.Child);
+        desk.Verifications.Reports[child] = Verified(child);
+        await desk.ReplyAsync(child, "The notes read well.");
+
+        await desk.ProgressAsync(child, JobStatus.AwaitingReview);
+        var report = Outcomes.Present((await desk.ReportedAsync(child)).Report);
+
+        Assert.Equal((ChildRole.Reviewer, Option<ParentEscalation>.Some(new ParentEscalation(TimeSpan.FromSeconds(30)))), (record.Role, record.Escalation));
+        Assert.Equal((ChildOutcome.Reported, JobStatus.Discarded, Option<ApprovalDelivery>.None, Option<string>.Some("The notes read well.")), (report.Outcome, report.Status, report.Delivery, report.Summary));
+        Assert.Equal([child], desk.Jobs.Discarded);
+        Assert.Contains("\"role\":\"reviewer\"", desk.Agents.Results[^1].Result.Content, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("not declared", "NotDeclared")]
     [InlineData("unreadable rules", "Malformed")]
     [InlineData("too deep", "DepthExceeded")]
     [InlineData("too many", "TooManyChildren")]
     [InlineData("looser", "AutonomyLoosened")]
+    [InlineData("writer", "RoleLoosened")]
+    [InlineData("unknown role", "MalformedInput")]
     [InlineData("malformed", "MalformedInput")]
     [InlineData("no job", "NoJob")]
     [InlineData("not submitted", "NotSubmitted")]
@@ -155,6 +177,7 @@ public sealed class DelegationDeskTests
         {
             "not declared" => Option<DelegationRules>.None,
             "unreadable rules" => DelegationError.Malformed,
+            "writer" => Option<DelegationRules>.Some(Desk.Declared with { Role = ChildRole.Research }),
             _ => Option<DelegationRules>.Some(Desk.Declared with { MaxChildren = 1 }),
         });
         var caller = situation == "too deep" ? desk.Jobs.Running(parent: desk.Parent) : desk.Parent;
@@ -167,6 +190,8 @@ public sealed class DelegationDeskTests
         {
             "looser" => """{ "instruction": "Write the notes", "autonomy": "autonomous" }""",
             "malformed" => """{ "instruction": "Write the notes", "connection": "personal" }""",
+            "writer" => """{ "instruction": "Write the notes", "role": "worker" }""",
+            "unknown role" => """{ "instruction": "Write the notes", "role": "editor" }""",
             _ => """{ "instruction": "Write the notes" }""",
         });
 

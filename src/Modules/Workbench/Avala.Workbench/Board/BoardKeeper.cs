@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Capabilities;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
@@ -35,7 +36,8 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     IHandle<BudgetIntervened>,
     IHandle<BudgetCarved>,
     IHandle<ChildDelegated>,
-    IHandle<ChildReported>
+    IHandle<ChildReported>,
+    IHandle<ParentAsked>
 {
     private readonly Dictionary<SessionId, JobId> sessions = [];
     private readonly HashSet<SessionId> steerable = [];
@@ -104,14 +106,59 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     public ValueTask HandleAsync(CanvasUpdated integrationEvent, CancellationToken cancellationToken) =>
         InSessionAsync(integrationEvent.Snapshot.Session, job => job with { Transcript = job.Transcript.Apply(integrationEvent.Snapshot) });
 
-    public ValueTask HandleAsync(PermissionDecided integrationEvent, CancellationToken cancellationToken) =>
-        InSessionAsync(integrationEvent.Decision.Session, job => Audited(job with { Transcript = job.Transcript.Apply(integrationEvent.Decision) }));
+    public ValueTask HandleAsync(PermissionDecided integrationEvent, CancellationToken cancellationToken)
+    {
+        var decision = integrationEvent.Decision;
+        Asker(decision.Parent, decision.Session, decision.Item, asked => decision.Passed.Match(
+            reason => asked with { State = ChildAskingState.Passed, Passed = reason },
+            () => asked));
 
-    public ValueTask HandleAsync(FormDecided integrationEvent, CancellationToken cancellationToken) =>
-        InSessionAsync(integrationEvent.Decision.Session, job => Audited(job with { Transcript = job.Transcript.Apply(integrationEvent.Decision) }));
+        return InSessionAsync(decision.Session, job => Audited(job with { Transcript = job.Transcript.Apply(decision) }));
+    }
 
-    public ValueTask HandleAsync(PermissionAnswered integrationEvent, CancellationToken cancellationToken) =>
-        InSessionAsync(integrationEvent.Answer.Session, Audited);
+    public ValueTask HandleAsync(FormDecided integrationEvent, CancellationToken cancellationToken)
+    {
+        var decision = integrationEvent.Decision;
+        Asker(decision.Parent, decision.Session, decision.Item, asked => decision.Passed.Match(
+            reason => asked with { State = ChildAskingState.Passed, Passed = reason },
+            () => decision.Delivery == DecisionDelivery.Answered
+                ? asked with { State = decision.Answer.Match(answer => answer.Declined, () => false) ? ChildAskingState.Denied : ChildAskingState.Answered }
+                : asked));
+
+        return InSessionAsync(decision.Session, job => Audited(job with { Transcript = job.Transcript.Apply(decision) }));
+    }
+
+    public ValueTask HandleAsync(PermissionAnswered integrationEvent, CancellationToken cancellationToken)
+    {
+        var answer = integrationEvent.Answer;
+        var asker = answer.Parent.IsSome ? answer.Parent : ParentAsked(answer.Session, answer.Item);
+        Asker(asker, answer.Session, answer.Item, asked => asked with
+        {
+            State = answer.Parent.IsNone ? ChildAskingState.AnsweredByPerson
+                : answer.Answer == PermissionAnswer.Allow ? ChildAskingState.Allowed
+                : ChildAskingState.Denied,
+        });
+
+        return InSessionAsync(answer.Session, Audited);
+    }
+
+    public ValueTask HandleAsync(ParentAsked integrationEvent, CancellationToken cancellationToken)
+    {
+        foreach (var parent in Known(integrationEvent.Delegation.Parent))
+        {
+            Change(parent, job => Audited(job with
+            {
+                Transcript = job.Transcript.Asked(
+                    integrationEvent.Session,
+                    integrationEvent.Item,
+                    integrationEvent.Delegation.Instruction,
+                    integrationEvent.Asking,
+                    integrationEvent.Note),
+            }));
+        }
+
+        return ValueTask.CompletedTask;
+    }
 
     public ValueTask HandleAsync(AutonomyApplied integrationEvent, CancellationToken cancellationToken) =>
         AuditedAsync(integrationEvent.Autonomy.Job);
@@ -132,6 +179,19 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
         AuditedAsync(Related(integrationEvent.Delegation));
 
     private static BoardJob Audited(BoardJob job) => job with { Revision = job.Revision + 1 };
+
+    private void Asker(Option<JobId> parent, SessionId session, ItemId item, Func<ChildAskingEntry, ChildAskingEntry> change)
+    {
+        foreach (var asked in Known(parent))
+        {
+            Change(asked, job => Audited(job with { Transcript = job.Transcript.ChildDecided(session, item, change) }));
+        }
+    }
+
+    private Option<JobId> ParentAsked(SessionId session, ItemId item) =>
+        sessions.TryGetValue(session, out var child) && jobs.TryGetValue(child, out var known)
+            ? known.Transcript.Entries.OfType<PermissionEntry>().LastOrDefault(entry => entry.Session == session && entry.Item == item)?.Decision.Bind(decision => decision.Parent) ?? Option<JobId>.None
+            : Option<JobId>.None;
 
     private static JobId[] Related(DelegationRecord delegation) => [.. Known(delegation.Parent), .. Known(delegation.Child)];
 

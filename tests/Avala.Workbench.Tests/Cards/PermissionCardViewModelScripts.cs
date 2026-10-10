@@ -21,6 +21,22 @@ public sealed class PermissionCardViewModelScripts
                 Assert.Equal(("Waiting for you", true, true), (card.Verdict, card.AwaitsYou, card.IsShown));
             });
 
+    [Theory]
+    [InlineData("waiting", "Waiting for its parent", true)]
+    [InlineData("allowed", "Allowed by its parent", false)]
+    [InlineData("denied", "Denied by its parent", false)]
+    [InlineData("passed", "Waiting for you · its parent did not answer in time", true)]
+    [InlineData("beyond", "Waiting for you · its parent's own rules do not allow it", true)]
+    public void ARequestOfASubAgentSaysWhetherItWaitsForItsParentWhoAnsweredItOrWhyItCameToYou(string state, string verdict, bool awaitsYou) =>
+        ViewModelScript.Given(new PermissionCardViewModel(
+                asking.AskingParent(
+                    Jobs.Contracts.JobId.New(),
+                    state switch { "allowed" or "denied" => DecisionDelivery.Answered, "waiting" => DecisionDelivery.LeftToParent, _ => DecisionDelivery.LeftToHuman },
+                    state switch { "passed" => PassReason.ParentTimedOut, "beyond" => PassReason.BeyondParent, _ => Option<PassReason>.None },
+                    state switch { "allowed" => PermissionAnswer.Allow, "denied" => PermissionAnswer.Deny, _ => Option<PermissionAnswer>.None }),
+                new(permissions, new FakeAgents())))
+            .Then(card => Assert.Equal((verdict, awaitsYou, true), (card.Verdict, card.AwaitsYou, card.IsShown)));
+
     [Fact]
     public async Task AllowingSendsTheTrimmedNoteAndDontAskAgainForThisJobToTheSessionOfTheRequest()
     {

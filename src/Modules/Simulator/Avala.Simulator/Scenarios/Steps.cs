@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Sdk;
 
 namespace Avala.Simulator.Scenarios;
 
@@ -31,7 +32,10 @@ internal sealed record Ask(ItemId Item, AgentForm Form) : IStep;
 
 internal sealed record CallTool(ItemId Item, string Tool, string Input) : IStep;
 
-internal sealed record CallTools(IReadOnlyList<CallTool> Calls) : IStep;
+internal sealed record CallTools(IReadOnlyList<CallTool> Calls) : IStep
+{
+    public Option<string> AnswersChildren { get; init; }
+}
 
 internal sealed record UpdatePlan(IReadOnlyList<PlanStep> Steps) : IStep;
 

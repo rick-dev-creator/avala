@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Delegating;
+using Avala.Delegation.Escalating;
 using Avala.Delegation.Records;
 using Avala.Delegation.Tests.Delegating;
 using Avala.Jobs.Contracts;
@@ -39,7 +40,11 @@ public sealed class DelegationPluginTests
         Assert.Contains(composition.Get<Storage.SqliteDelegationStore>(), composition.All<IStartupTask>());
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<SessionOpened>>());
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<JobSessionStarted>>());
-        Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<AgentActivity>>());
+        Assert.Contains(composition.Get<DelegationDesk>(), composition.All<IHandle<AgentActivity>>());
+        Assert.Contains(composition.Get<ChildAnswers>(), composition.All<IHandle<AgentActivity>>());
+        Assert.Same(composition.Get<ChildTerms>(), composition.Get<IJobTerms>());
+        Assert.Same(composition.Get<ParentNotes>(), composition.Get<IHandle<PermissionDecided>>());
+        Assert.Same(composition.Get<ParentNotes>(), composition.Get<IHandle<FormDecided>>());
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<JobProgressed>>());
         Assert.Same(composition.Get<DelegationDesk>(), composition.Get<IHandle<JobHeld>>());
     }
@@ -53,6 +58,7 @@ public sealed class DelegationPluginTests
             .AddSingleton<IJobCatalog>(jobs)
             .AddSingleton<IAgents>(new ReturningAgents())
             .AddSingleton<IPermissionAudit>(new FixedAudit())
+            .AddSingleton<IParentAnswers>(new RecordingParentAnswers())
             .AddSingleton<IUsage>(new FixedUsage())
             .AddSingleton<IBudgets>(new FixedBudgets())
             .AddSingleton<IWorkspaceChanges>(new FixedChanges())

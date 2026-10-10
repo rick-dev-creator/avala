@@ -55,6 +55,12 @@ internal interface IDecisionViewModel
 
     string Waiting { get; }
 
+    string Heading { get; }
+
+    bool HasHeading { get; }
+
+    string Status { get; }
+
     bool IsSelected { get; }
 
     IAsyncRelayCommand AnswerCommand { get; }
@@ -150,6 +156,15 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
     public partial string Waiting { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHeading))]
+    public partial string Heading { get; set; } = string.Empty;
+
+    public bool HasHeading => Heading.Length > 0;
+
+    [ObservableProperty]
+    public partial string Status { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
     public string Note { get; set; }
@@ -157,6 +172,12 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
     public void Update(ITimelineEntry entry, DateTimeOffset now)
     {
         Card.Update(entry);
+        Status = Card switch
+        {
+            IPermissionCardViewModel permission => permission.Verdict,
+            IFormCardViewModel form => form.Verdict,
+            _ => string.Empty,
+        };
         Age(now);
     }
 
