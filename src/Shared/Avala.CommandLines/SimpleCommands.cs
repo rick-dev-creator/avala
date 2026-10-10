@@ -11,6 +11,25 @@ internal static class SimpleCommands
 
     private static readonly FrozenSet<string> Shells = FrozenSet.Create(StringComparer.Ordinal, "sh", "bash", "zsh", "dash", "ksh", "mksh", "ash");
 
+    private static readonly Wrapper Elevating = new(["-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U", "-T"], Elevates: true);
+
+    private static readonly FrozenDictionary<string, Wrapper> Wrappers = new Dictionary<string, Wrapper>
+    {
+        ["sudo"] = Elevating,
+        ["doas"] = Elevating,
+        ["su"] = Elevating,
+        ["xargs"] = new(["-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s"]),
+        ["timeout"] = new(["-s", "-k"], Operands: 1),
+        ["nice"] = new(["-n"]),
+        ["exec"] = new(["-a"]),
+        ["stdbuf"] = new(["-i", "-o", "-e"]),
+        ["nohup"] = new([]),
+        ["time"] = new([]),
+        ["command"] = new([]),
+        ["builtin"] = new([]),
+        ["!"] = new([]),
+    }.ToFrozenDictionary(StringComparer.Ordinal);
+
     private static readonly SearchValues<char> Name = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
 
     public static void Analyse(List<ShellWord> words, ShellReader reader, IReadOnlyList<string> written) =>
@@ -59,30 +78,8 @@ internal static class SimpleCommands
             case "eval" or "trap":
                 reader.Merge(string.Join(' ', words.Skip(1).Select(word => word.Value)), opaque: true);
                 break;
-            case "sudo" or "doas" or "su":
-                reader.Unanalysable();
-                Analyse(After(words, "-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U", "-T"), reader);
-                break;
             case "env":
                 Environment(words, reader);
-                break;
-            case "xargs":
-                Analyse(After(words, "-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s"), reader);
-                break;
-            case "timeout":
-                Analyse([.. After(words, "-s", "-k").Skip(1)], reader);
-                break;
-            case "nice":
-                Analyse(After(words, "-n"), reader);
-                break;
-            case "exec":
-                Analyse(After(words, "-a"), reader);
-                break;
-            case "stdbuf":
-                Analyse(After(words, "-i", "-o", "-e"), reader);
-                break;
-            case "nohup" or "time" or "command" or "builtin" or "!":
-                Analyse(After(words), reader);
                 break;
             case "find":
                 Executed(words, reader);
@@ -90,7 +87,20 @@ internal static class SimpleCommands
             case var shell when Shells.Contains(shell):
                 Shell(words, reader);
                 break;
+            case var wrapper when Wrappers.TryGetValue(wrapper, out var wrapping):
+                Unwrap(wrapping, words, reader);
+                break;
         }
+    }
+
+    private static void Unwrap(Wrapper wrapper, List<ShellWord> words, ShellReader reader)
+    {
+        if (wrapper.Elevates)
+        {
+            reader.Unanalysable();
+        }
+
+        Analyse([.. After(words, wrapper.Valued).Skip(wrapper.Operands)], reader);
     }
 
     private static bool IsAssignment(string word)
@@ -159,7 +169,7 @@ internal static class SimpleCommands
     {
         var (index, command) = (1, false);
 
-        while (index < words.Count && words[index].Value.Length > 1 && words[index].Value[0] is '-' or '+')
+        while (index < words.Count && IsOption(words[index]))
         {
             var option = words[index].Value;
 
@@ -183,4 +193,8 @@ internal static class SimpleCommands
             reader.Merge(words[index].Value, opaque: false);
         }
     }
+
+    private static bool IsOption(ShellWord word) => word.Value.Length > 1 && word.Value[0] is '-' or '+';
+
+    private sealed record Wrapper(string[] Valued, int Operands = 0, bool Elevates = false);
 }

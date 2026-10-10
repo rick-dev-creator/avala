@@ -14,7 +14,12 @@ internal sealed class ShellReader(string text)
 
     private static readonly SearchValues<char> Parameter = SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_#@*!?$-");
 
-    private static readonly string[] Operators = ["&>>", "&>", "<<<", "<<-", "<<", "<>", "<&", "<(", ">>", ">|", ">&", ">(", "<", ">"];
+    private static readonly (string Text, Redirection Kind)[] Operators =
+    [
+        ("&>>", Redirection.Output), ("&>", Redirection.Output), ("<<<", Redirection.Input), ("<<-", Redirection.Heredoc), ("<<", Redirection.Heredoc),
+        ("<>", Redirection.Output), ("<&", Redirection.Input), ("<(", Redirection.Substitution), (">>", Redirection.Output), (">|", Redirection.Output),
+        (">&", Redirection.Duplication), (">(", Redirection.Substitution), ("<", Redirection.Input), (">", Redirection.Output),
+    ];
 
     private readonly List<ShellCommand> commands = [];
     private readonly List<string> writes = [];
@@ -125,27 +130,41 @@ internal sealed class ShellReader(string text)
                 Redirect();
                 break;
             default:
-                var word = ReadWord();
-                if (word.Raw.Length > 0 && word.Raw.All(char.IsAsciiDigit) && Peek() is '<' or '>')
-                {
-                    Redirect();
-                }
-                else if (word.Raw.Length > 0)
-                {
-                    words.Add(word);
-                }
-
+                ReadArgument(words);
                 break;
         }
     }
 
+    private void ReadArgument(List<ShellWord> words)
+    {
+        var word = ReadWord();
+
+        if (word.Raw.Length > 0 && word.Raw.All(char.IsAsciiDigit) && Peek() is '<' or '>')
+        {
+            Redirect();
+        }
+        else if (word.Raw.Length > 0)
+        {
+            words.Add(word);
+        }
+    }
+
+    private enum Redirection
+    {
+        Output,
+        Input,
+        Heredoc,
+        Duplication,
+        Substitution,
+    }
+
     private void Redirect()
     {
-        var op = Operators.First(candidate => string.CompareOrdinal(text, at, candidate, 0, candidate.Length) == 0);
+        var (op, kind) = Operators.First(candidate => string.CompareOrdinal(text, at, candidate.Text, 0, candidate.Text.Length) == 0);
         opaque |= op == "<" && Peek(1) == '#';
         at += op.Length;
 
-        if (op is "<(" or ">(")
+        if (kind == Redirection.Substitution)
         {
             opaque = true;
             ReadList(closing: true);
@@ -160,15 +179,17 @@ internal sealed class ShellReader(string text)
         {
             opaque = true;
         }
-        else if (op is "<<" or "<<-")
+        else if (kind == Redirection.Heredoc)
         {
             heredocs.Enqueue((target.Value, target.Raw.IndexOfAny(['\'', '"', '\\']) >= 0, op == "<<-"));
         }
-        else if (op is not ("<<<" or "<" or "<&") && !(op == ">&" && (target.Value == "-" || target.Value.All(char.IsAsciiDigit))))
+        else if (kind == Redirection.Output || (kind == Redirection.Duplication && !IsDescriptor(target.Value)))
         {
             Write(target);
         }
     }
+
+    private static bool IsDescriptor(string target) => target == "-" || target.All(char.IsAsciiDigit);
 
     private void Write(ShellWord target)
     {
@@ -239,17 +260,8 @@ internal sealed class ShellReader(string text)
 
             switch (c)
             {
-                case '\\' when at + 1 >= text.Length:
-                    (opaque, at) = (true, at + 1);
-                    break;
-                case '\\' when text[at + 1] == '\n':
-                    (opaque, at) = (true, at + 2);
-                    break;
                 case '\\':
-                    opaque |= Diverges(text[at + 1]);
-                    raw.Append(c).Append(text[at + 1]);
-                    value.Append(text[at + 1]);
-                    at += 2;
+                    Escape(raw, value);
                     break;
                 case '\'':
                     ReadSingle(raw, value);
@@ -266,7 +278,7 @@ internal sealed class ShellReader(string text)
                     Backtick(raw);
                     break;
                 default:
-                    literal &= c is not ('*' or '?' or '[' or '{') && !(c == '~' && raw.Length == 0);
+                    literal &= !Expands(c, first: raw.Length == 0);
                     raw.Append(c);
                     value.Append(c);
                     at++;
@@ -275,6 +287,23 @@ internal sealed class ShellReader(string text)
         }
 
         return new ShellWord(raw.ToString(), value.ToString(), literal);
+    }
+
+    private static bool Expands(char c, bool first) => c is '*' or '?' or '[' or '{' || (c == '~' && first);
+
+    private void Escape(StringBuilder raw, StringBuilder value)
+    {
+        if (at + 1 >= text.Length || text[at + 1] == '\n')
+        {
+            (opaque, at) = (true, Math.Min(at + 2, text.Length));
+
+            return;
+        }
+
+        opaque |= Diverges(text[at + 1]);
+        raw.Append('\\').Append(text[at + 1]);
+        value.Append(text[at + 1]);
+        at += 2;
     }
 
     private void ReadSingle(StringBuilder raw, StringBuilder value)
