@@ -161,6 +161,27 @@ public sealed class PermissionPolicyTests
     public void ACeilingOnlyEverLowersTheDeclaredAutonomy(Autonomy declared, Autonomy? ceiling, Autonomy effective) =>
         Assert.Equal(effective, (PermissionPolicy.With([]) with { Declared = declared }).Capped(ceiling.ToOption()).Autonomy);
 
+    [Theory]
+    [InlineData(Autonomy.Supervised, ItemKind.FileEdit, "src/app.cs", true, PolicyAnswer.Deny, "read-only-denies-edits")]
+    [InlineData(Autonomy.Autonomous, ItemKind.FileEdit, "src/app.cs", true, PolicyAnswer.Deny, "read-only-denies-edits")]
+    [InlineData(Autonomy.Autonomous, ItemKind.FileEdit, "/etc/hosts", false, PolicyAnswer.Deny, "read-only-denies-edits")]
+    [InlineData(Autonomy.Supervised, ItemKind.Command, "git log > history.txt", false, PolicyAnswer.Deny, "read-only-denies-edits")]
+    [InlineData(Autonomy.Autonomous, ItemKind.Command, "git log", false, PolicyAnswer.Allow, "read the log")]
+    [InlineData(Autonomy.Autonomous, ItemKind.Command, "rm -rf src", false, PolicyAnswer.Deny, "autonomous-denies-the-rest")]
+    [InlineData(Autonomy.Supervised, ItemKind.Command, "rm -rf src", false, PolicyAnswer.Ask, null)]
+    public void AReadOnlyPolicyDeniesEveryEditFirstAndRunsOnlyTheCommandsARuleAllows(Autonomy level, ItemKind kind, string target, bool inside, PolicyAnswer answer, string? rule)
+    {
+        var allowing = new PermissionPolicy(
+            [Rule("read the log", PolicyAnswer.Allow, ItemKind.Command, "git log"), Rule("edit the source", PolicyAnswer.Allow, ItemKind.FileEdit)],
+            level,
+            FormStrategy.Recommended) { ReadOnly = true };
+        PolicyRule[] job = [new(RuleOrigin.Job, "don't ask again for this job", kind, target, RuleScope.Anywhere, PolicyAnswer.Allow)];
+
+        var verdict = allowing.Decide(new PermissionRequest(kind, target, inside) { Locate = path => new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: true) }, kind == ItemKind.FileEdit ? job : []);
+
+        Assert.Equal((answer, rule.ToOption()), (verdict.Answer, verdict.Rule.Map(found => found.Name)));
+    }
+
     private static PermissionPolicy Autonomous(IReadOnlyList<PolicyRule> repository) =>
         new(repository, Autonomy.Autonomous, FormStrategy.Recommended);
 

@@ -115,6 +115,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IComposerViewModel, ComposerView>();
         views.Register<IPromptViewModel, PromptView>();
         views.Register<IInterjectionViewModel, InterjectionView>();
+        views.Register<IChildAskingViewModel, ChildAskingView>();
         views.Register<IRestartViewModel, RestartView>();
         views.Register<IMessageViewModel, MessageView>();
         views.Register<IReasoningViewModel, ReasoningView>();

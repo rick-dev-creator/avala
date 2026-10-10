@@ -36,6 +36,50 @@ public sealed class DelegationRulesTests
             Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse($$"""{ "delegation": { "routing": "{{routing}}" } }"""))).Routing);
 
     [Fact]
+    public void TheSectionDeclaresEscalationItsWindowAndTheRoleOfChildrenWhichOtherwiseFallToTheMachineThenTheBuiltIns()
+    {
+        var declared = Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse(
+            """{ "delegation": { "escalation": "parent", "parentWindowSeconds": 30, "role": "reviewer" } }""")));
+        var bare = Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse("""{ "delegation": {} }""")));
+        var machine = Outcomes.Succeeds(DelegationRulesParser.ParseMachine("""{ "escalation": "parent", "parentWindowSeconds": 45 }"""));
+        var human = new EscalationTerms(false, Option<TimeSpan>.None);
+
+        Assert.Equal(Option<ParentEscalation>.Some(new ParentEscalation(TimeSpan.FromSeconds(30))), declared.Escalation.Over(human).Kept);
+        Assert.Equal(Option<ChildRole>.Some(ChildRole.Reviewer), declared.Role);
+        Assert.Equal(Option<ParentEscalation>.Some(new ParentEscalation(TimeSpan.FromSeconds(45))), bare.Escalation.Over(machine).Kept);
+        Assert.Equal(Option<ParentEscalation>.None, bare.Escalation.Over(EscalationTerms.Undeclared).Kept);
+        Assert.Equal(Option<ParentEscalation>.Some(new ParentEscalation(EscalationTerms.DefaultWindow)), (bare.Escalation with { AsksParent = true }).Over(EscalationTerms.Undeclared).Kept);
+        Assert.Equal(Option<ParentEscalation>.None, (bare.Escalation with { AsksParent = false }).Over(machine).Kept);
+        Assert.Equal(Option<ChildRole>.None, bare.Role);
+    }
+
+    [Theory]
+    [InlineData("""{ "escalation": "parent", "maxDepth": 2 }""", "UnknownField")]
+    [InlineData("""{ "escalation": "nobody" }""", "UnknownEscalation")]
+    [InlineData("""{ "parentWindowSeconds": 0 }""", "InvalidWindow")]
+    [InlineData("[]", "Malformed")]
+    public void TheMachinesDelegationFileDeclaresOnlyEscalationAndItsWindow(string text, string expected) =>
+        Assert.Equal(Enum.Parse<DelegationError>(expected), Outcomes.FailsWith(DelegationRulesParser.ParseMachine(text)));
+
+    [Theory]
+    [InlineData(null, ChildRole.Worker, null, ChildRole.Worker, null)]
+    [InlineData("reviewer", ChildRole.Worker, null, ChildRole.Reviewer, null)]
+    [InlineData(null, ChildRole.Worker, ChildRole.Research, ChildRole.Research, null)]
+    [InlineData(null, ChildRole.Reviewer, null, ChildRole.Reviewer, null)]
+    [InlineData("worker", ChildRole.Reviewer, null, ChildRole.Worker, "RoleLoosened")]
+    [InlineData("worker", ChildRole.Worker, ChildRole.Reviewer, ChildRole.Worker, "RoleLoosened")]
+    [InlineData("research", ChildRole.Reviewer, null, ChildRole.Research, null)]
+    public void AChildIsReadOnlyWhenItsCallItsSectionOrItsParentSaysSoAndCanNeverBeLooser(string? asked, ChildRole caller, ChildRole? section, ChildRole role, string? refusal)
+    {
+        var rules = new DelegationRules([], Routing.Capacity, 1, 2) { Role = section.ToOption() };
+        var named = asked is null ? Option<ChildRole>.None : Roles.Named(asked);
+
+        Assert.Equal(
+            (role, refusal is null ? Option<DelegationError>.None : Enum.Parse<DelegationError>(refusal)),
+            (rules.RoleOf(named, caller), rules.RefusesRole(named, caller)));
+    }
+
+    [Fact]
     public void AJobFileWithoutADelegationSectionDeclaresNone() =>
         Assert.Equal(Option<DelegationRules>.None, Outcomes.Succeeds(DelegationRulesParser.Parse("""{ "approval": "merge" }""")));
 
@@ -58,6 +102,12 @@ public sealed class DelegationRulesTests
     [InlineData("""{ "delegation": { "maxChildren": 0 } }""", "InvalidChildren")]
     [InlineData("""{ "delegation": { "maxChildren": 1.5 } }""", "InvalidChildren")]
     [InlineData("""{ "delegation": { "maxChildren": 17 } }""", "InvalidChildren")]
+    [InlineData("""{ "delegation": { "escalation": "agent" } }""", "UnknownEscalation")]
+    [InlineData("""{ "delegation": { "escalation": true } }""", "Malformed")]
+    [InlineData("""{ "delegation": { "parentWindowSeconds": 9 } }""", "InvalidWindow")]
+    [InlineData("""{ "delegation": { "parentWindowSeconds": 3601 } }""", "InvalidWindow")]
+    [InlineData("""{ "delegation": { "parentWindowSeconds": 30.5 } }""", "InvalidWindow")]
+    [InlineData("""{ "delegation": { "role": "editor" } }""", "UnknownRole")]
     public void AnInvalidSectionIsRejectedWithItsReason(string text, string expected) =>
         Assert.Equal(Enum.Parse<DelegationError>(expected), Outcomes.FailsWith(DelegationRulesParser.Parse(text)));
 

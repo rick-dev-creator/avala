@@ -78,6 +78,17 @@ internal sealed class DesignPromptViewModel(string text) : IPromptViewModel
     public string Outcome => "running";
 }
 
+internal sealed class DesignChildAskingViewModel : IChildAskingViewModel
+{
+    public string Headline => "Sub-agent \"Migrate the orders database\" is waiting for this job";
+
+    public string Asking => "wants to run a command: dotnet ef database update";
+
+    public string Status => "Waiting for this job's answer";
+
+    public bool IsWaiting => true;
+}
+
 internal sealed class DesignInterjectionViewModel : IInterjectionViewModel
 {
     public string Note => "You, while it worked · joined the turn";

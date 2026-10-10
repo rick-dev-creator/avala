@@ -57,18 +57,28 @@ internal static class InspectorPhrases
         + (report.Checks.Count == 0 ? string.Empty : $" · {string.Join(", ", report.Checks.Select(Check))}");
 
     public static string Decision(PolicyDecision decision) =>
-        $"{(decision.Answer == PolicyAnswer.Allow ? "Allowed" : decision.Answer == PolicyAnswer.Deny ? "Denied" : "Asked you")} {decision.Kind} {decision.Target}"
-        + decision.Rule.Match(rule => $" · rule {rule.Name}", () => decision.Delivery == DecisionDelivery.Answered ? " · default" : string.Empty);
+        $"{(decision.Answer == PolicyAnswer.Allow ? "Allowed" : decision.Answer == PolicyAnswer.Deny ? "Denied" : decision.Parent.IsSome ? "Asked its parent" : "Asked you")} {decision.Kind} {decision.Target}"
+        + decision.Rule.Match(rule => $" · rule {rule.Name}", () => decision.Delivery == DecisionDelivery.Answered && decision.Answer != PolicyAnswer.Ask ? " · default" : string.Empty);
 
     public static string Decision(PolicyDecision decision, IReadOnlyList<HumanAnswer> answers, Option<SessionId> latest) =>
         Decision(decision)
+        + decision.Passed.Match(reason => $" · went to you, {Cards.CardPhrases.Passed(reason)}", () => string.Empty)
         + (decision.Delivery == DecisionDelivery.Withdrawn ? " · withdrawn by the harness"
-        : decision.Delivery != DecisionDelivery.LeftToHuman || answers.Any(answer => answer.Session == decision.Session && answer.Item == decision.Item)
+        : decision.Delivery is not (DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent) || answers.Any(answer => answer.Session == decision.Session && answer.Item == decision.Item)
             ? string.Empty
-            : latest == Option<SessionId>.Some(decision.Session) ? " · unanswered" : " · unanswered, its session ended");
+            : latest != Option<SessionId>.Some(decision.Session) ? " · unanswered, its session ended"
+            : decision.Delivery == DecisionDelivery.LeftToParent ? " · waiting for its parent"
+            : " · unanswered");
+
+    public static string ByParent(int answeredByParent, int givenToChildren) =>
+        (answeredByParent > 0 ? $" · {Amounts.Count(answeredByParent, "answered by its parent", "answered by its parent")}" : string.Empty)
+        + (givenToChildren > 0 ? $" · {Amounts.Count(givenToChildren, "answer given to its sub-agents", "answers given to its sub-agents")}" : string.Empty);
+
+    public static string Given(HumanAnswer answer) =>
+        $"{(answer.Answer == PermissionAnswer.Allow ? "Allowed" : "Denied")} for a sub-agent: {answer.Kind} {answer.Target}";
 
     public static string Answer(HumanAnswer answer) =>
-        $"You {(answer.Answer == PermissionAnswer.Allow ? "allowed" : "denied")} {answer.Kind} {answer.Target}"
+        $"{(answer.Parent.IsSome ? "Its parent" : "You")} {(answer.Answer == PermissionAnswer.Allow ? "allowed" : "denied")} {answer.Kind} {answer.Target}"
         + answer.Rule.Match(rule => $" · {rule.Name}", () => string.Empty)
         + answer.RepositoryRule.Match(
             rule => $" · {rule.Name}",
@@ -105,6 +115,9 @@ internal static class InspectorPhrases
         ]);
 
     public static string Autonomy(SessionAutonomy autonomy) =>
+        Level(autonomy) + (autonomy.ReadOnly ? " · read-only" : string.Empty);
+
+    private static string Level(SessionAutonomy autonomy) =>
         autonomy.Refused
             ? $"{autonomy.Effective}: asked for {autonomy.Requested.Match(requested => requested.ToString(), () => "more")}, refused by the repository"
             : autonomy.Effective == autonomy.Declared

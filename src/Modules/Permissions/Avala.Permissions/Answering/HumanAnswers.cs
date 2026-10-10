@@ -15,7 +15,7 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
     {
         var governed = book.Of(session);
 
-        if (governed.Decisions.LastOrDefault(decision => decision.Item == reply.Item) is not { Delivery: DecisionDelivery.LeftToHuman } asked)
+        if (governed.Decisions.LastOrDefault(decision => decision.Item == reply.Item) is not { Delivery: DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent } asked)
         {
             return PolicyError.NotAwaitingAnswer;
         }

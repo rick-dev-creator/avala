@@ -19,6 +19,7 @@ internal sealed class TimelineItems(HumanReplies replies, Links links)
         PermissionEntry permission => new PermissionCardViewModel(permission, replies),
         FormEntry form => new FormCardViewModel(form, replies),
         TurnEndEntry ended => new TurnEndViewModel(ended),
+        ChildAskingEntry asked => new ChildAskingViewModel(asked),
         RestartEntry restart => new RestartViewModel(restart),
         _ => new RestartViewModel(new RestartEntry(entry.Key, Kept: false)),
     };

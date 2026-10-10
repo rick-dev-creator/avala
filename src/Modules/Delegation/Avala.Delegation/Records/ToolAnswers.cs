@@ -20,6 +20,7 @@ internal static class ToolAnswers
             ["status"] = Camel(report.Status),
             ["connection"] = delegation.Connection.Match(name => name.Value, () => string.Empty),
             ["autonomy"] = delegation.Autonomy.Match(level => Camel(level), () => string.Empty),
+            ["role"] = Camel(delegation.Role),
             ["summary"] = report.Summary.Match(text => text, () => string.Empty),
             ["files"] = Files(report),
             ["verification"] = Verification(report),
@@ -90,13 +91,14 @@ internal static class ToolAnswers
 
     private static string Reason(DelegationError error) => error switch
     {
-        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, and an autonomy of supervised or autonomous if any.",
+        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, an autonomy of supervised or autonomous if any, and a role of worker, reviewer or research if any.",
         DelegationError.NoJob => "this session runs no job, so there is nothing to delegate from.",
         DelegationError.NotDeclared => "the repository's .avala/jobs.json declares no delegation section, so this repository does not delegate.",
         DelegationError.DepthExceeded => "a sub-agent at this depth would be deeper than the repository's maxDepth allows; do the work yourself.",
         DelegationError.TooManyChildren => "you already have as many sub-agents running as the repository's maxChildren allows; wait for one to report back.",
         DelegationError.AutonomyLoosened => "a sub-agent may only run as strictly as you or stricter, and you are not autonomous.",
         DelegationError.NotSubmitted => "the harness could not submit the sub-agent's job.",
+        DelegationError.RoleLoosened => "you, or this repository's delegation section, only allow read-only sub-agents: ask for role reviewer or research.",
         _ => "the repository's delegation section of .avala/jobs.json cannot be read from the job's base commit or is invalid.",
     };
 }

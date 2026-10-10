@@ -1,5 +1,7 @@
 using Avala.Agents.Contracts;
 using Avala.Delegation.Contracts;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Sdk.Events;
 
 namespace Avala.Delegation.Records;
@@ -7,6 +9,10 @@ namespace Avala.Delegation.Records;
 internal sealed class DelegationJournal(DelegationBook book, IEventBus bus, IAgents agents, TimeProvider clock)
 {
     public DateTimeOffset Now => clock.GetUtcNow();
+
+    public Option<DelegationRecord> OfChild(JobId child) => book.OfChild(child);
+
+    public async Task AskedAsync(ParentAsked asked, CancellationToken cancellationToken) => await bus.PublishAsync(asked, cancellationToken);
 
     public async Task RefusedAsync(DelegationRecord refused, DelegationError error, CancellationToken cancellationToken)
     {

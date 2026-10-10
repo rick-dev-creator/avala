@@ -120,8 +120,8 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
         if (entry is PermissionEntry permission)
         {
             request = permission;
-            IsShown = permission.WentToHuman;
-            AwaitsYou = permission.AwaitsHuman;
+            IsShown = permission.WentToHuman || permission.WentToParent;
+            AwaitsYou = permission.AwaitsHuman || permission.AwaitsParent;
             Verdict = CardPhrases.Verdict(permission);
             OnPropertyChanged(nameof(OffersAlwaysInRepository));
             OnPropertyChanged(nameof(AlwaysInRepositoryScope));

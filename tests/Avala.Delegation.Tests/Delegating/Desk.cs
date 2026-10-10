@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Delegating;
+using Avala.Delegation.Escalating;
 using Avala.Delegation.Policy;
 using Avala.Delegation.Records;
 using Avala.Delegation.Reporting;
@@ -28,6 +29,7 @@ internal sealed class Desk : IAsyncDisposable
     public Desk(Result<Option<DelegationRules>, DelegationError> rules)
     {
         Book = new DelegationBook(Store);
+        Terms = new ChildTerms(Book, Jobs);
         var journal = new DelegationJournal(Book, Bus, Agents, Clock);
         var policy = new DelegationPolicy(new FixedRules(rules), Jobs, Audit, new ConnectionRouter([Selector]));
         reporter = new ChildReporter(
@@ -35,7 +37,7 @@ internal sealed class Desk : IAsyncDisposable
             new ChildEvidence(Changes, Verifications, Jobs, new ChildSpending(Usage, [Budgets])),
             journal,
             NullLogger<ChildReporter>.Instance);
-        desk = new DelegationDesk(new Delegator(policy, Jobs, journal), reporter, Jobs, Book);
+        desk = new DelegationDesk(new Delegator(policy, Jobs, journal, Terms), reporter, Jobs, Book);
         Parents = new DeferredParents(Book);
         Resumption = new ParentResumption(Parents, Jobs);
         Briefing = new OwedReports(Book, journal);
@@ -90,6 +92,8 @@ internal sealed class Desk : IAsyncDisposable
     public FixedVerifications Verifications { get; } = new();
 
     public DelegationBook Book { get; }
+
+    public ChildTerms Terms { get; }
 
     public JobId Parent { get; }
 

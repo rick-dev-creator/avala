@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Delegation.Contracts;
+using Avala.Delegation.Escalating;
 using Avala.Delegation.Records;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -8,7 +9,7 @@ namespace Avala.Delegation.Delegating;
 
 internal sealed record Delegated(JobId Child, DelegationRecord Record);
 
-internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJournal journal)
+internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJournal journal, ChildTerms terms)
 {
     public async Task<Option<Delegated>> DelegateAsync(ToolCalled called, Caller caller, CancellationToken cancellationToken)
     {
@@ -22,7 +23,7 @@ internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJ
             return Option<Delegated>.None;
         }
 
-        var planned = record with { Connection = plan.Connection, Choice = plan.Route.Choice, Autonomy = plan.Autonomy };
+        var planned = record with { Connection = plan.Connection, Choice = plan.Route.Choice, Autonomy = plan.Autonomy, Role = plan.Role, Escalation = plan.Escalation };
         var request = new JobRequest(plan.Parent.Repository, decision.Instruction)
         {
             Parent = plan.Parent.Job,
@@ -30,6 +31,20 @@ internal sealed class Delegator(DelegationPolicy policy, IJobs jobs, DelegationJ
             Autonomy = plan.Autonomy,
         };
 
+        terms.Submitting(plan.Parent.Job, planned);
+
+        try
+        {
+            return await SubmitAsync(request, planned, cancellationToken);
+        }
+        finally
+        {
+            terms.Submitted(plan.Parent.Job);
+        }
+    }
+
+    private async Task<Option<Delegated>> SubmitAsync(JobRequest request, DelegationRecord planned, CancellationToken cancellationToken)
+    {
         if (!(await jobs.SubmitAsync(request, cancellationToken)).TryGetValue(out var child, out var rejection))
         {
             await journal.RefusedAsync(planned with { Refusal = DelegationError.NotSubmitted, Rejection = rejection }, DelegationError.NotSubmitted, cancellationToken);
