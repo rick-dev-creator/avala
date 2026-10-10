@@ -32,6 +32,7 @@ public sealed class AppearanceTests(HeadlessUi ui, PublishedPlugins plugins)
     public async Task ChoosingLightAndReducedMotionInSettingsIsPublishedWrittenAndKeptAcrossARestartAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [], []);
+        await run.StartedAsync();
         var appearance = await AppearanceAsync(run);
         var changes = run.Watch<AppearanceChanged>();
 
@@ -65,6 +66,7 @@ public sealed class AppearanceTests(HeadlessUi ui, PublishedPlugins plugins)
     public async Task TheApplicationAppliesEveryAppearancePublishedOnItsUiThreadAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [], []);
+        await run.StartedAsync();
         var (application, window, applier) = await CreateAsync();
         var applied = Channel.CreateUnbounded<AppearancePreference>();
         using var following = new CancellationTokenSource();
