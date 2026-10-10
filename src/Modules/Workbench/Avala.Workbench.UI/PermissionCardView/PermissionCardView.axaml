@@ -55,24 +55,31 @@
                    PlaceholderText="Say why, or what to do instead"
                    AutomationProperties.Name="Note for the agent" />
         </StackPanel>
-        <Grid x:Name="Answer" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
+        <Grid x:Name="Answer" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
           <CheckBox x:Name="DontAskAgain"
                     Content="{Binding DontAskAgainLabel}"
                     ToolTip.Tip="{Binding DontAskAgainScope}"
                     IsChecked="{Binding DontAskAgain}"
                     VerticalAlignment="Center" />
+          <CheckBox x:Name="AlwaysInRepository"
+                    Grid.Column="1"
+                    Content="{Binding AlwaysInRepositoryLabel}"
+                    ToolTip.Tip="{Binding AlwaysInRepositoryScope}"
+                    IsChecked="{Binding AlwaysInRepository}"
+                    IsVisible="{Binding OffersAlwaysInRepository}"
+                    VerticalAlignment="Center" />
           <ToggleButton x:Name="AddNote"
-                        Grid.Column="1"
+                        Grid.Column="2"
                         Classes="quiet"
                         Content="Add a note"
                         VerticalAlignment="Center" />
           <Button x:Name="Deny"
-                  Grid.Column="3"
+                  Grid.Column="4"
                   Content="Deny"
                   Command="{Binding DenyCommand}"
                   ToolTip.Tip="Deny (Ctrl+Backspace)" />
           <Button x:Name="Allow"
-                  Grid.Column="4"
+                  Grid.Column="5"
                   Classes="primary"
                   Content="Allow"
                   Command="{Binding AllowCommand}"
@@ -96,6 +103,12 @@
                  TextTrimming="CharacterEllipsis"
                  VerticalAlignment="Center" />
     </Grid>
+    <TextBlock x:Name="Notice"
+               Classes="caption"
+               Margin="10,0"
+               TextWrapping="Wrap"
+               Text="{Binding Notice}"
+               IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     <TextBlock x:Name="Error"
                Classes="caption failure"
                Margin="10,0"

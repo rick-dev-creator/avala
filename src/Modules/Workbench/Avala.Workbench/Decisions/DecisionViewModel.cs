@@ -45,6 +45,14 @@ internal interface IDecisionViewModel
 
     string DontAskAgainScope { get; }
 
+    bool OffersAlwaysInRepository { get; }
+
+    bool AlwaysInRepository { get; set; }
+
+    string AlwaysInRepositoryLabel { get; }
+
+    string AlwaysInRepositoryScope { get; }
+
     string Waiting { get; }
 
     bool IsSelected { get; }
@@ -117,19 +125,24 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
     public bool DontAskAgain
     {
         get => Card is IPermissionCardViewModel { DontAskAgain: true };
-        set
-        {
-            if (Card is IPermissionCardViewModel permission && permission.DontAskAgain != value)
-            {
-                permission.DontAskAgain = value;
-                OnPropertyChanged();
-            }
-        }
+        set => Remember(permission => permission.DontAskAgain != value, permission => permission.DontAskAgain = value);
     }
 
     public string DontAskAgainLabel => CardPhrases.DontAskAgain;
 
     public string DontAskAgainScope => Card is IPermissionCardViewModel permission ? permission.DontAskAgainScope : string.Empty;
+
+    public bool OffersAlwaysInRepository => Card is IPermissionCardViewModel { OffersAlwaysInRepository: true };
+
+    public bool AlwaysInRepository
+    {
+        get => Card is IPermissionCardViewModel { AlwaysInRepository: true };
+        set => Remember(permission => permission.AlwaysInRepository != value, permission => permission.AlwaysInRepository = value);
+    }
+
+    public string AlwaysInRepositoryLabel => CardPhrases.AlwaysInRepository;
+
+    public string AlwaysInRepositoryScope => Card is IPermissionCardViewModel permission ? permission.AlwaysInRepositoryScope : string.Empty;
 
     object IDecisionViewModel.Card => Card;
 
@@ -181,6 +194,16 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
         IFormCardViewModel form => form.DeclineCommand.CanExecute(null),
         _ => false,
     };
+
+    private void Remember(Func<IPermissionCardViewModel, bool> changes, Action<IPermissionCardViewModel> change)
+    {
+        if (Card is IPermissionCardViewModel permission && changes(permission))
+        {
+            change(permission);
+            OnPropertyChanged(nameof(DontAskAgain));
+            OnPropertyChanged(nameof(AlwaysInRepository));
+        }
+    }
 
     private IPermissionCardViewModel Noted(IPermissionCardViewModel card)
     {

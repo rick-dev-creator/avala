@@ -67,23 +67,50 @@ public sealed class HumanInputTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task DontAskAgainBecomesASessionRuleThatAnswersTheNextIdenticalRequestAsync()
+    public async Task DontAskAgainForThisJobBecomesAJobRuleThatAnswersTheNextIdenticalRequestAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "repeated-permission");
         var first = await run.DecisionAsync();
 
         var answer = Outcomes.Succeeds(await run.Get<IPermissionAnswers>().AnswerAsync(
             first.Session,
-            new PermissionReply(first.Item, PermissionAnswer.Allow) { DontAskAgain = true },
+            new PermissionReply(first.Item, PermissionAnswer.Allow) { Remember = Remember.ForThisJob },
             Cancellation));
         var second = await run.DecisionAsync();
 
         Assert.Equal(DecisionDelivery.LeftToHuman, first.Delivery);
-        var rule = Outcomes.Present(answer.SessionRule);
+        var rule = Outcomes.Present(answer.Rule);
         Assert.Equal((PolicyAnswer.Allow, DecisionDelivery.Answered, Option<PolicyRule>.Some(rule)), (second.Answer, second.Delivery, second.Rule));
-        Assert.Equal((RuleOrigin.Session, "dotnet ef database update"), (rule.Origin, Outcomes.Present(rule.Target)));
-        Assert.Equal([rule], run.Get<IPermissionAudit>().SessionRulesOf(first.Session));
+        Assert.Equal((RuleOrigin.Job, "dotnet ef database update"), (rule.Origin, Outcomes.Present(rule.Target)));
+        Assert.Equal([rule], run.Get<IPermissionAudit>().JobRulesOf(run.Job));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task AlwaysInThisRepositoryWritesAValidRuleThatAnswersTheNextJobOnceCommittedWhileAJobBeforeTheCommitStillAsksAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "permission");
+        var answers = run.Get<IPermissionAnswers>();
+        var first = await run.DecisionAsync();
+        var answer = Outcomes.Succeeds(await answers.AnswerAsync(first.Session, new PermissionReply(first.Item, PermissionAnswer.Allow) { Remember = Remember.InThisRepository }, Cancellation));
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var written = await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, ".avala", "permissions.json"), Cancellation);
+
+        var uncommitted = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("permission"))));
+        var asked = await run.DecisionAsync();
+        Outcomes.Succeeds(await answers.AnswerAsync(asked.Session, new PermissionReply(asked.Item, PermissionAnswer.Allow), Cancellation));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(uncommitted));
+        await run.Repository.CommitAsync(".avala/permissions.json", written, Cancellation);
+        var committed = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("permission"))));
+        var allowed = await run.DecisionAsync();
+
+        var rule = Outcomes.Present(answer.RepositoryRule);
+        Assert.Equal((RuleOrigin.Repository, "always in this repository", "dotnet ef database update"), (rule.Origin, rule.Name, Outcomes.Present(rule.Target)));
+        Assert.Equal(RuleOrigin.Job, Outcomes.Present(answer.Rule).Origin);
+        Assert.All(run.Get<IEnumerable<Workspaces.Contracts.IRuleFileFormat>>(), format => Assert.True(format.Rejection(written).IsNone || format.Path != ".avala/permissions.json"));
+        Assert.Equal((Option<JobId>.Some(uncommitted), DecisionDelivery.LeftToHuman), (asked.Job, asked.Delivery));
+        Assert.Equal((Option<JobId>.Some(committed), PolicyAnswer.Allow, DecisionDelivery.Answered, Option<PolicyRule>.Some(rule)), (allowed.Job, allowed.Answer, allowed.Delivery, allowed.Rule));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(committed));
     }
 
     [Fact]

@@ -136,22 +136,22 @@ public sealed class PermissionPolicyTests
     }
 
     [Fact]
-    public void ASessionRuleMatchesItsTargetExactlyAfterTheRepositoryRulesAndBeforeTheDefaults()
+    public void AJobRuleMatchesItsTargetExactlyAfterTheRepositoryRulesAndBeforeTheDefaults()
     {
         var policy = PermissionPolicy.With([Rule("no-ef", PolicyAnswer.Deny, target: "dotnet ef *")]);
-        PolicyRule[] session =
+        PolicyRule[] job =
         [
-            new(RuleOrigin.Session, "don't ask again", ItemKind.Command, "dotnet *", RuleScope.Anywhere, PolicyAnswer.Allow),
-            new(RuleOrigin.Session, "don't ask again", ItemKind.Command, "dotnet ef database update", RuleScope.Anywhere, PolicyAnswer.Allow),
-            new(RuleOrigin.Session, "don't ask again", ItemKind.FileEdit, "src/app.cs", RuleScope.Anywhere, PolicyAnswer.Deny),
+            new(RuleOrigin.Job, "don't ask again for this job", ItemKind.Command, "dotnet *", RuleScope.Anywhere, PolicyAnswer.Allow),
+            new(RuleOrigin.Job, "don't ask again for this job", ItemKind.Command, "dotnet ef database update", RuleScope.Anywhere, PolicyAnswer.Allow),
+            new(RuleOrigin.Job, "don't ask again for this job", ItemKind.FileEdit, "src/app.cs", RuleScope.Anywhere, PolicyAnswer.Deny),
         ];
 
-        var edit = policy.Decide(new PermissionRequest(ItemKind.FileEdit, "src/app.cs", true), session);
+        var edit = policy.Decide(new PermissionRequest(ItemKind.FileEdit, "src/app.cs", true), job);
 
-        Assert.Equal(PolicyAnswer.Deny, policy.Decide(Migration, session).Answer);
-        Assert.Equal(PolicyAnswer.Ask, policy.Decide(new PermissionRequest(ItemKind.Command, "dotnet test", false), session).Answer);
-        Assert.Equal(PolicyAnswer.Allow, policy.Decide(new PermissionRequest(ItemKind.Command, "dotnet *", false), session).Answer);
-        Assert.Equal((PolicyAnswer.Deny, RuleOrigin.Session), (edit.Answer, Outcomes.Present(edit.Rule).Origin));
+        Assert.Equal(PolicyAnswer.Deny, policy.Decide(Migration, job).Answer);
+        Assert.Equal(PolicyAnswer.Ask, policy.Decide(new PermissionRequest(ItemKind.Command, "dotnet test", false), job).Answer);
+        Assert.Equal(PolicyAnswer.Allow, policy.Decide(new PermissionRequest(ItemKind.Command, "dotnet *", false), job).Answer);
+        Assert.Equal((PolicyAnswer.Deny, RuleOrigin.Job), (edit.Answer, Outcomes.Present(edit.Rule).Origin));
     }
 
     [Theory]
