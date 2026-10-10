@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\GitHub\Avala.GitHub\Avala.GitHub.csproj" />
+    <ProjectReference Include="..\Avala.Forges.Testing\Avala.Forges.Testing.csproj" />
+    <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+  </ItemGroup>
+</Project>

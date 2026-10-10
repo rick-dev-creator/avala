@@ -1,3 +1,6 @@
+using ForgeError = Avala.Forges.Contracts.ForgeError;
+using PullRequestDelivery = Avala.Forges.Contracts.PullRequestDelivery;
+using PullRequestOffer = Avala.Forges.Contracts.PullRequestOffer;
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Autopilot.Contracts;
@@ -129,7 +132,9 @@ internal static class ReviewPhrases
         file.Added.Match(added => Lines(added, file.Removed.Match(removed => removed, () => 0)), () => "binary");
 
     public static string Delivered(ApprovalDelivery delivery) =>
-        delivery.Commit.Match(
+        delivery.Strategy == PullRequestDelivery.Strategy
+            ? $"Pushed {delivery.Branch} and opened its pull request; the inspector follows its checks"
+            : delivery.Commit.Match(
             commit => $"Merged into {delivery.Branch} as {commit[..Math.Min(7, commit.Length)]}",
             () => $"Approved: the branch {delivery.Branch} is ready");
 
@@ -137,6 +142,11 @@ internal static class ReviewPhrases
         conflicts.Count > 0
             ? $"The work conflicts with the base branch in {string.Join(", ", conflicts)}."
             : Refusal(JobRejection.MergeConflict);
+
+    public static string Offer(PullRequestOffer offer) => $"Open pull request on {offer.Forge.Value} ({offer.ForgeKind}, {offer.Remote})";
+
+    public static string Refusal(JobRejection rejection, Option<ForgeError> forge) =>
+        forge.Match(error => $"The pull request was not opened: {ForgePhrases.Error(error)} The job still awaits review.", () => Refusal(rejection));
 
     public static string Refusal(JobRejection rejection) => rejection switch
     {

@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Delegation.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -80,6 +81,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<ChildReported>, BoardKeeper>()
             .AddForwarded<IHandle<HandoffRecorded>, BoardKeeper>()
             .AddForwarded<IHandle<JobWaitsForReset>, BoardKeeper>()
+            .AddForwarded<IHandle<PullRequestWatchChanged>, BoardKeeper>()
+            .AddForwarded<IHandle<PullRequestWakeUp>, BoardKeeper>()
             .AddTransient<BoardFeed>()
             .AddSingleton<JobFocus>()
             .AddSingleton<JobSteering>()
@@ -89,6 +92,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<Links>()
             .AddSingleton<Conversations>()
             .AddSingleton<ReviewReader>()
+            .AddSingleton<ConflictFinder>()
+            .AddSingleton<ForgeDesk>()
             .AddSingleton<ReviewDesk>()
             .AddSingleton<Reviews>()
             .AddSingleton<JobScreens>()
@@ -143,6 +148,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IAutonomySectionViewModel, AutonomySectionView>();
         views.Register<IWorktreeSectionViewModel, WorktreeSectionView>();
         views.Register<IDelegationSectionViewModel, DelegationSectionView>();
+        views.Register<IPullRequestSectionViewModel, PullRequestSectionView>();
         RegisterGlobalViews(views);
     }
 
@@ -159,14 +165,16 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<UsageSectionViewModel>()
             .AddSingleton<AutonomySectionViewModel>()
             .AddSingleton<WorktreeSectionViewModel>()
-            .AddSingleton<DelegationSectionViewModel>();
+            .AddSingleton<DelegationSectionViewModel>()
+            .AddSingleton<PullRequestSectionViewModel>();
         registrar
             .AddToRegion<EvidenceSectionViewModel>(ShellRegions.Inspector, 10)
             .AddToRegion<AuditSectionViewModel>(ShellRegions.Inspector, 20)
             .AddToRegion<UsageSectionViewModel>(ShellRegions.Inspector, 30)
             .AddToRegion<AutonomySectionViewModel>(ShellRegions.Inspector, 40)
             .AddToRegion<WorktreeSectionViewModel>(ShellRegions.Inspector, 50)
-            .AddToRegion<DelegationSectionViewModel>(ShellRegions.Inspector, 60);
+            .AddToRegion<DelegationSectionViewModel>(ShellRegions.Inspector, 60)
+            .AddToRegion<PullRequestSectionViewModel>(ShellRegions.Inspector, 55);
     }
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
@@ -262,6 +270,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ICheckViewModel, CheckView>();
         views.Register<IJobSectionViewModel, JobSectionView>();
         views.Register<IMachineConnectionViewModel, MachineConnectionView>();
+        views.Register<IForgeConnectionViewModel, ForgeConnectionView>();
         views.Register<IDefaultConnectionViewModel, DefaultConnectionView>();
         views.Register<IConnectionEditorViewModel, ConnectionEditorView>();
         views.Register<IResourcesViewModel, ResourcesView>();

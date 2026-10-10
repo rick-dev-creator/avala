@@ -157,6 +157,45 @@ public sealed class ReviewViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task ARepositoryWithAUsableForgeIsOfferedAPullRequestThatApprovesThroughItAsync()
+    {
+        bench.PullRequests.Offer = new Forges.Contracts.PullRequestOffer(new Forges.Contracts.ForgeName("github"), "GitHub", "origin");
+        var review = Review();
+
+        await review.Request(0)(Cancellation);
+        await review.OpenPullRequestCommand.ExecuteAsync(null);
+
+        Assert.Equal("Open pull request on github (GitHub, origin)", review.PullRequestOffer);
+        Assert.Equal(["approve through pull-request"], bench.Jobs.Calls);
+        Assert.Equal(("Pushed avala/fix-the-test and opened its pull request; the inspector follows its checks", "Pull request opened"), (review.Outcome, review.Heading));
+    }
+
+    [Fact]
+    public async Task WithoutAUsableForgeNoPullRequestIsOfferedAsync()
+    {
+        var review = Review();
+
+        await review.Request(0)(Cancellation);
+
+        Assert.Equal((string.Empty, false, true), (review.PullRequestOffer, review.OpenPullRequestCommand.CanExecute(null), review.ApproveCommand.CanExecute(null)));
+    }
+
+    [Fact]
+    public async Task APullRequestTheForgeRefusedSaysWhyAndTheJobStillAwaitsReviewAsync()
+    {
+        bench.PullRequests.Offer = new Forges.Contracts.PullRequestOffer(new Forges.Contracts.ForgeName("github"), "GitHub", "origin");
+        bench.PullRequests.Refusals[job.Job] = Forges.Contracts.ForgeError.MissingCredential;
+        bench.Jobs.Refusal = JobRejection.DeliveryFailed;
+        var review = Review();
+        await review.Request(0)(Cancellation);
+
+        await review.OpenPullRequestCommand.ExecuteAsync(null);
+
+        Assert.Equal("The pull request was not opened: the token's environment variable is not set. The job still awaits review.", review.Refusal);
+        Assert.Equal((false, true), (review.IsClosed, review.OpenPullRequestCommand.CanExecute(null)));
+    }
+
+    [Fact]
     public async Task ApprovingTwiceDeliversTheJobOnce()
     {
         var review = Review();

@@ -1,0 +1,51 @@
+[
+  {
+    "id": 80,
+    "user": { "id": 3, "login": "hubot" },
+    "team": null,
+    "state": "REQUEST_CHANGES",
+    "body": "Please greet the team by name.",
+    "commit_id": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "stale": false,
+    "official": true,
+    "dismissed": false,
+    "comments_count": 1,
+    "submitted_at": "2026-10-10T08:05:00Z",
+    "updated_at": "2026-10-10T08:05:00Z",
+    "html_url": "https://git.example.com/octo/shop/pulls/7#issuecomment-80",
+    "pull_request_url": "https://git.example.com/octo/shop/pulls/7"
+  },
+  {
+    "id": 81,
+    "user": { "id": 4, "login": "mona" },
+    "state": "REQUEST_CHANGES",
+    "body": "Old request.",
+    "commit_id": "e5bd3914e2e596debea16f433f57875b5b90bcd6",
+    "stale": true,
+    "official": true,
+    "dismissed": true,
+    "comments_count": 0
+  },
+  {
+    "id": 82,
+    "user": { "id": 5, "login": "lisa" },
+    "state": "APPROVED",
+    "body": "Nice.",
+    "commit_id": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "stale": false,
+    "official": true,
+    "dismissed": false,
+    "comments_count": 0
+  },
+  {
+    "id": 83,
+    "user": { "id": 6, "login": "ana" },
+    "state": "REQUEST_REVIEW",
+    "body": "",
+    "commit_id": "",
+    "stale": false,
+    "official": false,
+    "dismissed": false,
+    "comments_count": 0
+  }
+]

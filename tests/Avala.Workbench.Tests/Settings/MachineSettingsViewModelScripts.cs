@@ -137,11 +137,49 @@ public sealed class MachineSettingsViewModelScripts
         Assert.Equal(DefaultPhrases.Auto, machine.DefaultConnection.Saved);
     }
 
+    [Fact]
+    public async Task TheForgesOfTheMachineShowTheirForgeUrlAndCredentialReferenceNeverAValueAsync()
+    {
+        var github = new Forges.Contracts.ForgeInfo("github", "GitHub") { DefaultUrl = new Uri("https://api.github.com") };
+        var forges = new FakeForgeCatalog
+        {
+            Catalog = new(
+                [github],
+                [
+                    new(new Forges.Contracts.ForgeName("work"), "github", Option<Uri>.None, Forges.Contracts.CredentialSource.Environment, "GITHUB_TOKEN"),
+                    new(new Forges.Contracts.ForgeName("codeberg"), "forgejo", new Uri("https://codeberg.org"), Forges.Contracts.CredentialSource.Cli, Option<string>.None) { Problem = Forges.Contracts.ForgeError.UnknownForge },
+                ],
+                Option<Forges.Contracts.ForgeError>.None,
+                TimeSpan.FromSeconds(60)),
+        };
+        var machine = Machine(new FakeConnections("work"), forges);
+
+        await machine.LoadAsync(Cancellation);
+
+        Assert.Equal("forges.json · checks every 60s · GitHub installed", machine.ForgesFile);
+        Assert.Equal(
+            [("work", "GitHub", "https://api.github.com/", "token in $GITHUB_TOKEN", string.Empty), ("codeberg", "forgejo", "https://codeberg.org/", "the forge's own command-line login", "Not usable: no plugin of that forge is installed.")],
+            machine.Forges.Select(forge => (forge.Name, forge.Forge, forge.Url, forge.Credential, forge.Problem)));
+    }
+
+    [Fact]
+    public async Task ARejectedForgesFileSaysWhyAndListsNoForgeAsync()
+    {
+        var forges = new FakeForgeCatalog { Catalog = new([], [], Forges.Contracts.ForgeError.UnknownField, TimeSpan.FromSeconds(60)) };
+        var machine = Machine(new FakeConnections("work"), forges);
+
+        await machine.LoadAsync(Cancellation);
+
+        Assert.Equal(("forges.json is rejected: forges.json or the pullRequest section is invalid (UnknownField).", 0), (machine.ForgesFile, machine.Forges.Count));
+    }
+
     private MachineSettingsViewModel Machine() => Machine(new FakeConnections("work", "personal"));
 
-    private MachineSettingsViewModel Machine(FakeConnections connections)
+    private MachineSettingsViewModel Machine(FakeConnections connections) => Machine(connections, new FakeForgeCatalog());
+
+    private MachineSettingsViewModel Machine(FakeConnections connections, FakeForgeCatalog forges)
     {
-        var settings = new MachineSettings(connections, supervision, new FakeResources());
+        var settings = new MachineSettings(connections, supervision, new FakeResources(), forges);
 
         return new(settings, new SettingsFiles(opener, new AvalaPaths("/data")), new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel()));
     }
@@ -270,7 +308,7 @@ public sealed class ConnectionEditorViewModelScripts
 
     private async Task<MachineSettingsViewModel> MachineAsync()
     {
-        var settings = new MachineSettings(connections, new FakeSupervision(), new FakeResources());
+        var settings = new MachineSettings(connections, new FakeSupervision(), new FakeResources(), new FakeForgeCatalog());
         var machine = new MachineSettingsViewModel(
             settings,
             new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")),

@@ -1,3 +1,4 @@
+using Avala.Forges.Contracts;
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Resources.Contracts;
@@ -7,15 +8,21 @@ using Avala.Workbench.RepositoryRules;
 
 namespace Avala.Workbench.Machine;
 
-internal sealed record MachineState(ConnectionCatalog Connections, SupervisionSettings Supervision, ResourceSettings Resources);
+internal sealed record MachineState(ConnectionCatalog Connections, SupervisionSettings Supervision, ResourceSettings Resources)
+{
+    public Option<ForgeCatalog> Forges { get; init; }
+}
 
-internal sealed class MachineSettings(IConnections connections, ISupervision supervision, IResources resources)
+internal sealed class MachineSettings(IConnections connections, ISupervision supervision, IResources resources, IForgeCatalog forges)
 {
     public async ValueTask<MachineState> ReadAsync(CancellationToken cancellationToken) =>
         new(
             await connections.CatalogAsync(cancellationToken),
             await supervision.SettingsAsync(cancellationToken),
-            await resources.SettingsAsync(cancellationToken));
+            await resources.SettingsAsync(cancellationToken))
+        {
+            Forges = await forges.CatalogAsync(cancellationToken),
+        };
 
     public ValueTask<Result<SupervisionSettings, SupervisionError>> ChangeSilenceAsync(TimeSpan silence, CancellationToken cancellationToken) =>
         supervision.ChangeSilenceAsync(silence, cancellationToken);

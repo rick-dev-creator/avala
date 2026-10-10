@@ -27,6 +27,13 @@ public interface IJobs
     ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken);
 }
 
+public interface IOpenDeliveries
+{
+    ValueTask<Result<JobApproval, JobRejection>> ApproveThroughAsync(JobId job, string strategy, CancellationToken cancellationToken);
+
+    ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken);
+}
+
 public interface IJobAdmission
 {
     ValueTask AdmitAsync(JobId job, CancellationToken cancellationToken);
@@ -97,4 +104,5 @@ public enum JobRejection
     NotSteerable,
     UnofferedModel,
     UnofferedEffort,
+    NotApproved,
 }

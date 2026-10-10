@@ -40,6 +40,11 @@
     <ProjectReference Include="..\..\src\Modules\Delegation\Avala.Delegation.Contracts\Avala.Delegation.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Handoffs\Avala.Handoffs\Avala.Handoffs.csproj" />
     <ProjectReference Include="..\..\src\Modules\Handoffs\Avala.Handoffs.Contracts\Avala.Handoffs.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Forges\Avala.Forges\Avala.Forges.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Forges\Avala.Forges.Contracts\Avala.Forges.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\GitHub\Avala.GitHub\Avala.GitHub.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Gitea\Avala.Gitea\Avala.Gitea.csproj" />
+    <ProjectReference Include="..\..\src\Modules\ForgeSimulator\Avala.ForgeSimulator\Avala.ForgeSimulator.csproj" />
     <ProjectReference Include="..\..\src\Modules\Transcripts\Avala.Transcripts\Avala.Transcripts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Transcripts\Avala.Transcripts.Contracts\Avala.Transcripts.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Workbench\Avala.Workbench.Contracts\Avala.Workbench.Contracts.csproj" />

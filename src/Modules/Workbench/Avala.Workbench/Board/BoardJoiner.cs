@@ -1,3 +1,4 @@
+using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -7,7 +8,7 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Board;
 
-internal sealed class BoardJoiner(IVerifications verifications, ITranscripts transcripts, IHandoffs handoffs)
+internal sealed class BoardJoiner(IVerifications verifications, ITranscripts transcripts, IHandoffs handoffs, IPullRequests pullRequests)
 {
     public async Task<BoardJob> JoinedAsync(JobHistory history, bool restored, CancellationToken cancellationToken)
     {
@@ -25,6 +26,8 @@ internal sealed class BoardJoiner(IVerifications verifications, ITranscripts tra
             Attempts = attempts.Count,
             Verification = verified.Count > 0 ? verified[^1] : Option<VerificationReport>.None,
             Choice = history.Choice,
+            PullRequest = pullRequests.Of(history.Summary.Job),
+            WakeUps = pullRequests.WakeUpsOf(history.Summary.Job),
         };
     }
 }

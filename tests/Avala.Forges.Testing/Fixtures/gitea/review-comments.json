@@ -1,0 +1,19 @@
+[
+  {
+    "id": 10,
+    "body": "Name the team here.",
+    "user": { "id": 3, "login": "hubot" },
+    "resolver": null,
+    "pull_request_review_id": 80,
+    "created_at": "2026-10-10T08:05:00Z",
+    "updated_at": "2026-10-10T08:05:00Z",
+    "path": "GREETING.md",
+    "commit_id": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "original_commit_id": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "diff_hunk": "@@ -0,0 +1 @@\n+# Hello",
+    "position": 1,
+    "original_position": 0,
+    "html_url": "https://git.example.com/octo/shop/pulls/7#issuecomment-10",
+    "pull_request_url": "https://git.example.com/octo/shop/pulls/7"
+  }
+]

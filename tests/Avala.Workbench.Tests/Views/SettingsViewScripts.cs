@@ -232,7 +232,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
 
     internal static MachineSettingsViewModel Machine(FakeConnections connections, FakeSupervision supervision)
     {
-        var settings = new MachineSettings(connections, supervision, new FakeResources());
+        var settings = new MachineSettings(connections, supervision, new FakeResources(), new FakeForgeCatalog());
 
         return new(
             settings,
@@ -315,7 +315,7 @@ public sealed class DefaultConnectionViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
-            var settings = new MachineSettings(connections, new FakeSupervision(), new FakeResources());
+            var settings = new MachineSettings(connections, new FakeSupervision(), new FakeResources(), new FakeForgeCatalog());
             var chosen = new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
             chosen.Show(connections.Catalog);
             var view = Screen.Show(chosen);
@@ -338,7 +338,7 @@ public sealed class DefaultConnectionViewScripts(HeadlessUi ui)
         {
             var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
             connections.Refusal = Agents.Contracts.Connections.ConnectionError.Unwritable;
-            var chosen = new DefaultConnectionViewModel(new MachineSettings(connections, new FakeSupervision(), new FakeResources()), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
+            var chosen = new DefaultConnectionViewModel(new MachineSettings(connections, new FakeSupervision(), new FakeResources(), new FakeForgeCatalog()), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
             chosen.Show(connections.Catalog);
             var view = Screen.Show(chosen);
 

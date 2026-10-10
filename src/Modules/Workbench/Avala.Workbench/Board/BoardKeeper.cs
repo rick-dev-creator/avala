@@ -6,6 +6,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Delegation.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -39,7 +40,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     IHandle<ChildDelegated>,
     IHandle<ChildReported>,
     IHandle<HandoffRecorded>,
-    IHandle<JobWaitsForReset>
+    IHandle<JobWaitsForReset>,
+    IHandle<PullRequestWatchChanged>,
+    IHandle<PullRequestWakeUp>
 {
     private readonly Dictionary<SessionId, JobId> sessions = [];
     private readonly HashSet<SessionId> steerable = [];
@@ -150,6 +153,12 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
 
     public ValueTask HandleAsync(JobWaitsForReset integrationEvent, CancellationToken cancellationToken) =>
         ChangedAsync(integrationEvent.Wait.Job, job => Audited(job with { Wait = integrationEvent.Wait }));
+
+    public ValueTask HandleAsync(PullRequestWatchChanged integrationEvent, CancellationToken cancellationToken) =>
+        ChangedAsync(integrationEvent.State.Job, job => Audited(job with { PullRequest = integrationEvent.State }));
+
+    public ValueTask HandleAsync(PullRequestWakeUp integrationEvent, CancellationToken cancellationToken) =>
+        ChangedAsync(integrationEvent.WakeUp.Job, job => Audited(job with { WakeUps = [.. job.WakeUps, integrationEvent.WakeUp] }));
 
     private static BoardJob Audited(BoardJob job) => job with { Revision = job.Revision + 1 };
 

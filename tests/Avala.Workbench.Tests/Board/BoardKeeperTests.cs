@@ -32,7 +32,7 @@ public sealed class BoardKeeperTests
 
     private readonly FakeHandoffs handoffs = new();
 
-    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, new BoardJoiner(audit, transcripts, handoffs), board, time);
+    public BoardKeeperTests() => keeper = new BoardKeeper(catalog, new BoardJoiner(audit, transcripts, handoffs, new FakePullRequests()), board, time);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 

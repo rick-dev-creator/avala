@@ -1,0 +1,28 @@
+[
+  {
+    "id": 80,
+    "node_id": "MDE3OlB1bGxSZXF1ZXN0UmV2aWV3ODA=",
+    "user": { "login": "hubot", "id": 3, "type": "User" },
+    "body": "Please greet the team by name.",
+    "state": "CHANGES_REQUESTED",
+    "html_url": "https://github.com/octo/shop/pull/7#pullrequestreview-80",
+    "pull_request_url": "https://api.github.com/repos/octo/shop/pulls/7",
+    "submitted_at": "2026-10-10T08:05:00Z",
+    "commit_id": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "author_association": "COLLABORATOR"
+  },
+  {
+    "id": 81,
+    "user": { "login": "mona", "id": 4, "type": "User" },
+    "body": "",
+    "state": "PENDING",
+    "commit_id": "6dcb09b5b57875f334f61aebed695e2e4193db5e"
+  },
+  {
+    "id": 82,
+    "user": { "login": "lisa", "id": 5, "type": "User" },
+    "body": "Nice.",
+    "state": "APPROVED",
+    "commit_id": "6dcb09b5b57875f334f61aebed695e2e4193db5e"
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "url": "https://api.github.com/repos/octo/shop/pulls/comments/1",
+    "pull_request_review_id": 80,
+    "id": 10,
+    "node_id": "MDI0OlB1bGxSZXF1ZXN0UmV2aWV3Q29tbWVudDEw",
+    "diff_hunk": "@@ -0,0 +1 @@\n+# Hello",
+    "path": "GREETING.md",
+    "commit_id": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "original_commit_id": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "user": { "login": "hubot", "id": 3 },
+    "body": "Name the team here.",
+    "line": 1,
+    "side": "RIGHT",
+    "html_url": "https://github.com/octo/shop/pull/7#discussion-diff-10"
+  }
+]

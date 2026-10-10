@@ -21,6 +21,10 @@ internal interface IMachineSettingsViewModel
 
     string ConnectionsFile { get; }
 
+    IReadOnlyList<IForgeConnectionViewModel> Forges { get; }
+
+    string ForgesFile { get; }
+
     string Silence { get; }
 
     string SupervisionFile { get; }
@@ -68,6 +72,7 @@ internal static class SilenceDial
 internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewModel
 {
     private readonly ObservableCollection<MachineConnectionViewModel> connections = [];
+    private readonly ObservableCollection<ForgeConnectionViewModel> forges = [];
     private readonly MachineSettings settings;
     private readonly SettingsFiles files;
     private readonly ConnectionEditorViewModel editor;
@@ -95,6 +100,11 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
 
     [ObservableProperty]
     public partial string ConnectionsFile { get; private set; } = string.Empty;
+
+    public IReadOnlyList<IForgeConnectionViewModel> Forges => forges;
+
+    [ObservableProperty]
+    public partial string ForgesFile { get; private set; } = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSilenceChanged), nameof(SilenceMinutes))]
@@ -163,6 +173,8 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
         DefaultConnection.Show(state.Connections);
         ShowSupervision(state.Supervision);
         Resources = Describe(state.Resources);
+        ForgesFile = state.Forges.Match(ForgeSettingsPhrases.File, () => string.Empty);
+        forges.ShowOnly(state.Forges.Match(catalog => catalog.Connections.Select(connection => new ForgeConnectionViewModel(connection, catalog.Forges)), () => []));
     }
 
     private void ShowConnections(ConnectionCatalog catalog)

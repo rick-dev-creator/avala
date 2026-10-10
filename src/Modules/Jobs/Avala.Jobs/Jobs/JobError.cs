@@ -24,4 +24,5 @@ internal enum JobError
     ForeignSession,
     SameConnection,
     CannotHandOff,
+    CannotReopen,
 }

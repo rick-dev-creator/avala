@@ -234,10 +234,13 @@ internal sealed class SimulatedRun : IAsyncDisposable
         where T : notnull =>
         application.Root.Services.GetRequiredService<T>();
 
-    public async Task RestartAsync()
+    public Task RestartAsync() => RestartAsync(() => { });
+
+    public async Task RestartAsync(Action watching)
     {
         await application.DisposeAsync();
         application = new Application(surroundings.Compose(plugins, data));
+        watching();
         application.Root.Start();
     }
 

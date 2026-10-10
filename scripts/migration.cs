@@ -10,6 +10,7 @@
 #:project ../src/Modules/Permissions/Avala.Permissions/Avala.Permissions.csproj
 #:project ../src/Modules/Delegation/Avala.Delegation/Avala.Delegation.csproj
 #:project ../src/Modules/Transcripts/Avala.Transcripts/Avala.Transcripts.csproj
+#:project ../src/Modules/Forges/Avala.Forges/Avala.Forges.csproj
 
 using System.Reflection;
 using System.Text.RegularExpressions;

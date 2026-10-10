@@ -36,6 +36,8 @@ public sealed class JobTransitionTests
         [Operation.Fail] = ([JobState.Preparing, JobState.Running, JobState.Checking], JobError.CannotFail),
         [Operation.Hold] = ([JobState.Running], JobError.CannotHold),
         [Operation.HandOff] = ([JobState.Checking, JobState.NeedsHelp], JobError.CannotHandOff),
+        [Operation.Reopen] = ([JobState.Approved], JobError.CannotReopen),
+        [Operation.ReopenInNewSession] = ([JobState.Approved], JobError.CannotReopen),
     };
 
     [Fact]
@@ -86,6 +88,8 @@ public sealed class JobTransitionTests
         Operation.Fail => Outcomes.ErrorOf(job.Fail(FailureReason.AgentFailed, Given.Ended)),
         Operation.Hold => Outcomes.ErrorOf(job.Hold(HoldReason.BudgetExceeded)),
         Operation.HandOff => Outcomes.ErrorOf(job.HandOff(Given.Feedback, SessionId.New(), new ConnectionName("personal"))),
+        Operation.Reopen => Outcomes.ErrorOf(job.Reopen(Given.Feedback)),
+        Operation.ReopenInNewSession => Outcomes.ErrorOf(job.Reopen(Given.Feedback, SessionId.New(), resumed: true)),
         _ => throw new ArgumentOutOfRangeException(nameof(operation)),
     };
 }

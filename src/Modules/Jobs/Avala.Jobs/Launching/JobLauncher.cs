@@ -227,6 +227,11 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
             ? await NextRoundAsync(job, feedback, Round.SendBack, cancellationToken)
             : JobRejection.NotAwaitingReview;
 
+    public async Task<Result<JobContinuation, JobRejection>> ReopenAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
+        job.State == JobState.Approved
+            ? await NextRoundAsync(job, feedback, Round.Reopen, cancellationToken)
+            : JobRejection.NotApproved;
+
     private async Task<Result<JobContinuation, JobRejection>> NextRoundAsync(Job job, Feedback guidance, Round round, CancellationToken cancellationToken)
     {
         var live = job.Session.Bind(session => agents.IsOpen(session) ? Option<SessionId>.Some(session) : Option<SessionId>.None);

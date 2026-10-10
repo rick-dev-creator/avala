@@ -77,6 +77,22 @@
 
     <StackPanel Spacing="8">
       <DockPanel>
+        <TextBlock x:Name="ForgesFile" DockPanel.Dock="Right" Classes="hint" TextTrimming="CharacterEllipsis" Text="{Binding ForgesFile}" VerticalAlignment="Bottom" />
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Classes="section" Text="Forges" VerticalAlignment="Bottom" />
+          <TextBlock Classes="hint" Text="where approved jobs open pull requests" VerticalAlignment="Bottom" />
+        </StackPanel>
+      </DockPanel>
+      <Border Classes="grouped">
+        <StackPanel>
+          <TextBlock x:Name="NoForges" Classes="caption" Margin="16,12" TextWrapping="Wrap" Text="No forge is declared: declare one in forges.json to open pull requests." IsVisible="{Binding !Forges.Count}" />
+          <ItemsControl x:Name="Forges" Margin="16,0" ItemsSource="{Binding Forges}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <StackPanel Spacing="8">
+      <DockPanel>
         <TextBlock x:Name="SupervisionFile" DockPanel.Dock="Right" Classes="hint" Text="{Binding SupervisionFile, StringFormat='supervision.json: {0}'}" VerticalAlignment="Bottom" />
         <StackPanel Orientation="Horizontal" Spacing="10">
           <TextBlock Classes="section" Text="Supervision" VerticalAlignment="Bottom" />

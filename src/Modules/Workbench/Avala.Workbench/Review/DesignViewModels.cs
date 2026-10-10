@@ -150,7 +150,11 @@ internal sealed partial class DesignReviewViewModel : IReviewViewModel
 
     public bool ConfirmingDiscard { get; init; }
 
+    public string PullRequestOffer { get; init; } = "Open pull request on github (GitHub, origin)";
+
     public IAsyncRelayCommand ApproveCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand OpenPullRequestCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand SendBackCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask, () => false);
 

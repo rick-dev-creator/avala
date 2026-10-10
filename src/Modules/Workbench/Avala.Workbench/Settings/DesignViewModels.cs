@@ -244,6 +244,10 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 
     public string ConnectionsFile => "Applied";
 
+    public IReadOnlyList<IForgeConnectionViewModel> Forges { get; } = [new DesignForgeConnectionViewModel()];
+
+    public string ForgesFile => "forges.json · checks every 60s · GitHub, Gitea, Forgejo installed";
+
     public string Silence => "600s";
 
     public string SupervisionFile => "Applied";
@@ -364,4 +368,17 @@ internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
     public IAsyncRelayCommand<MotionChoice> ChooseMotionCommand { get; } = new AsyncRelayCommand<MotionChoice>(_ => Task.CompletedTask);
 
     public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+internal sealed class DesignForgeConnectionViewModel : IForgeConnectionViewModel
+{
+    public string Name => "github";
+
+    public string Forge => "GitHub";
+
+    public string Url => "https://api.github.com/";
+
+    public string Credential => "token in $GITHUB_TOKEN";
+
+    public string Problem => string.Empty;
 }
