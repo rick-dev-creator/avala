@@ -122,6 +122,29 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AHandedOffJobShowsEachHandoffAndTheSpendOnEachConnectionAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new DesignAutonomySectionViewModel()));
+
+            Assert.Equal(2, view.Find<ItemsControl>("Handoffs").ItemCount);
+            Assert.Contains("Handed off from claude-work to claude-personal at 91% of the 5-hour window · 2026-10-10 10:42", view.VisibleTexts, StringComparer.Ordinal);
+            Assert.Contains("Spent on claude-work: 1.84 USD · 412,880 tokens", view.VisibleTexts, StringComparer.Ordinal);
+            Assert.Contains("Spent on claude-personal: 0.31 USD · 61,200 tokens", view.VisibleTexts, StringComparer.Ordinal);
+            Assert.False(view.Shows("Waiting"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AJobWaitingForAResetSaysWhenItResumesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new Waiting()));
+
+            Assert.Equal((true, "Resumes at 03:10 when the 5-hour window resets"), (view.Shows("Waiting"), view.TextOf("Waiting")));
+            Assert.False(view.Shows("Handoffs"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AConnectionNamedOnTheJobShowsNoComparisonAsync() =>
         ui.RunAsync(() =>
         {
@@ -143,6 +166,29 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         public string Reason => string.Empty;
 
         public IReadOnlyList<CapacityLine> Compared { get; } = [];
+
+        public IReadOnlyList<HandoffLine> Handoffs { get; } = [];
+
+        public string Waiting => string.Empty;
+    }
+
+    private sealed class Waiting : IAutonomySectionViewModel
+    {
+        public bool IsLoaded => true;
+
+        public string Autonomy => "Supervised, as asked";
+
+        public string Fact => "Supervised";
+
+        public string Connection => "claude-work";
+
+        public string Reason => string.Empty;
+
+        public IReadOnlyList<CapacityLine> Compared { get; } = [];
+
+        public IReadOnlyList<HandoffLine> Handoffs { get; } = [];
+
+        string IAutonomySectionViewModel.Waiting => "Resumes at 03:10 when the 5-hour window resets";
     }
 }
 

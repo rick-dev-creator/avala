@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Delegation.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
@@ -76,6 +77,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<BudgetCarved>, BoardKeeper>()
             .AddForwarded<IHandle<ChildDelegated>, BoardKeeper>()
             .AddForwarded<IHandle<ChildReported>, BoardKeeper>()
+            .AddForwarded<IHandle<HandoffRecorded>, BoardKeeper>()
+            .AddForwarded<IHandle<JobWaitsForReset>, BoardKeeper>()
             .AddTransient<BoardFeed>()
             .AddSingleton<JobFocus>()
             .AddSingleton<JobSteering>()

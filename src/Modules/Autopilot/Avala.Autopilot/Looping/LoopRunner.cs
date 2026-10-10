@@ -187,6 +187,9 @@ internal sealed class LoopRunner : IAsyncDisposable
 
         switch (progressed.Status)
         {
+            case JobStatus.Running when AwaitsReset:
+                await RunsAgainAsync(token);
+                break;
             case JobStatus.AwaitingReview:
                 await JudgeAsync(progressed.Job, token);
                 break;
@@ -290,12 +293,24 @@ internal sealed class LoopRunner : IAsyncDisposable
         });
     }
 
+    private bool AwaitsReset =>
+        record.Status == LoopStatus.Paused
+        && record.Pause == Option<PauseReason>.Some(PauseReason.UsageLimit)
+        && record.Current.Match(underway => underway.ContinuesAfterReset, () => false);
+
+    private async Task RunsAgainAsync(CancellationToken token)
+    {
+        await DisarmAsync();
+        Change(record.Resumed().Awaiting(current => current with { ContinuesAfterReset = false }));
+        await journal.PublishAsync(new LoopResumed(Id, clock.GetUtcNow()), token);
+    }
+
     private async Task ContinueAsync(Underway underway, CancellationToken token)
     {
         var continued = await steps.Jobs.ContinueAsync(underway.Job, ResetMessage, token);
         await journal.PublishAsync(new LoopResumed(Id, clock.GetUtcNow()), token);
 
-        if (continued.TryGetValue(out _, out var rejection))
+        if (continued.TryGetValue(out _, out var rejection) || rejection == JobRejection.NotHeld)
         {
             Change(record.Awaiting(current => current with { ContinuesAfterReset = false }));
             return;

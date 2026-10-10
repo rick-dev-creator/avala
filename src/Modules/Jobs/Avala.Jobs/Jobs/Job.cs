@@ -153,6 +153,30 @@ internal sealed class Job : IAggregateRoot<JobId>
                     return Begin(AttemptOrigin.Hint, guidance);
                 });
 
+    public Result<AttemptStarted, JobError> HandOff(Feedback brief, SessionId session, ConnectionName connection)
+    {
+        if (Connection == Option<ConnectionName>.Some(connection))
+        {
+            return JobError.SameConnection;
+        }
+
+        var checking = State == JobState.Checking;
+
+        return machine.TryFire(JobTrigger.HandOff, JobError.CannotHandOff)
+            .Map(_ =>
+            {
+                if (checking)
+                {
+                    Conclude(AttemptOutcome.Rejected);
+                }
+
+                Join(session, resumed: false);
+                Connection = connection;
+
+                return Begin(AttemptOrigin.Handoff, brief);
+            });
+    }
+
     public Result<AttemptStarted, JobError> SendBack(Feedback feedback) =>
         machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
             .Map(_ => Begin(AttemptOrigin.SendBack, feedback));
@@ -206,8 +230,21 @@ internal sealed class Job : IAggregateRoot<JobId>
                 return new JobHeld(Id, attempts[^1].Number, reason);
             });
 
-    private bool HasRetriesLeft() =>
-        attempts.Count - attempts.FindLastIndex(attempt => attempt.Origin != AttemptOrigin.Retry) < Budget.AttemptsPerRound;
+    private bool HasRetriesLeft()
+    {
+        var start = attempts.Count - 1;
+
+        while (start > 0 && ContinuesRound(start))
+        {
+            start--;
+        }
+
+        return attempts.Count - start < Budget.AttemptsPerRound;
+    }
+
+    private bool ContinuesRound(int index) =>
+        attempts[index].Origin == AttemptOrigin.Retry
+        || (attempts[index].Origin == AttemptOrigin.Handoff && attempts[index - 1].Outcome == AttemptOutcome.Rejected);
 
     private void Join(SessionId session, bool resumed)
     {

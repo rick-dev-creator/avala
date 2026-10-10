@@ -20,4 +20,5 @@ internal enum Operation
     Discard,
     Fail,
     Hold,
+    HandOff,
 }

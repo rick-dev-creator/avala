@@ -65,4 +65,6 @@ internal sealed record Hangup : IStep;
 
 internal sealed record Recall(ItemId Item) : IStep;
 
+internal sealed record UnlessTold(string Fragment, IStep Step) : IStep;
+
 internal sealed record Diverge(string Reason) : IStep;

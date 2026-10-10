@@ -260,5 +260,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) => inner.SendBackAsync(job, feedback, cancellationToken);
 
         public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) => inner.ResumeAsync(job, cancellationToken);
+
+        public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) => inner.HandOffAsync(job, handoff, cancellationToken);
     }
 }

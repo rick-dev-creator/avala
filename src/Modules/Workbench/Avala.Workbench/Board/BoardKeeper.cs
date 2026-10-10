@@ -5,6 +5,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Delegation.Contracts;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
@@ -35,7 +36,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     IHandle<BudgetIntervened>,
     IHandle<BudgetCarved>,
     IHandle<ChildDelegated>,
-    IHandle<ChildReported>
+    IHandle<ChildReported>,
+    IHandle<HandoffRecorded>,
+    IHandle<JobWaitsForReset>
 {
     private readonly Dictionary<SessionId, JobId> sessions = [];
     private readonly HashSet<SessionId> steerable = [];
@@ -59,6 +62,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
         {
             Summary = job.Summary with { Status = integrationEvent.Status },
             Hold = integrationEvent.Status == JobStatus.NeedsHelp ? job.Hold : Option<HoldReason>.None,
+            Wait = integrationEvent.Status == JobStatus.NeedsHelp ? job.Wait : Option<ResetWait>.None,
         }));
     }
 
@@ -130,6 +134,16 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
 
     public ValueTask HandleAsync(ChildReported integrationEvent, CancellationToken cancellationToken) =>
         AuditedAsync(Related(integrationEvent.Delegation));
+
+    public ValueTask HandleAsync(HandoffRecorded integrationEvent, CancellationToken cancellationToken) =>
+        ChangedAsync(integrationEvent.Handoff.Job, job => Audited(job with
+        {
+            Handoffs = [.. job.Handoffs, integrationEvent.Handoff],
+            Transcript = job.Transcript.WithHandoff(integrationEvent.Handoff),
+        }));
+
+    public ValueTask HandleAsync(JobWaitsForReset integrationEvent, CancellationToken cancellationToken) =>
+        ChangedAsync(integrationEvent.Wait.Job, job => Audited(job with { Wait = integrationEvent.Wait }));
 
     private static BoardJob Audited(BoardJob job) => job with { Revision = job.Revision + 1 };
 

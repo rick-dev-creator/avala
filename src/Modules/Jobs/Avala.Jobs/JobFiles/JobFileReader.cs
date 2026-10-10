@@ -25,6 +25,8 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private const string DelegationField = "delegation";
 
+    private const string LimitsField = "limits";
+
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
 
     public async ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken) =>
@@ -71,7 +73,7 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
             return Rejected("it is not a JSON object");
         }
 
-        if (root.EnumerateObject().Any(property => property.Name is not (ConnectionField or ApprovalField or AutopilotField or DelegationField)))
+        if (root.EnumerateObject().Any(property => property.Name is not (ConnectionField or ApprovalField or AutopilotField or DelegationField or LimitsField)))
         {
             return Rejected("it has a field the format does not define");
         }
@@ -84,6 +86,11 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
         if (root.TryGetProperty(DelegationField, out var delegation) && !IsSection(delegation, listsAllowed: true))
         {
             return Rejected($"its {DelegationField} is not an object of plain values and lists of them");
+        }
+
+        if (root.TryGetProperty(LimitsField, out var limits) && !IsSection(limits, listsAllowed: true))
+        {
+            return Rejected($"its {LimitsField} is not an object of plain values and lists of them");
         }
 
         return Named(root, ConnectionField).Bind(connection => Named(root, ApprovalField).Map(approval => new Declaration(connection, approval)));

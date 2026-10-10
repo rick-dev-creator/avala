@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Connections;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
@@ -58,6 +59,24 @@ public sealed class ConversationPhrasesTests
         };
 
         Assert.Equal(phrase, ConversationPhrases.Pill(job));
+    }
+
+    [Fact]
+    public void TheStatusPillOfAJobWaitingForAResetSaysWhenItResumes()
+    {
+        var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.NeedsHelp).Summary;
+        var since = new DateTimeOffset(2026, 10, 10, 0, 20, 0, TimeSpan.Zero);
+        var resumes = since.AddHours(2).AddMinutes(50);
+        var later = since.AddDays(3);
+        BoardJob Waiting(Option<DateTimeOffset> at) => new(summary, Transcript.Empty)
+        {
+            Hold = HoldReason.LimitNearlyReached,
+            Wait = new ResetWait(summary.Job, new ConnectionName("claude-work"), "5h", at, since),
+        };
+
+        Assert.Equal($"Held · resumes at {resumes.ToLocalTime():HH:mm} when the 5-hour window resets", ConversationPhrases.Pill(Waiting(resumes)));
+        Assert.Equal($"Held · resumes at {later.ToLocalTime():yyyy-MM-dd HH:mm} when the 5-hour window resets", ConversationPhrases.Pill(Waiting(later)));
+        Assert.Equal("Held · near its limit · no reset time reported, waits for you", ConversationPhrases.Pill(Waiting(Option<DateTimeOffset>.None)));
     }
 
     [Theory]

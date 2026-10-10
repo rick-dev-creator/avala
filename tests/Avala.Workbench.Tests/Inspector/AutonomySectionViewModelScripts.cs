@@ -1,4 +1,9 @@
+using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Observability.Contracts;
+using Avala.Workbench.Presenting;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Inspector;
@@ -52,6 +57,54 @@ public sealed class AutonomySectionViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AHandedOffJobListsEachHandoffAndWhatItSpentOnEachConnectionAsync()
+    {
+        var job = bench.Job("Fix the flaky checkout test", JobStatus.Running);
+        var at = new DateTimeOffset(2026, 10, 10, 10, 42, 0, TimeSpan.Zero);
+        var handoff = new HandoffRecord(job.Job, 2, Work, Personal, new LimitReason(Work, "5h", 0.91, 0.9), at) { Spent = [new Cost(1.84m, "USD")], Tokens = 412_880 };
+        bench.Usage.Jobs[job.Job] = new UsageSummary(new TokenUsage(400_000, 50_000, 20_000, 4_080, 0), [new Cost(2.15m, "USD")], 0, default, []);
+        bench.Publish(Bench.OnBoard(job) with { Handoffs = [handoff] });
+        using var section = new AutonomySectionViewModel(bench.Inspected());
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal(
+            [
+                new HandoffLine($"Handed off from claude-work to claude-personal at 91% of the 5-hour window · {Amounts.Time(at)}", "Spent on claude-work: 1.84 USD · 412,880 tokens"),
+                new HandoffLine(string.Empty, "Spent on claude-personal: 0.31 USD · 61,200 tokens"),
+            ],
+            section.Handoffs);
+        Assert.Equal(string.Empty, section.Waiting);
+    }
+
+    [Fact]
+    public async Task AJobWaitingForAResetSaysWhenItResumesAsync()
+    {
+        var job = bench.Job("Fix the flaky checkout test", JobStatus.NeedsHelp);
+        var since = new DateTimeOffset(2026, 10, 10, 0, 20, 0, TimeSpan.Zero);
+        var resumes = since.AddHours(2).AddMinutes(50);
+        bench.Publish(Bench.OnBoard(job) with { Wait = new ResetWait(job.Job, Work, "5h", resumes, since) });
+        using var section = new AutonomySectionViewModel(bench.Inspected());
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal($"Resumes at {resumes.ToLocalTime():HH:mm} when the 5-hour window resets", section.Waiting);
+        Assert.Empty(section.Handoffs);
+    }
+
+    [Fact]
+    public async Task AJobWaitingForAWindowThatReportsNoResetSaysItWaitsForYouAsync()
+    {
+        var job = bench.Job("Fix the flaky checkout test", JobStatus.NeedsHelp);
+        bench.Publish(Bench.OnBoard(job) with { Wait = new ResetWait(job.Job, Work, "5h", Option<DateTimeOffset>.None, DateTimeOffset.UnixEpoch) });
+        using var section = new AutonomySectionViewModel(bench.Inspected());
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal("Near its limit · no reset time reported, waits for you", section.Waiting);
+    }
+
+    [Fact]
     public async Task AJobThatHasNotStartedSaysSoOnTheDefaultConnection()
     {
         using var section = new AutonomySectionViewModel(bench.Inspected());
@@ -94,6 +147,10 @@ public sealed class AutonomySectionViewModelScripts : IDisposable
 
         Assert.Equal(("Supervised", "not started"), (reviewed, section.Fact));
     }
+
+    private static ConnectionName Work => new("claude-work");
+
+    private static ConnectionName Personal => new("claude-personal");
 
     public void Dispose() => bench.Dispose();
 }

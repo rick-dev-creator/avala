@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Jobs.Jobs;
@@ -44,6 +45,41 @@ public sealed class JobRetryTests
         Assert.Equal(JobError.AttemptBudgetExhausted, Outcomes.FailsWith(job.Retry(Given.Feedback)));
         Assert.Equal(JobState.Checking, job.State);
     }
+
+    [Fact]
+    public void AHandoffAfterTheChecksRejectsTheAttemptAndContinuesTheRoundOnTheNewConnection()
+    {
+        var job = Given.JobIn(JobState.Checking, attemptsPerRound: 2);
+        var session = SessionId.New();
+        var personal = new ConnectionName("personal");
+
+        Outcomes.Succeeds(job.HandOff(Given.Feedback, session, personal));
+        Outcomes.Succeeds(job.CompleteTurn());
+
+        Assert.Equal(
+            [(AttemptOrigin.Initial, AttemptOutcome.Rejected), (AttemptOrigin.Handoff, AttemptOutcome.AwaitingCheck)],
+            job.Attempts.Select(attempt => (attempt.Origin, attempt.Outcome)));
+        Assert.Equal((Option<SessionId>.Some(session), Option<ConnectionName>.Some(personal), Option<ResumeToken>.None), (job.Session, job.Connection, job.Resume));
+        Assert.Equal(JobError.AttemptBudgetExhausted, Outcomes.FailsWith(job.Retry(Given.Feedback)));
+        Assert.Equal(JobError.CannotHandOff, Outcomes.FailsWith(job.HandOff(Given.Feedback, SessionId.New(), new ConnectionName("spare"))));
+    }
+
+    [Fact]
+    public void AHandoffOfAHeldJobStartsAFreshRoundOfRetries()
+    {
+        var job = Given.JobIn(JobState.Checking, attemptsPerRound: 2);
+        Outcomes.Succeeds(job.Retry(Given.Feedback));
+        Outcomes.Succeeds(job.Hold(Contracts.HoldReason.LimitNearlyReached));
+
+        Outcomes.Succeeds(job.HandOff(Given.Feedback, SessionId.New(), new ConnectionName("personal")));
+        Outcomes.Succeeds(job.CompleteTurn());
+
+        Assert.True(job.Retry(Given.Feedback).IsSuccess);
+    }
+
+    [Fact]
+    public void AJobIsNeverHandedOffToTheConnectionItRunsOn() =>
+        Assert.Equal(JobError.SameConnection, Outcomes.FailsWith(Given.JobIn(JobState.Checking).HandOff(Given.Feedback, SessionId.New(), Given.Connection)));
 
     [Fact]
     public void RequestingHelpRejectsTheLastAttempt()

@@ -23,6 +23,9 @@ internal sealed class ReviewJob(JobLedger ledger, JobLauncher launcher, Approval
     public Task<Result<JobContinuation, JobRejection>> SendBackAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
         launcher.SendBackAsync(job, feedback, cancellationToken);
 
+    public Task<Result<JobContinuation, JobRejection>> HandOffAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
+        launcher.HandOffAsync(job, handoff, cancellationToken);
+
     public Task<Result<JobContinuation, JobRejection>> ResumeAsync(Job job, CancellationToken cancellationToken) =>
         resume.ExecuteAsync(job, cancellationToken);
 

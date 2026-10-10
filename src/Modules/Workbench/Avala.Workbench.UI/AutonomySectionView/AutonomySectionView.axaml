@@ -57,6 +57,24 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <TextBlock x:Name="Waiting"
+                 Classes="caption attention"
+                 TextWrapping="Wrap"
+                 Text="{Binding Waiting}"
+                 IsVisible="{Binding Waiting, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <ItemsControl x:Name="Handoffs" ItemsSource="{Binding Handoffs}" IsVisible="{Binding !!Handoffs.Count}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="inspector:HandoffLine">
+            <StackPanel Margin="0,2" Spacing="2">
+              <TextBlock Classes="caption"
+                         TextWrapping="Wrap"
+                         Text="{Binding Moved}"
+                         IsVisible="{Binding Moved, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <TextBlock Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Spent}" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </StackPanel>
   </ui:Fold>
 </UserControl>

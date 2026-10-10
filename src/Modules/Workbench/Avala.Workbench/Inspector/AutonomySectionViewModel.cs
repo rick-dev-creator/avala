@@ -20,9 +20,15 @@ internal interface IAutonomySectionViewModel
     string Reason { get; }
 
     IReadOnlyList<CapacityLine> Compared { get; }
+
+    IReadOnlyList<HandoffLine> Handoffs { get; }
+
+    string Waiting { get; }
 }
 
 internal sealed record CapacityLine(string Connection, string Reading, bool IsChosen, bool IsAtLimit);
+
+internal sealed record HandoffLine(string Moved, string Spent);
 
 [INotifyPropertyChanged]
 internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewModel, IRegionAware<JobId>, IActivatable, IPresentation, IDisposable
@@ -63,6 +69,12 @@ internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewMod
     [ObservableProperty]
     public partial IReadOnlyList<CapacityLine> Compared { get; private set; } = [];
 
+    [ObservableProperty]
+    public partial IReadOnlyList<HandoffLine> Handoffs { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial string Waiting { get; private set; } = string.Empty;
+
     public void OnRegionContextChanged(Option<JobId> context) => inspected.Focus(context);
 
     public void Activate() => inspected.Activate();
@@ -96,5 +108,7 @@ internal sealed partial class AutonomySectionViewModel : IAutonomySectionViewMod
                 candidate.Connection == chosen.Connection,
                 !candidate.Available))],
             () => []);
+        Handoffs = facts.Match(found => InspectorPhrases.Handoffs(found.Handoffs, found.Audit.Usage), () => []);
+        Waiting = facts.Bind(found => found.Wait).Match(wait => InspectorPhrases.Waiting(wait), () => string.Empty);
     }
 }
