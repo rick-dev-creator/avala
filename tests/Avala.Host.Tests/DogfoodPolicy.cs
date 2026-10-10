@@ -30,7 +30,7 @@ using static Avala.Host.Tests.DogfoodSettings;
 
 namespace Avala.Host.Tests;
 
-internal static class DogfoodPolicy
+internal static partial class DogfoodPolicy
 {
     public static (bool Allow, string Reason) Judge(ItemKind kind, string target, string worktree)
     {
@@ -42,18 +42,30 @@ internal static class DogfoodPolicy
             ItemKind.Mcp => (false, "No MCP tools in this job."),
             ItemKind.FileEdit or ItemKind.Search or ItemKind.Other when !inside => (false, "Stay inside the repository's worktree."),
             ItemKind.Command when Refused.FirstOrDefault(word => target.Contains(word, StringComparison.Ordinal)) is { } word =>
-                (false, $"Not allowed here ('{word.Trim()}'): no servers, background processes, global or networked installs, or remote git. The reviewer opens index.html directly."),
+                (false, $"Not allowed here ('{word.Trim()}'): no servers, background processes, global or networked installs, or remote git."),
             ItemKind.Command when OutsidePaths(target, worktree) is { Count: > 0 } outside => (false, $"Stay inside the repository's worktree (touches {string.Join(", ", outside)})."),
             _ => (true, "A reasonable development action inside the worktree."),
         };
     }
 
+    public static bool Chained(string command) =>
+        command.Contains("&&", StringComparison.Ordinal) || command.Contains("||", StringComparison.Ordinal) || command.Contains(';', StringComparison.Ordinal)
+        || command.Contains('|', StringComparison.Ordinal) || command.Contains('\n', StringComparison.Ordinal) || command.Contains("$(", StringComparison.Ordinal)
+        || command.Contains('`', StringComparison.Ordinal) || command.Contains('>', StringComparison.Ordinal);
+
     private static List<string> OutsidePaths(string command, string worktree) =>
-        [.. command.Split([' ', '\t', '\n', '"', '\'', '=', ';', '(', ')', '|', '>', '<'], StringSplitOptions.RemoveEmptyEntries)
+        [.. HeredocBody().Replace(command, " ${rest}").Split([' ', '\t', '\n', '"', '\'', '=', ';', '(', ')', '|', '>', '<'], StringSplitOptions.RemoveEmptyEntries)
+            .Where(token => PathLike().IsMatch(token))
             .Where(token => token.Length > 1 && token[1] != '/')
             .Where(token => token.StartsWith('/') || token.StartsWith('~') || token.StartsWith("$HOME", StringComparison.Ordinal))
             .Where(token => !(worktree.Length > 0 && token.StartsWith(worktree, StringComparison.Ordinal)))
             .Where(token => token is not "/dev/null" && !token.StartsWith("/usr/bin/", StringComparison.Ordinal) && !token.StartsWith("/bin/", StringComparison.Ordinal))];
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"<<-?\s*['""]?(\w+)['""]?(?<rest>[^\n]*)\n[\s\S]*?^\s*\1[ \t]*$", System.Text.RegularExpressions.RegexOptions.Multiline)]
+    private static partial System.Text.RegularExpressions.Regex HeredocBody();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(~|\$HOME|/)[\w./~$-]*$")]
+    private static partial System.Text.RegularExpressions.Regex PathLike();
 
     public static string Describe(object target) =>
         string.Join(", ", target.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance)
