@@ -20,7 +20,42 @@ internal sealed class RecordingParser
 
     private readonly string workingDirectory;
 
-    private RecordingParser(string workingDirectory) => this.workingDirectory = workingDirectory;
+    private readonly Dictionary<string, Func<JsonElement, IAgentEvent>> events;
+
+    private RecordingParser(string workingDirectory)
+    {
+        this.workingDirectory = workingDirectory;
+        events = new(StringComparer.Ordinal)
+        {
+            ["turnStarted"] = _ => new TurnStarted(default, default),
+            ["resumeTokenIssued"] = recorded => new ResumeTokenIssued(default, default, new ResumeToken(Text(recorded.GetProperty("token")))),
+            ["planUpdated"] = Plan,
+            ["usageReported"] = Usage,
+            ["limitReported"] = Limit,
+            ["modelReported"] = recorded => new ModelReported(default, default, Text(recorded.GetProperty("model"))) { Effort = Optional(recorded, "effort") },
+            ["turnCompleted"] = recorded => new TurnCompleted(default, default, Enum<TurnOutcome>(recorded.GetProperty("outcome"))),
+            ["itemStarted"] = recorded => new ItemStarted(default, default, Item(recorded), Enum<ItemKind>(recorded.GetProperty("kind")), Text(recorded.GetProperty("title")))
+            {
+                Input = Optional(recorded, "input"),
+            },
+            ["canvasStarted"] = recorded => new CanvasStarted(default, default, Item(recorded), Text(recorded.GetProperty("title")), Plain(recorded.GetProperty("mediaType"))),
+            ["itemProgressed"] = recorded => new ItemProgressed(default, default, Item(recorded), Text(recorded.GetProperty("text"))),
+            ["itemCompleted"] = recorded => new ItemCompleted(default, default, Item(recorded), Enum<ItemOutcome>(recorded.GetProperty("outcome"))),
+            ["toolCalled"] = recorded => new ToolCalled(default, default, Item(recorded), Plain(recorded.GetProperty("tool")), Text(recorded.GetProperty("input"))),
+            ["toolReturned"] = recorded => new ToolReturned(default, default, Item(recorded), Result(recorded.GetProperty("result"))),
+            ["permissionRequested"] = recorded => new PermissionRequested(
+                default,
+                default,
+                Item(recorded),
+                Text(recorded.GetProperty("title")),
+                Enum<ItemKind>(recorded.GetProperty("kind")),
+                Text(recorded.GetProperty("target"))),
+            ["permissionResolved"] = recorded => new PermissionResolved(default, default, Item(recorded), Enum<PermissionAnswer>(recorded.GetProperty("answer"))),
+            ["formRequested"] = recorded => new FormRequested(default, default, Item(recorded), Form(recorded.GetProperty("form"))),
+            ["formAnswered"] = recorded => new FormAnswered(default, default, Item(recorded), Answer(recorded.GetProperty("answer"))),
+            ["requestWithdrawn"] = recorded => new RequestWithdrawn(default, default, Item(recorded)),
+        };
+    }
 
     public static Result<RecordedSession, ReplayError> Parse(string text, string workingDirectory)
     {
@@ -104,47 +139,12 @@ internal sealed class RecordingParser
             Property(limit, "resetsAt").Map(resets => resets.GetDateTimeOffset())));
     }
 
-    private IAgentEvent Event(JsonElement recorded) => recorded.GetProperty("type").GetString() switch
+    private IAgentEvent Event(JsonElement recorded)
     {
-        "turnStarted" => new TurnStarted(default, default),
-        "resumeTokenIssued" => new ResumeTokenIssued(default, default, new ResumeToken(Text(recorded.GetProperty("token")))),
-        "planUpdated" => Plan(recorded),
-        "usageReported" => Usage(recorded),
-        "limitReported" => Limit(recorded),
-        "modelReported" => new ModelReported(default, default, Text(recorded.GetProperty("model"))) { Effort = Optional(recorded, "effort") },
-        "turnCompleted" => new TurnCompleted(default, default, Enum<TurnOutcome>(recorded.GetProperty("outcome"))),
-        var type => ItemEvent(recorded, type),
-    };
+        var type = recorded.GetProperty("type").GetString() ?? string.Empty;
 
-    private IAgentEvent ItemEvent(JsonElement recorded, string? type) => type switch
-    {
-        "itemStarted" => new ItemStarted(default, default, Item(recorded), Enum<ItemKind>(recorded.GetProperty("kind")), Text(recorded.GetProperty("title")))
-        {
-            Input = Optional(recorded, "input"),
-        },
-        "canvasStarted" => new CanvasStarted(default, default, Item(recorded), Text(recorded.GetProperty("title")), Plain(recorded.GetProperty("mediaType"))),
-        "itemProgressed" => new ItemProgressed(default, default, Item(recorded), Text(recorded.GetProperty("text"))),
-        "itemCompleted" => new ItemCompleted(default, default, Item(recorded), Enum<ItemOutcome>(recorded.GetProperty("outcome"))),
-        "toolCalled" => new ToolCalled(default, default, Item(recorded), Plain(recorded.GetProperty("tool")), Text(recorded.GetProperty("input"))),
-        "toolReturned" => new ToolReturned(default, default, Item(recorded), Result(recorded.GetProperty("result"))),
-        _ => ExchangeEvent(recorded, type),
-    };
-
-    private IAgentEvent ExchangeEvent(JsonElement recorded, string? type) => type switch
-    {
-        "permissionRequested" => new PermissionRequested(
-            default,
-            default,
-            Item(recorded),
-            Text(recorded.GetProperty("title")),
-            Enum<ItemKind>(recorded.GetProperty("kind")),
-            Text(recorded.GetProperty("target"))),
-        "permissionResolved" => new PermissionResolved(default, default, Item(recorded), Enum<PermissionAnswer>(recorded.GetProperty("answer"))),
-        "formRequested" => new FormRequested(default, default, Item(recorded), Form(recorded.GetProperty("form"))),
-        "formAnswered" => new FormAnswered(default, default, Item(recorded), Answer(recorded.GetProperty("answer"))),
-        "requestWithdrawn" => new RequestWithdrawn(default, default, Item(recorded)),
-        var unknown => throw new FormatException($"{unknown} is not an agent event."),
-    };
+        return events.TryGetValue(type, out var parse) ? parse(recorded) : throw new FormatException($"{type} is not an agent event.");
+    }
 
     private PlanUpdated Plan(JsonElement recorded) =>
         new(default, default, [.. recorded.GetProperty("steps").EnumerateArray().Select(step =>
