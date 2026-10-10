@@ -27,7 +27,7 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
         IsSelected = true;
     }
 
-    public static DesignDecisionViewModel Permission(JobId job, string jobTitle, string title, string target, string waiting, bool isSelected = false) =>
+    public static DesignDecisionViewModel Permission(JobId job, string jobTitle, string title, string target, string waiting, bool isSelected = false, string writes = "") =>
         new()
         {
             Job = job,
@@ -38,6 +38,7 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
             Context = string.Empty,
             Options = [],
             Target = target,
+            Writes = writes,
             Waiting = waiting,
             IsSelected = isSelected,
         };
@@ -55,6 +56,8 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
     public bool IsPermission => Card is IPermissionCardViewModel;
 
     public string Target { get; init; } = string.Empty;
+
+    public string Writes { get; init; } = string.Empty;
 
     public string Context { get; init; }
 

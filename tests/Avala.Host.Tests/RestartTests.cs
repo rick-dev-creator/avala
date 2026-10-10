@@ -13,6 +13,20 @@ namespace Avala.Host.Tests;
 public sealed class RestartTests(PublishedPlugins plugins)
 {
     [Fact]
+    public async Task TheLastEventsBeforeShutdownAreInTheTranscriptAfterARestartAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "waiting-permission");
+        var asked = await run.DecisionAsync();
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        var kept = await run.Get<Transcripts.Contracts.ITranscripts>().EarlierRunsAsync(run.Job, TestContext.Current.CancellationToken);
+        Assert.Contains(kept, fact => fact.Fact is Transcripts.Contracts.PermissionRuled ruled && ruled.Decision.Item == asked.Item);
+        Assert.Contains(kept, fact => fact.Fact is Transcripts.Contracts.AgentActed { Event: Agents.Contracts.Events.PermissionRequested requested } && requested.Item == asked.Item);
+    }
+
+    [Fact]
     public async Task AVerifiedJobShowsTheSameVerdictChecksAndTailsAfterARestartAsync()
     {
         await using var run = await SimulatedRun.StartAsync(

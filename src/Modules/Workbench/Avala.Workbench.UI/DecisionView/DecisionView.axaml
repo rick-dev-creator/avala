@@ -114,13 +114,20 @@
               CornerRadius="{DynamicResource RadiusButton}"
               Background="{DynamicResource FillWellBrush}"
               IsVisible="{Binding Target, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-        <SelectableTextBlock x:Name="Target"
-                             FontFamily="{DynamicResource MonoFont}"
-                             FontSize="{DynamicResource FontSizeCaption}"
-                             LineHeight="18"
-                             TextWrapping="Wrap"
-                             Text="{Binding Target}" />
+        <ScrollViewer x:Name="TargetScroll" MaxHeight="160" HorizontalScrollBarVisibility="Disabled">
+          <SelectableTextBlock x:Name="Target"
+                               FontFamily="{DynamicResource MonoFont}"
+                               FontSize="{DynamicResource FontSizeCaption}"
+                               LineHeight="18"
+                               TextWrapping="Wrap"
+                               Text="{Binding Target}" />
+        </ScrollViewer>
       </Border>
+      <TextBlock x:Name="Writes"
+                 Classes="caption attention"
+                 TextWrapping="Wrap"
+                 Text="{Binding Writes}"
+                 IsVisible="{Binding Writes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <ItemsControl x:Name="Options" ItemsSource="{Binding Options}">
         <ItemsControl.IsVisible>
           <MultiBinding Converter="{x:Static BoolConverters.And}">

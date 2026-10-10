@@ -38,7 +38,7 @@
                 VerticalAlignment="Center"
                 Classes.failure="{Binding Tone, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static review:ExceptionTone.Failure}}"
                 Classes.attention="{Binding Tone, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static review:ExceptionTone.Attention}}" />
-        <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" MaxLines="1" />
       </DockPanel>
     </ui:Fold.Header>
     <StackPanel Margin="31,0,14,14" Spacing="8">
@@ -53,13 +53,15 @@
               CornerRadius="{DynamicResource RadiusButton}"
               Background="{DynamicResource FillWellBrush}"
               IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-        <SelectableTextBlock x:Name="Output"
-                             Text="{Binding Output}"
-                             FontFamily="{DynamicResource MonoFont}"
-                             FontSize="{DynamicResource FontSizeHint}"
-                             Foreground="{DynamicResource TextSecondaryBrush}"
-                             LineHeight="18"
-                             TextWrapping="Wrap" />
+        <ScrollViewer x:Name="OutputScroll" MaxHeight="240" HorizontalScrollBarVisibility="Disabled">
+          <SelectableTextBlock x:Name="Output"
+                               Text="{Binding Output}"
+                               FontFamily="{DynamicResource MonoFont}"
+                               FontSize="{DynamicResource FontSizeHint}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               LineHeight="18"
+                               TextWrapping="Wrap" />
+        </ScrollViewer>
       </Border>
     </StackPanel>
   </ui:Fold>

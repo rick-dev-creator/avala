@@ -89,6 +89,8 @@ internal sealed partial class DesignPermissionCardViewModel : IPermissionCardVie
 
     public string Target => "pnpm add -D @testing-library/user-event@14.5.2";
 
+    public string Writes => string.Empty;
+
     public bool AwaitsYou => true;
 
     public string Verdict => "Waiting for you";

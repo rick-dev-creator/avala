@@ -86,7 +86,7 @@ internal static class InspectorPhrases
     [
         .. caps.CostPerJob.Select(cost => $"Cost cap {Amounts.Costs([cost])}"),
         .. caps.TokensPerJob.Match<string[]>(tokens => [$"Token cap {Amounts.Tokens(tokens)}"], () => []),
-        .. caps.HoldAtLimit.Match<string[]>(threshold => [string.Create(CultureInfo.InvariantCulture, $"Held at {threshold * 100:0}% of a usage limit")], () => []),
+        .. caps.HoldAtLimit.Match<string[]>(threshold => [$"Holds at {Presenting.Amounts.Percent(threshold)} of a limit"], () => []),
         .. caps.MemoryPerJobMegabytes.Match<string[]>(megabytes => [string.Create(CultureInfo.InvariantCulture, $"Memory cap {megabytes} MB")], () => []),
         .. caps.CarvePerChild.Match<string[]>(share => [string.Create(CultureInfo.InvariantCulture, $"Each child gets {share * 100:0}% of what is left")], () => []),
     ];

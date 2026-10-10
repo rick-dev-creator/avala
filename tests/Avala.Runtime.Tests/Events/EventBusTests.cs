@@ -1,4 +1,5 @@
 using Avala.Runtime.Events;
+using Avala.Sdk;
 using Avala.Sdk.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -125,6 +126,27 @@ public sealed class EventBusTests
     }
 
     [Fact]
+    public async Task AHandlerCancelledWhenTheWorkEndsLeavesItsMailboxDrainingUntilTheBusStopsAsync()
+    {
+        var handler = new FirstBlocks();
+        var services = new ServiceCollection().AddSingleton<IHandle<Pinged>>(handler).BuildServiceProvider();
+        var bus = new EventBus(services, NullLogger<EventBus>.Instance);
+        using var working = new CancellationTokenSource();
+        using var stopped = new CancellationTokenSource();
+        var loop = bus.RunAsync(working.Token, stopped.Token);
+        await bus.PublishAsync(new Pinged(1), Cancellation);
+        await handler.Blocked.Task.WaitAsync(Patience, Cancellation);
+        await bus.PublishAsync(new Pinged(2), Cancellation);
+
+        await working.CancelAsync();
+        await bus.DeliveredAsync(Cancellation).WaitAsync(Patience, Cancellation);
+
+        Assert.Equal([(1, true), (2, false)], handler.Received);
+        await stopped.CancelAsync();
+        await loop;
+    }
+
+    [Fact]
     public async Task KeepsDeliveringWhenAHandlerFailsAsync()
     {
         var survivor = new RecordingHandler(expected: 2);
@@ -189,5 +211,33 @@ public sealed class EventBusTests
         register(services);
 
         return new RunningBus(new EventBus(services.BuildServiceProvider(), NullLogger<EventBus>.Instance));
+    }
+
+    private sealed class FirstBlocks : IHandle<Pinged>
+    {
+        public TaskCompletionSource Blocked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public List<(int Sequence, bool Cancelled)> Received { get; } = [];
+
+        public async ValueTask HandleAsync(Pinged integrationEvent, CancellationToken cancellationToken)
+        {
+            if (integrationEvent.Sequence == 1)
+            {
+                Blocked.TrySetResult();
+
+                try
+                {
+                    await cancellationToken.UntilCancelledAsync();
+                }
+                finally
+                {
+                    Received.Add((1, cancellationToken.IsCancellationRequested));
+                }
+            }
+            else
+            {
+                Received.Add((integrationEvent.Sequence, cancellationToken.IsCancellationRequested));
+            }
+        }
     }
 }
