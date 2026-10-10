@@ -22,17 +22,20 @@ internal sealed class ProcessRunner(IProcessTrees trees) : IProcessRunner
 
         using var process = started;
 
+        var output = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+        var failure = process.StandardError.ReadToEndAsync(CancellationToken.None);
+
         try
         {
-            var output = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var failure = process.StandardError.ReadToEndAsync(cancellationToken);
             await process.WaitForExitAsync(cancellationToken);
 
-            return new ProcessOutcome(process.ExitCode, await output, await failure);
+            return new ProcessOutcome(process.ExitCode, await output.WaitAsync(cancellationToken), await failure.WaitAsync(cancellationToken));
         }
         catch (OperationCanceledException)
         {
             process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync(CancellationToken.None);
+            await Task.WhenAll(output, failure);
             throw;
         }
     }
