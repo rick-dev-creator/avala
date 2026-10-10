@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:triggers="using:Avala.Workbench.Triggers"
+             x:Class="Avala.Workbench.UI.TriggersView"
+             x:ClassModifier="internal"
+             x:DataType="triggers:ITriggersViewModel">
+  <Design.DataContext>
+    <triggers:DesignTriggersViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ItemsControl.rows > ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+    <Style Selector="ItemsControl.rows > ContentPresenter:nth-child(1)">
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="pageHeader">
+      <DockPanel>
+        <Button x:Name="Reload" DockPanel.Dock="Right" Classes="ghost" Margin="12,0,0,0" Content="Reload" Command="{Binding ReloadCommand}" VerticalAlignment="Center" />
+        <TextBlock x:Name="Scope" DockPanel.Dock="Right" Classes="caption" Text="{Binding Scope}" VerticalAlignment="Center" />
+        <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+    <ScrollViewer>
+      <StackPanel Margin="24,36,24,48" Spacing="34" MaxWidth="772">
+        <Border x:Name="Error" Classes="quiet" Padding="12,8" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <TextBlock Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
+        </Border>
+        <TextBlock x:Name="Notice" Classes="caption" Text="{Binding Notice}" TextWrapping="Wrap" IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="section" Text="{Binding Triggers.Count, StringFormat='Triggers · {0}'}" />
+          <Border x:Name="NoTriggers" Classes="empty" Padding="18,16" IsVisible="{Binding !Triggers.Count}">
+            <TextBlock TextWrapping="Wrap" Text="No trigger is declared. List repositories and declare triggers in triggers.json in the data folder, or in a listed repository's .avala/triggers.json, then reload." />
+          </Border>
+          <Border Classes="grouped" IsVisible="{Binding !!Triggers.Count}">
+            <ItemsControl x:Name="Triggers" Classes="rows" Margin="16,0" ItemsSource="{Binding Triggers}" />
+          </Border>
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <TextBlock Classes="section" Text="Webhooks" />
+          <TextBlock x:Name="Endpoint" Classes="mono" Text="{Binding Endpoint}" TextWrapping="Wrap" />
+          <TextBlock x:Name="Tunnel" Classes="caption" Text="{Binding Tunnel}" TextWrapping="Wrap" />
+          <TextBlock x:Name="NoDeliveries" Classes="caption" Margin="0,8,0,0" Text="No delivery yet." IsVisible="{Binding !Deliveries.Count}" />
+          <ItemsControl x:Name="Deliveries" ItemsSource="{Binding Deliveries}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="caption mono" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <TextBlock Classes="section" Text="Files" />
+          <ItemsControl x:Name="Files" ItemsSource="{Binding Files}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="caption mono" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

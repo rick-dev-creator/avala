@@ -52,7 +52,7 @@ internal sealed class ResourceTracker(ResourceBook book, OrphanReaper reaper, Po
 
         foreach (var worktree in worktrees)
         {
-            await leases.ReleaseAsync(worktree, cancellationToken);
+            await leases.ReleaseWorktreeAsync(worktree, cancellationToken);
         }
 
         await housekeeper.RetainAsync(integrationEvent.Job, integrationEvent.Status, worktrees, reaper, cancellationToken);
