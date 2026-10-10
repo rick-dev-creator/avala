@@ -195,6 +195,18 @@
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
   </Style>
 
+  <Style Selector="ComboBoxItem">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter, ComboBoxItem:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="ComboBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ComboBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, ComboBoxItem:selected:pressed /template/ ContentPresenter#PART_ContentPresenter, ComboBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentSelectedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+
   <Style Selector="Path.icon">
     <Setter Property="Width" Value="14" />
     <Setter Property="Height" Value="14" />
