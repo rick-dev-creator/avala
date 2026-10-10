@@ -2,6 +2,7 @@ using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
+using Avala.Testing;
 
 namespace Avala.Resources.Tests.Leasing;
 
@@ -32,6 +33,22 @@ public sealed class PortLeasesTests
         _ = await resources.Leases.ForAsync(Resourced.Home("one"), Cancellation);
 
         Assert.Empty(await resources.Leases.ForAsync(Resourced.Home("two"), Cancellation));
+    }
+
+    [Fact]
+    public async Task AHolderThatIsNoWorktreeLeasesItsOwnBlockAndReleasesItByNameAsync()
+    {
+        await using var resources = new Resourced();
+        var leases = resources.Leases;
+
+        var lease = await leases.LeaseAsync("avala-webhooks", Cancellation);
+        var again = await leases.LeaseAsync("avala-webhooks", Cancellation);
+        await leases.ReleaseAsync("avala-webhooks", Cancellation);
+
+        Assert.Equal(new PortLease("avala-webhooks", 24_000, 24_009) { Own = true }, Outcomes.Present(lease));
+        Assert.Equal(lease, again);
+        Assert.Equal(lease, Option<PortLease>.Some(Assert.Single(resources.Bus.Published.OfType<PortsReleased>()).Lease));
+        Assert.Empty(resources.Book.Leases());
     }
 
     [Fact]

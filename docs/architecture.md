@@ -20,7 +20,7 @@ src/
     Avala.<Module>.Contracts   optional public contracts other modules may use
 ```
 
-The modules are Agents, Jobs, Workspaces, Verification, Permissions, Supervision, Budgets, Resources, Observability, Canvas, Autopilot, Delegation, Transcripts, Recording, the Workbench, the canvas renderers (Rendering and Mermaid), the Simulator and the Claude Code provider.
+The modules are Agents, Jobs, Workspaces, Verification, Permissions, Supervision, Budgets, Resources, Observability, Canvas, Autopilot, Delegation, Handoffs, Triggers, Transcripts, Recording, the Workbench, the canvas renderers (Rendering and Mermaid), the Simulator and the Claude Code provider.
 
 - **A module depends only on the SDK, its own projects and other modules' `Contracts`.** Everything else in a module is `internal`; its single public type outside its contracts is its plugin entry.
 - **Folders are named after what the code does**, such as `Submission`, `TurnChecks` or `Storage`, never after layers. The layers still exist, Domain, Application, Infrastructure and ViewModels, and a single layer map in the architecture tests assigns every namespace to one, so dependencies keep pointing inward.
@@ -72,7 +72,7 @@ Avala's purpose is agents you can trust without watching. Four modules carry tha
 
 **Budgets.** Caps on cost, tokens, memory and provider limits stop a job before it overspends; a child job's budget is carved out of its parent's, and the machine admits only as many running jobs as its limit allows. Every intervention is recorded.
 
-Around them, **Resources** samples the processes, ports and disk every job uses, reaps what a session leaves behind, leases ports per worktree and reclaims old worktrees; **Observability** keeps usage, cost and limits per provider, account, connection, session and job; **Autopilot** runs a backlog unattended and approves a job automatically only on clean evidence; and **Delegation** lets an orchestrating agent hand work to child jobs that are governed and verified like any other.
+Around them, **Resources** samples the processes, ports and disk every job uses, reaps what a session leaves behind, leases ports per worktree and reclaims old worktrees; **Observability** keeps usage, cost and limits per provider, account, connection, session and job; **Autopilot** runs a backlog unattended and approves a job automatically only on clean evidence; **Delegation** lets an orchestrating agent hand work to child jobs that are governed and verified like any other; and **Triggers** starts work unattended, on a schedule or on a signed webhook received on a loopback port only, as ordinary jobs that never exceed their repository's autonomy. Avala never opens a public port: receiving webhooks from the internet takes a tunnel of your own, such as Tailscale Funnel.
 
 ## Persistence
 

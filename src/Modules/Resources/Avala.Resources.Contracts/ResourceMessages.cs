@@ -83,7 +83,10 @@ public sealed record ConnectionResources(ConnectionName Connection, ResourceUsag
 
 public sealed record ProviderResources(string Provider, ResourceUsage Usage);
 
-public sealed record PortLease(string Worktree, int First, int Last);
+public sealed record PortLease(string Worktree, int First, int Last)
+{
+    public bool Own { get; init; }
+}
 
 public sealed record PortConflict(int Port, PortLease Lease, DateTimeOffset At)
 {

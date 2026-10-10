@@ -25,5 +25,6 @@
     <ProjectReference Include="..\..\src\Modules\Delegation\Avala.Delegation.Contracts\Avala.Delegation.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Transcripts\Avala.Transcripts.Contracts\Avala.Transcripts.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Handoffs\Avala.Handoffs.Contracts\Avala.Handoffs.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\Triggers\Avala.Triggers.Contracts\Avala.Triggers.Contracts.csproj" Private="false" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>

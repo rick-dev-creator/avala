@@ -97,7 +97,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
                 Assert.False(view.Shows("EmptyContent"));
                 Assert.True(view.Shows("SidebarPane"));
                 Assert.True(view.Shows("PageNavigation"));
-                Assert.Equal(["Overview", "Usage", "Settings"], view.Find<ListBox>("PageNavigation").Items.Cast<IPage>().Select(page => page.Title));
+                Assert.Equal(["Overview", "Usage", "Triggers", "Settings"], view.Find<ListBox>("PageNavigation").Items.Cast<IPage>().Select(page => page.Title));
                 Assert.Null(view.Find<ListBox>("PageNavigation").SelectedItem);
                 Assert.False(view.Shows("InspectorPane"));
 

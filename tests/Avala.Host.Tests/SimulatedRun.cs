@@ -150,7 +150,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         IReadOnlyList<(string Path, string Content)> committed,
         bool harnesses = false,
         bool developer = true,
-        Option<IPlugin> claudeCode = default)
+        Option<IPlugin> claudeCode = default,
+        Func<string, IReadOnlyList<(string File, string Content)>>? placed = null)
     {
         var data = new TemporaryFolder();
 
@@ -168,6 +169,11 @@ internal sealed class SimulatedRun : IAsyncDisposable
         foreach (var (path, content) in committed)
         {
             await repository.CommitAsync(path, content, Cancellation);
+        }
+
+        foreach (var (file, content) in placed?.Invoke(repository.Path) ?? [])
+        {
+            await File.WriteAllTextAsync(Path.Combine(data.Path, file), content, Cancellation);
         }
 
         var run = new SimulatedRun(plugins, data, repository, root, surroundings);
@@ -234,9 +240,12 @@ internal sealed class SimulatedRun : IAsyncDisposable
         where T : notnull =>
         application.Root.Services.GetRequiredService<T>();
 
-    public async Task RestartAsync()
+    public Task RestartAsync() => RestartAfterAsync(TimeSpan.Zero);
+
+    public async Task RestartAfterAsync(TimeSpan closed)
     {
         await application.DisposeAsync();
+        Clock.Advance(closed);
         application = new Application(surroundings.Compose(plugins, data));
         application.Root.Start();
     }
