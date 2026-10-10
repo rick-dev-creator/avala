@@ -1,11 +1,11 @@
 using System.Globalization;
-using System.Text;
 using System.Text.RegularExpressions;
 using Avala.Agents.Contracts.Events;
+using Avala.CommandLines;
 
 namespace Avala.Workbench.Presenting;
 
-internal sealed record ShellCommand(string Name, IReadOnlyList<string> Writes)
+internal sealed record RunCommand(string Name, IReadOnlyList<string> Writes)
 {
     public string Summary => Writes.Count == 0 ? Name : $"{Name} > {string.Join(", ", Writes)}";
 }
@@ -60,212 +60,21 @@ internal static partial class CommandPhrases
     }
 
     public static IReadOnlyList<string> Writes(ItemKind kind, string command) =>
-        kind == ItemKind.Command ? [.. Commands(command).SelectMany(found => found.Writes).Distinct(StringComparer.Ordinal)] : [];
+        kind == ItemKind.Command ? [.. Read(command).Writes.Distinct(StringComparer.Ordinal)] : [];
 
-    public static IReadOnlyList<ShellCommand> Commands(string script) => new Reader(script.ReplaceLineEndings("\n")).Read();
+    public static IReadOnlyList<RunCommand> Commands(string script) => [.. Read(script).Commands.Where(command => !command.Restated).SelectMany(Named)];
+
+    private static CommandLine Read(string script) => CommandLine.Parse(script.ReplaceLineEndings("\n"));
 
     private static string[] Lines(string text) => text.Trim().ReplaceLineEndings("\n").Split('\n');
 
-    [GeneratedRegex(@"^\d*(>>?|&>|>\|)(.*)$")]
-    private static partial Regex Redirect();
+    private static RunCommand[] Named(ShellCommand command)
+    {
+        var name = command.Words.FirstOrDefault(word => !Prefixes.Contains(word) && !Assignment().IsMatch(word));
+
+        return name is null || Closings.Contains(name) || Headers.Contains(name) ? [] : [new RunCommand(name, command.Writes)];
+    }
 
     [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*=")]
     private static partial Regex Assignment();
-
-    private static ShellCommand[] Simple(IReadOnlyList<string> words)
-    {
-        var meaningful = words.Select(word => word.TrimStart('(').TrimEnd(')')).Where(word => word.Length > 0).ToList();
-        var start = meaningful.FindIndex(word => !Prefixes.Contains(word) && !Assignment().IsMatch(word));
-
-        if (start < 0 || Closings.Contains(meaningful[start]) || Headers.Contains(meaningful[start]))
-        {
-            return [];
-        }
-
-        var arguments = meaningful.Skip(start + 1).ToList();
-        var writes = arguments
-            .Zip(arguments.Skip(1).Append(string.Empty))
-            .Select(pair => (Redirect: Redirect().Match(pair.First), pair.Second))
-            .Where(pair => pair.Redirect.Success)
-            .Select(pair => (pair.Redirect.Groups[2].Value is { Length: > 0 } inline ? inline : pair.Second).Trim('\'', '"'))
-            .Where(target => target.Length > 0 && !target.StartsWith('&') && target != "/dev/null")
-            .ToList();
-
-        return [new ShellCommand(meaningful[start].Trim('\'', '"'), writes)];
-    }
-
-    private sealed class Reader(string script)
-    {
-        private readonly List<ShellCommand> commands = [];
-        private readonly List<string> words = [];
-        private readonly Queue<string> heredocs = [];
-        private readonly StringBuilder word = new();
-        private int at;
-
-        public List<ShellCommand> Read()
-        {
-            while (at < script.Length)
-            {
-                Step(script[at]);
-            }
-
-            End();
-
-            return commands;
-        }
-
-        private char Next(int ahead = 1) => at + ahead < script.Length ? script[at + ahead] : '\0';
-
-        private void Step(char current)
-        {
-            switch (current)
-            {
-                case '\'' or '"':
-                    Quoted(current);
-                    break;
-                case '\\':
-                    word.Append(current).Append(Next());
-                    at += 2;
-                    break;
-                case '$' when Next() == '(':
-                    Nested();
-                    break;
-                case '#' when word.Length == 0:
-                    SkipLine();
-                    break;
-                case ' ' or '\t':
-                    Flush();
-                    at++;
-                    break;
-                case '\n':
-                    End();
-                    at++;
-                    SkipHeredocs();
-                    break;
-                case ';' or '|':
-                case '&' when Next() != '>' && !word.ToString().EndsWith('>'):
-                    End();
-                    at += Next() == current ? 2 : 1;
-                    break;
-                case '<' when Next() == '<' && Next(2) == '<':
-                    word.Append("<<<");
-                    at += 3;
-                    break;
-                case '<' when Next() == '<':
-                    Heredoc();
-                    break;
-                default:
-                    word.Append(current);
-                    at++;
-                    break;
-            }
-        }
-
-        private void Quoted(char quote)
-        {
-            word.Append(quote);
-            at++;
-
-            while (at < script.Length && script[at] != quote)
-            {
-                if (script[at] == '\\' && quote == '"')
-                {
-                    word.Append(script[at++]);
-                }
-
-                if (at < script.Length)
-                {
-                    word.Append(script[at++]);
-                }
-            }
-
-            if (at < script.Length)
-            {
-                word.Append(script[at++]);
-            }
-        }
-
-        private void Nested()
-        {
-            var depth = 0;
-
-            do
-            {
-                depth += script[at] switch
-                {
-                    '(' => 1,
-                    ')' => -1,
-                    _ => 0,
-                };
-                word.Append(script[at++]);
-            }
-            while (at < script.Length && depth > 0);
-        }
-
-        private void Heredoc()
-        {
-            Flush();
-            at += 2;
-
-            while (at < script.Length && script[at] is '-' or ' ' or '\t')
-            {
-                at++;
-            }
-
-            var delimiter = new StringBuilder();
-
-            while (at < script.Length && !char.IsWhiteSpace(script[at]) && script[at] is not (';' or '|' or '&' or '>' or '<'))
-            {
-                delimiter.Append(script[at++]);
-            }
-
-            heredocs.Enqueue(delimiter.ToString().Trim('\'', '"'));
-        }
-
-        private void SkipHeredocs()
-        {
-            while (heredocs.TryDequeue(out var delimiter))
-            {
-                while (at < script.Length)
-                {
-                    var end = script.IndexOf('\n', at) is var found and >= 0 ? found : script.Length;
-                    var line = script[at..end].Trim();
-                    at = Math.Min(end + 1, script.Length);
-
-                    if (line == delimiter)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
-        private void SkipLine()
-        {
-            while (at < script.Length && script[at] != '\n')
-            {
-                at++;
-            }
-        }
-
-        private void Flush()
-        {
-            if (word.Length > 0)
-            {
-                words.Add(word.ToString());
-                word.Clear();
-            }
-        }
-
-        private void End()
-        {
-            Flush();
-
-            if (words.Count > 0)
-            {
-                commands.AddRange(Simple(words));
-                words.Clear();
-            }
-        }
-    }
 }
