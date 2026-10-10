@@ -84,6 +84,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<ChildReported>, BoardKeeper>()
             .AddForwarded<IHandle<HandoffRecorded>, BoardKeeper>()
             .AddForwarded<IHandle<JobWaitsForReset>, BoardKeeper>()
+            .AddForwarded<IHandle<ParentAsked>, BoardKeeper>()
             .AddForwarded<IHandle<PullRequestWatchChanged>, BoardKeeper>()
             .AddForwarded<IHandle<PullRequestWakeUp>, BoardKeeper>()
             .AddTransient<BoardFeed>()
