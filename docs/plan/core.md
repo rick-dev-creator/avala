@@ -665,6 +665,7 @@ T2  Given a job that progresses, then each attempt is marked once, across restar
 T3  Given an item that streams more than the cap, then its text is kept up to the cap, then a line says the rest was not kept; tool inputs and results are cut the same way.
 T4  Given kept facts of earlier runs, then the board shows them in order, a restart note between runs and at the end, open requests closed and open items abandoned; with nothing kept, prompts and a note saying the job ran before conversations were kept.
 T5  Given the composed application, a finished job and a job waiting for permission read the same after a restart, entry by entry, followed by the restart note.
+W1  Given ended jobs whose worktrees remain when the application starts, then each is retained from when its job ended: a due already past is reclaimed at once, a later one at the first sample after it, an approved job's is kept; in the composed application a discarded job's worktree and conversation go once its hour passes after a restart.
 T6  Given a job whose worktree retention reclaims, then its kept facts but its attempt marks are deleted, in order with the writes before and after, other jobs untouched; after a restart it shows its prompt and the restart note.
 E1  Given an attempt without a report, then the evidence lists it with why: working, checks running, interrupted by a restart, interrupted, or no checks ran; the verdict counts the same attempts the list shows.
 ```

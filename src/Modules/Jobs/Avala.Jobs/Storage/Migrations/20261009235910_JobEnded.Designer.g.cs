@@ -2,6 +2,7 @@ using System;
 using Avala.Jobs.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -9,9 +10,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Avala.Jobs.Storage.Migrations
 {
     [DbContext(typeof(JobsDbContext))]
-    internal sealed partial class JobsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261009235910_JobEnded")]
+    internal sealed partial class JobEnded
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");

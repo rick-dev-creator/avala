@@ -38,7 +38,7 @@ internal sealed class ReviewJob(JobLedger ledger, JobLauncher launcher, Approval
             return rejection;
         }
 
-        _ = job.Approve();
+        _ = job.Approve(ledger.Now);
         var approval = new JobApproval(job.Id, delivery);
         await ledger.RecordApprovalAsync(job, approval, cancellationToken);
 
@@ -47,7 +47,7 @@ internal sealed class ReviewJob(JobLedger ledger, JobLauncher launcher, Approval
 
     public async Task<Result<JobId, JobRejection>> DiscardAsync(Job job, CancellationToken cancellationToken)
     {
-        if (job.Discard().IsFailure)
+        if (job.Discard(ledger.Now).IsFailure)
         {
             return JobRejection.NotDiscardable;
         }

@@ -45,6 +45,8 @@ public sealed record JobSummary(
     Option<WorkspaceId> Workspace)
 {
     public Option<JobId> Parent { get; init; }
+
+    public Option<DateTimeOffset> Ended { get; init; }
 }
 
 public sealed record JobTree(JobSummary Job, IReadOnlyList<JobTree> Children);

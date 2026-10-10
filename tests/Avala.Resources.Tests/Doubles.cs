@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Avala.Jobs.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Resources.Leasing;
 using Avala.Resources.Settings;
@@ -94,10 +95,31 @@ internal sealed class FakeWorkspaces : IWorkspaces
         throw new NotSupportedException();
 
     public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> FindAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
-        throw new NotSupportedException();
+        ValueTask.FromResult(known.Values.FirstOrDefault(info => info.Id == workspace).ToOption().ToResult(WorkspaceFailure.UnknownWorkspace));
 
     public ValueTask<Result<CheckpointInfo, WorkspaceFailure>> CheckpointAsync(WorkspaceId workspace, string label, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
+}
+
+internal sealed class FakeCatalog : IJobCatalog
+{
+    public List<JobSummary> Jobs { get; } = [];
+
+    public JobSummary Add(JobStatus status, Option<WorkspaceId> workspace, Option<DateTimeOffset> ended)
+    {
+        var summary = new JobSummary(JobId.New(), "/repos/shop", "Add GitHub login", DateTimeOffset.UnixEpoch, status, default, default, workspace) { Ended = ended };
+        Jobs.Add(summary);
+
+        return summary;
+    }
+
+    public ValueTask<IReadOnlyList<JobSummary>> ListAsync(CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<JobSummary>>([.. Jobs]);
+
+    public ValueTask<Option<JobHistory>> HistoryAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult(Option<JobHistory>.None);
+
+    public ValueTask<IReadOnlyList<JobSummary>> ChildrenAsync(JobId parent, CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<JobSummary>>([]);
+
+    public ValueTask<Option<JobTree>> TreeAsync(JobId root, CancellationToken cancellationToken) => ValueTask.FromResult(Option<JobTree>.None);
 }
 
 internal sealed class FakeTrees : IProcessTrees

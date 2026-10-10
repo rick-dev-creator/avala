@@ -36,6 +36,8 @@ public sealed class ResourcesPlugin : IPlugin
             .AddSingleton<WorktreeHousekeeper>()
             .AddForwarded<IWorktreeHousekeeping, WorktreeHousekeeper>()
             .AddForwarded<IStartupTask, WorktreeHousekeeper>()
+            .AddSingleton<RetentionRecovery>()
+            .AddForwarded<IStartupTask, RetentionRecovery>()
             .AddSingleton<SampleTaker>()
             .AddSingleton<ResourceSampler>()
             .AddForwarded<IStartupTask, ResourceSampler>()

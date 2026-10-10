@@ -85,7 +85,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
 
     private async Task FailAsync(Job job, FailureReason reason, CancellationToken cancellationToken)
     {
-        _ = job.Fail(reason);
+        _ = job.Fail(reason, ledger.Now);
         await ledger.RecordAsync(job, cancellationToken);
     }
 }

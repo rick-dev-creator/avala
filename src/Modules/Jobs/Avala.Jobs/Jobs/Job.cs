@@ -32,6 +32,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public DateTimeOffset Submitted { get; private init; }
 
+    public Option<DateTimeOffset> Ended { get; private set; }
+
     public JobState State { get; private set; } = JobState.Draft;
 
     public Option<WorkspaceId> Workspace { get; private set; }
@@ -164,28 +166,33 @@ internal sealed class Job : IAggregateRoot<JobId>
                 return Begin(AttemptOrigin.SendBack, feedback);
             });
 
-    public Result<JobApproved, JobError> Approve() =>
+    public Result<JobApproved, JobError> Approve(DateTimeOffset at) =>
         machine.TryFire(JobTrigger.Approve, JobError.CannotApprove)
-            .Map(_ => new JobApproved(Id));
+            .Map(_ =>
+            {
+                Ended = at;
 
-    public Result<JobDiscarded, JobError> Discard()
+                return new JobApproved(Id);
+            });
+
+    public Result<JobDiscarded, JobError> Discard(DateTimeOffset at)
     {
         var from = State;
 
         return machine.TryFire(JobTrigger.Discard, JobError.CannotDiscard)
             .Map(_ =>
             {
-                InterruptUnderwayAttempt();
+                End(at);
 
                 return new JobDiscarded(Id, from);
             });
     }
 
-    public Result<JobFailed, JobError> Fail(FailureReason reason) =>
+    public Result<JobFailed, JobError> Fail(FailureReason reason, DateTimeOffset at) =>
         machine.TryFire(JobTrigger.Fail, JobError.CannotFail)
             .Map(_ =>
             {
-                InterruptUnderwayAttempt();
+                End(at);
 
                 return new JobFailed(Id, reason);
             });
@@ -222,6 +229,12 @@ internal sealed class Job : IAggregateRoot<JobId>
         current.Conclude(outcome);
 
         return current.Number;
+    }
+
+    private void End(DateTimeOffset at)
+    {
+        InterruptUnderwayAttempt();
+        Ended = at;
     }
 
     private void InterruptUnderwayAttempt()

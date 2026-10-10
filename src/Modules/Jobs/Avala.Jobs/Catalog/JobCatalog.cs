@@ -33,6 +33,7 @@ internal sealed class JobCatalog(IJobStore store) : IJobCatalog
         new(job.Id, job.Repository.Value, job.Instruction.Text, job.Submitted, job.State.Status, job.Connection, job.Autonomy, job.Workspace)
         {
             Parent = job.Parent,
+            Ended = job.Ended,
         };
 
     private static JobHistory History(Job job) =>
