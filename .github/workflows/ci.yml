@@ -74,8 +74,8 @@ jobs:
           -reports:"TestResults/coverage/*/*.cobertura.xml"
           -targetdir:TestResults/report
           -reporttypes:"MarkdownSummaryGithub;Html;Badges;Cobertura"
-          -assemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing;-Avala.ClaudeCode.Replay"
-          -riskhotspotassemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing;-Avala.ClaudeCode.Replay"
+          -assemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing;-Avala.ClaudeCode.Replay;-Avala.Forges.Testing"
+          -riskhotspotassemblyfilters:"+Avala.*;-*.Tests;-Avala.Testing;-Avala.ClaudeCode.Replay;-Avala.Forges.Testing"
           -filefilters:"-*.g.cs"
       - name: Code metrics
         run: dotnet run scripts/code-metrics.cs
