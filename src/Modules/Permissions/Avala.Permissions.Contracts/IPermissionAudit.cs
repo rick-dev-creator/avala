@@ -21,6 +21,8 @@ public interface IPermissionAudit
     IReadOnlyList<FormDecision> FormsOfJob(JobId job);
 
     IReadOnlyList<HumanAnswer> AnswersOfJob(JobId job);
+
+    IReadOnlyList<HumanAnswer> AnswersGivenBy(JobId parent);
 }
 
 public interface IRepositoryPolicies

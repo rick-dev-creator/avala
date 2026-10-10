@@ -34,6 +34,26 @@ public sealed class DecisionsViewModelScripts : IDisposable
     }
 
     [Fact]
+    public void ADecisionOfASubAgentFollowsItsParentsUnderTheParentsTitleAndOneWaitingForTheParentSaysSo()
+    {
+        var decisions = bench.Decisions();
+        var parent = Questioning();
+        var stranger = Asking();
+        var child = Asking(parent.Job, DecisionDelivery.LeftToParent, minutesAgo: 9) with { Summary = bench.Job("Migrate the database", JobStatus.Running) with { Parent = parent.Job } };
+
+        decisions.Show(Bench.Of(stranger, parent, child));
+
+        Assert.Equal(
+            [
+                ("Add invoice PDF endpoint", string.Empty, "Waiting for you"),
+                ("Migrate the database", "Sub-agents of Add invoice PDF endpoint", "Waiting for its parent"),
+                ("Fix flaky CheckoutForm test", string.Empty, "Waiting for you"),
+            ],
+            decisions.Items.Select(item => (item.JobTitle, item.Heading, item.Status)));
+        Assert.Equal((0, 1), (child.PendingDecisions, parent.PendingDecisions));
+    }
+
+    [Fact]
     public async Task TheKeyboardMovesBetweenDecisionsChoosesAnOptionAndAnswers()
     {
         var decisions = bench.Decisions();
@@ -270,17 +290,19 @@ public sealed class DecisionsViewModelScripts : IDisposable
 
     public void Dispose() => bench.Dispose();
 
-    private BoardJob Asking()
+    private BoardJob Asking() => Asking(Option<JobId>.None, DecisionDelivery.LeftToHuman, minutesAgo: 5);
+
+    private BoardJob Asking(Option<JobId> parent, DecisionDelivery delivery, int minutesAgo)
     {
         var turn = TurnId.New();
-        var asked = bench.Time.GetUtcNow().AddMinutes(-5);
+        var asked = bench.Time.GetUtcNow().AddMinutes(-minutesAgo);
 
         return Bench.OnBoard(bench.Job("Fix flaky CheckoutForm test", JobStatus.Running)) with
         {
             Transcript = Transcript.Empty
                 .Apply(new TurnStarted(permissionSession, turn), asked)
                 .Apply(new PermissionRequested(permissionSession, turn, new ItemId("run"), "Run the CheckoutForm tests", ItemKind.Command, "npm test -- CheckoutForm.test.tsx"), asked)
-                .Apply(new PolicyDecision(permissionSession, turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, "npm test -- CheckoutForm.test.tsx", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, asked)),
+                .Apply(new PolicyDecision(permissionSession, turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, "npm test -- CheckoutForm.test.tsx", PolicyAnswer.Ask, Option<PolicyRule>.None, delivery, asked) { Parent = parent }),
         };
     }
 

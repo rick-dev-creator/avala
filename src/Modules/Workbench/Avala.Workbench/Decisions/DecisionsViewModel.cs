@@ -140,8 +140,10 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
         shown = jobs;
         var now = time.GetUtcNow();
         var waiting = jobs.Values
-            .SelectMany(job => job.Transcript.Awaiting.Select(entry => (Job: job, Entry: entry, Since: Since(entry))))
-            .OrderBy(found => found.Since.Match(since => since, () => DateTimeOffset.MaxValue))
+            .SelectMany(job => job.Transcript.Pending.Select(entry => (Job: job, Entry: entry, Since: Since(entry))))
+            .GroupBy(found => found.Job.Summary.Parent.Match(parent => parent, () => found.Job.Job))
+            .OrderBy(family => family.Min(found => Oldest(found.Since)))
+            .SelectMany(family => family.OrderBy(found => found.Job.Summary.Parent.IsSome).ThenBy(found => Oldest(found.Since)))
             .ToList();
         var keys = waiting.Select(found => (found.Job.Job, found.Entry.Key)).ToHashSet();
 
@@ -157,6 +159,7 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
             var (job, entry, since) = waiting[position];
             var item = Item(job, entry, since);
             item.Update(entry, now);
+            item.Heading = Heading(jobs, job.Summary.Parent, position > 0 ? waiting[position - 1].Job.Summary.Parent : Option<JobId>.None);
 
             if (items.IndexOf(item) is var at && at != position)
             {
@@ -295,12 +298,25 @@ internal sealed partial class DecisionsViewModel : IDecisionsViewModel, IPresent
         _ => new FormCardViewModel((FormEntry)entry, replies),
     };
 
+    private static string Heading(ImmutableDictionary<JobId, BoardJob> jobs, Option<JobId> parent, Option<JobId> previous) =>
+        parent.IsNone || parent == previous
+            ? string.Empty
+            : DecisionPhrases.Children(parent.Bind(found => jobs.TryGetValue(found, out var board) ? board.Summary.Instruction : Option<string>.None));
+
+    private static DateTimeOffset Oldest(Option<DateTimeOffset> since) => since.Match(found => found, () => DateTimeOffset.MaxValue);
+
     private static Option<DateTimeOffset> Since(ITimelineEntry entry) => entry switch
     {
         PermissionEntry permission => permission.Decision.Map(decision => decision.At),
         FormEntry form => form.Decision.Map(decision => decision.At),
         _ => Option<DateTimeOffset>.None,
     };
+}
+
+internal static class DecisionPhrases
+{
+    public static string Children(Option<string> parentInstruction) =>
+        parentInstruction.Match(instruction => $"Sub-agents of {FactPhrases.Title(instruction)}", () => "Sub-agents of another job");
 }
 
 internal static class DecisionHints

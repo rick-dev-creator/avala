@@ -13,6 +13,8 @@ internal sealed record AuditFacts(IReadOnlyList<VerificationReport> Verification
 {
     public IReadOnlyList<HumanAnswer> Answers { get; init; } = [];
 
+    public IReadOnlyList<HumanAnswer> Given { get; init; } = [];
+
     public Option<SessionAutonomy> Autonomy { get; init; }
 
     public Option<UsageSummary> Usage { get; init; }
@@ -34,6 +36,7 @@ internal sealed class JobAudit(IVerifications verifications, IPermissionAudit au
         return new AuditFacts(verifications.OfJob(job), audit.OfJob(job), audit.FormsOfJob(job))
         {
             Answers = audit.AnswersOfJob(job),
+            Given = audit.AnswersGivenBy(job),
             Autonomy = sessions.Select(audit.AutonomyOf).FirstOrDefault(found => found.IsSome),
             Usage = usage.OfJob(job),
             Budget = sessions.Select(budgets.BudgetOf).FirstOrDefault(found => found.IsSome),

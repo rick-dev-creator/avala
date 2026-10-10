@@ -20,6 +20,7 @@ internal static class ToolAnswers
             ["status"] = Camel(report.Status),
             ["connection"] = delegation.Connection.Match(name => name.Value, () => string.Empty),
             ["autonomy"] = delegation.Autonomy.Match(level => Camel(level), () => string.Empty),
+            ["role"] = Camel(delegation.Role),
             ["summary"] = report.Summary.Match(text => text, () => string.Empty),
             ["files"] = Files(report),
             ["verification"] = Verification(report),
@@ -34,6 +35,28 @@ internal static class ToolAnswers
 
         return new ToolResult(item, answer.ToJsonString());
     }
+
+    public static ToolResult Running(ItemId item, DelegationRecord delegation)
+    {
+        var child = delegation.Child.Match(job => job.Value.ToString(), () => string.Empty);
+
+        return new ToolResult(item, new JsonObject
+        {
+            ["job"] = child,
+            ["outcome"] = "running",
+            ["status"] = "running",
+            ["note"] = "this sub-agent is still working; its call returned early so that you can answer another sub-agent that asks you something. Call wait_child with this child to keep waiting for its report.",
+            ["wait_child"] = new JsonObject { ["child"] = child },
+        }.ToJsonString());
+    }
+
+    public static ToolResult AlreadyTold(ItemId item, ChildReport report) =>
+        new(item, new JsonObject
+        {
+            ["job"] = report.Child.Value.ToString(),
+            ["outcome"] = Camel(report.Outcome),
+            ["note"] = "this sub-agent's report already reached you; it has nothing more to wait for.",
+        }.ToJsonString());
 
     public static string Briefing(IReadOnlyList<DelegationRecord> reported) =>
         string.Join(
@@ -90,7 +113,7 @@ internal static class ToolAnswers
 
     private static string Reason(DelegationError error) => error switch
     {
-        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, an autonomy of supervised or autonomous if any, and a model and an effort as non-empty text if any.",
+        DelegationError.MalformedInput => "the input needs an instruction as non-empty text of at most 4,000 characters, an autonomy of supervised or autonomous if any, a model and an effort as non-empty text if any, and a role of worker, reviewer or research if any.",
         DelegationError.UnofferedModel => "the sub-agent's connection does not offer that model; ask for one it offers or leave the model out.",
         DelegationError.UnofferedEffort => "the sub-agent's connection does not offer that effort level; ask for one it offers or leave the effort out.",
         DelegationError.NoJob => "this session runs no job, so there is nothing to delegate from.",
@@ -99,6 +122,7 @@ internal static class ToolAnswers
         DelegationError.TooManyChildren => "you already have as many sub-agents running as the repository's maxChildren allows; wait for one to report back.",
         DelegationError.AutonomyLoosened => "a sub-agent may only run as strictly as you or stricter, and you are not autonomous.",
         DelegationError.NotSubmitted => "the harness could not submit the sub-agent's job.",
+        DelegationError.RoleLoosened => "you, or this repository's delegation section, only allow read-only sub-agents: ask for role reviewer or research.",
         _ => "the repository's delegation section of .avala/jobs.json cannot be read from the job's base commit or is invalid.",
     };
 }

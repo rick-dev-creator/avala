@@ -26,9 +26,14 @@ internal sealed record PermissionPolicy(IReadOnlyList<PolicyRule> Repository, Au
         new(RuleOrigin.BuiltIn, "autonomous-denies-the-rest", Option<ItemKind>.None, Option<string>.None, RuleScope.Anywhere, PolicyAnswer.Deny),
     ];
 
+    public static PolicyRule ReadOnlyGuard { get; } =
+        new(RuleOrigin.BuiltIn, "read-only-denies-edits", ItemKind.FileEdit, Option<string>.None, RuleScope.Anywhere, PolicyAnswer.Deny);
+
     public static PermissionPolicy BuiltIn { get; } = With([]);
 
     public Option<Autonomy> Ceiling { get; init; }
+
+    public bool ReadOnly { get; init; }
 
     public Autonomy Autonomy => Ceiling.Match(ceiling => ceiling < Declared ? ceiling : Declared, () => Declared);
 
@@ -49,5 +54,7 @@ internal sealed record PermissionPolicy(IReadOnlyList<PolicyRule> Repository, Au
     }
 
     private List<PolicyRule> Ordered(IReadOnlyList<PolicyRule> session) =>
-        [.. Guards, .. Repository, .. session, .. Defaults, .. Autonomy == Autonomy.Autonomous ? Unattended : []];
+        [.. ReadOnly ? [ReadOnlyGuard] : Array.Empty<PolicyRule>(), .. Guards, .. Repository, .. session, .. Defaults, .. Autonomy == Autonomy.Autonomous ? UnattendedRules : []];
+
+    private IEnumerable<PolicyRule> UnattendedRules => ReadOnly ? Unattended.Where(rule => rule.Kind != Option<ItemKind>.Some(ItemKind.Command)) : Unattended;
 }
