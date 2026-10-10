@@ -33,10 +33,10 @@ public sealed class CommandPhrasesTests
     }
 
     [Fact]
-    public void TheWritesOfACommandAreItsRedirectionTargetsLeavingOutDescriptorsAndTheNullDevice()
+    public void TheWritesOfACommandAreTheOnesItsLineIsJudgedOnEachShownOnce()
     {
         Assert.Equal(["/tmp/claude-1000/smoke-app.js"], CommandPhrases.Writes(ItemKind.Command, Smoke));
-        Assert.Equal(["log.txt"], CommandPhrases.Writes(ItemKind.Command, "make build > /dev/null 2>&1 && echo ok >> log.txt"));
+        Assert.Equal(["log.txt"], CommandPhrases.Writes(ItemKind.Command, "make build > log.txt 2>&1 && echo ok >> log.txt"));
     }
 
     [Fact]
