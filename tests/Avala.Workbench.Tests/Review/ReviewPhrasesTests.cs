@@ -6,6 +6,7 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
+using Avala.Workbench.Presenting;
 using Avala.Workbench.Review;
 using Avala.Workbench.Reviewing;
 using Avala.Workspaces.Contracts;
@@ -82,12 +83,15 @@ public sealed class ReviewPhrasesTests
     }
 
     [Fact]
-    public void ADenialOfAMultiLineCommandIsTitledByItsFirstLineAndKeepsTheWholeCommandForItsDetail()
+    public void ADenialOfAScriptIsTitledByEveryCommandItRunsAsItWasAskedAndKeepsTheWholeScriptForItsDetail()
     {
-        const string command = "node --check app.js\ncat > /tmp/smoke.js <<'EOF'\nconsole.log(1);\nEOF\nnode /tmp/smoke.js";
+        const string command = "cat > lib/notes.js <<'EOF'\nconsole.log(1);\nEOF\nsed -i 's/a/b/' notes.js\nexport NOTES=1\nrm -rf build";
         var answer = new HumanAnswer(SessionId.New(), JobId.New(), new ItemId("smoke"), ItemKind.Command, command, PermissionAnswer.Deny, Option<string>.None, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch);
 
-        Assert.Equal(new ExceptionPhrase("You denied: run node --check app.js +4 lines", "by you", string.Empty, command), ReviewPhrases.Exception(new HumanDenial(answer)));
+        Assert.Equal(
+            new ExceptionPhrase("You denied: run 4 commands: cat > lib/notes.js, sed, export, rm", "by you", string.Empty, command),
+            ReviewPhrases.Exception(new HumanDenial(answer)));
+        Assert.Equal("Run 4 commands: cat > lib/notes.js, sed, export, rm", CommandPhrases.Title(ItemKind.Command, "Run cat > lib/notes.js <<'EOF'", command));
     }
 
     [Fact]

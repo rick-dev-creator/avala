@@ -191,7 +191,7 @@ internal static class ReviewPhrases
 
     private static string Request(ItemKind kind, string target) => kind switch
     {
-        ItemKind.Command => $"run {CommandPhrases.OneLine(target)}",
+        ItemKind.Command => $"run {CommandPhrases.Running(target)}",
         ItemKind.FileEdit => $"edit {CommandPhrases.OneLine(target)}",
         ItemKind.Web => $"reach {CommandPhrases.OneLine(target)}",
         _ => $"use {CommandPhrases.OneLine(target)}",

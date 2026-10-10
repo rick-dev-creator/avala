@@ -88,7 +88,7 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AMultiLineCommandIsAskedUnderAnHonestTitleAndItsDenialReviewsOnOneLineAsync()
+    public async Task AMultiLineCommandIsAskedAndItsDenialReviewedUnderTheSameHonestTitleAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "script-permission");
         Assert.Equal(DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
@@ -109,7 +109,7 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var (_, review) = await ReviewAsync(run);
         var denial = await run.Ui.ReadAsync(() => review["Exceptions"].Items.Select(exception => (exception["Title"].Text, exception["Output"].Text)).Single(exception => exception.Item1.StartsWith("You denied", StringComparison.Ordinal)));
-        Assert.Equal(("You denied: run node --check app.js +5 lines", target), denial);
+        Assert.Equal(("You denied: run 4 commands: node, cat > /tmp/avala-smoke.js, rm", target), denial);
     }
 
     [Fact]
