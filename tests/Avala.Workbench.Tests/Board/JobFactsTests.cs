@@ -76,6 +76,14 @@ public sealed class JobFactsTests
         Assert.Equal((FactKind.PlanProgress, 1, 2), (job.Fact.Kind, job.Fact.Done, job.Fact.Total));
     }
 
+    [Fact]
+    public void ARunningJobWhosePlanWasEmptiedIsWorking()
+    {
+        var job = Job(JobStatus.Running) with { Transcript = Transcript.Empty.Apply(new PlanUpdated(SessionId.New(), TurnId.New(), []), Now) };
+
+        Assert.Equal(FactKind.Working, job.Fact.Kind);
+    }
+
     private static BoardJob Job(JobStatus status) =>
         new(new FakeCatalog().Add("Fix the failing test", status).Summary, Transcript.Empty);
 }
