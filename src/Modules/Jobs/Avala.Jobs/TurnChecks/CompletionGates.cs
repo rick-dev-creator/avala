@@ -10,7 +10,7 @@ internal sealed class CompletionGates(IEnumerable<ICompletionGate> gates)
         {
             var verdict = await gate.EvaluateAsync(attempt, cancellationToken);
 
-            if (verdict.Decision == GateDecision.Retry)
+            if (verdict.Decision != GateDecision.Pass)
             {
                 return verdict;
             }

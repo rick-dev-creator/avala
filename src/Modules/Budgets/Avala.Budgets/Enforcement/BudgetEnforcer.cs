@@ -12,7 +12,7 @@ using Avala.Sdk.Events;
 namespace Avala.Budgets.Enforcement;
 
 internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<IResources> resources, BudgetActions actions)
-    : IHandle<BudgetLoaded>, IHandle<JobSessionStarted>, IHandle<JobProgressed>, IHandle<UsageRecorded>, IHandle<ResourcesSampled>, IHandle<JobSubmitted>
+    : IHandle<BudgetLoaded>, IHandle<JobSessionStarted>, IHandle<JobProgressed>, IHandle<UsageRecorded>, IHandle<ResourcesSampled>, IHandle<JobSubmitted>, IHandle<JobHeld>
 {
     private readonly Dictionary<JobId, SessionId> sessions = [];
     private readonly Dictionary<JobId, JobStatus> statuses = [];
@@ -64,6 +64,16 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
         }
     }
 
+    public async ValueTask HandleAsync(JobHeld integrationEvent, CancellationToken cancellationToken)
+    {
+        var hold = integrationEvent.Hold;
+
+        if (hold.Reason == HoldReason.BudgetExceeded && !book.OfJob(hold.Job).Any(recorded => recorded.Hold == hold))
+        {
+            await book.Overspent(hold.Job).Match(breach => actions.RecordAsync(hold, breach, cancellationToken), () => Task.CompletedTask);
+        }
+    }
+
     private async Task CarveKnownAsync(CancellationToken cancellationToken) =>
         await uncarved
             .Select(waiting => AllowanceOf(waiting.Parent).Map(allowance => (waiting.Child, waiting.Parent, Allowance: allowance)))
@@ -84,17 +94,23 @@ internal sealed class BudgetEnforcer(BudgetBook book, IUsage usage, IEnumerable<
 
     private async Task EnforceAsync(JobId job, CancellationToken cancellationToken)
     {
-        if (statuses.GetValueOrDefault(job) != JobStatus.Running || !sessions.TryGetValue(job, out var session))
+        var status = statuses.GetValueOrDefault(job);
+
+        if (status is not (JobStatus.Running or JobStatus.Checking or JobStatus.AwaitingReview) || !sessions.TryGetValue(job, out var session))
         {
             return;
         }
 
-        await book.Budgeted(session)
+        var breach = book.Budgeted(session)
             .Bind(budgeted => (budgeted.Budget with { Caps = budgeted.Budget.Caps.Within(book.CarveOf(job)) }).BreachBy(
                 Tree.CommittedBy(job),
                 LimitsOf(budgeted.Connection),
-                resources.Sum(measured => measured.OfJob(job).MemoryBytes)))
-            .Match(breach => actions.HoldAsync(job, breach, cancellationToken), () => Task.CompletedTask);
+                resources.Sum(measured => measured.OfJob(job).MemoryBytes)));
+        var overspent = breach.Bind(found => found.Reason == HoldReason.BudgetExceeded ? found : Option<BudgetBreach>.None);
+        book.KeepSpending(job, overspent);
+
+        await (status == JobStatus.Running ? breach : overspent)
+            .Match(found => actions.HoldAsync(job, found, cancellationToken), () => Task.CompletedTask);
     }
 
     private Option<BudgetCaps> AllowanceOf(JobId job) =>

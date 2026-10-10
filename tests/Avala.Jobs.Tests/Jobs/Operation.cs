@@ -20,6 +20,7 @@ internal enum Operation
     Discard,
     Fail,
     Hold,
+    HoldOverBudget,
     HandOff,
     Reopen,
     ReopenInNewSession,

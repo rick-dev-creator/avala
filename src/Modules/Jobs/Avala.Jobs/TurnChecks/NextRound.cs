@@ -11,6 +11,9 @@ internal sealed class NextRound(IEnumerable<IRoundRouter> routers, JobLauncher l
     public Task InSameSessionAsync(Job job, Feedback feedback, CancellationToken cancellationToken) =>
         launcher.RetryInSameSessionAsync(job, feedback, cancellationToken);
 
+    public async Task HoldAsync(Job job, HoldReason reason, CancellationToken cancellationToken) =>
+        _ = await hold.ExecuteAsync(job, reason, cancellationToken);
+
     public async Task GoOnAsync(Job job, Feedback feedback, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken)
     {
         var route = await RouteAsync(job, feedback, cancellationToken);

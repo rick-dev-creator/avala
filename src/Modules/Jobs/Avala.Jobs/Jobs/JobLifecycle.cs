@@ -30,12 +30,14 @@ internal static class JobLifecycle
             .SubstateOf(JobState.Active)
             .Permit(JobTrigger.CompleteTurn, JobState.Checking)
             .Permit(JobTrigger.Hold, JobState.NeedsHelp)
+            .Permit(JobTrigger.HoldOverBudget, JobState.NeedsHelp)
             .PermitReentry(JobTrigger.Recover);
 
         machine.Configure(JobState.Checking)
             .SubstateOf(JobState.Active)
             .PermitReentry(JobTrigger.Recheck)
             .Permit(JobTrigger.Pass, JobState.AwaitingReview)
+            .Permit(JobTrigger.HoldOverBudget, JobState.NeedsHelp)
             .PermitIf(JobTrigger.Retry, JobState.Running, hasRetriesLeft, "retries left")
             .PermitIf(JobTrigger.RequestHelp, JobState.NeedsHelp, () => !hasRetriesLeft(), "budget exhausted")
             .PermitIf(JobTrigger.HandOff, JobState.Running, hasRetriesLeft, "retries left");
@@ -48,7 +50,8 @@ internal static class JobLifecycle
         machine.Configure(JobState.AwaitingReview)
             .SubstateOf(JobState.Open)
             .Permit(JobTrigger.SendBack, JobState.Running)
-            .Permit(JobTrigger.Approve, JobState.Approved);
+            .Permit(JobTrigger.Approve, JobState.Approved)
+            .Permit(JobTrigger.HoldOverBudget, JobState.NeedsHelp);
 
         machine.Configure(JobState.Approved)
             .Permit(JobTrigger.Reopen, JobState.Running);

@@ -13,6 +13,8 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
     private ImmutableDictionary<SessionId, (SessionBudget Budget, ConnectionName Connection)> sessions =
         ImmutableDictionary<SessionId, (SessionBudget Budget, ConnectionName Connection)>.Empty;
 
+    private ImmutableDictionary<JobId, BudgetBreach> overspent = ImmutableDictionary<JobId, BudgetBreach>.Empty;
+
     private ImmutableList<BudgetIntervention> earlier = [];
     private ImmutableList<BudgetIntervention> interventions = [];
     private ImmutableList<BudgetCarve> earlierCarves = [];
@@ -58,6 +60,12 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
 
     public IReadOnlyList<BudgetIntervention> OfJob(JobId job) =>
         [.. Volatile.Read(ref earlier).Concat(Volatile.Read(ref interventions)).Where(intervention => intervention.Hold.Job == job)];
+
+    public Option<BudgetBreach> Overspent(JobId job) =>
+        Volatile.Read(ref overspent).TryGetValue(job, out var breach) ? breach : Option<BudgetBreach>.None;
+
+    public void KeepSpending(JobId job, Option<BudgetBreach> breach) =>
+        ImmutableInterlocked.Update(ref overspent, kept => breach.Match(found => kept.SetItem(job, found), () => kept.Remove(job)));
 
     public Option<BudgetCarve> CarveOf(JobId child) => Carves.LastOrDefault(carve => carve.Child == child).ToOption();
 }
