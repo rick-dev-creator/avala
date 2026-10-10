@@ -6,8 +6,8 @@ The cost is what the same tokens would cost on the API. A subscription may have 
 
 | Session | Model | Cost at API prices | Production lines at the end |
 | --- | --- | ---: | ---: |
-| [2026-10-08 · b9482f08](2026-10-08-b9482f08.md) | Claude Opus 5.5 | $503.53 | 31,075 |
-| **Total** | | **$503.53** | |
+| [2026-10-08 · b9482f08](2026-10-08-b9482f08.md) | Claude Opus 5.5 | $899.60 | 43,172 |
+| **Total** | | **$899.60** | |
 
 Earlier design conversations happened in sessions shared with unrelated work and are not counted.
 
