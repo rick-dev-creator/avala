@@ -1,5 +1,6 @@
 using System.Net;
 using Avala.Forges.Contracts;
+using Avala.Forges.Policy;
 using Avala.Forges.Testing;
 using Avala.Forges.Transport;
 using Avala.Sdk;
@@ -94,6 +95,22 @@ public sealed class TransportTests
         var api = new CliForgeApi(new ScriptedRunner(new ProcessOutcome(0, string.Empty, string.Empty)), new CliForge(Option<CliCall>.None), Targets.Of(new Uri("https://forge.invalid")));
 
         Assert.Equal(ForgeError.CliUnavailable, Outcomes.FailsWith(await api.SendAsync(new ForgeRequest(ForgeMethod.Get, "/user"), Cancellation)));
+    }
+
+    [Theory]
+    [InlineData("Environment", "FORGE_TOKEN", "secret-value", false)]
+    [InlineData("Environment", "FORGE_TOKEN", "", true)]
+    [InlineData("Environment", "FORGE_TOKEN", null, true)]
+    [InlineData("Environment", null, null, true)]
+    [InlineData("Cli", null, null, false)]
+    [InlineData("None", null, null, false)]
+    public void OnlyAnEnvironmentCredentialWithoutAValueIsAMissingCredential(string source, string? reference, string? value, bool missing)
+    {
+        using var http = new ForgeHttp();
+        var transports = new ForgeTransports(new ScriptedRunner(ProcessError.NotFound), http) { Environment = name => name == "FORGE_TOKEN" ? value.ToOption() : Option<string>.None };
+        var declaration = new ForgeDeclaration(new ForgeName("work"), "github", Option<Uri>.None, Enum.Parse<CredentialSource>(source), reference.ToOption());
+
+        Assert.Equal(missing ? Option<ForgeError>.Some(ForgeError.MissingCredential) : Option<ForgeError>.None, transports.Problem(declaration));
     }
 
     private static HttpForgeApi Api(FixtureServer server, string? value = "secret-value") =>
