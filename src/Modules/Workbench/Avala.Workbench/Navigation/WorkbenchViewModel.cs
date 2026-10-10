@@ -133,7 +133,14 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
         var review = screens.Review(Conversation!.Job);
         review.Track(Conversation.Status);
         Review = review;
-        Loading = feed.Find(review.Job).Match(job => feed.RunAsync(review.Request(job.Revision)), () => Task.CompletedTask);
+        Loading = feed.Find(review.Job).Match(
+            job =>
+            {
+                review.Track(job);
+
+                return feed.RunAsync(review.Request(job.Revision));
+            },
+            () => Task.CompletedTask);
 
         return Loading;
     }
@@ -179,7 +186,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
 
         if (Review is { } review && jobs.TryGetValue(review.Job, out var reviewed))
         {
-            review.Track(reviewed.Status);
+            review.Track(reviewed);
 
             if (reviewed.Revision != review.Requested)
             {

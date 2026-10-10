@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Conversations;
 using Avala.ClaudeCode.Folders;
@@ -10,6 +11,7 @@ using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Avala.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
 
@@ -161,6 +163,71 @@ public sealed class ProviderTests
     }
 
     [Fact]
+    public async Task AResumedSessionReadsThePlanItsConversationBuiltFromTheConversationFileAsync()
+    {
+        using var home = await HomeAsync();
+        await File.WriteAllLinesAsync(
+            Path.Combine(home.Path, ".claude", "projects", "-work", $"{Cli.Session}.jsonl"),
+            [
+                """{ "type": "user", "message": { "role": "user", "content": "Plan the greeting" } }""",
+                Cli.ToolUse("c1", "TaskCreate", """{ "subject": "Write" }""").ToJsonString(),
+                "{ not json \"tool_use\"",
+                Cli.ToolUse("c2", "TaskCreate", """{ "subject": "Test" }""").ToJsonString(),
+                Cli.ToolResult("c1", "Task #1 created successfully: Write").ToJsonString(),
+                Cli.ToolResult("c2", "Task #2 created successfully: Test").ToJsonString(),
+                Cli.ToolUse("u1", "TaskUpdate", """{ "taskId": "1", "status": "completed" }""").ToJsonString(),
+            ],
+            Cancellation);
+        var cli = new FakeCli();
+        await using var session = Started(await Provider(cli, home.Path).StartAsync(
+            new SessionOptions(home.Path, PermissionMode.AskEveryTime) { Resume = new ConversationMark(Held, 0.5m).Token },
+            Cancellation));
+
+        _ = await session.SendAsync(new UserTurn("Go on"), Cancellation);
+        await cli.Output.Writer.WriteAsync(Cli.ToolUse("u2", "TaskUpdate", """{ "taskId": "2", "status": "in_progress" }""").ToJsonString(), Cancellation);
+        var plan = await session.Events.OfType<PlanUpdated>().FirstAsync(Cancellation);
+
+        Assert.Equal([new PlanStep("Write", PlanStepStatus.Done), new PlanStep("Test", PlanStepStatus.InProgress)], plan.Steps);
+    }
+
+    [Theory]
+    [InlineData(null, null, "1", false)]
+    [InlineData("true", null, "1", false)]
+    [InlineData("false", null, null, true)]
+    [InlineData(null, "0", null, false)]
+    [InlineData(null, "1", null, false)]
+    [InlineData("false", "1", null, true)]
+    public async Task ThePlanToolsAreOnUnlessTheConnectionOrTheUsersEnvironmentSaysOtherwiseAsync(string? planTools, string? environment, string? set, bool cleared)
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        var home = new UserHome(Path.Combine(Path.GetTempPath(), "avala-no-home"), []) { TodoTools = environment is null ? Option<string>.None : environment };
+        var connection = new ConnectionEnvironment
+        {
+            Settings = planTools is null ? new Dictionary<string, string>() : new Dictionary<string, string> { ["planTools"] = planTools },
+        };
+
+        await using var session = Started(await Provider(cli, home).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Connection = connection }, Cancellation));
+        var launch = cli.Launches.Single();
+
+        Assert.Equal(set, launch.Variables.GetValueOrDefault("CLAUDE_CODE_ENABLE_TODO_TOOLS"));
+        Assert.Equal(cleared, launch.Cleared.Contains("CLAUDE_CODE_ENABLE_TODO_TOOLS"));
+    }
+
+    [Fact]
+    public void ThePluginReadsTheUsersOwnChoiceOfTodoToolsFromItsEnvironment()
+    {
+        var chosen = new ServiceCollection();
+        var unset = new ServiceCollection();
+
+        new ClaudeCodePlugin("claude", [], "/home/ana", new Dictionary<string, string> { ["CLAUDE_CODE_ENABLE_TODO_TOOLS"] = "0" }).Register(new Registrar(chosen));
+        new ClaudeCodePlugin("claude", [], "/home/ana", new Dictionary<string, string> { ["CLAUDE_CODE_ENABLE_TODO_TOOLS"] = string.Empty }).Register(new Registrar(unset));
+
+        Assert.Equal(Option<string>.Some("0"), Home(chosen).TodoTools);
+        Assert.Equal(Option<string>.None, Home(unset).TodoTools);
+    }
+
+    [Fact]
     public async Task TheAccountIsTheLoginOfTheConfigurationFolderAsync()
     {
         using var home = await HomeAsync();
@@ -307,6 +374,14 @@ public sealed class ProviderTests
             Cancellation);
 
         return home;
+    }
+
+    private static UserHome Home(ServiceCollection services) =>
+        Assert.IsType<UserHome>(services.Single(service => service.ServiceType == typeof(UserHome)).ImplementationInstance);
+
+    private sealed class Registrar(IServiceCollection services) : IPluginRegistrar
+    {
+        public IServiceCollection Services => services;
     }
 
     private sealed class FakeCli : ICli

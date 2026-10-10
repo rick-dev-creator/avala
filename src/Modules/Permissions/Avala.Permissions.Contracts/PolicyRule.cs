@@ -15,6 +15,7 @@ public enum RuleOrigin
     BuiltIn,
     Repository,
     Session,
+    Job,
 }
 
 public enum RuleScope

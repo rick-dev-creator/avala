@@ -56,6 +56,7 @@ public sealed class GovernanceHistoryTests
             await first.RecordAsync(earlier.Decisions[0], Cancellation);
             await first.RecordAsync(earlier.Forms[0], Cancellation);
             await first.RecordAsync(earlier.Answers[0], Cancellation);
+            await first.RecordAsync(new EndedJob(Assert.Single(earlier.Ended), JobStatus.Approved), Cancellation);
         }
 
         await using var second = new SqliteGovernanceStore(new AvalaPaths(folder.Path));
@@ -63,6 +64,41 @@ public sealed class GovernanceHistoryTests
 
         Assert.Equal(StoredJson.Write(earlier), StoredJson.Write(await second.EarlierRunsAsync(Cancellation)));
     }
+
+    [Fact]
+    public async Task TheJobRulesOfAnEarlierRunAreRestoredUnlessTheirJobEndedOrTheyLastedOneSessionAsync()
+    {
+        var store = new InMemoryGovernance();
+        var book = new GovernanceBook(store);
+        var (running, ended, older) = (JobId.New(), JobId.New(), JobId.New());
+        var rule = new PolicyRule(RuleOrigin.Job, "don't ask again for this job", ItemKind.Command, "dotnet ef database update", RuleScope.Anywhere, PolicyAnswer.Allow);
+        var session = rule with { Origin = RuleOrigin.Session, Name = "don't ask again this session" };
+        store.Earlier = GovernanceHistory.Empty with
+        {
+            Answers = [Answered(running, rule), Answered(ended, rule), Answered(older, session)],
+            Ended = new HashSet<JobId> { ended },
+        };
+
+        await book.RunAsync(Cancellation);
+
+        Assert.Equal([rule], book.JobRulesOf(running));
+        Assert.Empty(book.JobRulesOf(ended));
+        Assert.Empty(book.JobRulesOf(older));
+    }
+
+    [Fact]
+    public void AnAnswerKeepsTheStoredNameOfItsRuleSoAnswersOfEarlierBuildsStillReadTheirRule()
+    {
+        var answer = Answered(JobId.New(), new PolicyRule(RuleOrigin.Session, "don't ask again this session", ItemKind.Command, "ls", RuleScope.Anywhere, PolicyAnswer.Allow));
+
+        var stored = StoredJson.Write(answer);
+
+        Assert.Contains("\"SessionRule\":{", stored, StringComparison.Ordinal);
+        Assert.Equal(answer, StoredJson.Read<HumanAnswer>(stored));
+    }
+
+    private static HumanAnswer Answered(JobId job, PolicyRule rule) =>
+        new(SessionId.New(), job, new ItemId("migrate"), ItemKind.Command, Outcomes.Present(rule.Target), PermissionAnswer.Allow, Option<string>.None, rule, Nine);
 
     private static GovernanceHistory History(JobId job, SessionId session)
     {
@@ -78,6 +114,9 @@ public sealed class GovernanceHistoryTests
             [new SessionAutonomy(session, job, Autonomy.Autonomous, Autonomy.Supervised, Autonomy.Supervised, Refused: false)],
             [new PolicyDecision(session, turn, new ItemId("migrate"), job, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Deny, NoMigrations, DecisionDelivery.Answered, Nine) { Autonomy = Autonomy.Supervised }],
             [new FormDecision(session, turn, new ItemId("question"), job, form, Autonomy.Autonomous, new FormAnswer(new ItemId("question"), [new FieldAnswer("database") { Chosen = ["PostgreSQL"] }]), [new Assumption("database", "Which database?", AssumptionBasis.RecommendedOption, ["PostgreSQL"])], DecisionDelivery.Answered, Nine.AddMinutes(1))],
-            [new HumanAnswer(session, job, new ItemId("build"), ItemKind.Command, "dotnet build", PermissionAnswer.Allow, "Go ahead.", Option<PolicyRule>.None, Nine.AddMinutes(2))]);
+            [new HumanAnswer(session, job, new ItemId("build"), ItemKind.Command, "dotnet build", PermissionAnswer.Allow, "Go ahead.", new PolicyRule(RuleOrigin.Job, "don't ask again for this job", ItemKind.Command, "dotnet build", RuleScope.Anywhere, PolicyAnswer.Allow), Nine.AddMinutes(2))])
+        {
+            Ended = new HashSet<JobId> { JobId.New() },
+        };
     }
 }

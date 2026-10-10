@@ -10,7 +10,7 @@ namespace Avala.Permissions.Governance;
 internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit, IStartupTask
 {
     private ImmutableDictionary<SessionId, GovernedSession> sessions = ImmutableDictionary<SessionId, GovernedSession>.Empty;
-    private ImmutableDictionary<SessionId, ImmutableList<PolicyRule>> rules = ImmutableDictionary<SessionId, ImmutableList<PolicyRule>>.Empty;
+    private ImmutableDictionary<JobId, ImmutableList<PolicyRule>> rules = ImmutableDictionary<JobId, ImmutableList<PolicyRule>>.Empty;
     private ImmutableList<HumanAnswer> earlierAnswers = [];
     private ImmutableList<HumanAnswer> answers = [];
 
@@ -61,11 +61,17 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
         await store.RecordAsync(answer, cancellationToken);
     }
 
-    public void Remember(SessionId session, PolicyRule rule) =>
-        ImmutableInterlocked.AddOrUpdate(ref rules, session, [rule], (_, kept) => kept.Add(rule));
+    public void Remember(JobId job, PolicyRule rule) =>
+        ImmutableInterlocked.AddOrUpdate(ref rules, job, [rule], (_, kept) => kept.Add(rule));
 
-    public void Forget(SessionId session, PolicyRule rule) =>
-        ImmutableInterlocked.AddOrUpdate(ref rules, session, [], (_, kept) => kept.Remove(rule));
+    public void Forget(JobId job, PolicyRule rule) =>
+        ImmutableInterlocked.AddOrUpdate(ref rules, job, [], (_, kept) => kept.Remove(rule));
+
+    public async Task EndedAsync(EndedJob ended, CancellationToken cancellationToken)
+    {
+        ImmutableInterlocked.TryRemove(ref rules, ended.Job, out _);
+        await store.RecordAsync(ended, cancellationToken);
+    }
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -76,6 +82,11 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
             ImmutableInterlocked.TryAdd(ref sessions, restored.Session, restored);
         }
 
+        foreach (var (job, kept) in JobRules(history))
+        {
+            ImmutableInterlocked.TryAdd(ref rules, job, kept);
+        }
+
         Volatile.Write(ref earlierAnswers, [.. history.Answers]);
     }
 
@@ -83,7 +94,9 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
 
     public Option<SessionAutonomy> AutonomyOf(SessionId session) => Of(session).Autonomy;
 
-    public IReadOnlyList<PolicyRule> SessionRulesOf(SessionId session) => Volatile.Read(ref rules).GetValueOrDefault(session) ?? [];
+    public IReadOnlyList<PolicyRule> JobRulesOf(JobId job) => Volatile.Read(ref rules).GetValueOrDefault(job) ?? [];
+
+    public IReadOnlyList<PolicyRule> RulesOf(GovernedSession session) => session.Job.Match(JobRulesOf, () => []);
 
     public IReadOnlyList<PolicyDecision> OfSession(SessionId session) => Of(session).Decisions;
 
@@ -123,6 +136,13 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
             Forms = forms,
         };
     }
+
+    private static IEnumerable<(JobId Job, ImmutableList<PolicyRule> Rules)> JobRules(GovernanceHistory history) =>
+        history.Answers
+            .SelectMany(answer => answer.Job.Bind(job => answer.Rule.Map(rule => (Job: job, Rule: rule))).Match(found => new[] { found }, () => []))
+            .Where(kept => kept.Rule.Origin == RuleOrigin.Job && !history.Ended.Contains(kept.Job))
+            .GroupBy(kept => kept.Job)
+            .Select(group => (group.Key, group.Select(kept => kept.Rule).ToImmutableList()));
 
     private static List<T> Latest<T>(IEnumerable<T> recorded, Func<T, ItemId> item) =>
         [.. recorded.GroupBy(item).Select(kept => kept.Last())];

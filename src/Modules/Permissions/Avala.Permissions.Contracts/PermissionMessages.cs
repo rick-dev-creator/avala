@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -21,6 +22,8 @@ public enum PolicyError
     UnknownAutonomy,
     UnknownStrategy,
     NotAwaitingAnswer,
+    NotARepositoryRule,
+    RepositoryUnwritable,
 }
 
 public enum PolicyFileStatus
@@ -74,6 +77,8 @@ public sealed record PolicyDecision(
     DateTimeOffset At)
 {
     public Autonomy Autonomy { get; init; }
+
+    public Option<PolicyRule> RepositoryRule { get; init; }
 }
 
 public sealed record SessionAutonomy(SessionId Session, JobId Job, Autonomy Declared, Option<Autonomy> Requested, Autonomy Effective, bool Refused);
@@ -100,11 +105,18 @@ public sealed record FormDecision(
     DecisionDelivery Delivery,
     DateTimeOffset At);
 
+public enum Remember
+{
+    Once,
+    ForThisJob,
+    InThisRepository,
+}
+
 public sealed record PermissionReply(ItemId Item, PermissionAnswer Answer)
 {
     public Option<string> Message { get; init; }
 
-    public bool DontAskAgain { get; init; }
+    public Remember Remember { get; init; }
 }
 
 public sealed record HumanAnswer(
@@ -115,8 +127,13 @@ public sealed record HumanAnswer(
     string Target,
     PermissionAnswer Answer,
     Option<string> Message,
-    Option<PolicyRule> SessionRule,
-    DateTimeOffset At);
+    [property: JsonPropertyName("SessionRule")] Option<PolicyRule> Rule,
+    DateTimeOffset At)
+{
+    public Option<PolicyRule> RepositoryRule { get; init; }
+
+    public Option<PolicyError> RepositoryError { get; init; }
+}
 
 public sealed record PolicyLoaded(SessionPolicy Policy) : IIntegrationEvent;
 

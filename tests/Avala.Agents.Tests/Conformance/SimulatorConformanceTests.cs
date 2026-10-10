@@ -17,6 +17,7 @@ public sealed class SimulatorConformanceTests
     [InlineData("reply")]
     [InlineData("edit")]
     [InlineData("fix-after-feedback")]
+    [InlineData("plan-across-turns")]
     [InlineData("rewrite-checks")]
     [InlineData("canvas")]
     [InlineData("permission")]

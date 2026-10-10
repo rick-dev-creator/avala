@@ -19,6 +19,8 @@ internal sealed class InMemoryGovernance : IGovernanceStore
 
     public Task RecordAsync(HumanAnswer answer, CancellationToken cancellationToken) => KeepAsync(answer);
 
+    public Task RecordAsync(EndedJob ended, CancellationToken cancellationToken) => KeepAsync(ended);
+
     public Task<GovernanceHistory> EarlierRunsAsync(CancellationToken cancellationToken) => Task.FromResult(Earlier);
 
     private Task KeepAsync(object fact)

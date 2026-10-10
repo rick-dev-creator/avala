@@ -115,13 +115,21 @@ internal sealed class FakePermissionAnswers : IPermissionAnswers
 
     public bool Refuse { get; set; }
 
+    public Option<PolicyError> RepositoryRefusal { get; set; }
+
     public ValueTask<Result<HumanAnswer, PolicyError>> AnswerAsync(SessionId session, PermissionReply reply, CancellationToken cancellationToken)
     {
         Replies.Add((session, reply));
+        var rule = new PolicyRule(RuleOrigin.Repository, "always in this repository", ItemKind.Command, "target", RuleScope.Anywhere, PolicyAnswer.Allow);
+        var inRepository = reply.Remember == Remember.InThisRepository;
 
         return ValueTask.FromResult(Refuse
             ? Result<HumanAnswer, PolicyError>.Failure(PolicyError.NotAwaitingAnswer)
-            : Result<HumanAnswer, PolicyError>.Success(new HumanAnswer(session, Option<JobId>.None, reply.Item, ItemKind.Command, "target", reply.Answer, reply.Message, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch)));
+            : Result<HumanAnswer, PolicyError>.Success(new HumanAnswer(session, Option<JobId>.None, reply.Item, ItemKind.Command, "target", reply.Answer, reply.Message, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch)
+            {
+                RepositoryRule = inRepository && RepositoryRefusal.IsNone ? rule : Option<PolicyRule>.None,
+                RepositoryError = inRepository ? RepositoryRefusal : Option<PolicyError>.None,
+            }));
     }
 }
 

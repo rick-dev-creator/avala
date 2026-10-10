@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
@@ -21,7 +20,7 @@ internal interface IConversationViewModel
 
     IStatusPillViewModel Pill { get; }
 
-    string Plan { get; }
+    IPlanPanelViewModel Plan { get; }
 
     IComposerViewModel Composer { get; }
 
@@ -33,18 +32,19 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
 {
     private readonly ComposerViewModel composer;
     private readonly TimelineItems items;
+    private readonly PlanPanelViewModel plan;
     private readonly StatusPillViewModel pill = new(StatusKind.Working, string.Empty);
     private readonly Dictionary<string, (ITimelineEntry Entry, ITimelineItem Item)> known = [];
     private Transcript shown = Transcript.Empty;
 
-    public ConversationViewModel(JobId job, ComposerViewModel composer, TimelineItems items)
+    public ConversationViewModel(JobId job, ComposerViewModel composer, TimelineItems items, PlanPanelViewModel plan)
     {
         Job = job;
         this.composer = composer;
         this.items = items;
         Title = string.Empty;
         Place = string.Empty;
-        Plan = string.Empty;
+        this.plan = plan;
     }
 
     public JobId Job { get; }
@@ -52,6 +52,8 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     public IComposerViewModel Composer => composer;
 
     public IStatusPillViewModel Pill => pill;
+
+    public IPlanPanelViewModel Plan => plan;
 
     public ObservableCollection<ITimelineItem> Entries { get; } = [];
 
@@ -65,9 +67,6 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
 
     [ObservableProperty]
     public partial JobStatus Status { get; private set; }
-
-    [ObservableProperty]
-    public partial string Plan { get; private set; }
 
     public void Show(BoardJob job)
     {
@@ -84,9 +83,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         }
 
         shown = job.Transcript;
-        Plan = job.Transcript.Plan.Match(
-            plan => string.Create(CultureInfo.InvariantCulture, $"{plan.Done} of {plan.Total}"),
-            () => string.Empty);
+        plan.Show(job.Transcript.Plan);
         Arrange(job.Transcript);
     }
 

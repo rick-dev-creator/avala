@@ -33,7 +33,10 @@ public sealed class ClaudeCodePlugin(string executable, IReadOnlyList<string> ar
     public void Register(IPluginRegistrar registrar)
     {
         IReadOnlyList<string> configured = environment.TryGetValue(CommandLine.ConfigurationVariable, out var folder) && folder.Length > 0 ? [folder] : [];
-        var user = new UserHome(Path.TrimEndingDirectorySeparator(Path.GetFullPath(home)), configured);
+        var user = new UserHome(Path.TrimEndingDirectorySeparator(Path.GetFullPath(home)), configured)
+        {
+            TodoTools = environment.TryGetValue(CommandLine.TodoToolsVariable, out var todo) && todo.Length > 0 ? todo : Option<string>.None,
+        };
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton(new CliCommand(executable, arguments))

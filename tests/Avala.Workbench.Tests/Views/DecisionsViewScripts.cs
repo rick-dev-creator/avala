@@ -262,7 +262,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task DontAskAgainThisSessionIsOfferedOnAPermissionAndSentWithTheAnswerAsync() =>
+    public Task DontAskAgainForThisJobIsOfferedOnAPermissionAndSentWithTheAnswerAsync() =>
         ui.RunAsync(async () =>
         {
             using var bench = new Bench();
@@ -274,8 +274,27 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             view.Click("Answer");
             await (decisions.Items[0].AnswerCommand.ExecutionTask ?? Task.CompletedTask);
 
-            Assert.Equal("Don't ask again this session", view.Find<CheckBox>("DontAskAgain").Content);
-            Assert.True(Assert.Single(bench.Permissions.Replies).Reply.DontAskAgain);
+            Assert.Equal("Don't ask again for this job", view.Find<CheckBox>("DontAskAgain").Content);
+            Assert.False(view.Shows("AlwaysInRepository"));
+            Assert.Equal(Remember.ForThisJob, Assert.Single(bench.Permissions.Replies).Reply.Remember);
+        }, Cancellation);
+
+    [Fact]
+    public Task AlwaysInThisRepositoryIsOfferedNextToItWhenThePolicyFoundAnExactRuleAndSentWithTheAnswerAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var decisions = bench.Decisions();
+            decisions.Show(Bench.Of(Asking(bench, "dotnet test", inRepository: true)));
+            var view = Tall(Screen.Show(decisions));
+
+            view.Click("AlwaysInRepository");
+            view.Click("Answer");
+            await (decisions.Items[0].AnswerCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal("Always in this repository", view.Find<CheckBox>("AlwaysInRepository").Content);
+            Assert.True(view.Find<CheckBox>("DontAskAgain").IsChecked);
+            Assert.Equal(Remember.InThisRepository, Assert.Single(bench.Permissions.Replies).Reply.Remember);
         }, Cancellation);
 
     private static BoardJob Releasing(Bench bench)
@@ -313,8 +332,11 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         return decisions;
     }
 
-    private static BoardJob Asking(Bench bench, string target = "npm test")
+    private static BoardJob Asking(Bench bench, string target = "npm test", bool inRepository = false)
     {
+        var offered = inRepository
+            ? new PolicyRule(RuleOrigin.Repository, "always in this repository", ItemKind.Command, target, RuleScope.Anywhere, PolicyAnswer.Allow)
+            : Option<PolicyRule>.None;
         var session = SessionId.New();
         var turn = TurnId.New();
         var asked = bench.Time.GetUtcNow().AddMinutes(-4);
@@ -324,7 +346,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             Transcript = Transcript.Empty
                 .Apply(new TurnStarted(session, turn), asked)
                 .Apply(new PermissionRequested(session, turn, new ItemId("run"), "Run the CheckoutForm tests", ItemKind.Command, target), asked)
-                .Apply(new PolicyDecision(session, turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, asked)),
+                .Apply(new PolicyDecision(session, turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, asked) { RepositoryRule = offered }),
         };
     }
 

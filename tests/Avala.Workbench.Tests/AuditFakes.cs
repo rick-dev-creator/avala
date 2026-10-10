@@ -73,7 +73,7 @@ internal sealed class FakeAudit : IVerifications, IPermissionAudit, IBudgets
 
     public Option<SessionAutonomy> AutonomyOf(SessionId session) => Autonomies.TryGetValue(session, out var found) ? found : Option<SessionAutonomy>.None;
 
-    public IReadOnlyList<PolicyRule> SessionRulesOf(SessionId session) => [];
+    public IReadOnlyList<PolicyRule> JobRulesOf(JobId job) => [];
 
     public IReadOnlyList<PolicyDecision> OfSession(SessionId session) => Decisions;
 
