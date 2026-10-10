@@ -33,11 +33,11 @@ namespace Avala.Host.Tests;
 public sealed class DogfoodRuns(HeadlessUi ui, PublishedPlugins plugins)
 {
     [Fact]
-    public async Task APomodoroAppIsVibeCodedReviewedAndApprovedThroughTheWorkbenchAsync()
+    public async Task AnAppIsVibeCodedRestartedWhileCheckedReviewedAndApprovedThroughTheWorkbenchAsync()
     {
         Assert.SkipUnless(Environment.GetEnvironmentVariable(Gate) == "1", $"Set {Gate}=1 to dogfood Avala with real Claude Code.");
         Assert.SkipUnless(HeadlessApp.Renders, "Set AVALA_HEADLESS_RENDER=1 so the dogfood run can take screenshots.");
-        var name = Resumed.Length > 0 ? Resumed : $"pomodoro-{DateTime.Now:yyyyMMdd-HHmmss}";
+        var name = Resumed.Length > 0 ? Resumed : $"notes-{DateTime.Now:yyyyMMdd-HHmmss}";
         var folder = Directory.CreateDirectory(Path.Combine(Root, name)).FullName;
         var screens = Directory.CreateDirectory(Path.Combine(DogfoodSettings.Screens, name)).FullName;
         await using var journal = new DogfoodJournal(Path.Combine(folder, "report"));

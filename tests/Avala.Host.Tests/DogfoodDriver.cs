@@ -18,6 +18,7 @@ using Avala.Sdk.Regions;
 using Avala.Shell;
 using Avala.Shell.Regions;
 using Avala.Testing.UI;
+using Avala.Verification.Contracts;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -32,11 +33,13 @@ namespace Avala.Host.Tests;
 
 internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal journal, string folder, string screens) : IDisposable
 {
+    private readonly DogfoodCamera camera = new(journal, screens);
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private readonly Channel<IIntegrationEvent> events = Channel.CreateUnbounded<IIntegrationEvent>();
-    private readonly CancellationTokenSource subscriptions = new();
-    private readonly HashSet<string> shotOnce = [];
-    private int shots;
+    private CancellationTokenSource subscriptions = new();
+    private LogFile log = null!;
+    private bool restarted;
+    private DogfoodRestart? sinceRestart;
     private decimal spent = decimal.Parse(Environment.GetEnvironmentVariable("AVALA_DOGFOOD_SPENT_BEFORE") is { Length: > 0 } before ? before : "0", CultureInfo.InvariantCulture);
     private int turns;
     private JobId job;
@@ -45,25 +48,28 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
     private ShellViewModel shell = null!;
     private Window window = null!;
 
-    private string Repository => Path.Combine(folder, "repository");
+    private string Repository => DogfoodRepository.Repository(folder);
 
     public void Dispose() => subscriptions.Dispose();
 
-    private string Data => Path.Combine(folder, "data");
+    private string Data => DogfoodRepository.Data(folder);
+
+    private string Report => Path.Combine(folder, "report");
+
+    private Bound Toolbar => Region(ShellRegions.Toolbar).Single();
+
+    private Bound Sidebar => Region(ShellRegions.Sidebar).Single();
+
+    private Bound Jobs => Page("Jobs");
 
     public async Task RunAsync()
     {
         if (Resumed.Length == 0)
         {
-            await PrepareAsync();
+            await DogfoodRepository.PrepareAsync(journal, folder);
         }
 
-        var paths = new AvalaPaths(Data);
-        var log = new LogFile(paths, TimeProvider.System);
-        root = CompositionRoot.Create(plugins.Directory, paths, log, Option<HttpMessageHandler>.None);
-        Subscribe();
-        root.Start();
-        await journal.NoteAsync($"Composed the real application from {plugins.Directory}, data folder {Data}, repository {Repository}");
+        await ComposeAsync();
 
         try
         {
@@ -72,22 +78,25 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         catch (Exception failure)
         {
             await journal.NoteAsync($"DRIVER FAILURE: {failure}");
-            await ShootAsync("zz-driver-failure");
+            await camera.ShootAsync("zz-driver-failure");
             throw;
         }
         finally
         {
             await journal.NoteAsync($"Total reported cost {spent.ToString(CultureInfo.InvariantCulture)} USD over {turns} turns, {clock.Elapsed:hh\\:mm\\:ss}");
-            shell.Deactivate();
-            window.Close();
-            await subscriptions.CancelAsync();
-            await root.DisposeAsync();
-            await log.DisposeAsync();
+            await StopAsync();
+            await DogfoodLeftovers.LateEventsAsync(journal, Data);
         }
     }
 
-    private async Task DriveAsync()
+    private async Task ComposeAsync()
     {
+        var paths = new AvalaPaths(Data);
+        log = new LogFile(paths, TimeProvider.System);
+        root = CompositionRoot.Create(plugins.Directory, paths, log, Option<HttpMessageHandler>.None);
+        subscriptions = new CancellationTokenSource();
+        Subscribe();
+        root.Start();
         shell = root.Services.GetRequiredService<ShellViewModel>();
         window = new ShellView { Width = 1440, Height = 900 };
         window.DataTemplates.Add(root.Views);
@@ -95,20 +104,70 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         Avala.Components.UI.Theme.Motion.SetIsReduced(window, true);
         shell.Activate();
         window.Show();
-        await ShootAsync("first-run");
+        camera.Window = window;
+        await journal.NoteAsync($"Composed the real application from {plugins.Directory}, data folder {Data}, repository {Repository}");
+    }
 
-        var toolbar = Region(ShellRegions.Toolbar).Single();
-        var sidebar = Region(ShellRegions.Sidebar).Single();
-        var jobs = Page("Jobs");
+    private async Task StopAsync()
+    {
+        shell.Deactivate();
+        window.Close();
+        await subscriptions.CancelAsync();
+        await root.DisposeAsync();
+        await log.DisposeAsync();
+        subscriptions.Dispose();
+        await journal.NoteAsync("Stopped the application");
+    }
+
+    private async Task RestartAsync(DogfoodRound progress)
+    {
+        restarted = true;
+        var before = await ConversationAsync("conversation-before-restart.txt");
+        await InspectAsync($"r{progress.Number}-checking-before-restart");
+        await journal.NoteAsync($"RESTART: stopping Avala while the job is Checking, after {turns} reported turns; the conversation shows {before.Count} entries");
+        await StopAsync();
+
+        while (events.Reader.TryRead(out _))
+        {
+        }
+
+        var orphans = await DogfoodLeftovers.OrphansAsync();
+        await journal.NoteAsync(orphans.Count == 0 ? $"After the stop no '{SlowCheck}' of the checks is left running" : $"FINDING: after the stop the checks' '{SlowCheck}' still runs as pid {string.Join(", ", orphans)}");
+        sinceRestart = new DogfoodRestart();
+        await ComposeAsync();
+        await camera.ShootAsync($"r{progress.Number}-restarted-first-frame");
+        await SelectAsync();
+        await UntilAsync(Jobs.Presentation, () => Jobs["Conversation"]["Entries"].Items.Any(entry => entry.Kind == "RestartViewModel"), "the restart note in the recalled conversation");
+        await camera.ShootAsync($"r{progress.Number}-restarted-conversation");
+        var after = await ConversationAsync("conversation-after-restart.txt");
+        var kept = before.Count <= after.Count && before.SequenceEqual(after.Take(before.Count), StringComparer.Ordinal);
+        await journal.NoteAsync(kept
+            ? $"CONVERSATION KEPT: all {before.Count} entries before the restart read the same after it, then [{string.Join(" ⏎ ", after.Skip(before.Count))}]"
+            : $"FINDING: the conversation changed across the restart; first difference at entry {before.Zip(after).TakeWhile(pair => pair.First == pair.Second).Count()} of {before.Count} before, {after.Count} after");
+        await InspectAsync($"r{progress.Number}-checking-after-restart");
+    }
+
+    private async Task<List<string>> ConversationAsync(string file)
+    {
+        await UntilAsync(Jobs.Presentation, () => Jobs.Has("Conversation"), "the conversation");
+        List<string> entries = [.. Jobs["Conversation"]["Entries"].Items.Select(entry => $"{entry.Kind} | {DogfoodPolicy.Describe(entry.Target)}".ReplaceLineEndings(" ⏎ "))];
+        await File.WriteAllLinesAsync(Path.Combine(Report, file), entries, Cancellation);
+
+        return entries;
+    }
+
+    private async Task DriveAsync()
+    {
+        await camera.ShootAsync("first-run");
         var newJob = Page("New job");
 
         if (Resumed.Length > 0)
         {
-            await ResumeAsync(sidebar, jobs, toolbar);
+            await ResumeAsync();
             return;
         }
 
-        Invoke(toolbar, "NewJobCommand");
+        Invoke(Toolbar, "NewJobCommand");
         await newJob["Loading"].Value<Task>();
         newJob.Set("Repository", Repository);
         await newJob["Previewing"].Value<Task>();
@@ -117,53 +176,72 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         await journal.NoteAsync($"New job page offers connections [{string.Join(", ", offered)}], autonomies [{string.Join(", ", newJob["Autonomies"].Items.Select(item => item.Text))}]");
         Assert.Contains(Connection, offered);
         newJob.Set("Connection", Connection);
+        await journal.NoteAsync($"New job connection options with their capacity: [{string.Join(" | ", newJob["Options"].Items.Select(option => $"{option["Name"].Text}: '{option["Reading"].Text}' near limit {option["IsNearLimit"].Text}"))}]");
+        await ShootConnectionsAsync();
         await journal.NoteAsync($"Route: {newJob["Route"].Text} (attention {newJob["IsRouteAttention"].Text}); autonomy {newJob["Autonomy"].Text}: {newJob["AutonomyNote"].Text}");
-        await ShootAsync("new-job-filled");
+        await camera.ShootAsync("new-job-filled");
         await newJob.ExecuteAsync("SubmitCommand");
         await journal.NoteAsync($"Submitted: '{newJob["Submitted"].Text}', error '{newJob["Error"].Text}'");
         Assert.Equal(string.Empty, newJob["Error"].Text);
         job = newJob["LastSubmitted"].Value<Option<JobId>>().Match(submitted => submitted, () => throw new InvalidOperationException("Nothing was submitted."));
-        await ShootAsync("new-job-submitted");
+        await camera.ShootAsync("new-job-submitted");
 
-        await SelectAsync(sidebar, jobs);
-        await RoundsAsync(toolbar, sidebar, jobs, 1);
+        await SelectAsync();
+        await RoundsAsync(1);
     }
 
-    private async Task ResumeAsync(Bound sidebar, Bound jobs, Bound toolbar)
+    private async Task ShootConnectionsAsync()
+    {
+        var picker = window.GetVisualDescendants().OfType<ComboBox>().FirstOrDefault(box => box.ItemsSource is System.Collections.IEnumerable items && items.Cast<object>().Any(item => item.GetType().Name == "ConnectionOptionViewModel"));
+
+        if (picker is null)
+        {
+            await journal.NoteAsync("FINDING: no combo box in the New job page lists the connection options");
+            return;
+        }
+
+        camera.OverlayPopups();
+        picker.IsDropDownOpen = true;
+        await camera.ShootAsync("new-job-connections-open");
+        picker.IsDropDownOpen = false;
+    }
+
+    private async Task ResumeAsync()
     {
         var listed = await root.Services.GetRequiredService<IJobCatalog>().ListAsync(Cancellation);
         var found = Assert.Single(listed);
         job = found.Job;
         await journal.NoteAsync($"RESTARTED Avala on the same data folder; the catalog lists the job as {found.Status}");
-        await SelectAsync(sidebar, jobs);
-        await ShootAsync("restarted");
-        await RoundsAsync(toolbar, sidebar, jobs, 1);
+        await SelectAsync();
+        await camera.ShootAsync("restarted");
+        await RoundsAsync(1);
     }
 
-    private async Task RoundsAsync(Bound toolbar, Bound sidebar, Bound jobs, int first)
+    private async Task RoundsAsync(int first)
     {
         var round = first;
 
         while (true)
         {
-            var status = await RoundAsync(toolbar, sidebar, jobs, round);
+            var status = await RoundAsync(round);
             await journal.NoteAsync($"Round {round} settled as {status}, spent so far {spent.ToString(CultureInfo.InvariantCulture)} USD");
 
             if (status != JobStatus.AwaitingReview)
             {
-                await InspectAsync(jobs, $"r{round}-held");
+                await InspectAsync($"r{round}-held");
                 return;
             }
 
+            var jobs = Jobs;
             var review = await OpenReviewAsync(jobs, round);
 
             if (round == 1 && spent < SendBackBelow)
             {
                 review.Set("Feedback", ChangeRequest);
-                await ShootAsync($"r{round}-review-feedback");
+                await camera.ShootAsync($"r{round}-review-feedback");
                 await review.ExecuteAsync("SendBackCommand");
                 await journal.NoteAsync($"Sent back with feedback; outcome '{review["Outcome"].Text}', refusal '{review["Refusal"].Text}'");
-                await ShootAsync($"r{round}-review-sent-back");
+                await camera.ShootAsync($"r{round}-review-sent-back");
                 Invoke(jobs, "CloseReviewCommand");
                 round++;
                 continue;
@@ -172,14 +250,14 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
             await review.ExecuteAsync("ApproveCommand");
             await UntilAsync(jobs.Presentation, () => review["Status"].Value<JobStatus>() == JobStatus.Approved || review["Refusal"].Text.Length > 0, "the approval");
             await journal.NoteAsync($"Approve: status {review["Status"].Text}, outcome '{review["Outcome"].Text}', refusal '{review["Refusal"].Text}'");
-            await ShootAsync($"r{round}-review-approved");
+            await camera.ShootAsync($"r{round}-review-approved");
             Invoke(jobs, "CloseReviewCommand");
-            await InspectAsync(jobs, "approved");
+            await InspectAsync("approved");
             return;
         }
     }
 
-    private async Task<JobStatus> RoundAsync(Bound toolbar, Bound sidebar, Bound jobs, int round)
+    private async Task<JobStatus> RoundAsync(int round)
     {
         using var guard = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
         guard.CancelAfter(Guard);
@@ -187,7 +265,7 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
 
         await foreach (var happened in events.Reader.ReadAllAsync(guard.Token))
         {
-            if (await HandleAsync(happened, toolbar, sidebar, jobs, progress) is { } settled)
+            if (await HandleAsync(happened, progress) is { } settled)
             {
                 return settled;
             }
@@ -196,50 +274,76 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         throw new TimeoutException($"Round {round} did not settle within {Guard}.");
     }
 
-    private async Task<JobStatus?> HandleAsync(IIntegrationEvent happened, Bound toolbar, Bound sidebar, Bound jobs, DogfoodRound progress)
+    private async Task<JobStatus?> HandleAsync(IIntegrationEvent happened, DogfoodRound progress)
     {
+        sinceRestart?.Count(happened);
+
         switch (happened)
         {
             case JobProgressed progressed when progressed.Job == job:
-                return await ProgressedAsync(progressed.Status, sidebar, jobs, progress);
+                return await ProgressedAsync(progressed.Status, progress);
+            case AttemptVerified verified when verified.Report.Job == job:
+                await journal.NoteAsync($"VERIFIED attempt {verified.Report.Attempt}: {verified.Report.Outcome}, checks [{string.Join(", ", verified.Report.Checks.Select(check => $"{check.Name} {check.Status} in {check.Duration.TotalSeconds:F1}s"))}]");
+                break;
             case AgentActivity { Event: ItemStarted { Kind: ItemKind.Message } } when !progress.Replied:
                 progress.Replied = true;
-                await ShootAsync($"r{progress.Number}-first-reply");
+                await camera.ShootAsync($"r{progress.Number}-first-reply");
                 break;
             case AgentActivity { Event: TurnCompleted completed }:
-                await ShootAsync($"r{progress.Number}-turn-{completed.Turn.Value}-end");
+                await camera.ShootAsync($"r{progress.Number}-turn-{completed.Turn.Value}-end");
                 break;
             case AgentActivity { Event: UsageReported reported }:
-                await SpentAsync(reported, jobs);
+                await SpentAsync(reported);
                 break;
-            case PermissionDecided { Decision: { Delivery: DecisionDelivery.LeftToHuman } decision } when decision.Job == Option<JobId>.Some(job):
-                await AnswerPermissionAsync(toolbar, decision);
+            case AgentActivity { Event: ItemStarted { Kind: ItemKind.Command } started }:
+                await File.AppendAllTextAsync(Path.Combine(Report, "commands.log"), $"{DateTime.Now:HH:mm:ss} {started.Title.ReplaceLineEndings(" ⏎ ")}{Environment.NewLine}", Cancellation);
+                break;
+            case PermissionDecided { Decision: var decision } when decision.Job == Option<JobId>.Some(job):
+                await DogfoodLeftovers.RecordPermissionAsync(journal, Report, decision);
+
+                if (decision.Delivery == DecisionDelivery.LeftToHuman)
+                {
+                    await AnswerPermissionAsync(decision);
+                }
+
                 break;
             case FormDecided { Decision: { Delivery: DecisionDelivery.LeftToHuman } form } when form.Job == Option<JobId>.Some(job):
-                await AnswerFormAsync(toolbar, form);
+                await AnswerFormAsync(form);
                 break;
         }
 
         return null;
     }
 
-    private async Task<JobStatus?> ProgressedAsync(JobStatus status, Bound sidebar, Bound jobs, DogfoodRound progress)
+    private async Task<JobStatus?> ProgressedAsync(JobStatus status, DogfoodRound progress)
     {
         if (status == JobStatus.Running && !progress.Running)
         {
             progress.Running = true;
-            await SelectAsync(sidebar, jobs);
-            await ShootAsync($"r{progress.Number}-running");
+            await SelectAsync();
+            await camera.ShootAsync($"r{progress.Number}-running");
         }
         else if (status == JobStatus.Checking)
         {
             progress.Running = false;
-            await ShootAsync($"r{progress.Number}-checking-{++progress.Verifications}");
+            await SelectAsync();
+            await camera.ShootAsync($"r{progress.Number}-checking-{++progress.Verifications}");
+
+            if (!restarted && Resumed.Length == 0)
+            {
+                await RestartAsync(progress);
+            }
         }
         else if (Settled.Contains(status))
         {
-            await SelectAsync(sidebar, jobs);
-            await ShootAsync($"r{progress.Number}-settled-{status}");
+            await SelectAsync();
+            await camera.ShootAsync($"r{progress.Number}-settled-{status}");
+
+            if (sinceRestart is { } since)
+            {
+                await journal.NoteAsync($"SINCE THE RESTART until {status}: {since}");
+                sinceRestart = null;
+            }
 
             return status;
         }
@@ -247,7 +351,7 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         return null;
     }
 
-    private async Task SpentAsync(UsageReported reported, Bound jobs)
+    private async Task SpentAsync(UsageReported reported)
     {
         turns++;
         spent += reported.Cost.Match(cost => cost.Amount, () => 0m);
@@ -258,7 +362,7 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         }
 
         await journal.NoteAsync($"DRIVER STOP: the reported cost {spent.ToString(CultureInfo.InvariantCulture)} reached the driver's own stop at {StopAt.ToString(CultureInfo.InvariantCulture)}");
-        var composer = jobs["Conversation"]["Composer"];
+        var composer = Jobs["Conversation"]["Composer"];
 
         if (((System.Windows.Input.ICommand)composer["StopCommand"].Target).CanExecute(null))
         {
@@ -266,14 +370,16 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         }
     }
 
-    private async Task AnswerPermissionAsync(Bound toolbar, PolicyDecision decision)
+    private async Task AnswerPermissionAsync(PolicyDecision decision)
     {
+        var toolbar = Toolbar;
         var decisions = await OpenDecisionsAsync(toolbar, item => item["IsPermission"].Value<bool>() && item["Target"].Text == decision.Target, $"the permission for {decision.Target}");
         var item = decisions["Items"].Items.First(candidate => candidate["IsPermission"].Value<bool>() && candidate["Target"].Text == decision.Target);
         decisions.Set("Selected", item.Target);
         var (allow, reason) = DogfoodPolicy.Judge(decision.Kind, decision.Target, worktree);
         await journal.DecideAsync($"{decision.Kind} '{decision.Target}' asked as '{item["Title"].Text}' ({item["Asking"].Text}) -> {(allow ? "ALLOW" : "DENY")}: {reason}");
-        await ShootOnceAsync($"decision-{decision.Kind}", "decisions-popover");
+        var chained = DogfoodPolicy.Chained(decision.Target) ? "-chained" : string.Empty;
+        await camera.ShootOnceAsync($"decision-{decision.Kind}{chained}", $"decisions-popover-{decision.Kind}{chained}");
 
         if (allow)
         {
@@ -289,8 +395,9 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         Invoke(toolbar, "CloseDecisionsCommand");
     }
 
-    private async Task AnswerFormAsync(Bound toolbar, FormDecision form)
+    private async Task AnswerFormAsync(FormDecision form)
     {
+        var toolbar = Toolbar;
         var decisions = await OpenDecisionsAsync(toolbar, item => !item["IsPermission"].Value<bool>(), "the form");
         var item = decisions["Items"].Items.First(candidate => !candidate["IsPermission"].Value<bool>());
         decisions.Set("Selected", item.Target);
@@ -320,7 +427,7 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         }
 
         await journal.DecideAsync($"Form '{item["Title"].Text}' ({form.Form.Purpose}) with {fields.Count} fields -> {string.Join("; ", answers)}");
-        await ShootOnceAsync("decision-form", "decisions-popover-form");
+        await camera.ShootOnceAsync("decision-form", "decisions-popover-form");
         await decisions.ExecuteAsync("AnswerCommand");
         Invoke(toolbar, "CloseDecisionsCommand");
     }
@@ -331,7 +438,7 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
 
         if (!toolbar["IsDecisionsOpen"].Value<bool>())
         {
-            OverlayPopups();
+            camera.OverlayPopups();
             Invoke(toolbar, "ToggleDecisionsCommand");
         }
 
@@ -364,7 +471,7 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
             report.AppendLine(CultureInfo.InvariantCulture, $"File: {file["Path"].Text} {file["Counts"].Text}");
         }
 
-        await ShootAsync($"r{round}-review-sheet");
+        await camera.ShootAsync($"r{round}-review-sheet");
 
         foreach (var file in review["Files"].Items.Where(file => file["Path"].Text.EndsWith(".js", StringComparison.Ordinal)).Take(2))
         {
@@ -373,14 +480,16 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
             report.AppendLine(CultureInfo.InvariantCulture, $"Hunks of {file["Path"].Text}: {lines.Count} lines, first: {string.Join(" | ", lines.Take(6))}");
         }
 
-        await ShootAsync($"r{round}-review-sheet-hunks");
+        await camera.ShootAsync($"r{round}-review-sheet-hunks");
         await journal.NoteAsync(report.ToString());
 
         return review;
     }
 
-    private async Task InspectAsync(Bound jobs, string label)
+    private async Task InspectAsync(string label)
     {
+        var jobs = Jobs;
+
         if (!jobs["IsInspectorOpen"].Value<bool>())
         {
             Invoke(jobs, "ToggleInspectorCommand");
@@ -398,11 +507,14 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
             await journal.NoteAsync($"Inspector {section.Kind}: {DogfoodPolicy.Describe(section.Target)}");
         }
 
-        await ShootAsync($"inspector-{label}");
+        await camera.ShootAsync($"inspector-{label}");
     }
 
-    private async Task SelectAsync(Bound sidebar, Bound jobs)
+    private async Task SelectAsync()
     {
+        var sidebar = Sidebar;
+        var jobs = Jobs;
+
         await UntilAsync(sidebar.Value<IPresentation>(), () => Row(sidebar) is not null, "the job's row in the sidebar");
         Invoke(sidebar, "SelectCommand", Row(sidebar)!.Value.Target);
         await UntilAsync(jobs.Presentation, () => jobs.Has("Conversation"), "the conversation");
@@ -441,7 +553,7 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         catch (TimeoutException)
         {
             await journal.NoteAsync($"FINDING: waited 2 minutes for {what} and it never showed");
-            await ShootAsync($"zz-never-showed-{what.Replace(' ', '-')}");
+            await camera.ShootAsync($"zz-never-showed-{what.Replace(' ', '-')}");
             throw;
         }
         finally
@@ -467,66 +579,6 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         }
     }
 
-    private async Task ShootOnceAsync(string key, string name)
-    {
-        if (shotOnce.Add(key))
-        {
-            await ShootAsync(name);
-        }
-    }
-
-    private async Task ShootAsync(string name)
-    {
-        OverlayPopups();
-        var file = Path.Combine(screens, $"{++shots:D2}-{name}");
-        var (frame, texts) = Steady();
-        frame?.Save(file + ".png", new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
-        await File.WriteAllLinesAsync(file + ".txt", texts, Cancellation);
-        await journal.NoteAsync($"Screenshot {file}.png");
-    }
-
-    private (Avalonia.Media.Imaging.WriteableBitmap? Frame, List<string> Texts) Steady()
-    {
-        var attempts = 0;
-
-        while (true)
-        {
-            Pump();
-            var before = Texts();
-            var frame = window.CaptureRenderedFrame();
-            var after = Texts();
-
-            if (before.SequenceEqual(after, StringComparer.Ordinal) || ++attempts == 10)
-            {
-                return (frame, after);
-            }
-        }
-    }
-
-    private List<string> Texts() =>
-        [
-            .. window.GetVisualDescendants().OfType<TextBlock>()
-                .Where(text => text.IsEffectivelyVisible && !string.IsNullOrWhiteSpace(text.Text) && text.Bounds.Width > 0)
-                .Select(text => text.Text!.ReplaceLineEndings(" ⏎ ")),
-        ];
-
-    private void OverlayPopups()
-    {
-        foreach (var popup in window.GetLogicalDescendants().OfType<Popup>())
-        {
-            popup.ShouldUseOverlayLayer = true;
-        }
-    }
-
-    private static void Pump()
-    {
-        for (var frame = 0; frame < 60; frame++)
-        {
-            Dispatcher.UIThread.RunJobs();
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-        }
-    }
-
     private static void Invoke(Bound target, string command, object? parameter = null) =>
         ((System.Windows.Input.ICommand)target[command].Target).Execute(parameter);
 
@@ -538,12 +590,7 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
     private void Subscribe()
     {
         var feed = root.Services.GetRequiredService<IEventFeed>();
-        var types = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(assembly => assembly.GetName().Name?.StartsWith("Avala.", StringComparison.Ordinal) == true)
-            .SelectMany(Loadable)
-            .Where(type => type is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false } && typeof(IIntegrationEvent).IsAssignableFrom(type))
-            .Distinct()
-            .ToList();
+        var types = DogfoodLeftovers.EventTypes();
         var listen = typeof(DogfoodDriver).GetMethod(nameof(ListenAsync), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
         foreach (var type in types)
@@ -552,18 +599,6 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         }
 
         _ = journal.NoteAsync($"Listening to {types.Count} integration events: {string.Join(", ", types.Select(type => type.Name).Order(StringComparer.Ordinal))}");
-    }
-
-    private static IEnumerable<Type> Loadable(Assembly assembly)
-    {
-        try
-        {
-            return assembly.GetTypes();
-        }
-        catch (ReflectionTypeLoadException partial)
-        {
-            return partial.Types.OfType<Type>();
-        }
     }
 
     private async Task ListenAsync<TEvent>(IEventFeed feed)
@@ -582,44 +617,4 @@ internal sealed class DogfoodDriver(PublishedPlugins plugins, DogfoodJournal jou
         }
     }
 
-    private async Task PrepareAsync()
-    {
-        Directory.CreateDirectory(Repository);
-        Directory.CreateDirectory(Data);
-        await File.WriteAllTextAsync(Path.Combine(Repository, "README.md"), "# Pomodoro\n\nA small Pomodoro timer, to be built.\n", Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Repository, ".gitignore"), "node_modules/\n", Cancellation);
-        Directory.CreateDirectory(Path.Combine(Repository, ".avala"));
-        await File.WriteAllTextAsync(Path.Combine(Repository, ".avala", "permissions.json"), DogfoodSettings.Permissions, Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Repository, ".avala", "checks.json"), Rehearsal.Length > 0 ? """{ "checks": [] }""" : Checks, Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Repository, ".avala", "budget.json"), Budget, Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Repository, ".avala", "jobs.json"), $$"""{ "connection": "{{Connection}}", "approval": "keep" }""", Cancellation);
-        await GitAsync("init", "--quiet", "--initial-branch=main");
-        await GitAsync("add", "--all");
-        await GitAsync("-c", "user.name=Dogfood", "-c", "user.email=dogfood@localhost", "-c", "commit.gpgsign=false", "commit", "--quiet", "--message", "Start the Pomodoro app with Avala's rules");
-        var connections = new JsonObject
-        {
-            ["default"] = Connection,
-            ["connections"] = new JsonArray(new JsonObject
-            {
-                ["name"] = Connection,
-                ["provider"] = Rehearsal.Length > 0 ? "simulator" : "claude-code",
-                ["settings"] = new JsonObject { ["transcripts"] = Path.Combine(folder, "transcripts") },
-            }),
-        };
-        if (Rehearsal.Length == 0)
-        {
-            connections["connections"]![0]!["credential"] = new JsonObject { ["source"] = "login", ["reference"] = Login };
-        }
-
-        await File.WriteAllTextAsync(Path.Combine(Data, "connections.json"), connections.ToJsonString(), Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Data, "recording.json"), """{ "enabled": true }""", Cancellation);
-        await journal.NoteAsync($"Prepared {Repository} with .avala/permissions.json, checks.json, budget.json and jobs.json; connection {Connection} on {Login}");
-    }
-
-    private async Task GitAsync(params string[] arguments)
-    {
-        using var git = Process.Start(new ProcessStartInfo("git", ["-C", Repository, .. arguments]) { RedirectStandardOutput = true, RedirectStandardError = true })!;
-        await git.WaitForExitAsync(Cancellation);
-        Assert.Equal(0, git.ExitCode);
-    }
 }

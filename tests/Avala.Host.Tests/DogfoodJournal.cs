@@ -18,6 +18,7 @@ using Avala.Sdk.Regions;
 using Avala.Shell;
 using Avala.Shell.Regions;
 using Avala.Testing.UI;
+using Avala.Verification.Contracts;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -100,4 +101,38 @@ internal sealed class DogfoodRound(int round)
     public bool Replied { get; set; }
 
     public bool Running { get; set; }
+}
+
+internal sealed class DogfoodRestart
+{
+    private readonly List<int> verified = [];
+    private int turns;
+    private int sessions;
+    private int jobSessions;
+    private decimal spent;
+
+    public void Count(IIntegrationEvent happened)
+    {
+        switch (happened)
+        {
+            case AgentActivity { Event: TurnStarted }:
+                turns++;
+                break;
+            case AgentActivity { Event: UsageReported reported }:
+                spent += reported.Cost.Match(cost => cost.Amount, () => 0m);
+                break;
+            case SessionOpened:
+                sessions++;
+                break;
+            case JobSessionStarted:
+                jobSessions++;
+                break;
+            case AttemptVerified attempt:
+                verified.Add(attempt.Report.Attempt);
+                break;
+        }
+    }
+
+    public override string ToString() =>
+        string.Create(CultureInfo.InvariantCulture, $"{turns} agent turns started, {sessions} sessions opened, {jobSessions} job sessions started, {spent} USD reported, attempts verified [{string.Join(", ", verified)}]");
 }

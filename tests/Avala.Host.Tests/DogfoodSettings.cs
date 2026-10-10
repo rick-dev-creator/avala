@@ -36,20 +36,24 @@ internal static class DogfoodSettings
     internal const string Connection = "dogfood";
 
     internal const string Instruction =
-        "Build a small Pomodoro timer web app (HTML/CSS/JS, no frameworks) with start/pause/reset, configurable durations, "
-        + "a session counter persisted in localStorage, and unit tests for the timer logic runnable with `node --test`. "
-        + "Keep it in this repo; README with how to run. Keep the timer logic in a module that runs both in the browser and in Node, "
-        + "so the tests import the real code. Do not start servers or install anything: no dependencies are needed.";
+        "Build a small Markdown notes CLI in Node (no dependencies): `node notes.js add <title> <text>` writes a note as a Markdown file "
+        + "in a notes/ folder, `node notes.js list` lists the notes, and `node notes.js search <words>` prints the notes whose title or text "
+        + "contain the words. Keep the logic in a module separate from the command line, so unit tests runnable with `node --test` import the real code "
+        + "and work in a temporary folder. Add a README with how to run it. Do not start servers or install anything.";
 
     internal const string ChangeRequest =
-        "Add a dark mode toggle: a button that switches between a light and a dark theme, remembered in localStorage, "
-        + "with the theme logic covered by a `node --test` unit test. Keep everything else working.";
+        "Add a `delete <id>` command that removes one note, and a `--tag <tag>` option on add and list that stores tags in the note's front matter "
+        + "and filters by them, both covered by `node --test` unit tests. Keep everything else working.";
 
     internal static readonly string[] Groups = ["NeedsYou", "Running", "ReadyForReview", "Done"];
 
     internal static readonly JobStatus[] Settled = [JobStatus.AwaitingReview, JobStatus.NeedsHelp, JobStatus.Failed, JobStatus.Approved, JobStatus.Discarded];
 
     internal static readonly string[] Refused = ["sudo", "curl ", "wget ", "ssh ", "scp ", "git push", "git remote", "npx ", "pip ", "pip3 ", "-g ", "--global", "http.server", "live-server", "npm start", "npm run dev", "npm run serve", "serve -", "nohup", "&>/dev/null &", " & "];
+
+    internal static string Model => Environment.GetEnvironmentVariable("AVALA_DOGFOOD_MODEL") is { Length: > 0 } model ? model : "sonnet";
+
+    internal const string SlowCheck = "sleep 21";
 
     internal static readonly TimeSpan Guard = TimeSpan.FromMinutes(45);
 
@@ -71,9 +75,9 @@ internal static class DogfoodSettings
 
     internal static string Rehearsal => Environment.GetEnvironmentVariable("AVALA_DOGFOOD_REHEARSAL") ?? string.Empty;
 
-    internal static decimal SendBackBelow => decimal.Parse(Environment.GetEnvironmentVariable("AVALA_DOGFOOD_SEND_BACK_BELOW") is { Length: > 0 } value ? value : "1.40", CultureInfo.InvariantCulture);
+    internal static decimal SendBackBelow => decimal.Parse(Environment.GetEnvironmentVariable("AVALA_DOGFOOD_SEND_BACK_BELOW") is { Length: > 0 } value ? value : "0.90", CultureInfo.InvariantCulture);
 
-    internal static decimal StopAt => decimal.Parse(Environment.GetEnvironmentVariable("AVALA_DOGFOOD_STOP_AT") is { Length: > 0 } value ? value : "2.70", CultureInfo.InvariantCulture);
+    internal static decimal StopAt => decimal.Parse(Environment.GetEnvironmentVariable("AVALA_DOGFOOD_STOP_AT") is { Length: > 0 } value ? value : "1.85", CultureInfo.InvariantCulture);
 
     internal const string Permissions = """
         {
@@ -97,14 +101,23 @@ internal static class DogfoodSettings
           "checks": [
             { "name": "tests", "command": "node", "arguments": ["--test"], "timeoutSeconds": 120 },
             { "name": "tests exist", "command": "bash", "arguments": ["-c", "set -o pipefail; node --test --test-reporter=tap | grep -Eq '^# pass [1-9]'"], "timeoutSeconds": 120 },
-            { "name": "page exists", "command": "test", "arguments": ["-f", "index.html"], "timeoutSeconds": 10 }
+            { "name": "readme exists", "command": "test", "arguments": ["-f", "README.md"], "timeoutSeconds": 10 },
+            { "name": "slow suite", "command": "bash", "arguments": ["-c", "sleep 21; node --test"], "timeoutSeconds": 120 }
+          ]
+        }
+        """;
+
+    internal const string Rehearsed = """
+        {
+          "checks": [
+            { "name": "slow suite", "command": "bash", "arguments": ["-c", "sleep 21; true"], "timeoutSeconds": 60 }
           ]
         }
         """;
 
     internal const string Budget = """
         {
-          "costPerJob": { "USD": 2.40 },
+          "costPerJob": { "USD": 2.00 },
           "holdAtLimit": 0.95
         }
         """;
