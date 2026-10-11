@@ -57,6 +57,8 @@ internal sealed record InspectorFacts(JobRecord Record, AuditFacts Audit)
 
     public Option<ModelReported> Ran { get; init; }
 
+    public JobStatus Status { get; init; } = Record.History.Summary.Status;
+
     public Option<PullRequestWatchState> PullRequest { get; init; }
 
     public IReadOnlyList<WakeUpRecord> WakeUps { get; init; } = [];
@@ -71,6 +73,7 @@ internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.Jo
             Handoffs = board.Find(job).Match(found => found.Handoffs, () => []),
             Wait = board.Find(job).Bind(found => found.Wait),
             Ran = board.Find(job).Bind(found => found.Transcript.Ran),
+            Status = board.Find(job).Match(found => found.Status, () => record.History.Summary.Status),
             PullRequest = board.Find(job).Bind(found => found.PullRequest),
             WakeUps = board.Find(job).Match(found => found.WakeUps, () => []),
         });

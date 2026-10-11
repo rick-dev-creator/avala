@@ -139,7 +139,7 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
     {
         IsLoaded = facts.IsSome;
         shown = facts.Map(found => found.Record.History.Summary.Job);
-        var watched = facts.Bind(found => found.PullRequest.Map(state => (State: state, Job: found.Record.History.Summary.Status)));
+        var watched = facts.Bind(found => found.PullRequest.Map(state => (State: state, Job: found.Status)));
         var watch = watched.Map(found => found.State);
         var last = watch.Bind(state => state.Last);
         HasPullRequest = watch.IsSome;

@@ -307,20 +307,19 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         _ = Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(job, Cancellation));
         _ = await opened.UntilAsync(found => found.Job == job);
         var armed = (await changes.UntilAsync(found => found.State.Job == job && found.State.Status == WatchStatus.Watching && found.State.NextPoll.IsSome)).State;
-        _ = await workbench.InspectAsync(job, "PullRequestSectionViewModel");
+        var section = (await workbench.InspectAsync(job, "PullRequestSectionViewModel"))[0];
         await Camera.ShootAsync(run, "21-inspector-pull-request-watching-dark", FeatureCamera.Unfold("Pull request"));
 
         run.AdvanceTo(Outcomes.Present(armed.NextPoll));
         _ = await wakeUps.UntilAsync(found => found.WakeUp.Job == job);
-        _ = await changes.UntilAsync(found => found.State.Job == job && found.State.WakeUps == 1);
-        _ = await workbench.SelectAsync(job);
+        _ = await opened.UntilAsync(found => found.Job == job);
+        var rearmed = (await changes.UntilAsync(found => found.State.Job == job && found.State.Status == WatchStatus.Watching && found.State.NextPoll.IsSome && found.State.Failures == 0 && found.State.WakeUps == 1)).State;
+        await run.Ui.PresentedAsync(section.Presentation, () => section["Fact"].Text == "#1 · watching" && section["WakeUps"].Items.Count == 1, () => $"the pull request section shows {section["Fact"].Text}");
         await Camera.ShootAsync(run, "22-inspector-pull-request-checks-failed-agent-woken-dark", FeatureCamera.Unfold("Pull request"));
 
-        _ = await opened.UntilAsync(found => found.Job == job);
-        var rearmed = (await changes.UntilAsync(found => found.State.Job == job && found.State.Status == WatchStatus.Watching && found.State.NextPoll.IsSome && found.State.Failures == 0)).State;
         run.AdvanceTo(Outcomes.Present(rearmed.NextPoll));
         _ = await changes.UntilAsync(found => found.State.Job == job && found.State.Status == WatchStatus.Ended);
-        _ = await workbench.SelectAsync(job);
+        await run.Ui.PresentedAsync(section.Presentation, () => section["Fact"].Text == "#1 · checks passed", () => $"the pull request section shows {section["Fact"].Text}");
         await Camera.ShootAsync(run, "23-inspector-pull-request-green-after-one-wake-up-dark", FeatureCamera.Unfold("Pull request"));
         await Camera.ShootAsync(run, "23-inspector-pull-request-green-after-one-wake-up-light", ThemeVariant.Light, FeatureCamera.Unfold("Pull request"));
     }

@@ -95,9 +95,20 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
         Assert.Equal((offered, offered, true), (section.IsWatching, section.CheckNowCommand.CanExecute(null), section.OpenLinkCommand.CanExecute(null)));
     }
 
+    [Fact]
+    public async Task TheWatchStateReadsTheJobStatusTheBoardShowsEvenBeforeTheCatalogCatchesUpAsync()
+    {
+        var job = Watched(WatchStatus.WaitingForJob, Mergeability.Mergeable, JobStatus.AwaitingReview, JobStatus.Approved);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
+
+        await section.FocusAsync(job, bench);
+
+        Assert.Equal(("#7 · fix pushed", "The fix of wake-up 1 of 3 is pushed, waiting for the next check"), (section.Fact, section.Status));
+    }
+
     public void Dispose() => bench.Dispose();
 
-    private JobId Watched(WatchStatus status, Mergeability mergeability, JobStatus jobStatus = JobStatus.Approved)
+    private JobId Watched(WatchStatus status, Mergeability mergeability, JobStatus jobStatus = JobStatus.Approved, JobStatus? shown = null)
     {
         var job = bench.Job("Fix the flaky checkout test", jobStatus);
         var observed = new PullRequestState(Pull, PullRequestLifecycle.Open, "6dcb09b", mergeability)
@@ -108,7 +119,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
         var state = new PullRequestWatchState(job.Job, new ForgeName("github"), Pull, OnPullRequest.WakeOnCi, 3) { Status = status, WakeUps = 1, Last = observed, Ended = status == WatchStatus.Ended ? WatchEnd.Green : Option<WatchEnd>.None };
         var wakeUp = new WakeUpRecord(job.Job, 7, WakeReason.ChecksFailed, "checks:6dcb09b", "Fix it.", DateTimeOffset.UnixEpoch, WakeOutcome.Woken) { Conversation = ContinuedIn.ResumedConversation };
         bench.PullRequests.Watches[job.Job] = state;
-        bench.Publish(Bench.OnBoard(job) with { PullRequest = state, WakeUps = [wakeUp] });
+        bench.Publish(Bench.OnBoard(job with { Status = shown ?? jobStatus }) with { PullRequest = state, WakeUps = [wakeUp] });
 
         return job.Job;
     }
