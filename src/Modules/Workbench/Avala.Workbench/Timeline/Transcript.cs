@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
@@ -137,13 +138,27 @@ internal sealed record Transcript
 
     private ToolEntry Waiting(ToolEntry call)
     {
-        var child = call.Title == WaitChildCalls.Tool ? WaitChildCalls.Child(call.Input.Match(input => input, () => string.Empty)) : Option<JobId>.None;
+        var child = call.Title == WaitChildInput.Tool ? call.Input.Bind(Waited) : Option<JobId>.None;
 
         return call with
         {
             WaitsFor = child,
             Awaited = Entries.OfType<ToolEntry>().Select(entry => entry.Delegation).Where(delegation => delegation.Match(found => child.IsSome && found.Child == child, () => false)).DefaultIfEmpty().Last(),
         };
+    }
+
+    private static Option<JobId> Waited(string input)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<WaitChildInput>(input, JsonSerializerOptions.Web) is { Child: { } child } && Guid.TryParse(child, out var job)
+                ? new JobId(job)
+                : Option<JobId>.None;
+        }
+        catch (JsonException)
+        {
+            return Option<JobId>.None;
+        }
     }
 
     private Transcript Refused(TurnId turn, ItemId item) =>

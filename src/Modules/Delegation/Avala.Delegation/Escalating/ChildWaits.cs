@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
@@ -23,7 +24,7 @@ internal sealed class ChildWaits(ChildReporter reporter, DelegationJournal journ
 
         var call = new CallRef(called.Session, called.Item);
         var caller = audit.AutonomyOf(called.Session).Map(applied => applied.Job);
-        var child = WaitChildCalls.Child(called.Input).Bind(journal.OfChild).Bind(record => caller.IsSome && record.Parent == caller ? record : Option<DelegationRecord>.None);
+        var child = ChildIn(called.Input).Bind(journal.OfChild).Bind(record => caller.IsSome && record.Parent == caller ? record : Option<DelegationRecord>.None);
 
         await child.Match(
             record =>
@@ -37,6 +38,27 @@ internal sealed class ChildWaits(ChildReporter reporter, DelegationJournal journ
 
     private Option<ToolResult> Queued(DelegationRecord record) =>
         record.Child.Bind(journal.Calls.TakeQueued).Bind(asking => answers.Waits(asking.Session, asking.Request) ? asking.Result : Option<ToolResult>.None);
+
+    private static Option<JobId> ChildIn(string input)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(input);
+            var root = document.RootElement;
+
+            return root.ValueKind == JsonValueKind.Object
+                && root.EnumerateObject().All(field => field.Name == "child")
+                && root.TryGetProperty("child", out var child)
+                && child.ValueKind == JsonValueKind.String
+                && Guid.TryParse(child.GetString(), out var job)
+                    ? new JobId(job)
+                    : Option<JobId>.None;
+        }
+        catch (JsonException)
+        {
+            return Option<JobId>.None;
+        }
+    }
 
     private static ToolResult Refused(ItemId item) =>
         new(item, new JsonObject { ["refused"] = "notYourChild", ["reason"] = "the input needs child, the job of a sub-agent you delegated to, as the early result named it." }.ToJsonString()) { IsError = true };

@@ -130,3 +130,8 @@ public sealed record ParentAsked(DelegationRecord Delegation, SessionId Session,
 
     public bool InCall { get; init; }
 }
+
+public sealed record WaitChildInput(string Child)
+{
+    public const string Tool = "wait_child";
+}

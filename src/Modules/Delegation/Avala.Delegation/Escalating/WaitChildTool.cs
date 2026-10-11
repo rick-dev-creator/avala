@@ -5,7 +5,7 @@ namespace Avala.Delegation.Escalating;
 
 internal static class WaitChildTool
 {
-    public const string Name = WaitChildCalls.Tool;
+    public const string Name = WaitChildInput.Tool;
 
     public static HarnessTool Definition { get; } = new(
         Name,
