@@ -60,6 +60,22 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
         Assert.Equal(string.Empty, section.Notice);
     }
 
+    [Theory]
+    [InlineData(WatchStatus.Watching, "#7 · watching")]
+    [InlineData(WatchStatus.BackingOff, "#7 · retrying")]
+    [InlineData(WatchStatus.WaitingForJob, "#7 · agent at work")]
+    [InlineData(WatchStatus.NeedsPerson, "#7 · needs you")]
+    [InlineData(WatchStatus.Ended, "#7 · checks passed")]
+    public async Task TheFoldedFactIsTheNumberAndAShortWatchStateAsync(WatchStatus status, string fact)
+    {
+        var job = Watched(status, Mergeability.Mergeable);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
+
+        await section.FocusAsync(job, bench);
+
+        Assert.Equal(fact, section.Fact);
+    }
+
     public void Dispose() => bench.Dispose();
 
     private JobId Watched(WatchStatus status, Mergeability mergeability)
@@ -70,7 +86,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
             Checks = [new CheckRun("build", CheckStatus.Passed, Option<Uri>.None, string.Empty), new CheckRun("tests", CheckStatus.Failed, Option<Uri>.None, "1 test failed")],
             Reviews = [new Forges.Contracts.Review("80", "hubot", ReviewVerdict.ChangesRequested, "Rename it.", "6dcb09b")],
         };
-        var state = new PullRequestWatchState(job.Job, new ForgeName("github"), Pull, OnPullRequest.WakeOnCi, 3) { Status = status, WakeUps = 1, Last = observed };
+        var state = new PullRequestWatchState(job.Job, new ForgeName("github"), Pull, OnPullRequest.WakeOnCi, 3) { Status = status, WakeUps = 1, Last = observed, Ended = status == WatchStatus.Ended ? WatchEnd.Green : Option<WatchEnd>.None };
         var wakeUp = new WakeUpRecord(job.Job, 7, WakeReason.ChecksFailed, "checks:6dcb09b", "Fix it.", DateTimeOffset.UnixEpoch, WakeOutcome.Woken) { Conversation = ContinuedIn.ResumedConversation };
         bench.PullRequests.Watches[job.Job] = state;
         bench.Publish(Bench.OnBoard(job) with { PullRequest = state, WakeUps = [wakeUp] });

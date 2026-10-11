@@ -2,7 +2,9 @@ using Avala.Testing.UI;
 using Avala.Workbench.Inspector;
 using Avala.Workbench.Review;
 using Avala.Workbench.Settings;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Tests.Views;
@@ -20,7 +22,7 @@ public sealed class PullRequestSectionViewScripts(HeadlessUi ui)
 
             Sections.ClickHeader(view);
 
-            Assert.Equal(((object?)"Pull request", (string?)"#7 · Watching", false), folded);
+            Assert.Equal(((object?)"Pull request", (string?)"#7 · watching", false), folded);
             Assert.Equal(("Watching · next check 14:05", "1 passed · 1 failed · 0 pending", "No conflicts"), (view.TextOf("Status"), view.TextOf("Checks"), view.TextOf("Mergeability")));
             Assert.Equal((2, 1, 1), (view.Find<ItemsControl>("CheckLines").ItemCount, view.Find<ItemsControl>("Reviews").ItemCount, view.Find<ItemsControl>("WakeUps").ItemCount));
             Assert.True(view.Shows("OpenLink"));
@@ -38,6 +40,22 @@ public sealed class PullRequestSectionViewScripts(HeadlessUi ui)
 
             Assert.Equal((1, 1), (section.Opened, section.Checked));
         }, Cancellation);
+
+    [Fact]
+    public Task TheButtonsLabelsLineUpWithTheSectionsTextAtItsSizeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new DesignPullRequestSectionViewModel()));
+            var status = view.Find<TextBlock>("Status");
+            TextBlock[] labels = [Label(view, "OpenLink"), Label(view, "CheckNow")];
+
+            Assert.Equal(Left(view, status), Left(view, labels[0]), 1);
+            Assert.All(labels, label => Assert.Equal(status.FontSize, label.FontSize));
+        }, Cancellation);
+
+    private static TextBlock Label(ViewScript view, string button) => view.Find<Button>(button).GetVisualDescendants().OfType<TextBlock>().First();
+
+    private static double Left(ViewScript view, Visual visual) => visual.TranslatePoint(default, view.Window)!.Value.X;
 
     private sealed class CountingSection : IPullRequestSectionViewModel
     {

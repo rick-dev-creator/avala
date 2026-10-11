@@ -8,7 +8,7 @@ internal sealed class DesignPullRequestSectionViewModel : IPullRequestSectionVie
 
     public bool HasPullRequest => true;
 
-    public string Fact => "#7 · Watching";
+    public string Fact => "#7 · watching";
 
     public string Title => "Pull request #7 on github";
 

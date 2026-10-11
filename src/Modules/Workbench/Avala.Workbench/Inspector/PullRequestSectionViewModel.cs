@@ -136,7 +136,7 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
         var watch = facts.Bind(found => found.PullRequest);
         var last = watch.Bind(state => state.Last);
         HasPullRequest = watch.IsSome;
-        Fact = watch.Match(state => $"#{state.PullRequest.Number} · {ForgePhrases.Status(state).Split(" · ")[0]}", () => facts.IsSome ? "none" : string.Empty);
+        Fact = watch.Match(state => $"#{state.PullRequest.Number} · {Brief(state)}", () => facts.IsSome ? "none" : string.Empty);
         Title = watch.Match(state => $"Pull request #{state.PullRequest.Number} on {state.Forge.Value}", () => facts.IsSome ? "No pull request was opened for this job." : string.Empty);
         Link = watch.Match(state => state.PullRequest.Link.ToString(), () => string.Empty);
         Status = watch.Match(ForgePhrases.Status, () => string.Empty);
@@ -147,4 +147,13 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
         Reviews = last.Match<IReadOnlyList<string>>(state => [.. state.Reviews.Select(ForgePhrases.Review)], () => []);
         WakeUps = facts.Match<IReadOnlyList<string>>(found => [.. found.WakeUps.Select(ForgePhrases.WakeUp)], () => []);
     }
+
+    private static string Brief(PullRequestWatchState state) => state.Status switch
+    {
+        WatchStatus.Watching => "watching",
+        WatchStatus.BackingOff => "retrying",
+        WatchStatus.WaitingForJob => "agent at work",
+        WatchStatus.NeedsPerson => "needs you",
+        _ => state.Ended.Match(ForgePhrases.End, () => "ended"),
+    };
 }
