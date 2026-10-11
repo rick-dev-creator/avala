@@ -43,13 +43,20 @@
 
         <StackPanel Spacing="6">
           <TextBlock Classes="section" Text="Webhooks" />
-          <TextBlock x:Name="Endpoint" Classes="mono" Text="{Binding Endpoint}" TextWrapping="Wrap" />
+          <WrapPanel>
+            <TextBlock x:Name="Endpoint" Margin="0,0,6,0" Text="{Binding Endpoint}" TextWrapping="Wrap" />
+            <TextBlock x:Name="Url"
+                       Classes="mono"
+                       Text="{Binding Url}"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </WrapPanel>
           <TextBlock x:Name="Tunnel" Classes="caption" Text="{Binding Tunnel}" TextWrapping="Wrap" />
           <TextBlock x:Name="NoDeliveries" Classes="caption" Margin="0,8,0,0" Text="No delivery yet." IsVisible="{Binding !Deliveries.Count}" />
           <ItemsControl x:Name="Deliveries" ItemsSource="{Binding Deliveries}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="x:String">
-                <TextBlock Classes="caption mono" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+                <TextBlock Classes="caption" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

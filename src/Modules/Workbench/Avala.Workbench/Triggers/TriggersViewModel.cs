@@ -17,6 +17,8 @@ internal interface ITriggersViewModel
 
     string Endpoint { get; }
 
+    string Url { get; }
+
     string Tunnel { get; }
 
     string Notice { get; }
@@ -62,6 +64,9 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
 
     [ObservableProperty]
     public partial string Endpoint { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Url { get; private set; } = string.Empty;
 
     [ObservableProperty]
     public partial string Notice { get; private set; } = string.Empty;
@@ -113,6 +118,7 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
     {
         Scope = TriggerPhrases.Scope(state.Zone);
         Endpoint = TriggerPhrases.Endpoint(state.Endpoint);
+        Url = TriggerPhrases.Url(state.Endpoint);
         triggers.ShowOnly(state.Triggers.Select(view => new TriggerItemViewModel(view, state.Zone)));
         files.ShowOnly(state.Files.Select(TriggerPhrases.File));
         deliveries.ShowOnly(state.Deliveries.Select(delivery => TriggerPhrases.Delivery(delivery, state.Zone)));

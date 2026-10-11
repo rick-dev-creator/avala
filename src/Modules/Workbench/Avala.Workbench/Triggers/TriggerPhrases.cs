@@ -30,7 +30,7 @@ internal static class TriggerPhrases
     public static string Next(TriggerState trigger, TimeZoneInfo zone) =>
         !trigger.Enabled ? "Disabled"
         : trigger.Kind == TriggerKind.Webhook ? "Runs on each signed delivery"
-        : trigger.NextRun.Match(at => $"Next · {Local(at, zone, "ddd d MMM HH:mm")}", () => "Not scheduled");
+        : trigger.NextRun.Match(at => $"Next · {When(at, zone)}", () => "Not scheduled");
 
     public static string Running(TriggerState trigger) =>
         string.Create(CultureInfo.InvariantCulture, $"{trigger.Running} of {trigger.Concurrency} running");
@@ -39,10 +39,10 @@ internal static class TriggerPhrases
         $"{(trigger.Target == TriggerTarget.Loop ? "Queues a loop task" : "Starts a job")} · {Level(trigger.Autonomy)} at most";
 
     public static string Run(TriggerRun run, TimeZoneInfo zone) =>
-        $"{Local(run.At, zone, "yyyy-MM-dd HH:mm")} · {Origin(run.Origin)} · {Outcome(run)}{(run.AutonomyCapped ? " · capped to supervised by the repository" : string.Empty)}";
+        $"{When(run.At, zone)} · {Origin(run.Origin)} · {Outcome(run)}{(run.AutonomyCapped ? " · capped to supervised by the repository" : string.Empty)}";
 
     public static string Delivery(WebhookDelivery delivery, TimeZoneInfo zone) =>
-        $"{Local(delivery.At, zone, "yyyy-MM-dd HH:mm:ss")} · {delivery.Path} · {Verdict(delivery.Verdict)}";
+        $"{When(delivery.At, zone)} · {delivery.Path} · {Verdict(delivery.Verdict)}";
 
     public static string File(TriggerFile file) =>
         file.Status switch
@@ -54,10 +54,12 @@ internal static class TriggerPhrases
 
     public static string Endpoint(WebhookEndpoint endpoint) =>
         endpoint.Url.Match(
-            url => $"Listening on {url}<id>, on this computer only.",
+            _ => "Listening on this computer only, at",
             () => endpoint.Problem.Match(
                 problem => problem == TriggerError.NoPortLease ? "Webhooks are off: no port could be leased." : "Webhooks are off: the listener could not start.",
                 () => "No webhook trigger is declared."));
+
+    public static string Url(WebhookEndpoint endpoint) => endpoint.Url.Match(url => $"{url}<id>", () => string.Empty);
 
     public static string Error(TriggerError error) =>
         error == TriggerError.UnknownTrigger ? "That trigger is no longer declared. Reload to see the current ones." : $"Refused: {error}.";
@@ -123,6 +125,6 @@ internal static class TriggerPhrases
             _ => "trigger disabled",
         };
 
-    private static string Local(DateTimeOffset at, TimeZoneInfo zone, string format) =>
-        TimeZoneInfo.ConvertTime(at, zone).ToString(format, CultureInfo.InvariantCulture);
+    private static string When(DateTimeOffset at, TimeZoneInfo zone) =>
+        TimeZoneInfo.ConvertTime(at, zone).ToString("ddd d MMM HH:mm", CultureInfo.InvariantCulture);
 }

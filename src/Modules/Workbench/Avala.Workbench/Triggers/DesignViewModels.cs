@@ -15,7 +15,7 @@ internal sealed record DesignTriggerItemViewModel(string Name, string Repository
             "0 of 1 running",
             "Next · Mon 12 Oct 02:30",
             true,
-            ["2026-10-09 02:30 · on schedule · job submitted", "2026-10-08 09:12 · caught up · job submitted"])
+            ["Fri 9 Oct 02:30 · on schedule · job submitted", "Thu 8 Oct 09:12 · caught up · job submitted"])
     {
     }
 
@@ -30,7 +30,9 @@ internal sealed class DesignTriggersViewModel : ITriggersViewModel
 
     public string Scope => "Times in this computer's time zone, Europe/Madrid";
 
-    public string Endpoint => "Listening on http://localhost:24010/hooks/<id>, on this computer only.";
+    public string Endpoint => "Listening on this computer only, at";
+
+    public string Url => "http://localhost:24010/hooks/<id>";
 
     public string Tunnel => TriggerPhrases.Tunnel;
 
@@ -49,7 +51,7 @@ internal sealed class DesignTriggersViewModel : ITriggersViewModel
             "1 of 2 running",
             "Runs on each signed delivery",
             true,
-            ["2026-10-09 15:08 · webhook · job submitted · capped to supervised by the repository"]),
+            ["Fri 9 Oct 15:08 · webhook · job submitted · capped to supervised by the repository"]),
         new DesignTriggerItemViewModel("docs-sweep", "~/code/ledger-api", "Every 12 hours", "Queues a loop task · supervised at most", "0 of 1 running", "Disabled", false, []),
     ];
 
@@ -62,8 +64,8 @@ internal sealed class DesignTriggersViewModel : ITriggersViewModel
 
     public IReadOnlyList<string> Deliveries { get; } =
     [
-        "2026-10-09 15:08:12 · /hooks/issue-opened · accepted",
-        "2026-10-09 15:07:40 · /hooks/issue-opened · bad signature",
+        "Fri 9 Oct 15:08 · /hooks/issue-opened · accepted",
+        "Fri 9 Oct 15:07 · /hooks/issue-opened · bad signature",
     ];
 
     public IAsyncRelayCommand<ITriggerItemViewModel> RunNowCommand { get; } = new AsyncRelayCommand<ITriggerItemViewModel>(_ => Task.CompletedTask);

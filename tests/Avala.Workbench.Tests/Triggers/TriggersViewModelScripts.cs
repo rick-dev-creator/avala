@@ -31,13 +31,13 @@ public sealed class TriggersViewModelScripts : IDisposable
         Assert.Equal(
             ("nightly", "/work/ledger-api", "Weekdays at 02:30", "Next · Mon 12 Oct 02:30", "1 of 1 running", "Starts a job · supervised at most", "Disable"),
             (nightly.Name, nightly.Repository, nightly.Fires, nightly.Next, nightly.Running, nightly.Target, nightly.Toggle));
-        Assert.Equal(["2026-10-09 15:00 · run by you · job submitted · capped to supervised by the repository"], nightly.Runs);
+        Assert.Equal(["Fri 9 Oct 15:00 · run by you · job submitted · capped to supervised by the repository"], nightly.Runs);
         Assert.Equal(("Webhook · /hooks/issue", "Disabled", "Enable", false), (hook.Fires, hook.Next, hook.Toggle, hook.IsEnabled));
         Assert.Equal(
-            ("Times in this computer's time zone, Test/Madrid", "Listening on http://localhost:24010/hooks/<id>, on this computer only."),
-            await ui.ReadAsync(() => (page.Scope, page.Endpoint)));
+            ("Times in this computer's time zone, Test/Madrid", "Listening on this computer only, at", "http://localhost:24010/hooks/<id>"),
+            await ui.ReadAsync(() => (page.Scope, page.Endpoint, page.Url)));
         Assert.Equal(["/data/triggers.json · applied, 2 triggers"], await ui.ReadAsync(() => page.Files.ToList()));
-        Assert.Equal(["2026-10-09 15:00:00 · /hooks/issue · bad signature"], await ui.ReadAsync(() => page.Deliveries.ToList()));
+        Assert.Equal(["Fri 9 Oct 15:00 · /hooks/issue · bad signature"], await ui.ReadAsync(() => page.Deliveries.ToList()));
         Assert.Contains("Tailscale Funnel", page.Tunnel, StringComparison.Ordinal);
     }
 

@@ -1,6 +1,7 @@
 using Avala.Testing.UI;
 using Avala.Workbench.Triggers;
 using Avalonia.Controls;
+using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Tests.Views;
@@ -18,6 +19,22 @@ public sealed class TriggersViewScripts(HeadlessUi ui)
             Assert.Contains("Tailscale Funnel", view.TextOf("Tunnel"), StringComparison.Ordinal);
             Assert.Equal(("nightly-deps", "Weekdays at 02:30", "Next · Mon 12 Oct 02:30"), (view.TextOf("TriggerName"), view.TextOf("Fires"), view.TextOf("Next")));
             Assert.Equal((false, false, true), (view.Shows("NoTriggers"), view.Shows("NoDeliveries"), view.Shows("Notice")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task OnlyTheEndpointsUrlAndTheFilesPathsAreInTheCodeFontAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Wide(new DesignTriggersViewModel());
+            var delivery = view.Find<ItemsControl>("Deliveries").GetVisualDescendants().OfType<TextBlock>().First();
+            var file = view.Find<ItemsControl>("Files").GetVisualDescendants().OfType<TextBlock>().First();
+
+            Assert.Equal(
+                ("Listening on this computer only, at", "http://localhost:24010/hooks/<id>"),
+                (view.TextOf("Endpoint"), view.TextOf("Url")));
+            Assert.Equal(
+                (false, true, false, true),
+                (Mono(view.Find<TextBlock>("Endpoint")), Mono(view.Find<TextBlock>("Url")), Mono(delivery), Mono(file)));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -40,6 +57,8 @@ public sealed class TriggersViewScripts(HeadlessUi ui)
 
             Assert.Equal((true, true), (view.Shows("NoTriggers"), view.Shows("NoDeliveries")));
         }, TestContext.Current.CancellationToken);
+
+    private static bool Mono(TextBlock text) => text.FontFamily.FamilyNames[0] == "JetBrains Mono";
 
     private static ViewScript Wide(object viewModel)
     {
@@ -68,6 +87,8 @@ public sealed class TriggersViewScripts(HeadlessUi ui)
         public string Scope => design.Scope;
 
         public string Endpoint => design.Endpoint;
+
+        public string Url => design.Url;
 
         public string Tunnel => design.Tunnel;
 

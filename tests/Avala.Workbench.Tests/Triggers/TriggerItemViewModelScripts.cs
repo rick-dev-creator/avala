@@ -26,7 +26,7 @@ public sealed class TriggerItemViewModelScripts
                 Assert.Equal(
                     (FakeTriggers.Nightly, "nightly", "Every 12 hours", "Next · Fri 9 Oct 18:00", "1 of 2 running", "Queues a loop task · autonomous at most", true, "Disable"),
                     (item.Id, item.Name, item.Fires, item.Next, item.Running, item.Target, item.IsEnabled, item.Toggle));
-                Assert.Equal(["2026-10-09 14:00 · on schedule · queued in the loop", "2026-10-09 13:00 · on schedule · job submitted"], item.Runs);
+                Assert.Equal(["Fri 9 Oct 14:00 · on schedule · queued in the loop", "Fri 9 Oct 13:00 · on schedule · job submitted"], item.Runs);
             });
 
     [Fact]

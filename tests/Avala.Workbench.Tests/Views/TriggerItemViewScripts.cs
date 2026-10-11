@@ -14,10 +14,20 @@ public sealed class TriggerItemViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignTriggerItemViewModel()).Settle();
 
             Assert.Equal(
-                ("nightly-deps", "Weekdays at 02:30", "~/code/ledger-api", "Next · Mon 12 Oct 02:30", "· 0 of 1 running", "· Starts a job · supervised at most"),
+                ("nightly-deps", "Weekdays at 02:30", "~/code/ledger-api", "Next · Mon 12 Oct 02:30", " · 0 of 1 running", " · Starts a job · supervised at most"),
                 (view.TextOf("TriggerName"), view.TextOf("Fires"), view.TextOf("Repository"), view.TextOf("Next"), view.TextOf("Running"), view.TextOf("Target")));
             Assert.Equal(2, view.Find<ItemsControl>("Runs").ItemCount);
             Assert.Equal("Disable", view.Find<Button>("Toggle").Content);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheNextRunTheRunningCountAndTheTargetReadAsOneLineWithoutExtraGapsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignTriggerItemViewModel()).Settle();
+            var (next, running, target) = (view.Find("Next"), view.Find("Running"), view.Find("Target"));
+
+            Assert.Equal((next.Bounds.Right, running.Bounds.Right), (running.Bounds.X, target.Bounds.X));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

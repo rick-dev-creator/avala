@@ -38,12 +38,12 @@ public sealed class TriggerPhrasesTests
 
         Assert.Equal(
             [
-                "2026-10-09 13:00 · on schedule · job submitted",
-                "2026-10-09 13:00 · caught up · missed 3 while Avala was closed",
-                "2026-10-09 13:00 · webhook · skipped, at its concurrency cap",
-                "2026-10-09 13:00 · external · refused: UnknownConnection",
-                "2026-10-09 13:00 · on schedule · queued in the loop",
-                "2026-10-09 13:00 · on schedule · dropped at restart",
+                "Fri 9 Oct 13:00 · on schedule · job submitted",
+                "Fri 9 Oct 13:00 · caught up · missed 3 while Avala was closed",
+                "Fri 9 Oct 13:00 · webhook · skipped, at its concurrency cap",
+                "Fri 9 Oct 13:00 · external · refused: UnknownConnection",
+                "Fri 9 Oct 13:00 · on schedule · queued in the loop",
+                "Fri 9 Oct 13:00 · on schedule · dropped at restart",
             ],
             [
                 TriggerPhrases.Run(run, TimeZoneInfo.Utc),
@@ -70,19 +70,29 @@ public sealed class TriggerPhrasesTests
     [InlineData(DeliveryVerdict.Disabled, "trigger disabled")]
     public void ADeliverySaysWhenItCameWhereToAndItsVerdict(DeliveryVerdict verdict, string phrase) =>
         Assert.Equal(
-            $"2026-10-09 13:00:00 · /hooks/issue · {phrase}",
+            $"Fri 9 Oct 13:00 · /hooks/issue · {phrase}",
             TriggerPhrases.Delivery(new WebhookDelivery(Guid.NewGuid(), At, "/hooks/issue", verdict), TimeZoneInfo.Utc));
 
     [Fact]
-    public void TheEndpointSaysWhereItListensOrWhyWebhooksAreOff() =>
+    public void TheEndpointSaysWhereItListensOrWhyWebhooksAreOff()
+    {
+        WebhookEndpoint[] endpoints =
+        [
+            new("http://localhost:1/hooks/", Option<TriggerError>.None),
+            new(Option<string>.None, TriggerError.NoPortLease),
+            new(Option<string>.None, TriggerError.ListenerFailed),
+            WebhookEndpoint.Off,
+        ];
+
         Assert.Equal(
-            ["Listening on http://localhost:1/hooks/<id>, on this computer only.", "Webhooks are off: no port could be leased.", "Webhooks are off: the listener could not start.", "No webhook trigger is declared."],
             [
-                TriggerPhrases.Endpoint(new WebhookEndpoint("http://localhost:1/hooks/", Option<TriggerError>.None)),
-                TriggerPhrases.Endpoint(new WebhookEndpoint(Option<string>.None, TriggerError.NoPortLease)),
-                TriggerPhrases.Endpoint(new WebhookEndpoint(Option<string>.None, TriggerError.ListenerFailed)),
-                TriggerPhrases.Endpoint(WebhookEndpoint.Off),
-            ]);
+                ("Listening on this computer only, at", "http://localhost:1/hooks/<id>"),
+                ("Webhooks are off: no port could be leased.", string.Empty),
+                ("Webhooks are off: the listener could not start.", string.Empty),
+                ("No webhook trigger is declared.", string.Empty),
+            ],
+            endpoints.Select(endpoint => (TriggerPhrases.Endpoint(endpoint), TriggerPhrases.Url(endpoint))));
+    }
 
     [Fact]
     public void AFileSaysWhetherItAppliesAndWhyItWasRejected() =>

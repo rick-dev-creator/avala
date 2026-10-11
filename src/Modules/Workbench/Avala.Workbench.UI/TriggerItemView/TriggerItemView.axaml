@@ -38,10 +38,10 @@
         <TextBlock x:Name="Fires" Classes="secondary" Text="{Binding Fires}" />
       </StackPanel>
       <TextBlock x:Name="Repository" Classes="caption mono" Text="{Binding Repository}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Repository}" />
-      <StackPanel Orientation="Horizontal" Spacing="6">
+      <StackPanel Orientation="Horizontal">
         <TextBlock x:Name="Next" Classes="caption" Text="{Binding Next}" />
-        <TextBlock x:Name="Running" Classes="caption" Text="{Binding Running, StringFormat='· {0}'}" />
-        <TextBlock x:Name="Target" Classes="caption" Text="{Binding Target, StringFormat='· {0}'}" />
+        <TextBlock x:Name="Running" Classes="caption" Text="{Binding Running, StringFormat=' · {0}'}" />
+        <TextBlock x:Name="Target" Classes="caption" Text="{Binding Target, StringFormat=' · {0}'}" />
       </StackPanel>
       <ItemsControl x:Name="Runs" Margin="0,4,0,0" ItemsSource="{Binding Runs}">
         <ItemsControl.ItemTemplate>
