@@ -8,6 +8,7 @@ using Avala.Sdk.Events;
 using Avala.Shell;
 using Avalonia.Controls;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Avala.Host.Tests;
 
@@ -44,6 +45,9 @@ internal sealed class DogfoodApp(PublishedPlugins plugins, DogfoodPlace place, D
         subscriptions = new CancellationTokenSource();
         Subscribe(root);
         root.Start();
+        var logger = root.Services.GetRequiredService<ILogger<DogfoodApp>>();
+        var data = place.Data;
+        DogfoodLog.Composed(logger, data);
         shell = root.Services.GetRequiredService<ShellViewModel>();
         window = new ShellView { Width = 1440, Height = 900 };
         window.DataTemplates.Add(root.Views);
@@ -63,6 +67,8 @@ internal sealed class DogfoodApp(PublishedPlugins plugins, DogfoodPlace place, D
             return;
         }
 
+        var logger = root.Services.GetRequiredService<ILogger<DogfoodApp>>();
+        DogfoodLog.Stops(logger);
         shell!.Deactivate();
         window!.Close();
         await subscriptions.CancelAsync();
@@ -114,4 +120,15 @@ internal sealed class DogfoodApp(PublishedPlugins plugins, DogfoodPlace place, D
         {
         }
     }
+}
+
+internal static partial class DogfoodLog
+{
+    public const string Stopping = "The dogfood driver stops Avala";
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The dogfood driver composed Avala on the data folder {Data}")]
+    public static partial void Composed(ILogger logger, string data);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = Stopping)]
+    public static partial void Stops(ILogger logger);
 }
