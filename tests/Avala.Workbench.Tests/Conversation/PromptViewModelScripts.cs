@@ -15,6 +15,7 @@ public sealed class PromptViewModelScripts
     [InlineData("Retry", "Verification feedback", false, true)]
     [InlineData("Hint", "You", true, true)]
     [InlineData("SendBack", "Sent back", true, true)]
+    [InlineData("Reopen", "Pull request feedback", false, true)]
     [InlineData("Recovery", "Resumed after a restart", false, true)]
     [InlineData("Handoff", "Handed off", false, true)]
     public void APromptSaysWhoSentItAndOnlyAFollowUpShowsItsOrigin(string origin, string phrase, bool fromPerson, bool showsOrigin) =>

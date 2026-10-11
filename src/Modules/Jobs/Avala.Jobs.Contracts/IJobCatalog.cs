@@ -24,6 +24,7 @@ public enum AttemptOrigin
     SendBack,
     Recovery,
     Handoff,
+    Reopen,
 }
 
 public enum AttemptOutcome

@@ -21,6 +21,7 @@ internal static class ConversationPhrases
         AttemptOrigin.Hint => "You",
         AttemptOrigin.SendBack => "Sent back",
         AttemptOrigin.Handoff => "Handed off",
+        AttemptOrigin.Reopen => "Pull request feedback",
         _ => "Resumed after a restart",
     };
 

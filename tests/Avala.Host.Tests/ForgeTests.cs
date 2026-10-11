@@ -34,7 +34,7 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         Assert.Equal((Option<WatchEnd>.Some(WatchEnd.Green), 1), (ended.Ended, ended.WakeUps));
         Assert.Equal(JobStatus.Approved, await forge.StatusAsync());
         var history = Outcomes.Present(await forge.Run.Get<IJobCatalog>().HistoryAsync(forge.Job, Cancellation));
-        Assert.Equal([AttemptOrigin.Initial, AttemptOrigin.SendBack], history.Attempts.Select(attempt => attempt.Origin));
+        Assert.Equal([AttemptOrigin.Initial, AttemptOrigin.Reopen], history.Attempts.Select(attempt => attempt.Origin));
         Assert.Equal(Option<string>.Some(wakeUp.Feedback), history.Attempts[1].Guidance);
         Assert.Equal([wakeUp], forge.Run.Get<IPullRequests>().WakeUpsOf(forge.Job));
     }
@@ -142,7 +142,7 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.NeedsHelp, await forge.StatusAsync());
         var history = Outcomes.Present(await forge.Run.Get<IJobCatalog>().HistoryAsync(forge.Job, Cancellation));
         Assert.Equal(
-            [(AttemptOrigin.Initial, AttemptOutcome.Passed), (AttemptOrigin.SendBack, AttemptOutcome.Interrupted)],
+            [(AttemptOrigin.Initial, AttemptOutcome.Passed), (AttemptOrigin.Reopen, AttemptOutcome.Interrupted)],
             history.Attempts.Select(attempt => (attempt.Origin, attempt.Outcome)));
     }
 

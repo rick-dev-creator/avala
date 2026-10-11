@@ -206,7 +206,7 @@ internal sealed class Job : IAggregateRoot<JobId>
             {
                 Ended = Option<DateTimeOffset>.None;
 
-                return Begin(AttemptOrigin.SendBack, feedback);
+                return Begin(AttemptOrigin.Reopen, feedback);
             });
 
     public Result<AttemptStarted, JobError> Reopen(Feedback feedback, SessionId session, bool resumed) =>
@@ -216,7 +216,7 @@ internal sealed class Job : IAggregateRoot<JobId>
                 Ended = Option<DateTimeOffset>.None;
                 Join(session, resumed);
 
-                return Begin(AttemptOrigin.SendBack, feedback);
+                return Begin(AttemptOrigin.Reopen, feedback);
             });
 
     public Result<JobApproved, JobError> Approve(DateTimeOffset at) =>

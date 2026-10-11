@@ -147,7 +147,7 @@ public sealed class ReviewJobTests
     }
 
     [Fact]
-    public async Task ReopeningAnApprovedJobStartsASendBackRoundInANewSessionThatResumesItsConversationAsync()
+    public async Task ReopeningAnApprovedJobStartsAReopenRoundInANewSessionThatResumesItsConversationAsync()
     {
         var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { Resumes = true });
         var job = await ReviewedAsync(flow);
@@ -157,7 +157,7 @@ public sealed class ReviewJobTests
         var continued = Outcomes.Succeeds(await flow.Jobs.ReopenAsync(job.Id, Feedback, Cancellation));
 
         Assert.Equal(ContinuedIn.ResumedConversation, continued.Conversation);
-        Assert.Equal((JobState.Running, AttemptOrigin.SendBack, Option<DateTimeOffset>.None), (job.State, job.Attempts[^1].Origin, job.Ended));
+        Assert.Equal((JobState.Running, AttemptOrigin.Reopen, Option<DateTimeOffset>.None), (job.State, job.Attempts[^1].Origin, job.Ended));
         Assert.Equal(Option<ResumeToken>.Some(Token), flow.Agents.Requests[^1].Resume);
         Assert.Equal((continued.Session, Feedback), flow.Agents.Sent[^1]);
         Assert.Equal(new JobProgressed(job.Id, JobStatus.Running), flow.Bus.Published.OfType<JobProgressed>().Last());
