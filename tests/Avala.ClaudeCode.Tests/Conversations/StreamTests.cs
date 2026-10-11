@@ -303,6 +303,18 @@ public sealed class StreamTests
     }
 
     [Fact]
+    public void TheErrorClaudeCodeWritesInTheAgentsPlaceWhenTheWeekIsExhaustedIsAFailedErrorItemAndNotAMessageOfTheAgent()
+    {
+        var talk = new Talk().Begin().Receive(Cli.WeekExhausted());
+
+        var started = Assert.Single(talk.Events.OfType<ItemStarted>());
+        Assert.Equal((ItemKind.Other, "Claude Code error"), (started.Kind, started.Title));
+        Assert.Equal(Cli.WeekExhaustion, Assert.Single(talk.Events.OfType<ItemProgressed>()).Text);
+        Assert.Equal(ItemOutcome.Failed, Assert.Single(talk.Events.OfType<ItemCompleted>()).Outcome);
+        Assert.Equal(TurnOutcome.LimitReached, Assert.IsType<TurnCompleted>(talk.Events[^1]).Outcome);
+    }
+
+    [Fact]
     public void AResultThatIsAnErrorAfterTheWindowWasRejectedEndsTheTurnAtItsUsageLimit()
     {
         var talk = new Talk().Begin().Receive(Cli.RejectedRateLimit()).Receive(Cli.Result(0.001m, "success", isError: true));

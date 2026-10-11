@@ -26,7 +26,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
             () => received.TextOr("type", string.Empty) switch
             {
                 "stream_event" => Streamed(received.Members("event"), stamp),
-                "assistant" => Said(received.Members("message"), stamp),
+                "assistant" => Said(received.Members("message"), received.Flag("is_api_error_message"), stamp),
                 "user" => Returned(received.Members("message"), stamp, nested: false),
                 _ => Reaction.None,
             });
@@ -203,7 +203,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         return Reaction.Of(new ItemStarted(stamp.Session, stamp.Turn, item, kind, title));
     }
 
-    private Reaction Said(JsonObject said, Stamp stamp)
+    private Reaction Said(JsonObject said, bool apiError, Stamp stamp)
     {
         var id = said.TextOr("id", string.Empty);
         var whole = !streamed.Contains(id);
@@ -212,6 +212,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
             .Select((block, index) => block.TextOr("type", string.Empty) switch
             {
                 "tool_use" => Used(new ToolUse(block.TextOr("id", string.Empty), block.TextOr("name", string.Empty), block.Members("input")), stamp, nested: false),
+                "text" when apiError => Whole(new ItemId($"{id}:said:{index}"), ItemKind.Other, "Claude Code error", block.TextOr("text", string.Empty), stamp, ItemOutcome.Failed),
                 "text" when whole => Whole(new ItemId($"{id}:said:{index}"), ItemKind.Message, "Message", block.TextOr("text", string.Empty), stamp),
                 "thinking" when whole => Whole(new ItemId($"{id}:said:{index}"), ItemKind.Reasoning, "Thinking", block.TextOr("thinking", string.Empty), stamp),
                 _ => Reaction.None,
@@ -219,13 +220,13 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
             .Aggregate(Reaction.None, (all, next) => all.Then(next));
     }
 
-    private static Reaction Whole(ItemId item, ItemKind kind, string title, string text, Stamp stamp) =>
+    private static Reaction Whole(ItemId item, ItemKind kind, string title, string text, Stamp stamp, ItemOutcome outcome = ItemOutcome.Succeeded) =>
         text.Length == 0
             ? Reaction.None
             : Reaction.Of(
                 new ItemStarted(stamp.Session, stamp.Turn, item, kind, title),
                 new ItemProgressed(stamp.Session, stamp.Turn, item, text),
-                new ItemCompleted(stamp.Session, stamp.Turn, item, ItemOutcome.Succeeded));
+                new ItemCompleted(stamp.Session, stamp.Turn, item, outcome));
 
     private Reaction Used(ToolUse use, Stamp stamp, bool nested)
     {

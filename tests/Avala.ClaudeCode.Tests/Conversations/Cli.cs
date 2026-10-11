@@ -151,7 +151,34 @@ internal static class Cli
             """),
     ];
 
-    public const string RefreshFailure = "Failed to refresh OAuth token: another Claude Code process is refreshing it or exited mid-refresh. This is usually transient; retry in a minute, and if it persists close other Claude Code processes or sign in again";
+    public static JsonNode[] WeekExhausted() =>
+    [
+        Parse($$"""{ "type": "system", "subtype": "status", "status": "requesting", "session_id": "{{Session}}", "uuid": "00000000-0000-0000-0000-000000000011" }"""),
+        Parse($$"""
+            { "type": "rate_limit_event", "rate_limit_info": { "status": "rejected", "resetsAt": 1791961200, "rateLimitType": "seven_day", "overageStatus": "rejected", "overageDisabledReason": "out_of_credits", "isUsingOverage": false,
+              "unifiedWindows": { "five_hour": { "utilization": 0, "resetsAt": 1791732000 }, "seven_day": { "utilization": 1, "resetsAt": 1791961200 } } },
+              "uuid": "00000000-0000-0000-0000-000000000012", "session_id": "{{Session}}" }
+            """),
+        Parse($$"""
+            { "type": "assistant", "message": { "diagnostics": null, "id": "00000000-0000-0000-0000-000000000013", "container": null, "model": "<synthetic>", "role": "assistant", "stop_details": null, "stop_reason": "stop_sequence", "stop_sequence": "", "type": "message",
+              "usage": { "output_tokens_details": null, "input_tokens": 0, "output_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0 },
+              "content": [ { "type": "text", "text": "{{WeekExhaustion}}" } ], "context_management": null },
+              "parent_tool_use_id": null, "session_id": "{{Session}}", "uuid": "00000000-0000-0000-0000-000000000014", "timestamp": "2026-10-11T10:29:40.550Z",
+              "error": "rate_limit", "is_api_error_message": true, "api_error": "usage_limit_reached",
+              "api_error_params": { "rate_limit_info": { "status": "rejected", "resetsAt": 1791961200, "rateLimitType": "seven_day", "overageStatus": "rejected", "overageDisabledReason": "out_of_credits", "isUsingOverage": false } } }
+            """),
+        Parse($$"""
+            { "duration_api_ms": 0, "stop_reason": "stop_sequence", "session_id": "{{Session}}", "total_cost_usd": 0,
+              "usage": { "output_tokens_details": { "thinking_tokens": 0 }, "input_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "output_tokens": 0 },
+              "modelUsage": {}, "permission_denials": [], "terminal_reason": "api_error", "is_error": true, "num_turns": 1, "subtype": "success",
+              "api_error_status": 429, "api_error": "usage_limit_reached", "result": "{{WeekExhaustion}}", "type": "result", "duration_ms": 1958,
+              "uuid": "00000000-0000-0000-0000-000000000015", "queued_turn_count": 0, "result_index": 0 }
+            """),
+    ];
+
+    public const string WeekExhaustion = "You've hit your weekly limit · resets Oct 14, 4pm (Asia/Tokyo)";
+
+    public const string RefreshFailure ="Failed to refresh OAuth token: another Claude Code process is refreshing it or exited mid-refresh. This is usually transient; retry in a minute, and if it persists close other Claude Code processes or sign in again";
 
     public static JsonNode Parse(string json) => JsonNode.Parse(json)!;
 
