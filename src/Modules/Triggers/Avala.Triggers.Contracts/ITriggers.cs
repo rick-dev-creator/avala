@@ -26,8 +26,6 @@ public interface ITriggers
 public interface IForgeNudges
 {
     ValueTask<DeliveryVerdict> VerifyAsync(ForgeRule rule, IReadOnlyDictionary<string, string> headers, ReadOnlyMemory<byte> body, string secret, CancellationToken cancellationToken);
-
-    ValueTask NudgeAsync(TriggerId trigger, CancellationToken cancellationToken);
 }
 
 public readonly record struct TriggerId(string Scope, string Name)
@@ -238,3 +236,5 @@ public sealed record TriggerFired(TriggerRun Run) : IIntegrationEvent;
 public sealed record WebhookReceived(WebhookDelivery Delivery) : IIntegrationEvent;
 
 public sealed record TriggersChanged(DateTimeOffset At) : IIntegrationEvent;
+
+public sealed record ForgeTriggerNudged(TriggerId Trigger, Guid Delivery) : IIntegrationEvent;

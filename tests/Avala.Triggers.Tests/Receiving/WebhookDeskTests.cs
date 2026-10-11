@@ -133,7 +133,7 @@ public sealed class WebhookDeskTests
         var unsigned = await triggered.Desk.ReceiveAsync(Nudge(string.Empty), Triggered.Cancellation);
 
         Assert.Equal([(202, DeliveryVerdict.Accepted), (401, DeliveryVerdict.BadSignature), (401, DeliveryVerdict.NotSigned)], new[] { nudged, forged, unsigned }.Select(answer => (answer.Status, answer.Verdict)));
-        Assert.Equal([labeled], triggered.World.Nudges.Nudged);
+        Assert.Equal([labeled], triggered.Bus.Published.OfType<ForgeTriggerNudged>().Select(nudge => nudge.Trigger));
         Assert.Empty(triggered.Jobs.Requests);
         Assert.Empty(triggered.Triggers.RunsOf(labeled));
         Assert.Equal([Sdk.Option<TriggerId>.Some(labeled)], triggered.Journal.Deliveries.Select(delivery => delivery.Trigger).Distinct());

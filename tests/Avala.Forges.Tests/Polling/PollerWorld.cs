@@ -29,7 +29,7 @@ internal sealed class PollerWorld : IAsyncDisposable
         var connections = new ForgeConnections(new DeclaredEvents(), [Forge, new Watching.ScriptedForge()], new NoTransports());
         Poller = new ForgeEventPoller(Book, new EventSource(connections, new OriginRemote()), new EventDispatch([Triggers]), Clock);
         Log = new EventLogDesk(Book, Poller);
-        Nudges = new ForgeNudges(connections, Poller);
+        Nudges = new ForgeNudges(connections);
     }
 
     public IForgeNudges Nudges { get; }

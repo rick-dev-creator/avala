@@ -55,6 +55,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddSingleton<ForgeEventPoller>()
             .AddForwarded<IHandle<StartupCompleted>, ForgeEventPoller>()
             .AddForwarded<IHandle<TriggersChanged>, ForgeEventPoller>()
+            .AddForwarded<IHandle<ForgeTriggerNudged>, ForgeEventPoller>()
             .AddSingleton<IForgeEventLog, EventLogDesk>()
             .AddSingleton<IForgeNudges, ForgeNudges>();
     }

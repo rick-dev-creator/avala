@@ -120,6 +120,8 @@ internal sealed class RunJournal(IRunStore store, LoopQueue queue, IEventBus bus
         return delivery;
     }
 
+    public ValueTask NudgedAsync(ForgeTriggerNudged nudged, CancellationToken cancellationToken) => bus.PublishAsync(nudged, cancellationToken);
+
     public ValueTask ChangedAsync(CancellationToken cancellationToken) => bus.PublishAsync(new TriggersChanged(clock.GetUtcNow()), cancellationToken);
 
     private static string Scoped(TriggerId trigger, string key) => $"{trigger.Key}|{key}";

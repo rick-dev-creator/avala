@@ -75,14 +75,6 @@ internal sealed class WebhookGate(ISecrets secrets, RunJournal journal, IEnumera
             : (DeliveryVerdict.BadSignature, TimeSpan.Zero);
     }
 
-    public async Task NudgedAsync(TriggerId trigger, CancellationToken cancellationToken)
-    {
-        foreach (var forges in nudges.Take(1))
-        {
-            await forges.NudgeAsync(trigger, cancellationToken);
-        }
-    }
-
     public Task<WebhookDelivery> RecordAsync(WebhookDelivery delivery, CancellationToken cancellationToken) =>
         journal.DeliveredAsync(delivery, cancellationToken);
 

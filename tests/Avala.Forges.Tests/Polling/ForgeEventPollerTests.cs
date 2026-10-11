@@ -140,7 +140,7 @@ public sealed class ForgeEventPollerTests
             await world.Nudges.VerifyAsync(PollerWorld.Rule with { Connection = "plain" }, signed, body, "s3cret", TestContext.Current.CancellationToken),
             await world.Nudges.VerifyAsync(PollerWorld.Rule with { Connection = "gone" }, signed, body, "s3cret", TestContext.Current.CancellationToken),
         };
-        await world.Nudges.NudgeAsync(PollerWorld.Labeled, TestContext.Current.CancellationToken);
+        await world.Poller.HandleAsync(new ForgeTriggerNudged(PollerWorld.Labeled, Guid.NewGuid()), TestContext.Current.CancellationToken);
         await world.SettledAsync();
 
         Assert.Equal([DeliveryVerdict.Accepted, DeliveryVerdict.BadSignature, DeliveryVerdict.BadSignature], verdicts);

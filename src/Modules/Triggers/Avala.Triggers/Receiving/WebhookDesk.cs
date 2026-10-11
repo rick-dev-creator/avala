@@ -61,9 +61,10 @@ internal sealed class WebhookDesk(TriggerCatalog catalog, ScheduleBook book, Web
 
         if (trigger.Forge.IsSome)
         {
-            await gate.NudgedAsync(trigger.Id, cancellationToken);
+            var answer = await AnsweredAsync(delivery, TimeSpan.Zero, cancellationToken);
+            await firer.Journal.NudgedAsync(new ForgeTriggerNudged(trigger.Id, delivery.Id), cancellationToken);
 
-            return await AnsweredAsync(delivery, TimeSpan.Zero, cancellationToken);
+            return answer;
         }
 
         var fired = await firer.FireAsync(

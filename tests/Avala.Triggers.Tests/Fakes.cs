@@ -214,22 +214,11 @@ internal sealed class FakeEndpoint : IWebhookEndpoint
 
 internal sealed class FakeNudges : IForgeNudges
 {
-    private readonly ConcurrentQueue<TriggerId> nudged = new();
-
     public string Signature { get; set; } = "sha256=good";
-
-    public IReadOnlyList<TriggerId> Nudged => [.. nudged];
 
     public ValueTask<DeliveryVerdict> VerifyAsync(ForgeRule rule, IReadOnlyDictionary<string, string> headers, ReadOnlyMemory<byte> body, string secret, CancellationToken cancellationToken) =>
         ValueTask.FromResult(
             !headers.TryGetValue("X-Hub-Signature-256", out var sent) ? DeliveryVerdict.NotSigned
             : sent == Signature && secret.Length > 0 ? DeliveryVerdict.Accepted
             : DeliveryVerdict.BadSignature);
-
-    public ValueTask NudgeAsync(TriggerId trigger, CancellationToken cancellationToken)
-    {
-        nudged.Enqueue(trigger);
-
-        return ValueTask.CompletedTask;
-    }
 }

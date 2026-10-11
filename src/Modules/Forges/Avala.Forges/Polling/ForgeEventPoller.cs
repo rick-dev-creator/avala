@@ -14,7 +14,7 @@ internal sealed record PolledTrigger(TriggerState State, ForgeRule Rule, string 
 }
 
 internal sealed class ForgeEventPoller(EventBook book, EventSource source, EventDispatch dispatch, TimeProvider clock)
-    : IHandle<StartupCompleted>, IHandle<TriggersChanged>, IAsyncDisposable
+    : IHandle<StartupCompleted>, IHandle<TriggersChanged>, IHandle<ForgeTriggerNudged>, IAsyncDisposable
 {
     private readonly SerialExecutor executor = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -36,6 +36,13 @@ internal sealed class ForgeEventPoller(EventBook book, EventSource source, Event
         return ValueTask.CompletedTask;
     }
 
+    public ValueTask HandleAsync(ForgeTriggerNudged integrationEvent, CancellationToken cancellationToken)
+    {
+        Post(token => PollAsync(integrationEvent.Trigger, token));
+
+        return ValueTask.CompletedTask;
+    }
+
     public Task<Result<ForgeEventWatch, ForgeError>> CheckNowAsync(TriggerId trigger, CancellationToken cancellationToken) =>
         executor.RunAsync(
             async token =>
@@ -50,8 +57,6 @@ internal sealed class ForgeEventPoller(EventBook book, EventSource source, Event
                 return book.WatchOf(trigger).ToResult(ForgeError.NotFound);
             },
             cancellationToken);
-
-    public void Nudge(TriggerId trigger) => Post(token => PollAsync(trigger, token));
 
     public async ValueTask DisposeAsync()
     {
@@ -109,7 +114,7 @@ internal sealed class ForgeEventPoller(EventBook book, EventSource source, Event
         else if (known is null || !known.State.Enabled || known.Signature != trigger.Signature || !timers.ContainsKey(state.Id))
         {
             await book.ShowAsync(trigger.Watch(EventWatchStatus.Waiting), token);
-            Arm(state.Id, TimeSpan.Zero);
+            Arm(state.Id, clock.GetUtcNow());
         }
     }
 
@@ -133,7 +138,7 @@ internal sealed class ForgeEventPoller(EventBook book, EventSource source, Event
         {
             var failures = book.WatchOf(id).Match(watch => watch.Failures, () => 0) + 1;
             var wait = Backoff.After(poll, failures);
-            Arm(id, wait);
+            Arm(id, now + wait);
             await book.ShowAsync(trigger.Watch(EventWatchStatus.BackingOff) with { Failure = error, Failures = failures, LastPolled = now, NextPoll = now + wait, Baseline = cursor.Map(known => known.Baseline) }, token);
 
             return;
@@ -148,7 +153,7 @@ internal sealed class ForgeEventPoller(EventBook book, EventSource source, Event
         {
             await book.KeepCursorAsync(id, trigger.Signature, found.Page.Cursor, token);
         }
-        Arm(id, poll);
+        Arm(id, now + poll);
         await book.ShowAsync(
             trigger.Watch(EventWatchStatus.Watching) with { LastPolled = now, NextPoll = now + poll, Baseline = book.CursorOf(id, trigger.Signature).Map(known => known.Baseline) },
             token);
@@ -170,7 +175,7 @@ internal sealed class ForgeEventPoller(EventBook book, EventSource source, Event
         }
     }
 
-    private void Arm(TriggerId trigger, TimeSpan due)
+    private void Arm(TriggerId trigger, DateTimeOffset due)
     {
         Disarm(trigger);
         ITimer? alarm = null;
