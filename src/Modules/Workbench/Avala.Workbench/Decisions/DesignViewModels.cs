@@ -94,6 +94,8 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
 
     public string AlwaysInRepositoryScope => Card is IPermissionCardViewModel permission ? permission.AlwaysInRepositoryScope : string.Empty;
 
+    public string Error { get; init; } = string.Empty;
+
     public string Waiting { get; init; }
 
     public string Heading { get; init; } = string.Empty;

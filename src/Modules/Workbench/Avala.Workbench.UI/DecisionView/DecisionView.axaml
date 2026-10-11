@@ -171,37 +171,41 @@
                  Classes="caption"
                  Text="Fill in the answer below the list"
                  IsVisible="{Binding HasFields}" />
-      <Grid x:Name="Actions" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,4,0,0">
-        <Button x:Name="Open"
-                Classes="link"
-                HorizontalAlignment="Left"
-                Content="Open conversation"
-                Command="{Binding OpenCommand}" />
+      <WrapPanel x:Name="Remember" Margin="17,0,0,0" IsVisible="{Binding IsPermission}">
         <CheckBox x:Name="DontAskAgain"
-                  Grid.Column="1"
-                  Margin="12,0,8,0"
+                  Margin="0,0,16,0"
                   FontSize="{DynamicResource FontSizeCaption}"
                   Content="{Binding DontAskAgainLabel}"
                   ToolTip.Tip="{Binding DontAskAgainScope}"
-                  IsChecked="{Binding DontAskAgain}"
-                  IsVisible="{Binding IsPermission}" />
+                  IsChecked="{Binding DontAskAgain}" />
         <CheckBox x:Name="AlwaysInRepository"
-                  Grid.Column="2"
-                  Margin="0,0,8,0"
                   FontSize="{DynamicResource FontSizeCaption}"
                   Content="{Binding AlwaysInRepositoryLabel}"
                   ToolTip.Tip="{Binding AlwaysInRepositoryScope}"
                   IsChecked="{Binding AlwaysInRepository}"
                   IsVisible="{Binding OffersAlwaysInRepository}" />
+      </WrapPanel>
+      <TextBlock x:Name="Error"
+                 Classes="caption failure"
+                 Margin="17,0,0,0"
+                 TextWrapping="Wrap"
+                 Text="{Binding Error}"
+                 IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <Grid x:Name="Actions" ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
+        <Button x:Name="Open"
+                Classes="link"
+                HorizontalAlignment="Left"
+                Content="Open conversation"
+                Command="{Binding OpenCommand}" />
         <Button x:Name="Deny"
-                Grid.Column="3"
+                Grid.Column="1"
                 Classes="small"
-                Margin="0,0,8,0"
+                Margin="8,0,8,0"
                 Content="Deny  ⌫"
                 Command="{Binding DenyCommand}"
                 IsVisible="{Binding IsPermission}" />
         <Button x:Name="Answer"
-                Grid.Column="4"
+                Grid.Column="2"
                 Classes="primary small"
                 Command="{Binding AnswerCommand}">
           <Panel>

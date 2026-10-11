@@ -27,6 +27,15 @@ internal static class Screen
         return ViewScript.Present(window, viewModel);
     }
 
+    public static ViewScript ShowStill(object viewModel, double height)
+    {
+        Register();
+        var window = new Window { Width = 640, Height = height, Content = viewModel };
+        Components.UI.Theme.Motion.SetIsReduced(window, true);
+
+        return ViewScript.Present(window, viewModel);
+    }
+
     private static void Register()
     {
         if (!registered)

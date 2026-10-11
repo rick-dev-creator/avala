@@ -61,6 +61,8 @@ internal interface IDecisionViewModel
 
     string Status { get; }
 
+    string Error { get; }
+
     bool IsSelected { get; }
 
     IAsyncRelayCommand AnswerCommand { get; }
@@ -165,6 +167,13 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
     [ObservableProperty]
     public partial string Status { get; private set; } = string.Empty;
 
+    public string Error => Card switch
+    {
+        IPermissionCardViewModel permission => permission.Error,
+        IFormCardViewModel form => form.Error,
+        _ => string.Empty,
+    };
+
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
@@ -243,6 +252,17 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
 
     private void Forward(ITimelineItem card)
     {
+        if (card is System.ComponentModel.INotifyPropertyChanged notifying)
+        {
+            notifying.PropertyChanged += (_, changed) =>
+            {
+                if (changed.PropertyName == nameof(Error))
+                {
+                    OnPropertyChanged(nameof(Error));
+                }
+            };
+        }
+
         IEnumerable<System.Windows.Input.ICommand> commands = card switch
         {
             IPermissionCardViewModel permission => [permission.AllowCommand, permission.DenyCommand],

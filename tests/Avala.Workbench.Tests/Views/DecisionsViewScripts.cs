@@ -10,18 +10,22 @@ using Avala.Workbench.Decisions;
 using Avala.Workbench.Timeline;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Styling;
+using Avalonia.VisualTree;
 
 namespace Avala.Workbench.Tests.Views;
 
 public sealed class DecisionsViewScripts(HeadlessUi ui)
 {
+    private static readonly string[] Actions = ["Open", "DontAskAgain", "AlwaysInRepository", "Deny", "Answer"];
+
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
     public Task EveryWaitingDecisionIsListedWithTheSelectedOneOpenAndTheKeysThatAnswerItAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Tall(Screen.Show(new DesignDecisionsViewModel()));
+            var view = Tall(new DesignDecisionsViewModel());
 
             Assert.Equal((3, "3 pending"), (view.Find<ListBox>("Items").ItemCount, view.TextOf("Pending")));
             Assert.False(view.Shows("EmptyState"));
@@ -51,7 +55,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         {
             var command = string.Join('\n', Enumerable.Range(1, 60).Select(line => $"echo {line} >> /tmp/out.txt"));
             var decision = Workbench.Decisions.DesignDecisionViewModel.Permission(Jobs.Contracts.JobId.New(), "Build a timer", "Run 60 commands: echo > /tmp/out.txt", command, "1m", isSelected: true, writes: "Writes to /tmp/out.txt");
-            var view = Tall(Screen.Show(decision));
+            var view = Tall(decision);
             var scroll = view.Find<ScrollViewer>("TargetScroll");
 
             Assert.Equal((command, "Writes to /tmp/out.txt"), (view.Find<SelectableTextBlock>("Target").Text, view.TextOf("Writes")));
@@ -77,7 +81,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var decisions = Waiting(bench);
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
             var focusedOnShow = view.Find<ListBox>("Items").ContainerFromIndex(0)!.IsFocused;
 
             view.Press(Key.J);
@@ -98,7 +102,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var decisions = Waiting(bench);
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
 
             view.Press(Key.Back);
             await (decisions.DenyCommand.ExecutionTask ?? Task.CompletedTask);
@@ -112,7 +116,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var decisions = Waiting(bench);
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
             var closed = view.Shows("NoteBox");
 
             view.Press(Key.Enter, RawInputModifiers.Shift);
@@ -135,7 +139,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             using var bench = new Bench();
             var decisions = Waiting(bench);
             decisions.MoveNextCommand.Execute(null);
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
             view.Press(Key.Enter, RawInputModifiers.Shift);
 
             view.Type("DecisionNote", "2");
@@ -152,7 +156,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var decisions = Waiting(bench);
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
             view.Press(Key.Enter, RawInputModifiers.Shift);
             view.Type("DecisionNote", "Only the checkout tests");
 
@@ -171,7 +175,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             var decisions = Waiting(bench);
             var closed = 0;
             decisions.CloseRequested += (_, _) => closed++;
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
 
             view.Press(Key.Escape);
 
@@ -187,7 +191,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             var asking = Asking(bench);
             var questioning = Questioning(bench);
             decisions.Show(Bench.Of(questioning));
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
             var selected = decisions.Selected;
 
             decisions.Show(Bench.Of(asking, questioning));
@@ -210,7 +214,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             var asking = Asking(bench);
             var questioning = Questioning(bench);
             decisions.Show(Bench.Of(asking, questioning));
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
 
             decisions.Show(Bench.Of(asking with { Transcript = Transcript.Empty }, questioning));
             view.Settle();
@@ -225,7 +229,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var decisions = Waiting(bench);
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
 
             view.Click("Answer");
             await (decisions.Items[0].AnswerCommand.ExecutionTask ?? Task.CompletedTask);
@@ -246,7 +250,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             var decisions = bench.Decisions();
             var command = $"pnpm vitest run src/checkout/CheckoutForm.test.tsx --reporter=verbose {string.Join(' ', Enumerable.Repeat("--testNamePattern=submits", 12))}";
             decisions.Show(Bench.Of(Asking(bench, command)));
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
 
             var target = view.Find<SelectableTextBlock>("Target");
             Assert.Equal(command, target.Text);
@@ -261,7 +265,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             using var bench = new Bench();
             var decisions = bench.Decisions();
             decisions.Show(Bench.Of(Releasing(bench)));
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
             var shown = (view.Shows("FormBox"), view.Shows("FieldsBelow"), view.Shows("Options"));
 
             view.Type("Text", "jk 1.4");
@@ -282,7 +286,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             using var bench = new Bench();
             var decisions = bench.Decisions();
             decisions.Show(Bench.Of(Asking(bench)));
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
 
             view.Click("DontAskAgain");
             view.Click("Answer");
@@ -300,7 +304,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             using var bench = new Bench();
             var decisions = bench.Decisions();
             decisions.Show(Bench.Of(Asking(bench, "dotnet test", inRepository: true)));
-            var view = Tall(Screen.Show(decisions));
+            var view = Tall(decisions);
 
             view.Click("AlwaysInRepository");
             view.Click("Answer");
@@ -309,6 +313,51 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             Assert.Equal("Always in this repository", view.Find<CheckBox>("AlwaysInRepository").Content);
             Assert.True(view.Find<CheckBox>("DontAskAgain").IsChecked);
             Assert.Equal(Remember.InThisRepository, Assert.Single(bench.Permissions.Replies).Reply.Remember);
+        }, Cancellation);
+
+    [Fact]
+    public Task AtThePopoversWidthEveryActionOfAPermissionShowsWholeInsideItAsync() =>
+        ui.RunAsync(() =>
+        {
+            using var bench = new Bench();
+            var decisions = bench.Decisions();
+            decisions.Show(Bench.Of(Asking(bench, "dotnet test", inRepository: true)));
+            var view = Screen.Show(decisions, ThemeVariant.Dark, 420, 900);
+            var surface = view.Find("Surface");
+
+            var texts = Actions
+                .Select(view.Find)
+                .SelectMany(action => action.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text)).Select(text => (Action: action, Text: text)))
+                .ToList();
+
+            Assert.Equal(["Open conversation", "Don't ask again for this job", "Always in this repository", "Deny  ⌫", "Allow  ⏎"], texts.Select(shown => shown.Text.Text));
+            Assert.All(texts, shown =>
+            {
+                var action = Avalonia.VisualExtensions.TranslatePoint(shown.Action, default, surface)?.X ?? double.MinValue;
+                var text = Avalonia.VisualExtensions.TranslatePoint(shown.Text, default, shown.Action)?.X ?? double.MaxValue;
+                var width = Intrinsic(shown.Text);
+                Assert.True(
+                    action >= 0 && action + shown.Action.Bounds.Width <= surface.Bounds.Width + 0.5 && text + width <= shown.Action.Bounds.Width + 0.5,
+                    $"{shown.Text.Text} needs {width} from {text} in its {shown.Action.Bounds.Width} wide action at {action} of {surface.Bounds.Width}");
+            });
+        }, Cancellation);
+
+    [Fact]
+    public Task AnAnswerRefusedFromThePopoverSaysWhyUnderTheDecisionAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            bench.Permissions.Refuse = true;
+            var decisions = bench.Decisions();
+            decisions.Show(Bench.Of(Asking(bench)));
+            var view = Tall(decisions);
+
+            view.Click("Answer");
+            await (decisions.Items[0].AnswerCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.True(view.Shows("Error"));
+            Assert.Equal("The agent no longer waits for this answer.", view.TextOf("Error"));
         }, Cancellation);
 
     private static BoardJob Releasing(Bench bench)
@@ -331,12 +380,15 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         };
     }
 
-    private static ViewScript Tall(ViewScript view)
+    private static double Intrinsic(TextBlock text)
     {
-        view.Window.Height = 900;
+        var probe = new TextBlock { Text = text.Text, FontFamily = text.FontFamily, FontSize = text.FontSize, FontWeight = text.FontWeight };
+        probe.Measure(Avalonia.Size.Infinity);
 
-        return view.Settle();
+        return probe.DesiredSize.Width;
     }
+
+    private static ViewScript Tall(object viewModel) => Screen.ShowStill(viewModel, 900);
 
     private static DecisionsViewModel Waiting(Bench bench)
     {
