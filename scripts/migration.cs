@@ -13,6 +13,7 @@
 #:project ../src/Modules/Handoffs/Avala.Handoffs/Avala.Handoffs.csproj
 #:project ../src/Modules/Triggers/Avala.Triggers/Avala.Triggers.csproj
 #:project ../src/Modules/Forges/Avala.Forges/Avala.Forges.csproj
+#:project ../src/Modules/Notifications/Avala.Notifications/Avala.Notifications.csproj
 
 using System.Reflection;
 using System.Text.RegularExpressions;

@@ -169,5 +169,3 @@ public sealed record NotificationRecord(Guid Id, NotificationKind Kind, Severity
 }
 
 public sealed record NotificationSettled(NotificationRecord Record) : IIntegrationEvent;
-
-public sealed record NotificationSettingsChanged(NotificationFile File) : IIntegrationEvent;
