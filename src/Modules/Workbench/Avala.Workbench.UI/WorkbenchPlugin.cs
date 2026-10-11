@@ -62,6 +62,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton<JobBoard>()
+            .AddSingleton<TranscriptRecall>()
             .AddSingleton<BoardJoiner>()
             .AddSingleton<BoardKeeper>()
             .AddForwarded<IHandle<StartupCompleted>, BoardKeeper>()

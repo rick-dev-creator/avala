@@ -133,6 +133,25 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.Equal(("NeedsYou", "held: its conversation cannot resume"), await workbench.RowAsync(parent, "NeedsYou"));
     }
 
+    [Fact]
+    public async Task ADelegatingCallStillReadsAsItsDelegationInTheConversationAfterARestartAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, Delegating);
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("delegate-across"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(parent));
+        await run.DeliveredAsync();
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(parent);
+        await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Contains("RestartViewModel"));
+        Assert.Equal(
+            ["Delegated to [simulate: notes] Write the release notes · integrated into its parent", "Delegated to [simulate: todo] Write the to-do list · integrated into its parent"],
+            await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "ToolViewModel", "Title")));
+    }
+
     private static async Task<(JobId Parent, JobId Child)> DelegatedAsync(SimulatedRun run, string scenario)
     {
         var delegated = run.Watch<ChildDelegated>();
