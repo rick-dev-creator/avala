@@ -36,7 +36,7 @@ public sealed class HandoffBriefTests
             Files = Option<IReadOnlyList<FileChange>>.Some([new FileChange("src/Money.cs", ChangeKind.Modified, 12, 3)]),
             Verification = report,
             Feedback = "The checks did not pass. Review the failures and fix them.",
-            Decisions = ["Allowed Command dotnet test by the rule tests"],
+            Decisions = ["Allowed by the rule tests: run dotnet test"],
             Questions = ["Choose a database: The service needs to store its orders."],
             LastMessage = "Rounded the totals; the tests still fail on JPY.",
         });
@@ -48,7 +48,7 @@ public sealed class HandoffBriefTests
                 "- [done] Write the change\n- [in progress] Run the tests",
                 "- src/Money.cs (modified, +12 -3)",
                 "The last verification, of attempt 1: failed.\n- build: passed, exit 0\n- tests: failed, exit 1\n\nFeedback: The checks did not pass.",
-                "- Allowed Command dotnet test by the rule tests",
+                "- Allowed by the rule tests: run dotnet test",
                 "- Choose a database: The service needs to store its orders.",
                 "Rounded the totals; the tests still fail on JPY.",
                 "- Make the failing checks pass: tests.\n- Finish the pending steps of the plan: Run the tests.",

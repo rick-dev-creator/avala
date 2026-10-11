@@ -61,7 +61,7 @@ public sealed class HandoffTests(PublishedPlugins plugins)
         Assert.Equal([new Cost(0.0600m, "USD")], handoff.Spent);
         Assert.StartsWith("This job was handed off to you from simulator-one, which reached 95% of its 5-hour window. You continue it on simulator-two in a new conversation.", brief, StringComparison.Ordinal);
         Assert.All(
-            [$"## The original instruction\n{Instruction}", "- calculator.txt (added, +1 -0)", "- calculator: Failed, exit 1", "Feedback: ", "- Make the failing checks pass: calculator.", "The calculator is ready, though the usage window is nearly spent."],
+            [$"## The original instruction\n{Instruction}", "- calculator.txt (added, +1 -0)", "- calculator: failed, exit 1", "Feedback: ", "- Make the failing checks pass: calculator.", "The calculator is ready, though the usage window is nearly spent."],
             expected => Assert.Contains(expected.ReplaceLineEndings(), brief, StringComparison.Ordinal));
         var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation));
         Assert.Equal(Option<ConnectionName>.Some(Two), history.Summary.Connection);
