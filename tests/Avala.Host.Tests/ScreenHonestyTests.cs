@@ -295,17 +295,15 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
         var decided = await run.DecisionsAsync(count: 3);
         var workbench = await run.WorkbenchAsync();
         var decisions = await run.Ui.ReadAsync(() => workbench.Toolbar["Decisions"]);
-        await workbench.ShowsAsync(() => decisions["Items"].Items.Count == 1 && Row(workbench, run.Job) is { } row && row["PendingDecisions"].Value<int>() == 1);
+        await workbench.ShowsAsync(() => decisions["Items"].Items is [var waiting] && waiting["Target"].Text == Billing && Row(workbench, run.Job) is { } row && row["PendingDecisions"].Value<int>() == 1);
         var conversation = await workbench.SelectAsync(run.Job);
         await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "PermissionCardViewModel", "Verdict").Contains("Withdrawn by the harness"));
-        var waiting = await run.Ui.ReadAsync(() => decisions["Items"].Items[0]["Target"].Text);
 
         await run.Ui.RunAsync(() => decisions.ExecuteAsync("AnswerCommand"));
 
         Assert.Equal(
             [(Orders, DecisionDelivery.LeftToHuman), (Orders, DecisionDelivery.Withdrawn), (Billing, DecisionDelivery.LeftToHuman)],
             decided.Select(decision => (decision.Target, decision.Delivery)));
-        Assert.Equal(Billing, waiting);
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         await workbench.ShowsAsync(() => Row(workbench, run.Job) is { } row && !row["HasPendingDecisions"].Value<bool>());
         var audit = Assert.Single(await workbench.InspectAsync(run.Job, "AuditSectionViewModel"));
