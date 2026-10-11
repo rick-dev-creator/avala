@@ -30,6 +30,9 @@ public sealed class NotificationsPlugin : IPlugin
             .AddForwarded<INotificationStore, SqliteNotificationStore>()
             .AddForwarded<IStartupTask, SqliteNotificationStore>()
             .AddSingleton<ISecrets, EnvironmentSecrets>()
+            .AddSingleton(Http)
+            .AddSingleton<INotificationChannel, NtfyChannel>()
+            .AddSingleton<INotificationChannel, WebhookChannel>()
             .AddSingleton<Courier>()
             .AddSingleton<Outlook>()
             .AddSingleton<SentLog>()
@@ -46,4 +49,9 @@ public sealed class NotificationsPlugin : IPlugin
             .AddSingleton<NotificationBook>()
             .AddForwarded<INotifications, NotificationBook>();
     }
+
+    private static NotifierHttp Http(IServiceProvider services) =>
+        services.GetKeyedService<HttpMessageHandler>(NotificationTransport.Handler) is { } handler
+            ? new NotifierHttp(handler, owned: false)
+            : new NotifierHttp(new SocketsHttpHandler(), owned: true);
 }
