@@ -49,6 +49,8 @@ internal sealed record PermissionEntry(string Key, SessionId Session, TurnId Tur
 
     public Option<PermissionAnswer> Resolution { get; init; }
 
+    public Option<HumanAnswer> Answered { get; init; }
+
     public bool Closed { get; init; }
 
     public bool Withdrawn { get; init; }

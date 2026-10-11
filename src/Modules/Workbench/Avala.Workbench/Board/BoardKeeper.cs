@@ -151,7 +151,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
                 : ChildAskingState.Denied,
         });
 
-        return InSessionAsync(answer.Session, Audited);
+        return InSessionAsync(answer.Session, job => Audited(job with { Transcript = job.Transcript.Apply(answer) }));
     }
 
     public ValueTask HandleAsync(ParentAsked integrationEvent, CancellationToken cancellationToken)

@@ -101,6 +101,11 @@ internal sealed record Transcript
     public Transcript Apply(PolicyDecision decision) =>
         Change(EntryKeys.Permission(decision.Turn, decision.Item), entry => entry is PermissionEntry permission ? permission with { Decision = decision } : entry);
 
+    public Transcript Apply(HumanAnswer answer) =>
+        Entries.OfType<PermissionEntry>().LastOrDefault(entry => entry.Session == answer.Session && entry.Item == answer.Item) is { } permission
+            ? Put(permission with { Answered = answer })
+            : this;
+
     public Transcript Apply(FormDecision decision) =>
         Change(EntryKeys.Item(decision.Turn, decision.Item), entry => entry is FormEntry form ? form with { Decision = decision } : entry);
 

@@ -68,6 +68,24 @@ public sealed class BoardKeeperTests
     }
 
     [Fact]
+    public async Task APersonsAnswerIsKeptOnItsPermissionWithTheRepositoryRuleItAdded()
+    {
+        var job = catalog.Add("Fix the failing test").Summary.Job;
+        var (session, turn) = (SessionId.New(), TurnId.New());
+        var rule = new PolicyRule(RuleOrigin.Repository, "always in this repository", ItemKind.Command, "dotnet test", RuleScope.Anywhere, PolicyAnswer.Allow);
+        var answer = new HumanAnswer(session, job, new ItemId("test"), ItemKind.Command, "dotnet test", PermissionAnswer.Allow, Option<string>.None, Option<PolicyRule>.None, time.GetUtcNow()) { RepositoryRule = rule };
+        await keeper.HandleAsync(new JobSubmitted(job), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(job, session), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new TurnStarted(session, turn)), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new PermissionRequested(session, turn, new ItemId("test"), "Run the tests", ItemKind.Command, "dotnet test")), Cancellation);
+        await keeper.HandleAsync(new PermissionDecided(new PolicyDecision(session, turn, new ItemId("test"), job, ItemKind.Command, "dotnet test", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, time.GetUtcNow())), Cancellation);
+
+        await keeper.HandleAsync(new PermissionAnswered(answer), Cancellation);
+
+        Assert.Equal(Option<HumanAnswer>.Some(answer), Assert.Single(Joined(job).Transcript.Entries.OfType<PermissionEntry>()).Answered);
+    }
+
+    [Fact]
     public async Task WhatAChildAsksItsParentShowsInTheParentsConversationUntilTheParentAnswersIt()
     {
         var parent = catalog.Add("Ship the release").Summary.Job;

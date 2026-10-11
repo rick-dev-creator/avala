@@ -76,6 +76,27 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AlwaysInThisRepositoryChosenInThePopoverIsReportedOnTheConversationsCardAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "repeated-permission");
+        Assert.Equal(DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
+        var workbench = await run.WorkbenchAsync();
+        var decisions = await run.Ui.ReadAsync(() => workbench.Toolbar["Decisions"]);
+        await workbench.ShowsAsync(() => decisions["Items"].Items.Count == 1);
+
+        await run.Ui.RunAsync(() =>
+        {
+            decisions["Items"].Items[0].Set("AlwaysInRepository", true);
+
+            return decisions.ExecuteAsync("AnswerCommand");
+        });
+        var conversation = await workbench.SelectAsync(run.Job);
+
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "PermissionCardViewModel", "Notice").Contains("Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again."));
+        Assert.True(File.Exists(Path.Combine(run.Repository.Path, ".avala", "permissions.json")));
+    }
+
+    [Fact]
     public async Task ANewJobShowsItsRepositorysAutonomyAndRunsSupervisedWhenChosenAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [], [(".avala/permissions.json", Autonomous)]);

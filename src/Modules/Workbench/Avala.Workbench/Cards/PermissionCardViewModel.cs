@@ -123,6 +123,7 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
             IsShown = permission.WentToHuman || permission.WentToParent;
             AwaitsYou = permission.AwaitsHuman || permission.AwaitsParent;
             Verdict = CardPhrases.Verdict(permission);
+            Notice = permission.Answered.Match(CardPhrases.Remembered, () => Notice);
             OnPropertyChanged(nameof(OffersAlwaysInRepository));
             OnPropertyChanged(nameof(AlwaysInRepositoryScope));
         }

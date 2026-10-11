@@ -90,6 +90,24 @@ public sealed class PermissionCardViewModelScripts
         Assert.Equal(notice, card.Notice);
     }
 
+    [Theory]
+    [InlineData("added", "Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again.")]
+    [InlineData("refused", "Not added to .avala/permissions.json: the repository's file could not be written. This job won't ask again.")]
+    [InlineData("once", "")]
+    public void ACardSaysWhetherTheRepositoryRuleWasAddedWhereverItsRequestWasAnswered(string answered, string notice)
+    {
+        var request = asking.OfferingTheRepository("dotnet test");
+        var answer = new HumanAnswer(request.Session, Option<Jobs.Contracts.JobId>.None, request.Item, request.Kind, request.Target, PermissionAnswer.Allow, Option<string>.None, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch)
+        {
+            RepositoryRule = answered == "added" ? request.Decision.Bind(decision => decision.RepositoryRule) : Option<PolicyRule>.None,
+            RepositoryError = answered == "refused" ? PolicyError.RepositoryUnwritable : Option<PolicyError>.None,
+        };
+
+        ViewModelScript.Given(new PermissionCardViewModel(request, new(permissions, new FakeAgents())))
+            .When(card => card.Update(request with { Resolution = PermissionAnswer.Allow, Answered = answer }))
+            .Then(card => Assert.Equal((notice, 0), (card.Notice, permissions.Replies.Count)));
+    }
+
     [Fact]
     public async Task AlwaysInThisRepositoryIsNeverSentForARequestItWasNotOfferedFor()
     {
