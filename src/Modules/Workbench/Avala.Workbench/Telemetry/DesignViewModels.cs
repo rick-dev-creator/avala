@@ -4,7 +4,7 @@ namespace Avala.Workbench.Telemetry;
 
 internal sealed class DesignTelemetryViewModel : ITelemetryViewModel
 {
-    public string Status { get; init; } = "On. Exactly the event below is sent, and nothing else.";
+    public string Status { get; init; } = "On. Only events like the one below are sent, nothing else.";
 
     public bool IsOn { get; init; } = true;
 

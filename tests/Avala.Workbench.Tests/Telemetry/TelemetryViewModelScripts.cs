@@ -9,7 +9,7 @@ public sealed class TelemetryViewModelScripts
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Theory]
-    [InlineData(nameof(TelemetryStatus.On), "", "On. Exactly the event below is sent, and nothing else.", true, true)]
+    [InlineData(nameof(TelemetryStatus.On), "", "On. Only events like the one below are sent, nothing else.", true, true)]
     [InlineData(nameof(TelemetryStatus.Off), "", "Off. Nothing is sent.", false, true)]
     [InlineData(nameof(TelemetryStatus.OffByEnvironment), "DO_NOT_TRACK=1", "Off because DO_NOT_TRACK=1 is set in Avala's environment. Nothing is sent.", false, false)]
     [InlineData(nameof(TelemetryStatus.OffByEnvironment), "AVALA_TELEMETRY=0", "Off because AVALA_TELEMETRY=0 is set in Avala's environment. Nothing is sent.", false, false)]

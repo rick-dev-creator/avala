@@ -23,6 +23,8 @@ internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar,
         return new OpenWorkbench(run, run.Page("Jobs"), Region(run, ShellRegions.Sidebar).Single(), Region(run, ShellRegions.Toolbar).Single());
     }
 
+    public Bound Footer(string kind) => Region(run, ShellRegions.SidebarFooter).Single(item => item.Kind == kind);
+
     public Bound Section(string kind) => Region(run, ShellRegions.Inspector).Single(section => section.Kind == kind);
 
     public Task ShowsAsync(Func<bool> shown) =>

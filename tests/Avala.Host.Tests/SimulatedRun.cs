@@ -65,6 +65,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public FakeNotifierEndpoint Notifier => surroundings.Notifier.Endpoint;
 
+    public TelemetryGate Telemetry => surroundings.Telemetry;
+
     public ICanvases Canvases => Get<ICanvases>();
 
     public ViewRegistry Views => application.Root.Views;
@@ -165,7 +167,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         bool developer = true,
         Option<IPlugin> claudeCode = default,
         Func<string, IReadOnlyList<(string File, string Content)>>? placed = null,
-        bool realNotifier = false)
+        bool realNotifier = false,
+        bool telemetry = false)
     {
         var data = new TemporaryFolder();
 
@@ -177,6 +180,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         }
 
         var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier };
+        surroundings.Telemetry.Configured = telemetry;
         var root = surroundings.Compose(plugins, data);
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 
@@ -392,6 +396,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public JudgeGate Judge { get; } = new();
 
+        public TelemetryGate Telemetry { get; } = new();
+
         public bool RealNotifier { get; init; }
 
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
@@ -403,7 +409,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
-                RealNotifier ? [Board, Fault, Trips, Judge] : [Board, Fault, Trips, Notifier, Judge]);
+                RealNotifier ? [Board, Fault, Trips, Judge, Telemetry] : [Board, Fault, Trips, Notifier, Judge, Telemetry]);
     }
 
     private sealed class Application : IAsyncDisposable

@@ -72,7 +72,7 @@ internal static class TelemetryPhrases
 
     public static string Status(TelemetryState state) => state.Status switch
     {
-        TelemetryStatus.On => "On. Exactly the event below is sent, and nothing else.",
+        TelemetryStatus.On => "On. Only events like the one below are sent, nothing else.",
         TelemetryStatus.Off => "Off. Nothing is sent.",
         TelemetryStatus.OffByEnvironment => $"Off because {state.OptedOutBy.Match(variable => variable, () => "DO_NOT_TRACK")} is set in Avala's environment. Nothing is sent.",
         _ => "Not configured in this build: nothing is ever sent.",
