@@ -2,11 +2,14 @@ using Avala.Runtime.Appearance;
 using Avala.Runtime.Containment;
 using Avala.Runtime.Diagnostics;
 using Avala.Runtime.Events;
+using Avala.Runtime.Presence;
 using Avala.Runtime.Processes;
 using Avala.Runtime.Updates;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
+using Avala.Sdk.Diagnostics;
 using Avala.Sdk.Events;
+using Avala.Sdk.Presence;
 using Avala.Sdk.Processes;
 using Avala.Sdk.Updates;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +41,9 @@ public static class RuntimeServices
                 .AddSingleton<AppearanceFile>()
                 .AddForwarded<IAppearance, AppearanceFile>()
                 .AddForwarded<IStartupTask, AppearanceFile>()
+                .AddSingleton<WindowPresence>()
+                .AddForwarded<IPresence, WindowPresence>()
+                .AddSingleton<IRedaction>(_ => LogRedaction.FromEnvironment())
                 .AddSingleton<UpdatesFile>()
                 .AddSingleton(provider => new UpdateCheck(
                     provider.GetService<AvalaBuild>() ?? AvalaBuild.From(Option<string>.None),

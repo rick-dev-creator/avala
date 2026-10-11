@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Avala.Host.Composition;
 using Avala.Runtime.Diagnostics;
+using Avala.Runtime.Presence;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
 using Avala.Sdk.Events;
@@ -108,6 +109,15 @@ internal sealed partial class App : Application
             new SystemMotion(composition.Services.GetRequiredService<IProcessRunner>()),
             appearance);
 
-        desktop.MainWindow = await startup.ShowAsync(() => new ShellView { DataContext = shell }, composition.Lifetime);
+        var presence = composition.Services.GetRequiredService<WindowPresence>();
+        desktop.MainWindow = await startup.ShowAsync(
+            () =>
+            {
+                var window = new ShellView { DataContext = shell };
+                PresenceWatch.Follow(window, presence);
+
+                return window;
+            },
+            composition.Lifetime);
     }
 }

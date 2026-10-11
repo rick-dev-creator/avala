@@ -1,9 +1,10 @@
 using System.Collections;
 using System.Text.RegularExpressions;
+using Avala.Sdk.Diagnostics;
 
 namespace Avala.Runtime.Diagnostics;
 
-internal sealed partial class LogRedaction(IReadOnlyList<string> secrets)
+internal sealed partial class LogRedaction(IReadOnlyList<string> secrets) : IRedaction
 {
     public const string Mark = "[redacted]";
 
