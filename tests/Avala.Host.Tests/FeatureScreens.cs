@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using Avala.Autopilot.Contracts;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
@@ -259,6 +260,40 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "19-triggers-schedule-webhook-deliveries-runs-dark");
         await Camera.ShootAsync(run, "19-triggers-schedule-webhook-deliveries-runs-light", ThemeVariant.Light);
     }
+
+    [Fact]
+    public async Task TheTriggersPageWithALiveLoopAboveAnEndedOneAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            (".avala/checks.json", PassingChecks),
+            (".avala/permissions.json", Autonomous),
+            (".avala/jobs.json", """{ "approval": "merge", "autopilot": { "approve": "cleanEvidence" } }"""),
+            (".avala/backlog.json", Backlog(("greet", "[simulate: edit] Greet the team"))));
+        var autopilot = run.Get<IAutopilot>();
+        var ended = run.Watch<LoopEnded>();
+        var taken = run.Watch<LoopTaskTaken>();
+        _ = Outcomes.Succeeds(await autopilot.StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+        _ = await ended.UntilAsync(_ => true);
+        await run.Repository.CommitAsync(
+            ".avala/backlog.json",
+            Backlog(("greet", "[simulate: edit] Greet the team"), ("checks", "[simulate: rewrite-checks] Loosen the checks"), ("docs", "[simulate: hang] Document the greeting")),
+            Cancellation);
+
+        var live = Outcomes.Succeeds(await autopilot.StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+        _ = await taken.UntilAsync(task => task.Loop == live && task.Iteration == 2);
+
+        _ = await run.WorkbenchAsync();
+        var page = run.Page("Triggers");
+        await run.Ui.InvokeAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage = (Avala.Sdk.IPage)page.Target, Cancellation);
+        await run.Ui.PresentedAsync(page.Presentation, () => page["Loops"]["Loops"].Items.Count == 2 && page["Loops"]["Loops"].Items[0]["Iterations"].Items.Count == 1, () => "the triggers page did not show the live loop with its iteration above the ended one");
+        await Camera.ShootAsync(run, "26-triggers-live-loop-above-an-ended-one-dark");
+        await Camera.ShootAsync(run, "26-triggers-live-loop-above-an-ended-one-light", ThemeVariant.Light);
+    }
+
+    private static string Backlog(params (string Id, string Instruction)[] tasks) =>
+        $$"""{ "tasks": [ {{string.Join(", ", tasks.Select(task => $$"""{ "id": "{{task.Id}}", "instruction": "{{task.Instruction}}" }"""))}} ] }""";
 
     private static async Task<System.Net.HttpStatusCode> PostAsync(HttpClient client, string url, SimulatedRun run, string body, string nonce, string secret)
     {
