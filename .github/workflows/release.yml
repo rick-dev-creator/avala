@@ -54,10 +54,15 @@ jobs:
       - name: Package and smoke test, unsigned
         if: vars.AVALA_SIGNING != 'true'
         run: dotnet run scripts/package.cs -- --rid ${{ matrix.rid }} --smoke --output artifacts/release
+        env:
+          AVALA_TELEMETRY_KEY: ${{ vars.AVALA_TELEMETRY_KEY }}
+          AVALA_TELEMETRY_HOST: ${{ vars.AVALA_TELEMETRY_HOST }}
       - name: Package, sign and smoke test
         if: vars.AVALA_SIGNING == 'true'
         run: dotnet run scripts/package.cs -- --rid ${{ matrix.rid }} --sign --smoke --output artifacts/release
         env:
+          AVALA_TELEMETRY_KEY: ${{ vars.AVALA_TELEMETRY_KEY }}
+          AVALA_TELEMETRY_HOST: ${{ vars.AVALA_TELEMETRY_HOST }}
           AVALA_WINDOWS_CERTIFICATE: ${{ secrets.AVALA_WINDOWS_CERTIFICATE }}
           AVALA_WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.AVALA_WINDOWS_CERTIFICATE_PASSWORD }}
           AVALA_MACOS_CERTIFICATE: ${{ secrets.AVALA_MACOS_CERTIFICATE }}

@@ -19,7 +19,7 @@ var target = Targets.Of(options.Rid);
 var work = Path.Combine(root, "artifacts", "package", options.Rid);
 var output = Path.GetFullPath(options.Output ?? Path.Combine(root, "artifacts", "packages"));
 
-Console.WriteLine($"Packaging Avala {version.Text} for {target.Rid}.");
+Console.WriteLine($"Packaging Avala {version.Text} for {target.Rid}, {Telemetry.Describe()}.");
 Folders.Recreate(work);
 Directory.CreateDirectory(output);
 
@@ -159,6 +159,27 @@ internal static class Versions
     }
 }
 
+internal static class Telemetry
+{
+    public const string KeyVariable = "AVALA_TELEMETRY_KEY";
+
+    public const string HostVariable = "AVALA_TELEMETRY_HOST";
+
+    public static string Describe() =>
+        Value(KeyVariable) is { } key
+            ? $"with usage statistics for the {key.Split('-') switch { [_, var region, ..] => region, _ => "unknown" }} region of Aptabase"
+            : $"without usage statistics, since {KeyVariable} is not set";
+
+    public static IEnumerable<string> Properties() =>
+        [
+            .. Value(KeyVariable) is { } key ? [$"-p:AvalaTelemetryKey={key}"] : Array.Empty<string>(),
+            .. Value(HostVariable) is { } host ? [$"-p:AvalaTelemetryHost={host}"] : Array.Empty<string>(),
+        ];
+
+    private static string? Value(string name) =>
+        Environment.GetEnvironmentVariable(name)?.Trim() is { Length: > 0 } value ? value : null;
+}
+
 internal static class Build
 {
     public static Task PublishHostAsync(string root, Target target, PackageVersion version, string stage) =>
@@ -173,6 +194,7 @@ internal static class Build
                 $"-p:Version={version.Text}",
                 "-p:PublishReadyToRun=false",
                 "-p:PublishSingleFile=false",
+                .. Telemetry.Properties(),
             ],
             root);
 
