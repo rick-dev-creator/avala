@@ -146,6 +146,38 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheMachinesDailySpendCeilingPausesTheLoopUntilTheNextDayAndThenItsJobGoesOnToReviewAsync()
+    {
+        var recording = new DogfoodScript("daily").Turn().Say("Half of it.").Bill(0.0120m, 0.22).Finish().Turn().Say("The rest.").Bill(0.0004m, 0.23).Finish();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [("budgets.json", """{ "spendPerDay": { "USD": 0.001 } }"""), ("recordings/daily.json", recording.Json)],
+            [
+                (".avala/checks.json", PassingChecks),
+                (".avala/jobs.json", """{ "autopilot": { "approve": "cleanEvidence" } }"""),
+                (".avala/backlog.json", Backlog(("greet", $"{recording.Tag} Greet the team"))),
+            ]);
+        var paused = run.Watch<LoopPaused>();
+        var resumed = run.Watch<LoopResumed>();
+        var ended = run.Watch<LoopEnded>();
+
+        var loop = Outcomes.Succeeds(await run.Get<IAutopilot>().StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+        var pause = (await paused.UntilAsync(_ => true)).Pause;
+        var until = Outcomes.Present(pause.Until);
+        run.AdvanceTo(until);
+        var resumedAt = (await resumed.UntilAsync(_ => true)).At;
+        var state = (await ended.UntilAsync(_ => true)).State;
+
+        var midnight = TimeZoneInfo.ConvertTime(pause.At, run.Clock.LocalTimeZone).Date.AddDays(1);
+        Assert.Equal(PauseReason.DailySpend, pause.Reason);
+        Assert.Equal(new DateTimeOffset(midnight, run.Clock.LocalTimeZone.GetUtcOffset(midnight)), until);
+        Assert.True(resumedAt >= until, $"Resumed at {resumedAt:O}, before the day turned at {until:O}");
+        Assert.Equal((Option<LoopEnding>.Some(LoopEnding.Drained), 1), (state.Ending, state.Iterations));
+        var iteration = Assert.Single(Outcomes.Present(run.Get<IAutopilot>().DigestOf(loop)).Iterations);
+        Assert.Equal(IterationOutcome.AwaitingReview, iteration.Outcome);
+    }
+
+    [Fact]
     public async Task ALoopPausedForItsHeldJobSettlesTheJobThatSettledBeforeTheLoopStoredItOnceAvalaRestartsAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(
