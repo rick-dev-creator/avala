@@ -1,0 +1,30 @@
+{
+  "sha": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+  "node_id": "C_1",
+  "commit": {
+    "author": {
+      "name": "Alice",
+      "email": "alice@example.com",
+      "date": "2026-10-11T08:00:00Z"
+    },
+    "committer": {
+      "name": "Alice",
+      "email": "alice@example.com",
+      "date": "2026-10-11T08:00:00Z"
+    },
+    "message": "Break the build"
+  },
+  "url": "https://api.github.com/repos/octo/shop/commits/6dcb09b5b57875f334f61aebed695e2e4193db5e",
+  "html_url": "https://github.com/octo/shop/commit/6dcb09b5b57875f334f61aebed695e2e4193db5e",
+  "author": {
+    "login": "alice",
+    "id": 4,
+    "type": "User"
+  },
+  "committer": {
+    "login": "alice",
+    "id": 4,
+    "type": "User"
+  },
+  "parents": []
+}

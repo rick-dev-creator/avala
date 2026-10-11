@@ -5,13 +5,18 @@ using Avala.Sdk;
 
 namespace Avala.GitHub.Api;
 
-internal sealed class GitHubForge : IForge
+internal sealed class GitHubForge : IForge, IForgeEvents
 {
     public const string Id = "github";
 
     public static Uri Public { get; } = new("https://api.github.com");
 
     public ForgeInfo Info { get; } = new(Id, "GitHub") { DefaultUrl = Public, TokenScheme = "Bearer" };
+
+    public HookSignature Signature { get; } = new(["X-Hub-Signature-256"], "sha256=");
+
+    public async ValueTask<Result<ForgeEventPage, ForgeError>> ReadSinceAsync(ForgeContext context, ForgeEventQuery query, CancellationToken cancellationToken) =>
+        await GitHubEvents.ReadAsync(context, query, cancellationToken);
 
     public Option<CliCall> CliFor(ForgeRequest request, ForgeTarget target)
     {
@@ -117,7 +122,7 @@ internal sealed class GitHubForge : IForge
         return new PullRequestState(known with { Link = new Uri(pull.GetProperty("html_url").GetString()!) }, lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability);
     }
 
-    private static IReadOnlyList<CheckRun> CheckRuns(JsonElement root) =>
+    public static IReadOnlyList<CheckRun> CheckRuns(JsonElement root) =>
         [
             .. root.GetProperty("check_runs").EnumerateArray().Select(run => new CheckRun(
                 Json.Text(run, "name"),
@@ -126,7 +131,7 @@ internal sealed class GitHubForge : IForge
                 run.TryGetProperty("output", out var output) && output.ValueKind == JsonValueKind.Object ? Json.Text(output, "title") : string.Empty)),
         ];
 
-    private static IReadOnlyList<CheckRun> Statuses(JsonElement root) =>
+    public static IReadOnlyList<CheckRun> Statuses(JsonElement root) =>
         [.. root.GetProperty("statuses").EnumerateArray().Select(status => new CheckRun(Json.Text(status, "context"), CommitStatus(Json.Text(status, "state")), Json.Link(status, "target_url"), Json.Text(status, "description")))];
 
     private static IReadOnlyList<Review> Reviews(JsonElement root) =>

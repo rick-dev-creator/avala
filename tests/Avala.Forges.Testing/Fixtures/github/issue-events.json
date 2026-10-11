@@ -1,0 +1,148 @@
+[
+  {
+    "id": 7003,
+    "node_id": "LE_3",
+    "url": "https://api.github.com/repos/octo/shop/issues/events/7003",
+    "actor": {
+      "login": "alice",
+      "id": 4,
+      "type": "User"
+    },
+    "event": "labeled",
+    "commit_id": null,
+    "created_at": "2026-10-11T08:03:00Z",
+    "label": {
+      "name": "avala",
+      "color": "5319e7"
+    },
+    "issue": {
+      "url": "https://api.github.com/repos/octo/shop/issues/11",
+      "html_url": "https://github.com/octo/shop/issues/11",
+      "id": 1011,
+      "number": 11,
+      "title": "Checkout button does nothing",
+      "user": {
+        "login": "carol",
+        "id": 3,
+        "type": "User"
+      },
+      "labels": [],
+      "state": "open",
+      "comments": 0,
+      "created_at": "2026-10-11T08:00:00Z",
+      "updated_at": "2026-10-11T08:00:00Z",
+      "body": "Clicking it shows nothing."
+    }
+  },
+  {
+    "id": 7002,
+    "node_id": "RRE_2",
+    "url": "https://api.github.com/repos/octo/shop/issues/events/7002",
+    "actor": {
+      "login": "alice",
+      "id": 4,
+      "type": "User"
+    },
+    "event": "review_requested",
+    "commit_id": null,
+    "created_at": "2026-10-11T08:02:00Z",
+    "review_requester": {
+      "login": "alice",
+      "id": 4,
+      "type": "User"
+    },
+    "requested_reviewer": {
+      "login": "avala-bot",
+      "id": 8,
+      "type": "User"
+    },
+    "issue": {
+      "url": "https://api.github.com/repos/octo/shop/issues/7",
+      "html_url": "https://github.com/octo/shop/pull/7",
+      "id": 1007,
+      "number": 7,
+      "title": "Add a greeting",
+      "user": {
+        "login": "octocat",
+        "id": 1,
+        "type": "User"
+      },
+      "labels": [],
+      "state": "open",
+      "comments": 0,
+      "created_at": "2026-10-11T08:00:00Z",
+      "updated_at": "2026-10-11T08:00:00Z",
+      "body": "Add a greeting\n\nOpened by Avala for job 0b5c.",
+      "pull_request": {
+        "url": "https://api.github.com/repos/octo/shop/pulls/7",
+        "html_url": "https://github.com/octo/shop/pull/7"
+      }
+    }
+  },
+  {
+    "id": 7001,
+    "node_id": "LE_1",
+    "url": "https://api.github.com/repos/octo/shop/issues/events/7001",
+    "actor": {
+      "login": "bob",
+      "id": 5,
+      "type": "User"
+    },
+    "event": "labeled",
+    "commit_id": null,
+    "created_at": "2026-10-11T08:01:00Z",
+    "label": {
+      "name": "bug",
+      "color": "d73a4a"
+    },
+    "issue": {
+      "url": "https://api.github.com/repos/octo/shop/issues/11",
+      "html_url": "https://github.com/octo/shop/issues/11",
+      "id": 1011,
+      "number": 11,
+      "title": "Checkout button does nothing",
+      "user": {
+        "login": "carol",
+        "id": 3,
+        "type": "User"
+      },
+      "labels": [],
+      "state": "open",
+      "comments": 0,
+      "created_at": "2026-10-11T08:00:00Z",
+      "updated_at": "2026-10-11T08:00:00Z",
+      "body": "Clicking it shows nothing."
+    }
+  },
+  {
+    "id": 6999,
+    "node_id": "CE_1",
+    "url": "https://api.github.com/repos/octo/shop/issues/events/6999",
+    "actor": {
+      "login": "bob",
+      "id": 5,
+      "type": "User"
+    },
+    "event": "closed",
+    "commit_id": null,
+    "created_at": "2026-10-11T07:59:00Z",
+    "issue": {
+      "url": "https://api.github.com/repos/octo/shop/issues/10",
+      "html_url": "https://github.com/octo/shop/issues/10",
+      "id": 1010,
+      "number": 10,
+      "title": "Old issue",
+      "user": {
+        "login": "carol",
+        "id": 3,
+        "type": "User"
+      },
+      "labels": [],
+      "state": "open",
+      "comments": 0,
+      "created_at": "2026-10-11T08:00:00Z",
+      "updated_at": "2026-10-11T08:00:00Z",
+      "body": "Before Avala looked"
+    }
+  }
+]

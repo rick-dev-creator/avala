@@ -5,6 +5,7 @@ using Avala.Forges.Testing;
 using Avala.GitHub.Api;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Triggers.Contracts;
 
 namespace Avala.GitHub.Tests;
 
@@ -98,12 +99,94 @@ public sealed class GitHubForgeTests
     }
 
     [Fact]
+    public async Task ANewIssueIsAnEventAfterTheCursorAndThePullRequestsListedAmongTheIssuesAreNotAsync()
+    {
+        var server = await EventServerAsync();
+        var context = new ForgeContext(server.Api(Root), Targets.Of(Root));
+
+        var baseline = Outcomes.Succeeds(await new GitHubForge().ReadSinceAsync(context, Query(ForgeEventKind.IssueOpened, Option<string>.None), Cancellation));
+        var page = Outcomes.Succeeds(await new GitHubForge().ReadSinceAsync(context, Query(ForgeEventKind.IssueOpened, "10"), Cancellation));
+
+        Assert.Equal(([], "13"), (baseline.Events, baseline.Cursor));
+        Assert.Equal([(11, "carol", "Checkout button does nothing", "Clicking it shows nothing."), (13, "mallory", "Search returns stale results", string.Empty)], page.Events.Select(opened => (opened.Number, opened.Actor, opened.Title, opened.Body)));
+        Assert.Equal(("11", Option<Uri>.Some(new Uri("https://github.com/octo/shop/issues/11"))), (page.Events[0].Cursor, page.Events[0].Link));
+        Assert.Equal("13", page.Cursor);
+        Assert.Equal($"{Repository}/issues?state=all&sort=created&direction=desc&per_page=100", server.Sent[^1].PathAndQuery);
+    }
+
+    [Fact]
+    public async Task LabelsAndReviewRequestsComeFromTheRepositorysIssueEventsWithTheirActorAndWhetherThePullRequestIsAForksAsync()
+    {
+        var forked = (await FixtureServer.FixtureAsync("github", "pull", Cancellation)).Replace("\"head\": {\n    \"label\": \"octo:avala/job-0b5c\",\n    \"ref\": \"avala/job-0b5c\",\n    \"sha\": \"6dcb09b5b57875f334f61aebed695e2e4193db5e\",\n    \"user\": { \"login\": \"octo\", \"id\": 2 },\n    \"repo\": { \"id\": 1296269, \"name\": \"shop\", \"full_name\": \"octo/shop\" }", "\"head\": {\n    \"ref\": \"patch-1\",\n    \"sha\": \"6dcb09b5b57875f334f61aebed695e2e4193db5e\",\n    \"repo\": { \"id\": 9, \"name\": \"shop\", \"full_name\": \"mallory/shop\" }", StringComparison.Ordinal);
+        var server = await EventServerAsync();
+        var context = new ForgeContext(server.Api(Root), Targets.Of(Root));
+
+        var labels = Outcomes.Succeeds(await new GitHubForge().ReadSinceAsync(context, Query(ForgeEventKind.IssueLabeled, "7000"), Cancellation));
+        var reviews = Outcomes.Succeeds(await new GitHubForge().ReadSinceAsync(context, Query(ForgeEventKind.ReviewRequested, "7000"), Cancellation));
+        server.Route("GET", $"{Repository}/pulls/7", HttpStatusCode.OK, forked);
+        var fromFork = Outcomes.Succeeds(await new GitHubForge().ReadSinceAsync(context, Query(ForgeEventKind.ReviewRequested, "7000"), Cancellation));
+
+        Assert.Equal(
+            [("7001", 11, "bob", Option<string>.Some("bug"), "carol"), ("7003", 11, "alice", Option<string>.Some("avala"), "carol")],
+            labels.Events.Select(labeled => (labeled.Id, labeled.Number, labeled.Actor, labeled.Label, labeled.Author)));
+        Assert.Equal("7003", labels.Cursor);
+        var review = Assert.Single(reviews.Events);
+        Assert.Equal((7, "alice", Option<string>.Some("avala-bot"), true, false), (review.Number, review.Actor, review.Reviewer, review.PullRequest, review.FromFork));
+        Assert.True(Assert.Single(fromFork.Events).FromFork);
+    }
+
+    [Fact]
+    public async Task ACommentIsReadWithTheIssueItWasLeftOnAsync()
+    {
+        var server = await EventServerAsync();
+        var context = new ForgeContext(server.Api(Root), Targets.Of(Root));
+
+        var page = Outcomes.Succeeds(await new GitHubForge().ReadSinceAsync(context, Query(ForgeEventKind.CommentCommand, "9001"), Cancellation));
+
+        var comment = Assert.Single(page.Events);
+        Assert.Equal(
+            ("9002", 11, "alice", Option<string>.Some("/avala fix the checkout\nIt broke yesterday."), "Checkout button does nothing", "carol", false),
+            (comment.Id, comment.Number, comment.Actor, comment.Comment, comment.Title, comment.Author, comment.PullRequest));
+        Assert.Equal("9002", page.Cursor);
+    }
+
+    [Fact]
+    public async Task FailedChecksOnABranchHeadWithNoneStillRunningAreOneEventPerHeadAsync()
+    {
+        var finished = (await FixtureServer.FixtureAsync("github", "check-runs", Cancellation)).Replace("\"status\": \"in_progress\",\n      \"conclusion\": null", "\"status\": \"completed\",\n      \"conclusion\": \"success\"", StringComparison.Ordinal);
+        var server = await EventServerAsync();
+        var context = new ForgeContext(server.Api(Root), Targets.Of(Root));
+
+        var running = Outcomes.Succeeds(await new GitHubForge().ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, "seen:e5bd391"), Cancellation));
+        server.Route("GET", $"{Repository}/commits/{Sha}/check-runs", HttpStatusCode.OK, finished);
+        var failed = Outcomes.Succeeds(await new GitHubForge().ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, "seen:e5bd391"), Cancellation));
+        var again = Outcomes.Succeeds(await new GitHubForge().ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, failed.Cursor), Cancellation));
+
+        Assert.Equal(([], $"seen:{Sha}"), (running.Events, running.Cursor));
+        var failure = Assert.Single(failed.Events);
+        Assert.Equal(($"main:{Sha}", "alice", Option<string>.Some("main"), Option<string>.Some(Sha), $"failed:{Sha}"), (failure.Id, failure.Actor, failure.Branch, failure.Head, failed.Cursor));
+        Assert.Equal(["tests", "coverage"], failure.Checks.Where(check => check.Status == CheckStatus.Failed).Select(check => check.Name));
+        Assert.Empty(again.Events);
+    }
+
+    [Fact]
     public async Task GitHubPassesTheForgeConformanceKitAsync()
     {
         var server = await ServerAsync();
 
         Assert.Empty(await ForgeConformance.CheckAsync(new ConformanceCase(new GitHubForge(), new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, "main"), Cancellation));
     }
+
+    private static ForgeEventQuery Query(ForgeEventKind kind, Option<string> cursor) =>
+        new(kind, cursor, new DateTimeOffset(2026, 10, 11, 8, 10, 0, TimeSpan.Zero)) { Branch = "main" };
+
+    private static async Task<FixtureServer> EventServerAsync() =>
+        (await ServerAsync())
+            .Route("GET", $"{Repository}/issues?state=all&sort=created&direction=desc&per_page=100", HttpStatusCode.OK, await FixtureServer.FixtureAsync("github", "issues", Cancellation))
+            .Route("GET", $"{Repository}/issues/events?per_page=100", HttpStatusCode.OK, await FixtureServer.FixtureAsync("github", "issue-events", Cancellation))
+            .Route("GET", $"{Repository}/issues/comments?sort=created&direction=desc&per_page=100", HttpStatusCode.OK, await FixtureServer.FixtureAsync("github", "issue-comments", Cancellation))
+            .Route("GET", $"{Repository}/issues/11", HttpStatusCode.OK, await FixtureServer.FixtureAsync("github", "issue", Cancellation))
+            .Route("GET", $"{Repository}/commits/main", HttpStatusCode.OK, await FixtureServer.FixtureAsync("github", "commit", Cancellation));
 
     internal static async Task<FixtureServer> ServerAsync()
     {
