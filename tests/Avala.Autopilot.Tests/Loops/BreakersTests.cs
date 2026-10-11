@@ -72,7 +72,7 @@ public sealed class BreakersTests
     }
 
     private static LoopRecord Loop(LoopLimits limits, params IterationRecord[] iterations) =>
-        LoopRecord.Begin(LoopId.New(), new LoopRequest(Pilot.Repository) { Limits = limits }, Now) with { Iterations = [.. iterations] };
+        LoopRecord.Begin(LoopId.New(), new LoopRequest(Pilot.Repository), limits, Now) with { Iterations = [.. iterations] };
 
     private static IterationRecord Approved() => Iteration(IterationOutcome.ApprovedAutomatically);
 

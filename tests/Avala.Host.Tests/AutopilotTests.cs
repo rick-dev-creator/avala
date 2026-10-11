@@ -92,6 +92,28 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheMachinesAutopilotFileBoundsALoopStartedWithoutLimitsAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [("autopilot.json", """{ "iterations": 1 }""")],
+            [
+                (".avala/checks.json", PassingChecks),
+                (".avala/jobs.json", """{ "autopilot": { "approve": "cleanEvidence", "failuresInARow": 2 } }"""),
+                (".avala/backlog.json", Backlog(("one", "[simulate: reply] Greet the team"), ("two", "[simulate: reply] Greet the new hires"))),
+            ]);
+        var tripped = run.Watch<BreakerTripped>();
+        var ended = run.Watch<LoopEnded>();
+
+        _ = Outcomes.Succeeds(await run.Get<IAutopilot>().StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+        var trip = (await tripped.UntilAsync(_ => true)).Trip;
+        var state = (await ended.UntilAsync(_ => true)).State;
+
+        Assert.Equal((Breaker.Iterations, 1m, 1m), (trip.Breaker, trip.Measured, trip.Cap));
+        Assert.Equal((1, 1, 2), (state.Iterations, state.Limits.Iterations, state.Limits.FailuresInARow));
+    }
+
+    [Fact]
     public async Task ALimitNearItsCapPausesTheLoopUntilTheWindowResetsAndThenResumesItAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(

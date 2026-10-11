@@ -29,6 +29,7 @@ public sealed class AutopilotPlugin : IPlugin
             .AddForwarded<IStartupTask, SqliteTaskLedger>()
             .AddSingleton<IBacklogFile, BacklogFileReader>()
             .AddSingleton<IAutopilotRules, AutopilotRulesReader>()
+            .AddSingleton<ILoopLimits, LoopLimitsReader>()
             .AddSingleton<IJobSource, BacklogSource>()
             .AddSingleton<IJobSource, FollowUpSource>()
             .AddSingleton<IJobSource, RecurringSource>()

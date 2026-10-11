@@ -14,7 +14,9 @@ internal sealed class AutopilotRulesReader(IBaseFiles files) : IAutopilotRules
 
     public const int MaximumBytes = 16 * 1024;
 
-    private const string Section = "autopilot";
+    public const string Section = "autopilot";
+
+    public static IReadOnlyList<string> RuleFields { get; } = ["approve", "followUps"];
 
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 2, AllowDuplicateProperties = false };
 
@@ -55,9 +57,9 @@ internal sealed class AutopilotRulesReader(IBaseFiles files) : IAutopilotRules
             return AutopilotError.Malformed;
         }
 
-        if (section.EnumerateObject().Any(property => property.Name is not ("approve" or "followUps")))
+        if (!LoopLimitsParser.Limits(section, RuleFields).TryGetValue(out _, out var invalid))
         {
-            return AutopilotError.UnknownField;
+            return invalid;
         }
 
         return Rule(section, "approve", ApprovalRule.Never, new Dictionary<string, ApprovalRule>

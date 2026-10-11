@@ -119,7 +119,7 @@ internal sealed class LoopRunner : IAsyncDisposable
         }
 
         var now = clock.GetUtcNow();
-        var limits = record.Request.Limits;
+        var limits = record.Limits;
         var window = limits.SpendPerWindow.Count == 0 ? [] : await steps.Gauges.WithinAsync(now - limits.Window, now, token);
         var trip = record.TrippedBy(window, now);
         var exhausted = await steps.Gauges.ExhaustedAsync(record.Request.Connection, limits.PauseAtLimit, now, token);
@@ -146,7 +146,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     private Task PauseOrTripAsync(UsageLimit limit, DateTimeOffset now, CancellationToken token) =>
         limit.ResetsAt.Match(
             until => PauseForLimitAsync(limit, until, continues: false, token),
-            () => TripAsync(new BreakerTrip(Breaker.UsageLimit, limit.Window, (decimal)limit.UsedFraction, (decimal)record.Request.Limits.PauseAtLimit, now), token));
+            () => TripAsync(new BreakerTrip(Breaker.UsageLimit, limit.Window, (decimal)limit.UsedFraction, (decimal)record.Limits.PauseAtLimit, now), token));
 
     private async Task TakeAsync(SourcedTask task, CancellationToken token)
     {

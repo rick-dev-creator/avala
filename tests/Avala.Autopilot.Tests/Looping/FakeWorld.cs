@@ -5,6 +5,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Autopilot.Approving;
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Evidence;
+using Avala.Autopilot.Looping;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
@@ -164,6 +165,22 @@ internal sealed class FixedRules(Result<AutopilotRules, AutopilotError> rules) :
     public Result<AutopilotRules, AutopilotError> Rules { get; set; } = rules;
 
     public Task<Result<AutopilotRules, AutopilotError>> OfWorktreeAsync(string worktree, CancellationToken cancellationToken) => Task.FromResult(Rules);
+}
+
+internal sealed class DeclaredLimits : ILoopLimits
+{
+    private readonly ConcurrentQueue<string> reads = new();
+
+    public Result<LoopLimits, AutopilotError> Limits { get; set; } = new LoopLimits();
+
+    public IReadOnlyList<string> Reads => [.. reads];
+
+    public Task<Result<LoopLimits, AutopilotError>> OfRepositoryAsync(string repository, CancellationToken cancellationToken)
+    {
+        reads.Enqueue(repository);
+
+        return Task.FromResult(Limits);
+    }
 }
 
 internal sealed class MemorySource(string name) : IJobSource

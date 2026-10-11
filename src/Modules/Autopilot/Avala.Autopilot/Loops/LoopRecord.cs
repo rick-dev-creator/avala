@@ -12,7 +12,7 @@ internal sealed record Underway(int Iteration, SourcedTask Task, JobId Job)
     public bool ContinuesAfterReset { get; init; }
 }
 
-internal sealed record LoopRecord(LoopId Id, LoopRequest Request, DateTimeOffset Started)
+internal sealed record LoopRecord(LoopId Id, LoopRequest Request, LoopLimits Limits, DateTimeOffset Started)
 {
     public LoopStatus Status { get; init; } = LoopStatus.Running;
 
@@ -49,6 +49,7 @@ internal sealed record LoopRecord(LoopId Id, LoopRequest Request, DateTimeOffset
 
     public LoopState State => new(Id, Repository, Status, Started, Iterations.Count, Current.Map(underway => underway.Job))
     {
+        Limits = Limits,
         Until = Until,
         Pause = Pause,
         Ending = Ending,
@@ -59,8 +60,8 @@ internal sealed record LoopRecord(LoopId Id, LoopRequest Request, DateTimeOffset
 
     public LoopDigest Digest => new(State, Iterations, Approvals, Trips, Pauses, Spent);
 
-    public static LoopRecord Begin(LoopId id, LoopRequest request, DateTimeOffset started) =>
-        new(id, request, started) { Connection = request.Connection };
+    public static LoopRecord Begin(LoopId id, LoopRequest request, LoopLimits limits, DateTimeOffset started) =>
+        new(id, request, limits, started) { Connection = request.Connection };
 
     public LoopRecord Took(SourcedTask task, JobId job) => this with { Current = new Underway(NextIteration, task, job) };
 

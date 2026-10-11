@@ -18,6 +18,7 @@ public sealed class RepositoryFileTests
     [InlineData("""{ "autopilot": {} }""", "Never", "Refuse")]
     [InlineData("""{ "approval": "merge", "autopilot": { "approve": "cleanEvidence", "followUps": "accept" } }""", "CleanEvidence", "Accept")]
     [InlineData("""{ "autopilot": { "approve": "never", "followUps": "refuse" } }""", "Never", "Refuse")]
+    [InlineData("""{ "autopilot": { "approve": "cleanEvidence", "iterations": 20, "pauseAtLimit": 0.8 } }""", "CleanEvidence", "Refuse")]
     public async Task TheAutopilotSectionOfTheJobFileOfTheBaseCommitDeclaresTheRulesAsync(string text, string approve, string followUps)
     {
         var files = new CommittedFiles().With(Worktree, AutopilotRulesReader.JobFile, text);
@@ -42,6 +43,7 @@ public sealed class RepositoryFileTests
     [InlineData("""{ "autopilot": { "approve": "never", "approve": "cleanEvidence" } }""", "Malformed")]
     [InlineData("""{ "autopilot": { "approve": "never", "breakers": 3 } }""", "UnknownField")]
     [InlineData("""{ "autopilot": { "approve": { "when": "clean" } } }""", "Malformed")]
+    [InlineData("""{ "autopilot": { "approve": "cleanEvidence", "iterations": 0 } }""", "InvalidLimits")]
     public async Task AnInvalidAutopilotSectionIsRejectedWithItsErrorAsync(string text, string error)
     {
         var files = new CommittedFiles().With(Worktree, AutopilotRulesReader.JobFile, text);

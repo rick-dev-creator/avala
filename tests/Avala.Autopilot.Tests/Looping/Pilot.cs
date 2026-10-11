@@ -24,7 +24,7 @@ internal sealed class Pilot : IAsyncDisposable
     {
         var gatherer = new EvidenceGatherer(Evidence, Evidence, Jobs, new JobWork(Work, Work, Rules));
         var steps = new LoopSteps(Jobs, new TaskSources([Backlog, .. others]), new AutoApprover(gatherer, Jobs, Bus, Clock), new LoopGauges(Usage, Usage, Connections));
-        Registry = new LoopRegistry(steps, new LoopJournal(Bus, new LoopBook(), NullLogger<LoopJournal>.Instance), Clock);
+        Registry = new LoopRegistry(steps, new LoopJournal(Bus, new LoopBook(), NullLogger<LoopJournal>.Instance), Declared, Clock);
         Feed = new LoopFeed(Registry);
     }
 
@@ -45,6 +45,8 @@ internal sealed class Pilot : IAsyncDisposable
     public FixedRules Rules { get; } = new(Clean);
 
     public MemorySource Backlog { get; } = new(BacklogSource.Source);
+
+    public DeclaredLimits Declared { get; } = new();
 
     public LoopRegistry Registry { get; }
 

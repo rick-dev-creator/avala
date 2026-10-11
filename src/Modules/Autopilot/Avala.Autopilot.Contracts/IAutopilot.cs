@@ -33,7 +33,7 @@ public sealed record LoopRequest(string Repository)
 
     public int AttemptsPerRound { get; init; } = 3;
 
-    public LoopLimits Limits { get; init; } = new();
+    public Option<LoopLimits> Limits { get; init; }
 }
 
 public sealed record LoopLimits
@@ -80,6 +80,8 @@ public enum LoopEnding
 
 public sealed record LoopState(LoopId Loop, string Repository, LoopStatus Status, DateTimeOffset Started, int Iterations, Option<JobId> Current)
 {
+    public LoopLimits Limits { get; init; } = new();
+
     public Option<DateTimeOffset> Until { get; init; }
 
     public Option<PauseReason> Pause { get; init; }

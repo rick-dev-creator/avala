@@ -6,7 +6,7 @@ using Avala.Sdk;
 
 namespace Avala.Autopilot.Looping;
 
-internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, TimeProvider clock) : IAutopilot, IAsyncDisposable
+internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, ILoopLimits declared, TimeProvider clock) : IAutopilot, IAsyncDisposable
 {
     private ImmutableDictionary<LoopId, LoopRunner> runners = ImmutableDictionary<LoopId, LoopRunner>.Empty;
 
@@ -19,12 +19,22 @@ internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, TimePro
             return AutopilotError.EmptyRepository;
         }
 
-        if (!Valid(request))
+        var repository = RepositoryKey.Of(request.Repository);
+        var applied = await request.Limits.Match(
+            given => Task.FromResult(Result<LoopLimits, AutopilotError>.Success(given)),
+            () => declared.OfRepositoryAsync(repository, cancellationToken));
+
+        if (!applied.TryGetValue(out var limits, out var error))
+        {
+            return error;
+        }
+
+        if (!Valid(request.AttemptsPerRound, limits))
         {
             return AutopilotError.InvalidLimits;
         }
 
-        var loop = LoopRecord.Begin(LoopId.New(), request with { Repository = RepositoryKey.Of(request.Repository) }, clock.GetUtcNow());
+        var loop = LoopRecord.Begin(LoopId.New(), request with { Repository = repository }, limits, clock.GetUtcNow());
         var runner = new LoopRunner(loop, steps, journal, clock);
         var added = false;
         ImmutableInterlocked.Update(ref runners, current =>
@@ -71,11 +81,8 @@ internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, TimePro
     private async ValueTask<Result<LoopId, AutopilotError>> CommandAsync(LoopId loop, Func<LoopRunner, Task<Result<LoopId, AutopilotError>>> command) =>
         Volatile.Read(ref runners).TryGetValue(loop, out var runner) ? await command(runner) : AutopilotError.UnknownLoop;
 
-    private static bool Valid(LoopRequest request)
-    {
-        var limits = request.Limits;
-
-        return request.AttemptsPerRound > 0
+    private static bool Valid(int attempts, LoopLimits limits) =>
+        attempts > 0
             && limits.FailuresInARow > 0
             && limits.SameFailure > 0
             && limits.NothingChanged > 0
@@ -83,5 +90,4 @@ internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, TimePro
             && limits.PauseAtLimit is > 0 and <= 1
             && limits.Window > TimeSpan.Zero
             && limits.SpendPerLoop.Concat(limits.SpendPerWindow).All(cap => cap.Amount > 0 && !string.IsNullOrWhiteSpace(cap.Currency));
-    }
 }

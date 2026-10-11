@@ -19,7 +19,7 @@ internal static class Breakers
     {
         public Option<BreakerTrip> TrippedBy(IReadOnlyList<Cost> windowSpent, DateTimeOffset now)
         {
-            var limits = loop.Request.Limits;
+            var limits = loop.Limits;
             var trips =
                 Count(Breaker.Iterations, IterationUnit, loop.Iterations.Count, limits.Iterations, now)
                     .Concat(Count(Breaker.FailuresInARow, FailureUnit, loop.FailuresInARow, limits.FailuresInARow, now))

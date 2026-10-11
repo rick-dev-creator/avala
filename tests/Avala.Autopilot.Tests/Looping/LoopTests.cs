@@ -373,6 +373,45 @@ public sealed class LoopTests
     }
 
     [Fact]
+    public async Task ALoopStartedWithoutLimitsAppliesTheLimitsItsFilesDeclareAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Backlog.Add("one", "Greet the team");
+        pilot.Backlog.Add("two", "Greet the new hires");
+        pilot.Declared.Limits = new LoopLimits { Iterations = 1 };
+
+        var loop = Outcomes.Succeeds(await pilot.Registry.StartAsync(new LoopRequest(Pilot.Repository + "/"), Cancellation));
+        await pilot.CleanAsync(1);
+        var ended = await pilot.EndedAsync();
+
+        Assert.Equal([Pilot.Repository], pilot.Declared.Reads);
+        Assert.Equal((loop, Option<Breaker>.Some(Breaker.Iterations), 1), (ended.Loop, ended.Breaker, ended.Limits.Iterations));
+    }
+
+    [Fact]
+    public async Task ARejectedLimitsDeclarationRefusesTheStartWithItsErrorAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Declared.Limits = AutopilotError.UnknownField;
+
+        Assert.Equal(AutopilotError.UnknownField, Outcomes.FailsWith(await pilot.Registry.StartAsync(new LoopRequest(Pilot.Repository), Cancellation)));
+        Assert.Empty(pilot.Registry.Loops());
+    }
+
+    [Fact]
+    public async Task AStartCommandsLimitsApplyAsGivenWithoutReadingTheFilesAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Backlog.Add("one", "Greet the team");
+        pilot.Declared.Limits = AutopilotError.Malformed;
+
+        await pilot.StartAsync(new LoopLimits { Iterations = 200 });
+
+        Assert.Equal(200, Assert.Single(pilot.Registry.Loops()).Limits.Iterations);
+        Assert.Empty(pilot.Declared.Reads);
+    }
+
+    [Fact]
     public async Task TheDigestHoldsWhatWasApprovedWithItsEvidenceWhatWaitsAndWhyTheCostTheBreakersAndThePausesAsync()
     {
         await using var pilot = new Pilot();
