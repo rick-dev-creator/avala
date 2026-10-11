@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Autopilot.Contracts;
 using Avala.Budgets.Contracts;
@@ -96,6 +97,25 @@ internal sealed class FakeAudit : IVerifications, IPermissionAudit, IBudgets
     public Option<BudgetCarve> CarveOf(JobId child) => Carve;
 
     public ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public List<BudgetRaise> Raises { get; } = [];
+
+    public Option<BudgetError> Refusal { get; set; }
+
+    public ValueTask<Result<BudgetRaise, BudgetError>> RaiseAsync(JobId job, CancellationToken cancellationToken)
+    {
+        if (Refusal.IsSome)
+        {
+            return ValueTask.FromResult(Refusal.Match(Result<BudgetRaise, BudgetError>.Failure, () => Result<BudgetRaise, BudgetError>.Failure(BudgetError.NotOverBudget)));
+        }
+
+        var raise = new BudgetRaise(job, new SpendCaps([new Cost(1.20m, "USD")], Option<long>.None), DateTimeOffset.UnixEpoch);
+        Raises.Add(raise);
+
+        return ValueTask.FromResult(Result<BudgetRaise, BudgetError>.Success(raise));
+    }
+
+    public IReadOnlyList<BudgetRaise> RaisesOf(JobId job) => [.. Raises.Where(raise => raise.Job == job)];
 }
 
 internal sealed class FakeWorkspaces : IWorkspaces

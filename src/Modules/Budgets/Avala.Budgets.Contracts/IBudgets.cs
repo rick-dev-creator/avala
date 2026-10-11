@@ -13,6 +13,10 @@ public interface IBudgets
     Option<BudgetCarve> CarveOf(JobId child);
 
     ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken);
+
+    ValueTask<Result<BudgetRaise, BudgetError>> RaiseAsync(JobId job, CancellationToken cancellationToken);
+
+    IReadOnlyList<BudgetRaise> RaisesOf(JobId job);
 }
 
 public interface IRepositoryBudgets

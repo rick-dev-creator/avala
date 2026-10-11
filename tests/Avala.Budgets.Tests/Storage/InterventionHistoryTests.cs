@@ -114,6 +114,23 @@ public sealed class InterventionHistoryTests
     }
 
     [Fact]
+    public async Task RaisesSurviveAReopeningAndEarlierRunsLeaveOutWhatThisRunStoredAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var earlier = new BudgetRaise(JobId.New(), new SpendCaps([new Cost(1.20m, "USD"), new Cost(2m, "EUR")], 1_000L), Nine) { Child = JobId.New() };
+        await using (var first = new SqliteInterventionStore(new AvalaPaths(folder.Path)))
+        {
+            await first.RecordAsync(earlier, Cancellation);
+        }
+
+        await using var second = new SqliteInterventionStore(new AvalaPaths(folder.Path));
+        await second.RecordAsync(earlier with { Job = JobId.New() }, Cancellation);
+
+        var read = Assert.Single(await second.EarlierRaisesAsync(Cancellation));
+        Assert.Equal(StoredJson.Write(earlier), StoredJson.Write(read));
+    }
+
+    [Fact]
     public async Task ABudgetsDatabaseCreatedBeforeMigrationsIsUpgradedInPlaceKeepingItsInterventionsAsync()
     {
         using var folder = new TemporaryFolder();

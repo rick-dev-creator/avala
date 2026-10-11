@@ -42,7 +42,7 @@ public sealed class BudgetsPluginTests
 
         Assert.Same(composition.Get<RunningJobs>(), composition.Get<IJobAdmission>());
         Assert.Contains(composition.Get<RunningJobs>(), composition.All<IHandle<JobProgressed>>());
-        Assert.Same(composition.Get<BudgetBook>(), composition.Get<IBudgets>());
+        Assert.Same(composition.Get<BudgetOffice>(), composition.Get<IBudgets>());
         Assert.Contains(composition.Get<BudgetBook>(), composition.All<IStartupTask>());
         Assert.Same(composition.Get<BudgetFileReader>(), composition.Get<IBudgetFiles>());
         Assert.Same(composition.Get<BudgetFileReader>(), composition.Get<IRepositoryBudgets>());

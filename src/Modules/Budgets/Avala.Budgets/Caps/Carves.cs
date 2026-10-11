@@ -37,6 +37,8 @@ internal sealed record Lineage(IReadOnlyList<BudgetCarve> Carves, Func<JobId, Co
     public Commitment CommittedBy(JobId job) =>
         Carves
             .Where(carve => carve.Parent == job)
+            .GroupBy(carve => carve.Child)
+            .Select(carves => carves.Last())
             .Aggregate(Spent(job), (committed, carve) => committed.Plus(Reserved(carve)));
 
     private Commitment Reserved(BudgetCarve carve) =>

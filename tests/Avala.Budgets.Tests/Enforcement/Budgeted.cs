@@ -28,7 +28,9 @@ internal sealed class Budgeted
         Jobs = new HoldingJobs(rejection);
         Book = new BudgetBook(new FixedMachine(), Store);
         breaches = new JobBreaches(Book, usage);
-        enforcer = new BudgetEnforcer(Book, breaches, [Resources], new BudgetActions(Book, Jobs, Bus, Clock));
+        var actions = new BudgetActions(Book, Jobs, Bus, Clock);
+        enforcer = new BudgetEnforcer(Book, breaches, [Resources], actions);
+        Office = new BudgetOffice(Book, breaches, actions);
     }
 
     public MeasuredResources Resources { get; } = new();
@@ -40,6 +42,8 @@ internal sealed class Budgeted
     public InMemoryInterventions Store { get; } = new();
 
     public BudgetBook Book { get; }
+
+    public BudgetOffice Office { get; }
 
     public HoldingJobs Jobs { get; }
 

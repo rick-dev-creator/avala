@@ -10,6 +10,8 @@ internal sealed class BudgetsDbContext(string database) : DbContext
 
     public DbSet<StoredSessionBudget> SessionBudgets => Set<StoredSessionBudget>();
 
+    public DbSet<StoredRaise> Raises => Set<StoredRaise>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
@@ -33,6 +35,12 @@ internal sealed class BudgetsDbContext(string database) : DbContext
             budget.HasKey(row => row.Key);
             budget.Property(row => row.Key).ValueGeneratedOnAdd();
             budget.HasIndex(row => row.Session);
+        });
+        modelBuilder.Entity<StoredRaise>(raise =>
+        {
+            raise.ToTable("Raises");
+            raise.HasKey(row => row.Key);
+            raise.Property(row => row.Key).ValueGeneratedOnAdd();
         });
     }
 }

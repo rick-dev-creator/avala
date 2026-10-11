@@ -13,9 +13,13 @@ internal interface IInterventionStore
 
     Task RecordAsync(BudgetedSession budgeted, CancellationToken cancellationToken);
 
+    Task RecordAsync(BudgetRaise raise, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<BudgetIntervention>> EarlierRunsAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<BudgetCarve>> EarlierCarvesAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<BudgetedSession>> EarlierBudgetsAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<BudgetRaise>> EarlierRaisesAsync(CancellationToken cancellationToken);
 }

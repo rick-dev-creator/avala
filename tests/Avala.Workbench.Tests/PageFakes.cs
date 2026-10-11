@@ -262,6 +262,10 @@ internal sealed class FakeBudgets : IBudgets
     public Option<BudgetCarve> CarveOf(JobId child) => Carves.TryGetValue(child, out var carve) ? carve : Option<BudgetCarve>.None;
 
     public ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<BudgetRaise, BudgetError>> RaiseAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public IReadOnlyList<BudgetRaise> RaisesOf(JobId job) => [];
 }
 
 internal sealed class FakeSupervision : ISupervision

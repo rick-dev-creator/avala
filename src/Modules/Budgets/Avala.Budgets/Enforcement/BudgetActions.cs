@@ -31,4 +31,12 @@ internal sealed class BudgetActions(BudgetBook book, IJobs jobs, IEventBus bus, 
         await book.RecordAsync(carve, cancellationToken);
         await bus.PublishAsync(new BudgetCarved(carve), cancellationToken);
     }
+
+    public async Task RaiseAsync(BudgetRaise raise, CancellationToken cancellationToken)
+    {
+        await book.RecordAsync(raise, cancellationToken);
+        await bus.PublishAsync(new BudgetRaised(raise), cancellationToken);
+    }
+
+    public Task RecarveAsync(BudgetCarve carve, CancellationToken cancellationToken) => book.RecordAsync(carve, cancellationToken);
 }

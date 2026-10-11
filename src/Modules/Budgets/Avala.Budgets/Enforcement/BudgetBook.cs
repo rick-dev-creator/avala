@@ -2,13 +2,14 @@ using System.Collections.Immutable;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Admission;
+using Avala.Budgets.Caps;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Budgets.Enforcement;
 
-internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore store) : IBudgets, IStartupTask
+internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore store) : IStartupTask
 {
     private ImmutableDictionary<SessionId, (SessionBudget Budget, ConnectionName Connection)> sessions =
         ImmutableDictionary<SessionId, (SessionBudget Budget, ConnectionName Connection)>.Empty;
@@ -17,10 +18,14 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
 
     private ImmutableHashSet<JobId> ended = [];
 
+    private ImmutableDictionary<JobId, SessionId> ties = ImmutableDictionary<JobId, SessionId>.Empty;
+
     private ImmutableList<BudgetIntervention> earlier = [];
     private ImmutableList<BudgetIntervention> interventions = [];
     private ImmutableList<BudgetCarve> earlierCarves = [];
     private ImmutableList<BudgetCarve> carves = [];
+    private ImmutableList<BudgetRaise> earlierRaises = [];
+    private ImmutableList<BudgetRaise> raises = [];
 
     public IReadOnlyList<BudgetCarve> Carves => [.. Volatile.Read(ref earlierCarves), .. Volatile.Read(ref carves)];
 
@@ -47,8 +52,15 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
         await store.RecordAsync(carve, cancellationToken);
     }
 
+    public async Task RecordAsync(BudgetRaise raise, CancellationToken cancellationToken)
+    {
+        ImmutableInterlocked.Update(ref raises, recorded => recorded.Add(raise));
+        await store.RecordAsync(raise, cancellationToken);
+    }
+
     public async Task RunAsync(CancellationToken cancellationToken)
     {
+        Volatile.Write(ref earlierRaises, [.. await store.EarlierRaisesAsync(cancellationToken)]);
         Volatile.Write(ref earlier, [.. await store.EarlierRunsAsync(cancellationToken)]);
         Volatile.Write(ref earlierCarves, [.. await store.EarlierCarvesAsync(cancellationToken)]);
 
@@ -69,10 +81,24 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
     public void KeepSpending(JobId job, Option<BudgetBreach> breach) =>
         ImmutableInterlocked.Update(ref overspent, kept => breach.Match(found => kept.SetItem(job, found), () => kept.Remove(job)));
 
+    public void Tie(JobId job, SessionId session) => ImmutableInterlocked.AddOrUpdate(ref ties, job, session, (_, _) => session);
+
+    public Option<SessionId> SessionOf(JobId job) =>
+        Volatile.Read(ref ties).TryGetValue(job, out var session) ? session
+        : OfJob(job) is [.., var latest] ? latest.Hold.Session
+        : Option<SessionId>.None;
+
     public bool Ended(JobId job) => Volatile.Read(ref ended).Contains(job);
 
     public void KeepStatus(JobId job, JobStatus status) =>
         ImmutableInterlocked.Update(ref ended, known => status is JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed ? known.Add(job) : known.Remove(job));
 
     public Option<BudgetCarve> CarveOf(JobId child) => Carves.LastOrDefault(carve => carve.Child == child).ToOption();
+
+    public Option<BudgetCarve> FirstCarveOf(JobId child) => Carves.FirstOrDefault(carve => carve.Child == child).ToOption();
+
+    public IReadOnlyList<BudgetRaise> RaisesOf(JobId job) =>
+        [.. Volatile.Read(ref earlierRaises).Concat(Volatile.Read(ref raises)).Where(raise => raise.Job == job)];
+
+    public BudgetCaps Allowance(JobId job, BudgetCaps caps) => caps.Plus(RaisesOf(job)).Within(CarveOf(job));
 }

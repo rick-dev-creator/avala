@@ -20,6 +20,7 @@ public enum BudgetError
     InvalidMemory,
     InvalidRunningJobs,
     InvalidCarve,
+    NotOverBudget,
 }
 
 public enum BudgetFileStatus
@@ -73,3 +74,12 @@ public sealed record BudgetIntervention(JobHold Hold, BudgetBreach Breach, DateT
 public sealed record BudgetLoaded(SessionBudget Budget) : IIntegrationEvent;
 
 public sealed record BudgetIntervened(BudgetIntervention Intervention) : IIntegrationEvent;
+
+public sealed record SpendCaps(IReadOnlyList<Cost> Cost, Option<long> Tokens);
+
+public sealed record BudgetRaise(JobId Job, SpendCaps By, DateTimeOffset At)
+{
+    public Option<JobId> Child { get; init; }
+}
+
+public sealed record BudgetRaised(BudgetRaise Raise) : IIntegrationEvent;

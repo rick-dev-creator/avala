@@ -92,6 +92,24 @@ namespace Avala.Budgets.Storage.Migrations
                     b.ToTable("Interventions", (string)null);
                 });
 
+            modelBuilder.Entity("Avala.Budgets.Storage.StoredRaise", b =>
+                {
+                    b.Property<int>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("Job")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Raise")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("Raises", (string)null);
+                });
+
             modelBuilder.Entity("Avala.Budgets.Storage.StoredSessionBudget", b =>
                 {
                     b.Property<int>("Key")

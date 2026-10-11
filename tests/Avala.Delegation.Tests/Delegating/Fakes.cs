@@ -153,6 +153,10 @@ internal sealed class FixedBudgets : IBudgets
     public IReadOnlyList<BudgetIntervention> OfJob(JobId job) => [];
 
     public ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<BudgetRaise, BudgetError>> RaiseAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public IReadOnlyList<BudgetRaise> RaisesOf(JobId job) => [];
 }
 
 internal sealed class FixedChanges : IWorkspaceChanges

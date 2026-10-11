@@ -14,7 +14,7 @@ internal sealed class JobBreaches(BudgetBook book, IUsage usage)
     public Lineage Tree => new(book.Carves, Spent, book.Ended);
 
     public Option<BudgetBreach> Of(JobId job, SessionId session, IReadOnlyList<UsageLimit> limits, long memoryBytes) =>
-        book.Budgeted(session).Bind(budgeted => (budgeted.Budget with { Caps = budgeted.Budget.Caps.Within(book.CarveOf(job)) }).BreachBy(
+        book.Budgeted(session).Bind(budgeted => (budgeted.Budget with { Caps = book.Allowance(job, budgeted.Budget.Caps) }).BreachBy(
             Tree.CommittedBy(job),
             limits,
             memoryBytes));

@@ -36,6 +36,7 @@ internal sealed class BudgetEnforcer(BudgetBook book, JobBreaches breaches, IEnu
     public async ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
     {
         sessions[integrationEvent.Job] = integrationEvent.Session;
+        book.Tie(integrationEvent.Job, integrationEvent.Session);
         await CarveKnownAsync(cancellationToken);
         await EnforceAsync(integrationEvent.Job, cancellationToken);
     }
@@ -115,7 +116,7 @@ internal sealed class BudgetEnforcer(BudgetBook book, JobBreaches breaches, IEnu
 
     private Option<BudgetCaps> AllowanceOf(JobId job) =>
         sessions.TryGetValue(job, out var session) && !uncarved.Exists(waiting => waiting.Child == job)
-            ? book.Budgeted(session).Map(budgeted => budgeted.Budget.Caps.Within(book.CarveOf(job)))
+            ? book.Budgeted(session).Map(budgeted => book.Allowance(job, budgeted.Budget.Caps))
             : Option<BudgetCaps>.None;
 
     private IReadOnlyList<JobId> LineOf(JobId job) =>

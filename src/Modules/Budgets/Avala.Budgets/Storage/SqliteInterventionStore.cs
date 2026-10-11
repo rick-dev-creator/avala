@@ -12,6 +12,7 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
     private readonly HashSet<int> written = [];
     private readonly HashSet<int> carved = [];
     private readonly HashSet<int> budgets = [];
+    private readonly HashSet<int> raised = [];
 
     public Task RecordAsync(BudgetCarve carve, CancellationToken cancellationToken) =>
         RunAsync(
@@ -53,6 +54,30 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
 
                 return saved;
             },
+            cancellationToken);
+
+    public Task RecordAsync(BudgetRaise raise, CancellationToken cancellationToken) =>
+        RunAsync(
+            async database =>
+            {
+                var row = StoredRaise.Of(raise);
+                await database.Raises.AddAsync(row, cancellationToken);
+                var saved = await database.SaveChangesAsync(cancellationToken);
+                raised.Add(row.Key);
+                database.ChangeTracker.Clear();
+
+                return saved;
+            },
+            cancellationToken);
+
+    public Task<IReadOnlyList<BudgetRaise>> EarlierRaisesAsync(CancellationToken cancellationToken) =>
+        RunAsync<IReadOnlyList<BudgetRaise>>(
+            async database =>
+            [
+                .. (await database.Raises.AsNoTracking().OrderBy(row => row.Key).ToListAsync(cancellationToken))
+                    .Where(row => !raised.Contains(row.Key))
+                    .Select(row => row.Read()),
+            ],
             cancellationToken);
 
     public Task<IReadOnlyList<BudgetedSession>> EarlierBudgetsAsync(CancellationToken cancellationToken) =>
