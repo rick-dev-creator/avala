@@ -117,8 +117,9 @@ internal sealed partial class AgentSessions(
 
         try
         {
-            await foreach (var agentEvent in session.Events.WithCancellation(cancellationToken))
+            await foreach (var reported in session.Events.WithCancellation(cancellationToken))
             {
+                var agentEvent = running.Priced(reported);
                 var applied = agentEvent is TurnStarted started
                     ? Turn.Begin(started).Map(begun =>
                     {

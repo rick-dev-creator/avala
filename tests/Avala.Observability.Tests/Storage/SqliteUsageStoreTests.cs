@@ -24,7 +24,7 @@ public sealed class SqliteUsageStoreTests
         var earlier = Attributed(SessionId.New(), JobId.New());
         var facts = new[]
         {
-            UsageFact.Of(new UsageReported(earlier.Session, TurnId.New(), new TokenUsage(1, 2, 3, 4, 5), new Cost(0.25m, "USD")), Nine),
+            UsageFact.Of(new UsageReported(earlier.Session, TurnId.New(), new TokenUsage(1, 2, 3, 4, 5), new Cost(0.25m, "USD") { Basis = CostBasis.ApiEquivalent }), Nine),
             UsageFact.Of(new LimitReported(earlier.Session, TurnId.New(), new UsageLimit("5h", 0.5, Nine.AddHours(5))), Nine.AddMinutes(1)),
             UsageFact.Turn(earlier.Session, TurnOutcome.Interrupted, TimeSpan.FromSeconds(12), Nine.AddMinutes(2)),
         };

@@ -16,7 +16,7 @@ internal sealed class JobSpending(IUsage usage, IUsageSessions sessions)
             .ToList();
 
         return (
-            [.. spent.SelectMany(summary => summary.Costs).GroupBy(cost => cost.Currency, StringComparer.Ordinal).Select(currency => new Cost(currency.Sum(cost => cost.Amount), currency.Key))],
+            [.. spent.SelectMany(summary => summary.Costs).GroupBy(cost => (cost.Currency, cost.Basis)).Select(group => new Cost(group.Sum(cost => cost.Amount), group.Key.Currency) { Basis = group.Key.Basis })],
             spent.Sum(summary => summary.Tokens.Input + summary.Tokens.Output + summary.Tokens.CacheRead + summary.Tokens.CacheWrite + summary.Tokens.Reasoning));
     }
 }

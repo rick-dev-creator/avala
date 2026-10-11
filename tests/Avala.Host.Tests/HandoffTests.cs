@@ -58,7 +58,7 @@ public sealed class HandoffTests(PublishedPlugins plugins)
 
         Assert.Equal((One, Two, 2), (handoff.From, handoff.To, handoff.Attempt));
         Assert.Equal(new LimitReason(One, "5h", 0.95, 0.9), Outcomes.Present(handoff.Why));
-        Assert.Equal([new Cost(0.0600m, "USD")], handoff.Spent);
+        Assert.Equal([new Cost(0.0600m, "USD") { Basis = CostBasis.ApiEquivalent }], handoff.Spent);
         Assert.StartsWith("This job was handed off to you from simulator-one, which reached 95% of its 5-hour window. You continue it on simulator-two in a new conversation.", brief, StringComparison.Ordinal);
         Assert.All(
             [$"## The original instruction\n{Instruction}", "- calculator.txt (added, +1 -0)", "- calculator: failed, exit 1", "Feedback: ", "- Make the failing checks pass: calculator.", "The calculator is ready, though the usage window is nearly spent."],
@@ -253,7 +253,7 @@ public sealed class HandoffTests(PublishedPlugins plugins)
 
         Assert.Contains("Handed off to simulator-two at 95% of the 5-hour window", origins);
         Assert.StartsWith("Handed off from simulator-one to simulator-two at 95% of the 5-hour window · ", lines[0].Item1, StringComparison.Ordinal);
-        Assert.Equal("Spent on simulator-one: 0.06 USD · 15,275 tokens", lines[0].Item2);
+        Assert.Equal("Spent on simulator-one: 0.06 USD at API prices · 15,275 tokens", lines[0].Item2);
         Assert.StartsWith("Spent on simulator-two: ", lines[1].Item2, StringComparison.Ordinal);
 
         await run.RestartAsync();

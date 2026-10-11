@@ -39,7 +39,8 @@
       "defaultEffort": null
     },
     "reportsCost": {
-      "currency": "USD"
+      "currency": "USD",
+      "basis": "apiEquivalent"
     },
     "reportsLimits": {
       "windows": [

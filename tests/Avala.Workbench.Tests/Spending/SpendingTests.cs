@@ -93,8 +93,8 @@ public sealed class SpendingTests : IDisposable
             ],
             meters.Select(meter => (meter.Title, meter.Cost, meter.Caps, meter.Carve, meter.Unpriced, meter.Interventions)).OrderBy(row => row.Item1 == "Add an endpoint"));
         Assert.Equal(
-            [(HoldReason.Stalled, "silent for 95s, window 90s"), (HoldReason.BudgetExceeded, "Cost USD: 5.25 against 5")],
-            state.Interventions.Select(intervention => new InterventionViewModel(intervention, "x")).Select(shown => (shown.Reason, shown.Detail)));
+            [(HoldReason.Stalled, "silent for 95s, window 90s"), (HoldReason.BudgetExceeded, "Cost: 5.25 USD against 5 USD")],
+            state.Interventions.Select(intervention => new InterventionViewModel(intervention, "x", [])).Select(shown => (shown.Reason, shown.Detail)));
     }
 
     [Theory]

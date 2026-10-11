@@ -12,7 +12,7 @@ namespace Avala.Observability.Tests.Tracking;
 public sealed class UsageTrackingTests
 {
     [Fact]
-    public async Task UsageAddsUpBySessionJobAndProviderWithCostsPerCurrencyAsync()
+    public async Task UsageAddsUpBySessionJobAndProviderWithCostsPerCurrencyAndBasisAsync()
     {
         using var tracked = new Tracked();
         var job = JobId.New();
@@ -24,12 +24,13 @@ public sealed class UsageTrackingTests
             Usage(first, new TokenUsage(100, 10, 50, 5, 2), new Cost(0.01m, "USD")),
             Usage(resumed, new TokenUsage(200, 20, 0, 0, 4), new Cost(0.02m, "USD")),
             Usage(resumed, new TokenUsage(1, 1, 1, 1, 1), new Cost(0.50m, "EUR")),
+            Usage(first, default, new Cost(0.40m, "USD") { Basis = CostBasis.ApiEquivalent }),
             Usage(other, new TokenUsage(300, 30, 0, 0, 0), new Cost(0.03m, "USD")));
 
         Assert.Equal(new TokenUsage(100, 10, 50, 5, 2), Outcomes.Present(tracked.Book.OfSession(first)).Tokens);
         var ofJob = Outcomes.Present(tracked.Book.OfJob(job));
         Assert.Equal(new TokenUsage(301, 31, 51, 6, 7), ofJob.Tokens);
-        Assert.Equal([new Cost(0.50m, "EUR"), new Cost(0.03m, "USD")], ofJob.Costs);
+        Assert.Equal([new Cost(0.50m, "EUR"), new Cost(0.03m, "USD"), new Cost(0.40m, "USD") { Basis = CostBasis.ApiEquivalent }], ofJob.Costs);
         Assert.Equal(
             [("claude", new TokenUsage(301, 31, 51, 6, 7)), ("codex", new TokenUsage(300, 30, 0, 0, 0))],
             tracked.Book.ByProvider().Select(usage => (usage.Provider.Id, usage.Usage.Tokens)));

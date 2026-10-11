@@ -12,7 +12,7 @@ internal static class Shares
             : (double)(spent.Where(cost => cost.Currency == cap[0].Currency).Sum(cost => cost.Amount) / cap[0].Amount);
 
     public static IReadOnlyList<Cost> Total(IEnumerable<Cost> costs) =>
-        [.. costs.GroupBy(cost => cost.Currency, StringComparer.Ordinal).Select(group => new Cost(group.Sum(cost => cost.Amount), group.Key))];
+        [.. costs.GroupBy(cost => (cost.Currency, cost.Basis)).Select(group => new Cost(group.Sum(cost => cost.Amount), group.Key.Currency) { Basis = group.Key.Basis })];
 
     public static decimal In(IEnumerable<Cost> costs, string currency) =>
         costs.Where(cost => cost.Currency == currency).Sum(cost => cost.Amount);

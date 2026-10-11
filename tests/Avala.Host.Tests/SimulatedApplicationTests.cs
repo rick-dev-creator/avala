@@ -242,7 +242,7 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
         var usage = run.Get<IUsage>();
         var job = Outcomes.Present(usage.OfJob(run.Job));
         Assert.Equal(new TokenUsage(1_200, 80, 600, 120, 20), job.Tokens);
-        Assert.Equal([new Cost(0.0042m, "USD")], job.Costs);
+        Assert.Equal([new Cost(0.0042m, "USD") { Basis = CostBasis.ApiEquivalent }], job.Costs);
         Assert.Equal(1, job.Turns.Finished);
         Assert.Equal([new UsageLimit("5h", 0.12, Option<DateTimeOffset>.None)], job.Limits);
         var provider = Assert.Single(usage.ByProvider());

@@ -1,4 +1,6 @@
 using System.Globalization;
+using Avala.Agents.Contracts.Events;
+using Avala.Budgets.Contracts;
 using Avala.Components.Meters;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -168,7 +170,7 @@ internal sealed class JobMeterViewModel(JobCost cost) : IJobMeterViewModel
     public bool IsNearCap => HasCap && Used >= 1 - MeterViewModel.AttentionMargin;
 }
 
-internal sealed class InterventionViewModel(JobIntervention intervention, string instruction) : IInterventionViewModel
+internal sealed class InterventionViewModel(JobIntervention intervention, string instruction, IReadOnlyList<Cost> spent) : IInterventionViewModel
 {
     public JobId Job { get; } = intervention.Job;
 
@@ -179,7 +181,9 @@ internal sealed class InterventionViewModel(JobIntervention intervention, string
     public HoldReason Reason { get; } = intervention.Reason;
 
     public string Detail { get; } = intervention.Breach.Match(
-        breach => string.Create(CultureInfo.InvariantCulture, $"{breach.Measure} {breach.Subject}: {breach.Measured:0.####} against {breach.Cap:0.####}"),
+        breach => breach.Measure is BudgetMeasure.Cost or BudgetMeasure.DailySpend
+            ? $"{breach.Measure}: {Amounts.Measured(breach.Measured, breach.Subject, spent)} against {Amounts.Costs([new Cost(breach.Cap, breach.Subject)])}"
+            : string.Create(CultureInfo.InvariantCulture, $"{breach.Measure} {breach.Subject}: {breach.Measured:0.####} against {breach.Cap:0.####}"),
         () => intervention.Silence.Match(
             silence => $"silent for {Amounts.Seconds(silence.Silent)}s, window {Amounts.Seconds(silence.Window)}s",
             () => string.Empty));

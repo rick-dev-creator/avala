@@ -30,6 +30,11 @@ internal sealed class LiveSession : IAsyncDisposable
 
     public bool AwaitsResult(ItemId item) => Volatile.Read(ref calls).Contains(item);
 
+    public IAgentEvent Priced(IAgentEvent reported) =>
+        reported is UsageReported usage
+            ? usage with { Cost = usage.Cost.Map(cost => cost with { Basis = Capabilities.Get<ReportsCost>().Match(declared => declared.Basis, () => CostBasis.Billed) }) }
+            : reported;
+
     public void Track(IAgentEvent accepted)
     {
         Volatile.Write(ref forms, accepted switch

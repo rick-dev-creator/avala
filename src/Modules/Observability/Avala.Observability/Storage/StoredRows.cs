@@ -70,6 +70,8 @@ internal sealed class StoredFact
 
     public string Currency { get; init; } = string.Empty;
 
+    public CostBasis Basis { get; init; }
+
     public string Window { get; init; } = string.Empty;
 
     public double UsedFraction { get; init; }
@@ -92,6 +94,7 @@ internal sealed class StoredFact
         Reasoning = fact.Tokens.Reasoning,
         Amount = fact.Cost.Match(cost => cost.Amount, () => 0m),
         Currency = fact.Cost.Match(cost => cost.Currency, () => string.Empty),
+        Basis = fact.Cost.Match(cost => cost.Basis, () => CostBasis.Billed),
         Window = fact.Limit.Match(limit => limit.Window, () => string.Empty),
         UsedFraction = fact.Limit.Match(limit => limit.UsedFraction, () => 0d),
         ResetsAt = fact.Limit.Bind(limit => limit.ResetsAt).Match(at => at.UtcTicks, () => -1L),
@@ -104,7 +107,7 @@ internal sealed class StoredFact
         Moment(At),
         Enum.Parse<FactKind>(Kind),
         new TokenUsage(Input, Output, CacheRead, CacheWrite, Reasoning),
-        Currency.Length == 0 ? Option<Cost>.None : new Cost(Amount, Currency),
+        Currency.Length == 0 ? Option<Cost>.None : new Cost(Amount, Currency) { Basis = Basis },
         Window.Length == 0 ? Option<UsageLimit>.None : new UsageLimit(Window, UsedFraction, ResetsAt < 0 ? Option<DateTimeOffset>.None : Moment(ResetsAt)),
         Outcome.Length == 0 ? Option<TurnOutcome>.None : Enum.Parse<TurnOutcome>(Outcome),
         TimeSpan.FromTicks(Duration));

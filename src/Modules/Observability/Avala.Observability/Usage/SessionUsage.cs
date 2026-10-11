@@ -22,7 +22,7 @@ internal sealed record SessionUsage(SessionId Session)
 
     public TokenUsage Tokens { get; private init; }
 
-    public ImmutableDictionary<string, decimal> Costs { get; private init; } = ImmutableDictionary<string, decimal>.Empty;
+    public IReadOnlyList<Cost> Costs { get; private init; } = [];
 
     public int UnpricedReports { get; private init; }
 
@@ -75,7 +75,7 @@ internal sealed record SessionUsage(SessionId Session)
         cost => this with
         {
             Tokens = Tokens + tokens,
-            Costs = Costs.SetItem(cost.Currency, Costs.GetValueOrDefault(cost.Currency) + cost.Amount),
+            Costs = Costs.Append(cost).Summed(),
         },
         () => this with { Tokens = Tokens + tokens, UnpricedReports = UnpricedReports + 1 });
 

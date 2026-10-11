@@ -185,7 +185,7 @@ public sealed class TranscriptTests
     }
 
     [Fact]
-    public void TheEndOfATurnSumsItsUsageAndClosesTheCardsStillWaiting()
+    public void TheEndOfATurnSumsItsUsageKeepingEachCostBasisApartAndClosesTheCardsStillWaiting()
     {
         var transcript = Transcript.Empty
             .Apply(new TurnStarted(Session, Turn), Start)
@@ -193,12 +193,14 @@ public sealed class TranscriptTests
             .Apply(Decision(DecisionDelivery.LeftToHuman))
             .Apply(new UsageReported(Session, Turn, new TokenUsage(1_000, 50, 0, 0, 0), new Cost(0.01m, "USD")), Start)
             .Apply(new UsageReported(Session, Turn, new TokenUsage(200, 10, 0, 0, 0), new Cost(0.002m, "USD")), Start)
+            .Apply(new UsageReported(Session, Turn, default, new Cost(0.3m, "USD") { Basis = CostBasis.ApiEquivalent }), Start)
             .Apply(new TurnCompleted(Session, Turn, TurnOutcome.Interrupted), Start.AddSeconds(12));
 
         var ended = Assert.IsType<TurnEndEntry>(transcript.Entries[^1]);
         Assert.Equal(
-            (TurnOutcome.Interrupted, TimeSpan.FromSeconds(12), 1_200L, 60L, 0.012m),
-            (ended.Outcome, ended.Duration, ended.Tokens.Input, ended.Tokens.Output, Assert.Single(ended.Costs).Amount));
+            (TurnOutcome.Interrupted, TimeSpan.FromSeconds(12), 1_200L, 60L),
+            (ended.Outcome, ended.Duration, ended.Tokens.Input, ended.Tokens.Output));
+        Assert.Equal([new Cost(0.012m, "USD"), new Cost(0.3m, "USD") { Basis = CostBasis.ApiEquivalent }], ended.Costs);
         Assert.Empty(transcript.Awaiting);
     }
 

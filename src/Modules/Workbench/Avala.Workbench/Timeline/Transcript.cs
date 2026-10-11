@@ -256,7 +256,7 @@ internal sealed record Transcript
             };
 
         private ImmutableList<Cost> Merged(Cost cost) =>
-            Costs.FindIndex(known => known.Currency == cost.Currency) is var index and >= 0
+            Costs.FindIndex(known => known.Currency == cost.Currency && known.Basis == cost.Basis) is var index and >= 0
                 ? Costs.SetItem(index, Costs[index] with { Amount = Costs[index].Amount + cost.Amount })
                 : Costs.Add(cost);
     }

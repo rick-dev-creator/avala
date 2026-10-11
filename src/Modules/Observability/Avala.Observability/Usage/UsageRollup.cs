@@ -11,13 +11,7 @@ internal static class UsageRollup
     {
         public UsageSummary Summary => new(
             sessions.Aggregate(default(TokenUsage), (sum, session) => sum + session.Tokens),
-            [
-                .. sessions
-                    .SelectMany(session => session.Costs)
-                    .GroupBy(cost => cost.Key, cost => cost.Value, StringComparer.Ordinal)
-                    .OrderBy(currency => currency.Key, StringComparer.Ordinal)
-                    .Select(currency => new Cost(currency.Sum(), currency.Key)),
-            ],
+            sessions.SelectMany(session => session.Costs).Summed(),
             sessions.Sum(session => session.UnpricedReports),
             sessions.Aggregate(default(TurnTally), (sum, session) => sum + session.Turns),
             [

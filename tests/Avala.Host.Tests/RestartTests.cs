@@ -149,7 +149,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
         await run.RestartAsync();
         await run.StartedAsync();
 
-        Assert.Contains("job: 0.06 USD of 0.065 USD · near cap True · 0.065 USD per job, holds at 90% of a limit · on simulator", before);
+        Assert.Contains("job: 0.06 USD at API prices of 0.065 USD · near cap True · 0.065 USD per job, holds at 90% of a limit · on simulator", before);
         Assert.Contains("limit: 5h 95% · Jobs on this connection hold at the 90% threshold. · reaches hold True", before);
         Assert.Contains("card: simulator · Simulated account · 5h · 95% · near limit True", before);
         Assert.Contains(before, line => line.StartsWith("inspector: ", StringComparison.Ordinal) && line.Contains("Cost cap", StringComparison.Ordinal));

@@ -46,10 +46,8 @@
         </DockPanel>
         <TextBlock x:Name="Detail" Classes="caption secondary" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
         <StackPanel Spacing="5">
-          <DockPanel>
-            <TextBlock x:Name="Spent" DockPanel.Dock="Right" Classes="hint" Text="{Binding Spent}" />
-            <TextBlock x:Name="Budget" Classes="hint" Text="{Binding Budget}" />
-          </DockPanel>
+          <TextBlock x:Name="Budget" Classes="hint" Text="{Binding Budget}" TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="Spent" Classes="hint" Text="{Binding Spent}" TextTrimming="CharacterEllipsis" />
           <ItemsControl x:Name="Shares" ItemsSource="{Binding Shares}" IsVisible="{Binding HasBudget}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>

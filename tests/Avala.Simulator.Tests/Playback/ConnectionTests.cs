@@ -101,7 +101,7 @@ public sealed class ConnectionTests : IDisposable
     }
 
     [Fact]
-    public void AnApiKeyReportsNoLimitWindowsAndToolSurfacesRefineTheToolsAccepted()
+    public void AnApiKeyReportsBilledCostsAndNoLimitWindowsALoginCostsAtApiPricesAndToolSurfacesRefineTheToolsAccepted()
     {
         var keyed = provider.CapabilitiesOn(new ConnectionEnvironment { ApiKey = new Secret("sk-secret") });
         var executedOnly = provider.CapabilitiesOn(ConnectionEnvironment.Default with
@@ -109,9 +109,16 @@ public sealed class ConnectionTests : IDisposable
             Settings = ImmutableDictionary<string, string>.Empty.Add("toolSurfaces", "executed, nowhere"),
         });
 
+        var login = provider.CapabilitiesOn(ConnectionEnvironment.Default);
+
         Assert.Equal(
-            (false, true, Option<AcceptsTools>.Some(new AcceptsTools([ToolSurface.Executed]))),
-            (keyed.Has<ReportsLimits>(), provider.CapabilitiesOn(ConnectionEnvironment.Default).Has<ReportsLimits>(), executedOnly.Get<AcceptsTools>()));
+            (false, CostBasis.Billed, true, CostBasis.ApiEquivalent, Option<AcceptsTools>.Some(new AcceptsTools([ToolSurface.Executed]))),
+            (
+                keyed.Has<ReportsLimits>(),
+                keyed.Get<ReportsCost>().Match(cost => cost.Basis, () => CostBasis.Billed),
+                login.Has<ReportsLimits>(),
+                login.Get<ReportsCost>().Match(cost => cost.Basis, () => CostBasis.Billed),
+                executedOnly.Get<AcceptsTools>()));
     }
 
     [Fact]

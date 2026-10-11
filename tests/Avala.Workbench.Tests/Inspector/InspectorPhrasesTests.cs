@@ -81,6 +81,17 @@ public sealed class InspectorPhrasesTests
                 RepositoryError = repository == "Malformed" ? PolicyError.Malformed : Option<PolicyError>.None,
             }));
 
+    [Theory]
+    [InlineData(CostBasis.Billed, CostBasis.Billed, "0.5 USD of 5 USD")]
+    [InlineData(CostBasis.ApiEquivalent, CostBasis.ApiEquivalent, "0.5 USD at API prices of 5 USD")]
+    [InlineData(CostBasis.Billed, CostBasis.ApiEquivalent, "0.5 USD partly at API prices of 5 USD")]
+    public void SpendMeasuredAgainstACapSaysHowMuchOfItIsAtApiPrices(CostBasis first, CostBasis second, string phrase) =>
+        Assert.Equal(
+            phrase,
+            InspectorPhrases.Spending(
+                new Observability.Contracts.UsageSummary(default, [new Cost(0.2m, "USD") { Basis = first }, new Cost(0.3m, "USD") { Basis = second }], 0, default, []),
+                new Cost(5m, "USD")));
+
     [Fact]
     public void TheHoldAtALimitReadsAsTheThresholdItHoldsAtAsTheUsagePageSaysIt() =>
         Assert.Equal(

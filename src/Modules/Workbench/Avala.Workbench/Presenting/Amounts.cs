@@ -9,9 +9,18 @@ namespace Avala.Workbench.Presenting;
 internal static class Amounts
 {
     public static string Costs(IReadOnlyList<Cost> costs) =>
-        costs.Count == 0
-            ? "no cost"
-            : string.Join(" + ", costs.Select(cost => string.Create(CultureInfo.InvariantCulture, $"{cost.Amount:0.####} {cost.Currency}")));
+        costs.Count == 0 ? "no cost" : string.Join(" + ", costs.Select(cost => Money(cost.Amount, cost.Currency) + Priced(cost.Basis)));
+
+    public static string Measured(decimal amount, string currency, IEnumerable<Cost> counted)
+    {
+        var bases = counted.Where(cost => cost.Currency == currency && cost.Amount != 0).Select(cost => cost.Basis).Distinct().ToList();
+
+        return Money(amount, currency) + (bases.Count > 1 ? " partly at API prices" : Priced(bases.FirstOrDefault()));
+    }
+
+    private static string Money(decimal amount, string currency) => string.Create(CultureInfo.InvariantCulture, $"{amount:0.####} {currency}");
+
+    private static string Priced(CostBasis basis) => basis == CostBasis.ApiEquivalent ? " at API prices" : string.Empty;
 
     public static string Tokens(long tokens) => string.Create(CultureInfo.InvariantCulture, $"{tokens:N0} tokens");
 

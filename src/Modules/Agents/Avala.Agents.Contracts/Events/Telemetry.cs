@@ -4,7 +4,16 @@ namespace Avala.Agents.Contracts.Events;
 
 public readonly record struct TokenUsage(long Input, long Output, long CacheRead, long CacheWrite, long Reasoning);
 
-public readonly record struct Cost(decimal Amount, string Currency);
+public readonly record struct Cost(decimal Amount, string Currency)
+{
+    public CostBasis Basis { get; init; }
+}
+
+public enum CostBasis
+{
+    Billed,
+    ApiEquivalent,
+}
 
 public readonly record struct UsageLimit(string Window, double UsedFraction, Option<DateTimeOffset> ResetsAt);
 

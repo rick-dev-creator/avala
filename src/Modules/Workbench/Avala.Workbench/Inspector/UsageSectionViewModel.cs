@@ -135,7 +135,7 @@ internal sealed partial class UsageSectionViewModel : IUsageSectionViewModel, IR
             () => null);
         Spent = facts.IsNone ? string.Empty : audit.Usage.Match(usage => string.Join(" · ", Amounts.Spent(usage)), () => "No usage reported");
         Caps = audit.Budget.Match(budget => InspectorPhrases.Caps(budget.Caps), () => []);
-        Interventions = [.. audit.Interventions.Select(InspectorPhrases.Intervention)];
+        Interventions = [.. audit.Interventions.Select(intervention => InspectorPhrases.Intervention(intervention, audit.Usage.Match(usage => usage.Costs, () => [])))];
         Carve = audit.Carve.Match(InspectorPhrases.Carve, () => string.Empty);
         Raises = [.. audit.Raises.Select(InspectorPhrases.Raise)];
         CanRaise = facts.Match(found => found.Status == JobStatus.NeedsHelp, () => false) && InspectorPhrases.Raisable(audit.Interventions);

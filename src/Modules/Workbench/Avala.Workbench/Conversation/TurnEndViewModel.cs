@@ -1,4 +1,3 @@
-using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Workbench.Timeline;
 
@@ -27,7 +26,7 @@ internal sealed class TurnEndViewModel(TurnEndEntry entry) : ITurnEndViewModel, 
 
     public long Tokens { get; } = entry.Tokens.Input + entry.Tokens.Output + entry.Tokens.CacheRead + entry.Tokens.CacheWrite + entry.Tokens.Reasoning;
 
-    public string Cost { get; } = string.Join(" + ", entry.Costs.Select(cost => string.Create(CultureInfo.InvariantCulture, $"{cost.Amount:0.####} {cost.Currency}")));
+    public string Cost { get; } = entry.Costs.Count == 0 ? string.Empty : Presenting.Amounts.Costs(entry.Costs);
 
     public bool IsShown => true;
 

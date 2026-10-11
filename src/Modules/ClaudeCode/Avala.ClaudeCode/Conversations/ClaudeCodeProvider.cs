@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
@@ -24,8 +25,12 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         new ReportsUsage(),
         new ReportsCost(Telemetry.Currency));
 
+    private static readonly CapabilitySet Subscription = Declared.With(
+        new ReportsLimits(Telemetry.SubscriptionWindows),
+        new ReportsCost(Telemetry.Currency) { Basis = CostBasis.ApiEquivalent });
+
     public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) =>
-        (connection.ApiKey.IsSome ? Declared : Declared.With(new ReportsLimits(Telemetry.SubscriptionWindows))).With(ClaudeModels.On(connection));
+        (connection.ApiKey.IsSome ? Declared : Subscription).With(ClaudeModels.On(connection));
 
     public async ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken)
     {

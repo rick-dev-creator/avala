@@ -28,6 +28,9 @@ namespace Avala.Observability.Storage.Migrations
                     b.Property<long>("At")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Basis")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long>("CacheRead")
                         .HasColumnType("INTEGER");
 

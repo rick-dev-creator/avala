@@ -68,7 +68,7 @@ public sealed class ClaudeCodeLifecycleTests(PublishedPlugins plugins)
         _ = await run.OpenedAsync();
         var turn = await run.TurnAsync();
         Assert.Equal("1d3b5c77-6e8f-4093-8b14-ae6f8a0b2c07/0.0035", turn.OfType<ResumeTokenIssued>().Last().Token.Value);
-        Assert.Equal(new Cost(0.0035m, "USD"), Outcomes.Present(Assert.Single(turn.OfType<UsageReported>()).Cost));
+        Assert.Equal(new Cost(0.0035m, "USD") { Basis = CostBasis.ApiEquivalent }, Outcomes.Present(Assert.Single(turn.OfType<UsageReported>()).Cost));
         Assert.Contains(turn, agentEvent => agentEvent is ItemProgressed { Text: "the release notes are gathered." });
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var recordings = await run.StopAndReadRecordingsAsync();

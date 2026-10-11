@@ -256,21 +256,23 @@ public sealed class JobMeterViewModelScripts
 public sealed class InterventionViewModelScripts
 {
     [Fact]
-    public void ABudgetInterventionSaysWhatWasMeasuredAgainstWhichCap() =>
+    public void ABudgetInterventionSaysWhatWasMeasuredAtWhichPricesAgainstWhichCap() =>
         ViewModelScript.Given(new InterventionViewModel(
                 new JobIntervention(JobId.New(), DateTimeOffset.UnixEpoch, HoldReason.BudgetExceeded) { Breach = new BudgetBreach(BudgetMeasure.Cost, "USD", 5.25m, 5m, Option<BudgetError>.None) },
-                "Extract sync queue into a module"))
-            .Then(shown => Assert.Equal(("Extract sync queue into a module", HoldReason.BudgetExceeded, "Cost USD: 5.25 against 5"), (shown.Title, shown.Reason, shown.Detail)));
+                "Extract sync queue into a module",
+                [new Cost(5.25m, "USD") { Basis = CostBasis.ApiEquivalent }]))
+            .Then(shown => Assert.Equal(("Extract sync queue into a module", HoldReason.BudgetExceeded, "Cost: 5.25 USD at API prices against 5 USD"), (shown.Title, shown.Reason, shown.Detail)));
 
     [Fact]
     public void ASupervisorInterventionSaysHowLongTheAgentWasSilent() =>
         ViewModelScript.Given(new InterventionViewModel(
                 new JobIntervention(JobId.New(), DateTimeOffset.UnixEpoch, HoldReason.Stalled) { Silence = new SilenceMeasure(TimeSpan.FromSeconds(600), TimeSpan.FromSeconds(600)) },
-                "Extract sync queue into a module"))
+                "Extract sync queue into a module",
+                []))
             .Then(shown => Assert.Equal("silent for 600s, window 600s", shown.Detail));
 
     [Fact]
     public void AnInterventionWithoutAMeasureHasNoDetail() =>
-        ViewModelScript.Given(new InterventionViewModel(new JobIntervention(JobId.New(), DateTimeOffset.UnixEpoch, HoldReason.Stopped), "x"))
+        ViewModelScript.Given(new InterventionViewModel(new JobIntervention(JobId.New(), DateTimeOffset.UnixEpoch, HoldReason.Stopped), "x", []))
             .Then(shown => Assert.Empty(shown.Detail));
 }

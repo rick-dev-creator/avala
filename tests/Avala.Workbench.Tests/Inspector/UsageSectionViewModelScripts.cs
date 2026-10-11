@@ -39,8 +39,26 @@ public sealed class UsageSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(job.Job, bench);
 
-        Assert.Equal(["Held for Cost: 5.2 of 5 USD"], section.Interventions);
+        Assert.Equal(["Held for Cost: 5.2 USD of 5 USD"], section.Interventions);
         Assert.Equal("No usage reported", section.Spent);
+    }
+
+    [Fact]
+    public async Task AJobHeldOverItsCapOnASubscriptionSaysItsSpendIsAtApiPrices()
+    {
+        var job = bench.Job("Extract sync queue into a module", JobStatus.NeedsHelp);
+        bench.Usage.Jobs[job.Job] = new UsageSummary(new TokenUsage(1200, 300, 0, 0, 0), [new Cost(5.2m, "USD") { Basis = CostBasis.ApiEquivalent }], 0, default, []);
+        bench.Audit.Interventions.Add(new BudgetIntervention(
+            new JobHold(job.Job, SessionId.New(), HoldReason.BudgetExceeded, SessionHalt.Interrupted),
+            new BudgetBreach(BudgetMeasure.Cost, "USD", 5.2m, 5m, Option<BudgetError>.None),
+            DateTimeOffset.UnixEpoch));
+        using var section = new UsageSectionViewModel(bench.Inspected(), bench.Raising);
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal(
+            ("Held for Cost: 5.2 USD at API prices of 5 USD", "5.2 USD at API prices · 1,500 tokens"),
+            (Assert.Single(section.Interventions), section.Spent));
     }
 
     [Fact]
@@ -118,7 +136,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(job.Job, bench);
 
-        Assert.Equal(["Held for today's spend on this machine: 40 of 40 USD", "Held for today's spend on team-api: 10.5 of 10 USD"], section.Interventions);
+        Assert.Equal(["Held for today's spend on this machine: 40 USD of 40 USD", "Held for today's spend on team-api: 10.5 USD of 10 USD"], section.Interventions);
     }
 
     [Fact]

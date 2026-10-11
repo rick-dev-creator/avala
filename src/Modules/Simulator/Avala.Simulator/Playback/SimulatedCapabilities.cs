@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 
 namespace Avala.Simulator.Playback;
@@ -35,11 +36,13 @@ internal static class SimulatedCapabilities
 
     public static ReportsLimits SubscriptionLimits { get; } = new(["5h", "7d", "7d opus", "7d sonnet"]);
 
+    private static readonly CapabilitySet Subscription = Declared.With(SubscriptionLimits, new ReportsCost("USD") { Basis = CostBasis.ApiEquivalent });
+
     public static CapabilitySet On(ConnectionEnvironment connection) => On(SimulatedProvider.Id, connection);
 
     public static CapabilitySet On(string provider, ConnectionEnvironment connection)
     {
-        var declared = (connection.ApiKey.IsSome ? Declared : Declared.With(SubscriptionLimits)).With(Models(provider, connection));
+        var declared = (connection.ApiKey.IsSome ? Declared : Subscription).With(Models(provider, connection));
         var surfaced = connection.Settings.TryGetValue(SurfacesSetting, out var surfaces)
             ? declared.With(new AcceptsTools([.. Names(surfaces).SelectMany(Surface)]))
             : declared;

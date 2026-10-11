@@ -45,7 +45,7 @@ internal sealed record LoopRecord(LoopId Id, LoopRequest Request, LoopLimits Lim
     public int NextIteration => Iterations.Count + 1;
 
     public IReadOnlyList<Cost> Spent =>
-        [.. Iterations.SelectMany(iteration => iteration.Cost).GroupBy(cost => cost.Currency, StringComparer.Ordinal).Select(spent => new Cost(spent.Sum(cost => cost.Amount), spent.Key))];
+        [.. Iterations.SelectMany(iteration => iteration.Cost).GroupBy(cost => (cost.Currency, cost.Basis)).Select(group => new Cost(group.Sum(cost => cost.Amount), group.Key.Currency) { Basis = group.Key.Basis })];
 
     public LoopState State => new(Id, Repository, Status, Started, Iterations.Count, Current.Map(underway => underway.Job))
     {

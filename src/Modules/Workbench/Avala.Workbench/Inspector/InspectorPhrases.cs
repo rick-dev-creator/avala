@@ -53,7 +53,7 @@ internal static class InspectorPhrases
     public static string Waiting(ResetWait wait) => $"{char.ToUpperInvariant(Presenting.HandoffPhrases.Waits(wait)[0])}{Presenting.HandoffPhrases.Waits(wait)[1..]}";
 
     private static IReadOnlyList<Cost> Minus(IReadOnlyList<Cost> total, IReadOnlyList<Cost> before) =>
-        [.. total.Select(cost => cost with { Amount = Math.Max(0, cost.Amount - before.Where(earlier => earlier.Currency == cost.Currency).Sum(earlier => earlier.Amount)) })];
+        [.. total.Select(cost => cost with { Amount = Math.Max(0, cost.Amount - before.Where(earlier => earlier.Currency == cost.Currency && earlier.Basis == cost.Basis).Sum(earlier => earlier.Amount)) })];
 
     private static string SpendLine(IReadOnlyList<Cost> costs, long tokens) =>
         $"{Presenting.Amounts.Costs(costs)} · {Presenting.Amounts.Tokens(tokens)}";
@@ -135,10 +135,12 @@ internal static class InspectorPhrases
         .. caps.CarvePerChild.Match<string[]>(share => [string.Create(CultureInfo.InvariantCulture, $"Each child gets {share * 100:0}% of what is left")], () => []),
     ];
 
-    public static string Intervention(BudgetIntervention intervention) =>
-        string.Create(
-            CultureInfo.InvariantCulture,
-            $"Held for {Measure(intervention.Breach)}: {intervention.Breach.Measured} of {intervention.Breach.Cap} {intervention.Breach.Subject}");
+    public static string Intervention(BudgetIntervention intervention, IReadOnlyList<Cost> spent) =>
+        intervention.Breach.Measure is BudgetMeasure.Cost or BudgetMeasure.DailySpend
+            ? $"Held for {Measure(intervention.Breach)}: {Presenting.Amounts.Measured(intervention.Breach.Measured, intervention.Breach.Subject, spent)} of {Amounts.Costs([new Cost(intervention.Breach.Cap, intervention.Breach.Subject)])}"
+            : string.Create(
+                CultureInfo.InvariantCulture,
+                $"Held for {Measure(intervention.Breach)}: {intervention.Breach.Measured} of {intervention.Breach.Cap} {intervention.Breach.Subject}");
 
     private static string Measure(BudgetBreach breach) =>
         breach.Measure == BudgetMeasure.DailySpend
@@ -219,7 +221,7 @@ internal static class InspectorPhrases
     public static string Spending(Option<UsageSummary> usage, Option<Cost> cap) =>
         usage.Match(
             spent => cap.Match(
-                limit => $"{Amounts.Costs([Spent(spent, limit.Currency)])} of {Amounts.Costs([limit])}",
+                limit => $"{Presenting.Amounts.Measured(Spent(spent, limit.Currency).Amount, limit.Currency, spent.Costs)} of {Amounts.Costs([limit])}",
                 () => spent.Costs.Count > 0 ? Amounts.Costs(spent.Costs) : Amounts.Tokens(Amounts.Total(spent.Tokens))),
             () => cap.Match(limit => $"capped at {Amounts.Costs([limit])}", () => "nothing yet"));
 

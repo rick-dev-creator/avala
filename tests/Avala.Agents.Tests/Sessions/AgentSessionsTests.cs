@@ -81,6 +81,30 @@ public sealed class AgentSessionsTests
             await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation));
     }
 
+    [Theory]
+    [InlineData(CostBasis.Billed)]
+    [InlineData(CostBasis.ApiEquivalent)]
+    public async Task EveryReportedCostCarriesTheBasisItsConnectionDeclaresAsync(CostBasis basis)
+    {
+        var bus = new RecordingBus();
+        await using var agents = Agents(bus, new ScriptedAgentProvider((session, turn) =>
+        [
+            new TurnStarted(session, turn),
+            new UsageReported(session, turn, new TokenUsage(10, 5, 0, 0, 0), new Cost(0.41m, "USD")),
+            new TurnCompleted(session, turn, TurnOutcome.Finished),
+        ])
+        {
+            OnConnection = (_, declared) => declared.With(new ReportsCost("USD") { Basis = basis }),
+        });
+
+        await StartTurnAsync(agents, "Add GitHub login");
+        await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation);
+
+        Assert.Equal(
+            new Cost(0.41m, "USD") { Basis = basis },
+            Assert.Single(bus.Published.OfType<AgentActivity>().Select(activity => activity.Event).OfType<UsageReported>()).Cost);
+    }
+
     [Fact]
     public async Task ClosesItemsLeftOpenBeforeTheTurnFinishesAsync()
     {

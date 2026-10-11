@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 
 namespace Avala.Agents.Contracts.Capabilities;
@@ -26,7 +27,10 @@ public sealed record AcceptsMessagesMidTurn : ICapability;
 
 public sealed record ReportsUsage : ICapability;
 
-public sealed record ReportsCost(string Currency) : ICapability;
+public sealed record ReportsCost(string Currency) : ICapability
+{
+    public CostBasis Basis { get; init; }
+}
 
 public sealed record ReportsLimits(ValueSet<string> Windows) : ICapability
 {

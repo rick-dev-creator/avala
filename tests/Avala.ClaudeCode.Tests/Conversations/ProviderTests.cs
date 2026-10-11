@@ -274,7 +274,7 @@ public sealed class ProviderTests
     [InlineData(true, false, true)]
     [InlineData(false, true, false)]
     [InlineData(true, true, false)]
-    public void ASubscriptionLoginReportsItsLimitWindowsAndAnApiKeyDoesNot(bool folder, bool key, bool limits)
+    public void ASubscriptionLoginReportsItsLimitWindowsAndCostsAtApiPricesAndAnApiKeyReportsBilledCostsWithoutLimits(bool folder, bool key, bool limits)
     {
         var connection = new ConnectionEnvironment
         {
@@ -295,7 +295,7 @@ public sealed class ProviderTests
                 new AsksForms(),
                 new AcceptsMessagesMidTurn(),
                 new ReportsUsage(),
-                new ReportsCost("USD")),
+                new ReportsCost("USD") { Basis = limits ? CostBasis.ApiEquivalent : CostBasis.Billed }),
             declared.Without<ReportsLimits>().Without<OffersModels>());
     }
 
