@@ -97,9 +97,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
         IReadOnlyList<(string File, string Content)> settings,
         IReadOnlyList<(string Path, string Content)> committed,
         bool harnesses = false,
-        Option<IPlugin> claudeCode = default)
+        Option<IPlugin> claudeCode = default,
+        bool realNotifier = false)
     {
-        var run = await PreparedAsync(plugins, settings, committed, harnesses, claudeCode: claudeCode);
+        var run = await PreparedAsync(plugins, settings, committed, harnesses, claudeCode: claudeCode, realNotifier: realNotifier);
         run.Job = Outcomes.Succeeds(await run.SubmitAsync(request));
 
         return run;
@@ -128,6 +129,12 @@ internal sealed class SimulatedRun : IAsyncDisposable
         params (string Path, string Content)[] committed) =>
         StartAsync(plugins, new JobRequest(string.Empty, Simulate(scenario)) { Connection = connection }, data, committed);
 
+    public static Task<SimulatedRun> RealNotifierAsync(
+        PublishedPlugins plugins,
+        string instruction,
+        IReadOnlyList<(string File, string Content)> data) =>
+        StartAsync(plugins, new JobRequest(string.Empty, instruction), data, [], realNotifier: true);
+
     public static string Simulate(string scenario) => $"[simulate: {scenario}] Greet the team";
 
     public static Task<SimulatedRun> RealAsync(
@@ -155,7 +162,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         bool harnesses = false,
         bool developer = true,
         Option<IPlugin> claudeCode = default,
-        Func<string, IReadOnlyList<(string File, string Content)>>? placed = null)
+        Func<string, IReadOnlyList<(string File, string Content)>>? placed = null,
+        bool realNotifier = false)
     {
         var data = new TemporaryFolder();
 
@@ -166,7 +174,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode);
+        var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier };
         var root = surroundings.Compose(plugins, data);
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 
@@ -380,6 +388,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public NotifierGate Notifier { get; } = new();
 
+        public bool RealNotifier { get; init; }
+
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
                 plugins.Directory,
@@ -389,7 +399,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
-                [Board, Fault, Trips, Notifier]);
+                RealNotifier ? [Board, Fault, Trips] : [Board, Fault, Trips, Notifier]);
     }
 
     private sealed class Application : IAsyncDisposable
