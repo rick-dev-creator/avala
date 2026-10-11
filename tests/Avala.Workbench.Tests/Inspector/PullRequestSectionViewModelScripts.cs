@@ -27,7 +27,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
         Assert.Equal(["passed · build", "failed · tests: 1 test failed"], section.CheckLines);
         Assert.Equal("Conflicts with its base", section.Mergeability);
         Assert.Equal(["hubot requested changes"], section.Reviews);
-        Assert.Equal(["Woke the agent: checks failed, resuming its conversation"], section.WakeUps);
+        Assert.Equal([$"Wake-up 1 at {DateTimeOffset.UnixEpoch.ToLocalTime():HH:mm}: checks failed, the agent resumed its conversation"], section.WakeUps);
     }
 
     [Fact]

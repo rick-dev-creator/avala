@@ -145,7 +145,7 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
         CheckLines = last.Match<IReadOnlyList<string>>(state => [.. state.Checks.Select(ForgePhrases.Check)], () => []);
         Mergeability = last.Match(state => ForgePhrases.Mergeability(state.Mergeability), () => string.Empty);
         Reviews = last.Match<IReadOnlyList<string>>(state => [.. state.Reviews.Select(ForgePhrases.Review)], () => []);
-        WakeUps = facts.Match<IReadOnlyList<string>>(found => [.. found.WakeUps.Select(ForgePhrases.WakeUp)], () => []);
+        WakeUps = facts.Match<IReadOnlyList<string>>(found => [.. found.WakeUps.Select((wakeUp, index) => ForgePhrases.WakeUp(wakeUp, index + 1))], () => []);
     }
 
     private static string Brief(PullRequestWatchState state) => state.Status switch

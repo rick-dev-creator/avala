@@ -26,7 +26,7 @@ internal sealed class DesignPullRequestSectionViewModel : IPullRequestSectionVie
 
     public IReadOnlyList<string> Reviews { get; } = ["lisa approved"];
 
-    public IReadOnlyList<string> WakeUps { get; } = ["Woke the agent: checks failed, resuming its conversation"];
+    public IReadOnlyList<string> WakeUps { get; } = ["Wake-up 1 at 14:02: checks failed, the agent resumed its conversation"];
 
     public string Notice => string.Empty;
 

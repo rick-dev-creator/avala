@@ -86,18 +86,19 @@ internal static class ForgePhrases
         _ => "Mergeability not known yet",
     };
 
-    public static string WakeUp(WakeUpRecord wakeUp) => wakeUp.Outcome switch
-    {
-        WakeOutcome.Woken => $"Woke the agent: {Reason(wakeUp.Reason)}, {wakeUp.Conversation.Match(Conversation, () => "in a new session")}",
-        WakeOutcome.Refused => $"Could not wake the agent ({Reason(wakeUp.Reason)}): {wakeUp.Refusal.Match(rejection => rejection.ToString(), () => "refused")}",
-        _ => $"Held for a person: {Reason(wakeUp.Reason)}, comment posted",
-    };
+    public static string WakeUp(WakeUpRecord wakeUp, int number) =>
+        string.Create(CultureInfo.InvariantCulture, $"Wake-up {number} at {wakeUp.At.ToLocalTime():HH:mm}: {Reason(wakeUp.Reason)}, ") + wakeUp.Outcome switch
+        {
+            WakeOutcome.Woken => wakeUp.Conversation.Match(Conversation, () => "the agent started a new session"),
+            WakeOutcome.Refused => $"the agent could not be woken: {wakeUp.Refusal.Match(rejection => rejection.ToString(), () => "refused")}",
+            _ => "held for a person, comment posted",
+        };
 
     private static string Conversation(ContinuedIn conversation) => conversation switch
     {
-        ContinuedIn.ResumedConversation => "resuming its conversation",
-        ContinuedIn.SameSession => "in its session",
-        _ => "in a new conversation",
+        ContinuedIn.ResumedConversation => "the agent resumed its conversation",
+        ContinuedIn.SameSession => "the agent continued in its session",
+        _ => "the agent started a new conversation",
     };
 
     private static string Next(PullRequestWatchState state) =>
