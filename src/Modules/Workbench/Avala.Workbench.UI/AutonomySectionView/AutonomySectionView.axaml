@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inspector="using:Avala.Workbench.Inspector"
              xmlns:ui="using:Avala.Components.UI"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.AutonomySectionView"
              x:ClassModifier="internal"
              x:DataType="inspector:IAutonomySectionViewModel">
@@ -65,13 +66,14 @@
                          Classes="caption value"
                          Classes.tertiary="{Binding !IsChosen}"
                          Text="{Binding Connection}" />
-              <TextBlock Grid.Column="1"
+              <TextBlock x:Name="CapacityReading"
+                         Grid.Column="1"
                          Classes="caption"
                          Classes.attention="{Binding IsAtLimit}"
                          Margin="12,0,0,0"
                          TextAlignment="Right"
                          TextWrapping="Wrap"
-                         Text="{Binding Reading}" />
+                         Text="{Binding Reading, Converter={x:Static states:Texts.Unbroken}}" />
             </Grid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
@@ -85,11 +87,12 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="inspector:HandoffLine">
             <StackPanel Margin="0,2" Spacing="2">
-              <TextBlock Classes="caption"
+              <TextBlock x:Name="HandoffMoved"
+                         Classes="caption"
                          TextWrapping="Wrap"
-                         Text="{Binding Moved}"
+                         Text="{Binding Moved, Converter={x:Static states:Texts.Unbroken}}"
                          IsVisible="{Binding Moved, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-              <TextBlock Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Spent}" />
+              <TextBlock x:Name="HandoffSpent" Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Spent, Converter={x:Static states:Texts.Unbroken}}" />
             </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>

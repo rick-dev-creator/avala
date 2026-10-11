@@ -1,9 +1,12 @@
+using System.Text.RegularExpressions;
 using Avalonia.Data.Converters;
 
 namespace Avala.Components.UI.States;
 
-public static class Texts
+public static partial class Texts
 {
+    public static IValueConverter Unbroken { get; } = new FuncValueConverter<string, string>(text => Typeset(text ?? string.Empty));
+
     public static IMultiValueConverter Same { get; } = new FuncMultiValueConverter<object?, bool>(values =>
     {
         var all = values.ToList();
@@ -25,4 +28,13 @@ public static class Texts
 
         return slash < 0 ? trimmed : trimmed[(slash + 1)..];
     });
+
+    public static string Typeset(string text) =>
+        Joined().Replace(Measured().Replace(text.Replace(" · ", "\u00A0· ", StringComparison.Ordinal), "\u00A0"), "-\u2060");
+
+    [GeneratedRegex(@"(?<=\d%?) (?=\p{L})")]
+    private static partial Regex Measured();
+
+    [GeneratedRegex(@"(?<=[\p{L}\d])-(?=[\p{L}\d])")]
+    private static partial Regex Joined();
 }

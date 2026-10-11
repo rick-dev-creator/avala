@@ -181,7 +181,7 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
 
             Assert.Equal((true, "Chosen by capacity: claude-personal had the most left"), (view.Shows("Reason"), view.TextOf("Reason")));
             Assert.Equal(2, view.Find<ItemsControl>("Compared").ItemCount);
-            Assert.Contains("88% of 5h · holds at 90%", view.VisibleTexts, StringComparer.Ordinal);
+            Assert.Contains("88% of 5h · holds at 90%", Plain(view), StringComparer.Ordinal);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -191,9 +191,9 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
             var view = Sections.Open(Screen.Show(new DesignAutonomySectionViewModel()));
 
             Assert.Equal(2, view.Find<ItemsControl>("Handoffs").ItemCount);
-            Assert.Contains("Handed off from claude-work to claude-personal at 91% of the 5-hour window · 2026-10-10 10:42", view.VisibleTexts, StringComparer.Ordinal);
-            Assert.Contains("Spent on claude-work: 1.84 USD · 412,880 tokens", view.VisibleTexts, StringComparer.Ordinal);
-            Assert.Contains("Spent on claude-personal: 0.31 USD · 61,200 tokens", view.VisibleTexts, StringComparer.Ordinal);
+            Assert.Contains("Handed off from claude-work to claude-personal at 91% of the 5-hour window · 2026-10-10 10:42", Plain(view), StringComparer.Ordinal);
+            Assert.Contains("Spent on claude-work: 1.84 USD · 412,880 tokens", Plain(view), StringComparer.Ordinal);
+            Assert.Contains("Spent on claude-personal: 0.31 USD · 61,200 tokens", Plain(view), StringComparer.Ordinal);
             Assert.False(view.Shows("Waiting"));
         }, TestContext.Current.CancellationToken);
 
@@ -231,6 +231,21 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task UsageLinesInANarrowInspectorKeepUnitsWithTheirNumbersNamesWholeAndSeparatorsAtLineEndsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new HandedOff(), Avalonia.Styling.ThemeVariant.Dark, 300, 800));
+            var texts = view.All<TextBlock>().Where(text => text.Name is "CapacityReading" or "HandoffMoved" or "HandoffSpent").ToList();
+            var lines = texts.Select(text => text.TextLayout.TextLines.Select(line => text.Text![line.FirstTextSourceIndex..Math.Min(text.Text!.Length, line.FirstTextSourceIndex + line.Length)].Trim()).ToList()).ToList();
+            var ends = lines.SelectMany(block => block.SkipLast(1)).ToList();
+
+            Assert.Equal(5, texts.Count);
+            Assert.True(ends.Count >= 4, string.Join(" | ", lines.SelectMany(block => block)));
+            Assert.DoesNotContain(lines.SelectMany(block => block), line => line.StartsWith('·'));
+            Assert.DoesNotContain(ends, line => line.EndsWith('-') || line.EndsWith('%') || char.IsDigit(line[^1]));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AConnectionNamedOnTheJobShowsNoComparisonAsync() =>
         ui.RunAsync(() =>
         {
@@ -238,6 +253,38 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
 
             Assert.Equal((false, false), (view.Shows("Reason"), view.Shows("Compared")));
         }, TestContext.Current.CancellationToken);
+
+    private static IReadOnlyList<string> Plain(ViewScript view) =>
+        [.. view.VisibleTexts.Select(text => text.Replace('\u00A0', ' ').Replace("\u2060", string.Empty, StringComparison.Ordinal))];
+
+    private sealed class HandedOff : IAutonomySectionViewModel
+    {
+        public bool IsLoaded => true;
+
+        public string Autonomy => "Supervised, as the repository declares";
+
+        public string Fact => "Supervised";
+
+        public string Connection => "simulator-two";
+
+        public string Model => "simulated-medium · medium effort";
+
+        public string Reason => "Chosen by capacity: simulator-two had the most left";
+
+        public IReadOnlyList<CapacityLine> Compared { get; } =
+        [
+            new("simulator-one", "95% of 5h · holds at 90% · at its limit", false, true),
+            new("simulator-two", "no usage reported · holds at 90%", true, false),
+        ];
+
+        public IReadOnlyList<HandoffLine> Handoffs { get; } =
+        [
+            new("Handed off from simulator-one to simulator-two at 95% of the 5-hour window · Sun 11 Oct 14:51", "Spent on simulator-one: 0.06 USD · 15,275 tokens"),
+            new(string.Empty, "Spent on simulator-two: 0.079 USD · 21,902 tokens"),
+        ];
+
+        public string Waiting => string.Empty;
+    }
 
     private sealed class Named : IAutonomySectionViewModel
     {
