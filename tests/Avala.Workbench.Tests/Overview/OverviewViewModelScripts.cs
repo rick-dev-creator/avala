@@ -293,9 +293,9 @@ public sealed class OrchestratorCardViewModelScripts
     }
 
     [Fact]
-    public void WithoutABudgetNothingIsCarved() =>
+    public void WithoutABudgetTheCardSaysThereIsNoneToShare() =>
         ViewModelScript.Given(new OrchestratorCardViewModel(new DelegationTree(Pages.Summary("Ship the release", JobStatus.Running), [], [])))
-            .Then(card => Assert.Equal(("No budget cap", false, 0, "0 sub-agents, no carve"), (card.Budget, card.HasBudget, card.Shares.Count, card.ShareNote)));
+            .Then(card => Assert.Equal(("No budget cap", false, 0, "0 sub-agents, no budget to share"), (card.Budget, card.HasBudget, card.Shares.Count, card.ShareNote)));
 
     internal static DelegationNode Child(JobSummary root, decimal spent, decimal carve)
     {
