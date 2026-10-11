@@ -48,13 +48,13 @@ internal sealed class DesignUsageSectionViewModel : IUsageSectionViewModel
 
     public bool IsLoaded => true;
 
-    public string Fact => "USD 0.84 of USD 5";
+    public string Fact => "0.84 USD of 5 USD";
 
     public bool IsAttention => false;
 
-    public string Spent => "USD 0.84 · 61,250 tokens";
+    public string Spent => "0.84 USD · 61,250 tokens";
 
-    public IReadOnlyList<string> Caps { get; } = ["Cost cap USD 5", "Holds at 90% of a limit"];
+    public IReadOnlyList<string> Caps { get; } = ["Cost cap 5 USD", "Holds at 90% of a limit"];
 
     public IReadOnlyList<string> Interventions { get; } = [];
 

@@ -38,7 +38,7 @@ public sealed class ReviewViewModelScripts : IDisposable
         Assert.Equal(("Verified on attempt 2 of 2", "calculator passed in the worktree after the last turn.", true), (review.Verdict, review.Proof, review.IsVerified));
         var exception = Assert.Single(review.Exceptions);
         Assert.Equal(("Attempt 1 failed", "calculator · exit 1", "add(2, 2) = 5", ExceptionTone.Failure), (exception.Title, exception.Fact, exception.Output, exception.Tone));
-        Assert.Equal("2 other decisions were allowed by rules · USD 0.25 · 1,500 tokens", review.Quiet);
+        Assert.Equal("2 other decisions were allowed by rules · 0.25 USD · 1,500 tokens", review.Quiet);
         Assert.Equal(("1 file changed", "+1", "calculator.txt", "+1"), (review.Changes, review.Totals, review.Files[0].Path, review.Files[0].Counts));
     }
 

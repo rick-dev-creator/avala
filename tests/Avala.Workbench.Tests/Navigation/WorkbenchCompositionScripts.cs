@@ -43,7 +43,7 @@ public sealed class WorkbenchCompositionScripts : IDisposable
         await bench.Ui.PresentedAsync(usage, () => usage.IsLoaded, () => usage.Spent);
 
         Assert.Equal(job.Job, await bench.Ui.ReadAsync(() => page.Conversation!.Job));
-        Assert.Equal(("avala/fix-the-test", "USD 0.25 · 1,500 tokens"), await bench.Ui.ReadAsync(() => (worktree.Branch, usage.Spent)));
+        Assert.Equal(("avala/fix-the-test", "0.25 USD · 1,500 tokens"), await bench.Ui.ReadAsync(() => (worktree.Branch, usage.Spent)));
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class WorkbenchCompositionScripts : IDisposable
 
         bench.Publish(Bench.OnBoard(job, revision: 1));
 
-        await bench.Ui.PresentedAsync(usage, () => usage.Spent == "USD 0.25 · 1,500 tokens", () => usage.Spent);
+        await bench.Ui.PresentedAsync(usage, () => usage.Spent == "0.25 USD · 1,500 tokens", () => usage.Spent);
         Assert.Same(row, await bench.Ui.ReadAsync(() => sidebar.Running[0]));
     }
 

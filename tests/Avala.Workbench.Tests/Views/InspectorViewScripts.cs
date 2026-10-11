@@ -78,8 +78,8 @@ public sealed class UsageSectionViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignUsageSectionViewModel());
 
-            Assert.Equal(((object?)"Usage & caps", (string?)"USD 0.84 of USD 5", true), Sections.Row(view));
-            Assert.Equal("USD 0.84 · 61,250 tokens", view.TextOf("Spent"));
+            Assert.Equal(((object?)"Usage & caps", (string?)"0.84 USD of 5 USD", true), Sections.Row(view));
+            Assert.Equal("0.84 USD · 61,250 tokens", view.TextOf("Spent"));
             Assert.Equal(2, view.Find<ItemsControl>("Caps").ItemCount);
             Assert.Equal((false, true), (view.Shows("Carve"), view.Shows("Meter")));
             Assert.Contains("17%", view.VisibleTexts);

@@ -61,7 +61,7 @@ public sealed class InspectorPhrasesTests
     [Fact]
     public void TheHoldAtALimitReadsAsTheThresholdItHoldsAtAsTheUsagePageSaysIt() =>
         Assert.Equal(
-            ["Cost cap USD 5", "Holds at 95% of a limit"],
+            ["Cost cap 5 USD", "Holds at 95% of a limit"],
             InspectorPhrases.Caps(new Budgets.Contracts.BudgetCaps([new Cost(5m, "USD")], Option<long>.None, 0.95)));
 
     [Theory]

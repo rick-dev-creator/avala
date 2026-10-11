@@ -23,7 +23,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
         await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
 
         Assert.Equal(
-            ("USD 0.25 · 1,500 tokens", "Cost cap USD 5", "Carved 50% of its parent's budget · USD 0.5"),
+            ("0.25 USD · 1,500 tokens", "Cost cap 5 USD", "Carved 50% of its parent's budget · 0.5 USD"),
             (section.Spent, string.Join("|", section.Caps), section.Carve));
     }
 
@@ -55,7 +55,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
 
         await ViewModelScript.Given(section).WhenPresentedAsync(_ => bench.Publish(Bench.OnBoard(job, revision: 1)), Cancellation);
 
-        Assert.Equal(("No usage reported", "USD 0.25 · 1,500 tokens"), (before, section.Spent));
+        Assert.Equal(("No usage reported", "0.25 USD · 1,500 tokens"), (before, section.Spent));
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
 
-        Assert.Equal(("USD 0.25 of USD 5", false), (section.Fact, section.IsAttention));
+        Assert.Equal(("0.25 USD of 5 USD", false), (section.Fact, section.IsAttention));
         var meter = Assert.IsAssignableFrom<Components.Meters.IMeterViewModel>(section.Meter);
         Assert.Equal(("Cost cap", 0.05, "5%"), (meter.Label, Math.Round(meter.Fraction, 2), meter.Reading));
     }

@@ -95,7 +95,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
         var after = await InspectedWhileCheckingAsync(run);
         await rerun.GetStream().WriteAsync(new byte[] { 0 }, Cancellation);
 
-        Assert.Contains(before, line => line.StartsWith("usage: USD 0.01", StringComparison.Ordinal));
+        Assert.Contains(before, line => line.StartsWith("usage: 0.01", StringComparison.Ordinal));
         Assert.Contains(before, line => line.StartsWith("audit: 1 denied", StringComparison.Ordinal));
         Assert.Contains("autonomy: Autonomous · Autonomous, as the repository declares", before);
         Assert.Equal(before, after);

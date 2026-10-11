@@ -7,7 +7,7 @@ namespace Avala.Workbench.Review;
 internal static class Amounts
 {
     public static string Costs(IEnumerable<Cost> costs) =>
-        string.Join(", ", costs.Select(cost => string.Create(CultureInfo.InvariantCulture, $"{cost.Currency} {cost.Amount:0.####}")));
+        Presenting.Amounts.Costs([.. costs]);
 
     public static long Total(TokenUsage tokens) => tokens.Input + tokens.Output + tokens.CacheRead + tokens.CacheWrite + tokens.Reasoning;
 
