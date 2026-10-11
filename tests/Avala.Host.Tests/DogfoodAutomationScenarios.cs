@@ -84,7 +84,7 @@ internal static class DogfoodAutomationScenarios
             Committed =
             [
                 new(".avala/jobs.json", $$"""{ "connection": "{{Main}}", "approval": "keep", "autopilot": { "approve": "cleanEvidence" } }"""),
-                new(".avala/backlog.json", $$"""{ "tasks": [ { "id": "div", "instruction": {{Json(setup.Tagged("[replay: s9]", "Add `div(a, b)` to calc.js with a node:test test in test/calc.test.js."))}} } ] }"""),
+                new(".avala/backlog.json", $$"""{ "tasks": [ { "id": "div", "instruction": {{Json(setup.Tagged("[replay: s9]", "Add `div(a, b)` to calc.js with a node:test test in test/calc.test.js. Read and change files with your file tools, and run no shell command other than `node --test`."))}} } ] }"""),
             ],
             Data =
             [
@@ -98,7 +98,7 @@ internal static class DogfoodAutomationScenarios
                           "repository": {{Json(setup.Place.Repository)}},
                           "schedule": { "everyMinutes": 43200 },
                           "target": "loop",
-                          "instruction": {{Json(setup.Tagged("[replay: s9]", "Add `mul(a, b)` to calc.js with a node:test test in test/calc.test.js."))}}
+                          "instruction": {{Json(setup.Tagged("[replay: s9]", "Add `mul(a, b)` to calc.js with a node:test test in test/calc.test.js. Read and change files with your file tools, and run no shell command other than `node --test`."))}}
                         }
                       ]
                     }
