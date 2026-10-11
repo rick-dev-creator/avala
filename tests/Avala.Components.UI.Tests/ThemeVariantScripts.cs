@@ -45,6 +45,20 @@ public sealed class ThemeVariantScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Theory]
+    [InlineData("FailureBrush")]
+    [InlineData("AttentionBrush")]
+    public Task TheLightThemeKeepsTheHueAndVividnessOfTheDarkThemesStatusColourAsync(string key) =>
+        ui.RunAsync(() =>
+        {
+            var dark = Legibility.Resource(key, ThemeVariant.Dark).ToHsl();
+            var light = Legibility.Resource(key, ThemeVariant.Light).ToHsl();
+            var hues = Math.Abs(dark.H - light.H);
+
+            Assert.True(Math.Min(hues, 360 - hues) <= 10, $"hue {light.H} against {dark.H}");
+            Assert.True(light.S >= dark.S - 0.1, $"saturation {light.S} against {dark.S}");
+        }, Cancellation);
+
+    [Theory]
     [MemberData(nameof(Variants))]
     public Task GraphNodesHideTheEdgesBehindThemAsync(string name) =>
         ui.RunAsync(() => Assert.Equal(255, Legibility.Resource("NodeBrush", Variant(name)).A), Cancellation);
