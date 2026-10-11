@@ -82,4 +82,5 @@ public enum ForgeError
     NoBaseBranch,
     PushRejected,
     GitFailed,
+    EventsUnsupported,
 }

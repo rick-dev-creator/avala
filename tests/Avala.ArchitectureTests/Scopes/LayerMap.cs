@@ -292,6 +292,7 @@ internal static class LayerMap
             [""] = Layer.None,
             ["Contracts"] = Layer.Contracts,
             ["Policy"] = Layer.Domain,
+            ["Sifting"] = Layer.Domain,
             ["Connecting"] = Layer.Application,
             ["Delivering"] = Layer.Application,
             ["Watching"] = Layer.Application,
