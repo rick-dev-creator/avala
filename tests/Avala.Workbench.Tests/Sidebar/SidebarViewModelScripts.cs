@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Components.Status;
+using Avala.Contests.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
@@ -241,9 +242,78 @@ public sealed class SidebarViewModelScripts : IDisposable
         Assert.Equal((false, true), (parent.IsSelected, parent.Children[0].IsSelected));
     }
 
+    [Fact]
+    public void TheCandidatesOfAContestSitUnderOneCollapsedRowThatCountsThoseThatPassed()
+    {
+        var first = Job("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview) with { Verification = Passed() };
+        var second = Job("Fix JPY rounding in invoice totals", JobStatus.Running);
+        var sidebar = bench.Sidebar();
+        sidebar.Show(Board(first, second));
+
+        Contest(ContestStatus.Running, first, second);
+        sidebar.Show(Board(first, second));
+
+        var row = Assert.IsType<ContestRowViewModel>(Assert.Single(sidebar.Running));
+        Assert.Empty(sidebar.ReadyForReview);
+        Assert.Equal(("Fix JPY rounding in invoice totals", "2 candidates · 1 passed", false), (row.Title, row.Fact, row.IsExpanded));
+        Assert.Empty(row.Children);
+        Assert.Equal([(first.Job, "Candidate 1", "verified"), (second.Job, "Candidate 2", "working")], row.Candidates.Select(candidate => (candidate.Job, candidate.Title, candidate.Fact)));
+    }
+
+    [Fact]
+    public void ADecidedContestWaitsForReviewAndSelectingItFocusesItsWinner()
+    {
+        var first = Job("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview);
+        var winner = Job("Fix JPY rounding in invoice totals", JobStatus.AwaitingReview);
+        var sidebar = bench.Sidebar();
+        JobSelected? selected = null;
+        bench.Messenger.Register<JobSelected>(this, (_, message) => selected = message);
+        Contest(ContestStatus.Decided, first, winner);
+        sidebar.Show(Board(first, winner));
+
+        var row = Assert.Single(sidebar.ReadyForReview);
+        sidebar.SelectCommand.Execute(row);
+
+        Assert.Equal((winner.Job, true), (row.Job, row.IsSelected));
+        Assert.Equal(winner.Job, selected?.Job);
+    }
+
+    [Theory]
+    [InlineData(ContestStatus.Undecided, "NeedsYou")]
+    [InlineData(ContestStatus.Closed, "Done")]
+    [InlineData(ContestStatus.Judging, "Running")]
+    public void AContestRowSitsInTheGroupOfWhatTheContestNeeds(ContestStatus status, string group)
+    {
+        var first = Job("Fix JPY rounding in invoice totals", JobStatus.NeedsHelp);
+        var second = Job("Fix JPY rounding in invoice totals", JobStatus.NeedsHelp);
+        var sidebar = bench.Sidebar();
+        Contest(status, first, second);
+
+        sidebar.Show(Board(first, second));
+
+        Assert.IsType<ContestRowViewModel>(Assert.Single(group switch
+        {
+            "NeedsYou" => sidebar.NeedsYou,
+            "Done" => sidebar.Done,
+            _ => sidebar.Running,
+        }));
+    }
+
     public void Dispose() => bench.Dispose();
 
-    private static IEnumerable<IJobRowViewModel> Rows(SidebarViewModel sidebar) =>
+    private void Contest(ContestStatus status, params BoardJob[] candidates)
+    {
+        var contest = FakeContests.Contest(status, [.. candidates.Select(candidate => candidate.Job)]) with
+        {
+            Verdict = status == ContestStatus.Decided ? new ContestVerdict([], candidates[^1].Job, DateTimeOffset.UnixEpoch) : Option<ContestVerdict>.None,
+        };
+        bench.Board.Publish(candidates.ToImmutableDictionary(candidate => candidate.Job, _ => new BoardContest(contest, 1)));
+    }
+
+    private static Option<Verification.Contracts.VerificationReport> Passed() =>
+        new Verification.Contracts.VerificationReport(JobId.New(), 1, Verification.Contracts.VerificationOutcome.Passed, Option<Workspaces.Contracts.FileOrigin>.None, [], GateVerdict.Pass, DateTimeOffset.UnixEpoch);
+
+    private static IEnumerable<ISidebarRow> Rows(SidebarViewModel sidebar) =>
         sidebar.NeedsYou.Concat(sidebar.Running).Concat(sidebar.Waiting).Concat(sidebar.ReadyForReview).Concat(sidebar.Done);
 
     private BoardJob ChildOf(BoardJob parent, string instruction, JobStatus status)

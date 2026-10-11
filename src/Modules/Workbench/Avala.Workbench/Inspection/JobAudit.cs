@@ -1,3 +1,4 @@
+using Avala.Contests.Contracts;
 using Avala.Forges.Contracts;
 using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
@@ -65,6 +66,8 @@ internal sealed record InspectorFacts(JobRecord Record, AuditFacts Audit)
     public Option<PullRequestWatchState> PullRequest { get; init; }
 
     public IReadOnlyList<WakeUpRecord> WakeUps { get; init; } = [];
+
+    public Option<ContestRecord> Contest { get; init; }
 }
 
 internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.JobBoard board)
@@ -79,5 +82,6 @@ internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.Jo
             Status = board.Find(job).Match(found => found.Status, () => record.History.Summary.Status),
             PullRequest = board.Find(job).Bind(found => found.PullRequest),
             WakeUps = board.Find(job).Match(found => found.WakeUps, () => []),
+            Contest = board.ContestOf(job).Map(found => found.Contest),
         });
 }

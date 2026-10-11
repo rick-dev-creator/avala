@@ -22,6 +22,12 @@ internal sealed class BoardFeed(JobBoard board, IUiDispatcher ui) : IPresentatio
 
     public Option<BoardJob> Find(JobId job) => board.Find(job);
 
+    public ImmutableDictionary<JobId, BoardContest> Contests => board.Contests;
+
+    public Option<BoardContest> ContestOf(JobId job) => board.ContestOf(job);
+
+    public int RevisionOf(JobId job) => board.Revision(job);
+
     public void Start(Func<ImmutableDictionary<JobId, BoardJob>, IReadOnlyList<Func<CancellationToken, Task>>> show)
     {
         if (active is null)

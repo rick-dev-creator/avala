@@ -30,7 +30,7 @@
     </Style>
   </UserControl.Styles>
   <UserControl.Resources>
-    <DataTemplate x:Key="Row" x:DataType="sidebar:IJobRowViewModel">
+    <DataTemplate x:Key="Row" x:DataType="sidebar:ISidebarRow">
       <StackPanel>
         <Button Classes="row"
                 Classes.child="{Binding IsChild}"

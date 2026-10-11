@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sidebar="using:Avala.Workbench.Sidebar"
+             x:Class="Avala.Workbench.UI.CandidateRowView"
+             x:ClassModifier="internal"
+             x:DataType="sidebar:ICandidateRowViewModel"
+             ClipToBounds="False"
+             Classes.selected="{Binding IsSelected}">
+  <Design.DataContext>
+    <sidebar:DesignCandidateRowViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBlock#Title">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+    </Style>
+    <Style Selector=":is(UserControl).selected TextBlock#Title">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ContentControl#Dot">
+      <Setter Property="Width" Value="6" />
+      <Setter Property="Height" Value="6" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+    <ContentControl x:Name="Dot"
+                    ClipToBounds="False"
+                    Content="{Binding Dot}"
+                    VerticalAlignment="Center" />
+    <TextBlock x:Name="Title"
+               Grid.Column="1"
+               Text="{Binding Title}"
+               TextTrimming="CharacterEllipsis"
+               VerticalAlignment="Center" />
+    <TextBlock x:Name="Fact"
+               Grid.Column="2"
+               Classes="caption"
+               Margin="10,0,0,0"
+               MaxWidth="150"
+               Text="{Binding Fact}"
+               TextTrimming="CharacterEllipsis"
+               VerticalAlignment="Center" />
+    <Border x:Name="PendingBadge"
+            Grid.Column="3"
+            Classes="badge"
+            MinWidth="16"
+            Margin="8,0,0,0"
+            VerticalAlignment="Center"
+            ToolTip.Tip="Decisions waiting for you"
+            IsVisible="{Binding HasPendingDecisions}">
+      <TextBlock x:Name="Pending" Text="{Binding PendingDecisions}" HorizontalAlignment="Center" />
+    </Border>
+  </Grid>
+</UserControl>

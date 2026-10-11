@@ -36,6 +36,21 @@ public sealed class ContestTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheWorkbenchShowsADecidedContestAsOneRowWaitingForReviewThatLeadsWithTheWinnerAsync()
+    {
+        await using var run = await CheckedAsync();
+        var decided = run.Watch<ContestDecided>();
+        var contest = await StartAsync(run, "contest", 3);
+        var winner = Outcomes.Present(Outcomes.Present((await decided.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Verdict).Winner);
+        var workbench = await run.WorkbenchAsync();
+
+        var row = await workbench.RowAsync(winner, "ReadyForReview");
+
+        Assert.Equal(("ReadyForReview", "3 candidates · 2 passed"), row);
+        Assert.Equal("ContestRowViewModel", await run.Ui.ReadAsync(() => Assert.Single(workbench.Sidebar["ReadyForReview"].Items).Kind));
+    }
+
+    [Fact]
     public async Task ApprovingTheRunnerUpPicksItAndDiscardsTheWinnerAsync()
     {
         await using var run = await CheckedAsync();

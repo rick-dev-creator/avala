@@ -8,17 +8,36 @@ namespace Avala.Workbench.Board;
 internal sealed class JobBoard
 {
     private ImmutableDictionary<JobId, BoardJob> jobs = ImmutableDictionary<JobId, BoardJob>.Empty;
+    private ImmutableDictionary<JobId, BoardContest> contests = ImmutableDictionary<JobId, BoardContest>.Empty;
     private ImmutableList<ChannelWriter<bool>> watchers = [];
 
     public ImmutableDictionary<JobId, BoardJob> Jobs => Volatile.Read(ref jobs);
 
+    public ImmutableDictionary<JobId, BoardContest> Contests => Volatile.Read(ref contests);
+
     public Option<BoardJob> Find(JobId job) =>
         Jobs.TryGetValue(job, out var found) ? Option<BoardJob>.Some(found) : Option<BoardJob>.None;
+
+    public Option<BoardContest> ContestOf(JobId job) =>
+        Contests.TryGetValue(job, out var found) ? Option<BoardContest>.Some(found) : Option<BoardContest>.None;
+
+    public int Revision(JobId job) =>
+        (Jobs.TryGetValue(job, out var found) ? found.Revision : 0) + (Contests.TryGetValue(job, out var contest) ? contest.Revision : 0);
 
     public void Publish(ImmutableDictionary<JobId, BoardJob> next)
     {
         Volatile.Write(ref jobs, next);
+        Notify();
+    }
 
+    public void Publish(ImmutableDictionary<JobId, BoardContest> next)
+    {
+        Volatile.Write(ref contests, next);
+        Notify();
+    }
+
+    private void Notify()
+    {
         foreach (var watcher in Volatile.Read(ref watchers))
         {
             watcher.TryWrite(true);

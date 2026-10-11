@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
+using Avala.Contests.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
@@ -127,6 +128,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IFirstRunViewModel, FirstRunView>();
         views.Register<ISidebarViewModel, SidebarView>();
         views.Register<IJobRowViewModel, JobRowView>();
+        views.Register<IContestRowViewModel, ContestRowView>();
+        views.Register<ICandidateRowViewModel, CandidateRowView>();
         views.Register<IToolbarViewModel, ToolbarView>();
         views.Register<IConversationViewModel, ConversationView>();
         views.Register<IComposerViewModel, ComposerView>();
@@ -190,6 +193,14 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
 
     private static void RegisterContests(IPluginRegistrar registrar) =>
         registrar.Services
+            .AddSingleton<ContestKeeper>()
+            .AddForwarded<IHandle<ContestsRestored>, ContestKeeper>()
+            .AddForwarded<IHandle<ContestStarted>, ContestKeeper>()
+            .AddForwarded<IHandle<CandidateSettled>, ContestKeeper>()
+            .AddForwarded<IHandle<CandidateReopened>, ContestKeeper>()
+            .AddForwarded<IHandle<ContestDecided>, ContestKeeper>()
+            .AddForwarded<IHandle<ContestUndecided>, ContestKeeper>()
+            .AddForwarded<IHandle<ContestClosed>, ContestKeeper>()
             .AddSingleton<Submissions>()
             .AddSingleton<ContestReadings>()
             .AddTransient<JobOptionsViewModel>();

@@ -7,13 +7,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Sidebar;
 
-internal interface IJobRowViewModel
+internal interface ISidebarRow
 {
     JobId Job { get; }
 
     string Title { get; }
-
-    JobStatus Status { get; }
 
     string Fact { get; }
 
@@ -25,9 +23,18 @@ internal interface IJobRowViewModel
 
     bool IsChild { get; }
 
+    DateTimeOffset Submitted { get; }
+
     IStatusDotViewModel Dot { get; }
 
-    IReadOnlyList<IJobRowViewModel> Children { get; }
+    IReadOnlyList<ISidebarRow> Children { get; }
+}
+
+internal interface ISidebarEntry : ISidebarRow;
+
+internal interface IJobRowViewModel : ISidebarEntry
+{
+    JobStatus Status { get; }
 }
 
 [INotifyPropertyChanged]
@@ -53,7 +60,7 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
 
     public ObservableCollection<JobRowViewModel> Children { get; } = [];
 
-    IReadOnlyList<IJobRowViewModel> IJobRowViewModel.Children => Children;
+    IReadOnlyList<ISidebarRow> ISidebarRow.Children => Children;
 
     public DateTimeOffset Submitted { get; }
 

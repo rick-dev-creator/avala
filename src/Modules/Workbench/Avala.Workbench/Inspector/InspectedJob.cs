@@ -53,7 +53,7 @@ internal sealed class InspectedJob(BoardFeed feed, InspectedFacts facts) : IPres
         focus.Match<IReadOnlyList<Func<CancellationToken, Task>>>(
             job =>
             {
-                var revision = jobs.TryGetValue(job, out var found) ? found.Revision : 0;
+                var revision = feed.RevisionOf(job);
 
                 if (revision == requested)
                 {
