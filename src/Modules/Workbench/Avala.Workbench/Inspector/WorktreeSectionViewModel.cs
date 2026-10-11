@@ -75,7 +75,7 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     {
         IsLoaded = facts.IsSome;
         var workspace = facts.Bind(found => found.Record.Workspace);
-        Fact = facts.IsNone ? string.Empty : workspace.Match(found => InspectorPhrases.Branch(found.Branch), () => "none");
+        Fact = facts.IsNone ? string.Empty : workspace.Match(found => InspectorPhrases.Worktree(found.Branch, found.BaseBranch), () => "none");
         Branch = facts.IsNone ? string.Empty : workspace.Match(found => found.Branch, () => "No worktree");
         Base = workspace.Match(
             found => found.BaseBranch.Match(branch => $"{branch} at {Short(found.BaseCommit)}", () => Short(found.BaseCommit)),

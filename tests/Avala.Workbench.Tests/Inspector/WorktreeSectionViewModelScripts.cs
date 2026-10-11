@@ -63,7 +63,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     }
 
     [Fact]
-    public async Task TheHeaderFactIsTheBranchsLastSegmentOrNone()
+    public async Task TheHeaderFactIsTheBranchsShortNameAndItsBaseOrNone()
     {
         using var section = new WorktreeSectionViewModel(bench.Inspected());
         await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
@@ -71,7 +71,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(bench.Catalog.Add("Add invoice PDF endpoint").Summary.Job, bench);
 
-        Assert.Equal(("fix-the-test", "none"), (reviewed, section.Fact));
+        Assert.Equal(("fix-the-test from main", "none"), (reviewed, section.Fact));
     }
 
     public void Dispose() => bench.Dispose();

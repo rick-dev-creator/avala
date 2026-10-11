@@ -235,7 +235,13 @@ internal static class InspectorPhrases
         : delegatedByParent ? "a sub-agent"
         : "none";
 
-    public static string Branch(string branch) => branch.Split('/')[^1];
+    public static string Worktree(string branch, Option<string> baseBranch)
+    {
+        var name = branch.Split('/')[^1];
+        var label = name.Length > 12 && name.All(char.IsAsciiHexDigit) ? name[..7] : name;
+
+        return baseBranch.Match(from => $"{label} from {from}", () => label);
+    }
 
     private static Cost Spent(UsageSummary usage, string currency) =>
         new(usage.Costs.Where(cost => cost.Currency == currency).Sum(cost => cost.Amount), currency);

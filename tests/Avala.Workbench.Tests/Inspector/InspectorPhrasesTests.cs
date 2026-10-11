@@ -14,6 +14,13 @@ public sealed class InspectorPhrasesTests
     private static readonly PolicyRule Remembered = new(RuleOrigin.Job, "don't ask again for this job", ItemKind.FileEdit, "src/auth/login.ts", RuleScope.Anywhere, PolicyAnswer.Allow);
 
     [Theory]
+    [InlineData("avala/01a12983fa7477cebdae19e69c0ffee0", "main", "01a1298 from main")]
+    [InlineData("avala/01a12983fa7477cebdae19e69c0ffee0", "", "01a1298")]
+    [InlineData("avala/rate-limit-post-login", "", "rate-limit-post-login")]
+    public void AWorktreeIsSummedUpByItsBranchsShortNameAndItsBase(string branch, string baseBranch, string phrase) =>
+        Assert.Equal(phrase, InspectorPhrases.Worktree(branch, baseBranch.Length == 0 ? Option<string>.None : Option<string>.Some(baseBranch)));
+
+    [Theory]
     [InlineData(AttemptOutcome.Running, null, "Attempt 1: the agent is working, no checks yet")]
     [InlineData(AttemptOutcome.AwaitingCheck, null, "Attempt 1: checks running")]
     [InlineData(AttemptOutcome.Interrupted, AttemptOrigin.Recovery, "Attempt 1: interrupted by a restart, no checks completed")]
