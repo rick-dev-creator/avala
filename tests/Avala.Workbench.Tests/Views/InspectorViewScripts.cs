@@ -156,6 +156,18 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task TheModelAndTheConnectionWrapInANarrowInspectorInsteadOfBeingCutAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new LongNames(), Avalonia.Styling.ThemeVariant.Dark, 300, 600));
+            var (model, connection) = (view.Find<TextBlock>("Model"), view.Find<TextBlock>("Connection"));
+
+            Assert.All([model, connection], text => Assert.DoesNotContain(text.TextLayout.TextLines, line => line.HasCollapsed));
+            Assert.True(model.TextLayout.TextLines.Count > 1);
+            Assert.Equal(view.Find<TextBlock>("Autonomy").FontFamily, model.FontFamily);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AConnectionNamedOnTheJobShowsNoComparisonAsync() =>
         ui.RunAsync(() =>
         {
@@ -175,6 +187,27 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         public string Connection => "claude-work";
 
         public string Model => string.Empty;
+
+        public string Reason => string.Empty;
+
+        public IReadOnlyList<CapacityLine> Compared { get; } = [];
+
+        public IReadOnlyList<HandoffLine> Handoffs { get; } = [];
+
+        public string Waiting => string.Empty;
+    }
+
+    private sealed class LongNames : IAutonomySectionViewModel
+    {
+        public bool IsLoaded => true;
+
+        public string Autonomy => "Supervised, as asked";
+
+        public string Fact => "Supervised";
+
+        public string Connection => "claude-personal-subscription-backup";
+
+        public string Model => "simulated-large-context-preview · high effort";
 
         public string Reason => string.Empty;
 
