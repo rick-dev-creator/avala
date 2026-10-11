@@ -81,6 +81,23 @@ public sealed class WebhookListenerTests
         Assert.Equal([WebhookListener.Holder], taken.Released);
     }
 
+    [Fact]
+    public async Task AnEndpointClosedTheMomentItStartsListeningAndClosedAgainEndsCleanlyAndReleasesItsPortOnceAsync()
+    {
+        await using var triggered = await StartAsync();
+        var leases = new FakeLeases(FreePort());
+        var listener = Listener(triggered, leases);
+
+        await listener.RunAsync(Triggered.Cancellation);
+        await listener.StopAsync(Triggered.Cancellation);
+        await listener.StopAsync(Triggered.Cancellation);
+        await listener.DisposeAsync();
+        await listener.DisposeAsync();
+
+        Assert.Equal(WebhookEndpoint.Off, listener.Current);
+        Assert.Equal([WebhookListener.Holder], leases.Released);
+    }
+
     private static Task<Triggered> StartAsync() =>
         Triggered.StartAsync(Declared.Machine(Hook), world => world.Secrets.Values["HOOK_SECRET"] = Secret);
 

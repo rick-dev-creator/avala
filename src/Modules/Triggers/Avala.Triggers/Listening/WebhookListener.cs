@@ -21,7 +21,7 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
     private const string Prefix = "/hooks/";
 
     private readonly SerialExecutor owner = new();
-    private Option<(HttpListener Listener, Task Serving)> running;
+    private Option<Serving> running;
     private WebhookEndpoint current = WebhookEndpoint.Off;
     private int disposed;
 
@@ -100,7 +100,8 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
             return;
         }
 
-        running = (listener, Task.Run(() => ServeAsync(listener), CancellationToken.None));
+        var closing = new CancellationTokenSource();
+        running = new Serving(listener, closing, Task.Run(() => ServeAsync(listener, closing.Token), CancellationToken.None));
         Volatile.Write(ref current, new WebhookEndpoint(url, Option<TriggerError>.None));
     }
 
@@ -109,12 +110,14 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
         await running.Match(
             async served =>
             {
+                await served.Closing.CancelAsync();
                 served.Listener.Close();
-                await served.Serving;
+                await served.Loop;
+                served.Closing.Dispose();
                 await ReleaseAsync(token);
             },
             () => Task.CompletedTask);
-        running = Option<(HttpListener Listener, Task Serving)>.None;
+        running = Option<Serving>.None;
         Volatile.Write(ref current, WebhookEndpoint.Off);
     }
 
@@ -126,9 +129,9 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
         }
     }
 
-    private async Task ServeAsync(HttpListener listener)
+    private async Task ServeAsync(HttpListener listener, CancellationToken closing)
     {
-        while (listener.IsListening)
+        while (!closing.IsCancellationRequested && listener.IsListening)
         {
             HttpListenerContext context;
 
@@ -136,7 +139,7 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
             {
                 context = await listener.GetContextAsync();
             }
-            catch (Exception stopped) when (stopped is HttpListenerException or ObjectDisposedException or InvalidOperationException)
+            catch (Exception stopped) when (closing.IsCancellationRequested || stopped is HttpListenerException or ObjectDisposedException or InvalidOperationException)
             {
                 return;
             }
@@ -210,4 +213,6 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
 
     [LoggerMessage(Level = LogLevel.Information, Message = "A webhook request was dropped: {Reason}")]
     private partial void LogDropped(string reason);
+
+    private sealed record Serving(HttpListener Listener, CancellationTokenSource Closing, Task Loop);
 }
