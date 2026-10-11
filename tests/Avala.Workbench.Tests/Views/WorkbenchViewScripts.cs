@@ -282,6 +282,18 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task ASelectedRowLiftsItsTitleOffTheSelectionFillAsync() =>
+        ui.RunAsync(() =>
+        {
+            var ended = Title(new DesignJobRowViewModel(Presenting.SampleJobs.JpyRounding, "Paginate audit log export", JobStatus.Approved, "merged", Components.Status.StatusKind.Done, 0));
+            var child = Title(new DesignJobRowViewModel(Presenting.SampleJobs.JpyRounding, "Update call sites", JobStatus.Running, "9 of 14 files", Components.Status.StatusKind.Working, 0) { IsChild = true });
+
+            Assert.Equal(
+                (Legibility.Resource("TextSecondaryBrush", Avalonia.Styling.ThemeVariant.Dark), Legibility.Resource("TextPrimaryBrush", Avalonia.Styling.ThemeVariant.Dark)),
+                (ended, child));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ALongTitleIsTrimmedRatherThanPushingTheFactOutAsync() =>
         ui.RunAsync(() =>
         {
@@ -292,4 +304,7 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
             Assert.True(view.Shows("Fact"));
             Assert.True(view.Find("Fact").Bounds.Right <= view.Find<TextBlock>("Title").GetVisualParent()!.Bounds.Width);
         }, TestContext.Current.CancellationToken);
+
+    private static Avalonia.Media.Color Title(DesignJobRowViewModel row) =>
+        ((Avalonia.Media.ISolidColorBrush)Screen.Show(row, Avalonia.Styling.ThemeVariant.Dark, 400, 120).Find<TextBlock>("Title").Foreground!).Color;
 }

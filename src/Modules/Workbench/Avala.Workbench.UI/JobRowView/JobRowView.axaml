@@ -7,6 +7,7 @@
              x:DataType="sidebar:IJobRowViewModel"
              ClipToBounds="False"
              Classes.child="{Binding IsChild}"
+             Classes.selected="{Binding IsSelected}"
              Classes.ended="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Approved,Discarded'}">
   <Design.DataContext>
     <sidebar:DesignJobRowViewModel />
@@ -31,6 +32,12 @@
       <Setter Property="Width" Value="6" />
       <Setter Property="Height" Value="6" />
       <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+    <Style Selector=":is(UserControl).child.selected TextBlock#Title">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector=":is(UserControl).ended.selected TextBlock#Title">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
     <Style Selector=":is(UserControl).ended TextBlock#Fact">
       <Setter Property="IsVisible" Value="False" />
