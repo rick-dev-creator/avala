@@ -169,7 +169,9 @@ internal static class InspectorPhrases
 
     public static string Carve(BudgetCarve carve) =>
         Amounts.Joined([
-            string.Create(CultureInfo.InvariantCulture, $"Carved {carve.Share * 100:0}% of its parent's budget"),
+            carve.Contested
+                ? string.Create(CultureInfo.InvariantCulture, $"A contest candidate: {carve.Share * 100:0}% of the per-job budget")
+                : string.Create(CultureInfo.InvariantCulture, $"Carved {carve.Share * 100:0}% of its parent's budget"),
             .. Amounts.Priced(carve.Cost),
             .. carve.Tokens.Match<string[]>(tokens => [Amounts.Tokens(tokens)], () => []),
         ]);

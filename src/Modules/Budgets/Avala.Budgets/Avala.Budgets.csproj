@@ -11,6 +11,7 @@
     <ProjectReference Include="..\..\..\Shared\Avala.Storage\Avala.Storage.csproj" />
     <ProjectReference Include="..\..\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" />
     <ProjectReference Include="..\..\Resources\Avala.Resources.Contracts\Avala.Resources.Contracts.csproj" />
+    <ProjectReference Include="..\..\Contests\Avala.Contests.Contracts\Avala.Contests.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Budgets.Tests" />

@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Caps;
 using Avala.Budgets.Contracts;
+using Avala.Contests.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Resources.Contracts;
@@ -12,11 +13,19 @@ using Avala.Sdk.Events;
 namespace Avala.Budgets.Enforcement;
 
 internal sealed class BudgetEnforcer(BudgetBook book, JobBreaches breaches, IEnumerable<IResources> resources, BudgetActions actions)
-    : IHandle<BudgetLoaded>, IHandle<JobSessionStarted>, IHandle<JobProgressed>, IHandle<UsageRecorded>, IHandle<ResourcesSampled>, IHandle<JobSubmitted>, IHandle<JobHeld>
+    : IHandle<BudgetLoaded>, IHandle<JobSessionStarted>, IHandle<JobProgressed>, IHandle<UsageRecorded>, IHandle<ResourcesSampled>, IHandle<JobSubmitted>, IHandle<JobHeld>, IHandle<ContestStarted>
 {
     private readonly Dictionary<JobId, SessionId> sessions = [];
     private readonly Dictionary<JobId, JobStatus> statuses = [];
     private readonly List<(JobId Child, JobId Parent)> uncarved = [];
+    private readonly List<(JobId Candidate, JobId Contest, double Share)> unshared = [];
+
+    public async ValueTask HandleAsync(ContestStarted integrationEvent, CancellationToken cancellationToken)
+    {
+        var contest = integrationEvent.Contest;
+        unshared.AddRange(contest.Candidates.Select(candidate => (candidate.Job, new JobId(contest.Contest.Value), 1d / contest.Candidates.Count)));
+        await CarveKnownAsync(cancellationToken);
+    }
 
     public async ValueTask HandleAsync(JobSubmitted integrationEvent, CancellationToken cancellationToken)
     {
@@ -80,7 +89,26 @@ internal sealed class BudgetEnforcer(BudgetBook book, JobBreaches breaches, IEnu
         await breach.Match(found => actions.RecordAsync(hold, found, cancellationToken), () => Task.CompletedTask);
     }
 
-    private async Task CarveKnownAsync(CancellationToken cancellationToken) =>
+    private async Task CarveKnownAsync(CancellationToken cancellationToken)
+    {
+        foreach (var (candidate, contest, share) in unshared.ToList())
+        {
+            await OwnCapsOf(candidate).Match(
+                caps => ShareAsync(candidate, caps.ShareFor(contest, candidate, share, actions.Now), cancellationToken),
+                () => Task.CompletedTask);
+        }
+
+        await CarveChildrenAsync(cancellationToken);
+    }
+
+    private async Task ShareAsync(JobId candidate, BudgetCarve carve, CancellationToken cancellationToken)
+    {
+        unshared.RemoveAll(waiting => waiting.Candidate == candidate);
+        await actions.CarveAsync(carve, cancellationToken);
+        await EnforceAsync(candidate, cancellationToken);
+    }
+
+    private async Task CarveChildrenAsync(CancellationToken cancellationToken) =>
         await uncarved
             .Select(waiting => AllowanceOf(waiting.Parent).Map(allowance => (waiting.Child, waiting.Parent, Allowance: allowance)))
             .FirstOrDefault(known => known.IsSome)
@@ -118,6 +146,9 @@ internal sealed class BudgetEnforcer(BudgetBook book, JobBreaches breaches, IEnu
         await (status == JobStatus.Running ? breach : overspent)
             .Match(found => actions.HoldAsync(job, found, cancellationToken), () => Task.CompletedTask);
     }
+
+    private Option<BudgetCaps> OwnCapsOf(JobId job) =>
+        sessions.TryGetValue(job, out var session) ? book.Budgeted(session).Map(budgeted => budgeted.Budget.Caps) : Option<BudgetCaps>.None;
 
     private Option<BudgetCaps> AllowanceOf(JobId job) =>
         sessions.TryGetValue(job, out var session) && !uncarved.Exists(waiting => waiting.Child == job)

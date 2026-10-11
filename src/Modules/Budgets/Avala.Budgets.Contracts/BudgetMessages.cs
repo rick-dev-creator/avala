@@ -47,7 +47,10 @@ public sealed record BudgetCaps(IReadOnlyList<Cost> CostPerJob, Option<long> Tok
     public Option<double> CarvePerChild { get; init; }
 }
 
-public sealed record BudgetCarve(JobId Parent, JobId Child, IReadOnlyList<Cost> Cost, Option<long> Tokens, double Share, DateTimeOffset At);
+public sealed record BudgetCarve(JobId Parent, JobId Child, IReadOnlyList<Cost> Cost, Option<long> Tokens, double Share, DateTimeOffset At)
+{
+    public bool Contested { get; init; }
+}
 
 public sealed record BudgetCarved(BudgetCarve Carve) : IIntegrationEvent;
 

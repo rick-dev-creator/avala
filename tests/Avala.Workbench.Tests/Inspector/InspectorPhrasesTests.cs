@@ -213,6 +213,12 @@ public sealed class InspectorPhrasesTests
         value.ToString().Skip(1).Any(char.IsUpper) ? [value.ToString(), value.ToString().ToLowerInvariant()] : [value.ToString()];
 
     [Fact]
+    public void AContestCandidatesCarveSaysItIsItsShareOfThePerJobBudget() =>
+        Assert.Equal(
+            "A contest candidate: 33% of the per-job budget · 0.33 USD",
+            InspectorPhrases.Carve(new Avala.Budgets.Contracts.BudgetCarve(JobId.New(), JobId.New(), [new Cost(0.33m, "USD")], Option<long>.None, 1d / 3, DateTimeOffset.UnixEpoch) { Contested = true }));
+
+    [Fact]
     public void AReadOnlyJobsAutonomySaysItIsReadOnly() =>
         Assert.Equal(
             "Autonomous, as the repository declares · read-only",

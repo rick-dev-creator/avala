@@ -69,6 +69,9 @@ internal static class Carves
                 },
                 () => caps);
 
+        public BudgetCarve ShareFor(JobId contest, JobId candidate, double share, DateTimeOffset at) =>
+            (caps with { CarvePerChild = share }).CarveFor(contest, candidate, Commitment.Nothing, at) with { Contested = true };
+
         public BudgetCarve CarveFor(JobId parent, JobId child, Commitment committed, DateTimeOffset at)
         {
             var share = caps.CarvePerChild.Match(declared => declared, () => DefaultShare);

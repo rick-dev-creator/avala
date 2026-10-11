@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Budgets.Admission;
 using Avala.Budgets.BudgetFiles;
 using Avala.Budgets.Contracts;
+using Avala.Contests.Contracts;
 using Avala.Budgets.Enforcement;
 using Avala.Budgets.Routing;
 using Avala.Budgets.Storage;
@@ -51,6 +52,7 @@ public sealed class BudgetsPlugin : IPlugin
             .AddForwarded<IHandle<ResourcesSampled>, BudgetEnforcer>()
             .AddForwarded<IHandle<JobSubmitted>, BudgetEnforcer>()
             .AddForwarded<IHandle<JobHeld>, BudgetEnforcer>()
+            .AddForwarded<IHandle<ContestStarted>, BudgetEnforcer>()
             .AddSingleton<DailyCeiling>()
             .AddSingleton<SpendCeiling>()
             .AddForwarded<IHandle<SessionOpened>, SpendCeiling>()

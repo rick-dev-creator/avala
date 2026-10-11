@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Budgets.Enforcement;
+using Avala.Contests.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Resources.Contracts;
@@ -88,6 +89,17 @@ internal sealed class Budgeted
 
     public async Task SubmittedAsync(JobId parent, JobId child) =>
         await enforcer.HandleAsync(new JobSubmitted(child) { Parent = parent }, Cancellation);
+
+    public async Task ContestedAsync(ContestId contest, params JobId[] candidates) =>
+        await enforcer.HandleAsync(
+            new ContestStarted(new ContestRecord(
+                contest,
+                "/code/shop-api",
+                "Fix JPY rounding",
+                [.. candidates.Select((candidate, ordinal) => new CandidateRecord(candidate, ordinal + 1, Option<ConnectionName>.None, CandidateOutcome.Running, Option<DateTimeOffset>.None))],
+                ContestStatus.Running,
+                Clock.GetUtcNow())),
+            Cancellation);
 
     public async Task ProgressAsync(JobStatus status) => await ProgressAsync(Job, status);
 

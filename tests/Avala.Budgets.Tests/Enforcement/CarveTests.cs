@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
+using Avala.Contests.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
@@ -32,6 +33,25 @@ public sealed class CarveTests
         Assert.Equal([carved, Outcomes.Present(budgeted.Book.CarveOf(second))], budgeted.Store.Carves);
         Assert.Equal(new BudgetCarved(carved), budgeted.Bus.Published.OfType<BudgetCarved>().First());
         Assert.Equal(Option<BudgetCarve>.None, budgeted.Book.CarveOf(budgeted.Job));
+    }
+
+    [Fact]
+    public async Task EachCandidateOfAContestIsCarvedAnEvenShareOfItsOwnCapsOnceItsBudgetIsKnownAsync()
+    {
+        var budgeted = new Budgeted();
+        var contest = ContestId.New();
+        var (other, third) = (JobId.New(), JobId.New());
+        await budgeted.TiedAsync();
+        await budgeted.ContestedAsync(contest, budgeted.Job, other, third);
+        Assert.Equal(Option<BudgetCarve>.None, budgeted.Book.CarveOf(budgeted.Job));
+
+        await budgeted.OpenAsync(Capped);
+
+        var carved = Outcomes.Present(budgeted.Book.CarveOf(budgeted.Job));
+        Assert.Equal(
+            (new JobId(contest.Value), 0.33m, Option<long>.Some(333), true),
+            (carved.Parent, decimal.Round(carved.Cost.Single().Amount, 2), carved.Tokens, carved.Contested));
+        Assert.Equal(Option<BudgetCarve>.None, budgeted.Book.CarveOf(other));
     }
 
     [Fact]
