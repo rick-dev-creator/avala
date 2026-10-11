@@ -30,7 +30,10 @@ public static partial class Texts
     });
 
     public static string Typeset(string text) =>
-        Joined().Replace(Measured().Replace(text.Replace(" · ", "\u00A0· ", StringComparison.Ordinal), "\u00A0"), "-\u2060");
+        Joined().Replace(Measured().Replace(Dated().Replace(text.Replace(" · ", "\u00A0· ", StringComparison.Ordinal), date => date.Value.Replace(' ', '\u00A0')), "\u00A0"), "-\u2060");
+
+    [GeneratedRegex(@"\b(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?: \d{2}:\d{2})?|\d{4}-\d{2}-\d{2} \d{2}:\d{2})\b")]
+    private static partial Regex Dated();
 
     [GeneratedRegex(@"(?<=\d%?) (?=\p{L})|(?<=\b\p{L}{1,2}) (?=\d)")]
     private static partial Regex Measured();

@@ -178,6 +178,8 @@ public sealed class UsageSectionViewScripts(HeadlessUi ui)
 
 public sealed class AutonomySectionViewScripts(HeadlessUi ui)
 {
+    private static readonly string[] Dates = ["Sun 11 Oct 14:51", "Mon 12 Oct 09:30"];
+
     [Fact]
     public Task TheAutonomySectionShowsTheAutonomyAndTheConnectionAsync() =>
         ui.RunAsync(() =>
@@ -230,7 +232,8 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         {
             var view = Sections.Open(Screen.Show(new Waiting()));
 
-            Assert.Equal((true, "Resumes at 03:10 when the 5-hour window resets"), (view.Shows("Waiting"), view.TextOf("Waiting")));
+            Assert.True(view.Shows("Waiting"));
+            Assert.Contains("Resumes at 03:10 when the 5-hour window resets", Plain(view), StringComparer.Ordinal);
             Assert.False(view.Shows("Handoffs"));
         }, TestContext.Current.CancellationToken);
 
@@ -274,6 +277,28 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task DatesInANarrowInspectorStayWholeOnOneLineAtEveryWidthAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new HandedOff { Waiting = "Resumes at Mon 12 Oct 09:30 when the 5-hour window resets" }, Avalonia.Styling.ThemeVariant.Dark, 300, 800));
+            var split = new List<string>();
+
+            for (var width = 200; width <= 420; width += 4)
+            {
+                view.Window.Width = width;
+                view.Settle();
+                var lines = view.All<TextBlock>()
+                    .Where(text => text.Name is "HandoffMoved" or "Waiting")
+                    .SelectMany(text => text.TextLayout.TextLines.Select(line => text.Text![line.FirstTextSourceIndex..Math.Min(text.Text!.Length, line.FirstTextSourceIndex + line.Length)]))
+                    .Select(line => line.Replace(' ', ' ').Replace("⁠", string.Empty, StringComparison.Ordinal))
+                    .ToList();
+                split.AddRange(Dates.Where(date => !lines.Any(line => line.Contains(date, StringComparison.Ordinal))).Select(date => $"{width}: {date} in {string.Join(" | ", lines)}"));
+            }
+
+            Assert.Empty(split);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AConnectionNamedOnTheJobShowsNoComparisonAsync() =>
         ui.RunAsync(() =>
         {
@@ -311,7 +336,7 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
             new(string.Empty, "Spent on simulator-two: 0.079 USD · 21,902 tokens"),
         ];
 
-        public string Waiting => string.Empty;
+        public string Waiting { get; init; } = string.Empty;
     }
 
     private sealed class Named : IAutonomySectionViewModel

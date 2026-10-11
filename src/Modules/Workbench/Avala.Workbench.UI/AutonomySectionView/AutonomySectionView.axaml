@@ -81,7 +81,7 @@
       <TextBlock x:Name="Waiting"
                  Classes="caption attention"
                  TextWrapping="Wrap"
-                 Text="{Binding Waiting}"
+                 Text="{Binding Waiting, Converter={x:Static states:Texts.Unbroken}}"
                  IsVisible="{Binding Waiting, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <ItemsControl x:Name="Handoffs" ItemsSource="{Binding Handoffs}" IsVisible="{Binding !!Handoffs.Count}">
         <ItemsControl.ItemTemplate>
