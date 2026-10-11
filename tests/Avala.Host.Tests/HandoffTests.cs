@@ -165,6 +165,33 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AJobWhoseWindowRunsOutMidTurnIsHeldInsteadOfFailedAndResumesInItsConversationWhenTheWindowResetsAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, []);
+        var held = run.Watch<JobHeld>();
+        var waits = run.Watch<JobWaitsForReset>();
+        var resumed = run.Watch<JobResumedAtReset>();
+        var progress = run.Watch<JobProgressed>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("window-runs-out")) { Connection = One }));
+        var settled = await progress.UntilAsync(update => update.Job == job && update.Status is JobStatus.NeedsHelp or JobStatus.Failed);
+        Assert.Equal(JobStatus.NeedsHelp, settled.Status);
+        var hold = (await held.UntilAsync(announced => announced.Hold.Job == job)).Hold;
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;
+        run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
+        var back = await resumed.UntilAsync(announced => announced.Job == job);
+        await ReviewedAsync(progress, job);
+
+        Assert.Equal((HoldReason.LimitNearlyReached, SessionHalt.Idle), (hold.Reason, hold.Halt));
+        Assert.Equal((One, "5h"), (wait.Connection, wait.Window));
+        Assert.Equal((One, ContinuedIn.SameSession), (back.Connection, back.Conversation));
+        var attempts = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Attempts;
+        Assert.Equal(
+            [(AttemptOrigin.Initial, AttemptOutcome.Interrupted), (AttemptOrigin.Hint, AttemptOutcome.Passed)],
+            attempts.Select(attempt => (attempt.Origin, attempt.Outcome)));
+    }
+
+    [Fact]
     public async Task WithNoCapacityAnywhereTheJobWaitsForTheEarliestResetAndContinuesWhereItCameFirstAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", SameHarness)]);

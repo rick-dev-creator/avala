@@ -70,6 +70,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         UnlessTold unless when cues.Told.Contains(unless.Fragment, StringComparison.Ordinal) => AsyncEnumerable.Empty<IAgentEvent>(),
         UnlessTold unless => PlayAsync(cues, unless.Step, cancellationToken),
         ReportLimitResetting limit => cues.Of(new ReportLimit(new UsageLimit(limit.Window, limit.Used, craft.Pacing.Now + limit.ResetsIn))).ToAsyncEnumerable(),
+        RunOutOfWindow spent => cues.Of(new ReportLimit(new UsageLimit(spent.Window, 1, craft.Pacing.Now + spent.ResetsIn))).Append(cues.Ended(TurnOutcome.LimitReached)).ToAsyncEnumerable(),
         Crash crash => throw new InvalidOperationException(crash.Reason),
         Draw draw when !options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
             cues.Of(new Say(draw.Item, ItemKind.Message, draw.Title, draw.Chunks)).ToAsyncEnumerable(),

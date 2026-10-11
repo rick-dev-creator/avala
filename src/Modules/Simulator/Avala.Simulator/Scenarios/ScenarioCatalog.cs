@@ -466,6 +466,21 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario WindowRunsOut { get; } = new("window-runs-out",
+    [
+        [
+            Thought("A long piece of work ", "that runs past the usage window."),
+            Message("Halfway there, ", "when the window runs out."),
+            new ReportUsage(new TokenUsage(9_000, 700, 4_500, 900, 175), new Cost(0.0600m, "USD")),
+            new RunOutOfWindow("5h", TimeSpan.FromHours(1)),
+        ],
+        [
+            Message("Picked up where the window ran out."),
+            .. Bill(800, 40, 0.0020m, 0.10),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario LimitHandoff { get; } = new("limit-handoff",
     [
         [
@@ -510,7 +525,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, LimitHandoff, SpentElsewhere, .. DelegationScenarios.All,
+        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, WindowRunsOut, LimitHandoff, SpentElsewhere, .. DelegationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";

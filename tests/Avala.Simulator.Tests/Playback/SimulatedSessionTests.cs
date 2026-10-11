@@ -467,6 +467,19 @@ public sealed class SimulatedSessionTests
         Assert.InRange(resets, before.AddSeconds(2), TimeProvider.System.GetUtcNow().AddSeconds(2));
     }
 
+    [Fact]
+    public async Task TheWindowRunsOutScenarioReportsItsWindowSpentAndEndsTheTurnAtItsUsageLimitAsync()
+    {
+        await using var stage = new Stage();
+        await stage.SendAsync("[simulate: window-runs-out] Use the window", Cancellation);
+
+        var events = await stage.ReadTurnAsync(Cancellation);
+
+        var limit = Assert.Single(events.OfType<LimitReported>()).Limit;
+        Assert.Equal(("5h", 1d, true), (limit.Window, limit.UsedFraction, limit.ResetsAt.IsSome));
+        Assert.Equal(TurnOutcome.LimitReached, Assert.IsType<TurnCompleted>(events[^1]).Outcome);
+    }
+
     [Theory]
     [InlineData("[simulate: limit-handoff] Write the calculator", 1)]
     [InlineData("[simulate: limit-handoff] Write the calculator, it was handed off to you", 0)]

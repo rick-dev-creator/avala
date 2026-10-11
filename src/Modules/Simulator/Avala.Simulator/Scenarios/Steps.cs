@@ -45,6 +45,8 @@ internal sealed record ReportLimit(UsageLimit Limit) : IStep;
 
 internal sealed record ReportLimitResetting(string Window, double Used, TimeSpan ResetsIn) : IStep;
 
+internal sealed record RunOutOfWindow(string Window, TimeSpan ResetsIn) : IStep;
+
 internal sealed record Open(ItemId Item, ItemKind Kind, string Title) : IStep;
 
 internal sealed record Crash(string Reason) : IStep;
