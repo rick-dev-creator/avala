@@ -61,6 +61,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public LostTrips LostTrips => surroundings.Trips;
 
+    public JudgeGate Judging => surroundings.Judge;
+
     public FakeNotifierEndpoint Notifier => surroundings.Notifier.Endpoint;
 
     public ICanvases Canvases => Get<ICanvases>();
@@ -388,6 +390,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public NotifierGate Notifier { get; } = new();
 
+        public JudgeGate Judge { get; } = new();
+
         public bool RealNotifier { get; init; }
 
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
@@ -399,7 +403,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
-                RealNotifier ? [Board, Fault, Trips] : [Board, Fault, Trips, Notifier]);
+                RealNotifier ? [Board, Fault, Trips, Judge] : [Board, Fault, Trips, Notifier, Judge]);
     }
 
     private sealed class Application : IAsyncDisposable

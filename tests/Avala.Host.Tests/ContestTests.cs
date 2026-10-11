@@ -105,6 +105,24 @@ public sealed class ContestTests(PublishedPlugins plugins)
         Assert.All(carves, carve => Assert.Equal((new JobId(contest.Contest.Value), 0.5, true), (carve.Carve.Parent, carve.Carve.Share, carve.Carve.Contested)));
     }
 
+    [Fact]
+    public async Task AContestStoppedWhileItWasBeingJudgedIsJudgedAgainAfterTheRestartAsync()
+    {
+        await using var run = await CheckedAsync();
+        var judging = run.Judging.HoldNextAsync();
+        var contest = await StartAsync(run, "contest", 3);
+        await judging;
+        var before = Outcomes.Present(run.Get<IContests>().Of(contest.Contest)).Status;
+        EventWatch<ContestDecided>? decided = null;
+
+        await run.RestartAsync(() => decided = run.Watch<ContestDecided>());
+
+        var verdict = Outcomes.Present((await decided!.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Verdict);
+        Assert.Equal(ContestStatus.Judging, before);
+        Assert.Equal(["calculator.txt"], await ChangedAsync(run, Outcomes.Present(verdict.Winner)));
+        Assert.Equal(ContestStatus.Decided, Outcomes.Present(run.Get<IContests>().Of(contest.Contest)).Status);
+    }
+
     internal static async Task<ContestRecord> StartAsync(SimulatedRun run, string scenario, int candidates, int attempts = 1) =>
         Outcomes.Succeeds(await run.Get<IContests>().StartAsync(
             new ContestRequest(new JobRequest(run.Repository.Path, $"[simulate: {scenario}] Fix the calculator", attempts), candidates),
