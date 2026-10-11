@@ -12,6 +12,7 @@ using Avala.Workbench.Board;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Overview;
 using Avala.Workbench.Timeline;
+using Avala.Workbench.Usage;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -199,6 +200,8 @@ public sealed class ConnectionsViewScripts(HeadlessUi ui)
 
 public sealed class ConnectionCardViewScripts(HeadlessUi ui)
 {
+    private static readonly string[] HubTexts = ["ConnectionName", "Provider", "Use"];
+
     [Fact]
     public Task AHubNearItsHoldThresholdTurnsItsRingAmberAndSweepsItsUseAsync() =>
         ui.RunAsync(() =>
@@ -227,6 +230,23 @@ public sealed class ConnectionCardViewScripts(HeadlessUi ui)
             Assert.Contains("5-hour window", texts);
             Assert.Contains("7-day window", texts);
             Assert.DoesNotContain("This connection reports no usage limit.", texts);
+        }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public Task LongNamesStayInsideTheHubsRingAsync(int agents) =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignConnectionCardViewModel(new string('w', 40), "Simulated Claude Code harness", "local", false, "no cost", [new DesignLimitViewModel()], [.. Enumerable.Repeat<IAgentViewModel>(new DesignAgentViewModel(), agents)]));
+            var hub = view.Find<Panel>("Hub");
+            var inside = (hub.Bounds.Width / 2) - 5;
+            var corners = HubTexts
+                .Select(name => view.Find<TextBlock>(name))
+                .SelectMany(text => new[] { new Point(0, 0), new Point(text.Bounds.Width, 0), new Point(0, text.Bounds.Height), new Point(text.Bounds.Width, text.Bounds.Height) }
+                    .Select(corner => text.TranslatePoint(corner, hub) ?? throw new InvalidOperationException("not laid out")));
+
+            Assert.All(corners, corner => Assert.True(Math.Sqrt(Math.Pow(corner.X - (hub.Bounds.Width / 2), 2) + Math.Pow(corner.Y - (hub.Bounds.Height / 2), 2)) <= inside, $"{corner} leaves the ring of {hub.Bounds.Width}"));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

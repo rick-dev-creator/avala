@@ -20,6 +20,12 @@
       <Setter Property="Width" Value="128" />
       <Setter Property="Height" Value="128" />
     </Style>
+    <Style Selector="StackPanel#Label">
+      <Setter Property="MaxWidth" Value="64" />
+    </Style>
+    <Style Selector=".prominent StackPanel#Label">
+      <Setter Property="MaxWidth" Value="96" />
+    </Style>
     <Style Selector="Arc#Ring">
       <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
@@ -69,23 +75,20 @@
          StrokeThickness="3"
          StrokeLineCap="Round"
          IsHitTestVisible="False" />
-    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="1" IsHitTestVisible="False">
+    <StackPanel x:Name="Label" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="1" IsHitTestVisible="False">
       <TextBlock x:Name="ConnectionName"
                  Classes="strong"
                  HorizontalAlignment="Center"
-                 MaxWidth="110"
                  TextTrimming="CharacterEllipsis"
                  Text="{Binding Name}" />
       <TextBlock x:Name="Provider"
                  Classes="hint"
                  HorizontalAlignment="Center"
-                 MaxWidth="100"
                  TextTrimming="CharacterEllipsis"
                  Text="{Binding Provider}" />
       <TextBlock x:Name="Use"
                  Classes="hint secondary"
                  HorizontalAlignment="Center"
-                 MaxWidth="100"
                  TextTrimming="CharacterEllipsis"
                  Text="{Binding Use}" />
     </StackPanel>
