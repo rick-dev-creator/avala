@@ -9,13 +9,13 @@ public sealed class KeycapHintViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task AHintShowsItsKeysInTheCodeFontBeforeItsActionAsync() =>
+    public Task AHintShowsItsKeysInTheInterfaceFontThatDrawsTheirSymbolsBeforeItsActionAsync() =>
         ui.RunAsync(() =>
         {
             var view = ViewScript.Show(new DesignKeycapHintViewModel());
 
             Assert.Equal(["J K", "move"], view.VisibleTexts);
-            Assert.Equal("JetBrains Mono", view.Find<TextBlock>("Keys").FontFamily.FamilyNames[0]);
+            Assert.Equal("Inter", view.Find<TextBlock>("Keys").FontFamily.FamilyNames[0]);
         }, Cancellation);
 
     [Fact]

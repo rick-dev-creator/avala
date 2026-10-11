@@ -10,7 +10,7 @@
   <StackPanel Orientation="Horizontal" Spacing="4">
     <TextBlock x:Name="Keys"
                Text="{Binding Keys}"
-               FontFamily="{DynamicResource MonoFont}"
+               FontFamily="{DynamicResource InterfaceFont}"
                FontSize="{DynamicResource FontSizeHint}"
                Foreground="{DynamicResource TextSecondaryBrush}" />
     <TextBlock x:Name="Action"
