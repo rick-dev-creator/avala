@@ -67,7 +67,7 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
             var without = Tall(Screen.Show(new DesignReviewViewModel { Plan = string.Empty, PlanLeft = [] }));
 
             Assert.Equal((true, "Plan · 3 of 4 steps done"), (view.Shows("PlanState"), view.TextOf("PlanSummary")));
-            Assert.Contains("In progress · Document the new limit", view.VisibleTexts);
+            Assert.Contains("Document the new limit", view.VisibleTexts);
             Assert.True(view.Shows("Approve"));
             Assert.False(without.Shows("PlanState"));
         }, Cancellation);

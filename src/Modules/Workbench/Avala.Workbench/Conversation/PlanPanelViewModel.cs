@@ -17,7 +17,7 @@ internal interface IPlanPanelViewModel
 
     bool IsExpanded { get; }
 
-    IReadOnlyList<PlanStep> Steps { get; }
+    IReadOnlyList<IPlanStepViewModel> Steps { get; }
 
     IRelayCommand ToggleCommand { get; }
 }
@@ -48,7 +48,7 @@ internal sealed partial class PlanPanelViewModel : IPlanPanelViewModel
     public partial bool IsExpanded { get; private set; }
 
     [ObservableProperty]
-    public partial IReadOnlyList<PlanStep> Steps { get; private set; }
+    public partial IReadOnlyList<IPlanStepViewModel> Steps { get; private set; }
 
     public void Show(Option<PlanEntry> plan)
     {
@@ -59,7 +59,7 @@ internal sealed partial class PlanPanelViewModel : IPlanPanelViewModel
 
         shown = plan;
         var open = plan.Match(entry => entry.Total > entry.Done, () => false);
-        Steps = plan.Match(entry => entry.Steps, () => []);
+        Steps = plan.Match(entry => PlanStepViewModel.Of(entry.Steps), () => []);
         Progress = plan.Match(entry => string.Create(CultureInfo.InvariantCulture, $"{entry.Done} of {entry.Total}"), () => string.Empty);
         Current = Steps.Where(step => step.Status == PlanStepStatus.InProgress)
             .Concat(Steps.Where(step => step.Status == PlanStepStatus.Pending))

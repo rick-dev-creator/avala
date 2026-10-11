@@ -39,16 +39,12 @@ internal static class ReviewPhrases
         _ => "Not verified",
     };
 
-    public static (string Summary, IReadOnlyList<string> Left) Plan(Option<PlanEntry> plan) =>
-        plan.Match<(string, IReadOnlyList<string>)>(
-            entry => entry.Total == 0
-                ? (string.Empty, [])
-                : entry.Done == entry.Total
-                    ? (string.Create(CultureInfo.InvariantCulture, $"Plan · all {entry.Total} {Steps(entry.Total)} done"), [])
-                    : (
-                        string.Create(CultureInfo.InvariantCulture, $"Plan · {entry.Done} of {entry.Total} {Steps(entry.Total)} done"),
-                        [.. entry.Steps.Where(step => step.Status != PlanStepStatus.Done).Select(step => $"{(step.Status == PlanStepStatus.InProgress ? "In progress" : "Pending")} · {step.Title}")]),
-            () => (string.Empty, []));
+    public static string Plan(Option<PlanEntry> plan) =>
+        plan.Match(
+            entry => entry.Total == 0 ? string.Empty
+                : entry.Done == entry.Total ? string.Create(CultureInfo.InvariantCulture, $"Plan · all {entry.Total} {Steps(entry.Total)} done")
+                : string.Create(CultureInfo.InvariantCulture, $"Plan · {entry.Done} of {entry.Total} {Steps(entry.Total)} done"),
+            () => string.Empty);
 
     private static string Steps(int count) => count == 1 ? "step" : "steps";
 

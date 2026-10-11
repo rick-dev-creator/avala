@@ -1,4 +1,6 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
+using Avala.Workbench.Conversation;
 using Avala.Workbench.Presenting;
 using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -118,7 +120,7 @@ internal sealed partial class DesignReviewViewModel : IReviewViewModel
 
     public string Plan { get; init; } = "Plan · 3 of 4 steps done";
 
-    public IReadOnlyList<string> PlanLeft { get; init; } = ["In progress · Document the new limit"];
+    public IReadOnlyList<IPlanStepViewModel> PlanLeft { get; init; } = [new DesignPlanStepViewModel("Document the new limit", PlanStepStatus.InProgress)];
 
     public string Changes => "5 files changed";
 

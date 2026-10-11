@@ -1,5 +1,4 @@
 using System.Globalization;
-using Avala.Agents.Contracts.Events;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -7,7 +6,7 @@ namespace Avala.Workbench.Conversation;
 
 internal interface IPlanViewModel
 {
-    IReadOnlyList<PlanStep> Steps { get; }
+    IReadOnlyList<IPlanStepViewModel> Steps { get; }
 
     string Progress { get; }
 }
@@ -25,7 +24,7 @@ internal sealed partial class PlanViewModel : IPlanViewModel, ITimelineItem
     public bool IsShown => true;
 
     [ObservableProperty]
-    public partial IReadOnlyList<PlanStep> Steps { get; private set; }
+    public partial IReadOnlyList<IPlanStepViewModel> Steps { get; private set; }
 
     [ObservableProperty]
     public partial string Progress { get; private set; }
@@ -34,7 +33,7 @@ internal sealed partial class PlanViewModel : IPlanViewModel, ITimelineItem
     {
         if (entry is PlanEntry plan)
         {
-            Steps = plan.Steps;
+            Steps = PlanStepViewModel.Of(plan.Steps);
             Progress = string.Create(CultureInfo.InvariantCulture, $"{plan.Done} of {plan.Total}");
         }
     }

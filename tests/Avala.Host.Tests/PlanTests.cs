@@ -30,7 +30,7 @@ public sealed class PlanTests(PublishedPlugins plugins)
         IReadOnlyList<string> halfway =
         [
             "panel: True · 1 of 3 · Write the change",
-            "review: Plan · 1 of 3 steps done · In progress · Write the change | Pending · Run the tests",
+            "review: Plan · 1 of 3 steps done · InProgress · Write the change | Pending · Run the tests",
         ];
         Assert.Equal(halfway, first);
         Assert.Equal(halfway, restarted);
@@ -54,7 +54,7 @@ public sealed class PlanTests(PublishedPlugins plugins)
             return
             [
                 $"panel: {plan["IsShown"].Text} · {plan["Progress"].Text} · {plan["Current"].Text}",
-                $"review: {review["Plan"].Text} · {string.Join(" | ", review["PlanLeft"].Value<IReadOnlyList<string>>())}",
+                $"review: {review["Plan"].Text} · {string.Join(" | ", review["PlanLeft"].Items.Select(step => $"{step["Status"].Text} · {step["Title"].Text}"))}",
             ];
         });
     }

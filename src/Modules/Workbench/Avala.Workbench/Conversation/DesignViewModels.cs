@@ -156,14 +156,26 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
 }
 
+internal sealed class DesignPlanStepViewModel(string title, PlanStepStatus status) : IPlanStepViewModel
+{
+    public DesignPlanStepViewModel()
+        : this("Use each currency's exponent", PlanStepStatus.InProgress)
+    {
+    }
+
+    public string Title { get; } = title;
+
+    public PlanStepStatus Status { get; } = status;
+}
+
 internal sealed class DesignPlanViewModel : IPlanViewModel
 {
-    public IReadOnlyList<PlanStep> Steps { get; } =
+    public IReadOnlyList<IPlanStepViewModel> Steps { get; } =
     [
-        new("Reproduce the failure", PlanStepStatus.Done),
-        new("Find where rounding happens", PlanStepStatus.Done),
-        new("Use each currency's exponent", PlanStepStatus.InProgress),
-        new("Re-run the money tests", PlanStepStatus.Pending),
+        new DesignPlanStepViewModel("Reproduce the failure", PlanStepStatus.Done),
+        new DesignPlanStepViewModel("Find where rounding happens", PlanStepStatus.Done),
+        new DesignPlanStepViewModel("Use each currency's exponent", PlanStepStatus.InProgress),
+        new DesignPlanStepViewModel("Re-run the money tests", PlanStepStatus.Pending),
     ];
 
     public string Progress => "2 of 4";
@@ -179,7 +191,7 @@ internal sealed class DesignPlanPanelViewModel : IPlanPanelViewModel
 
     public bool IsExpanded { get; init; }
 
-    public IReadOnlyList<PlanStep> Steps { get; } = new DesignPlanViewModel().Steps;
+    public IReadOnlyList<IPlanStepViewModel> Steps { get; } = new DesignPlanViewModel().Steps;
 
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
 }

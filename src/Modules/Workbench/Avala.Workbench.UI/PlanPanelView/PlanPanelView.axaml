@@ -1,8 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
-             xmlns:events="using:Avala.Agents.Contracts.Events"
-             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.PlanPanelView"
              x:ClassModifier="internal"
              x:DataType="conversation:IPlanPanelViewModel"
@@ -24,17 +22,6 @@
     </Style>
     <Style Selector=":is(UserControl).expanded Path#PlanChevron">
       <Setter Property="Data" Value="{StaticResource IconChevronDown}" />
-    </Style>
-    <Style Selector="Grid.step TextBlock.step">
-      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-      <Setter Property="TextWrapping" Value="Wrap" />
-    </Style>
-    <Style Selector="Grid.step.done TextBlock.step">
-      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
-      <Setter Property="TextDecorations" Value="Strikethrough" />
-    </Style>
-    <Style Selector="Grid.step.active TextBlock.step">
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
   </UserControl.Styles>
   <Border x:Name="PlanBox"
@@ -76,40 +63,6 @@
             <StackPanel Spacing="6" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="events:PlanStep">
-            <Grid ColumnDefinitions="13,*"
-                  ColumnSpacing="10"
-                  Classes="step"
-                  Classes.done="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Done}"
-                  Classes.active="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=InProgress}">
-              <Path Width="13"
-                    Height="13"
-                    Stretch="Uniform"
-                    StrokeThickness="1.6"
-                    StrokeLineCap="Round"
-                    StrokeJoin="Round"
-                    Stroke="{DynamicResource TextTertiaryBrush}"
-                    Data="{StaticResource IconCheck}"
-                    VerticalAlignment="Center"
-                    IsVisible="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Done}" />
-              <Ellipse Width="11"
-                       Height="11"
-                       Stroke="{DynamicResource DotPendingBrush}"
-                       StrokeThickness="1.5"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       IsVisible="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Pending}" />
-              <Ellipse Width="7"
-                       Height="7"
-                       Fill="{DynamicResource TextPrimaryBrush}"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       IsVisible="{Binding Status, Converter={x:Static states:EnumIs.Any}, ConverterParameter=InProgress}" />
-              <TextBlock Grid.Column="1" Classes="step" Text="{Binding Title}" VerticalAlignment="Center" />
-            </Grid>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
       </ItemsControl>
     </StackPanel>
   </Border>

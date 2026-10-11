@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Board;
+using Avala.Workbench.Conversation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Sidebar;
@@ -40,7 +42,7 @@ internal interface IReviewViewModel
 
     string Plan { get; }
 
-    IReadOnlyList<string> PlanLeft { get; }
+    IReadOnlyList<IPlanStepViewModel> PlanLeft { get; }
 
     string Changes { get; }
 
@@ -177,7 +179,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     public partial string Plan { get; private set; } = string.Empty;
 
     [ObservableProperty]
-    public partial IReadOnlyList<string> PlanLeft { get; private set; } = [];
+    public partial IReadOnlyList<IPlanStepViewModel> PlanLeft { get; private set; } = [];
 
     [ObservableProperty]
     public partial string Changes { get; private set; }
@@ -229,7 +231,8 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     public void Track(BoardJob job)
     {
         Track(job.Status);
-        (Plan, PlanLeft) = ReviewPhrases.Plan(job.Transcript.Plan);
+        Plan = ReviewPhrases.Plan(job.Transcript.Plan);
+        PlanLeft = job.Transcript.Plan.Match(plan => PlanStepViewModel.Of(plan.Steps.Where(step => step.Status != PlanStepStatus.Done)), () => []);
     }
 
     public Func<CancellationToken, Task> Request(int revision)
