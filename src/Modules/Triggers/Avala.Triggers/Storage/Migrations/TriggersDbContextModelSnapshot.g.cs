@@ -34,6 +34,24 @@ namespace Avala.Triggers.Storage.Migrations
                     b.ToTable("Deliveries", (string)null);
                 });
 
+            modelBuilder.Entity("Avala.Triggers.Storage.StoredEventKey", b =>
+                {
+                    b.Property<int>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("Value")
+                        .IsUnique();
+
+                    b.ToTable("EventKeys", (string)null);
+                });
+
             modelBuilder.Entity("Avala.Triggers.Storage.StoredQueuedTask", b =>
                 {
                     b.Property<int>("Key")

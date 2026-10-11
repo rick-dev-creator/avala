@@ -12,6 +12,8 @@ internal sealed class TriggersDbContext(string database) : DbContext
 
     public DbSet<StoredQueuedTask> Queued => Set<StoredQueuedTask>();
 
+    public DbSet<StoredEventKey> EventKeys => Set<StoredEventKey>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
@@ -41,6 +43,13 @@ internal sealed class TriggersDbContext(string database) : DbContext
             task.HasKey(row => row.Key);
             task.Property(row => row.Key).ValueGeneratedOnAdd();
             task.HasIndex(row => row.Run).IsUnique();
+        });
+        modelBuilder.Entity<StoredEventKey>(key =>
+        {
+            key.ToTable("EventKeys");
+            key.HasKey(row => row.Key);
+            key.Property(row => row.Key).ValueGeneratedOnAdd();
+            key.HasIndex(row => row.Value).IsUnique();
         });
     }
 }

@@ -51,6 +51,16 @@ internal sealed class MemoryTriggerStore : IScheduleStore, IRunStore, IQueueStor
     }
     private readonly ConcurrentDictionary<Guid, TriggerRun> runs = new();
     private readonly ConcurrentQueue<WebhookDelivery> deliveries = new();
+    private readonly ConcurrentQueue<string> keys = new();
+
+    public Task<IReadOnlyList<string>> EventKeysAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>([.. keys]);
+
+    public Task KeepEventKeyAsync(string key, CancellationToken cancellationToken)
+    {
+        keys.Enqueue(key);
+
+        return Task.CompletedTask;
+    }
 
     public Task<IReadOnlyList<ScheduleState>> SchedulesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<ScheduleState>>([.. schedules.Values]);

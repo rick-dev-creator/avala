@@ -16,6 +16,10 @@ internal interface IRunStore
     Task<IReadOnlyList<WebhookDelivery>> DeliveriesAsync(CancellationToken cancellationToken);
 
     Task AddDeliveryAsync(WebhookDelivery delivery, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<string>> EventKeysAsync(CancellationToken cancellationToken);
+
+    Task KeepEventKeyAsync(string key, CancellationToken cancellationToken);
 }
 
 internal sealed class RunJournal(IRunStore store, LoopQueue queue, IEventBus bus, TimeProvider clock) : IStartupTask
@@ -24,7 +28,10 @@ internal sealed class RunJournal(IRunStore store, LoopQueue queue, IEventBus bus
 
     public const int DeliveriesKept = 500;
 
+    public const int EventKeysKept = 10_000;
+
     private ImmutableList<TriggerRun> runs = [];
+    private ImmutableHashSet<string> keys = ImmutableHashSet<string>.Empty;
     private ImmutableList<WebhookDelivery> deliveries = [];
 
     public TimeProvider Clock => clock;
@@ -49,6 +56,8 @@ internal sealed class RunJournal(IRunStore store, LoopQueue queue, IEventBus bus
             Remember(kept);
         }
 
+        Volatile.Write(ref keys, [.. await store.EventKeysAsync(cancellationToken)]);
+
         foreach (var delivery in await store.DeliveriesAsync(cancellationToken))
         {
             ImmutableInterlocked.Update(ref deliveries, known => Bounded(known.Add(delivery), DeliveriesKept));
@@ -60,9 +69,21 @@ internal sealed class RunJournal(IRunStore store, LoopQueue queue, IEventBus bus
     public IReadOnlyList<JobId> JobsOf(TriggerId trigger) =>
         [.. Runs.Where(run => run.Trigger == trigger).SelectMany(run => run.Job.Match<IEnumerable<JobId>>(job => [job], () => []))];
 
+    public bool Seen(TriggerId trigger, string key) => Volatile.Read(ref keys).Contains(Scoped(trigger, key));
+
     public async Task<TriggerRun> RecordAsync(TriggerRun run, CancellationToken cancellationToken)
     {
         await store.KeepRunAsync(run, cancellationToken);
+
+        var key = run.Outcome == RunOutcome.Duplicate ? Option<string>.None : run.Key.Map(found => Scoped(run.Trigger, found));
+        await key.Match(
+            async scoped =>
+            {
+                await store.KeepEventKeyAsync(scoped, cancellationToken);
+                ImmutableInterlocked.Update(ref keys, known => known.Add(scoped));
+            },
+            () => Task.CompletedTask);
+
         Remember(run);
         await bus.PublishAsync(new TriggerFired(run), cancellationToken);
 
@@ -100,6 +121,8 @@ internal sealed class RunJournal(IRunStore store, LoopQueue queue, IEventBus bus
     }
 
     public ValueTask ChangedAsync(CancellationToken cancellationToken) => bus.PublishAsync(new TriggersChanged(clock.GetUtcNow()), cancellationToken);
+
+    private static string Scoped(TriggerId trigger, string key) => $"{trigger.Key}|{key}";
 
     private void Remember(TriggerRun run) =>
         ImmutableInterlocked.Update(ref runs, known => Bounded(known.Add(run), RunsKept));

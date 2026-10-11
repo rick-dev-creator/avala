@@ -44,6 +44,40 @@ public sealed class TriggerFileParserTests
         Assert.Equal(("/hooks/issue", TriggerKind.Webhook), (hook.Hook.Match(path => path, () => string.Empty), hook.Kind));
     }
 
+    [Fact]
+    public void AForgeTriggerReadsItsConnectionEventFilterAndAuthorsWithItsDefaults()
+    {
+        var content = Outcomes.Succeeds(TriggerFileParser.ParseMachine(Declared.Machine(
+            Declared.Trigger(""" "forge": { "connection": "github", "event": "issue-labeled", "label": "avala", "authors": ["alice", "Alice", "bob"] } """)
+            + "," + """{ "id": "ci", "repository": "/work/ledger-api", "instruction": "Fix CI on {{payload.branch}}", "forge": { "connection": "local", "event": "checks-failed", "branch": "main", "authors": ["carol"], "remote": "upstream", "acknowledge": true } }""")));
+
+        var (labeled, failing) = (content.Triggers[0], content.Triggers[1]);
+        var rule = Outcomes.Present(labeled.Forge);
+        Assert.Equal((TriggerKind.Forge, "github", ForgeEventKind.IssueLabeled, Option<string>.Some("avala")), (labeled.Kind, rule.Connection, rule.Event, rule.Label));
+        Assert.Equal(["alice", "bob"], rule.Authors);
+        Assert.Equal(("origin", false, Option<string>.None, Option<string>.None), (rule.Remote, rule.Acknowledge, rule.Command, rule.Branch));
+        var checks = Outcomes.Present(failing.Forge);
+        Assert.Equal((ForgeEventKind.ChecksFailed, Option<string>.Some("main"), "upstream", true), (checks.Event, checks.Branch, checks.Remote, checks.Acknowledge));
+        Assert.True(labeled.Webhook.IsNone && labeled.Schedule.IsNone);
+    }
+
+    [Theory]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "issue-closed", "authors": ["alice"] } } ] }""", TriggerError.InvalidEvent)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "authors": ["alice"] } } ] }""", TriggerError.InvalidEvent)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "issue-labeled", "authors": ["alice"] } } ] }""", TriggerError.InvalidEvent)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "comment-command", "authors": ["alice"] } } ] }""", TriggerError.InvalidEvent)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "checks-failed", "authors": ["alice"] } } ] }""", TriggerError.InvalidEvent)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "issue-opened", "label": "avala", "authors": ["alice"] } } ] }""", TriggerError.UnknownField)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "issue-opened", "authors": ["alice"], "secret": "x" } } ] }""", TriggerError.UnknownField)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "issue-opened" } } ] }""", TriggerError.MissingAuthors)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "issue-opened", "authors": [] } } ] }""", TriggerError.MissingAuthors)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "issue-opened", "authors": [" "] } } ] }""", TriggerError.Malformed)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "event": "issue-opened", "authors": ["alice"] } } ] }""", TriggerError.Malformed)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "issue-opened", "authors": ["alice"] }, "schedule": { "everyMinutes": 5 } } ] }""", TriggerError.InvalidSchedule)]
+    [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "forge": { "connection": "github", "event": "issue-opened", "authors": ["alice"] }, "catchUp": "once" } ] }""", TriggerError.InvalidCatchUp)]
+    public void ARejectedForgeTriggerNamesItsError(string text, TriggerError error) =>
+        Assert.Equal(error, Outcomes.FailsWith(TriggerFileParser.ParseMachine(text)));
+
     [Theory]
     [InlineData("{", TriggerError.Malformed)]
     [InlineData("[]", TriggerError.Malformed)]
@@ -96,7 +130,8 @@ public sealed class TriggerFileParserTests
     [InlineData("""{ "triggers": [ { "id": "a", "instruction": "x", "webhook": { "secretEnv": "S" } } ] }""", TriggerError.WebhookNotAllowed)]
     [InlineData("""{ "triggers": [ { "id": "a", "repository": "/r", "instruction": "x", "schedule": { "everyMinutes": 5 } } ] }""", TriggerError.UnknownField)]
     [InlineData("""{ "repositories": [] }""", TriggerError.UnknownField)]
-    public void ARepositoryFileCannotDeclareWebhooksRepositoriesOrOtherRepositoriesTriggers(string text, TriggerError error) =>
+    [InlineData("""{ "triggers": [ { "id": "a", "instruction": "x", "forge": { "connection": "github", "event": "issue-opened", "authors": ["alice"] } } ] }""", TriggerError.ForgeNotAllowed)]
+    public void ARepositoryFileCannotDeclareWebhooksForgeEventsRepositoriesOrOtherRepositoriesTriggers(string text, TriggerError error) =>
         Assert.Equal(error, Outcomes.FailsWith(TriggerFileParser.ParseRepository(text, Repository)));
 
     [Fact]

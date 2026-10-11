@@ -17,7 +17,7 @@ public sealed class SqliteTriggerStoreTests
     private static readonly TriggerId Issue = new(TriggerId.Machine, "issue");
 
     [Fact]
-    public async Task SchedulesRunsAndDeliveriesSurviveAReopeningAsTheirLatestVersionsAsync()
+    public async Task SchedulesRunsDeliveriesAndEventKeysSurviveAReopeningAsTheirLatestVersionsAsync()
     {
         await using var folder = new TemporaryFolder();
         var schedule = new ScheduleState("machine:nightly", Nine) { Anchor = Nine.AddHours(1), Enabled = true };
@@ -31,6 +31,8 @@ public sealed class SqliteTriggerStoreTests
             await first.KeepRunAsync(run with { Outcome = RunOutcome.Rejected }, Triggered.Cancellation);
             await first.KeepRunAsync(run, Triggered.Cancellation);
             await first.AddDeliveryAsync(delivery, Triggered.Cancellation);
+            await first.KeepEventKeyAsync("machine#issue|forge:github:issue-opened:12", Triggered.Cancellation);
+            await first.KeepEventKeyAsync("machine#issue|forge:github:issue-opened:12", Triggered.Cancellation);
         }
 
         await using var second = new SqliteTriggerStore(new AvalaPaths(folder.Path));
@@ -39,6 +41,7 @@ public sealed class SqliteTriggerStoreTests
         Assert.Equal([schedule], await second.SchedulesAsync(Triggered.Cancellation));
         Assert.Equal([run], await second.RunsAsync(Triggered.Cancellation));
         Assert.Equal([delivery], await second.DeliveriesAsync(Triggered.Cancellation));
+        Assert.Equal(["machine#issue|forge:github:issue-opened:12"], await second.EventKeysAsync(Triggered.Cancellation));
     }
 
     [Fact]

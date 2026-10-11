@@ -16,7 +16,7 @@ internal static class TriggerFileParser
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 5, AllowDuplicateProperties = false };
 
     private static readonly string[] Common =
-        ["id", "enabled", "schedule", "webhook", "catchUp", "instruction", "target", "connection", "autonomy", "attempts", "concurrency"];
+        ["id", "enabled", "schedule", "webhook", "forge", "catchUp", "instruction", "target", "connection", "autonomy", "attempts", "concurrency"];
 
     private static readonly Dictionary<string, CatchUp> CatchUps = new(StringComparer.Ordinal) { ["none"] = CatchUp.None, ["once"] = CatchUp.Once };
 
@@ -111,6 +111,11 @@ internal static class TriggerFileParser
             return TriggerError.WebhookNotAllowed;
         }
 
+        if (repository.IsSome && entry.TryGetProperty("forge", out _))
+        {
+            return TriggerError.ForgeNotAllowed;
+        }
+
         return Fields(entry, repository.IsSome ? Common : [.. Common, "repository"])
             .Bind(_ => TriggerFields.Key(entry))
             .Bind(key => repository.Match(Result<string, TriggerError>.Success, () => TriggerFields.Repository(entry))
@@ -124,13 +129,14 @@ internal static class TriggerFileParser
     {
         var scheduled = entry.TryGetProperty("schedule", out var schedule);
         var called = entry.TryGetProperty("webhook", out var webhook);
+        var forged = entry.TryGetProperty("forge", out var forge);
 
-        if (scheduled == called)
+        if (new[] { scheduled, called, forged }.Count(declared => declared) != 1)
         {
             return TriggerError.InvalidSchedule;
         }
 
-        if (called && entry.TryGetProperty("catchUp", out _))
+        if (!scheduled && entry.TryGetProperty("catchUp", out _))
         {
             return TriggerError.InvalidCatchUp;
         }
@@ -138,7 +144,9 @@ internal static class TriggerFileParser
         return scheduled
             ? TriggerFields.Schedule(schedule).Bind(read => TriggerFields.Optional(entry, "catchUp", CatchUp.None, value => TriggerFields.Word(value, CatchUps, TriggerError.InvalidCatchUp))
                 .Map(catchUp => trigger with { Schedule = read, CatchUp = catchUp }))
-            : TriggerFields.Webhook(webhook).Map(rule => trigger with { Webhook = rule });
+            : called
+                ? TriggerFields.Webhook(webhook).Map(rule => trigger with { Webhook = rule })
+                : ForgeFields.Read(forge).Map(declared => trigger with { Forge = declared.Rule, Webhook = declared.Nudge });
     }
 
     private static Result<TriggerDeclaration, TriggerError> Settings(JsonElement entry, TriggerDeclaration trigger) =>

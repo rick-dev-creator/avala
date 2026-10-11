@@ -100,6 +100,29 @@ internal sealed class SqliteTriggerStore(AvalaPaths paths) : IScheduleStore, IRu
     public Task TakeAsync(Guid run, CancellationToken cancellationToken) =>
         owner.RunAsync(database => database.Queued.Where(row => row.Run == run).ExecuteDeleteAsync(cancellationToken), cancellationToken);
 
+    public Task<IReadOnlyList<string>> EventKeysAsync(CancellationToken cancellationToken) =>
+        owner.RunAsync<IReadOnlyList<string>>(
+            async database => await database.EventKeys.AsNoTracking().OrderBy(row => row.Key).Select(row => row.Value).ToListAsync(cancellationToken),
+            cancellationToken);
+
+    public Task KeepEventKeyAsync(string key, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            async database =>
+            {
+                if (await database.EventKeys.AnyAsync(row => row.Value == key, cancellationToken))
+                {
+                    return 0;
+                }
+
+                await database.EventKeys.AddAsync(new StoredEventKey { Value = key }, cancellationToken);
+                var saved = await SaveAsync(database, cancellationToken);
+                var newest = await database.EventKeys.MaxAsync(row => (int?)row.Key, cancellationToken) ?? 0;
+                await database.EventKeys.Where(row => row.Key <= newest - RunJournal.EventKeysKept).ExecuteDeleteAsync(cancellationToken);
+
+                return saved;
+            },
+            cancellationToken);
+
     public ValueTask DisposeAsync() => owner.DisposeAsync();
 
     private static async Task<int> SaveAsync(TriggersDbContext database, CancellationToken cancellationToken)

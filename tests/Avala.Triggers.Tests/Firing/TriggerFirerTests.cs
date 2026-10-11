@@ -88,6 +88,25 @@ public sealed class TriggerFirerTests
     }
 
     [Fact]
+    public async Task AnEventAlreadyFiredByTheTriggerIsADuplicateThatSubmitsNothingEvenAfterARestartAsync()
+    {
+        var triggered = await StartAsync(""" "schedule": { "everyMinutes": 60 }, "concurrency": 4 """);
+        var labeled = new FireRequest(TriggerOrigin.External, "forge github · alice") { Payload = """{ "number": 12 }""", Key = "forge:github:issue-labeled:7001" };
+        var first = Outcomes.Succeeds(await triggered.Triggers.FireAsync(Nightly, labeled, Triggered.Cancellation));
+        var again = Outcomes.Succeeds(await triggered.Triggers.FireAsync(Nightly, labeled, Triggered.Cancellation));
+
+        await using var restarted = await triggered.RestartAsync(TimeSpan.FromMinutes(1));
+        var afterRestart = Outcomes.Succeeds(await restarted.Triggers.FireAsync(Nightly, labeled, Triggered.Cancellation));
+        var another = Outcomes.Succeeds(await restarted.Triggers.FireAsync(Nightly, labeled with { Key = "forge:github:issue-labeled:7002" }, Triggered.Cancellation));
+
+        Assert.Equal(
+            [(RunOutcome.Submitted, true), (RunOutcome.Duplicate, false), (RunOutcome.Duplicate, false), (RunOutcome.Submitted, true)],
+            new[] { first, again, afterRestart, another }.Select(run => (run.Outcome, run.Job.IsSome)));
+        Assert.Equal(Option<string>.Some("forge:github:issue-labeled:7001"), again.Key);
+        Assert.Equal(2, restarted.Jobs.Requests.Count);
+    }
+
+    [Fact]
     public async Task ALoopTargetQueuesATaskStartsALoopAndAttachesTheJobItsLoopTakesAsync()
     {
         await using var triggered = await StartAsync(""" "schedule": { "everyMinutes": 60 }, "target": "loop", "concurrency": 2 """);

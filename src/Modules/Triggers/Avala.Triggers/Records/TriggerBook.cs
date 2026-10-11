@@ -68,6 +68,7 @@ internal sealed class TriggerBook(TriggerScheduler scheduler, TriggerFirer firer
             Days = trigger.Schedule.Match(schedule => schedule.Days, () => []),
             CatchUp = trigger.CatchUp,
             Hook = trigger.Hook,
+            Forge = trigger.Forge,
             NextRun = scheduler.NextOf(trigger.Id),
             LastRun = Last(firer.Journal.Of(trigger.Id)),
         };

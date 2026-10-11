@@ -53,6 +53,11 @@ internal sealed class TriggerFirer(TriggerCatalog catalog, FiringChecks checks, 
     {
         var run = Run(trigger, request, RunOutcome.Submitted);
 
+        if (request.Key.Match(key => journal.Seen(trigger.Id, key), () => false))
+        {
+            return await journal.RecordAsync(run with { Outcome = RunOutcome.Duplicate }, cancellationToken);
+        }
+
         if (await checks.RunningAsync(trigger.Id, cancellationToken) >= trigger.Concurrency)
         {
             return await journal.RecordAsync(run with { Outcome = RunOutcome.AtConcurrencyCap }, cancellationToken);
@@ -82,6 +87,7 @@ internal sealed class TriggerFirer(TriggerCatalog catalog, FiringChecks checks, 
         {
             PayloadDigest = request.Payload.Map(text => WebhookSignature.Digest(Encoding.UTF8.GetBytes(text))),
             Delivery = request.Delivery,
+            Key = request.Key,
             Asked = trigger.Autonomy,
             Applied = trigger.Autonomy,
         };

@@ -33,6 +33,8 @@ internal sealed record TriggerDeclaration(TriggerId Id, string Repository, Instr
 
     public Option<WebhookRule> Webhook { get; init; }
 
+    public Option<ForgeRule> Forge { get; init; }
+
     public bool Enabled { get; init; } = true;
 
     public CatchUp CatchUp { get; init; }
@@ -47,7 +49,7 @@ internal sealed record TriggerDeclaration(TriggerId Id, string Repository, Instr
 
     public int Concurrency { get; init; } = 1;
 
-    public TriggerKind Kind => Schedule.Match(schedule => schedule.Kind, () => TriggerKind.Webhook);
+    public TriggerKind Kind => Forge.IsSome ? TriggerKind.Forge : Schedule.Match(schedule => schedule.Kind, () => TriggerKind.Webhook);
 
     public Option<string> Hook => Webhook.Map(_ => $"/hooks/{Id.Name}");
 }

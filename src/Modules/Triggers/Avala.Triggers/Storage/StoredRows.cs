@@ -85,3 +85,10 @@ internal sealed class StoredQueuedTask
 
     public QueuedTask Read() => StoredJson.Read<QueuedTask>(Fact);
 }
+
+internal sealed class StoredEventKey
+{
+    public int Key { get; init; }
+
+    public string Value { get; init; } = string.Empty;
+}

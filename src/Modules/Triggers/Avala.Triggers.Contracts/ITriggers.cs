@@ -35,6 +35,16 @@ public enum TriggerKind
     Interval,
     FixedTime,
     Webhook,
+    Forge,
+}
+
+public enum ForgeEventKind
+{
+    IssueOpened,
+    IssueLabeled,
+    CommentCommand,
+    ChecksFailed,
+    ReviewRequested,
 }
 
 public enum TriggerTarget
@@ -66,6 +76,7 @@ public enum RunOutcome
     AtConcurrencyCap,
     Missed,
     Dropped,
+    Duplicate,
 }
 
 public enum DeliveryVerdict
@@ -117,6 +128,9 @@ public enum TriggerError
     UnknownTrigger,
     NoPortLease,
     ListenerFailed,
+    InvalidEvent,
+    MissingAuthors,
+    ForgeNotAllowed,
 }
 
 public sealed record TriggerState(TriggerId Id, string Repository, TriggerKind Kind, TriggerTarget Target, Autonomy Autonomy, int Concurrency, bool Enabled)
@@ -131,6 +145,8 @@ public sealed record TriggerState(TriggerId Id, string Repository, TriggerKind K
 
     public Option<string> Hook { get; init; }
 
+    public Option<ForgeRule> Forge { get; init; }
+
     public Option<DateTimeOffset> NextRun { get; init; }
 
     public Option<DateTimeOffset> LastRun { get; init; }
@@ -138,11 +154,30 @@ public sealed record TriggerState(TriggerId Id, string Repository, TriggerKind K
     public int Running { get; init; }
 }
 
+public sealed record ForgeRule(string Connection, ForgeEventKind Event, IReadOnlyList<string> Authors)
+{
+    public const string DefaultRemote = "origin";
+
+    public string Remote { get; init; } = DefaultRemote;
+
+    public Option<string> Label { get; init; }
+
+    public Option<string> Command { get; init; }
+
+    public Option<string> Branch { get; init; }
+
+    public Option<string> Reviewer { get; init; }
+
+    public bool Acknowledge { get; init; }
+}
+
 public sealed record FireRequest(TriggerOrigin Origin, string Who)
 {
     public Option<string> Payload { get; init; }
 
     public Option<Guid> Delivery { get; init; }
+
+    public Option<string> Key { get; init; }
 }
 
 public sealed record TriggerRun(Guid Id, TriggerId Trigger, TriggerOrigin Origin, string Who, DateTimeOffset At, RunOutcome Outcome)
@@ -154,6 +189,8 @@ public sealed record TriggerRun(Guid Id, TriggerId Trigger, TriggerOrigin Origin
     public Option<string> PayloadDigest { get; init; }
 
     public Option<Guid> Delivery { get; init; }
+
+    public Option<string> Key { get; init; }
 
     public Autonomy Asked { get; init; }
 
