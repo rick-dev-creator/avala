@@ -85,6 +85,7 @@
                 Margin="6,0,0,0"
                 VerticalAlignment="Center"
                 Command="{Binding InterruptCommand}"
+                IsVisible="{Binding AcceptsMessages}"
                 ToolTip.Tip="Interrupt the turn"
                 AutomationProperties.Name="Interrupt the turn">
           <Path Classes="icon solid" StrokeThickness="0" Data="{StaticResource IconInterrupt}" />
@@ -96,6 +97,7 @@
                 Margin="6,0,0,0"
                 VerticalAlignment="Center"
                 Command="{Binding StopCommand}"
+                IsVisible="{Binding AcceptsMessages}"
                 ToolTip.Tip="Stop the session"
                 AutomationProperties.Name="Stop the session">
           <Path Classes="icon solid" StrokeThickness="0" Data="{StaticResource IconStop}" />
@@ -106,6 +108,7 @@
                 Margin="6,0,0,0"
                 VerticalAlignment="Center"
                 Command="{Binding SendCommand}"
+                IsVisible="{Binding AcceptsMessages}"
                 ToolTip.Tip="{Binding SendHint}"
                 AutomationProperties.Name="Send">
           <Path Classes="icon" Data="{StaticResource IconSend}" />

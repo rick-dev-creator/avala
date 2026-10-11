@@ -155,7 +155,7 @@ public sealed class HandoffTests(PublishedPlugins plugins)
 
         Assert.Equal((HoldReason.LimitNearlyReached, SessionHalt.Idle), (hold.Reason, hold.Halt));
         Assert.Equal((One, "5h"), (wait.Connection, wait.Window));
-        Assert.Equal($"Held · resumes at {Outcomes.Present(wait.ResumesAt).ToLocalTime():HH:mm} when the 5-hour window resets", pill);
+        Assert.Equal($"Held · until {Outcomes.Present(wait.ResumesAt).ToLocalTime():HH:mm}", pill);
         Assert.Equal((One, ContinuedIn.SameSession), (back.Connection, back.Conversation));
         var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation));
         Assert.Equal(Option<ConnectionName>.Some(One), history.Summary.Connection);

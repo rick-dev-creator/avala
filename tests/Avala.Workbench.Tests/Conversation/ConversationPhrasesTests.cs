@@ -62,7 +62,7 @@ public sealed class ConversationPhrasesTests
     }
 
     [Fact]
-    public void TheStatusPillOfAJobWaitingForAResetSaysWhenItResumes()
+    public void TheStatusPillOfAJobWaitingForAResetSaysBrieflyUntilWhenItIsHeld()
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.NeedsHelp).Summary;
         var since = new DateTimeOffset(2026, 10, 10, 0, 20, 0, TimeSpan.Zero);
@@ -74,9 +74,9 @@ public sealed class ConversationPhrasesTests
             Wait = new ResetWait(summary.Job, new ConnectionName("claude-work"), "5h", at, since),
         };
 
-        Assert.Equal($"Held · resumes at {resumes.ToLocalTime():HH:mm} when the 5-hour window resets", ConversationPhrases.Pill(Waiting(resumes)));
-        Assert.Equal($"Held · resumes at {later.ToLocalTime():yyyy-MM-dd HH:mm} when the 5-hour window resets", ConversationPhrases.Pill(Waiting(later)));
-        Assert.Equal("Held · near its limit · no reset time reported, waits for you", ConversationPhrases.Pill(Waiting(Option<DateTimeOffset>.None)));
+        Assert.Equal($"Held · until {resumes.ToLocalTime():HH:mm}", ConversationPhrases.Pill(Waiting(resumes)));
+        Assert.Equal($"Held · until {later.ToLocalTime():yyyy-MM-dd HH:mm}", ConversationPhrases.Pill(Waiting(later)));
+        Assert.Equal("Held · near its limit", ConversationPhrases.Pill(Waiting(Option<DateTimeOffset>.None)));
     }
 
     [Theory]

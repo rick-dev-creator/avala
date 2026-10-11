@@ -198,13 +198,22 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task AnEndedJobTakesNothingAndSaysSoAsync() =>
+    public Task AnEndedJobOffersNoButtonsAndSaysItEndedAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignComposerViewModel(JobStatus.Approved));
 
-            Assert.Equal((false, false, false), (view.Find<Button>("Send").IsEffectivelyEnabled, view.Find<Button>("Interrupt").IsEffectivelyEnabled, view.Find<Button>("Stop").IsEffectivelyEnabled));
+            Assert.Equal((false, false, false), (view.Shows("Send"), view.Shows("Interrupt"), view.Shows("Stop")));
             Assert.Equal("This job has ended", view.Find<TextBox>("Draft").PlaceholderText);
+        }, Cancellation);
+
+    [Fact]
+    public Task AJobThatNeedsYouDimsTheInterruptAndStopItCannotTakeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignComposerViewModel(JobStatus.NeedsHelp));
+
+            Assert.Equal((true, false, false), (view.Shows("Stop"), view.Find<Button>("Interrupt").IsEffectivelyEnabled, view.Find<Button>("Stop").IsEffectivelyEnabled));
             Assert.Equal(Color.Parse("#4E4E56"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Button>("Stop").GetVisualDescendants().OfType<Path>().Single().Fill).Color);
         }, Cancellation);
 
@@ -288,7 +297,7 @@ public sealed class PromptViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Hint, "Use the ISO table", AttemptOutcome.Passed)));
 
-            Assert.Equal(("You", "passed", true), (view.TextOf("Origin"), view.TextOf("Outcome"), view.Shows("Heading")));
+            Assert.Equal(("You", "attempt 2 passed its checks", true), (view.TextOf("Origin"), view.TextOf("Outcome"), view.Shows("Heading")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

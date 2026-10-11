@@ -53,7 +53,7 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
     {
         if (entry is PromptEntry prompt)
         {
-            Outcome = prompt.Outcome.Match(ConversationPhrases.Outcome, () => string.Empty);
+            Outcome = prompt.Outcome.Match(outcome => ConversationPhrases.Outcome(prompt.Attempt, outcome), () => string.Empty);
             Origin = ConversationPhrases.Origin(prompt);
         }
     }

@@ -22,12 +22,12 @@ public sealed class PromptViewModelScripts
             .Then(prompt => Assert.Equal((phrase, fromPerson, showsOrigin, string.Empty), (prompt.Origin, prompt.IsFromPerson, prompt.ShowsOrigin, prompt.Outcome)));
 
     [Theory]
-    [InlineData("Running", "running")]
-    [InlineData("AwaitingCheck", "awaiting its checks")]
-    [InlineData("Passed", "passed")]
-    [InlineData("Rejected", "rejected")]
-    [InlineData("Interrupted", "interrupted")]
-    public void AnAttemptsOutcomeShowsOnItsPrompt(string outcome, string phrase) =>
+    [InlineData("Running", "attempt 2 running")]
+    [InlineData("AwaitingCheck", "attempt 2 awaiting its checks")]
+    [InlineData("Passed", "attempt 2 passed its checks")]
+    [InlineData("Rejected", "attempt 2 did not pass its checks")]
+    [InlineData("Interrupted", "attempt 2 interrupted")]
+    public void APromptSaysHowTheAttemptItStartedWent(string outcome, string phrase) =>
         ViewModelScript.Given(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Retry, "tests failed", Option<AttemptOutcome>.None)))
             .When(prompt => prompt.Update(new PromptEntry("attempt:2", 2, AttemptOrigin.Retry, "tests failed", Enum.Parse<AttemptOutcome>(outcome))))
             .Then(prompt => Assert.Equal(phrase, prompt.Outcome));

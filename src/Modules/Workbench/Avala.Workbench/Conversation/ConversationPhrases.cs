@@ -24,14 +24,8 @@ internal static class ConversationPhrases
 
     public static string Origin(PromptEntry prompt) => prompt.Handoff.Match(HandoffPhrases.Moved, () => Origin(prompt.Origin));
 
-    public static string Outcome(AttemptOutcome outcome) => outcome switch
-    {
-        AttemptOutcome.Running => "running",
-        AttemptOutcome.AwaitingCheck => "awaiting its checks",
-        AttemptOutcome.Passed => "passed",
-        AttemptOutcome.Rejected => "rejected",
-        _ => "interrupted",
-    };
+    public static string Outcome(int attempt, AttemptOutcome outcome) =>
+        string.Create(CultureInfo.InvariantCulture, $"attempt {attempt} {Went(outcome)}");
 
     public static string Outcome(ItemOutcome outcome) => outcome switch
     {
@@ -40,6 +34,15 @@ internal static class ConversationPhrases
         ItemOutcome.Cancelled => "cancelled",
         ItemOutcome.Abandoned => "abandoned",
         _ => "expired",
+    };
+
+    private static string Went(AttemptOutcome outcome) => outcome switch
+    {
+        AttemptOutcome.Running => "running",
+        AttemptOutcome.AwaitingCheck => "awaiting its checks",
+        AttemptOutcome.Passed => "passed its checks",
+        AttemptOutcome.Rejected => "did not pass its checks",
+        _ => "interrupted",
     };
 
     public static string Turn(TurnOutcome outcome, TimeSpan duration) => outcome switch
@@ -75,8 +78,8 @@ internal static class ConversationPhrases
     public static string Pill(BoardJob job) => job.Group switch
     {
         JobGroup.NeedsYou => job.Hold.Match(
-            reason => job.PendingDecisions == 0 ? $"Held · {job.Wait.Match(HandoffPhrases.Waits, () => Held(reason))}" : "Needs you",
-            () => job.Wait.Match(wait => $"Held · {HandoffPhrases.Waits(wait)}", () => "Needs you")),
+            reason => job.PendingDecisions == 0 ? $"Held · {job.Wait.Match(HandoffPhrases.Until, () => Held(reason))}" : "Needs you",
+            () => job.Wait.Match(wait => $"Held · {HandoffPhrases.Until(wait)}", () => "Needs you")),
         JobGroup.ReadyForReview => "Ready for review",
         JobGroup.Done => job.Status switch
         {
