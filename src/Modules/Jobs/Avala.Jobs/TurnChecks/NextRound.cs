@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Holding;
 using Avala.Jobs.Jobs;
@@ -13,6 +14,9 @@ internal sealed class NextRound(IEnumerable<IRoundRouter> routers, JobLauncher l
 
     public async Task HoldAsync(Job job, HoldReason reason, CancellationToken cancellationToken) =>
         _ = await hold.ExecuteAsync(job, reason, cancellationToken);
+
+    public async Task HoldAsync(Job job, HoldReason reason, Option<UsageLimit> limit, CancellationToken cancellationToken) =>
+        _ = await hold.ExecuteAsync(job, reason, limit, cancellationToken);
 
     public async Task GoOnAsync(Job job, Feedback feedback, Func<Job, Feedback, CancellationToken, Task> retry, CancellationToken cancellationToken)
     {

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
@@ -16,10 +17,13 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
 
     public bool Settled(TurnId turn) => ImmutableInterlocked.Update(ref interrupted, turns => turns.Remove(turn));
 
-    public async Task<Result<JobHold, JobRejection>> ExecuteAsync(Job job, HoldReason reason, CancellationToken cancellationToken) =>
+    public Task<Result<JobHold, JobRejection>> ExecuteAsync(Job job, HoldReason reason, CancellationToken cancellationToken) =>
+        ExecuteAsync(job, reason, Option<UsageLimit>.None, cancellationToken);
+
+    public async Task<Result<JobHold, JobRejection>> ExecuteAsync(Job job, HoldReason reason, Option<UsageLimit> limit, CancellationToken cancellationToken) =>
         await job.Session.Match(
             session => job.Hold(reason).IsSuccess
-                ? HeldAsync(job, session, reason, cancellationToken)
+                ? HeldAsync(job, session, reason, limit, cancellationToken)
                 : Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)),
             () => Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)));
 
@@ -39,11 +43,11 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
         _ => JobRejection.NotRunning,
     };
 
-    private async Task<Result<JobHold, JobRejection>> HeldAsync(Job job, SessionId session, HoldReason reason, CancellationToken cancellationToken)
+    private async Task<Result<JobHold, JobRejection>> HeldAsync(Job job, SessionId session, HoldReason reason, Option<UsageLimit> limit, CancellationToken cancellationToken)
     {
         await ledger.RecordAsync(job, cancellationToken);
 
-        var hold = new JobHold(job.Id, session, reason, await HaltAsync(session, reason, cancellationToken));
+        var hold = new JobHold(job.Id, session, reason, await HaltAsync(session, reason, cancellationToken)) { Limit = limit };
         await bus.PublishAsync(new HoldAnnouncement(hold), cancellationToken);
 
         return hold;

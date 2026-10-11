@@ -35,7 +35,7 @@ internal sealed class LimitWatch(Situations situations, LimitActions actions, IH
     {
         if (integrationEvent.Hold.Reason == HoldReason.LimitNearlyReached)
         {
-            Post(token => HeldAsync(integrationEvent.Hold.Job, token));
+            Post(token => HeldAsync(integrationEvent.Hold, token));
         }
 
         return ValueTask.CompletedTask;
@@ -65,12 +65,19 @@ internal sealed class LimitWatch(Situations situations, LimitActions actions, IH
         lifetime.Dispose();
     }
 
-    private async Task HeldAsync(JobId job, CancellationToken token)
+    private async Task HeldAsync(JobHold hold, CancellationToken token)
     {
-        var feedback = ImmutableInterlocked.TryRemove(ref pending, job, out var kept) ? Option<string>.Some(kept) : Option<string>.None;
+        var feedback = ImmutableInterlocked.TryRemove(ref pending, hold.Job, out var kept) ? Option<string>.Some(kept) : Option<string>.None;
 
-        await (await situations.OfAsync(job, token)).Match(
-            situation => ActAsync(situation, HandoffPolicy.WhenHeld(situation.Situation), feedback, situation.Situation.Now, token),
+        await (await situations.OfAsync(hold.Job, token)).Match(
+            found =>
+            {
+                var situation = hold.Limit.Match(
+                    limit => found with { Situation = found.Situation with { Own = found.Situation.Own.Reading(limit) } },
+                    () => found);
+
+                return ActAsync(situation, HandoffPolicy.WhenHeld(situation.Situation), feedback, situation.Situation.Now, token);
+            },
             () => Task.CompletedTask);
     }
 

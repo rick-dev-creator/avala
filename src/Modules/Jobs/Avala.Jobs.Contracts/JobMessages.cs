@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -44,7 +45,10 @@ public enum SessionHalt
     AlreadyClosed,
 }
 
-public sealed record JobHold(JobId Job, SessionId Session, HoldReason Reason, SessionHalt Halt);
+public sealed record JobHold(JobId Job, SessionId Session, HoldReason Reason, SessionHalt Halt)
+{
+    public Option<UsageLimit> Limit { get; init; }
+}
 
 public sealed record JobSubmitted(JobId Job) : IIntegrationEvent
 {

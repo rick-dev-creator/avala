@@ -80,8 +80,10 @@ internal sealed class Watched : IAsyncDisposable
             [],
             []);
 
-    public async Task HeldAsync(HoldReason reason) =>
-        await Watch.HandleAsync(new JobHeld(new JobHold(Job, SessionId.New(), reason, SessionHalt.Interrupted)), Cancellation);
+    public async Task HeldAsync(HoldReason reason) => await HeldAsync(reason, Option<UsageLimit>.None);
+
+    public async Task HeldAsync(HoldReason reason, Option<UsageLimit> limit) =>
+        await Watch.HandleAsync(new JobHeld(new JobHold(Job, SessionId.New(), reason, SessionHalt.Interrupted) { Limit = limit }), Cancellation);
 
     public async Task ProgressedAsync(JobStatus status) => await Watch.HandleAsync(new JobProgressed(Job, status), Cancellation);
 

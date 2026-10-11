@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
 using Avala.Handoffs.Contracts;
 using Avala.Handoffs.Policy;
 using Avala.Handoffs.Watching;
@@ -72,6 +73,18 @@ public sealed class LimitWatchTests
         Assert.Equal(("continue", $"{LimitActions.ResetMessage}\n\n{Feedback}"), (moved.Operation, moved.Text));
         Assert.Equal(new JobResumedAtReset(watched.Job, Watched.Work, ContinuedIn.ResumedConversation, resets), resumed);
         Assert.Equal(Option<ResetWait>.None, watched.Book.WaitOf(watched.Job));
+    }
+
+    [Fact]
+    public async Task AJobHeldBecauseItsWindowRanOutWaitsForThatWindowsResetBeforeAnyReadingOfItArrivesAsync()
+    {
+        await using var watched = new Watched();
+        var resets = Watched.Start.AddHours(1);
+        watched.Reading(Watched.Work, 0.3, Option<DateTimeOffset>.None);
+
+        await watched.HeldAsync(HoldReason.LimitNearlyReached, new UsageLimit("5h", 1, resets));
+
+        Assert.Equal(new ResetWait(watched.Job, Watched.Work, "5h", resets, Watched.Start), await watched.WaitingAsync());
     }
 
     [Fact]

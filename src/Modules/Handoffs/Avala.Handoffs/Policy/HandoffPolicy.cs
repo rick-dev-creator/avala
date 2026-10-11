@@ -6,7 +6,10 @@ using Avala.Sdk;
 
 namespace Avala.Handoffs.Policy;
 
-internal sealed record ConnectionState(ConnectionName Connection, string Provider, IReadOnlyList<UsageLimit> Limits);
+internal sealed record ConnectionState(ConnectionName Connection, string Provider, IReadOnlyList<UsageLimit> Limits)
+{
+    public ConnectionState Reading(UsageLimit limit) => this with { Limits = [.. Limits.Where(known => known.Window != limit.Window), limit] };
+}
 
 internal sealed record Situation(ConnectionState Own, Option<ConnectionChoice> Choice, LimitRules Rules, IReadOnlyList<ConnectionState> Usable, DateTimeOffset Now);
 

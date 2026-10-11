@@ -144,6 +144,23 @@ public sealed class JobFlowTests
     }
 
     [Fact]
+    public async Task ATurnThatRanOutOfItsUsageWindowHoldsTheJobNearItsLimitWithThatWindowInsteadOfFailingItAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
+        var spent = new UsageLimit("5h", 1, DateTimeOffset.UnixEpoch.AddHours(5));
+
+        await flow.Check.HandleAsync(new TurnFinished(session, TurnId.New(), TurnOutcome.LimitReached) { Limit = spent }, Cancellation);
+        await flow.SettledAsync(job);
+
+        var held = Assert.Single(flow.Bus.Published.OfType<HoldAnnouncement>()).Hold;
+        Assert.Equal((JobState.NeedsHelp, HoldReason.LimitNearlyReached, Option<UsageLimit>.Some(spent)), (job.State, held.Reason, held.Limit));
+        Assert.Equal(AttemptOutcome.Interrupted, job.Attempts[^1].Outcome);
+        Assert.Empty(flow.Agents.Stopped);
+    }
+
+    [Fact]
     public async Task AJobWaitsForItsAdmissionBeforeItsWorkspaceIsPreparedAsync()
     {
         var flow = JobFlow.With();
