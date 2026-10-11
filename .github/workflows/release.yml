@@ -38,10 +38,6 @@ jobs:
             os: windows-latest
           - rid: linux-x64
             os: ubuntu-latest
-          - rid: osx-arm64
-            os: macos-latest
-          - rid: osx-x64
-            os: macos-latest
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -84,12 +80,27 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: docs/releases
       - uses: actions/download-artifact@v8
         with:
           pattern: package-*
           path: artifacts/release
           merge-multiple: true
-      - uses: softprops/action-gh-release@v2
+      - name: Draft with the release notes written for this tag
+        if: hashFiles(format('docs/releases/{0}.md', github.ref_name)) != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          name: Avala ${{ github.ref_name }}
+          body_path: docs/releases/${{ github.ref_name }}.md
+          fail_on_unmatched_files: true
+          files: artifacts/release/*
+      - name: Draft with notes generated from the merged pull requests
+        if: hashFiles(format('docs/releases/{0}.md', github.ref_name)) == ''
+        uses: softprops/action-gh-release@v2
         with:
           draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}

@@ -14,8 +14,13 @@ A tag with a hyphen is drafted as a prerelease. A stable build of Avala is only 
 | --- | --- | --- | --- | --- |
 | Windows x64 | `windows-latest` | `avala-<version>-win-x64.zip` | `Avala/`: `Avala.exe`, the runtime, `plugins/` | yes |
 | Linux x64 | `ubuntu-latest` | `avala-<version>-linux-x64.tar.gz` | `avala-<version>/`: `Avala`, the runtime, `plugins/`, `avala.png`, `avala.desktop` | yes |
-| macOS Apple silicon | `macos-latest` | `avala-<version>-osx-arm64.zip` | `Avala.app`, with `Contents/Info.plist`, `Contents/Resources/avala.icns` and everything else in `Contents/MacOS` | yes |
-| macOS Intel | `macos-latest` | `avala-<version>-osx-x64.zip` | the same bundle for x64 | no, cross-built on Apple silicon |
+
+The release workflow packages Windows and Linux only, starting with `v0.1.0-beta.1`. The script still builds the macOS bundles below, and they return to the release once they are signed and notarized: add their two entries back to the workflow's `package` matrix, `osx-arm64` and `osx-x64`, both on `macos-latest`.
+
+| Platform | Archive | What is inside | Smoke run |
+| --- | --- | --- | --- |
+| macOS Apple silicon | `avala-<version>-osx-arm64.zip` | `Avala.app`, with `Contents/Info.plist`, `Contents/Resources/avala.icns` and everything else in `Contents/MacOS` | yes, on Apple silicon |
+| macOS Intel | `avala-<version>-osx-x64.zip` | the same bundle for x64 | no, cross-built on Apple silicon |
 
 Every archive has a `.sha256` next to it. Each package is self-contained, so nothing has to be installed first, and is a folder rather than a single file: the plugins are folders the host loads at startup, and the host's own assemblies must stay visible to them. The `plugins` folder sits next to the executable, where the host looks first.
 
@@ -35,20 +40,25 @@ dotnet run scripts/package.cs -- --rid linux-x64 --smoke
 
 `Avala --smoke` starts the real application on Avalonia's headless platform, so it needs no display: it composes every plugin, runs the startup tasks and the migrations in a temporary data folder, shows the main window, prints `Avala <version> composed <n> pages and showed its main window.` and exits 0. With no plugin found it exits 2, on a failure 1. It never checks for updates or sends usage statistics. `Avala --version` prints `Avala <version> (<commit>)`. Use both to check a package on a machine before trusting it.
 
+## Release notes
+
+The notes of a release are written by hand in `docs/releases/<tag>.md`, such as [`docs/releases/v0.1.0-beta.1.md`](releases/v0.1.0-beta.1.md), and committed before the tag. The release workflow uses that file as the draft's notes when it exists; without one, the draft gets notes generated from the merged pull requests. The file is the release's body, so it starts without a title, which the release already has.
+
 ## Cutting a release
 
 1. Make sure `main` is green in CI and holds everything the release should.
-2. Choose the version. The first public one is suggested as `v0.1.0-beta.1`.
-3. Tag the commit and push the tag:
+2. Choose the version. The first public one is `v0.1.0-beta.1`.
+3. Write its notes in `docs/releases/<tag>.md` and merge them to `main`.
+4. Tag the commit and push the tag:
 
    ```
    git tag -a v0.1.0-beta.1 -m "Avala 0.1.0-beta.1"
    git push origin v0.1.0-beta.1
    ```
 
-4. The [release workflow](../.github/workflows/release.yml) runs on that tag only. It builds and tests the tagged commit, packages each platform on its own runner with the smoke run, and creates a **draft** release named after the tag with the archives, their checksums and notes generated from the merged pull requests.
-5. Open the draft on GitHub, edit the notes, download a package or two and run `--smoke` on them, then publish it. Publishing is the only step that makes it visible, and the only one the update check sees.
-6. Replace "Coming soon" in the README's Install section with a link to the release, and raise `VersionPrefix` in `Directory.Build.props`.
+5. The [release workflow](../.github/workflows/release.yml) runs on that tag only. It builds and tests the tagged commit, packages each platform on its own runner with the smoke run, and creates a **draft** release named after the tag with the archives, their checksums and the notes from `docs/releases/<tag>.md`.
+6. Open the draft on GitHub, read the notes, download each package and run `--smoke` on it, then publish it. Publishing is the only step that makes it visible, and the only one the update check sees.
+7. Replace "Coming soon" in the README's Install section with a link to the release, and raise `VersionPrefix` in `Directory.Build.props`.
 
 To redo a release before publishing it, delete the draft and the tag, locally and on GitHub, fix what was wrong and tag again.
 
