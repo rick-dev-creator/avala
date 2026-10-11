@@ -152,14 +152,25 @@ public sealed class UsageSectionViewScripts(HeadlessUi ui)
 public sealed class AutonomySectionViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task TheAutonomySectionShowsTheAutonomyAndTheConnectionInTheCodeFontAsync() =>
+    public Task TheAutonomySectionShowsTheAutonomyAndTheConnectionAsync() =>
         ui.RunAsync(() =>
         {
             var view = Sections.Open(Screen.Show(new DesignAutonomySectionViewModel()));
 
             Assert.Equal((string?)"Supervised", Sections.Row(view).Fact);
             Assert.Equal(("Supervised, as the repository declares", "claude-personal"), (view.TextOf("Autonomy"), view.TextOf("Connection")));
-            Assert.Equal("JetBrains Mono", view.Find<TextBlock>("Connection").FontFamily.FamilyNames[0]);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheConnectionAndEveryComparedConnectionShareTheCaptionTypeOfTheOtherValuesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new DesignAutonomySectionViewModel()));
+            var autonomy = view.Find<TextBlock>("Autonomy");
+            var names = view.All<TextBlock>().Where(text => text.Name == "ComparedConnection").Append(view.Find<TextBlock>("Connection")).ToList();
+
+            Assert.Equal(3, names.Count);
+            Assert.All(names, name => Assert.Equal((autonomy.FontFamily, autonomy.FontSize, autonomy.FontWeight), (name.FontFamily, name.FontSize, name.FontWeight)));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

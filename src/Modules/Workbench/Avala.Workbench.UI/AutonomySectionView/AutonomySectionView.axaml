@@ -8,6 +8,14 @@
   <Design.DataContext>
     <inspector:DesignAutonomySectionViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBlock.value">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.value.tertiary">
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+  </UserControl.Styles>
   <ui:Fold x:Name="Section" Header="Autonomy &amp; connection" Fact="{Binding Fact}">
     <StackPanel Margin="28,0,12,12" Spacing="7">
       <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
@@ -26,9 +34,9 @@
         <TextBlock Classes="caption secondary" Text="Connection" />
         <TextBlock x:Name="Connection"
                    Grid.Column="1"
-                   Classes="mono"
+                   Classes="caption"
                    Margin="12,0,0,0"
-                   FontSize="{DynamicResource FontSizeCaption}"
+                   Foreground="{DynamicResource TextPrimaryBrush}"
                    TextAlignment="Right"
                    TextWrapping="Wrap"
                    Text="{Binding Connection}" />
@@ -53,9 +61,9 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="inspector:CapacityLine">
             <Grid ColumnDefinitions="Auto,*" Margin="0,2">
-              <TextBlock Classes="mono"
+              <TextBlock x:Name="ComparedConnection"
+                         Classes="caption value"
                          Classes.tertiary="{Binding !IsChosen}"
-                         FontSize="{DynamicResource FontSizeCaption}"
                          Text="{Binding Connection}" />
               <TextBlock Grid.Column="1"
                          Classes="caption"
