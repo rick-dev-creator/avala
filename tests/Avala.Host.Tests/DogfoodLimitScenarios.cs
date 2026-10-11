@@ -12,7 +12,7 @@ namespace Avala.Host.Tests;
 
 internal static class DogfoodLimitScenarios
 {
-    private const string RehearsedChecks = """
+    internal const string RehearsedChecks = """
         { "checks": [ { "name": "calculator", "command": "git", "arguments": ["grep", "--quiet", "--fixed-strings", "add(2, 2) = 4", "--", "calculator.txt"], "timeoutSeconds": 60 } ] }
         """;
 

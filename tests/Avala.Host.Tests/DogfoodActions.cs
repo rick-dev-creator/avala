@@ -19,7 +19,7 @@ internal sealed class DogfoodActions(DogfoodApp app, DogfoodJournal journal, Dog
 
     private Bound Jobs => Ui.Jobs;
 
-    public async Task<JobId> SubmitAsync(string repository, string instruction, string connection, string label)
+    public async Task<JobId> SubmitAsync(string repository, string instruction, string connection, string label, int candidates = 1)
     {
         ShowJobs();
         DogfoodUi.Invoke(Ui.Toolbar, "NewJobCommand");
@@ -34,6 +34,7 @@ internal sealed class DogfoodActions(DogfoodApp app, DogfoodJournal journal, Dog
         await newJob["Offering"].Value<Task>();
         var options = string.Join(" | ", newJob["Options"].Items.Select(option => $"{option["Name"].Text}: '{option["Reading"].Text}' near limit {option["IsNearLimit"].Text}"));
         evidence.Note($"new-job:{label}", $"connections [{string.Join(", ", offered)}]; options [{options}]; route {newJob["Route"].Text}; autonomy {newJob["Autonomy"].Text}: {newJob["AutonomyNote"].Text}");
+        await CandidatesAsync(newJob, candidates, label);
         await ShootConnectionsAsync(label);
         await camera.ShootAsync($"{label}-new-job-filled");
         await newJob.ExecuteAsync("SubmitCommand");
@@ -41,6 +42,7 @@ internal sealed class DogfoodActions(DogfoodApp app, DogfoodJournal journal, Dog
         Assert.Equal(string.Empty, newJob["Error"].Text);
         var job = newJob["LastSubmitted"].Value<Option<JobId>>().Match(submitted => submitted, () => throw new InvalidOperationException("Nothing was submitted."));
         evidence.Note($"submitted:{label}", job.ToString());
+        evidence.Note($"submitted-text:{label}", newJob["Submitted"].Text);
 
         return job;
     }
@@ -306,6 +308,24 @@ internal sealed class DogfoodActions(DogfoodApp app, DogfoodJournal journal, Dog
         await Ui.UntilAsync(decisions.Value<IPresentation>(), () => decisions["Items"].Items.Any(wanted), $"{what} in the decisions popover");
 
         return decisions;
+    }
+
+    private async Task CandidatesAsync(Bound newJob, int candidates, string label)
+    {
+        if (candidates < 2)
+        {
+            return;
+        }
+
+        await newJob["OptionsRead"].Value<Task>();
+        var options = newJob["JobOptions"];
+
+        while (options["Candidates"].Value<int>() < candidates && DogfoodUi.CanInvoke(options, "MoreCommand"))
+        {
+            DogfoodUi.Invoke(options, "MoreCommand");
+        }
+
+        evidence.Note($"new-job:{label}:candidates", $"{options["CandidatesText"].Text}; more offered {DogfoodUi.CanInvoke(options, "MoreCommand")}; share '{options["Share"].Text}'; note '{options["Note"].Text}'");
     }
 
     private async Task ShootConnectionsAsync(string label)

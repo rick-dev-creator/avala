@@ -39,11 +39,11 @@ internal sealed class DogfoodScene(DogfoodStage stage, DogfoodApp app, DogfoodAc
 
     public string Tagged(string tag, string instruction) => stage.Setup.Tagged(tag, instruction);
 
-    public async Task<JobId> SubmitAsync(string instruction, string connection, string label)
+    public async Task<JobId> SubmitAsync(string instruction, string connection, string label, int candidates = 1)
     {
         evidence.Note($"instruction:{label}", instruction);
 
-        return await actions.SubmitAsync(Place.Repository, instruction, connection, label);
+        return await actions.SubmitAsync(Place.Repository, instruction, connection, label, candidates);
     }
 
     public async Task<T> UntilAsync<T>(Func<T, bool> match, string what, int since = 0)

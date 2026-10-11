@@ -41,4 +41,7 @@ public sealed class DogfoodRuns(HeadlessUi ui, PublishedPlugins plugins)
 
     [Fact]
     public Task ARestartWhileTheChecksRunKeepsTheConversationAndLeavesNoCheckRunningAsync() => Campaign.RunAsync(DogfoodTeamScenarios.RestartedWhileChecking);
+
+    [Fact]
+    public Task ThreeCandidatesRunTheSameRequestTheBestVerifiedOneWinsAndApprovingItDiscardsTheOthersAsync() => Campaign.RunAsync(DogfoodContestScenarios.BestOfThree);
 }
