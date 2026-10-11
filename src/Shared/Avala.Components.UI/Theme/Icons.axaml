@@ -8,7 +8,7 @@
   <StreamGeometry x:Key="IconWeb">M2.5 8A5.5 5.5 0 1 1 13.5 8A5.5 5.5 0 1 1 2.5 8ZM2.5 8H13.5M8 2.5C6 4.5 6 11.5 8 13.5M8 2.5C10 4.5 10 11.5 8 13.5</StreamGeometry>
   <StreamGeometry x:Key="IconMcp">M6 2.5V5.5M10 2.5V5.5M4.5 5.5H11.5V7.5A3.5 3.5 0 0 1 4.5 7.5ZM8 11V13.5</StreamGeometry>
   <StreamGeometry x:Key="IconSubagent">M6.4 3.5A1.6 1.6 0 1 1 9.6 3.5A1.6 1.6 0 1 1 6.4 3.5ZM1.9 12.5A1.6 1.6 0 1 1 5.1 12.5A1.6 1.6 0 1 1 1.9 12.5ZM6.4 12.5A1.6 1.6 0 1 1 9.6 12.5A1.6 1.6 0 1 1 6.4 12.5ZM10.9 12.5A1.6 1.6 0 1 1 14.1 12.5A1.6 1.6 0 1 1 10.9 12.5ZM8 5V8M8 8L3.5 11M8 8V11M8 8L12.5 11</StreamGeometry>
-  <StreamGeometry x:Key="IconPolicy">M3 5.5A2.5 2.5 0 0 1 5.5 3H10.5A2.5 2.5 0 0 1 13 5.5V10.5A2.5 2.5 0 0 1 10.5 13H5.5A2.5 2.5 0 0 1 3 10.5Z</StreamGeometry>
+  <StreamGeometry x:Key="IconOther">M13.2 4.8A3.3 3.3 0 0 1 8.9 8.9L4.2 13.6A1.3 1.3 0 0 1 2.4 11.8L7.1 7.1A3.3 3.3 0 0 1 11.2 2.8L9.4 4.6L9.8 6.2L11.4 6.6Z</StreamGeometry>
   <StreamGeometry x:Key="IconCheck">M3.3 8.3L6 11L12.7 4.3</StreamGeometry>
   <StreamGeometry x:Key="IconCross">M4 4L12 12M12 4L4 12</StreamGeometry>
   <StreamGeometry x:Key="IconChevronRight">M6 3L11 8L6 13</StreamGeometry>

@@ -401,6 +401,16 @@ public sealed class ToolViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task EveryKindOfToolShowsAnIconAsync() =>
+        ui.RunAsync(() =>
+        {
+            var blank = Enum.GetValues<ItemKind>()
+                .Where(kind => Screen.Show(new ToolViewModel(new ToolEntry("t", kind, "delegate", string.Empty, ItemOutcome.Succeeded))).Find<Path>("Icon").Data is null);
+
+            Assert.Empty(blank);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AFailedToolSaysSoInTheFailureColorAsync() =>
         ui.RunAsync(() =>
         {
