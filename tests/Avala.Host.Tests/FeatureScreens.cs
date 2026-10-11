@@ -250,7 +250,8 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         _ = await PostAsync(client, url, run, body, "n-2", "wrong");
         _ = await PostAsync(client, url, run, body, "n-1", "s3cret");
         _ = await run.SettledAsync(Outcomes.Present(hooked.Job));
-        _ = Outcomes.Succeeds(await triggers.FireAsync(new TriggerId(TriggerId.Machine, "nightly-tests"), new FireRequest(TriggerOrigin.Manual, "person"), Cancellation));
+        var manual = Outcomes.Succeeds(await triggers.FireAsync(new TriggerId(TriggerId.Machine, "nightly-tests"), new FireRequest(TriggerOrigin.Manual, "person"), Cancellation));
+        _ = await run.SettledAsync(Outcomes.Present(manual.Job));
 
         _ = await run.WorkbenchAsync();
         var page = run.Page("Triggers");
