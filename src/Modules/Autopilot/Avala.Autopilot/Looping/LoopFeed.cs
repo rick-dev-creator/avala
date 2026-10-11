@@ -1,3 +1,4 @@
+using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -6,7 +7,7 @@ using Avala.Sdk.Events;
 namespace Avala.Autopilot.Looping;
 
 internal sealed class LoopFeed(LoopRegistry registry)
-    : IHandle<JobProgressed>, IHandle<JobHeld>, IHandle<PermissionDecided>, IHandle<FormDecided>
+    : IHandle<JobProgressed>, IHandle<JobHeld>, IHandle<BudgetIntervened>, IHandle<PermissionDecided>, IHandle<FormDecided>
 {
     public ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
     {
@@ -18,6 +19,13 @@ internal sealed class LoopFeed(LoopRegistry registry)
     public ValueTask HandleAsync(JobHeld integrationEvent, CancellationToken cancellationToken)
     {
         Each(runner => runner.Held(integrationEvent.Hold));
+
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask HandleAsync(BudgetIntervened integrationEvent, CancellationToken cancellationToken)
+    {
+        Each(runner => runner.Intervened(integrationEvent.Intervention));
 
         return ValueTask.CompletedTask;
     }

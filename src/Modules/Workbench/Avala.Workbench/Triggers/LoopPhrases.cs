@@ -19,6 +19,7 @@ internal static partial class LoopPhrases
             LoopStatus.Waiting => $"Waiting for a recurring task until {Until(state, zone)}",
             LoopStatus.Paused when state.Pause.Match(pause => pause == PauseReason.UsageLimit, () => false) =>
                 $"Paused until {Until(state, zone)} · usage window {(digest.Pauses.Count == 0 ? "unknown" : digest.Pauses[^1].Window.Match(window => window, () => "unknown"))}",
+            LoopStatus.Paused when state.Pause.Match(pause => pause == PauseReason.DailySpend, () => false) => $"Paused until {Until(state, zone)} · today's spend ceiling",
             LoopStatus.Paused => "Paused by you",
             _ => $"Ended · {Ending(digest)}",
         };

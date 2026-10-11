@@ -7,6 +7,7 @@ using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Evidence;
 using Avala.Autopilot.Looping;
 using Avala.Autopilot.Loops;
+using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
@@ -125,6 +126,25 @@ internal sealed class FakeUsage : IUsage, IUsageHistory
     public ValueTask<IReadOnlyList<UsagePeriod>> DailyAsync(DateOnly first, DateOnly last, TimeZoneInfo zone, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     private static UsageSummary Summary(IReadOnlyList<Cost> costs, IReadOnlyList<UsageLimit> limits) => new(default, costs, 0, default, limits);
+}
+
+internal sealed class FakeBudgets : IBudgets
+{
+    private readonly ConcurrentQueue<BudgetIntervention> interventions = new();
+
+    public void Intervened(BudgetIntervention intervention) => interventions.Enqueue(intervention);
+
+    public IReadOnlyList<BudgetIntervention> OfJob(JobId job) => [.. interventions.Where(intervention => intervention.Hold.Job == job)];
+
+    public Option<SessionBudget> BudgetOf(SessionId session) => throw new NotSupportedException();
+
+    public Option<BudgetCarve> CarveOf(JobId child) => throw new NotSupportedException();
+
+    public ValueTask<MachineBudget> MachineAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<BudgetRaise, BudgetError>> RaiseAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public IReadOnlyList<BudgetRaise> RaisesOf(JobId job) => throw new NotSupportedException();
 }
 
 internal sealed class FakeConnections : IConnections

@@ -33,7 +33,7 @@ internal sealed class Pilot : IAsyncDisposable
         this.world = world;
         this.others = others;
         var gatherer = new EvidenceGatherer(Evidence, Evidence, Jobs, new JobWork(Work, Work, Rules));
-        var steps = new LoopSteps(Jobs, new TaskSources([Backlog, .. others]), new AutoApprover(gatherer, Jobs, Bus, Clock), new LoopGauges(Usage, Usage, Connections));
+        var steps = new LoopSteps(Jobs, new TaskSources([Backlog, .. others]), new AutoApprover(gatherer, Jobs, Bus, Clock), new LoopGauges(Usage, Usage, Connections, Budgets));
         Registry = new LoopRegistry(steps, new LoopJournal(Bus, new LoopBook(), Loops, NullLogger<LoopJournal>.Instance), Declared, Clock);
         Feed = new LoopFeed(Registry);
     }
@@ -51,6 +51,8 @@ internal sealed class Pilot : IAsyncDisposable
     public FakeUsage Usage => world.Usage;
 
     public FakeConnections Connections => world.Connections;
+
+    public FakeBudgets Budgets => world.Budgets;
 
     public FixedRules Rules => world.Rules;
 
@@ -139,6 +141,8 @@ internal sealed class Pilot : IAsyncDisposable
         public FakeUsage Usage { get; } = new();
 
         public FakeConnections Connections { get; } = new();
+
+        public FakeBudgets Budgets { get; } = new();
 
         public FixedRules Rules { get; } = new(Clean);
 

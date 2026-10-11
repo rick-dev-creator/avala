@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Evidence;
 using Avala.Autopilot.Loops;
+using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 
@@ -11,6 +12,8 @@ namespace Avala.Autopilot.Looping;
 internal sealed class LoopRunner : IAsyncDisposable
 {
     public const string ResetMessage = "The usage limit window has reset. Go on where you left off.";
+
+    public const string NewDayMessage = "A new day has begun, so the daily spend ceiling allows work again. Go on where you left off.";
 
     private readonly SerialExecutor executor = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -48,6 +51,8 @@ internal sealed class LoopRunner : IAsyncDisposable
     public void Progressed(JobProgressed progressed) => Post(token => OnStatusAsync(progressed.Job, progressed.Status, token));
 
     public void Held(JobHold hold) => Post(token => OnHeldAsync(hold, token));
+
+    public void Intervened(BudgetIntervention intervention) => Post(token => OnInterventionAsync(intervention, token));
 
     public void AskedAPerson(JobId job) => Post(async token =>
     {
@@ -147,7 +152,7 @@ internal sealed class LoopRunner : IAsyncDisposable
 
     private Task PauseOrTripAsync(UsageLimit limit, DateTimeOffset now, CancellationToken token) =>
         limit.ResetsAt.Match(
-            until => PauseForLimitAsync(limit, until, continues: false, token),
+            until => PauseUntilAsync(LimitPause(limit, until), continues: false, token),
             () => TripAsync(new BreakerTrip(Breaker.UsageLimit, limit.Window, (decimal)limit.UsedFraction, (decimal)record.Limits.PauseAtLimit, now), token));
 
     private async Task TakeAsync(SourcedTask task, CancellationToken token)
@@ -183,17 +188,31 @@ internal sealed class LoopRunner : IAsyncDisposable
     private Task RecoverAsync(CancellationToken token) => record switch
     {
         { Status: LoopStatus.Waiting } => ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), WakeAsync),
-        { Status: LoopStatus.Paused } when record.Pause == Option<PauseReason>.Some(PauseReason.UsageLimit) =>
-            ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync),
-        { Current.IsSome: true } => ReconcileAsync(record.Current.Match(underway => underway.Job, () => default), token),
+        _ when AwaitsReset => RecoverHeldAsync(CurrentJob, token),
+        _ when PausedUntilATime => ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync),
+        { Current.IsSome: true } => ReconcileAsync(CurrentJob, token),
         { Status: LoopStatus.Running } => AdvanceAsync(token),
         _ => Task.CompletedTask,
     };
 
-    private async Task ReconcileAsync(JobId job, CancellationToken token)
+    private async Task RecoverHeldAsync(JobId job, CancellationToken token)
     {
         var status = await steps.Approver.StatusAsync(job, token);
 
+        if (status == Option<JobStatus>.Some(JobStatus.NeedsHelp))
+        {
+            await ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync);
+            return;
+        }
+
+        await RunsAgainAsync(token);
+        await ReconcileAsync(job, status, token);
+    }
+
+    private async Task ReconcileAsync(JobId job, CancellationToken token) => await ReconcileAsync(job, await steps.Approver.StatusAsync(job, token), token);
+
+    private async Task ReconcileAsync(JobId job, Option<JobStatus> status, CancellationToken token)
+    {
         if (status == Option<JobStatus>.Some(JobStatus.NeedsHelp))
         {
             await SettleAsync(IterationOutcome.NeedsHelp, await steps.Approver.GatherAsync(job, token), Settlement.None, token);
@@ -263,14 +282,42 @@ internal sealed class LoopRunner : IAsyncDisposable
             return;
         }
 
+        if (hold.Reason == HoldReason.BudgetExceeded)
+        {
+            await steps.Gauges.InterventionOf(hold).Match(found => OnInterventionAsync(found, token), () => Task.CompletedTask);
+            return;
+        }
+
         var evidence = await steps.Approver.GatherAsync(hold.Job, token);
-        var reset = hold.Reason == HoldReason.LimitNearlyReached
-            ? steps.Gauges.NextReset(evidence.Connection.IsSome ? evidence.Connection : record.Connection, clock.GetUtcNow())
-            : Option<UsageLimit>.None;
+        var reset = hold.Reason == HoldReason.LimitNearlyReached ? WindowOf(hold, evidence) : Option<UsageLimit>.None;
 
         await reset.Match(
-            limit => PauseForLimitAsync(limit, limit.ResetsAt.Match(at => at, clock.GetUtcNow), continues: true, token),
+            limit => PauseUntilAsync(LimitPause(limit, limit.ResetsAt.Match(at => at, clock.GetUtcNow)), continues: true, token),
             () => SettleAsync(IterationOutcome.NeedsHelp, evidence, Settlement.None with { Hold = hold.Reason }, token));
+    }
+
+    private Option<UsageLimit> WindowOf(JobHold hold, JobEvidence evidence) =>
+        hold.Limit.Bind(limit => limit.ResetsAt.IsSome ? Option<UsageLimit>.Some(limit) : Option<UsageLimit>.None) is { IsSome: true } held
+            ? held
+            : steps.Gauges.NextReset(evidence.Connection.IsSome ? evidence.Connection : record.Connection, clock.GetUtcNow());
+
+    private async Task OnInterventionAsync(BudgetIntervention intervention, CancellationToken token)
+    {
+        var hold = intervention.Hold;
+
+        if (hold.Reason != HoldReason.BudgetExceeded || !IsCurrent(hold.Job) || AwaitsReset)
+        {
+            return;
+        }
+
+        if (intervention.Breach.Measure == BudgetMeasure.DailySpend)
+        {
+            var now = clock.GetUtcNow();
+            await PauseUntilAsync(new LoopPause(PauseReason.DailySpend, now, NextDay(now, clock.LocalTimeZone)), continues: true, token);
+            return;
+        }
+
+        await SettleAsync(IterationOutcome.NeedsHelp, await steps.Approver.GatherAsync(hold.Job, token), Settlement.None with { Hold = hold.Reason }, token);
     }
 
     private Task SettleAsync(IterationOutcome outcome, JobEvidence evidence, Settlement settlement, CancellationToken token) =>
@@ -294,18 +341,19 @@ internal sealed class LoopRunner : IAsyncDisposable
         await AdvanceAsync(token);
     }
 
-    private async Task PauseForLimitAsync(UsageLimit limit, DateTimeOffset until, bool continues, CancellationToken token)
+    private LoopPause LimitPause(UsageLimit limit, DateTimeOffset until) => new(PauseReason.UsageLimit, clock.GetUtcNow(), until) { Window = limit.Window };
+
+    private async Task PauseUntilAsync(LoopPause pause, bool continues, CancellationToken token)
     {
-        var pause = new LoopPause(PauseReason.UsageLimit, clock.GetUtcNow(), until) { Window = limit.Window };
         var paused = record.Paused(pause);
         await ChangeAsync(continues ? paused.Awaiting(underway => underway with { ContinuesAfterReset = true }) : paused, token);
-        await ArmAsync(until, ResumeAfterResetAsync);
+        await ArmAsync(pause.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync);
         await journal.PublishAsync(new LoopPaused(Id, pause), token);
     }
 
     private async Task ResumeAfterResetAsync(CancellationToken token)
     {
-        if (record.Status == LoopStatus.Paused && record.Pause == Option<PauseReason>.Some(PauseReason.UsageLimit))
+        if (PausedUntilATime)
         {
             await ResumeNowAsync(token);
         }
@@ -313,20 +361,23 @@ internal sealed class LoopRunner : IAsyncDisposable
 
     private async Task ResumeNowAsync(CancellationToken token)
     {
+        var reason = record.Pause;
         await DisarmAsync();
         await ChangeAsync(record.Resumed(), token);
         var continuing = record.Current.Bind(underway => underway.ContinuesAfterReset ? Option<Underway>.Some(underway) : Option<Underway>.None);
-        await continuing.Match(underway => ContinueAsync(underway, token), async () =>
+        await continuing.Match(underway => ContinueAsync(underway, reason == Option<PauseReason>.Some(PauseReason.DailySpend), token), async () =>
         {
             await journal.PublishAsync(new LoopResumed(Id, clock.GetUtcNow()), token);
             await AdvanceAsync(token);
         });
     }
 
-    private bool AwaitsReset =>
-        record.Status == LoopStatus.Paused
-        && record.Pause == Option<PauseReason>.Some(PauseReason.UsageLimit)
-        && record.Current.Match(underway => underway.ContinuesAfterReset, () => false);
+    private bool PausedUntilATime =>
+        record.Status == LoopStatus.Paused && record.Pause.Match(reason => reason is PauseReason.UsageLimit or PauseReason.DailySpend, () => false);
+
+    private bool AwaitsReset => PausedUntilATime && record.Current.Match(underway => underway.ContinuesAfterReset, () => false);
+
+    private JobId CurrentJob => record.Current.Match(underway => underway.Job, () => default);
 
     private async Task RunsAgainAsync(CancellationToken token)
     {
@@ -335,9 +386,9 @@ internal sealed class LoopRunner : IAsyncDisposable
         await journal.PublishAsync(new LoopResumed(Id, clock.GetUtcNow()), token);
     }
 
-    private async Task ContinueAsync(Underway underway, CancellationToken token)
+    private async Task ContinueAsync(Underway underway, bool newDay, CancellationToken token)
     {
-        var continued = await steps.Jobs.ContinueAsync(underway.Job, ResetMessage, token);
+        var continued = await steps.Jobs.ContinueAsync(underway.Job, newDay ? NewDayMessage : ResetMessage, token);
         await journal.PublishAsync(new LoopResumed(Id, clock.GetUtcNow()), token);
 
         if (continued.TryGetValue(out _, out var rejection) || rejection == JobRejection.NotHeld)
@@ -349,7 +400,7 @@ internal sealed class LoopRunner : IAsyncDisposable
         await SettleAsync(
             IterationOutcome.NeedsHelp,
             await steps.Approver.GatherAsync(underway.Job, token),
-            Settlement.None with { Hold = HoldReason.LimitNearlyReached, Rejection = rejection },
+            Settlement.None with { Hold = newDay ? HoldReason.BudgetExceeded : HoldReason.LimitNearlyReached, Rejection = rejection },
             token);
     }
 
@@ -454,6 +505,13 @@ internal sealed class LoopRunner : IAsyncDisposable
         {
             journal.Failed(Id, ending);
         }
+    }
+
+    private static DateTimeOffset NextDay(DateTimeOffset now, TimeZoneInfo zone)
+    {
+        var midnight = TimeZoneInfo.ConvertTime(now, zone).Date.AddDays(1);
+
+        return new DateTimeOffset(midnight, zone.GetUtcOffset(midnight));
     }
 
     private static IterationOutcome Concluded(JobStatus status) => status switch

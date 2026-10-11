@@ -144,6 +144,33 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ALoopPausedForItsHeldJobSettlesTheJobThatSettledBeforeTheLoopStoredItOnceAvalaRestartsAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            (".avala/checks.json", PassingChecks),
+            (".avala/backlog.json", Backlog(("window", "[simulate: window-runs-out] Use the window"))));
+        var taken = run.Watch<LoopTaskTaken>();
+        var paused = run.Watch<LoopPaused>();
+        var stored = Path.Combine(run.DataFolder, "autopilot.db");
+        var whilePaused = Path.Combine(run.DataFolder, "autopilot.db.paused");
+        EventWatch<LoopEnded>? ended = null;
+
+        var loop = Outcomes.Succeeds(await run.Get<IAutopilot>().StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+        var job = (await taken.UntilAsync(task => task.Iteration == 1)).Job;
+        var pause = (await paused.UntilAsync(_ => true)).Pause;
+        await run.RestartAfterAsync(TimeSpan.FromHours(2), () => ended = run.Watch<LoopEnded>(), () => File.Copy(stored, whilePaused));
+        _ = await ended!.UntilAsync(_ => true);
+        await run.RestartAfterAsync(TimeSpan.Zero, () => ended = run.Watch<LoopEnded>(), () => File.Copy(whilePaused, stored, overwrite: true));
+        var state = (await ended.UntilAsync(_ => true)).State;
+
+        Assert.Equal((PauseReason.UsageLimit, Option<string>.Some("5h")), (pause.Reason, pause.Window));
+        Assert.Equal((loop, Option<LoopEnding>.Some(LoopEnding.Drained), 1), (state.Loop, state.Ending, state.Iterations));
+        var iteration = Assert.Single(Outcomes.Present(run.Get<IAutopilot>().DigestOf(loop)).Iterations);
+        Assert.Equal((Option<JobId>.Some(job), IterationOutcome.AwaitingReview), (iteration.Job, iteration.Outcome));
+    }
+
+    [Fact]
     public async Task AFollowUpProposedByAnAutonomousJobIsAcceptedByTheRulesAndRunsNextAsync()
     {
         await using var run = await FollowUpRunAsync();

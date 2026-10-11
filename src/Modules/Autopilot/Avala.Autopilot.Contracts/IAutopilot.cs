@@ -67,6 +67,7 @@ public enum PauseReason
 {
     Command,
     UsageLimit,
+    DailySpend,
 }
 
 public enum LoopEnding

@@ -5,6 +5,7 @@ using Avala.Autopilot.Looping;
 using Avala.Autopilot.Sourcing;
 using Avala.Autopilot.Tests.FollowUps;
 using Avala.Autopilot.Tests.Looping;
+using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
@@ -46,6 +47,7 @@ public sealed class AutopilotPluginTests
         Assert.Same(composition.Get<LoopRegistry>(), composition.Get<IAutopilot>());
         Assert.Same(composition.Get<LoopFeed>(), composition.Get<IHandle<JobProgressed>>());
         Assert.Same(composition.Get<LoopFeed>(), composition.Get<IHandle<JobHeld>>());
+        Assert.Same(composition.Get<LoopFeed>(), composition.Get<IHandle<BudgetIntervened>>());
         Assert.Same(composition.Get<LoopFeed>(), composition.Get<IHandle<PermissionDecided>>());
         Assert.Same(composition.Get<LoopFeed>(), composition.Get<IHandle<FormDecided>>());
         Assert.Same(composition.Get<FollowUpDesk>(), composition.Get<IHandle<SessionOpened>>());
@@ -71,6 +73,7 @@ public sealed class AutopilotPluginTests
             .AddSingleton<IUsage>(usage)
             .AddSingleton<IUsageHistory>(usage)
             .AddSingleton<Avala.Agents.Contracts.Connections.IConnections>(new FakeConnections())
+            .AddSingleton<IBudgets>(new FakeBudgets())
             .AddSingleton<IAgents>(new FollowUpTests.ReturningAgents())
             .AddSingleton<IBaseFiles>(new CommittedFiles()));
     }

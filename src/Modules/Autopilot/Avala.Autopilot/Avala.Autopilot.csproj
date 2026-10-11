@@ -12,6 +12,7 @@
     <ProjectReference Include="..\..\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
     <ProjectReference Include="..\..\Permissions\Avala.Permissions.Contracts\Avala.Permissions.Contracts.csproj" />
     <ProjectReference Include="..\..\Observability\Avala.Observability.Contracts\Avala.Observability.Contracts.csproj" />
+    <ProjectReference Include="..\..\Budgets\Avala.Budgets.Contracts\Avala.Budgets.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Autopilot.Tests" />

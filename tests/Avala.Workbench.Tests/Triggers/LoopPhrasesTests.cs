@@ -9,6 +9,8 @@ public sealed class LoopPhrasesTests
 {
     private static readonly DateTimeOffset Now = FakeTriggers.Now;
 
+    private static readonly DateTimeOffset Midnight = new(2026, 10, 10, 0, 0, 0, TimeSpan.FromHours(2));
+
     [Fact]
     public void EachStatusOfALoopReadsAsOneLineInTheComputersTimeZone()
     {
@@ -20,6 +22,7 @@ public sealed class LoopPhrasesTests
             [
                 "Waiting for a recurring task until Fri 9 Oct 16:00",
                 "Paused until Fri 9 Oct 17:00 · usage window 5h",
+                "Paused until Sat 10 Oct 00:00 · today's spend ceiling",
                 "Paused by you",
                 "Ended · drained after 1 iteration",
                 "Ended · stopped",
@@ -29,6 +32,7 @@ public sealed class LoopPhrasesTests
             [
                 LoopPhrases.Status(Digest(waiting), TriggerZones.Madrid),
                 LoopPhrases.Status(Digest(limited) with { Pauses = [pause] }, TriggerZones.Madrid),
+                LoopPhrases.Status(Digest(State(LoopStatus.Paused) with { Pause = PauseReason.DailySpend, Until = Midnight }), TriggerZones.Madrid),
                 LoopPhrases.Status(Digest(State(LoopStatus.Paused) with { Pause = PauseReason.Command }), TriggerZones.Madrid),
                 LoopPhrases.Status(Digest(Ended(LoopEnding.Drained) with { Iterations = 1 }), TriggerZones.Madrid),
                 LoopPhrases.Status(Digest(Ended(LoopEnding.Stopped)), TriggerZones.Madrid),

@@ -6,6 +6,7 @@ using Avala.Autopilot.Looping;
 using Avala.Autopilot.RepositoryFiles;
 using Avala.Autopilot.Sourcing;
 using Avala.Autopilot.Storage;
+using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -50,6 +51,7 @@ public sealed class AutopilotPlugin : IPlugin
             .AddSingleton<LoopFeed>()
             .AddForwarded<IHandle<JobProgressed>, LoopFeed>()
             .AddForwarded<IHandle<JobHeld>, LoopFeed>()
+            .AddForwarded<IHandle<BudgetIntervened>, LoopFeed>()
             .AddForwarded<IHandle<PermissionDecided>, LoopFeed>()
             .AddForwarded<IHandle<FormDecided>, LoopFeed>()
             .AddSingleton<FollowUpPolicy>()

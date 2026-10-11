@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Autopilot.Contracts;
+using Avala.Autopilot.Looping;
 using Avala.Autopilot.Loops;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
@@ -84,6 +85,47 @@ public sealed class LoopRestartTests
     }
 
     [Fact]
+    public async Task ARestoredLoopPausedForItsHeldJobSettlesTheJobThatSettledWhileAvalaWasClosedAndTakesItsNextTaskAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Backlog.Add("greet", "Greet the team");
+        pilot.Backlog.Add("docs", "Document the greeting");
+        var job = await PausedForItsHeldJobAsync(pilot);
+        await pilot.Registry.DisposeAsync();
+        pilot.Passed(job);
+        pilot.Work.Changed(job, "GREETING.md");
+        pilot.Jobs.Settled(job, JobStatus.AwaitingReview);
+        pilot.Jobs.ContinueRefusal = JobRejection.NotHeld;
+        pilot.Clock.Advance(TimeSpan.FromHours(1));
+
+        await using var restarted = await pilot.RestartedAsync();
+        var first = await restarted.IteratedAsync(1);
+        await restarted.TakenAsync(2);
+
+        Assert.Equal((IterationOutcome.ApprovedAutomatically, Option<JobId>.Some(job)), (first.Outcome, first.Job));
+        Assert.Empty(pilot.Jobs.Continued);
+    }
+
+    [Fact]
+    public async Task ARestoredLoopPausedForItsJobThatIsStillHeldContinuesItAtTheResetAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Backlog.Add("greet", "Greet the team");
+        var job = await PausedForItsHeldJobAsync(pilot);
+        await pilot.Registry.DisposeAsync();
+        pilot.Jobs.Settled(job, JobStatus.NeedsHelp);
+
+        await using var restarted = await pilot.RestartedAsync();
+        var paused = Assert.Single(restarted.Registry.Loops()).Status;
+        pilot.Clock.Advance(TimeSpan.FromMinutes(30));
+        _ = await restarted.Bus.WaitForAsync<LoopResumed>(_ => true, Cancellation);
+
+        Assert.Equal(LoopStatus.Paused, paused);
+        Assert.Equal([(job, LoopRunner.ResetMessage)], pilot.Jobs.Continued);
+        Assert.Empty(restarted.Bus.Published.OfType<LoopIterated>());
+    }
+
+    [Fact]
     public async Task ARestoredLoopAPersonPausedStaysPausedUntilAPersonResumesItAsync()
     {
         await using var pilot = new Pilot();
@@ -129,6 +171,19 @@ public sealed class LoopRestartTests
 
         Assert.Equal([1, 2], pilot.Bus.Published.OfType<LoopIterated>().Select(iterated => iterated.Iteration.Number));
         Assert.Single(pilot.Registry.Loops());
+    }
+
+    private static async Task<JobId> PausedForItsHeldJobAsync(Pilot pilot)
+    {
+        await pilot.StartAsync(new LoopLimits { PauseAtLimit = 0.99 });
+        var job = await pilot.TakenAsync(1);
+        pilot.Usage.Limits = [new UsageLimit("5h", 0.91, pilot.Clock.GetUtcNow().AddMinutes(30))];
+        pilot.Jobs.Attempts(job, Pilot.Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted));
+        await pilot.ProgressAsync(job, JobStatus.NeedsHelp);
+        await pilot.Feed.HandleAsync(new JobHeld(new JobHold(job, default, HoldReason.LimitNearlyReached, SessionHalt.Interrupted)), Cancellation);
+        _ = await pilot.Bus.WaitForAsync<LoopPaused>(_ => true, Cancellation);
+
+        return job;
     }
 
     private static LoopRecord Begun(Pilot pilot) =>

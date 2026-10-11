@@ -1,12 +1,13 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
+using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Autopilot.Looping;
 
-internal sealed class LoopGauges(IUsage usage, IUsageHistory history, IConnections connections)
+internal sealed class LoopGauges(IUsage usage, IUsageHistory history, IConnections connections, IBudgets budgets)
 {
     public async Task<Option<UsageLimit>> ExhaustedAsync(
         Option<ConnectionName> connection,
@@ -21,6 +22,9 @@ internal sealed class LoopGauges(IUsage usage, IUsageHistory history, IConnectio
             ? exhausted.OrderBy(limit => limit.Bind(found => found.ResetsAt).Match(resets => resets, () => DateTimeOffset.MaxValue)).First()
             : Option<UsageLimit>.None;
     }
+
+    public Option<BudgetIntervention> InterventionOf(JobHold hold) =>
+        budgets.OfJob(hold.Job).Where(intervention => intervention.Hold == hold).Select(Option<BudgetIntervention>.Some).LastOrDefault();
 
     public IReadOnlyList<Cost> SpendOf(JobId job) => usage.OfJob(job).Match(summary => summary.Costs, () => []);
 

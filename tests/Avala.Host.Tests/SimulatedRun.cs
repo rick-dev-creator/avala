@@ -246,9 +246,12 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public Task RestartAfterAsync(TimeSpan closed) => RestartAfterAsync(closed, () => { });
 
-    public async Task RestartAfterAsync(TimeSpan closed, Action watching)
+    public Task RestartAfterAsync(TimeSpan closed, Action watching) => RestartAfterAsync(closed, watching, () => { });
+
+    public async Task RestartAfterAsync(TimeSpan closed, Action watching, Action whileClosed)
     {
         await application.DisposeAsync();
+        whileClosed();
         Clock.Advance(closed);
         application = new Application(surroundings.Compose(plugins, data));
         watching();
