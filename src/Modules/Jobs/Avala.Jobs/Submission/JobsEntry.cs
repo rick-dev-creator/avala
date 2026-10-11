@@ -16,6 +16,14 @@ internal sealed class JobsEntry(SubmitJob submit, HoldJob hold, ReviewJob review
     public async ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
         await InQueueAsync(job, (found, token) => hold.ExecuteAsync(found, reason, token), cancellationToken);
 
+    public async ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
+        await InQueueAsync(
+            job,
+            (found, token) => found.State == JobState.Running
+                ? hold.ExecuteAsync(found, reason, token)
+                : Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)),
+            cancellationToken);
+
     public async ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
         await WithFeedbackAsync(job, message, review.ContinueAsync, cancellationToken);
 

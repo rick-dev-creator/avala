@@ -3,6 +3,7 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Verification.Contracts;
 using static Avala.Host.Tests.DogfoodChecks;
 using static Avala.Host.Tests.DogfoodSettings;
 
@@ -194,13 +195,13 @@ internal static class DogfoodJobScenarios
         ],
     };
 
-    public static DogfoodScenario DailyCeiling { get; } = new("s5", "The machine's daily spend ceiling holds a running job", "budgets.json spendPerDay, the DailySpend breach, the hold phrase on this machine", 0.05m, TimeSpan.FromMinutes(15))
+    public static DogfoodScenario DailyCeiling { get; } = new("s5", "The machine's daily spend ceiling holds the job whose turn crosses it before its checks run", "budgets.json spendPerDay, the DailySpend breach, the hold phrase on this machine", 0.05m, TimeSpan.FromMinutes(15))
     {
         Seed = _ => new DogfoodSeed
         {
             Committed = [new(".avala/budget.json", string.Empty)],
             Data = [new("budgets.json", """{ "spendPerDay": { "USD": 0.001 } }""")],
-            Recordings = [new DogfoodScript("s5").Turn().Say("Starting on sub.").Bill(0.0120m, 0.22).Interrupt()],
+            Recordings = [new DogfoodScript("s5").Turn().Say("Starting on sub.").Write("calc.js", Sub).Say("sub is written.").Bill(0.0120m, 0.22).Finish()],
         },
         Steps = async scene =>
         {
@@ -213,6 +214,13 @@ internal static class DogfoodJobScenarios
         [
             OfJob("The running job is held BudgetExceeded with a DailySpend breach on no connection", "s5", (evidence, job) =>
                 Unless(evidence.First<BudgetIntervened>(found => found.Intervention.Hold.Job == job), "no budget intervention", found => Expect(evidence, found.Intervention.Hold.Reason == HoldReason.BudgetExceeded && found.Intervention.Breach.Measure == BudgetMeasure.DailySpend && found.Intervention.Breach.Connection.IsNone, $"held {found.Intervention.Hold.Reason} for {found.Intervention.Breach.Measure} {found.Intervention.Breach.Measured} of {found.Intervention.Breach.Cap}, connection {found.Intervention.Breach.Connection.Match(connection => connection.Value, () => "none")}"))),
+            OfJob("The turn that crossed the ceiling is held before its checks run: never verified, never awaiting review", "s5", (evidence, job) =>
+            {
+                var journey = evidence.Journey(job);
+                var verified = evidence.All<AttemptVerified>(found => found.Report.Job == job).Count();
+
+                return Expect(evidence, verified == 0 && !journey.Contains(JobStatus.AwaitingReview) && journey is [.., JobStatus.NeedsHelp], $"journey [{string.Join(" → ", journey)}], {verified} verifications");
+            }),
             Fact("The inspector reads Held for today's spend on this machine: x of 0.001 USD", "inspector:held:UsageSectionViewModel", text => text.Contains("today's spend on this machine", StringComparison.Ordinal) && text.Contains("0.001 USD", StringComparison.Ordinal)),
             Fact("Raise is not offered", "inspector:held:UsageSectionViewModel", text => text.Contains("CanRaise=False", StringComparison.Ordinal)),
         ],

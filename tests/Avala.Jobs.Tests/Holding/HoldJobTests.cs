@@ -113,6 +113,19 @@ public sealed class HoldJobTests
     }
 
     [Fact]
+    public async Task AHoldMeantForARunningJobIsRefusedOnceItsTurnHasFinishedAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.RunningAsync();
+        await flow.FinishTurnAsync(job);
+        var published = flow.Bus.Published.Count;
+
+        Assert.Equal(JobRejection.NotRunning, Outcomes.FailsWith(await flow.Jobs.HoldRunningAsync(job.Id, HoldReason.BudgetExceeded, Cancellation)));
+        Assert.Equal(JobState.AwaitingReview, job.State);
+        Assert.Equal(published, flow.Bus.Published.Count);
+    }
+
+    [Fact]
     public async Task TheEndOfTheTurnAHoldInterruptedLeavesTheJobHeldAsync()
     {
         var flow = JobFlow.With();

@@ -524,6 +524,9 @@ internal sealed class SubmittingJobs : IJobs
         return ValueTask.FromResult(Refusal.Match(Result<JobId, JobRejection>.Failure, () => Result<JobId, JobRejection>.Success(JobId.New())));
     }
 
+    public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => HoldAsync(job, reason, cancellationToken);
+
+
     public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) => throw new NotSupportedException();

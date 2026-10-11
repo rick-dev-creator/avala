@@ -81,6 +81,9 @@ internal sealed class Supervised : IAsyncDisposable
         public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobId, JobRejection>.Failure(JobRejection.InvalidRequest));
 
+        public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => HoldAsync(job, reason, cancellationToken);
+
+
         public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken)
         {
             holds.Add((job, reason));

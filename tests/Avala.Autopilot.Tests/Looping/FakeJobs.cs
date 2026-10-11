@@ -92,6 +92,9 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     public ValueTask<Option<JobTree>> TreeAsync(JobId root, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => HoldAsync(job, reason, cancellationToken);
+
+
     public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 

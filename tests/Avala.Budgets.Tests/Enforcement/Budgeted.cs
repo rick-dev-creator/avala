@@ -26,7 +26,7 @@ internal sealed class Budgeted
     public Budgeted(Option<JobRejection> rejection = default)
     {
         Jobs = new HoldingJobs(rejection);
-        Book = new BudgetBook(new FixedMachine(), Store);
+        Book = new BudgetBook(Machine, Store);
         breaches = new JobBreaches(Book, usage);
         var actions = new BudgetActions(Book, Jobs, Bus, Clock);
         enforcer = new BudgetEnforcer(Book, breaches, [Resources], actions);
@@ -48,6 +48,10 @@ internal sealed class Budgeted
     public HoldingJobs Jobs { get; }
 
     public HeldTallies Tallies { get; } = new();
+
+    public FixedMachine Machine { get; } = new();
+
+    public DailyHistory History { get; } = new();
 
     public List<ConnectionName> ReadFor { get; } = [];
 
@@ -110,7 +114,7 @@ internal sealed class Budgeted
     public ValueTask<GateVerdict> JudgeTurnAsync() => JudgeAsync(Option<FinishedTurn>.None);
 
     public ValueTask<GateVerdict> JudgeAsync(Option<FinishedTurn> turn) =>
-        new SpendGate(Book, breaches, Tallies).EvaluateAsync(new CompletedAttempt(Job, 1, "/worktrees/1", "Greet the team") { Turn = turn }, Cancellation);
+        new SpendGate(Book, breaches, Tallies, new DailyCeiling(Machine, History, Clock)).EvaluateAsync(new CompletedAttempt(Job, 1, "/worktrees/1", "Greet the team") { Turn = turn }, Cancellation);
 
     public async Task MeasureAsync(long memoryBytes)
     {
@@ -172,6 +176,9 @@ internal sealed class Budgeted
 
         public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Result<JobId, JobRejection>.Failure(JobRejection.InvalidRequest));
+
+        public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => HoldAsync(job, reason, cancellationToken);
+
 
         public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken)
         {

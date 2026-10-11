@@ -67,12 +67,17 @@ internal sealed class BudgetEnforcer(BudgetBook book, JobBreaches breaches, IEnu
     public async ValueTask HandleAsync(JobHeld integrationEvent, CancellationToken cancellationToken)
     {
         var hold = integrationEvent.Hold;
+        var ceiled = book.TakeCeiled(hold.Job).Bind(found => found.Reason == hold.Reason ? found : Option<BudgetBreach>.None);
 
-        if (hold.Reason == HoldReason.BudgetExceeded && !book.OfJob(hold.Job).Any(recorded => recorded.Hold == hold))
+        if (book.OfJob(hold.Job).Any(recorded => recorded.Hold == hold))
         {
-            var breach = sessions.TryGetValue(hold.Job, out var session) ? breaches.Overspent(hold.Job, session) : book.Overspent(hold.Job);
-            await breach.Match(found => actions.RecordAsync(hold, found, cancellationToken), () => Task.CompletedTask);
+            return;
         }
+
+        var breach = ceiled.IsSome || hold.Reason != HoldReason.BudgetExceeded ? ceiled
+            : sessions.TryGetValue(hold.Job, out var session) ? breaches.Overspent(hold.Job, session)
+            : book.Overspent(hold.Job);
+        await breach.Match(found => actions.RecordAsync(hold, found, cancellationToken), () => Task.CompletedTask);
     }
 
     private async Task CarveKnownAsync(CancellationToken cancellationToken) =>

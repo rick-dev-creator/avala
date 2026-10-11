@@ -16,6 +16,8 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
 
     private ImmutableDictionary<JobId, BudgetBreach> overspent = ImmutableDictionary<JobId, BudgetBreach>.Empty;
 
+    private ImmutableDictionary<JobId, BudgetBreach> ceiled = ImmutableDictionary<JobId, BudgetBreach>.Empty;
+
     private ImmutableHashSet<JobId> ended = [];
 
     private ImmutableDictionary<JobId, SessionId> ties = ImmutableDictionary<JobId, SessionId>.Empty;
@@ -80,6 +82,11 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
 
     public void KeepSpending(JobId job, Option<BudgetBreach> breach) =>
         ImmutableInterlocked.Update(ref overspent, kept => breach.Match(found => kept.SetItem(job, found), () => kept.Remove(job)));
+
+    public void KeepCeiled(JobId job, BudgetBreach breach) => ImmutableInterlocked.AddOrUpdate(ref ceiled, job, breach, (_, _) => breach);
+
+    public Option<BudgetBreach> TakeCeiled(JobId job) =>
+        ImmutableInterlocked.TryRemove(ref ceiled, job, out var breach) ? breach : Option<BudgetBreach>.None;
 
     public void Tie(JobId job, SessionId session) => ImmutableInterlocked.AddOrUpdate(ref ties, job, session, (_, _) => session);
 

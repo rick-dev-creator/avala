@@ -124,7 +124,7 @@ public sealed class CeilingTests
         {
             Clock.SetLocalTimeZone(TimeZoneInfo.CreateCustomTimeZone("east", TimeSpan.FromHours(2), "east", "east"));
             Book = new BudgetBook(new Budgeted.FixedMachine { Budget = machine }, new InMemoryInterventions());
-            ceiling = new SpendCeiling(new Budgeted.FixedMachine { Budget = machine }, History, new BudgetActions(Book, Jobs, Bus, Clock), Clock);
+            ceiling = new SpendCeiling(new DailyCeiling(new Budgeted.FixedMachine { Budget = machine }, History, Clock), new BudgetActions(Book, Jobs, Bus, Clock));
         }
 
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 11, 23, 30, 0, TimeSpan.Zero));

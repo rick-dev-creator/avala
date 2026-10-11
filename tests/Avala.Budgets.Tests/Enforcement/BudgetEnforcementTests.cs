@@ -203,6 +203,24 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
+    public async Task TheSpendGateHoldsAFinishedTurnThatTookTheMachinesSpendOfTheDayToItsCeilingAndAuditsTheDailySpendAsync()
+    {
+        var budgeted = new Budgeted(JobRejection.NotRunning);
+        budgeted.Machine.Budget = new MachineBudget(Option<int>.None, BudgetFileStatus.Applied, Option<BudgetError>.None) { SpendPerDay = [new Cost(0.001m, "USD")] };
+        await budgeted.RunningAsync(Result<Option<BudgetCaps>, BudgetError>.Success(Option<BudgetCaps>.None));
+        budgeted.History.Spent[DateOnly.FromDateTime(budgeted.Clock.GetUtcNow().UtcDateTime)] = (0.012m, [(Budgeted.Connection, 0.012m)]);
+        budgeted.Tallies.Release();
+
+        var verdict = await budgeted.JudgeAsync(new FinishedTurn(budgeted.Session, TurnId.New()));
+        await budgeted.HeldAsync(new JobHold(budgeted.Job, budgeted.Session, HoldReason.BudgetExceeded, SessionHalt.Idle));
+
+        Assert.Equal(GateVerdict.HoldFor(HoldReason.BudgetExceeded), verdict);
+        Assert.Equal(
+            new BudgetBreach(BudgetMeasure.DailySpend, "USD", 0.012m, 0.001m, Option<BudgetError>.None),
+            Assert.Single(budgeted.Book.OfJob(budgeted.Job)).Breach);
+    }
+
+    [Fact]
     public async Task AHoldForSpendIsAuditedOnceWithItsBreachWhoeverAskedForItAsync()
     {
         var budgeted = new Budgeted(JobRejection.NotRunning);

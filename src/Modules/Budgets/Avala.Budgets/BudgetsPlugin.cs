@@ -51,6 +51,7 @@ public sealed class BudgetsPlugin : IPlugin
             .AddForwarded<IHandle<ResourcesSampled>, BudgetEnforcer>()
             .AddForwarded<IHandle<JobSubmitted>, BudgetEnforcer>()
             .AddForwarded<IHandle<JobHeld>, BudgetEnforcer>()
+            .AddSingleton<DailyCeiling>()
             .AddSingleton<SpendCeiling>()
             .AddForwarded<IHandle<SessionOpened>, SpendCeiling>()
             .AddForwarded<IHandle<JobSessionStarted>, SpendCeiling>()

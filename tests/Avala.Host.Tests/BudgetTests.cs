@@ -2,11 +2,14 @@ using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Verification.Contracts;
 
 namespace Avala.Host.Tests;
 
 public sealed class BudgetTests(PublishedPlugins plugins)
 {
+    private const string PassingChecks = """{ "checks": [ { "name": "git", "command": "git", "arguments": ["--version"], "timeoutSeconds": 60 } ] }""";
+
     [Fact]
     public async Task AJobHeldAtItsLastTurnForItsCostCapIsRaisedFromTheInspectorAndContinuesToReviewAsync()
     {
@@ -54,6 +57,26 @@ public sealed class BudgetTests(PublishedPlugins plugins)
         Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
         Assert.Equal((run.Job, HoldReason.BudgetExceeded), (hold.Hold.Job, hold.Hold.Reason));
         Assert.Equal(new BudgetBreach(BudgetMeasure.DailySpend, "USD", 0.0110m, 0.01m, Option<BudgetError>.None), hold.Breach);
+    }
+
+    [Fact]
+    public async Task ATurnThatTakesTheMachinesSpendOfTheDayPastItsCeilingOnItsFinishingLineIsHeldBeforeItsChecksRunAsync()
+    {
+        var recording = new DogfoodScript("daily").Turn().Say("Done.").Bill(0.0120m, 0.22).Finish();
+        await using var run = await SimulatedRun.InstructedAsync(
+            plugins,
+            $"{recording.Tag} Greet the team",
+            [("budgets.json", """{ "spendPerDay": { "USD": 0.001 } }"""), ("recordings/daily.json", recording.Json)],
+            [(".avala/checks.json", PassingChecks)]);
+
+        var journey = await run.JourneyAsync();
+
+        Assert.Equal(JobStatus.NeedsHelp, journey[^1]);
+        Assert.DoesNotContain(JobStatus.AwaitingReview, journey);
+        Assert.Empty(run.Get<IVerifications>().OfJob(run.Job));
+        var hold = await run.BudgetInterventionAsync();
+        Assert.Equal((run.Job, HoldReason.BudgetExceeded), (hold.Hold.Job, hold.Hold.Reason));
+        Assert.Equal(new BudgetBreach(BudgetMeasure.DailySpend, "USD", 0.0120m, 0.001m, Option<BudgetError>.None), hold.Breach);
     }
 
     [Fact]

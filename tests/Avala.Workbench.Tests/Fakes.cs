@@ -58,6 +58,9 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries
         return AnswerAsync($"submit {request.Instruction}", JobId.New());
     }
 
+    public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => HoldAsync(job, reason, cancellationToken);
+
+
     public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
         AnswerAsync($"hold {reason}", new JobHold(job, SessionId.New(), reason, SessionHalt.Interrupted));
 
