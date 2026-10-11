@@ -22,6 +22,7 @@ public sealed class JobFileReaderTests
     [InlineData("""{ "approval": "merge", "autopilot": { "approve": "cleanEvidence" } }""", "", "merge")]
     [InlineData("""{ "approval": "merge", "delegation": { "connections": ["work", "personal"], "maxDepth": 2 } }""", "", "merge")]
     [InlineData("""{ "approval": "pull-request", "pullRequest": { "forge": "github", "maxWakeUps": 2 } }""", "", "pull-request")]
+    [InlineData("""{ "approval": "merge", "bestOf": { "candidates": 3, "max": 4 } }""", "", "merge")]
     public async Task TheJobFileOfTheBaseCommitNamesTheRepositorysDefaultConnectionAndApprovalAsync(string text, string connection, string approval)
     {
         var committed = new CommittedFiles().With(Worktree, JobFileReader.JobFile, text, editedInWorktree: true);
@@ -63,6 +64,8 @@ public sealed class JobFileReaderTests
     [InlineData("""{ "delegation": { "routing": { "name": "roundRobin" } } }""")]
     [InlineData("""{ "pullRequest": { "forge": { "name": "github" } } }""")]
     [InlineData("""{ "pullRequest": "github" }""")]
+    [InlineData("""{ "bestOf": 3 }""")]
+    [InlineData("""{ "bestOf": { "candidates": [3] } }""")]
     public async Task AnInvalidJobFileMakesTheDefaultConnectionUnusableAndTheApprovalInvalidAsync(string text)
     {
         var reader = Reader(new CommittedFiles().With(Worktree, JobFileReader.JobFile, text));

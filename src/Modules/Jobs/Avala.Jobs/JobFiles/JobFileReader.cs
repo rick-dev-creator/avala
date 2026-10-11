@@ -30,6 +30,8 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private const string PullRequestField = "pullRequest";
 
+    private const string BestOfField = "bestOf";
+
     private const string ModelField = "model";
 
     private const string EffortField = "effort";
@@ -38,7 +40,7 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private static readonly string[] Names = [ConnectionField, ApprovalField, ModelField, EffortField];
 
-    private static readonly (string Field, bool ListsAllowed)[] Sections = [(AutopilotField, false), (DelegationField, true), (LimitsField, true), (PullRequestField, false)];
+    private static readonly (string Field, bool ListsAllowed)[] Sections = [(AutopilotField, false), (DelegationField, true), (LimitsField, true), (PullRequestField, false), (BestOfField, false)];
 
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
 
