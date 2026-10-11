@@ -24,6 +24,12 @@
     <ProjectReference Include="..\Shared\Avala.Components\Avala.Components.csproj" />
     <ProjectReference Include="..\Shared\Avala.Components.UI\Avala.Components.UI.csproj" />
   </ItemGroup>
+  <ItemGroup Condition="'$(AvalaTelemetryKey)' != ''">
+    <AssemblyMetadata Include="AvalaTelemetryKey" Value="$(AvalaTelemetryKey)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(AvalaTelemetryHost)' != ''">
+    <AssemblyMetadata Include="AvalaTelemetryHost" Value="$(AvalaTelemetryHost)" />
+  </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Avala.Host.Tests" />
   </ItemGroup>

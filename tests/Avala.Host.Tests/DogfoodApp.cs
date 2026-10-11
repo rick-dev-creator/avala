@@ -41,7 +41,7 @@ internal sealed class DogfoodApp(PublishedPlugins plugins, DogfoodPlace place, D
     {
         var paths = new AvalaPaths(place.Data);
         log = new LogFile(paths, TimeProvider.System);
-        root = CompositionRoot.Create(plugins.Directory, paths, log, Option<HttpMessageHandler>.None);
+        root = CompositionRoot.Create(plugins.Directory, paths, log, Option<Func<HttpMessageHandler>>.None);
         subscriptions = new CancellationTokenSource();
         Subscribe(root);
         root.Start();

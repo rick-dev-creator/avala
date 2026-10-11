@@ -53,7 +53,7 @@ internal sealed partial class App : Application
         crashes.Watch();
         crashes.Started($"Avala {CompositionRoot.Build.Version} ({CompositionRoot.Build.Commit.Match(commit => commit, () => AvalaBuild.Unknown)}) started on {RuntimeInformation.OSDescription}, data folder {paths.Data}");
         var smoke = SmokeRun.IsRequested(desktop.Args ?? []);
-        var composition = Composed(paths, log, crashes, smoke ? Option<HttpMessageHandler>.None : new SocketsHttpHandler());
+        var composition = Composed(paths, log, crashes, smoke ? Option<Func<HttpMessageHandler>>.None : Option<Func<HttpMessageHandler>>.Some(() => new SocketsHttpHandler()));
         var appearance = new AppearanceApplier(this);
         var feed = composition.Services.GetRequiredService<IEventFeed>();
         _ = appearance.FollowAsync(
@@ -75,11 +75,11 @@ internal sealed partial class App : Application
         _ = smoke ? SmokeRun.PassAsync(desktop, showing, started, shell) : showing;
     }
 
-    private static CompositionRoot Composed(AvalaPaths paths, LogFile log, CrashLog crashes, Option<HttpMessageHandler> releases)
+    private static CompositionRoot Composed(AvalaPaths paths, LogFile log, CrashLog crashes, Option<Func<HttpMessageHandler>> network)
     {
         try
         {
-            return CompositionRoot.Create(PluginDirectory.Resolve(), paths, log, releases);
+            return CompositionRoot.Create(PluginDirectory.Resolve(), paths, log, network);
         }
         catch (Exception failure)
         {

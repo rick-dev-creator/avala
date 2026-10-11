@@ -33,8 +33,8 @@ internal sealed class CompositionRoot : IAsyncDisposable
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths) =>
         Create(pluginDirectory, paths, new AvaloniaUiDispatcher());
 
-    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, LogFile log, Option<HttpMessageHandler> releases) =>
-        Create(pluginDirectory, paths, new Surroundings(new AvaloniaUiDispatcher(), new AvaloniaFileOpener(), TimeProvider.System, []) { Log = log, Releases = releases });
+    public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, LogFile log, Option<Func<HttpMessageHandler>> network) =>
+        Create(pluginDirectory, paths, new Surroundings(new AvaloniaUiDispatcher(), new AvaloniaFileOpener(), TimeProvider.System, []) { Log = log, Network = network });
 
     public static CompositionRoot Create(string pluginDirectory, AvalaPaths paths, IUiDispatcher dispatcher) =>
         Create(pluginDirectory, paths, dispatcher, new AvaloniaFileOpener());
@@ -69,7 +69,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
     {
         var services = new ServiceCollection().AddLogging();
         _ = surroundings.Log.Match(log => services.AddSingleton(log), () => services);
-        _ = surroundings.Releases.Match(services.AddReleaseFeed, () => services);
+        _ = surroundings.Network.Match(network => services.AddNetwork(network), () => services);
         services
             .AddSingleton(Build)
             .AddSingleton(surroundings.Clock)
@@ -120,7 +120,7 @@ internal sealed class CompositionRoot : IAsyncDisposable
 
         public Option<LogFile> Log { get; init; }
 
-        public Option<HttpMessageHandler> Releases { get; init; }
+        public Option<Func<HttpMessageHandler>> Network { get; init; }
 
         public IReadOnlyList<IPlugin> Additions { get; init; } = [];
 
