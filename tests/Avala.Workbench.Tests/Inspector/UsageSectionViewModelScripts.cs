@@ -183,6 +183,26 @@ public sealed class UsageSectionViewModelScripts : IDisposable
         Assert.Equal(["Budget raised by 1.20 USD · 1,000 tokens", "Budget raised by 0.40 USD for a sub-agent"], section.Raises);
     }
 
+    [Fact]
+    public async Task AfterARaiseTheHeaderFactSetsTheSpendAgainstTheRaisedCapAndCallsForAttentionOnlyOverItAsync()
+    {
+        var session = SessionId.New();
+        var job = bench.Job("Extract sync queue into a module", JobStatus.Running);
+        bench.Catalog.Change(job.Job, history => history with { Sessions = [new SessionRecord(session, [1])] });
+        bench.Audit.Budgets[session] = new SessionBudget(session, BudgetFileStatus.Applied, Option<BudgetError>.None, new BudgetCaps([new Cost(0.001m, "USD")], Option<long>.None, Option<double>.None), Option<Avala.Workspaces.Contracts.FileOrigin>.None);
+        bench.Usage.Jobs[job.Job] = new UsageSummary(new TokenUsage(1200, 300, 0, 0, 0), [new Cost(0.0032m, "USD") { Basis = CostBasis.ApiEquivalent }], 0, default, []);
+        bench.Audit.Interventions.Add(new BudgetIntervention(
+            new JobHold(job.Job, session, HoldReason.BudgetExceeded, SessionHalt.Interrupted),
+            new BudgetBreach(BudgetMeasure.Cost, "USD", 0.0032m, 0.001m, Option<BudgetError>.None),
+            DateTimeOffset.UnixEpoch));
+        bench.Audit.Raises.Add(new BudgetRaise(job.Job, new SpendCaps([new Cost(0.0029m, "USD")], Option<long>.None), DateTimeOffset.UnixEpoch.AddMinutes(1)));
+        using var section = new UsageSectionViewModel(bench.Inspected(), bench.Raising);
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal(("0.0032 USD at API prices of 0.0039 USD", false), (section.Fact, section.IsAttention));
+    }
+
     public void Dispose() => bench.Dispose();
 
     private JobId Held(HoldReason reason, BudgetMeasure measure, JobStatus status = JobStatus.NeedsHelp)
