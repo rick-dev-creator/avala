@@ -33,7 +33,7 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     {
         Kind = entry.Kind;
         Input = entry.Input.Match(input => input, () => string.Empty);
-        Title = Presenting.CommandPhrases.Title(entry.Kind, entry.Title, Input);
+        Title = string.Empty;
         Output = string.Empty;
         Outcome = string.Empty;
         Update(entry);
@@ -41,7 +41,8 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
 
     public ItemKind Kind { get; }
 
-    public string Title { get; }
+    [ObservableProperty]
+    public partial string Title { get; private set; }
 
     public string Input { get; }
 
@@ -66,6 +67,7 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     {
         if (entry is ToolEntry tool)
         {
+            Title = tool.Delegation.Match(ConversationPhrases.Delegated, () => Presenting.CommandPhrases.Title(tool.Kind, tool.Title, Input));
             Output = tool.Output;
             IsRunning = tool.Outcome.IsNone;
             Failed = tool.Outcome.Match(outcome => outcome != ItemOutcome.Succeeded, () => false);

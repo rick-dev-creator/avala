@@ -1,11 +1,13 @@
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
+using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Linking;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Presenting;
+using Avala.Workbench.Sidebar;
 using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Conversation;
@@ -105,6 +107,11 @@ internal static class ConversationPhrases
 
         return ran.Match(reported => $"{place} · {ModelPhrases.Ran(reported)}", () => place);
     }
+
+    public static string Delegated(DelegationRecord delegation) =>
+        delegation.Refusal.Match(
+            refusal => $"Delegation refused · {DelegationPhrases.Refusal(refusal)}",
+            () => $"Delegated to {FactPhrases.Title(delegation.Instruction)} · {delegation.Report.Match(report => DelegationPhrases.Outcome(report.Outcome), () => "job started")}");
 
     public static string Thought(TimeSpan duration) =>
         string.Create(CultureInfo.InvariantCulture, $"Thought for {Duration(duration)}");

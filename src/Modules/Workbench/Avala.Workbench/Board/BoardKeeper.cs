@@ -39,6 +39,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     IHandle<BudgetCarved>,
     IHandle<ChildDelegated>,
     IHandle<ChildReported>,
+    IHandle<DelegationRefused>,
     IHandle<HandoffRecorded>,
     IHandle<JobWaitsForReset>,
     IHandle<ParentAsked>,
@@ -185,10 +186,13 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
         AuditedAsync(integrationEvent.Carve.Parent, integrationEvent.Carve.Child);
 
     public ValueTask HandleAsync(ChildDelegated integrationEvent, CancellationToken cancellationToken) =>
-        AuditedAsync(Related(integrationEvent.Delegation));
+        DelegatedAsync(integrationEvent.Delegation);
 
     public ValueTask HandleAsync(ChildReported integrationEvent, CancellationToken cancellationToken) =>
-        AuditedAsync(Related(integrationEvent.Delegation));
+        DelegatedAsync(integrationEvent.Delegation);
+
+    public ValueTask HandleAsync(DelegationRefused integrationEvent, CancellationToken cancellationToken) =>
+        DelegatedAsync(integrationEvent.Delegation);
 
     public ValueTask HandleAsync(HandoffRecorded integrationEvent, CancellationToken cancellationToken) =>
         ChangedAsync(integrationEvent.Handoff.Job, job => Audited(job with
@@ -221,7 +225,15 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
             ? known.Transcript.Entries.OfType<PermissionEntry>().LastOrDefault(entry => entry.Session == session && entry.Item == item)?.Decision.Bind(decision => decision.Parent) ?? Option<JobId>.None
             : Option<JobId>.None;
 
-    private static JobId[] Related(DelegationRecord delegation) => [.. Known(delegation.Parent), .. Known(delegation.Child)];
+    private ValueTask DelegatedAsync(DelegationRecord delegation)
+    {
+        foreach (var parent in Known(delegation.Parent))
+        {
+            Change(parent, job => Audited(job with { Transcript = job.Transcript.Delegated(delegation) }));
+        }
+
+        return AuditedAsync(Known(delegation.Child));
+    }
 
     private static JobId[] Known(Option<JobId> job) => job.Match<JobId[]>(found => [found], () => []);
 

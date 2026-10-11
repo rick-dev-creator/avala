@@ -1,4 +1,7 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
+using Avala.Delegation.Contracts;
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Conversation;
@@ -41,6 +44,32 @@ public sealed class ToolViewModelScripts
     public void AHarnessToolShowsTheInputItWasCalledWith() =>
         ViewModelScript.Given(new ToolViewModel(Running() with { Input = """{ "instruction": "Write the login tests" }""" }))
             .Then(tool => Assert.Equal("""{ "instruction": "Write the login tests" }""", tool.Input));
+
+    [Theory]
+    [InlineData("Started", "Delegated to Extract the address step · job started")]
+    [InlineData("Reported", "Delegated to Extract the address step · reported its findings")]
+    [InlineData("Refused", "Delegation refused · too many children")]
+    public void ADelegateCallReadsAsWhatItDelegatedAndHowThatWent(string state, string title) =>
+        ViewModelScript.Given(new ToolViewModel(Delegating()))
+            .When(tool => tool.Update(Delegating() with { Delegation = Delegation(state) }))
+            .ThenNotified(nameof(ToolViewModel.Title))
+            .Then(tool => Assert.Equal(title, tool.Title));
+
+    private static ToolEntry Delegating() =>
+        new("item:2", ItemKind.Other, "delegate", string.Empty, Option<ItemOutcome>.None) { Input = """{"instruction":"Extract the address step"}""" };
+
+    private static DelegationRecord Delegation(string state)
+    {
+        var child = JobId.New();
+        var record = new DelegationRecord(SessionId.New(), new ItemId("delegate-1"), "Extract the address step\nKeep the tests green", DateTimeOffset.UnixEpoch) { Child = child };
+
+        return state switch
+        {
+            "Reported" => record with { Report = new ChildReport(child, ChildOutcome.Reported, JobStatus.Discarded, DateTimeOffset.UnixEpoch) },
+            "Refused" => record with { Child = Option<JobId>.None, Refusal = DelegationError.TooManyChildren },
+            _ => record,
+        };
+    }
 
     private static ToolEntry Running() => new("item:1", ItemKind.Command, "npm test -- money.test.ts", string.Empty, Option<ItemOutcome>.None);
 }

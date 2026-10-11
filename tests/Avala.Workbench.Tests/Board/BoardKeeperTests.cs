@@ -322,6 +322,52 @@ public sealed class BoardKeeperTests
         Assert.Equal((2, 1), (Joined(parent).Revision, Joined(child).Revision));
     }
 
+    [Fact]
+    public async Task ADelegateCallInTheParentsConversationCarriesItsDelegationFromItsStartToItsReport()
+    {
+        var (parent, child, session) = await DelegatingAsync();
+        var record = new Avala.Delegation.Contracts.DelegationRecord(session, new ItemId("delegate-1"), "Extract the address step", time.GetUtcNow()) { Parent = parent, Child = child };
+        var report = new Avala.Delegation.Contracts.ChildReport(child, Avala.Delegation.Contracts.ChildOutcome.Integrated, JobStatus.Approved, time.GetUtcNow());
+
+        await keeper.HandleAsync(new Avala.Delegation.Contracts.ChildDelegated(record), Cancellation);
+        var started = Delegation(parent);
+        await keeper.HandleAsync(new Avala.Delegation.Contracts.ChildReported(record with { Report = report }), Cancellation);
+
+        Assert.Equal((record, record with { Report = report }), (started, Delegation(parent)));
+    }
+
+    [Fact]
+    public async Task ARefusedDelegateCallCarriesItsRefusal()
+    {
+        var (parent, _, session) = await DelegatingAsync();
+        var record = new Avala.Delegation.Contracts.DelegationRecord(session, new ItemId("delegate-1"), "Extract the address step", time.GetUtcNow())
+        {
+            Parent = parent,
+            Refusal = Avala.Delegation.Contracts.DelegationError.TooManyChildren,
+        };
+
+        await keeper.HandleAsync(new Avala.Delegation.Contracts.DelegationRefused(record), Cancellation);
+
+        Assert.Equal(record, Delegation(parent));
+    }
+
+    private async Task<(JobId Parent, JobId Child, SessionId Session)> DelegatingAsync()
+    {
+        var parent = catalog.Add("Split CheckoutPage into steps").Summary.Job;
+        var child = catalog.Add("Extract the address step").Summary.Job;
+        var session = SessionId.New();
+        var turn = TurnId.New();
+        await keeper.HandleAsync(new JobSubmitted(parent), Cancellation);
+        await keeper.HandleAsync(new JobSessionStarted(parent, session), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new TurnStarted(session, turn)), Cancellation);
+        await keeper.HandleAsync(new AgentActivity(new ToolCalled(session, turn, new ItemId("delegate-1"), "delegate", """{"instruction":"Extract the address step"}""")), Cancellation);
+
+        return (parent, child, session);
+    }
+
+    private Avala.Delegation.Contracts.DelegationRecord? Delegation(JobId job) =>
+        Joined(job).Transcript.Entries.OfType<ToolEntry>().Single().Delegation.Match<Avala.Delegation.Contracts.DelegationRecord?>(found => found, () => null);
+
     private BoardJob Joined(JobId job) => board.Find(job).Match(found => found, () => throw new InvalidOperationException("The job is not on the board."));
 
     private HandoffRecord Handoff(JobId job, int attempt) =>

@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
+using Avala.Delegation.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
@@ -29,6 +30,10 @@ internal sealed record ReasoningEntry(string Key, string Text, DateTimeOffset St
 internal sealed record ToolEntry(string Key, ItemKind Kind, string Title, string Output, Option<ItemOutcome> Outcome) : ITimelineEntry
 {
     public Option<string> Input { get; init; }
+
+    public Option<ToolCalled> Called { get; init; }
+
+    public Option<DelegationRecord> Delegation { get; init; }
 }
 
 internal sealed record PlanEntry(string Key, IReadOnlyList<PlanStep> Steps) : ITimelineEntry

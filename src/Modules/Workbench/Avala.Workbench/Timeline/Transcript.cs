@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
+using Avala.Delegation.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
@@ -38,6 +39,11 @@ internal sealed record Transcript
     public Transcript ChildDecided(SessionId session, ItemId item, Func<ChildAskingEntry, ChildAskingEntry> change) =>
         Entries.OfType<ChildAskingEntry>().LastOrDefault(entry => entry.Session == session && entry.Item == item) is { } asked
             ? Put(change(asked))
+            : this;
+
+    public Transcript Delegated(DelegationRecord delegation) =>
+        Entries.OfType<ToolEntry>().LastOrDefault(entry => entry.Called.Match(called => called.Session == delegation.Session && called.Item == delegation.Item, () => false)) is { } call
+            ? Put(call with { Delegation = delegation })
             : this;
 
     public Option<ModelReported> Ran { get; private init; }
@@ -116,7 +122,7 @@ internal sealed record Transcript
         FormRequested requested => Add(new FormEntry(EntryKeys.Item(requested.Turn, requested.Item), requested.Session, requested.Turn, requested.Item, requested.Form)),
         FormAnswered answered => Change(EntryKeys.Item(answered.Turn, answered.Item), entry => entry is FormEntry form ? form with { Answer = answered.Answer } : entry),
         RequestWithdrawn withdrawn => Withdrawn(withdrawn),
-        ToolCalled called => Add(new ToolEntry(EntryKeys.Item(called.Turn, called.Item), ItemKind.Other, called.Tool, string.Empty, Option<ItemOutcome>.None) { Input = called.Input }),
+        ToolCalled called => Add(new ToolEntry(EntryKeys.Item(called.Turn, called.Item), ItemKind.Other, called.Tool, string.Empty, Option<ItemOutcome>.None) { Input = called.Input, Called = called }),
         ToolReturned returned => Change(EntryKeys.Item(returned.Turn, returned.Item), entry => entry is ToolEntry tool ? tool with { Output = returned.Result.Content } : entry),
         _ => this,
     };

@@ -82,6 +82,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<BudgetCarved>, BoardKeeper>()
             .AddForwarded<IHandle<ChildDelegated>, BoardKeeper>()
             .AddForwarded<IHandle<ChildReported>, BoardKeeper>()
+            .AddForwarded<IHandle<DelegationRefused>, BoardKeeper>()
             .AddForwarded<IHandle<HandoffRecorded>, BoardKeeper>()
             .AddForwarded<IHandle<JobWaitsForReset>, BoardKeeper>()
             .AddForwarded<IHandle<ParentAsked>, BoardKeeper>()
