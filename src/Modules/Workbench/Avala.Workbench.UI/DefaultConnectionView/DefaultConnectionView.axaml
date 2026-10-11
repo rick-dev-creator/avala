@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.DefaultConnectionView"
              x:ClassModifier="internal"
              x:DataType="settings:IDefaultConnectionViewModel">
@@ -29,7 +30,7 @@
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ComboBox x:Name="Choices"
                     ItemsSource="{Binding Choices}"
-                    SelectedItem="{Binding Draft}"
+                    SelectedItem="{Binding Draft, Converter={x:Static states:Kept.Selection}}"
                     AutomationProperties.Name="Default connection" />
           <Border x:Name="Recommended" Classes="tag" IsVisible="{Binding IsRecommended}">
             <TextBlock Text="recommended" />

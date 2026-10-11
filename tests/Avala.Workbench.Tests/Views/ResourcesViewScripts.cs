@@ -201,6 +201,33 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task ShowingTheFormAgainKeepsTheChosenConnectionModelAndEffortAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
+            connections.Offers["claude-work"] = Avala.Agents.Contracts.Capabilities.CapabilitySet.Of(
+                new Avala.Agents.Contracts.Capabilities.OffersModels(["opus", "sonnet"], ["low", "high"]) { DefaultModel = "sonnet" });
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), connections, new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(bench.Board, Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.ModelChoices.ModelPickerViewModel()) { Repository = "~/code/shop-api" };
+            await page.LoadAsync(TestContext.Current.CancellationToken);
+            var first = Screen.Show(page);
+            first.Find<ComboBox>("Connection").SelectedValue = "claude-work";
+            first.Settle();
+            await page.Offering;
+            first.Find<ComboBox>("Model").SelectedItem = "opus";
+            first.Find<ComboBox>("Effort").SelectedItem = "high";
+
+            first.Window.DataContext = null;
+            first.Settle();
+            first.Window.Close();
+            await page.Offering;
+            var second = Screen.Show(page);
+
+            Assert.Equal(("claude-work", new Avala.Agents.Contracts.Sessions.ModelChoice("opus", "high")), (page.Connection, page.Picker.Chosen));
+            Assert.Equal(("claude-work", "opus", "high"), (second.Find<ComboBox>("Connection").SelectedValue, second.Find<ComboBox>("Model").SelectedItem, second.Find<ComboBox>("Effort").SelectedItem));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task TheFormProposesTheRepositoryAndOffersTheConnectionsAsync() =>
         ui.RunAsync(() =>
         {

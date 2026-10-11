@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:models="using:Avala.Workbench.ModelChoices"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.ModelPickerView"
              x:ClassModifier="internal"
              x:DataType="models:IModelPickerViewModel">
@@ -22,7 +23,7 @@
         <TextBlock Classes="section" Text="Model" />
         <ComboBox x:Name="Model"
                   ItemsSource="{Binding Models}"
-                  SelectedItem="{Binding Model}"
+                  SelectedItem="{Binding Model, Converter={x:Static states:Kept.Selection}}"
                   IsEnabled="{Binding CanChoose}"
                   AutomationProperties.Name="Model" />
       </StackPanel>
@@ -30,7 +31,7 @@
         <TextBlock Classes="section" Text="Effort" />
         <ComboBox x:Name="Effort"
                   ItemsSource="{Binding Efforts}"
-                  SelectedItem="{Binding Effort}"
+                  SelectedItem="{Binding Effort, Converter={x:Static states:Kept.Selection}}"
                   IsEnabled="{Binding CanChoose}"
                   AutomationProperties.Name="Effort" />
       </StackPanel>

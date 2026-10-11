@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:newJob="using:Avala.Workbench.NewJob"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.NewJobView"
              x:ClassModifier="internal"
              x:DataType="newJob:INewJobViewModel">
@@ -60,7 +61,7 @@
                 <ComboBox x:Name="Connection"
                           ItemsSource="{Binding Options}"
                           SelectedValueBinding="{Binding Name, x:DataType=newJob:IConnectionOptionViewModel}"
-                          SelectedValue="{Binding Connection}"
+                          SelectedValue="{Binding Connection, Converter={x:Static states:Kept.Selection}}"
                           HorizontalContentAlignment="Stretch" />
               </StackPanel>
               <TextBlock x:Name="Route"
@@ -73,7 +74,7 @@
                          IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Classes="section" Text="Autonomy" />
-                <ComboBox x:Name="Autonomy" ItemsSource="{Binding Autonomies}" SelectedItem="{Binding Autonomy}" />
+                <ComboBox x:Name="Autonomy" ItemsSource="{Binding Autonomies}" SelectedItem="{Binding Autonomy, Converter={x:Static states:Kept.Selection}}" />
               </StackPanel>
             </Grid>
             <TextBlock x:Name="AutonomyNote"
