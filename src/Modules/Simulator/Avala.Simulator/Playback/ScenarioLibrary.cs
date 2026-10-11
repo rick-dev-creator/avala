@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 using Avala.Simulator.Scenarios;
@@ -11,13 +12,18 @@ internal interface IRecordedScenarios
 
 internal sealed class ScenarioLibrary(IRecordedScenarios recordings)
 {
+    private ImmutableDictionary<string, int> drawn = ImmutableDictionary<string, int>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+
     public async Task<Scenario> ChooseAsync(string firstMessage, SessionOptions options, CancellationToken cancellationToken) =>
         (await NamedAsync(ScenarioCatalog.NameIn(firstMessage), options, cancellationToken)).Match(scenario => scenario, () => ScenarioCatalog.Reply);
 
     public Task<Option<Scenario>> NamedAsync(string name, SessionOptions options, CancellationToken cancellationToken) =>
         ReplayRequest.Parse(name).Match(
             async request => Option<Scenario>.Some(await ReplayAsync(request, options, cancellationToken)),
-            () => Task.FromResult(ScenarioCatalog.Named(name)));
+            () => Task.FromResult(ContestScenarios.Families.TryGetValue(name, out var variants) ? Draw(name, variants) : ScenarioCatalog.Named(name)));
+
+    private Option<Scenario> Draw(string family, IReadOnlyList<Scenario> variants) =>
+        variants[(ImmutableInterlocked.AddOrUpdate(ref drawn, family, 1, (_, earlier) => earlier + 1) - 1) % variants.Count];
 
     private async Task<Scenario> ReplayAsync(ReplayRequest request, SessionOptions options, CancellationToken cancellationToken) =>
         !request.NamesAFile

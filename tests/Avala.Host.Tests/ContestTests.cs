@@ -1,0 +1,133 @@
+using Avala.Budgets.Contracts;
+using Avala.Contests.Contracts;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
+using Avala.Testing;
+using Avala.Workspaces.Contracts;
+
+namespace Avala.Host.Tests;
+
+public sealed class ContestTests(PublishedPlugins plugins)
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task TheSmallestPassingDiffWinsAndTheOtherCandidatesAreDiscardedOnceItIsApprovedAsync()
+    {
+        await using var run = await CheckedAsync();
+        var decided = run.Watch<ContestDecided>();
+        var closed = run.Watch<ContestClosed>();
+        var contest = await StartAsync(run, "contest", 3);
+
+        var verdict = Outcomes.Present((await decided.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Verdict);
+        var winner = Outcomes.Present(verdict.Winner);
+        var progressed = run.Watch<JobProgressed>();
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(winner, Cancellation));
+
+        Assert.Equal(["calculator.txt"], await ChangedAsync(run, winner));
+        Assert.Equal(
+            [(1, Option<Criterion>.Some(Criterion.DiffSize), Option<Criterion>.None), (2, Option<Criterion>.None, Option<Criterion>.None), (3, Option<Criterion>.None, Option<Criterion>.Some(Criterion.Verification))],
+            verdict.Ranking.Select(standing => (standing.Place, standing.Ahead, standing.Excluded)));
+        var picked = (await closed.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest;
+        Assert.Equal((ContestStatus.Closed, Option<JobId>.Some(winner)), (picked.Status, picked.Picked));
+        Assert.Equal([.. contest.Candidates.Select(candidate => candidate.Job).Where(job => job != winner).OrderBy(job => job.Value)], await DiscardedAsync(progressed, 2));
+    }
+
+    [Fact]
+    public async Task ApprovingTheRunnerUpPicksItAndDiscardsTheWinnerAsync()
+    {
+        await using var run = await CheckedAsync();
+        var decided = run.Watch<ContestDecided>();
+        var closed = run.Watch<ContestClosed>();
+        var contest = await StartAsync(run, "contest", 3);
+        var verdict = Outcomes.Present((await decided.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Verdict);
+        var runnerUp = verdict.Ranking[1].Facts.Job;
+        var progressed = run.Watch<JobProgressed>();
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(runnerUp, Cancellation));
+
+        Assert.Equal(Option<JobId>.Some(runnerUp), (await closed.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Picked);
+        Assert.Contains(Outcomes.Present(verdict.Winner), await DiscardedAsync(progressed, 2));
+        Assert.Contains("CALCULATOR.md", await ChangedAsync(run, runnerUp));
+    }
+
+    [Fact]
+    public async Task AContestWhoseCandidatesAllFailTheirChecksIsLeftUndecidedWithEveryCandidateRankedAsync()
+    {
+        await using var run = await CheckedAsync();
+        var undecided = run.Watch<ContestUndecided>();
+        var contest = await StartAsync(run, "contest-none", 2);
+
+        var left = (await undecided.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest;
+
+        var verdict = Outcomes.Present(left.Verdict);
+        Assert.Equal((ContestStatus.Undecided, Option<JobId>.None), (left.Status, verdict.Winner));
+        Assert.All(verdict.Ranking, standing => Assert.Equal(Option<Criterion>.Some(Criterion.Verification), standing.Excluded));
+        Assert.All(left.Candidates, candidate => Assert.Equal(CandidateOutcome.NeedsHelp, candidate.Outcome));
+    }
+
+    [Fact]
+    public async Task ARunThatRewroteItsChecksIsDisqualifiedEvenWithTheSmallestDiffAsync()
+    {
+        await using var run = await CheckedAsync();
+        var decided = run.Watch<ContestDecided>();
+        var contest = await StartAsync(run, "contest-rewrite", 2);
+
+        var verdict = Outcomes.Present((await decided.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Verdict);
+
+        var rewrote = Assert.Single(verdict.Ranking, standing => standing.Excluded.IsSome);
+        Assert.Equal((Option<Criterion>.Some(Criterion.RuleFiles), true), (rewrote.Excluded, rewrote.Facts.Passed));
+        Assert.Contains(".avala/checks.json", await ChangedAsync(run, rewrote.Facts.Job));
+        Assert.Contains("CALCULATOR.md", await ChangedAsync(run, Outcomes.Present(verdict.Winner)));
+    }
+
+    [Fact]
+    public async Task EachCandidateIsHeldOnceItSpendsPastItsShareOfThePerJobCapAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            (".avala/checks.json", ReviewTests.CalculatorChecks),
+            (".avala/budget.json", """{ "costPerJob": { "USD": 0.04 } }"""));
+        var interventions = run.Watch<BudgetIntervened>();
+        var carved = run.Watch<BudgetCarved>();
+        var (held, carving) = (0, 0);
+
+        var contest = await StartAsync(run, "contest-none", 2, attempts: 3);
+
+        var holds = await interventions.CollectUntilAsync(_ => ++held == 2);
+        var carves = await carved.CollectUntilAsync(_ => ++carving == 2);
+        Assert.Equal(
+            [.. contest.Candidates.Select(candidate => candidate.Job).OrderBy(job => job.Value)],
+            holds.Select(hold => hold.Intervention.Hold.Job).OrderBy(job => job.Value));
+        Assert.All(holds, hold => Assert.Equal(
+            (HoldReason.BudgetExceeded, BudgetMeasure.Cost, 0.030m, 0.020m),
+            (hold.Intervention.Hold.Reason, hold.Intervention.Breach.Measure, hold.Intervention.Breach.Measured, hold.Intervention.Breach.Cap)));
+        Assert.All(carves, carve => Assert.Equal((new JobId(contest.Contest.Value), 0.5, true), (carve.Carve.Parent, carve.Carve.Share, carve.Carve.Contested)));
+    }
+
+    internal static async Task<ContestRecord> StartAsync(SimulatedRun run, string scenario, int candidates, int attempts = 1) =>
+        Outcomes.Succeeds(await run.Get<IContests>().StartAsync(
+            new ContestRequest(new JobRequest(run.Repository.Path, $"[simulate: {scenario}] Fix the calculator", attempts), candidates),
+            Cancellation));
+
+    internal static async Task<IReadOnlyList<string>> ChangedAsync(SimulatedRun run, JobId job)
+    {
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation));
+        var diff = Outcomes.Succeeds(await run.Get<IWorkspaceChanges>().DiffAsync(Outcomes.Present(history.Summary.Workspace), Cancellation));
+
+        return [.. diff.Files.Select(file => file.Path).Order(StringComparer.Ordinal)];
+    }
+
+    private Task<SimulatedRun> CheckedAsync() =>
+        SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", ReviewTests.CalculatorChecks), (".avala/permissions.json", ReviewTests.TestsPolicy));
+
+    private static async Task<IReadOnlyList<JobId>> DiscardedAsync(EventWatch<JobProgressed> progressed, int count)
+    {
+        var discarded = 0;
+
+        return [.. (await progressed.CollectUntilAsync(update => update.Status == JobStatus.Discarded && ++discarded == count))
+            .Where(update => update.Status == JobStatus.Discarded)
+            .Select(update => update.Job)
+            .OrderBy(job => job.Value)];
+    }
+}

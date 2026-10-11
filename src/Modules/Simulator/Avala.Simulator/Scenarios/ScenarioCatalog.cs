@@ -474,7 +474,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All,
+        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";
@@ -490,7 +490,10 @@ internal static class ScenarioCatalog
             recording => new ReplayRequest(recording, AsRecorded: true).Scenario,
             () => Tagged(firstMessage, ReplayRequest.CompressedTag).Match(
                 recording => new ReplayRequest(recording, AsRecorded: false).Scenario,
-                () => Tagged(firstMessage, Tag).Bind(Named).Match(scenario => scenario.Name, () => Reply.Name)));
+                () => Tagged(firstMessage, Tag).Bind(Known).Match(name => name, () => Reply.Name)));
+
+    private static Option<string> Known(string name) =>
+        ContestScenarios.Families.ContainsKey(name) ? name : Named(name).Map(scenario => scenario.Name);
 
     public static Option<Scenario> Named(string name) =>
         All.FirstOrDefault(scenario => string.Equals(scenario.Name, name, StringComparison.OrdinalIgnoreCase)).ToOption();

@@ -10,6 +10,7 @@ public sealed class ScenarioCatalogTests
     [InlineData("[Simulate: Permission] Migrate the database", "permission")]
     [InlineData("Add GitHub login", "reply")]
     [InlineData("[simulate: unknown] Add GitHub login", "reply")]
+    [InlineData("[simulate: contest] Fix the calculator", "contest")]
     [InlineData("[replay: edit-allowed] Greet the team", "replay:edit-allowed")]
     [InlineData("Greet the team [Replay as recorded: edit-allowed]", "replay as recorded:edit-allowed")]
     public void TheTagOfTheFirstMessageChoosesTheScenario(string message, string expected) =>
