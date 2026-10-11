@@ -134,6 +134,25 @@ internal static class Cli
               "unifiedWindows": { "five_hour": { "utilization": 1, "resetsAt": 1791580200 }, "seven_day": { "utilization": 0.4, "resetsAt": 1791691200 } } } }
             """);
 
+    public static JsonNode[] RefreshFailed() =>
+    [
+        Parse($$"""{ "type": "system", "subtype": "status", "status": "requesting", "session_id": "{{Session}}", "uuid": "00000000-0000-0000-0000-000000000001" }"""),
+        Parse($$"""
+            { "type": "assistant", "message": { "id": "00000000-0000-0000-0000-000000000002", "model": "<synthetic>", "role": "assistant", "stop_reason": "stop_sequence", "stop_sequence": "", "type": "message",
+              "usage": { "input_tokens": 0, "output_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0 },
+              "content": [ { "type": "text", "text": "{{RefreshFailure}}" } ] },
+              "parent_tool_use_id": null, "session_id": "{{Session}}", "error": "server_error", "is_api_error_message": true }
+            """),
+        Parse($$"""
+            { "type": "result", "subtype": "success", "is_error": true, "api_error_status": null, "terminal_reason": "api_error", "stop_reason": "stop_sequence", "num_turns": 1,
+              "duration_ms": 7209, "duration_api_ms": 0, "total_cost_usd": 0, "session_id": "{{Session}}", "result": "{{RefreshFailure}}",
+              "usage": { "input_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "output_tokens": 0, "output_tokens_details": { "thinking_tokens": 0 } },
+              "modelUsage": {}, "permission_denials": [] }
+            """),
+    ];
+
+    public const string RefreshFailure = "Failed to refresh OAuth token: another Claude Code process is refreshing it or exited mid-refresh. This is usually transient; retry in a minute, and if it persists close other Claude Code processes or sign in again";
+
     public static JsonNode Parse(string json) => JsonNode.Parse(json)!;
 
     public static string OnHost(string input) =>

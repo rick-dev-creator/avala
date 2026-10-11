@@ -292,6 +292,17 @@ public sealed class StreamTests
     }
 
     [Fact]
+    public void ALoginWhoseTokenCannotBeRefreshedFailsTheTurnAtNoCostAndSaysWhyInsteadOfReportingALimit()
+    {
+        var talk = new Talk().Begin().Receive(Cli.RefreshFailed());
+
+        Assert.Equal(TurnOutcome.Failed, Assert.IsType<TurnCompleted>(talk.Events[^1]).Outcome);
+        Assert.Equal(Cli.RefreshFailure, Assert.Single(talk.Events.OfType<ItemProgressed>()).Text);
+        Assert.Equal(new Cost(0m, "USD"), Assert.Single(talk.Events.OfType<UsageReported>()).Cost);
+        Assert.Empty(talk.Events.OfType<LimitReported>());
+    }
+
+    [Fact]
     public void AResultThatIsAnErrorAfterTheWindowWasRejectedEndsTheTurnAtItsUsageLimit()
     {
         var talk = new Talk().Begin().Receive(Cli.RejectedRateLimit()).Receive(Cli.Result(0.001m, "success", isError: true));
