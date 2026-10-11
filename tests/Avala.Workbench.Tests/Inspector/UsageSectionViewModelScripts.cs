@@ -102,6 +102,26 @@ public sealed class UsageSectionViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AJobHeldForTheDailyCeilingSaysWhoseCeilingItReachedAsync()
+    {
+        var job = bench.Job("Extract sync queue into a module", JobStatus.NeedsHelp);
+        BudgetBreach[] breaches =
+        [
+            new(BudgetMeasure.DailySpend, "USD", 40m, 40m, Option<BudgetError>.None),
+            new(BudgetMeasure.DailySpend, "USD", 10.5m, 10m, Option<BudgetError>.None) { Connection = new Agents.Contracts.Connections.ConnectionName("team-api") },
+        ];
+        bench.Audit.Interventions.AddRange(breaches.Select(breach => new BudgetIntervention(
+            new JobHold(job.Job, SessionId.New(), HoldReason.BudgetExceeded, SessionHalt.Interrupted),
+            breach,
+            DateTimeOffset.UnixEpoch)));
+        using var section = new UsageSectionViewModel(bench.Inspected(), bench.Raising);
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal(["Held for today's spend on this machine: 40 of 40 USD", "Held for today's spend on team-api: 10.5 of 10 USD"], section.Interventions);
+    }
+
+    [Fact]
     public async Task RaisingTheBudgetRaisesTheJobAndContinuesItTellingTheAgentByHowMuchAsync()
     {
         var job = Held(HoldReason.BudgetExceeded, BudgetMeasure.Cost);

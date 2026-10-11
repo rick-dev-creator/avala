@@ -245,4 +245,32 @@ internal sealed class Budgeted
         public ValueTask<BudgetFile> ReadCurrentAsync(string repository, ConnectionName connection, CancellationToken cancellationToken) =>
             ReadAsync(repository, connection, cancellationToken);
     }
+
+    internal sealed class DailyHistory : IUsageHistory
+    {
+        public Dictionary<DateOnly, (decimal Total, (ConnectionName Connection, decimal Amount)[] ByConnection)> Spent { get; } = [];
+
+        public List<DateOnly> Asked { get; } = [];
+
+        public ValueTask<UsagePeriod> WithinAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<UsagePeriod>> DailyAsync(DateOnly first, DateOnly last, TimeZoneInfo zone, CancellationToken cancellationToken)
+        {
+            Asked.Add(first);
+            var (total, byConnection) = Spent.TryGetValue(first, out var spent) ? spent : (0m, []);
+
+            return ValueTask.FromResult<IReadOnlyList<UsagePeriod>>(
+            [
+                new UsagePeriod(
+                    DateTimeOffset.MinValue,
+                    DateTimeOffset.MaxValue,
+                    Summary(total),
+                    [],
+                    [.. byConnection.Select(used => new ConnectionUsage(used.Connection, Budgeted.Provider, Summary(used.Amount)))]),
+            ]);
+        }
+
+        private static UsageSummary Summary(decimal amount) => new(default, [new Cost(amount, "USD")], 0, default, []);
+    }
 }

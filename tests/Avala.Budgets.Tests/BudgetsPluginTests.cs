@@ -46,7 +46,9 @@ public sealed class BudgetsPluginTests
         Assert.Contains(composition.Get<BudgetBook>(), composition.All<IStartupTask>());
         Assert.Same(composition.Get<BudgetFileReader>(), composition.Get<IBudgetFiles>());
         Assert.Same(composition.Get<BudgetFileReader>(), composition.Get<IRepositoryBudgets>());
-        Assert.Same(composition.Get<BudgetEnforcer>(), composition.Get<IHandle<UsageRecorded>>());
+        Assert.Contains(composition.Get<BudgetEnforcer>(), composition.All<IHandle<UsageRecorded>>());
+        Assert.Contains(composition.Get<SpendCeiling>(), composition.All<IHandle<UsageRecorded>>());
+        Assert.Contains(composition.Get<SpendCeiling>(), composition.All<IHandle<JobProgressed>>());
         Assert.Contains(composition.Get<BudgetEnforcer>(), composition.All<IHandle<JobProgressed>>());
     }
 
@@ -54,6 +56,7 @@ public sealed class BudgetsPluginTests
         PluginComposition.Of(new BudgetsPlugin(), new AvalaPaths(data.Path), services => services
             .AddSingleton<IJobs>(new Budgeted.HoldingJobs(default))
             .AddSingleton<IUsage>(new Budgeted.Usage())
+            .AddSingleton<IUsageHistory>(new Budgeted.DailyHistory())
             .AddSingleton<IUsageTally>(new Budgeted.HeldTallies())
             .AddSingleton<IResources>(new Budgeted.MeasuredResources())
             .AddSingleton<IBaseFiles>(new CommittedFiles()));

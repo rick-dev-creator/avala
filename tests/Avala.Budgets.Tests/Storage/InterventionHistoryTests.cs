@@ -41,7 +41,13 @@ public sealed class InterventionHistoryTests
     public async Task InterventionsSurviveAReopeningAndEarlierRunsLeaveOutWhatThisRunStoredAsync()
     {
         using var folder = new TemporaryFolder();
-        var earlier = new[] { Exceeded(JobId.New(), Nine, Option<BudgetError>.None), Exceeded(JobId.New(), Nine.AddMinutes(1), BudgetError.InvalidCost) };
+        var ceiling = Exceeded(JobId.New(), Nine.AddMinutes(2), Option<BudgetError>.None);
+        var earlier = new[]
+        {
+            Exceeded(JobId.New(), Nine, Option<BudgetError>.None),
+            Exceeded(JobId.New(), Nine.AddMinutes(1), BudgetError.InvalidCost),
+            ceiling with { Breach = new BudgetBreach(BudgetMeasure.DailySpend, "USD", 10m, 10m, Option<BudgetError>.None) { Connection = new ConnectionName("team-api") } },
+        };
         await using (var first = new SqliteInterventionStore(new AvalaPaths(folder.Path)))
         {
             foreach (var intervention in earlier)
@@ -140,8 +146,10 @@ public sealed class InterventionHistoryTests
         {
             await legacy.GetService<IMigrator>().MigrateAsync(legacy.Database.GetMigrations().First(), Cancellation);
             await legacy.Database.ExecuteSqlRawAsync("DROP TABLE __EFMigrationsHistory", Cancellation);
-            await legacy.Interventions.AddAsync(StoredIntervention.Of(kept), Cancellation);
-            await legacy.SaveChangesAsync(Cancellation);
+            var row = StoredIntervention.Of(kept);
+            await legacy.Database.ExecuteSqlAsync(
+                $"INSERT INTO Interventions (Job, Session, Reason, Halt, Measure, Subject, Measured, Cap, Error, At) VALUES ({row.Job}, {row.Session}, {row.Reason}, {row.Halt}, {row.Measure}, {row.Subject}, {row.Measured}, {row.Cap}, {row.Error}, {row.At})",
+                Cancellation);
         }
 
         await using var store = new SqliteInterventionStore(paths);

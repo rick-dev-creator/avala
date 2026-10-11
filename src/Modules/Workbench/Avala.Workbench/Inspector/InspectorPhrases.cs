@@ -136,7 +136,14 @@ internal static class InspectorPhrases
     ];
 
     public static string Intervention(BudgetIntervention intervention) =>
-        string.Create(CultureInfo.InvariantCulture, $"Held for {intervention.Breach.Measure}: {intervention.Breach.Measured} of {intervention.Breach.Cap} {intervention.Breach.Subject}");
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"Held for {Measure(intervention.Breach)}: {intervention.Breach.Measured} of {intervention.Breach.Cap} {intervention.Breach.Subject}");
+
+    private static string Measure(BudgetBreach breach) =>
+        breach.Measure == BudgetMeasure.DailySpend
+            ? $"today's spend on {breach.Connection.Match(connection => connection.Value, () => "this machine")}"
+            : breach.Measure.ToString();
 
     public static string Raise(BudgetRaise raise) =>
         $"Budget raised by {Raised(raise.By)}" + (raise.Child.IsSome ? " for a sub-agent" : string.Empty);

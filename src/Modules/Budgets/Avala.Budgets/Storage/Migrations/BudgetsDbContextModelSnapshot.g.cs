@@ -58,6 +58,10 @@ namespace Avala.Budgets.Storage.Migrations
                     b.Property<decimal>("Cap")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Connection")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Error")
                         .IsRequired()
                         .HasColumnType("TEXT");

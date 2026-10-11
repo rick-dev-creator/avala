@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Admission;
 using Avala.Budgets.BudgetFiles;
 using Avala.Budgets.Contracts;
@@ -74,12 +75,30 @@ public sealed class RunningJobsTests
     [InlineData("""{ "runningJobs": "2" }""", "Malformed")]
     [InlineData("""{ "parallel": 2 }""", "UnknownField")]
     [InlineData("[]", "Malformed")]
+    [InlineData("""{ "spendPerDay": { "USD": 40, "EUR": 5.5 } }""", "none · 40 USD + 5.5 EUR")]
+    [InlineData("""{ "runningJobs": 2, "connections": { "team-api": { "spendPerDay": { "USD": 10 } } } }""", "2 · team-api 10 USD")]
+    [InlineData("""{ "spendPerDay": { "USD": 0 } }""", "InvalidCost")]
+    [InlineData("""{ "spendPerDay": { "": 5 } }""", "InvalidCost")]
+    [InlineData("""{ "spendPerDay": { "USD": "5" } }""", "Malformed")]
+    [InlineData("""{ "spendPerDay": 5 }""", "Malformed")]
+    [InlineData("""{ "connections": { " ": { "spendPerDay": { "USD": 10 } } } }""", "Malformed")]
+    [InlineData("""{ "connections": { "team-api": { "runningJobs": 2 } } }""", "UnknownField")]
+    [InlineData("""{ "connections": [] }""", "Malformed")]
     public void TheMachineBudgetIsParsedStrictly(string text, string expected) =>
         Assert.Equal(
             expected,
             MachineBudgetFile.Parse(text).Match(
-                parsed => parsed.Match(most => most.ToString(System.Globalization.CultureInfo.InvariantCulture), () => "none"),
+                parsed => string.Join(
+                    " · ",
+                    [
+                        parsed.RunningJobs.Match(most => most.ToString(System.Globalization.CultureInfo.InvariantCulture), () => "none"),
+                        .. parsed.SpendPerDay.Count > 0 ? [Costs(parsed.SpendPerDay)] : Array.Empty<string>(),
+                        .. parsed.Connections.Select(ceiling => $"{ceiling.Connection.Value} {Costs(ceiling.SpendPerDay)}"),
+                    ]),
                 failure => failure.ToString()));
+
+    private static string Costs(IReadOnlyList<Cost> costs) =>
+        string.Join(" + ", costs.Select(cost => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{cost.Amount} {cost.Currency}")));
 
     [Theory]
     [InlineData(null, BudgetFileStatus.Absent, null)]

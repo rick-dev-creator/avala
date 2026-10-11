@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
@@ -27,6 +28,8 @@ internal sealed class StoredIntervention
 
     public string Error { get; init; } = string.Empty;
 
+    public string Connection { get; init; } = string.Empty;
+
     public long At { get; init; }
 
     public static StoredIntervention Of(BudgetIntervention intervention) => new()
@@ -40,6 +43,7 @@ internal sealed class StoredIntervention
         Measured = intervention.Breach.Measured,
         Cap = intervention.Breach.Cap,
         Error = intervention.Breach.Error.Match(error => error.ToString(), () => string.Empty),
+        Connection = intervention.Breach.Connection.Match(connection => connection.Value, () => string.Empty),
         At = intervention.At.UtcTicks,
     };
 
@@ -50,6 +54,9 @@ internal sealed class StoredIntervention
             Subject,
             Measured,
             Cap,
-            Error.Length == 0 ? Option<BudgetError>.None : Enum.Parse<BudgetError>(Error)),
+            Error.Length == 0 ? Option<BudgetError>.None : Enum.Parse<BudgetError>(Error))
+        {
+            Connection = Connection.Length == 0 ? Option<ConnectionName>.None : new ConnectionName(Connection),
+        },
         new DateTimeOffset(At, TimeSpan.Zero));
 }

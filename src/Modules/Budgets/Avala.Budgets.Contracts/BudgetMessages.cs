@@ -51,7 +51,14 @@ public sealed record BudgetCarve(JobId Parent, JobId Child, IReadOnlyList<Cost> 
 
 public sealed record BudgetCarved(BudgetCarve Carve) : IIntegrationEvent;
 
-public sealed record MachineBudget(Option<int> RunningJobs, BudgetFileStatus File, Option<BudgetError> Error);
+public sealed record MachineBudget(Option<int> RunningJobs, BudgetFileStatus File, Option<BudgetError> Error)
+{
+    public IReadOnlyList<Cost> SpendPerDay { get; init; } = [];
+
+    public IReadOnlyList<ConnectionCeiling> Connections { get; init; } = [];
+}
+
+public sealed record ConnectionCeiling(ConnectionName Connection, IReadOnlyList<Cost> SpendPerDay);
 
 public sealed record JobQueued(JobId Job, int Running, int Limit) : IIntegrationEvent;
 
@@ -68,7 +75,10 @@ public sealed record RepositoryBudget(
     IReadOnlyList<ConnectionCaps> Connections,
     Option<FileOrigin> Origin);
 
-public sealed record BudgetBreach(BudgetMeasure Measure, string Subject, decimal Measured, decimal Cap, Option<BudgetError> Error);
+public sealed record BudgetBreach(BudgetMeasure Measure, string Subject, decimal Measured, decimal Cap, Option<BudgetError> Error)
+{
+    public Option<ConnectionName> Connection { get; init; }
+}
 
 public sealed record BudgetIntervention(JobHold Hold, BudgetBreach Breach, DateTimeOffset At);
 
