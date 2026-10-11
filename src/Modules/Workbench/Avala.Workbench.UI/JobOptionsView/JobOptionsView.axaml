@@ -16,6 +16,11 @@
       <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
     </Style>
+    <Style Selector="Button.count:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillSelectedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextDisabledBrush}" />
+    </Style>
   </UserControl.Styles>
   <StackPanel Spacing="14">
     <ContentControl x:Name="Models" Content="{Binding Models}" />

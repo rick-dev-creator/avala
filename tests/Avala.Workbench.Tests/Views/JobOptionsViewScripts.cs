@@ -1,4 +1,7 @@
 using Avala.Testing.UI;
+using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
+using Avalonia.VisualTree;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.NewJob;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -43,12 +46,28 @@ public sealed partial class JobOptionsViewScripts(HeadlessUi ui)
             Assert.True(view.Settle().Shows("SpreadNote"));
         }, Cancellation);
 
+    [Fact]
+    public Task MoreAtTheMaximumKeepsItsShapeInTheDisabledFillWithADisabledGlyphAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new CountingOptions(more: false));
+
+            var presenter = view.Find<Button>("More").GetVisualDescendants().OfType<ContentPresenter>().First(found => found.Name == "PART_ContentPresenter");
+
+            Assert.Equal(
+                (Token(view, "FillSelectedBrush"), Token(view, "BorderInputBrush"), Token(view, "TextDisabledBrush")),
+                (presenter.Background, presenter.BorderBrush, presenter.Foreground));
+        }, Cancellation);
+
+    private static object? Token(ViewScript view, string key) =>
+        view.Window.TryFindResource(key, view.Window.ActualThemeVariant, out var found) ? found : null;
+
     [INotifyPropertyChanged]
     private sealed partial class CountingOptions : IJobOptionsViewModel
     {
-        public CountingOptions()
+        public CountingOptions(bool more = true)
         {
-            MoreCommand = new RelayCommand(() => Added++);
+            MoreCommand = new RelayCommand(() => Added++, () => more);
             FewerCommand = new RelayCommand(() => Removed++);
         }
 

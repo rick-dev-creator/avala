@@ -22,7 +22,7 @@ public sealed class ContestScreens(HeadlessUi ui, PublishedPlugins plugins)
             plugins,
             (".avala/checks.json", ReviewTests.CalculatorChecks),
             (".avala/permissions.json", ReviewTests.TestsPolicy),
-            (".avala/jobs.json", """{ "bestOf": { "candidates": 3, "max": 4 } }"""),
+            (".avala/jobs.json", """{ "bestOf": { "candidates": 3, "max": 3 } }"""),
             (".avala/budget.json", """{ "costPerJob": { "USD": 0.60 } }"""));
         var decided = run.Watch<ContestDecided>();
         var workbench = await run.WorkbenchAsync();
