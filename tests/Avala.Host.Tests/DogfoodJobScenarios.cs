@@ -199,7 +199,7 @@ internal static class DogfoodJobScenarios
         Seed = _ => new DogfoodSeed
         {
             Committed = [new(".avala/budget.json", string.Empty)],
-            Data = [new("budgets.json", """{ "spendPerDay": { "USD": 0.005 } }""")],
+            Data = [new("budgets.json", """{ "spendPerDay": { "USD": 0.001 } }""")],
             Recordings = [new DogfoodScript("s5").Turn().Say("Starting on sub.").Bill(0.0120m, 0.22).Interrupt()],
         },
         Steps = async scene =>
@@ -213,7 +213,7 @@ internal static class DogfoodJobScenarios
         [
             OfJob("The running job is held BudgetExceeded with a DailySpend breach on no connection", "s5", (evidence, job) =>
                 Unless(evidence.First<BudgetIntervened>(found => found.Intervention.Hold.Job == job), "no budget intervention", found => Expect(evidence, found.Intervention.Hold.Reason == HoldReason.BudgetExceeded && found.Intervention.Breach.Measure == BudgetMeasure.DailySpend && found.Intervention.Breach.Connection.IsNone, $"held {found.Intervention.Hold.Reason} for {found.Intervention.Breach.Measure} {found.Intervention.Breach.Measured} of {found.Intervention.Breach.Cap}, connection {found.Intervention.Breach.Connection.Match(connection => connection.Value, () => "none")}"))),
-            Fact("The inspector reads Held for today's spend on this machine: x of 0.005 USD", "inspector:held:UsageSectionViewModel", text => text.Contains("today's spend on this machine", StringComparison.Ordinal) && text.Contains("0.005 USD", StringComparison.Ordinal)),
+            Fact("The inspector reads Held for today's spend on this machine: x of 0.001 USD", "inspector:held:UsageSectionViewModel", text => text.Contains("today's spend on this machine", StringComparison.Ordinal) && text.Contains("0.001 USD", StringComparison.Ordinal)),
             Fact("Raise is not offered", "inspector:held:UsageSectionViewModel", text => text.Contains("CanRaise=False", StringComparison.Ordinal)),
         ],
     };
