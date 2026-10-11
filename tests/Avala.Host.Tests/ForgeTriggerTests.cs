@@ -219,9 +219,9 @@ public sealed class ForgeTriggerTests(PublishedPlugins plugins)
                         """),
                 ]);
             await run.StartedAsync();
-            _ = await run.Repository.PublishAsync(Cancellation);
             var forge = new ForgeTriggerRun(run, variable);
             await (beforeBaseline ?? (_ => Task.CompletedTask))(forge.Remote);
+            _ = await run.Repository.PublishAsync(Cancellation);
             var baseline = await forge.CheckNowAsync();
             Assert.Equal(EventWatchStatus.Watching, baseline.Status);
 

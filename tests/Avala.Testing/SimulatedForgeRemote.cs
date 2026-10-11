@@ -70,6 +70,7 @@ public sealed class SimulatedForgeRemote(string remote)
     {
         var state = File.Exists(State) ? JsonNode.Parse(await File.ReadAllTextAsync(State, cancellationToken))!.AsObject() : [];
         change(state);
+        Directory.CreateDirectory(remote);
         var written = $"{State}.{Guid.NewGuid():N}";
         await File.WriteAllTextAsync(written, state.ToJsonString(), cancellationToken);
         File.Move(written, State, overwrite: true);
