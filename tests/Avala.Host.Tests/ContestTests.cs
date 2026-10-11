@@ -51,6 +51,24 @@ public sealed class ContestTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheInspectorOfTheWinnerShowsItsPlaceAndWhyEachCandidateRankedWhereItDidAsync()
+    {
+        await using var run = await CheckedAsync();
+        var decided = run.Watch<ContestDecided>();
+        var contest = await StartAsync(run, "contest", 3);
+        var winner = Outcomes.Present(Outcomes.Present((await decided.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Verdict).Winner);
+        var workbench = await run.WorkbenchAsync();
+
+        var section = Assert.Single(await workbench.InspectAsync(winner, "ContestSectionViewModel"));
+
+        var (fact, ranking) = await run.Ui.ReadAsync(() => (section["Fact"].Text, section["Ranking"].Value<IReadOnlyList<string>>()));
+        Assert.EndsWith("of 3 · the winner", fact, StringComparison.Ordinal);
+        Assert.Equal(3, ranking.Count);
+        Assert.Contains("ahead of the next on a smaller diff · this job", ranking[0], StringComparison.Ordinal);
+        Assert.EndsWith("· not verified", ranking[2], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ApprovingTheRunnerUpPicksItAndDiscardsTheWinnerAsync()
     {
         await using var run = await CheckedAsync();

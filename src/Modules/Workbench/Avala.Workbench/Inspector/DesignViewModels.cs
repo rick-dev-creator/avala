@@ -127,3 +127,21 @@ internal sealed class DesignDelegationSectionViewModel : IDelegationSectionViewM
 
     public bool IsEmpty => false;
 }
+
+internal sealed class DesignContestSectionViewModel : IContestSectionViewModel
+{
+    public bool IsLoaded => true;
+
+    public bool IsContested => true;
+
+    public string Fact => "candidate 3 of 3 · the winner";
+
+    public string Status => "Decided: the winner waits for your review";
+
+    public IReadOnlyList<string> Ranking { get; } =
+    [
+        "1. Candidate 3 · 0 exceptions · 1 attempt · 1 line changed · 0.009 USD · ahead of the next on a smaller diff · this job",
+        "2. Candidate 2 · 0 exceptions · 1 attempt · 31 lines changed · 0.012 USD · the only verified run",
+        "3. Candidate 1 · not verified · 0 exceptions · 1 attempt · 1 line changed · 0.015 USD · not verified",
+    ];
+}

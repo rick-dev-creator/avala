@@ -162,6 +162,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IWorktreeSectionViewModel, WorktreeSectionView>();
         views.Register<IDelegationSectionViewModel, DelegationSectionView>();
         views.Register<IPullRequestSectionViewModel, PullRequestSectionView>();
+        views.Register<IContestSectionViewModel, ContestSectionView>();
         RegisterGlobalViews(views);
     }
 
@@ -191,7 +192,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<PullRequestSectionViewModel>(ShellRegions.Inspector, 55);
     }
 
-    private static void RegisterContests(IPluginRegistrar registrar) =>
+    private static void RegisterContests(IPluginRegistrar registrar)
+    {
         registrar.Services
             .AddSingleton<ContestKeeper>()
             .AddForwarded<IHandle<ContestsRestored>, ContestKeeper>()
@@ -203,7 +205,10 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<ContestClosed>, ContestKeeper>()
             .AddSingleton<Submissions>()
             .AddSingleton<ContestReadings>()
-            .AddTransient<JobOptionsViewModel>();
+            .AddTransient<JobOptionsViewModel>()
+            .AddSingleton<ContestSectionViewModel>();
+        registrar.AddToRegion<ContestSectionViewModel>(ShellRegions.Inspector, 15);
+    }
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
         services

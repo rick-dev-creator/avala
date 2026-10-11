@@ -64,6 +64,36 @@ internal static class ContestPhrases
         _ => "Cancelled: every candidate ended without approval",
     };
 
+    public static string Fact(ContestRecord contest, Jobs.Contracts.JobId job)
+    {
+        var ordinal = contest.Candidates.FirstOrDefault(candidate => candidate.Job == job)?.Ordinal ?? 0;
+        var place = contest.Verdict.Match(verdict => verdict.Ranking.FirstOrDefault(standing => standing.Facts.Job == job)?.Place ?? 0, () => 0);
+        var role = contest.Picked.Match(picked => picked == job ? "picked" : "discarded", () => contest.Verdict.Bind(verdict => verdict.Winner).Match(
+            winner => winner == job ? "the winner" : string.Create(CultureInfo.InvariantCulture, $"place {place}"),
+            () => string.Empty));
+
+        return Joined([string.Create(CultureInfo.InvariantCulture, $"candidate {ordinal} of {contest.Candidates.Count}"), .. role.Length > 0 ? [role] : Array.Empty<string>()]);
+    }
+
+    public static IReadOnlyList<string> Ranking(ContestRecord contest, Jobs.Contracts.JobId job) =>
+        contest.Verdict.Match<IReadOnlyList<string>>(
+            verdict => [.. verdict.Ranking.Select(standing => Joined([Standing(standing), Reason(standing), .. standing.Facts.Job == job ? ["this job"] : Array.Empty<string>()]))],
+            () => [.. contest.Candidates.Select(candidate => Joined([
+                string.Create(CultureInfo.InvariantCulture, $"Candidate {candidate.Ordinal}"),
+                Outcome(candidate.Outcome),
+                .. candidate.Job == job ? ["this job"] : Array.Empty<string>(),
+            ]))]);
+
+    public static string Outcome(CandidateOutcome outcome) => outcome switch
+    {
+        CandidateOutcome.AwaitingReview => "ready for review",
+        CandidateOutcome.NeedsHelp => "needs help: retries ran out",
+        CandidateOutcome.Failed => "failed",
+        CandidateOutcome.Discarded => "discarded",
+        CandidateOutcome.Approved => "approved",
+        _ => "running",
+    };
+
     public static string Standing(Standing standing) =>
         Joined([
             string.Create(CultureInfo.InvariantCulture, $"{standing.Place}. Candidate {standing.Facts.Ordinal}"),
