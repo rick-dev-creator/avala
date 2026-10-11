@@ -29,7 +29,7 @@
         <StackPanel Spacing="2">
           <TextBlock Classes="title" Text="What should the agent do?" />
           <TextBlock Classes="caption" TextWrapping="Wrap"
-                     Text="The job runs in its own worktree of the repository, under the repository's rules, and comes back to you for review." />
+                     Text="The job runs in its own worktree, under the repository's rules, and comes back to you for review." />
         </StackPanel>
         <Border Classes="float arrive-snappy">
           <StackPanel Spacing="14">
@@ -66,7 +66,6 @@
               </StackPanel>
               <TextBlock x:Name="Route"
                          Grid.Row="1"
-                         Grid.ColumnSpan="2"
                          Classes="caption fade-in"
                          Classes.attention="{Binding IsRouteAttention}"
                          TextWrapping="Wrap"
@@ -76,11 +75,13 @@
                 <TextBlock Classes="section" Text="Autonomy" />
                 <ComboBox x:Name="Autonomy" ItemsSource="{Binding Autonomies}" SelectedItem="{Binding Autonomy, Converter={x:Static states:Kept.Selection}}" />
               </StackPanel>
+              <TextBlock x:Name="AutonomyNote"
+                         Grid.Row="1"
+                         Grid.Column="1"
+                         Classes="caption fade-in"
+                         TextWrapping="Wrap"
+                         Text="{Binding AutonomyNote}" />
             </Grid>
-            <TextBlock x:Name="AutonomyNote"
-                       Classes="caption fade-in"
-                       TextWrapping="Wrap"
-                       Text="{Binding AutonomyNote}" />
             <ContentControl x:Name="Models" Content="{Binding Models}" />
             <Border x:Name="Error"
                     Classes="quiet"

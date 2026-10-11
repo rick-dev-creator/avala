@@ -239,6 +239,22 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task TheConnectionAndTheAutonomyEachExplainThemselvesUnderTheirOwnColumnAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(new Submitting.JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(bench.Board, Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.ModelChoices.ModelPickerViewModel()) { Repository = "~/code/shop-api" };
+            await page.LoadAsync(TestContext.Current.CancellationToken);
+            var view = Screen.Show(page);
+            Avalonia.Rect Bounds(string name) => view.Find(name).Bounds.Translate((Avalonia.Vector)(Avalonia.VisualExtensions.TranslatePoint(view.Find(name), default, view.Window) ?? default) - (Avalonia.Vector)view.Find(name).Bounds.Position);
+
+            Assert.Equal((true, true), (view.Shows("Route"), view.Shows("AutonomyNote")));
+            Assert.True(Bounds("Route").Right <= Bounds("Autonomy").Left, $"the route note reaches {Bounds("Route").Right} past the autonomy column at {Bounds("Autonomy").Left}");
+            Assert.Equal(Bounds("Autonomy").Left, Bounds("AutonomyNote").Left, 1);
+            Assert.Equal(Bounds("Route").Top, Bounds("AutonomyNote").Top, 1);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task TheAutonomyShowsTheRepositorysLevelAndChoosingSupervisedSaysItAppliesToThisJobAsync() =>
         ui.RunAsync(async () =>
         {
