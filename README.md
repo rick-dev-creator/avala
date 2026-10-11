@@ -35,12 +35,15 @@ Avala is an open-source desktop harness for coding agents. It runs each agent in
 
 ## Status
 
-Preparing the first beta: proven end to end on the simulator, with Claude Code as the first real harness, and now being used on real work before the first release. Everything below runs in the application today, and a built-in simulator lets you try Avala without spending tokens:
+Preparing the first beta. Every feature is proven end to end on the simulator, and Claude Code, the first real harness, has run a campaign of short scenarios against real accounts, each with its own acceptance criteria and spending cap. Everything below runs in the application today, and a built-in simulator lets you try Avala without spending tokens:
 
 - jobs in their own worktrees, verified by your repository's checks and reviewed from a verdict and a diff before they are merged or kept;
 - permissions, questions and plan approvals answered in place or by the rules of your repository, at the autonomy you allow;
-- supervision of stalled sessions, budgets per job and per connection, and reclaimed processes, ports and worktrees;
-- several connections and accounts per harness, delegation to sub-agents and an autopilot for a backlog;
+- supervision of stalled sessions, budgets per job and per connection, a daily spending ceiling for the machine, and reclaimed processes, ports and worktrees;
+- several connections and accounts per harness: a job that nears or runs out of an account's usage window waits for the reset or is handed off to another account with a brief, and costs on a subscription are shown at API prices;
+- delegation to sub-agents that ask their parent first, and an autopilot that works through a backlog in loops with their own limits;
+- triggers that start jobs on a schedule, from a signed webhook, or from events on GitHub, Gitea or Forgejo, such as a labeled issue, a command in a comment or a failing check;
+- pull requests opened from approved jobs, with their checks watched and the agent woken when they fail;
 - best of N: one request run as several candidate jobs, the best kept by its evidence and the others discarded once you approve it;
 - notifications on your phone, through ntfy or a webhook, when a job needs you while you are away;
 - usage and limits per connection, canvases drawn as Markdown, SVG and Mermaid, a light and a dark theme, and jobs that survive a restart.
@@ -49,7 +52,7 @@ Screenshots are taken from the real application, driven headless by the simulato
 
 ## Install
 
-Coming soon: builds for Windows, macOS and Linux will be published on the [releases page](https://github.com/rick-dev-creator/avala/releases). Until then, build it from source.
+Coming soon: the first beta will be published on the [releases page](https://github.com/rick-dev-creator/avala/releases) for Windows and Linux, with macOS to follow. Until then, build it from source.
 
 ## Privacy
 
