@@ -21,6 +21,7 @@ internal enum Operation
     Fail,
     Hold,
     HoldOverBudget,
+    HoldUnverifiable,
     HandOff,
     Reopen,
     ReopenInNewSession,

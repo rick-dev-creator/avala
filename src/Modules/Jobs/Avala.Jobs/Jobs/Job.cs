@@ -253,7 +253,7 @@ internal sealed class Job : IAggregateRoot<JobId>
             });
 
     public Result<JobHeld, JobError> Hold(HoldReason reason) =>
-        machine.TryFire(reason == HoldReason.BudgetExceeded ? JobTrigger.HoldOverBudget : JobTrigger.Hold, JobError.CannotHold)
+        machine.TryFire(Trigger(reason), JobError.CannotHold)
             .Map(_ =>
             {
                 InterruptUnderwayAttempt();
@@ -261,6 +261,13 @@ internal sealed class Job : IAggregateRoot<JobId>
 
                 return new JobHeld(Id, attempts[^1].Number, reason);
             });
+
+    private static JobTrigger Trigger(HoldReason reason) => reason switch
+    {
+        HoldReason.BudgetExceeded => JobTrigger.HoldOverBudget,
+        HoldReason.InvalidChecks => JobTrigger.HoldUnverifiable,
+        _ => JobTrigger.Hold,
+    };
 
     private bool HasRetriesLeft()
     {

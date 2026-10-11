@@ -38,6 +38,7 @@ internal static class JobLifecycle
             .PermitReentry(JobTrigger.Recheck)
             .Permit(JobTrigger.Pass, JobState.AwaitingReview)
             .Permit(JobTrigger.HoldOverBudget, JobState.NeedsHelp)
+            .Permit(JobTrigger.HoldUnverifiable, JobState.NeedsHelp)
             .PermitIf(JobTrigger.Retry, JobState.Running, hasRetriesLeft, "retries left")
             .PermitIf(JobTrigger.RequestHelp, JobState.NeedsHelp, () => !hasRetriesLeft(), "budget exhausted")
             .PermitIf(JobTrigger.HandOff, JobState.Running, hasRetriesLeft, "retries left");

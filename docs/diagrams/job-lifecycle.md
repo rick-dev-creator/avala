@@ -26,6 +26,7 @@ stateDiagram-v2
 	Checking --> Checking : Recheck
 	Checking --> AwaitingReview : Pass
 	Checking --> NeedsHelp : HoldOverBudget
+	Checking --> NeedsHelp : HoldUnverifiable
 	Checking --> Running : Retry [retries left]
 	Checking --> NeedsHelp : RequestHelp [budget exhausted]
 	Checking --> Running : HandOff [retries left]

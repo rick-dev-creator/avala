@@ -17,6 +17,7 @@ internal enum JobTrigger
     Fail,
     Hold,
     HoldOverBudget,
+    HoldUnverifiable,
     HandOff,
     Reopen,
 }

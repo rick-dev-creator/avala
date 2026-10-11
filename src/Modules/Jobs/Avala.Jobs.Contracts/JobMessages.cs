@@ -35,6 +35,7 @@ public enum HoldReason
     Interrupted,
     Stopped,
     NotResumable,
+    InvalidChecks,
 }
 
 public enum SessionHalt

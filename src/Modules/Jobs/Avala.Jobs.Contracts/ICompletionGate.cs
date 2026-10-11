@@ -26,7 +26,7 @@ public sealed record GateVerdict(GateDecision Decision, string Feedback)
 {
     public static GateVerdict Pass { get; } = new(GateDecision.Pass, string.Empty);
 
-    public Option<HoldReason> Hold { get; private init; }
+    public Option<HoldReason> Hold { get; init; }
 
     public static GateVerdict Retry(string feedback) => new(GateDecision.Retry, feedback);
 
