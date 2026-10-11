@@ -17,7 +17,7 @@ public sealed class FoldScripts(HeadlessUi ui)
             var view = ViewScript.Show(Fold(), new object());
 
             Assert.Contains("Usage & caps", view.VisibleTexts);
-            Assert.Contains("USD 0.84 of USD 5", view.VisibleTexts);
+            Assert.Contains("USD 0.84\u00A0of USD 5", view.VisibleTexts);
             Assert.False(view.Shows("Body"));
         }, Cancellation);
 
@@ -117,6 +117,20 @@ public sealed class FoldScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.True(fact.Bounds.Width >= Natural(fact) - 0.5, $"the fact is {fact.Bounds.Width} wide of {Natural(fact)}");
+        }, Cancellation);
+
+    [Fact]
+    public Task AFactLongerThanItsRoomWrapsWholeOntoMoreLinesKeepingEachAmountWithItsUnitAsync() =>
+        ui.RunAsync(() =>
+        {
+            var fold = new Fold { Header = "Usage & caps", Fact = "0.073 USD at API prices of 1.20 USD", Width = 240 };
+            ViewScript.Show(fold, new object());
+            var fact = fold.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Name == "PART_Fact");
+            var lines = fact.TextLayout.TextLines.Select(line => (fact.Text ?? string.Empty).Substring(line.FirstTextSourceIndex, Math.Min(line.Length, (fact.Text ?? string.Empty).Length - line.FirstTextSourceIndex))).ToList();
+
+            Assert.True(lines.Count > 1, $"the fact reads on one line: {string.Join(" | ", lines)}");
+            Assert.DoesNotContain(fact.TextLayout.TextLines, line => line.HasCollapsed);
+            Assert.DoesNotContain(lines, line => line.TrimStart().StartsWith("USD", StringComparison.Ordinal));
         }, Cancellation);
 
     private static double Natural(TextBlock text)

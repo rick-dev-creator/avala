@@ -17,6 +17,7 @@ public sealed class FoldHeaderPanel : Panel
         header.Measure(new Size(double.PositiveInfinity, availableSize.Height));
         fact.Measure(new Size(double.PositiveInfinity, availableSize.Height));
         widths = Shared(header.DesiredSize.Width, fact.DesiredSize.Width, availableSize.Width);
+        fact.Measure(new Size(widths.Fact, availableSize.Height));
 
         return new Size(widths.Header + widths.Fact, Math.Max(header.DesiredSize.Height, fact.DesiredSize.Height));
     }

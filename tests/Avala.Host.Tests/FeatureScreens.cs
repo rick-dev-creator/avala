@@ -405,6 +405,20 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "25-overview-delegation-agents-tree-dark");
     }
 
+    [Fact]
+    public async Task TheInspectorsUsageHeadlineReadsWholeUnderACostCapAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply", (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/budget.json", """{ "costPerJob": { "USD": 1.20 } }"""));
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(run.Job);
+        _ = await workbench.InspectAsync(run.Job, "UsageSectionViewModel");
+
+        await Camera.ShootAsync(run, "26-inspector-usage-headline-under-a-cost-cap-dark", FeatureCamera.Unfold());
+        await Camera.ShootAsync(run, "26-inspector-usage-headline-under-a-cost-cap-narrow-light", ThemeVariant.Light, FeatureCamera.Unfold(), window => window.Width = 900);
+    }
+
     private static readonly string[] Groups = ["NeedsYou", "Running", "Waiting", "ReadyForReview", "Done"];
 
     private const string Autonomous = """{ "autonomy": "autonomous" }""";

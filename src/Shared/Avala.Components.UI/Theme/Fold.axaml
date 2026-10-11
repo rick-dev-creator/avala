@@ -1,7 +1,8 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:ui="using:Avala.Components.UI"
-                    xmlns:theme="using:Avala.Components.UI.Theme">
+                    xmlns:theme="using:Avala.Components.UI.Theme"
+                    xmlns:states="using:Avala.Components.UI.States">
   <ControlTheme x:Key="FoldHeader" TargetType="ToggleButton">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
@@ -60,10 +61,10 @@
                              Margin="12,0,0,0"
                              VerticalAlignment="Center"
                              TextAlignment="Right"
-                             TextTrimming="CharacterEllipsis"
+                             TextWrapping="Wrap"
                              FontSize="{DynamicResource FontSizeCaption}"
                              Foreground="{DynamicResource TextTertiaryBrush}"
-                             Text="{TemplateBinding Fact}"
+                             Text="{TemplateBinding Fact, Converter={x:Static states:Texts.Unbroken}}"
                              IsVisible="{TemplateBinding Fact, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 </ui:FoldHeaderPanel>
                 <Viewbox Name="PART_Trail"
