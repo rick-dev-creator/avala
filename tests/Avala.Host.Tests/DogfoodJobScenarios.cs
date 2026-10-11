@@ -105,7 +105,7 @@ internal static class DogfoodJobScenarios
             var held = await scene.SubmitAsync(scene.Tagged("[replay: s3]", Task), Main, "s3");
             await scene.UntilAsync<JobHeld>(found => found.Hold.Job == held, "the hold for invalid checks");
             await scene.SettledAsync(held, "the held job to settle");
-            await scene.Actions.RowAsync(held, "row:held", "NeedsYou");
+            await scene.Actions.RowAsync(held, "row:held", "NeedsYou", "held: invalid checks");
             await DogfoodRepository.CommitAsync(scene.Place, ".avala/checks.json", DogfoodRepository.Checks, "Fix the checks");
             var fresh = await scene.Actions.ResubmitAsync(held, "s3");
             scene.Evidence.Note("submitted:s3-resubmitted", fresh.ToString());

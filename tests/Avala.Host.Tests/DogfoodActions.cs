@@ -68,12 +68,12 @@ internal sealed class DogfoodActions(DogfoodApp app, DogfoodJournal journal, Dog
         return jobs["Conversation"];
     }
 
-    public async Task<(string Group, string Fact)> RowAsync(JobId job, string key, string expected)
+    public async Task<(string Group, string Fact)> RowAsync(JobId job, string key, string expected, string reading = "")
     {
         ShowJobs();
         var sidebar = Ui.Sidebar;
         string? Group() => Groups.FirstOrDefault(name => sidebar[name].Items.SelectMany(Rows).Any(row => row["Job"].Value<JobId>() == job));
-        await Ui.UntilAsync(sidebar.Value<IPresentation>(), () => Group() == expected, $"the row of {evidence.Name(job)} in the sidebar group {expected}");
+        await Ui.UntilAsync(sidebar.Value<IPresentation>(), () => Group() == expected && Row(sidebar, job)!.Value["Fact"].Text.Contains(reading, StringComparison.Ordinal), $"the row of {evidence.Name(job)} in the sidebar group {expected} reading '{reading}'");
         var group = Group()!;
         var fact = Row(sidebar, job)!.Value["Fact"].Text;
         evidence.Note(key, $"{group}: {fact}");

@@ -52,7 +52,7 @@ internal sealed class DogfoodAutomation(DogfoodApp app, DogfoodActions actions, 
         return text;
     }
 
-    public async Task<string> PullRequestAsync(JobId job, string label, bool checkNow)
+    public async Task<string> PullRequestAsync(JobId job, string label, bool checkNow, string status = "")
     {
         var section = await actions.SectionAsync(job, "PullRequestSectionViewModel", label);
 
@@ -60,6 +60,8 @@ internal sealed class DogfoodAutomation(DogfoodApp app, DogfoodActions actions, 
         {
             await section.ExecuteAsync("CheckNowCommand");
         }
+
+        await app.Ui.UntilAsync(section.Value<IPresentation>(), () => section["Status"].Text.StartsWith(status, StringComparison.Ordinal), $"the Pull request section to read {status}");
 
         var text = DogfoodPolicy.Describe(section.Target);
         evidence.Note($"pull-request:{label}", text);

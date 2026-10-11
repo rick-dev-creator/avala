@@ -184,7 +184,7 @@ internal static class DogfoodAutomationScenarios
             await scene.UntilAsync<PullRequestOpened>(found => found.Job == job, "the fix pushed to the pull request", mark);
             await automation.PullRequestAsync(job, "redelivered", checkNow: true);
             await scene.UntilAsync<PullRequestWatchChanged>(found => found.State.Job == job && found.State.Status == WatchStatus.Ended, "the watch to end");
-            await automation.PullRequestAsync(job, "ended", checkNow: false);
+            await automation.PullRequestAsync(job, "ended", checkNow: false, status: "Watch ended");
             await scene.ReadAsync("forge", Path.Combine(scene.Place.Origin, "avala-forge.json"));
         },
         Checks =
