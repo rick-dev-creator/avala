@@ -1,3 +1,5 @@
+using Avala.Sdk;
+
 namespace Avala.Simulator.Playback;
 
 internal sealed class Pacing(TimeProvider clock, TimeSpan delay)
@@ -14,7 +16,7 @@ internal sealed class Pacing(TimeProvider clock, TimeSpan delay)
         }
 
         var elapsed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await using var timer = clock.CreateTimer(_ => elapsed.TrySetResult(), null, gap, Timeout.InfiniteTimeSpan);
+        await using var timer = clock.CreateTimer(_ => elapsed.TrySetResult(), null, gap > Alarms.LongestTimerWait ? Alarms.LongestTimerWait : gap, Timeout.InfiniteTimeSpan);
         await elapsed.Task.WaitAsync(cancellationToken);
     }
 }

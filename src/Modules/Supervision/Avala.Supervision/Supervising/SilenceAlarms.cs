@@ -1,4 +1,5 @@
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Supervision.Contracts;
 
@@ -17,12 +18,9 @@ internal sealed class SilenceAlarms(TimeProvider clock, IEventBus bus) : IAsyncD
             return;
         }
 
-        var wait = due - clock.GetUtcNow();
-        pending[job] = clock.CreateTimer(
-            state => _ = bus.PublishAsync(new SilenceNoticed(job), CancellationToken.None).AsTask(),
-            null,
-            wait > TimeSpan.Zero ? wait : TimeSpan.Zero,
-            Timeout.InfiniteTimeSpan);
+        pending[job] = clock.CreateAlarm(
+            () => _ = bus.PublishAsync(new SilenceNoticed(job), CancellationToken.None).AsTask(),
+            due);
     }
 
     public async ValueTask RangAsync(JobId job)

@@ -126,8 +126,7 @@ internal sealed class LimitWatch(Situations situations, LimitActions actions, IH
         await DisarmAsync(job);
         var kept = new KeptWait(job, feedback, since);
         await store.KeepAsync(kept, token);
-        var due = resume.At.Map(at => at - clock.GetUtcNow());
-        waits[job] = new Waiting(kept, due.Map(wait => clock.CreateTimer(_ => Post(ringing => RingAsync(job, ringing)), null, wait > TimeSpan.Zero ? wait : TimeSpan.Zero, Timeout.InfiniteTimeSpan)));
+        waits[job] = new Waiting(kept, resume.At.Map(at => clock.CreateAlarm(() => Post(ringing => RingAsync(job, ringing)), at)));
         await actions.WaitsAsync(new ResetWait(job, resume.Connection, resume.Window, resume.At, since), token);
     }
 

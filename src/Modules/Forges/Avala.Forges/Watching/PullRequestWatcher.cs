@@ -231,7 +231,7 @@ internal sealed class PullRequestWatcher(WatchBook book, PullRequestReader reade
     private void Arm(JobId job, TimeSpan due)
     {
         Disarm(job);
-        timers[job] = clock.CreateTimer(_ => Post(token => PollAsync(job, token)), null, due, Timeout.InfiniteTimeSpan);
+        timers[job] = clock.CreateAlarm(() => Post(token => PollAsync(job, token)), due);
     }
 
     private void Disarm(JobId job)

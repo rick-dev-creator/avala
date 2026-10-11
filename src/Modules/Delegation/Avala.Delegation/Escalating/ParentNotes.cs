@@ -89,11 +89,9 @@ internal sealed class ParentNotes(DelegationJournal journal, IJobs jobs, IParent
         await told.Match(
             async asked =>
             {
-                windows[key] = clock.CreateTimer(
-                    state => _ = passing.RunAsync(token => answers.PassAsync(question.Session, question.Item, PassReason.ParentTimedOut, token).AsTask(), CancellationToken.None),
-                    null,
-                    asked.Until - clock.GetUtcNow(),
-                    Timeout.InfiniteTimeSpan);
+                windows[key] = clock.CreateAlarm(
+                    () => _ = passing.RunAsync(token => answers.PassAsync(question.Session, question.Item, PassReason.ParentTimedOut, token).AsTask(), CancellationToken.None),
+                    asked.Until);
                 await journal.AskedAsync(asked, cancellationToken);
             },
             async () => _ = await answers.PassAsync(question.Session, question.Item, PassReason.ParentUnreachable, cancellationToken));

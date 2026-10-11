@@ -62,7 +62,7 @@ internal sealed class SnapshotThrottle(CanvasGallery gallery, IEventBus bus, Tim
     }
 
     private ITimer Schedule(CanvasId canvas, TimeSpan wait) =>
-        clock.CreateTimer(state => _ = serial.RunAsync(token => FlushAsync(canvas), CancellationToken.None), null, wait, Timeout.InfiniteTimeSpan);
+        clock.CreateAlarm(() => _ = serial.RunAsync(token => FlushAsync(canvas), CancellationToken.None), wait);
 
     private async Task FlushAsync(CanvasId canvas)
     {

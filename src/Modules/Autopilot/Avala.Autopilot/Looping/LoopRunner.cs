@@ -445,8 +445,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     private async Task ArmAsync(DateTimeOffset due, Func<CancellationToken, Task> work)
     {
         await DisarmAsync();
-        var wait = due - clock.GetUtcNow();
-        wake = Option<ITimer>.Some(clock.CreateTimer(_ => Post(work), null, wait > TimeSpan.Zero ? wait : TimeSpan.Zero, Timeout.InfiniteTimeSpan));
+        wake = Option<ITimer>.Some(clock.CreateAlarm(() => Post(work), due));
     }
 
     private async Task DisarmAsync()

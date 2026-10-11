@@ -237,6 +237,25 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
             (".avala/jobs.json", """{ "autopilot": { "approve": "cleanEvidence", "followUps": "accept" } }"""),
             (".avala/backlog.json", Backlog(("changelog", "[simulate: follow-up] Start a changelog"))));
 
+    [Fact]
+    public async Task ARecurringTaskDueLaterThanASystemTimerCanWaitRunsAgainWhenDueAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            (".avala/checks.json", PassingChecks),
+            (".avala/jobs.json", """{ "autopilot": { "approve": "cleanEvidence" } }"""),
+            (".avala/backlog.json", $$"""{ "recurring": [ { "id": "report", "instruction": "{{SimulatedRun.Simulate("reply")}}", "everyMinutes": 100000 } ] }"""));
+        var waiting = run.Watch<LoopWaiting>();
+        var taken = run.Watch<LoopTaskTaken>();
+
+        _ = Outcomes.Succeeds(await run.Get<IAutopilot>().StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+        var until = (await waiting.UntilAsync(_ => true)).Until;
+        run.AdvanceTo(until);
+        var second = await taken.UntilAsync(task => task.Iteration == 2);
+
+        Assert.Equal("report", second.Task.Key);
+    }
+
     private static string Backlog(params (string Id, string Instruction)[] tasks) =>
         $$"""{ "tasks": [ {{string.Join(", ", tasks.Select(task => $$"""{ "id": "{{task.Id}}", "instruction": "{{task.Instruction}}" }"""))}} ] }""";
 }

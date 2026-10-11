@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Observability.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Following;
 
 namespace Avala.Workbench.Spending;
@@ -40,7 +41,7 @@ internal sealed class LimitReadings(IUsage usage, Pulse pulse, TimeProvider cloc
             return;
         }
 
-        var bell = clock.CreateTimer(_ => pulse.Beat(), null, reset - now, Timeout.InfiniteTimeSpan);
+        var bell = clock.CreateAlarm(() => pulse.Beat(), reset);
         Interlocked.Exchange(ref alarm, new Alarm(reset, bell))?.Bell.Dispose();
     }
 

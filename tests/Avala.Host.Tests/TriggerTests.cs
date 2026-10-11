@@ -68,12 +68,9 @@ public sealed class TriggerTests(PublishedPlugins plugins)
     {
         await using var run = await MachineAsync(""" "schedule": { "everyMinutes": 100000 } """);
         var due = Outcomes.Present(Assert.Single(await run.Get<ITriggers>().ListAsync(Cancellation)).NextRun);
-        var changed = run.Watch<TriggersChanged>();
         var fired = run.Watch<TriggerFired>();
 
-        run.Clock.Advance(TimeSpan.FromMilliseconds(uint.MaxValue - 1));
-        _ = await changed.UntilAsync(_ => true);
-        run.AdvanceTo(due + TimeSpan.FromMinutes(1));
+        run.AdvanceTo(due);
 
         var trigger = (await fired.UntilAsync(_ => true)).Run;
         Assert.Equal((TriggerOrigin.Schedule, RunOutcome.Submitted), (trigger.Origin, trigger.Outcome));
