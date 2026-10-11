@@ -23,6 +23,17 @@ public sealed class HubLayoutTests
     }
 
     [Theory]
+    [InlineData(3)]
+    [InlineData(5)]
+    public void AnOddNumberOfHubsStandsMirroredAboutTheMiddleOfThePage(int hubs)
+    {
+        var layout = HubLayout.Arrange([.. Enumerable.Range(0, hubs).Select(_ => Hub(64, 0))], new HubSpacing());
+        var offsets = layout.Hubs.Select(hub => Math.Round(hub.Center.X - (layout.Size.Width / 2), 6)).Order().ToList();
+
+        Assert.Equal(offsets, offsets.Select(offset => -offset).Order());
+    }
+
+    [Theory]
     [InlineData(1, 12)]
     [InlineData(4, 6)]
     [InlineData(12, 8)]

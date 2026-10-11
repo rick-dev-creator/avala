@@ -102,8 +102,9 @@ public static class HubLayout
         }
 
         var ring = spacing.Ring * Math.Max(1, hubs.Count / 4.0);
+        var start = hubs.Count % 2 == 1 ? 270 : 180;
         var slots = Enumerable.Range(0, hubs.Count)
-            .Select(slot => 180 + (360.0 * slot / hubs.Count))
+            .Select(slot => start + (360.0 * slot / hubs.Count))
             .OrderByDescending(angle => Math.Round(Math.Abs(Math.Cos(Radians(angle))), 6))
             .ToArray();
         var order = Enumerable.Range(0, hubs.Count)
