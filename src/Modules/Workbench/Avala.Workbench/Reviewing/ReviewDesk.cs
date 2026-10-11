@@ -2,6 +2,7 @@ using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Steering;
+using Avala.Workbench.Submitting;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Reviewing;
@@ -43,6 +44,18 @@ internal sealed class ReviewDesk(IJobs jobs, ConflictFinder conflicts, QueuedMes
 
     public async Task<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
         await jobs.DiscardAsync(job, cancellationToken);
+
+    public async Task<Result<JobId, JobRejection>> ResubmitAsync(JobSummary held, Option<ConnectionChoice> choice, CancellationToken cancellationToken)
+    {
+        var submitted = await jobs.SubmitAsync(Resubmission.Of(held, choice), cancellationToken);
+
+        if (submitted.IsSuccess)
+        {
+            _ = await jobs.DiscardAsync(held.Job, cancellationToken);
+        }
+
+        return submitted;
+    }
 }
 
 internal sealed class ConflictFinder(IJobCatalog catalog, IWorkspaceChanges changes)

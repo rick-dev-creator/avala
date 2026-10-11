@@ -382,7 +382,102 @@ public sealed class ReviewViewModelScripts : IDisposable
             .When(review => review.Track(JobStatus.NeedsHelp))
             .Then(review => Assert.Equal((false, true, "Needs help"), (review.ApproveCommand.CanExecute(null), review.RequestDiscardCommand.CanExecute(null), review.Heading)));
 
+    [Fact]
+    public void AJobHeldForInvalidChecksIsToldToCommitTheFixedFileAndResubmit() =>
+        ViewModelScript.Given(Review())
+            .When(review => review.Track(Held(HoldReason.InvalidChecks)))
+            .ThenNotified(nameof(ReviewViewModel.Advice))
+            .Then(review => Assert.Equal(
+                ("Fix .avala/checks.json and commit it, then resubmit the job. Continuing it would check it against the old file again: a job keeps the rules commit it was prepared with.", true),
+                (review.Advice, review.ResubmitCommand.CanExecute(null))));
+
+    [Fact]
+    public void OnlyATopLevelJobHeldForInvalidChecksIsOfferedAResubmission()
+    {
+        var offered = new[]
+        {
+            Held(HoldReason.Stalled),
+            Held(HoldReason.InvalidChecks) with { Summary = job with { Status = JobStatus.NeedsHelp, Parent = JobId.New() } },
+            Held(HoldReason.InvalidChecks) with { Summary = job with { Status = JobStatus.AwaitingReview } },
+        }.Select(shown =>
+        {
+            var review = Review();
+            review.Track(shown);
+
+            return (review.Advice, review.ResubmitCommand.CanExecute(null));
+        });
+
+        Assert.All(offered, shown => Assert.Equal((string.Empty, false), shown));
+    }
+
+    [Fact]
+    public async Task ResubmittingSubmitsTheSameJobAgainThenDiscardsTheHeldOne()
+    {
+        var held = Held(HoldReason.InvalidChecks) with
+        {
+            Summary = job with
+            {
+                Status = JobStatus.NeedsHelp,
+                Connection = new Agents.Contracts.Connections.ConnectionName("claude-work"),
+                Autonomy = Autonomy.Supervised,
+                Model = new Agents.Contracts.Sessions.ModelChoice("opus", "high"),
+            },
+        };
+        var review = Review();
+        review.Track(held);
+        var announced = new List<JobId>();
+        review.Resubmitted += (_, resubmitted) => announced.Add(resubmitted);
+
+        await review.ResubmitCommand.ExecuteAsync(null);
+
+        Assert.Equal(
+            new JobRequest("/repo", "Rate-limit POST /login")
+            {
+                Connection = new Agents.Contracts.Connections.ConnectionName("claude-work"),
+                Autonomy = Autonomy.Supervised,
+                Model = new Agents.Contracts.Sessions.ModelChoice("opus", "high"),
+            },
+            Assert.Single(bench.Jobs.Requests));
+        Assert.Equal(["submit Rate-limit POST /login", "discard"], bench.Jobs.Calls);
+        Assert.Equal(("Resubmitted", "Resubmitted as a new job", true), (review.Heading, review.Outcome, review.IsClosed));
+        Assert.Single(announced);
+    }
+
+    [Fact]
+    public async Task AConnectionAvalaChoseIsLeftForAvalaToRouteAgainOnResubmission()
+    {
+        var chosen = new Agents.Contracts.Connections.ConnectionName("claude-spare");
+        var review = Review();
+        review.Track(Held(HoldReason.InvalidChecks) with
+        {
+            Summary = job with { Status = JobStatus.NeedsHelp, Connection = chosen },
+            Choice = new ConnectionChoice(chosen, ChoiceReason.MostCapacity, [], DateTimeOffset.UnixEpoch),
+        });
+
+        await review.ResubmitCommand.ExecuteAsync(null);
+
+        Assert.Equal(Option<Agents.Contracts.Connections.ConnectionName>.None, Assert.Single(bench.Jobs.Requests).Connection);
+    }
+
+    [Fact]
+    public async Task ARefusedResubmissionSaysWhyInPlaceAndKeepsTheHeldJob()
+    {
+        bench.Jobs.Refusal = JobRejection.UnusableConnection;
+        var review = Review();
+        review.Track(Held(HoldReason.InvalidChecks));
+
+        await review.ResubmitCommand.ExecuteAsync(null);
+
+        Assert.Equal(["submit Rate-limit POST /login"], bench.Jobs.Calls);
+        Assert.Equal(
+            ("The job was not resubmitted. That connection cannot be used: its credential or the repository's jobs.json is not usable.", false, true),
+            (review.Refusal, review.IsClosed, review.ResubmitCommand.CanExecute(null)));
+    }
+
     public void Dispose() => bench.Dispose();
+
+    private Workbench.Board.BoardJob Held(HoldReason reason) =>
+        Bench.OnBoard(job with { Status = JobStatus.NeedsHelp }) with { Hold = reason };
 
     private static CheckEvidence Passing(string name) => new(name, name, CheckStatus.Passed, 0, TimeSpan.FromSeconds(1), string.Empty, string.Empty);
 

@@ -28,7 +28,12 @@ internal sealed record ExceptionPhrase(string Title, string Fact, string Detail,
 
 internal static class ReviewPhrases
 {
+    public const string ResubmitAdvice =
+        "Fix .avala/checks.json and commit it, then resubmit the job. Continuing it would check it against the old file again: a job keeps the rules commit it was prepared with.";
+
     private const int TailLines = 12;
+
+    public static string NotResubmitted(JobRejection rejection) => $"The job was not resubmitted. {NewJob.NewJobPhrases.Rejection(rejection)}";
 
     public static string Verdict(ReviewVerdict verdict) => verdict.Kind switch
     {

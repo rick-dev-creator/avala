@@ -49,8 +49,14 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries
 
     public bool Steerable { get; set; } = true;
 
-    public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
-        throw new NotSupportedException();
+    public List<JobRequest> Requests { get; } = [];
+
+    public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken)
+    {
+        Requests.Add(request);
+
+        return AnswerAsync($"submit {request.Instruction}", JobId.New());
+    }
 
     public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
         AnswerAsync($"hold {reason}", new JobHold(job, SessionId.New(), reason, SessionHalt.Interrupted));

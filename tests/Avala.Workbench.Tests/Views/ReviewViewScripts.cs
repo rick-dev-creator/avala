@@ -84,6 +84,24 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task AJobHeldForInvalidChecksShowsWhatToDoAndOffersResubmitBesideDiscardAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var held = bench.Job("Rate-limit POST /login", JobStatus.NeedsHelp);
+            var review = new ReviewViewModel(held.Job, bench.Reader, bench.Desk, bench.Ui);
+            review.Track(Bench.OnBoard(held) with { Hold = HoldReason.InvalidChecks });
+            await review.Request(0)(Cancellation);
+            var view = Tall(Screen.Show(review));
+            var awaiting = Tall(Screen.Show(new DesignReviewViewModel()));
+
+            Assert.Equal((true, true, true), (view.Shows("Advice"), view.Shows("Resubmit"), view.Shows("RequestDiscard")));
+            Assert.StartsWith("Fix .avala/checks.json and commit it", view.TextOf("Advice"), StringComparison.Ordinal);
+            Assert.True(view.Find<Button>("Resubmit").IsEnabled);
+            Assert.Equal((false, false), (awaiting.Shows("Advice"), awaiting.Shows("Resubmit")));
+        }, Cancellation);
+
+    [Fact]
     public Task WhileTheEvidenceLoadsTheSheetSaysSoAsync() =>
         ui.RunAsync(() =>
         {

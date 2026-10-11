@@ -153,15 +153,19 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
         if (oldValue is not null)
         {
             oldValue.Closed -= OnReviewClosed;
+            oldValue.Resubmitted -= OnResubmitted;
         }
 
         if (newValue is not null)
         {
             newValue.Closed += OnReviewClosed;
+            newValue.Resubmitted += OnResubmitted;
         }
     }
 
     private void OnReviewClosed(object? sender, EventArgs e) => Review = null;
+
+    private void OnResubmitted(object? sender, JobId job) => focus.Select(job);
 
     private bool CanOpenReview() => Conversation is { } open && open.Status.CanBeReviewed;
 

@@ -1,6 +1,7 @@
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Testing;
+using Avala.Verification.Contracts;
 
 namespace Avala.Host.Tests;
 
@@ -164,6 +165,29 @@ public sealed class WorkbenchReviewTests(PublishedPlugins plugins)
         });
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         await workbench.ShowsInGroupAsync(run.Job, "ReadyForReview");
+    }
+
+    [Fact]
+    public async Task AJobHeldForInvalidChecksIsResubmittedAfterTheFixIsCommittedAndTheNewJobPassesTheFixedChecksAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply", (".avala/checks.json", """{ "checks": [{ "arguments": ["build"] }] }"""));
+        Assert.Equal(JobStatus.NeedsHelp, (await run.JourneyAsync())[^1]);
+        await run.Repository.CommitAsync(".avala/checks.json", """{ "checks": [ { "name": "git", "command": "git", "arguments": ["--version"], "timeoutSeconds": 60 } ] }""", Cancellation);
+        var workbench = await run.WorkbenchAsync();
+        Assert.Equal(("NeedsYou", "held: invalid checks"), await workbench.RowAsync(run.Job, "NeedsYou"));
+        var (_, review) = await ReviewAsync(run);
+        Assert.StartsWith("Fix .avala/checks.json and commit it", await run.Ui.ReadAsync(() => review["Advice"].Text), StringComparison.Ordinal);
+
+        await run.Ui.RunAsync(() => review.ExecuteAsync("ResubmitCommand"));
+
+        var resubmitted = await run.Ui.ReadAsync(() => workbench.Page["Conversation"]["Job"].Value<JobId>());
+        Assert.NotEqual(run.Job, resubmitted);
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(resubmitted));
+        var jobs = await run.Get<IJobCatalog>().ListAsync(Cancellation);
+        var (held, fresh) = (Assert.Single(jobs, job => job.Job == run.Job), Assert.Single(jobs, job => job.Job == resubmitted));
+        Assert.Equal((JobStatus.Discarded, SimulatedRun.Simulate("reply")), (held.Status, fresh.Instruction));
+        var report = Assert.Single(run.Get<IVerifications>().OfJob(resubmitted));
+        Assert.Equal((VerificationOutcome.Passed, "git"), (report.Outcome, Assert.Single(report.Checks).Name));
     }
 
     private Task<SimulatedRun> VerifiedAsync(params (string Path, string Content)[] committed) =>

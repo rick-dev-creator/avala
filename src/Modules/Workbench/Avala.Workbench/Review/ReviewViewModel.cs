@@ -9,6 +9,7 @@ using Avala.Workbench.Presenting;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Sidebar;
 using Avala.Workbench.Steering;
+using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -80,6 +81,12 @@ internal interface IReviewViewModel
 
     IAsyncRelayCommand ConfirmDiscardCommand { get; }
 
+    string Advice { get; }
+
+    bool OffersResubmit { get; }
+
+    IAsyncRelayCommand ResubmitCommand { get; }
+
     IRelayCommand CloseCommand { get; }
 }
 
@@ -107,6 +114,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     private readonly ObservableCollection<ReviewExceptionViewModel> exceptions = [];
     private readonly ObservableCollection<ChangedFileViewModel> files = [];
     private string closedAs = string.Empty;
+    private Option<BoardJob> held;
 
     public ReviewViewModel(JobId job, ReviewReader reader, ReviewDesk desk, IUiDispatcher ui)
     {
@@ -138,6 +146,15 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
 
     public event EventHandler? Closed;
 
+    public event EventHandler<JobId>? Resubmitted;
+
+    [ObservableProperty]
+    public partial string Advice { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ResubmitCommand))]
+    public partial bool OffersResubmit { get; private set; }
+
     public IReadOnlyList<IReviewExceptionViewModel> Exceptions => exceptions;
 
     public IReadOnlyList<IChangedFileViewModel> Files => files;
@@ -148,7 +165,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Heading))]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(ResubmitCommand))]
     public partial JobStatus Status { get; private set; }
 
     [ObservableProperty]
@@ -197,7 +214,7 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Heading), nameof(IsClosed))]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(ResubmitCommand))]
     public partial string Outcome { get; private set; }
 
     [ObservableProperty]
@@ -211,11 +228,11 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     public partial IReadOnlyList<string> Conflicts { get; private set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(ResubmitCommand), nameof(CancelDiscardCommand))]
     public partial bool ConfirmingDiscard { get; private set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(CancelDiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(OpenPullRequestCommand), nameof(SendBackCommand), nameof(SendBackQueuedCommand), nameof(RequestDiscardCommand), nameof(ConfirmDiscardCommand), nameof(ResubmitCommand), nameof(CancelDiscardCommand))]
     public partial bool IsActing { get; private set; }
 
     public void Track(JobStatus status)
@@ -233,6 +250,9 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
         Track(job.Status);
         Plan = ReviewPhrases.Plan(job.Transcript.Plan);
         PlanLeft = job.Transcript.Plan.Match(plan => PlanStepViewModel.Of(plan.Steps.Where(step => step.Status != PlanStepStatus.Done)), () => []);
+        held = job;
+        OffersResubmit = Resubmission.IsOffered(job.Summary, job.Hold);
+        Advice = OffersResubmit ? ReviewPhrases.ResubmitAdvice : string.Empty;
     }
 
     public Func<CancellationToken, Task> Request(int revision)
@@ -343,6 +363,21 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
             Settle("Discarded", discarded.Map(_ => "Discarded"), ReviewPhrases.Refusal);
         });
 
+    [RelayCommand(CanExecute = nameof(CanResubmit))]
+    private Task ResubmitAsync(CancellationToken cancellationToken) =>
+        ActAsync(() => held.Match(
+            async job =>
+            {
+                var resubmitted = await desk.ResubmitAsync(job.Summary, job.Choice, cancellationToken);
+                Settle("Resubmitted", resubmitted.Map(_ => "Resubmitted as a new job"), ReviewPhrases.NotResubmitted);
+
+                if (resubmitted.TryGetValue(out var created, out _))
+                {
+                    Resubmitted?.Invoke(this, created);
+                }
+            },
+            () => Task.CompletedTask));
+
     [RelayCommand]
     private void Close() => Closed?.Invoke(this, EventArgs.Empty);
 
@@ -388,6 +423,8 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     private bool CanCancelDiscard() => !IsActing && ConfirmingDiscard;
 
     private bool CanConfirmDiscard() => IsOpen() && Status.CanBeDiscarded && ConfirmingDiscard;
+
+    private bool CanResubmit() => IsOpen() && !ConfirmingDiscard && OffersResubmit && Status == JobStatus.NeedsHelp;
 }
 
 [INotifyPropertyChanged]

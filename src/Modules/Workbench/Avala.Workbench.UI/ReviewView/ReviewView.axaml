@@ -140,6 +140,12 @@
               </Grid>
             </Border>
 
+            <TextBlock x:Name="Advice"
+                       Classes="prose"
+                       Margin="28,14,28,0"
+                       Text="{Binding Advice}"
+                       IsVisible="{Binding Advice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
             <StackPanel x:Name="WorthALook" Margin="28,22,28,0" Spacing="2">
               <TextBlock x:Name="ExceptionCount"
                          Classes="section"
@@ -277,6 +283,7 @@
               </MultiBinding>
             </StackPanel.IsVisible>
             <Button x:Name="RequestDiscard" Classes="destructive" Content="Discard" Command="{Binding RequestDiscardCommand}" />
+            <Button x:Name="Resubmit" Content="Resubmit" Command="{Binding ResubmitCommand}" IsVisible="{Binding OffersResubmit}" />
             <ToggleButton x:Name="WriteFeedback"
                           Content="Send back…"
                           IsVisible="{Binding !#WriteFeedback.IsChecked}" />

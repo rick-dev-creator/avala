@@ -166,5 +166,11 @@ internal sealed partial class DesignReviewViewModel : IReviewViewModel
 
     public IAsyncRelayCommand ConfirmDiscardCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
+    public string Advice { get; init; } = string.Empty;
+
+    public bool OffersResubmit => Advice.Length > 0;
+
+    public IAsyncRelayCommand ResubmitCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
     public IRelayCommand CloseCommand { get; } = new RelayCommand(() => { });
 }
