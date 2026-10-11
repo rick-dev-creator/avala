@@ -34,7 +34,7 @@ public sealed class ContestSectionViewModelScripts : IDisposable
         Assert.Equal(
             [
                 "1. Candidate 1 · 0 exceptions · 1 attempt · 2 lines changed · 0.009 USD · the only verified run · this job",
-                "2. Candidate 2 · not verified · 1 exception · 3 attempts · 1 line changed · not verified",
+                "2. Candidate 2 · 1 exception · 3 attempts · 1 line changed · not verified",
             ],
             section.Ranking);
     }

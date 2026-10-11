@@ -142,6 +142,6 @@ internal sealed class DesignContestSectionViewModel : IContestSectionViewModel
     [
         "1. Candidate 3 · 0 exceptions · 1 attempt · 1 line changed · 0.009 USD · ahead of the next on a smaller diff · this job",
         "2. Candidate 2 · 0 exceptions · 1 attempt · 31 lines changed · 0.012 USD · the only verified run",
-        "3. Candidate 1 · not verified · 0 exceptions · 1 attempt · 1 line changed · 0.015 USD · not verified",
+        "3. Candidate 1 · 0 exceptions · 1 attempt · 1 line changed · 0.015 USD · not verified",
     ];
 }

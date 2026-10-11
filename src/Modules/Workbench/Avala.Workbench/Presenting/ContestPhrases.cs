@@ -104,7 +104,6 @@ internal static class ContestPhrases
     public static string Standing(Standing standing) =>
         Joined([
             string.Create(CultureInfo.InvariantCulture, $"{standing.Place}. Candidate {standing.Facts.Ordinal}"),
-            .. standing.Excluded.Match<string[]>(criterion => [Excluded(criterion)], () => []),
             Count(standing.Facts.Exceptions, "exception", "exceptions"),
             Count(standing.Facts.Attempts, "attempt", "attempts"),
             Count(standing.Facts.LinesChanged, "line changed", "lines changed"),
