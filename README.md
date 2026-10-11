@@ -41,6 +41,7 @@ Preparing the first beta: proven end to end on the simulator, with Claude Code a
 - permissions, questions and plan approvals answered in place or by the rules of your repository, at the autonomy you allow;
 - supervision of stalled sessions, budgets per job and per connection, and reclaimed processes, ports and worktrees;
 - several connections and accounts per harness, delegation to sub-agents and an autopilot for a backlog;
+- notifications on your phone, through ntfy or a webhook, when a job needs you while you are away;
 - usage and limits per connection, canvases drawn as Markdown, SVG and Mermaid, a light and a dark theme, and jobs that survive a restart.
 
 Screenshots are taken from the real application, driven headless by the simulator.
