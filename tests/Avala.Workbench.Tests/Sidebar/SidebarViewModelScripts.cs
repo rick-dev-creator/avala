@@ -1,7 +1,9 @@
 using System.Collections.Immutable;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Components.Status;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -69,6 +71,33 @@ public sealed class SidebarViewModelScripts : IDisposable
 
         var row = Assert.Single(sidebar.NeedsYou);
         Assert.Equal(("held: stalled", StatusKind.Held), (row.Fact, row.Dot.Kind));
+    }
+
+    [Fact]
+    public void AJobWaitingForItsUsageWindowToResetIsListedAsWaitingRatherThanNeedingYou()
+    {
+        var sidebar = bench.Sidebar();
+        var job = Job("Fix the calculator", JobStatus.NeedsHelp);
+        var since = DateTimeOffset.UnixEpoch;
+
+        sidebar.Show(Board(job with { Hold = HoldReason.LimitNearlyReached, Wait = new ResetWait(job.Job, new ConnectionName("simulator-one"), "5h", since.AddHours(1), since) }));
+
+        var row = Assert.Single(sidebar.Waiting);
+        Assert.Empty(sidebar.NeedsYou);
+        Assert.Equal(($"resumes at {since.AddHours(1).ToLocalTime():HH:mm}", StatusKind.Held), (row.Fact, row.Dot.Kind));
+    }
+
+    [Fact]
+    public void ASubAgentWaitingForItsParentsAnswerSaysSoWithAStillDot()
+    {
+        var orchestrator = Job("Migrate the orders database", JobStatus.Running);
+        var child = ChildOf(orchestrator, "Migrate the database", JobStatus.Running) with { Transcript = AskingToRun(DecisionDelivery.LeftToParent) };
+        var sidebar = bench.Sidebar();
+
+        sidebar.Show(Board(orchestrator, child));
+
+        var row = Assert.Single(Assert.Single(sidebar.Running).Children);
+        Assert.Equal(("waiting for its parent", StatusKind.Held, 0), (row.Fact, row.Dot.Kind, row.PendingDecisions));
     }
 
     [Theory]
@@ -215,7 +244,7 @@ public sealed class SidebarViewModelScripts : IDisposable
     public void Dispose() => bench.Dispose();
 
     private static IEnumerable<IJobRowViewModel> Rows(SidebarViewModel sidebar) =>
-        sidebar.NeedsYou.Concat(sidebar.Running).Concat(sidebar.ReadyForReview).Concat(sidebar.Done);
+        sidebar.NeedsYou.Concat(sidebar.Running).Concat(sidebar.Waiting).Concat(sidebar.ReadyForReview).Concat(sidebar.Done);
 
     private BoardJob ChildOf(BoardJob parent, string instruction, JobStatus status)
     {
@@ -230,7 +259,7 @@ public sealed class SidebarViewModelScripts : IDisposable
     private static ImmutableDictionary<JobId, BoardJob> Board(params BoardJob[] jobs) =>
         jobs.ToImmutableDictionary(job => job.Job);
 
-    private static Transcript AskingToRun()
+    private static Transcript AskingToRun(DecisionDelivery delivery = DecisionDelivery.LeftToHuman)
     {
         var session = SessionId.New();
         var turn = TurnId.New();
@@ -239,6 +268,6 @@ public sealed class SidebarViewModelScripts : IDisposable
         return Transcript.Empty
             .Apply(new TurnStarted(session, turn), now)
             .Apply(new PermissionRequested(session, turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update"), now)
-            .Apply(new PolicyDecision(session, turn, new ItemId("migrate"), Option<JobId>.None, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, now));
+            .Apply(new PolicyDecision(session, turn, new ItemId("migrate"), Option<JobId>.None, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, delivery, now));
     }
 }

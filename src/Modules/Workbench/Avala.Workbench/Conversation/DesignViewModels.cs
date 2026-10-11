@@ -2,7 +2,9 @@ using Avala.Agents.Contracts.Events;
 using Avala.Canvas.Contracts;
 using Avala.Components.Canvases;
 using Avala.Components.Status;
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Presenting;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -39,7 +41,7 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
     public string Error => string.Empty;
 
-    public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn);
+    public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn, Option<PullRequestWatchState>.None);
 
     public string SendHint => ConversationPhrases.SendHint(Status, TakesMessagesMidTurn);
 
@@ -50,6 +52,8 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
     public IRelayCommand WithdrawCommand { get; }
 
     public bool AcceptsMessages => Status is not (JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed);
+
+    public bool CanHalt => Status == JobStatus.Running;
 
     public IAsyncRelayCommand SendCommand { get; }
 

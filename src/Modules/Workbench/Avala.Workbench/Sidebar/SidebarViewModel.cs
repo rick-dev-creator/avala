@@ -17,6 +17,8 @@ internal interface ISidebarViewModel
 
     IReadOnlyList<IJobRowViewModel> Running { get; }
 
+    IReadOnlyList<IJobRowViewModel> Waiting { get; }
+
     IReadOnlyList<IJobRowViewModel> ReadyForReview { get; }
 
     IReadOnlyList<IJobRowViewModel> Done { get; }
@@ -36,6 +38,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     private readonly Dictionary<JobId, JobRowViewModel> rows = [];
     private readonly ObservableCollection<JobRowViewModel> needsYou = [];
     private readonly ObservableCollection<JobRowViewModel> running = [];
+    private readonly ObservableCollection<JobRowViewModel> waiting = [];
     private readonly ObservableCollection<JobRowViewModel> readyForReview = [];
     private readonly ObservableCollection<JobRowViewModel> done = [];
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
@@ -49,6 +52,8 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     public IReadOnlyList<IJobRowViewModel> NeedsYou => needsYou;
 
     public IReadOnlyList<IJobRowViewModel> Running => running;
+
+    public IReadOnlyList<IJobRowViewModel> Waiting => waiting;
 
     public IReadOnlyList<IJobRowViewModel> ReadyForReview => readyForReview;
 
@@ -155,6 +160,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     private ObservableCollection<JobRowViewModel> GroupOf(JobGroup group) => group switch
     {
         JobGroup.NeedsYou => needsYou,
+        JobGroup.Waiting => waiting,
         JobGroup.ReadyForReview => readyForReview,
         JobGroup.Done => done,
         _ => running,

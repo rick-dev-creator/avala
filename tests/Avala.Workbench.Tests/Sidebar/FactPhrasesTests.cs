@@ -1,4 +1,6 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
@@ -16,6 +18,7 @@ public sealed class FactPhrasesTests
     [InlineData("AsksPlanApproval", "asks to approve a plan")]
     [InlineData("AsksForInput", "asks for input")]
     [InlineData("NeedsHelp", "needs help: retries ran out")]
+    [InlineData("WaitsForParent", "waiting for its parent")]
     [InlineData("NoChecks", "no checks declared")]
     [InlineData("ReadyForReview", "ready for review")]
     [InlineData("Discarded", "discarded")]
@@ -58,6 +61,16 @@ public sealed class FactPhrasesTests
             {
                 Hold = reason.Length == 0 ? Option<HoldReason>.None : Enum.Parse<HoldReason>(reason),
             }));
+
+    [Fact]
+    public void AJobWaitingForAResetSaysWhenItResumes()
+    {
+        var since = new DateTimeOffset(2026, 10, 10, 13, 0, 0, TimeSpan.Zero);
+        var resumes = since.AddHours(2).AddMinutes(51);
+        var wait = new ResetWait(JobId.New(), new ConnectionName("claude-work"), "5h", resumes, since);
+
+        Assert.Equal($"resumes at {resumes.ToLocalTime():HH:mm}", FactPhrases.Of(new JobFact(FactKind.ResumesAtReset) { Wait = wait }));
+    }
 
     [Theory]
     [InlineData(1, "verified")]

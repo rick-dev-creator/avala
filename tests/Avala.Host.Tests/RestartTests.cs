@@ -392,7 +392,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
             () => overview["Connections"].Items.Count == 1,
             () => $"cards {overview["Connections"].Items.Count}");
         var workbench = await run.WorkbenchAsync();
-        await workbench.ShowsInGroupAsync(run.Job, "NeedsYou");
+        await workbench.ShowsInGroupAsync(run.Job, "Waiting");
         var inspector = Assert.Single(await workbench.InspectAsync(run.Job, "UsageSectionViewModel"));
 
         return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>

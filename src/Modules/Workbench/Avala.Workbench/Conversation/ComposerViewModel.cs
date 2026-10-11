@@ -1,3 +1,4 @@
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
@@ -18,6 +19,8 @@ internal interface IComposerViewModel
     string Placeholder { get; }
 
     bool AcceptsMessages { get; }
+
+    bool CanHalt { get; }
 
     string SendHint { get; }
 
@@ -54,13 +57,17 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     public partial string Draft { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AcceptsMessages), nameof(Placeholder), nameof(SendHint), nameof(QueuedCaption))]
+    [NotifyPropertyChangedFor(nameof(AcceptsMessages), nameof(CanHalt), nameof(Placeholder), nameof(SendHint), nameof(QueuedCaption))]
     [NotifyCanExecuteChangedFor(nameof(SendCommand), nameof(InterruptCommand), nameof(StopCommand))]
     public partial JobStatus Status { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Placeholder), nameof(SendHint))]
     public partial bool TakesMessagesMidTurn { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Placeholder))]
+    public partial Option<PullRequestWatchState> Watch { get; private set; }
 
     [ObservableProperty]
     public partial string Error { get; private set; }
@@ -71,7 +78,9 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 
     public bool AcceptsMessages => Status.AcceptsMessages || Status.IsWorking;
 
-    public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn);
+    public bool CanHalt => Status.CanBeInterrupted;
+
+    public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn, Watch);
 
     public string SendHint => ConversationPhrases.SendHint(Status, TakesMessagesMidTurn);
 
@@ -81,6 +90,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     {
         Status = shown.Status;
         TakesMessagesMidTurn = shown.TakesMessagesMidTurn;
+        Watch = shown.PullRequest;
         ShowQueued();
     }
 

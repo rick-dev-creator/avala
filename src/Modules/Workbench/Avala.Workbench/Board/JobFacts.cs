@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
@@ -10,6 +11,7 @@ internal enum JobGroup
 {
     NeedsYou,
     Running,
+    Waiting,
     ReadyForReview,
     Done,
 }
@@ -18,6 +20,7 @@ internal enum FactKind
 {
     Starting,
     Working,
+    WaitsForParent,
     PlanProgress,
     Verifying,
     AsksPermission,
@@ -25,6 +28,7 @@ internal enum FactKind
     AsksPlanApproval,
     AsksForInput,
     Held,
+    ResumesAtReset,
     NeedsHelp,
     Verified,
     NoChecks,
@@ -39,6 +43,8 @@ internal sealed record JobFact(FactKind Kind)
     public Option<ItemKind> Item { get; init; }
 
     public Option<HoldReason> Hold { get; init; }
+
+    public Option<ResetWait> Wait { get; init; }
 
     public int Attempt { get; init; }
 
@@ -56,7 +62,7 @@ internal static class JobFacts
             ? JobGroup.NeedsYou
             : job.Status switch
             {
-                JobStatus.NeedsHelp => JobGroup.NeedsYou,
+                JobStatus.NeedsHelp => ResumesOnItsOwn(job) ? JobGroup.Waiting : JobGroup.NeedsYou,
                 JobStatus.AwaitingReview => JobGroup.ReadyForReview,
                 JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed => JobGroup.Done,
                 _ => JobGroup.Running,
@@ -67,8 +73,11 @@ internal static class JobFacts
         {
             PermissionEntry permission => new JobFact(FactKind.AsksPermission) { Item = permission.Kind },
             FormEntry form => Asked(form),
+            _ when job.Transcript.Pending.Any() => new JobFact(FactKind.WaitsForParent),
             _ => Settled(job),
         };
+
+    private static bool ResumesOnItsOwn(BoardJob job) => job.Wait.Match(wait => wait.ResumesAt.IsSome, () => false);
 
     private static JobFact Asked(FormEntry form) => form.Form.Purpose switch
     {
@@ -84,6 +93,7 @@ internal static class JobFacts
             plan => plan.Total == 0 ? new JobFact(FactKind.Working) : new JobFact(FactKind.PlanProgress) { Done = plan.Done, Total = plan.Total },
             () => new JobFact(FactKind.Working)),
         JobStatus.Checking => new JobFact(FactKind.Verifying) { Attempt = job.Attempts },
+        JobStatus.NeedsHelp when ResumesOnItsOwn(job) => new JobFact(FactKind.ResumesAtReset) { Wait = job.Wait },
         JobStatus.NeedsHelp => job.Hold.Match(
             hold => new JobFact(FactKind.Held) { Hold = hold },
             () => new JobFact(FactKind.NeedsHelp)),

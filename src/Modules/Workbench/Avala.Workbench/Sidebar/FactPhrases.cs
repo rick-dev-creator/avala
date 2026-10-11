@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
+using Avala.Workbench.Presenting;
 
 namespace Avala.Workbench.Sidebar;
 
@@ -20,6 +21,7 @@ internal static class FactPhrases
     public static string Of(JobFact fact) => fact.Kind switch
     {
         FactKind.Working => "working",
+        FactKind.WaitsForParent => "waiting for its parent",
         FactKind.PlanProgress => string.Create(CultureInfo.InvariantCulture, $"{fact.Done} of {fact.Total}"),
         FactKind.Verifying => "verifying",
         FactKind.AsksPermission => fact.Item.Match(Permission, () => "asks permission"),
@@ -27,6 +29,7 @@ internal static class FactPhrases
         FactKind.AsksPlanApproval => "asks to approve a plan",
         FactKind.AsksForInput => "asks for input",
         FactKind.Held => fact.Hold.Match(Held, () => "held"),
+        FactKind.ResumesAtReset => fact.Wait.Match(HandoffPhrases.Resumes, () => "held"),
         FactKind.NeedsHelp => "needs help: retries ran out",
         FactKind.Verified => fact.Attempt > 1
             ? string.Create(CultureInfo.InvariantCulture, $"verified on attempt {fact.Attempt}")
@@ -42,8 +45,10 @@ internal static class FactPhrases
     public static StatusKind Dot(BoardJob job) => job.Group switch
     {
         JobGroup.NeedsYou => job.PendingDecisions == 0 && job.Hold.IsSome ? StatusKind.Held : StatusKind.NeedsYou,
+        JobGroup.Waiting => StatusKind.Held,
         JobGroup.ReadyForReview => StatusKind.ReadyForReview,
         JobGroup.Done => job.Status == JobStatus.Failed ? StatusKind.Failed : StatusKind.Done,
+        _ when job.Fact.Kind == FactKind.WaitsForParent => StatusKind.Held,
         _ => job.Status == JobStatus.Checking ? StatusKind.Checking : StatusKind.Working,
     };
 

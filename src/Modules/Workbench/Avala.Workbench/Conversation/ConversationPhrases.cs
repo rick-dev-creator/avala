@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Delegation.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
@@ -59,7 +60,24 @@ internal static class ConversationPhrases
         _ => string.Create(CultureInfo.InvariantCulture, $"Failed after {Duration(duration)}"),
     };
 
-    public static string Placeholder(JobStatus status, bool takesMessagesMidTurn) => status switch
+    public static string Placeholder(JobStatus status, bool takesMessagesMidTurn, Option<PullRequestWatchState> watch) =>
+        status == JobStatus.Approved
+            ? watch.Bind(Watched).Match(phrase => phrase, () => Placeholder(status, takesMessagesMidTurn))
+            : Placeholder(status, takesMessagesMidTurn);
+
+    private static Option<string> Watched(PullRequestWatchState state) => state.Status switch
+    {
+        WatchStatus.Ended => Option<string>.None,
+        WatchStatus.NeedsPerson => string.Create(CultureInfo.InvariantCulture, $"Approved · Avala stopped waking the agent: pull request #{state.PullRequest.Number} needs you"),
+        _ => state.Policy switch
+        {
+            OnPullRequest.WakeOnCi => string.Create(CultureInfo.InvariantCulture, $"Approved · Avala watches pull request #{state.PullRequest.Number} and wakes the agent if CI fails or it conflicts"),
+            OnPullRequest.WakeOnCiAndReviews => string.Create(CultureInfo.InvariantCulture, $"Approved · Avala watches pull request #{state.PullRequest.Number} and wakes the agent if CI fails, it conflicts or a review asks for changes"),
+            _ => string.Create(CultureInfo.InvariantCulture, $"Approved · Avala watches pull request #{state.PullRequest.Number} until it is merged or closed"),
+        },
+    };
+
+    private static string Placeholder(JobStatus status, bool takesMessagesMidTurn) => status switch
     {
         JobStatus.Running when takesMessagesMidTurn => "Message the agent while it works…",
         JobStatus.Running => "This agent takes no message mid-turn · queue one for when it stops…",
@@ -84,7 +102,7 @@ internal static class ConversationPhrases
 
     public static string Pill(BoardJob job) => job.Group switch
     {
-        JobGroup.NeedsYou => job.Hold.Match(
+        JobGroup.NeedsYou or JobGroup.Waiting => job.Hold.Match(
             reason => job.PendingDecisions == 0 ? $"Held · {job.Wait.Match(HandoffPhrases.Until, () => Held(reason))}" : "Needs you",
             () => job.Wait.Match(wait => $"Held · {HandoffPhrases.Until(wait)}", () => "Needs you")),
         JobGroup.ReadyForReview => "Ready for review",
@@ -96,6 +114,7 @@ internal static class ConversationPhrases
         },
         _ => job.Status switch
         {
+            _ when job.Fact.Kind == FactKind.WaitsForParent => "Waiting for its parent",
             JobStatus.Checking => "Checking",
             JobStatus.Draft or JobStatus.Preparing => "Starting",
             _ => "Running",

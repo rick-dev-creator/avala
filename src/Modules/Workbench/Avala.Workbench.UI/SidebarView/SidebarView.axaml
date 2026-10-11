@@ -63,6 +63,10 @@
       <TextBlock Classes="section group" Text="Running" />
       <ItemsControl x:Name="Running" Classes="rows" ItemsSource="{Binding Running}" ItemTemplate="{StaticResource Row}" />
     </StackPanel>
+    <StackPanel x:Name="WaitingGroup" Spacing="1" IsVisible="{Binding !!Waiting.Count}">
+      <TextBlock Classes="section group" Text="Waiting" />
+      <ItemsControl x:Name="Waiting" Classes="rows" ItemsSource="{Binding Waiting}" ItemTemplate="{StaticResource Row}" />
+    </StackPanel>
     <StackPanel x:Name="ReadyForReviewGroup" Spacing="1" IsVisible="{Binding !!ReadyForReview.Count}">
       <TextBlock Classes="section group" Text="Ready for review" />
       <ItemsControl x:Name="ReadyForReview" Classes="rows" ItemsSource="{Binding ReadyForReview}" ItemTemplate="{StaticResource Row}" />

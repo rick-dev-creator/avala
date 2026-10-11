@@ -7,7 +7,7 @@ namespace Avala.Host.Tests;
 
 internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar, Bound toolbar)
 {
-    private static readonly string[] Groups = ["NeedsYou", "Running", "ReadyForReview", "Done"];
+    private static readonly string[] Groups = ["NeedsYou", "Running", "Waiting", "ReadyForReview", "Done"];
 
     public Bound Page => page;
 

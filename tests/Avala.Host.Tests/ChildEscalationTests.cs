@@ -66,6 +66,20 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ASubAgentWaitingForItsParentsAnswerSaysSoUnderItsParentInTheSidebarAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/jobs.json", AsksParent));
+        var told = run.Watch<ParentAsked>();
+        var workbench = await run.WorkbenchAsync();
+        var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate-waiting] Migrate the orders database")));
+        _ = await told.UntilAsync(_ => true);
+
+        await workbench.ShowsAsync(() => ChildFact(workbench, parent) == "waiting for its parent");
+
+        Assert.Equal("waiting for its parent", await run.Ui.ReadAsync(() => ChildFact(workbench, parent)));
+    }
+
+    [Fact]
     public async Task AParentBlockedOnTwoDelegateCallsHearsEachChildThroughItsCallsAndGetsBothReportsByWaitingAgainAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/checks.json", PassingChecks), (".avala/permissions.json", Autonomous), (".avala/jobs.json", AsksParent));
@@ -204,4 +218,11 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
         Assert.Equal((Option<JobId>.Some(child), AnswerRoute.Message), (delivered.Child, Outcomes.Present(delivered.Answered).Route));
         Assert.Single(run.Get<IDelegations>().OfParent(parent));
     }
+
+    private static string ChildFact(OpenWorkbench workbench, JobId parent) =>
+        workbench.Sidebar["Running"].Items
+            .Where(row => row["Job"].Value<JobId>() == parent)
+            .SelectMany(row => row["Children"].Items)
+            .Select(child => child["Fact"].Text)
+            .FirstOrDefault() ?? string.Empty;
 }

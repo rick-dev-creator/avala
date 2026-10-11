@@ -328,7 +328,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
             await run.Ui.ReadAsync(() => (connections["Connections"].Items[0]["Limits"].Items[0]["Window"].Text, connections["Connections"].Items[0]["Limits"].Items[0]["UsedText"].Text)));
     }
 
-    private static readonly string[] Groups = ["NeedsYou", "Running", "ReadyForReview", "Done"];
+    private static readonly string[] Groups = ["NeedsYou", "Running", "Waiting", "ReadyForReview", "Done"];
 
     private static Bound? Row(OpenWorkbench workbench, JobId job) =>
         Groups

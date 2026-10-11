@@ -160,7 +160,7 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         var held = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: limit-handoff] Fix the calculator on the first account") { Connection = new Avala.Agents.Contracts.Connections.ConnectionName("simulator-one") }));
         _ = await waits.UntilAsync(announced => announced.Wait.Job == held);
         _ = await workbench.SelectAsync(held);
-        await workbench.ShowsInGroupAsync(held, "NeedsYou");
+        await workbench.ShowsInGroupAsync(held, "Waiting");
         await Camera.ShootAsync(run, "13-held-job-resumes-when-window-resets-dark", FeatureCamera.Unfold("Autonomy & connection"));
     }
 
@@ -405,7 +405,7 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "25-overview-delegation-agents-tree-dark");
     }
 
-    private static readonly string[] Groups = ["NeedsYou", "Running", "ReadyForReview", "Done"];
+    private static readonly string[] Groups = ["NeedsYou", "Running", "Waiting", "ReadyForReview", "Done"];
 
     private const string Autonomous = """{ "autonomy": "autonomous" }""";
 

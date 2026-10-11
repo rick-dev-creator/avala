@@ -111,7 +111,7 @@ public sealed class SidebarViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignSidebarViewModel());
 
-            Assert.Superset(new HashSet<string>(["Needs you", "Running", "Ready for review", "Done", "Fix JPY rounding in invoice totals", "held: stalled"]), view.VisibleTexts.ToHashSet());
+            Assert.Superset(new HashSet<string>(["Needs you", "Running", "Waiting", "Ready for review", "Done", "Fix JPY rounding in invoice totals", "held: stalled", "waiting for its parent"]), view.VisibleTexts.ToHashSet());
             Assert.False(view.Shows("NoJobs"));
             Assert.Single(view.All<Button>(), button => button.Classes.Contains("selected"));
         }, Cancellation);
@@ -123,7 +123,7 @@ public sealed class SidebarViewScripts(HeadlessUi ui)
             using var bench = new Bench();
             var view = Screen.Show(bench.Sidebar());
 
-            Assert.Equal((true, false, false, false, false), (view.Shows("NoJobs"), view.Shows("NeedsYouGroup"), view.Shows("RunningGroup"), view.Shows("ReadyForReviewGroup"), view.Shows("DoneGroup")));
+            Assert.Equal((true, false, false, false, false, false), (view.Shows("NoJobs"), view.Shows("NeedsYouGroup"), view.Shows("RunningGroup"), view.Shows("WaitingGroup"), view.Shows("ReadyForReviewGroup"), view.Shows("DoneGroup")));
             Assert.Contains("No jobs yet", view.VisibleTexts);
         }, Cancellation);
 

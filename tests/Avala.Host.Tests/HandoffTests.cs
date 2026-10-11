@@ -147,7 +147,7 @@ public sealed class HandoffTests(PublishedPlugins plugins)
         var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;
         var workbench = await run.WorkbenchAsync();
         var conversation = await workbench.SelectAsync(job);
-        await workbench.ShowsInGroupAsync(job, "NeedsYou");
+        await workbench.ShowsInGroupAsync(job, "Waiting");
         var pill = await run.Ui.ReadAsync(() => conversation["Pill"]["Text"].Text);
         run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
         var back = await resumed.UntilAsync(announced => announced.Job == job);

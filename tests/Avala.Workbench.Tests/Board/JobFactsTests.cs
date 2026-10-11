@@ -1,5 +1,7 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -53,6 +55,37 @@ public sealed class JobFactsTests
     }
 
     [Fact]
+    public void AJobWaitingForItsUsageWindowToResetWaitsWithoutNeedingYouAndSaysWhenItResumes()
+    {
+        var job = Waiting(Now.AddHours(1));
+
+        Assert.Equal((JobGroup.Waiting, FactKind.ResumesAtReset, job.Wait), (job.Group, job.Fact.Kind, job.Fact.Wait));
+    }
+
+    [Fact]
+    public void AHeldJobWhoseResetTimeIsUnknownStillNeedsYou()
+    {
+        var job = Waiting(Option<DateTimeOffset>.None);
+
+        Assert.Equal((JobGroup.NeedsYou, FactKind.Held), (job.Group, job.Fact.Kind));
+    }
+
+    [Fact]
+    public void ASubAgentWhoseRequestWaitsForItsParentSaysSoInsteadOfWorking()
+    {
+        var session = SessionId.New();
+        var turn = TurnId.New();
+        var transcript = Transcript.Empty
+            .Apply(new TurnStarted(session, turn), Now)
+            .Apply(new PermissionRequested(session, turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update"), Now)
+            .Apply(new PolicyDecision(session, turn, new ItemId("migrate"), Option<JobId>.None, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToParent, Now));
+
+        var job = Job(JobStatus.Running) with { Transcript = transcript };
+
+        Assert.Equal((JobGroup.Running, FactKind.WaitsForParent, 0), (job.Group, job.Fact.Kind, job.PendingDecisions));
+    }
+
+    [Fact]
     public void AJobAwaitingReviewSaysOnWhichAttemptItWasVerified()
     {
         var report = new VerificationReport(JobId.New(), 2, VerificationOutcome.Passed, Option<Avala.Workspaces.Contracts.FileOrigin>.None, [], GateVerdict.Pass, Now);
@@ -82,6 +115,13 @@ public sealed class JobFactsTests
         var job = Job(JobStatus.Running) with { Transcript = Transcript.Empty.Apply(new PlanUpdated(SessionId.New(), TurnId.New(), []), Now) };
 
         Assert.Equal(FactKind.Working, job.Fact.Kind);
+    }
+
+    private static BoardJob Waiting(Option<DateTimeOffset> resumesAt)
+    {
+        var job = Job(JobStatus.NeedsHelp);
+
+        return job with { Hold = HoldReason.LimitNearlyReached, Wait = new ResetWait(job.Job, new ConnectionName("claude-work"), "5h", resumesAt, Now) };
     }
 
     private static BoardJob Job(JobStatus status) =>

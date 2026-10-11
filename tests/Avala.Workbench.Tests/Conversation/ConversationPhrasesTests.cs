@@ -1,5 +1,9 @@
 using System.Globalization;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
+using Avala.Permissions.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -39,7 +43,20 @@ public sealed class ConversationPhrasesTests
     [InlineData(JobStatus.Discarded, false, "This job has ended", "Send (Ctrl+Enter)")]
     [InlineData(JobStatus.Failed, true, "This job has ended", "Send (Ctrl+Enter)")]
     public void TheComposerSaysWhatAMessageDoesForEachStatus(JobStatus status, bool takesMessagesMidTurn, string phrase, string hint) =>
-        Assert.Equal((phrase, hint), (ConversationPhrases.Placeholder(status, takesMessagesMidTurn), ConversationPhrases.SendHint(status, takesMessagesMidTurn)));
+        Assert.Equal((phrase, hint), (ConversationPhrases.Placeholder(status, takesMessagesMidTurn, Option<PullRequestWatchState>.None), ConversationPhrases.SendHint(status, takesMessagesMidTurn)));
+
+    [Theory]
+    [InlineData(OnPullRequest.WatchOnly, WatchStatus.Watching, "Approved · Avala watches pull request #7 until it is merged or closed")]
+    [InlineData(OnPullRequest.WakeOnCi, WatchStatus.BackingOff, "Approved · Avala watches pull request #7 and wakes the agent if CI fails or it conflicts")]
+    [InlineData(OnPullRequest.WakeOnCiAndReviews, WatchStatus.WaitingForJob, "Approved · Avala watches pull request #7 and wakes the agent if CI fails, it conflicts or a review asks for changes")]
+    [InlineData(OnPullRequest.WakeOnCi, WatchStatus.NeedsPerson, "Approved · Avala stopped waking the agent: pull request #7 needs you")]
+    [InlineData(OnPullRequest.WakeOnCi, WatchStatus.Ended, "This job has ended")]
+    public void AnApprovedJobSaysWhatTheWatchOfItsPullRequestStillDoes(OnPullRequest policy, WatchStatus status, string phrase)
+    {
+        var watch = new PullRequestWatchState(JobId.New(), new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/acme/shop/pull/7"), "avala/job", "main"), policy, 3) { Status = status };
+
+        Assert.Equal(phrase, ConversationPhrases.Placeholder(JobStatus.Approved, false, watch));
+    }
 
     [Theory]
     [InlineData(JobStatus.Running, "", "Running")]
@@ -79,6 +96,20 @@ public sealed class ConversationPhrasesTests
         Assert.Equal($"Held · until {resumes.ToLocalTime():HH:mm}", ConversationPhrases.Pill(Waiting(resumes)));
         Assert.Equal($"Held · until {later.ToLocalTime().ToString("ddd d MMM HH:mm", CultureInfo.InvariantCulture)}", ConversationPhrases.Pill(Waiting(later)));
         Assert.Equal("Held · near its limit", ConversationPhrases.Pill(Waiting(Option<DateTimeOffset>.None)));
+    }
+
+    [Fact]
+    public void TheStatusPillOfASubAgentWaitingForItsParentsAnswerSaysSo()
+    {
+        var session = SessionId.New();
+        var turn = TurnId.New();
+        var now = DateTimeOffset.UnixEpoch;
+        var transcript = Transcript.Empty
+            .Apply(new TurnStarted(session, turn), now)
+            .Apply(new PermissionRequested(session, turn, new ItemId("migrate"), "Run a command", ItemKind.Command, "dotnet ef database update"), now)
+            .Apply(new PolicyDecision(session, turn, new ItemId("migrate"), Option<JobId>.None, ItemKind.Command, "dotnet ef database update", PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToParent, now));
+
+        Assert.Equal("Waiting for its parent", ConversationPhrases.Pill(new BoardJob(new FakeCatalog().Add("Migrate the database", JobStatus.Running).Summary, transcript)));
     }
 
     [Theory]

@@ -41,11 +41,16 @@ internal sealed class DesignSidebarViewModel : ISidebarViewModel
             Children =
             [
                 new DesignJobRowViewModel(SampleJobs.FlakyCheckout, "Update call sites in internal/payments", JobStatus.Running, "9 of 14 files", StatusKind.Working, 0) { IsChild = true },
-                new DesignJobRowViewModel(SampleJobs.SyncQueue, "Rewrite webhook signature tests", JobStatus.Running, "wants to run a command", StatusKind.NeedsYou, 1) { IsChild = true },
+                new DesignJobRowViewModel(SampleJobs.SyncQueue, "Rewrite webhook signature tests", JobStatus.Running, "waiting for its parent", StatusKind.Held, 0) { IsChild = true },
                 new DesignJobRowViewModel(SampleJobs.LoginRateLimit, "Regenerate the API reference", JobStatus.AwaitingReview, "verified", StatusKind.ReadyForReview, 0) { IsChild = true },
             ],
         },
         new DesignJobRowViewModel(SampleJobs.LodashUpdate, "Update zod to 3.23", JobStatus.Checking, "verifying", StatusKind.Checking, 0),
+    ];
+
+    public IReadOnlyList<IJobRowViewModel> Waiting { get; } =
+    [
+        new DesignJobRowViewModel(SampleJobs.CheckoutSplit, "Fix the calculator on the first account", JobStatus.NeedsHelp, "resumes at 15:51", StatusKind.Held, 0),
     ];
 
     public IReadOnlyList<IJobRowViewModel> ReadyForReview { get; } =

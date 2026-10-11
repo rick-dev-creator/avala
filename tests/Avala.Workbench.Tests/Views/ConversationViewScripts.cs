@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Components.UI.Markdown;
 using Avala.Delegation.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing.UI;
@@ -209,14 +210,28 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             Assert.Equal("This job has ended", view.Find<TextBox>("Draft").PlaceholderText);
         }, Cancellation);
 
-    [Fact]
-    public Task AJobThatNeedsYouDimsTheInterruptAndStopItCannotTakeAsync() =>
+    [Theory]
+    [InlineData(JobStatus.NeedsHelp)]
+    [InlineData(JobStatus.AwaitingReview)]
+    [InlineData(JobStatus.Checking)]
+    [InlineData(JobStatus.Preparing)]
+    public Task AJobThatIsNotRunningOffersNoInterruptOrStopAsync(JobStatus status) =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignComposerViewModel(JobStatus.NeedsHelp));
+            var view = Screen.Show(Composer(status).Composer);
 
-            Assert.Equal((true, false, false), (view.Shows("Stop"), view.Find<Button>("Interrupt").IsEffectivelyEnabled, view.Find<Button>("Stop").IsEffectivelyEnabled));
-            Assert.Equal(Color.Parse("#4E4E56"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Button>("Stop").GetVisualDescendants().OfType<Path>().Single().Fill).Color);
+            Assert.Equal((true, false, false), (view.Shows("Send"), view.Shows("Interrupt"), view.Shows("Stop")));
+        }, Cancellation);
+
+    [Fact]
+    public Task AnApprovedJobWhosePullRequestIsStillWatchedSaysSoInsteadOfEndedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (composer, _) = Composer(JobStatus.Approved, OnPullRequest.WakeOnCi);
+            var view = Screen.Show(composer);
+
+            Assert.Equal((false, false, false), (view.Shows("Send"), view.Shows("Interrupt"), view.Shows("Stop")));
+            Assert.Equal("Approved · Avala watches pull request #7 and wakes the agent if CI fails or it conflicts", view.Find<TextBox>("Draft").PlaceholderText);
         }, Cancellation);
 
     [Fact]
@@ -268,11 +283,16 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Error").Foreground).Color);
         }, Cancellation);
 
-    private static (ComposerViewModel Composer, FakeJobs Jobs) Composer(JobStatus status)
+    private static (ComposerViewModel Composer, FakeJobs Jobs) Composer(JobStatus status, OnPullRequest? watched = null)
     {
         var jobs = new FakeJobs { Status = status, Steerable = false };
         var summary = new FakeCatalog().Add("Extract sync queue into a module", status).Summary;
-        var shown = new BoardJob(summary, Transcript.Empty);
+        var shown = new BoardJob(summary, Transcript.Empty)
+        {
+            PullRequest = watched is { } policy
+                ? new PullRequestWatchState(summary.Job, new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/acme/shop/pull/7"), "avala/job", "main"), policy, 3)
+                : Option<PullRequestWatchState>.None,
+        };
         var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)));
         composer.Track(shown);
 

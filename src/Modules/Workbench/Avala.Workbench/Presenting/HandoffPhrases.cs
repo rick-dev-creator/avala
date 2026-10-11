@@ -23,6 +23,9 @@ internal static class HandoffPhrases
             at => $"resumes at {Clock(at, wait.Since)} when the {Window(wait.Window)} resets",
             () => "near its limit · no reset time reported, waits for you");
 
+    public static string Resumes(ResetWait wait) =>
+        wait.ResumesAt.Match(at => $"resumes at {Clock(at, wait.Since)}", () => "near its limit");
+
     public static string Until(ResetWait wait) =>
         wait.ResumesAt.Match(at => $"until {Clock(at, wait.Since)}", () => "near its limit");
 
