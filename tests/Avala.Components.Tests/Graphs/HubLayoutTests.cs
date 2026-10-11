@@ -45,21 +45,70 @@ public sealed class HubLayoutTests
         var after = HubLayout.Arrange([Hub(64, 4)], new HubSpacing());
 
         Assert.Equal(
-            before.Hubs[0].Satellites.Select(rect => (rect.X - before.Hubs[0].Center.X, rect.Y - before.Hubs[0].Center.Y)),
-            after.Hubs[0].Satellites.Take(3).Select(rect => (rect.X - after.Hubs[0].Center.X, rect.Y - after.Hubs[0].Center.Y)));
+            before.Hubs[0].Satellites.Select(rect => Relative(rect, before.Hubs[0])),
+            after.Hubs[0].Satellites.Take(3).Select(rect => Relative(rect, after.Hubs[0])));
     }
 
     [Fact]
-    public void TheRingStaysCentredWhateverSideTheSatellitesGrowOn()
+    public void TheGraphIsSizedAndCentredOnWhatItDraws()
     {
-        var layout = HubLayout.Arrange([Hub(64, 5), Hub(64, 0)], new HubSpacing());
+        var spacing = new HubSpacing();
+        var layout = HubLayout.Arrange([Hub(64, 5), Hub(64, 0)], spacing);
+        var drawn = Drawn(layout).ToList();
 
-        Assert.Equal(layout.Size.Width / 2, (layout.Hubs[0].Center.X + layout.Hubs[1].Center.X) / 2, 3);
+        Assert.Equal(
+            (spacing.Padding, spacing.Padding, layout.Size.Width - spacing.Padding, layout.Size.Height - spacing.Padding),
+            (drawn.Min(rect => rect.X), drawn.Min(rect => rect.Y), drawn.Max(rect => rect.Right), drawn.Max(rect => rect.Bottom)));
+    }
+
+    [Fact]
+    public void AGraphGrowingFromItsLastFrameKeepsItsHubsWhereTheyWereOnACentredPage()
+    {
+        var spacing = new HubSpacing();
+        var before = HubLayout.Arrange([Hub(64, 2), Hub(46, 0)], spacing);
+        var after = HubLayout.Arrange([Hub(64, 5), Hub(46, 1)], spacing, before.Frame);
+
+        Assert.Equal(
+            before.Hubs.Select(hub => OnPage(hub, before)),
+            after.Hubs.Select(hub => OnPage(hub, after)));
+        Assert.True(after.Size.Width >= before.Size.Width && after.Size.Height >= before.Size.Height);
+    }
+
+    public static TheoryData<double[], int[]> Graphs => new()
+    {
+        { [64, 64, 46], [2, 2, 1] },
+        { [64, 64, 64, 46, 46], [6, 5, 4, 3, 2] },
+        { [64], [12] },
+    };
+
+    [Theory]
+    [MemberData(nameof(Graphs))]
+    public void NoEdgeCrossesANodeOtherThanItsOwnEnds(double[] radii, int[] satellites)
+    {
+        var layout = HubLayout.Arrange([.. radii.Select((radius, index) => Hub(radius, satellites[index]))], new HubSpacing());
+        var edges = layout.Hubs.SelectMany(hub => hub.Satellites.Select(rect => (Hub: hub, Satellite: rect, Curve: HubLayout.Edge(hub.Center, hub.Radius, rect))));
+        var crossings = edges.SelectMany(edge => Drawn(layout)
+            .Where(rect => rect != edge.Satellite && rect != Square(edge.Hub))
+            .Where(rect => Enumerable.Range(0, 4097).Select(step => edge.Curve.At(step / 4096.0)).Any(point => point.X > rect.X && point.X < rect.Right && point.Y > rect.Y && point.Y < rect.Bottom))
+            .Select(rect => (edge.Satellite, rect)));
+
+        Assert.Empty(crossings);
     }
 
     [Fact]
     public void TheAnglesOfASatelliteDoNotDependOnHowManyFollowIt() =>
         Assert.Equal(HubLayout.Angles(3, 180, false), HubLayout.Angles(7, 180, false).Take(3));
+
+    private static (double X, double Y) Relative(GraphRect rect, HubPlacement hub) =>
+        (Math.Round(rect.X - hub.Center.X, 6), Math.Round(rect.Y - hub.Center.Y, 6));
+
+    private static (double X, double Y) OnPage(HubPlacement hub, HubGraphLayout layout) =>
+        (Math.Round(hub.Center.X - (layout.Size.Width / 2), 6), Math.Round(hub.Center.Y - (layout.Size.Height / 2), 6));
+
+    private static IEnumerable<GraphRect> Drawn(HubGraphLayout layout) =>
+        layout.Hubs.Select(Square).Concat(layout.Hubs.SelectMany(hub => hub.Satellites));
+
+    private static GraphRect Square(HubPlacement hub) => GraphRect.Around(hub.Center, new GraphSize(hub.Radius * 2, hub.Radius * 2));
 
     private static HubSpec Hub(double radius, int satellites) => new(radius, [.. Enumerable.Repeat(Node, satellites)]);
 }

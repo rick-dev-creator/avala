@@ -34,22 +34,15 @@ public sealed class HubGraphPanel : Panel
         }
     }
 
-    internal static StreamGeometry Edge(GraphPoint hub, double radius, GraphRect satellite)
+    private static StreamGeometry Edge(GraphPoint hub, double radius, GraphRect satellite)
     {
-        var target = satellite.Center;
-        var end = target.X > hub.X + radius && satellite.X > hub.X ? new Point(satellite.X, target.Y)
-            : target.X < hub.X - radius && satellite.Right < hub.X ? new Point(satellite.Right, target.Y)
-            : target.Y < hub.Y ? new Point(target.X, satellite.Bottom)
-            : new Point(target.X, satellite.Y);
-        var angle = Math.Atan2(end.Y - hub.Y, end.X - hub.X);
-        var start = new Point(hub.X + (radius * Math.Cos(angle)), hub.Y + (radius * Math.Sin(angle)));
-        var control = new Point((start.X + end.X) / 2, end.Y);
+        var curve = HubLayout.Edge(hub, radius, satellite);
         var geometry = new StreamGeometry();
 
         using (var stream = geometry.Open())
         {
-            stream.BeginFigure(start, false);
-            stream.QuadraticBezierTo(control, end);
+            stream.BeginFigure(new Point(curve.Start.X, curve.Start.Y), false);
+            stream.QuadraticBezierTo(new Point(curve.Control.X, curve.Control.Y), new Point(curve.End.X, curve.End.Y));
             stream.EndFigure(false);
         }
 
@@ -66,7 +59,8 @@ public sealed class HubGraphPanel : Panel
         orbits = [.. Children.Select(child => child.GetVisualDescendants().OfType<OrbitPanel>().FirstOrDefault())];
         layout = HubLayout.Arrange(
             [.. Children.Select((child, index) => new HubSpec(Math.Max(child.DesiredSize.Width, child.DesiredSize.Height) / 2, orbits[index]?.Sizes ?? []))],
-            new HubSpacing());
+            new HubSpacing(),
+            layout.Hubs.Count == Children.Count ? layout.Frame : default);
 
         return new Size(layout.Size.Width, layout.Size.Height);
     }

@@ -22,22 +22,34 @@ public readonly record struct GraphRect(double X, double Y, double Width, double
         X < other.Right + margin && other.X < Right + margin && Y < other.Bottom + margin && other.Y < Bottom + margin;
 }
 
+public readonly record struct GraphCurve(GraphPoint Start, GraphPoint Control, GraphPoint End)
+{
+    public GraphPoint At(double t)
+    {
+        var (a, b, c) = ((1 - t) * (1 - t), 2 * (1 - t) * t, t * t);
+
+        return new GraphPoint((a * Start.X) + (b * Control.X) + (c * End.X), (a * Start.Y) + (b * Control.Y) + (c * End.Y));
+    }
+}
+
 public sealed record HubSpec(double Radius, IReadOnlyList<GraphSize> Satellites);
 
 public sealed record HubPlacement(GraphPoint Center, double Radius, IReadOnlyList<GraphRect> Satellites);
 
-public sealed record HubGraphLayout(IReadOnlyList<HubPlacement> Hubs, GraphSize Size)
+public sealed record HubGraphLayout(IReadOnlyList<HubPlacement> Hubs, GraphSize Size, GraphRect Frame)
 {
-    public static HubGraphLayout Empty { get; } = new([], new GraphSize(0, 0));
+    public static HubGraphLayout Empty { get; } = new([], new GraphSize(0, 0), default);
 }
 
-public sealed record HubSpacing(double Ring = 220, double Gap = 36, double Margin = 12, double Padding = 24, double Step = 14);
+public sealed record HubSpacing(double Ring = 220, double Gap = 36, double Margin = 12, double Padding = 48, double Step = 14);
 
 public static class HubLayout
 {
-    private const int MaxPushes = 600;
+    private const int Spreads = 8;
 
-    public static HubGraphLayout Arrange(IReadOnlyList<HubSpec> hubs, HubSpacing spacing)
+    public static HubGraphLayout Arrange(IReadOnlyList<HubSpec> hubs, HubSpacing spacing) => Arrange(hubs, spacing, default);
+
+    public static HubGraphLayout Arrange(IReadOnlyList<HubSpec> hubs, HubSpacing spacing, GraphRect frame)
     {
         if (hubs.Count == 0)
         {
@@ -45,19 +57,32 @@ public static class HubLayout
         }
 
         var centers = Centers(hubs, spacing);
-        var placed = new List<GraphRect>(hubs.Select((hub, index) => Square(centers[index], hub.Radius)));
+        var drawing = new Drawing([.. hubs.Select((hub, index) => Square(centers[index], hub.Radius))]);
         var satellites = new List<GraphRect>[hubs.Count];
 
         for (var index = 0; index < hubs.Count; index++)
         {
-            satellites[index] = Orbit(hubs[index], centers[index], hubs.Count == 1, placed, spacing);
+            satellites[index] = Around(hubs[index], centers[index], hubs.Count == 1, drawing, spacing);
         }
 
-        return Normalized(hubs, centers, satellites, spacing.Padding);
+        return Normalized(hubs, centers, satellites, Framed(hubs, centers, satellites, spacing.Padding, frame));
     }
 
     public static IReadOnlyList<double> Angles(int count, double outward, bool allAround) =>
         [.. Enumerable.Range(0, count).Select(index => outward + Offset(index, allAround ? 45 : 36, allAround ? 180 : 108))];
+
+    public static GraphCurve Edge(GraphPoint hub, double radius, GraphRect satellite)
+    {
+        var target = satellite.Center;
+        var end = target.X > hub.X + radius && satellite.X > hub.X ? new GraphPoint(satellite.X, target.Y)
+            : target.X < hub.X - radius && satellite.Right < hub.X ? new GraphPoint(satellite.Right, target.Y)
+            : target.Y < hub.Y ? new GraphPoint(target.X, satellite.Bottom)
+            : new GraphPoint(target.X, satellite.Y);
+        var angle = Math.Atan2(end.Y - hub.Y, end.X - hub.X);
+        var start = hub.Offset(radius * Math.Cos(angle), radius * Math.Sin(angle));
+
+        return new GraphCurve(start, new GraphPoint((start.X + end.X) / 2, end.Y), end);
+    }
 
     private static double Offset(int index, double step, double half)
     {
@@ -96,47 +121,60 @@ public static class HubLayout
         return centers;
     }
 
-    private static List<GraphRect> Orbit(HubSpec hub, GraphPoint center, bool allAround, List<GraphRect> placed, HubSpacing spacing)
+    private static List<GraphRect> Around(HubSpec hub, GraphPoint center, bool allAround, Drawing drawing, HubSpacing spacing)
     {
         var angles = Angles(hub.Satellites.Count, allAround ? 180 : Outward(center), allAround);
-        var rects = new List<GraphRect>(hub.Satellites.Count);
+        var orbit = new Orbit(hub, center, drawing, spacing);
 
-        for (var index = 0; index < hub.Satellites.Count; index++)
+        for (var spread = 0; spread < Spreads; spread++)
         {
-            var size = hub.Satellites[index];
-            var angle = Radians(angles[index]);
-            var distance = hub.Radius + spacing.Gap + Support(size, angle);
-            var rect = At(center, angle, distance, size);
+            var rects = orbit.Clear(angles, spacing.Gap + (spread * spacing.Ring / 4));
 
-            for (var push = 0; push < MaxPushes && placed.Any(other => other.Overlaps(rect, spacing.Margin)); push++)
+            if (rects.Count == hub.Satellites.Count)
             {
-                distance += spacing.Step;
-                rect = At(center, angle, distance, size);
+                return rects;
             }
-
-            placed.Add(rect);
-            rects.Add(rect);
         }
 
-        return rects;
+        return orbit.Apart(angles);
     }
 
-    private static HubGraphLayout Normalized(IReadOnlyList<HubSpec> hubs, GraphPoint[] centers, List<GraphRect>[] satellites, double padding)
+    internal static (GraphRect Rect, GraphCurve Edge) Candidate(HubSpec hub, GraphPoint center, GraphSize size, double degrees, double gap)
+    {
+        var angle = Radians(degrees);
+        var rect = At(center, angle, hub.Radius + gap + Support(size, angle), size);
+
+        return (rect, Edge(center, hub.Radius, rect));
+    }
+
+    private static GraphRect Framed(IReadOnlyList<HubSpec> hubs, GraphPoint[] centers, List<GraphRect>[] satellites, double padding, GraphRect frame)
     {
         var all = hubs.Select((hub, index) => Square(centers[index], hub.Radius)).Concat(satellites.SelectMany(rects => rects)).ToList();
-        var wide = Math.Max(-all.Min(rect => rect.X), all.Max(rect => rect.Right)) + padding;
-        var tall = Math.Max(-all.Min(rect => rect.Y), all.Max(rect => rect.Bottom)) + padding;
-        var (left, top, right, bottom) = (-wide, -tall, wide, tall);
+        var (left, top) = (all.Min(rect => rect.X) - padding, all.Min(rect => rect.Y) - padding);
+        var (right, bottom) = (all.Max(rect => rect.Right) + padding, all.Max(rect => rect.Bottom) + padding);
 
-        return new HubGraphLayout(
+        if (frame == default)
+        {
+            return new GraphRect(left, top, right - left, bottom - top);
+        }
+
+        var middle = frame.Center;
+        var wide = Math.Max(frame.Width / 2, Math.Max(middle.X - left, right - middle.X));
+        var tall = Math.Max(frame.Height / 2, Math.Max(middle.Y - top, bottom - middle.Y));
+
+        return new GraphRect(middle.X - wide, middle.Y - tall, wide * 2, tall * 2);
+    }
+
+    private static HubGraphLayout Normalized(IReadOnlyList<HubSpec> hubs, GraphPoint[] centers, List<GraphRect>[] satellites, GraphRect frame) =>
+        new(
             [
                 .. hubs.Select((hub, index) => new HubPlacement(
-                    centers[index].Offset(-left, -top),
+                    centers[index].Offset(-frame.X, -frame.Y),
                     hub.Radius,
-                    [.. satellites[index].Select(rect => rect with { X = rect.X - left, Y = rect.Y - top })])),
+                    [.. satellites[index].Select(rect => rect with { X = rect.X - frame.X, Y = rect.Y - frame.Y })])),
             ],
-            new GraphSize(right - left, bottom - top));
-    }
+            new GraphSize(frame.Width, frame.Height),
+            frame);
 
     private static double Outward(GraphPoint center)
     {
@@ -148,7 +186,7 @@ public static class HubLayout
     private static GraphRect At(GraphPoint center, double angle, double distance, GraphSize size) =>
         GraphRect.Around(center.Offset(distance * Math.Cos(angle), distance * Math.Sin(angle)), size);
 
-    private static GraphRect Square(GraphPoint center, double radius) => GraphRect.Around(center, new GraphSize(radius * 2, radius * 2));
+    internal static GraphRect Square(GraphPoint center, double radius) => GraphRect.Around(center, new GraphSize(radius * 2, radius * 2));
 
     private static double Support(GraphSize size, double angle)
     {
