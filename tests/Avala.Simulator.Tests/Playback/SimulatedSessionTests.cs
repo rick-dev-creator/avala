@@ -491,6 +491,19 @@ public sealed class SimulatedSessionTests
         Assert.Equal(reported, (await stage.ReadTurnAsync(Cancellation)).OfType<LimitReported>().Count());
     }
 
+    [Theory]
+    [InlineData("[simulate: account-exhausted] Write the calculator", TurnOutcome.LimitReached, 0)]
+    [InlineData("[simulate: account-exhausted] Write the calculator, it was handed off to you", TurnOutcome.Finished, 1)]
+    public async Task TheAccountExhaustedScenarioRunsOutOfItsWindowBeforeAnyWorkUnlessToldItWasHandedOffAsync(string message, TurnOutcome outcome, int billed)
+    {
+        await using var stage = new Stage(PermissionMode.AllowAll);
+        await stage.SendAsync(message, Cancellation);
+
+        var events = await stage.ReadTurnAsync(Cancellation);
+
+        Assert.Equal((outcome, billed), (Assert.IsType<TurnCompleted>(events[^1]).Outcome, events.OfType<UsageReported>().Count()));
+    }
+
     [Fact]
     public async Task EveryTurnIssuesAResumeTokenThatContinuesTheConversationWithItsNextTurnAsync()
     {

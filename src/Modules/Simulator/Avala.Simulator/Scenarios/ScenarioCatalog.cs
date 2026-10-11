@@ -494,6 +494,18 @@ internal static class ScenarioCatalog
         FixedCalculator,
     ]);
 
+    public static Scenario AccountExhausted { get; } = new("account-exhausted",
+    [
+        [
+            new UnlessTold("handed off", new RunOutOfWindow("7d", TimeSpan.FromDays(3))),
+            new Recall(new ItemId("told")),
+            new WriteFile(new ItemId("edit"), "calculator.txt", "add(2, 2) = 4\n"),
+            Message("Picked up the handed-off work: ", "the calculator is ready."),
+            .. Bill(3_900, 310, 0.0190m, 0.10),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario SpentElsewhere { get; } = new("spent-elsewhere",
     [
         [
@@ -525,7 +537,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, WindowRunsOut, LimitHandoff, SpentElsewhere, .. DelegationScenarios.All,
+        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, NearLimit, SpentWindow, WindowRunsOut, LimitHandoff, AccountExhausted, SpentElsewhere, .. DelegationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";

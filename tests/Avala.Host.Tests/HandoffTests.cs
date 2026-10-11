@@ -192,6 +192,28 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AJobWhoseAccountIsExhaustedIsHeldForItsLimitInsteadOfFailedAndFinishesOnTheOtherAccountAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed("""{ "limits": { "onLimit": "handoff-same-harness", "connections": ["simulator-one", "simulator-two"] } }"""));
+        var held = run.Watch<JobHeld>();
+        var recorded = run.Watch<HandoffRecorded>();
+        var progress = run.Watch<JobProgressed>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("account-exhausted")) { Connection = One }));
+        var hold = (await held.UntilAsync(announced => announced.Hold.Job == job)).Hold;
+        var handoff = (await recorded.UntilAsync(announced => announced.Handoff.Job == job)).Handoff;
+        await ReviewedAsync(progress, job);
+
+        Assert.Equal((HoldReason.LimitNearlyReached, "7d", 1d), (hold.Reason, Outcomes.Present(hold.Limit).Window, Outcomes.Present(hold.Limit).UsedFraction));
+        Assert.Equal((One, Two, new LimitReason(One, "7d", 1, 0.9)), (handoff.From, handoff.To, Outcomes.Present(handoff.Why)));
+        Assert.Empty(handoff.Spent);
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation));
+        Assert.Equal(
+            [(AttemptOrigin.Initial, AttemptOutcome.Interrupted), (AttemptOrigin.Handoff, AttemptOutcome.Passed)],
+            history.Attempts.Select(attempt => (attempt.Origin, attempt.Outcome)));
+    }
+
+    [Fact]
     public async Task WithNoCapacityAnywhereTheJobWaitsForTheEarliestResetAndContinuesWhereItCameFirstAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", SameHarness)]);
