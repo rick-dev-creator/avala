@@ -9,12 +9,12 @@
           <SolidColorBrush x:Key="EdgeFlowingBrush" Color="#59FFFFFF" />
           <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#80E5A13A" />
           <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#59E5A13A" />
-          <SolidColorBrush x:Key="EdgeQuietBrush" Color="#24FFFFFF" />
-          <SolidColorBrush x:Key="NodeBrush" Color="#D1282930" />
+          <SolidColorBrush x:Key="EdgeQuietBrush" Color="#3DFFFFFF" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#FF26272D" />
           <SolidColorBrush x:Key="NodeBorderBrush" Color="#17FFFFFF" />
           <SolidColorBrush x:Key="NodeTipBrush" Color="#F02C2D34" />
           <SolidColorBrush x:Key="HubCoreBrush" Color="#1E1F24" />
-          <SolidColorBrush x:Key="HubTrackBrush" Color="#12FFFFFF" />
+          <SolidColorBrush x:Key="HubTrackBrush" Color="#2EFFFFFF" />
           <SolidColorBrush x:Key="MeterMarkerBrush" Color="#B3FFFFFF" />
           <SolidColorBrush x:Key="MeterMarkerQuietBrush" Color="#66FFFFFF" />
           <SolidColorBrush x:Key="SurfaceSectionBrush" Color="#09FFFFFF" />
@@ -33,12 +33,12 @@
           <SolidColorBrush x:Key="EdgeFlowingBrush" Color="#47000000" />
           <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#A6A86400" />
           <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#73A86400" />
-          <SolidColorBrush x:Key="EdgeQuietBrush" Color="#1F000000" />
-          <SolidColorBrush x:Key="NodeBrush" Color="#EBFFFFFF" />
+          <SolidColorBrush x:Key="EdgeQuietBrush" Color="#3D000000" />
+          <SolidColorBrush x:Key="NodeBrush" Color="#FFFFFFFF" />
           <SolidColorBrush x:Key="NodeBorderBrush" Color="#17000000" />
           <SolidColorBrush x:Key="NodeTipBrush" Color="#F7FFFFFF" />
           <SolidColorBrush x:Key="HubCoreBrush" Color="#FFFFFF" />
-          <SolidColorBrush x:Key="HubTrackBrush" Color="#12000000" />
+          <SolidColorBrush x:Key="HubTrackBrush" Color="#2E000000" />
           <SolidColorBrush x:Key="MeterMarkerBrush" Color="#99000000" />
           <SolidColorBrush x:Key="MeterMarkerQuietBrush" Color="#4D000000" />
           <SolidColorBrush x:Key="SurfaceSectionBrush" Color="#06000000" />

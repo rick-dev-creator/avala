@@ -8,6 +8,8 @@ public sealed class ThemeVariantScripts(HeadlessUi ui)
 {
     private static readonly string[] Surfaces = ["SurfaceWindowBrush", "SurfacePanelBrush", "SurfaceFloatBrush", "SurfaceCanvasBrush"];
 
+    private static ThemeVariant Variant(string name) => name == "Light" ? ThemeVariant.Light : ThemeVariant.Dark;
+
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     public static TheoryData<string> Variants => ["Dark", "Light"];
@@ -40,6 +42,24 @@ public sealed class ThemeVariantScripts(HeadlessUi ui)
 
             Assert.True(Legibility.Contrast(Legibility.Resource("AccentBrush", variant), Legibility.Resource("SurfaceWindowBrush", variant)) >= 4.5);
             Assert.True(Legibility.Contrast(Legibility.Resource("OnAccentBrush", variant), Legibility.Resource("AccentBrush", variant)) >= 4.5);
+        }, Cancellation);
+
+    [Theory]
+    [MemberData(nameof(Variants))]
+    public Task GraphNodesHideTheEdgesBehindThemAsync(string name) =>
+        ui.RunAsync(() => Assert.Equal(255, Legibility.Resource("NodeBrush", Variant(name)).A), Cancellation);
+
+    [Theory]
+    [MemberData(nameof(Variants))]
+    public Task QuietEdgesAndLimitTracksStandOutFromTheWindowBelowFlowingEdgesAsync(string name) =>
+        ui.RunAsync(() =>
+        {
+            var variant = Variant(name);
+            var window = Legibility.Resource("SurfaceWindowBrush", variant);
+            double Against(string key) => Legibility.Contrast(Legibility.Over(Legibility.Resource(key, variant), window), window);
+
+            Assert.InRange(Against("EdgeQuietBrush"), 1.75, Against("EdgeFlowingBrush"));
+            Assert.True(Against("HubTrackBrush") >= 1.5, $"track at {Against("HubTrackBrush")}");
         }, Cancellation);
 
     [Fact]
