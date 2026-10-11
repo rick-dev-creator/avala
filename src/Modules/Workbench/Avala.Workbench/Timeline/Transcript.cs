@@ -41,10 +41,16 @@ internal sealed record Transcript
             ? Put(change(asked))
             : this;
 
-    public Transcript Delegated(DelegationRecord delegation) =>
-        Entries.OfType<ToolEntry>().LastOrDefault(entry => entry.Called.Match(called => called.Session == delegation.Session && called.Item == delegation.Item, () => false)) is { } call
+    public Transcript Delegated(DelegationRecord delegation)
+    {
+        var delegated = Entries.OfType<ToolEntry>().LastOrDefault(entry => entry.Called.Match(called => called.Session == delegation.Session && called.Item == delegation.Item, () => false)) is { } call
             ? Put(call with { Delegation = delegation })
             : this;
+
+        return delegation.Child.IsSome
+            ? delegated.Entries.OfType<ToolEntry>().Where(entry => entry.WaitsFor == delegation.Child).Aggregate(delegated, (transcript, wait) => transcript.Put(wait with { Awaited = delegation }))
+            : delegated;
+    }
 
     public Option<ModelReported> Ran { get; private init; }
 
@@ -124,10 +130,21 @@ internal sealed record Transcript
         FormRequested requested => Add(new FormEntry(EntryKeys.Item(requested.Turn, requested.Item), requested.Session, requested.Turn, requested.Item, requested.Form)),
         FormAnswered answered => Change(EntryKeys.Item(answered.Turn, answered.Item), entry => entry is FormEntry form ? form with { Answer = answered.Answer } : entry),
         RequestWithdrawn withdrawn => Withdrawn(withdrawn),
-        ToolCalled called => Add(new ToolEntry(EntryKeys.Item(called.Turn, called.Item), ItemKind.Other, called.Tool, string.Empty, Option<ItemOutcome>.None) { Input = called.Input, Called = called }),
+        ToolCalled called => Add(Waiting(new ToolEntry(EntryKeys.Item(called.Turn, called.Item), ItemKind.Other, called.Tool, string.Empty, Option<ItemOutcome>.None) { Input = called.Input, Called = called })),
         ToolReturned returned => Change(EntryKeys.Item(returned.Turn, returned.Item), entry => entry is ToolEntry tool ? tool with { Output = returned.Result.Content } : entry),
         _ => this,
     };
+
+    private ToolEntry Waiting(ToolEntry call)
+    {
+        var child = call.Title == WaitChildCalls.Tool ? WaitChildCalls.Child(call.Input.Match(input => input, () => string.Empty)) : Option<JobId>.None;
+
+        return call with
+        {
+            WaitsFor = child,
+            Awaited = Entries.OfType<ToolEntry>().Select(entry => entry.Delegation).Where(delegation => delegation.Match(found => child.IsSome && found.Child == child, () => false)).DefaultIfEmpty().Last(),
+        };
+    }
 
     private Transcript Refused(TurnId turn, ItemId item) =>
         Find(EntryKeys.Permission(turn, item)).Match(entry => entry is PermissionEntry { Denied: true }, () => false)

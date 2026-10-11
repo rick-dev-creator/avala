@@ -36,6 +36,10 @@ internal sealed record ToolEntry(string Key, ItemKind Kind, string Title, string
     public Option<DelegationRecord> Delegation { get; init; }
 
     public bool Denied { get; init; }
+
+    public Option<JobId> WaitsFor { get; init; }
+
+    public Option<DelegationRecord> Awaited { get; init; }
 }
 
 internal sealed record PlanEntry(string Key, IReadOnlyList<PlanStep> Steps) : ITimelineEntry

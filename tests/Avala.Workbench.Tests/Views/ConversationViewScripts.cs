@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Components.UI.Markdown;
+using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing.UI;
@@ -438,6 +439,20 @@ public sealed class ToolViewScripts(HeadlessUi ui)
 
             Assert.Equal(("denied", true, false), (view.TextOf("Outcome"), view.Shows("Outcome"), view.HasClass("Outcome", "failure")));
             Assert.True(view.Window.TryFindResource("TextTertiaryBrush", view.Window.ActualThemeVariant, out var quiet) && ReferenceEquals(quiet, view.Find<TextBlock>("Outcome").Foreground));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ADelegationLineIsSetInTheInterfaceFontAndACommandInTheCodeFontAsync() =>
+        ui.RunAsync(() =>
+        {
+            var delegated = new DelegationRecord(SessionId.New(), new ItemId("delegate"), "Migrate the database", DateTimeOffset.UnixEpoch) { Child = JobId.New() };
+            var delegation = Screen.Show(new ToolViewModel(new ToolEntry("t", ItemKind.Other, "delegate", string.Empty, Option<ItemOutcome>.None) { Delegation = delegated }));
+            var waiting = Screen.Show(new ToolViewModel(new ToolEntry("w", ItemKind.Other, "wait_child", string.Empty, Option<ItemOutcome>.None) { WaitsFor = JobId.New() }));
+            var command = Screen.Show(new ToolViewModel(new ToolEntry("c", ItemKind.Command, "dotnet test", string.Empty, Option<ItemOutcome>.None)));
+
+            Assert.Equal(
+                ("Inter", "Inter", "JetBrains Mono"),
+                (delegation.Find<TextBlock>("Title").FontFamily.FamilyNames[0], waiting.Find<TextBlock>("Title").FontFamily.FamilyNames[0], command.Find<TextBlock>("Title").FontFamily.FamilyNames[0]));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

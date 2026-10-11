@@ -1,10 +1,11 @@
 using Avala.Agents.Contracts.Sessions;
+using Avala.Delegation.Contracts;
 
 namespace Avala.Delegation.Escalating;
 
 internal static class WaitChildTool
 {
-    public const string Name = "wait_child";
+    public const string Name = WaitChildCalls.Tool;
 
     public static HarnessTool Definition { get; } = new(
         Name,

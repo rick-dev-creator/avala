@@ -11,6 +11,8 @@ internal interface IToolViewModel
 
     string Title { get; }
 
+    bool IsCode { get; }
+
     string Input { get; }
 
     string Output { get; }
@@ -46,6 +48,9 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     [ObservableProperty]
     public partial string Title { get; private set; }
 
+    [ObservableProperty]
+    public partial bool IsCode { get; private set; }
+
     public string Input { get; }
 
     public bool IsShown => true;
@@ -72,7 +77,10 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     {
         if (entry is ToolEntry tool)
         {
-            Title = tool.Delegation.Match(ConversationPhrases.Delegated, () => Presenting.CommandPhrases.Title(tool.Kind, tool.Title, Input));
+            Title = tool.WaitsFor.IsSome
+                ? ConversationPhrases.Waited(tool.Awaited, tool.Outcome.IsSome)
+                : tool.Delegation.Match(ConversationPhrases.Delegated, () => Presenting.CommandPhrases.Title(tool.Kind, tool.Title, Input));
+            IsCode = tool.WaitsFor.IsNone && tool.Delegation.IsNone;
             Output = tool.Output;
             IsRunning = tool.Outcome.IsNone;
             var ended = tool.Outcome.Match(outcome => outcome != ItemOutcome.Succeeded, () => false);

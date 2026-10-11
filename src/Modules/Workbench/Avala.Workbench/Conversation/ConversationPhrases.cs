@@ -118,6 +118,13 @@ internal static class ConversationPhrases
             refusal => $"Delegation refused · {DelegationPhrases.Refusal(refusal)}",
             () => $"Delegated to {FactPhrases.Title(delegation.Instruction)} · {delegation.Report.Match(report => DelegationPhrases.Outcome(report.Outcome), () => "job started")}");
 
+    public static string Waited(Option<DelegationRecord> awaited, bool ended) =>
+        awaited.Match(
+            delegation => ended
+                ? $"Waited for {FactPhrases.Title(delegation.Instruction)}{delegation.Report.Match(report => $" · {DelegationPhrases.Outcome(report.Outcome)}", () => string.Empty)}"
+                : $"Waiting for {FactPhrases.Title(delegation.Instruction)}…",
+            () => ended ? "Waited for a sub-agent" : "Waiting for a sub-agent…");
+
     public static string Thought(TimeSpan duration) =>
         string.Create(CultureInfo.InvariantCulture, $"Thought for {Duration(duration)}");
 

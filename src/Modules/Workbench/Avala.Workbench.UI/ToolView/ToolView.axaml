@@ -17,9 +17,11 @@
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>
     <Style Selector="TextBlock#Title">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock#Title.code">
       <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
       <Setter Property="FontSize" Value="{DynamicResource FontSizeCode}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
     <Style Selector="SelectableTextBlock.output">
       <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
@@ -54,6 +56,7 @@
         <TextBlock x:Name="Title"
                    Grid.Column="1"
                    VerticalAlignment="Center"
+                   Classes.code="{Binding IsCode}"
                    Text="{Binding Title}"
                    TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="Outcome"

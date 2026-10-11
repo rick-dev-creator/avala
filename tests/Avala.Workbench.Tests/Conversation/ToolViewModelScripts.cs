@@ -62,6 +62,22 @@ public sealed class ToolViewModelScripts
             .ThenNotified(nameof(ToolViewModel.Title))
             .Then(tool => Assert.Equal(title, tool.Title));
 
+    [Theory]
+    [InlineData("Started", false, "Waiting for Extract the address step…")]
+    [InlineData("Reported", true, "Waited for Extract the address step · reported its findings")]
+    [InlineData("Unknown", false, "Waiting for a sub-agent…")]
+    public void AWaitForASubAgentReadsAsWhoItWaitsForAndHowThatWent(string state, bool ended, string title) =>
+        ViewModelScript.Given(new ToolViewModel(Waiting()))
+            .When(tool => tool.Update(Waiting() with
+            {
+                Awaited = state == "Unknown" ? Option<DelegationRecord>.None : Delegation(state),
+                Outcome = ended ? ItemOutcome.Succeeded : Option<ItemOutcome>.None,
+            }))
+            .Then(tool => Assert.Equal(title, tool.Title));
+
+    private static ToolEntry Waiting() =>
+        new("item:3", ItemKind.Other, "wait_child", string.Empty, Option<ItemOutcome>.None) { Input = """{"child":"7"}""", WaitsFor = JobId.New() };
+
     private static ToolEntry Delegating() =>
         new("item:2", ItemKind.Other, "delegate", string.Empty, Option<ItemOutcome>.None) { Input = """{"instruction":"Extract the address step"}""" };
 

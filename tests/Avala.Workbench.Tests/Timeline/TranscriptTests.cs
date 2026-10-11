@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
+using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -255,6 +256,22 @@ public sealed class TranscriptTests
         var allowed = asked.Apply(ruled with { Answer = PolicyAnswer.Allow }).Apply(new ItemCompleted(Session, Turn, edit, ItemOutcome.Succeeded), Start);
 
         Assert.Equal([true, true, false], new[] { deniedFirst, endedFirst, allowed }.Select(transcript => transcript.Entries.OfType<ToolEntry>().Single().Denied));
+    }
+
+    [Fact]
+    public void AWaitForASubAgentFollowsTheDelegationOfTheChildItNames()
+    {
+        var child = JobId.New();
+        var delegated = new DelegationRecord(Session, new ItemId("delegate"), "Migrate the database", Start) { Child = child };
+        var waiting = Played(new ToolCalled(Session, Turn, new ItemId("delegate"), "delegate", """{"instruction":"Migrate the database"}"""))
+            .Delegated(delegated)
+            .Apply(new ToolCalled(Session, Turn, new ItemId("wait"), "wait_child", $$"""{"child":"{{child.Value}}"}"""), Start);
+        var reported = delegated with { Report = new ChildReport(child, ChildOutcome.Reported, JobStatus.Discarded, Start) };
+
+        var wait = waiting.Delegated(reported).Entries.OfType<ToolEntry>().Last();
+
+        Assert.Equal((Option<JobId>.Some(child), Option<DelegationRecord>.Some(reported)), (wait.WaitsFor, wait.Awaited));
+        Assert.Equal(Option<DelegationRecord>.Some(delegated), waiting.Entries.OfType<ToolEntry>().Last().Awaited);
     }
 
     [Fact]

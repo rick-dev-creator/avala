@@ -153,6 +153,8 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
 
     public bool ShowsOutcome => Failed;
 
+    public bool IsCode => true;
+
     public bool IsExpanded => false;
 
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
