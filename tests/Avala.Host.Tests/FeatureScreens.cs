@@ -319,6 +319,48 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
             window.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>().First(block => block.Text == "Notifications"),
             new Avalonia.Rect(0, -16, 10, 600));
 
+    [Fact]
+    public async Task TheTriggersPageWithAForgeTriggerItsNextPollAndItsEventsWithTheirVerdictsAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [("forges.json", """{ "pollSeconds": 300, "forges": [{ "name": "local", "forge": "simulated" }] }""")],
+            [(".avala/checks.json", PassingChecks)],
+            placed: repository =>
+            [
+                ("triggers.json", $$$"""
+                    { "triggers": [ {
+                      "id": "fix-labeled",
+                      "repository": {{{Json(repository)}}},
+                      "instruction": "[simulate: reply] Fix issue #{{payload.number}}: {{payload.title}}",
+                      "concurrency": 2,
+                      "forge": { "connection": "local", "event": "issue-labeled", "label": "avala", "authors": ["alice"] }
+                    } ] }
+                    """),
+            ]);
+        await run.StartedAsync();
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var log = run.Get<IForgeEventLog>();
+        var watched = new TriggerId(TriggerId.Machine, "fix-labeled");
+        _ = Outcomes.Succeeds(await log.CheckNowAsync(watched, Cancellation));
+        var remote = new SimulatedForgeRemote(run.Repository.Remote);
+        var checkout = await remote.OpenIssueAsync("Checkout button does nothing", "Clicking it shows nothing.", "carol", Cancellation);
+        await remote.LabelAsync(checkout, "bug", "bob", Cancellation);
+        await remote.LabelAsync(await remote.OpenIssueAsync("Delete the production database", "Please.", "alice", Cancellation), "avala", "mallory", Cancellation);
+        await remote.LabelAsync(checkout, "avala", "alice", Cancellation);
+        var fired = run.Watch<TriggerFired>();
+        _ = Outcomes.Succeeds(await log.CheckNowAsync(watched, Cancellation));
+        _ = await run.SettledAsync(Outcomes.Present((await fired.UntilAsync(_ => true)).Run.Job));
+
+        _ = await run.WorkbenchAsync();
+        var page = run.Page("Triggers");
+        await run.Ui.InvokeAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage = (Avala.Sdk.IPage)page.Target, Cancellation);
+        await run.Ui.PresentedAsync(page.Presentation, () => page["ForgeEvents"].Items.Count == 3 && page["Triggers"].Items.Count == 1, () => "the triggers page did not show the forge trigger and its three events");
+        await Camera.ShootAsync(run, "28-triggers-forge-events-dark");
+        await Camera.ShootAsync(run, "28-triggers-forge-events-light", ThemeVariant.Light);
+    }
+
     private static string Backlog(params (string Id, string Instruction)[] tasks) =>
         $$"""{ "tasks": [ {{string.Join(", ", tasks.Select(task => $$"""{ "id": "{{task.Id}}", "instruction": "{{task.Instruction}}" }"""))}} ] }""";
 
