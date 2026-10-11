@@ -92,10 +92,13 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public Option<JobRejection> Refusal { get; set; }
 
+    public Action<JobRequest> Submitting { get; set; } = _ => { };
+
     public void Settle(JobId job, JobStatus status) => jobs[job] = jobs[job] with { Status = status };
 
     public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken)
     {
+        Submitting(request);
         requests.Enqueue(request);
 
         return ValueTask.FromResult(Refusal.Match(

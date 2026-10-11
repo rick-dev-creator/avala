@@ -23,6 +23,20 @@ public sealed class TriggerSchedulerTests
     }
 
     [Fact]
+    public async Task AFiringTriggerAlreadyShowsItsNextOccurrenceWhileItsJobIsSubmittedAsync()
+    {
+        await using var triggered = await StartAsync(""" "schedule": { "at": "09:00" } """);
+        var nine = new DateTimeOffset(2026, 10, 5, 9, 0, 0, TimeSpan.FromHours(2));
+        var shown = Option<DateTimeOffset>.None;
+        triggered.Jobs.Submitting = _ => shown = triggered.Scheduler.NextOf(Nightly);
+
+        triggered.Clock.Advance(nine - triggered.Clock.GetUtcNow());
+        _ = await triggered.FiredAsync(_ => true);
+
+        Assert.Equal(Option<DateTimeOffset>.Some(nine.AddDays(1)), shown);
+    }
+
+    [Fact]
     public async Task AnIntervalCountsFromWhenItWasFirstSeenNotFromItsLoadAsync()
     {
         var triggered = await StartAsync(""" "schedule": { "everyMinutes": 60 } """);

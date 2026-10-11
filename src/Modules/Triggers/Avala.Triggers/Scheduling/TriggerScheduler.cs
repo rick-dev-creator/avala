@@ -95,13 +95,14 @@ internal sealed class TriggerScheduler(TriggerCatalog catalog, ScheduleBook book
             state = await book.KeepAsync(state with { Anchor = plan.Missed > 0 ? plan.Anchor : state.Anchor }, token);
         }
 
+        var id = trigger.Id;
+        ImmutableInterlocked.Update(ref next, known => known.SetItem(id.Key, plan.Next));
+
         if (plan.Missed > 0)
         {
             await DueAsync(trigger, state, plan.Missed, ringing && plan.Missed == 1, token);
         }
 
-        var id = trigger.Id;
-        ImmutableInterlocked.Update(ref next, known => known.SetItem(id.Key, plan.Next));
         var wait = plan.Next - Clock.GetUtcNow();
         timers[id.Key] = Clock.CreateTimer(_ => Post(ring => RingAsync(id, ring)), null, wait > TimeSpan.Zero ? wait : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
     }
