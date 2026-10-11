@@ -210,6 +210,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<LoopStarted>, Pulse>()
             .AddForwarded<IHandle<LoopTaskTaken>, Pulse>()
             .AddForwarded<IHandle<LoopIterated>, Pulse>()
+            .AddForwarded<IHandle<LoopIterationFollowed>, Pulse>()
             .AddForwarded<IHandle<LoopWaiting>, Pulse>()
             .AddForwarded<IHandle<LoopPaused>, Pulse>()
             .AddForwarded<IHandle<LoopResumed>, Pulse>()

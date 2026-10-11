@@ -9,12 +9,8 @@ namespace Avala.Autopilot.Looping;
 internal sealed class LoopFeed(LoopRegistry registry)
     : IHandle<JobProgressed>, IHandle<JobHeld>, IHandle<BudgetIntervened>, IHandle<PermissionDecided>, IHandle<FormDecided>
 {
-    public ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken)
-    {
-        Each(runner => runner.Progressed(integrationEvent));
-
-        return ValueTask.CompletedTask;
-    }
+    public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken) =>
+        await registry.ProgressedAsync(integrationEvent, cancellationToken);
 
     public ValueTask HandleAsync(JobHeld integrationEvent, CancellationToken cancellationToken)
     {

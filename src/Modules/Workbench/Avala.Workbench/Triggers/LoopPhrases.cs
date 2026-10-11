@@ -95,6 +95,7 @@ internal static partial class LoopPhrases
             IterationOutcome.Failed => "failed",
             IterationOutcome.NotSubmitted => "not submitted",
             IterationOutcome.ApprovedByPerson => "approved by you",
+            IterationOutcome.CarryingOn => "carrying on",
             _ => "discarded",
         };
 

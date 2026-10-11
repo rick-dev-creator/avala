@@ -53,6 +53,16 @@ public sealed class LoopPhrasesTests
             "#4 · deps · needs help · held: limit nearly reached",
             LoopPhrases.Iteration(new IterationRecord(4, new SourcedTask("backlog", "deps", "/work/ledger-api", "Update"), JobId.New(), IterationOutcome.NeedsHelp, Now) { Hold = HoldReason.LimitNearlyReached }));
 
+    [Fact]
+    public void AnIterationWhoseJobCarriesOnAfterTheAnswerNoLongerWaitsForYou()
+    {
+        var iteration = new IterationRecord(1, new SourcedTask("backlog", "div", "/work/ledger-api", "Add div"), JobId.New(), IterationOutcome.CarryingOn, Now);
+
+        Assert.Equal(
+            ("#1 · div · carrying on", "0 approved on their own · 0 waiting for you · spent no cost"),
+            (LoopPhrases.Iteration(iteration), LoopPhrases.Summary(Digest(State(LoopStatus.Ended)) with { Iterations = [iteration] })));
+    }
+
     private static LoopState State(LoopStatus status) => new(LoopId.New(), "/work/ledger-api", status, Now, 0, Option<JobId>.None);
 
     private static LoopState Ended(LoopEnding ending) => State(LoopStatus.Ended) with { Ending = ending };

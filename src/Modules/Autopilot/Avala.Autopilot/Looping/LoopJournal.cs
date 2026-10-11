@@ -15,6 +15,8 @@ internal sealed class LoopBook
 
     public bool Restored(LoopRecord record) => ImmutableInterlocked.TryAdd(ref loops, record.Id, record);
 
+    public IReadOnlyList<LoopRecord> Records() => [.. Volatile.Read(ref loops).Values];
+
     public IReadOnlyList<LoopState> States() => [.. Volatile.Read(ref loops).Values.OrderBy(record => record.Started).Select(record => record.State)];
 
     public Option<LoopDigest> DigestOf(LoopId loop) =>

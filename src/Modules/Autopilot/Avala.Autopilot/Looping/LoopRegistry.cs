@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Loops;
 using Avala.Autopilot.Sourcing;
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Autopilot.Looping;
@@ -84,6 +85,27 @@ internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, ILoopLi
 
     public ValueTask<Result<LoopId, AutopilotError>> StopAsync(LoopId loop, CancellationToken cancellationToken) =>
         CommandAsync(loop, runner => runner.StopAsync(cancellationToken));
+
+    public async Task ProgressedAsync(JobProgressed progressed, CancellationToken cancellationToken)
+    {
+        var running = Running.ToList();
+
+        foreach (var runner in running)
+        {
+            runner.Progressed(progressed);
+        }
+
+        var live = running.Select(runner => runner.Id).ToHashSet();
+
+        foreach (var loop in journal.Book.Records().Where(record => !live.Contains(record.Id)))
+        {
+            foreach (var iteration in loop.Following(progressed.Job, progressed.Status, steps.Gauges.SpendOf(progressed.Job)).Match<IterationRecord[]>(moved => [moved], () => []))
+            {
+                await journal.KeepAsync(loop.Followed(iteration), cancellationToken);
+                await journal.PublishAsync(new LoopIterationFollowed(loop.Id, iteration), cancellationToken);
+            }
+        }
+    }
 
     public IReadOnlyList<LoopState> Loops() => journal.Book.States();
 

@@ -1,5 +1,7 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Autopilot.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 
@@ -168,6 +170,38 @@ public sealed class AutopilotTests(PublishedPlugins plugins)
         Assert.Equal((loop, Option<LoopEnding>.Some(LoopEnding.Drained), 1), (state.Loop, state.Ending, state.Iterations));
         var iteration = Assert.Single(Outcomes.Present(run.Get<IAutopilot>().DigestOf(loop)).Iterations);
         Assert.Equal((Option<JobId>.Some(job), IterationOutcome.AwaitingReview), (iteration.Job, iteration.Outcome));
+    }
+
+    [Fact]
+    public async Task AnIterationLeftToAPersonFollowsItsJobAfterTheAnswerWhetherTheLoopRunsOnOrHasEndedAndKeepsItAcrossARestartAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            (".avala/checks.json", PassingChecks),
+            (".avala/backlog.json", Backlog(("migrate", "[simulate: permission] Migrate the database"), ("rename", "[simulate: steer] Rename the orders module"))));
+        var taken = run.Watch<LoopTaskTaken>();
+        var iterated = run.Watch<LoopIterated>();
+        var followed = run.Watch<LoopIterationFollowed>();
+        var autopilot = run.Get<IAutopilot>();
+
+        var loop = Outcomes.Succeeds(await autopilot.StartAsync(new LoopRequest(run.Repository.Path), Cancellation));
+        var asked = (await iterated.UntilAsync(iteration => iteration.Iteration.Number == 1)).Iteration;
+        _ = await taken.UntilAsync(task => task.Iteration == 2);
+        var decision = await run.DecisionAsync();
+        Outcomes.Succeeds(await run.Get<IPermissionAnswers>().AnswerAsync(decision.Session, new PermissionReply(decision.Item, PermissionAnswer.Allow), Cancellation));
+        _ = await followed.UntilAsync(iteration => iteration.Iteration.Outcome == IterationOutcome.AwaitingReview);
+        var whileRunning = Outcomes.Present(autopilot.DigestOf(loop));
+        Outcomes.Succeeds(await autopilot.StopAsync(loop, Cancellation));
+        Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(Outcomes.Present(asked.Job), Cancellation));
+        _ = await followed.UntilAsync(iteration => iteration.Iteration.Outcome == IterationOutcome.ApprovedByPerson);
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        Assert.Equal(IterationOutcome.AwaitingAnswer, asked.Outcome);
+        Assert.Equal((LoopStatus.Running, IterationOutcome.AwaitingReview), (whileRunning.State.Status, whileRunning.Iterations[0].Outcome));
+        var ended = Outcomes.Present(autopilot.DigestOf(loop));
+        Assert.Equal((LoopStatus.Ended, IterationOutcome.ApprovedByPerson), (ended.State.Status, ended.Iterations[0].Outcome));
+        Assert.NotEmpty(ended.Iterations[0].Cost);
     }
 
     [Fact]

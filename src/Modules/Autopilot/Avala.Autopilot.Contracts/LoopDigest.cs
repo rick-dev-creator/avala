@@ -23,6 +23,7 @@ public enum IterationOutcome
     NotSubmitted,
     ApprovedByPerson,
     Discarded,
+    CarryingOn,
 }
 
 public sealed record IterationRecord(int Number, SourcedTask Task, Option<JobId> Job, IterationOutcome Outcome, DateTimeOffset Ended)

@@ -231,6 +231,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     {
         if (!IsCurrent(job))
         {
+            await FollowAsync(job, status, token);
             return;
         }
 
@@ -248,6 +249,15 @@ internal sealed class LoopRunner : IAsyncDisposable
             case JobStatus.Failed or JobStatus.Approved or JobStatus.Discarded:
                 await SettleAsync(Concluded(status), await steps.Approver.GatherAsync(job, token), Settlement.None, token);
                 break;
+        }
+    }
+
+    private async Task FollowAsync(JobId job, JobStatus status, CancellationToken token)
+    {
+        foreach (var iteration in record.Following(job, status, steps.Gauges.SpendOf(job)).Match<IterationRecord[]>(moved => [moved], () => []))
+        {
+            await ChangeAsync(record.Followed(iteration), token);
+            await journal.PublishAsync(new LoopIterationFollowed(Id, iteration), token);
         }
     }
 

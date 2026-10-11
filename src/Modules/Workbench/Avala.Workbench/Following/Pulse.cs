@@ -34,6 +34,7 @@ internal sealed class Pulse(JobBoard board)
         IHandle<LoopStarted>,
         IHandle<LoopTaskTaken>,
         IHandle<LoopIterated>,
+        IHandle<LoopIterationFollowed>,
         IHandle<LoopWaiting>,
         IHandle<LoopPaused>,
         IHandle<LoopResumed>,
@@ -81,6 +82,8 @@ internal sealed class Pulse(JobBoard board)
     public ValueTask HandleAsync(LoopTaskTaken integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(LoopIterated integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(LoopIterationFollowed integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(LoopWaiting integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 

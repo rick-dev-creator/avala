@@ -13,6 +13,8 @@ public sealed record AutoApprovalDecided(AutoApproval Decision) : IIntegrationEv
 
 public sealed record LoopIterated(LoopId Loop, IterationRecord Iteration) : IIntegrationEvent;
 
+public sealed record LoopIterationFollowed(LoopId Loop, IterationRecord Iteration) : IIntegrationEvent;
+
 public sealed record LoopWaiting(LoopId Loop, DateTimeOffset Until) : IIntegrationEvent;
 
 public sealed record LoopPaused(LoopId Loop, LoopPause Pause) : IIntegrationEvent;
