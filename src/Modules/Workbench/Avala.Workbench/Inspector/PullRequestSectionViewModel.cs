@@ -140,19 +140,29 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
         IsLoaded = facts.IsSome;
         shown = facts.Map(found => found.Record.History.Summary.Job);
         var watched = facts.Bind(found => found.PullRequest.Map(state => (State: state, Job: found.Status)));
+        ShowPullRequest(watched, facts.IsSome);
+        ShowLastPoll(watched.Map(found => found.State));
+        WakeUps = facts.Match<IReadOnlyList<string>>(found => [.. found.WakeUps.Select((wakeUp, index) => ForgePhrases.WakeUp(wakeUp, index + 1))], () => []);
+    }
+
+    private void ShowPullRequest(Option<(PullRequestWatchState State, JobStatus Job)> watched, bool loaded)
+    {
         var watch = watched.Map(found => found.State);
-        var last = watch.Bind(state => state.Last);
         HasPullRequest = watch.IsSome;
         IsWatching = watch.Match(state => state.Status != WatchStatus.Ended, () => false);
-        Fact = watched.Match(found => $"#{found.State.PullRequest.Number} · {ForgePhrases.Brief(found.State, found.Job)}", () => facts.IsSome ? "none" : string.Empty);
-        Title = watch.Match(state => $"Pull request #{state.PullRequest.Number} on {state.Forge.Value}", () => facts.IsSome ? "No pull request was opened for this job." : string.Empty);
+        Fact = watched.Match(found => $"#{found.State.PullRequest.Number} · {ForgePhrases.Brief(found.State, found.Job)}", () => loaded ? "none" : string.Empty);
+        Title = watch.Match(state => $"Pull request #{state.PullRequest.Number} on {state.Forge.Value}", () => loaded ? "No pull request was opened for this job." : string.Empty);
         Link = watch.Match(state => state.PullRequest.Link.ToString(), () => string.Empty);
         Status = watched.Match(found => ForgePhrases.Status(found.State, found.Job), () => string.Empty);
         Policy = watch.Match(ForgePhrases.Policy, () => string.Empty);
+    }
+
+    private void ShowLastPoll(Option<PullRequestWatchState> watch)
+    {
+        var last = watch.Bind(state => state.Last);
         Checks = last.Match(ForgePhrases.Checks, () => watch.IsSome ? "Not checked yet" : string.Empty);
         CheckLines = last.Match<IReadOnlyList<string>>(state => [.. state.Checks.Select(ForgePhrases.Check)], () => []);
         Mergeability = last.Match(state => ForgePhrases.Mergeability(state.Mergeability), () => string.Empty);
         Reviews = last.Match<IReadOnlyList<string>>(state => [.. state.Reviews.Select(ForgePhrases.Review)], () => []);
-        WakeUps = facts.Match<IReadOnlyList<string>>(found => [.. found.WakeUps.Select((wakeUp, index) => ForgePhrases.WakeUp(wakeUp, index + 1))], () => []);
     }
 }

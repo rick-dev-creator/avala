@@ -139,23 +139,34 @@ internal sealed partial class UsageSectionViewModel : IUsageSectionViewModel, IR
         IsLoaded = facts.IsSome;
         shown = facts.Map(found => found.Record.History.Summary.Job);
         var audit = facts.Match(found => found.Audit, () => new AuditFacts([], [], []));
-        var cap = CapOf(audit);
-        Fact = facts.IsNone ? string.Empty : InspectorPhrases.Spending(audit.Usage, cap);
-        IsAttention = InspectorPhrases.Share(audit.Usage, cap).Match(share => share >= 1, () => false) || Unraised(audit);
-        Meter = InspectorPhrases.Share(audit.Usage, cap).Match<IMeterViewModel?>(
-            share =>
-            {
-                var meter = new MeterViewModel("Cost cap", Option<double>.None);
-                meter.Show(share);
+        ShowSpending(audit, facts.IsSome);
+        ShowBudget(audit);
+        CanRaise = facts.Match(found => found.Status == JobStatus.NeedsHelp, () => false) && InspectorPhrases.Raisable(audit.Interventions);
+    }
 
-                return meter;
-            },
-            () => null);
-        Spent = facts.IsNone ? string.Empty : audit.Usage.Match(usage => string.Join(" · ", Amounts.Spent(usage)), () => "No usage reported");
+    private void ShowSpending(AuditFacts audit, bool loaded)
+    {
+        var cap = CapOf(audit);
+        var share = InspectorPhrases.Share(audit.Usage, cap);
+        Fact = loaded ? InspectorPhrases.Spending(audit.Usage, cap) : string.Empty;
+        IsAttention = share.Match(found => found >= 1, () => false) || Unraised(audit);
+        Meter = share.Match<IMeterViewModel?>(Metered, () => null);
+        Spent = loaded ? audit.Usage.Match(usage => string.Join(" · ", Amounts.Spent(usage)), () => "No usage reported") : string.Empty;
+    }
+
+    private void ShowBudget(AuditFacts audit)
+    {
         Caps = audit.Budget.Match(budget => InspectorPhrases.Caps(budget.Caps), () => []);
         Interventions = [.. audit.Interventions.Select(intervention => InspectorPhrases.Intervention(intervention, audit.Usage.Match(usage => usage.Costs, () => [])))];
         Carve = audit.Carve.Match(InspectorPhrases.Carve, () => string.Empty);
         Raises = [.. audit.Raises.Select(InspectorPhrases.Raise)];
-        CanRaise = facts.Match(found => found.Status == JobStatus.NeedsHelp, () => false) && InspectorPhrases.Raisable(audit.Interventions);
+    }
+
+    private static MeterViewModel Metered(double share)
+    {
+        var meter = new MeterViewModel("Cost cap", Option<double>.None);
+        meter.Show(share);
+
+        return meter;
     }
 }
