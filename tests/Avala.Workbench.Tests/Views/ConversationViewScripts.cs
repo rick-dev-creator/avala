@@ -494,6 +494,24 @@ public sealed class PlanPanelViewScripts(HeadlessUi ui)
 
             Assert.False(Screen.Show(panel).Shows("PlanBox"));
         }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheHeaderGlyphAndCaptionStandInTheColumnsOfTheStepGlyphsAndTitlesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignPlanPanelViewModel { IsExpanded = true });
+            var active = view.All<Grid>().Single(step => step.Classes.Contains("active"));
+
+            Assert.Equal(
+                (Center(view, active.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Ellipse>().Single(dot => dot.IsEffectivelyVisible)), Left(view, active.GetVisualDescendants().OfType<TextBlock>().Single())),
+                (Center(view, view.Find("PlanCurrentInProgress")), Left(view, view.Find("PlanCaption"))));
+        }, TestContext.Current.CancellationToken);
+
+    private static double Center(ViewScript view, Avalonia.Visual visual) =>
+        Avalonia.VisualExtensions.TranslatePoint(visual, new Avalonia.Point(visual.Bounds.Width / 2, 0), view.Window)?.X ?? double.NaN;
+
+    private static double Left(ViewScript view, Avalonia.Visual visual) =>
+        Avalonia.VisualExtensions.TranslatePoint(visual, default, view.Window)?.X ?? double.NaN;
 }
 
 public sealed class CanvasViewScripts(HeadlessUi ui)
