@@ -57,7 +57,7 @@ public sealed class WorkbenchPluginTests : IDisposable
 
         Assert.Equal([typeof(SidebarViewModel)], regions[ShellRegions.Sidebar]);
         Assert.Equal([typeof(ToolbarViewModel)], regions[ShellRegions.Toolbar]);
-        Assert.Equal([typeof(ResourceIndicatorViewModel), typeof(UpdateNoticeViewModel)], regions[ShellRegions.SidebarFooter]);
+        Assert.Equal([typeof(ResourceIndicatorViewModel), typeof(UpdateNoticeViewModel), typeof(Workbench.Telemetry.TelemetryNoticeViewModel)], regions[ShellRegions.SidebarFooter]);
         Assert.Equal(
             [typeof(EvidenceSectionViewModel), typeof(ContestSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(PullRequestSectionViewModel), typeof(DelegationSectionViewModel)],
             regions[ShellRegions.Inspector]);
@@ -84,6 +84,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<ILinkOpener>(new FakeLinks())
             .AddSingleton(new AvalaBuild("1.0.0", Option<string>.None))
             .AddSingleton<Sdk.Updates.IUpdates>(new FakeUpdates())
+            .AddSingleton<Sdk.Telemetry.ITelemetry>(new Telemetry.FakeTelemetry())
             .AddSingleton<Sdk.Appearance.IAppearance>(new FakeAppearance())
             .AddSingleton<IJobCatalog>(new FakeCatalog())
             .AddSingleton<IJobs>(new FakeJobs())

@@ -45,6 +45,7 @@ using Avala.Workbench.Spending;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Submitting;
 using Avala.Workbench.Triggers;
+using Avala.Workbench.Telemetry;
 using Avala.Workbench.Updates;
 using Avala.Workbench.Upkeep;
 using Avala.Workbench.Usage;
@@ -121,6 +122,15 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterContests(registrar);
         registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
         registrar.AddToRegion<UpdateNoticeViewModel>(ShellRegions.SidebarFooter, 10);
+        RegisterTelemetry(registrar);
+    }
+
+    private static void RegisterTelemetry(IPluginRegistrar registrar)
+    {
+        registrar.Services
+            .AddSingleton<ITelemetryViewModel, TelemetryViewModel>()
+            .AddSingleton<TelemetryNoticeViewModel>();
+        registrar.AddToRegion<TelemetryNoticeViewModel>(ShellRegions.SidebarFooter, 20);
     }
 
     public void RegisterViews(IViewRegistrar views)
@@ -321,6 +331,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IAboutViewModel, AboutView>();
         views.Register<IUpdateViewModel, UpdateView>();
         views.Register<IUpdateNoticeViewModel, UpdateNoticeView>();
+        views.Register<ITelemetryViewModel, TelemetryView>();
+        views.Register<ITelemetryNoticeViewModel, TelemetryNoticeView>();
         views.Register<IRuleFileViewModel, RuleFileView>();
         views.Register<IRuleViewModel, RuleView>();
         views.Register<ICapsViewModel, CapsView>();

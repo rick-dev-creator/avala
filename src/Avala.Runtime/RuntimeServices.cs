@@ -73,7 +73,7 @@ public static class RuntimeServices
         {
             services.TryAddSingleton(provider => TelemetrySource.Of(
                 provider.GetService<AvalaBuild>() ?? AvalaBuild.From(Option<string>.None),
-                Environment.GetEnvironmentVariable));
+                name => Environment.GetEnvironmentVariable(name).ToOption()));
 
             return services
                 .AddSingleton(new TelemetryFile(paths))

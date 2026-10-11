@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:telemetry="using:Avala.Workbench.Telemetry"
+             x:Class="Avala.Workbench.UI.TelemetryView"
+             x:ClassModifier="internal"
+             x:DataType="telemetry:ITelemetryViewModel">
+  <Design.DataContext>
+    <telemetry:DesignTelemetryViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="8">
+    <TextBlock Classes="section" Text="Usage statistics" />
+    <Border Classes="grouped">
+      <StackPanel>
+        <DockPanel Margin="16,12">
+          <CheckBox x:Name="Send"
+                    DockPanel.Dock="Right"
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Send usage statistics"
+                    IsChecked="{Binding IsOn, Mode=OneWay}"
+                    Command="{Binding ToggleCommand}" />
+          <StackPanel Spacing="2">
+            <TextBlock Text="Send usage statistics" />
+            <TextBlock x:Name="Status" Classes="caption" Text="{Binding Status}" TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+        <StackPanel IsVisible="{Binding HasInstallId}">
+          <Border Classes="separator" Margin="16,0" />
+          <DockPanel Margin="16,12">
+            <Button x:Name="ResetInstallId"
+                    DockPanel.Dock="Right"
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Center"
+                    Content="Reset ID"
+                    Command="{Binding ResetInstallIdCommand}" />
+            <StackPanel Spacing="2">
+              <TextBlock Text="Install ID" />
+              <SelectableTextBlock x:Name="InstallId" Classes="mono caption" Text="{Binding InstallId}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DockPanel>
+          <Border Classes="separator" Margin="16,0" />
+          <StackPanel Margin="16,12" Spacing="6">
+            <TextBlock Text="Exactly what is sent, to Aptabase" />
+            <Border Classes="code" Padding="10,8">
+              <SelectableTextBlock x:Name="Preview" Classes="mono" Text="{Binding Preview}" TextWrapping="Wrap" />
+            </Border>
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="{x:Static telemetry:TelemetryPhrases.Sent}" />
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

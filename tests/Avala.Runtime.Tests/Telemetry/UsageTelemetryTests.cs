@@ -71,7 +71,7 @@ public sealed class UsageTelemetryTests
             _ = await settings.TurnAsync(false, Cancellation);
         }
 
-        await using var telemetry = Telemetry(data, aptabase, clock, TelemetrySource.OptOut(environment.GetValueOrDefault), configured: off != "no key");
+        await using var telemetry = Telemetry(data, aptabase, clock, TelemetrySource.OptOut(name => environment.TryGetValue(name, out var found) ? found : Option<string>.None), configured: off != "no key");
         await telemetry.RunAsync(Cancellation);
         await telemetry.Sending;
         clock.Advance(TimeSpan.FromDays(1));

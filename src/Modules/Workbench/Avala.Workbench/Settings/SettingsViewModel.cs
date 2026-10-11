@@ -47,5 +47,6 @@ internal sealed class SettingsViewModel(
         await Machine.LoadAsync(cancellationToken);
         await Appearance.LoadAsync(cancellationToken);
         await Repository.LoadAsync(cancellationToken);
+        await About.Telemetry.LoadAsync(cancellationToken);
     }
 }

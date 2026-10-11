@@ -1,6 +1,7 @@
 using Avala.Permissions.Contracts;
 using Avala.Sdk.Appearance;
 using Avala.Workbench.ModelChoices;
+using Avala.Workbench.Telemetry;
 using Avala.Workbench.Updates;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -335,6 +336,8 @@ internal sealed class DesignAboutViewModel : IAboutViewModel
     public string Note { get; init; } = string.Empty;
 
     public IUpdateViewModel Update { get; init; } = new DesignUpdateViewModel();
+
+    public ITelemetryViewModel Telemetry { get; init; } = new DesignTelemetryViewModel();
 
     public IAsyncRelayCommand OpenLogFolderCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 

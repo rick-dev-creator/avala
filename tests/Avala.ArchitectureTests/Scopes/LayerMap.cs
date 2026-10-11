@@ -93,6 +93,7 @@ internal static class LayerMap
             ["Usage"] = Layer.ViewModels,
             ["Settings"] = Layer.ViewModels,
             ["Updates"] = Layer.ViewModels,
+            ["Telemetry"] = Layer.ViewModels,
             ["Resources"] = Layer.ViewModels,
             ["NewJob"] = Layer.ViewModels,
             ["ModelChoices"] = Layer.ViewModels,

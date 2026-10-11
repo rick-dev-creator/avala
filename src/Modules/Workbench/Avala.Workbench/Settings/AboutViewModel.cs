@@ -1,4 +1,6 @@
 using Avala.Sdk;
+using Avala.Workbench.Machine;
+using Avala.Workbench.Telemetry;
 using Avala.Workbench.Updates;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,6 +19,8 @@ internal interface IAboutViewModel
 
     IUpdateViewModel Update { get; }
 
+    ITelemetryViewModel Telemetry { get; }
+
     IAsyncRelayCommand OpenLogFolderCommand { get; }
 
     IAsyncRelayCommand OpenRepositoryCommand { get; }
@@ -27,7 +31,7 @@ internal interface IAboutViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class AboutViewModel(IUpdateViewModel update, AvalaPaths paths, IFileOpener files, ILinkOpener links) : IAboutViewModel
+internal sealed partial class AboutViewModel(IUpdateViewModel update, ITelemetryViewModel telemetry, SettingsFiles files, ILinkOpener links) : IAboutViewModel
 {
     public string Version => update.Version;
 
@@ -35,7 +39,9 @@ internal sealed partial class AboutViewModel(IUpdateViewModel update, AvalaPaths
 
     public IUpdateViewModel Update => update;
 
-    public string LogFolder => paths.Logs;
+    public ITelemetryViewModel Telemetry => telemetry;
+
+    public string LogFolder => files.Logs;
 
     public void Refresh() => update.Refresh();
 
@@ -44,7 +50,7 @@ internal sealed partial class AboutViewModel(IUpdateViewModel update, AvalaPaths
 
     [RelayCommand]
     private async Task OpenLogFolderAsync(CancellationToken cancellationToken) =>
-        Note = (await files.OpenFolderAsync(paths.Logs, cancellationToken)).Match(_ => string.Empty, error => AboutPhrases.Folder(error, paths.Logs));
+        Note = (await files.OpenLogsAsync(cancellationToken)).Match(_ => string.Empty, error => AboutPhrases.Folder(error, files.Logs));
 
     [RelayCommand]
     private Task OpenRepositoryAsync(CancellationToken cancellationToken) => OpenAsync(AvalaBuild.Repository, cancellationToken);

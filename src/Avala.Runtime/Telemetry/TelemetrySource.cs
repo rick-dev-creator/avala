@@ -31,13 +31,13 @@ internal sealed record TelemetrySource(AvalaBuild Build, TelemetryPlatform Platf
 
     private static readonly string[] Refusals = ["0", "false", "off", "no"];
 
-    public static TelemetrySource Of(AvalaBuild build, Func<string, string?> environment) =>
+    public static TelemetrySource Of(AvalaBuild build, Func<string, Option<string>> environment) =>
         new(build, TelemetryPlatform.Current, OptOut(environment));
 
-    public static Option<string> OptOut(Func<string, string?> environment) =>
-        environment(DoNotTrack)?.Trim() is { Length: > 0 } track && !Refusals.Contains(track, StringComparer.OrdinalIgnoreCase)
+    public static Option<string> OptOut(Func<string, Option<string>> environment) =>
+        Read(environment, DoNotTrack) is { Length: > 0 } track && !Refusals.Contains(track, StringComparer.OrdinalIgnoreCase)
             ? $"{DoNotTrack}={track}"
-            : environment(AvalaTelemetry)?.Trim() is { Length: > 0 } avala && Refusals.Contains(avala, StringComparer.OrdinalIgnoreCase)
+            : Read(environment, AvalaTelemetry) is { Length: > 0 } avala && Refusals.Contains(avala, StringComparer.OrdinalIgnoreCase)
                 ? $"{AvalaTelemetry}={avala}"
                 : Option<string>.None;
 
@@ -65,4 +65,7 @@ internal sealed record TelemetrySource(AvalaBuild Build, TelemetryPlatform Platf
 
         return Encoding.UTF8.GetString(stream.ToArray());
     }
+
+    private static string Read(Func<string, Option<string>> environment, string name) =>
+        environment(name).Match(value => value.Trim(), () => string.Empty);
 }

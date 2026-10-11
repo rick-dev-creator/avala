@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:telemetry="using:Avala.Workbench.Telemetry"
+             x:Class="Avala.Workbench.UI.TelemetryNoticeView"
+             x:ClassModifier="internal"
+             x:DataType="telemetry:ITelemetryNoticeViewModel"
+             IsVisible="{Binding IsShown}">
+  <Design.DataContext>
+    <telemetry:DesignTelemetryNoticeViewModel />
+  </Design.DataContext>
+  <Border x:Name="Notice" Classes="quiet" Padding="10,8">
+    <StackPanel Spacing="4">
+      <TextBlock x:Name="Text" Classes="caption" Text="{Binding Text}" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="4" Margin="-8,0,0,0">
+        <Button x:Name="TurnOff" Classes="link" Content="Turn off" Command="{Binding TurnOffCommand}" />
+        <Button x:Name="Dismiss" Classes="link" Content="OK" Command="{Binding DismissCommand}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

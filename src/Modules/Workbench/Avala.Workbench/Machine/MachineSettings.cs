@@ -61,7 +61,12 @@ internal sealed class SettingsFiles(IFileOpener opener, AvalaPaths paths)
 
     public static string TemplateOf(string file) => Templates.GetValueOrDefault(file, "{}\n");
 
+    public string Logs => paths.Logs;
+
     public string InDataFolder(string file) => Path.Combine(paths.Data, file);
+
+    public ValueTask<Result<OpenedFile, FileOpenError>> OpenLogsAsync(CancellationToken cancellationToken) =>
+        opener.OpenFolderAsync(paths.Logs, cancellationToken);
 
     public ValueTask<Result<OpenedFile, FileOpenError>> OpenInRepositoryAsync(string repository, string file, CancellationToken cancellationToken) =>
         opener.OpenAsync(Path.Combine(repository, file), TemplateOf(file), cancellationToken);
