@@ -210,7 +210,7 @@ public sealed class ConnectionMeterViewModelScripts
             }))
             .Then(meter =>
             {
-                Assert.Equal(("claude-work", "Simulator", "3.214 USD", "159 tokens", "1 usage report had no cost"), (meter.Name, meter.Provider, meter.Cost, meter.Tokens, meter.Unpriced));
+                Assert.Equal(("claude-work", "Simulator", "3.21 USD", "159 tokens", "1 usage report had no cost"), (meter.Name, meter.Provider, meter.Cost, meter.Tokens, meter.Unpriced));
                 Assert.Equal("5 USD per job, holds at 90% of a limit", meter.Caps);
                 Assert.Equal("Jobs on this connection hold at the 90% threshold.", Assert.Single(meter.Limits).HoldAt);
             });

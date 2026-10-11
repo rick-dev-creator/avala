@@ -89,9 +89,9 @@ public sealed class InspectorPhrasesTests
             }));
 
     [Theory]
-    [InlineData(CostBasis.Billed, CostBasis.Billed, "0.5 USD of 5 USD")]
-    [InlineData(CostBasis.ApiEquivalent, CostBasis.ApiEquivalent, "0.5 USD at API prices of 5 USD")]
-    [InlineData(CostBasis.Billed, CostBasis.ApiEquivalent, "0.5 USD partly at API prices of 5 USD")]
+    [InlineData(CostBasis.Billed, CostBasis.Billed, "0.50 USD of 5 USD")]
+    [InlineData(CostBasis.ApiEquivalent, CostBasis.ApiEquivalent, "0.50 USD at API prices of 5 USD")]
+    [InlineData(CostBasis.Billed, CostBasis.ApiEquivalent, "0.50 USD partly at API prices of 5 USD")]
     public void SpendMeasuredAgainstACapSaysHowMuchOfItIsAtApiPrices(CostBasis first, CostBasis second, string phrase) =>
         Assert.Equal(
             phrase,

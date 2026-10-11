@@ -196,7 +196,7 @@ public sealed class ConnectionCardViewModelScripts
             Option<double>.None))
             .Then(card =>
             {
-                Assert.Equal(("claude-work", "Claude Code", "rick@acme.dev", true, "3.214 USD"), (card.Name, card.Provider, card.Account, card.IsDefault, card.Cost));
+                Assert.Equal(("claude-work", "Claude Code", "rick@acme.dev", true, "3.21 USD"), (card.Name, card.Provider, card.Account, card.IsDefault, card.Cost));
                 Assert.Equal(("88%", "5h · 88%", false), (Assert.Single(card.Limits).UsedText, card.Use, card.IsNearLimit));
                 Assert.Equal("Fix JPY rounding in invoice totals", Assert.Single(card.Agents).Title);
             });
@@ -288,7 +288,7 @@ public sealed class OrchestratorCardViewModelScripts
         ViewModelScript.Given(new OrchestratorCardViewModel(tree))
             .Then(card => Assert.Equal(("Budget 3 USD", "1.47 USD spent across the tree", true), (card.Budget, card.Spent, card.HasBudget)))
             .Then(card => Assert.Equal([(0.8, true), (0.8, false), (0.8, false), (0.6, false)], card.Shares.Select(share => (Math.Round(share.Weight, 3), share.IsKept))))
-            .Then(card => Assert.Equal("kept 0.8 USD · carved 0.8 USD · 0.8 USD · 0.6 USD", card.ShareNote))
+            .Then(card => Assert.Equal("kept 0.80 USD · carved 0.80 USD · 0.80 USD · 0.60 USD", card.ShareNote))
             .Then(card => Assert.Equal("shop · waiting on 3 sub-agents", card.Detail));
     }
 
@@ -383,8 +383,8 @@ public sealed class DelegationNodeViewModelScripts
             .Then(node => Assert.Equal(("not started", "starting", "no spend yet", false, string.Empty, string.Empty, 2, 0d), (node.Connection, node.Activity, node.Spend, node.HasCarve, node.Harness, node.Role, node.Depth, node.SpentShare)));
 
     [Theory]
-    [InlineData(0.4, 0.8, 0.5, "0.4 USD of 0.8 USD")]
-    [InlineData(1.2, 0.8, 1, "1.2 USD of 0.8 USD")]
+    [InlineData(0.4, 0.8, 0.5, "0.40 USD of 0.80 USD")]
+    [InlineData(1.2, 0.8, 1, "1.20 USD of 0.80 USD")]
     public void AChildsSpendIsMeasuredAgainstItsCarve(double spent, double carve, double share, string spend) =>
         ViewModelScript.Given(new DelegationNodeViewModel(OrchestratorCardViewModelScripts.Child(Pages.Summary("Root", JobStatus.Running), (decimal)spent, (decimal)carve)))
             .Then(node => Assert.Equal((share, spend, true), (Math.Round(node.SpentShare, 3), node.Spend, node.HasCarve)))

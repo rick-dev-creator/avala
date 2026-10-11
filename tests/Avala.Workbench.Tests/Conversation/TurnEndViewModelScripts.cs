@@ -19,5 +19,5 @@ public sealed class TurnEndViewModelScripts
     [Fact]
     public void TheEndOfATurnSumsItsTokensAndListsEachCurrencySayingWhatIsAtApiPrices() =>
         ViewModelScript.Given(new TurnEndViewModel(new TurnEndEntry("turn", TurnOutcome.Finished, TimeSpan.FromSeconds(30), new TokenUsage(40_000, 8_000, 200, 10, 0), [new Cost(0.412m, "USD") { Basis = CostBasis.ApiEquivalent }, new Cost(61m, "JPY")])))
-            .Then(turn => Assert.Equal((48_210L, "0.412 USD at API prices + 61 JPY"), (turn.Tokens, turn.Cost)));
+            .Then(turn => Assert.Equal((48_210L, "0.41 USD at API prices + 61 JPY"), (turn.Tokens, turn.Cost)));
 }

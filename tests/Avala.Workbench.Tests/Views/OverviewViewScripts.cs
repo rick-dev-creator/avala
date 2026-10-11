@@ -371,7 +371,7 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignDelegationNodeViewModel());
 
-            Assert.Equal(("Claude Code", "claude-work", "Running", "Edited internal/payments/refund.go · 9 of 14 files", "0.41 USD of 0.8 USD"), (view.TextOf("Harness"), view.TextOf("Connection"), view.TextOf("State"), view.TextOf("Activity"), view.TextOf("Spend")));
+            Assert.Equal(("Claude Code", "claude-work", "Running", "Edited internal/payments/refund.go · 9 of 14 files", "0.41 USD of 0.80 USD"), (view.TextOf("Harness"), view.TextOf("Connection"), view.TextOf("State"), view.TextOf("Activity"), view.TextOf("Spend")));
             Assert.Equal((0.51, true, false), (view.Find<ProgressBar>("Share").Value, view.Shows("Share"), view.Shows("RoleTag")));
             Assert.Equal(1, Graph.GetDepth(view.Named("DelegationNodeView").Single()));
         }, TestContext.Current.CancellationToken);

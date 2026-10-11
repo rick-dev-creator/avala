@@ -18,7 +18,16 @@ internal static class Amounts
         return Money(amount, currency) + (bases.Count > 1 ? " partly at API prices" : Priced(bases.FirstOrDefault()));
     }
 
-    private static string Money(decimal amount, string currency) => string.Create(CultureInfo.InvariantCulture, $"{amount:0.####} {currency}");
+    public static string Money(decimal amount)
+    {
+        var size = Math.Abs(amount);
+        var decimals = size is 0 or >= 1 ? 2 : Math.Max(2, 1 - (int)Math.Floor(Math.Log10((double)size)));
+        var rounded = Math.Round(amount, decimals, MidpointRounding.AwayFromZero);
+
+        return rounded.ToString(rounded == decimal.Truncate(rounded) ? "0" : $"0.00{new string('#', decimals - 2)}", CultureInfo.InvariantCulture);
+    }
+
+    private static string Money(decimal amount, string currency) => $"{Money(amount)} {currency}";
 
     private static string Priced(CostBasis basis) => basis == CostBasis.ApiEquivalent ? " at API prices" : string.Empty;
 
@@ -46,7 +55,7 @@ internal static class Amounts
     {
         string[] parts =
         [
-            .. caps.CostPerJob.Select(cost => string.Create(CultureInfo.InvariantCulture, $"{cost.Amount:0.####} {cost.Currency} per job")),
+            .. caps.CostPerJob.Select(cost => string.Create(CultureInfo.InvariantCulture, $"{Money(cost.Amount)} {cost.Currency} per job")),
             .. caps.TokensPerJob.Match<string[]>(tokens => [$"{Tokens(tokens)} per job"], () => []),
             .. caps.HoldAtLimit.Match<string[]>(hold => [$"holds at {Percent(hold)} of a limit"], () => []),
             .. caps.MemoryPerJobMegabytes.Match<string[]>(megabytes => [string.Create(CultureInfo.InvariantCulture, $"{megabytes} MB per job")], () => []),

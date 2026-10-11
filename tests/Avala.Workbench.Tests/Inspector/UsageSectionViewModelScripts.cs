@@ -23,7 +23,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
         await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
 
         Assert.Equal(
-            ("0.25 USD · 1,500 tokens", "Cost cap 5 USD", "Carved 50% of its parent's budget · 0.5 USD"),
+            ("0.25 USD · 1,500 tokens", "Cost cap 5 USD", "Carved 50% of its parent's budget · 0.50 USD"),
             (section.Spent, string.Join("|", section.Caps), section.Carve));
     }
 
@@ -39,7 +39,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(job.Job, bench);
 
-        Assert.Equal(["Held for Cost: 5.2 USD of 5 USD"], section.Interventions);
+        Assert.Equal(["Held for Cost: 5.20 USD of 5 USD"], section.Interventions);
         Assert.Equal("No usage reported", section.Spent);
     }
 
@@ -57,7 +57,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
         await section.FocusAsync(job.Job, bench);
 
         Assert.Equal(
-            ("Held for Cost: 5.2 USD at API prices of 5 USD", "5.2 USD at API prices · 1,500 tokens"),
+            ("Held for Cost: 5.20 USD at API prices of 5 USD", "5.20 USD at API prices · 1,500 tokens"),
             (Assert.Single(section.Interventions), section.Spent));
     }
 
@@ -136,7 +136,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(job.Job, bench);
 
-        Assert.Equal(["Held for today's spend on this machine: 40 USD of 40 USD", "Held for today's spend on team-api: 10.5 USD of 10 USD"], section.Interventions);
+        Assert.Equal(["Held for today's spend on this machine: 40 USD of 40 USD", "Held for today's spend on team-api: 10.50 USD of 10 USD"], section.Interventions);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
         await section.RaiseCommand.ExecuteAsync(null);
 
         Assert.Equal([job], bench.Audit.Raises.Select(raise => raise.Job));
-        Assert.Equal(["continue Your budget was raised by 1.2 USD. Carry on where you left off."], bench.Jobs.Calls);
+        Assert.Equal(["continue Your budget was raised by 1.20 USD. Carry on where you left off."], bench.Jobs.Calls);
         Assert.Equal(string.Empty, section.Notice);
     }
 
@@ -180,7 +180,7 @@ public sealed class UsageSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(job, bench);
 
-        Assert.Equal(["Budget raised by 1.2 USD · 1,000 tokens", "Budget raised by 0.4 USD for a sub-agent"], section.Raises);
+        Assert.Equal(["Budget raised by 1.20 USD · 1,000 tokens", "Budget raised by 0.40 USD for a sub-agent"], section.Raises);
     }
 
     public void Dispose() => bench.Dispose();
