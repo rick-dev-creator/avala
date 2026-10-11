@@ -4,6 +4,7 @@ using Avala.ForgeSimulator.Scenarios;
 using Avala.Forges.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
+using Avala.Triggers.Contracts;
 
 namespace Avala.ForgeSimulator.Remote;
 
@@ -17,9 +18,15 @@ internal sealed record SimulatedPull(int Number, string Head, string Base, strin
 internal sealed record SimulatedRemote
 {
     public List<SimulatedPull> Pulls { get; init; } = [];
+
+    public List<SimulatedIssue> Issues { get; init; } = [];
+
+    public List<SimulatedEvent> Events { get; init; } = [];
+
+    public List<SimulatedFailure> FailingHeads { get; init; } = [];
 }
 
-internal sealed class SimulatedForge(IProcessRunner processes) : IForge, IAsyncDisposable
+internal sealed class SimulatedForge(IProcessRunner processes) : IForge, IForgeEvents, IAsyncDisposable
 {
     public const string Id = "simulated";
 
@@ -30,6 +37,8 @@ internal sealed class SimulatedForge(IProcessRunner processes) : IForge, IAsyncD
     private readonly SerialExecutor executor = new();
 
     public ForgeInfo Info { get; } = new(Id, "Simulated forge") { DefaultUrl = Site };
+
+    public HookSignature Signature { get; } = new(["X-Hub-Signature-256"], "sha256=");
 
     public Option<CliCall> CliFor(ForgeRequest request, ForgeTarget target) => Option<CliCall>.None;
 
@@ -117,7 +126,29 @@ internal sealed class SimulatedForge(IProcessRunner processes) : IForge, IAsyncD
             },
             cancellationToken);
 
+    public async ValueTask<Result<ForgeEventPage, ForgeError>> ReadSinceAsync(ForgeContext context, ForgeEventQuery query, CancellationToken cancellationToken) =>
+        await executor.RunAsync(
+            async token =>
+            {
+                if (!(await LoadAsync(context, token)).TryGetValue(out var remote, out var error))
+                {
+                    return error;
+                }
+
+                if (query.Kind != ForgeEventKind.ChecksFailed)
+                {
+                    return Result<ForgeEventPage, ForgeError>.Success(SimulatedEvents.Since(remote, query, SiteOf(context)));
+                }
+
+                var branch = query.Branch.Match(name => name, () => string.Empty);
+
+                return (await HeadAsync(context, branch, token)).Map(head => SimulatedEvents.Checks(remote, query, branch, head));
+            },
+            cancellationToken);
+
     public ValueTask DisposeAsync() => executor.DisposeAsync();
+
+    private static Uri SiteOf(ForgeContext context) => new(Site, $"{context.Target.Repository.Owner}/{context.Target.Repository.Name}/");
 
     private static PullRequestRef Reference(ForgeContext context, SimulatedPull pull) =>
         new(pull.Number, new Uri(Site, $"{context.Target.Repository.Owner}/{context.Target.Repository.Name}/pulls/{pull.Number.ToString(CultureInfo.InvariantCulture)}"), pull.Head, pull.Base);

@@ -5,6 +5,7 @@ using Avala.Runtime;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Avala.Testing;
+using Avala.Triggers.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Avala.ForgeSimulator.Tests;
@@ -57,6 +58,60 @@ public sealed class SimulatedForgeTests
 
         Assert.Contains("A person needs to look.", await File.ReadAllTextAsync(Path.Combine(repository.Remote, SimulatedForge.StateFile), Cancellation), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task EventsOfAKindAreReadOldestFirstSinceTheCursorAPageAtATimeAndTheFirstReadIsABaselineAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        await using var forge = new SimulatedForge(Processes);
+        var context = await PublishedAsync(repository, "green");
+        var script = new SimulatedForgeRemote(repository.Remote);
+        var before = await script.OpenIssueAsync("Old", "Before Avala looked", "alice", Cancellation);
+        await script.LabelAsync(before, "avala", "alice", Cancellation);
+
+        var baseline = Outcomes.Succeeds(await forge.ReadSinceAsync(context, Query(ForgeEventKind.IssueLabeled, Option<string>.None), Cancellation));
+        var issue = await script.OpenIssueAsync("Checkout button does nothing", "Clicking it shows nothing.", "mallory", Cancellation, pullRequest: true, fork: true);
+        await script.LabelAsync(issue, "bug", "bob", Cancellation);
+        await script.LabelAsync(issue, "avala", "alice", Cancellation);
+        var first = Outcomes.Succeeds(await forge.ReadSinceAsync(context, Query(ForgeEventKind.IssueLabeled, baseline.Cursor) with { Most = 1 }, Cancellation));
+        var rest = Outcomes.Succeeds(await forge.ReadSinceAsync(context, Query(ForgeEventKind.IssueLabeled, first.Cursor), Cancellation));
+        var none = Outcomes.Succeeds(await forge.ReadSinceAsync(context, Query(ForgeEventKind.IssueLabeled, rest.Cursor), Cancellation));
+
+        Assert.Empty(baseline.Events);
+        var bug = Assert.Single(first.Events);
+        Assert.Equal((issue, "Checkout button does nothing", "mallory", "bob", Option<string>.Some("bug"), true, true), (bug.Number, bug.Title, bug.Author, bug.Actor, bug.Label, bug.PullRequest, bug.FromFork));
+        Assert.Equal(bug.Cursor, first.Cursor);
+        Assert.Equal([("alice", Option<string>.Some("avala"))], rest.Events.Select(labeled => (labeled.Actor, labeled.Label)));
+        Assert.Empty(none.Events);
+        Assert.Equal(rest.Cursor, none.Cursor);
+    }
+
+    [Fact]
+    public async Task FailedChecksOnABranchAreOneEventPerHeadAndTheHeadFailingAtTheBaselineIsNoEventAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        await using var forge = new SimulatedForge(Processes);
+        var context = await PublishedAsync(repository, "green");
+        var script = new SimulatedForgeRemote(repository.Remote);
+        await script.FailChecksAsync(await repository.GitInAsync(repository.Remote, Cancellation, "rev-parse", "main"), "alice", Cancellation);
+
+        var baseline = Outcomes.Succeeds(await forge.ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, Option<string>.None), Cancellation));
+        await repository.CommitToRemoteAsync("main", "CHANGELOG.md", "broken\n", Cancellation);
+        var head = await repository.GitInAsync(repository.Remote, Cancellation, "rev-parse", "main");
+        var passing = Outcomes.Succeeds(await forge.ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, baseline.Cursor), Cancellation));
+        await script.FailChecksAsync(head, "bob", Cancellation);
+        var failed = Outcomes.Succeeds(await forge.ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, passing.Cursor), Cancellation));
+        var again = Outcomes.Succeeds(await forge.ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, failed.Cursor), Cancellation));
+
+        Assert.Empty(baseline.Events);
+        Assert.Empty(passing.Events);
+        var failure = Assert.Single(failed.Events);
+        Assert.Equal(($"main:{head}", "bob", Option<string>.Some(head), CheckStatus.Failed), (failure.Id, failure.Actor, failure.Head, Assert.Single(failure.Checks).Status));
+        Assert.Empty(again.Events);
+    }
+
+    private static ForgeEventQuery Query(ForgeEventKind kind, Option<string> cursor) =>
+        new(kind, cursor, DateTimeOffset.UnixEpoch) { Branch = "main" };
 
     private static async Task<ForgeContext> PublishedAsync(TemporaryRepository repository, string scenario)
     {
