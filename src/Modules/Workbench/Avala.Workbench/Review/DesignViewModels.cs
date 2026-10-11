@@ -174,3 +174,19 @@ internal sealed partial class DesignReviewViewModel : IReviewViewModel
 
     public IRelayCommand CloseCommand { get; } = new RelayCommand(() => { });
 }
+
+internal sealed class DesignCandidateSwitcherViewModel : ICandidateSwitcherViewModel
+{
+    public bool IsShown => true;
+
+    public string Heading => "3 candidates · Decided: the winner waits for your review";
+
+    public IReadOnlyList<CandidateChoice> Choices { get; } =
+    [
+        new(SampleJobs.InvoicePdf, "Candidate 1", "not verified · 1 line changed · 0.015 USD", IsOpen: false, IsWinner: false),
+        new(SampleJobs.LodashUpdate, "Candidate 2", "verified · 31 lines changed · 0.012 USD", IsOpen: false, IsWinner: false),
+        new(SampleJobs.SyncQueue, "Candidate 3 · winner", "verified · 1 line changed · 0.009 USD", IsOpen: true, IsWinner: true),
+    ];
+
+    public IRelayCommand<object> SwitchCommand { get; } = new RelayCommand<object>(_ => { });
+}

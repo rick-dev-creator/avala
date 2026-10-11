@@ -20,6 +20,8 @@ internal sealed class DesignWorkbenchViewModel(Option<IConversationViewModel> co
 
     public IReviewViewModel? Review => null;
 
+    public ICandidateSwitcherViewModel? Candidates => null;
+
     public bool IsInspectorOpen { get; } = isInspectorOpen;
 
     public IRelayCommand ToggleInspectorCommand { get; } = new RelayCommand(() => { });

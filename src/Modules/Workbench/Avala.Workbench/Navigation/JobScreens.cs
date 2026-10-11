@@ -16,4 +16,6 @@ internal sealed class JobScreens(Conversations conversations, Reviews reviews)
     public ConversationViewModel Conversation(JobId job) => conversations.Open(job);
 
     public ReviewViewModel Review(JobId job) => reviews.Open(job);
+
+    public static CandidateSwitcherViewModel Candidates(JobId job) => new(job);
 }

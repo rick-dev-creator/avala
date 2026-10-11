@@ -275,6 +275,25 @@ public sealed class WorkbenchViewModelScripts : IDisposable
         bench.Dispose();
     }
 
+    [Fact]
+    public async Task TheReviewOfAContestCandidateOffersItsCandidatesAndSwitchingOpensTheReviewOfTheOneChosen()
+    {
+        var (winner, runnerUp) = (bench.Job("Fix JPY rounding", JobStatus.AwaitingReview), bench.Job("Fix JPY rounding", JobStatus.AwaitingReview));
+        var contest = FakeContests.Contest(Contests.Contracts.ContestStatus.Decided, winner.Job, runnerUp.Job);
+        bench.Board.Publish(System.Collections.Immutable.ImmutableDictionary<JobId, BoardContest>.Empty.Add(winner.Job, new BoardContest(contest, 1)).Add(runnerUp.Job, new BoardContest(contest, 1)));
+        bench.Publish(Bench.OnBoard(winner), Bench.OnBoard(runnerUp));
+        workbench.Activate();
+        await bench.Ui.InvokeAsync(() => Select(winner), Cancellation);
+        await OpenReviewAsync();
+        var offered = await bench.Ui.ReadAsync(() => workbench.Candidates!.Choices.Select(choice => (choice.Title, choice.IsOpen)).ToList());
+
+        await bench.Ui.InvokeAsync(() => workbench.Candidates!.SwitchCommand.Execute(workbench.Candidates.Choices[1]), Cancellation);
+        await (await bench.Ui.ReadAsync(() => workbench.Switching));
+
+        Assert.Equal([("Candidate 1", true), ("Candidate 2", false)], offered);
+        Assert.Equal((runnerUp.Job, runnerUp.Job, runnerUp.Job), await bench.Ui.ReadAsync(() => (workbench.Conversation!.Job, workbench.Review!.Job, workbench.Candidates!.Job)));
+    }
+
     private void Select(JobSummary job) => bench.Messenger.Send(new JobSelected(job.Job));
 
     private async Task OpenReviewAsync()

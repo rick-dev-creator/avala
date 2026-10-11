@@ -163,6 +163,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IDelegationSectionViewModel, DelegationSectionView>();
         views.Register<IPullRequestSectionViewModel, PullRequestSectionView>();
         views.Register<IContestSectionViewModel, ContestSectionView>();
+        views.Register<ICandidateSwitcherViewModel, CandidateSwitcherView>();
         RegisterGlobalViews(views);
     }
 

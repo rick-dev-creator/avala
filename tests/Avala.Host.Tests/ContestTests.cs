@@ -69,6 +69,25 @@ public sealed class ContestTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheReviewOfTheWinnerOffersEveryCandidateWithItsVerificationDiffSizeAndCostAsync()
+    {
+        await using var run = await CheckedAsync();
+        var decided = run.Watch<ContestDecided>();
+        var contest = await StartAsync(run, "contest", 3);
+        var winner = Outcomes.Present(Outcomes.Present((await decided.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Verdict).Winner);
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(winner);
+        await workbench.ShowsAsync(() => ((System.Windows.Input.ICommand)workbench.Page["OpenReviewCommand"].Target).CanExecute(null));
+
+        await run.Ui.RunAsync(() => workbench.Page.ExecuteAsync("OpenReviewCommand"));
+
+        var choices = await run.Ui.ReadAsync(() => workbench.Page["Candidates"]["Choices"].Items.Select(choice => (choice["Facts"].Text, choice["IsOpen"].Value<bool>())).ToList());
+        Assert.Equal(3, choices.Count);
+        Assert.StartsWith("verified · 1 line changed · ", choices.Single(choice => choice.Item2).Item1, StringComparison.Ordinal);
+        Assert.Single(choices, choice => choice.Item1.StartsWith("not verified", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ApprovingTheRunnerUpPicksItAndDiscardsTheWinnerAsync()
     {
         await using var run = await CheckedAsync();

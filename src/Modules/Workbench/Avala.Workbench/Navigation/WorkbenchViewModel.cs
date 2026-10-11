@@ -22,6 +22,8 @@ internal interface IWorkbenchViewModel
 
     IReviewViewModel? Review { get; }
 
+    ICandidateSwitcherViewModel? Candidates { get; }
+
     bool IsInspectorOpen { get; }
 
     IRelayCommand ToggleInspectorCommand { get; }
@@ -84,6 +86,13 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
 
     IReviewViewModel? IWorkbenchViewModel.Review => Review;
 
+    [ObservableProperty]
+    public partial CandidateSwitcherViewModel? Candidates { get; private set; }
+
+    ICandidateSwitcherViewModel? IWorkbenchViewModel.Candidates => Candidates;
+
+    public Task Switching { get; private set; } = Task.CompletedTask;
+
     public void Activate()
     {
         feed.Start(Show);
@@ -133,6 +142,8 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
         var review = screens.Review(Conversation!.Job);
         review.Track(Conversation.Status);
         Review = review;
+        Candidates = JobScreens.Candidates(review.Job);
+        Candidates.Track(feed.Contests);
         Loading = feed.Find(review.Job).Match(
             job =>
             {
@@ -161,6 +172,29 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
             newValue.Closed += OnReviewClosed;
             newValue.Resubmitted += OnResubmitted;
         }
+        else
+        {
+            Candidates = null;
+        }
+    }
+
+    partial void OnCandidatesChanged(CandidateSwitcherViewModel? oldValue, CandidateSwitcherViewModel? newValue)
+    {
+        if (oldValue is not null)
+        {
+            oldValue.Switched -= OnCandidateSwitched;
+        }
+
+        if (newValue is not null)
+        {
+            newValue.Switched += OnCandidateSwitched;
+        }
+    }
+
+    private void OnCandidateSwitched(object? sender, JobId job)
+    {
+        focus.Select(job);
+        Switching = OpenReviewCommand.CanExecute(null) ? OpenReviewCommand.ExecuteAsync(null) : Task.CompletedTask;
     }
 
     private void OnReviewClosed(object? sender, EventArgs e) => Review = null;
@@ -187,6 +221,8 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
             open.Show(job);
             OpenReviewCommand.NotifyCanExecuteChanged();
         }
+
+        Candidates?.Track(feed.Contests);
 
         if (Review is { } review && jobs.TryGetValue(review.Job, out var reviewed))
         {

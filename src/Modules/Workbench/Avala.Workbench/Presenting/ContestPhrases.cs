@@ -94,6 +94,13 @@ internal static class ContestPhrases
         _ => "running",
     };
 
+    public static string Choice(Standing standing) =>
+        Joined([
+            standing.Excluded.Match(Excluded, () => "verified"),
+            Count(standing.Facts.LinesChanged, "line changed", "lines changed"),
+            standing.Facts.Spent.Count > 0 ? Amounts.Costs(standing.Facts.Spent) : "no cost reported",
+        ]);
+
     public static string Standing(Standing standing) =>
         Joined([
             string.Create(CultureInfo.InvariantCulture, $"{standing.Place}. Candidate {standing.Facts.Ordinal}"),

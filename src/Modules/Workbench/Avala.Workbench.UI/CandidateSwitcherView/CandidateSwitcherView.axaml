@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:review="using:Avala.Workbench.Review"
+             x:Class="Avala.Workbench.UI.CandidateSwitcherView"
+             x:ClassModifier="internal"
+             x:DataType="review:ICandidateSwitcherViewModel">
+  <Design.DataContext>
+    <review:DesignCandidateSwitcherViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Switcher">
+      <Setter Property="Background" Value="{DynamicResource SurfaceFloatBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusSheet}" />
+      <Setter Property="Padding" Value="12,10" />
+    </Style>
+    <Style Selector="Button.choice">
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderControlBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.choice.open">
+      <Setter Property="Background" Value="{DynamicResource FillSelectedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Switcher" MaxWidth="{DynamicResource ReadingWidth}" IsVisible="{Binding IsShown}">
+    <StackPanel Spacing="8">
+      <TextBlock x:Name="Heading" Classes="caption" Text="{Binding Heading}" TextWrapping="Wrap" />
+      <ItemsControl x:Name="Choices" ItemsSource="{Binding Choices}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="review:CandidateChoice">
+            <Button Classes="choice"
+                    Classes.open="{Binding IsOpen}"
+                    Command="{Binding $parent[UserControl].((review:ICandidateSwitcherViewModel)DataContext).SwitchCommand}"
+                    CommandParameter="{Binding}">
+              <StackPanel Spacing="2">
+                <TextBlock Classes="strong" Text="{Binding Title}" />
+                <TextBlock Classes="caption" Text="{Binding Facts}" />
+              </StackPanel>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
+</UserControl>

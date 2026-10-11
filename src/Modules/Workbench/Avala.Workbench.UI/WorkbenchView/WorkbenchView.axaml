@@ -76,7 +76,10 @@
     </DockPanel>
     <Panel x:Name="ReviewSheet" IsVisible="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}">
       <Border x:Name="ReviewScrim" Background="{DynamicResource ScrimSheetBrush}" Classes.fade-in="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}" />
-      <ContentControl x:Name="Review" Content="{Binding Review}" Margin="20,40,20,20" VerticalAlignment="Top" />
+      <StackPanel Margin="20,40,20,20" Spacing="10" VerticalAlignment="Top">
+        <ContentControl x:Name="Candidates" Content="{Binding Candidates}" />
+        <ContentControl x:Name="Review" Content="{Binding Review}" />
+      </StackPanel>
     </Panel>
   </Panel>
 </UserControl>
