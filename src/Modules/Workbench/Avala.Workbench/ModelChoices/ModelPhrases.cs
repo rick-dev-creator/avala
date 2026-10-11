@@ -10,6 +10,8 @@ internal static class ModelPhrases
 {
     public const string HarnessDefault = "The harness's default";
 
+    private const char Bound = '\u00A0';
+
     public static ModelDefaults Connection { get; } = new(HarnessDefault, HarnessDefault);
 
     public static ModelDefaults Job(OffersModels offered, ModelChoice repository) =>
@@ -41,7 +43,7 @@ internal static class ModelPhrases
         + (offersEffort ? effort.Match(found => $" · {found} effort", () => " · the harness's default effort") : string.Empty);
 
     public static string Ran(ModelReported reported) =>
-        reported.Model + reported.Effort.Match(effort => $" · {effort} effort", () => string.Empty);
+        reported.Model + reported.Effort.Match(effort => $"{Bound}· {effort}{Bound}effort", () => string.Empty);
 
     private static string Default(Option<string> repository, Option<string> connection) =>
         repository.Match(

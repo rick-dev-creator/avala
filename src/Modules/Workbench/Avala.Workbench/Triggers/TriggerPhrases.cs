@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avala.Jobs.Contracts;
 using Avala.Triggers.Contracts;
+using Avala.Workbench.Presenting;
 
 namespace Avala.Workbench.Triggers;
 
@@ -30,7 +31,7 @@ internal static class TriggerPhrases
     public static string Next(TriggerState trigger, TimeZoneInfo zone) =>
         !trigger.Enabled ? "Disabled"
         : trigger.Kind == TriggerKind.Webhook ? "Runs on each signed delivery"
-        : trigger.NextRun.Match(at => $"Next · {When(at, zone)}", () => "Not scheduled");
+        : trigger.NextRun.Match(at => $"Next · {Amounts.Time(at, zone)}", () => "Not scheduled");
 
     public static string Running(TriggerState trigger) =>
         string.Create(CultureInfo.InvariantCulture, $"{trigger.Running} of {trigger.Concurrency} running");
@@ -39,10 +40,10 @@ internal static class TriggerPhrases
         $"{(trigger.Target == TriggerTarget.Loop ? "Queues a loop task" : "Starts a job")} · {Level(trigger.Autonomy)} at most";
 
     public static string Run(TriggerRun run, TimeZoneInfo zone) =>
-        $"{When(run.At, zone)} · {Origin(run.Origin)} · {Outcome(run)}{(run.AutonomyCapped ? " · capped to supervised by the repository" : string.Empty)}";
+        $"{Amounts.Time(run.At, zone)} · {Origin(run.Origin)} · {Outcome(run)}{(run.AutonomyCapped ? " · capped to supervised by the repository" : string.Empty)}";
 
     public static string Delivery(WebhookDelivery delivery, TimeZoneInfo zone) =>
-        $"{When(delivery.At, zone)} · {delivery.Path} · {Verdict(delivery.Verdict)}";
+        $"{Amounts.Time(delivery.At, zone)} · {delivery.Path} · {Verdict(delivery.Verdict)}";
 
     public static string File(TriggerFile file) =>
         file.Status switch
@@ -124,7 +125,4 @@ internal static class TriggerPhrases
             DeliveryVerdict.Malformed => "not a JSON object",
             _ => "trigger disabled",
         };
-
-    private static string When(DateTimeOffset at, TimeZoneInfo zone) =>
-        TimeZoneInfo.ConvertTime(at, zone).ToString("ddd d MMM HH:mm", CultureInfo.InvariantCulture);
 }

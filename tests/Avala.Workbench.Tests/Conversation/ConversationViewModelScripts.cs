@@ -165,7 +165,7 @@ public sealed class ConversationViewModelScripts
 
         conversation.Show(running with { Transcript = running.Transcript.Apply(new ModelReported(session, turn, "claude-opus-5-5") { Effort = "high" }, Now) });
 
-        Assert.Equal(("repo", "repo · claude-opus-5-5 · high effort"), (before, conversation.Place));
+        Assert.Equal(("repo", "repo · claude-opus-5-5\u00A0· high\u00A0effort"), (before, conversation.Place));
     }
 
     private static Transcript Job() => Transcript.Empty;

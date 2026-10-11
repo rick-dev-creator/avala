@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avala.Agents.Contracts.Connections;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
@@ -75,7 +76,7 @@ public sealed class ConversationPhrasesTests
         };
 
         Assert.Equal($"Held · until {resumes.ToLocalTime():HH:mm}", ConversationPhrases.Pill(Waiting(resumes)));
-        Assert.Equal($"Held · until {later.ToLocalTime():yyyy-MM-dd HH:mm}", ConversationPhrases.Pill(Waiting(later)));
+        Assert.Equal($"Held · until {later.ToLocalTime().ToString("ddd d MMM HH:mm", CultureInfo.InvariantCulture)}", ConversationPhrases.Pill(Waiting(later)));
         Assert.Equal("Held · near its limit", ConversationPhrases.Pill(Waiting(Option<DateTimeOffset>.None)));
     }
 

@@ -19,7 +19,10 @@ internal static class Amounts
 
     public static string Megabytes(long bytes) => string.Create(CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024.0):0.#} MB");
 
-    public static string Time(DateTimeOffset at) => at.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    public static string Time(DateTimeOffset at) => Time(at, TimeZoneInfo.Local);
+
+    public static string Time(DateTimeOffset at, TimeZoneInfo zone) =>
+        TimeZoneInfo.ConvertTime(at, zone).ToString("ddd d MMM HH:mm", CultureInfo.InvariantCulture);
 
     public static string Seconds(TimeSpan span) => string.Create(CultureInfo.InvariantCulture, $"{span.TotalSeconds:0.###}");
 

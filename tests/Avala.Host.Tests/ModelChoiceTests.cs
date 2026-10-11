@@ -67,8 +67,8 @@ public sealed class ModelChoiceTests(PublishedPlugins plugins)
         var section = workbench.Section("AutonomySectionViewModel");
         await run.Ui.InvokeAsync(() => workbench.Page.Execute("ToggleInspectorCommand"), Cancellation);
         await run.Ui.PresentedAsync(section.Presentation, () => section["IsLoaded"].Value<bool>(), () => $"{section.Kind} did not load");
-        Assert.EndsWith("· first · simulated-large · high effort", await run.Ui.ReadAsync(() => conversation["Place"].Text), StringComparison.Ordinal);
-        Assert.Equal("simulated-large · high effort", await run.Ui.ReadAsync(() => section["Model"].Text));
+        Assert.EndsWith("· first · simulated-large\u00A0· high\u00A0effort", await run.Ui.ReadAsync(() => conversation["Place"].Text), StringComparison.Ordinal);
+        Assert.Equal("simulated-large\u00A0· high\u00A0effort", await run.Ui.ReadAsync(() => section["Model"].Text));
     }
 
     [Fact]
