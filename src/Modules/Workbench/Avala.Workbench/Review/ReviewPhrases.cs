@@ -174,13 +174,13 @@ internal static class ReviewPhrases
         string.Join("\n", failed.Checks.Select(Tail).Where(tail => tail.Length > 0)));
 
     private static ExceptionPhrase Denied(PolicyDecision decision) => new(
-        $"Denied: {Request(decision.Kind, decision.Target)}",
+        $"Denied: {CommandPhrases.Request(decision.Kind, decision.Target)}",
         decision.Rule.Match(rule => $"rule {rule.Name}", () => "default policy"),
         decision.Rule.Match(rule => $"Denied by the rule {rule.Name}.", () => "Denied by the default policy."),
         decision.Target);
 
     private static ExceptionPhrase Denied(HumanAnswer answer) => new(
-        $"You denied: {Request(answer.Kind, answer.Target)}",
+        $"You denied: {CommandPhrases.Request(answer.Kind, answer.Target)}",
         "by you",
         answer.Message.Match(message => message, () => string.Empty),
         answer.Target);
@@ -216,12 +216,4 @@ internal static class ReviewPhrases
 
     private static string Tail(CheckEvidence check) =>
         string.Join("\n", $"{check.OutputTail}\n{check.ErrorTail}".Trim().Split('\n').TakeLast(TailLines));
-
-    private static string Request(ItemKind kind, string target) => kind switch
-    {
-        ItemKind.Command => $"run {CommandPhrases.Running(target)}",
-        ItemKind.FileEdit => $"edit {CommandPhrases.OneLine(target)}",
-        ItemKind.Web => $"reach {CommandPhrases.OneLine(target)}",
-        _ => $"use {CommandPhrases.OneLine(target)}",
-    };
 }

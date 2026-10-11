@@ -49,18 +49,37 @@ public sealed class BriefGathererTests
             string.Join(
                 Environment.NewLine,
                 "## Decisions taken",
-                "- Allowed Command dotnet test by the rule tests",
-                "- Denied FileEdit secrets.txt",
-                "- A person allowed Command rm -rf build",
-                "- A person denied Web https://example.com/blocked",
+                "- Allowed by the rule tests: run dotnet test",
+                "- Denied: edit secrets.txt",
+                "- A person allowed: run rm -rf build",
+                "- A person denied: reach https://example.com/blocked",
                 "- Answered for the agent: Choose a database",
                 string.Empty,
                 "## Open questions",
-                "- Unanswered permission: Web https://example.com",
+                "- Unanswered permission: reach https://example.com",
                 "- Choose a cache: The service needs a cache.",
                 string.Empty),
             brief,
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task EveryKindOfRequestTheBriefNamesIsWordedNeverItsCodeAsync()
+    {
+        await using var watched = new Watched();
+        var job = watched.Job;
+        var kinds = Enum.GetValues<ItemKind>();
+        watched.Audit.Decisions.AddRange(kinds.SelectMany(kind => new[]
+        {
+            Decision(job, $"answered-{kind}", kind, "target", PolicyAnswer.Deny, DecisionDelivery.Answered),
+            Decision(job, $"open-{kind}", kind, "target", PolicyAnswer.Ask, DecisionDelivery.LeftToHuman),
+        }));
+        watched.Audit.Answers.AddRange(kinds.Select(kind => Answer(job, $"asked-{kind}", kind, "target", PermissionAnswer.Allow)));
+        var history = Outcomes.Present(await watched.Catalog.HistoryAsync(job, Cancellation));
+
+        var brief = await watched.Briefs.WriteAsync(new BriefRequest(history, Watched.Work, Watched.Personal, Option<Avala.Handoffs.Contracts.LimitReason>.None, Option<string>.None), Cancellation);
+
+        Assert.DoesNotContain(kinds, kind => brief.Contains(kind.ToString(), StringComparison.Ordinal) || brief.Contains(kind.ToString().ToLowerInvariant(), StringComparison.Ordinal) && kind.ToString().Skip(1).Any(char.IsUpper));
     }
 
     private static PolicyDecision Decision(JobId job, string item, ItemKind kind, string target, PolicyAnswer answer, DecisionDelivery delivery) =>

@@ -19,7 +19,7 @@ public sealed class AuditSectionViewModelScripts : IDisposable
         await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
 
         Assert.Equal("1 allowed by rules · 0 answered by you · 0 denied · 0 assumptions", section.Summary);
-        Assert.Equal(["Allowed Command npm test · rule tests"], section.Decisions);
+        Assert.Equal(["Allowed: run npm test · rule tests"], section.Decisions);
         Assert.Empty(section.Assumptions);
     }
 
@@ -33,7 +33,7 @@ public sealed class AuditSectionViewModelScripts : IDisposable
         await section.FocusAsync(job.Job, bench);
 
         Assert.Equal("0 allowed by rules · 1 answered by you · 1 denied · 0 assumptions", section.Summary);
-        Assert.Equal(["You denied Command rm -rf node_modules"], section.Decisions);
+        Assert.Equal(["You denied: run rm -rf node_modules"], section.Decisions);
     }
 
     [Fact]

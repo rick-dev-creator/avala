@@ -88,7 +88,7 @@ internal static class InspectorPhrases
         + (report.Checks.Count == 0 ? string.Empty : $" · {string.Join(", ", report.Checks.Select(Check))}");
 
     public static string Decision(PolicyDecision decision) =>
-        $"{(decision.Answer == PolicyAnswer.Allow ? "Allowed" : decision.Answer == PolicyAnswer.Deny ? "Denied" : decision.Parent.IsSome ? "Asked its parent" : "Asked you")} {decision.Kind} {decision.Target}"
+        $"{(decision.Answer == PolicyAnswer.Allow ? "Allowed" : decision.Answer == PolicyAnswer.Deny ? "Denied" : decision.Parent.IsSome ? "Asked its parent" : "Asked you")}: {Presenting.CommandPhrases.Request(decision.Kind, decision.Target)}"
         + decision.Rule.Match(rule => $" · rule {rule.Name}", () => decision.Delivery == DecisionDelivery.Answered && decision.Answer != PolicyAnswer.Ask ? " · default" : string.Empty);
 
     public static string Decision(PolicyDecision decision, IReadOnlyList<HumanAnswer> answers, Option<SessionId> latest) =>
@@ -106,10 +106,10 @@ internal static class InspectorPhrases
         + (givenToChildren > 0 ? $" · {Amounts.Count(givenToChildren, "answer given to its sub-agents", "answers given to its sub-agents")}" : string.Empty);
 
     public static string Given(HumanAnswer answer) =>
-        $"{(answer.Answer == PermissionAnswer.Allow ? "Allowed" : "Denied")} for a sub-agent: {answer.Kind} {answer.Target}";
+        $"{(answer.Answer == PermissionAnswer.Allow ? "Allowed" : "Denied")} for a sub-agent: {Presenting.CommandPhrases.Request(answer.Kind, answer.Target)}";
 
     public static string Answer(HumanAnswer answer) =>
-        $"{(answer.Parent.IsSome ? "Its parent" : "You")} {(answer.Answer == PermissionAnswer.Allow ? "allowed" : "denied")} {answer.Kind} {answer.Target}"
+        $"{(answer.Parent.IsSome ? "Its parent" : "You")} {(answer.Answer == PermissionAnswer.Allow ? "allowed" : "denied")}: {Presenting.CommandPhrases.Request(answer.Kind, answer.Target)}"
         + answer.Rule.Match(rule => $" · {rule.Name}", () => string.Empty)
         + answer.RepositoryRule.Match(
             rule => $" · {rule.Name}",
@@ -231,8 +231,17 @@ internal static class InspectorPhrases
         _ => "it is not a JSON object with a checks array of check objects",
     };
 
+    private static string Status(CheckStatus status) => status switch
+    {
+        CheckStatus.Passed => "passed",
+        CheckStatus.Failed => "failed",
+        CheckStatus.TimedOut => "timed out",
+        CheckStatus.NotFound => "not found",
+        _ => "skipped",
+    };
+
     private static string Check(CheckEvidence check) =>
-        $"{check.Name} {check.Status.ToString().ToLowerInvariant()}"
+        $"{check.Name} {Status(check.Status)}"
         + (check.Status == CheckStatus.Skipped
             ? string.Empty
             : $" ({check.ExitCode.Match(code => string.Create(CultureInfo.InvariantCulture, $"exit {code}, "), () => string.Empty)}{Presenting.Amounts.Seconds(check.Duration)} s)");

@@ -47,13 +47,32 @@ public sealed class HandoffBriefTests
                 "## The original instruction\nFix JPY rounding in invoice totals",
                 "- [done] Write the change\n- [in progress] Run the tests",
                 "- src/Money.cs (modified, +12 -3)",
-                "The last verification, of attempt 1: failed.\n- build: Passed, exit 0\n- tests: Failed, exit 1\nFeedback: The checks did not pass.",
+                "The last verification, of attempt 1: failed.\n- build: passed, exit 0\n- tests: failed, exit 1\nFeedback: The checks did not pass.",
                 "- Allowed Command dotnet test by the rule tests",
                 "- Choose a database: The service needs to store its orders.",
                 "Rounded the totals; the tests still fail on JPY.",
                 "- Make the failing checks pass: tests.\n- Finish the pending steps of the plan: Run the tests.",
             ],
             expected => Assert.Contains(expected.ReplaceLineEndings(), brief, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void EveryCheckStatusTheBriefNamesIsWordedNeverItsCode()
+    {
+        var statuses = Enum.GetValues<CheckStatus>();
+        var brief = HandoffBrief.Compose(new BriefFacts("Fix the calculator", Work, Personal, Option<LimitReason>.None)
+        {
+            Verification = new VerificationReport(
+                JobId.New(),
+                1,
+                VerificationOutcome.Failed,
+                Option<FileOrigin>.None,
+                [.. statuses.Select(status => new CheckEvidence($"check-{statuses.ToList().IndexOf(status)}", "./check.sh", status, 1, TimeSpan.FromSeconds(1), string.Empty, string.Empty))],
+                new GateVerdict(GateDecision.Retry, "checks failed"),
+                DateTimeOffset.UnixEpoch),
+        });
+
+        Assert.DoesNotContain(statuses, status => brief.Contains(status.ToString(), StringComparison.Ordinal) || brief.Contains(status.ToString().ToLowerInvariant(), StringComparison.Ordinal) && status.ToString().Skip(1).Any(char.IsUpper));
     }
 
     [Fact]

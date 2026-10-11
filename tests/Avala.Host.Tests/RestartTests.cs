@@ -128,7 +128,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
         await run.StartedAsync();
 
         Assert.Contains(before, line => line.StartsWith("audit: 1 denied · ", StringComparison.Ordinal) && line.EndsWith("1 assumption", StringComparison.Ordinal));
-        Assert.Contains("decision: Denied Command dotnet ef database update · rule no-migrations", before);
+        Assert.Contains("decision: Denied: run dotnet ef database update · rule no-migrations", before);
         Assert.Contains("assumption: Which database should the service use?: PostgreSQL", before);
         Assert.Contains("autonomy: Autonomous · Autonomous, as the repository declares", before);
         Assert.Contains(before, line => line.StartsWith("exception: Denied: run dotnet ef database update", StringComparison.Ordinal));
@@ -301,7 +301,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
         Assert.Equal((true, 0), await run.Ui.ReadAsync(() => (decisions["IsEmpty"].Value<bool>(), decisions["Items"].Items.Count)));
         var audit = Assert.Single(await after.InspectAsync(run.Job, "AuditSectionViewModel"));
         Assert.Contains(
-            "Asked you Command dotnet ef database update · unanswered, its session ended",
+            "Asked you: run dotnet ef database update · unanswered, its session ended",
             await run.Ui.ReadAsync(() => audit["Decisions"].Value<IReadOnlyList<string>>()));
     }
 

@@ -59,6 +59,15 @@ internal static partial class CommandPhrases
         return shown == summaries.Count ? string.Join(", ", summaries) : $"{string.Join(", ", summaries.Take(shown))}, …";
     }
 
+    public static string Request(ItemKind kind, string target) => kind switch
+    {
+        ItemKind.Command => $"run {Running(target)}",
+        ItemKind.FileEdit => $"edit {OneLine(target)}",
+        ItemKind.Web => $"reach {OneLine(target)}",
+        ItemKind.Search => $"look up {OneLine(target)}",
+        _ => $"use {OneLine(target)}",
+    };
+
     public static IReadOnlyList<string> Writes(ItemKind kind, string command) =>
         kind == ItemKind.Command ? [.. Read(command).Writes.Distinct(StringComparer.Ordinal)] : [];
 

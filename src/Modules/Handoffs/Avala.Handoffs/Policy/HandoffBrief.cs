@@ -133,8 +133,17 @@ internal static class HandoffBrief
         + ")";
 
     private static string Check(CheckEvidence check) =>
-        $"- {check.Name}: {check.Status}"
+        $"- {check.Name}: {Ran(check.Status)}"
         + check.ExitCode.Match(code => string.Create(CultureInfo.InvariantCulture, $", exit {code}"), () => string.Empty);
+
+    private static string Ran(CheckStatus status) => status switch
+    {
+        CheckStatus.Passed => "passed",
+        CheckStatus.Failed => "failed",
+        CheckStatus.TimedOut => "timed out",
+        CheckStatus.NotFound => "not found",
+        _ => "skipped",
+    };
 
     private static string Outcome(VerificationOutcome outcome) => outcome switch
     {

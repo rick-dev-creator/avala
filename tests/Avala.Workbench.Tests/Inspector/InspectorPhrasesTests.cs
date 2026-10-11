@@ -5,6 +5,7 @@ using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Inspector;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Tests.Inspector;
 
@@ -51,12 +52,12 @@ public sealed class InspectorPhrasesTests
             }));
 
     [Theory]
-    [InlineData("Allow", "", "", "You allowed FileEdit src/auth/login.ts")]
-    [InlineData("Allow", "Session", "", "You allowed FileEdit src/auth/login.ts · don't ask again this session")]
-    [InlineData("Allow", "Job", "", "You allowed FileEdit src/auth/login.ts · don't ask again for this job")]
-    [InlineData("Allow", "Job", "Written", "You allowed FileEdit src/auth/login.ts · don't ask again for this job · always in this repository")]
-    [InlineData("Deny", "Job", "Malformed", "You denied FileEdit src/auth/login.ts · don't ask again for this job · not added to the repository")]
-    [InlineData("Deny", "", "", "You denied FileEdit src/auth/login.ts")]
+    [InlineData("Allow", "", "", "You allowed: edit src/auth/login.ts")]
+    [InlineData("Allow", "Session", "", "You allowed: edit src/auth/login.ts · don't ask again this session")]
+    [InlineData("Allow", "Job", "", "You allowed: edit src/auth/login.ts · don't ask again for this job")]
+    [InlineData("Allow", "Job", "Written", "You allowed: edit src/auth/login.ts · don't ask again for this job · always in this repository")]
+    [InlineData("Deny", "Job", "Malformed", "You denied: edit src/auth/login.ts · don't ask again for this job · not added to the repository")]
+    [InlineData("Deny", "", "", "You denied: edit src/auth/login.ts")]
     public void APersonsAnswerSaysWhatWasAnsweredAndHowLongItIsRemembered(string answer, string remembered, string repository, string phrase) =>
         Assert.Equal(
             phrase,
@@ -87,8 +88,8 @@ public sealed class InspectorPhrasesTests
             InspectorPhrases.Caps(new Budgets.Contracts.BudgetCaps([new Cost(5m, "USD")], Option<long>.None, 0.95)));
 
     [Theory]
-    [InlineData("Deny", "Answered", "Denied Command rm -rf / · default")]
-    [InlineData("Ask", "LeftToHuman", "Asked you Command rm -rf /")]
+    [InlineData("Deny", "Answered", "Denied: run rm -rf / · default")]
+    [InlineData("Ask", "LeftToHuman", "Asked you: run rm -rf /")]
     public void APolicyDecisionWithoutARuleSaysWhetherTheDefaultAnswered(string answer, string delivery, string phrase) =>
         Assert.Equal(
             phrase,
@@ -113,10 +114,10 @@ public sealed class InspectorPhrasesTests
 
         Assert.Equal(
             [
-                "Asked you Command dotnet ef database update · unanswered",
-                "Asked you Command dotnet ef database update · unanswered, its session ended",
-                "Asked you Command dotnet ef database update",
-                "Asked you Command dotnet ef database update · withdrawn by the harness",
+                "Asked you: run dotnet ef database update · unanswered",
+                "Asked you: run dotnet ef database update · unanswered, its session ended",
+                "Asked you: run dotnet ef database update",
+                "Asked you: run dotnet ef database update · withdrawn by the harness",
             ],
             [
                 InspectorPhrases.Decision(decision, [], asked),
@@ -136,11 +137,11 @@ public sealed class InspectorPhrasesTests
 
         Assert.Equal(
             [
-                "Asked its parent Command dotnet ef database update · waiting for its parent",
-                "Asked its parent Command dotnet ef database update",
-                "Asked its parent Command dotnet ef database update · went to you, its parent did not answer in time · unanswered",
-                "Its parent allowed Command dotnet ef database update",
-                "Allowed for a sub-agent: Command dotnet ef database update",
+                "Asked its parent: run dotnet ef database update · waiting for its parent",
+                "Asked its parent: run dotnet ef database update",
+                "Asked its parent: run dotnet ef database update · went to you, its parent did not answer in time · unanswered",
+                "Its parent allowed: run dotnet ef database update",
+                "Allowed for a sub-agent: run dotnet ef database update",
                 " · 1 answered by its parent · 2 answers given to its sub-agents",
             ],
             [
@@ -152,6 +153,46 @@ public sealed class InspectorPhrasesTests
                 InspectorPhrases.ByParent(1, 2),
             ]);
     }
+
+    [Fact]
+    public void EveryKindOfRequestADecisionLineNamesIsWordedNeverItsCode()
+    {
+        var session = SessionId.New();
+        var parent = JobId.New();
+
+        var lines = Enum.GetValues<ItemKind>().SelectMany(kind =>
+        {
+            var answer = new HumanAnswer(session, Option<JobId>.None, new ItemId("asked"), kind, "target", PermissionAnswer.Deny, Option<string>.None, Option<PolicyRule>.None, DateTimeOffset.UnixEpoch);
+
+            return new[]
+            {
+                (Kind: kind, Line: InspectorPhrases.Decision(new PolicyDecision(session, TurnId.New(), new ItemId("asked"), Option<JobId>.None, kind, "target", PolicyAnswer.Deny, Option<PolicyRule>.None, DecisionDelivery.Answered, DateTimeOffset.UnixEpoch))),
+                (Kind: kind, Line: InspectorPhrases.Answer(answer)),
+                (Kind: kind, Line: InspectorPhrases.Answer(answer with { Parent = parent })),
+                (Kind: kind, Line: InspectorPhrases.Given(answer)),
+            };
+        });
+
+        Assert.DoesNotContain(lines, line => Codes(line.Kind).Any(code => line.Line.Contains(code, StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void EveryCheckStatusAnAttemptLineNamesIsWordedNeverItsCode()
+    {
+        var lines = Enum.GetValues<CheckStatus>().Select(status => (Status: status, Line: InspectorPhrases.Attempt(new VerificationReport(
+            JobId.New(),
+            1,
+            VerificationOutcome.Failed,
+            Option<FileOrigin>.None,
+            [new CheckEvidence("calculator", "./check.sh", status, status == CheckStatus.Skipped ? Option<int>.None : 1, TimeSpan.FromSeconds(1), string.Empty, string.Empty)],
+            new GateVerdict(GateDecision.Retry, "checks failed"),
+            DateTimeOffset.UnixEpoch))));
+
+        Assert.DoesNotContain(lines, line => Codes(line.Status).Any(code => line.Line.Contains(code, StringComparison.Ordinal)));
+    }
+
+    private static string[] Codes(Enum value) =>
+        value.ToString().Skip(1).Any(char.IsUpper) ? [value.ToString(), value.ToString().ToLowerInvariant()] : [value.ToString()];
 
     [Fact]
     public void AReadOnlyJobsAutonomySaysItIsReadOnly() =>
