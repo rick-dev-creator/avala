@@ -268,8 +268,8 @@ public sealed class DecisionsViewModelScripts : IDisposable
 
         decisions.MoveNextCommand.Execute(null);
 
-        Assert.Equal(["J K move", "⏎ allow", "⌫ deny", "⇧⏎ with a note"], onPermission);
-        Assert.Equal(["J K move", "1–2 choose", "⏎ answer", "⌫ deny", "⇧⏎ with a note"], decisions.Hints.Select(hint => $"{hint.Keys} {hint.Action}"));
+        Assert.Equal(["J / K move", "⏎ allow", "⌫ deny", "⇧⏎ with a note"], onPermission);
+        Assert.Equal(["J / K move", "1–2 choose", "⏎ answer", "⌫ deny", "⇧⏎ with a note"], decisions.Hints.Select(hint => $"{hint.Keys} {hint.Action}"));
         Assert.Equal("esc close", $"{decisions.CloseHint.Keys} {decisions.CloseHint.Action}");
     }
 
