@@ -1,0 +1,38 @@
+[
+  {
+    "id": 9001,
+    "html_url": "https://git.example.com/octo/shop/issues/11#issuecomment-9001",
+    "pull_request_url": "",
+    "issue_url": "https://git.example.com/octo/shop/issues/11",
+    "user": {
+      "id": 5,
+      "login": "bob",
+      "full_name": "",
+      "email": "bob@noreply.example.com"
+    },
+    "original_author": "",
+    "original_author_id": 0,
+    "body": "Thanks for the report",
+    "assets": [],
+    "created_at": "2026-10-11T08:04:00Z",
+    "updated_at": "2026-10-11T08:04:00Z"
+  },
+  {
+    "id": 9002,
+    "html_url": "https://git.example.com/octo/shop/issues/11#issuecomment-9002",
+    "pull_request_url": "",
+    "issue_url": "https://git.example.com/octo/shop/issues/11",
+    "user": {
+      "id": 4,
+      "login": "alice",
+      "full_name": "",
+      "email": "alice@noreply.example.com"
+    },
+    "original_author": "",
+    "original_author_id": 0,
+    "body": "/avala fix the checkout\nIt broke yesterday.",
+    "assets": [],
+    "created_at": "2026-10-11T08:04:00Z",
+    "updated_at": "2026-10-11T08:04:00Z"
+  }
+]

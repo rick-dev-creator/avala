@@ -5,18 +5,23 @@ using Avala.Sdk;
 
 namespace Avala.Gitea.Api;
 
-internal sealed record GiteaDialect(string Id, string Name, string Cli)
+internal sealed record GiteaDialect(string Id, string Name, string Cli, IReadOnlyList<string> SignatureHeaders)
 {
-    public static GiteaDialect Gitea { get; } = new("gitea", "Gitea", "tea");
+    public static GiteaDialect Gitea { get; } = new("gitea", "Gitea", "tea", ["X-Gitea-Signature"]);
 
-    public static GiteaDialect Forgejo { get; } = new("forgejo", "Forgejo", "tea");
+    public static GiteaDialect Forgejo { get; } = new("forgejo", "Forgejo", "tea", ["X-Forgejo-Signature", "X-Gitea-Signature"]);
 }
 
-internal sealed class GiteaForge(GiteaDialect dialect) : IForge
+internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents
 {
     public const string ApiRoot = "/api/v1";
 
     public ForgeInfo Info { get; } = new(dialect.Id, dialect.Name) { TokenScheme = "token" };
+
+    public HookSignature Signature { get; } = new(dialect.SignatureHeaders, string.Empty);
+
+    public async ValueTask<Result<ForgeEventPage, ForgeError>> ReadSinceAsync(ForgeContext context, ForgeEventQuery query, CancellationToken cancellationToken) =>
+        await GiteaEvents.ReadAsync(context, query, cancellationToken);
 
     public Option<CliCall> CliFor(ForgeRequest request, ForgeTarget target)
     {
@@ -119,7 +124,7 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge
         return new PullRequestState(known with { Link = new Uri(pull.GetProperty("html_url").GetString()!) }, lifecycle, Json.Text(pull.GetProperty("head"), "sha"), mergeability);
     }
 
-    private static IReadOnlyList<CheckRun> Statuses(JsonElement root) =>
+    public static IReadOnlyList<CheckRun> Statuses(JsonElement root) =>
         root.TryGetProperty("statuses", out var statuses) && statuses.ValueKind == JsonValueKind.Array
             ? [.. statuses.EnumerateArray().Select(status => new CheckRun(Json.Text(status, "context"), CommitStatus(Json.Text(status, "status")), Json.Link(status, "target_url"), Json.Text(status, "description")))]
             : [];

@@ -2,7 +2,9 @@ using System.Net;
 using Avala.Forges.Contracts;
 using Avala.Forges.Testing;
 using Avala.Gitea.Api;
+using Avala.Sdk;
 using Avala.Testing;
+using Avala.Triggers.Contracts;
 
 namespace Avala.Gitea.Tests;
 
@@ -95,6 +97,102 @@ public sealed class GiteaForgeTests
 
         Assert.Empty(await ForgeConformance.CheckAsync(new ConformanceCase(Forge(dialect), new ForgeContext(server.Api(Root), Targets.Of(Root)), Head, "main"), Cancellation));
     }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
+    public async Task ANewIssueIsAnEventAfterTheCursorAndAPullRequestListedAmongTheIssuesIsNotAsync(string dialect)
+    {
+        var server = await EventServerAsync();
+        var context = new ForgeContext(server.Api(Root), Targets.Of(Root));
+
+        var baseline = Outcomes.Succeeds(await Forge(dialect).ReadSinceAsync(context, Query(ForgeEventKind.IssueOpened, Option<string>.None), Cancellation));
+        var page = Outcomes.Succeeds(await Forge(dialect).ReadSinceAsync(context, Query(ForgeEventKind.IssueOpened, "10"), Cancellation));
+
+        Assert.Equal(([], "13"), (baseline.Events, baseline.Cursor));
+        Assert.Equal([(11, "carol", "Checkout button does nothing"), (13, "mallory", "Search returns stale results")], page.Events.Select(opened => (opened.Number, opened.Actor, opened.Title)));
+        Assert.Equal("13", page.Cursor);
+    }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
+    public async Task LabelsAddedAndReviewRequestsComeFromTheTimelinesOfTheIssuesUpdatedSinceTheCursorAsync(string dialect)
+    {
+        var server = await EventServerAsync();
+        var context = new ForgeContext(server.Api(Root), Targets.Of(Root));
+
+        var baseline = Outcomes.Succeeds(await Forge(dialect).ReadSinceAsync(context, Query(ForgeEventKind.IssueLabeled, Option<string>.None), Cancellation));
+        var labels = Outcomes.Succeeds(await Forge(dialect).ReadSinceAsync(context, Query(ForgeEventKind.IssueLabeled, Since), Cancellation));
+        var reviews = Outcomes.Succeeds(await Forge(dialect).ReadSinceAsync(context, Query(ForgeEventKind.ReviewRequested, Since), Cancellation));
+
+        Assert.Equal(([], $"0@{Eight.ToUnixTimeSeconds()}"), (baseline.Events, baseline.Cursor));
+        Assert.Equal(
+            [("7001", 11, "bob", Option<string>.Some("bug"), "carol"), ("7003", 11, "alice", Option<string>.Some("avala"), "carol")],
+            labels.Events.Select(labeled => (labeled.Id, labeled.Number, labeled.Actor, labeled.Label, labeled.Author)));
+        Assert.Equal($"7004@{Eight.ToUnixTimeSeconds()}", labels.Cursor);
+        var review = Assert.Single(reviews.Events);
+        Assert.Equal((7, "alice", Option<string>.Some("avala-bot"), true, false), (review.Number, review.Actor, review.Reviewer, review.PullRequest, review.FromFork));
+        Assert.Contains(server.Sent, sent => sent.PathAndQuery == $"{Repository}/issues/11/timeline?since=2026-10-11T08%3A00%3A00Z&limit=50");
+    }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
+    public async Task ACommentIsReadWithTheIssueItWasLeftOnAsync(string dialect)
+    {
+        var server = await EventServerAsync();
+        var context = new ForgeContext(server.Api(Root), Targets.Of(Root));
+
+        var page = Outcomes.Succeeds(await Forge(dialect).ReadSinceAsync(context, Query(ForgeEventKind.CommentCommand, $"9001@{Eight.ToUnixTimeSeconds()}"), Cancellation));
+
+        var comment = Assert.Single(page.Events);
+        Assert.Equal(
+            ("9002", 11, "alice", Option<string>.Some("/avala fix the checkout\nIt broke yesterday."), "Checkout button does nothing", "carol"),
+            (comment.Id, comment.Number, comment.Actor, comment.Comment, comment.Title, comment.Author));
+        Assert.Equal($"9002@{Eight.ToUnixTimeSeconds()}", page.Cursor);
+    }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
+    public async Task FailedStatusesOnABranchHeadWithNoneStillPendingAreOneEventPerHeadAsync(string dialect)
+    {
+        var finished = (await FixtureServer.FixtureAsync("gitea", "status", Cancellation)).Replace("\"status\": \"pending\"", "\"status\": \"success\"", StringComparison.Ordinal);
+        var server = await EventServerAsync();
+        var context = new ForgeContext(server.Api(Root), Targets.Of(Root));
+
+        var pending = Outcomes.Succeeds(await Forge(dialect).ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, "seen:e5bd391"), Cancellation));
+        server.Route("GET", $"{Repository}/commits/{Sha}/status", HttpStatusCode.OK, finished);
+        var failed = Outcomes.Succeeds(await Forge(dialect).ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, "seen:e5bd391"), Cancellation));
+        var again = Outcomes.Succeeds(await Forge(dialect).ReadSinceAsync(context, Query(ForgeEventKind.ChecksFailed, failed.Cursor), Cancellation));
+
+        Assert.Equal(([], $"seen:{Sha}"), (pending.Events, pending.Cursor));
+        var failure = Assert.Single(failed.Events);
+        Assert.Equal(($"main:{Sha}", "alice", Option<string>.Some(Sha), "ci / tests (push)"), (failure.Id, failure.Actor, failure.Head, failure.Checks.Single(check => check.Status == CheckStatus.Failed).Name));
+        Assert.Empty(again.Events);
+    }
+
+    [Fact]
+    public void GiteaSignsItsWebhooksWithXGiteaSignatureAndForgejoAlsoWithXForgejoSignature()
+    {
+        Assert.Equal(["X-Gitea-Signature"], Forge("gitea").Signature.Headers);
+        Assert.Equal(string.Empty, Forge("gitea").Signature.Prefix);
+        Assert.Equal(["X-Forgejo-Signature", "X-Gitea-Signature"], Forge("forgejo").Signature.Headers);
+    }
+
+    private static readonly DateTimeOffset Eight = new(2026, 10, 11, 8, 0, 0, TimeSpan.Zero);
+
+    private static string Since => $"7000@{Eight.ToUnixTimeSeconds()}";
+
+    private static ForgeEventQuery Query(ForgeEventKind kind, Option<string> cursor) =>
+        new(kind, cursor, Eight.AddMinutes(10)) { Branch = "main" };
+
+    private static async Task<FixtureServer> EventServerAsync() =>
+        (await ServerAsync())
+            .Route("GET", $"{Repository}/issues?state=all&type=issues&limit=50", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "issues", Cancellation))
+            .Route("GET", $"{Repository}/issues?state=all&type=all&since=2026-10-11T08%3A00%3A00Z&limit=50", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "issues-updated", Cancellation))
+            .Route("GET", $"{Repository}/issues/11/timeline?since=2026-10-11T08%3A00%3A00Z&limit=50", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "timeline-11", Cancellation))
+            .Route("GET", $"{Repository}/issues/7/timeline?since=2026-10-11T08%3A00%3A00Z&limit=50", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "timeline-7", Cancellation))
+            .Route("GET", $"{Repository}/issues/comments?since=2026-10-11T08%3A00%3A00Z&limit=50", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "issue-comments", Cancellation))
+            .Route("GET", $"{Repository}/issues/11", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "issue", Cancellation))
+            .Route("GET", $"{Repository}/branches/main", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "branch", Cancellation));
 
     private static GiteaForge Forge(string dialect) => new(dialect == "gitea" ? GiteaDialect.Gitea : GiteaDialect.Forgejo);
 

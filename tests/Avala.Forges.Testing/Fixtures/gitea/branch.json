@@ -1,0 +1,30 @@
+{
+  "name": "main",
+  "commit": {
+    "id": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "message": "Break the build\n",
+    "url": "https://git.example.com/octo/shop/commit/6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "author": {
+      "name": "Alice",
+      "email": "alice@example.com",
+      "username": "alice"
+    },
+    "committer": {
+      "name": "Alice",
+      "email": "alice@example.com",
+      "username": "alice"
+    },
+    "verification": null,
+    "timestamp": "2026-10-11T08:00:00Z",
+    "added": null,
+    "removed": null,
+    "modified": null
+  },
+  "protected": false,
+  "required_approvals": 0,
+  "enable_status_check": false,
+  "status_check_contexts": [],
+  "user_can_push": true,
+  "user_can_merge": true,
+  "effective_branch_protection_name": ""
+}
