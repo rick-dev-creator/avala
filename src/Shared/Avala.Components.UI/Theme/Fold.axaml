@@ -14,16 +14,18 @@
                 Background="{TemplateBinding Background}"
                 CornerRadius="{TemplateBinding CornerRadius}"
                 Padding="{TemplateBinding Padding}">
-          <Border.Transitions>
-            <Transitions>
-              <BrushTransition Property="Background" Duration="0:0:0.14" />
-            </Transitions>
-          </Border.Transitions>
           <ContentPresenter Content="{TemplateBinding Content}"
                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" />
         </Border>
       </ControlTemplate>
     </Setter>
+    <Style Selector="^[(theme|Motion.IsReduced)=False] /template/ Border#PART_Back">
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.14" />
+        </Transitions>
+      </Setter>
+    </Style>
     <Style Selector="^:pointerover">
       <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
     </Style>
@@ -40,11 +42,6 @@
         <Border Name="PART_Frame"
                 Background="{TemplateBinding Background}"
                 CornerRadius="{TemplateBinding CornerRadius}">
-          <Border.Transitions>
-            <Transitions>
-              <BrushTransition Property="Background" Duration="0:0:0.2" />
-            </Transitions>
-          </Border.Transitions>
           <StackPanel>
             <ToggleButton Name="PART_Toggle"
                           Theme="{StaticResource FoldHeader}"
@@ -118,6 +115,13 @@
           </KeyFrame>
         </Animation>
       </Style.Animations>
+    </Style>
+    <Style Selector="^[(theme|Motion.IsReduced)=False] /template/ Border#PART_Frame">
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.2" />
+        </Transitions>
+      </Setter>
     </Style>
     <Style Selector="^:expanded">
       <Setter Property="Background" Value="{DynamicResource FillQuietBrush}" />

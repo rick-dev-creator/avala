@@ -48,6 +48,22 @@ public sealed class FoldScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task UnderReducedMotionAFoldThatClosesLeavesItsFillAtOnceAsync() =>
+        ui.RunAsync(() =>
+        {
+            var fold = Fold();
+            fold.IsExpanded = true;
+            Theme.Motion.SetIsReduced(fold, true);
+            var view = ViewScript.Show(fold, new object());
+            var frame = fold.GetVisualDescendants().OfType<Border>().Single(border => border.Name == "PART_Frame");
+
+            fold.IsExpanded = false;
+            view.Settle();
+
+            Assert.Equal(Colors.Transparent, Assert.IsAssignableFrom<ISolidColorBrush>(frame.Background).Color);
+        }, Cancellation);
+
+    [Fact]
     public Task ATrailingFoldMovesItsChevronToTheEndAsync() =>
         ui.RunAsync(() =>
         {
