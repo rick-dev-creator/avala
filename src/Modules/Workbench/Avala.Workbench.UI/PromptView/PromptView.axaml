@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:markdown="using:Avala.Components.UI.Markdown"
              x:Class="Avala.Workbench.UI.PromptView"
              x:ClassModifier="internal"
              x:DataType="conversation:IPromptViewModel"
@@ -48,7 +49,10 @@
             MaxWidth="560"
             Padding="14,10"
             IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-      <SelectableTextBlock x:Name="Text" Text="{Binding Text}" />
+      <Panel>
+        <SelectableTextBlock x:Name="Text" Text="{Binding Text}" IsVisible="{Binding IsFromPerson}" />
+        <markdown:MarkdownText x:Name="Brief" Classes="compact" Markdown="{Binding Text}" IsVisible="{Binding !IsFromPerson}" />
+      </Panel>
     </Border>
   </StackPanel>
 </UserControl>

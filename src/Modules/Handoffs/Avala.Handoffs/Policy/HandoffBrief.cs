@@ -87,7 +87,7 @@ internal static class HandoffBrief
             .. facts.Verification.Match<IEnumerable<string>>(
                 report => [string.Create(CultureInfo.InvariantCulture, $"The last verification, of attempt {report.Attempt}: {Outcome(report.Outcome)}."), .. report.Checks.Select(Check)],
                 () => ["No checks ran yet."]),
-            .. facts.Feedback.Match<string[]>(feedback => [$"Feedback: {feedback}"], () => []),
+            .. facts.Feedback.Match<string[]>(feedback => [string.Empty, $"Feedback: {feedback}"], () => []),
         ];
 
         return string.Join(Environment.NewLine, lines);

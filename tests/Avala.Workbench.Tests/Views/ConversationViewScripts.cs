@@ -313,6 +313,29 @@ public sealed class PromptViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AnAvalaPromptSuchAsAHandoffBriefIsDrawnAsMarkdownAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Handoff, "This job was handed off to you.\n\n## Checks\n- calculator: failed, exit 1", Option<AttemptOutcome>.None)));
+            var texts = view.All<TextBlock>().Select(text => text.Inlines is { Count: > 0 } inlines ? inlines.Text ?? string.Empty : text.Text ?? string.Empty).ToList();
+
+            Assert.Contains("Checks", texts);
+            Assert.DoesNotContain(texts, text => text.Contains("## ", StringComparison.Ordinal));
+            Assert.Single(view.All<Control>(), control => control.Classes.Contains("markdown-list"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheHeadingsOfAnAvalaPromptStayAtTheSizeOfItsTextAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Handoff, "## Checks\n\nThe last verification failed.", Option<AttemptOutcome>.None)));
+            var heading = Assert.Single(view.All<TextBlock>(), text => text.Classes.Contains("markdown-h2"));
+            var paragraph = Assert.Single(view.All<TextBlock>(), text => text.Classes.Contains("markdown-paragraph"));
+
+            Assert.Equal((paragraph.FontSize, FontWeight.SemiBold), (heading.FontSize, heading.FontWeight));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ALongInstructionWrapsInsideItsBubbleAsync() =>
         ui.RunAsync(() =>
         {

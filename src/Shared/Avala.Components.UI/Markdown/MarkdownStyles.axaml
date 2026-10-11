@@ -6,24 +6,24 @@
     <Setter Property="VerticalAlignment" Value="Top" />
     <Setter Property="VerticalContentAlignment" Value="Top" />
   </Style>
-  <Style Selector="TextBlock.markdown-paragraph">
+  <Style Selector=":is(TextBlock).markdown-paragraph">
     <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
     <Setter Property="LineHeight" Value="20" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
   </Style>
-  <Style Selector="TextBlock.markdown-h1">
+  <Style Selector=":is(TextBlock).markdown-h1">
     <Setter Property="Margin" Value="0,0,0,8" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeTitle}" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
   </Style>
-  <Style Selector="TextBlock.markdown-h2">
+  <Style Selector=":is(TextBlock).markdown-h2">
     <Setter Property="Margin" Value="0,12,0,6" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeHeading}" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
   </Style>
-  <Style Selector="TextBlock.markdown-h3, TextBlock.markdown-h4, TextBlock.markdown-h5, TextBlock.markdown-h6">
+  <Style Selector=":is(TextBlock).markdown-h3, :is(TextBlock).markdown-h4, :is(TextBlock).markdown-h5, :is(TextBlock).markdown-h6">
     <Setter Property="Margin" Value="0,10,0,4" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
     <Setter Property="FontWeight" Value="SemiBold" />
@@ -63,9 +63,14 @@
   <Style Selector="Button.copy-code:pointerover TextBlock">
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
   </Style>
-  <Style Selector="StackPanel.reading TextBlock.markdown-paragraph">
+  <Style Selector=":is(StackPanel).reading :is(TextBlock).markdown-paragraph">
     <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
     <Setter Property="LineHeight" Value="23" />
+  </Style>
+  <Style Selector=":is(StackPanel).compact :is(TextBlock).markdown-h1, :is(StackPanel).compact :is(TextBlock).markdown-h2, :is(StackPanel).compact :is(TextBlock).markdown-h3, :is(StackPanel).compact :is(TextBlock).markdown-h4, :is(StackPanel).compact :is(TextBlock).markdown-h5, :is(StackPanel).compact :is(TextBlock).markdown-h6">
+    <Setter Property="Margin" Value="0,10,0,2" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="Run.markdown-code-inline">
     <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />

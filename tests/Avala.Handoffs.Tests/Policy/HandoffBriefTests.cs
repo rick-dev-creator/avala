@@ -47,7 +47,7 @@ public sealed class HandoffBriefTests
                 "## The original instruction\nFix JPY rounding in invoice totals",
                 "- [done] Write the change\n- [in progress] Run the tests",
                 "- src/Money.cs (modified, +12 -3)",
-                "The last verification, of attempt 1: failed.\n- build: passed, exit 0\n- tests: failed, exit 1\nFeedback: The checks did not pass.",
+                "The last verification, of attempt 1: failed.\n- build: passed, exit 0\n- tests: failed, exit 1\n\nFeedback: The checks did not pass.",
                 "- Allowed Command dotnet test by the rule tests",
                 "- Choose a database: The service needs to store its orders.",
                 "Rounded the totals; the tests still fail on JPY.",
