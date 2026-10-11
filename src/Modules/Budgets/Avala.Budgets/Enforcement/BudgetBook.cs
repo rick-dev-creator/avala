@@ -16,6 +16,8 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
 
     private ImmutableDictionary<JobId, BudgetBreach> overspent = ImmutableDictionary<JobId, BudgetBreach>.Empty;
 
+    private ImmutableDictionary<SessionId, TaskCompletionSource> reads = ImmutableDictionary<SessionId, TaskCompletionSource>.Empty;
+
     private ImmutableDictionary<JobId, BudgetBreach> ceiled = ImmutableDictionary<JobId, BudgetBreach>.Empty;
 
     private ImmutableHashSet<JobId> ended = [];
@@ -36,7 +38,23 @@ internal sealed class BudgetBook(IMachineBudgetFile machine, IInterventionStore 
     public async Task KeepAsync(SessionBudget budget, ConnectionName connection, CancellationToken cancellationToken)
     {
         ImmutableInterlocked.AddOrUpdate(ref sessions, budget.Session, (budget, connection), (_, _) => (budget, connection));
+
+        if (ImmutableInterlocked.TryRemove(ref reads, budget.Session, out var waiting))
+        {
+            waiting.TrySetResult();
+        }
+
         await store.RecordAsync(new BudgetedSession(budget, connection), cancellationToken);
+    }
+
+    public async Task ReadAsync(SessionId session, CancellationToken cancellationToken)
+    {
+        var read = ImmutableInterlocked.GetOrAdd(ref reads, session, _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+
+        if (Budgeted(session).IsNone)
+        {
+            await read.Task.WaitAsync(cancellationToken);
+        }
     }
 
     public Option<(SessionBudget Budget, ConnectionName Connection)> Budgeted(SessionId session) =>

@@ -18,6 +18,7 @@ internal sealed class SpendGate(BudgetBook book, JobBreaches breaches, IUsageTal
             async turn =>
             {
                 await tally.TalliedAsync(turn.Session, turn.Turn, cancellationToken);
+                await book.ReadAsync(turn.Session, cancellationToken);
 
                 return await breaches.Overspent(attempt.Job, turn.Session).Match(
                     found => Task.FromResult(Option<BudgetBreach>.Some(found)),

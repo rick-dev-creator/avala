@@ -186,6 +186,21 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
+    public async Task TheSpendGateJudgesAFinishedTurnOnlyOnceTheBudgetOfItsSessionIsReadAsync()
+    {
+        var budgeted = new Budgeted(JobRejection.NotRunning);
+        budgeted.Tally(budgeted.Job, Few, new Cost(0.02m, "USD"));
+        budgeted.Tallies.Release();
+
+        var judging = budgeted.JudgeAsync(new FinishedTurn(budgeted.Session, TurnId.New())).AsTask();
+        var judgedEarly = judging.IsCompleted;
+        await budgeted.RunningAsync(Caps(cost: [new Cost(0.01m, "USD")]));
+
+        Assert.False(judgedEarly);
+        Assert.Equal(GateVerdict.HoldFor(HoldReason.BudgetExceeded), await judging);
+    }
+
+    [Fact]
     public async Task TheSpendGateJudgesAFinishedTurnWithItsOwnSpendOnceItsUsageIsTalliedAsync()
     {
         var budgeted = new Budgeted(JobRejection.NotRunning);
