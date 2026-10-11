@@ -64,8 +64,26 @@ public sealed class ComposerTests
 
         Assert.Equal("https://ntfy.example.com/base/", payload.Address.AbsoluteUri);
         Assert.Equal(
-            """{"topic":"avala-k3j9","title":"A decision needs you · ledger-api","message":"Fix the flaky login test","priority":4,"tags":["avala","decision"]}""",
+            """{"topic":"avala-k3j9","title":"A decision needs you · ledger-api","message":"Fix the flaky login test","priority":4,"tags":["avala","decision","bell"]}""",
             payload.Body);
+    }
+
+    [Theory]
+    [InlineData(NotificationKind.Decision, "decision", "bell")]
+    [InlineData(NotificationKind.Held, "held", "warning")]
+    [InlineData(NotificationKind.Budget, "budget", "warning")]
+    [InlineData(NotificationKind.Failed, "failed", "x")]
+    [InlineData(NotificationKind.LoopEnded, "loopEnded", "repeat")]
+    [InlineData(NotificationKind.Review, "review", "eyes")]
+    [InlineData(NotificationKind.Summary, "summary", "bell")]
+    [InlineData(NotificationKind.Digest, "digest", "memo")]
+    [InlineData(NotificationKind.Test, "test", "white_check_mark")]
+    public void AnNtfyMessageCarriesAnEmojiTagNtfyShowsAsAnIconBesideTheAvalaAndKindTags(NotificationKind kind, string name, string emoji)
+    {
+        var payload = Payloads.Ntfy(new OutgoingMessage(kind, Severity.Info, "Title", "Body", Samples.Monday), new NtfyTarget(new Uri("https://ntfy.sh"), "avala-k3j9"));
+
+        using var body = JsonDocument.Parse(payload.Body);
+        Assert.Equal(["avala", name, emoji], body.RootElement.GetProperty("tags").EnumerateArray().Select(tag => tag.GetString()));
     }
 
     [Fact]

@@ -38,7 +38,7 @@ internal sealed class DesignNotificationsViewModel : INotificationsViewModel
         """
         POST https://ntfy.sh/
 
-        {"topic":"avala-k3j9m2q7xw5rbt4na6ceyd8h","title":"A decision needs you · ledger-api","message":"Fix the flaky login test","priority":4,"tags":["avala","decision"]}
+        {"topic":"avala-k3j9m2q7xw5rbt4na6ceyd8h","title":"A decision needs you · ledger-api","message":"Fix the flaky login test","priority":4,"tags":["avala","decision","bell"]}
         """;
 
     public string LastDelivery => "Sent a decision at 09:31";

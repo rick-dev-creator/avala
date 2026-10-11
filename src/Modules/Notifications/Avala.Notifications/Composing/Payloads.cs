@@ -31,6 +31,7 @@ internal static class Payloads
             writer.WriteStartArray("tags");
             writer.WriteStringValue("avala");
             writer.WriteStringValue(EventName(message.Kind));
+            writer.WriteStringValue(Emoji(message.Kind));
             writer.WriteEndArray();
         }));
 
@@ -61,6 +62,17 @@ internal static class Payloads
 
     public static string Signature(string secret, string timestamp, string nonce, string body) =>
         "sha256=" + Convert.ToHexStringLower(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes($"{timestamp}.{nonce}.{body}")));
+
+    private static string Emoji(NotificationKind kind) => kind switch
+    {
+        NotificationKind.Decision or NotificationKind.Summary => "bell",
+        NotificationKind.Held or NotificationKind.Budget => "warning",
+        NotificationKind.Failed => "x",
+        NotificationKind.LoopEnded => "repeat",
+        NotificationKind.Review => "eyes",
+        NotificationKind.Digest => "memo",
+        _ => "white_check_mark",
+    };
 
     private static string Json(Action<Utf8JsonWriter> fields)
     {
