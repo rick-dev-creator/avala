@@ -31,8 +31,17 @@ internal sealed class FakeChanges : IWorkspaceChanges
 
     public List<string> Calls { get; } = [];
 
-    public ValueTask<Result<WorkspaceDiff, WorkspaceFailure>> DiffAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(Result<WorkspaceDiff, WorkspaceFailure>.Success(new WorkspaceDiff(workspace, "ba5e", "head", Files)));
+    public TaskCompletionSource? Gate { get; set; }
+
+    public async ValueTask<Result<WorkspaceDiff, WorkspaceFailure>> DiffAsync(WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        if (Gate is { } gate)
+        {
+            await gate.Task.WaitAsync(cancellationToken);
+        }
+
+        return Result<WorkspaceDiff, WorkspaceFailure>.Success(new WorkspaceDiff(workspace, "ba5e", "head", Files));
+    }
 
     public ValueTask<Result<FileDiff, WorkspaceFailure>> FileDiffAsync(WorkspaceId workspace, string path, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Hunks.TryGetValue(path, out var diff)

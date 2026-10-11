@@ -294,6 +294,28 @@ public sealed class WorkbenchViewModelScripts : IDisposable
         Assert.Equal((runnerUp.Job, runnerUp.Job, runnerUp.Job), await bench.Ui.ReadAsync(() => (workbench.Conversation!.Job, workbench.Review!.Job, workbench.Candidates!.Job)));
     }
 
+    [Fact]
+    public async Task TheCandidateSwitcherFollowsTheContestWhileTheReviewIsStillReloading()
+    {
+        var (winner, runnerUp) = (bench.Job("Fix JPY rounding", JobStatus.AwaitingReview), bench.Job("Fix JPY rounding", JobStatus.AwaitingReview));
+        var contest = FakeContests.Contest(Contests.Contracts.ContestStatus.Decided, winner.Job, runnerUp.Job);
+        bench.Board.Publish(Contested(contest, 1));
+        bench.Publish(Bench.OnBoard(winner), Bench.OnBoard(runnerUp));
+        workbench.Activate();
+        await bench.Ui.InvokeAsync(() => Select(winner), Cancellation);
+        await OpenReviewAsync();
+        bench.Changes.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await ViewModelScript.Given(workbench).WhenPresentedAsync(_ => bench.Publish(Bench.OnBoard(winner with { Status = JobStatus.Approved }, revision: 1), Bench.OnBoard(runnerUp)), Cancellation);
+
+        await ViewModelScript.Given(workbench).WhenPresentedAsync(_ => bench.Board.Publish(Contested(contest with { Status = Contests.Contracts.ContestStatus.Closed, Picked = winner.Job }, 2)), Cancellation);
+
+        Assert.Equal("2 candidates · Closed: the approved candidate was kept", await bench.Ui.ReadAsync(() => workbench.Candidates!.Heading));
+        bench.Changes.Gate.SetResult();
+    }
+
+    private static System.Collections.Immutable.ImmutableDictionary<JobId, BoardContest> Contested(Contests.Contracts.ContestRecord contest, int revision) =>
+        System.Collections.Immutable.ImmutableDictionary.ToImmutableDictionary(contest.Candidates, candidate => candidate.Job, _ => new BoardContest(contest, revision));
+
     private void Select(JobSummary job) => bench.Messenger.Send(new JobSelected(job.Job));
 
     private async Task OpenReviewAsync()

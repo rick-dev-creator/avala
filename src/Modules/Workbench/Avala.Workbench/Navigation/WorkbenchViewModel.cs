@@ -230,7 +230,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
 
             if (reviewed.Revision != review.Requested)
             {
-                return [review.Request(reviewed.Revision)];
+                Loading = feed.RunAsync(review.Request(reviewed.Revision));
             }
         }
 
