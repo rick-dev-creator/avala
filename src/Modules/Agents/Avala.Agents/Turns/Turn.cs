@@ -32,6 +32,8 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
     public Option<ItemId> PendingForm { get; private set; }
 
+    public Option<UsageLimit> Limit { get; private set; }
+
     public IReadOnlyCollection<ItemId> OpenItems => openItems.Keys;
 
     public IReadOnlyCollection<ItemId> PendingCalls => pendingCalls;
@@ -92,8 +94,19 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         FormRequested requested => AskForm(requested, at),
         FormAnswered answered => AnswerForm(answered, at),
         RequestWithdrawn withdrawn => Withdraw(withdrawn, at),
+        LimitReported reported => Report(reported),
         _ => new TurnProgress([agentEvent]),
     };
+
+    private TurnProgress Report(LimitReported reported)
+    {
+        if (Limit.Match(known => reported.Limit.UsedFraction > known.UsedFraction, () => true))
+        {
+            Limit = reported.Limit;
+        }
+
+        return new TurnProgress([reported]);
+    }
 
     private Result<TurnProgress, TurnError> Open(IAgentEvent started, ItemId item, DateTimeOffset at)
     {
@@ -237,7 +250,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         var trigger = completed.Outcome switch
         {
             TurnOutcome.Interrupted => TurnTrigger.Interrupt,
-            TurnOutcome.Failed => TurnTrigger.Fail,
+            TurnOutcome.Failed or TurnOutcome.LimitReached => TurnTrigger.Fail,
             _ => TurnTrigger.Finish,
         };
 

@@ -52,6 +52,7 @@ internal static class ConversationPhrases
     {
         TurnOutcome.Finished => string.Create(CultureInfo.InvariantCulture, $"Worked for {Duration(duration)}"),
         TurnOutcome.Interrupted => string.Create(CultureInfo.InvariantCulture, $"Interrupted after {Duration(duration)}"),
+        TurnOutcome.LimitReached => string.Create(CultureInfo.InvariantCulture, $"Ran out of its usage window after {Duration(duration)}"),
         _ => string.Create(CultureInfo.InvariantCulture, $"Failed after {Duration(duration)}"),
     };
 

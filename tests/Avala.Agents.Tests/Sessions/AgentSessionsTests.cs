@@ -61,6 +61,27 @@ public sealed class AgentSessionsTests
     }
 
     [Fact]
+    public async Task ATurnThatRanOutOfItsUsageWindowAnnouncesTheMostUsedWindowItReportedAsync()
+    {
+        var spent = new UsageLimit("5h", 1, DateTimeOffset.UnixEpoch.AddHours(5));
+        var bus = new RecordingBus();
+        await using var agents = Agents(bus, new ScriptedAgentProvider((session, turn) =>
+        [
+            new TurnStarted(session, turn),
+            new LimitReported(session, turn, new UsageLimit("7d", 0.4, Option<DateTimeOffset>.None)),
+            new LimitReported(session, turn, spent),
+            new LimitReported(session, turn, new UsageLimit("7d", 0.41, Option<DateTimeOffset>.None)),
+            new TurnCompleted(session, turn, TurnOutcome.LimitReached),
+        ]));
+
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
+
+        Assert.Equal(
+            new TurnFinished(turn.Session, turn.Turn, TurnOutcome.LimitReached) { Limit = spent },
+            await bus.WaitForAsync<TurnFinished>(_ => true, Cancellation));
+    }
+
+    [Fact]
     public async Task ClosesItemsLeftOpenBeforeTheTurnFinishesAsync()
     {
         var bus = new RecordingBus();

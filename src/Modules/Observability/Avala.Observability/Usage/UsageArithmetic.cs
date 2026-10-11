@@ -29,7 +29,7 @@ internal static class UsageArithmetic
         public TurnTally Counting(TurnOutcome outcome, TimeSpan duration) => tally + outcome switch
         {
             TurnOutcome.Interrupted => new TurnTally(0, 1, 0, duration),
-            TurnOutcome.Failed => new TurnTally(0, 0, 1, duration),
+            TurnOutcome.Failed or TurnOutcome.LimitReached => new TurnTally(0, 0, 1, duration),
             _ => new TurnTally(1, 0, 0, duration),
         };
     }

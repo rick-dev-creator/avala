@@ -44,4 +44,7 @@ public sealed record SessionResumable(SessionId Session, ResumeToken Token) : II
 
 public sealed record AgentActivity(IAgentEvent Event) : IIntegrationEvent;
 
-public sealed record TurnFinished(SessionId Session, TurnId Turn, TurnOutcome Outcome) : IIntegrationEvent;
+public sealed record TurnFinished(SessionId Session, TurnId Turn, TurnOutcome Outcome) : IIntegrationEvent
+{
+    public Option<UsageLimit> Limit { get; init; }
+}

@@ -113,8 +113,9 @@ public sealed class UsageTrackingTests
         await TurnAsync(tracked, session, TurnOutcome.Finished, TimeSpan.FromSeconds(10));
         await TurnAsync(tracked, session, TurnOutcome.Interrupted, TimeSpan.FromSeconds(5));
         await TurnAsync(tracked, session, TurnOutcome.Failed, TimeSpan.FromSeconds(1));
+        await TurnAsync(tracked, session, TurnOutcome.LimitReached, TimeSpan.FromSeconds(2));
 
-        Assert.Equal(new TurnTally(2, 1, 1, TimeSpan.FromSeconds(46)), Outcomes.Present(tracked.Book.OfSession(session)).Turns);
+        Assert.Equal(new TurnTally(2, 1, 2, TimeSpan.FromSeconds(48)), Outcomes.Present(tracked.Book.OfSession(session)).Turns);
     }
 
     [Fact]

@@ -27,6 +27,7 @@ public enum TurnOutcome
     Finished,
     Interrupted,
     Failed,
+    LimitReached,
 }
 
 public enum PermissionAnswer

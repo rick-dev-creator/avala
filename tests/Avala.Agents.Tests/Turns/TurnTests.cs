@@ -220,7 +220,7 @@ public sealed class TurnTests
             return turn.State;
         });
 
-        Assert.Equal([TurnState.Finished, TurnState.Interrupted, TurnState.Failed], states);
+        Assert.Equal([TurnState.Finished, TurnState.Interrupted, TurnState.Failed, TurnState.Failed], states);
     }
 
     [Fact]

@@ -127,7 +127,7 @@ internal sealed partial class AgentSessions(
                     })
                     : turn?.Apply(agentEvent, clock.GetUtcNow()) ?? Result<TurnProgress, TurnError>.Failure(TurnError.ForeignEvent);
 
-                await ForwardAsync(agentEvent, applied, running, cancellationToken);
+                await ForwardAsync(agentEvent, applied, running, turn?.Limit ?? Option<UsageLimit>.None, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -150,7 +150,7 @@ internal sealed partial class AgentSessions(
         if (turn is { IsLive: true })
         {
             var failed = new TurnCompleted(turn.Session, turn.Id, TurnOutcome.Failed);
-            await ForwardAsync(failed, turn.Apply(failed, clock.GetUtcNow()), running, CancellationToken.None);
+            await ForwardAsync(failed, turn.Apply(failed, clock.GetUtcNow()), running, Option<UsageLimit>.None, CancellationToken.None);
         }
     }
 
@@ -158,6 +158,7 @@ internal sealed partial class AgentSessions(
         IAgentEvent agentEvent,
         Result<TurnProgress, TurnError> applied,
         LiveSession running,
+        Option<UsageLimit> limit,
         CancellationToken cancellationToken)
     {
         if (!applied.TryGetValue(out var progress, out var rejection))
@@ -174,7 +175,12 @@ internal sealed partial class AgentSessions(
             switch (forwarded)
             {
                 case TurnCompleted completed:
-                    await bus.PublishAsync(new TurnFinished(completed.Session, completed.Turn, completed.Outcome), cancellationToken);
+                    await bus.PublishAsync(
+                        new TurnFinished(completed.Session, completed.Turn, completed.Outcome)
+                        {
+                            Limit = completed.Outcome == TurnOutcome.LimitReached ? limit : Option<UsageLimit>.None,
+                        },
+                        cancellationToken);
                     break;
                 case ResumeTokenIssued issued when running.Capabilities.Has<Resumable>():
                     await bus.PublishAsync(new SessionResumable(issued.Session, issued.Token), cancellationToken);
