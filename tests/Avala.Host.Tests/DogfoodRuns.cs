@@ -20,4 +20,25 @@ public sealed class DogfoodRuns(HeadlessUi ui, PublishedPlugins plugins)
 
     [Fact]
     public Task TheMachinesDailySpendCeilingHoldsARunningJobAsync() => Campaign.RunAsync(DogfoodJobScenarios.DailyCeiling);
+
+    [Fact]
+    public Task AJobNearItsUsageWindowIsHeldWaitsForTheResetAndKeepsItsHoldAcrossARestartAsync() => Campaign.RunAsync(DogfoodLimitScenarios.HeldNearLimit);
+
+    [Fact]
+    public Task AJobAtItsLimitOnOneAccountIsHandedOffToTheOtherWithAvalasBriefAsync() => Campaign.RunAsync(DogfoodLimitScenarios.HandedOff);
+
+    [Fact]
+    public Task ASignedWebhookStartsAJobCappedAtTheRepositorysAutonomyAndBadDeliveriesStartNothingAsync() => Campaign.RunAsync(DogfoodAutomationScenarios.Webhook);
+
+    [Fact]
+    public Task ALoopRunsUnderTheMachinesLimitsApprovesCleanEvidenceAndSurvivesARestartAsync() => Campaign.RunAsync(DogfoodAutomationScenarios.Loop);
+
+    [Fact]
+    public Task AnApprovedJobsPullRequestIsWatchedAndTheAgentIsWokenByFailingCiAsync() => Campaign.RunAsync(DogfoodAutomationScenarios.PullRequest);
+
+    [Fact]
+    public Task AnOrchestratorDelegatesToAChildOnTheOtherAccountWhichAsksItAndAReviewerReportsAsync() => Campaign.RunAsync(DogfoodTeamScenarios.Orchestrated);
+
+    [Fact]
+    public Task ARestartWhileTheChecksRunKeepsTheConversationAndLeavesNoCheckRunningAsync() => Campaign.RunAsync(DogfoodTeamScenarios.RestartedWhileChecking);
 }
