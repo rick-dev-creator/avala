@@ -258,7 +258,7 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task UsageLinesInANarrowInspectorKeepUnitsWithTheirNumbersNamesWholeAndSeparatorsAtLineEndsAsync() =>
+    public Task UsageLinesInANarrowInspectorKeepNumbersWithTheirUnitsAndPrepositionsNamesWholeAndSeparatorsAtLineEndsAsync() =>
         ui.RunAsync(() =>
         {
             var view = Sections.Open(Screen.Show(new HandedOff(), Avalonia.Styling.ThemeVariant.Dark, 300, 800));
@@ -270,6 +270,7 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
             Assert.True(ends.Count >= 4, string.Join(" | ", lines.SelectMany(block => block)));
             Assert.DoesNotContain(lines.SelectMany(block => block), line => line.StartsWith('·'));
             Assert.DoesNotContain(ends, line => line.EndsWith('-') || line.EndsWith('%') || char.IsDigit(line[^1]));
+            Assert.DoesNotContain(lines.SelectMany(block => block.Zip(block.Skip(1))), pair => System.Text.RegularExpressions.Regex.IsMatch(pair.First, @"\b\p{L}{1,2}$") && char.IsDigit(pair.Second[0]));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

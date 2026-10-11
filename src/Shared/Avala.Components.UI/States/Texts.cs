@@ -32,7 +32,7 @@ public static partial class Texts
     public static string Typeset(string text) =>
         Joined().Replace(Measured().Replace(text.Replace(" · ", "\u00A0· ", StringComparison.Ordinal), "\u00A0"), "-\u2060");
 
-    [GeneratedRegex(@"(?<=\d%?) (?=\p{L})")]
+    [GeneratedRegex(@"(?<=\d%?) (?=\p{L})|(?<=\b\p{L}{1,2}) (?=\d)")]
     private static partial Regex Measured();
 
     [GeneratedRegex(@"(?<=[\p{L}\d])-(?=[\p{L}\d])")]
