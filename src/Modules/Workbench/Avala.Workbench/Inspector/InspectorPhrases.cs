@@ -119,12 +119,16 @@ internal static class InspectorPhrases
         $"{assumption.Prompt}: {(assumption.Chosen.Count > 0 ? string.Join(", ", assumption.Chosen) : "the agent's judgment")}";
 
     public static string Audit(int allowed, int byYou, int denied, int assumptions) =>
-        Amounts.Joined([
-            Amounts.Count(allowed, "allowed by rules", "allowed by rules"),
-            Amounts.Count(byYou, "answered by you", "answered by you"),
-            Amounts.Count(denied, "denied", "denied"),
-            Amounts.Count(assumptions, "assumption", "assumptions"),
-        ]);
+        allowed + byYou + denied + assumptions == 0
+            ? "Nothing decided yet"
+            : Amounts.Joined([
+                .. Counted(allowed, "allowed by rules", "allowed by rules"),
+                .. Counted(byYou, "answered by you", "answered by you"),
+                .. Counted(denied, "denied", "denied"),
+                .. Counted(assumptions, "assumption", "assumptions"),
+            ]);
+
+    private static string[] Counted(int count, string one, string many) => count > 0 ? [Amounts.Count(count, one, many)] : [];
 
     public static IReadOnlyList<string> Caps(BudgetCaps caps) =>
     [

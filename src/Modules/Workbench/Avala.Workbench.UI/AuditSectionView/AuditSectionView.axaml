@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inspector="using:Avala.Workbench.Inspector"
              xmlns:ui="using:Avala.Components.UI"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.AuditSectionView"
              x:ClassModifier="internal"
              x:DataType="inspector:IAuditSectionViewModel">
@@ -17,7 +18,7 @@
       <TextBlock x:Name="Summary"
                  Classes="caption"
                  Foreground="{DynamicResource TextPrimaryBrush}"
-                 Text="{Binding Summary}"
+                 Text="{Binding Summary, Converter={x:Static states:Texts.Unbroken}}"
                  TextWrapping="Wrap"
                  IsVisible="{Binding Summary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <ItemsControl x:Name="Decisions" ItemsSource="{Binding Decisions}">
@@ -28,7 +29,7 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="x:String">
-            <TextBlock Classes="caption secondary" Text="{Binding}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption secondary" Text="{Binding, Converter={x:Static states:Texts.Unbroken}}" TextWrapping="Wrap" />
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>

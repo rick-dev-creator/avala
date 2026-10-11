@@ -68,6 +68,33 @@ public sealed class AuditSectionViewScripts(HeadlessUi ui)
             Assert.Contains("How many failed logins before the limit?: 5 attempts per minute", view.VisibleTexts);
             Assert.False(view.HasClass("Section", "attention"));
         }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ARulesNameStaysWholeOnALineOfANarrowInspectorAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new ReadOnlyReviewer(), Avalonia.Styling.ThemeVariant.Dark, 300, 600));
+            var denied = view.All<TextBlock>().Single(text => text.Text?.StartsWith("Denied", StringComparison.Ordinal) == true);
+            var ends = denied.TextLayout.TextLines.SkipLast(1).Select(line => denied.Text![line.FirstTextSourceIndex..Math.Min(denied.Text!.Length, line.FirstTextSourceIndex + line.Length)].Trim()).ToList();
+
+            Assert.NotEmpty(ends);
+            Assert.DoesNotContain(ends, line => line.EndsWith('-'));
+        }, TestContext.Current.CancellationToken);
+
+    private sealed class ReadOnlyReviewer : IAuditSectionViewModel
+    {
+        public bool IsLoaded => true;
+
+        public string Fact => "1 denied";
+
+        public bool IsAttention => true;
+
+        public string Summary => "1 denied";
+
+        public IReadOnlyList<string> Decisions { get; } = ["Denied: edit REVIEW.md · rule read-only-denies-edits"];
+
+        public IReadOnlyList<string> Assumptions { get; } = [];
+    }
 }
 
 public sealed class UsageSectionViewScripts(HeadlessUi ui)

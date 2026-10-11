@@ -25,13 +25,13 @@ internal sealed class DesignAuditSectionViewModel : IAuditSectionViewModel
 
     public bool IsAttention => false;
 
-    public string Summary => "6 allowed by rules · 1 answered by you · 0 denied · 1 assumption";
+    public string Summary => "6 allowed by rules · 1 answered by you · 1 assumption";
 
     public IReadOnlyList<string> Decisions { get; } =
     [
-        "Allowed Command npm test -- test/auth · rule tests",
-        "Allowed FileEdit src/auth/rateLimit.ts · rule source",
-        "You allowed Command npm install express-rate-limit",
+        "Allowed: run npm test -- test/auth · rule tests",
+        "Allowed: edit src/auth/rateLimit.ts · rule source",
+        "You allowed: run npm install express-rate-limit",
     ];
 
     public IReadOnlyList<string> Assumptions { get; } = ["How many failed logins before the limit?: 5 attempts per minute"];
