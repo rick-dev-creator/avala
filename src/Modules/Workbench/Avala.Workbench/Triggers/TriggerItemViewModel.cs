@@ -21,6 +21,8 @@ internal interface ITriggerItemViewModel
 
     bool IsEnabled { get; }
 
+    bool IsForge { get; }
+
     string Toggle { get; }
 
     IReadOnlyList<string> Runs { get; }
@@ -34,15 +36,17 @@ internal sealed class TriggerItemViewModel(TriggerView view, TimeZoneInfo zone) 
 
     public string Repository { get; } = view.State.Repository;
 
-    public string Fires { get; } = TriggerPhrases.Fires(view.State);
+    public string Fires { get; } = TriggerPhrases.Fires(view);
 
     public string Target { get; } = TriggerPhrases.Target(view.State);
 
     public string Running { get; } = TriggerPhrases.Running(view.State);
 
-    public string Next { get; } = TriggerPhrases.Next(view.State, zone);
+    public string Next { get; } = TriggerPhrases.Next(view, zone);
 
     public bool IsEnabled { get; } = view.State.Enabled;
+
+    public bool IsForge { get; } = view.State.Forge.IsSome;
 
     public string Toggle { get; } = view.State.Enabled ? "Disable" : "Enable";
 

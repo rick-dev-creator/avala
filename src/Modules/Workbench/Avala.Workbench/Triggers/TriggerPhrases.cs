@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avala.Jobs.Contracts;
 using Avala.Triggers.Contracts;
+using Avala.Workbench.Automation;
 using Avala.Workbench.Presenting;
 
 namespace Avala.Workbench.Triggers;
@@ -20,6 +21,9 @@ internal static class TriggerPhrases
 
     public static string Scope(TimeZoneInfo zone) => $"Times in this computer's time zone, {zone.Id}";
 
+    public static string Fires(TriggerView view) =>
+        view.State.Forge.Match(rule => ForgePhrases.Fires(rule, view.Watch), () => Fires(view.State));
+
     public static string Fires(TriggerState trigger) =>
         trigger.Kind switch
         {
@@ -27,6 +31,9 @@ internal static class TriggerPhrases
             TriggerKind.FixedTime => $"{Days(trigger.Days)} at {trigger.At.Match(at => at.ToString("HH:mm", CultureInfo.InvariantCulture), () => string.Empty)}",
             _ => $"Webhook · {trigger.Hook.Match(hook => hook, () => string.Empty)}",
         };
+
+    public static string Next(TriggerView view, TimeZoneInfo zone) =>
+        view.State.Enabled && view.State.Forge.IsSome ? ForgePhrases.Next(view.Watch, zone) : Next(view.State, zone);
 
     public static string Next(TriggerState trigger, TimeZoneInfo zone) =>
         !trigger.Enabled ? "Disabled"
@@ -40,7 +47,7 @@ internal static class TriggerPhrases
         $"{(trigger.Target == TriggerTarget.Loop ? "Queues a loop task" : "Starts a job")} · {Level(trigger.Autonomy)} at most";
 
     public static string Run(TriggerRun run, TimeZoneInfo zone) =>
-        $"{Amounts.Time(run.At, zone)} · {Origin(run.Origin)} · {Outcome(run)}{(run.AutonomyCapped ? " · capped to supervised by the repository" : string.Empty)}";
+        $"{Amounts.Time(run.At, zone)} · {Origin(run)} · {Outcome(run)}{(run.AutonomyCapped ? " · capped to supervised by the repository" : string.Empty)}";
 
     public static string Delivery(WebhookDelivery delivery, TimeZoneInfo zone) =>
         $"{Amounts.Time(delivery.At, zone)} · {delivery.Path} · {Verdict(delivery.Verdict)}";
@@ -88,13 +95,14 @@ internal static class TriggerPhrases
 
     private static string Level(Autonomy autonomy) => autonomy == Autonomy.Autonomous ? "autonomous" : "supervised";
 
-    private static string Origin(TriggerOrigin origin) =>
-        origin switch
+    private static string Origin(TriggerRun run) =>
+        run.Origin switch
         {
             TriggerOrigin.Schedule => "on schedule",
             TriggerOrigin.CatchUp => "caught up",
             TriggerOrigin.Webhook => "webhook",
             TriggerOrigin.Manual => "run by you",
+            TriggerOrigin.External when run.Who.StartsWith("forge ", StringComparison.Ordinal) => run.Who,
             _ => "external",
         };
 
@@ -106,6 +114,7 @@ internal static class TriggerPhrases
             RunOutcome.Rejected => $"refused: {run.Rejection.Match(rejection => rejection.ToString(), () => "unknown")}",
             RunOutcome.AtConcurrencyCap => "skipped, at its concurrency cap",
             RunOutcome.Missed => string.Create(CultureInfo.InvariantCulture, $"missed {run.Missed} while Avala was closed"),
+            RunOutcome.Duplicate => "already fired for this event",
             _ => "dropped at restart",
         };
 

@@ -31,9 +31,15 @@ internal interface ITriggersViewModel
 
     IReadOnlyList<string> Deliveries { get; }
 
+    IReadOnlyList<string> ForgeEvents { get; }
+
+    bool HasForgeTriggers { get; }
+
     ILoopsViewModel Loops { get; }
 
     IAsyncRelayCommand<ITriggerItemViewModel> RunNowCommand { get; }
+
+    IAsyncRelayCommand<ITriggerItemViewModel> CheckNowCommand { get; }
 
     IAsyncRelayCommand<ITriggerItemViewModel> ToggleCommand { get; }
 
@@ -46,6 +52,8 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
     private readonly ObservableCollection<ITriggerItemViewModel> triggers = [];
     private readonly ObservableCollection<string> files = [];
     private readonly ObservableCollection<string> deliveries = [];
+    private readonly ObservableCollection<string> forgeEvents = [];
+    private TimeZoneInfo zone = TimeZoneInfo.Utc;
 
     public event EventHandler<Presented>? Presented
     {
@@ -82,6 +90,11 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
 
     public IReadOnlyList<string> Deliveries => deliveries;
 
+    public IReadOnlyList<string> ForgeEvents => forgeEvents;
+
+    [ObservableProperty]
+    public partial bool HasForgeTriggers { get; private set; }
+
     public ILoopsViewModel Loops { get; } = loops;
 
     public Task Following => feed.Following;
@@ -97,6 +110,14 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
     {
         var fired = await controls.RunNowAsync(trigger!.Id, cancellationToken);
         (Notice, Error) = fired.Match(run => (TriggerPhrases.Fired(run), string.Empty), error => (string.Empty, TriggerPhrases.Error(error)));
+        feed.Refresh();
+    }
+
+    [RelayCommand(CanExecute = nameof(Forged))]
+    private async Task CheckNowAsync(ITriggerItemViewModel? trigger, CancellationToken cancellationToken)
+    {
+        var checkedNow = await controls.CheckNowAsync(trigger!.Id, cancellationToken);
+        (Notice, Error) = checkedNow.Match(watch => (ForgePhrases.Checked(watch, zone), string.Empty), error => (string.Empty, ForgePhrases.Refused(error)));
         feed.Refresh();
     }
 
@@ -118,8 +139,13 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
 
     private static bool Present(ITriggerItemViewModel? trigger) => trigger is not null;
 
+    private static bool Forged(ITriggerItemViewModel? trigger) => trigger is { IsForge: true };
+
     private void Show(TriggersState state)
     {
+        zone = state.Zone;
+        HasForgeTriggers = state.Triggers.Any(view => view.State.Forge.IsSome);
+        forgeEvents.ShowOnly(state.ForgeEvents.Select(entry => ForgePhrases.Entry(entry, state.Zone)));
         Scope = TriggerPhrases.Scope(state.Zone);
         Endpoint = TriggerPhrases.Endpoint(state.Endpoint);
         Url = TriggerPhrases.Url(state.Endpoint);

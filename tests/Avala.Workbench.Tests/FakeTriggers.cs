@@ -1,3 +1,4 @@
+using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Triggers.Contracts;
@@ -14,7 +15,11 @@ internal sealed class FakeTriggers : ITriggers
 
     public List<(TriggerId Trigger, bool Enabled)> Enabled { get; } = [];
 
+    public static readonly TriggerId Labeled = new(TriggerId.Machine, "fix-labeled");
+
     public Option<TriggerError> Refusal { get; set; }
+
+    public bool WithForge { get; set; }
 
     public int Reloads { get; private set; }
 
@@ -31,6 +36,9 @@ internal sealed class FakeTriggers : ITriggers
                 Running = 1,
             },
             new TriggerState(new TriggerId(TriggerId.Machine, "issue"), "/work/ledger-api", TriggerKind.Webhook, TriggerTarget.Job, Autonomy.Autonomous, 2, Enabled: false) { Hook = "/hooks/issue" },
+            .. WithForge
+                ? [new TriggerState(Labeled, "/work/ledger-api", TriggerKind.Forge, TriggerTarget.Job, Autonomy.Supervised, 1, Enabled: true) { Forge = new ForgeRule("github", ForgeEventKind.IssueLabeled, ["alice"]) { Label = "avala" } }]
+                : Array.Empty<TriggerState>(),
         ]);
 
     public IReadOnlyList<TriggerRun> RunsOf(TriggerId trigger) =>
@@ -61,5 +69,30 @@ internal sealed class FakeTriggers : ITriggers
         Reloads++;
 
         return ValueTask.FromResult(Files());
+    }
+}
+
+internal sealed class FakeForgeEventLog : IForgeEventLog
+{
+    public List<TriggerId> Checked { get; } = [];
+
+    public Result<ForgeEventWatch, ForgeError> Checking { get; set; } = Watch(EventWatchStatus.Watching);
+
+    public static ForgeEventWatch Watch(EventWatchStatus status) =>
+        new(FakeTriggers.Labeled, new ForgeName("github"), ForgeEventKind.IssueLabeled) { Forge = "GitHub", Status = status, NextPoll = FakeTriggers.Now.AddMinutes(5) };
+
+    public IReadOnlyList<ForgeEventWatch> Watches() => [Watch(EventWatchStatus.Watching)];
+
+    public IReadOnlyList<ForgeEventEntry> Events() =>
+    [
+        new ForgeEventEntry(FakeTriggers.Labeled, FakeTriggers.Now, ForgeEventKind.IssueLabeled, "7001", "mallory", ForgeEventVerdict.NotAllowed) { Number = 41, Detail = "avala" },
+        new ForgeEventEntry(FakeTriggers.Labeled, FakeTriggers.Now, ForgeEventKind.IssueLabeled, "7002", "alice", ForgeEventVerdict.Fired) { Number = 42, Detail = "avala", Outcome = RunOutcome.Submitted, Job = JobId.New() },
+    ];
+
+    public ValueTask<Result<ForgeEventWatch, ForgeError>> CheckNowAsync(TriggerId trigger, CancellationToken cancellationToken)
+    {
+        Checked.Add(trigger);
+
+        return ValueTask.FromResult(Checking);
     }
 }

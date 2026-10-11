@@ -19,6 +19,7 @@ public sealed class TriggersViewModelScripts : IDisposable
     private readonly TestUiDispatcher ui = new();
     private readonly FakeTriggers triggers = new();
     private readonly FakeAutopilot autopilot = new();
+    private readonly FakeForgeEventLog forges = new();
 
     [Fact]
     public async Task ThePageListsEachTriggerWithWhatFiresItItsNextRunItsRunsTheFilesTheEndpointAndTheDeliveriesAsync()
@@ -84,6 +85,46 @@ public sealed class TriggersViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AForgeTriggerShowsItsForgeAndEventItsNextPollAndTheForgeEventsNewestFirstWithTheirVerdictsAsync()
+    {
+        triggers.WithForge = true;
+        using var page = Page();
+
+        page.Activate();
+
+        await ui.PresentedAsync(page, () => page.Triggers.Count == 3, () => $"{page.Triggers.Count} triggers");
+        var labeled = await ui.ReadAsync(() => page.Triggers[2]);
+        Assert.Equal(("GitHub · issue labeled `avala`", "Next poll · 15:05", true), (labeled.Fires, labeled.Next, labeled.IsForge));
+        Assert.Equal(
+            [
+                "Fri 9 Oct 15:00 · fix-labeled · #42 labeled avala by alice · fired, job submitted",
+                "Fri 9 Oct 15:00 · fix-labeled · #41 labeled avala by mallory · not allowed: not on the authors list",
+            ],
+            await ui.ReadAsync(() => page.ForgeEvents.ToList()));
+        Assert.True(await ui.ReadAsync(() => page.HasForgeTriggers));
+        Assert.False(page.CheckNowCommand.CanExecute(await ui.ReadAsync(() => page.Triggers[0])));
+    }
+
+    [Fact]
+    public async Task CheckNowPollsTheForgeTriggerAndSaysWhenItPollsNextOrWhyItCouldNotAsync()
+    {
+        triggers.WithForge = true;
+        using var page = Page();
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.Triggers.Count == 3, () => $"{page.Triggers.Count} triggers");
+        var labeled = await ui.ReadAsync(() => page.Triggers[2]);
+
+        await ui.RunAsync(() => page.CheckNowCommand.ExecuteAsync(labeled));
+        var notice = await ui.ReadAsync(() => (page.Notice, page.Error));
+        forges.Checking = Forges.Contracts.ForgeError.EventsUnsupported;
+        await ui.RunAsync(() => page.CheckNowCommand.ExecuteAsync(labeled));
+
+        Assert.Equal([FakeTriggers.Labeled, FakeTriggers.Labeled], forges.Checked);
+        Assert.Equal(("Checked fix-labeled: Next poll · 15:05.", string.Empty), notice);
+        Assert.Equal("This forge does not read events.", await ui.ReadAsync(() => page.Error));
+    }
+
+    [Fact]
     public async Task ReloadReadsTheFilesAgainAsync()
     {
         using var page = Page();
@@ -102,7 +143,7 @@ public sealed class TriggersViewModelScripts : IDisposable
 
         var loops = new LoopControls(autopilot);
 
-        return new TriggersViewModel(new TriggerControls(triggers, loops, clock), new LiveFeed(new Pulse(new JobBoard()), ui), new LoopsViewModel(loops));
+        return new TriggersViewModel(new TriggerControls(triggers, loops, clock, [forges]), new LiveFeed(new Pulse(new JobBoard()), ui), new LoopsViewModel(loops));
     }
 }
 

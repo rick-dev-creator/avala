@@ -43,6 +43,18 @@
 
         <ContentControl x:Name="LoopSection" Content="{Binding Loops}" />
 
+        <StackPanel x:Name="ForgeSection" Spacing="6" IsVisible="{Binding HasForgeTriggers}">
+          <TextBlock Classes="section" Text="Forge events" />
+          <TextBlock x:Name="NoForgeEvents" Classes="caption" Text="No forge event yet. The first poll only records where the forge stands." TextWrapping="Wrap" IsVisible="{Binding !ForgeEvents.Count}" />
+          <ItemsControl x:Name="ForgeEvents" ItemsSource="{Binding ForgeEvents}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="caption" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+
         <StackPanel Spacing="6">
           <TextBlock Classes="section" Text="Webhooks" />
           <WrapPanel>

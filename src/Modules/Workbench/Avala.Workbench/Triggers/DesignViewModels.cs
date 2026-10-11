@@ -6,6 +6,8 @@ namespace Avala.Workbench.Triggers;
 internal sealed record DesignTriggerItemViewModel(string Name, string Repository, string Fires, string Target, string Running, string Next, bool IsEnabled, IReadOnlyList<string> Runs)
     : ITriggerItemViewModel
 {
+    public bool IsForge { get; init; }
+
     public DesignTriggerItemViewModel()
         : this(
             "nightly-deps",
@@ -52,6 +54,18 @@ internal sealed class DesignTriggersViewModel : ITriggersViewModel
             "Runs on each signed delivery",
             true,
             ["Fri 9 Oct 15:08 · webhook · job submitted · capped to supervised by the repository"]),
+        new DesignTriggerItemViewModel(
+            "fix-labeled",
+            "~/code/ledger-api",
+            "GitHub · issue labeled `avala`",
+            "Starts a job · autonomous at most",
+            "1 of 2 running",
+            "Next poll · 14:05",
+            true,
+            ["Fri 9 Oct 14:03 · forge github · alice · job submitted"])
+        {
+            IsForge = true,
+        },
         new DesignTriggerItemViewModel("docs-sweep", "~/code/ledger-api", "Every 12 hours", "Queues a loop task · supervised at most", "0 of 1 running", "Disabled", false, []),
     ];
 
@@ -68,9 +82,20 @@ internal sealed class DesignTriggersViewModel : ITriggersViewModel
         "Fri 9 Oct 15:07 · /hooks/issue-opened · bad signature",
     ];
 
+    public IReadOnlyList<string> ForgeEvents { get; } =
+    [
+        "Fri 9 Oct 14:03 · fix-labeled · #42 labeled avala by alice · fired, job submitted",
+        "Fri 9 Oct 14:02 · fix-labeled · #41 labeled avala by mallory · not allowed: not on the authors list",
+        "Fri 9 Oct 14:02 · fix-labeled · #40 labeled bug by bob · filtered: another label",
+    ];
+
+    public bool HasForgeTriggers => true;
+
     public ILoopsViewModel Loops { get; } = new DesignLoopsViewModel();
 
     public IAsyncRelayCommand<ITriggerItemViewModel> RunNowCommand { get; } = new AsyncRelayCommand<ITriggerItemViewModel>(_ => Task.CompletedTask);
+
+    public IAsyncRelayCommand<ITriggerItemViewModel> CheckNowCommand { get; } = new AsyncRelayCommand<ITriggerItemViewModel>(_ => Task.CompletedTask);
 
     public IAsyncRelayCommand<ITriggerItemViewModel> ToggleCommand { get; } = new AsyncRelayCommand<ITriggerItemViewModel>(_ => Task.CompletedTask);
 

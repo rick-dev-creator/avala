@@ -207,6 +207,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<TriggerFired>, Pulse>()
             .AddForwarded<IHandle<WebhookReceived>, Pulse>()
             .AddForwarded<IHandle<TriggersChanged>, Pulse>()
+            .AddForwarded<IHandle<ForgeEventsChanged>, Pulse>()
             .AddForwarded<IHandle<LoopStarted>, Pulse>()
             .AddForwarded<IHandle<LoopTaskTaken>, Pulse>()
             .AddForwarded<IHandle<LoopIterated>, Pulse>()

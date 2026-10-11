@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using Avala.Autopilot.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk.Events;
@@ -31,6 +32,7 @@ internal sealed class Pulse(JobBoard board)
         IHandle<TriggerFired>,
         IHandle<WebhookReceived>,
         IHandle<TriggersChanged>,
+        IHandle<ForgeEventsChanged>,
         IHandle<LoopStarted>,
         IHandle<LoopTaskTaken>,
         IHandle<LoopIterated>,
@@ -76,6 +78,8 @@ internal sealed class Pulse(JobBoard board)
     public ValueTask HandleAsync(WebhookReceived integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(TriggersChanged integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(ForgeEventsChanged integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(LoopStarted integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
