@@ -51,6 +51,21 @@ public sealed class ContestTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AClosedContestsRowKeepsHowManyCandidatesPassedAndNamesThePickedOneAsync()
+    {
+        await using var run = await CheckedAsync();
+        var decided = run.Watch<ContestDecided>();
+        var contest = await StartAsync(run, "contest", 3);
+        var winner = Outcomes.Present(Outcomes.Present((await decided.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Verdict).Winner);
+        var workbench = await run.WorkbenchAsync();
+
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().ApproveAsync(winner, Cancellation));
+
+        var ordinal = contest.Candidates.Single(candidate => candidate.Job == winner).Ordinal;
+        Assert.Equal(("Done", $"3 candidates · 2 passed · picked candidate {ordinal}"), await workbench.RowAsync(winner, "Done"));
+    }
+
+    [Fact]
     public async Task TheInspectorOfTheWinnerShowsItsPlaceAndWhyEachCandidateRankedWhereItDidAsync()
     {
         await using var run = await CheckedAsync();

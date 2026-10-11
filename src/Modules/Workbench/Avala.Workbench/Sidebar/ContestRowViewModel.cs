@@ -90,7 +90,7 @@ internal sealed partial class ContestRowViewModel : IContestRowViewModel
         Job = contest.Picked.Match(picked => picked, () => contest.Verdict.Bind(verdict => verdict.Winner).Match(winner => winner, () => contest.Candidates[0].Job));
         PendingDecisions = shown.Sum(job => job.PendingDecisions);
         Group = GroupOf(contest, PendingDecisions);
-        Fact = ContestPhrases.Row(contest.Candidates.Count, shown.Count(Passed));
+        Fact = ContestPhrases.Row(contest, contest.Verdict.Match(verdict => verdict.Ranking.Count(standing => standing.Facts.Passed), () => shown.Count(Passed)));
         dot.Kind = Group switch
         {
             JobGroup.NeedsYou => StatusKind.NeedsYou,

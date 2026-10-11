@@ -75,5 +75,27 @@ public sealed class ContestRowViewModelScripts
         Assert.Equal((first, second, first), (leading, winner, row.Job));
     }
 
+    [Fact]
+    public void AClosedContestCountsTheCandidatesThatPassedVerificationAndNamesThePickedOne()
+    {
+        var (first, second) = (JobId.New(), JobId.New());
+        var closed = FakeContests.Contest(ContestStatus.Closed, first, second) with
+        {
+            Verdict = new ContestVerdict(
+                [
+                    new Standing(1, new CandidateFacts(second, 2, true, false, 0, 1, 3, DateTimeOffset.UnixEpoch)),
+                    new Standing(2, new CandidateFacts(first, 1, true, false, 0, 1, 9, DateTimeOffset.UnixEpoch)),
+                ],
+                second,
+                DateTimeOffset.UnixEpoch),
+            Picked = second,
+        };
+        var row = new ContestRowViewModel(closed);
+
+        row.Update(closed, ImmutableDictionary<JobId, BoardJob>.Empty);
+
+        Assert.Equal("2 candidates · 2 passed · picked candidate 2", row.Fact);
+    }
+
     private BoardJob Job(string instruction) => new(catalog.Add(instruction, JobStatus.Running).Summary, Transcript.Empty);
 }

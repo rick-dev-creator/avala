@@ -52,7 +52,14 @@ internal static class ContestPhrases
         _ => "a candidate job was refused: check the repository and the connection.",
     };
 
-    public static string Row(int candidates, int passed) => $"{Candidates(candidates)} · {passed} passed";
+    public static string Row(ContestRecord contest, int passed) =>
+        Joined([
+            Candidates(contest.Candidates.Count),
+            string.Create(CultureInfo.InvariantCulture, $"{passed} passed"),
+            .. contest.Picked.Match<string[]>(
+                picked => [.. contest.Candidates.Where(candidate => candidate.Job == picked).Select(candidate => string.Create(CultureInfo.InvariantCulture, $"picked candidate {candidate.Ordinal}"))],
+                () => []),
+        ]);
 
     public static string Status(ContestRecord contest) => contest.Status switch
     {
