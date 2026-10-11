@@ -55,6 +55,9 @@ namespace Avala.Budgets.Storage.Migrations
                     b.Property<long>("At")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Attempt")
+                        .HasColumnType("INTEGER");
+
                     b.Property<decimal>("Cap")
                         .HasColumnType("TEXT");
 

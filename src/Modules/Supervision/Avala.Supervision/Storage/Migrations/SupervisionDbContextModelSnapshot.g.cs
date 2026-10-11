@@ -25,6 +25,9 @@ namespace Avala.Supervision.Storage.Migrations
                     b.Property<long>("At")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Attempt")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Halt")
                         .IsRequired()
                         .HasColumnType("TEXT");

@@ -47,5 +47,5 @@ public sealed class InterventionHistoryTests
     }
 
     private static SupervisionIntervention Stalled(JobId job, DateTimeOffset at) =>
-        new(new JobHold(job, SessionId.New(), HoldReason.Stalled, SessionHalt.Interrupted), new SilenceMeasure(TimeSpan.FromMinutes(11), Window), at);
+        new(new JobHold(job, SessionId.New(), HoldReason.Stalled, SessionHalt.Interrupted) { Attempt = 2 }, new SilenceMeasure(TimeSpan.FromMinutes(11), Window), at);
 }

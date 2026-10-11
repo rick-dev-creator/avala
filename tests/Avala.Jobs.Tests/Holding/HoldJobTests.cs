@@ -23,7 +23,7 @@ public sealed class HoldJobTests
 
         var hold = Outcomes.Succeeds(await flow.Jobs.HoldAsync(job.Id, HoldReason.Stalled, Cancellation));
 
-        Assert.Equal(new JobHold(job.Id, session, HoldReason.Stalled, SessionHalt.Interrupted), hold);
+        Assert.Equal(new JobHold(job.Id, session, HoldReason.Stalled, SessionHalt.Interrupted) { Attempt = 1 }, hold);
         Assert.Equal(JobState.NeedsHelp, job.State);
         Assert.Equal([session], flow.Agents.Interrupted);
         Assert.Equal(

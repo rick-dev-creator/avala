@@ -16,6 +16,8 @@ internal sealed class StoredIntervention
 
     public string Halt { get; init; } = string.Empty;
 
+    public int Attempt { get; init; }
+
     public long Silent { get; init; }
 
     public long Window { get; init; }
@@ -28,13 +30,14 @@ internal sealed class StoredIntervention
         Session = intervention.Hold.Session.Value,
         Reason = intervention.Hold.Reason.ToString(),
         Halt = intervention.Hold.Halt.ToString(),
+        Attempt = intervention.Hold.Attempt,
         Silent = intervention.Silence.Silent.Ticks,
         Window = intervention.Silence.Window.Ticks,
         At = intervention.At.UtcTicks,
     };
 
     public SupervisionIntervention Intervention() => new(
-        new JobHold(new JobId(Job), new SessionId(Session), Enum.Parse<HoldReason>(Reason), Enum.Parse<SessionHalt>(Halt)),
+        new JobHold(new JobId(Job), new SessionId(Session), Enum.Parse<HoldReason>(Reason), Enum.Parse<SessionHalt>(Halt)) { Attempt = Attempt },
         new SilenceMeasure(TimeSpan.FromTicks(Silent), TimeSpan.FromTicks(Window)),
         new DateTimeOffset(At, TimeSpan.Zero));
 }

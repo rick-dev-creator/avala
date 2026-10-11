@@ -18,6 +18,8 @@ internal sealed class StoredIntervention
 
     public string Halt { get; init; } = string.Empty;
 
+    public int Attempt { get; init; }
+
     public string Measure { get; init; } = string.Empty;
 
     public string Subject { get; init; } = string.Empty;
@@ -38,6 +40,7 @@ internal sealed class StoredIntervention
         Session = intervention.Hold.Session.Value,
         Reason = intervention.Hold.Reason.ToString(),
         Halt = intervention.Hold.Halt.ToString(),
+        Attempt = intervention.Hold.Attempt,
         Measure = intervention.Breach.Measure.ToString(),
         Subject = intervention.Breach.Subject,
         Measured = intervention.Breach.Measured,
@@ -48,7 +51,7 @@ internal sealed class StoredIntervention
     };
 
     public BudgetIntervention Intervention() => new(
-        new JobHold(new JobId(Job), new SessionId(Session), Enum.Parse<HoldReason>(Reason), Enum.Parse<SessionHalt>(Halt)),
+        new JobHold(new JobId(Job), new SessionId(Session), Enum.Parse<HoldReason>(Reason), Enum.Parse<SessionHalt>(Halt)) { Attempt = Attempt },
         new BudgetBreach(
             Enum.Parse<BudgetMeasure>(Measure),
             Subject,

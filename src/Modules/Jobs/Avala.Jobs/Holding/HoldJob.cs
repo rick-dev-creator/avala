@@ -22,8 +22,8 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
 
     public async Task<Result<JobHold, JobRejection>> ExecuteAsync(Job job, HoldReason reason, Option<UsageLimit> limit, CancellationToken cancellationToken) =>
         await job.Session.Match(
-            session => job.Hold(reason).IsSuccess
-                ? HeldAsync(job, session, reason, limit, cancellationToken)
+            session => job.Hold(reason).TryGetValue(out var held, out _)
+                ? HeldAsync(job, session, held, limit, cancellationToken)
                 : Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)),
             () => Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)));
 
@@ -43,11 +43,11 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
         _ => JobRejection.NotRunning,
     };
 
-    private async Task<Result<JobHold, JobRejection>> HeldAsync(Job job, SessionId session, HoldReason reason, Option<UsageLimit> limit, CancellationToken cancellationToken)
+    private async Task<Result<JobHold, JobRejection>> HeldAsync(Job job, SessionId session, Jobs.JobHeld held, Option<UsageLimit> limit, CancellationToken cancellationToken)
     {
         await ledger.RecordAsync(job, cancellationToken);
 
-        var hold = new JobHold(job.Id, session, reason, await HaltAsync(session, reason, cancellationToken)) { Limit = limit };
+        var hold = new JobHold(job.Id, session, held.Reason, await HaltAsync(session, held.Reason, cancellationToken)) { Attempt = held.Attempt.Value, Limit = limit };
         await bus.PublishAsync(new HoldAnnouncement(hold), cancellationToken);
 
         return hold;

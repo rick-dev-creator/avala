@@ -220,6 +220,20 @@ public sealed class BudgetEnforcementTests
     }
 
     [Fact]
+    public async Task AJobHeldAgainForSpendInTheSameSessionAtALaterAttemptIsAuditedAgainAsync()
+    {
+        var budgeted = new Budgeted(JobRejection.NotRunning);
+        await budgeted.RunningAsync(Caps(cost: [new Cost(0.01m, "USD")]));
+        await budgeted.SpendAsync(Few, new Cost(0.02m, "USD"));
+        var gated = new JobHold(budgeted.Job, budgeted.Session, HoldReason.BudgetExceeded, SessionHalt.Idle) { Attempt = 1 };
+
+        await budgeted.HeldAsync(gated);
+        await budgeted.HeldAsync(gated with { Attempt = 2 });
+
+        Assert.Equal([gated, gated with { Attempt = 2 }], budgeted.Book.OfJob(budgeted.Job).Select(intervention => intervention.Hold));
+    }
+
+    [Fact]
     public async Task TheEnforcersOwnHoldIsNotAuditedTwiceWhenItIsAnnouncedAsync()
     {
         var budgeted = new Budgeted();

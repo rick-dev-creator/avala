@@ -26,6 +26,25 @@ public sealed class BudgetTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ARaisedJobThatOvershootsItsRaisedCapInTheSameSessionIsHeldAndAuditedAgainAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "plan-across-turns", (".avala/budget.json", """{ "costPerJob": { "USD": 0.005 } }"""));
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        var first = await run.BudgetInterventionAsync();
+        var workbench = await run.WorkbenchAsync();
+        var usage = Assert.Single(await workbench.InspectAsync(run.Job, "UsageSectionViewModel"));
+        await run.Ui.PresentedAsync(usage.Presentation, () => usage["CanRaise"].Value<bool>(), () => "Raise was not offered");
+
+        await run.Ui.RunAsync(() => usage.ExecuteAsync("RaiseCommand"));
+
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        var second = await run.BudgetInterventionAsync();
+        Assert.Equal((first.Hold.Session, first.Hold.Reason), (second.Hold.Session, second.Hold.Reason));
+        Assert.Equal(0.023m, second.Breach.Measured);
+        Assert.Equal([first, second], run.Get<IBudgets>().OfJob(run.Job));
+    }
+
+    [Fact]
     public async Task AJobThatTakesTheMachinesSpendOfTheDayToItsCeilingIsHeldWithTheDailySpendAsync()
     {
         await using var run = await SimulatedRun.InstructedAsync(plugins, SimulatedRun.Simulate("permission"), [("budgets.json", """{ "spendPerDay": { "USD": 0.01 } }""")], []);

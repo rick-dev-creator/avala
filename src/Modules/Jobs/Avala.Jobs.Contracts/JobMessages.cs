@@ -48,6 +48,8 @@ public enum SessionHalt
 
 public sealed record JobHold(JobId Job, SessionId Session, HoldReason Reason, SessionHalt Halt)
 {
+    public int Attempt { get; init; }
+
     public Option<UsageLimit> Limit { get; init; }
 }
 

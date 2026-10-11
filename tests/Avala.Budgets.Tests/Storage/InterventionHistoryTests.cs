@@ -141,7 +141,8 @@ public sealed class InterventionHistoryTests
     {
         using var folder = new TemporaryFolder();
         var paths = new AvalaPaths(folder.Path);
-        var kept = Exceeded(JobId.New(), Nine, Option<BudgetError>.None);
+        var exceeded = Exceeded(JobId.New(), Nine, Option<BudgetError>.None);
+        var kept = exceeded with { Hold = exceeded.Hold with { Attempt = 0 } };
         await using (var legacy = new BudgetsDbContext(paths.Database("budgets")))
         {
             await legacy.GetService<IMigrator>().MigrateAsync(legacy.Database.GetMigrations().First(), Cancellation);
@@ -166,7 +167,7 @@ public sealed class InterventionHistoryTests
 
     private static BudgetIntervention Exceeded(JobId job, DateTimeOffset at, Option<BudgetError> error) =>
         new(
-            new JobHold(job, SessionId.New(), HoldReason.BudgetExceeded, SessionHalt.Interrupted),
+            new JobHold(job, SessionId.New(), HoldReason.BudgetExceeded, SessionHalt.Interrupted) { Attempt = 2 },
             new BudgetBreach(BudgetMeasure.Cost, "USD", 0.012m, 0.01m, error),
             at);
 }
