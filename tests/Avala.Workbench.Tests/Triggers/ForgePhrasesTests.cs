@@ -21,10 +21,10 @@ public sealed class ForgePhrasesTests
         Assert.Equal(
             [
                 "Forgejo · issue opened",
-                "work · issue labeled `avala`",
-                "Forgejo · comment `/avala fix`",
-                "Forgejo · checks failed on `main`",
-                "Forgejo · review requested from `avala-bot`",
+                "work · issue labeled \"avala\"",
+                "Forgejo · comment \"/avala fix\"",
+                "Forgejo · checks failed on \"main\"",
+                "Forgejo · review requested from \"avala-bot\"",
                 "Forgejo · review requested",
             ],
             [
@@ -55,7 +55,7 @@ public sealed class ForgePhrasesTests
 
         Assert.Equal(
             [
-                "Fri 9 Oct 13:00 · fix · comment on #12 `/avala fix` by alice · duplicate, already fired",
+                "Fri 9 Oct 13:00 · fix · comment on #12 \"/avala fix\" by alice · duplicate, already fired",
                 "Fri 9 Oct 13:00 · fix · checks failed on main by alice · filtered: a fork's pull request",
                 "Fri 9 Oct 13:00 · fix · issue #12 opened by someone unknown · fired, skipped at its concurrency cap",
                 "Fri 9 Oct 13:00 · fix · review of #12 requested from carol by alice · not allowed: not on the authors list",

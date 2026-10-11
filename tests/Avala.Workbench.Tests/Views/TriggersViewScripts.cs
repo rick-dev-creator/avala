@@ -60,7 +60,7 @@ public sealed class TriggersViewScripts(HeadlessUi ui)
             view.Click("CheckNow");
 
             Assert.Equal(["check fix-labeled"], page.Calls);
-            Assert.Equal(("GitHub · issue labeled `avala`", "Next poll · 14:05"), (view.TextOf("Fires"), view.TextOf("Next")));
+            Assert.Equal(("GitHub · issue labeled \"avala\"", "Next poll · 14:05"), (view.TextOf("Fires"), view.TextOf("Next")));
             Assert.Equal((true, 3, false), (view.Shows("ForgeSection"), view.Find<ItemsControl>("ForgeEvents").ItemCount, view.Shows("NoForgeEvents")));
         }, TestContext.Current.CancellationToken);
 

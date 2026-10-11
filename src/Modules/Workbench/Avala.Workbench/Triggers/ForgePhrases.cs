@@ -36,10 +36,10 @@ internal static class ForgePhrases
         rule.Event switch
         {
             ForgeEventKind.IssueOpened => "issue opened",
-            ForgeEventKind.IssueLabeled => $"issue labeled `{Text(rule.Label)}`",
-            ForgeEventKind.CommentCommand => $"comment `{Text(rule.Command)}`",
-            ForgeEventKind.ChecksFailed => $"checks failed on `{Text(rule.Branch)}`",
-            _ => rule.Reviewer.Match(reviewer => $"review requested from `{reviewer}`", () => "review requested"),
+            ForgeEventKind.IssueLabeled => $"issue labeled \"{Text(rule.Label)}\"",
+            ForgeEventKind.CommentCommand => $"comment \"{Text(rule.Command)}\"",
+            ForgeEventKind.ChecksFailed => $"checks failed on \"{Text(rule.Branch)}\"",
+            _ => rule.Reviewer.Match(reviewer => $"review requested from \"{reviewer}\"", () => "review requested"),
         };
 
     private static string What(ForgeEventEntry entry)
@@ -50,7 +50,7 @@ internal static class ForgePhrases
         {
             ForgeEventKind.IssueOpened => $"issue #{number} opened",
             ForgeEventKind.IssueLabeled => $"#{number} labeled {Text(entry.Detail)}",
-            ForgeEventKind.CommentCommand => $"comment on #{number} `{Text(entry.Detail)}`",
+            ForgeEventKind.CommentCommand => $"comment on #{number} \"{Text(entry.Detail)}\"",
             ForgeEventKind.ChecksFailed => $"checks failed on {Text(entry.Detail)}",
             _ => $"review of #{number} requested from {Text(entry.Detail)}",
         };

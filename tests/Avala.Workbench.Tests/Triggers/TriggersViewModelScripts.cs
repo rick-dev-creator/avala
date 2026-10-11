@@ -94,7 +94,7 @@ public sealed class TriggersViewModelScripts : IDisposable
 
         await ui.PresentedAsync(page, () => page.Triggers.Count == 3, () => $"{page.Triggers.Count} triggers");
         var labeled = await ui.ReadAsync(() => page.Triggers[2]);
-        Assert.Equal(("GitHub · issue labeled `avala`", "Next poll · 15:05", true), (labeled.Fires, labeled.Next, labeled.IsForge));
+        Assert.Equal(("GitHub · issue labeled \"avala\"", "Next poll · 15:05", true), (labeled.Fires, labeled.Next, labeled.IsForge));
         Assert.Equal(
             [
                 "Fri 9 Oct 15:00 · fix-labeled · #42 labeled avala by alice · fired, job submitted",

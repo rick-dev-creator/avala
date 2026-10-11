@@ -57,7 +57,7 @@ internal sealed class DesignTriggersViewModel : ITriggersViewModel
         new DesignTriggerItemViewModel(
             "fix-labeled",
             "~/code/ledger-api",
-            "GitHub · issue labeled `avala`",
+            "GitHub · issue labeled \"avala\"",
             "Starts a job · autonomous at most",
             "1 of 2 running",
             "Next poll · 14:05",
