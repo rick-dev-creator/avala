@@ -1,33 +1,8 @@
-using System.Diagnostics;
 using System.Globalization;
-using System.Reflection;
-using System.Text;
-using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
-using Avala.Host.Composition;
-using Avala.Jobs.Contracts;
-using Avala.Permissions.Contracts;
-using Avala.Runtime.Diagnostics;
-using Avala.Sdk;
 using Avala.Sdk.Events;
-using Avala.Sdk.Presentation;
-using Avala.Sdk.Processes;
-using Avala.Sdk.Regions;
-using Avala.Shell;
-using Avala.Shell.Regions;
-using Avala.Testing.UI;
-using Avala.Verification.Contracts;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Headless;
-using Avalonia.LogicalTree;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
-using Microsoft.Extensions.DependencyInjection;
-using static Avala.Host.Tests.DogfoodSettings;
 
 namespace Avala.Host.Tests;
 
@@ -35,19 +10,22 @@ internal sealed class DogfoodJournal : IAsyncDisposable
 {
     private readonly Channel<(string File, string Line)> lines = Channel.CreateUnbounded<(string, string)>(new UnboundedChannelOptions { SingleReader = true });
     private readonly Task writing;
-    private readonly string folder;
     private int progressed;
     private int sampled;
 
     public DogfoodJournal(string folder)
     {
-        this.folder = Directory.CreateDirectory(folder).FullName;
+        Folder = Directory.CreateDirectory(folder).FullName;
         writing = WriteAsync();
     }
+
+    public string Folder { get; }
 
     public Task NoteAsync(string text) => AddAsync("notes.log", $"{DateTime.Now:HH:mm:ss} {text}");
 
     public Task DecideAsync(string text) => Task.WhenAll(AddAsync("decisions.log", $"{DateTime.Now:HH:mm:ss} {text}"), NoteAsync($"DECISION {text}"));
+
+    public Task LogAsync(string file, string text) => AddAsync(file, $"{DateTime.Now:HH:mm:ss} {text.ReplaceLineEndings(" ⏎ ")}");
 
     public Task EventAsync(TimeSpan at, IIntegrationEvent happened)
     {
@@ -64,8 +42,8 @@ internal sealed class DogfoodJournal : IAsyncDisposable
             return Task.CompletedTask;
         }
 
-        var text = happened.ToString() ?? string.Empty;
-        text = text.Length > 1500 ? string.Concat(text.AsSpan(0, 1500), "…") : text;
+        var text = happened is AgentActivity activity ? $"AgentActivity {DogfoodJson.Show(activity.Event)}" : DogfoodJson.Show(happened);
+        text = text.Length > 3000 ? string.Concat(text.AsSpan(0, 3000), "…") : text;
 
         return AddAsync("timeline.log", string.Create(CultureInfo.InvariantCulture, $"{at:hh\\:mm\\:ss\\.fff} [{progressed} deltas, {sampled} samples] {text.ReplaceLineEndings(" ⏎ ")}"));
     }
@@ -87,52 +65,7 @@ internal sealed class DogfoodJournal : IAsyncDisposable
     {
         await foreach (var (file, line) in lines.Reader.ReadAllAsync())
         {
-            await File.AppendAllTextAsync(Path.Combine(folder, file), line + Environment.NewLine);
+            await File.AppendAllTextAsync(Path.Combine(Folder, file), line + Environment.NewLine);
         }
     }
-}
-
-internal sealed class DogfoodRound(int round)
-{
-    public int Number => round;
-
-    public int Verifications { get; set; }
-
-    public bool Replied { get; set; }
-
-    public bool Running { get; set; }
-}
-
-internal sealed class DogfoodRestart
-{
-    private readonly List<int> verified = [];
-    private int turns;
-    private int sessions;
-    private int jobSessions;
-    private decimal spent;
-
-    public void Count(IIntegrationEvent happened)
-    {
-        switch (happened)
-        {
-            case AgentActivity { Event: TurnStarted }:
-                turns++;
-                break;
-            case AgentActivity { Event: UsageReported reported }:
-                spent += reported.Cost.Match(cost => cost.Amount, () => 0m);
-                break;
-            case SessionOpened:
-                sessions++;
-                break;
-            case JobSessionStarted:
-                jobSessions++;
-                break;
-            case AttemptVerified attempt:
-                verified.Add(attempt.Report.Attempt);
-                break;
-        }
-    }
-
-    public override string ToString() =>
-        string.Create(CultureInfo.InvariantCulture, $"{turns} agent turns started, {sessions} sessions opened, {jobSessions} job sessions started, {spent} USD reported, attempts verified [{string.Join(", ", verified)}]");
 }

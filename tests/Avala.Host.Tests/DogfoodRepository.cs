@@ -1,82 +1,176 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Reflection;
-using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Threading.Channels;
-using Avala.Agents.Contracts;
-using Avala.Agents.Contracts.Events;
-using Avala.Host.Composition;
-using Avala.Jobs.Contracts;
-using Avala.Permissions.Contracts;
-using Avala.Runtime.Diagnostics;
-using Avala.Sdk;
-using Avala.Sdk.Events;
-using Avala.Sdk.Presentation;
-using Avala.Sdk.Processes;
-using Avala.Sdk.Regions;
-using Avala.Shell;
-using Avala.Shell.Regions;
-using Avala.Testing.UI;
-using Avala.Verification.Contracts;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Headless;
-using Avalonia.LogicalTree;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
-using Microsoft.Extensions.DependencyInjection;
 using static Avala.Host.Tests.DogfoodSettings;
 
 namespace Avala.Host.Tests;
 
 internal static class DogfoodRepository
 {
-    public static string Repository(string folder) => Path.Combine(folder, "repository");
+    public const string Calculator = "module.exports = { add: (a, b) => a + b };\n";
 
-    public static string Data(string folder) => Path.Combine(folder, "data");
+    public const string Checks = """{ "checks": [ { "name": "tests", "command": "node", "arguments": ["--test"], "timeoutSeconds": 60 } ] }""";
 
-    public static async Task PrepareAsync(DogfoodJournal journal, string folder)
+    public const string Jobs = $$"""{ "connection": "{{Main}}", "approval": "keep" }""";
+
+    public static string Permissions(string autonomy, params string[] rules) => $$"""
+        {
+          "autonomy": "{{autonomy}}",
+          "formAnswers": "recommended",
+          "rules": [
+            {{string.Join(",\n    ", [.. rules, .. BaseRules])}}
+          ]
+        }
+        """;
+
+    public static string Budget(decimal cap) => $$"""{ "costPerJob": { "USD": {{Money(cap)}} } }""";
+
+    public static string Money(decimal amount) => amount.ToString(CultureInfo.InvariantCulture);
+
+    public static string Json(string text) => JsonSerializer.Serialize(text);
+
+    private static readonly string[] BaseRules =
+    [
+        """{ "name": "run the tests", "kind": "command", "target": "node --test*", "answer": "allow" }""",
+        """{ "name": "list files", "kind": "command", "target": "ls*", "answer": "allow" }""",
+        """{ "name": "show files", "kind": "command", "target": "cat*", "answer": "allow" }""",
+        """{ "name": "git status", "kind": "command", "target": "git status*", "answer": "allow" }""",
+        """{ "name": "git diff", "kind": "command", "target": "git diff*", "answer": "allow" }""",
+        """{ "name": "git log", "kind": "command", "target": "git log*", "answer": "allow" }""",
+        """{ "name": "no pushing", "kind": "command", "target": "git push*", "answer": "deny" }""",
+        """{ "name": "no remotes", "kind": "command", "target": "git remote*", "answer": "deny" }""",
+        """{ "name": "no curl", "kind": "command", "target": "curl*", "answer": "deny" }""",
+        """{ "name": "no wget", "kind": "command", "target": "wget*", "answer": "deny" }""",
+        """{ "name": "no installs", "kind": "command", "target": "npm install*", "answer": "deny" }""",
+        """{ "name": "no npx", "kind": "command", "target": "npx*", "answer": "deny" }""",
+        """{ "name": "no network", "kind": "web", "answer": "deny" }""",
+        """{ "name": "no mcp", "kind": "mcp", "answer": "deny" }""",
+    ];
+
+    public static async Task PrepareAsync(DogfoodJournal journal, DogfoodScenario scenario, DogfoodSetup setup)
     {
-        Directory.CreateDirectory(Repository(folder));
-        Directory.CreateDirectory(Data(folder));
-        await File.WriteAllTextAsync(Path.Combine(Repository(folder), "README.md"), "# Notes\n\nA small Markdown notes CLI, to be built.\n", Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Repository(folder), ".gitignore"), "node_modules/\n", Cancellation);
-        Directory.CreateDirectory(Path.Combine(Repository(folder), ".avala"));
-        await File.WriteAllTextAsync(Path.Combine(Repository(folder), ".avala", "permissions.json"), DogfoodSettings.Permissions, Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Repository(folder), ".avala", "checks.json"), Rehearsal.Length > 0 ? Rehearsed : Checks, Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Repository(folder), ".avala", "budget.json"), Budget, Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Repository(folder), ".avala", "jobs.json"), $$"""{ "connection": "{{Connection}}", "approval": "keep" }""", Cancellation);
-        await GitAsync(folder, "init", "--quiet", "--initial-branch=main");
-        await GitAsync(folder, "add", "--all");
-        await GitAsync(folder, "-c", "user.name=Dogfood", "-c", "user.email=dogfood@localhost", "-c", "commit.gpgsign=false", "commit", "--quiet", "--message", "Start the notes CLI with Avala's rules");
-        var connections = new JsonObject
+        var place = setup.Place;
+        var seed = scenario.Seed(setup);
+        Directory.CreateDirectory(place.Repository);
+        Directory.CreateDirectory(place.Data);
+        DogfoodFile[] defaults =
+        [
+            new("calc.js", Calculator),
+            new("README.md", "# calc\n"),
+            new(".avala/permissions.json", Permissions("supervised")),
+            new(".avala/checks.json", Checks),
+            new(".avala/jobs.json", Jobs),
+            new(".avala/budget.json", Budget(scenario.Cap)),
+        ];
+        var committed = defaults.Where(file => seed.Committed.All(chosen => chosen.Path != file.Path)).Concat(seed.Committed).Where(file => file.Content.Length > 0).ToList();
+        await WriteAllAsync(place.Repository, committed);
+        await GitAsync(place.Repository, "init", "--quiet", "--initial-branch=main");
+        await CommitAsync(place, "Start calc with Avala's rules");
+
+        if (seed.Origin)
         {
-            ["default"] = Connection,
-            ["connections"] = new JsonArray(new JsonObject
-            {
-                ["name"] = Connection,
-                ["provider"] = Rehearsal.Length > 0 ? "simulator" : "claude-code",
-                ["settings"] = Rehearsal.Length > 0
-                    ? new JsonObject { ["transcripts"] = Path.Combine(folder, "transcripts") }
-                    : new JsonObject { ["transcripts"] = Path.Combine(folder, "transcripts"), ["model"] = Model },
-            }),
-        };
-        if (Rehearsal.Length == 0)
-        {
-            connections["connections"]![0]!["credential"] = new JsonObject { ["source"] = "login", ["reference"] = Login };
+            Directory.CreateDirectory(place.Origin);
+            await GitAsync(place.Origin, "init", "--quiet", "--bare", "--initial-branch=main");
+            await GitAsync(place.Repository, "remote", "add", "origin", place.Origin);
+            await GitAsync(place.Repository, "push", "--quiet", "origin", "main");
         }
 
-        await File.WriteAllTextAsync(Path.Combine(Data(folder), "connections.json"), connections.ToJsonString(), Cancellation);
-        await File.WriteAllTextAsync(Path.Combine(Data(folder), "recording.json"), """{ "enabled": true }""", Cancellation);
-        await journal.NoteAsync($"Prepared {Repository(folder)} with .avala/permissions.json, checks.json, budget.json and jobs.json; connection {Connection} on {Login}");
+        await AssertLocalAsync(journal, place);
+        DogfoodFile[] data =
+        [
+            new("connections.json", Connections(scenario, setup)),
+            new("budgets.json", $$"""{ "spendPerDay": { "USD": {{Money(scenario.Cap)}} } }"""),
+            new("recording.json", """{ "enabled": true }"""),
+            .. seed.Recordings.Select(script => new DogfoodFile($"recordings/{script.Name}.json", script.Json)),
+        ];
+        await WriteAllAsync(place.Data, [.. data.Where(file => seed.Data.All(chosen => chosen.Path != file.Path)), .. seed.Data]);
+
+        foreach (var login in setup.Rehearsal ? (string[])[Main, Other] : [])
+        {
+            await WriteAllAsync(place.Logins, [new DogfoodFile($"{login}/.login", string.Empty)]);
+        }
+
+        await journal.NoteAsync($"Prepared {place.Repository} with [{string.Join(", ", committed.Select(file => file.Path))}] and {place.Data} with [{string.Join(", ", data.Select(file => file.Path).Concat(seed.Data.Select(file => file.Path)).Distinct())}]");
     }
 
-    private static async Task GitAsync(string folder, params string[] arguments)
+    public static async Task CommitAsync(DogfoodPlace place, string message)
     {
-        using var git = Process.Start(new ProcessStartInfo("git", ["-C", Repository(folder), .. arguments]) { RedirectStandardOutput = true, RedirectStandardError = true })!;
-        await git.WaitForExitAsync(Cancellation);
-        Assert.Equal(0, git.ExitCode);
+        await GitAsync(place.Repository, "add", "--all");
+        await GitAsync(place.Repository, "-c", "user.name=Dogfood", "-c", "user.email=dogfood@localhost", "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "--message", message);
+    }
+
+    public static async Task CommitAsync(DogfoodPlace place, string path, string content, string message)
+    {
+        await WriteAllAsync(place.Repository, [new DogfoodFile(path, content)]);
+        await CommitAsync(place, message);
+    }
+
+    public static async Task AssertLocalAsync(DogfoodJournal journal, DogfoodPlace place)
+    {
+        var remotes = (await GitAsync(place.Repository, "remote", "-v")).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var foreign = remotes.Where(line => !line.Replace('\t', ' ').Split(' ').Skip(1).First().StartsWith(place.Folder, StringComparison.Ordinal)).ToList();
+        await journal.NoteAsync($"Remotes: [{string.Join(" | ", remotes)}]");
+        Assert.True(foreign.Count == 0, $"The scenario repository has a remote outside its folder: {string.Join(" | ", foreign)}");
+    }
+
+    public static async Task<string> GitAsync(string directory, params string[] arguments)
+    {
+        var (code, output) = await RunAsync("git", ["-C", directory, .. arguments], new Dictionary<string, string?>());
+        Assert.True(code == 0, $"git {string.Join(' ', arguments)} exited with {code}: {output}");
+
+        return output;
+    }
+
+    public static async Task<(int Code, string Output)> RunAsync(string file, IReadOnlyList<string> arguments, IReadOnlyDictionary<string, string?> variables)
+    {
+        var start = new ProcessStartInfo(file, arguments) { RedirectStandardOutput = true, RedirectStandardError = true, RedirectStandardInput = true };
+
+        foreach (var (name, value) in variables)
+        {
+            start.Environment[name] = value;
+        }
+
+        using var process = Process.Start(start)!;
+        process.StandardInput.Close();
+        var output = process.StandardOutput.ReadToEndAsync(Cancellation);
+        var error = process.StandardError.ReadToEndAsync(Cancellation);
+        await process.WaitForExitAsync(Cancellation);
+
+        return (process.ExitCode, (await output) + (await error));
+    }
+
+    private static string Connections(DogfoodScenario scenario, DogfoodSetup setup) =>
+        new JsonObject
+        {
+            ["default"] = Main,
+            ["connections"] = new JsonArray(Connection(Main, scenario.MainModel, setup), Connection(Other, scenario.OtherModel, setup)),
+        }.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+
+    private static JsonObject Connection(string name, string model, DogfoodSetup setup) =>
+        setup.Rehearsal
+            ? new JsonObject
+            {
+                ["name"] = name,
+                ["provider"] = "simulator",
+                ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = Path.Combine(setup.Place.Logins, name) },
+                ["settings"] = new JsonObject { ["transcripts"] = Path.Combine(setup.Place.Folder, "transcripts") },
+            }
+            : new JsonObject
+            {
+                ["name"] = name,
+                ["provider"] = "claude-code",
+                ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = name == Main ? MainLogin : OtherLogin },
+                ["settings"] = new JsonObject { ["model"] = model, ["transcripts"] = Path.Combine(setup.Place.Folder, "transcripts"), ["userConfiguration"] = false },
+            };
+
+    private static async Task WriteAllAsync(string folder, IReadOnlyList<DogfoodFile> files)
+    {
+        foreach (var file in files)
+        {
+            var path = Path.Combine(folder, file.Path);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, file.Content, Cancellation);
+        }
     }
 }

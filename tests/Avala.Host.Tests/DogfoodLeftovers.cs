@@ -1,47 +1,30 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.Reflection;
-using System.Text;
-using System.Text.Json.Nodes;
-using System.Threading.Channels;
-using Avala.Agents.Contracts;
 using Avala.Agents.Contracts.Events;
-using Avala.Host.Composition;
-using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
-using Avala.Runtime.Diagnostics;
 using Avala.Sdk;
 using Avala.Sdk.Events;
-using Avala.Sdk.Presentation;
-using Avala.Sdk.Processes;
-using Avala.Sdk.Regions;
-using Avala.Shell;
-using Avala.Shell.Regions;
-using Avala.Testing.UI;
-using Avala.Verification.Contracts;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Headless;
-using Avalonia.LogicalTree;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
-using Microsoft.Extensions.DependencyInjection;
 using static Avala.Host.Tests.DogfoodSettings;
 
 namespace Avala.Host.Tests;
 
 internal static class DogfoodLeftovers
 {
-    public static async Task LateEventsAsync(DogfoodJournal journal, string data)
+    public static async Task LateEventsAsync(DogfoodJournal journal, DogfoodEvidence evidence, string data)
     {
         var logs = new AvalaPaths(data).Logs;
         var files = Directory.Exists(logs) ? Directory.GetFiles(logs) : [];
         var lines = (await Task.WhenAll(files.Select(file => File.ReadAllLinesAsync(file, Cancellation)))).SelectMany(read => read).ToList();
         var late = lines.Where(line => line.Contains("published after the event bus stopped", StringComparison.Ordinal)).ToList();
+        evidence.Note("late-events", late.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
         await journal.NoteAsync(late.Count == 0
             ? $"SHUTDOWN: none of the {lines.Count} lines in {files.Length} log files says an event was published after the event bus stopped"
             : $"FINDING: {late.Count} events were published after the event bus stopped: {string.Join(" ⏎ ", late.Take(10))}");
+
+        if (late.Count > 0)
+        {
+            evidence.Find($"{late.Count} events were published after the event bus stopped");
+        }
     }
 
     public static async Task<List<int>> OrphansAsync()
@@ -70,16 +53,18 @@ internal static class DogfoodLeftovers
         return found;
     }
 
-    public static async Task RecordPermissionAsync(DogfoodJournal journal, string report, PolicyDecision decision)
+    public static async Task RecordPermissionAsync(DogfoodJournal journal, PolicyDecision decision, DogfoodEvidence evidence)
     {
         var chained = decision.Kind == ItemKind.Command && DogfoodPolicy.Chained(decision.Target);
         var rule = decision.Rule.Match(chosen => $"{chosen.Origin} rule '{chosen.Name}'", () => "no rule");
-        var line = $"{decision.Kind} {decision.Answer} by {rule}, delivery {decision.Delivery}, chained {chained}: {decision.Target.ReplaceLineEndings(" ⏎ ")}";
-        await File.AppendAllTextAsync(Path.Combine(report, "permissions.log"), $"{DateTime.Now:HH:mm:ss} {line}{Environment.NewLine}", Cancellation);
+        var passed = decision.Passed.Match(reason => reason.ToString(), () => "none");
+        var line = $"{evidence.Name(decision.Job)} {decision.Kind} {decision.Answer} by {rule}, delivery {decision.Delivery}, parent {evidence.Name(decision.Parent)}, passed {passed}, chained {chained}: {decision.Target}";
+        await journal.LogAsync("permissions.log", line);
 
         if (chained && decision.Answer == PolicyAnswer.Allow && decision.Delivery == DecisionDelivery.Answered && decision.Rule.Match(chosen => chosen.Origin == RuleOrigin.Repository, () => false))
         {
             await journal.NoteAsync($"FINDING: a chained command was auto-allowed by a repository rule: {line}");
+            evidence.Find($"A chained command was auto-allowed by a repository rule: {decision.Target}");
         }
     }
 
