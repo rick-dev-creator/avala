@@ -80,6 +80,16 @@ internal sealed class RunJournal(IRunStore store, LoopQueue queue, IEventBus bus
         }
     }
 
+    public async Task DropAsync(Guid run, CancellationToken cancellationToken)
+    {
+        foreach (var found in Runs.Where(known => known.Id == run && known.Outcome == RunOutcome.Enqueued).Take(1))
+        {
+            var dropped = found with { Outcome = RunOutcome.Dropped };
+            await store.KeepRunAsync(dropped, cancellationToken);
+            ImmutableInterlocked.Update(ref runs, known => known.Replace(found, dropped));
+        }
+    }
+
     public async Task<WebhookDelivery> DeliveredAsync(WebhookDelivery delivery, CancellationToken cancellationToken)
     {
         await store.AddDeliveryAsync(delivery, cancellationToken);

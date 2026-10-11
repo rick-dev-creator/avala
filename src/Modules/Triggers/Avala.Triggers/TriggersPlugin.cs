@@ -1,5 +1,6 @@
 using Avala.Autopilot.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Events;
 using Avala.Triggers.Catalog;
 using Avala.Triggers.Contracts;
 using Avala.Triggers.Firing;
@@ -42,6 +43,7 @@ public sealed class TriggersPlugin : IPlugin
             .AddSingleton<FiringChecks>()
             .AddSingleton<TriggerDispatch>()
             .AddSingleton<IStartupTask, QueuedLoops>()
+            .AddSingleton<IHandle<BreakerTripped>, TrippedLoops>()
             .AddSingleton<TriggerFirer>()
             .AddSingleton<TriggerScheduler>()
             .AddForwarded<IStartupTask, TriggerScheduler>()
