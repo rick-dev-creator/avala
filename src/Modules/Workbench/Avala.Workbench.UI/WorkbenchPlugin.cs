@@ -80,6 +80,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<UsageRecorded>, BoardKeeper>()
             .AddForwarded<IHandle<BudgetIntervened>, BoardKeeper>()
             .AddForwarded<IHandle<BudgetCarved>, BoardKeeper>()
+            .AddForwarded<IHandle<BudgetRaised>, BoardKeeper>()
             .AddForwarded<IHandle<ChildDelegated>, BoardKeeper>()
             .AddForwarded<IHandle<ChildReported>, BoardKeeper>()
             .AddForwarded<IHandle<DelegationRefused>, BoardKeeper>()
@@ -164,6 +165,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         registrar.Services
             .AddSingleton<JobRecords>()
             .AddSingleton<JobAudit>()
+            .AddSingleton<RaiseDesk>()
             .AddSingleton<JobInspection>()
             .AddSingleton<InspectedFacts>()
             .AddTransient<InspectedJob>()
@@ -197,6 +199,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<DelegationRefused>, Pulse>()
             .AddForwarded<IHandle<ChildReported>, Pulse>()
             .AddForwarded<IHandle<BudgetCarved>, Pulse>()
+            .AddForwarded<IHandle<BudgetRaised>, Pulse>()
             .AddForwarded<IHandle<BudgetIntervened>, Pulse>()
             .AddForwarded<IHandle<SupervisorIntervened>, Pulse>()
             .AddForwarded<IHandle<UpdateFound>, Pulse>()

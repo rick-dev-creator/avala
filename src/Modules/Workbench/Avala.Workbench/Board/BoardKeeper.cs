@@ -37,6 +37,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     IHandle<UsageRecorded>,
     IHandle<BudgetIntervened>,
     IHandle<BudgetCarved>,
+    IHandle<BudgetRaised>,
     IHandle<ChildDelegated>,
     IHandle<ChildReported>,
     IHandle<DelegationRefused>,
@@ -184,6 +185,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
 
     public ValueTask HandleAsync(BudgetCarved integrationEvent, CancellationToken cancellationToken) =>
         AuditedAsync(integrationEvent.Carve.Parent, integrationEvent.Carve.Child);
+
+    public ValueTask HandleAsync(BudgetRaised integrationEvent, CancellationToken cancellationToken) =>
+        AuditedAsync(integrationEvent.Raise.Job);
 
     public ValueTask HandleAsync(ChildDelegated integrationEvent, CancellationToken cancellationToken) =>
         DelegatedAsync(integrationEvent.Delegation);

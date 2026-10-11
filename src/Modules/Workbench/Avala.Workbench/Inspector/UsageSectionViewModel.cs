@@ -6,7 +6,9 @@ using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Workbench.Inspection;
 using Avala.Workbench.Review;
+using Avala.Workbench.Spending;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Inspector;
 
@@ -27,16 +29,27 @@ internal interface IUsageSectionViewModel
     IReadOnlyList<string> Interventions { get; }
 
     string Carve { get; }
+
+    IReadOnlyList<string> Raises { get; }
+
+    bool CanRaise { get; }
+
+    string Notice { get; }
+
+    IAsyncRelayCommand RaiseCommand { get; }
 }
 
 [INotifyPropertyChanged]
 internal sealed partial class UsageSectionViewModel : IUsageSectionViewModel, IRegionAware<JobId>, IActivatable, IPresentation, IDisposable
 {
     private readonly InspectedJob inspected;
+    private readonly RaiseDesk desk;
+    private Option<JobId> shown;
 
-    public UsageSectionViewModel(InspectedJob inspected)
+    public UsageSectionViewModel(InspectedJob inspected, RaiseDesk desk)
     {
         this.inspected = inspected;
+        this.desk = desk;
         inspected.Showing(Show);
     }
 
@@ -74,6 +87,16 @@ internal sealed partial class UsageSectionViewModel : IUsageSectionViewModel, IR
     [ObservableProperty]
     public partial string Carve { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial IReadOnlyList<string> Raises { get; private set; } = [];
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RaiseCommand))]
+    public partial bool CanRaise { get; private set; }
+
+    [ObservableProperty]
+    public partial string Notice { get; private set; } = string.Empty;
+
     public void OnRegionContextChanged(Option<JobId> context) => inspected.Focus(context);
 
     public void Activate() => inspected.Activate();
@@ -82,9 +105,21 @@ internal sealed partial class UsageSectionViewModel : IUsageSectionViewModel, IR
 
     public void Dispose() => inspected.Dispose();
 
+    [RelayCommand(CanExecute = nameof(CanRaise))]
+    private async Task RaiseAsync(CancellationToken cancellationToken) =>
+        Notice = await shown.Match(
+            async job => Phrased(await desk.RaiseAndContinueAsync(job, InspectorPhrases.Continuing, cancellationToken)),
+            () => Task.FromResult(string.Empty));
+
+    private static string Phrased(RaiseOutcome outcome) =>
+        outcome.Raised.Match(
+            _ => outcome.NotContinued.Match(InspectorPhrases.NotContinued, () => string.Empty),
+            InspectorPhrases.RaiseRefused);
+
     private void Show(Option<InspectorFacts> facts)
     {
         IsLoaded = facts.IsSome;
+        shown = facts.Map(found => found.Record.History.Summary.Job);
         var audit = facts.Match(found => found.Audit, () => new AuditFacts([], [], []));
         var cap = audit.Budget.Bind(budget => budget.Caps.CostPerJob.Count > 0 ? Option<Cost>.Some(budget.Caps.CostPerJob[0]) : Option<Cost>.None);
         Fact = facts.IsNone ? string.Empty : InspectorPhrases.Spending(audit.Usage, cap);
@@ -102,5 +137,7 @@ internal sealed partial class UsageSectionViewModel : IUsageSectionViewModel, IR
         Caps = audit.Budget.Match(budget => InspectorPhrases.Caps(budget.Caps), () => []);
         Interventions = [.. audit.Interventions.Select(InspectorPhrases.Intervention)];
         Carve = audit.Carve.Match(InspectorPhrases.Carve, () => string.Empty);
+        Raises = [.. audit.Raises.Select(InspectorPhrases.Raise)];
+        CanRaise = facts.Match(found => found.Status == JobStatus.NeedsHelp, () => false) && InspectorPhrases.Raisable(audit.Interventions);
     }
 }

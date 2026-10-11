@@ -23,6 +23,7 @@ internal sealed class Pulse(JobBoard board)
         IHandle<DelegationRefused>,
         IHandle<ChildReported>,
         IHandle<BudgetCarved>,
+        IHandle<BudgetRaised>,
         IHandle<BudgetIntervened>,
         IHandle<SupervisorIntervened>,
         IHandle<UpdateFound>,
@@ -51,6 +52,8 @@ internal sealed class Pulse(JobBoard board)
     public ValueTask HandleAsync(ChildReported integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(BudgetCarved integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(BudgetRaised integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(BudgetIntervened integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 

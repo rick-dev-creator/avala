@@ -13,6 +13,7 @@ using Avala.Workbench.Presenting;
 using Avala.Workbench.Replies;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Sidebar;
+using Avala.Workbench.Spending;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Submitting;
 using Avala.Workbench.Timeline;
@@ -67,6 +68,8 @@ internal sealed class Bench : IDisposable
     public ReviewDesk Desk => new(Jobs, new ConflictFinder(Catalog, Changes), Queue, Forge);
 
     public ForgeDesk Forge => new(PullRequests, Jobs);
+
+    public RaiseDesk Raising => new(Audit, Jobs);
 
     public JobInspection Inspection => new(new JobRecords(Catalog, Workspaces, Resources, Resources), new JobAudit(Audit, Audit, Usage, Audit), Board);
 

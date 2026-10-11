@@ -60,6 +60,14 @@ internal sealed class DesignUsageSectionViewModel : IUsageSectionViewModel
 
     public string Carve => string.Empty;
 
+    public IReadOnlyList<string> Raises { get; } = [];
+
+    public bool CanRaise => false;
+
+    public string Notice => string.Empty;
+
+    public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand RaiseCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
+
     public IMeterViewModel? Meter { get; }
 }
 

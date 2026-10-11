@@ -95,6 +95,58 @@ public sealed class UsageSectionViewScripts(HeadlessUi ui)
 
             Assert.Equal((false, false), (Sections.Row(view).Open, view.Shows("Spent")));
         }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AJobHeldOverBudgetShowsItsRaisesAndClickingRaiseRunsTheCommandWhileOthersHideItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var held = new RaisableUsage();
+            var view = Screen.Show(held);
+            var hidden = (Screen.Show(new DesignUsageSectionViewModel()).Shows("Raise"), Screen.Show(new DesignUsageSectionViewModel()).Shows("Notice"));
+
+            view.Click("Raise");
+
+            Assert.Equal((false, false), hidden);
+            Assert.Equal(1, held.Raised);
+            Assert.Equal((1, "The budget was not raised: the job is no longer held over its budget"), (view.Find<ItemsControl>("Raises").ItemCount, view.TextOf("Notice")));
+        }, TestContext.Current.CancellationToken);
+
+    private sealed class RaisableUsage : IUsageSectionViewModel
+    {
+        public RaisableUsage() =>
+            RaiseCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() =>
+            {
+                Raised++;
+
+                return Task.CompletedTask;
+            });
+
+        public int Raised { get; private set; }
+
+        public bool IsLoaded => true;
+
+        public string Spent => "5.2 USD";
+
+        public string Fact => "5.2 USD of 5 USD";
+
+        public bool IsAttention => true;
+
+        public Components.Meters.IMeterViewModel? Meter => null;
+
+        public IReadOnlyList<string> Caps => ["Cost cap 5 USD"];
+
+        public IReadOnlyList<string> Interventions => ["Held for Cost: 5.2 of 5 USD"];
+
+        public string Carve => string.Empty;
+
+        public IReadOnlyList<string> Raises => ["Budget raised by 5 USD"];
+
+        public bool CanRaise => true;
+
+        public string Notice => "The budget was not raised: the job is no longer held over its budget";
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand RaiseCommand { get; }
+    }
 }
 
 public sealed class AutonomySectionViewScripts(HeadlessUi ui)

@@ -22,7 +22,7 @@ public sealed class WorkbenchCompositionScripts : IDisposable
     {
         sidebar = bench.Sidebar();
         page = bench.Workbench();
-        usage = new UsageSectionViewModel(bench.Inspected());
+        usage = new UsageSectionViewModel(bench.Inspected(), bench.Raising);
         worktree = new WorktreeSectionViewModel(bench.Inspected());
         bench.Regions.Fill(ShellRegions.Sidebar, sidebar);
         bench.Regions.Fill(ShellRegions.Content, page);

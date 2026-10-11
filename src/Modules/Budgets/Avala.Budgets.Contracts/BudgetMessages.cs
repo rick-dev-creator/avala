@@ -37,6 +37,7 @@ public enum BudgetMeasure
     Limit,
     Declaration,
     Memory,
+    DailySpend,
 }
 
 public sealed record BudgetCaps(IReadOnlyList<Cost> CostPerJob, Option<long> TokensPerJob, Option<double> HoldAtLimit)

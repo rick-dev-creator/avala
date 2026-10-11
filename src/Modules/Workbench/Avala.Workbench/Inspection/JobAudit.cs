@@ -25,6 +25,8 @@ internal sealed record AuditFacts(IReadOnlyList<VerificationReport> Verification
     public IReadOnlyList<BudgetIntervention> Interventions { get; init; } = [];
 
     public Option<BudgetCarve> Carve { get; init; }
+
+    public IReadOnlyList<BudgetRaise> Raises { get; init; } = [];
 }
 
 internal sealed class JobAudit(IVerifications verifications, IPermissionAudit audit, IUsage usage, IBudgets budgets)
@@ -43,6 +45,7 @@ internal sealed class JobAudit(IVerifications verifications, IPermissionAudit au
             Budget = sessions.Select(budgets.BudgetOf).FirstOrDefault(found => found.IsSome),
             Interventions = budgets.OfJob(job),
             Carve = budgets.CarveOf(job),
+            Raises = budgets.RaisesOf(job),
         };
     }
 }

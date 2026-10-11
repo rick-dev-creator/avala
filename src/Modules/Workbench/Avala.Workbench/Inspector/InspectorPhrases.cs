@@ -138,6 +138,22 @@ internal static class InspectorPhrases
     public static string Intervention(BudgetIntervention intervention) =>
         string.Create(CultureInfo.InvariantCulture, $"Held for {intervention.Breach.Measure}: {intervention.Breach.Measured} of {intervention.Breach.Cap} {intervention.Breach.Subject}");
 
+    public static string Raise(BudgetRaise raise) =>
+        $"Budget raised by {Raised(raise.By)}" + (raise.Child.IsSome ? " for a sub-agent" : string.Empty);
+
+    public static string Continuing(BudgetRaise raise) => $"Your budget was raised by {Raised(raise.By)}. Carry on where you left off.";
+
+    public static string RaiseRefused(BudgetError error) =>
+        "The budget was not raised: " + (error == BudgetError.NotOverBudget ? "the job is no longer held over its budget" : "the budget refused it");
+
+    public static string NotContinued(JobRejection rejection) => $"The budget was raised, but the job did not continue. {ConversationPhrases.Rejection(rejection)}";
+
+    public static bool Raisable(IReadOnlyList<BudgetIntervention> interventions) =>
+        interventions is [.., { Hold.Reason: HoldReason.BudgetExceeded, Breach.Measure: BudgetMeasure.Cost or BudgetMeasure.Tokens }];
+
+    private static string Raised(SpendCaps by) =>
+        Amounts.Joined([.. Amounts.Priced(by.Cost), .. by.Tokens.Match<string[]>(tokens => [Amounts.Tokens(tokens)], () => [])]);
+
     public static string Carve(BudgetCarve carve) =>
         Amounts.Joined([
             string.Create(CultureInfo.InvariantCulture, $"Carved {carve.Share * 100:0}% of its parent's budget"),
