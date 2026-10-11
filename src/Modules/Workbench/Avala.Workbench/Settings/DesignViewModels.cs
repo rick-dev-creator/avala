@@ -234,6 +234,8 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 {
     public IDefaultConnectionViewModel DefaultConnection { get; } = new DesignDefaultConnectionViewModel();
 
+    public INotificationsViewModel Notifications { get; } = new DesignNotificationsViewModel();
+
     public IConnectionEditorViewModel Editor { get; init; } = new DesignConnectionEditorViewModel { IsOpen = false };
 
     public IReadOnlyList<IMachineConnectionViewModel> Connections { get; } =

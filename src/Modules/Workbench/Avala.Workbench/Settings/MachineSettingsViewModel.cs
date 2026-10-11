@@ -15,6 +15,8 @@ internal interface IMachineSettingsViewModel
 {
     IDefaultConnectionViewModel DefaultConnection { get; }
 
+    INotificationsViewModel Notifications { get; }
+
     IConnectionEditorViewModel Editor { get; }
 
     IReadOnlyList<IMachineConnectionViewModel> Connections { get; }
@@ -74,15 +76,14 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     private readonly ObservableCollection<MachineConnectionViewModel> connections = [];
     private readonly ObservableCollection<ForgeConnectionViewModel> forges = [];
     private readonly MachineSettings settings;
-    private readonly SettingsFiles files;
     private readonly ConnectionEditorViewModel editor;
 
-    public MachineSettingsViewModel(MachineSettings settings, SettingsFiles files, IDefaultConnectionViewModel defaultConnection, ConnectionEditorViewModel editor)
+    public MachineSettingsViewModel(MachineSettings settings, IDefaultConnectionViewModel defaultConnection, ConnectionEditorViewModel editor, INotificationsViewModel notifications)
     {
         this.settings = settings;
-        this.files = files;
         this.editor = editor;
         DefaultConnection = defaultConnection;
+        Notifications = notifications;
         defaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
         editor.Edited += (_, edited) =>
         {
@@ -93,6 +94,8 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     }
 
     public IDefaultConnectionViewModel DefaultConnection { get; }
+
+    public INotificationsViewModel Notifications { get; }
 
     public IConnectionEditorViewModel Editor => editor;
 
@@ -135,7 +138,11 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     [ObservableProperty]
     public partial string Notice { get; private set; } = string.Empty;
 
-    public async Task LoadAsync(CancellationToken cancellationToken) => Show(await settings.ReadAsync(cancellationToken));
+    public async Task LoadAsync(CancellationToken cancellationToken)
+    {
+        Show(await settings.ReadAsync(cancellationToken));
+        await Notifications.LoadAsync(cancellationToken);
+    }
 
     [RelayCommand(CanExecute = nameof(CanSaveSilence))]
     private async Task SaveSilenceAsync(CancellationToken cancellationToken)
@@ -158,11 +165,9 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     [RelayCommand]
     private async Task OpenConnectionsAsync(CancellationToken cancellationToken)
     {
-        var created = await settings.CreateConnectionsFileAsync(cancellationToken);
-        var opened = await files.OpenInDataFolderAsync(SettingsFiles.Connections, cancellationToken);
-        Error = opened.Match(_ => string.Empty, error => SettingsPhrases.Opening(error, files.InDataFolder(SettingsFiles.Connections)));
-        Notice = created || opened.Match(done => done.Created, _ => false) ? SettingsPhrases.CreatedConnections : string.Empty;
-        await LoadAsync(cancellationToken);
+        var opening = await editor.OpenFileAsync(cancellationToken);
+        (Error, Notice) = (opening.Error, opening.Notice);
+        Show(await settings.ReadAsync(cancellationToken));
     }
 
     private bool CanSaveSilence() => !string.IsNullOrWhiteSpace(SilenceDraft);

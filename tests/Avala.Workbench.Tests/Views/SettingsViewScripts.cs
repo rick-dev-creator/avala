@@ -236,9 +236,9 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
 
         return new(
             settings,
-            new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")),
             new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()),
-            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel()));
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))),
+            new DesignNotificationsViewModel());
     }
 
     [Fact]

@@ -233,6 +233,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<RuleFileEditorViewModel>()
             .AddSingleton<MachineSettings>()
             .AddSingleton<SettingsFiles>()
+            .AddSingleton<PhoneNotifications>()
+            .AddSingleton<INotificationsViewModel, NotificationsViewModel>()
             .AddSingleton<ResourceReader>()
             .AddSingleton<Housekeeping>()
             .AddSingleton<JobLaunch>()
@@ -288,6 +290,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
         views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
         views.Register<IMachineSettingsViewModel, MachineSettingsView>();
+        views.Register<INotificationsViewModel, NotificationsView>();
         views.Register<IAppearanceViewModel, AppearanceView>();
         views.Register<IAboutViewModel, AboutView>();
         views.Register<IUpdateViewModel, UpdateView>();

@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using Avala.Autopilot.Contracts;
 using Avala.Forges.Contracts;
+using Avala.Notifications.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Testing.UI;
@@ -291,6 +292,32 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "26-triggers-live-loop-above-an-ended-one-dark");
         await Camera.ShootAsync(run, "26-triggers-live-loop-above-an-ended-one-light", ThemeVariant.Light);
     }
+
+    [Fact]
+    public async Task TheNotificationsSectionOfTheMachineSettingsAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [("notifications.json", """{ "ntfy": { "topic": "avala-k3j9m2q7xw5rbt4na6ceyd8h" }, "quietHours": { "from": "22:00", "to": "07:00" } }""")],
+            []);
+        await run.StartedAsync();
+        _ = await run.Get<INotifications>().SendTestAsync(Cancellation);
+
+        _ = await run.WorkbenchAsync();
+        var page = run.Page("Settings");
+        await run.Ui.InvokeAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage = (Avala.Sdk.IPage)page.Target, Cancellation);
+        await run.Ui.RunAsync(() => page["Loading"].Value<Task>());
+        Assert.True(await run.Ui.ReadAsync(() => page["Machine"]["Notifications"]["IsSetUp"].Value<bool>()));
+
+        await Camera.ShootAsync(run, "27-settings-notifications-dark", ShowNotifications);
+        await Camera.ShootAsync(run, "27-settings-notifications-light", ThemeVariant.Light, ShowNotifications);
+    }
+
+    private static void ShowNotifications(Avalonia.Controls.Window window) =>
+        Avalonia.Controls.ControlExtensions.BringIntoView(
+            window.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>().First(block => block.Text == "Notifications"),
+            new Avalonia.Rect(0, -16, 10, 600));
 
     private static string Backlog(params (string Id, string Instruction)[] tasks) =>
         $$"""{ "tasks": [ {{string.Join(", ", tasks.Select(task => $$"""{ "id": "{{task.Id}}", "instruction": "{{task.Instruction}}" }"""))}} ] }""";

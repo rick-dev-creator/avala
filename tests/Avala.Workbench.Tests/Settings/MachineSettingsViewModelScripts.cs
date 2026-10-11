@@ -181,7 +181,11 @@ public sealed class MachineSettingsViewModelScripts
     {
         var settings = new MachineSettings(connections, supervision, new FakeResources(), forges);
 
-        return new(settings, new SettingsFiles(opener, new AvalaPaths("/data")), new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel()));
+        return new(
+            settings,
+            new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()),
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(opener, new AvalaPaths("/data"))),
+            new DesignNotificationsViewModel());
     }
 }
 
@@ -311,9 +315,9 @@ public sealed class ConnectionEditorViewModelScripts
         var settings = new MachineSettings(connections, new FakeSupervision(), new FakeResources(), new FakeForgeCatalog());
         var machine = new MachineSettingsViewModel(
             settings,
-            new SettingsFiles(new FakeOpener(), new AvalaPaths("/data")),
             new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()),
-            new ConnectionEditorViewModel(settings, new ModelPickerViewModel()));
+            new ConnectionEditorViewModel(settings, new ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))),
+            new DesignNotificationsViewModel());
         await machine.LoadAsync(Cancellation);
 
         return machine;

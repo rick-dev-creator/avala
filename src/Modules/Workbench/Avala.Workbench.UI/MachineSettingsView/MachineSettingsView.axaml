@@ -135,5 +135,7 @@
       </Border>
       <TextBlock x:Name="ResourceSettings" Classes="caption" Margin="4,0" Text="{Binding Resources, StringFormat='resources.json: {0}'}" TextWrapping="Wrap" />
     </StackPanel>
+
+    <ContentControl x:Name="Notifications" Content="{Binding Notifications}" />
   </StackPanel>
 </UserControl>

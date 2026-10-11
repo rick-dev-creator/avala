@@ -48,8 +48,10 @@ internal interface IConnectionEditorViewModel
     IRelayCommand KeepCommand { get; }
 }
 
+internal sealed record FileOpening(string Error, string Notice);
+
 [INotifyPropertyChanged]
-internal sealed partial class ConnectionEditorViewModel(MachineSettings settings, ModelPickerViewModel models) : IConnectionEditorViewModel
+internal sealed partial class ConnectionEditorViewModel(MachineSettings settings, ModelPickerViewModel models, SettingsFiles files) : IConnectionEditorViewModel
 {
     private ConnectionCatalog catalog = new(ConnectionFileStatus.Absent, Option<ConnectionError>.None, [], Option<ConnectionName>.None);
     private Option<ConnectionName> editing;
@@ -62,6 +64,16 @@ internal sealed partial class ConnectionEditorViewModel(MachineSettings settings
     public Task Offering { get; private set; } = Task.CompletedTask;
 
     public event EventHandler<ConnectionEdited>? Edited;
+
+    public async Task<FileOpening> OpenFileAsync(CancellationToken cancellationToken)
+    {
+        var created = await settings.CreateConnectionsFileAsync(cancellationToken);
+        var opened = await files.OpenInDataFolderAsync(SettingsFiles.Connections, cancellationToken);
+
+        return new FileOpening(
+            opened.Match(_ => string.Empty, error => SettingsPhrases.Opening(error, files.InDataFolder(SettingsFiles.Connections))),
+            created || opened.Match(done => done.Created, _ => false) ? SettingsPhrases.CreatedConnections : string.Empty);
+    }
 
     [ObservableProperty]
     public partial bool IsOpen { get; private set; }

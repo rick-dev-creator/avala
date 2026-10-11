@@ -1,0 +1,107 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.NotificationsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:INotificationsViewModel">
+  <Design.DataContext>
+    <settings:DesignNotificationsViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="8">
+    <DockPanel>
+      <TextBlock x:Name="NotificationsFile" DockPanel.Dock="Right" Classes="hint" Text="{Binding Status, StringFormat='notifications.json: {0}'}" VerticalAlignment="Bottom" />
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <TextBlock Classes="section" Text="Notifications" VerticalAlignment="Bottom" />
+        <TextBlock Classes="hint" Text="to your phone while you are away from this window" VerticalAlignment="Bottom" />
+      </StackPanel>
+    </DockPanel>
+    <Border x:Name="NotificationsError"
+            Classes="quiet"
+            Padding="12,8"
+            IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock x:Name="NotificationsErrorText" Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
+    </Border>
+    <Border Classes="grouped" IsVisible="{Binding !IsSetUp}">
+      <DockPanel Margin="16,12">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="12,0,0,0">
+          <Button x:Name="OpenNotificationsFile" Classes="link" Content="Open notifications.json" IsVisible="{Binding HasFile}" Command="{Binding OpenFileCommand}" />
+          <Button x:Name="SetUpNotifications" Classes="primary" Content="Set up" IsVisible="{Binding CanSetUp}" Command="{Binding SetUpCommand}" />
+        </StackPanel>
+        <TextBlock x:Name="SetUpHint" Classes="caption" TextWrapping="Wrap" Text="{x:Static settings:NotificationPhrases.SetUpHint}" />
+      </DockPanel>
+    </Border>
+    <Border x:Name="NotificationSettings" Classes="grouped" IsVisible="{Binding IsSetUp}">
+      <StackPanel>
+        <DockPanel Margin="16,12">
+          <Button x:Name="OpenSettingsFile"
+                  DockPanel.Dock="Right"
+                  Classes="link"
+                  VerticalAlignment="Center"
+                  Content="Open notifications.json"
+                  ToolTip.Tip="For the channel, the server, the topic, the secret's variable and quiet hours"
+                  Command="{Binding OpenFileCommand}" />
+          <StackPanel Spacing="2">
+            <TextBlock x:Name="Channel" Text="{Binding Channel}" />
+            <TextBlock x:Name="Destination" Classes="caption mono" Text="{Binding Destination}" TextWrapping="Wrap" />
+            <TextBlock x:Name="Secret" Classes="caption" Text="{Binding Secret}" TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <StackPanel Margin="16,12" Spacing="6">
+          <TextBlock Text="Send when" />
+          <WrapPanel>
+            <CheckBox x:Name="EventDecision" Margin="0,0,16,4" Content="A decision is left to you" IsChecked="{Binding Decision, Mode=OneWay}" Command="{Binding ToggleEventCommand}" CommandParameter="Decision" />
+            <CheckBox x:Name="EventHeld" Margin="0,0,16,4" Content="A job is held" IsChecked="{Binding Held, Mode=OneWay}" Command="{Binding ToggleEventCommand}" CommandParameter="Held" />
+            <CheckBox x:Name="EventBudget" Margin="0,0,16,4" Content="A budget or limit holds a job" IsChecked="{Binding Budget, Mode=OneWay}" Command="{Binding ToggleEventCommand}" CommandParameter="Budget" />
+            <CheckBox x:Name="EventFailed" Margin="0,0,16,4" Content="A job fails" IsChecked="{Binding Failed, Mode=OneWay}" Command="{Binding ToggleEventCommand}" CommandParameter="Failed" />
+            <CheckBox x:Name="EventLoopEnded" Margin="0,0,16,4" Content="A loop ends" IsChecked="{Binding LoopEnded, Mode=OneWay}" Command="{Binding ToggleEventCommand}" CommandParameter="LoopEnded" />
+            <CheckBox x:Name="EventReview" Margin="0,0,16,4" Content="A job is ready for review" IsChecked="{Binding Review, Mode=OneWay}" Command="{Binding ToggleEventCommand}" CommandParameter="Review" />
+          </WrapPanel>
+        </StackPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <Border DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal">
+              <Button x:Name="ChooseMinimal"
+                      Classes="segment"
+                      Classes.selected="{Binding !IsDetailed}"
+                      Content="Minimal"
+                      Command="{Binding ChooseDetailCommand}"
+                      CommandParameter="Minimal" />
+              <Button x:Name="ChooseDetailed"
+                      Classes="segment"
+                      Classes.selected="{Binding IsDetailed}"
+                      Content="Detailed"
+                      Command="{Binding ChooseDetailCommand}"
+                      CommandParameter="Detailed" />
+            </StackPanel>
+          </Border>
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Detail" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Minimal says what happened, the repository and the job. Detailed adds the tool and its target, redacted like the log." />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <StackPanel Margin="16,12" Spacing="2">
+          <TextBlock Text="Quiet hours" />
+          <TextBlock x:Name="Quiet" Classes="caption" Text="{Binding Quiet}" TextWrapping="Wrap" />
+        </StackPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <StackPanel Margin="16,12" Spacing="6">
+          <TextBlock Text="Exactly what is sent, for a decision" />
+          <Border Classes="code" Padding="10,8">
+            <SelectableTextBlock x:Name="Preview" Classes="mono" Text="{Binding Preview}" TextWrapping="Wrap" />
+          </Border>
+        </StackPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <Button x:Name="SendTest" DockPanel.Dock="Right" VerticalAlignment="Center" Content="Send test" Command="{Binding SendTestCommand}" />
+          <StackPanel Spacing="2">
+            <TextBlock x:Name="LastDelivery" Text="{Binding LastDelivery}" TextWrapping="Wrap" />
+            <TextBlock x:Name="TestResult" Classes="caption" Text="{Binding TestResult}" TextWrapping="Wrap" IsVisible="{Binding TestResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+        </DockPanel>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

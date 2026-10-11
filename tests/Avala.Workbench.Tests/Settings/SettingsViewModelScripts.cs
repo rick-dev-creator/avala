@@ -69,6 +69,8 @@ public sealed class SettingsViewModelScripts
 
         public IDefaultConnectionViewModel DefaultConnection => machine.DefaultConnection;
 
+        public INotificationsViewModel Notifications => machine.Notifications;
+
         IConnectionEditorViewModel IMachineSettingsViewModel.Editor => machine.Editor;
 
         IRuleFileEditorViewModel IRepositorySettingsViewModel.Editor => repository.Editor;
