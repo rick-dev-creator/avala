@@ -104,11 +104,11 @@ public sealed class CapacityTests(PublishedPlugins plugins)
 
         var parent = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate] Ship the release") { Connection = One }));
         var both = await delegated.CollectUntilAsync(started => started.Delegation.Item.Value == "delegate-todo");
+        var choices = both.Select(started => Outcomes.Present(started.Delegation.Choice)).ToList();
 
         Assert.Equal([Two, Two], both.Select(started => Outcomes.Present(started.Delegation.Connection)));
-        Assert.All(both, started => Assert.Equal(
-            [(One, 0.95, true), (Two, 0.0, true)],
-            Outcomes.Present(started.Delegation.Choice).Compared.Select(candidate => (candidate.Connection, candidate.Used, candidate.Available))));
+        Assert.Equal([(One, 0.95, true), (Two, 0.0, true)], choices[0].Compared.Select(candidate => (candidate.Connection, candidate.Used, candidate.Available)));
+        Assert.All(choices, choice => Assert.Equal((One, 0.95, true), (choice.Compared[0].Connection, choice.Compared[0].Used, choice.Compared[0].Available)));
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(parent)));
         var tree = Outcomes.Present(await run.Get<IJobCatalog>().TreeAsync(parent, Cancellation));
         Assert.Equal(Option<ConnectionName>.Some(One), tree.Job.Connection);
