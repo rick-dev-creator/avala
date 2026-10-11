@@ -27,7 +27,6 @@
               Command="{Binding $parent[local:TriggersView].((triggers:ITriggersViewModel)DataContext).ToggleCommand, FallbackValue={x:Null}}"
               CommandParameter="{Binding}" />
       <Button x:Name="CheckNow"
-              Classes="ghost"
               Padding="12,5"
               Content="Check now"
               IsVisible="{Binding IsForge}"
@@ -36,6 +35,7 @@
       <Button x:Name="RunNow"
               Padding="12,5"
               Content="Run now"
+              IsVisible="{Binding !IsForge}"
               Command="{Binding $parent[local:TriggersView].((triggers:ITriggersViewModel)DataContext).RunNowCommand, FallbackValue={x:Null}}"
               CommandParameter="{Binding}" />
     </StackPanel>

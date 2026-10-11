@@ -65,6 +65,15 @@ public sealed class TriggersViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AForgeTriggerOffersCheckNowInPlaceOfRunNowAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Wide(new Recording { Triggers = [new DesignTriggersViewModel().Triggers.Single(trigger => trigger.IsForge)] });
+
+            Assert.Equal((true, false), (view.Shows("CheckNow"), view.Shows("RunNow")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task WithoutForgeTriggersThereIsNoForgeSectionAndARowOffersNoCheckNowAsync() =>
         ui.RunAsync(() =>
         {

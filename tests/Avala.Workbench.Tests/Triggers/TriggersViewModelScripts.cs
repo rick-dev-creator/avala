@@ -125,6 +125,19 @@ public sealed class TriggersViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task AForgeTriggerCannotBeRunNowSinceOnlyAnEventFromItsForgeFillsItsInstructionAsync()
+    {
+        triggers.WithForge = true;
+        using var page = Page();
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.Triggers.Count == 3, () => $"{page.Triggers.Count} triggers");
+
+        var (labeled, nightly) = await ui.ReadAsync(() => (page.Triggers[2], page.Triggers[0]));
+
+        Assert.Equal((false, true), (page.RunNowCommand.CanExecute(labeled), page.RunNowCommand.CanExecute(nightly)));
+    }
+
+    [Fact]
     public async Task ReloadReadsTheFilesAgainAsync()
     {
         using var page = Page();

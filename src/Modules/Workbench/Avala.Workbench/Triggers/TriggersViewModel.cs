@@ -105,7 +105,7 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
 
     public void Dispose() => feed.Dispose();
 
-    [RelayCommand(CanExecute = nameof(Present))]
+    [RelayCommand(CanExecute = nameof(Runnable))]
     private async Task RunNowAsync(ITriggerItemViewModel? trigger, CancellationToken cancellationToken)
     {
         var fired = await controls.RunNowAsync(trigger!.Id, cancellationToken);
@@ -138,6 +138,8 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
     }
 
     private static bool Present(ITriggerItemViewModel? trigger) => trigger is not null;
+
+    private static bool Runnable(ITriggerItemViewModel? trigger) => trigger is { IsForge: false };
 
     private static bool Forged(ITriggerItemViewModel? trigger) => trigger is { IsForge: true };
 
