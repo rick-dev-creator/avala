@@ -15,13 +15,11 @@ internal sealed class LoopRunner : IAsyncDisposable
 
     public const string NewDayMessage = "A new day has begun, so the daily spend ceiling allows work again. Go on where you left off.";
 
-    private readonly SerialExecutor executor = new();
-    private readonly CancellationTokenSource lifetime = new();
+    private readonly LoopLine line;
     private readonly LoopSteps steps;
     private readonly LoopJournal journal;
     private readonly TimeProvider clock;
     private LoopRecord record;
-    private Option<ITimer> wake;
     private bool ended;
 
     public LoopRunner(LoopRecord initial, LoopSteps steps, LoopJournal journal, TimeProvider clock)
@@ -32,6 +30,7 @@ internal sealed class LoopRunner : IAsyncDisposable
         this.clock = clock;
         Id = initial.Id;
         Repository = initial.Repository;
+        line = new LoopLine(clock, FaultAsync);
     }
 
     public LoopId Id { get; }
@@ -40,21 +39,21 @@ internal sealed class LoopRunner : IAsyncDisposable
 
     public bool Ended => Volatile.Read(ref ended);
 
-    public void Start() => Post(async token =>
+    public void Start() => line.Post(async token =>
     {
         await journal.PublishAsync(new LoopStarted(record.State), token);
         await AdvanceAsync(token);
     });
 
-    public void Resume() => Post(RecoverAsync);
+    public void Resume() => line.Post(RecoverAsync);
 
-    public void Progressed(JobProgressed progressed) => Post(token => OnStatusAsync(progressed.Job, progressed.Status, token));
+    public void Progressed(JobProgressed progressed) => line.Post(token => OnStatusAsync(progressed.Job, progressed.Status, token));
 
-    public void Held(JobHold hold) => Post(token => OnHeldAsync(hold, token));
+    public void Held(JobHold hold) => line.Post(token => OnHeldAsync(hold, token));
 
-    public void Intervened(BudgetIntervention intervention) => Post(token => OnInterventionAsync(intervention, token));
+    public void Intervened(BudgetIntervention intervention) => line.Post(token => OnInterventionAsync(intervention, token));
 
-    public void AskedAPerson(JobId job) => Post(async token =>
+    public void AskedAPerson(JobId job) => line.Post(async token =>
     {
         if (IsCurrent(job))
         {
@@ -63,7 +62,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     });
 
     public Task<Result<LoopId, AutopilotError>> PauseAsync(CancellationToken cancellationToken) =>
-        CommandAsync(
+        line.CommandAsync(
             async token =>
             {
                 if (record.Status is LoopStatus.Ended or LoopStatus.Paused)
@@ -71,7 +70,7 @@ internal sealed class LoopRunner : IAsyncDisposable
                     return record.Status == LoopStatus.Ended ? AutopilotError.LoopEnded : AutopilotError.NotRunning;
                 }
 
-                await DisarmAsync();
+                await line.DisarmAsync();
                 var pause = new LoopPause(PauseReason.Command, clock.GetUtcNow(), Option<DateTimeOffset>.None);
                 await ChangeAsync(record.Paused(pause), token);
                 await journal.PublishAsync(new LoopPaused(Id, pause), token);
@@ -81,7 +80,7 @@ internal sealed class LoopRunner : IAsyncDisposable
             cancellationToken);
 
     public Task<Result<LoopId, AutopilotError>> ResumeAsync(CancellationToken cancellationToken) =>
-        CommandAsync(
+        line.CommandAsync(
             async token =>
             {
                 if (record.Status != LoopStatus.Paused)
@@ -96,7 +95,7 @@ internal sealed class LoopRunner : IAsyncDisposable
             cancellationToken);
 
     public Task<Result<LoopId, AutopilotError>> StopAsync(CancellationToken cancellationToken) =>
-        CommandAsync(
+        line.CommandAsync(
             async token =>
             {
                 if (record.Status == LoopStatus.Ended)
@@ -110,13 +109,7 @@ internal sealed class LoopRunner : IAsyncDisposable
             },
             cancellationToken);
 
-    public async ValueTask DisposeAsync()
-    {
-        await lifetime.CancelAsync();
-        await executor.RunAsync(_ => DisarmAsync(), CancellationToken.None);
-        await executor.DisposeAsync();
-        lifetime.Dispose();
-    }
+    public ValueTask DisposeAsync() => line.DisposeAsync();
 
     private async Task AdvanceAsync(CancellationToken token)
     {
@@ -176,7 +169,7 @@ internal sealed class LoopRunner : IAsyncDisposable
             await steps.Sources.MarkAsync(task, new TaskMark(TaskState.Failed, Option<JobId>.None, now), token);
             await ChangeAsync(record.Settled(iteration, Option<ConnectionName>.None), token);
             await journal.PublishAsync(new LoopIterated(Id, iteration), token);
-            Post(AdvanceAsync);
+            line.Post(AdvanceAsync);
             return;
         }
 
@@ -187,9 +180,9 @@ internal sealed class LoopRunner : IAsyncDisposable
 
     private Task RecoverAsync(CancellationToken token) => record switch
     {
-        { Status: LoopStatus.Waiting } => ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), WakeAsync),
+        { Status: LoopStatus.Waiting } => line.ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), WakeAsync),
         _ when AwaitsReset => RecoverHeldAsync(CurrentJob, token),
-        _ when PausedUntilATime => ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync),
+        _ when PausedUntilATime => line.ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync),
         { Current.IsSome: true } => ReconcileAsync(CurrentJob, token),
         { Status: LoopStatus.Running } => AdvanceAsync(token),
         _ => Task.CompletedTask,
@@ -201,7 +194,7 @@ internal sealed class LoopRunner : IAsyncDisposable
 
         if (status == Option<JobStatus>.Some(JobStatus.NeedsHelp))
         {
-            await ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync);
+            await line.ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync);
             return;
         }
 
@@ -357,7 +350,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     {
         var paused = record.Paused(pause);
         await ChangeAsync(continues ? paused.Awaiting(underway => underway with { ContinuesAfterReset = true }) : paused, token);
-        await ArmAsync(pause.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync);
+        await line.ArmAsync(pause.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync);
         await journal.PublishAsync(new LoopPaused(Id, pause), token);
     }
 
@@ -372,7 +365,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     private async Task ResumeNowAsync(CancellationToken token)
     {
         var reason = record.Pause;
-        await DisarmAsync();
+        await line.DisarmAsync();
         await ChangeAsync(record.Resumed(), token);
         var continuing = record.Current.Bind(underway => underway.ContinuesAfterReset ? Option<Underway>.Some(underway) : Option<Underway>.None);
         await continuing.Match(underway => ContinueAsync(underway, reason == Option<PauseReason>.Some(PauseReason.DailySpend), token), async () =>
@@ -391,7 +384,7 @@ internal sealed class LoopRunner : IAsyncDisposable
 
     private async Task RunsAgainAsync(CancellationToken token)
     {
-        await DisarmAsync();
+        await line.DisarmAsync();
         await ChangeAsync(record.Resumed().Awaiting(current => current with { ContinuesAfterReset = false }), token);
         await journal.PublishAsync(new LoopResumed(Id, clock.GetUtcNow()), token);
     }
@@ -417,7 +410,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     private async Task WaitAsync(DateTimeOffset due, CancellationToken token)
     {
         await ChangeAsync(record.Waiting(due), token);
-        await ArmAsync(due, WakeAsync);
+        await line.ArmAsync(due, WakeAsync);
         await journal.PublishAsync(new LoopWaiting(Id, due), token);
     }
 
@@ -438,7 +431,7 @@ internal sealed class LoopRunner : IAsyncDisposable
 
     private async Task EndAsync(LoopRecord next, CancellationToken token)
     {
-        await DisarmAsync();
+        await line.DisarmAsync();
         await ChangeAsync(next, token);
         await journal.PublishAsync(new LoopEnded(next.State), token);
     }
@@ -451,51 +444,6 @@ internal sealed class LoopRunner : IAsyncDisposable
     }
 
     private bool IsCurrent(JobId job) => record.Current.Match(underway => underway.Job == job, () => false);
-
-    private async Task ArmAsync(DateTimeOffset due, Func<CancellationToken, Task> work)
-    {
-        await DisarmAsync();
-        wake = Option<ITimer>.Some(clock.CreateAlarm(() => Post(work), due));
-    }
-
-    private async Task DisarmAsync()
-    {
-        var armed = wake;
-        wake = Option<ITimer>.None;
-        await armed.Match(timer => timer.DisposeAsync().AsTask(), () => Task.CompletedTask);
-    }
-
-    private void Post(Func<CancellationToken, Task> work) =>
-        _ = executor.RunAsync(token => GuardedAsync(work, token), lifetime.Token);
-
-    private async Task GuardedAsync(Func<CancellationToken, Task> work, CancellationToken token)
-    {
-        try
-        {
-            await work(token);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException || !token.IsCancellationRequested)
-        {
-            await FaultAsync(exception, token);
-        }
-    }
-
-    private Task<Result<LoopId, AutopilotError>> CommandAsync(Func<CancellationToken, Task<Result<LoopId, AutopilotError>>> command, CancellationToken cancellationToken) =>
-        executor.RunAsync<Result<LoopId, AutopilotError>>(
-            async token =>
-            {
-                try
-                {
-                    return await command(token);
-                }
-                catch (Exception exception) when (exception is not OperationCanceledException || !token.IsCancellationRequested)
-                {
-                    await FaultAsync(exception, token);
-
-                    return AutopilotError.LoopEnded;
-                }
-            },
-            cancellationToken);
 
     private async Task FaultAsync(Exception exception, CancellationToken token)
     {
