@@ -61,17 +61,22 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         AwaitMessage when !declared.Has<AcceptsMessagesMidTurn>() => AsyncEnumerable.Empty<IAgentEvent>(),
         AwaitMessage => HearAsync(cues, cancellationToken),
         Finish => Heard(cues).Append(cues.Ended(TurnOutcome.Finished)).ToAsyncEnumerable(),
-        CallTool call => PlayAsync(cues, new CallTools([call]), cancellationToken),
+        UnlessTold unless when cues.Told.Contains(unless.Fragment, StringComparison.Ordinal) => AsyncEnumerable.Empty<IAgentEvent>(),
+        UnlessTold unless => PlayAsync(cues, unless.Step, cancellationToken),
+        Crash crash => throw new InvalidOperationException(crash.Reason),
+        _ => OutputAsync(cues, step, cancellationToken),
+    };
+
+    private IAsyncEnumerable<IAgentEvent> OutputAsync(Cues cues, IStep step, CancellationToken cancellationToken) => step switch
+    {
+        CallTool call => OutputAsync(cues, new CallTools([call]), cancellationToken),
         CallTools calls when calls.Calls.All(call => options.Tools.Any(tool => tool.Name == call.Tool && tool.Surface == ToolSurface.Executed)) =>
             caller.CallAsync(cues, calls, cancellationToken),
         CallTools calls => calls.Calls
             .SelectMany(call => cues.Of(Reply(call.Item, $"I would call {call.Tool} with {call.Input}, but the harness did not offer it.")))
             .ToAsyncEnumerable(),
-        UnlessTold unless when cues.Told.Contains(unless.Fragment, StringComparison.Ordinal) => AsyncEnumerable.Empty<IAgentEvent>(),
-        UnlessTold unless => PlayAsync(cues, unless.Step, cancellationToken),
         ReportLimitResetting limit => cues.Of(new ReportLimit(new UsageLimit(limit.Window, limit.Used, craft.Pacing.Now + limit.ResetsIn))).ToAsyncEnumerable(),
         RunOutOfWindow spent => cues.Of(new ReportLimit(new UsageLimit(spent.Window, 1, craft.Pacing.Now + spent.ResetsIn))).Append(cues.Ended(TurnOutcome.LimitReached)).ToAsyncEnumerable(),
-        Crash crash => throw new InvalidOperationException(crash.Reason),
         Draw draw when !options.Tools.Any(tool => tool.Surface == ToolSurface.Canvas) =>
             cues.Of(new Say(draw.Item, ItemKind.Message, draw.Title, draw.Chunks)).ToAsyncEnumerable(),
         _ => DeedAsync(cues, step, cancellationToken),
