@@ -22,6 +22,14 @@ public enum CheckStatus
     Skipped,
 }
 
+public enum DeclarationProblem
+{
+    Malformed,
+    MissingCommand,
+    InvalidTimeout,
+    Unreadable,
+}
+
 public enum ChecksFileStatus
 {
     Absent,
@@ -49,6 +57,9 @@ public sealed record VerificationReport(
     Option<FileOrigin> Declaration,
     IReadOnlyList<CheckEvidence> Checks,
     GateVerdict Verdict,
-    DateTimeOffset VerifiedAt);
+    DateTimeOffset VerifiedAt)
+{
+    public Option<DeclarationProblem> Problem { get; init; }
+}
 
 public sealed record AttemptVerified(VerificationReport Report) : IIntegrationEvent;

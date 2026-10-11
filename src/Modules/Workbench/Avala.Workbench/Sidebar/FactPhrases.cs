@@ -73,6 +73,7 @@ internal static class FactPhrases
         HoldReason.BudgetExceeded => "held: over budget",
         HoldReason.LimitNearlyReached => "held: near its usage limit",
         HoldReason.InvalidBudget => "held: invalid budget",
+        HoldReason.InvalidChecks => "held: invalid checks",
         HoldReason.MemoryExceeded => "held: out of memory",
         HoldReason.Stopped => "stopped",
         HoldReason.NotResumable => "held: its conversation cannot resume",

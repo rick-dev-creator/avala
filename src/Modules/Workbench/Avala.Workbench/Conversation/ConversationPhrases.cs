@@ -143,6 +143,7 @@ internal static class ConversationPhrases
         HoldReason.BudgetExceeded => "over budget",
         HoldReason.LimitNearlyReached => "near its limit",
         HoldReason.InvalidBudget => "invalid budget",
+        HoldReason.InvalidChecks => "invalid checks",
         HoldReason.MemoryExceeded => "out of memory",
         HoldReason.Stopped => "stopped",
         HoldReason.NotResumable => "its conversation cannot resume",

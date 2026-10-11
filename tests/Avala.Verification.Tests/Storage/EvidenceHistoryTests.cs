@@ -31,22 +31,39 @@ public sealed class EvidenceHistoryTests
     }
 
     [Fact]
-    public async Task AReportSurvivesAReopeningWithEveryCheckAndEarlierRunsLeaveOutWhatThisRunStoredAsync()
+    public async Task AReportSurvivesAReopeningWithEveryCheckItsProblemAndItsHoldAndEarlierRunsLeaveOutWhatThisRunStoredAsync()
     {
         await using var folder = new TemporaryFolder();
         var earlier = Failed(JobId.New(), 1);
+        var invalid = Invalid(JobId.New(), 1);
         await using (var first = new SqliteEvidenceStore(new AvalaPaths(folder.Path)))
         {
             await first.RecordAsync(earlier, Cancellation);
+            await first.RecordAsync(invalid, Cancellation);
         }
 
         await using var second = new SqliteEvidenceStore(new AvalaPaths(folder.Path));
         await second.RecordAsync(Failed(JobId.New(), 2), Cancellation);
 
-        var read = Assert.Single(await second.EarlierRunsAsync(Cancellation));
-        Assert.Equal(earlier.Checks, read.Checks);
-        Assert.Equal(earlier with { Checks = read.Checks }, read);
+        var read = await second.EarlierRunsAsync(Cancellation);
+        Assert.Equal(2, read.Count);
+        Assert.Equal(earlier.Checks, read[0].Checks);
+        Assert.Equal(earlier with { Checks = read[0].Checks }, read[0]);
+        Assert.Equal(invalid with { Checks = read[1].Checks }, read[1]);
     }
+
+    private static VerificationReport Invalid(JobId job, int attempt) =>
+        new(
+            job,
+            attempt,
+            VerificationOutcome.InvalidDeclaration,
+            new FileOrigin("4f2a9c1", EditedInWorktree: false),
+            [],
+            GateVerdict.HoldFor(HoldReason.InvalidChecks),
+            Nine.AddMinutes(attempt))
+        {
+            Problem = DeclarationProblem.MissingCommand,
+        };
 
     private static VerificationReport Failed(JobId job, int attempt) =>
         new(

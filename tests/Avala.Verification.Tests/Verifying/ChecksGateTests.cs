@@ -124,38 +124,41 @@ public sealed class ChecksGateTests
         Assert.Equal(CheckStatus.NotFound, Assert.Single(Assert.Single(verified.Published).Checks).Status);
     }
 
-    [Fact]
-    public async Task AnInvalidDeclarationIsSentBackWithoutRunningAnythingAsync()
+    [Theory]
+    [InlineData("""{ "checks": {} }""", DeclarationProblem.Malformed)]
+    [InlineData("""{ "checks": [{ "arguments": ["build"] }] }""", DeclarationProblem.MissingCommand)]
+    [InlineData("""{ "checks": [{ "command": "dotnet", "timeoutSeconds": 0 }] }""", DeclarationProblem.InvalidTimeout)]
+    public async Task AnInvalidCommittedDeclarationHoldsTheJobForAPersonWithItsProblemWithoutRunningAnythingAsync(string declaration, DeclarationProblem problem)
     {
-        var verified = new Verified("""{ "checks": [{ "arguments": ["build"] }] }""");
+        var verified = new Verified(declaration, editedInWorktree: true);
 
         var verdict = await verified.EvaluateAsync(Job, 1, Cancellation);
 
-        Assert.Equal(
-            GateVerdict.Retry(
-                "The check declaration in .avala/checks.json of the commit this job started from is invalid: a check has no command. "
-                + "The job is verified against that commit, so changing the file in the worktree does not fix it: the repository has to."),
-            verdict);
+        Assert.Equal(GateVerdict.HoldFor(HoldReason.InvalidChecks), verdict);
         Assert.Empty(verified.Processes.Requests);
         var report = Assert.Single(verified.Published);
-        Assert.Equal((VerificationOutcome.InvalidDeclaration, verdict), (report.Outcome, report.Verdict));
+        Assert.Equal(
+            (VerificationOutcome.InvalidDeclaration, verdict, Option<DeclarationProblem>.Some(problem), Option<FileOrigin>.Some(CommittedFiles.Origin(editedInWorktree: true))),
+            (report.Outcome, report.Verdict, report.Problem, report.Declaration));
         Assert.Empty(report.Checks);
+        Assert.Equal([report], verified.Book.OfJob(Job));
     }
 
     [Theory]
     [InlineData(WorkspaceFailure.GitFailed)]
     [InlineData(WorkspaceFailure.UnknownWorkspace)]
-    public async Task ADeclarationThatCannotBeReadFromTheBaseCommitFailsClosedAsync(WorkspaceFailure failure)
+    public async Task ADeclarationThatCannotBeReadFromTheBaseCommitHoldsTheJobForAPersonAsync(WorkspaceFailure failure)
     {
         var verified = new Verified(new CommittedFiles().Failing(Verified.Worktree, failure));
 
         var verdict = await verified.EvaluateAsync(Job, 1, Cancellation);
 
-        Assert.Equal(GateDecision.Retry, verdict.Decision);
-        Assert.Contains("is invalid: it could not be read from that commit.", verdict.Feedback, StringComparison.Ordinal);
+        Assert.Equal(GateVerdict.HoldFor(HoldReason.InvalidChecks), verdict);
         Assert.Empty(verified.Processes.Requests);
         var report = Assert.Single(verified.Published);
-        Assert.Equal((VerificationOutcome.InvalidDeclaration, Option<FileOrigin>.None), (report.Outcome, report.Declaration));
+        Assert.Equal(
+            (VerificationOutcome.InvalidDeclaration, Option<FileOrigin>.None, Option<DeclarationProblem>.Some(DeclarationProblem.Unreadable)),
+            (report.Outcome, report.Declaration, report.Problem));
     }
 
     [Fact]

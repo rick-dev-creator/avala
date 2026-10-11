@@ -52,6 +52,7 @@ public sealed class ConversationPhrasesTests
     [InlineData(JobStatus.NeedsHelp, "Stalled", "Held · stalled")]
     [InlineData(JobStatus.NeedsHelp, "BudgetExceeded", "Held · over budget")]
     [InlineData(JobStatus.NeedsHelp, "SessionLost", "Held · session lost")]
+    [InlineData(JobStatus.NeedsHelp, "InvalidChecks", "Held · invalid checks")]
     public void TheStatusPillNamesWhereTheJobStands(JobStatus status, string hold, string phrase)
     {
         var job = new BoardJob(new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary, Transcript.Empty)

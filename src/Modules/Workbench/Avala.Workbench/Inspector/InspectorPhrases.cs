@@ -84,6 +84,7 @@ internal static class InspectorPhrases
 
     public static string Attempt(VerificationReport report) =>
         string.Create(CultureInfo.InvariantCulture, $"Attempt {report.Attempt}: {Outcome(report.Outcome)}")
+        + report.Problem.Match(problem => $" · {Problem(problem)}", () => string.Empty)
         + (report.Checks.Count == 0 ? string.Empty : $" · {string.Join(", ", report.Checks.Select(Check))}");
 
     public static string Decision(PolicyDecision decision) =>
@@ -220,6 +221,14 @@ internal static class InspectorPhrases
         VerificationOutcome.Failed => "failed",
         VerificationOutcome.NoChecksDeclared => "no checks declared",
         _ => "invalid declaration",
+    };
+
+    private static string Problem(DeclarationProblem problem) => problem switch
+    {
+        DeclarationProblem.MissingCommand => "a check has no command",
+        DeclarationProblem.InvalidTimeout => "a check has a timeout that is not a number of seconds between 0 and 86400",
+        DeclarationProblem.Unreadable => "it could not be read from the job's commit",
+        _ => "it is not a JSON object with a checks array of check objects",
     };
 
     private static string Check(CheckEvidence check) =>

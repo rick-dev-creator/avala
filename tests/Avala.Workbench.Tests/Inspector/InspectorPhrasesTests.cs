@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
+using Avala.Verification.Contracts;
 using Avala.Workbench.Inspector;
 
 namespace Avala.Workbench.Tests.Inspector;
@@ -27,6 +28,27 @@ public sealed class InspectorPhrasesTests
                     .. next is { } origin ? [new AttemptRecord(2, origin, AttemptOutcome.Running, Option<string>.None, Option<SessionId>.None)] : Array.Empty<AttemptRecord>(),
                 ],
                 [])[0]);
+
+    [Theory]
+    [InlineData("Malformed", "Attempt 1: invalid declaration · it is not a JSON object with a checks array of check objects")]
+    [InlineData("MissingCommand", "Attempt 1: invalid declaration · a check has no command")]
+    [InlineData("InvalidTimeout", "Attempt 1: invalid declaration · a check has a timeout that is not a number of seconds between 0 and 86400")]
+    [InlineData("Unreadable", "Attempt 1: invalid declaration · it could not be read from the job's commit")]
+    [InlineData("", "Attempt 1: invalid declaration")]
+    public void AnAttemptWithAnInvalidDeclarationSaysWhatIsWrongWithIt(string problem, string phrase) =>
+        Assert.Equal(
+            phrase,
+            InspectorPhrases.Attempt(new VerificationReport(
+                JobId.New(),
+                1,
+                VerificationOutcome.InvalidDeclaration,
+                Option<Workspaces.Contracts.FileOrigin>.None,
+                [],
+                GateVerdict.HoldFor(HoldReason.InvalidChecks),
+                DateTimeOffset.UnixEpoch)
+            {
+                Problem = problem.Length == 0 ? Option<DeclarationProblem>.None : Enum.Parse<DeclarationProblem>(problem),
+            }));
 
     [Theory]
     [InlineData("Allow", "", "", "You allowed FileEdit src/auth/login.ts")]

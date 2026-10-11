@@ -15,11 +15,6 @@ internal static class AgentFeedback
             ? GateVerdict.Retry(Describe(failed))
             : GateVerdict.Pass;
 
-    public static GateVerdict Invalid(VerificationError error) =>
-        GateVerdict.Retry(
-            $"The check declaration in {CheckDeclaration.RelativePath} of the commit this job started from is invalid: {Problem(error)}. "
-            + "The job is verified against that commit, so changing the file in the worktree does not fix it: the repository has to.");
-
     public static GateVerdict Noting(GateVerdict verdict, Option<FileOrigin> declaration) =>
         verdict.Decision == GateDecision.Retry && declaration.Match(origin => origin.EditedInWorktree, () => false)
             ? GateVerdict.Retry(
@@ -44,14 +39,6 @@ internal static class AgentFeedback
         CheckStatus.TimedOut => $"`{check.Command}` was stopped after {Seconds(check.Duration)}, its time limit.",
         CheckStatus.NotFound => $"`{check.Command}` could not start because its command was not found.",
         _ => $"`{check.Command}` exited with code {check.ExitCode.Match(code => code, () => -1).ToString(CultureInfo.InvariantCulture)} after {Seconds(check.Duration)}.",
-    };
-
-    private static string Problem(VerificationError error) => error switch
-    {
-        VerificationError.MissingCommand => "a check has no command",
-        VerificationError.InvalidTimeout => "a check has a timeout that is not a number of seconds between 0 and 86400",
-        VerificationError.UnreadableDeclaration => "it could not be read from that commit",
-        _ => "it is not a JSON object with a \"checks\" array of check objects",
     };
 
     private static string Seconds(TimeSpan duration) =>

@@ -46,6 +46,7 @@ public sealed class FactPhrasesTests
     [InlineData("BudgetExceeded", "held: over budget")]
     [InlineData("LimitNearlyReached", "held: near its usage limit")]
     [InlineData("InvalidBudget", "held: invalid budget")]
+    [InlineData("InvalidChecks", "held: invalid checks")]
     [InlineData("MemoryExceeded", "held: out of memory")]
     [InlineData("Stopped", "stopped")]
     [InlineData("Interrupted", "interrupted")]

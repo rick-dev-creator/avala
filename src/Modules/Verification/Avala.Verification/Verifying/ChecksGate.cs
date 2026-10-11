@@ -44,7 +44,15 @@ internal sealed class ChecksGate(IBaseFiles files, CheckRunner runner, EvidenceL
     }
 
     private VerificationReport Invalid(CompletedAttempt attempt, Option<FileOrigin> declaration, VerificationError error) =>
-        Report(attempt, declaration, VerificationOutcome.InvalidDeclaration, [], AgentFeedback.Invalid(error));
+        Report(attempt, declaration, VerificationOutcome.InvalidDeclaration, [], GateVerdict.HoldFor(HoldReason.InvalidChecks)) with { Problem = Problem(error) };
+
+    private static DeclarationProblem Problem(VerificationError error) => error switch
+    {
+        VerificationError.MissingCommand => DeclarationProblem.MissingCommand,
+        VerificationError.InvalidTimeout => DeclarationProblem.InvalidTimeout,
+        VerificationError.UnreadableDeclaration => DeclarationProblem.Unreadable,
+        _ => DeclarationProblem.Malformed,
+    };
 
     private VerificationReport Report(
         CompletedAttempt attempt,

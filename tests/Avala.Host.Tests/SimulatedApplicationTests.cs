@@ -304,6 +304,30 @@ public sealed class SimulatedApplicationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AnInvalidCommittedCheckDeclarationHoldsTheJobForAPersonAfterItsFirstAttemptAndTheWorkbenchSaysWhyAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply", (".avala/checks.json", """{ "checks": [{ "arguments": ["build"] }] }"""));
+
+        var journey = await run.JourneyAsync();
+
+        var hold = await run.HoldAsync();
+        Assert.Equal([JobStatus.Running, JobStatus.Checking, JobStatus.NeedsHelp], journey.SkipWhile(status => status != JobStatus.Running));
+        Assert.Equal((run.Job, HoldReason.InvalidChecks), (hold.Job, hold.Reason));
+        var report = Assert.Single(run.Get<IVerifications>().OfJob(run.Job));
+        Assert.Equal(
+            (VerificationOutcome.InvalidDeclaration, Option<DeclarationProblem>.Some(DeclarationProblem.MissingCommand), GateVerdict.HoldFor(HoldReason.InvalidChecks)),
+            (report.Outcome, report.Problem, report.Verdict));
+        var workbench = await run.WorkbenchAsync();
+        Assert.Equal(("NeedsYou", "held: invalid checks"), await workbench.RowAsync(run.Job, "NeedsYou"));
+        var conversation = await workbench.SelectAsync(run.Job);
+        Assert.Equal("Held · invalid checks", await run.Ui.ReadAsync(() => conversation["Pill"]["Text"].Text));
+        var evidence = Assert.Single(await workbench.InspectAsync(run.Job, "EvidenceSectionViewModel"));
+        Assert.Equal(
+            ["Attempt 1: invalid declaration · a check has no command"],
+            await run.Ui.ReadAsync(() => evidence["Attempts"].Value<IReadOnlyList<string>>()));
+    }
+
+    [Fact]
     public Task AnAllowingPolicyLetsThePermissionJobRunItsCommandAndFinishUnattendedAsync() =>
         AnsweredByPolicyAsync("allow", PolicyAnswer.Allow, ItemOutcome.Succeeded);
 
