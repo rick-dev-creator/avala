@@ -39,10 +39,9 @@ internal static class NewJobPhrases
     public static (string Text, bool Attention) Route(
         ConnectionCatalog catalog,
         Option<Result<ConnectionPreview, JobRejection>> preview,
-        Option<ConnectionName> chosen,
-        Func<ConnectionName, string> reading) =>
+        Option<ConnectionName> chosen) =>
         chosen.Match(
-            name => Named(name, preview, reading(name)),
+            name => Named(name, preview),
             () => catalog.Error.Match(
                 error => ($"connections.json is rejected ({error}), so no job can start: choose the default connection again in Settings.", true),
                 () => catalog.Connections.Count == 0
@@ -78,10 +77,12 @@ internal static class NewJobPhrases
         _ => "The job was refused.",
     };
 
-    private static (string Text, bool Attention) Named(ConnectionName name, Option<Result<ConnectionPreview, JobRejection>> preview, string reading) =>
-        Compared(preview, name).Match(
-            candidate => ($"Runs on {name.Value} · {Reading(candidate)}{(candidate.Available ? string.Empty : " · at its limit, the budget may hold the job")}", !candidate.Available),
-            () => ($"Runs on {name.Value} · {reading}", false));
+    private static (string Text, bool Attention) Named(ConnectionName name, Option<Result<ConnectionPreview, JobRejection>> preview)
+    {
+        var atLimit = Compared(preview, name).Match(candidate => !candidate.Available, () => false);
+
+        return ($"Runs on {name.Value}, as chosen{(atLimit ? " · at its limit, the budget may hold the job" : string.Empty)}", atLimit);
+    }
 
     private static (string Text, bool Attention) Following(ConnectionCatalog catalog, ConnectionPreview previewed)
     {

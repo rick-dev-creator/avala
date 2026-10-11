@@ -143,7 +143,7 @@ public sealed class NewJobViewModelScripts
         await page.SubmitCommand.ExecuteAsync(null);
 
         Assert.Equal(
-            ("Runs on work · 95% of the 5-hour window used · at its limit, the budget may hold the job", true),
+            ("Runs on work, as chosen · at its limit, the budget may hold the job", true),
             (page.Route, page.IsRouteAttention));
         Assert.Equal(Option<ConnectionName>.Some(new ConnectionName("work")), Assert.Single(jobs.Requests).Connection);
     }
@@ -161,7 +161,20 @@ public sealed class NewJobViewModelScripts
         Assert.Equal(
             [("Default (work)", "99% of the 7-day window used"), ("work", "99% of the 7-day window used"), ("personal", "no usage reported yet")],
             offered);
-        Assert.Equal("Runs on work · 99% of the 7-day window used", page.Route);
+    }
+
+    [Fact]
+    public async Task AConnectionPickedByHandHasItsReadingInThePickerAndARouteThatDoesNotRepeatItAsync()
+    {
+        usage.Connections.Add(new Observability.Contracts.ConnectionUsage(new ConnectionName("work"), Pages.Simulator, Pages.Used(1m, new Agents.Contracts.Events.UsageLimit("7d", 0.99, Option<DateTimeOffset>.None))));
+        var page = Page(new FakeConnections("work", "personal"));
+        await page.LoadAsync(Cancellation);
+
+        page.Connection = "work";
+
+        Assert.Equal(
+            ("99% of the 7-day window used", "Runs on work, as chosen", false),
+            (page.Options.Single(option => option.Name == "work").Reading, page.Route, page.IsRouteAttention));
     }
 
     [Fact]

@@ -267,7 +267,7 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings r
 
     private void ShowRoute()
     {
-        var (text, attention) = NewJobPhrases.Route(catalog, preview, Chosen(), Reading);
+        var (text, attention) = NewJobPhrases.Route(catalog, preview, Chosen());
         Route = text;
         IsRouteAttention = attention;
         ShowReadings();

@@ -282,7 +282,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal(("claude-work", true), (page.Connection, view.HasClass("Route", "attention")));
-            Assert.StartsWith("Runs on claude-work · 95%", view.TextOf("Route"), StringComparison.Ordinal);
+            Assert.StartsWith("Runs on claude-work, as chosen · at its limit", view.TextOf("Route"), StringComparison.Ordinal);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
