@@ -120,6 +120,17 @@ internal sealed partial class UsageSectionViewModel : IUsageSectionViewModel, IR
     private static Cost Raised(Cost cap, IReadOnlyList<BudgetRaise> raises) =>
         cap with { Amount = cap.Amount + raises.SelectMany(raise => raise.By.Cost).Where(by => by.Currency == cap.Currency).Sum(by => by.Amount) };
 
+    private static Option<Cost> CapOf(AuditFacts audit)
+    {
+        var own = audit.Budget.Bind(budget => budget.Caps.CostPerJob.Count > 0 ? Option<Cost>.Some(Raised(budget.Caps.CostPerJob[0], audit.Raises)) : Option<Cost>.None);
+
+        return audit.Carve.Match(
+            carve => own.Match(
+                cap => cap with { Amount = carve.Cost.Where(carved => carved.Currency == cap.Currency).Select(carved => carved.Amount).Append(cap.Amount).Min() },
+                () => carve.Cost.Count > 0 ? Option<Cost>.Some(carve.Cost[0]) : Option<Cost>.None),
+            () => own);
+    }
+
     private static bool Unraised(AuditFacts audit) =>
         audit.Interventions.Any(intervention => !audit.Raises.Any(raise => raise.At >= intervention.At));
 
@@ -128,7 +139,7 @@ internal sealed partial class UsageSectionViewModel : IUsageSectionViewModel, IR
         IsLoaded = facts.IsSome;
         shown = facts.Map(found => found.Record.History.Summary.Job);
         var audit = facts.Match(found => found.Audit, () => new AuditFacts([], [], []));
-        var cap = audit.Budget.Bind(budget => budget.Caps.CostPerJob.Count > 0 ? Option<Cost>.Some(Raised(budget.Caps.CostPerJob[0], audit.Raises)) : Option<Cost>.None);
+        var cap = CapOf(audit);
         Fact = facts.IsNone ? string.Empty : InspectorPhrases.Spending(audit.Usage, cap);
         IsAttention = InspectorPhrases.Share(audit.Usage, cap).Match(share => share >= 1, () => false) || Unraised(audit);
         Meter = InspectorPhrases.Share(audit.Usage, cap).Match<IMeterViewModel?>(

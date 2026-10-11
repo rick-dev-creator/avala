@@ -79,13 +79,30 @@ public sealed class UsageSectionViewModelScripts : IDisposable
     [Fact]
     public async Task TheHeaderFactAndTheMeterSetTheSpendAgainstTheCostCap()
     {
+        var job = InspectedJobs.Reviewed(bench).Job;
+        bench.Audit.Carve = Option<BudgetCarve>.None;
         using var section = new UsageSectionViewModel(bench.Inspected(), bench.Raising);
 
-        await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
+        await section.FocusAsync(job, bench);
 
         Assert.Equal(("0.25 USD of 5 USD", false), (section.Fact, section.IsAttention));
         var meter = Assert.IsAssignableFrom<Components.Meters.IMeterViewModel>(section.Meter);
         Assert.Equal(("Cost cap", 0.05, "5%"), (meter.Label, Math.Round(meter.Fraction, 2), meter.Reading));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ACarvedJobSetsItsSpendAgainstItsCarvedShareOfTheCapAsync(bool contested)
+    {
+        var job = InspectedJobs.Reviewed(bench).Job;
+        bench.Audit.Carve = Outcomes.Present(bench.Audit.Carve) with { Cost = [new Cost(0.2m, "USD")], Contested = contested };
+        using var section = new UsageSectionViewModel(bench.Inspected(), bench.Raising);
+
+        await section.FocusAsync(job, bench);
+
+        var meter = Assert.IsAssignableFrom<Components.Meters.IMeterViewModel>(section.Meter);
+        Assert.Equal(("0.25 USD of 0.20 USD", true, "100%"), (section.Fact, section.IsAttention, meter.Reading));
     }
 
     [Fact]

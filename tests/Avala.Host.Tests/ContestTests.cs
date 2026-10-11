@@ -69,6 +69,24 @@ public sealed class ContestTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheInspectorOfACandidateSetsItsSpendAgainstItsShareOfThePerJobCapAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            (".avala/checks.json", ReviewTests.CalculatorChecks),
+            (".avala/permissions.json", ReviewTests.TestsPolicy),
+            (".avala/budget.json", """{ "costPerJob": { "USD": 0.30 } }"""));
+        var decided = run.Watch<ContestDecided>();
+        var contest = await StartAsync(run, "contest", 3);
+        var winner = Outcomes.Present(Outcomes.Present((await decided.UntilAsync(found => found.Contest.Contest == contest.Contest)).Contest.Verdict).Winner);
+        var workbench = await run.WorkbenchAsync();
+
+        var section = Assert.Single(await workbench.InspectAsync(winner, "UsageSectionViewModel"));
+
+        Assert.EndsWith("of 0.10 USD", await run.Ui.ReadAsync(() => section["Fact"].Text), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TheReviewOfTheWinnerOffersEveryCandidateWithItsVerificationDiffSizeAndCostAsync()
     {
         await using var run = await CheckedAsync();
