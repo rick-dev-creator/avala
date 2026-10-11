@@ -2,6 +2,7 @@ using Avala.Budgets.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Events;
 using static Avala.Host.Tests.DogfoodChecks;
 using static Avala.Host.Tests.DogfoodSettings;
 
@@ -142,7 +143,7 @@ internal static class DogfoodJobScenarios
     {
         Seed = _ => new DogfoodSeed
         {
-            Committed = [new(".avala/budget.json", """{ "costPerJob": { "USD": 0.01 } }""")],
+            Committed = [new(".avala/budget.json", """{ "costPerJob": { "USD": 0.001 } }""")],
             Recordings =
             [
                 new DogfoodScript("s4").Turn().Say("Writing sub first.").Write("calc.js", Sub).Say("sub is written; the tests come next.").Bill(0.0150m, 0.22).Finish()
@@ -159,10 +160,15 @@ internal static class DogfoodJobScenarios
             var mark = scene.Mark;
             await usage.ExecuteAsync("RaiseCommand");
             await scene.UntilAsync<BudgetRaised>(found => found.Raise.Job == job, "the raise");
-            var settled = await scene.UntilAsync<JobProgressed>(found => found.Job == job && (found.Status == JobStatus.AwaitingReview || (found.Status == JobStatus.NeedsHelp && scene.Evidence.All<BudgetIntervened>(held => held.Intervention.Hold.Job == job).Count() > 1)), "review or a second hold", mark);
+            var settled = await scene.UntilAsync<IIntegrationEvent>(found => found switch
+            {
+                JobProgressed progressed => progressed.Job == job && progressed.Status == JobStatus.AwaitingReview,
+                BudgetIntervened held => held.Intervention.Hold.Job == job && scene.Evidence.All<BudgetIntervened>(again => again.Intervention.Hold.Job == job).Count() > 1,
+                _ => false,
+            }, "review or a second hold", mark);
             await scene.Actions.ConversationAsync(job, "conversation:s4");
             await scene.Actions.InspectAsync(job, "raised");
-            scene.Evidence.Note("s4:after-raise", settled.Status.ToString());
+            scene.Evidence.Note("s4:after-raise", settled is JobProgressed reviewed ? reviewed.Status.ToString() : "held again");
         },
         Checks =
         [
@@ -173,7 +179,7 @@ internal static class DogfoodJobScenarios
                 return first is null ? DogfoodVerdict.NotReached($"no budget intervention ({evidence.Outcome})")
                     : Expect(evidence, first.Hold.Reason == HoldReason.BudgetExceeded && first.Breach.Measure == BudgetMeasure.Cost, $"held {first.Hold.Reason} for {first.Breach.Measure} {first.Breach.Measured} of {first.Breach.Cap}");
             }),
-            Fact("The inspector reads Held for Cost … at API prices of 0.01 USD and offers Raise budget and continue", "inspector:held:UsageSectionViewModel", text => text.Contains("at API prices", StringComparison.Ordinal) && text.Contains("0.01 USD", StringComparison.Ordinal) && text.Contains("CanRaise=True", StringComparison.Ordinal)),
+            Fact("The inspector reads Held for Cost … at API prices of 0.001 USD and offers Raise budget and continue", "inspector:held:UsageSectionViewModel", text => text.Contains("at API prices", StringComparison.Ordinal) && text.Contains("0.001 USD", StringComparison.Ordinal) && text.Contains("CanRaise=True", StringComparison.Ordinal)),
             OfJob("BudgetRaised is published for the job", "s4", (evidence, job) =>
                 Unless(evidence.First<BudgetRaised>(found => found.Raise.Job == job), "no raise", raised => DogfoodVerdict.Pass($"raised by {string.Join(", ", raised.Raise.By.Cost.Select(cost => $"{cost.Amount} {cost.Currency}"))}"))),
             Fact("The conversation shows that the budget was raised and the agent carries on", "conversation:s4", text => text.Contains("budget was raised", StringComparison.OrdinalIgnoreCase)),
