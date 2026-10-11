@@ -37,6 +37,9 @@
     <Style Selector=".done Ellipse#Core">
       <Setter Property="Fill" Value="{DynamicResource DotDoneBrush}" />
     </Style>
+    <Style Selector=".selected .done Ellipse#Core">
+      <Setter Property="Fill" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
     <Style Selector=".failed Ellipse#Core">
       <Setter Property="Fill" Value="{DynamicResource FailureBrush}" />
     </Style>
