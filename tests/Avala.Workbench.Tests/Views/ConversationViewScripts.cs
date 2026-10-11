@@ -431,6 +431,16 @@ public sealed class ToolViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task ADeniedToolSaysSoInTheQuietCaptionColorAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new ToolViewModel(new ToolEntry("t", ItemKind.FileEdit, "Edit REVIEW.md", string.Empty, ItemOutcome.Cancelled) { Denied = true }));
+
+            Assert.Equal(("denied", true, false), (view.TextOf("Outcome"), view.Shows("Outcome"), view.HasClass("Outcome", "failure")));
+            Assert.True(view.Window.TryFindResource("TextTertiaryBrush", view.Window.ActualThemeVariant, out var quiet) && ReferenceEquals(quiet, view.Find<TextBlock>("Outcome").Foreground));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ARunningToolSpinsInsteadOfItsIconAndKeepsItsOutputOpenAsItArrivesAsync() =>
         ui.RunAsync(() =>
         {

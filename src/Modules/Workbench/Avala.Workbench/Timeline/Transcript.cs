@@ -87,7 +87,7 @@ internal sealed record Transcript
     public Transcript Apply(IAgentEvent activity, DateTimeOffset now) => activity switch
     {
         TurnStarted started => this with { Turns = Turns.SetItem(started.Turn, new TurnTally(now, default, [])) },
-        ItemStarted started => Add(Opened(started, now)),
+        ItemStarted started => Add(Opened(started, now)).Refused(started.Turn, started.Item),
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
         ItemCompleted completed => Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
@@ -105,11 +105,12 @@ internal sealed record Transcript
             : entry);
 
     public Transcript Apply(PolicyDecision decision) =>
-        Change(EntryKeys.Permission(decision.Turn, decision.Item), entry => entry is PermissionEntry permission ? permission with { Decision = decision } : entry);
+        Change(EntryKeys.Permission(decision.Turn, decision.Item), entry => entry is PermissionEntry permission ? permission with { Decision = decision } : entry)
+            .Refused(decision.Turn, decision.Item);
 
     public Transcript Apply(HumanAnswer answer) =>
         Entries.OfType<PermissionEntry>().LastOrDefault(entry => entry.Session == answer.Session && entry.Item == answer.Item) is { } permission
-            ? Put(permission with { Answered = answer })
+            ? Put(permission with { Answered = answer }).Refused(permission.Turn, permission.Item)
             : this;
 
     public Transcript Apply(FormDecision decision) =>
@@ -118,7 +119,8 @@ internal sealed record Transcript
     private Transcript Exchange(IAgentEvent activity) => activity switch
     {
         PermissionRequested requested => Add(new PermissionEntry(EntryKeys.Permission(requested.Turn, requested.Item), requested.Session, requested.Turn, requested.Item, requested.Kind, requested.Title, requested.Target)),
-        PermissionResolved resolved => Change(EntryKeys.Permission(resolved.Turn, resolved.Item), entry => entry is PermissionEntry permission ? permission with { Resolution = resolved.Answer } : entry),
+        PermissionResolved resolved => Change(EntryKeys.Permission(resolved.Turn, resolved.Item), entry => entry is PermissionEntry permission ? permission with { Resolution = resolved.Answer } : entry)
+            .Refused(resolved.Turn, resolved.Item),
         FormRequested requested => Add(new FormEntry(EntryKeys.Item(requested.Turn, requested.Item), requested.Session, requested.Turn, requested.Item, requested.Form)),
         FormAnswered answered => Change(EntryKeys.Item(answered.Turn, answered.Item), entry => entry is FormEntry form ? form with { Answer = answered.Answer } : entry),
         RequestWithdrawn withdrawn => Withdrawn(withdrawn),
@@ -126,6 +128,11 @@ internal sealed record Transcript
         ToolReturned returned => Change(EntryKeys.Item(returned.Turn, returned.Item), entry => entry is ToolEntry tool ? tool with { Output = returned.Result.Content } : entry),
         _ => this,
     };
+
+    private Transcript Refused(TurnId turn, ItemId item) =>
+        Find(EntryKeys.Permission(turn, item)).Match(entry => entry is PermissionEntry { Denied: true }, () => false)
+            ? Change(EntryKeys.Item(turn, item), entry => entry is ToolEntry tool ? tool with { Denied = true } : entry)
+            : this;
 
     private Transcript Withdrawn(RequestWithdrawn withdrawn) =>
         Change(EntryKeys.Permission(withdrawn.Turn, withdrawn.Item), entry => entry is PermissionEntry permission ? permission with { Withdrawn = true } : entry)

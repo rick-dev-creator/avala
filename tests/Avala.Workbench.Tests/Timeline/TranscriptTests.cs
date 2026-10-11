@@ -242,6 +242,22 @@ public sealed class TranscriptTests
     }
 
     [Fact]
+    public void AToolWhosePermissionWasDeniedIsMarkedDeniedWhetherTheDenialArrivesBeforeOrAfterItEnds()
+    {
+        var edit = new ItemId("edit");
+        var asked = Played(
+            new ItemStarted(Session, Turn, edit, ItemKind.FileEdit, "Edit REVIEW.md"),
+            new PermissionRequested(Session, Turn, edit, "Edit REVIEW.md", ItemKind.FileEdit, "REVIEW.md"));
+        var ruled = new PolicyDecision(Session, Turn, edit, Option<JobId>.None, ItemKind.FileEdit, "REVIEW.md", PolicyAnswer.Deny, Option<PolicyRule>.None, DecisionDelivery.Answered, Start);
+
+        var deniedFirst = asked.Apply(ruled).Apply(new ItemCompleted(Session, Turn, edit, ItemOutcome.Cancelled), Start);
+        var endedFirst = asked.Apply(new ItemCompleted(Session, Turn, edit, ItemOutcome.Cancelled), Start).Apply(new PermissionResolved(Session, Turn, edit, PermissionAnswer.Deny), Start);
+        var allowed = asked.Apply(ruled with { Answer = PolicyAnswer.Allow }).Apply(new ItemCompleted(Session, Turn, edit, ItemOutcome.Succeeded), Start);
+
+        Assert.Equal([true, true, false], new[] { deniedFirst, endedFirst, allowed }.Select(transcript => transcript.Entries.OfType<ToolEntry>().Single().Denied));
+    }
+
+    [Fact]
     public void ContentForAnItemThatNeverStartedIsIgnored()
     {
         var transcript = Played(

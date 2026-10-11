@@ -21,6 +21,8 @@ internal interface IToolViewModel
 
     string Outcome { get; }
 
+    bool ShowsOutcome { get; }
+
     bool IsExpanded { get; }
 
     IRelayCommand ToggleCommand { get; }
@@ -61,6 +63,9 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     public partial string Outcome { get; private set; }
 
     [ObservableProperty]
+    public partial bool ShowsOutcome { get; private set; }
+
+    [ObservableProperty]
     public partial bool IsExpanded { get; private set; }
 
     public void Update(ITimelineEntry entry)
@@ -70,8 +75,10 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
             Title = tool.Delegation.Match(ConversationPhrases.Delegated, () => Presenting.CommandPhrases.Title(tool.Kind, tool.Title, Input));
             Output = tool.Output;
             IsRunning = tool.Outcome.IsNone;
-            Failed = tool.Outcome.Match(outcome => outcome != ItemOutcome.Succeeded, () => false);
-            Outcome = tool.Outcome.Match(ConversationPhrases.Outcome, () => "running");
+            var ended = tool.Outcome.Match(outcome => outcome != ItemOutcome.Succeeded, () => false);
+            Failed = ended && !tool.Denied;
+            ShowsOutcome = ended;
+            Outcome = tool.Outcome.Match(outcome => ConversationPhrases.Outcome(outcome, tool.Denied), () => "running");
         }
     }
 

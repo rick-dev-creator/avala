@@ -30,6 +30,9 @@ internal static class ConversationPhrases
     public static string Outcome(int attempt, AttemptOutcome outcome) =>
         string.Create(CultureInfo.InvariantCulture, $"attempt {attempt} {Went(outcome)}");
 
+    public static string Outcome(ItemOutcome outcome, bool denied) =>
+        denied && outcome != ItemOutcome.Succeeded ? "denied" : Outcome(outcome);
+
     public static string Outcome(ItemOutcome outcome) => outcome switch
     {
         ItemOutcome.Succeeded => "done",

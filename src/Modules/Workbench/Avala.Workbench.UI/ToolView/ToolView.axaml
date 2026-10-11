@@ -58,10 +58,11 @@
                    TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="Outcome"
                    Grid.Column="2"
-                   Classes="caption failure"
+                   Classes="caption"
+                   Classes.failure="{Binding Failed}"
                    VerticalAlignment="Center"
                    Text="{Binding Outcome}"
-                   IsVisible="{Binding Failed}" />
+                   IsVisible="{Binding ShowsOutcome}" />
       </Grid>
     </Button>
     <Border x:Name="Details"

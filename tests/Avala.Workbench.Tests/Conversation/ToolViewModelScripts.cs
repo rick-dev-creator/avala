@@ -34,6 +34,13 @@ public sealed class ToolViewModelScripts
             .Then(tool => Assert.Equal((phrase, failed, false, "PASS"), (tool.Outcome, tool.Failed, tool.IsRunning, tool.Output)));
 
     [Fact]
+    public void ADeniedToolSaysItWasDeniedAndIsNoFailure() =>
+        ViewModelScript.Given(new ToolViewModel(Running()))
+            .When(tool => tool.Update(Running() with { Outcome = ItemOutcome.Cancelled, Denied = true }))
+            .ThenNotified(nameof(ToolViewModel.Outcome), nameof(ToolViewModel.ShowsOutcome))
+            .Then(tool => Assert.Equal(("denied", false, true), (tool.Outcome, tool.Failed, tool.ShowsOutcome)));
+
+    [Fact]
     public void AnExpandedToolStaysExpandedWhileItsOutputStreams() =>
         ViewModelScript.Given(new ToolViewModel(Running()))
             .Invoke(nameof(ToolViewModel.ToggleCommand))

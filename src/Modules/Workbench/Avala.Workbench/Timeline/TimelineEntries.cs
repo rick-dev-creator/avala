@@ -34,6 +34,8 @@ internal sealed record ToolEntry(string Key, ItemKind Kind, string Title, string
     public Option<ToolCalled> Called { get; init; }
 
     public Option<DelegationRecord> Delegation { get; init; }
+
+    public bool Denied { get; init; }
 }
 
 internal sealed record PlanEntry(string Key, IReadOnlyList<PlanStep> Steps) : ITimelineEntry
@@ -59,6 +61,11 @@ internal sealed record PermissionEntry(string Key, SessionId Session, TurnId Tur
     public bool Closed { get; init; }
 
     public bool Withdrawn { get; init; }
+
+    public bool Denied =>
+        Resolution == Option<PermissionAnswer>.Some(PermissionAnswer.Deny)
+        || Decision.Match(decision => decision.Answer == PolicyAnswer.Deny, () => false)
+        || Answered.Match(answer => answer.Answer == PermissionAnswer.Deny, () => false);
 
     public bool WentToHuman => Decision.Match(decision => decision.Delivery is not (DecisionDelivery.Answered or DecisionDelivery.LeftToParent), () => false);
 
