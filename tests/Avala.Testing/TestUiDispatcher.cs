@@ -9,6 +9,7 @@ public sealed class TestUiDispatcher : SynchronizationContext, IUiDispatcher, ID
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(30);
 
     private readonly BlockingCollection<Action> work = [];
+    private readonly BlockingCollection<bool> resumed = [];
     private readonly List<(Func<bool> Condition, TaskCompletionSource Reached)> waiters = [];
 
     public TestUiDispatcher()
@@ -61,6 +62,27 @@ public sealed class TestUiDispatcher : SynchronizationContext, IUiDispatcher, ID
             var state = await ReadAsync(() => Describe(describe));
 
             throw new TimeoutException($"The condition was not reached within {Patience.TotalSeconds:0} s. Last state: {state}");
+        }
+    }
+
+    public async Task HostAsync(Func<Action, Task> session)
+    {
+        var parked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        work.Add(
+            () =>
+            {
+                parked.SetResult();
+                _ = resumed.Take();
+            });
+        await parked.Task;
+
+        try
+        {
+            await session(Drain);
+        }
+        finally
+        {
+            resumed.Add(true);
         }
     }
 
@@ -141,7 +163,29 @@ public sealed class TestUiDispatcher : SynchronizationContext, IUiDispatcher, ID
         }
     }
 
-    public void Dispose() => work.CompleteAdding();
+    public void Dispose()
+    {
+        work.CompleteAdding();
+        resumed.CompleteAdding();
+    }
+
+    private void Drain()
+    {
+        var outer = Current;
+        SetSynchronizationContext(this);
+
+        try
+        {
+            while (work.TryTake(out var next))
+            {
+                Perform(next);
+            }
+        }
+        finally
+        {
+            SetSynchronizationContext(outer);
+        }
+    }
 
     private void Run()
     {
@@ -149,17 +193,22 @@ public sealed class TestUiDispatcher : SynchronizationContext, IUiDispatcher, ID
 
         foreach (var next in work.GetConsumingEnumerable())
         {
-            try
-            {
-                next();
-            }
-            catch (Exception failure)
-            {
-                Fail(failure);
-            }
-
-            Check();
+            Perform(next);
         }
+    }
+
+    private void Perform(Action next)
+    {
+        try
+        {
+            next();
+        }
+        catch (Exception failure)
+        {
+            Fail(failure);
+        }
+
+        Check();
     }
 
     private void Check()

@@ -20,39 +20,39 @@ internal sealed class FeatureCamera(HeadlessUi ui, string folder)
         ShootAsync(run, name, ThemeVariant.Dark, arrange);
 
     public Task ShootAsync(SimulatedRun run, string name, ThemeVariant variant, params Action<Window>[] arrange) =>
-        ui.RunAsync(
-            async () =>
+        ui.RunAsync(() => run.Ui.HostAsync(drain => ShootHostedAsync(run, name, variant, arrange, drain)), TestContext.Current.CancellationToken);
+
+    private async Task ShootHostedAsync(SimulatedRun run, string name, ThemeVariant variant, Action<Window>[] arrange, Action drain)
+    {
+        Application.Current!.DataTemplates.Add(run.Views);
+        var window = new ShellView { Width = 1440, Height = 900, RequestedThemeVariant = variant };
+        window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
+        Avala.Components.UI.Theme.Motion.SetIsReduced(window, true);
+        window.DataContext = run.Get<ShellViewModel>();
+
+        try
+        {
+            window.Show();
+            Pump(drain);
+
+            foreach (var step in arrange)
             {
-                Application.Current!.DataTemplates.Add(run.Views);
-                var window = new ShellView { Width = 1440, Height = 900, RequestedThemeVariant = variant };
-                window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
-                Avala.Components.UI.Theme.Motion.SetIsReduced(window, true);
-                window.DataContext = run.Get<ShellViewModel>();
+                step(window);
+                Pump(drain);
+            }
 
-                try
-                {
-                    window.Show();
-                    Pump();
-
-                    foreach (var step in arrange)
-                    {
-                        step(window);
-                        Pump();
-                    }
-
-                    window.CaptureRenderedFrame()?.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, name + ".png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
-                    var texts = Directory.CreateDirectory(Path.Combine(folder, "texts")).FullName;
-                    await File.WriteAllLinesAsync(Path.Combine(texts, name + ".txt"), Texts(window), TestContext.Current.CancellationToken);
-                }
-                finally
-                {
-                    window.DataContext = null;
-                    Pump();
-                    window.Close();
-                    Application.Current.DataTemplates.Remove(run.Views);
-                }
-            },
-            TestContext.Current.CancellationToken);
+            window.CaptureRenderedFrame()?.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, name + ".png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+            var texts = Directory.CreateDirectory(Path.Combine(folder, "texts")).FullName;
+            await File.WriteAllLinesAsync(Path.Combine(texts, name + ".txt"), Texts(window), TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            window.DataContext = null;
+            Pump(drain);
+            window.Close();
+            Application.Current.DataTemplates.Remove(run.Views);
+        }
+    }
 
     public static void ScrollTo(Window window, string text)
     {
@@ -102,10 +102,11 @@ internal sealed class FeatureCamera(HeadlessUi ui, string folder)
                 .Select(text => text.Text!.ReplaceLineEndings(" ⏎ ")),
         ];
 
-    private static void Pump()
+    private static void Pump(Action drain)
     {
         for (var frame = 0; frame < 60; frame++)
         {
+            drain();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
         }
