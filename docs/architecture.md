@@ -78,6 +78,10 @@ Around them, **Resources** samples the processes, ports and disk every job uses,
 
 **Notifications** tells your phone when a job needs you while you are away from the Avala window: a decision left to you, a held job, a budget or limit hold, a failed job or an ended loop, and a job ready for review if you ask for it. It only listens to other modules' events; only the Workbench reads its contracts, to show its settings. A notice waits thirty seconds so several become one message, is never sent if you answer in the app first, and is sent only once nobody has touched the Avala window for two minutes, a signal the host offers every plugin through the SDK's `IPresence`. It goes to [ntfy](https://ntfy.sh), on a private random topic by default or a server of your own, with an emoji tag per kind that ntfy shows as an icon, or to a webhook of your own, signed like a trigger webhook. What is sent is minimal by default, the event, the repository, the job's title and a count, and the tool and target are added only if you choose detail, through the same redaction as the log. One notice per job and kind until it is resolved, even across a restart, at most twenty an hour, urgent ones through your quiet hours and the rest in one digest after, retried three times before it is reported failed. `notifications.json` in the data folder holds the settings and names the environment variables of any token or secret, never the secret itself; Settings shows exactly what is sent and sends a test.
 
+## Usage statistics
+
+A packaged release counts installs and daily active installs through [Aptabase](https://aptabase.com), and nothing else. `UsageTelemetry` in the runtime, beside the update check and behind the SDK's `ITelemetry`, sends `installed` once ever and `active` at most once per local day, each with the version, the operating system and its architecture under a random install ID kept in `telemetry.json`. It runs in the background at startup and at local midnight, never blocks the window and retries what failed at the next start. Only a build packaged with the `AvalaTelemetryKey` property can send, and `DO_NOT_TRACK=1`, `AVALA_TELEMETRY=0` or the person's choice turn it off; the Workbench shows a one-time notice in the sidebar's footer and a section in Settings, About, with the status, the install ID and exactly what is sent. [Releasing](release.md#usage-statistics) has the details.
+
 ## Persistence
 
 Each module owns its data in its own SQLite database under the data folder, through EF Core with migrations, and no module reads another module's data. Every fact a screen presents as part of a job's record, such as the job, its usage, its evidence, its audit and its conversation, survives a restart; what belongs to a live session, such as a pending permission, dies with it. Database work never runs on the UI thread, and an architecture test checks that every module's model matches its latest migration.
@@ -140,6 +144,6 @@ Comments are banned, so every exception to an analyzer is recorded here. The arc
 
 ## Learn more
 
-- [Releasing](release.md): packages, signing and the update check.
+- [Releasing](release.md): packages, usage statistics, signing and the update check.
 - [Diagrams](diagrams/): the lifecycles of jobs, turns, workspaces, canvases and contests, generated from the code.
 - [Contributing](../CONTRIBUTING.md): building, testing and sending a change.

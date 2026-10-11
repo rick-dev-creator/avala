@@ -51,6 +51,15 @@ Screenshots are taken from the real application, driven headless by the simulato
 
 Coming soon: builds for Windows, macOS and Linux will be published on the [releases page](https://github.com/rick-dev-creator/avala/releases). Until then, build it from source.
 
+## Privacy
+
+A released build of Avala sends anonymous usage statistics to [Aptabase](https://aptabase.com) so we can count installs and daily active installs. Nothing else leaves your computer on Avala's behalf.
+
+- **What is sent.** An `installed` event once ever, and an `active` event at most once per local day, each with Avala's version, your operating system's name, version and architecture, and a random install ID made on first run. The install ID is never derived from your hardware, user name or paths.
+- **What is never sent.** Repositories, jobs, prompts, paths, harnesses, connections, accounts, costs, the features you use or your locale.
+- **Turning it off.** Choose Turn off on the notice shown on first run, or clear Send usage statistics in Settings, About; or set `DO_NOT_TRACK=1` or `AVALA_TELEMETRY=0` in Avala's environment. Settings shows the exact event that is sent and lets you reset the install ID.
+- **Builds from source** send nothing: only a packaged release holds the key that makes sending possible.
+
 ## Build
 
 Requires the .NET 10 SDK and git 2.40 or later.
@@ -63,7 +72,7 @@ dotnet test --solution Avala.slnx
 ## Learn more
 
 - [Architecture](docs/architecture.md): the rules every change must pass.
-- [Releasing](docs/release.md): packages, signing and the update check.
+- [Releasing](docs/release.md): packages, usage statistics, signing and the update check.
 - [Contributing](CONTRIBUTING.md): how to build, test and send a change.
 - [AGENTS.md](AGENTS.md): what an agent working on Avala reads first.
 

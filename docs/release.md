@@ -1,6 +1,6 @@
 # Releasing
 
-How a version of Avala reaches people: the packages, how a release is cut, signing, and how a running Avala learns that a newer one is out. Nothing here publishes on its own: a release is a draft until the owner publishes it.
+How a version of Avala reaches people: the packages, how a release is cut, its usage statistics, signing, and how a running Avala learns that a newer one is out. Nothing here publishes on its own: a release is a draft until the owner publishes it.
 
 ## Versions
 
@@ -33,7 +33,7 @@ dotnet run scripts/package.cs -- --rid linux-x64 --smoke
 
 ### The smoke run
 
-`Avala --smoke` starts the real application on Avalonia's headless platform, so it needs no display: it composes every plugin, runs the startup tasks and the migrations in a temporary data folder, shows the main window, prints `Avala <version> composed <n> pages and showed its main window.` and exits 0. With no plugin found it exits 2, on a failure 1. It never checks for updates. `Avala --version` prints `Avala <version> (<commit>)`. Use both to check a package on a machine before trusting it.
+`Avala --smoke` starts the real application on Avalonia's headless platform, so it needs no display: it composes every plugin, runs the startup tasks and the migrations in a temporary data folder, shows the main window, prints `Avala <version> composed <n> pages and showed its main window.` and exits 0. With no plugin found it exits 2, on a failure 1. It never checks for updates or sends usage statistics. `Avala --version` prints `Avala <version> (<commit>)`. Use both to check a package on a machine before trusting it.
 
 ## Cutting a release
 
@@ -51,6 +51,35 @@ dotnet run scripts/package.cs -- --rid linux-x64 --smoke
 6. Replace "Coming soon" in the README's Install section with a link to the release, and raise `VersionPrefix` in `Directory.Build.props`.
 
 To redo a release before publishing it, delete the draft and the tag, locally and on GitHub, fix what was wrong and tag again.
+
+## Usage statistics
+
+A packaged release sends anonymous usage statistics to [Aptabase](https://aptabase.com); a build without the key sends nothing. The key is never in the source: it is the repository variable `AVALA_TELEMETRY_KEY`, an Aptabase app key such as `A-US-…`, which the release workflow passes to `scripts/package.cs` as an environment variable, and the script bakes into the host's assembly metadata as the build property `AvalaTelemetryKey`. A self-hosted Aptabase takes an `A-SH-…` key and its address in the repository variable `AVALA_TELEMETRY_HOST`, baked as `AvalaTelemetryHost`. The script says whether it packages with usage statistics, naming the region and never the key. Builds from a checkout, CI's test runs, the tests and `--smoke` never send anything.
+
+- **Where they go.** The key decides the region: `A-EU-…` to `https://eu.aptabase.com`, `A-US-…` to `https://us.aptabase.com`, `A-SH-…` to `AVALA_TELEMETRY_HOST`. Each event is `POST <host>/api/v0/event` with the headers `App-Key: <key>`, `Content-Type: application/json` and an `Avala` user agent.
+- **What is sent.** `installed` once ever and `active` at most once per local day, at startup and at local midnight while Avala runs:
+
+  ```json
+  {
+    "timestamp": "2026-10-12T09:30:00.000Z",
+    "sessionId": "3f2b8c1e-7d4a-4e09-9b6f-52c1a0d8e7f4",
+    "eventName": "active",
+    "systemProps": { "osName": "Linux", "osVersion": "6.10.2", "appVersion": "0.1.0-beta.1", "sdkVersion": "avala" },
+    "props": { "architecture": "x64" }
+  }
+  ```
+
+  The session ID is the install ID, a random GUID made on first run and kept in `telemetry.json` in the data folder. Nothing else is sent: no locale, no debug flag, no repository, job, prompt, path, harness, connection, account, cost or feature.
+- **Reading the dashboard.** The count of `installed` events is the number of installs, and the count of `active` events on a day is that day's active installs. Since the session is the install ID, Aptabase's sessions over a week or a month count the distinct installs active in it. Aptabase identifies a visitor by a hash of the address and user agent with a salt it rotates daily, per its privacy policy; that is Aptabase's matter, not Avala's.
+- **Turning it off.** Turn off on the first-run notice, Send usage statistics in Settings, About, `DO_NOT_TRACK=1`, or `AVALA_TELEMETRY=0`. `telemetry.json` can also be edited:
+
+  ```json
+  { "enabled": false }
+  ```
+
+  A file that cannot be read turns sending off and is left as it is.
+- **Failures.** Sending runs in the background and never delays the window, waits at most 5 seconds, logs a failure at debug level and tries again at the next start. An event is marked sent only once Aptabase accepted it.
+- **Where it lives.** `UsageTelemetry` in `Avala.Runtime.Telemetry`, behind the SDK's `ITelemetry`; only the host's real composition gives it the HTTP sender, and only when the build holds a key. The update check below is separate and stays anonymous.
 
 ## Signing
 
