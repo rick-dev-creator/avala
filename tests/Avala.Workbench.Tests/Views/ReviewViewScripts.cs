@@ -34,6 +34,17 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task TheQuietLineStartsInTheColumnOfEveryOtherRowOfTheSheetAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Tall(Screen.Show(new DesignReviewViewModel()));
+            double Left(string name) => Avalonia.VisualExtensions.TranslatePoint(view.Find(name), default, view.Window)?.X ?? double.NaN;
+
+            Assert.Equal(Left("ExceptionCount"), Left("Quiet"), 1);
+            Assert.Equal(Left("Exceptions"), Left("Quiet"), 1);
+        }, Cancellation);
+
+    [Fact]
     public Task ALongDeniedCommandShowsInABoundedWellAndApproveStaysInSightWithoutScrollingAsync() =>
         ui.RunAsync(() =>
         {

@@ -161,7 +161,7 @@
               </ItemsControl>
               <TextBlock x:Name="Quiet"
                          Classes="caption"
-                         Margin="12,10,12,0"
+                         Margin="0,10,0,0"
                          Text="{Binding Quiet}"
                          TextWrapping="Wrap"
                          IsVisible="{Binding Quiet, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
