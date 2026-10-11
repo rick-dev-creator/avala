@@ -22,6 +22,7 @@ internal sealed class BoardJoiner(IVerifications verifications, ITranscripts tra
         return new BoardJob(history.Summary, moved.Aggregate(transcript, (noted, handoff) => noted.WithHandoff(handoff)))
         {
             Handoffs = moved,
+            Hold = history.Summary.Status == JobStatus.NeedsHelp ? history.Summary.Hold : Option<HoldReason>.None,
             Wait = history.Summary.Status == JobStatus.NeedsHelp ? handoffs.WaitOf(history.Summary.Job) : Option<ResetWait>.None,
             Attempts = attempts.Count,
             Verification = verified.Count > 0 ? verified[^1] : Option<VerificationReport>.None,

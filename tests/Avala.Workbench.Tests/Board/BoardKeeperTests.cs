@@ -200,6 +200,17 @@ public sealed class BoardKeeperTests
     }
 
     [Fact]
+    public async Task AJobHeldInAnEarlierRunJoinsWithWhyItWasHeldAsync()
+    {
+        var job = catalog.Add("Fix the failing test", JobStatus.NeedsHelp, Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Interrupted)).Summary.Job;
+        catalog.Change(job, history => history with { Summary = history.Summary with { Hold = HoldReason.Stopped } });
+
+        await keeper.HandleAsync(new StartupCompleted(), Cancellation);
+
+        Assert.Equal(Option<HoldReason>.Some(HoldReason.Stopped), Joined(job).Hold);
+    }
+
+    [Fact]
     public async Task AJobThatStartsShowsTheConnectionItsSessionOpenedOnAsync()
     {
         var job = catalog.Add("Fix the failing test").Summary.Job;

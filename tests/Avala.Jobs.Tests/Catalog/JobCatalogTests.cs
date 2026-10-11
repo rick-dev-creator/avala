@@ -30,6 +30,17 @@ public sealed class JobCatalogTests
     }
 
     [Fact]
+    public async Task AHeldJobIsListedWithWhyItWasHeldAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.HeldAsync(HoldReason.Stopped);
+
+        var listed = Assert.Single(await flow.Catalog.ListAsync(Cancellation));
+
+        Assert.Equal((job.Id, JobStatus.NeedsHelp, Option<HoldReason>.Some(HoldReason.Stopped)), (listed.Job, listed.Status, listed.Hold));
+    }
+
+    [Fact]
     public async Task AJobsHistoryListsItsAttemptsAndTheSessionsTheyRanInAsync()
     {
         var flow = JobFlow.With();

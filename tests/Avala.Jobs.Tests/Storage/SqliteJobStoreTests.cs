@@ -38,6 +38,20 @@ public sealed class SqliteJobStoreTests
     }
 
     [Fact]
+    public async Task WhyAJobWasHeldSurvivesAReloadAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var held = Given.JobIn(JobState.Running);
+        Outcomes.Succeeds(held.Hold(HoldReason.BudgetExceeded));
+        var running = Given.JobIn(JobState.Running);
+        await SaveAsync(folder, held, running);
+
+        var reloaded = (await ReloadAsync(folder, store => store.FindAsync(held.Id, Cancellation)), await ReloadAsync(folder, store => store.FindAsync(running.Id, Cancellation)));
+
+        Assert.Equal((Option<HoldReason>.Some(HoldReason.BudgetExceeded), Option<HoldReason>.None), (reloaded.Item1.Held, reloaded.Item2.Held));
+    }
+
+    [Fact]
     public async Task WhenAJobEndedSurvivesAReloadAsync()
     {
         using var folder = new TemporaryFolder();

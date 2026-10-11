@@ -50,6 +50,8 @@ public sealed record JobSummary(
 
     public Option<DateTimeOffset> Ended { get; init; }
 
+    public Option<HoldReason> Hold { get; init; }
+
     public ModelChoice Model { get; init; } = ModelChoice.Default;
 }
 

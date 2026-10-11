@@ -35,6 +35,11 @@ namespace Avala.Jobs.Storage.Migrations
                     b.Property<long>("Ended")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Held")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Hold");
+
                     b.Property<string>("Instruction")
                         .IsRequired()
                         .HasColumnType("TEXT");

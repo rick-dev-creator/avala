@@ -50,6 +50,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public ModelChoice Model { get; private init; } = ModelChoice.Default;
 
+    public Option<HoldReason> Held { get; private set; }
+
     public IReadOnlyList<Attempt> Attempts => attempts;
 
     public static Result<Job, JobError> Create(
@@ -255,6 +257,7 @@ internal sealed class Job : IAggregateRoot<JobId>
             .Map(_ =>
             {
                 InterruptUnderwayAttempt();
+                Held = reason;
 
                 return new JobHeld(Id, attempts[^1].Number, reason);
             });
@@ -284,6 +287,7 @@ internal sealed class Job : IAggregateRoot<JobId>
     private AttemptStarted Begin(AttemptOrigin origin, Option<Feedback> guidance)
     {
         var number = attempts.Count == 0 ? AttemptNumber.First : attempts[^1].Number.Next;
+        Held = Option<HoldReason>.None;
         attempts.Add(new Attempt(number, origin, guidance, Session));
 
         return new AttemptStarted(Id, number, origin, guidance);

@@ -140,7 +140,18 @@ public sealed class JobLifecycleTests
         var job = Given.JobIn(JobState.Running);
 
         Assert.Equal(new JobHeld(job.Id, AttemptNumber.First, HoldReason.Stalled), Outcomes.Succeeds(job.Hold(HoldReason.Stalled)));
-        Assert.Equal(JobState.NeedsHelp, job.State);
+        Assert.Equal((JobState.NeedsHelp, Option<HoldReason>.Some(HoldReason.Stalled)), (job.State, job.Held));
         Assert.Equal(AttemptOutcome.Interrupted, Assert.Single(job.Attempts).Outcome);
+    }
+
+    [Fact]
+    public void AHeldJobForgetsWhyItWasHeldOnceItRunsAgain()
+    {
+        var job = Given.JobIn(JobState.Running);
+        Outcomes.Succeeds(job.Hold(HoldReason.Stopped));
+
+        Outcomes.Succeeds(job.Hint(Given.Feedback));
+
+        Assert.Equal((JobState.Running, Option<HoldReason>.None), (job.State, job.Held));
     }
 }

@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Sessions;
+using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Storage;
@@ -17,7 +18,11 @@ internal static class Stored
 
     public static string Text(ModelChoice choice) => choice.IsDefault ? string.Empty : StoredJson.Write(choice);
 
+    public static string Text(Option<HoldReason> hold) => hold.Match(reason => reason.ToString(), () => string.Empty);
+
     public static ModelChoice Model(string text) => text.Length == 0 ? ModelChoice.Default : StoredJson.Read<ModelChoice>(text);
+
+    public static Option<HoldReason> Hold(string text) => text.Length == 0 ? Option<HoldReason>.None : Enum.Parse<HoldReason>(text);
 
     private static T Restore<T>(Result<T, JobError> stored) =>
         stored.Match(value => value, error => throw new InvalidDataException($"Stored job data is invalid: {error}"));

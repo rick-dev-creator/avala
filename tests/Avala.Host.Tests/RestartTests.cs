@@ -157,6 +157,22 @@ public sealed class RestartTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AStoppedJobStillSaysItWasStoppedOnTheSidebarAndInItsConversationAfterARestartAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "hang");
+        await run.ResumableAsync();
+        Outcomes.Succeeds(await run.Get<IJobs>().HoldAsync(run.Job, HoldReason.Stopped, TestContext.Current.CancellationToken));
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        var before = await HeldAsync(run);
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        Assert.Equal(("NeedsYou", "stopped"), (before.Group, before.Fact));
+        Assert.Equal(before, await HeldAsync(run));
+    }
+
+    [Fact]
     public async Task TheReasonAndComparedReadingsOfAConnectionChosenByCapacityShowTheSameAfterARestartAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/budget.json", """{ "holdAtLimit": 0.9 }""")]);
@@ -427,6 +443,15 @@ public sealed class RestartTests(PublishedPlugins plugins)
     private const string GovernedPolicy = """
         { "autonomy": "autonomous", "rules": [ { "name": "no-migrations", "kind": "command", "target": "dotnet ef*", "answer": "deny" } ] }
         """;
+
+    private static async Task<(string Group, string Fact, string Pill)> HeldAsync(SimulatedRun run)
+    {
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        var (group, fact) = await workbench.RowAsync(run.Job, "NeedsYou");
+
+        return (group, fact, await run.Ui.ReadAsync(() => conversation["Pill"]["Text"].Text));
+    }
 
     private static async Task<IReadOnlyList<string>> AuditAsync(SimulatedRun run)
     {
