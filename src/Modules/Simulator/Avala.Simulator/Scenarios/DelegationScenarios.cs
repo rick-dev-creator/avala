@@ -232,6 +232,35 @@ internal static class DelegationScenarios
         ],
     ]);
 
+    public static Scenario DelegatedAskingThenReviewed { get; } = new("delegate-asks-parent-then-review",
+    [
+        [
+            Thought("A supervised sub-agent writes mul and asks me first; ", "a reviewer reads it afterwards."),
+            new CallTools([Delegation("delegate-worker", """{ "instruction": "[simulate: mul-asks] Implement mul(a, b) in calc.js with a test, and run node demo.js once", "autonomy": "supervised" }""")])
+            {
+                AnswersChildren = "allow",
+            },
+            new RunCommand(new ItemId("tests"), "node --test", "# pass 3", AsksPermission: false),
+            Delegation("delegate-review", """{ "instruction": "[simulate: review] Review calc.js and its tests and write REVIEW.md", "role": "reviewer" }"""),
+            Message("mul is integrated and tested, ", "and the review came back."),
+            .. Bill(2_400, 180, 0.0090m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario MulAsking { get; } = new("mul-asks",
+    [
+        [
+            Thought("Adding mul with its test, ", "then showing the demo."),
+            new WriteFile(new ItemId("mul"), "calc.js", "module.exports = { add: (a, b) => a + b, mul: (a, b) => a * b };\n"),
+            new WriteFile(new ItemId("mul-test"), "test/mul.test.js", "const test = require('node:test');\nconst assert = require('node:assert');\nconst { mul } = require('../calc');\n\ntest('multiplies', () => assert.strictEqual(mul(2, 3), 6));\n"),
+            new RunCommand(new ItemId("demo"), "node demo.js", "5", AsksPermission: true),
+            Message("Added mul with a test; node demo.js prints 5."),
+            .. Bill(1_500, 100, 0.0055m, 0.20),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario DelegatedReview { get; } = new("delegate-review",
     [
         [
@@ -257,8 +286,8 @@ internal static class DelegationScenarios
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedOnModels, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
-        DelegatedAsking, DelegatedAskingAlongside, DelegatedReview,
-        Notes, RevisedNotes, Todo, Expensive, PausedNotes, Review,
+        DelegatedAsking, DelegatedAskingAlongside, DelegatedAskingThenReviewed, DelegatedReview,
+        Notes, RevisedNotes, Todo, Expensive, PausedNotes, Review, MulAsking,
     ];
 
     private static CallTool Delegation(string item, string input) => new(new ItemId(item), ScenarioCatalog.Delegate, input);
