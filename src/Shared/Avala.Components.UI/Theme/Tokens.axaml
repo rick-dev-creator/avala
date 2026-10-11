@@ -96,7 +96,7 @@
       <Color x:Key="PanelTintColor">#EEEEF2</Color>
       <Color x:Key="FloatTintColor">#FFFFFF</Color>
       <Color x:Key="AccentColor">#4458CC</Color>
-      <Color x:Key="AttentionColor">#A86400</Color>
+      <Color x:Key="AttentionColor">#945800</Color>
       <Color x:Key="FailureColor">#D9221F</Color>
 
       <SolidColorBrush x:Key="SurfaceWindowBrush" Color="#FBFBFC" />
@@ -135,8 +135,8 @@
       <SolidColorBrush x:Key="AccentHoverBrush" Color="#3546B0" />
       <SolidColorBrush x:Key="AccentSubtleBrush" Color="#1A4458CC" />
       <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
-      <SolidColorBrush x:Key="AttentionBrush" Color="#A86400" />
-      <SolidColorBrush x:Key="AttentionBorderBrush" Color="#59A86400" />
+      <SolidColorBrush x:Key="AttentionBrush" Color="#945800" />
+      <SolidColorBrush x:Key="AttentionBorderBrush" Color="#59945800" />
       <SolidColorBrush x:Key="OnAttentionBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="FailureBrush" Color="#D9221F" />
       <SolidColorBrush x:Key="FailureBorderBrush" Color="#4DD9221F" />

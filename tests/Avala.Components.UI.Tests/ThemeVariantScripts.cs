@@ -45,6 +45,22 @@ public sealed class ThemeVariantScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Theory]
+    [MemberData(nameof(Variants))]
+    public Task AttentionCaptionsReadAsBodyTextOnEveryPanelAndOnAnOpenFoldOverItAsync(string name) =>
+        ui.RunAsync(() =>
+        {
+            var variant = Variant(name);
+            var attention = Legibility.Resource("AttentionBrush", variant);
+            Color[] fills =
+            [
+                .. Surfaces.Select(key => Legibility.Resource(key, variant)),
+                .. Surfaces.Select(key => Legibility.Over(Legibility.Resource("FillQuietBrush", variant), Legibility.Resource(key, variant))),
+            ];
+
+            Assert.All(fills, fill => Assert.True(Legibility.Contrast(attention, fill) >= 4.5, $"attention {attention} reads {Legibility.Contrast(attention, fill):0.00}:1 on {fill}"));
+        }, Cancellation);
+
+    [Theory]
     [InlineData("FailureBrush")]
     [InlineData("AttentionBrush")]
     public Task TheLightThemeKeepsTheHueAndVividnessOfTheDarkThemesStatusColourAsync(string key) =>
