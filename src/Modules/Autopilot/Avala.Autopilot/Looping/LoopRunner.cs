@@ -43,7 +43,9 @@ internal sealed class LoopRunner : IAsyncDisposable
         await AdvanceAsync(token);
     });
 
-    public void Progressed(JobProgressed progressed) => Post(token => OnProgressedAsync(progressed, token));
+    public void Resume() => Post(RecoverAsync);
+
+    public void Progressed(JobProgressed progressed) => Post(token => OnStatusAsync(progressed.Job, progressed.Status, token));
 
     public void Held(JobHold hold) => Post(token => OnHeldAsync(hold, token));
 
@@ -66,7 +68,7 @@ internal sealed class LoopRunner : IAsyncDisposable
 
                 await DisarmAsync();
                 var pause = new LoopPause(PauseReason.Command, clock.GetUtcNow(), Option<DateTimeOffset>.None);
-                Change(record.Paused(pause));
+                await ChangeAsync(record.Paused(pause), token);
                 await journal.PublishAsync(new LoopPaused(Id, pause), token);
 
                 return Id;
@@ -167,37 +169,65 @@ internal sealed class LoopRunner : IAsyncDisposable
                 Failure = FailureSignatures.Rejected(rejection),
             };
             await steps.Sources.MarkAsync(task, new TaskMark(TaskState.Failed, Option<JobId>.None, now), token);
-            Change(record.Settled(iteration, Option<ConnectionName>.None));
+            await ChangeAsync(record.Settled(iteration, Option<ConnectionName>.None), token);
             await journal.PublishAsync(new LoopIterated(Id, iteration), token);
             Post(AdvanceAsync);
             return;
         }
 
         await steps.Sources.MarkAsync(task, new TaskMark(TaskState.Taken, job, now), token);
-        Change(record.Took(task, job));
+        await ChangeAsync(record.Took(task, job), token);
         await journal.PublishAsync(new LoopTaskTaken(Id, number, task, job), token);
     }
 
-    private async Task OnProgressedAsync(JobProgressed progressed, CancellationToken token)
+    private Task RecoverAsync(CancellationToken token) => record switch
     {
-        if (!IsCurrent(progressed.Job))
+        { Status: LoopStatus.Waiting } => ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), WakeAsync),
+        { Status: LoopStatus.Paused } when record.Pause == Option<PauseReason>.Some(PauseReason.UsageLimit) =>
+            ArmAsync(record.Until.Match(until => until, clock.GetUtcNow), ResumeAfterResetAsync),
+        { Current.IsSome: true } => ReconcileAsync(record.Current.Match(underway => underway.Job, () => default), token),
+        { Status: LoopStatus.Running } => AdvanceAsync(token),
+        _ => Task.CompletedTask,
+    };
+
+    private async Task ReconcileAsync(JobId job, CancellationToken token)
+    {
+        var status = await steps.Approver.StatusAsync(job, token);
+
+        if (status == Option<JobStatus>.Some(JobStatus.NeedsHelp))
+        {
+            await SettleAsync(IterationOutcome.NeedsHelp, await steps.Approver.GatherAsync(job, token), Settlement.None, token);
+        }
+        else if (status.IsNone)
+        {
+            await SettleAsync(IterationOutcome.Failed, JobEvidence.None, Settlement.None, token);
+        }
+        else
+        {
+            await OnStatusAsync(job, status.Match(known => known, () => JobStatus.Failed), token);
+        }
+    }
+
+    private async Task OnStatusAsync(JobId job, JobStatus status, CancellationToken token)
+    {
+        if (!IsCurrent(job))
         {
             return;
         }
 
-        switch (progressed.Status)
+        switch (status)
         {
             case JobStatus.Running when AwaitsReset:
                 await RunsAgainAsync(token);
                 break;
             case JobStatus.AwaitingReview:
-                await JudgeAsync(progressed.Job, token);
+                await JudgeAsync(job, token);
                 break;
             case JobStatus.NeedsHelp:
-                await HelpAsync(progressed.Job, token);
+                await HelpAsync(job, token);
                 break;
             case JobStatus.Failed or JobStatus.Approved or JobStatus.Discarded:
-                await SettleAsync(Concluded(progressed.Status), await steps.Approver.GatherAsync(progressed.Job, token), Settlement.None, token);
+                await SettleAsync(Concluded(status), await steps.Approver.GatherAsync(job, token), Settlement.None, token);
                 break;
         }
     }
@@ -206,7 +236,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     {
         var evidence = await steps.Approver.GatherAsync(job, token);
         var decision = await steps.Approver.DecideAsync(Id, job, evidence, token);
-        Change(record.Approved(decision));
+        await ChangeAsync(record.Approved(decision), token);
         await SettleAsync(
             decision.Approved ? IterationOutcome.ApprovedAutomatically : IterationOutcome.AwaitingReview,
             evidence,
@@ -259,7 +289,7 @@ internal sealed class LoopRunner : IAsyncDisposable
             Cost = steps.Gauges.SpendOf(underway.Job),
         };
         await steps.Sources.MarkAsync(underway.Task, new TaskMark(StateOf(outcome), underway.Job, now), token);
-        Change(record.Settled(iteration, evidence.Connection));
+        await ChangeAsync(record.Settled(iteration, evidence.Connection), token);
         await journal.PublishAsync(new LoopIterated(Id, iteration), token);
         await AdvanceAsync(token);
     }
@@ -268,7 +298,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     {
         var pause = new LoopPause(PauseReason.UsageLimit, clock.GetUtcNow(), until) { Window = limit.Window };
         var paused = record.Paused(pause);
-        Change(continues ? paused.Awaiting(underway => underway with { ContinuesAfterReset = true }) : paused);
+        await ChangeAsync(continues ? paused.Awaiting(underway => underway with { ContinuesAfterReset = true }) : paused, token);
         await ArmAsync(until, ResumeAfterResetAsync);
         await journal.PublishAsync(new LoopPaused(Id, pause), token);
     }
@@ -284,7 +314,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     private async Task ResumeNowAsync(CancellationToken token)
     {
         await DisarmAsync();
-        Change(record.Resumed());
+        await ChangeAsync(record.Resumed(), token);
         var continuing = record.Current.Bind(underway => underway.ContinuesAfterReset ? Option<Underway>.Some(underway) : Option<Underway>.None);
         await continuing.Match(underway => ContinueAsync(underway, token), async () =>
         {
@@ -301,7 +331,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     private async Task RunsAgainAsync(CancellationToken token)
     {
         await DisarmAsync();
-        Change(record.Resumed().Awaiting(current => current with { ContinuesAfterReset = false }));
+        await ChangeAsync(record.Resumed().Awaiting(current => current with { ContinuesAfterReset = false }), token);
         await journal.PublishAsync(new LoopResumed(Id, clock.GetUtcNow()), token);
     }
 
@@ -312,7 +342,7 @@ internal sealed class LoopRunner : IAsyncDisposable
 
         if (continued.TryGetValue(out _, out var rejection) || rejection == JobRejection.NotHeld)
         {
-            Change(record.Awaiting(current => current with { ContinuesAfterReset = false }));
+            await ChangeAsync(record.Awaiting(current => current with { ContinuesAfterReset = false }), token);
             return;
         }
 
@@ -325,7 +355,7 @@ internal sealed class LoopRunner : IAsyncDisposable
 
     private async Task WaitAsync(DateTimeOffset due, CancellationToken token)
     {
-        Change(record.Waiting(due));
+        await ChangeAsync(record.Waiting(due), token);
         await ArmAsync(due, WakeAsync);
         await journal.PublishAsync(new LoopWaiting(Id, due), token);
     }
@@ -334,7 +364,7 @@ internal sealed class LoopRunner : IAsyncDisposable
     {
         if (record.Status == LoopStatus.Waiting)
         {
-            Change(record.Resumed());
+            await ChangeAsync(record.Resumed(), token);
             await AdvanceAsync(token);
         }
     }
@@ -348,15 +378,15 @@ internal sealed class LoopRunner : IAsyncDisposable
     private async Task EndAsync(LoopRecord next, CancellationToken token)
     {
         await DisarmAsync();
-        Change(next);
+        await ChangeAsync(next, token);
         await journal.PublishAsync(new LoopEnded(next.State), token);
     }
 
-    private void Change(LoopRecord next)
+    private async Task ChangeAsync(LoopRecord next, CancellationToken token)
     {
         record = next;
-        journal.Keep(next);
         Volatile.Write(ref ended, next.Status == LoopStatus.Ended);
+        await journal.KeepAsync(next, token);
     }
 
     private bool IsCurrent(JobId job) => record.Current.Match(underway => underway.Job == job, () => false);

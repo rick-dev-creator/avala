@@ -1,4 +1,6 @@
 using Avala.Autopilot.Contracts;
+using Avala.Autopilot.Looping;
+using Avala.Autopilot.Loops;
 using Avala.Autopilot.Sourcing;
 using Avala.Sdk;
 using Avala.Storage;
@@ -6,9 +8,42 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Avala.Autopilot.Storage;
 
-internal sealed class SqliteTaskLedger(AvalaPaths paths) : ITaskLedger, IStartupTask, IAsyncDisposable
+internal sealed class SqliteAutopilotStore(AvalaPaths paths) : ITaskLedger, ILoopStore, IStartupTask, IAsyncDisposable
 {
+    public const int EndedLoopsKept = 100;
+
+    private static readonly string Ended = LoopStatus.Ended.ToString();
+
     private readonly DatabaseOwner<AutopilotDbContext> owner = new(paths.Database("autopilot"), file => new AutopilotDbContext(file));
+
+    public Task<IReadOnlyList<LoopRecord>> LoopsAsync(CancellationToken cancellationToken) =>
+        RunAsync<IReadOnlyList<LoopRecord>>(
+            async database => [.. (await database.Loops.AsNoTracking().OrderBy(row => row.Started).ToListAsync(cancellationToken)).Select(row => row.Read())],
+            cancellationToken);
+
+    public Task KeepAsync(LoopRecord loop, CancellationToken cancellationToken) =>
+        RunAsync(
+            async database =>
+            {
+                var row = StoredLoop.Of(loop);
+
+                if (await database.Loops.FindAsync([row.Loop], cancellationToken) is { } stored)
+                {
+                    stored.Status = row.Status;
+                    stored.Fact = row.Fact;
+                }
+                else
+                {
+                    await database.Loops.AddAsync(row, cancellationToken);
+                }
+
+                var saved = await SaveAsync(database, cancellationToken);
+                var surplus = await database.Loops.Where(stored => stored.Status == Ended).OrderByDescending(stored => stored.Started).Skip(EndedLoopsKept).ToListAsync(cancellationToken);
+                database.Loops.RemoveRange(surplus);
+
+                return saved + await SaveAsync(database, cancellationToken);
+            },
+            cancellationToken);
 
     public Task<IReadOnlyList<LedgerEntry>> EntriesAsync(string repository, string source, CancellationToken cancellationToken) =>
         RunAsync<IReadOnlyList<LedgerEntry>>(

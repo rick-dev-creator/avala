@@ -20,33 +20,45 @@ internal sealed class Pilot : IAsyncDisposable
 
     public static AutopilotRules Clean { get; } = new(ApprovalRule.CleanEvidence, FollowUpRule.Refuse);
 
+    private readonly World world;
+    private readonly IJobSource[] others;
+
     public Pilot(params IJobSource[] others)
+        : this(new World(), others)
     {
+    }
+
+    private Pilot(World world, IJobSource[] others)
+    {
+        this.world = world;
+        this.others = others;
         var gatherer = new EvidenceGatherer(Evidence, Evidence, Jobs, new JobWork(Work, Work, Rules));
         var steps = new LoopSteps(Jobs, new TaskSources([Backlog, .. others]), new AutoApprover(gatherer, Jobs, Bus, Clock), new LoopGauges(Usage, Usage, Connections));
-        Registry = new LoopRegistry(steps, new LoopJournal(Bus, new LoopBook(), NullLogger<LoopJournal>.Instance), Declared, Clock);
+        Registry = new LoopRegistry(steps, new LoopJournal(Bus, new LoopBook(), Loops, NullLogger<LoopJournal>.Instance), Declared, Clock);
         Feed = new LoopFeed(Registry);
     }
 
-    public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 22, 0, 0, TimeSpan.Zero));
+    public FakeTimeProvider Clock => world.Clock;
 
     public RecordingBus Bus { get; } = new();
 
-    public FakeJobs Jobs { get; } = new();
+    public FakeJobs Jobs => world.Jobs;
 
-    public FakeEvidence Evidence { get; } = new();
+    public FakeEvidence Evidence => world.Evidence;
 
-    public FakeWork Work { get; } = new();
+    public FakeWork Work => world.Work;
 
-    public FakeUsage Usage { get; } = new();
+    public FakeUsage Usage => world.Usage;
 
-    public FakeConnections Connections { get; } = new();
+    public FakeConnections Connections => world.Connections;
 
-    public FixedRules Rules { get; } = new(Clean);
+    public FixedRules Rules => world.Rules;
 
-    public MemorySource Backlog { get; } = new(BacklogSource.Source);
+    public MemorySource Backlog => world.Backlog;
 
-    public DeclaredLimits Declared { get; } = new();
+    public DeclaredLimits Declared => world.Declared;
+
+    public MemoryLoops Loops => world.Loops;
 
     public LoopRegistry Registry { get; }
 
@@ -102,5 +114,38 @@ internal sealed class Pilot : IAsyncDisposable
 
     public static Cost Usd(decimal amount) => new(amount, "USD");
 
+    public async Task<Pilot> RestartedAsync()
+    {
+        await Registry.DisposeAsync();
+        var restarted = new Pilot(world, others);
+        await restarted.Registry.RestoreAsync(Cancellation);
+        restarted.Registry.Recover();
+
+        return restarted;
+    }
+
     public ValueTask DisposeAsync() => Registry.DisposeAsync();
+
+    private sealed class World
+    {
+        public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 10, 9, 22, 0, 0, TimeSpan.Zero));
+
+        public FakeJobs Jobs { get; } = new();
+
+        public FakeEvidence Evidence { get; } = new();
+
+        public FakeWork Work { get; } = new();
+
+        public FakeUsage Usage { get; } = new();
+
+        public FakeConnections Connections { get; } = new();
+
+        public FixedRules Rules { get; } = new(Clean);
+
+        public MemorySource Backlog { get; } = new(BacklogSource.Source);
+
+        public DeclaredLimits Declared { get; } = new();
+
+        public MemoryLoops Loops { get; } = new();
+    }
 }

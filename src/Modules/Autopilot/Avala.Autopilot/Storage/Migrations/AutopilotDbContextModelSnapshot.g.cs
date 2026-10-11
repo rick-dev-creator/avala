@@ -16,6 +16,34 @@ namespace Avala.Autopilot.Storage.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("Avala.Autopilot.Storage.StoredLoop", b =>
+                {
+                    b.Property<Guid>("Loop")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Fact")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Repository")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Started")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Loop");
+
+                    b.HasIndex("Status", "Started");
+
+                    b.ToTable("Loops", (string)null);
+                });
+
             modelBuilder.Entity("Avala.Autopilot.Storage.StoredTask", b =>
                 {
                     b.Property<int>("Key")

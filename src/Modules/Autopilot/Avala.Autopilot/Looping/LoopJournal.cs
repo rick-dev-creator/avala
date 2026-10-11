@@ -19,11 +19,27 @@ internal sealed class LoopBook
         Volatile.Read(ref loops).TryGetValue(loop, out var record) ? record.Digest : Option<LoopDigest>.None;
 }
 
-internal sealed partial class LoopJournal(IEventBus bus, LoopBook book, ILogger<LoopJournal> logger)
+internal sealed partial class LoopJournal(IEventBus bus, LoopBook book, ILoopStore store, ILogger<LoopJournal> logger)
 {
     public LoopBook Book => book;
 
-    public void Keep(LoopRecord record) => book.Keep(record);
+    public async Task KeepAsync(LoopRecord record, CancellationToken cancellationToken)
+    {
+        book.Keep(record);
+        await store.KeepAsync(record, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<LoopRecord>> RestoreAsync(CancellationToken cancellationToken)
+    {
+        var stored = await store.LoopsAsync(cancellationToken);
+
+        foreach (var record in stored)
+        {
+            book.Keep(record);
+        }
+
+        return stored;
+    }
 
     public ValueTask PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
         where TEvent : IIntegrationEvent =>

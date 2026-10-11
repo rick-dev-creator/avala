@@ -1,6 +1,7 @@
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Evidence;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Sdk.Events;
 
 namespace Avala.Autopilot.Approving;
@@ -8,6 +9,8 @@ namespace Avala.Autopilot.Approving;
 internal sealed class AutoApprover(EvidenceGatherer evidence, IJobs jobs, IEventBus bus, TimeProvider clock)
 {
     public Task<JobEvidence> GatherAsync(JobId job, CancellationToken cancellationToken) => evidence.GatherAsync(job, cancellationToken);
+
+    public Task<Option<JobStatus>> StatusAsync(JobId job, CancellationToken cancellationToken) => evidence.StatusAsync(job, cancellationToken);
 
     public async Task<AutoApproval> DecideAsync(LoopId loop, JobId job, JobEvidence gathered, CancellationToken cancellationToken)
     {

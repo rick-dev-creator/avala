@@ -9,6 +9,7 @@ namespace Avala.Autopilot.Looping;
 internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, ILoopLimits declared, TimeProvider clock) : IAutopilot, IAsyncDisposable
 {
     private ImmutableDictionary<LoopId, LoopRunner> runners = ImmutableDictionary<LoopId, LoopRunner>.Empty;
+    private ImmutableList<LoopRunner> restored = [];
 
     public IEnumerable<LoopRunner> Running => Volatile.Read(ref runners).Values.Where(runner => !runner.Ended);
 
@@ -51,10 +52,28 @@ internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, ILoopLi
             return AutopilotError.AlreadyRunning;
         }
 
-        journal.Keep(loop);
+        await journal.KeepAsync(loop, cancellationToken);
         runner.Start();
 
         return runner.Id;
+    }
+
+    public async Task RestoreAsync(CancellationToken cancellationToken)
+    {
+        foreach (var loop in (await journal.RestoreAsync(cancellationToken)).Where(stored => stored.Status != LoopStatus.Ended))
+        {
+            var runner = new LoopRunner(loop, steps, journal, clock);
+            ImmutableInterlocked.Update(ref runners, current => current.SetItem(runner.Id, runner));
+            ImmutableInterlocked.Update(ref restored, current => current.Add(runner));
+        }
+    }
+
+    public void Recover()
+    {
+        foreach (var runner in Interlocked.Exchange(ref restored, []))
+        {
+            runner.Resume();
+        }
     }
 
     public ValueTask<Result<LoopId, AutopilotError>> PauseAsync(LoopId loop, CancellationToken cancellationToken) =>

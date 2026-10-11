@@ -6,6 +6,7 @@ using Avala.Autopilot.Approving;
 using Avala.Autopilot.Contracts;
 using Avala.Autopilot.Evidence;
 using Avala.Autopilot.Looping;
+using Avala.Autopilot.Loops;
 using Avala.Jobs.Contracts;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
@@ -180,6 +181,21 @@ internal sealed class DeclaredLimits : ILoopLimits
         reads.Enqueue(repository);
 
         return Task.FromResult(Limits);
+    }
+}
+
+internal sealed class MemoryLoops : ILoopStore
+{
+    private readonly ConcurrentDictionary<LoopId, LoopRecord> loops = new();
+
+    public Task<IReadOnlyList<LoopRecord>> LoopsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<LoopRecord>>([.. loops.Values.OrderBy(loop => loop.Started)]);
+
+    public Task KeepAsync(LoopRecord loop, CancellationToken cancellationToken)
+    {
+        loops[loop.Id] = loop;
+
+        return Task.CompletedTask;
     }
 }
 

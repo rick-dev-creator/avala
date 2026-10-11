@@ -43,6 +43,9 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
         return ValueTask.FromResult(Result<JobId, JobRejection>.Success(job));
     }
 
+    public void Settled(JobId job, JobStatus status) =>
+        histories[job] = histories[job] with { Summary = histories[job].Summary with { Status = status } };
+
     public void Attempts(JobId job, params AttemptRecord[] attempts) =>
         histories[job] = histories[job] with { Attempts = attempts };
 

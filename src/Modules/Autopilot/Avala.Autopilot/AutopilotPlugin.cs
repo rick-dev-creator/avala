@@ -24,9 +24,10 @@ public sealed class AutopilotPlugin : IPlugin
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton(FollowUpTool.Definition)
-            .AddSingleton<SqliteTaskLedger>()
-            .AddForwarded<ITaskLedger, SqliteTaskLedger>()
-            .AddForwarded<IStartupTask, SqliteTaskLedger>()
+            .AddSingleton<SqliteAutopilotStore>()
+            .AddForwarded<ITaskLedger, SqliteAutopilotStore>()
+            .AddForwarded<ILoopStore, SqliteAutopilotStore>()
+            .AddForwarded<IStartupTask, SqliteAutopilotStore>()
             .AddSingleton<IBacklogFile, BacklogFileReader>()
             .AddSingleton<IAutopilotRules, AutopilotRulesReader>()
             .AddSingleton<ILoopLimits, LoopLimitsReader>()
@@ -44,6 +45,8 @@ public sealed class AutopilotPlugin : IPlugin
             .AddSingleton<LoopJournal>()
             .AddSingleton<LoopRegistry>()
             .AddForwarded<IAutopilot, LoopRegistry>()
+            .AddSingleton<IStartupTask, LoopRestore>()
+            .AddSingleton<IStartupTask, LoopRecovery>()
             .AddSingleton<LoopFeed>()
             .AddForwarded<IHandle<JobProgressed>, LoopFeed>()
             .AddForwarded<IHandle<JobHeld>, LoopFeed>()

@@ -6,10 +6,13 @@ internal sealed class AutopilotDbContext(string database) : DbContext
 {
     public DbSet<StoredTask> Tasks => Set<StoredTask>();
 
+    public DbSet<StoredLoop> Loops => Set<StoredLoop>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<StoredTask>(task =>
         {
             task.ToTable("Tasks");
@@ -17,4 +20,11 @@ internal sealed class AutopilotDbContext(string database) : DbContext
             task.Property(row => row.Key).ValueGeneratedOnAdd();
             task.HasIndex(row => new { row.Repository, row.Source, row.TaskKey }).IsUnique();
         });
+        modelBuilder.Entity<StoredLoop>(loop =>
+        {
+            loop.ToTable("Loops");
+            loop.HasKey(row => row.Loop);
+            loop.HasIndex(row => new { row.Status, row.Started });
+        });
+    }
 }

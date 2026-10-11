@@ -14,6 +14,9 @@ internal sealed class EvidenceGatherer(IVerifications verifications, IPermission
             found => found,
             () => JobEvidence.None with { Verifications = verifications.OfJob(job) });
 
+    public async Task<Option<JobStatus>> StatusAsync(JobId job, CancellationToken cancellationToken) =>
+        (await catalog.HistoryAsync(job, cancellationToken)).Map(history => history.Summary.Status);
+
     public async Task<Option<JobEvidence>> FindAsync(JobId job, CancellationToken cancellationToken) =>
         await (await catalog.HistoryAsync(job, cancellationToken)).Match(
             async history => Option<JobEvidence>.Some(await FromAsync(job, history, cancellationToken)),

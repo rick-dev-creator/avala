@@ -1,5 +1,6 @@
 using Avala.Autopilot.Approving;
 using Avala.Autopilot.Contracts;
+using Avala.Autopilot.Loops;
 using Avala.Autopilot.Sourcing;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -20,4 +21,11 @@ internal sealed class LoopSteps(IJobs jobs, TaskSources sources, AutoApprover ap
 internal interface ILoopLimits
 {
     Task<Result<LoopLimits, AutopilotError>> OfRepositoryAsync(string repository, CancellationToken cancellationToken);
+}
+
+internal interface ILoopStore
+{
+    Task<IReadOnlyList<LoopRecord>> LoopsAsync(CancellationToken cancellationToken);
+
+    Task KeepAsync(LoopRecord loop, CancellationToken cancellationToken);
 }
