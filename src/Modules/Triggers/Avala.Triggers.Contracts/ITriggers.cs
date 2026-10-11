@@ -23,6 +23,13 @@ public interface ITriggers
     ValueTask<IReadOnlyList<TriggerFile>> ReloadAsync(CancellationToken cancellationToken);
 }
 
+public interface IForgeNudges
+{
+    ValueTask<DeliveryVerdict> VerifyAsync(ForgeRule rule, IReadOnlyDictionary<string, string> headers, ReadOnlyMemory<byte> body, string secret, CancellationToken cancellationToken);
+
+    ValueTask NudgeAsync(TriggerId trigger, CancellationToken cancellationToken);
+}
+
 public readonly record struct TriggerId(string Scope, string Name)
 {
     public const string Machine = "machine";

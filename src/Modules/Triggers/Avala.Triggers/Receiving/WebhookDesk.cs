@@ -43,7 +43,11 @@ internal sealed class WebhookDesk(TriggerCatalog catalog, ScheduleBook book, Web
             return await AnsweredAsync(delivery with { Verdict = DeliveryVerdict.TooLarge }, TimeSpan.Zero, cancellationToken);
         }
 
-        var (verdict, retry) = trigger.Webhook.Match(rule => gate.Check(trigger, rule, request), () => (DeliveryVerdict.UnknownTrigger, TimeSpan.Zero));
+        var (verdict, retry) = await trigger.Webhook.Match(
+            rule => trigger.Forge.Match(
+                forge => gate.NudgeAsync(trigger, rule, forge, request, cancellationToken),
+                () => Task.FromResult(gate.Check(trigger, rule, request))),
+            () => Task.FromResult((DeliveryVerdict.UnknownTrigger, TimeSpan.Zero)));
 
         if (verdict == DeliveryVerdict.Accepted && !book.Enabled(trigger))
         {
@@ -53,6 +57,13 @@ internal sealed class WebhookDesk(TriggerCatalog catalog, ScheduleBook book, Web
         if (verdict != DeliveryVerdict.Accepted)
         {
             return await AnsweredAsync(delivery with { Verdict = verdict }, retry, cancellationToken);
+        }
+
+        if (trigger.Forge.IsSome)
+        {
+            await gate.NudgedAsync(trigger.Id, cancellationToken);
+
+            return await AnsweredAsync(delivery, TimeSpan.Zero, cancellationToken);
         }
 
         var fired = await firer.FireAsync(

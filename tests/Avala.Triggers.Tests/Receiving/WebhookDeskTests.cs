@@ -120,6 +120,33 @@ public sealed class WebhookDeskTests
         Assert.Equal(6, triggered.Journal.Deliveries.Count);
     }
 
+    [Fact]
+    public async Task ASignedNudgeOfAForgeTriggerPollsItAndStartsNothingItselfWhileABadOrMissingSignatureIsRefusedAsync()
+    {
+        await using var triggered = await Triggered.StartAsync(
+            Declared.Machine("""{ "id": "labeled", "repository": "/work/ledger-api", "instruction": "Fix {{payload.title}}", "forge": { "connection": "github", "event": "issue-labeled", "label": "avala", "authors": ["alice"], "webhook": { "secretEnv": "HOOK_SECRET" } } }"""),
+            world => world.Secrets.Values["HOOK_SECRET"] = Secret);
+        var labeled = new TriggerId(TriggerId.Machine, "labeled");
+
+        var nudged = await triggered.Desk.ReceiveAsync(Nudge("sha256=good"), Triggered.Cancellation);
+        var forged = await triggered.Desk.ReceiveAsync(Nudge("sha256=bad"), Triggered.Cancellation);
+        var unsigned = await triggered.Desk.ReceiveAsync(Nudge(string.Empty), Triggered.Cancellation);
+
+        Assert.Equal([(202, DeliveryVerdict.Accepted), (401, DeliveryVerdict.BadSignature), (401, DeliveryVerdict.NotSigned)], new[] { nudged, forged, unsigned }.Select(answer => (answer.Status, answer.Verdict)));
+        Assert.Equal([labeled], triggered.World.Nudges.Nudged);
+        Assert.Empty(triggered.Jobs.Requests);
+        Assert.Empty(triggered.Triggers.RunsOf(labeled));
+        Assert.Equal([Sdk.Option<TriggerId>.Some(labeled)], triggered.Journal.Deliveries.Select(delivery => delivery.Trigger).Distinct());
+    }
+
+    private static WebhookRequest Nudge(string signature) =>
+        new(
+            "POST",
+            "labeled",
+            signature.Length == 0 ? new Dictionary<string, string>() : new Dictionary<string, string> { ["X-Hub-Signature-256"] = signature },
+            Encoding.UTF8.GetBytes("""{ "action": "labeled" }"""),
+            TooLarge: false);
+
     private static Task<Triggered> StartAsync(int rate = 60) =>
         Triggered.StartAsync(Declared.Machine(Hook(rate)), world => world.Secrets.Values["HOOK_SECRET"] = Secret);
 

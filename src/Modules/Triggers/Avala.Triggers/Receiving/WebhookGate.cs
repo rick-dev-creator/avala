@@ -20,7 +20,7 @@ internal interface ISecrets
     Option<string> Of(string variable);
 }
 
-internal sealed class WebhookGate(ISecrets secrets, RunJournal journal) : IStartupTask
+internal sealed class WebhookGate(ISecrets secrets, RunJournal journal, IEnumerable<IForgeNudges> nudges) : IStartupTask
 {
     private ReplayGuard replays = ReplayGuard.Empty;
     private RateWindow rates = RateWindow.Empty;
@@ -52,6 +52,35 @@ internal sealed class WebhookGate(ISecrets secrets, RunJournal journal) : IStart
         }
 
         return (Signed(trigger, rule, request, now), TimeSpan.Zero);
+    }
+
+    public async Task<(DeliveryVerdict Verdict, TimeSpan RetryAfter)> NudgeAsync(TriggerDeclaration trigger, WebhookRule rule, ForgeRule forge, WebhookRequest request, CancellationToken cancellationToken)
+    {
+        (rates, var retry) = rates.Admit(trigger.Id.Key, Clock.GetUtcNow(), rule.RatePerHour);
+
+        if (retry > TimeSpan.Zero)
+        {
+            return (DeliveryVerdict.RateLimited, retry);
+        }
+
+        var secret = OrEmpty(secrets.Of(rule.SecretVariable));
+
+        if (secret.Length == 0)
+        {
+            return (DeliveryVerdict.NoSecret, TimeSpan.Zero);
+        }
+
+        return nudges.FirstOrDefault() is { } forges
+            ? (await forges.VerifyAsync(forge, request.Headers, request.Body, secret, cancellationToken), TimeSpan.Zero)
+            : (DeliveryVerdict.BadSignature, TimeSpan.Zero);
+    }
+
+    public async Task NudgedAsync(TriggerId trigger, CancellationToken cancellationToken)
+    {
+        foreach (var forges in nudges.Take(1))
+        {
+            await forges.NudgeAsync(trigger, cancellationToken);
+        }
     }
 
     public Task<WebhookDelivery> RecordAsync(WebhookDelivery delivery, CancellationToken cancellationToken) =>

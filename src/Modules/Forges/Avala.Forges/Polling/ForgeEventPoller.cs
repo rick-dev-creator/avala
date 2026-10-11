@@ -51,12 +51,7 @@ internal sealed class ForgeEventPoller(EventBook book, EventSource source, Event
             },
             cancellationToken);
 
-    public bool Nudge(TriggerId trigger)
-    {
-        Post(token => PollAsync(trigger, token));
-
-        return true;
-    }
+    public void Nudge(TriggerId trigger) => Post(token => PollAsync(trigger, token));
 
     public async ValueTask DisposeAsync()
     {

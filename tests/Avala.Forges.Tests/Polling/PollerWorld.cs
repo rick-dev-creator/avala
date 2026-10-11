@@ -29,7 +29,10 @@ internal sealed class PollerWorld : IAsyncDisposable
         var connections = new ForgeConnections(new DeclaredEvents(), [Forge, new Watching.ScriptedForge()], new NoTransports());
         Poller = new ForgeEventPoller(Book, new EventSource(connections, new OriginRemote()), new EventDispatch([Triggers]), Clock);
         Log = new EventLogDesk(Book, Poller);
+        Nudges = new ForgeNudges(connections, Poller);
     }
+
+    public IForgeNudges Nudges { get; }
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero));
 

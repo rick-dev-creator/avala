@@ -170,6 +170,13 @@ public sealed class GitHubForgeTests
     }
 
     [Fact]
+    public void GitHubSignsItsWebhooksWithAPrefixedXHubSignature256()
+    {
+        Assert.Equal(["X-Hub-Signature-256"], new GitHubForge().Signature.Headers);
+        Assert.Equal("sha256=", new GitHubForge().Signature.Prefix);
+    }
+
+    [Fact]
     public async Task GitHubPassesTheForgeConformanceKitAsync()
     {
         var server = await ServerAsync();

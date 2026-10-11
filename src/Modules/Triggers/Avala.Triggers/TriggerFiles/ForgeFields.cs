@@ -17,7 +17,7 @@ internal static class ForgeFields
 
     private const string Reviewer = "reviewer";
 
-    private static readonly string[] Allowed = ["connection", "event", "authors", Label, Command, Branch, Reviewer, "remote", "acknowledge"];
+    private static readonly string[] Allowed = ["connection", "event", "authors", Label, Command, Branch, Reviewer, "remote", "acknowledge", "webhook"];
 
     private static readonly Dictionary<string, ForgeEventKind> Events = new(StringComparer.Ordinal)
     {
@@ -55,7 +55,8 @@ internal static class ForgeFields
             .Bind(filters => Authors(value)
             .Bind(authors => Text(value, "remote")
             .Bind(remote => TriggerFields.Optional(value, "acknowledge", false, TriggerFields.Flag)
-            .Map(acknowledge => new ForgeDeclaration(
+            .Bind(acknowledge => Nudge(value)
+            .Map(nudge => new ForgeDeclaration(
                 new ForgeRule(connection, kind, authors)
                 {
                     Remote = remote.Match(name => name, () => ForgeRule.DefaultRemote),
@@ -65,7 +66,7 @@ internal static class ForgeFields
                     Reviewer = filters.GetValueOrDefault(Reviewer, Option<string>.None),
                     Acknowledge = acknowledge,
                 },
-                Option<WebhookRule>.None)))))));
+                nudge))))))));
     }
 
     private static Result<ForgeEventKind, TriggerError> Event(JsonElement value) =>
@@ -112,6 +113,9 @@ internal static class ForgeFields
 
         return names.Count == 0 ? TriggerError.MissingAuthors : Result<IReadOnlyList<string>, TriggerError>.Success(names);
     }
+
+    private static Result<Option<WebhookRule>, TriggerError> Nudge(JsonElement value) =>
+        value.TryGetProperty("webhook", out var webhook) ? TriggerFields.Webhook(webhook).Map(Option<WebhookRule>.Some) : Option<WebhookRule>.None;
 
     private static Result<Option<string>, TriggerError> Text(JsonElement value, string name) =>
         !value.TryGetProperty(name, out var field) ? Option<string>.None

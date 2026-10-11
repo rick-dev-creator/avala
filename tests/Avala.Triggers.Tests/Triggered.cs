@@ -30,7 +30,7 @@ internal sealed class Triggered : IAsyncDisposable
         Dispatch = new TriggerDispatch(shared.Jobs, [shared.Autopilot], Queue);
         Firer = new TriggerFirer(Catalog, Checks, Dispatch, Journal);
         Scheduler = new TriggerScheduler(Catalog, Book, Firer, Journal);
-        Gate = new WebhookGate(shared.Secrets, Journal);
+        Gate = new WebhookGate(shared.Secrets, Journal, [shared.Nudges]);
         Desk = new WebhookDesk(Catalog, Book, Gate, Firer);
         Triggers = new TriggerBook(Scheduler, Firer, Checks, new FakeEndpoint());
     }
@@ -131,6 +131,8 @@ internal sealed class Triggered : IAsyncDisposable
         public FakeAutopilot Autopilot { get; } = new();
 
         public FakeSecrets Secrets { get; } = new();
+
+        public FakeNudges Nudges { get; } = new();
     }
 }
 

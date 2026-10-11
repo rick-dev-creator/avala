@@ -49,7 +49,7 @@ public sealed class TriggerFileParserTests
     {
         var content = Outcomes.Succeeds(TriggerFileParser.ParseMachine(Declared.Machine(
             Declared.Trigger(""" "forge": { "connection": "github", "event": "issue-labeled", "label": "avala", "authors": ["alice", "Alice", "bob"] } """)
-            + "," + """{ "id": "ci", "repository": "/work/ledger-api", "instruction": "Fix CI on {{payload.branch}}", "forge": { "connection": "local", "event": "checks-failed", "branch": "main", "authors": ["carol"], "remote": "upstream", "acknowledge": true } }""")));
+            + "," + """{ "id": "ci", "repository": "/work/ledger-api", "instruction": "Fix CI on {{payload.branch}}", "forge": { "connection": "local", "event": "checks-failed", "branch": "main", "authors": ["carol"], "remote": "upstream", "acknowledge": true, "webhook": { "secretEnv": "FORGE_HOOK", "ratePerHour": 120 } } }""")));
 
         var (labeled, failing) = (content.Triggers[0], content.Triggers[1]);
         var rule = Outcomes.Present(labeled.Forge);
@@ -59,6 +59,7 @@ public sealed class TriggerFileParserTests
         var checks = Outcomes.Present(failing.Forge);
         Assert.Equal((ForgeEventKind.ChecksFailed, Option<string>.Some("main"), "upstream", true), (checks.Event, checks.Branch, checks.Remote, checks.Acknowledge));
         Assert.True(labeled.Webhook.IsNone && labeled.Schedule.IsNone);
+        Assert.Equal((new WebhookRule("FORGE_HOOK", 120), Option<string>.Some("/hooks/ci"), TriggerKind.Forge), (Outcomes.Present(failing.Webhook), failing.Hook, failing.Kind));
     }
 
     [Theory]

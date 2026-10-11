@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avala.Forges.Contracts;
+using Avala.Forges.Sifting;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Triggers.Contracts;
@@ -122,6 +123,29 @@ public sealed class ForgeEventPollerTests
 
         Assert.Equal(20, world.Triggers.Fired.Count);
         Assert.Equal("7020", Assert.Single(world.Store.Cursors).Position);
+    }
+
+    [Fact]
+    public async Task ANudgeVerifiedByTheConnectionsForgePollsItsTriggerAtOnceAsync()
+    {
+        await using var world = await new PollerWorld().StartedAsync();
+        _ = await world.CheckAsync();
+        world.Forge.Happened.Add(PollerWorld.LabeledBy("alice", 7002));
+        var body = System.Text.Encoding.UTF8.GetBytes("{}");
+        var signed = new Dictionary<string, string> { ["X-Event-Signature"] = HookVerification.Sign(world.Forge.Signature, "s3cret", body) };
+
+        var verdicts = new[]
+        {
+            await world.Nudges.VerifyAsync(PollerWorld.Rule, signed, body, "s3cret", TestContext.Current.CancellationToken),
+            await world.Nudges.VerifyAsync(PollerWorld.Rule with { Connection = "plain" }, signed, body, "s3cret", TestContext.Current.CancellationToken),
+            await world.Nudges.VerifyAsync(PollerWorld.Rule with { Connection = "gone" }, signed, body, "s3cret", TestContext.Current.CancellationToken),
+        };
+        await world.Nudges.NudgeAsync(PollerWorld.Labeled, TestContext.Current.CancellationToken);
+        await world.SettledAsync();
+
+        Assert.Equal([DeliveryVerdict.Accepted, DeliveryVerdict.BadSignature, DeliveryVerdict.BadSignature], verdicts);
+        Assert.Single(world.Triggers.Fired);
+        Assert.Equal(world.Clock.GetUtcNow(), Outcomes.Present(Outcomes.Present(world.Book.WatchOf(PollerWorld.Labeled)).LastPolled));
     }
 
     [Fact]
