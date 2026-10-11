@@ -61,6 +61,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public LostTrips LostTrips => surroundings.Trips;
 
+    public FakeNotifierEndpoint Notifier => surroundings.Notifier.Endpoint;
+
     public ICanvases Canvases => Get<ICanvases>();
 
     public ViewRegistry Views => application.Root.Views;
@@ -347,6 +349,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         await StopAsync();
         await repository.DisposeAsync();
         await data.DisposeAsync();
+        surroundings.Notifier.Dispose();
         Ui.Dispose();
     }
 
@@ -375,6 +378,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public LostTrips Trips { get; } = new();
 
+        public NotifierGate Notifier { get; } = new();
+
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
                 plugins.Directory,
@@ -384,7 +389,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
-                [Board, Fault, Trips]);
+                [Board, Fault, Trips, Notifier]);
     }
 
     private sealed class Application : IAsyncDisposable
