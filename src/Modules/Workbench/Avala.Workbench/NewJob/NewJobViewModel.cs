@@ -41,7 +41,7 @@ internal interface INewJobViewModel
 
     string AutonomyNote { get; }
 
-    IModelPickerViewModel Models { get; }
+    IJobOptionsViewModel JobOptions { get; }
 
     string Error { get; }
 
@@ -51,7 +51,7 @@ internal interface INewJobViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings readings, IMessenger messenger, ModelPickerViewModel models)
+internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings readings, IMessenger messenger, JobOptionsViewModel choices)
     : INewJobViewModel, IPage, IActivatable, IRecipient<DefaultConnectionChanged>
 {
     private readonly ObservableCollection<string> repositories = [];
@@ -101,9 +101,13 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings r
 
     public bool Supervised => Autonomy == NewJobPhrases.Supervised;
 
-    public IModelPickerViewModel Models => models;
+    public IJobOptionsViewModel JobOptions => choices;
 
-    public ModelPickerViewModel Picker => models;
+    public IModelPickerViewModel Models => choices.Models;
+
+    public ModelPickerViewModel Picker => choices.Picker;
+
+    public Task OptionsRead { get; private set; } = Task.CompletedTask;
 
     public Task Offering { get; private set; } = Task.CompletedTask;
 
@@ -160,15 +164,39 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings r
     [RelayCommand(CanExecute = nameof(CanSubmit))]
     private async Task SubmitAsync(CancellationToken cancellationToken)
     {
-        var submitted = await launch.SubmitAsync(Repository, Instruction, Chosen(), Supervised, models.Chosen, cancellationToken);
+        if (choices.IsContest)
+        {
+            await StartContestAsync(cancellationToken);
+
+            return;
+        }
+
+        var submitted = await launch.SubmitAsync(Repository, Instruction, Chosen(), Supervised, choices.Picker.Chosen, cancellationToken);
         Error = submitted.Match(_ => string.Empty, NewJobPhrases.Rejection);
 
         if (submitted.TryGetValue(out var job, out _))
         {
-            LastSubmitted = job;
-            Submitted = $"Submitted: {Instruction.Trim()}";
-            Instruction = string.Empty;
+            Started(job, $"Submitted: {Instruction.Trim()}");
         }
+    }
+
+    private async Task StartContestAsync(CancellationToken cancellationToken)
+    {
+        var request = JobLaunch.Request(Repository, Instruction, Chosen(), Supervised, choices.Picker.Chosen);
+        var started = await launch.StartContestAsync(request, choices.Candidates, choices.Spread, cancellationToken);
+        Error = started.Match(_ => string.Empty, rejection => $"The contest did not start: {ContestPhrases.Rejection(rejection)}");
+
+        if (started.TryGetValue(out var contest, out _))
+        {
+            Started(contest.Candidates[0].Job, $"Started {ContestPhrases.Candidates(contest.Candidates.Count)}: {Instruction.Trim()}");
+        }
+    }
+
+    private void Started(JobId job, string submitted)
+    {
+        LastSubmitted = job;
+        Submitted = submitted;
+        Instruction = string.Empty;
     }
 
     private bool CanSubmit() => !string.IsNullOrWhiteSpace(Repository) && !string.IsNullOrWhiteSpace(Instruction);
@@ -214,6 +242,7 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings r
 
         if (ticket == previews)
         {
+            OptionsRead = choices.ReadAsync(Repository, cancellationToken);
             preview = previewed;
             ShowRoute();
             ShowAutonomy(declared);
@@ -238,7 +267,7 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings r
         {
             offered.Match<Action>(
                 found => () => ShowModels(found, repository, following, target),
-                () => () => models.Hide(ModelPhrases.Unoffered(target, following)))();
+                () => () => choices.Picker.Hide(ModelPhrases.Unoffered(target, following)))();
         }
     }
 
@@ -246,11 +275,11 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings r
     {
         if (following)
         {
-            models.Follow(ModelPhrases.Job(offered, repository), offered.Efforts.Count > 0, target.Match(name => ModelPhrases.Following(name, offered, repository), () => string.Empty));
+            choices.Picker.Follow(ModelPhrases.Job(offered, repository), offered.Efforts.Count > 0, target.Match(name => ModelPhrases.Following(name, offered, repository), () => string.Empty));
         }
         else
         {
-            models.Offer(offered, ModelPhrases.Job(offered, repository), ModelChoice.Default, ModelPhrases.JobNote(repository));
+            choices.Picker.Offer(offered, ModelPhrases.Job(offered, repository), ModelChoice.Default, ModelPhrases.JobNote(repository));
         }
     }
 

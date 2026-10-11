@@ -19,6 +19,7 @@ public sealed class NewJobViewModelScripts
     private readonly FakePolicies policies = new();
     private readonly IMessenger messenger = new StrongReferenceMessenger();
     private readonly FakeUsage usage = new();
+    private readonly FakeContests contests = new();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -456,10 +457,44 @@ public sealed class NewJobViewModelScripts
         Assert.Equal("That connection does not offer this model.", page.Error);
     }
 
+    [Fact]
+    public async Task WithSeveralCandidatesStartingTheJobStartsAContestOfTheSameRequestAsync()
+    {
+        contests.Declared = new Avala.Contests.Contracts.BestOf(3, 4);
+        var page = Page(Pages.Summary("Fix the failing test", JobStatus.Running));
+        await page.LoadAsync(Cancellation);
+        await page.OptionsRead;
+        page.Instruction = " Fix JPY rounding in invoice totals ";
+        ((JobOptionsViewModel)page.JobOptions).Spread = true;
+
+        await page.SubmitCommand.ExecuteAsync(null);
+
+        var request = Assert.Single(contests.Requests);
+        Assert.Empty(jobs.Requests);
+        Assert.Equal((3, true, "Fix JPY rounding in invoice totals", "/repositories/shop"), (request.Candidates, request.Spread, request.Job.Instruction, request.Job.RepositoryPath));
+        Assert.Equal(("Started 3 candidates: Fix JPY rounding in invoice totals", string.Empty, string.Empty), (page.Submitted, page.Error, page.Instruction));
+    }
+
+    [Fact]
+    public async Task AContestThatDoesNotStartSaysWhyAsync()
+    {
+        contests.Declared = new Avala.Contests.Contracts.BestOf(2, 4);
+        contests.Refusal = Avala.Contests.Contracts.ContestRejection.NotSubmitted;
+        var page = Page(Pages.Summary("Fix the failing test", JobStatus.Running));
+        await page.LoadAsync(Cancellation);
+        await page.OptionsRead;
+        page.Instruction = "Fix JPY rounding";
+
+        await page.SubmitCommand.ExecuteAsync(null);
+
+        Assert.Equal("The contest did not start: a candidate job was refused: check the repository and the connection.", page.Error);
+        Assert.Equal(string.Empty, page.Submitted);
+    }
+
     private static readonly OffersModels Large = new(["large", "small"], ["low", "medium", "high"]) { DefaultModel = "small", DefaultEffort = "medium" };
 
     private NewJobViewModel Page(params JobSummary[] known) => Page(connections, known);
 
     private NewJobViewModel Page(FakeConnections machine, params JobSummary[] known) =>
-        new(new JobLaunch(jobs, machine, preview, policies), new NewJobReadings(Pages.Board(known), Pages.Readings(usage)), messenger, new ModelPickerViewModel());
+        new(Launching.Launch(jobs, machine, preview, policies, contests), new NewJobReadings(Pages.Board(known), Pages.Readings(usage)), messenger, Launching.Options(contests));
 }

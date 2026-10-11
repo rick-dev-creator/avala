@@ -1,13 +1,14 @@
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Contests.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Workbench.Submitting;
 
-internal sealed class JobLaunch(IJobs jobs, IConnections connections, IConnectionPreview preview, IRepositoryPolicies policies)
+internal sealed class JobLaunch(Submissions submissions, IConnections connections, IConnectionPreview preview, IRepositoryPolicies policies)
 {
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
         connections.CatalogAsync(cancellationToken);
@@ -30,12 +31,20 @@ internal sealed class JobLaunch(IJobs jobs, IConnections connections, IConnectio
         bool supervised,
         ModelChoice model,
         CancellationToken cancellationToken) =>
-        jobs.SubmitAsync(
-            new JobRequest(repository.Trim(), instruction.Trim())
-            {
-                Connection = connection,
-                Autonomy = supervised ? Autonomy.Supervised : Option<Autonomy>.None,
-                Model = model,
-            },
-            cancellationToken);
+        submissions.SubmitAsync(Request(repository, instruction, connection, supervised, model), cancellationToken);
+
+    public ValueTask<Result<ContestRecord, ContestRejection>> StartContestAsync(
+        JobRequest request,
+        int candidates,
+        bool spread,
+        CancellationToken cancellationToken) =>
+        submissions.StartAsync(new ContestRequest(request, candidates) { Spread = spread }, cancellationToken);
+
+    public static JobRequest Request(string repository, string instruction, Option<ConnectionName> connection, bool supervised, ModelChoice model) =>
+        new(repository.Trim(), instruction.Trim())
+        {
+            Connection = connection,
+            Autonomy = supervised ? Autonomy.Supervised : Option<Autonomy>.None,
+            Model = model,
+        };
 }

@@ -114,6 +114,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<ISupervision>(new FakeSupervision())
             .AddSingleton<IRepositoryPolicies>(rules)
             .AddSingleton<IRepositoryBudgets>(rules)
+            .AddSingleton<Avala.Contests.Contracts.IContests>(new FakeContests())
             .AddSingleton<IRepositoryChecks>(rules)
             .AddSingleton<IBaseFiles>(new CommittedFiles())
             .AddSingleton<IOrphans>(new FakeOrphans())

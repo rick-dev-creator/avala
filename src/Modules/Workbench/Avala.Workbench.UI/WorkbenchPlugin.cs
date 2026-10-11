@@ -116,6 +116,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         registrar.AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0);
         RegisterInspector(registrar);
         RegisterGlobalPages(registrar.Services);
+        RegisterContests(registrar);
         registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
         registrar.AddToRegion<UpdateNoticeViewModel>(ShellRegions.SidebarFooter, 10);
     }
@@ -186,6 +187,12 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<DelegationSectionViewModel>(ShellRegions.Inspector, 60)
             .AddToRegion<PullRequestSectionViewModel>(ShellRegions.Inspector, 55);
     }
+
+    private static void RegisterContests(IPluginRegistrar registrar) =>
+        registrar.Services
+            .AddSingleton<Submissions>()
+            .AddSingleton<ContestReadings>()
+            .AddTransient<JobOptionsViewModel>();
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
         services
@@ -313,6 +320,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<INewJobViewModel, NewJobView>();
         views.Register<IConnectionOptionViewModel, ConnectionOptionView>();
         views.Register<IModelPickerViewModel, ModelPickerView>();
+        views.Register<IJobOptionsViewModel, JobOptionsView>();
         views.Register<ITriggersViewModel, TriggersView>();
         views.Register<ITriggerItemViewModel, TriggerItemView>();
         views.Register<ILoopsViewModel, LoopsView>();

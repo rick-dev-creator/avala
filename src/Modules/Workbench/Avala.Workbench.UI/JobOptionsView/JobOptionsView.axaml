@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:newJob="using:Avala.Workbench.NewJob"
+             x:Class="Avala.Workbench.UI.JobOptionsView"
+             x:ClassModifier="internal"
+             x:DataType="newJob:IJobOptionsViewModel">
+  <Design.DataContext>
+    <newJob:DesignJobOptionsViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.count">
+      <Setter Property="MinWidth" Value="32" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="14">
+    <ContentControl x:Name="Models" Content="{Binding Models}" />
+    <StackPanel x:Name="Contest" Spacing="6" IsVisible="{Binding OffersContest}">
+      <TextBlock Classes="section" Text="Candidates" />
+      <WrapPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,0" VerticalAlignment="Center">
+          <Button x:Name="Fewer"
+                  Classes="count"
+                  Content="−"
+                  Command="{Binding FewerCommand}"
+                  AutomationProperties.Name="Fewer candidates" />
+          <TextBlock x:Name="Candidates"
+                     MinWidth="96"
+                     TextAlignment="Center"
+                     VerticalAlignment="Center"
+                     Text="{Binding CandidatesText}" />
+          <Button x:Name="More"
+                  Classes="count"
+                  Content="+"
+                  Command="{Binding MoreCommand}"
+                  AutomationProperties.Name="More candidates" />
+        </StackPanel>
+        <CheckBox x:Name="Spread"
+                  VerticalAlignment="Center"
+                  Content="Spread across connections"
+                  IsChecked="{Binding Spread}"
+                  IsVisible="{Binding IsContest}" />
+      </WrapPanel>
+      <TextBlock x:Name="Share"
+                 Classes="caption fade-in"
+                 TextWrapping="Wrap"
+                 Text="{Binding Share}"
+                 IsVisible="{Binding IsContest}" />
+      <TextBlock x:Name="SpreadNote"
+                 Classes="caption fade-in"
+                 TextWrapping="Wrap"
+                 Text="{Binding SpreadNote}"
+                 IsVisible="{Binding Spread}" />
+    </StackPanel>
+    <TextBlock x:Name="ContestNote"
+               Classes="caption secondary"
+               TextWrapping="Wrap"
+               Text="{Binding Note}"
+               IsVisible="{Binding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

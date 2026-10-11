@@ -82,7 +82,7 @@
                          TextWrapping="Wrap"
                          Text="{Binding AutonomyNote}" />
             </Grid>
-            <ContentControl x:Name="Models" Content="{Binding Models}" />
+            <ContentControl x:Name="JobOptions" Content="{Binding JobOptions}" />
             <Border x:Name="Error"
                     Classes="quiet"
                     BorderBrush="{DynamicResource FailureBorderBrush}"

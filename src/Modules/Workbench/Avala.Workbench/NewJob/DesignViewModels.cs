@@ -1,4 +1,5 @@
 using Avala.Workbench.ModelChoices;
+using Avala.Workbench.Presenting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -48,11 +49,38 @@ internal sealed partial class DesignNewJobViewModel : INewJobViewModel
 
     public string AutonomyNote => "Autonomous, as the repository's .avala/permissions.json declares: edits and commands inside the worktree run without asking, anything else is denied, forms are answered by policy.";
 
-    public IModelPickerViewModel Models { get; } = new DesignModelPickerViewModel();
+    public IJobOptionsViewModel JobOptions { get; } = new DesignJobOptionsViewModel();
 
     public string Error => string.Empty;
 
     public string Submitted => "Submitted: Fix JPY rounding in invoice totals";
 
     public IAsyncRelayCommand SubmitCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DesignJobOptionsViewModel : IJobOptionsViewModel
+{
+    public IModelPickerViewModel Models { get; } = new DesignModelPickerViewModel();
+
+    public int Candidates { get; init; } = 3;
+
+    public string CandidatesText => ContestPhrases.Candidates(Candidates);
+
+    public bool OffersContest => true;
+
+    public bool IsContest => Candidates > 1;
+
+    [ObservableProperty]
+    public partial bool Spread { get; set; }
+
+    public string SpreadNote => ContestPhrases.SpreadNote;
+
+    public string Share => ContestPhrases.Share(Candidates, new Budgets.Contracts.BudgetCaps([new Agents.Contracts.Events.Cost(5.00m, "USD")], Sdk.Option<long>.None, Sdk.Option<double>.None));
+
+    public string Note => ContestPhrases.BestOf(new Contests.Contracts.BestOf(3, 4));
+
+    public IRelayCommand MoreCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand FewerCommand { get; } = new RelayCommand(() => { });
 }

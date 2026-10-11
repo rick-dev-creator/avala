@@ -83,7 +83,7 @@ internal sealed class Bench : IDisposable
 
     public SidebarViewModel Sidebar() => new(Feed(), Focus);
 
-    public NewJobViewModel NewJob { get; } = new(new JobLaunch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new NewJobReadings(new JobBoard(), Pages.Readings(new FakeUsage())), new StrongReferenceMessenger(), new Avala.Workbench.ModelChoices.ModelPickerViewModel());
+    public NewJobViewModel NewJob { get; } = new(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new NewJobReadings(new JobBoard(), Pages.Readings(new FakeUsage())), new StrongReferenceMessenger(), Launching.Options());
 
     public ToolbarViewModel Toolbar() => new(Decisions(), Feed(), Focus, NewJob);
 
