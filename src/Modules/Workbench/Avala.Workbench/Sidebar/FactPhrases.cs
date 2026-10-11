@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Components.Status;
@@ -11,6 +12,21 @@ internal static class FactPhrases
 {
     private const int TitleLength = 80;
 
+    private static readonly FrozenDictionary<FactKind, string> Plain = new Dictionary<FactKind, string>
+    {
+        [FactKind.Working] = "working",
+        [FactKind.WaitsForParent] = "waiting for its parent",
+        [FactKind.Verifying] = "verifying",
+        [FactKind.AsksQuestion] = "asks a question",
+        [FactKind.AsksPlanApproval] = "asks to approve a plan",
+        [FactKind.AsksForInput] = "asks for input",
+        [FactKind.NeedsHelp] = "needs help: retries ran out",
+        [FactKind.NoChecks] = "no checks declared",
+        [FactKind.ReadyForReview] = "ready for review",
+        [FactKind.Discarded] = "discarded",
+        [FactKind.Failed] = "failed",
+    }.ToFrozenDictionary();
+
     public static string Title(string instruction)
     {
         var line = instruction.Trim().Split('\n', 2)[0].Trim();
@@ -20,26 +36,15 @@ internal static class FactPhrases
 
     public static string Of(JobFact fact) => fact.Kind switch
     {
-        FactKind.Working => "working",
-        FactKind.WaitsForParent => "waiting for its parent",
         FactKind.PlanProgress => string.Create(CultureInfo.InvariantCulture, $"{fact.Done} of {fact.Total}"),
-        FactKind.Verifying => "verifying",
         FactKind.AsksPermission => fact.Item.Match(Permission, () => "asks permission"),
-        FactKind.AsksQuestion => "asks a question",
-        FactKind.AsksPlanApproval => "asks to approve a plan",
-        FactKind.AsksForInput => "asks for input",
         FactKind.Held => fact.Hold.Match(Held, () => "held"),
         FactKind.ResumesAtReset => fact.Wait.Match(HandoffPhrases.Resumes, () => "held"),
-        FactKind.NeedsHelp => "needs help: retries ran out",
         FactKind.Verified => fact.Attempt > 1
             ? string.Create(CultureInfo.InvariantCulture, $"verified on attempt {fact.Attempt}")
             : "verified",
-        FactKind.NoChecks => "no checks declared",
-        FactKind.ReadyForReview => "ready for review",
         FactKind.Approved => fact.Strategy.Match(strategy => strategy == "merge" ? "merged" : "approved", () => "approved"),
-        FactKind.Discarded => "discarded",
-        FactKind.Failed => "failed",
-        _ => "starting",
+        _ => Plain.GetValueOrDefault(fact.Kind, "starting"),
     };
 
     public static StatusKind Dot(BoardJob job) => job.Group switch
