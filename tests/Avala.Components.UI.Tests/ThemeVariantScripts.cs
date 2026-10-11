@@ -92,6 +92,18 @@ public sealed class ThemeVariantScripts(HeadlessUi ui)
             Assert.True(Against("HubTrackBrush") >= 1.5, $"track at {Against("HubTrackBrush")}");
         }, Cancellation);
 
+    [Theory]
+    [InlineData("EdgeQuietBrush")]
+    [InlineData("EdgeFlowingBrush")]
+    public Task AnEdgeStandsOutFromTheLightWindowAtLeastAsMuchAsFromTheDarkOneAsync(string key) =>
+        ui.RunAsync(() =>
+        {
+            double Against(ThemeVariant variant) =>
+                Legibility.Contrast(Legibility.Over(Legibility.Resource(key, variant), Legibility.Resource("SurfaceWindowBrush", variant)), Legibility.Resource("SurfaceWindowBrush", variant));
+
+            Assert.True(Against(ThemeVariant.Light) >= Against(ThemeVariant.Dark), $"{Against(ThemeVariant.Light):0.00}:1 in light against {Against(ThemeVariant.Dark):0.00}:1 in dark");
+        }, Cancellation);
+
     [Fact]
     public Task TheTwoVariantsDifferInEveryNeutralSurfaceAsync() =>
         ui.RunAsync(() =>

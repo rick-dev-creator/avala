@@ -30,10 +30,10 @@
           <BoxShadows x:Key="ShadowOrchestrator">0 20 40 -16 #BF000000</BoxShadows>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="EdgeFlowingBrush" Color="#47000000" />
+          <SolidColorBrush x:Key="EdgeFlowingBrush" Color="#73000000" />
           <SolidColorBrush x:Key="EdgeAttentionBrush" Color="#A6945800" />
           <SolidColorBrush x:Key="EdgeWaitingBrush" Color="#73945800" />
-          <SolidColorBrush x:Key="EdgeQuietBrush" Color="#3D000000" />
+          <SolidColorBrush x:Key="EdgeQuietBrush" Color="#59000000" />
           <SolidColorBrush x:Key="NodeBrush" Color="#FFFFFFFF" />
           <SolidColorBrush x:Key="NodeBorderBrush" Color="#17000000" />
           <SolidColorBrush x:Key="NodeTipBrush" Color="#F7FFFFFF" />
