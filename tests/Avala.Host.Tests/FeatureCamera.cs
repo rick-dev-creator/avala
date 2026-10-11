@@ -40,7 +40,7 @@ internal sealed class FeatureCamera(HeadlessUi ui, string folder)
                         Pump();
                     }
 
-                    window.CaptureRenderedFrame()?.Save(Path.Combine(folder, name + ".png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+                    window.CaptureRenderedFrame()?.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, name + ".png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
                     var texts = Directory.CreateDirectory(Path.Combine(folder, "texts")).FullName;
                     await File.WriteAllLinesAsync(Path.Combine(texts, name + ".txt"), Texts(window), TestContext.Current.CancellationToken);
                 }
