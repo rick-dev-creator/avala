@@ -63,7 +63,7 @@ internal sealed class LoopRegistry(LoopSteps steps, LoopJournal journal, ILoopLi
         foreach (var loop in (await journal.RestoreAsync(cancellationToken)).Where(stored => stored.Status != LoopStatus.Ended))
         {
             var runner = new LoopRunner(loop, steps, journal, clock);
-            ImmutableInterlocked.Update(ref runners, current => current.SetItem(runner.Id, runner));
+            ImmutableInterlocked.Update(ref runners, current => current.Add(runner.Id, runner));
             ImmutableInterlocked.Update(ref restored, current => current.Add(runner));
         }
     }

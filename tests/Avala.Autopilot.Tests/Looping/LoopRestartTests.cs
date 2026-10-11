@@ -110,6 +110,27 @@ public sealed class LoopRestartTests
         Assert.Equal(AutopilotError.AlreadyRunning, Outcomes.FailsWith(await restarted.Registry.StartAsync(new LoopRequest(Pilot.Repository), Cancellation)));
     }
 
+    [Fact]
+    public async Task ALoopStartedBeforeTheStoreIsRestoredKeepsItsOneRunnerAsync()
+    {
+        await using var pilot = new Pilot();
+        pilot.Backlog.Add("greet", "Greet the team");
+        pilot.Backlog.Add("docs", "Document the greeting");
+        await pilot.StartAsync();
+        await pilot.TakenAsync(1);
+        var stored = Assert.Single(await pilot.Loops.LoopsAsync(Cancellation));
+        await pilot.Loops.KeepAsync(stored with { Current = Option<Underway>.None }, Cancellation);
+
+        await pilot.Registry.RestoreAsync(Cancellation);
+        pilot.Registry.Recover();
+        await pilot.CleanAsync(1);
+        await pilot.CleanAsync(2);
+        await pilot.EndedAsync();
+
+        Assert.Equal([1, 2], pilot.Bus.Published.OfType<LoopIterated>().Select(iterated => iterated.Iteration.Number));
+        Assert.Single(pilot.Registry.Loops());
+    }
+
     private static LoopRecord Begun(Pilot pilot) =>
         LoopRecord.Begin(LoopId.New(), new LoopRequest(Pilot.Repository), new LoopLimits(), pilot.Clock.GetUtcNow());
 

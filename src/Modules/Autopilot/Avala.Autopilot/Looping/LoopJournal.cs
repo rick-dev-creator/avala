@@ -13,6 +13,8 @@ internal sealed class LoopBook
 
     public void Keep(LoopRecord record) => ImmutableInterlocked.AddOrUpdate(ref loops, record.Id, record, (_, _) => record);
 
+    public bool Restored(LoopRecord record) => ImmutableInterlocked.TryAdd(ref loops, record.Id, record);
+
     public IReadOnlyList<LoopState> States() => [.. Volatile.Read(ref loops).Values.OrderBy(record => record.Started).Select(record => record.State)];
 
     public Option<LoopDigest> DigestOf(LoopId loop) =>
@@ -33,12 +35,7 @@ internal sealed partial class LoopJournal(IEventBus bus, LoopBook book, ILoopSto
     {
         var stored = await store.LoopsAsync(cancellationToken);
 
-        foreach (var record in stored)
-        {
-            book.Keep(record);
-        }
-
-        return stored;
+        return [.. stored.Where(book.Restored)];
     }
 
     public ValueTask PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken)
