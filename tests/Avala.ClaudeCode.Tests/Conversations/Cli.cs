@@ -128,6 +128,12 @@ internal static class Cli
               "unifiedWindows": { "five_hour": { "utilization": 0, "resetsAt": 1791580200 }, "seven_day": { "utilization": 0.99, "resetsAt": 1791691200 } } } }
             """);
 
+    public static JsonNode RejectedRateLimit() =>
+        Parse("""
+            { "type": "rate_limit_event", "rate_limit_info": { "status": "rejected", "resetsAt": 1791580200, "rateLimitType": "five_hour", "utilization": 1,
+              "unifiedWindows": { "five_hour": { "utilization": 1, "resetsAt": 1791580200 }, "seven_day": { "utilization": 0.4, "resetsAt": 1791691200 } } } }
+            """);
+
     public static JsonNode Parse(string json) => JsonNode.Parse(json)!;
 
     public static string OnHost(string input) =>

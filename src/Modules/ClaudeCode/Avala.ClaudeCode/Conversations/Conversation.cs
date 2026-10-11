@@ -18,6 +18,7 @@ internal sealed class Conversation
     private bool tokenIssued;
     private bool modelReported;
     private bool interrupting;
+    private bool rejected;
     private int interruptions;
     private int queued;
     private int stale;
@@ -66,6 +67,7 @@ internal sealed class Conversation
         live = stamp;
         tokenIssued = false;
         modelReported = false;
+        rejected = false;
 
         return (stamp.Turn, new Reaction([new TurnStarted(session, stamp.Turn)], [Messages.User(turn)]));
     }
@@ -99,10 +101,17 @@ internal sealed class Conversation
     private Reaction During(string type, JsonNode message, Stamp stamp) => type switch
     {
         "stream_event" or "assistant" or "user" when stale == 0 => translator.Receive(message, stamp),
-        "rate_limit_event" => Reaction.Of([.. Telemetry.Limits(message).Select(limit => new LimitReported(session, stamp.Turn, limit))]),
+        "rate_limit_event" => Limited(message, stamp),
         "result" => queued > 0 && !interrupting ? Carried(message, stamp) : Ended(message, stamp),
         _ => Reaction.None,
     };
+
+    private Reaction Limited(JsonNode message, Stamp stamp)
+    {
+        rejected |= Telemetry.Rejected(message);
+
+        return Reaction.Of([.. Telemetry.Limits(message).Select(limit => new LimitReported(session, stamp.Turn, limit))]);
+    }
 
     private Reaction Initialized(JsonNode message)
     {
@@ -169,9 +178,7 @@ internal sealed class Conversation
         var cost = Spent(result);
         stale = interrupting ? queued : 0;
         queued = 0;
-        var outcome = interrupting
-            ? TurnOutcome.Interrupted
-            : result.TextOr("subtype", string.Empty) == "success" && !result.Flag("is_error") ? TurnOutcome.Finished : TurnOutcome.Failed;
+        var outcome = interrupting ? TurnOutcome.Interrupted : Outcome(result);
         var closing = desk.Release(interrupting).Then(translator.Close(stamp, interrupting));
         live = Option<Stamp>.None;
         interrupting = false;
@@ -180,6 +187,16 @@ internal sealed class Conversation
             .Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), cost)))
             .Then(Token(stamp))
             .Then(Reaction.Of(new TurnCompleted(session, stamp.Turn, outcome)));
+    }
+
+    private TurnOutcome Outcome(JsonNode result)
+    {
+        if (result.TextOr("subtype", string.Empty) == "success" && !result.Flag("is_error"))
+        {
+            return TurnOutcome.Finished;
+        }
+
+        return rejected ? TurnOutcome.LimitReached : TurnOutcome.Failed;
     }
 
     private Reaction Token(Stamp stamp) =>

@@ -35,6 +35,9 @@ internal static class Telemetry
 
     public static Option<decimal> TotalCost(JsonNode result) => result.Amount("total_cost_usd");
 
+    public static bool Rejected(JsonNode rateLimitEvent) =>
+        rateLimitEvent.Members("rate_limit_info").Text("status") == Option<string>.Some("rejected");
+
     public static IReadOnlyList<UsageLimit> Limits(JsonNode rateLimitEvent)
     {
         var info = rateLimitEvent.Members("rate_limit_info");

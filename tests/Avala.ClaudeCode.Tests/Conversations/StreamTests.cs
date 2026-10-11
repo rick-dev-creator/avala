@@ -292,6 +292,14 @@ public sealed class StreamTests
     }
 
     [Fact]
+    public void AResultThatIsAnErrorAfterTheWindowWasRejectedEndsTheTurnAtItsUsageLimit()
+    {
+        var talk = new Talk().Begin().Receive(Cli.RejectedRateLimit()).Receive(Cli.Result(0.001m, "success", isError: true));
+
+        Assert.Equal(TurnOutcome.LimitReached, Assert.IsType<TurnCompleted>(talk.Events[^1]).Outcome);
+    }
+
+    [Fact]
     public void ARateLimitEventReportsEveryWindowWithItsUseAndReset()
     {
         var talk = new Talk().Begin().Receive(Cli.RateLimit());
