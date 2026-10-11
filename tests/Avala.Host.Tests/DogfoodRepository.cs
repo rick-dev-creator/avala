@@ -86,7 +86,7 @@ internal static class DogfoodRepository
         ];
         await WriteAllAsync(place.Data, [.. data.Where(file => seed.Data.All(chosen => chosen.Path != file.Path)), .. seed.Data]);
 
-        foreach (var login in setup.Rehearsal ? (string[])[Main, Other] : [])
+        foreach (var login in setup.Rehearsal ? Declared(scenario).Select(declared => Path.GetFileName(declared.Login)).Distinct() : [])
         {
             await WriteAllAsync(place.Logins, [new DogfoodFile($"{login}/.login", string.Empty)]);
         }
@@ -140,28 +140,35 @@ internal static class DogfoodRepository
         return (process.ExitCode, (await output) + (await error));
     }
 
+    public static IReadOnlyList<(string Name, string Model, string Login)> Declared(DogfoodScenario scenario) =>
+    [
+        (Main, scenario.Model, MainLogin),
+        .. scenario.LeadModel.Length > 0 ? [(Lead, scenario.LeadModel, MainLogin)] : Array.Empty<(string, string, string)>(),
+        .. scenario.UsesExhausted ? [(Exhausted, scenario.Model, ExhaustedLogin)] : Array.Empty<(string, string, string)>(),
+    ];
+
     private static string Connections(DogfoodScenario scenario, DogfoodSetup setup) =>
         new JsonObject
         {
             ["default"] = Main,
-            ["connections"] = new JsonArray(Connection(Main, scenario.MainModel, setup), Connection(Other, scenario.OtherModel, setup)),
+            ["connections"] = new JsonArray([.. Declared(scenario).Select(declared => Connection(declared, setup))]),
         }.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
 
-    private static JsonObject Connection(string name, string model, DogfoodSetup setup) =>
+    private static JsonObject Connection((string Name, string Model, string Login) declared, DogfoodSetup setup) =>
         setup.Rehearsal
             ? new JsonObject
             {
-                ["name"] = name,
+                ["name"] = declared.Name,
                 ["provider"] = "simulator",
-                ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = Path.Combine(setup.Place.Logins, name) },
+                ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = Path.Combine(setup.Place.Logins, Path.GetFileName(declared.Login)) },
                 ["settings"] = new JsonObject { ["transcripts"] = Path.Combine(setup.Place.Folder, "transcripts") },
             }
             : new JsonObject
             {
-                ["name"] = name,
+                ["name"] = declared.Name,
                 ["provider"] = "claude-code",
-                ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = name == Main ? MainLogin : OtherLogin },
-                ["settings"] = new JsonObject { ["model"] = model, ["transcripts"] = Path.Combine(setup.Place.Folder, "transcripts"), ["userConfiguration"] = false },
+                ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = declared.Login },
+                ["settings"] = new JsonObject { ["model"] = declared.Model, ["transcripts"] = Path.Combine(setup.Place.Folder, "transcripts"), ["userConfiguration"] = false },
             };
 
     private static async Task WriteAllAsync(string folder, IReadOnlyList<DogfoodFile> files)

@@ -6,11 +6,13 @@ internal sealed record DogfoodScenario(string Name, string Title, string Feature
 {
     public bool Optional { get; init; }
 
-    public bool UsesOther { get; init; }
+    public bool UsesExhausted { get; init; }
 
-    public string MainModel { get; init; } = "haiku";
+    public bool Thresholded { get; init; }
 
-    public string OtherModel { get; init; } = "haiku";
+    public string Model { get; init; } = "haiku";
+
+    public string LeadModel { get; init; } = string.Empty;
 
     public string Rehearsal { get; init; } = string.Empty;
 

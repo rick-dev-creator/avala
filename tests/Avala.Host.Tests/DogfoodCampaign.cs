@@ -33,7 +33,7 @@ internal sealed class DogfoodCampaign(PublishedPlugins plugins, HeadlessUi ui)
             }
 
             header.Add($"Avala commit {(await DogfoodRepository.RunAsync("git", ["-C", AppContext.BaseDirectory, "rev-parse", "HEAD"], new Dictionary<string, string?>())).Output.Trim()}");
-            header.Add($"Harness: {(Rehearsing ? "the simulator (rehearsal, no cost)" : readiness?.Version)}; models {Main} {scenario.MainModel}, {Other} {scenario.OtherModel}");
+            header.Add($"Harness: {(Rehearsing ? "the simulator (rehearsal, no cost)" : readiness?.Version)}; connections {string.Join(", ", DogfoodRepository.Declared(scenario).Select(declared => $"{declared.Name} {declared.Model} on {declared.Login}"))}");
 
             if (refusal.Length > 0)
             {

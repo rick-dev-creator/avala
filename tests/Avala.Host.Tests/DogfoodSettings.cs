@@ -8,9 +8,11 @@ internal static class DogfoodSettings
 {
     internal const string Gate = "AVALA_DOGFOOD";
 
-    internal const string Main = "claude-work";
+    internal const string Main = "claude";
 
-    internal const string Other = "claude";
+    internal const string Lead = "claude-lead";
+
+    internal const string Exhausted = "claude-work";
 
     internal const string HookSecret = "AVALA_DOGFOOD_HOOK_SECRET";
 
@@ -38,9 +40,11 @@ internal static class DogfoodSettings
         ? folder
         : Path.Combine(Root, Rehearsing ? "rehearsal" : "campaign");
 
-    internal static string MainLogin => Folder("AVALA_DOGFOOD_LOGIN", ".claude-work");
+    internal static string MainLogin => Folder("AVALA_DOGFOOD_LOGIN", ".claude");
 
-    internal static string OtherLogin => Folder("AVALA_DOGFOOD_OTHER_LOGIN", ".claude");
+    internal static string ExhaustedLogin => Folder("AVALA_DOGFOOD_EXHAUSTED_LOGIN", ".claude-work");
+
+    internal static bool ExtraUsageAllowed => Environment.GetEnvironmentVariable("AVALA_DOGFOOD_ALLOW_EXTRA_USAGE") == "1";
 
     internal static decimal CampaignCap => Amount("AVALA_DOGFOOD_CAMPAIGN_CAP", "3.00");
 

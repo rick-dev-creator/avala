@@ -22,10 +22,9 @@ internal static class DogfoodTeamScenarios
 
     private const string SlowChecks = """{ "checks": [ { "name": "slow suite", "command": "bash", "arguments": ["-c", "sleep 21; node --test"], "timeoutSeconds": 120 } ] }""";
 
-    public static DogfoodScenario Orchestrated { get; } = new("s11", "An orchestrator on one account delegates to a child on the other, which asks it and gets an early answer; a read-only reviewer reports", "delegation across accounts, children asking their parent through the pending delegate call, answer_child and wait_child, a read-only reviewer, integration into the parent's worktree", 1.30m, TimeSpan.FromMinutes(40))
+    public static DogfoodScenario Orchestrated { get; } = new("s11", "An orchestrator on Sonnet delegates to a Haiku child on the same account, which asks it and gets an early answer; a read-only reviewer reports", "delegation to another connection of the same account, children asking their parent through the pending delegate call, answer_child and wait_child, a read-only reviewer, integration into the parent's worktree", 1.30m, TimeSpan.FromMinutes(40))
     {
-        UsesOther = true,
-        MainModel = "sonnet",
+        LeadModel = "sonnet",
         Seed = _ => new DogfoodSeed
         {
             Committed =
@@ -35,16 +34,16 @@ internal static class DogfoodTeamScenarios
                 new(".avala/budget.json", """{ "costPerJob": { "USD": 1.20 }, "carvePerChild": 0.3 }"""),
                 new(".avala/jobs.json", $$"""
                     {
-                      "connection": "{{Main}}",
+                      "connection": "{{Lead}}",
                       "approval": "keep",
-                      "delegation": { "connections": ["{{Other}}"], "maxDepth": 1, "maxChildren": 2, "escalation": "parent", "parentWindowSeconds": 180, "role": "worker" }
+                      "delegation": { "connections": ["{{Main}}"], "maxDepth": 1, "maxChildren": 2, "escalation": "parent", "parentWindowSeconds": 180, "role": "worker" }
                     }
                     """),
             ],
         },
         Steps = async scene =>
         {
-            var parent = await scene.SubmitAsync(scene.Tagged("[simulate: delegate-asks-parent-then-review]", Orchestration), Main, "s11");
+            var parent = await scene.SubmitAsync(scene.Tagged("[simulate: delegate-asks-parent-then-review]", Orchestration), Lead, "s11");
 
             if (await scene.SettledAsync(parent, "the orchestrator to settle") != JobStatus.AwaitingReview)
             {
@@ -85,12 +84,14 @@ internal static class DogfoodTeamScenarios
                 return worker is null ? DogfoodVerdict.NotReached($"no worker reported ({evidence.Outcome})")
                     : Expect(evidence, worker.Report.Match(report => report.Outcome == ChildOutcome.Integrated, () => false) && delivered is not null && delivered.Answered.Match(answer => answer.Route == AnswerRoute.ToolResult, () => false), $"report {worker.Report.Match(report => report.Outcome.ToString(), () => "none")}, delivered {delivered?.Answered.Match(answer => answer.Route.ToString(), () => "unanswered") ?? "never"}");
             }),
-            OfJob("The child's session runs on a different account than the parent's", "s11", (evidence, parent) =>
+            OfJob("The parent runs on claude-lead and its children on claude, all on the same account", "s11", (evidence, parent) =>
             {
-                var parents = evidence.SessionsOf(parent).Select(opened => opened.Account.Match(account => account.Id, () => "none")).ToHashSet();
-                var children = Children(evidence, parent).SelectMany(evidence.SessionsOf).Select(opened => opened.Account.Match(account => account.Id, () => "none")).ToHashSet();
+                var parents = evidence.SessionsOf(parent).ToList();
+                var children = Children(evidence, parent).SelectMany(evidence.SessionsOf).ToList();
+                var accounts = parents.Concat(children).Select(opened => opened.Account.Match(account => account.Id, () => "none")).Distinct().ToList();
+                string Of(IEnumerable<SessionOpened> sessions) => string.Join(", ", sessions.Select(opened => $"{opened.Connection.Value}={opened.Account.Match(account => account.Id, () => "none")}").Distinct());
 
-                return Expect(evidence, children.Count > 0 && !children.Overlaps(parents), $"parent [{string.Join(", ", parents)}], children [{string.Join(", ", children)}]");
+                return Expect(evidence, children.Count > 0 && parents.All(opened => opened.Connection.Value == Lead) && children.All(opened => opened.Connection.Value == Main) && accounts.Count == 1, $"parent [{Of(parents)}], children [{Of(children)}]");
             }),
             OfJob("BudgetCarved is published for each child", "s11", (evidence, parent) =>
             {
