@@ -90,6 +90,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IAgents>(new FakeAgents())
             .AddSingleton<IPermissionAnswers>(new FakePermissionAnswers())
             .AddSingleton<IRunEvidence>(new FakeRunEvidence())
+            .AddSingleton<IAutopilot>(new FakeAutopilot())
             .AddSingleton<IWorkspaceChanges>(new FakeChanges())
             .AddSingleton<IWorkspaces>(new FakeWorkspaces())
             .AddSingleton<IWorkingFiles>(new FakeWorkingFiles())

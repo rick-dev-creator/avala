@@ -1,3 +1,4 @@
+using Avala.Autopilot.Contracts;
 using Avala.Sdk;
 using Avala.Triggers.Contracts;
 
@@ -10,9 +11,10 @@ internal sealed record TriggersState(
     IReadOnlyList<TriggerFile> Files,
     IReadOnlyList<WebhookDelivery> Deliveries,
     WebhookEndpoint Endpoint,
+    IReadOnlyList<LoopDigest> Loops,
     TimeZoneInfo Zone);
 
-internal sealed class TriggerControls(ITriggers triggers, TimeProvider clock)
+internal sealed class TriggerControls(ITriggers triggers, LoopControls loops, TimeProvider clock)
 {
     public const int RunsShown = 5;
 
@@ -29,6 +31,7 @@ internal sealed class TriggerControls(ITriggers triggers, TimeProvider clock)
             triggers.Files(),
             [.. triggers.Deliveries().TakeLast(DeliveriesShown).Reverse()],
             triggers.Endpoint,
+            loops.Read(),
             clock.LocalTimeZone);
     }
 

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Threading.Channels;
+using Avala.Autopilot.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Delegation.Contracts;
 using Avala.Observability.Contracts;
@@ -29,7 +30,15 @@ internal sealed class Pulse(JobBoard board)
         IHandle<UpdateFound>,
         IHandle<TriggerFired>,
         IHandle<WebhookReceived>,
-        IHandle<TriggersChanged>
+        IHandle<TriggersChanged>,
+        IHandle<LoopStarted>,
+        IHandle<LoopTaskTaken>,
+        IHandle<LoopIterated>,
+        IHandle<LoopWaiting>,
+        IHandle<LoopPaused>,
+        IHandle<LoopResumed>,
+        IHandle<BreakerTripped>,
+        IHandle<LoopEnded>
 {
     private ImmutableList<ChannelWriter<bool>> watchers = [];
 
@@ -66,6 +75,22 @@ internal sealed class Pulse(JobBoard board)
     public ValueTask HandleAsync(WebhookReceived integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(TriggersChanged integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(LoopStarted integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(LoopTaskTaken integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(LoopIterated integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(LoopWaiting integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(LoopPaused integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(LoopResumed integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(BreakerTripped integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(LoopEnded integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public void Beat()
     {

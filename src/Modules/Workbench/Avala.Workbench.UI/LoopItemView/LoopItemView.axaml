@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:triggers="using:Avala.Workbench.Triggers"
+             xmlns:local="using:Avala.Workbench.UI"
+             x:Class="Avala.Workbench.UI.LoopItemView"
+             x:ClassModifier="internal"
+             x:DataType="triggers:ILoopItemViewModel">
+  <Design.DataContext>
+    <triggers:DesignLoopItemViewModel />
+  </Design.DataContext>
+  <DockPanel Margin="0,11">
+    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Top">
+      <Button x:Name="Pause"
+              Classes="ghost"
+              Padding="12,5"
+              Content="Pause"
+              IsVisible="{Binding CanPause}"
+              Command="{Binding $parent[local:LoopsView].((triggers:ILoopsViewModel)DataContext).PauseCommand, FallbackValue={x:Null}}"
+              CommandParameter="{Binding}" />
+      <Button x:Name="Resume"
+              Padding="12,5"
+              Content="Resume"
+              IsVisible="{Binding CanResume}"
+              Command="{Binding $parent[local:LoopsView].((triggers:ILoopsViewModel)DataContext).ResumeCommand, FallbackValue={x:Null}}"
+              CommandParameter="{Binding}" />
+      <Button x:Name="Stop"
+              Classes="ghost"
+              Padding="12,5"
+              Content="Stop"
+              IsVisible="{Binding CanStop}"
+              Command="{Binding $parent[local:LoopsView].((triggers:ILoopsViewModel)DataContext).StopCommand, FallbackValue={x:Null}}"
+              CommandParameter="{Binding}" />
+    </StackPanel>
+    <StackPanel Spacing="2">
+      <TextBlock x:Name="LoopStatus" Classes.attention="{Binding NeedsAttention}" Text="{Binding Status}" TextWrapping="Wrap" />
+      <TextBlock x:Name="LoopRepository" Classes="caption mono" Text="{Binding Repository}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Repository}" />
+      <TextBlock x:Name="LoopSummary" Classes="caption" Text="{Binding Summary}" />
+      <ItemsControl x:Name="LoopIterations" Margin="0,4,0,0" ItemsSource="{Binding Iterations}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Classes="caption" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </DockPanel>
+</UserControl>

@@ -18,6 +18,7 @@ public sealed class TriggersViewModelScripts : IDisposable
 
     private readonly TestUiDispatcher ui = new();
     private readonly FakeTriggers triggers = new();
+    private readonly FakeAutopilot autopilot = new();
 
     [Fact]
     public async Task ThePageListsEachTriggerWithWhatFiresItItsNextRunItsRunsTheFilesTheEndpointAndTheDeliveriesAsync()
@@ -39,6 +40,17 @@ public sealed class TriggersViewModelScripts : IDisposable
         Assert.Equal(["/data/triggers.json · applied, 2 triggers"], await ui.ReadAsync(() => page.Files.ToList()));
         Assert.Equal(["Fri 9 Oct 15:00 · /hooks/issue · bad signature"], await ui.ReadAsync(() => page.Deliveries.ToList()));
         Assert.Contains("Tailscale Funnel", page.Tunnel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ThePageHandsItsLoopsToTheLoopSectionLiveOnesFirstAsync()
+    {
+        using var page = Page();
+
+        page.Activate();
+
+        await ui.PresentedAsync(page, () => page.Loops.Loops.Count == 2, () => $"{page.Loops.Loops.Count} loops");
+        Assert.Equal([FakeAutopilot.Running, FakeAutopilot.Tripped], await ui.ReadAsync(() => page.Loops.Loops.Select(loop => loop.Id).ToList()));
     }
 
     [Fact]
@@ -88,7 +100,9 @@ public sealed class TriggersViewModelScripts : IDisposable
         var clock = new FakeTimeProvider(Now);
         clock.SetLocalTimeZone(TriggerZones.Madrid);
 
-        return new TriggersViewModel(new TriggerControls(triggers, clock), new LiveFeed(new Pulse(new JobBoard()), ui));
+        var loops = new LoopControls(autopilot);
+
+        return new TriggersViewModel(new TriggerControls(triggers, loops, clock), new LiveFeed(new Pulse(new JobBoard()), ui), new LoopsViewModel(loops));
     }
 }
 

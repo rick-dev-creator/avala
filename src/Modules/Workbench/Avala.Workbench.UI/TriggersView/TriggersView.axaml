@@ -41,6 +41,8 @@
           </Border>
         </StackPanel>
 
+        <ContentControl x:Name="LoopSection" Content="{Binding Loops}" />
+
         <StackPanel Spacing="6">
           <TextBlock Classes="section" Text="Webhooks" />
           <WrapPanel>

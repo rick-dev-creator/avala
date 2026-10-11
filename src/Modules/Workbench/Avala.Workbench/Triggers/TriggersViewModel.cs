@@ -31,6 +31,8 @@ internal interface ITriggersViewModel
 
     IReadOnlyList<string> Deliveries { get; }
 
+    ILoopsViewModel Loops { get; }
+
     IAsyncRelayCommand<ITriggerItemViewModel> RunNowCommand { get; }
 
     IAsyncRelayCommand<ITriggerItemViewModel> ToggleCommand { get; }
@@ -39,7 +41,7 @@ internal interface ITriggersViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFeed feed) : ITriggersViewModel, IPage, IActivatable, IPresentation, IDisposable
+internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFeed feed, ILoopsViewModel loops) : ITriggersViewModel, IPage, IActivatable, IPresentation, IDisposable
 {
     private readonly ObservableCollection<ITriggerItemViewModel> triggers = [];
     private readonly ObservableCollection<string> files = [];
@@ -79,6 +81,8 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
     public IReadOnlyList<string> Files => files;
 
     public IReadOnlyList<string> Deliveries => deliveries;
+
+    public ILoopsViewModel Loops { get; } = loops;
 
     public Task Following => feed.Following;
 
@@ -122,5 +126,6 @@ internal sealed partial class TriggersViewModel(TriggerControls controls, LiveFe
         triggers.ShowOnly(state.Triggers.Select(view => new TriggerItemViewModel(view, state.Zone)));
         files.ShowOnly(state.Files.Select(TriggerPhrases.File));
         deliveries.ShowOnly(state.Deliveries.Select(delivery => TriggerPhrases.Delivery(delivery, state.Zone)));
+        Loops.Show(state.Loops, state.Zone);
     }
 }

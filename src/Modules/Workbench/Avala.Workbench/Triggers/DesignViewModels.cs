@@ -68,6 +68,8 @@ internal sealed class DesignTriggersViewModel : ITriggersViewModel
         "Fri 9 Oct 15:07 · /hooks/issue-opened · bad signature",
     ];
 
+    public ILoopsViewModel Loops { get; } = new DesignLoopsViewModel();
+
     public IAsyncRelayCommand<ITriggerItemViewModel> RunNowCommand { get; } = new AsyncRelayCommand<ITriggerItemViewModel>(_ => Task.CompletedTask);
 
     public IAsyncRelayCommand<ITriggerItemViewModel> ToggleCommand { get; } = new AsyncRelayCommand<ITriggerItemViewModel>(_ => Task.CompletedTask);

@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Autopilot.Contracts;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Delegation.Contracts;
@@ -206,6 +207,14 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<TriggerFired>, Pulse>()
             .AddForwarded<IHandle<WebhookReceived>, Pulse>()
             .AddForwarded<IHandle<TriggersChanged>, Pulse>()
+            .AddForwarded<IHandle<LoopStarted>, Pulse>()
+            .AddForwarded<IHandle<LoopTaskTaken>, Pulse>()
+            .AddForwarded<IHandle<LoopIterated>, Pulse>()
+            .AddForwarded<IHandle<LoopWaiting>, Pulse>()
+            .AddForwarded<IHandle<LoopPaused>, Pulse>()
+            .AddForwarded<IHandle<LoopResumed>, Pulse>()
+            .AddForwarded<IHandle<BreakerTripped>, Pulse>()
+            .AddForwarded<IHandle<LoopEnded>, Pulse>()
             .AddSingleton<SessionBook>()
             .AddForwarded<IHandle<SessionOpened>, SessionBook>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionBook>()
@@ -227,6 +236,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<Housekeeping>()
             .AddSingleton<JobLaunch>()
             .AddSingleton<TriggerControls>()
+            .AddSingleton<LoopControls>()
+            .AddSingleton<ILoopsViewModel, LoopsViewModel>()
             .AddSingleton<IConnectionsViewModel, ConnectionsViewModel>()
             .AddSingleton<IDelegationViewModel, DelegationViewModel>()
             .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
@@ -299,5 +310,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IModelPickerViewModel, ModelPickerView>();
         views.Register<ITriggersViewModel, TriggersView>();
         views.Register<ITriggerItemViewModel, TriggerItemView>();
+        views.Register<ILoopsViewModel, LoopsView>();
+        views.Register<ILoopItemViewModel, LoopItemView>();
     }
 }

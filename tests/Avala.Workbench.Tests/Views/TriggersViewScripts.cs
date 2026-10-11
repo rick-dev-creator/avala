@@ -9,7 +9,7 @@ namespace Avala.Workbench.Tests.Views;
 public sealed class TriggersViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ThePageShowsEachTriggerTheWebhookEndpointWithItsTunnelNoteTheDeliveriesAndTheFilesAsync() =>
+    public Task ThePageShowsEachTriggerItsLoopsTheWebhookEndpointWithItsTunnelNoteTheDeliveriesAndTheFilesAsync() =>
         ui.RunAsync(() =>
         {
             var view = Wide(new DesignTriggersViewModel());
@@ -19,6 +19,7 @@ public sealed class TriggersViewScripts(HeadlessUi ui)
             Assert.Contains("Tailscale Funnel", view.TextOf("Tunnel"), StringComparison.Ordinal);
             Assert.Equal(("nightly-deps", "Weekdays at 02:30", "Next · Mon 12 Oct 02:30"), (view.TextOf("TriggerName"), view.TextOf("Fires"), view.TextOf("Next")));
             Assert.Equal((false, false, true), (view.Shows("NoTriggers"), view.Shows("NoDeliveries"), view.Shows("Notice")));
+            Assert.Equal("Loops · 3", view.TextOf("LoopsTitle"));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -101,6 +102,8 @@ public sealed class TriggersViewScripts(HeadlessUi ui)
         public IReadOnlyList<string> Files => design.Files;
 
         public IReadOnlyList<string> Deliveries { get; init; } = new DesignTriggersViewModel().Deliveries;
+
+        public ILoopsViewModel Loops { get; } = new DesignLoopsViewModel();
 
         public IAsyncRelayCommand<ITriggerItemViewModel> RunNowCommand { get; }
 
