@@ -165,6 +165,19 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AJobOverTwoWindowsWaitsForTheWindowWhoseResetItWaitsForAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(SameHarness));
+        var waits = run.Watch<JobWaitsForReset>();
+
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("two-windows-spent")) { Connection = One }));
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;
+
+        Assert.Equal((One, "7d"), (wait.Connection, wait.Window));
+        Assert.True(Outcomes.Present(wait.ResumesAt) > wait.Since.AddDays(1), $"Resumes at {wait.ResumesAt}, waiting since {wait.Since}");
+    }
+
+    [Fact]
     public async Task AJobWhoseWindowRunsOutMidTurnIsHeldInsteadOfFailedAndResumesInItsConversationWhenTheWindowResetsAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, []);

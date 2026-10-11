@@ -94,11 +94,11 @@ internal static class HandoffPolicy
             .Select(candidate => (candidate.Connection, Availability: Capacity.Of(candidate.Limits, situation.Rules.Threshold, situation.Now)))
             .Prepend((Connection: situation.Own.Connection, Availability: own))
             .SelectMany(point => point.Availability.At.Match(
-                at => point.Availability.Window.Match<ResumePoint[]>(limit => [new ResumePoint(point.Connection, limit.Window, at)], () => []),
+                at => point.Availability.Binding.Match<ResumePoint[]>(limit => [new ResumePoint(point.Connection, limit.Window, at)], () => []),
                 () => []))
             .OrderBy(point => point.At.Match(at => at, () => DateTimeOffset.MaxValue))
             .ToList();
 
-        return points.Count > 0 ? points[0] : new ResumePoint(situation.Own.Connection, window.Window, Option<DateTimeOffset>.None);
+        return points.Count > 0 ? points[0] : new ResumePoint(situation.Own.Connection, own.Binding.Match(binding => binding.Window, () => window.Window), Option<DateTimeOffset>.None);
     }
 }

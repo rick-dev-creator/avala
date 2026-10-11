@@ -115,7 +115,7 @@ public sealed class HandoffPolicyTests
         var own = new ConnectionState(Work, "claude-code", [new UsageLimit("5h", 0.95, Now.AddHours(1)), new UsageLimit("7d", 0.92, Now.AddDays(2))]);
         var decision = HandoffPolicy.ByThreshold(new Situation(own, Chosen(Work), Rules(OnLimit.Hold), [own], Now));
 
-        Assert.Equal(new ResumePoint(Work, "5h", Now.AddDays(2)), Outcomes.Present(decision.Resume));
+        Assert.Equal(new ResumePoint(Work, "7d", Now.AddDays(2)), Outcomes.Present(decision.Resume));
     }
 
     [Fact]

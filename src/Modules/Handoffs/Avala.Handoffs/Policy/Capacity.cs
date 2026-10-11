@@ -9,6 +9,8 @@ internal sealed record Availability(Option<UsageLimit> Window, Option<DateTimeOf
 {
     public static Availability Now { get; } = new(Option<UsageLimit>.None, Option<DateTimeOffset>.None);
 
+    public Option<UsageLimit> Binding { get; init; }
+
     public bool IsNow => Window.IsNone;
 }
 
@@ -26,11 +28,9 @@ internal static class Capacity
             return Availability.Now;
         }
 
-        var at = over.Exists(limit => limit.ResetsAt.IsNone)
-            ? Option<DateTimeOffset>.None
-            : over.Max(limit => limit.ResetsAt.Match(resets => resets, () => DateTimeOffset.MinValue));
+        var binding = over.MaxBy(limit => limit.ResetsAt.Match(resets => resets, () => DateTimeOffset.MaxValue));
 
-        return new Availability(over[0], at);
+        return new Availability(over[0], binding.ResetsAt) { Binding = binding };
     }
 
     public static Availability Held(IEnumerable<UsageLimit> limits, double threshold, DateTimeOffset now)
