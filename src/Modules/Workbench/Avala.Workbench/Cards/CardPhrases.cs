@@ -13,10 +13,15 @@ internal static class CardPhrases
 
     public const string AlwaysInRepository = "Always in this repository";
 
+    public const string DontAskAgainInContest = "Don't ask again in this contest";
+
     public const string Withdrawn = "Withdrawn by the harness";
 
     public static string DontAskAgainScope(ItemKind kind) =>
         $"Your answer is reused only for this exact {Requested(kind)}, in every session of this job, after a restart, a retry or a send back too, until the job ends. Other jobs still ask.";
+
+    public static string DontAskAgainInContestScope(ItemKind kind) =>
+        $"Your answer goes to every candidate of this contest: the ones waiting on this exact {Requested(kind)} now, and any that asks it later, until the contest ends. Other jobs still ask.";
 
     public static string AlwaysInRepositoryScope(PolicyRule rule) =>
         $"Adds a rule for exactly {rule.Target.Match(target => target, () => string.Empty)} to .avala/permissions.json in the repository. It applies to new jobs once committed; this job stops asking now.";

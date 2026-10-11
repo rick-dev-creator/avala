@@ -94,6 +94,8 @@ public sealed record PolicyDecision(
     public Option<JobId> Parent { get; init; }
 
     public Option<PassReason> Passed { get; init; }
+
+    public bool Contested { get; init; }
 }
 
 public sealed record SessionAutonomy(SessionId Session, JobId Job, Autonomy Declared, Option<Autonomy> Requested, Autonomy Effective, bool Refused)
@@ -133,6 +135,7 @@ public enum Remember
     Once,
     ForThisJob,
     InThisRepository,
+    ForThisContest,
 }
 
 public sealed record PermissionReply(ItemId Item, PermissionAnswer Answer)

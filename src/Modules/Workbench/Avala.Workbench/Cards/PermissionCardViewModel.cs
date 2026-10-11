@@ -82,9 +82,9 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
 
     public string Writes => CardPhrases.Writes(CommandPhrases.Writes(request.Kind, request.Target));
 
-    public string DontAskAgainLabel => CardPhrases.DontAskAgain;
+    public string DontAskAgainLabel => Contested ? CardPhrases.DontAskAgainInContest : CardPhrases.DontAskAgain;
 
-    public string DontAskAgainScope => CardPhrases.DontAskAgainScope(request.Kind);
+    public string DontAskAgainScope => Contested ? CardPhrases.DontAskAgainInContestScope(request.Kind) : CardPhrases.DontAskAgainScope(request.Kind);
 
     public bool OffersAlwaysInRepository => RepositoryRule.IsSome;
 
@@ -125,6 +125,8 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
 
     private Option<PolicyRule> RepositoryRule => request.Decision.Bind(decision => decision.RepositoryRule);
 
+    private bool Contested => request.Decision.Match(decision => decision.Contested, () => false);
+
     public void Update(ITimelineEntry entry)
     {
         if (entry is PermissionEntry permission)
@@ -138,6 +140,8 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
             Notice = permission.Answered.Match(CardPhrases.Remembered, () => Notice);
             OnPropertyChanged(nameof(OffersAlwaysInRepository));
             OnPropertyChanged(nameof(AlwaysInRepositoryScope));
+            OnPropertyChanged(nameof(DontAskAgainLabel));
+            OnPropertyChanged(nameof(DontAskAgainScope));
         }
     }
 
@@ -171,6 +175,7 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
 
     private Remember Remembered =>
         AlwaysInRepository && OffersAlwaysInRepository ? Remember.InThisRepository
+        : DontAskAgain && Contested ? Remember.ForThisContest
         : DontAskAgain ? Remember.ForThisJob
         : Remember.Once;
 

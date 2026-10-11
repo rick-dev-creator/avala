@@ -11,8 +11,13 @@ internal static class Remembering
 
     public const string InThisRepository = "always in this repository";
 
+    public const string ForThisContest = "don't ask again in this contest";
+
     public static PolicyRule ForJob(ItemKind kind, string target, PolicyAnswer answer) =>
         new(RuleOrigin.Job, ForThisJob, kind, target, RuleScope.Anywhere, answer);
+
+    public static PolicyRule ForContest(ItemKind kind, string target, PolicyAnswer answer) =>
+        new(RuleOrigin.Job, ForThisContest, kind, target, RuleScope.Anywhere, answer);
 
     extension(PermissionPolicy policy)
     {

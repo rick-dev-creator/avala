@@ -137,7 +137,7 @@ internal sealed partial class DecisionViewModel : IDecisionViewModel
         set => Remember(permission => permission.DontAskAgain != value, permission => permission.DontAskAgain = value);
     }
 
-    public string DontAskAgainLabel => CardPhrases.DontAskAgain;
+    public string DontAskAgainLabel => Card is IPermissionCardViewModel permission ? permission.DontAskAgainLabel : CardPhrases.DontAskAgain;
 
     public string DontAskAgainScope => Card is IPermissionCardViewModel permission ? permission.DontAskAgainScope : string.Empty;
 

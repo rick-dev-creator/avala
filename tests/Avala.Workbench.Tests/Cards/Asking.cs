@@ -27,11 +27,14 @@ internal sealed class Asking
     public PermissionEntry OfferingTheRepository(string target = "npm test -- CheckoutForm.test.tsx --runInBand") =>
         Permission(target, DecisionDelivery.LeftToHuman, new PolicyRule(RuleOrigin.Repository, "always in this repository", ItemKind.Command, target, RuleScope.Anywhere, PolicyAnswer.Allow));
 
-    private PermissionEntry Permission(string target, DecisionDelivery delivery, Option<PolicyRule> repository) =>
+    public PermissionEntry Contested(string target = "dotnet ef database update") =>
+        Permission(target, DecisionDelivery.LeftToHuman, Option<PolicyRule>.None, contested: true);
+
+    private PermissionEntry Permission(string target, DecisionDelivery delivery, Option<PolicyRule> repository, bool contested = false) =>
         Assert.IsType<PermissionEntry>(Assert.Single(Transcript.Empty
             .Apply(new TurnStarted(Session, Turn), Now)
             .Apply(new PermissionRequested(Session, Turn, new ItemId("run"), "Run the CheckoutForm tests", ItemKind.Command, target), Now)
-            .Apply(new PolicyDecision(Session, Turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, delivery, Now) { RepositoryRule = repository })
+            .Apply(new PolicyDecision(Session, Turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, delivery, Now) { RepositoryRule = repository, Contested = contested })
             .Entries));
 
     public PermissionEntry AskingParent(JobId parent, DecisionDelivery delivery, Option<PassReason> passed, Option<PermissionAnswer> resolution)

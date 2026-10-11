@@ -130,6 +130,8 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
 
     public IReadOnlyList<PolicyDecision> OfSession(SessionId session) => Of(session).Decisions;
 
+    public IReadOnlyList<GovernedSession> SessionsOf(JobId job) => [.. OfEverySession(job)];
+
     public IReadOnlyList<PolicyDecision> OfJob(JobId job) =>
         [.. OfEverySession(job).SelectMany(session => session.Decisions).OrderBy(decision => decision.At)];
 

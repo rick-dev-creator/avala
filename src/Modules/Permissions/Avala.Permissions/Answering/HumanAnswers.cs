@@ -23,7 +23,7 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
         var answer = reply.Answer == PermissionAnswer.Allow ? PolicyAnswer.Allow : PolicyAnswer.Deny;
         (JobId Job, PolicyRule Rule)[] kept = reply.Remember == Remember.Once
             ? []
-            : governed.Job.Match<(JobId, PolicyRule)[]>(job => [(job, Remembering.ForJob(asked.Kind, asked.Target, answer))], () => []);
+            : governed.Job.Match<(JobId, PolicyRule)[]>(job => [(job, Rule(reply.Remember, asked, answer))], () => []);
 
         foreach (var (job, rule) in kept)
         {
@@ -52,6 +52,9 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             },
             cancellationToken);
     }
+
+    private static PolicyRule Rule(Remember remember, PolicyDecision asked, PolicyAnswer answer) =>
+        remember == Remember.ForThisContest ? Remembering.ForContest(asked.Kind, asked.Target, answer) : Remembering.ForJob(asked.Kind, asked.Target, answer);
 
     private Task<Result<PolicyRule, PolicyError>> WriteAsync(Option<JobId> job, Option<PolicyRule> rule, CancellationToken cancellationToken) =>
         job.Match(

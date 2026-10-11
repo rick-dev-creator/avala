@@ -55,6 +55,19 @@ public sealed class PermissionCardViewModelScripts
     }
 
     [Fact]
+    public async Task ARequestOfAContestCandidateOffersDontAskAgainInThisContestAndSendsItForEveryCandidate()
+    {
+        var card = new PermissionCardViewModel(asking.Contested(), new(permissions, new FakeAgents()));
+        card.DontAskAgain = true;
+
+        await card.AllowCommand.ExecuteAsync(null);
+
+        Assert.Equal(Remember.ForThisContest, Assert.Single(permissions.Replies).Reply.Remember);
+        Assert.Equal("Don't ask again in this contest", card.DontAskAgainLabel);
+        Assert.StartsWith("Your answer goes to every candidate of this contest", card.DontAskAgainScope, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AlwaysInThisRepositoryIsOfferedOnlyWhenThePolicyFoundAnExactRuleForTheRequest() =>
         ViewModelScript.Given(new PermissionCardViewModel(asking.OfferingTheRepository("dotnet test"), new(permissions, new FakeAgents())))
             .Then(card =>

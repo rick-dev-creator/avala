@@ -1,6 +1,8 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
 using Avala.Contests.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workspaces.Contracts;
@@ -121,6 +123,29 @@ public sealed class ContestTests(PublishedPlugins plugins)
         Assert.Equal(ContestStatus.Judging, before);
         Assert.Equal(["calculator.txt"], await ChangedAsync(run, Outcomes.Present(verdict.Winner)));
         Assert.Equal(ContestStatus.Decided, Outcomes.Present(run.Get<IContests>().Of(contest.Contest)).Status);
+    }
+
+    [Fact]
+    public async Task AnAnswerForThisContestAnswersTheSameRequestOfEveryCandidateAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins);
+        var decisions = run.Watch<PermissionDecided>();
+        var contest = await StartAsync(run, "permission", 2);
+        var waiting = 0;
+        var asked = (await decisions.CollectUntilAsync(decided => decided.Decision.Delivery == DecisionDelivery.LeftToHuman && ++waiting == 2))
+            .Select(decided => decided.Decision)
+            .First(decision => decision.Delivery == DecisionDelivery.LeftToHuman);
+
+        _ = Outcomes.Succeeds(await run.Get<IPermissionAnswers>().AnswerAsync(
+            asked.Session,
+            new PermissionReply(asked.Item, PermissionAnswer.Allow) { Remember = Remember.ForThisContest },
+            Cancellation));
+
+        var candidates = contest.Candidates.Select(candidate => candidate.Job).ToArray();
+        Assert.Equal([JobStatus.AwaitingReview, JobStatus.AwaitingReview], await run.SettledAsync(candidates));
+        Assert.All(candidates, candidate => Assert.Equal(
+            [(PermissionAnswer.Allow, "dotnet ef database update", "don't ask again in this contest")],
+            run.Get<IPermissionAudit>().AnswersOfJob(candidate).Select(answer => (answer.Answer, answer.Target, answer.Rule.Match(rule => rule.Name, () => string.Empty)))));
     }
 
     internal static async Task<ContestRecord> StartAsync(SimulatedRun run, string scenario, int candidates, int attempts = 1) =>

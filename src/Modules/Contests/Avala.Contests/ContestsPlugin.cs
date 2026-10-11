@@ -4,6 +4,7 @@ using Avala.Contests.RepositoryFiles;
 using Avala.Contests.Running;
 using Avala.Contests.Storage;
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +34,7 @@ public sealed class ContestsPlugin : IPlugin
             .AddForwarded<IHandle<JobProgressed>, ContestDesk>()
             .AddSingleton<ContestsEntry>()
             .AddForwarded<IContests, ContestsEntry>()
+            .AddForwarded<IAnswerSharing, ContestsEntry>()
             .AddSingleton<IStartupTask, ContestRecovery>();
     }
 }

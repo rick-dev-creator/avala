@@ -1,11 +1,12 @@
 using Avala.Contests.Contesting;
 using Avala.Contests.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Permissions.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Contests.Running;
 
-internal sealed class ContestsEntry(ContestBook book, ContestStarter starter, IBestOfFile file) : IContests
+internal sealed class ContestsEntry(ContestBook book, ContestStarter starter, IBestOfFile file) : IContests, IAnswerSharing
 {
     public async ValueTask<Result<ContestRecord, ContestRejection>> StartAsync(ContestRequest request, CancellationToken cancellationToken)
     {
@@ -26,4 +27,11 @@ internal sealed class ContestsEntry(ContestBook book, ContestStarter starter, IB
     public Option<ContestRecord> OfJob(JobId job) => book.OfJob(job);
 
     public IReadOnlyList<ContestRecord> All() => book.All();
+
+    public ValueTask<IReadOnlyList<JobId>> SharersAsync(JobId job, CancellationToken cancellationToken) =>
+        ValueTask.FromResult<IReadOnlyList<JobId>>(book.OfJob(job).Match<IReadOnlyList<JobId>>(
+            contest => contest.Status is ContestStatus.Closed or ContestStatus.Cancelled
+                ? []
+                : [.. contest.Candidates.Select(candidate => candidate.Job).Where(candidate => candidate != job)],
+            () => []));
 }

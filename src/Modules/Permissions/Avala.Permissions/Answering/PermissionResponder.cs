@@ -8,7 +8,7 @@ using Avala.Sdk;
 
 namespace Avala.Permissions.Answering;
 
-internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, TimeProvider clock)
+internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, TimeProvider clock, IEnumerable<IAnswerSharing> sharing)
 {
     public async Task<(PolicyDecision Decision, PermissionRequest Request)> DecideAsync(
         GovernedSession session,
@@ -25,7 +25,9 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
             _ => session.AsksParent.IsSome ? DecisionDelivery.LeftToParent : DecisionDelivery.LeftToHuman,
         };
 
-        return (Decided(session, requested, request, verdict, delivery), request);
+        var contested = delivery == DecisionDelivery.LeftToHuman && await SharedAsync(session.Job, cancellationToken);
+
+        return (Decided(session, requested, request, verdict, delivery) with { Contested = contested }, request);
     }
 
     public async Task<FormDecision> DecideAsync(GovernedSession session, FormRequested requested, CancellationToken cancellationToken)
@@ -70,6 +72,19 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
             RepositoryRule = delivery is DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent && session.Job.IsSome ? session.Policy.InRepository(request) : Option<PolicyRule>.None,
             Parent = delivery == DecisionDelivery.LeftToParent ? session.AsksParent : Option<JobId>.None,
         };
+
+    private async Task<bool> SharedAsync(Option<JobId> job, CancellationToken cancellationToken)
+    {
+        foreach (var shares in job.Match(found => sharing.Select(shared => (Sharing: shared, Job: found)), () => []))
+        {
+            if ((await shares.Sharing.SharersAsync(shares.Job, cancellationToken)).Count > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private async Task<DecisionDelivery> RespondAsync(PermissionRequested requested, PermissionAnswer answer, CancellationToken cancellationToken) =>
         (await agents.RespondAsync(requested.Session, new PermissionDecision(requested.Item, answer), cancellationToken)).Match(
