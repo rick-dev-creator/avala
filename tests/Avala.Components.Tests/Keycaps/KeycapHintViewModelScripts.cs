@@ -15,6 +15,6 @@ public sealed class KeycapHintViewModelScripts
     {
         var hint = new DesignKeycapHintViewModel();
 
-        Assert.Equal(("J K", "move"), (hint.Keys, hint.Action));
+        Assert.Equal(("J / K", "move"), (hint.Keys, hint.Action));
     }
 }

@@ -337,7 +337,7 @@ internal static class DecisionHints
 
     private static IReadOnlyList<IKeycapHintViewModel> Of(IKeycapHintViewModel[] choose, string answer) =>
     [
-        new KeycapHintViewModel("J K", "move"),
+        new KeycapHintViewModel("J / K", "move"),
         .. choose,
         new KeycapHintViewModel("⏎", answer),
         new KeycapHintViewModel("⌫", "deny"),

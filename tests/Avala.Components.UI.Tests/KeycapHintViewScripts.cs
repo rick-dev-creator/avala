@@ -14,7 +14,7 @@ public sealed class KeycapHintViewScripts(HeadlessUi ui)
         {
             var view = ViewScript.Show(new DesignKeycapHintViewModel());
 
-            Assert.Equal(["J K", "move"], view.VisibleTexts);
+            Assert.Equal(["J / K", "move"], view.VisibleTexts);
             Assert.Equal("Inter", view.Find<TextBlock>("Keys").FontFamily.FamilyNames[0]);
         }, Cancellation);
 

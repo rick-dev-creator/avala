@@ -22,7 +22,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task EveryWaitingDecisionIsListedWithTheSelectedOneOpenAndTheKeysThatAnswerItAsync() =>
+    public Task EveryWaitingDecisionIsListedWithTheSelectedOneOpenAndTheKeysThatMoveAndAnswerItAsync() =>
         ui.RunAsync(() =>
         {
             var view = Tall(new DesignDecisionsViewModel());
@@ -30,7 +30,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             Assert.Equal((3, "3 pending"), (view.Find<ListBox>("Items").ItemCount, view.TextOf("Pending")));
             Assert.False(view.Shows("EmptyState"));
             Assert.Superset(
-                new HashSet<string>(["Where should generated PDFs live?", "6m", "Render on each request", "Recommended", "Answer  ⏎", "J K", "move", "1–3", "choose", "esc", "close"]),
+                new HashSet<string>(["Where should generated PDFs live?", "6m", "Render on each request", "Recommended", "Answer  ⏎", "J / K", "move", "1–3", "choose", "esc", "close"]),
                 view.VisibleTexts.ToHashSet());
             Assert.Single(view.All<StackPanel>(), panel => panel.Name == "Details");
         }, Cancellation);
