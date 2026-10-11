@@ -8,6 +8,7 @@ using Avala.Workbench.Following;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.Resources;
 using Avala.Workbench.Upkeep;
+using Avala.Workspaces.Contracts;
 using Avala.Sdk.Presentation;
 using CommunityToolkit.Mvvm.Messaging;
 
@@ -55,16 +56,18 @@ public sealed class ResourceIndicatorViewModelScripts : IDisposable
     private readonly IMessenger messenger = new StrongReferenceMessenger();
 
     [Fact]
-    public async Task TheIndicatorShowsTheMemoryInUseAndTheLeftoversAsync()
+    public async Task TheIndicatorShowsTheMemoryInUseAndNamesWhatIsLeftOverAsync()
     {
         var orphans = new FakeOrphans();
         orphans.Reports.Add(new OrphanReport(new ProcessTreeId(Guid.NewGuid()), [], OrphanDisposal.LeftRunning, [], DateTimeOffset.UnixEpoch) { Job = JobId.New() });
-        using var indicator = Indicator(orphans);
+        var leftovers = new Leftovers();
+        await leftovers.HandleAsync(new WorktreesReconciled(new WorktreeReconciliation(["/worktrees/stray-1", "/worktrees/stray-2"], []), false), TestContext.Current.CancellationToken);
+        using var indicator = Indicator(orphans, leftovers);
 
         indicator.Activate();
 
-        await ui.PresentedAsync(indicator, () => indicator.HasLeftovers, () => $"{indicator.Leftovers} left over");
-        Assert.Equal(("512 MB", 1), await ui.ReadAsync(() => (indicator.Memory, indicator.Leftovers)));
+        await ui.PresentedAsync(indicator, () => indicator.HasLeftovers, () => indicator.Leftovers);
+        Assert.Equal(("512 MB", "1 process left running · 2 stale worktrees"), await ui.ReadAsync(() => (indicator.Memory, indicator.Leftovers)));
     }
 
     [Fact]
@@ -95,14 +98,16 @@ public sealed class ResourceIndicatorViewModelScripts : IDisposable
     {
         using var indicator = Indicator(new FakeOrphans());
 
-        Assert.Equal((0, false), (indicator.Leftovers, indicator.HasLeftovers));
+        Assert.Equal((string.Empty, false), (indicator.Leftovers, indicator.HasLeftovers));
     }
 
     public void Dispose() => ui.Dispose();
 
-    private ResourceIndicatorViewModel Indicator(FakeOrphans orphans)
+    private ResourceIndicatorViewModel Indicator(FakeOrphans orphans) => Indicator(orphans, new Leftovers());
+
+    private ResourceIndicatorViewModel Indicator(FakeOrphans orphans, Leftovers leftovers)
     {
-        var reader = new ResourceReader(new FakeResources(), orphans, new Leftovers(), new JobBoard());
+        var reader = new ResourceReader(new FakeResources(), orphans, leftovers, new JobBoard());
         var resources = new ResourcesViewModel(reader, new Housekeeping(orphans, new FakeHousekeeping()), new LiveFeed(new Pulse(new JobBoard()), ui));
 
         return new ResourceIndicatorViewModel(reader, new LiveFeed(new Pulse(new JobBoard()), ui), new JobFocus(new TestRegions(), messenger), resources);

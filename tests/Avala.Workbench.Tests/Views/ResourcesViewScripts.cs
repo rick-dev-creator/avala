@@ -150,12 +150,12 @@ public sealed class StaleWorktreeViewScripts(HeadlessUi ui)
 public sealed class ResourceIndicatorViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task TheIndicatorShowsMemoryCpuAndLeftoversInAmberAsync() =>
+    public Task TheIndicatorShowsMemoryCpuAndWhatIsLeftOverInAmberAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignResourceIndicatorViewModel());
 
-            Assert.Equal(("Avala's agents", "7,168.0 MB", "2 left over"), (view.TextOf("Scope"), view.TextOf("Memory"), view.TextOf("Leftovers")));
+            Assert.Equal(("Avala's agents", "7,168.0 MB", "1 process left running · 1 stale worktree"), (view.TextOf("Scope"), view.TextOf("Memory"), view.TextOf("Leftovers")));
             Assert.Contains("38%", view.VisibleTexts);
             Assert.True(view.HasClass("Leftovers", "attention"));
         }, TestContext.Current.CancellationToken);

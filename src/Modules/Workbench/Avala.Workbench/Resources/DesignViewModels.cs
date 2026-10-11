@@ -59,7 +59,7 @@ internal sealed class DesignResourceIndicatorViewModel : IResourceIndicatorViewM
 
     public string Memory => "7,168.0 MB";
 
-    public int Leftovers => 2;
+    public string Leftovers => "1 process left running · 1 stale worktree";
 
     public bool HasLeftovers => true;
 

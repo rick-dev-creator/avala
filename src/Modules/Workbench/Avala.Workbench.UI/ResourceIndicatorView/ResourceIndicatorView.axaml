@@ -50,7 +50,7 @@
         <Ellipse Width="6" Height="6" Fill="{DynamicResource AttentionBrush}" VerticalAlignment="Center" />
         <TextBlock x:Name="Leftovers"
                    Classes="caption attention"
-                   Text="{Binding Leftovers, StringFormat='{}{0} left over'}" />
+                   Text="{Binding Leftovers}" />
       </StackPanel>
     </StackPanel>
   </Button>

@@ -16,7 +16,7 @@ internal interface IResourceIndicatorViewModel
 
     string Memory { get; }
 
-    int Leftovers { get; }
+    string Leftovers { get; }
 
     bool HasLeftovers { get; }
 
@@ -46,9 +46,9 @@ internal sealed partial class ResourceIndicatorViewModel(ResourceReader reader, 
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasLeftovers))]
-    public partial int Leftovers { get; private set; }
+    public partial string Leftovers { get; private set; } = string.Empty;
 
-    public bool HasLeftovers => Leftovers > 0;
+    public bool HasLeftovers => Leftovers.Length > 0;
 
     public IMeterViewModel Cpu => cpu;
 
@@ -63,7 +63,7 @@ internal sealed partial class ResourceIndicatorViewModel(ResourceReader reader, 
     private void Show(ResourceState state)
     {
         Memory = Amounts.Megabytes(state.Global.MemoryBytes);
-        Leftovers = state.Leftovers;
+        Leftovers = ResourcePhrases.Leftovers(state);
         cpu.Show(state.Global.CpuLoad);
     }
 
