@@ -2,6 +2,7 @@ using Avala.Forges.Connecting;
 using Avala.Forges.Contracts;
 using Avala.Forges.Delivering;
 using Avala.Forges.Git;
+using Avala.Forges.Polling;
 using Avala.Forges.RuleFiles;
 using Avala.Forges.Storage;
 using Avala.Forges.Transport;
@@ -9,6 +10,7 @@ using Avala.Forges.Watching;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Triggers.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -24,6 +26,7 @@ public sealed class ForgesPlugin : IPlugin
         registrar.Services
             .AddSingleton<SqliteWatchStore>()
             .AddForwarded<IWatchStore, SqliteWatchStore>()
+            .AddForwarded<IEventStore, SqliteWatchStore>()
             .AddForwarded<IStartupTask, SqliteWatchStore>()
             .AddSingleton<WatchBook>()
             .AddForwarded<IStartupTask, WatchBook>()
@@ -44,6 +47,14 @@ public sealed class ForgesPlugin : IPlugin
             .AddForwarded<IStartupTask, PullRequestWatcher>()
             .AddSingleton<PullRequestOffers>()
             .AddSingleton<IPullRequests, PullRequestDesk>()
-            .AddSingleton<IApprovalStrategy, PullRequestStrategy>();
+            .AddSingleton<IApprovalStrategy, PullRequestStrategy>()
+            .AddSingleton<EventBook>()
+            .AddForwarded<IStartupTask, EventBook>()
+            .AddSingleton<EventSource>()
+            .AddSingleton<EventDispatch>()
+            .AddSingleton<ForgeEventPoller>()
+            .AddForwarded<IHandle<StartupCompleted>, ForgeEventPoller>()
+            .AddForwarded<IHandle<TriggersChanged>, ForgeEventPoller>()
+            .AddSingleton<IForgeEventLog, EventLogDesk>();
     }
 }

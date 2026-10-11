@@ -296,6 +296,7 @@ internal static class LayerMap
             ["Connecting"] = Layer.Application,
             ["Delivering"] = Layer.Application,
             ["Watching"] = Layer.Application,
+            ["Polling"] = Layer.Application,
             ["RuleFiles"] = Layer.Infrastructure,
             ["Transport"] = Layer.Infrastructure,
             ["Git"] = Layer.Infrastructure,
