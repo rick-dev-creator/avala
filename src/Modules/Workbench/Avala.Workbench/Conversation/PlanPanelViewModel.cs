@@ -15,6 +15,8 @@ internal interface IPlanPanelViewModel
 
     string Current { get; }
 
+    PlanStepStatus CurrentStatus { get; }
+
     bool IsExpanded { get; }
 
     IReadOnlyList<IPlanStepViewModel> Steps { get; }
@@ -45,6 +47,9 @@ internal sealed partial class PlanPanelViewModel : IPlanPanelViewModel
     public partial string Current { get; private set; }
 
     [ObservableProperty]
+    public partial PlanStepStatus CurrentStatus { get; private set; }
+
+    [ObservableProperty]
     public partial bool IsExpanded { get; private set; }
 
     [ObservableProperty]
@@ -61,10 +66,12 @@ internal sealed partial class PlanPanelViewModel : IPlanPanelViewModel
         var open = plan.Match(entry => entry.Total > entry.Done, () => false);
         Steps = plan.Match(entry => PlanStepViewModel.Of(entry.Steps), () => []);
         Progress = plan.Match(entry => string.Create(CultureInfo.InvariantCulture, $"{entry.Done} of {entry.Total}"), () => string.Empty);
-        Current = Steps.Where(step => step.Status == PlanStepStatus.InProgress)
+        var current = Steps.Where(step => step.Status == PlanStepStatus.InProgress)
             .Concat(Steps.Where(step => step.Status == PlanStepStatus.Pending))
-            .Select(step => step.Title)
-            .FirstOrDefault() ?? string.Empty;
+            .Take(1)
+            .ToList();
+        Current = current.Select(step => step.Title).FirstOrDefault(string.Empty);
+        CurrentStatus = current.Select(step => step.Status).FirstOrDefault(PlanStepStatus.Pending);
         IsShown = open;
         IsExpanded = IsExpanded && open;
     }

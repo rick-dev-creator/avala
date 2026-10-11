@@ -20,14 +20,14 @@ public sealed class PlanPanelViewModelScripts
     public void APlanWithStepsLeftShowsItsProgressAndTheStepUnderWay() =>
         ViewModelScript.Given(new PlanPanelViewModel())
             .When(panel => panel.Show(Halfway))
-            .ThenNotified(nameof(PlanPanelViewModel.IsShown), nameof(PlanPanelViewModel.Progress), nameof(PlanPanelViewModel.Current), nameof(PlanPanelViewModel.Steps))
-            .Then(panel => Assert.Equal((true, "1 of 3", "Write the change", 3), (panel.IsShown, panel.Progress, panel.Current, panel.Steps.Count)));
+            .ThenNotified(nameof(PlanPanelViewModel.IsShown), nameof(PlanPanelViewModel.Progress), nameof(PlanPanelViewModel.Current), nameof(PlanPanelViewModel.CurrentStatus), nameof(PlanPanelViewModel.Steps))
+            .Then(panel => Assert.Equal((true, "1 of 3", "Write the change", PlanStepStatus.InProgress, 3), (panel.IsShown, panel.Progress, panel.Current, panel.CurrentStatus, panel.Steps.Count)));
 
     [Fact]
     public void WithNoStepUnderWayTheNextPendingStepIsTheCurrentOne() =>
         ViewModelScript.Given(new PlanPanelViewModel())
             .When(panel => panel.Show(new PlanEntry("plan", [new("Read the code", PlanStepStatus.Done), new("Run the tests", PlanStepStatus.Pending)])))
-            .Then(panel => Assert.Equal("Run the tests", panel.Current));
+            .Then(panel => Assert.Equal(("Run the tests", PlanStepStatus.Pending), (panel.Current, panel.CurrentStatus)));
 
     [Fact]
     public void TogglingOpensAndClosesTheListOfSteps() =>

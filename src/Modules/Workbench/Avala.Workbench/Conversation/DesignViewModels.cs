@@ -189,6 +189,8 @@ internal sealed class DesignPlanPanelViewModel : IPlanPanelViewModel
 
     public string Current => "Use each currency's exponent";
 
+    public PlanStepStatus CurrentStatus => PlanStepStatus.InProgress;
+
     public bool IsExpanded { get; init; }
 
     public IReadOnlyList<IPlanStepViewModel> Steps { get; } = new DesignPlanViewModel().Steps;

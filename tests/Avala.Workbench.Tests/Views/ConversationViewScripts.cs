@@ -129,6 +129,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
 
             Assert.True(view.Shows("PlanBox"));
             Assert.Equal(("Use each currency's exponent", "2 of 4"), (view.TextOf("PlanCurrent"), view.TextOf("PlanProgress")));
+            Assert.Equal((true, false), (view.Shows("PlanCurrentInProgress"), view.Shows("PlanCurrentPending")));
             Assert.False(view.Shows("PlanSteps"));
             var bottom = Avalonia.VisualExtensions.TranslatePoint(plan, new Avalonia.Point(0, plan.Bounds.Height), view.Window);
             var top = Avalonia.VisualExtensions.TranslatePoint(composer, default, view.Window);
