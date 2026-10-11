@@ -42,6 +42,8 @@
     <ProjectReference Include="..\..\src\Modules\Handoffs\Avala.Handoffs.Contracts\Avala.Handoffs.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Triggers\Avala.Triggers\Avala.Triggers.csproj" />
     <ProjectReference Include="..\..\src\Modules\Triggers\Avala.Triggers.Contracts\Avala.Triggers.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Avala.Notifications\Avala.Notifications.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Avala.Notifications.Contracts\Avala.Notifications.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Forges\Avala.Forges\Avala.Forges.csproj" />
     <ProjectReference Include="..\..\src\Modules\Forges\Avala.Forges.Contracts\Avala.Forges.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\GitHub\Avala.GitHub\Avala.GitHub.csproj" />

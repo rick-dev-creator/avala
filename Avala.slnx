@@ -113,6 +113,10 @@
   <Folder Name="/src/Modules/ForgeSimulator/">
     <Project Path="src/Modules/ForgeSimulator/Avala.ForgeSimulator/Avala.ForgeSimulator.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Notifications/">
+    <Project Path="src/Modules/Notifications/Avala.Notifications.Contracts/Avala.Notifications.Contracts.csproj" />
+    <Project Path="src/Modules/Notifications/Avala.Notifications/Avala.Notifications.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Transcripts/">
     <Project Path="src/Modules/Transcripts/Avala.Transcripts.Contracts/Avala.Transcripts.Contracts.csproj" />
     <Project Path="src/Modules/Transcripts/Avala.Transcripts/Avala.Transcripts.csproj" />
@@ -169,6 +173,7 @@
     <Project Path="tests/Avala.Transcripts.Tests/Avala.Transcripts.Tests.csproj" />
     <Project Path="tests/Avala.Handoffs.Tests/Avala.Handoffs.Tests.csproj" />
     <Project Path="tests/Avala.Triggers.Tests/Avala.Triggers.Tests.csproj" />
+    <Project Path="tests/Avala.Notifications.Tests/Avala.Notifications.Tests.csproj" />
     <Project Path="tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj" />
     <Project Path="tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj" />
     <Project Path="tests/Avala.Mermaid.Tests/Avala.Mermaid.Tests.csproj" />
