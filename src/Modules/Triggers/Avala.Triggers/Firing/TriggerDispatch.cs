@@ -23,15 +23,34 @@ internal sealed class TriggerDispatch(IJobs jobs, IEnumerable<IAutopilot> autopi
             return JobRejection.InvalidRequest;
         }
 
-        queue.Add(new QueuedTask(run, trigger.Id, new SourcedTask(LoopQueue.Source, run.ToString("N"), trigger.Repository, instruction)));
-
-        if (!autopilot.Loops().Any(loop => loop.Status != LoopStatus.Ended && Repositories.Key(loop.Repository) == trigger.Repository))
+        var task = new QueuedTask(run, trigger.Id, new SourcedTask(LoopQueue.Source, run.ToString("N"), trigger.Repository, instruction))
         {
-            _ = await autopilot.StartAsync(
-                new LoopRequest(trigger.Repository) { Connection = trigger.Connection, Autonomy = autonomy, AttemptsPerRound = trigger.Attempts },
-                cancellationToken);
-        }
+            Connection = trigger.Connection,
+            Autonomy = autonomy,
+            Attempts = trigger.Attempts,
+        };
+        await queue.AddAsync(task, cancellationToken);
+        await StartUnlessRunningAsync(autopilot, task, cancellationToken);
 
         return run;
+    }
+
+    public async Task ResumeAsync(CancellationToken cancellationToken)
+    {
+        foreach (var autopilot in autopilots.Take(1))
+        {
+            foreach (var oldest in queue.Queued.GroupBy(task => task.Task.Repository, StringComparer.Ordinal).Select(waiting => waiting.First()))
+            {
+                await StartUnlessRunningAsync(autopilot, oldest, cancellationToken);
+            }
+        }
+    }
+
+    private static async Task StartUnlessRunningAsync(IAutopilot autopilot, QueuedTask task, CancellationToken cancellationToken)
+    {
+        if (!autopilot.Loops().Any(loop => loop.Status != LoopStatus.Ended && Repositories.Key(loop.Repository) == task.Task.Repository))
+        {
+            _ = await autopilot.StartAsync(task.Loop, cancellationToken);
+        }
     }
 }

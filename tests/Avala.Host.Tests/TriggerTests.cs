@@ -3,6 +3,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Avala.Autopilot.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
@@ -130,6 +131,38 @@ public sealed class TriggerTests(PublishedPlugins plugins)
         Assert.Equal((RunOutcome.Submitted, RunOutcome.AtConcurrencyCap), (first.Outcome, second.Outcome));
         _ = await run.SettledAsync(Outcomes.Present(first.Job));
         Assert.Single(await run.Get<IJobCatalog>().ListAsync(Cancellation));
+    }
+
+    [Fact]
+    public async Task ALoopWithItsJobUnderwayAndATriggersTaskQueuedBehindItResumeWhereTheyWereAfterARestartAsync()
+    {
+        await using var run = await MachineAsync(
+            $$"""
+            { "id": "night", "repository": "@repository", "schedule": { "everyMinutes": 600 }, "target": "loop", "instruction": {{Json(SimulatedRun.Simulate("hang"))}} },
+            { "id": "report", "repository": "@repository", "schedule": { "everyMinutes": 600 }, "target": "loop", "instruction": {{Json(SimulatedRun.Simulate("reply"))}} }
+            """,
+            raw: true,
+            committed: [(".avala/jobs.json", """{ "autopilot": { "approve": "cleanEvidence" } }""")]);
+        var triggers = run.Get<ITriggers>();
+        var manual = new FireRequest(TriggerOrigin.Manual, "person");
+        var taken = run.Watch<LoopTaskTaken>();
+        var resumable = run.Watch<JobResumable>();
+        _ = Outcomes.Succeeds(await triggers.FireAsync(new TriggerId(TriggerId.Machine, "night"), manual, Cancellation));
+        var first = await taken.UntilAsync(task => task.Iteration == 1);
+        _ = await resumable.UntilAsync(update => update.Job == first.Job);
+        var queued = Outcomes.Succeeds(await triggers.FireAsync(new TriggerId(TriggerId.Machine, "report"), manual, Cancellation));
+        EventWatch<LoopIterated>? iterated = null;
+
+        await run.RestartAsync(() => iterated = run.Watch<LoopIterated>());
+        var second = (await iterated!.UntilAsync(update => update.Iteration.Number == 2)).Iteration;
+
+        var digest = Outcomes.Present(run.Get<IAutopilot>().DigestOf(first.Loop));
+        Assert.Equal(first.Loop, Assert.Single(run.Get<IAutopilot>().Loops()).Loop);
+        Assert.Equal([first.Task.Key, queued.Id.ToString("N")], digest.Iterations.Select(iteration => iteration.Task.Key));
+        Assert.Equal((Option<JobId>.Some(first.Job), IterationOutcome.ApprovedAutomatically), (digest.Iterations[0].Job, digest.Iterations[0].Outcome));
+        Assert.Equal(digest.Iterations.Select(iteration => iteration.Job), digest.Approvals.Select(approval => Option<JobId>.Some(approval.Job)));
+        var report = Assert.Single(run.Get<ITriggers>().RunsOf(new TriggerId(TriggerId.Machine, "report")));
+        Assert.Equal((RunOutcome.Enqueued, second.Job), (report.Outcome, report.Job));
     }
 
     private async Task<SimulatedRun> MachineAsync(string trigger, bool raw = false, IReadOnlyList<(string Path, string Content)>? committed = null)

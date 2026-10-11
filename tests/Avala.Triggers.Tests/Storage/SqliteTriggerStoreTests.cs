@@ -1,7 +1,10 @@
+using Avala.Agents.Contracts.Connections;
+using Avala.Autopilot.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Triggers.Contracts;
+using Avala.Triggers.Looping;
 using Avala.Triggers.Scheduling;
 using Avala.Triggers.Storage;
 
@@ -37,4 +40,30 @@ public sealed class SqliteTriggerStoreTests
         Assert.Equal([run], await second.RunsAsync(Triggered.Cancellation));
         Assert.Equal([delivery], await second.DeliveriesAsync(Triggered.Cancellation));
     }
+
+    [Fact]
+    public async Task ALoopTaskQueuedAndNotTakenSurvivesAReopeningAndATakenOneDoesNotAsync()
+    {
+        await using var folder = new TemporaryFolder();
+        var waiting = Queued(Guid.NewGuid(), "Update the dependencies");
+        var taken = Queued(Guid.NewGuid(), "Fix the docs");
+        await using (var first = new SqliteTriggerStore(new AvalaPaths(folder.Path)))
+        {
+            await first.QueueAsync(waiting, Triggered.Cancellation);
+            await first.QueueAsync(taken, Triggered.Cancellation);
+            await first.TakeAsync(taken.Run, Triggered.Cancellation);
+        }
+
+        await using var second = new SqliteTriggerStore(new AvalaPaths(folder.Path));
+
+        Assert.Equal([waiting], await second.QueuedAsync(Triggered.Cancellation));
+    }
+
+    private static QueuedTask Queued(Guid run, string instruction) =>
+        new(run, Issue, new SourcedTask("trigger", run.ToString("N"), Triggered.Repository, instruction))
+        {
+            Connection = new ConnectionName("work"),
+            Autonomy = Autonomy.Autonomous,
+            Attempts = 2,
+        };
 }

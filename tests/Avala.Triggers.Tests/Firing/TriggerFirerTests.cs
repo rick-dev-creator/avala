@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Connections;
 using Avala.Autopilot.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -107,10 +108,41 @@ public sealed class TriggerFirerTests
     }
 
     [Fact]
-    public async Task ALoopTaskStillQueuedAtStartupIsDroppedAsync()
+    public async Task ALoopTaskStillQueuedAtStartupStaysQueuedAndALoopIsStartedForItWhenNoneWasRestoredAsync()
+    {
+        var triggered = await StartAsync(""" "schedule": { "everyMinutes": 60 }, "target": "loop", "connection": "work", "attempts": 2 """);
+        var run = Outcomes.Succeeds(await triggered.Triggers.FireAsync(Nightly, new FireRequest(TriggerOrigin.Manual, "person"), Triggered.Cancellation));
+        triggered.World.Autopilot.Forget();
+
+        await using var restarted = await triggered.RestartAsync(TimeSpan.FromMinutes(1));
+        var offered = Outcomes.Succeeds(await restarted.Source.NextAsync(new SourceRequest(LoopId.New(), Triggered.Repository, restarted.Clock.GetUtcNow()), Triggered.Cancellation));
+
+        Assert.Equal(RunOutcome.Enqueued, Assert.Single(restarted.Triggers.RunsOf(Nightly)).Outcome);
+        Assert.Equal(run.Id.ToString("N"), Outcomes.Present(offered.Task).Key);
+        var started = Assert.Single(restarted.World.Autopilot.Started);
+        Assert.Equal(
+            (Repository, Option<ConnectionName>.Some(new ConnectionName("work")), Option<Autonomy>.Some(Autonomy.Supervised), 2),
+            (started.Repository, started.Connection, started.Autonomy, started.AttemptsPerRound));
+    }
+
+    [Fact]
+    public async Task ALoopTaskQueuedForARepositoryWhoseLoopWasRestoredStartsNoOtherLoopAsync()
     {
         var triggered = await StartAsync(""" "schedule": { "everyMinutes": 60 }, "target": "loop" """);
         _ = await triggered.Triggers.FireAsync(Nightly, new FireRequest(TriggerOrigin.Manual, "person"), Triggered.Cancellation);
+
+        await using var restarted = await triggered.RestartAsync(TimeSpan.FromMinutes(1));
+
+        Assert.Single(restarted.World.Autopilot.Started);
+        Assert.Single(restarted.Queue.Queued);
+    }
+
+    [Fact]
+    public async Task ALoopRunWhoseTaskIsNoLongerQueuedAtStartupIsDroppedAsync()
+    {
+        var triggered = await StartAsync(""" "schedule": { "everyMinutes": 60 }, "target": "loop" """);
+        var run = Outcomes.Succeeds(await triggered.Triggers.FireAsync(Nightly, new FireRequest(TriggerOrigin.Manual, "person"), Triggered.Cancellation));
+        await triggered.World.Store.TakeAsync(run.Id, Triggered.Cancellation);
 
         await using var restarted = await triggered.RestartAsync(TimeSpan.FromMinutes(1));
 

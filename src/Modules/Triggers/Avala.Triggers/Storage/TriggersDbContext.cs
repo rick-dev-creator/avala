@@ -10,6 +10,8 @@ internal sealed class TriggersDbContext(string database) : DbContext
 
     public DbSet<StoredDelivery> Deliveries => Set<StoredDelivery>();
 
+    public DbSet<StoredQueuedTask> Queued => Set<StoredQueuedTask>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
@@ -32,6 +34,13 @@ internal sealed class TriggersDbContext(string database) : DbContext
             delivery.ToTable("Deliveries");
             delivery.HasKey(row => row.Key);
             delivery.Property(row => row.Key).ValueGeneratedOnAdd();
+        });
+        modelBuilder.Entity<StoredQueuedTask>(task =>
+        {
+            task.ToTable("QueuedTasks");
+            task.HasKey(row => row.Key);
+            task.Property(row => row.Key).ValueGeneratedOnAdd();
+            task.HasIndex(row => row.Run).IsUnique();
         });
     }
 }

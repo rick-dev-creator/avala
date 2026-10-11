@@ -2,12 +2,13 @@ using Avala.Sdk;
 using Avala.Storage;
 using Avala.Triggers.Contracts;
 using Avala.Triggers.Firing;
+using Avala.Triggers.Looping;
 using Avala.Triggers.Scheduling;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avala.Triggers.Storage;
 
-internal sealed class SqliteTriggerStore(AvalaPaths paths) : IScheduleStore, IRunStore, IStartupTask, IAsyncDisposable
+internal sealed class SqliteTriggerStore(AvalaPaths paths) : IScheduleStore, IRunStore, IQueueStore, IStartupTask, IAsyncDisposable
 {
     private readonly DatabaseOwner<TriggersDbContext> owner = new(paths.Database("triggers"), file => new TriggersDbContext(file));
 
@@ -80,6 +81,24 @@ internal sealed class SqliteTriggerStore(AvalaPaths paths) : IScheduleStore, IRu
                 return saved;
             },
             cancellationToken);
+
+    public Task<IReadOnlyList<QueuedTask>> QueuedAsync(CancellationToken cancellationToken) =>
+        owner.RunAsync<IReadOnlyList<QueuedTask>>(
+            async database => [.. (await database.Queued.AsNoTracking().OrderBy(row => row.Key).ToListAsync(cancellationToken)).Select(row => row.Read())],
+            cancellationToken);
+
+    public Task QueueAsync(QueuedTask task, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            async database =>
+            {
+                await database.Queued.AddAsync(StoredQueuedTask.Of(task), cancellationToken);
+
+                return await SaveAsync(database, cancellationToken);
+            },
+            cancellationToken);
+
+    public Task TakeAsync(Guid run, CancellationToken cancellationToken) =>
+        owner.RunAsync(database => database.Queued.Where(row => row.Run == run).ExecuteDeleteAsync(cancellationToken), cancellationToken);
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();
 

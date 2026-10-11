@@ -3,6 +3,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Triggers.Contracts;
+using Avala.Triggers.Looping;
 
 namespace Avala.Triggers.Firing;
 
@@ -17,7 +18,7 @@ internal interface IRunStore
     Task AddDeliveryAsync(WebhookDelivery delivery, CancellationToken cancellationToken);
 }
 
-internal sealed class RunJournal(IRunStore store, IEventBus bus, TimeProvider clock) : IStartupTask
+internal sealed class RunJournal(IRunStore store, LoopQueue queue, IEventBus bus, TimeProvider clock) : IStartupTask
 {
     public const int RunsKept = 1000;
 
@@ -34,9 +35,11 @@ internal sealed class RunJournal(IRunStore store, IEventBus bus, TimeProvider cl
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
+        await queue.RestoreAsync(cancellationToken);
+
         foreach (var run in await store.RunsAsync(cancellationToken))
         {
-            var kept = run.Outcome == RunOutcome.Enqueued && run.Job.IsNone ? run with { Outcome = RunOutcome.Dropped } : run;
+            var kept = run.Outcome == RunOutcome.Enqueued && run.Job.IsNone && !queue.Holds(run.Id) ? run with { Outcome = RunOutcome.Dropped } : run;
 
             if (kept != run)
             {

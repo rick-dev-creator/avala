@@ -23,11 +23,12 @@ internal sealed class Triggered : IAsyncDisposable
         World = shared;
         Catalog = new TriggerCatalog(shared.Files);
         Book = new ScheduleBook(shared.Store);
-        Journal = new RunJournal(shared.Store, shared.Bus, shared.Clock);
-        Queue = new LoopQueue();
+        Queue = new LoopQueue(shared.Store);
+        Journal = new RunJournal(shared.Store, Queue, shared.Bus, shared.Clock);
         Source = new TriggerTaskSource(Queue, Journal);
         Checks = new FiringChecks(shared.Jobs, [shared.Policies], Journal, Queue);
-        Firer = new TriggerFirer(Catalog, Checks, new TriggerDispatch(shared.Jobs, [shared.Autopilot], Queue), Journal);
+        Dispatch = new TriggerDispatch(shared.Jobs, [shared.Autopilot], Queue);
+        Firer = new TriggerFirer(Catalog, Checks, Dispatch, Journal);
         Scheduler = new TriggerScheduler(Catalog, Book, Firer, Journal);
         Gate = new WebhookGate(shared.Secrets, Journal);
         Desk = new WebhookDesk(Catalog, Book, Gate, Firer);
@@ -51,6 +52,8 @@ internal sealed class Triggered : IAsyncDisposable
     public LoopQueue Queue { get; }
 
     public IJobSource Source { get; }
+
+    public TriggerDispatch Dispatch { get; }
 
     public FiringChecks Checks { get; }
 
@@ -100,6 +103,7 @@ internal sealed class Triggered : IAsyncDisposable
         await triggered.Journal.RunAsync(Cancellation);
         await triggered.Gate.RunAsync(Cancellation);
         await triggered.Scheduler.RunAsync(Cancellation);
+        await new QueuedLoops(triggered.Dispatch).RunAsync(Cancellation);
 
         return triggered;
     }

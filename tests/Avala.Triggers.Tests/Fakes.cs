@@ -7,6 +7,7 @@ using Avala.Sdk;
 using Avala.Triggers.Catalog;
 using Avala.Triggers.Contracts;
 using Avala.Triggers.Firing;
+using Avala.Triggers.Looping;
 using Avala.Triggers.Receiving;
 using Avala.Triggers.Records;
 using Avala.Triggers.Scheduling;
@@ -27,9 +28,27 @@ internal sealed class FakeTriggerFiles : ITriggerFiles
         ValueTask.FromResult(new FileReading(new TriggerFile(repository, TriggerFileStatus.Absent), [], []));
 }
 
-internal sealed class MemoryTriggerStore : IScheduleStore, IRunStore
+internal sealed class MemoryTriggerStore : IScheduleStore, IRunStore, IQueueStore
 {
+    private readonly ConcurrentDictionary<Guid, QueuedTask> queued = new();
     private readonly ConcurrentDictionary<string, ScheduleState> schedules = new();
+
+    public Task<IReadOnlyList<QueuedTask>> QueuedAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<QueuedTask>>([.. queued.Values]);
+
+    public Task QueueAsync(QueuedTask task, CancellationToken cancellationToken)
+    {
+        queued[task.Run] = task;
+
+        return Task.CompletedTask;
+    }
+
+    public Task TakeAsync(Guid run, CancellationToken cancellationToken)
+    {
+        queued.TryRemove(run, out _);
+
+        return Task.CompletedTask;
+    }
     private readonly ConcurrentDictionary<Guid, TriggerRun> runs = new();
     private readonly ConcurrentQueue<WebhookDelivery> deliveries = new();
 
@@ -134,6 +153,8 @@ internal sealed class FakeAutopilot : IAutopilot
     private readonly ConcurrentQueue<LoopRequest> started = new();
 
     public IReadOnlyList<LoopRequest> Started => [.. started];
+
+    public void Forget() => started.Clear();
 
     public ValueTask<Result<LoopId, AutopilotError>> StartAsync(LoopRequest request, CancellationToken cancellationToken)
     {

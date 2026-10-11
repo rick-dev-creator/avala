@@ -1,6 +1,7 @@
 using Avala.Sdk;
 using Avala.Storage;
 using Avala.Triggers.Contracts;
+using Avala.Triggers.Looping;
 using Avala.Triggers.Scheduling;
 
 namespace Avala.Triggers.Storage;
@@ -70,4 +71,17 @@ internal sealed class StoredDelivery
     public static StoredDelivery Of(WebhookDelivery delivery) => new() { At = delivery.At.UtcTicks, Fact = StoredJson.Write(delivery) };
 
     public WebhookDelivery Read() => StoredJson.Read<WebhookDelivery>(Fact);
+}
+
+internal sealed class StoredQueuedTask
+{
+    public int Key { get; init; }
+
+    public Guid Run { get; init; }
+
+    public string Fact { get; init; } = string.Empty;
+
+    public static StoredQueuedTask Of(QueuedTask task) => new() { Run = task.Run, Fact = StoredJson.Write(task) };
+
+    public QueuedTask Read() => StoredJson.Read<QueuedTask>(Fact);
 }
