@@ -27,6 +27,17 @@
       <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
       <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
     </Style>
+    <Style Selector="Path#Mark">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="Path#Mark.allowed">
+      <Setter Property="Data" Value="{StaticResource IconCheck}" />
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="Path#Mark.denied">
+      <Setter Property="Data" Value="{StaticResource IconCross}" />
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
   </UserControl.Styles>
   <StackPanel Spacing="6">
     <Border x:Name="Card" IsVisible="{Binding AwaitsYou}">
@@ -93,7 +104,11 @@
           Margin="10,6"
           Classes.fold-in="{Binding !AwaitsYou}"
           IsVisible="{Binding !AwaitsYou}">
-      <Path Classes="icon" Data="{StaticResource IconPolicy}" VerticalAlignment="Center" />
+      <Path x:Name="Mark"
+            Classes="icon"
+            Classes.allowed="{Binding IsAllowed}"
+            Classes.denied="{Binding IsDenied}"
+            VerticalAlignment="Center" />
       <TextBlock x:Name="Outcome" Grid.Column="1" Classes="secondary" Text="{Binding Verdict}" VerticalAlignment="Center" />
       <TextBlock Grid.Column="2"
                  Classes="mono tertiary"

@@ -96,6 +96,10 @@ internal sealed partial class DesignPermissionCardViewModel : IPermissionCardVie
 
     public string Verdict => "Waiting for you";
 
+    public bool IsAllowed => false;
+
+    public bool IsDenied => false;
+
     [ObservableProperty]
     public partial string Note { get; set; } = string.Empty;
 

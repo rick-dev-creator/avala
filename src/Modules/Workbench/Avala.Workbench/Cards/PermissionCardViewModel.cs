@@ -26,6 +26,10 @@ internal interface IPermissionCardViewModel
 
     string Verdict { get; }
 
+    bool IsAllowed { get; }
+
+    bool IsDenied { get; }
+
     string Note { get; set; }
 
     bool DontAskAgain { get; set; }
@@ -99,6 +103,12 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
     public partial string Verdict { get; private set; }
 
     [ObservableProperty]
+    public partial bool IsAllowed { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsDenied { get; private set; }
+
+    [ObservableProperty]
     public partial string Note { get; set; }
 
     [ObservableProperty]
@@ -123,6 +133,8 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
             IsShown = permission.WentToHuman || permission.WentToParent;
             AwaitsYou = permission.AwaitsHuman || permission.AwaitsParent;
             Verdict = CardPhrases.Verdict(permission);
+            IsAllowed = permission.Resolution.Match(answer => answer == PermissionAnswer.Allow, () => false);
+            IsDenied = permission.Resolution.Match(answer => answer == PermissionAnswer.Deny, () => false);
             Notice = permission.Answered.Match(CardPhrases.Remembered, () => Notice);
             OnPropertyChanged(nameof(OffersAlwaysInRepository));
             OnPropertyChanged(nameof(AlwaysInRepositoryScope));

@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
+using Path = Avalonia.Controls.Shapes.Path;
 
 namespace Avala.Workbench.Tests.Views;
 
@@ -57,6 +58,30 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
             Assert.Equal(("Only the checkout tests", Remember.ForThisJob), (reply.Message.Match(note => note, () => string.Empty), reply.Remember));
             Assert.Equal(("Allowed", false, true), (view.TextOf("Outcome"), view.Shows("Card"), view.Shows("Resolved")));
             Assert.False(view.Shows("AlwaysInRepository"));
+        }, Cancellation);
+
+    [Theory]
+    [InlineData("allowed", "IconCheck")]
+    [InlineData("denied", "IconCross")]
+    [InlineData("withdrawn", null)]
+    public Task AResolvedRequestShowsATickWhenAllowedACrossWhenDeniedAndNoMarkWhenNobodyAnsweredAsync(string state, string? icon) =>
+        ui.RunAsync(() =>
+        {
+            var asking = new Asking();
+            var card = new PermissionCardViewModel(asking.Permission(), new(new FakePermissionAnswers(), new FakeAgents()));
+            var view = Screen.Show(card);
+
+            card.Update(state switch
+            {
+                "allowed" => asking.Permission() with { Resolution = PermissionAnswer.Allow },
+                "denied" => asking.Permission() with { Resolution = PermissionAnswer.Deny },
+                _ => asking.Permission() with { Withdrawn = true },
+            });
+            view.Settle();
+
+            var mark = view.Find<Path>("Mark");
+            Assert.Equal((icon is not null, icon is null ? null : view.Window.FindResource(icon)), (view.Shows("Mark"), view.Shows("Mark") ? mark.Data : null));
+            Assert.True(view.Window.TryFindResource("TextSecondaryBrush", view.Window.ActualThemeVariant, out var neutral) && ReferenceEquals(neutral, mark.Stroke));
         }, Cancellation);
 
     [Fact]
