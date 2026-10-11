@@ -45,16 +45,18 @@
           </StackPanel>
         </DockPanel>
         <DockPanel>
+          <Border x:Name="RoleTag" DockPanel.Dock="Right" Classes="tag" Margin="8,0,0,0" VerticalAlignment="Center" IsVisible="{Binding Role, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock x:Name="Role" Text="{Binding Role}" />
+          </Border>
           <ContentControl x:Name="Dot" DockPanel.Dock="Left" Content="{Binding Dot}" Width="7" Height="7" Margin="0,0,10,0" VerticalAlignment="Center" />
           <TextBlock x:Name="Title" Classes="medium" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
         </DockPanel>
         <TextBlock x:Name="Activity" Classes="caption secondary" Text="{Binding Activity}" TextTrimming="CharacterEllipsis" />
         <DockPanel>
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="8,0,0,0">
-            <TextBlock x:Name="Spent" Classes="hint" Text="{Binding Spent}" />
-            <TextBlock x:Name="Carve" Classes="hint" Text="{Binding Carve, StringFormat='of {0}'}" />
+            <TextBlock x:Name="Spend" Classes="hint" Text="{Binding Spend}" />
           </StackPanel>
-          <ProgressBar x:Name="Share" Classes="bar" Height="3" Value="{Binding SpentShare}" VerticalAlignment="Center" />
+          <ProgressBar x:Name="Share" Classes="bar" Height="3" Value="{Binding SpentShare}" VerticalAlignment="Center" IsVisible="{Binding HasCarve}" />
         </DockPanel>
       </StackPanel>
     </Border>

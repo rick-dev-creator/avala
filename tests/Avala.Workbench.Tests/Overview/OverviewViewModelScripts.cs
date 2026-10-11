@@ -380,15 +380,40 @@ public sealed class DelegationNodeViewModelScripts
                 Option<JobFact>.None,
                 Option<DelegationRecord>.None,
                 new JobSpend(Option<SessionSeen>.None, Option<UsageSummary>.None, Option<Budgets.Contracts.BudgetCaps>.None, Option<Budgets.Contracts.BudgetCarve>.None))))
-            .Then(node => Assert.Equal(("not started", "Preparing", "no cost", "no carve", string.Empty, 2, 0d), (node.Connection, node.Activity, node.Spent, node.Carve, node.Harness, node.Depth, node.SpentShare)));
+            .Then(node => Assert.Equal(("not started", "starting", "no spend yet", false, string.Empty, string.Empty, 2, 0d), (node.Connection, node.Activity, node.Spend, node.HasCarve, node.Harness, node.Role, node.Depth, node.SpentShare)));
 
     [Theory]
-    [InlineData(0.4, 0.8, 0.5)]
-    [InlineData(1.2, 0.8, 1)]
-    public void AChildsSpendIsMeasuredAgainstItsCarve(double spent, double carve, double share) =>
+    [InlineData(0.4, 0.8, 0.5, "0.4 USD of 0.8 USD")]
+    [InlineData(1.2, 0.8, 1, "1.2 USD of 0.8 USD")]
+    public void AChildsSpendIsMeasuredAgainstItsCarve(double spent, double carve, double share, string spend) =>
         ViewModelScript.Given(new DelegationNodeViewModel(OrchestratorCardViewModelScripts.Child(Pages.Summary("Root", JobStatus.Running), (decimal)spent, (decimal)carve)))
-            .Then(node => Assert.Equal(share, node.SpentShare, 3))
+            .Then(node => Assert.Equal((share, spend, true), (Math.Round(node.SpentShare, 3), node.Spend, node.HasCarve)))
             .Then(node => Assert.Equal((StatusKind.Working, "Running"), (node.Dot.Kind, node.State)));
+
+    [Fact]
+    public void AChildCarvedNoCostSaysWhatItSpentWithoutMeasuringIt()
+    {
+        var root = Pages.Summary("Root", JobStatus.Running);
+        var node = OrchestratorCardViewModelScripts.Child(root, 0.005m, 0m);
+
+        ViewModelScript.Given(new DelegationNodeViewModel(node with { Spend = node.Spend with { Carve = new BudgetCarve(root.Job, node.Job.Job, [], Option<long>.None, 0.25, DateTimeOffset.UnixEpoch) } }))
+            .Then(child => Assert.Equal(("0.005 USD spent", false, 0d), (child.Spend, child.HasCarve, child.SpentShare)));
+    }
+
+    [Fact]
+    public void AReadOnlyChildSaysItsRole()
+    {
+        var node = OrchestratorCardViewModelScripts.Child(Pages.Summary("Root", JobStatus.Running), 0.005m, 0.8m);
+        var record = new DelegationRecord(Agents.Contracts.Sessions.SessionId.New(), new Agents.Contracts.Sessions.ItemId("delegate"), "Review the release notes", DateTimeOffset.UnixEpoch)
+        {
+            Child = node.Job.Job,
+            Role = ChildRole.Reviewer,
+            Report = new ChildReport(node.Job.Job, ChildOutcome.Reported, JobStatus.Discarded, DateTimeOffset.UnixEpoch),
+        };
+
+        ViewModelScript.Given(new DelegationNodeViewModel(node with { Delegation = record }))
+            .Then(child => Assert.Equal("reviewer, read-only", child.Role));
+    }
 }
 
 internal static class Focusing

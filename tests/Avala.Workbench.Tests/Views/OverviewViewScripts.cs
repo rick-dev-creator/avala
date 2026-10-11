@@ -286,7 +286,7 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
         {
             var delegation = new RecordingDelegation(
                 new DesignDelegationNodeViewModel(),
-                new DesignDelegationNodeViewModel(Presenting.SampleJobs.InvoicePdf, "Write the payment step's tests", 2, StatusKind.Working, "Codex", "codex-team", "starting", "no cost", "0.2 USD", 0));
+                new DesignDelegationNodeViewModel(Presenting.SampleJobs.InvoicePdf, "Write the payment step's tests", 2, StatusKind.Working, "Codex", "codex-team", "starting", "no spend yet", false, 0));
             var view = Wide(delegation);
             var nodes = view.All<TreeGraphPanel>().Single().Layout.Nodes;
 
@@ -351,9 +351,27 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignDelegationNodeViewModel());
 
-            Assert.Equal(("Claude Code", "claude-work", "Running", "Edited internal/payments/refund.go · 9 of 14 files", "of 0.8 USD"), (view.TextOf("Harness"), view.TextOf("Connection"), view.TextOf("State"), view.TextOf("Activity"), view.TextOf("Carve")));
-            Assert.Equal(0.51, view.Find<ProgressBar>("Share").Value);
+            Assert.Equal(("Claude Code", "claude-work", "Running", "Edited internal/payments/refund.go · 9 of 14 files", "0.41 USD of 0.8 USD"), (view.TextOf("Harness"), view.TextOf("Connection"), view.TextOf("State"), view.TextOf("Activity"), view.TextOf("Spend")));
+            Assert.Equal((0.51, true, false), (view.Find<ProgressBar>("Share").Value, view.Shows("Share"), view.Shows("RoleTag")));
             Assert.Equal(1, Graph.GetDepth(view.Named("DelegationNodeView").Single()));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AChildCarvedNoCostShowsWhatItSpentWithoutAMeterAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignDelegationNodeViewModel() with { Spend = "0.005 USD spent", HasCarve = false, SpentShare = 0 });
+
+            Assert.Equal(("0.005 USD spent", false), (view.TextOf("Spend"), view.Shows("Share")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AReadOnlyChildShowsItsRoleBesideItsTitleAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignDelegationNodeViewModel() with { Role = "reviewer, read-only" });
+
+            Assert.Equal((true, "reviewer, read-only"), (view.Shows("RoleTag"), view.TextOf("Role")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

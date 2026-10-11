@@ -78,7 +78,7 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         Assert.Equal(
             [("work", 1, true), ("personal", 1, true)],
             await run.Ui.ReadAsync(() => delegation["Children"].Items
-                .Select(child => (child["Connection"].Text, child["Depth"].Value<int>(), child["Spent"].Text.EndsWith(" USD", StringComparison.Ordinal) && child["Harness"].Text.Length > 0))
+                .Select(child => (child["Connection"].Text, child["Depth"].Value<int>(), child["Spend"].Text.Contains(" USD", StringComparison.Ordinal) && child["Harness"].Text.Length > 0))
                 .ToList()));
     }
 

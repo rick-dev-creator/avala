@@ -157,9 +157,10 @@ internal static class InspectorPhrases
     public static string Child(JobSummary child, Option<DelegationRecord> delegation) =>
         Amounts.Joined([
             FactPhrases.Title(child.Instruction),
-            child.Status.ToString(),
+            .. delegation.Map(record => Presenting.DelegationPhrases.Role(record.Role)).Match<string[]>(role => role.Length == 0 ? [] : [role], () => []),
+            Presenting.DelegationPhrases.Status(child.Status),
             .. child.Connection.Match<string[]>(connection => [connection.Value], () => []),
-            .. delegation.Bind(record => record.Report).Match<string[]>(report => [report.Outcome.ToString()], () => []),
+            .. delegation.Bind(record => record.Report).Match<string[]>(report => [Presenting.DelegationPhrases.Outcome(report.Outcome)], () => []),
             .. delegation.Match<string[]>(Delivery, () => []),
         ]);
 
@@ -170,7 +171,7 @@ internal static class InspectorPhrases
 
     public static string Refused(DelegationRecord record) =>
         $"Refused: {FactPhrases.Title(record.Instruction)}"
-        + record.Refusal.Match(refusal => $" · {refusal}", () => record.Rejection.Match(rejection => $" · {ConversationPhrases.Rejection(rejection)}", () => string.Empty));
+        + record.Refusal.Match(refusal => $" · {Presenting.DelegationPhrases.Refusal(refusal)}", () => record.Rejection.Match(rejection => $" · {ConversationPhrases.Rejection(rejection)}", () => string.Empty));
 
     public static string Checked(IReadOnlyList<VerificationReport> verifications) =>
         verifications.Count == 0

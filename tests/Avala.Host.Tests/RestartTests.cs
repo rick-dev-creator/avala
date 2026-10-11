@@ -203,7 +203,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
 
         Assert.Contains(before, line => line.StartsWith("root: ", StringComparison.Ordinal) && line.Contains("Simulated Claude Code · simulator · Budget 1 USD", StringComparison.Ordinal));
         Assert.Equal(2, before.Count(line => line.StartsWith("child: ", StringComparison.Ordinal) && line.Contains("integrated into its parent · Simulated Claude Code", StringComparison.Ordinal)));
-        Assert.Equal(2, before.Count(line => line.StartsWith("inspected: ", StringComparison.Ordinal) && line.EndsWith("Approved · simulator · Integrated", StringComparison.Ordinal)));
+        Assert.Equal(2, before.Count(line => line.StartsWith("inspected: ", StringComparison.Ordinal) && line.EndsWith("approved · simulator · integrated into its parent", StringComparison.Ordinal)));
         Assert.Equal(before, await DelegationAsync(run, orchestrator));
     }
 
@@ -226,7 +226,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
             [
                 $"root: {root["Title"].Text} ·{root["Harness"].Text} · {root["Connection"].Text} · {root["Budget"].Text} · {root["Spent"].Text} · {root["ShareNote"].Text}",
                 .. delegation["Children"].Items
-                    .Select(child => $"child: {child["Title"].Text} · {child["Activity"].Text} · {child["Harness"].Text} · {child["Connection"].Text} · {child["Spent"].Text} · {child["Carve"].Text}")
+                    .Select(child => $"child: {child["Title"].Text} · {child["Activity"].Text} · {child["Harness"].Text} · {child["Connection"].Text} · {child["Spend"].Text}")
                     .Order(StringComparer.Ordinal),
                 $"refused: {delegation["Refused"].Items.Count}",
                 $"inspector: {section["Fact"].Text}",

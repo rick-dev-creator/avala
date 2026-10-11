@@ -1,11 +1,14 @@
 using System.Globalization;
+using Avala.Agents.Contracts.Events;
 using Avala.Components.Status;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
+using Avala.Workbench.Spending;
 
 namespace Avala.Workbench.Overview;
 
@@ -25,9 +28,11 @@ internal interface IDelegationNodeViewModel
 
     string Activity { get; }
 
-    string Spent { get; }
+    string Role { get; }
 
-    string Carve { get; }
+    string Spend { get; }
+
+    bool HasCarve { get; }
 
     double SpentShare { get; }
 
@@ -59,54 +64,39 @@ internal sealed class DelegationNodeViewModel(DelegationNode node) : IDelegation
     public string Harness { get; } = node.Spend.Session.Match(seen => seen.Provider.Name, () => string.Empty);
 
     public string Activity { get; } = node.Report.Match(
-        report => OverviewPhrases.Outcome(report.Outcome),
-        () => node.Activity.Match(FactPhrases.Of, () => node.Job.Status.ToString()));
+        report => DelegationPhrases.Outcome(report.Outcome),
+        () => node.Activity.Match(FactPhrases.Of, () => DelegationPhrases.Status(node.Job.Status)));
 
-    public string Spent { get; } = Amounts.Costs(node.Spend.Spent);
+    public string Role { get; } = node.Delegation.Match(record => DelegationPhrases.Role(record.Role), () => string.Empty);
 
-    public string Carve { get; } = node.Spend.Carve.Match(carve => Amounts.Costs(carve.Cost), () => "no carve");
+    public string Spend { get; } = Spending(node.Spend);
 
-    public double SpentShare { get; } = node.Spend.Carve.Match(carve => Math.Clamp(Shares.Of(node.Spend.Spent, carve.Cost), 0, 1), () => 0d);
+    public bool HasCarve { get; } = Carved(node.Spend).IsSome;
+
+    public double SpentShare { get; } = Carved(node.Spend).Match(cost => Math.Clamp(Shares.Of(node.Spend.Spent, cost), 0, 1), () => 0d);
 
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status)));
 
     public string State => OverviewPhrases.State(Dot.Kind);
+
+    private static Option<IReadOnlyList<Cost>> Carved(JobSpend spend) =>
+        spend.Carve.Bind(carve => carve.Cost.Count == 0 ? Option<IReadOnlyList<Cost>>.None : Option<IReadOnlyList<Cost>>.Some(carve.Cost));
+
+    private static string Spending(JobSpend spend) =>
+        Carved(spend).Match(
+            cost => $"{Amounts.Costs(spend.Spent)} of {Amounts.Costs(cost)}",
+            () => spend.Spent.Count == 0 ? "no spend yet" : $"{Amounts.Costs(spend.Spent)} spent");
 }
 
 internal sealed class DelegationRefusalViewModel(DelegationRecord record) : IDelegationRefusalViewModel
 {
     public string Instruction { get; } = FactPhrases.Title(record.Instruction);
 
-    public string Reason { get; } = record.Refusal.Match(OverviewPhrases.Refusal, () => string.Empty);
+    public string Reason { get; } = record.Refusal.Match(DelegationPhrases.Refusal, () => string.Empty);
 }
 
 internal static partial class OverviewPhrases
 {
-    public static string Outcome(ChildOutcome outcome) => outcome switch
-    {
-        ChildOutcome.Integrated => "integrated into its parent",
-        ChildOutcome.Conflict => "conflicts with its parent",
-        ChildOutcome.NotIntegrated => "not integrated",
-        ChildOutcome.Held => "held",
-        ChildOutcome.RetriesExhausted => "retries ran out",
-        ChildOutcome.Failed => "failed",
-        _ => "discarded",
-    };
-
-    public static string Refusal(DelegationError error) => error switch
-    {
-        DelegationError.NotDeclared => "the repository declares no delegation to that connection",
-        DelegationError.DepthExceeded => "too deep",
-        DelegationError.TooManyChildren => "too many children",
-        DelegationError.AutonomyLoosened => "it asked for more autonomy than its parent",
-        DelegationError.NotSubmitted => "the child job was refused",
-        DelegationError.UnofferedModel => "its connection does not offer the model it asked for",
-        DelegationError.UnofferedEffort => "its connection does not offer the effort it asked for",
-        DelegationError.MalformedInput => "the call was malformed",
-        DelegationError.NoJob => "the caller is not a job",
-        _ => "the delegation rules cannot be read",
-    };
-
     public static StatusKind Dot(JobStatus status) => status switch
     {
         JobStatus.Checking => StatusKind.Checking,

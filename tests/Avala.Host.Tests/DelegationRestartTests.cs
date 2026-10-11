@@ -42,7 +42,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.StartsWith("The harness restarted while you were working on this job.", told, StringComparison.Ordinal);
         Assert.Equal(1, Mentions(told, child));
         Assert.True(File.Exists(Path.Combine(await WorktreeAsync(run, parent), "NOTES.md")));
-        await AssertShownAsync(run, parent, "Integrated · told to its parent in a message");
+        await AssertShownAsync(run, parent, "integrated into its parent · told to its parent in a message");
         await AssertIdempotentAfterAnotherRestartAsync(run, parent, child);
     }
 
@@ -64,7 +64,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(parent));
         Assert.Equal((Option<JobId>.Some(child), AnswerRoute.Message), (delivered.Child, Outcomes.Present(delivered.Answered).Route));
         Assert.Equal(1, Mentions(told, child));
-        await AssertShownAsync(run, parent, "Integrated · told to its parent in a message");
+        await AssertShownAsync(run, parent, "integrated into its parent · told to its parent in a message");
         await AssertIdempotentAfterAnotherRestartAsync(run, parent, child);
     }
 
@@ -81,7 +81,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
 
         await run.RestartAsync();
         await run.StartedAsync();
-        await AssertShownAsync(run, parent, "Integrated · not yet told to its parent", "NeedsYou");
+        await AssertShownAsync(run, parent, "integrated into its parent · not yet told to its parent", "NeedsYou");
         var continued = Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(parent, "Carry on with the release.", Cancellation));
 
         var delivered = await run.ReportDeliveredAsync();
@@ -92,7 +92,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.StartsWith("Carry on with the release.", told, StringComparison.Ordinal);
         Assert.Equal(1, Mentions(told, child));
         await AssertIdempotentAfterAnotherRestartAsync(run, parent, child);
-        await AssertShownAsync(run, parent, "Integrated · told to its parent in a message");
+        await AssertShownAsync(run, parent, "integrated into its parent · told to its parent in a message");
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
         Assert.Equal((parent, HoldReason.NotResumable), (hold.Job, hold.Reason));
         Assert.Equal(ChildOutcome.Integrated, Outcomes.Present(reported.Report).Outcome);
         Assert.True(Outcomes.Present(run.Get<IDelegations>().OfChild(child)).Answered.IsNone);
-        await AssertShownAsync(run, parent, "Integrated · not yet told to its parent", "NeedsYou");
+        await AssertShownAsync(run, parent, "integrated into its parent · not yet told to its parent", "NeedsYou");
         var workbench = await run.WorkbenchAsync();
         Assert.Equal(("NeedsYou", "held: its conversation cannot resume"), await workbench.RowAsync(parent, "NeedsYou"));
     }

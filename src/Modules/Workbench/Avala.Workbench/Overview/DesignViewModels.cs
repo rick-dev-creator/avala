@@ -163,14 +163,16 @@ internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewMod
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(StatusKind.Working);
 }
 
-internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, int Depth, StatusKind Kind, string Harness, string Connection, string Activity, string Spent, string Carve, double SpentShare) : IDelegationNodeViewModel
+internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, int Depth, StatusKind Kind, string Harness, string Connection, string Activity, string Spend, bool HasCarve, double SpentShare) : IDelegationNodeViewModel
 {
     public DesignDelegationNodeViewModel()
-        : this(SampleAgents.CallSites, "Update call sites in internal/payments", 1, StatusKind.Working, "Claude Code", "claude-work", "Edited internal/payments/refund.go · 9 of 14 files", "0.41 USD", "0.8 USD", 0.51)
+        : this(SampleAgents.CallSites, "Update call sites in internal/payments", 1, StatusKind.Working, "Claude Code", "claude-work", "Edited internal/payments/refund.go · 9 of 14 files", "0.41 USD of 0.8 USD", true, 0.51)
     {
     }
 
     public JobStatus Status => Kind == StatusKind.ReadyForReview ? JobStatus.AwaitingReview : Kind == StatusKind.NeedsYou ? JobStatus.NeedsHelp : JobStatus.Running;
+
+    public string Role { get; init; } = string.Empty;
 
     public string State => OverviewPhrases.State(Kind);
 
@@ -191,8 +193,8 @@ internal sealed class DesignDelegationViewModel : IDelegationViewModel
     public IReadOnlyList<IDelegationNodeViewModel> Children { get; } =
     [
         new DesignDelegationNodeViewModel(),
-        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Codex", "codex-team", "Wants to run go generate ./internal/webhooks/...", "0.22 USD", "0.8 USD", 0.28),
-        new DesignDelegationNodeViewModel(SampleAgents.ApiReference, "Regenerate the API reference", 1, StatusKind.ReadyForReview, "Pi", "pi-local", "Branch ready to merge into avala/stripe-v79", "0.32 USD", "0.6 USD", 0.53),
+        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Codex", "codex-team", "Wants to run go generate ./internal/webhooks/...", "0.22 USD of 0.8 USD", true, 0.28),
+        new DesignDelegationNodeViewModel(SampleAgents.ApiReference, "Regenerate the API reference", 1, StatusKind.ReadyForReview, "Pi", "pi-local", "Branch ready to merge into avala/stripe-v79", "0.32 USD of 0.6 USD", true, 0.53),
     ];
 
     public IReadOnlyList<IDelegationRefusalViewModel> Refused { get; } = [];
