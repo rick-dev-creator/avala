@@ -59,6 +59,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public SourceFault SourceFault => surroundings.Fault;
 
+    public LostTrips LostTrips => surroundings.Trips;
+
     public ICanvases Canvases => Get<ICanvases>();
 
     public ViewRegistry Views => application.Root.Views;
@@ -371,6 +373,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public SourceFault Fault { get; } = new();
 
+        public LostTrips Trips { get; } = new();
+
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
                 plugins.Directory,
@@ -380,7 +384,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
-                [Board, Fault]);
+                [Board, Fault, Trips]);
     }
 
     private sealed class Application : IAsyncDisposable

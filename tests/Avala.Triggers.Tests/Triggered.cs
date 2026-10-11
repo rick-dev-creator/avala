@@ -103,7 +103,7 @@ internal sealed class Triggered : IAsyncDisposable
         await triggered.Journal.RunAsync(Cancellation);
         await triggered.Gate.RunAsync(Cancellation);
         await triggered.Scheduler.RunAsync(Cancellation);
-        await new QueuedLoops(triggered.Dispatch).RunAsync(Cancellation);
+        await new QueuedLoops(new TrippedLoops([shared.Autopilot], triggered.Queue, triggered.Journal), triggered.Dispatch).RunAsync(Cancellation);
 
         return triggered;
     }

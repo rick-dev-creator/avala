@@ -3,9 +3,13 @@ using Avala.Triggers.Firing;
 
 namespace Avala.Triggers.Looping;
 
-internal sealed class QueuedLoops(TriggerDispatch dispatch) : IStartupTask
+internal sealed class QueuedLoops(TrippedLoops tripped, TriggerDispatch dispatch) : IStartupTask
 {
     public StartupStage Stage => StartupStage.Recovery;
 
-    public Task RunAsync(CancellationToken cancellationToken) => dispatch.ResumeAsync(cancellationToken);
+    public async Task RunAsync(CancellationToken cancellationToken)
+    {
+        await tripped.SweepAsync(cancellationToken);
+        await dispatch.ResumeAsync(cancellationToken);
+    }
 }

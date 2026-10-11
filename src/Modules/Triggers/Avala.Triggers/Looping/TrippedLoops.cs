@@ -1,4 +1,5 @@
 using Avala.Autopilot.Contracts;
+using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Triggers.Catalog;
 using Avala.Triggers.Firing;
@@ -7,15 +8,16 @@ namespace Avala.Triggers.Looping;
 
 internal sealed class TrippedLoops(IEnumerable<IAutopilot> autopilots, LoopQueue queue, RunJournal journal) : IHandle<BreakerTripped>
 {
-    public async ValueTask HandleAsync(BreakerTripped integrationEvent, CancellationToken cancellationToken)
+    public ValueTask HandleAsync(BreakerTripped integrationEvent, CancellationToken cancellationToken) =>
+        new(DropAsync([integrationEvent], cancellationToken));
+
+    public Task SweepAsync(CancellationToken cancellationToken) => DropAsync([.. autopilots.Take(1).SelectMany(Tripped)], cancellationToken);
+
+    private async Task DropAsync(IReadOnlyList<BreakerTripped> trips, CancellationToken cancellationToken)
     {
-        var repositories = autopilots.Take(1)
-            .SelectMany(autopilot => autopilot.Loops())
-            .Where(loop => loop.Loop == integrationEvent.Loop)
-            .Select(loop => Repositories.Key(loop.Repository))
-            .ToHashSet(StringComparer.Ordinal);
+        var loops = autopilots.Take(1).SelectMany(autopilot => autopilot.Loops()).ToDictionary(loop => loop.Loop, loop => Repositories.Key(loop.Repository));
         var left = queue.Queued
-            .Where(task => repositories.Contains(task.Task.Repository) && journal.Runs.Any(run => run.Id == task.Run && run.At <= integrationEvent.Trip.At))
+            .Where(task => trips.Any(trip => loops.TryGetValue(trip.Loop, out var repository) && repository == task.Task.Repository && QueuedBefore(task, trip.Trip.At)))
             .ToList();
 
         foreach (var task in left)
@@ -29,4 +31,13 @@ internal sealed class TrippedLoops(IEnumerable<IAutopilot> autopilots, LoopQueue
             await journal.ChangedAsync(cancellationToken);
         }
     }
+
+    private static IEnumerable<BreakerTripped> Tripped(IAutopilot autopilot) =>
+        autopilot.Loops()
+            .Where(loop => loop.Ending == Option<LoopEnding>.Some(LoopEnding.BreakerTripped))
+            .SelectMany(loop => autopilot.DigestOf(loop.Loop)
+                .Match<IEnumerable<BreakerTrip>>(digest => digest.Breakers.TakeLast(1), () => [])
+                .Select(trip => new BreakerTripped(loop.Loop, trip)));
+
+    private bool QueuedBefore(QueuedTask task, DateTimeOffset tripped) => journal.Runs.Any(run => run.Id == task.Run && run.At <= tripped);
 }

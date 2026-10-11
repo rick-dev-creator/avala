@@ -192,9 +192,39 @@ public sealed class TriggerTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ALoopEndedByItsIterationBreakerDropsTheTriggersTaskItLeftQueuedSoNoLoopRunsItAfterARestartAsync()
+    public async Task ALoopEndedByItsIterationBreakerDropsTheTriggersTaskItLeftQueuedAsync()
     {
-        await using var run = await MachineAsync(
+        await using var run = await IterationBoundAsync();
+        var ended = run.Watch<LoopEnded>();
+
+        _ = Outcomes.Succeeds(await run.Get<ITriggers>().FireAsync(Report, new FireRequest(TriggerOrigin.Manual, "person"), Cancellation));
+        var loop = (await ended.UntilAsync(_ => true)).State;
+        await run.DeliveredAsync();
+
+        Assert.Equal(Option<Breaker>.Some(Breaker.Iterations), loop.Breaker);
+        Assert.Equal(RunOutcome.Dropped, Assert.Single(run.Get<ITriggers>().RunsOf(Report)).Outcome);
+    }
+
+    [Fact]
+    public async Task ATriggersTaskLeftQueuedByALoopItsBreakerEndedIsDroppedAtTheNextStartEvenIfAvalaStoppedBeforeHandlingTheTripAsync()
+    {
+        await using var run = await IterationBoundAsync();
+        var ended = run.Watch<LoopEnded>();
+        run.LostTrips.Arm();
+
+        _ = Outcomes.Succeeds(await run.Get<ITriggers>().FireAsync(Report, new FireRequest(TriggerOrigin.Manual, "person"), Cancellation));
+        var loop = (await ended.UntilAsync(_ => true)).State;
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        Assert.Equal(loop.Loop, Assert.Single(run.Get<IAutopilot>().Loops()).Loop);
+        Assert.Equal(RunOutcome.Dropped, Assert.Single(run.Get<ITriggers>().RunsOf(Report)).Outcome);
+    }
+
+    private static TriggerId Report => new(TriggerId.Machine, "report");
+
+    private Task<SimulatedRun> IterationBoundAsync() =>
+        MachineAsync(
             $$"""{ "id": "report", "repository": "@repository", "schedule": { "everyMinutes": 600 }, "target": "loop", "instruction": {{Json(SimulatedRun.Simulate("reply"))}} }""",
             raw: true,
             committed:
@@ -203,18 +233,6 @@ public sealed class TriggerTests(PublishedPlugins plugins)
                 (".avala/backlog.json", $$"""{ "tasks": [ { "id": "greet", "instruction": {{Json(SimulatedRun.Simulate("reply"))}} } ] }"""),
             ],
             settings: [("autopilot.json", """{ "iterations": 1 }""")]);
-        var report = new TriggerId(TriggerId.Machine, "report");
-        var ended = run.Watch<LoopEnded>();
-        _ = Outcomes.Succeeds(await run.Get<ITriggers>().FireAsync(report, new FireRequest(TriggerOrigin.Manual, "person"), Cancellation));
-        var loop = (await ended.UntilAsync(_ => true)).State;
-
-        await run.RestartAsync();
-        await run.StartedAsync();
-
-        Assert.Equal(Option<Breaker>.Some(Breaker.Iterations), loop.Breaker);
-        Assert.Equal(loop.Loop, Assert.Single(run.Get<IAutopilot>().Loops()).Loop);
-        Assert.Equal(RunOutcome.Dropped, Assert.Single(run.Get<ITriggers>().RunsOf(report)).Outcome);
-    }
 
     private async Task<SimulatedRun> MachineAsync(
         string trigger,
