@@ -10,6 +10,7 @@
   <StackPanel>
     <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="{DynamicResource FontSizeBody}" />
     <ContentControl Content="{Binding Line}" Tag="{x:Static regions:OrderRegions.Lines}" />
+    <ComboBox SelectedItem="{Binding Line, Mode=OneWay}" />
     <Button AutomationProperties.Name="Refresh the order">
       <Path Data="M3 8H13" Stroke="{DynamicResource TextSecondaryBrush}" />
     </Button>

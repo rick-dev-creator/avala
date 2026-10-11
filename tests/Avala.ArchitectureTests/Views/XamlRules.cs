@@ -26,6 +26,8 @@ internal static class XamlRules
     private static readonly HashSet<string> Buttons =
         ["Button", "ToggleButton", "RepeatButton", "SplitButton", "ToggleSplitButton", "DropDownButton", "HyperlinkButton"];
 
+    private static readonly HashSet<string> Selections = ["SelectedItem", "SelectedValue"];
+
     private static readonly HashSet<string> TextElements = ["TextBlock", "SelectableTextBlock", "AccessText", "Run", "Label"];
 
     public static IEnumerable<Finding> WithoutDataType(IEnumerable<XamlFile> views) =>
@@ -79,6 +81,18 @@ internal static class XamlRules
                 XamlFile.LineOf(element),
                 $"this {element.Name.LocalName} shows only an icon; add AutomationProperties.Name=\"<what it does>\" so screen readers can name it")));
 
+    public static IEnumerable<Finding> UnkeptSelections(IEnumerable<XamlFile> views) =>
+        views.SelectMany(view => view.Root.DescendantsAndSelf().SelectMany(element => element.Attributes()
+            .Where(attribute => attribute.Name.Namespace == XNamespace.None
+                && Selections.Contains(LastSegment(attribute.Name.LocalName))
+                && WritesBack(attribute.Value)
+                && !attribute.Value.Contains("Kept.Selection", StringComparison.Ordinal))
+            .Select(attribute => Finding.OfFile(
+                ViewRule.KeptSelections,
+                view.Path,
+                XamlFile.LineOf(attribute),
+                $"{attribute.Name.LocalName}=\"{attribute.Value}\" writes null back into the view model when the view is torn down and the control clears its selection; bind it through Converter={{x:Static states:Kept.Selection}}, with xmlns:states=\"using:Avala.Components.UI.States\", or make it Mode=OneWay"))));
+
     public static IEnumerable<Finding> RegionsByString(IEnumerable<XamlFile> views, IReadOnlySet<string> regionKeys) =>
         views.SelectMany(view => view.Root.DescendantsAndSelf().SelectMany(element => element.Attributes()
             .Where(attribute => (LastSegment(attribute.Name.LocalName) is "Region" or "RegionName" || regionKeys.Contains(attribute.Value))
@@ -110,6 +124,14 @@ internal static class XamlRules
             yield return (value, property, value.Value);
         }
     }
+
+    private static bool WritesBack(string value) =>
+        value.Replace(" ", string.Empty, StringComparison.Ordinal) is var binding
+        && (binding.StartsWith("{Binding", StringComparison.Ordinal)
+            || binding.StartsWith("{CompiledBinding", StringComparison.Ordinal)
+            || binding.StartsWith("{ReflectionBinding", StringComparison.Ordinal))
+        && !binding.Contains("Mode=OneWay", StringComparison.Ordinal)
+        && !binding.Contains("Mode=OneTime", StringComparison.Ordinal);
 
     private static bool IsThemed(string property, string value) =>
         value.Length == 0 || value.StartsWith('{') || value == "Transparent" || (LastSegment(property) == "CornerRadius" && value == "0");

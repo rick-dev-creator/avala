@@ -15,6 +15,7 @@
     <Button>
       <Path Data="M3 8H13" />
     </Button>
+    <ComboBox SelectedItem="{ReflectionBinding Choice}" />
     <ContentControl regions:RegionHost.Region="Shell.Sidebar" />
   </StackPanel>
 </UserControl>

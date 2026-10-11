@@ -18,4 +18,5 @@ internal enum ViewRule
     CommandsNotEventHandlers,
     NamedIconButtons,
     TypedRegionReferences,
+    KeptSelections,
 }
