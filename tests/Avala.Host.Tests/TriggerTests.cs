@@ -122,6 +122,19 @@ public sealed class TriggerTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task StoppingReleasesTheWebhookPortWhileTheEventBusStillRunsAsync()
+    {
+        await using var run = await MachineAsync(
+            """{ "id": "issue", "repository": "@repository", "webhook": { "secretEnv": "AVALA_TEST_HOOK_UNSET" }, "instruction": "{{payload.title}}" }""",
+            raw: true);
+        Assert.True(run.Get<ITriggers>().Endpoint.Url.IsSome);
+
+        var log = await run.StopAndReadLogAsync();
+
+        Assert.DoesNotContain("PortsReleased was published after the event bus stopped", log, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ATriggerCannotRaiseItsJobAboveTheRepositorysAutonomyAsync()
     {
         await using var run = await MachineAsync(""" "schedule": { "everyMinutes": 600 }, "autonomy": "autonomous" """, committed: [(".avala/permissions.json", """{ "autonomy": "supervised", "rules": [] }""")]);

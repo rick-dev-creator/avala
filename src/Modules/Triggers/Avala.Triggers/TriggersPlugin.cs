@@ -49,6 +49,7 @@ public sealed class TriggersPlugin : IPlugin
             .AddSingleton<WebhookListener>()
             .AddForwarded<IWebhookEndpoint, WebhookListener>()
             .AddForwarded<IStartupTask, WebhookListener>()
+            .AddForwarded<IShutdownTask, WebhookListener>()
             .AddSingleton<TriggerBook>()
             .AddForwarded<ITriggers, TriggerBook>();
     }

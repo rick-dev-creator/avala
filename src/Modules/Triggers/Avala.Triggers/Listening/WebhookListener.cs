@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace Avala.Triggers.Listening;
 
 internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDesk desk, IEnumerable<IPortLeases> leases, ILogger<WebhookListener> logger)
-    : IWebhookEndpoint, IStartupTask, IAsyncDisposable
+    : IWebhookEndpoint, IStartupTask, IShutdownTask, IAsyncDisposable
 {
     public const string Holder = "avala-webhooks";
 
@@ -43,10 +43,12 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
                 }
                 else if (!wanted && running.IsSome)
                 {
-                    await StopAsync(token);
+                    await CloseAsync(token);
                 }
             },
             cancellationToken);
+
+    public Task StopAsync(CancellationToken cancellationToken) => owner.RunAsync(CloseAsync, cancellationToken);
 
     public async ValueTask DisposeAsync()
     {
@@ -55,7 +57,7 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
             return;
         }
 
-        await owner.RunAsync(StopAsync, CancellationToken.None);
+        await owner.RunAsync(CloseAsync, CancellationToken.None);
         await owner.DisposeAsync();
     }
 
@@ -102,7 +104,7 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
         Volatile.Write(ref current, new WebhookEndpoint(url, Option<TriggerError>.None));
     }
 
-    private async Task StopAsync(CancellationToken token)
+    private async Task CloseAsync(CancellationToken token)
     {
         await running.Match(
             async served =>
