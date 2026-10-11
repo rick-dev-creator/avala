@@ -12,6 +12,8 @@ internal sealed class TriggerScheduler(TriggerCatalog catalog, ScheduleBook book
 {
     private const string Who = "schedule";
 
+    private static readonly TimeSpan LongestWait = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+
     private readonly SerialExecutor executor = new();
     private readonly CancellationTokenSource lifetime = new();
     private readonly Dictionary<string, ITimer> timers = [];
@@ -104,7 +106,7 @@ internal sealed class TriggerScheduler(TriggerCatalog catalog, ScheduleBook book
         }
 
         var wait = plan.Next - Clock.GetUtcNow();
-        timers[id.Key] = Clock.CreateTimer(_ => Post(ring => RingAsync(id, ring)), null, wait > TimeSpan.Zero ? wait : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+        timers[id.Key] = Clock.CreateTimer(_ => Post(ring => RingAsync(id, ring)), null, wait > LongestWait ? LongestWait : wait > TimeSpan.Zero ? wait : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
     }
 
     private async Task DueAsync(TriggerDeclaration trigger, ScheduleState state, int missed, bool onTime, CancellationToken token)
