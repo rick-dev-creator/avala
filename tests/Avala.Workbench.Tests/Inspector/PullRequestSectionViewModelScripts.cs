@@ -15,7 +15,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AWatchedPullRequestShowsItsChecksReviewsConflictsWatchStateAndWakeUpsAsync()
     {
-        var job = Watched(WatchStatus.WaitingForJob, Mergeability.Conflicting);
+        var job = Watched(WatchStatus.WaitingForJob, Mergeability.Conflicting, JobStatus.Running);
         using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
 
         await section.FocusAsync(job, bench);
@@ -61,14 +61,17 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
     }
 
     [Theory]
-    [InlineData(WatchStatus.Watching, "#7 · watching")]
-    [InlineData(WatchStatus.BackingOff, "#7 · retrying")]
-    [InlineData(WatchStatus.WaitingForJob, "#7 · agent at work")]
-    [InlineData(WatchStatus.NeedsPerson, "#7 · needs you")]
-    [InlineData(WatchStatus.Ended, "#7 · checks passed")]
-    public async Task TheFoldedFactIsTheNumberAndAShortWatchStateAsync(WatchStatus status, string fact)
+    [InlineData(WatchStatus.Watching, JobStatus.Approved, "#7 · watching")]
+    [InlineData(WatchStatus.BackingOff, JobStatus.Approved, "#7 · retrying")]
+    [InlineData(WatchStatus.WaitingForJob, JobStatus.Running, "#7 · agent at work")]
+    [InlineData(WatchStatus.WaitingForJob, JobStatus.AwaitingReview, "#7 · needs you")]
+    [InlineData(WatchStatus.WaitingForJob, JobStatus.Approved, "#7 · fix pushed")]
+    [InlineData(WatchStatus.WaitingForJob, JobStatus.Failed, "#7 · job ended")]
+    [InlineData(WatchStatus.NeedsPerson, JobStatus.Approved, "#7 · needs you")]
+    [InlineData(WatchStatus.Ended, JobStatus.Approved, "#7 · checks passed")]
+    public async Task TheFoldedFactIsTheNumberAndAShortWatchStateAsync(WatchStatus status, JobStatus jobStatus, string fact)
     {
-        var job = Watched(status, Mergeability.Mergeable);
+        var job = Watched(status, Mergeability.Mergeable, jobStatus);
         using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
 
         await section.FocusAsync(job, bench);
@@ -76,11 +79,27 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
         Assert.Equal(fact, section.Fact);
     }
 
+    [Theory]
+    [InlineData(WatchStatus.Watching, true)]
+    [InlineData(WatchStatus.BackingOff, true)]
+    [InlineData(WatchStatus.WaitingForJob, true)]
+    [InlineData(WatchStatus.NeedsPerson, true)]
+    [InlineData(WatchStatus.Ended, false)]
+    public async Task CheckNowIsOfferedOnlyWhileTheWatchIsLiveAsync(WatchStatus status, bool offered)
+    {
+        var job = Watched(status, Mergeability.Mergeable);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
+
+        await section.FocusAsync(job, bench);
+
+        Assert.Equal((offered, offered, true), (section.IsWatching, section.CheckNowCommand.CanExecute(null), section.OpenLinkCommand.CanExecute(null)));
+    }
+
     public void Dispose() => bench.Dispose();
 
-    private JobId Watched(WatchStatus status, Mergeability mergeability)
+    private JobId Watched(WatchStatus status, Mergeability mergeability, JobStatus jobStatus = JobStatus.Approved)
     {
-        var job = bench.Job("Fix the flaky checkout test", JobStatus.Approved);
+        var job = bench.Job("Fix the flaky checkout test", jobStatus);
         var observed = new PullRequestState(Pull, PullRequestLifecycle.Open, "6dcb09b", mergeability)
         {
             Checks = [new CheckRun("build", CheckStatus.Passed, Option<Uri>.None, string.Empty), new CheckRun("tests", CheckStatus.Failed, Option<Uri>.None, "1 test failed")],

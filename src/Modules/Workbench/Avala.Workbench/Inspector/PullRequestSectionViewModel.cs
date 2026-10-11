@@ -18,6 +18,8 @@ internal interface IPullRequestSectionViewModel
 
     bool HasPullRequest { get; }
 
+    bool IsWatching { get; }
+
     string Fact { get; }
 
     string Title { get; }
@@ -75,8 +77,12 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
     public partial bool IsLoaded { get; private set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(OpenLinkCommand), nameof(CheckNowCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenLinkCommand))]
     public partial bool HasPullRequest { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckNowCommand))]
+    public partial bool IsWatching { get; private set; }
 
     [ObservableProperty]
     public partial string Fact { get; private set; } = string.Empty;
@@ -123,7 +129,7 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
     private async Task OpenLinkAsync(CancellationToken cancellationToken) =>
         Notice = (await links.OpenAsync(Link, cancellationToken)).Match(_ => string.Empty, _ => $"The link could not be opened: {Link}");
 
-    [RelayCommand(CanExecute = nameof(HasPullRequest))]
+    [RelayCommand(CanExecute = nameof(IsWatching))]
     private async Task CheckNowAsync(CancellationToken cancellationToken) =>
         Notice = await shown.Match(
             async job => (await forge.RefreshAsync(job, cancellationToken)).Match(_ => string.Empty, error => $"The check failed: {ForgePhrases.Error(error)}"),
@@ -133,13 +139,15 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
     {
         IsLoaded = facts.IsSome;
         shown = facts.Map(found => found.Record.History.Summary.Job);
-        var watch = facts.Bind(found => found.PullRequest);
+        var watched = facts.Bind(found => found.PullRequest.Map(state => (State: state, Job: found.Record.History.Summary.Status)));
+        var watch = watched.Map(found => found.State);
         var last = watch.Bind(state => state.Last);
         HasPullRequest = watch.IsSome;
-        Fact = watch.Match(state => $"#{state.PullRequest.Number} · {Brief(state)}", () => facts.IsSome ? "none" : string.Empty);
+        IsWatching = watch.Match(state => state.Status != WatchStatus.Ended, () => false);
+        Fact = watched.Match(found => $"#{found.State.PullRequest.Number} · {ForgePhrases.Brief(found.State, found.Job)}", () => facts.IsSome ? "none" : string.Empty);
         Title = watch.Match(state => $"Pull request #{state.PullRequest.Number} on {state.Forge.Value}", () => facts.IsSome ? "No pull request was opened for this job." : string.Empty);
         Link = watch.Match(state => state.PullRequest.Link.ToString(), () => string.Empty);
-        Status = watch.Match(ForgePhrases.Status, () => string.Empty);
+        Status = watched.Match(found => ForgePhrases.Status(found.State, found.Job), () => string.Empty);
         Policy = watch.Match(ForgePhrases.Policy, () => string.Empty);
         Checks = last.Match(ForgePhrases.Checks, () => watch.IsSome ? "Not checked yet" : string.Empty);
         CheckLines = last.Match<IReadOnlyList<string>>(state => [.. state.Checks.Select(ForgePhrases.Check)], () => []);
@@ -147,13 +155,4 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
         Reviews = last.Match<IReadOnlyList<string>>(state => [.. state.Reviews.Select(ForgePhrases.Review)], () => []);
         WakeUps = facts.Match<IReadOnlyList<string>>(found => [.. found.WakeUps.Select((wakeUp, index) => ForgePhrases.WakeUp(wakeUp, index + 1))], () => []);
     }
-
-    private static string Brief(PullRequestWatchState state) => state.Status switch
-    {
-        WatchStatus.Watching => "watching",
-        WatchStatus.BackingOff => "retrying",
-        WatchStatus.WaitingForJob => "agent at work",
-        WatchStatus.NeedsPerson => "needs you",
-        _ => state.Ended.Match(ForgePhrases.End, () => "ended"),
-    };
 }

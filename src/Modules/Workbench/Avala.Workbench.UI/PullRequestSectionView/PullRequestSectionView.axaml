@@ -50,7 +50,7 @@
         </ItemsControl>
         <StackPanel Orientation="Horizontal" Spacing="0" Margin="-8,0,0,0">
           <Button x:Name="OpenLink" Classes="ghost" FontSize="{DynamicResource FontSizeCaption}" Content="Open in browser" Command="{Binding OpenLinkCommand}" />
-          <Button x:Name="CheckNow" Classes="ghost" FontSize="{DynamicResource FontSizeCaption}" Content="Check now" Command="{Binding CheckNowCommand}" />
+          <Button x:Name="CheckNow" Classes="ghost" FontSize="{DynamicResource FontSizeCaption}" Content="Check now" Command="{Binding CheckNowCommand}" IsVisible="{Binding IsWatching}" />
         </StackPanel>
         <TextBlock x:Name="Notice"
                    Classes="caption attention"

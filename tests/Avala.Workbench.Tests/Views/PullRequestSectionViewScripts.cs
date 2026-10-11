@@ -53,6 +53,15 @@ public sealed class PullRequestSectionViewScripts(HeadlessUi ui)
             Assert.All(labels, label => Assert.Equal(status.FontSize, label.FontSize));
         }, Cancellation);
 
+    [Fact]
+    public Task AnEndedWatchOffersTheLinkButNoCheckNowAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Sections.Open(Screen.Show(new CountingSection { IsWatching = false }));
+
+            Assert.Equal((true, false), (view.Shows("OpenLink"), view.Shows("CheckNow")));
+        }, Cancellation);
+
     private static TextBlock Label(ViewScript view, string button) => view.Find<Button>(button).GetVisualDescendants().OfType<TextBlock>().First();
 
     private static double Left(ViewScript view, Visual visual) => visual.TranslatePoint(default, view.Window)!.Value.X;
@@ -82,6 +91,8 @@ public sealed class PullRequestSectionViewScripts(HeadlessUi ui)
         public bool IsLoaded => true;
 
         public bool HasPullRequest => true;
+
+        public bool IsWatching { get; init; } = true;
 
         public string Fact => "#7";
 

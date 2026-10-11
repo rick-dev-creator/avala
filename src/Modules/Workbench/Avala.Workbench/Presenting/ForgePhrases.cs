@@ -26,17 +26,39 @@ internal static class ForgePhrases
         _ => $"forges.json or the pullRequest section is invalid ({error}).",
     };
 
-    public static string Status(PullRequestWatchState state) => state.Status switch
+    public static string Status(PullRequestWatchState state, JobStatus job) => state.Status switch
     {
         WatchStatus.Watching => $"Watching{Next(state)}",
         WatchStatus.BackingOff => string.Create(
             CultureInfo.InvariantCulture,
             $"Retrying after {state.Failure.Match(error => error.ToString(), () => "an error")} · {state.Failures} failure{(state.Failures == 1 ? string.Empty : "s")}{Next(state)}"),
-        WatchStatus.WaitingForJob => state.WakeUps > 0
-            ? string.Create(CultureInfo.InvariantCulture, $"The agent works on wake-up {state.WakeUps} of {state.MaxWakeUps}")
-            : "Waiting for the job",
+        WatchStatus.WaitingForJob => job switch
+        {
+            JobStatus.Discarded or JobStatus.Failed => "The job ended, the agent is not woken again",
+            _ when state.WakeUps == 0 => "Waiting for the job",
+            JobStatus.AwaitingReview => $"The fix of wake-up {Counted(state)} waits for your review",
+            JobStatus.NeedsHelp => $"Wake-up {Counted(state)} needs your help",
+            JobStatus.Approved => $"The fix of wake-up {Counted(state)} is pushed{state.NextPoll.Match(_ => Next(state), () => ", waiting for the next check")}",
+            _ => $"The agent works on wake-up {Counted(state)}",
+        },
         WatchStatus.NeedsPerson => $"Held for a person: {state.Pending.Match(Reason, () => "the wake-ups are spent")}",
         _ => $"Watch ended: {state.Ended.Match(End, () => "ended")}",
+    };
+
+    public static string Brief(PullRequestWatchState state, JobStatus job) => state.Status switch
+    {
+        WatchStatus.Watching => "watching",
+        WatchStatus.BackingOff => "retrying",
+        WatchStatus.WaitingForJob => job switch
+        {
+            JobStatus.Discarded or JobStatus.Failed => "job ended",
+            _ when state.WakeUps == 0 => "waiting for the job",
+            JobStatus.AwaitingReview or JobStatus.NeedsHelp => "needs you",
+            JobStatus.Approved => "fix pushed",
+            _ => "agent at work",
+        },
+        WatchStatus.NeedsPerson => "needs you",
+        _ => state.Ended.Match(End, () => "ended"),
     };
 
     public static string Policy(PullRequestWatchState state) =>
@@ -100,6 +122,9 @@ internal static class ForgePhrases
         ContinuedIn.SameSession => "the agent continued in its session",
         _ => "the agent started a new conversation",
     };
+
+    private static string Counted(PullRequestWatchState state) =>
+        string.Create(CultureInfo.InvariantCulture, $"{state.WakeUps} of {state.MaxWakeUps}");
 
     private static string Next(PullRequestWatchState state) =>
         state.NextPoll.Match(next => string.Create(CultureInfo.InvariantCulture, $" · next check {next.ToLocalTime():HH:mm}"), () => string.Empty);

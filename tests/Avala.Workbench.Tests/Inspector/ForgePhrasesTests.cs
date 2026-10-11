@@ -12,18 +12,24 @@ public sealed class ForgePhrasesTests
 
     private static readonly DateTimeOffset HalfPastTwo = new(2026, 3, 2, 14, 30, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 3, 2, 14, 30, 0, DateTimeKind.Local)));
 
-    public static TheoryData<PullRequestWatchState, string> Statuses => new()
+    public static TheoryData<PullRequestWatchState, JobStatus, string> Statuses => new()
     {
-        { Watch, "Watching" },
-        { Watch with { NextPoll = HalfPastTwo }, "Watching · next check 14:30" },
-        { Watch with { Status = WatchStatus.BackingOff, Failure = ForgeError.Unreachable, Failures = 1 }, "Retrying after Unreachable · 1 failure" },
-        { Watch with { Status = WatchStatus.BackingOff, Failures = 2, NextPoll = HalfPastTwo }, "Retrying after an error · 2 failures · next check 14:30" },
-        { Watch with { Status = WatchStatus.WaitingForJob }, "Waiting for the job" },
-        { Watch with { Status = WatchStatus.WaitingForJob, WakeUps = 2 }, "The agent works on wake-up 2 of 3" },
-        { Watch with { Status = WatchStatus.NeedsPerson, Pending = WakeReason.Conflict }, "Held for a person: conflicts with its base" },
-        { Watch with { Status = WatchStatus.NeedsPerson }, "Held for a person: the wake-ups are spent" },
-        { Watch with { Status = WatchStatus.Ended, Ended = WatchEnd.Green }, "Watch ended: checks passed" },
-        { Watch with { Status = WatchStatus.Ended }, "Watch ended: ended" },
+        { Watch, JobStatus.Approved, "Watching" },
+        { Watch with { NextPoll = HalfPastTwo }, JobStatus.Approved, "Watching · next check 14:30" },
+        { Watch with { Status = WatchStatus.BackingOff, Failure = ForgeError.Unreachable, Failures = 1 }, JobStatus.Approved, "Retrying after Unreachable · 1 failure" },
+        { Watch with { Status = WatchStatus.BackingOff, Failures = 2, NextPoll = HalfPastTwo }, JobStatus.Approved, "Retrying after an error · 2 failures · next check 14:30" },
+        { Watch with { Status = WatchStatus.WaitingForJob }, JobStatus.Running, "Waiting for the job" },
+        { Watch with { Status = WatchStatus.WaitingForJob, WakeUps = 2 }, JobStatus.Running, "The agent works on wake-up 2 of 3" },
+        { Watch with { Status = WatchStatus.WaitingForJob, WakeUps = 2 }, JobStatus.Checking, "The agent works on wake-up 2 of 3" },
+        { Watch with { Status = WatchStatus.WaitingForJob, WakeUps = 1 }, JobStatus.AwaitingReview, "The fix of wake-up 1 of 3 waits for your review" },
+        { Watch with { Status = WatchStatus.WaitingForJob, WakeUps = 1 }, JobStatus.NeedsHelp, "Wake-up 1 of 3 needs your help" },
+        { Watch with { Status = WatchStatus.WaitingForJob, WakeUps = 1 }, JobStatus.Approved, "The fix of wake-up 1 of 3 is pushed, waiting for the next check" },
+        { Watch with { Status = WatchStatus.WaitingForJob, WakeUps = 1, NextPoll = HalfPastTwo }, JobStatus.Approved, "The fix of wake-up 1 of 3 is pushed · next check 14:30" },
+        { Watch with { Status = WatchStatus.WaitingForJob, WakeUps = 1 }, JobStatus.Failed, "The job ended, the agent is not woken again" },
+        { Watch with { Status = WatchStatus.NeedsPerson, Pending = WakeReason.Conflict }, JobStatus.Approved, "Held for a person: conflicts with its base" },
+        { Watch with { Status = WatchStatus.NeedsPerson }, JobStatus.Approved, "Held for a person: the wake-ups are spent" },
+        { Watch with { Status = WatchStatus.Ended, Ended = WatchEnd.Green }, JobStatus.Approved, "Watch ended: checks passed" },
+        { Watch with { Status = WatchStatus.Ended }, JobStatus.Approved, "Watch ended: ended" },
     };
 
     [Theory]
@@ -48,6 +54,6 @@ public sealed class ForgePhrasesTests
 
     [Theory]
     [MemberData(nameof(Statuses))]
-    public void AWatchStatusSaysWhatTheWatchDoesAndWhenItChecksNext(PullRequestWatchState state, string phrase) =>
-        Assert.Equal(phrase, ForgePhrases.Status(state));
+    public void AWatchStatusSaysWhatTheWatchAndItsJobDoAndWhenItChecksNext(PullRequestWatchState state, JobStatus job, string phrase) =>
+        Assert.Equal(phrase, ForgePhrases.Status(state, job));
 }
