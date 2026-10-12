@@ -83,7 +83,6 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     partial void OnRepositoryChanged(string value)
     {
         Notice = string.Empty;
-        creation.Near = value;
         Checking = CheckAsync(CancellationToken.None);
     }
 

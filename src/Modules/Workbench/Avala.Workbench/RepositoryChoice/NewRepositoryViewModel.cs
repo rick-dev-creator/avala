@@ -1,4 +1,5 @@
 using Avala.Sdk;
+using Avala.Workbench.Submitting;
 using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -31,21 +32,19 @@ internal sealed record RepositoryCreated(string Path, string Notice);
 [INotifyPropertyChanged]
 internal sealed partial class NewRepositoryViewModel : INewRepositoryViewModel
 {
-    private readonly IFolderPicker picker;
+    private readonly ProjectsPlace projects;
     private readonly IRepositories repositories;
     private readonly PublishOptionsViewModel publish;
 
-    public NewRepositoryViewModel(IFolderPicker picker, IRepositories repositories, PublishOptionsViewModel publish)
+    public NewRepositoryViewModel(ProjectsPlace projects, IRepositories repositories, PublishOptionsViewModel publish)
     {
-        this.picker = picker;
+        this.projects = projects;
         this.repositories = repositories;
         this.publish = publish;
         publish.Changed += (_, _) => CreateCommand.NotifyCanExecuteChanged();
     }
 
     public event EventHandler<RepositoryCreated>? Created;
-
-    public string Near { get; set; } = string.Empty;
 
     public IPublishOptionsViewModel Publish => publish;
 
@@ -82,8 +81,7 @@ internal sealed partial class NewRepositoryViewModel : INewRepositoryViewModel
     [RelayCommand]
     private async Task StartAsync(CancellationToken cancellationToken)
     {
-        var near = Near.Trim().TrimEnd('/', '\\');
-        var chosen = await picker.PickAsync(RepositoryPhrases.ParentTitle, Path.GetDirectoryName(near) ?? near, cancellationToken);
+        var chosen = await projects.PickAsync(RepositoryPhrases.ParentTitle, cancellationToken);
 
         chosen.Match<Action>(found => () => Open(found), () => () => { })();
     }
