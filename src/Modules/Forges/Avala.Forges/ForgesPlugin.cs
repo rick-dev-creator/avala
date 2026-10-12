@@ -2,6 +2,7 @@ using Avala.Forges.Accounts;
 using Avala.Forges.Connecting;
 using Avala.Forges.Contracts;
 using Avala.Forges.Delivering;
+using Avala.Forges.Detection;
 using Avala.Forges.Git;
 using Avala.Forges.Polling;
 using Avala.Forges.Publishing;
@@ -63,6 +64,9 @@ public sealed class ForgesPlugin : IPlugin
             .AddSingleton<IForgeEventLog, EventLogDesk>()
             .AddSingleton<IForgeNudges, ForgeNudges>()
             .AddSingleton<IRepositoryPublishing, RepositoryPublisher>()
-            .AddSingleton<IForgeConnections, ConnectionDesk>();
+            .AddSingleton<IForgeConnections, ConnectionDesk>()
+            .AddSingleton<IForgeProbes, HttpForgeProbes>()
+            .AddSingleton<ILoginDetection, LoginDetection>()
+            .AddSingleton<ISourceControlAccounts, SourceControlDesk>();
     }
 }

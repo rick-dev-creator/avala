@@ -3,6 +3,6 @@
     <ProjectReference Include="..\..\src\Modules\Forges\Avala.Forges.Contracts\Avala.Forges.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" LinkBase="Fixtures" />
+    <None Include="Fixtures\**\*.json;Fixtures\**\*.txt" CopyToOutputDirectory="PreserveNewest" LinkBase="Fixtures" />
   </ItemGroup>
 </Project>

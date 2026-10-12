@@ -1,0 +1,18 @@
+github.com
+  ✓ Logged in to github.com account octocat (keyring)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'
+
+  ✓ Logged in to github.com account octo-work (keyring)
+  - Active account: false
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: 'gist', 'read:org', 'repo'
+
+ghe.example.com
+  ✓ Logged in to ghe.example.com account hubot (GH_ENTERPRISE_TOKEN)
+  - Active account: true
+  - Git operations protocol: ssh
+  - Token: ghp_************************************

@@ -1,0 +1,16 @@
+[
+  {
+    "name": "codeberg",
+    "url": "https://codeberg.org",
+    "ssh_host": "codeberg.org",
+    "user": "ada",
+    "default": "true"
+  },
+  {
+    "name": "work",
+    "url": "https://gitea.example.com",
+    "ssh_host": "gitea.example.com",
+    "user": "ada-work",
+    "default": "false"
+  }
+]

@@ -315,6 +315,7 @@ internal static class LayerMap
             ["Publishing"] = Layer.Application,
             ["Accounts"] = Layer.Application,
             ["RuleFiles"] = Layer.Infrastructure,
+            ["Detection"] = Layer.Infrastructure,
             ["Transport"] = Layer.Infrastructure,
             ["Git"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
@@ -324,11 +325,13 @@ internal static class LayerMap
         {
             [""] = Layer.None,
             ["Api"] = Layer.Infrastructure,
+            ["SignIn"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Gitea", new()
         {
             [""] = Layer.None,
             ["Api"] = Layer.Infrastructure,
+            ["SignIn"] = Layer.Infrastructure,
         }),
         .. Module("Avala.ForgeSimulator", new()
         {

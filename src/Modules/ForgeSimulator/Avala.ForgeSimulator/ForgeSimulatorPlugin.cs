@@ -9,5 +9,8 @@ public sealed class ForgeSimulatorPlugin : IPlugin
 {
     public PluginInfo Info { get; } = new("avala.forge-simulator", "Simulated forge");
 
-    public void Register(IPluginRegistrar registrar) => registrar.Services.AddSingleton<IForge, SimulatedForge>();
+    public void Register(IPluginRegistrar registrar) =>
+        registrar.Services
+            .AddSingleton<IForge, SimulatedForge>()
+            .AddSingleton<IForgeLogins, SimulatedLogins>();
 }

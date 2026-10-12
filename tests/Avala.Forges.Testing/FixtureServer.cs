@@ -19,6 +19,9 @@ public sealed class FixtureServer : HttpMessageHandler
     public static Task<string> FixtureAsync(string forge, string name, CancellationToken cancellationToken) =>
         File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", forge, $"{name}.json"), cancellationToken);
 
+    public static Task<string> TextAsync(string forge, string file, CancellationToken cancellationToken) =>
+        File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", forge, file), cancellationToken);
+
     public FixtureServer Route(string method, string pathAndQuery, HttpStatusCode status, params string[] bodies)
     {
         routes[$"{method} {pathAndQuery}"] = new Queue<(HttpStatusCode Status, string Body)>(bodies.Select(body => (status, body)));
