@@ -34,6 +34,9 @@ internal sealed class ProcessTrees(IContainment containment, IEnumerable<IProces
     public Option<IProcessTree> Find(ProcessTreeId tree) =>
         Volatile.Read(ref open).FirstOrDefault(known => known.Id == tree).ToOption().Map(known => (IProcessTree)known);
 
+    public async ValueTask<IReadOnlyList<IReadOnlyList<TreeProcess>>> MembersAsync(IReadOnlyList<IProcessTree> trees, CancellationToken cancellationToken) =>
+        [.. (await containment.MemberIdsAsync([.. trees.Cast<ProcessTree>().Select(tree => tree.Container)], cancellationToken)).Select(ProcessTree.Described)];
+
     public async ValueTask<IReadOnlyList<TreeProcess>> CloseAsync(ProcessTreeId tree, CancellationToken cancellationToken)
     {
         var closing = Volatile.Read(ref open).FirstOrDefault(known => known.Id == tree);

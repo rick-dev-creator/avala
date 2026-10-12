@@ -19,6 +19,9 @@ internal sealed class WindowsContainment : IContainment
             return ValueTask.FromResult<IContainer>(new RootsContainer());
         }
     }
+
+    public ValueTask<IReadOnlyList<IReadOnlyList<int>>> MemberIdsAsync(IReadOnlyList<IContainer> containers, CancellationToken cancellationToken) =>
+        Containers.EachMemberIdsAsync(containers, cancellationToken);
 }
 
 internal sealed class RootsContainer : IContainer

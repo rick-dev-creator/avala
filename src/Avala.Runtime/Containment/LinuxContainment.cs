@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
-using System.Text;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 
@@ -20,6 +19,24 @@ internal sealed class LinuxContainment : IContainment
 
         return new LinuxContainer(tree, (long)((seconds - 1) * TicksPerSecond), setsid);
     }
+
+    public async ValueTask<IReadOnlyList<IReadOnlyList<int>>> MemberIdsAsync(IReadOnlyList<IContainer> containers, CancellationToken cancellationToken)
+    {
+        if (containers.Count == 0)
+        {
+            return [];
+        }
+
+        var scan = await LinuxProcessScan.ReadAsync(cancellationToken);
+        var members = new List<IReadOnlyList<int>>(containers.Count);
+
+        foreach (var container in containers)
+        {
+            members.Add(container is LinuxContainer linux ? await linux.MemberIdsAsync(scan, cancellationToken) : await container.MemberIdsAsync(cancellationToken));
+        }
+
+        return members;
+    }
 }
 
 internal sealed class LinuxContainer(ProcessTreeId tree, long since, Option<string> setsid) : IContainer
@@ -32,15 +49,19 @@ internal sealed class LinuxContainer(ProcessTreeId tree, long since, Option<stri
 
     public void Adopt(Process process) => ImmutableInterlocked.Update(ref roots, known => known.Add(process.Id));
 
-    public async ValueTask<IReadOnlyList<int>> MemberIdsAsync(CancellationToken cancellationToken)
+    public async ValueTask<IReadOnlyList<int>> MemberIdsAsync(CancellationToken cancellationToken) =>
+        await MemberIdsAsync(await LinuxProcessScan.ReadAsync(cancellationToken), cancellationToken);
+
+    public async ValueTask<IReadOnlyList<int>> MemberIdsAsync(LinuxProcessScan scan, CancellationToken cancellationToken)
     {
-        var candidates = await CandidatesAsync(cancellationToken);
+        var candidates = scan.Processes.Where(process => process.Start >= since).ToList();
         var known = Volatile.Read(ref roots);
         var members = new List<int>();
 
         foreach (var candidate in candidates)
         {
-            if (known.Contains(candidate.Id) || known.Contains(candidate.Session) || await MarkedAsync(candidate.Id, cancellationToken))
+            if (known.Contains(candidate.Id) || known.Contains(candidate.Session)
+                || await scan.TreeMarkerOfAsync(candidate.Id, cancellationToken) == Option<string>.Some(marker))
             {
                 members.Add(candidate.Id);
             }
@@ -68,60 +89,6 @@ internal sealed class LinuxContainer(ProcessTreeId tree, long since, Option<stri
 
         return info;
     }
-
-    private async Task<List<Stat>> CandidatesAsync(CancellationToken cancellationToken)
-    {
-        var candidates = new List<Stat>();
-
-        foreach (var folder in Directory.EnumerateDirectories("/proc"))
-        {
-            if (int.TryParse(Path.GetFileName(folder), NumberStyles.None, CultureInfo.InvariantCulture, out var id)
-                && id != Environment.ProcessId
-                && (await StatAsync(id, cancellationToken)).TryGetValue(out var stat, out _)
-                && stat is { Zombie: false } && stat.Start >= since)
-            {
-                candidates.Add(stat);
-            }
-        }
-
-        return candidates;
-    }
-
-    private static async Task<Result<Stat, ProcessError>> StatAsync(int id, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var text = await File.ReadAllTextAsync($"/proc/{id}/stat", cancellationToken);
-            var fields = text[(text.LastIndexOf(')') + 2)..].Split(' ');
-
-            return new Stat(
-                id,
-                fields[0] == "Z",
-                int.Parse(fields[1], CultureInfo.InvariantCulture),
-                int.Parse(fields[3], CultureInfo.InvariantCulture),
-                long.Parse(fields[19], CultureInfo.InvariantCulture));
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or FormatException or IndexOutOfRangeException)
-        {
-            return ProcessError.NotFound;
-        }
-    }
-
-    private async Task<bool> MarkedAsync(int id, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var environment = Encoding.UTF8.GetString(await File.ReadAllBytesAsync($"/proc/{id}/environ", cancellationToken));
-
-            return environment.Split('\0').Contains(marker, StringComparer.Ordinal);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
-
-    private sealed record Stat(int Id, bool Zombie, int Parent, int Session, long Start);
 }
 
 internal static class Executables

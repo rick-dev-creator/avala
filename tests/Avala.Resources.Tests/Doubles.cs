@@ -145,6 +145,18 @@ internal sealed class FakeTrees : IProcessTrees
 
     public Option<IProcessTree> Find(ProcessTreeId tree) => open.TryGetValue(tree, out var found) ? found : Option<IProcessTree>.None;
 
+    public async ValueTask<IReadOnlyList<IReadOnlyList<TreeProcess>>> MembersAsync(IReadOnlyList<IProcessTree> trees, CancellationToken cancellationToken)
+    {
+        var members = new List<IReadOnlyList<TreeProcess>>();
+
+        foreach (var tree in trees)
+        {
+            members.Add(await tree.MembersAsync(cancellationToken));
+        }
+
+        return members;
+    }
+
     public ValueTask<IReadOnlyList<TreeProcess>> CloseAsync(ProcessTreeId tree, CancellationToken cancellationToken)
     {
         if (open.TryRemove(tree, out var closing))

@@ -135,6 +135,26 @@ public sealed class ProcessTreeTests
     }
 
     [Fact]
+    public async Task ReadingSeveralTreesAtOnceGivesEachTreeItsOwnMembersAsync()
+    {
+        using var home = new TemporaryFolder();
+        await using var services = Runtime();
+        var trees = Trees(services);
+        var first = await trees.OpenAsync(home.Path, Cancellation);
+        var second = await trees.OpenAsync(home.Path, Cancellation);
+        var (one, _) = await Workloads.StartAsync(first, Workloads.Holding("hold"), Cancellation);
+        var (other, _) = await Workloads.StartAsync(second, Workloads.Holding("hold"), Cancellation);
+        using var oneHeld = one;
+        using var otherHeld = other;
+
+        var members = await trees.MembersAsync([first, second], Cancellation);
+
+        Assert.Equal([[one.Id], [other.Id]], members.Select(tree => tree.Select(member => member.Id).ToList()));
+        await trees.CloseAsync(first.Id, Cancellation);
+        await trees.CloseAsync(second.Id, Cancellation);
+    }
+
+    [Fact]
     public async Task WithoutContainmentATreeStillKnowsTheProcessesItStartedWhileTheyRunAsync()
     {
         using var container = new Containment.RootsContainer();

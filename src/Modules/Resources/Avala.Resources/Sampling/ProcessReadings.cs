@@ -37,13 +37,8 @@ internal sealed class ProcessReadings(IProcessTrees trees, IListeningPorts liste
         IReadOnlyList<IProcessTree> which,
         CancellationToken cancellationToken)
     {
-        var read = new List<(IProcessTree Tree, IReadOnlyList<TreeProcess> Members)>();
-
-        foreach (var tree in which)
-        {
-            read.Add((tree, await tree.MembersAsync(cancellationToken)));
-        }
-
+        IReadOnlyList<(IProcessTree Tree, IReadOnlyList<TreeProcess> Members)> read =
+            [.. which.Zip(await trees.MembersAsync(which, cancellationToken))];
         var owners = read.SelectMany(tree => tree.Members).Select(member => member.Id).Append(Environment.ProcessId).ToImmutableHashSet();
 
         return (read, await listening.ListAsync(owners, cancellationToken));

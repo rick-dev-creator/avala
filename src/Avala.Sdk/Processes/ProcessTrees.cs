@@ -38,6 +38,8 @@ public interface IProcessTrees
 
     Option<IProcessTree> Find(ProcessTreeId tree);
 
+    ValueTask<IReadOnlyList<IReadOnlyList<TreeProcess>>> MembersAsync(IReadOnlyList<IProcessTree> trees, CancellationToken cancellationToken);
+
     ValueTask<IReadOnlyList<TreeProcess>> CloseAsync(ProcessTreeId tree, CancellationToken cancellationToken);
 }
 
