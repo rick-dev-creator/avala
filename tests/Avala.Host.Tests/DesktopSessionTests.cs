@@ -20,7 +20,7 @@ public sealed class DesktopSessionTests(HeadlessUi ui)
     public async Task TheDispatcherClockFollowsThePlatformsClockAsync()
     {
         var aligned = false;
-        var drift = long.MaxValue;
+        var (before, followed, after) = (0L, long.MaxValue, 0L);
 
         await ui.RunAsync(
             () =>
@@ -33,11 +33,13 @@ public sealed class DesktopSessionTests(HeadlessUi ui)
                 provider.SetValue(dispatcher, new Func<long>(() => (long)now.GetValue(platform)! + 100_000));
 
                 aligned = DispatcherClock.Align();
-                drift = ((Func<long>)provider.GetValue(dispatcher)!)() - (long)now.GetValue(platform)!;
+                before = (long)now.GetValue(platform)!;
+                followed = ((Func<long>)provider.GetValue(dispatcher)!)();
+                after = (long)now.GetValue(platform)!;
             },
             TestContext.Current.CancellationToken);
 
         Assert.True(aligned);
-        Assert.InRange(drift, -5, 5);
+        Assert.InRange(followed, before, after);
     }
 }
