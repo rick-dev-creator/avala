@@ -69,23 +69,9 @@ internal sealed class GitRepositories(IProcessRunner processes) : IRepositories
 
     public async ValueTask<Result<string, WorkspaceFailure>> CreateAsync(string parent, string name, RepositorySeed seed, CancellationToken cancellationToken)
     {
-        var named = name.Trim();
-
-        if (!OwnedFolders.IsPlainName(named))
+        if (!Destination(parent, name).TryGetValue(out var path, out var refused))
         {
-            return WorkspaceFailure.InvalidRepositoryName;
-        }
-
-        if (string.IsNullOrWhiteSpace(parent) || !Directory.Exists(parent.Trim()))
-        {
-            return WorkspaceFailure.FolderMissing;
-        }
-
-        var path = Path.Combine(Path.GetFullPath(parent.Trim()), named);
-
-        if (Directory.Exists(path) || File.Exists(path))
-        {
-            return WorkspaceFailure.FolderExists;
+            return refused;
         }
 
         var known = await HasIdentityAsync(Path.GetDirectoryName(path)!, cancellationToken);
@@ -103,6 +89,25 @@ internal sealed class GitRepositories(IProcessRunner processes) : IRepositories
         return (await RunAsync(path, ["init", "--quiet"], cancellationToken)).Succeeded
             ? await CommitAsync(path, known ? [] : LentIdentity, cancellationToken)
             : WorkspaceFailure.GitFailed;
+    }
+
+    private static Result<string, WorkspaceFailure> Destination(string parent, string name)
+    {
+        var named = name.Trim();
+
+        if (!OwnedFolders.IsPlainName(named))
+        {
+            return WorkspaceFailure.InvalidRepositoryName;
+        }
+
+        if (string.IsNullOrWhiteSpace(parent) || !Directory.Exists(parent.Trim()))
+        {
+            return WorkspaceFailure.FolderMissing;
+        }
+
+        var path = Path.Combine(Path.GetFullPath(parent.Trim()), named);
+
+        return Directory.Exists(path) || File.Exists(path) ? WorkspaceFailure.FolderExists : path;
     }
 
     private static async Task<bool> PlantAsync(string path, RepositorySeed seed, CancellationToken cancellationToken)
