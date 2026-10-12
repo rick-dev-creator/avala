@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              xmlns:sidebar="using:Avala.Workbench.Sidebar"
              x:Class="Avala.Workbench.UI.ToolbarView"
              x:ClassModifier="internal"
@@ -21,8 +22,8 @@
             Classes.selected="{Binding IsDecisionsOpen}"
             Padding="8,4"
             Command="{Binding ToggleDecisionsCommand}"
-            HotKey="Ctrl+D"
-            ToolTip.Tip="Pending decisions (Ctrl+D)"
+            HotKey="{x:Static copying:Hotkeys.Decisions}"
+            ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.DecisionsLabel}, StringFormat='Pending decisions ({0})'}"
             AutomationProperties.Name="Pending decisions">
       <StackPanel Orientation="Horizontal" Spacing="6">
         <Path Classes="icon" Data="{StaticResource IconDecisions}" VerticalAlignment="Center" />
@@ -35,8 +36,8 @@
             Classes="glyph"
             Padding="5"
             Command="{Binding NewJobCommand}"
-            HotKey="Ctrl+N"
-            ToolTip.Tip="New job (Ctrl+N)"
+            HotKey="{x:Static copying:Hotkeys.NewJob}"
+            ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.NewJobLabel}, StringFormat='New job ({0})'}"
             AutomationProperties.Name="New job">
       <Path Classes="icon" Width="15" Height="15" StrokeThickness="1.5" Data="{StaticResource IconPlus}" />
     </Button>

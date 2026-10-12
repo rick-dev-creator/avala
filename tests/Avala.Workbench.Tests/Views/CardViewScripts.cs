@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Components.UI.Copying;
 using Avala.Permissions.Contracts;
 using Avala.Testing.UI;
 using Avala.Workbench.Cards;
@@ -114,20 +115,31 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task TheKeyboardAllowsWithControlEnterAndDeniesWithControlBackspaceAsync() =>
+    public Task TheAnswerButtonsNameTheirShortcutsWithThePlatformsCommandKeyAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new PermissionCardViewModel(new Asking().Permission(), Replying.With(new FakePermissionAnswers())));
+
+            Assert.Equal(
+                ($"Allow ({Hotkeys.CommandEnterLabel})", $"Deny ({Hotkeys.CommandBackLabel})"),
+                (ToolTip.GetTip(view.Find("Allow")), ToolTip.GetTip(view.Find("Deny"))));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheKeyboardAllowsWithCommandEnterAndDeniesWithCommandBackspaceAsync() =>
         ui.RunAsync(async () =>
         {
             var permissions = new FakePermissionAnswers();
             var allowed = new PermissionCardViewModel(new Asking().Permission(), Replying.With(permissions));
             var view = Screen.Show(allowed);
             view.Find("Once").Focus();
-            view.Press(Key.Enter, RawInputModifiers.Control);
+            view.Press(Hotkeys.CommandEnter);
             await (allowed.AllowCommand.ExecutionTask ?? Task.CompletedTask);
 
             var denied = new PermissionCardViewModel(new Asking().Permission(), Replying.With(permissions));
             var other = Screen.Show(denied);
             other.Find("Allow").Focus();
-            other.Press(Key.Back, RawInputModifiers.Control);
+            other.Press(Hotkeys.CommandBack);
             await (denied.DenyCommand.ExecutionTask ?? Task.CompletedTask);
 
             Assert.Equal([PermissionAnswer.Allow, PermissionAnswer.Deny], permissions.Replies.Select(reply => reply.Reply.Answer));
@@ -179,7 +191,7 @@ public sealed class FormCardViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ControlEnterAnswersFromAnywhereInTheCardAsync() =>
+    public Task CommandEnterAnswersFromAnywhereInTheCardAsync() =>
         ui.RunAsync(async () =>
         {
             var agents = new FakeAgents();
@@ -187,7 +199,7 @@ public sealed class FormCardViewScripts(HeadlessUi ui)
             var view = Screen.Show(card);
 
             view.All<ToggleButton>().First(choice => choice.Name == "Choice").Focus();
-            view.Press(Key.Enter, RawInputModifiers.Control);
+            view.Press(Hotkeys.CommandEnter);
             await (card.SubmitCommand.ExecutionTask ?? Task.CompletedTask);
 
             Assert.Equal(["PostgreSQL"], Assert.Single(Assert.Single(agents.Answers).Answer.Fields).Chosen);

@@ -6,15 +6,89 @@ public static class Hotkeys
 {
     public static KeyModifiers Command { get; } = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
 
-    public static string CommandEnterLabel { get; } = OperatingSystem.IsMacOS() ? "⌘Return" : "Ctrl+Enter";
-
-    public static string FocusModeLabel { get; } = OperatingSystem.IsMacOS() ? "⌘⇧F" : "Ctrl+Shift+F";
-
     public static KeyGesture Copy { get; } = new(Key.C, Command);
 
     public static KeyGesture SelectAll { get; } = new(Key.A, Command);
 
     public static KeyGesture CommandEnter { get; } = new(Key.Enter, Command);
 
+    public static KeyGesture CommandShiftEnter { get; } = new(Key.Enter, Command | KeyModifiers.Shift);
+
+    public static KeyGesture CommandBack { get; } = new(Key.Back, Command);
+
     public static KeyGesture Enter { get; } = new(Key.Enter);
+
+    public static KeyGesture Review { get; } = new(Key.R, Command);
+
+    public static KeyGesture Decisions { get; } = new(Key.D, Command);
+
+    public static KeyGesture NewJob { get; } = new(Key.N, Command);
+
+    public static KeyGesture Inspector { get; } = new(Key.I, Command);
+
+    public static KeyGesture FocusMode { get; } = new(Key.F, Command | KeyModifiers.Shift);
+
+    public static KeyGesture Sidebar { get; } = new(Key.OemPipe, Command);
+
+    public static KeyGesture SidebarBackslash { get; } = new(Key.OemBackslash, Command);
+
+    public static string CommandEnterLabel { get; } = Label(CommandEnter);
+
+    public static string CommandShiftEnterLabel { get; } = Label(CommandShiftEnter);
+
+    public static string CommandBackLabel { get; } = Label(CommandBack);
+
+    public static string ReviewLabel { get; } = Label(Review);
+
+    public static string DecisionsLabel { get; } = Label(Decisions);
+
+    public static string NewJobLabel { get; } = Label(NewJob);
+
+    public static string InspectorLabel { get; } = Label(Inspector);
+
+    public static string FocusModeLabel { get; } = Label(FocusMode);
+
+    public static string SidebarLabel { get; } = Label(Sidebar);
+
+    public static string Label(KeyGesture gesture)
+    {
+        ArgumentNullException.ThrowIfNull(gesture);
+
+        return OperatingSystem.IsMacOS() ? MacLabel(gesture) : OtherLabel(gesture);
+    }
+
+    private static string MacLabel(KeyGesture gesture) =>
+        string.Concat(
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Control) ? "⌃" : string.Empty,
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Alt) ? "⌥" : string.Empty,
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Meta) ? "⌘" : string.Empty,
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Shift) ? "⇧" : string.Empty,
+            MacKey(gesture.Key));
+
+    private static string OtherLabel(KeyGesture gesture) =>
+        string.Concat(
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Control) ? "Ctrl+" : string.Empty,
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Alt) ? "Alt+" : string.Empty,
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Shift) ? "Shift+" : string.Empty,
+            OtherKey(gesture.Key));
+
+    private static string MacKey(Key key) => key switch
+    {
+        Key.Enter => "Return",
+        Key.Back => "Delete",
+        _ => CommonKey(key),
+    };
+
+    private static string OtherKey(Key key) => key switch
+    {
+        Key.Enter => "Enter",
+        Key.Back => "Backspace",
+        _ => CommonKey(key),
+    };
+
+    private static string CommonKey(Key key) => key switch
+    {
+        Key.OemPipe or Key.OemBackslash => "\\",
+        _ => key.ToString(),
+    };
 }

@@ -28,6 +28,8 @@ internal static class XamlRules
 
     private static readonly HashSet<string> Selections = ["SelectedItem", "SelectedValue"];
 
+    private static readonly string[] SpelledModifiers = ["Ctrl", "Meta", "Cmd"];
+
     private static readonly HashSet<string> TextElements = ["TextBlock", "SelectableTextBlock", "AccessText", "Run", "Label"];
 
     public static IEnumerable<Finding> WithoutDataType(IEnumerable<XamlFile> views) =>
@@ -103,6 +105,15 @@ internal static class XamlRules
                 XamlFile.LineOf(attribute),
                 $"{attribute.Name.LocalName}=\"{attribute.Value}\" names a region with a string; refer to its typed name, such as {{x:Static regions:ShellRegions.Sidebar}}"))));
 
+    public static IEnumerable<Finding> LiteralModifiers(IEnumerable<XamlFile> views) =>
+        views.SelectMany(view => view.Root.DescendantsAndSelf().SelectMany(element => element.Attributes()
+            .Where(attribute => LiteralModifier(attribute.Value) is not null)
+            .Select(attribute => Finding.OfFile(
+                ViewRule.PlatformHotkeys,
+                view.Path,
+                XamlFile.LineOf(attribute),
+                $"{attribute.Name.LocalName}=\"{attribute.Value}\" spells the {LiteralModifier(attribute.Value)} modifier, which macOS replaces with ⌘; bind the gesture or its label from Hotkeys, such as Gesture=\"{{x:Static copying:Hotkeys.CommandEnter}}\" or a StringFormat over {{x:Static copying:Hotkeys.CommandEnterLabel}}, with xmlns:copying=\"using:Avala.Components.UI.Copying\""))));
+
     private static bool HasDesignDataContext(XElement root) =>
         root.Elements().Any(element => element.Name.LocalName == "Design.DataContext")
         || root.Attribute(XName.Get("DataContext", XamlFile.DesignNamespace)) is not null
@@ -142,6 +153,9 @@ internal static class XamlRules
         && !button.Elements().Where(child => !child.Name.LocalName.Contains('.', StringComparison.Ordinal))
             .DescendantsAndSelf()
             .Any(element => TextElements.Contains(element.Name.LocalName) || element.Name.LocalName == "ContentControl");
+
+    private static string? LiteralModifier(string value) =>
+        SpelledModifiers.FirstOrDefault(modifier => value.Contains($"{modifier}+", StringComparison.Ordinal));
 
     private static string LastSegment(string name) => name[(name.LastIndexOf('.') + 1)..];
 }

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              xmlns:review="using:Avala.Workbench.Review"
              xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.ReviewView"
@@ -251,7 +252,7 @@
                    CornerRadius="{DynamicResource RadiusRow}"
                    FontSize="{DynamicResource FontSizeReading}">
             <TextBox.KeyBindings>
-              <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SendBackCommand}" />
+              <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandEnter}" Command="{Binding SendBackCommand}" />
             </TextBox.KeyBindings>
           </TextBox>
         </StackPanel>

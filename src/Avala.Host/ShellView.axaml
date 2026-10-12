@@ -18,12 +18,9 @@
         Background="Transparent"
         TransparencyLevelHint="Mica, AcrylicBlur, None">
   <Window.KeyBindings>
-    <KeyBinding Gesture="Ctrl+OemPipe" Command="{Binding ToggleSidebarCommand}" />
-    <KeyBinding Gesture="Meta+OemPipe" Command="{Binding ToggleSidebarCommand}" />
-    <KeyBinding Gesture="Ctrl+OemBackslash" Command="{Binding ToggleSidebarCommand}" />
-    <KeyBinding Gesture="Meta+OemBackslash" Command="{Binding ToggleSidebarCommand}" />
-    <KeyBinding Gesture="Ctrl+Shift+F" Command="{Binding ToggleFocusCommand}" />
-    <KeyBinding Gesture="Meta+Shift+F" Command="{Binding ToggleFocusCommand}" />
+    <KeyBinding Gesture="{x:Static copying:Hotkeys.Sidebar}" Command="{Binding ToggleSidebarCommand}" />
+    <KeyBinding Gesture="{x:Static copying:Hotkeys.SidebarBackslash}" Command="{Binding ToggleSidebarCommand}" />
+    <KeyBinding Gesture="{x:Static copying:Hotkeys.FocusMode}" Command="{Binding ToggleFocusCommand}" />
     <KeyBinding Gesture="Escape" Command="{Binding LeaveFocusCommand}" />
   </Window.KeyBindings>
   <Design.DataContext>
@@ -267,7 +264,7 @@
               Classes="glyph"
               Command="{Binding ToggleSidebarCommand}"
               IsVisible="{Binding HasSidebar}"
-              ToolTip.Tip="Sidebar (Ctrl+\)"
+              ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.SidebarLabel}, StringFormat='Sidebar ({0})'}"
               AutomationProperties.Name="Toggle sidebar">
         <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconSidebar}" />
       </Button>

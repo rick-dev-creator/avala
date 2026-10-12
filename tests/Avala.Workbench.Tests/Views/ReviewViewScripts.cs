@@ -1,6 +1,7 @@
 using Avala.Autopilot.Contracts;
 using Avala.Components.UI.Theme;
 using Avala.Components.UI;
+using Avala.Components.UI.Copying;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing.UI;
@@ -179,7 +180,7 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ControlEnterInTheFeedbackSendsItBackAsync() =>
+    public Task CommandEnterInTheFeedbackSendsItBackAsync() =>
         ui.RunAsync(async () =>
         {
             using var bench = new Bench();
@@ -188,7 +189,7 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
             view.Click("WriteFeedback");
             view.Type("Feedback", "Read the limits from config");
 
-            view.Press(Key.Enter, RawInputModifiers.Control);
+            view.Press(Hotkeys.CommandEnter);
             await (review.SendBackCommand.ExecutionTask ?? Task.CompletedTask);
 
             Assert.Equal(["send back Read the limits from config"], bench.Jobs.Calls);

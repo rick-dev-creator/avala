@@ -26,6 +26,7 @@ internal static class ViewFindings
             ViewRule.CommandsNotEventHandlers => [.. XamlRules.EventHandlers(await ViewsAsync(scope, cancellationToken))],
             ViewRule.NamedIconButtons => [.. XamlRules.UnnamedIconButtons(await ViewsAsync(scope, cancellationToken))],
             ViewRule.KeptSelections => [.. XamlRules.UnkeptSelections(await ViewsAsync(scope, cancellationToken))],
+            ViewRule.PlatformHotkeys => [.. XamlRules.LiteralModifiers(await ViewsAsync(scope, cancellationToken))],
             ViewRule.TypedRegionReferences => [.. XamlRules.RegionsByString(await ViewsAsync(scope, cancellationToken), RegionKeys(scope))],
             ViewRule.PresentationOnlyCodeBehind => [.. (await SourceViewRules.CodeBehindAsync(scope, cancellationToken)).Where(finding => finding.Rule == rule)],
             ViewRule.ComponentSize =>

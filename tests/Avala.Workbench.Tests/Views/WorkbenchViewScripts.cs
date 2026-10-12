@@ -88,7 +88,7 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ControlIOpensTheInspectorOnTheOpenJobAsync() =>
+    public Task CommandIOpensTheInspectorOnTheOpenJobAsync() =>
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
@@ -98,7 +98,7 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             bench.Messenger.Send(new JobSelected(job.Job));
             var view = Screen.Show(page);
 
-            view.Press(new KeyGesture(Key.I, Hotkeys.Command));
+            view.Press(Hotkeys.Inspector);
 
             Assert.True(page.IsInspectorOpen);
             Assert.True(view.HasClass("ToggleInspector", "selected"));
@@ -138,7 +138,7 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             var view = Screen.Show(page);
             view.Window.Height = 1000;
 
-            view.Press(Key.R, RawInputModifiers.Control);
+            view.Press(Hotkeys.Review);
             var opened = (view.Shows("ReviewSheet"), view.Shows("ReviewScrim"), view.Shows("Sheet"));
             view.Click("Close");
 
@@ -284,7 +284,7 @@ public sealed class ToolbarViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ControlDOpensTheDecisionsPopoverAndEscapeClosesItAsync() =>
+    public Task CommandDOpensTheDecisionsPopoverAndEscapeClosesItAsync() =>
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
@@ -292,7 +292,7 @@ public sealed class ToolbarViewScripts(HeadlessUi ui)
             var view = Screen.Show(toolbar);
             var closed = view.Shows("DecisionsPopover");
 
-            view.Press(Key.D, RawInputModifiers.Control);
+            view.Press(Hotkeys.Decisions);
             var opened = (view.Shows("DecisionsPopover"), view.HasClass("ToggleDecisions", "selected"));
             view.Find("ToggleDecisions").Focus();
             view.Press(Key.Escape);
@@ -303,7 +303,7 @@ public sealed class ToolbarViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ControlNAsksForANewJobAsync() =>
+    public Task CommandNAsksForANewJobAsync() =>
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
@@ -311,7 +311,7 @@ public sealed class ToolbarViewScripts(HeadlessUi ui)
             bench.Messenger.Register<List<Sdk.IPage>, Sdk.Presentation.PageRequested>(requested, (list, message) => list.Add(message.Page));
             var view = Screen.Show(bench.Toolbar());
 
-            view.Press(Key.N, RawInputModifiers.Control);
+            view.Press(Hotkeys.NewJob);
 
             Assert.Equal([bench.NewJob], requested);
         }, Cancellation);

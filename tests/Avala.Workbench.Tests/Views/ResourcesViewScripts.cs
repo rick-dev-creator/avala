@@ -1,4 +1,5 @@
 using Avala.Components.Status;
+using Avala.Components.UI.Copying;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing.UI;
@@ -375,7 +376,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task ControlShiftEnterInTheInstructionStartsTheJobWithoutARepositoryAsync() =>
+    public Task CommandShiftEnterInTheInstructionStartsTheJobWithoutARepositoryAsync() =>
         ui.RunAsync(async () =>
         {
             using var bench = new Bench();
@@ -384,7 +385,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
             var view = Screen.Show(page);
 
             view.Type("Instruction", "Sketch a CSV parser");
-            view.Press(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.Control | Avalonia.Input.RawInputModifiers.Shift);
+            view.Press(Hotkeys.CommandShiftEnter);
             await (page.StartWithoutRepositoryCommand.ExecutionTask ?? Task.CompletedTask);
 
             Assert.Equal(("/data/scratch/2026-10-12-scratch-1", "Sketch a CSV parser"), (Assert.Single(jobs.Requests).RepositoryPath, Assert.Single(bench.Scratch.Instructions)));
@@ -400,7 +401,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
             var view = Screen.Show(page);
 
             view.Type("Instruction", "Add invoice PDF endpoint");
-            view.Press(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.Control);
+            view.Press(Hotkeys.CommandEnter);
             await (page.SubmitCommand.ExecutionTask ?? Task.CompletedTask);
             view.Settle();
 

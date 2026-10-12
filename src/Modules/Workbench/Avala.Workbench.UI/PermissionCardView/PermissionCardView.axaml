@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:cards="using:Avala.Workbench.Cards"
              x:Class="Avala.Workbench.UI.PermissionCardView"
@@ -13,8 +14,8 @@
     <cards:DesignPermissionCardViewModel />
   </Design.DataContext>
   <UserControl.KeyBindings>
-    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding AllowCommand}" />
-    <KeyBinding Gesture="Ctrl+Back" Command="{Binding DenyCommand}" />
+    <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandEnter}" Command="{Binding AllowCommand}" />
+    <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandBack}" Command="{Binding DenyCommand}" />
   </UserControl.KeyBindings>
   <UserControl.Styles>
     <Style Selector="Border#Card">
@@ -78,13 +79,13 @@
                   Grid.Column="2"
                   Content="Deny"
                   Command="{Binding DenyCommand}"
-                  ToolTip.Tip="Deny (Ctrl+Backspace)" />
+                  ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.CommandBackLabel}, StringFormat='Deny ({0})'}" />
           <Button x:Name="Allow"
                   Grid.Column="3"
                   Classes="primary"
                   Content="Allow"
                   Command="{Binding AllowCommand}"
-                  ToolTip.Tip="Allow (Ctrl+Enter)" />
+                  ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.CommandEnterLabel}, StringFormat='Allow ({0})'}" />
         </Grid>
       </StackPanel>
     </Border>

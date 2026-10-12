@@ -8,10 +8,13 @@
       <Setter Property="FontFamily" Value="Comic Sans MS" />
     </Style>
   </UserControl.Styles>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Ctrl+S" Command="{ReflectionBinding SaveCommand}" />
+  </UserControl.KeyBindings>
   <StackPanel>
     <TextBlock Text="{ReflectionBinding Name}" FontSize="13" FontWeight="SemiBold" />
     <Border CornerRadius="14" BoxShadow="0 2 8 0 #4D000000" />
-    <Button Content="Save" Click="OnSaveClicked" />
+    <Button Content="Save" Click="OnSaveClicked" ToolTip.Tip="Save (Ctrl+S)" />
     <Button>
       <Path Data="M3 8H13" />
     </Button>

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              xmlns:cards="using:Avala.Workbench.Cards"
              x:Class="Avala.Workbench.UI.FormCardView"
              x:ClassModifier="internal"
@@ -12,8 +13,8 @@
     <cards:DesignFormCardViewModel />
   </Design.DataContext>
   <UserControl.KeyBindings>
-    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SubmitCommand}" />
-    <KeyBinding Gesture="Ctrl+Back" Command="{Binding DeclineCommand}" />
+    <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandEnter}" Command="{Binding SubmitCommand}" />
+    <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandBack}" Command="{Binding DeclineCommand}" />
   </UserControl.KeyBindings>
   <UserControl.Styles>
     <Style Selector="Border#Card">
@@ -65,13 +66,13 @@
                   Grid.Column="2"
                   Content="Decline"
                   Command="{Binding DeclineCommand}"
-                  ToolTip.Tip="Decline (Ctrl+Backspace)" />
+                  ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.CommandBackLabel}, StringFormat='Decline ({0})'}" />
           <Button x:Name="Submit"
                   Grid.Column="3"
                   Classes="primary"
                   Content="Answer"
                   Command="{Binding SubmitCommand}"
-                  ToolTip.Tip="Answer (Ctrl+Enter)" />
+                  ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.CommandEnterLabel}, StringFormat='Answer ({0})'}" />
         </Grid>
       </StackPanel>
     </Border>

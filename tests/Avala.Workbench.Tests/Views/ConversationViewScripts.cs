@@ -367,7 +367,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task TypingAMessageAndPressingControlEnterSendsItAsync() =>
+    public Task TypingAMessageAndPressingCommandEnterSendsItAsync() =>
         ui.RunAsync(async () =>
         {
             var (composer, jobs) = Composer(JobStatus.NeedsHelp);

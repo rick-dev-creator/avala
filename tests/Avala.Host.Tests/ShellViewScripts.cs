@@ -143,14 +143,14 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         }, Cancellation);
 
     [Fact]
-    public Task TheToolbarButtonCollapsesTheSidebarAndControlBackslashBringsItBackAsync() =>
+    public Task TheToolbarButtonCollapsesTheSidebarAndCommandBackslashBringsItBackAsync() =>
         ui.RunAsync(() =>
         {
             var (view, _) = Composed();
 
             view.Click("ToggleSidebar");
             var collapsed = (view.Shows("SidebarPane"), view.Shows("ToggleSidebar"), Leading(view));
-            view.Press(Key.OemPipe, RawInputModifiers.Control);
+            view.Press(Hotkeys.Sidebar);
 
             Assert.Equal((false, true, Avala.Components.UI.Theme.Chrome.Leading), collapsed);
             Assert.Equal((true, 0d), (view.Shows("SidebarPane"), Leading(view)));
@@ -169,16 +169,16 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         }, Cancellation);
 
     [Fact]
-    public Task FocusModeLeavesOnlyTheContentWithAHintUntilControlShiftFIsPressedAgainAsync() =>
+    public Task FocusModeLeavesOnlyTheContentWithAHintUntilCommandShiftFIsPressedAgainAsync() =>
         ui.RunAsync(async () =>
         {
             var (view, shell) = Composed();
             await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
 
-            view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+            view.Press(Hotkeys.FocusMode);
             var focused = (view.Shows("SidebarPane"), view.Shows("InspectorPane"), view.Shows("WindowControls"), view.Shows("FocusHint"), Leading(view));
             var hint = view.VisibleTexts;
-            view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+            view.Press(Hotkeys.FocusMode);
 
             Assert.Equal((false, false, false, true, 0d), focused);
             Assert.Contains($"Focus · {Hotkeys.FocusModeLabel} to exit", hint);
@@ -191,7 +191,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         {
             var (view, shell) = Composed();
 
-            view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+            view.Press(Hotkeys.FocusMode);
             view.Press(Key.Escape);
 
             Assert.Equal((false, true), (shell.IsFocused, view.Shows("SidebarPane")));
@@ -206,7 +206,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             view.Settle();
             var unfocused = Reading(view);
 
-            view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+            view.Press(Hotkeys.FocusMode);
 
             Assert.Equal((880d, 1200d), (unfocused, Reading(view)));
         }, Cancellation);

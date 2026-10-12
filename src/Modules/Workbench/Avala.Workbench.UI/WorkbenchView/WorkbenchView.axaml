@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              xmlns:navigation="using:Avala.Workbench.Navigation"
              xmlns:ui="using:Avala.Components.UI"
              xmlns:states="using:Avala.Components.UI.States"
@@ -74,8 +75,8 @@
                     Content="Review"
                     Command="{Binding OpenReviewCommand}"
                     IsVisible="{Binding $self.IsEffectivelyEnabled}"
-                    ToolTip.Tip="Open the review (Ctrl+R)"
-                    HotKey="Ctrl+R" />
+                    ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.ReviewLabel}, StringFormat='Open the review ({0})'}"
+                    HotKey="{x:Static copying:Hotkeys.Review}" />
             <Button x:Name="More"
                     Grid.Column="4"
                     Classes="glyph"
@@ -104,8 +105,8 @@
                     Classes="glyph"
                     Classes.selected="{Binding IsInspectorOpen}"
                     Command="{Binding ToggleInspectorCommand}"
-                    HotKey="{OnPlatform Default='Ctrl+I', macOS='Meta+I'}"
-                    ToolTip.Tip="Inspector (Ctrl+I)"
+                    HotKey="{x:Static copying:Hotkeys.Inspector}"
+                    ToolTip.Tip="{Binding Source={x:Static copying:Hotkeys.InspectorLabel}, StringFormat='Inspector ({0})'}"
                     AutomationProperties.Name="Toggle inspector">
               <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconInspector}" />
             </Button>

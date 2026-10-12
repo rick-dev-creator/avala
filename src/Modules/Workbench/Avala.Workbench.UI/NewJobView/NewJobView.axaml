@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              xmlns:newJob="using:Avala.Workbench.NewJob"
              xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.NewJobView"
@@ -42,8 +43,8 @@
                          FontSize="{DynamicResource FontSizeReading}"
                          PlaceholderText="Fix the failing test in money/minor_test.go without changing the public API.">
                   <TextBox.KeyBindings>
-                    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SubmitCommand}" />
-                    <KeyBinding Gesture="Ctrl+Shift+Enter" Command="{Binding StartWithoutRepositoryCommand}" />
+                    <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandEnter}" Command="{Binding SubmitCommand}" />
+                    <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandShiftEnter}" Command="{Binding StartWithoutRepositoryCommand}" />
                   </TextBox.KeyBindings>
                 </TextBox>
               </StackPanel>
@@ -89,8 +90,14 @@
                         DockPanel.Dock="Right"
                         Classes="primary"
                         Content="Start"
-                        ToolTip.Tip="Ctrl+Enter · Ctrl+Shift+Enter starts without a repository"
-                        Command="{Binding SubmitCommand}" />
+                        Command="{Binding SubmitCommand}">
+                  <ToolTip.Tip>
+                    <MultiBinding StringFormat="{}{0} · {1} starts without a repository">
+                      <Binding Source="{x:Static copying:Hotkeys.CommandEnterLabel}" />
+                      <Binding Source="{x:Static copying:Hotkeys.CommandShiftEnterLabel}" />
+                    </MultiBinding>
+                  </ToolTip.Tip>
+                </Button>
                 <TextBlock x:Name="Submitted"
                            Classes="caption"
                            theme:Motion.Enter="Fade"

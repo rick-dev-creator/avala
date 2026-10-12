@@ -20,4 +20,5 @@ internal enum ViewRule
     TypedRegionReferences,
     KeptSelections,
     PersonalDetailsThroughPersonal,
+    PlatformHotkeys,
 }
