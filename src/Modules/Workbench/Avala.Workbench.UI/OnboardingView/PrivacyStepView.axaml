@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:onboarding="using:Avala.Workbench.Onboarding"
+             x:Class="Avala.Workbench.UI.PrivacyStepView"
+             x:ClassModifier="internal"
+             x:DataType="onboarding:IPrivacyStepViewModel">
+  <Design.DataContext>
+    <onboarding:DesignPrivacyStepViewModel />
+  </Design.DataContext>
+  <StackPanel x:Name="PrivacyStep" theme:Motion.Enter="Gentle">
+    <Border Classes="illustration">
+      <Path Classes="icon" Data="{StaticResource IconShield}" />
+    </Border>
+    <TextBlock Classes="hero" Margin="0,22,0,0" Text="{x:Static onboarding:OnboardingPhrases.PrivacyTitle}" />
+    <TextBlock Classes="lede" Margin="0,8,0,0" Text="{x:Static onboarding:OnboardingPhrases.PrivacyText}" />
+    <Border Classes="grouped" Margin="0,24,0,0">
+      <StackPanel>
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="HidePersonalDetails"
+                        DockPanel.Dock="Right"
+                        Margin="16,0,0,0"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        AutomationProperties.Name="Hide personal details"
+                        IsChecked="{Binding PersonalDetails.IsHidden, Mode=OneWay}"
+                        Command="{Binding PersonalDetails.ToggleCommand}" />
+          <StackPanel Spacing="2">
+            <TextBlock Text="Hide personal details" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="{x:Static onboarding:OnboardingPhrases.HideDetails}" />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="ShareStatistics"
+                        DockPanel.Dock="Right"
+                        Margin="16,0,0,0"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        AutomationProperties.Name="Share anonymous usage statistics"
+                        IsChecked="{Binding Statistics.IsOn, Mode=OneWay}"
+                        Command="{Binding Statistics.ToggleCommand}" />
+          <StackPanel Spacing="2">
+            <TextBlock Text="Share anonymous usage statistics" />
+            <TextBlock x:Name="Sent" Classes="caption" TextWrapping="Wrap" Text="{x:Static onboarding:OnboardingPhrases.Statistics}" IsVisible="{Binding Statistics.CanTurn}" />
+            <TextBlock x:Name="Unsent" Classes="caption" TextWrapping="Wrap" Text="{Binding Statistics.Status}" IsVisible="{Binding !Statistics.CanTurn}" />
+          </StackPanel>
+        </DockPanel>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

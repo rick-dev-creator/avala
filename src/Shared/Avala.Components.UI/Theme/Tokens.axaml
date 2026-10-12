@@ -54,6 +54,7 @@
       <SolidColorBrush x:Key="FailureBorderBrush" Color="#59EF6461" />
       <SolidColorBrush x:Key="ScrimBrush" Color="#6108080A" />
       <SolidColorBrush x:Key="ScrimSheetBrush" Color="#9908080A" />
+      <SolidColorBrush x:Key="ScrimAssistantBrush" Color="#EB0B0C0F" />
       <SolidColorBrush x:Key="RingBrush" Color="#2EFFFFFF" />
       <SolidColorBrush x:Key="SurfacePopoverBrush" Color="#282930" />
       <SolidColorBrush x:Key="SyntaxKeywordBrush" Color="#B9A6F7" />
@@ -149,6 +150,7 @@
       <SolidColorBrush x:Key="FailureBorderBrush" Color="#4DD9221F" />
       <SolidColorBrush x:Key="ScrimBrush" Color="#2E1D1D1F" />
       <SolidColorBrush x:Key="ScrimSheetBrush" Color="#521D1D1F" />
+      <SolidColorBrush x:Key="ScrimAssistantBrush" Color="#EBE9E9EE" />
       <SolidColorBrush x:Key="RingBrush" Color="#1F000000" />
       <SolidColorBrush x:Key="SurfacePopoverBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="SyntaxKeywordBrush" Color="#7040C0" />

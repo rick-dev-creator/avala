@@ -48,7 +48,7 @@ public sealed class WorkbenchPluginTests : IDisposable
     }
 
     [Fact]
-    public async Task TheJobListFillsTheSidebarTheToolbarAndTheSectionsFillTheInspectorInOrderAsync()
+    public async Task TheJobListFillsTheSidebarTheToolbarTheSectionsFillTheInspectorInOrderAndTheTourTheOverlayAsync()
     {
         await using var data = new TemporaryFolder();
         await using var composition = Compose(data);
@@ -58,6 +58,7 @@ public sealed class WorkbenchPluginTests : IDisposable
         Assert.Equal([typeof(SidebarViewModel)], regions[ShellRegions.Sidebar]);
         Assert.Equal([typeof(ToolbarViewModel)], regions[ShellRegions.Toolbar]);
         Assert.Equal([typeof(ResourceIndicatorViewModel), typeof(UpdateNoticeViewModel), typeof(Workbench.Telemetry.TelemetryNoticeViewModel)], regions[ShellRegions.SidebarFooter]);
+        Assert.Equal([typeof(Workbench.Onboarding.OnboardingViewModel)], regions[ShellRegions.Overlay]);
         Assert.Equal(
             [typeof(EvidenceSectionViewModel), typeof(ContestSectionViewModel), typeof(AuditSectionViewModel), typeof(UsageSectionViewModel), typeof(AutonomySectionViewModel), typeof(WorktreeSectionViewModel), typeof(PullRequestSectionViewModel), typeof(DelegationSectionViewModel)],
             regions[ShellRegions.Inspector]);
@@ -129,6 +130,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IRepositoryChecks>(rules)
             .AddSingleton<IBaseFiles>(new CommittedFiles())
             .AddSingleton<IOrphans>(new FakeOrphans())
-            .AddSingleton<IWorktreeHousekeeping>(new FakeHousekeeping()));
+            .AddSingleton<IWorktreeHousekeeping>(new FakeHousekeeping())
+            .AddSingleton<Sdk.Appearance.IOnboarding>(new Onboarding.FakeOnboarding()));
     }
 }

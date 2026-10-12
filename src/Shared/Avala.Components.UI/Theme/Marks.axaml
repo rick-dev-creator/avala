@@ -46,6 +46,22 @@
     <Setter Property="FontSize" Value="{DynamicResource FontSizeTag}" />
   </Style>
 
+  <Style Selector="Border.illustration">
+    <Setter Property="Width" Value="76" />
+    <Setter Property="Height" Value="76" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSheet}" />
+    <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.illustration > Path.icon">
+    <Setter Property="Width" Value="34" />
+    <Setter Property="Height" Value="34" />
+    <Setter Property="StrokeThickness" Value="1.5" />
+    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
   <Style Selector="Ellipse.dot">
     <Setter Property="Width" Value="7" />
     <Setter Property="Height" Value="7" />

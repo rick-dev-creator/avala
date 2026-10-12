@@ -1,10 +1,12 @@
 using Avala.Components.Privacy;
 using Avala.Sdk;
 using Avala.Workbench.Machine;
+using Avala.Workbench.Onboarding;
 using Avala.Workbench.Telemetry;
 using Avala.Workbench.Updates;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Settings;
 
@@ -28,11 +30,13 @@ internal interface IAboutViewModel
 
     IAsyncRelayCommand OpenLicenseCommand { get; }
 
+    IRelayCommand ShowTourCommand { get; }
+
     void Refresh();
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class AboutViewModel(IUpdateViewModel update, ITelemetryViewModel telemetry, SettingsFiles files, ILinkOpener links) : IAboutViewModel
+internal sealed partial class AboutViewModel(IUpdateViewModel update, ITelemetryViewModel telemetry, SettingsFiles files, AboutLinks links) : IAboutViewModel
 {
     public string Version => update.Version;
 
@@ -59,8 +63,18 @@ internal sealed partial class AboutViewModel(IUpdateViewModel update, ITelemetry
     [RelayCommand]
     private Task OpenLicenseAsync(CancellationToken cancellationToken) => OpenAsync(AvalaBuild.License, cancellationToken);
 
+    [RelayCommand]
+    private void ShowTour() => links.ShowTour();
+
     private async Task OpenAsync(Uri link, CancellationToken cancellationToken) =>
         Note = (await links.OpenAsync(link, cancellationToken)).Match(_ => PersonalPhrase.Empty, _ => new PersonalPhrase(AboutPhrases.Link(link)));
+}
+
+internal sealed class AboutLinks(ILinkOpener opener, IMessenger messenger)
+{
+    public ValueTask<Result<Uri, FileOpenError>> OpenAsync(Uri link, CancellationToken cancellationToken) => opener.OpenAsync(link, cancellationToken);
+
+    public void ShowTour() => messenger.Send(new TourRequested(0));
 }
 
 internal static class AboutPhrases

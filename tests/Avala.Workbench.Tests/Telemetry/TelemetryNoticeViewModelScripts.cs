@@ -1,5 +1,6 @@
 using Avala.Sdk.Telemetry;
 using Avala.Workbench.Telemetry;
+using Avala.Workbench.Tests.Onboarding;
 
 namespace Avala.Workbench.Tests.Telemetry;
 
@@ -9,8 +10,8 @@ public sealed class TelemetryNoticeViewModelScripts
     public async Task TheNoticeIsShownOnlyTheFirstTimeAsync()
     {
         var telemetry = new FakeTelemetry();
-        var first = new TelemetryNoticeViewModel(telemetry);
-        var later = new TelemetryNoticeViewModel(telemetry);
+        var first = new TelemetryNoticeViewModel(telemetry, new FakeOnboarding { IsDone = true });
+        var later = new TelemetryNoticeViewModel(telemetry, new FakeOnboarding { IsDone = true });
 
         first.Activate();
         await first.Claiming;
@@ -25,7 +26,7 @@ public sealed class TelemetryNoticeViewModelScripts
     public async Task TurnOffTurnsUsageStatisticsOffAndHidesTheNoticeAsync()
     {
         var telemetry = new FakeTelemetry();
-        var notice = new TelemetryNoticeViewModel(telemetry);
+        var notice = new TelemetryNoticeViewModel(telemetry, new FakeOnboarding { IsDone = true });
         notice.Activate();
         await notice.Claiming;
 
@@ -38,7 +39,7 @@ public sealed class TelemetryNoticeViewModelScripts
     public async Task OkHidesTheNoticeAndLeavesUsageStatisticsOnAsync()
     {
         var telemetry = new FakeTelemetry();
-        var notice = new TelemetryNoticeViewModel(telemetry);
+        var notice = new TelemetryNoticeViewModel(telemetry, new FakeOnboarding { IsDone = true });
         notice.Activate();
         await notice.Claiming;
 
@@ -48,9 +49,22 @@ public sealed class TelemetryNoticeViewModelScripts
     }
 
     [Fact]
+    public async Task NoNoticeIsShownWhileTheWelcomeTourIsDueAndTheNoticeIsLeftForTheTourAsync()
+    {
+        var telemetry = new FakeTelemetry();
+        var notice = new TelemetryNoticeViewModel(telemetry, new FakeOnboarding());
+
+        notice.Activate();
+        await notice.Claiming;
+
+        Assert.False(notice.IsShown);
+        Assert.True(await telemetry.ClaimNoticeAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task NoNoticeIsShownWhenNothingIsSentAsync()
     {
-        var notice = new TelemetryNoticeViewModel(new FakeTelemetry { State = TelemetryState.NotConfigured });
+        var notice = new TelemetryNoticeViewModel(new FakeTelemetry { State = TelemetryState.NotConfigured }, new FakeOnboarding { IsDone = true });
 
         notice.Activate();
         await notice.Claiming;

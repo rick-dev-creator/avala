@@ -1,6 +1,7 @@
 using Avala.Sdk.Telemetry;
 using Avala.Testing.UI;
 using Avala.Workbench.Telemetry;
+using Avala.Workbench.Tests.Onboarding;
 using Avala.Workbench.Tests.Telemetry;
 
 namespace Avala.Workbench.Tests.Views;
@@ -14,7 +15,7 @@ public sealed class TelemetryNoticeViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var telemetry = new FakeTelemetry();
-            var notice = new TelemetryNoticeViewModel(telemetry);
+            var notice = new TelemetryNoticeViewModel(telemetry, new FakeOnboarding { IsDone = true });
             notice.Activate();
             await notice.Claiming;
             var view = Screen.Show(notice);
@@ -32,7 +33,7 @@ public sealed class TelemetryNoticeViewScripts(HeadlessUi ui)
     public Task OkHidesTheNoticeAsync() =>
         ui.RunAsync(async () =>
         {
-            var notice = new TelemetryNoticeViewModel(new FakeTelemetry());
+            var notice = new TelemetryNoticeViewModel(new FakeTelemetry(), new FakeOnboarding { IsDone = true });
             notice.Activate();
             await notice.Claiming;
             var view = Screen.Show(notice);

@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             xmlns:onboarding="using:Avala.Workbench.Onboarding"
+             x:Class="Avala.Workbench.UI.CodeStepView"
+             x:ClassModifier="internal"
+             x:DataType="onboarding:ICodeStepViewModel">
+  <Design.DataContext>
+    <onboarding:DesignCodeStepViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ItemsControl#Accounts > ContentPresenter:not(:nth-child(1))">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+    <Style Selector="Border.mark > Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel x:Name="CodeStep" theme:Motion.Enter="Gentle">
+    <Border Classes="illustration">
+      <Path Classes="icon" Data="{StaticResource IconRepository}" />
+    </Border>
+    <TextBlock Classes="hero" Margin="0,22,0,0" Text="{x:Static onboarding:OnboardingPhrases.CodeTitle}" />
+    <TextBlock Classes="lede" Margin="0,8,0,0" Text="{x:Static onboarding:OnboardingPhrases.CodeText}" />
+    <Border Classes="grouped" Margin="0,24,0,0">
+      <StackPanel>
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="14,10">
+          <Border Classes="mark">
+            <Path Classes="icon" Data="{StaticResource IconFolder}" />
+          </Border>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <TextBlock Text="Projects folder" />
+            <TextBlock x:Name="Folder" Classes="caption" privacy:PersonalDetails.Text="{Binding Folder}" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <Button x:Name="ChangeFolder" Grid.Column="2" Padding="12,4" VerticalAlignment="Center" Content="Change…" Command="{Binding ChangeFolderCommand}" />
+        </Grid>
+        <Border Classes="separator" Margin="14,0" IsVisible="{Binding !!Accounts.Accounts.Count}" />
+        <ItemsControl x:Name="Accounts" Margin="14,0" ItemsSource="{Binding Accounts.Accounts}" />
+      </StackPanel>
+    </Border>
+    <TextBlock x:Name="NoAccounts"
+               Classes="caption"
+               Margin="0,12,0,0"
+               TextAlignment="Center"
+               TextWrapping="Wrap"
+               Text="{x:Static onboarding:OnboardingPhrases.NoAccounts}"
+               IsVisible="{Binding !Accounts.Accounts.Count}" />
+    <TextBlock x:Name="AccountError"
+               Classes="caption failure"
+               Margin="0,12,0,0"
+               TextAlignment="Center"
+               TextWrapping="Wrap"
+               Text="{Binding Accounts.Error}"
+               IsVisible="{Binding Accounts.Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

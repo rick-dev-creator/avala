@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:copying="using:Avala.Components.UI.Copying"
+             xmlns:onboarding="using:Avala.Workbench.Onboarding"
+             x:Class="Avala.Workbench.UI.InstallRowView"
+             x:ClassModifier="internal"
+             x:DataType="onboarding:IInstallRowViewModel">
+  <Design.DataContext>
+    <onboarding:DesignInstallRowViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Install">
+      <Setter Property="Background" Value="{DynamicResource FillCodeBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Padding" Value="14,6,6,6" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="8">
+    <TextBlock x:Name="Provider" Classes="medium" Text="{Binding Provider}" />
+    <Border x:Name="Install">
+      <DockPanel>
+        <copying:CopyButton x:Name="Copy"
+                            DockPanel.Dock="Right"
+                            Command="{Binding CopyCommand}"
+                            IsCopied="{Binding IsCopied}"
+                            ToolTip.Tip="Copy"
+                            AutomationProperties.Name="Copy the install command" />
+        <SelectableTextBlock x:Name="Command" Classes="mono" VerticalAlignment="Center" Text="{Binding Command}" />
+      </DockPanel>
+    </Border>
+    <TextBlock x:Name="SignIn" Classes="caption" Text="{Binding SignIn}" />
+  </StackPanel>
+</UserControl>

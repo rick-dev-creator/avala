@@ -175,9 +175,15 @@ internal sealed class SimulatedRun : IAsyncDisposable
         Func<string, IReadOnlyList<(string File, string Content)>>? placed = null,
         bool realNotifier = false,
         bool telemetry = false,
-        IReadOnlyDictionary<string, Avala.Sdk.Processes.ProcessOutcome>? signIns = null)
+        IReadOnlyDictionary<string, Avala.Sdk.Processes.ProcessOutcome>? signIns = null,
+        bool onboarded = true)
     {
         var data = new TemporaryFolder();
+
+        if (onboarded)
+        {
+            await File.WriteAllTextAsync(Path.Combine(data.Path, "onboarding.json"), """{ "onboarded": true }""", Cancellation);
+        }
 
         foreach (var (file, content) in settings)
         {
