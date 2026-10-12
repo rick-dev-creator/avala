@@ -38,6 +38,7 @@ internal static class LayerMap
             ["Highlighting"] = Layer.Domain,
             ["Offer"] = Layer.Application,
             ["Sanitizing"] = Layer.Application,
+            ["Sizing"] = Layer.Application,
         }),
         .. Module("Avala.Mermaid", new()
         {

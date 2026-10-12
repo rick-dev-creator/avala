@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using Avala.Rendering.Animation;
+using Avala.Rendering.Sizing;
 using Avala.Sdk;
 
 namespace Avala.Rendering.Sanitizing;
@@ -35,8 +36,9 @@ internal static partial class SvgSanitizer
             }
 
             var blocked = Clean(root);
+            var area = SvgArea.Fit(root);
 
-            return new SanitizedSvg(root.ToString(SaveOptions.DisableFormatting), blocked) { Timeline = SvgTimeline.Of(root) };
+            return new SanitizedSvg(root.ToString(SaveOptions.DisableFormatting), blocked) { Timeline = SvgTimeline.Of(root), Area = area };
         }
         catch (XmlException)
         {
