@@ -33,7 +33,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
     public Task TheConversationShowsEveryEntryInOrderWithItsOwnViewAndTheComposerAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignConversationViewModel());
+            var view = Screen.Show(new DesignConversationViewModel(), Avalonia.Styling.ThemeVariant.Dark, 640, 4000);
 
             Assert.Equal(
                 ["PromptView", "ToolView", "ToolView", "ReasoningView", "PlanView", "MessageView", "CanvasView", "ToolView", "ReasoningView", "MessageView"],
@@ -70,6 +70,20 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             var scroller = view.Find<ScrollViewer>("Scroller");
             Assert.True(scroller.Extent.Height > scroller.Viewport.Height);
             Assert.Equal(scroller.Extent.Height - scroller.Viewport.Height, scroller.Offset.Y, 1);
+        }, Cancellation);
+
+    [Fact]
+    public Task ALongConversationBuildsOnlyItsNewestScreenfulAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (conversation, summary, transcript) = Open(JobStatus.Running);
+            conversation.Show(new BoardJob(summary, Attempts(transcript, summary, 40)));
+            var view = Screen.Show(conversation);
+            var entries = view.Find<ItemsControl>("Entries");
+
+            Assert.InRange(Rows(view).Count, 1, conversation.Entries.Count / 2);
+            Assert.Null(entries.ContainerFromIndex(0));
+            Assert.NotNull(entries.ContainerFromIndex(conversation.Entries.Count - 1));
         }, Cancellation);
 
     [Fact]
@@ -157,7 +171,9 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     private static IReadOnlyList<UserControl> Rows(ViewScript view) =>
-        [.. view.Find<ItemsControl>("Entries").GetRealizedContainers().Select(container => Assert.IsAssignableFrom<UserControl>(((ContentPresenter)container).Child))];
+        [.. view.Find<ItemsControl>("Entries").GetRealizedContainers()
+            .OrderBy(container => view.Find<ItemsControl>("Entries").IndexFromContainer(container))
+            .Select(container => Assert.IsAssignableFrom<UserControl>(((ContentPresenter)container).Child))];
 
     private static Transcript Attempts(Transcript transcript, JobSummary summary, int count) =>
         transcript.WithPrompts(

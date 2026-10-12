@@ -54,7 +54,13 @@
     <Panel>
       <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,18,28,14" MaxWidth="{DynamicResource ReadingWidth}">
-          <ItemsControl x:Name="Entries" ItemsSource="{Binding Entries}" />
+          <ItemsControl x:Name="Entries" theme:Arrivals.OnlyNewEnter="True" ItemsSource="{Binding Entries}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <VirtualizingStackPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
           <ContentControl x:Name="Working" Content="{Binding Working}" />
         </StackPanel>
       </ScrollViewer>
