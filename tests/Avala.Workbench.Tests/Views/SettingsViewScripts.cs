@@ -87,6 +87,15 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
 public sealed class RepositorySettingsViewScripts(HeadlessUi ui)
 {
     [Fact]
+    public Task TheRepositoryReadShowsItsPathWithTheHomeFolderAsTheTildeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignRepositorySettingsViewModel { Shown = "/home/dana/code/ledger-api" });
+
+            Assert.Equal("~/code/ledger-api", view.TextOf("Shown"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task TheRulesAreShownInDecisionOrderWithTheirOriginAndAnswerColorsAsync() =>
         ui.RunAsync(() =>
         {

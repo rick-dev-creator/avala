@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:triggers="using:Avala.Workbench.Triggers"
              xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.LoopItemView"
@@ -33,7 +34,11 @@
     </StackPanel>
     <StackPanel Spacing="2">
       <TextBlock x:Name="LoopStatus" Classes.attention="{Binding NeedsAttention}" Text="{Binding Status}" TextWrapping="Wrap" />
-      <TextBlock x:Name="LoopRepository" Classes="caption mono" Text="{Binding Repository}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Repository}" />
+      <TextBlock x:Name="LoopRepository" Classes="caption mono" privacy:PersonalDetails.Scrubbed="{Binding Repository}" TextTrimming="CharacterEllipsis">
+        <ToolTip.Tip>
+          <TextBlock privacy:PersonalDetails.Scrubbed="{Binding Repository}" />
+        </ToolTip.Tip>
+      </TextBlock>
       <TextBlock x:Name="LoopSummary" Classes="caption" Text="{Binding Summary}" />
       <ItemsControl x:Name="LoopIterations" Margin="0,4,0,0" ItemsSource="{Binding Iterations}">
         <ItemsControl.ItemTemplate>

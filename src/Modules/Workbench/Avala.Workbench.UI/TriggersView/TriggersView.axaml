@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:triggers="using:Avala.Workbench.Triggers"
              x:Class="Avala.Workbench.UI.TriggersView"
              x:ClassModifier="internal"
@@ -81,7 +82,11 @@
           <ItemsControl x:Name="Files" ItemsSource="{Binding Files}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="x:String">
-                <TextBlock Classes="caption mono" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+                <TextBlock Classes="caption mono" Margin="0,2" privacy:PersonalDetails.Scrubbed="{Binding}" TextTrimming="CharacterEllipsis">
+                  <ToolTip.Tip>
+                    <TextBlock privacy:PersonalDetails.Scrubbed="{Binding}" />
+                  </ToolTip.Tip>
+                </TextBlock>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

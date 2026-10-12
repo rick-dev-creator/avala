@@ -213,7 +213,7 @@ internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySet
     [ObservableProperty]
     public partial string Repository { get; set; } = "~/code/ledger-api";
 
-    public string Shown => "~/code/ledger-api";
+    public string Shown { get; init; } = "~/code/ledger-api";
 
     public string Name => "ledger-api";
 
