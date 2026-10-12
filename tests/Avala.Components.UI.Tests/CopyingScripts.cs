@@ -29,6 +29,25 @@ public sealed class CopyingScripts(HeadlessUi ui)
             Assert.Equal((0, 1), (Find(copy, "Copy").Opacity, Find(copy, "Copied").Opacity));
         }, Cancellation);
 
+    [Fact]
+    public Task ACopyButtonReturnsToItsCopyIconOnceTheConfirmationHasShownAsync() =>
+        ui.RunAsync(() =>
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+            var copy = new CopyButton();
+            ElapsedText.SetClock(copy, clock);
+            var view = ViewScript.Show(copy, new object());
+            copy.IsCopied = true;
+            view.Settle();
+            var confirming = copy.Classes.Contains(":copied");
+
+            clock.Advance(CopyButton.Confirmation);
+            view.Settle();
+
+            Assert.True(confirming);
+            Assert.DoesNotContain(":copied", copy.Classes);
+        }, Cancellation);
+
     [Theory]
     [InlineData(23, "23s")]
     [InlineData(65, "1m 5s")]

@@ -106,7 +106,7 @@
     </Style.Animations>
   </Style>
 
-  <Style Selector="StackPanel.hover-actions[(theme|Motion.IsReduced)=False], Button.copy[(theme|Motion.IsReduced)=False] Path.icon">
+  <Style Selector="StackPanel.hover-actions[(theme|Motion.IsReduced)=False], Button.code-copy[(theme|Motion.IsReduced)=False], Button.copy[(theme|Motion.IsReduced)=False] Path.icon">
     <Setter Property="Transitions">
       <Transitions>
         <DoubleTransition Property="Opacity" Duration="0:0:0.16" Easing="CubicEaseOut" />

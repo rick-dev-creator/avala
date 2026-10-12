@@ -4,6 +4,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="MarkView.Avalonia" />
+    <PackageReference Include="MarkView.Avalonia.SyntaxHighlighting" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />

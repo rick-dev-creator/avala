@@ -35,6 +35,19 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
         Open it in a browser; nothing else is needed.
         """;
 
+    private const string CodeReply = """
+        Each planet advances by its own angular speed, so one function draws a frame:
+
+        ```js
+        // Kepler: the period grows with the orbit's radius to the power 1.5
+        function step(planet, dt) {
+          const speed = (2 * Math.PI) / (planet.period * 365.25);
+          planet.angle = (planet.angle + speed * dt) % (2 * Math.PI);
+          return { x: Math.cos(planet.angle) * planet.orbit, y: Math.sin(planet.angle) * planet.orbit };
+        }
+        ```
+        """;
+
     private static readonly DateTimeOffset Start = DateTimeOffset.UnixEpoch;
     private readonly SessionId session = SessionId.New();
     private readonly TurnId turn = TurnId.New();
@@ -127,6 +140,17 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
             Assert.True(Save(sidebar, $"08-sidebar-live-row-{variant}"));
         });
 
+    [Theory]
+    [MemberData(nameof(Variants))]
+    public Task AHighlightedCodeBlockWithItsHoverCopyAsync(string variant) =>
+        ShootAsync(() =>
+        {
+            var view = Show(Conversation(Coded(), JobStatus.NeedsHelp), variant);
+            var block = view.All<Border>().Last(border => border.Classes.Contains("markdown-code-block"));
+            Hover(view, block);
+            Assert.True(Save(view, $"09-code-block-{variant}"));
+        });
+
     private Task ShootAsync(Action shoot)
     {
         Assert.SkipUnless(Folder is not null && HeadlessApp.Renders, $"Set {Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the chat screens.");
@@ -187,6 +211,13 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
 
     private static BoardJob Board(Transcript transcript, JobStatus status) =>
         new(new FakeCatalog().Add(Instruction, status).Summary, transcript);
+
+    private Transcript Coded() =>
+        Finished()
+            .Apply(new TurnStarted(session, TurnId.New()), Start.AddSeconds(40))
+            .Apply(new ItemStarted(session, turn, new ItemId("code"), ItemKind.Message, "Message"), Start.AddSeconds(41))
+            .Apply(new ItemProgressed(session, turn, new ItemId("code"), CodeReply), Start.AddSeconds(41))
+            .Apply(new ItemCompleted(session, turn, new ItemId("code"), ItemOutcome.Succeeded), Start.AddSeconds(42));
 
     private Transcript Begun() =>
         Transcript.Empty.WithPrompts(Instruction, [])

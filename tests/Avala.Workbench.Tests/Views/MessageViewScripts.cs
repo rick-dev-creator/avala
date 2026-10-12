@@ -7,8 +7,11 @@ using Avala.Workbench.Linking;
 using Avala.Workbench.Timeline;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
+using Avalonia.Headless;
 using Avalonia.Input.Platform;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 using MarkView.Avalonia;
 using MarkView.Avalonia.Rendering;
@@ -51,9 +54,38 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             Assert.Single(view.All<Control>(), control => control.Classes.Contains("markdown-list"));
             Assert.Single(view.All<Control>(), control => control.Classes.Contains("markdown-table"));
             var code = Assert.Single(view.All<SelectableTextBlock>(), block => block.Classes.Contains("markdown-code"));
-            Assert.StartsWith("func ToMinor(amount Money) int64 {", code.Text, StringComparison.Ordinal);
+            Assert.StartsWith("func ToMinor(amount Money) int64 {", code.Inlines?.Text, StringComparison.Ordinal);
             Assert.Equal(Application.Current!.FindResource("MonoFont"), code.FontFamily);
-            Assert.Single(view.All<Button>(), button => button.Classes.Contains("copy-code"));
+        }, Cancellation);
+
+    [Fact]
+    public Task ACodeBlockIsLabelledWithItsLanguageAndColoredByItsGrammarAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(Message(Rich, done: true), Avalonia.Styling.ThemeVariant.Light, 800, 600);
+            var code = Assert.Single(view.All<SelectableTextBlock>(), block => block.Classes.Contains("markdown-code"));
+            var keyword = code.Inlines!.OfType<Run>().First(run => run.Text == "func");
+
+            Assert.Equal("go", Assert.Single(view.All<TextBlock>(), block => block.Classes.Contains("code-language")).Text);
+            Assert.Contains("syntax-keyword", keyword.Classes);
+            Assert.Equal(Application.Current!.FindResource(view.Window.ActualThemeVariant, "SyntaxKeywordBrush"), keyword.Foreground);
+        }, Cancellation);
+
+    [Fact]
+    public Task ACodeBlocksCopyIconAppearsOnlyUnderThePointerAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(Message(Rich, done: true));
+            Components.UI.Theme.Motion.SetIsReduced(view.Window, true);
+            var copy = Assert.Single(view.All<Button>(), button => button.Classes.Contains("code-copy"));
+            var block = copy.FindAncestorOfType<Border>()!;
+            view.Settle();
+            var idle = copy.Opacity;
+
+            view.Window.MouseMove(block.TranslatePoint(new Point(20, 20), view.Window)!.Value);
+            view.Settle();
+
+            Assert.Equal((0, 1), (idle, copy.Opacity));
         }, Cancellation);
 
     [Fact]
@@ -61,13 +93,13 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var view = Screen.Show(Message(Rich, done: true));
-            var copy = Assert.Single(view.All<Button>(), button => button.Classes.Contains("copy-code"));
+            var copy = Assert.Single(view.All<Button>(), button => button.Classes.Contains("code-copy"));
 
             view.Click(copy);
             var copied = await view.Window.Clipboard!.TryGetTextAsync();
 
             Assert.Equal("func ToMinor(amount Money) int64 {\n    return amount.Units * pow10(amount.Currency.Exponent)\n}", copied);
-            Assert.Equal("Copied", copy.Content);
+            Assert.Contains(":copied", copy.Classes);
         }, Cancellation);
 
     [Fact]
@@ -84,7 +116,7 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             var kept = ReferenceEquals(drawn, settled.Content);
             message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units, so\n\n```go\nfunc ToMinor(", Option<ItemOutcome>.None));
             view.Settle();
-            var streamingCode = view.All<SelectableTextBlock>().Any(block => block.Classes.Contains("markdown-code") && block.Text == "func ToMinor(");
+            var streamingCode = view.All<SelectableTextBlock>().Any(block => block.Classes.Contains("markdown-code") && block.Inlines?.Text == "func ToMinor(");
 
             message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units, so\n\n```go\nfunc ToMinor()\n```\n", ItemOutcome.Succeeded));
             view.Settle();

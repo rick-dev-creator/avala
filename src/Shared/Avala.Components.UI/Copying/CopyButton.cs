@@ -1,3 +1,4 @@
+using Avala.Components.UI.Elapsed;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -54,7 +55,11 @@ public sealed class CopyButton : Button
 
         if (copied)
         {
-            confirming = DispatcherTimer.RunOnce(() => PseudoClasses.Set(":copied", false), Confirmation);
+            confirming = ElapsedText.GetClock(this).CreateTimer(
+                _ => Dispatcher.UIThread.Post(() => PseudoClasses.Set(":copied", false)),
+                null,
+                Confirmation,
+                Timeout.InfiniteTimeSpan);
         }
     }
 
