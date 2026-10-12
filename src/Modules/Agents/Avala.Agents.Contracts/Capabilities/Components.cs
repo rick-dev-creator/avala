@@ -21,6 +21,8 @@ public sealed record AcceptsTools(ValueSet<ToolSurface> Surfaces) : ICapability
     public bool Accepts(ToolSurface surface) => Surfaces.Contains(surface);
 }
 
+public sealed record AcceptsPreview : ICapability;
+
 public sealed record AsksForms : ICapability;
 
 public sealed record AcceptsMessagesMidTurn : ICapability;

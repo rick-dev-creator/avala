@@ -57,7 +57,11 @@ public sealed class ClaudeCodeTranscriptTests(PublishedPlugins plugins)
             "Avala shows the person your work inside its conversation. When you are asked to show something visual, such as a chart, a diagram or a drawing, "
             + "call the mcp__avala__canvas tool with SVG or Mermaid: Avala draws it right there, as a still picture. "
             + "Do not write an HTML file or open a browser to show it, unless it must move or respond to input, such as an animation or a three.js scene: "
-            + "then write a self-contained HTML file and give its path, which the person opens in their browser from Avala.",
+            + "then make it a page, as follows. "
+            + "For a page or an app, keep every file in the worktree, scratch files included, and vendor its libraries into it instead of loading them from a CDN. "
+            + "Serve it bound to 127.0.0.1 on port $AVALA_PORT, or start its dev server there; the ports $AVALA_PORTS are yours. "
+            + "Then tell the person its URL, such as http://localhost:$AVALA_PORT: Avala shows it beside the conversation. "
+            + "Never open a browser or take screenshots.",
             arguments[arguments.IndexOf("--append-system-prompt") + 1]);
         Assert.True((bool)listed.Single(tool => (string)tool!["name"]! == "canvas")!["_meta"]!["anthropic/alwaysLoad"]!);
     }

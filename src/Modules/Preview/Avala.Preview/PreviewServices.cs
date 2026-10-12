@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Preview.Contracts;
 using Avala.Preview.Detection;
@@ -23,6 +24,7 @@ internal static class PreviewServices
             services.TryAddSingleton(TimeProvider.System);
 
             return services
+                .AddSingleton(new PreviewOffer(ScriptRuns.PortVariable, ScriptRuns.PortsVariable))
                 .AddSingleton<PreviewBook>()
                 .AddSingleton<RunBook>()
                 .AddSingleton<PreviewDetector>()

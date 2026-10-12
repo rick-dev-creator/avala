@@ -10,6 +10,8 @@ internal sealed class ScriptRuns(IProcessTrees trees, RunBook runs)
 {
     public const string PortVariable = "AVALA_PORT";
 
+    public const string PortsVariable = "AVALA_PORTS";
+
     public async ValueTask<Result<PreviewRun, PreviewError>> StartAsync(JobId job, string worktree, Launch launch, CancellationToken cancellationToken)
     {
         var tree = await trees.OpenAsync(worktree, cancellationToken);

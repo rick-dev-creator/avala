@@ -12,6 +12,8 @@ public sealed record SessionOptions(string WorkingDirectory, PermissionMode Perm
 
     public IReadOnlyList<HarnessTool> Tools { get; init; } = [];
 
+    public Option<PreviewOffer> Preview { get; init; }
+
     public ConnectionEnvironment Connection { get; init; } = ConnectionEnvironment.Default;
 
     public IProcessLauncher Processes { get; init; } = UncontainedProcesses.Instance;
