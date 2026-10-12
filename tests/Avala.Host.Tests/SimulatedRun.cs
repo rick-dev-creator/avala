@@ -520,7 +520,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public EventWatch<TEvent> Watch<TEvent>()
             where TEvent : IIntegrationEvent =>
-            new(Feed.SubscribeAsync<TEvent>(subscriptions.Token), Feed.SubscribeAsync<JobProgressed>(subscriptions.Token), Cancellation);
+            new(Feed.SubscribeAsync<TEvent>(subscriptions.Token), Feed.SubscribeAsync<JobProgressed>(subscriptions.Token), LoggedAsync, Cancellation);
+
+        private Task<string> LoggedAsync(CancellationToken cancellationToken) =>
+            RunLog.ProblemsAsync(Root.Services.GetRequiredService<AvalaPaths>().Logs, cancellationToken);
 
         private IEventFeed Feed => Root.Services.GetRequiredService<IEventFeed>();
     }

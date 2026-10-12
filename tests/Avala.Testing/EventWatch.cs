@@ -1,18 +1,31 @@
+using System.Diagnostics;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 
 namespace Avala.Testing;
 
-public sealed class EventWatch<TEvent>(IAsyncEnumerable<TEvent> events, IAsyncEnumerable<IIntegrationEvent> steps, CancellationToken cancellationToken)
+public sealed class EventWatch<TEvent>(
+    IAsyncEnumerable<TEvent> events,
+    IAsyncEnumerable<IIntegrationEvent> steps,
+    Func<CancellationToken, Task<string>> circumstances,
+    CancellationToken cancellationToken)
     where TEvent : IIntegrationEvent
 {
+    private const int RememberedSteps = 6;
+
     private static TimeSpan Patience => TimeSpan.FromSeconds(30);
 
     private readonly IAsyncEnumerator<TEvent> pending = events.GetAsyncEnumerator(cancellationToken);
     private readonly IAsyncEnumerator<IIntegrationEvent> progress = steps.GetAsyncEnumerator(cancellationToken);
+    private readonly Stopwatch watching = Stopwatch.StartNew();
+    private readonly Queue<string> remembered = new();
     private Option<Task<bool>> step;
     private bool stepsEnded;
-    private string lastStep = "none";
+
+    public EventWatch(IAsyncEnumerable<TEvent> events, IAsyncEnumerable<IIntegrationEvent> steps, CancellationToken cancellationToken)
+        : this(events, steps, _ => Task.FromResult(string.Empty), cancellationToken)
+    {
+    }
 
     public EventWatch(IAsyncEnumerable<TEvent> events, CancellationToken cancellationToken)
         : this(events, AsyncEnumerable.Empty<IIntegrationEvent>(), cancellationToken)
@@ -63,7 +76,7 @@ public sealed class EventWatch<TEvent>(IAsyncEnumerable<TEvent> events, IAsyncEn
             var last = seen.Count > 0 ? $"the last was {seen[^1]}" : "none arrived";
 
             throw new TimeoutException(
-                $"No {typeof(TEvent).Name} came within {Patience.TotalSeconds:0} seconds of the last step after {seen.Count} that did not match; {last}; the last step was {lastStep}.",
+                $"No {typeof(TEvent).Name} came within {Patience.TotalSeconds:0} seconds of the last step after {seen.Count} that did not match; {last}; {Steps()}{await circumstances(cancellationToken)}",
                 timeout);
         }
 
@@ -74,9 +87,31 @@ public sealed class EventWatch<TEvent>(IAsyncEnumerable<TEvent> events, IAsyncEn
 
         var advanced = await stepping.Match(armed => armed, () => Task.FromResult(false));
         stepsEnded = !advanced;
-        lastStep = advanced ? progress.Current.ToString() ?? lastStep : lastStep;
+
+        if (advanced)
+        {
+            Remember(progress.Current);
+        }
+
         step = Option<Task<bool>>.None;
 
         return true;
     }
+
+    private void Remember(IIntegrationEvent reached)
+    {
+        remembered.Enqueue($"{reached} at {Seconds(watching.Elapsed)}");
+
+        if (remembered.Count > RememberedSteps)
+        {
+            _ = remembered.Dequeue();
+        }
+    }
+
+    private string Steps() =>
+        remembered.Count == 0
+            ? $"no step came in the {Seconds(watching.Elapsed)} watched"
+            : $"the last steps were {string.Join(", ", remembered)} of the {Seconds(watching.Elapsed)} watched";
+
+    private static string Seconds(TimeSpan elapsed) => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{elapsed.TotalSeconds:0.0} s");
 }
