@@ -2,6 +2,7 @@
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:navigation="using:Avala.Workbench.Navigation"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.WorkbenchView"
              x:ClassModifier="internal"
              x:DataType="navigation:IWorkbenchViewModel">
@@ -59,7 +60,7 @@
         </Grid>
       </Border>
       <Panel>
-        <ContentControl x:Name="Conversation" Content="{Binding Conversation}" />
+        <ui:Stage x:Name="Conversation" Content="{Binding Conversation}" />
         <ContentControl x:Name="Welcome" Content="{Binding Welcome}" IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}" />
       </Panel>
     </DockPanel>

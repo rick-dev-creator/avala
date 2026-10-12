@@ -4,6 +4,7 @@
         xmlns:shell="using:Avala.Shell"
         xmlns:sdk="using:Avala.Sdk"
         xmlns:states="using:Avala.Components.UI.States"
+        xmlns:ui="using:Avala.Components.UI"
         x:Class="Avala.Host.ShellView"
         x:ClassModifier="internal"
         x:DataType="shell:IShellViewModel"
@@ -115,7 +116,7 @@
 
     <Border x:Name="ContentPane" Grid.Column="1" Classes="window">
       <Panel>
-        <ContentControl x:Name="ContentRegion" Content="{Binding SelectedPage}" />
+        <ui:Stage x:Name="ContentRegion" KeepsAlive="True" Content="{Binding SelectedPage}" />
         <Border x:Name="EmptyContent"
                 Classes="empty"
                 HorizontalAlignment="Center"

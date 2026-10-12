@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Controls.Shapes;
 using Avalonia.Data;
+using Avalonia.Layout;
+using Avalonia.VisualTree;
 using Avalonia.Controls;
 
 namespace Avala.Components.UI.Theme;
@@ -52,6 +54,9 @@ public sealed class Motion
     private static readonly AttachedProperty<Playback?> PlaybackProperty =
         AvaloniaProperty.RegisterAttached<Motion, Visual, Playback?>("Playback");
 
+    private static readonly AttachedProperty<bool> SettlesProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, bool>("Settles");
+
     private static readonly AttachedProperty<bool> IsWatchedProperty =
         AvaloniaProperty.RegisterAttached<Motion, Visual, bool>("IsWatched");
 
@@ -83,6 +88,42 @@ public sealed class Motion
     public static void SetWhen(Visual visual, bool value) => visual.SetValue(WhenProperty, value);
 
     public static bool IsPlaying(Visual visual) => visual.GetValue(PlaybackProperty) is { IsMoving: true };
+
+    public static void Settle(Layoutable content)
+    {
+        content.SetValue(SettlesProperty, true);
+        content.LayoutUpdated += Settled;
+
+        void Settled(object? sender, EventArgs e)
+        {
+            content.LayoutUpdated -= Settled;
+            content.ClearValue(SettlesProperty);
+        }
+    }
+
+    public static void Reveal(Visual content)
+    {
+        if (GetIsReduced(content))
+        {
+            return;
+        }
+
+        content.RenderTransform ??= MotionCatalog.Transforms();
+        _ = MotionCatalog.Reveal.Animation.RunAsync(content, CancellationToken.None);
+    }
+
+    private static bool IsSettling(Visual visual)
+    {
+        for (var current = visual; current is not null; current = current.GetVisualParent())
+        {
+            if (current.GetValue(SettlesProperty))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static void Watch(Visual visual)
     {
@@ -129,7 +170,7 @@ public sealed class Motion
 
         if (GetWhen(visual))
         {
-            playback.Play(visual, MotionCatalog.Entrance(GetEnter(visual)));
+            playback.Play(visual, IsSettling(visual) ? null : MotionCatalog.Entrance(GetEnter(visual)));
             playback.Play(visual, MotionCatalog.Loop(GetLoop(visual)));
         }
     }

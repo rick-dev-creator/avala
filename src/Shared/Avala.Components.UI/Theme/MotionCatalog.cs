@@ -36,6 +36,8 @@ internal static class MotionCatalog
 
     private static readonly Move DrawIn = new(Animated(0.6, Gentle, TimeSpan.FromSeconds(0.3), Frame(0, [Dash(12)]), Frame(1, [Dash(0)])), false) { Dashes = [12, 12] };
 
+    public static Move Reveal { get; } = Enter(0.18, Gentle, Frame(0, [Y(6), Opacity(0)]), Frame(1, [Y(0), Opacity(1)]));
+
     private static readonly Move PulseLoop = Repeat(2, new CubicEaseOut(), TimeSpan.Zero, Frame(0, [.. Scale(1), Opacity(0.7)]), Frame(0.8, [.. Scale(2.6), Opacity(0)]), Frame(1, [.. Scale(2.6), Opacity(0)]));
 
     private static readonly Move SpinLoop = Repeat(1, null, TimeSpan.Zero, Frame(0, [Angle(0)]), Frame(1, [Angle(360)]));
