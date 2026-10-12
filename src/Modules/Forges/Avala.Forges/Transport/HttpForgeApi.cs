@@ -29,7 +29,7 @@ internal sealed class HttpForgeApi(HttpClient client, Uri root, Option<ForgeToke
 
     public static Uri Address(Uri root, string path) => new($"{root.AbsoluteUri.TrimEnd('/')}{path}");
 
-    public static string Json(IReadOnlyList<KeyValuePair<string, string>> fields)
+    public static string Json(ForgeRequest request)
     {
         using var buffer = new MemoryStream();
 
@@ -37,9 +37,14 @@ internal sealed class HttpForgeApi(HttpClient client, Uri root, Option<ForgeToke
         {
             writer.WriteStartObject();
 
-            foreach (var (name, value) in fields)
+            foreach (var (name, value) in request.Fields)
             {
                 writer.WriteString(name, value);
+            }
+
+            foreach (var (name, value) in request.Flags)
+            {
+                writer.WriteBoolean(name, value);
             }
 
             writer.WriteEndObject();
@@ -57,7 +62,7 @@ internal sealed class HttpForgeApi(HttpClient client, Uri root, Option<ForgeToke
 
         if (request.Method == ForgeMethod.Post)
         {
-            message.Content = new StringContent(Json(request.Fields), Encoding.UTF8, JsonMedia);
+            message.Content = new StringContent(Json(request), Encoding.UTF8, JsonMedia);
         }
 
         try
@@ -66,7 +71,7 @@ internal sealed class HttpForgeApi(HttpClient client, Uri root, Option<ForgeToke
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             var exhausted = response.Headers.TryGetValues("x-ratelimit-remaining", out var remaining) && remaining.Contains("0");
 
-            return Statuses.Of((int)response.StatusCode, body, exhausted);
+            return Statuses.Of((int)response.StatusCode, body, exhausted, request.Refusals);
         }
         catch (HttpRequestException)
         {
@@ -81,8 +86,9 @@ internal sealed class HttpForgeApi(HttpClient client, Uri root, Option<ForgeToke
 
 internal static class Statuses
 {
-    public static Result<ForgeResponse, ForgeError> Of(int status, string body, bool rateLimitExhausted) => status switch
+    public static Result<ForgeResponse, ForgeError> Of(int status, string body, bool rateLimitExhausted, IReadOnlyList<int> refusals) => status switch
     {
+        _ when refusals.Contains(status) => new ForgeResponse(status, body),
         >= 200 and < 300 => new ForgeResponse(status, body),
         401 => ForgeError.Unauthorized,
         403 when rateLimitExhausted => ForgeError.RateLimited,

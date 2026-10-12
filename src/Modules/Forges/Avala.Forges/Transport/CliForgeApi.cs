@@ -12,10 +12,10 @@ internal sealed partial class CliForgeApi(IProcessRunner processes, IForge forge
 {
     public async ValueTask<Result<ForgeResponse, ForgeError>> SendAsync(ForgeRequest request, CancellationToken cancellationToken) =>
         await forge.CliFor(request, target).Match(
-            call => RunAsync(call, cancellationToken),
+            call => RunAsync(call, request.Refusals, cancellationToken),
             () => Task.FromResult(Result<ForgeResponse, ForgeError>.Failure(ForgeError.CliUnavailable)));
 
-    public static Result<ForgeResponse, ForgeError> Read(CliCall call, ProcessOutcome outcome)
+    public static Result<ForgeResponse, ForgeError> Read(CliCall call, ProcessOutcome outcome, IReadOnlyList<int> refusals)
     {
         var headers = call.Status == CliStatusChannel.Output ? outcome.Output : outcome.Error;
         var status = StatusLine().Match(headers);
@@ -29,7 +29,7 @@ internal sealed partial class CliForgeApi(IProcessRunner processes, IForge forge
         var body = call.Status == CliStatusChannel.Output ? AfterHeaders(outcome.Output) : outcome.Output;
         var exhausted = RateLimitExhausted().IsMatch(headers);
 
-        return Statuses.Of(code, body, exhausted);
+        return Statuses.Of(code, body, exhausted, refusals);
     }
 
     private static string AfterHeaders(string output)
@@ -40,9 +40,9 @@ internal sealed partial class CliForgeApi(IProcessRunner processes, IForge forge
         return blank < 0 ? string.Empty : normalized[(blank + 2)..];
     }
 
-    private async Task<Result<ForgeResponse, ForgeError>> RunAsync(CliCall call, CancellationToken cancellationToken) =>
+    private async Task<Result<ForgeResponse, ForgeError>> RunAsync(CliCall call, IReadOnlyList<int> refusals, CancellationToken cancellationToken) =>
         (await processes.RunAsync(new ProcessRequest(call.Command, call.Arguments), cancellationToken)).Match(
-            outcome => Read(call, outcome),
+            outcome => Read(call, outcome, refusals),
             _ => ForgeError.CliUnavailable);
 
     [GeneratedRegex(@"HTTP/\S+\s+(?<code>\d{3})")]

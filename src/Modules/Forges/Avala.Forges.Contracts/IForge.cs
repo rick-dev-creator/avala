@@ -44,6 +44,10 @@ public enum ForgeMethod
 public sealed record ForgeRequest(ForgeMethod Method, string Path)
 {
     public IReadOnlyList<KeyValuePair<string, string>> Fields { get; init; } = [];
+
+    public IReadOnlyList<KeyValuePair<string, bool>> Flags { get; init; } = [];
+
+    public IReadOnlyList<int> Refusals { get; init; } = [];
 }
 
 public sealed record ForgeResponse(int Status, string Body);

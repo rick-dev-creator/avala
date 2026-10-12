@@ -26,6 +26,26 @@ public sealed class TransportTests
         Assert.Equal(new SentRequest("POST", "/api/v3/repos/octo/shop/pulls", "Bearer secret-value", "{\"title\":\"Say \\u0022hi\\u0022\"}"), server.Sent[0]);
     }
 
+    [Fact]
+    public async Task ARequestsFlagsAreJsonBooleansBesideItsFieldsAsync()
+    {
+        var server = new FixtureServer().Route("POST", "/api/v3/user/repos", HttpStatusCode.Created, "{}");
+
+        _ = Outcomes.Succeeds(await Api(server).SendAsync(new ForgeRequest(ForgeMethod.Post, "/user/repos") { Fields = [new("name", "shop")], Flags = [new("private", true)] }, Cancellation));
+
+        Assert.Equal("{\"name\":\"shop\",\"private\":true}", server.Sent[0].Body);
+    }
+
+    [Fact]
+    public async Task ARefusalTheForgeReadsItselfReachesItWithItsBodyAsync()
+    {
+        var server = new FixtureServer().Route("POST", "/api/v3/user/repos", HttpStatusCode.UnprocessableEntity, "{\"message\":\"taken\"}");
+
+        var response = Outcomes.Succeeds(await Api(server).SendAsync(new ForgeRequest(ForgeMethod.Post, "/user/repos") { Refusals = [422] }, Cancellation));
+
+        Assert.Equal((422, "{\"message\":\"taken\"}"), (response.Status, response.Body));
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -48,7 +68,7 @@ public sealed class TransportTests
     [InlineData(500, false, "Unreachable")]
     [InlineData(502, false, "Unreachable")]
     public void AReplyThatIsNotASuccessIsATypedError(int status, bool exhausted, string expected) =>
-        Assert.Equal(Enum.Parse<ForgeError>(expected), Outcomes.FailsWith(Statuses.Of(status, "{}", exhausted)));
+        Assert.Equal(Enum.Parse<ForgeError>(expected), Outcomes.FailsWith(Statuses.Of(status, "{}", exhausted, [])));
 
     [Fact]
     public async Task AnExhaustedRateLimitHeaderMakesA403RateLimitedAsync()
@@ -79,6 +99,17 @@ public sealed class TransportTests
         var api = new CliForgeApi(runner, new CliForge(new CliCall("tea", ["api", "--include", "repos/octo/shop/pulls/9"], CliStatusChannel.Error)), Targets.Of(new Uri("https://git.example.com")));
 
         Assert.Equal(ForgeError.NotFound, Outcomes.FailsWith(await api.SendAsync(new ForgeRequest(ForgeMethod.Get, "/api/v1/repos/octo/shop/pulls/9"), Cancellation)));
+    }
+
+    [Fact]
+    public async Task ACliRefusalTheForgeReadsItselfReachesItWithItsBodyAsync()
+    {
+        var runner = new ScriptedRunner(new ProcessOutcome(1, "{\"message\":\"taken\"}", "HTTP/1.1 409 Conflict\n"));
+        var api = new CliForgeApi(runner, new CliForge(new CliCall("tea", ["api", "--include", "user/repos"], CliStatusChannel.Error)), Targets.Of(new Uri("https://git.example.com")));
+
+        var response = Outcomes.Succeeds(await api.SendAsync(new ForgeRequest(ForgeMethod.Post, "/api/v1/user/repos") { Refusals = [409] }, Cancellation));
+
+        Assert.Equal((409, "{\"message\":\"taken\"}"), (response.Status, response.Body));
     }
 
     [Fact]

@@ -48,7 +48,8 @@ public sealed class FixtureServer : HttpMessageHandler
 
             if (request.Method == ForgeMethod.Post)
             {
-                message.Content = new StringContent(JsonSerializer.Serialize(request.Fields.ToDictionary(field => field.Key, field => field.Value)), Encoding.UTF8, "application/json");
+                var fields = request.Fields.Select(field => KeyValuePair.Create(field.Key, (object)field.Value)).Concat(request.Flags.Select(flag => KeyValuePair.Create(flag.Key, (object)flag.Value)));
+                message.Content = new StringContent(JsonSerializer.Serialize(fields.ToDictionary()), Encoding.UTF8, "application/json");
             }
 
             using var response = await client.SendAsync(message, cancellationToken);
@@ -56,9 +57,11 @@ public sealed class FixtureServer : HttpMessageHandler
 
             return (int)response.StatusCode switch
             {
+                var status when request.Refusals.Contains(status) => new ForgeResponse(status, body),
                 >= 200 and < 300 => new ForgeResponse((int)response.StatusCode, body),
                 401 or 403 => ForgeError.Unauthorized,
                 404 => ForgeError.NotFound,
+                409 or 422 => ForgeError.Rejected,
                 _ => ForgeError.Unreachable,
             };
         }
