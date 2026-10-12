@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:states="using:Avala.Components.UI.States"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              x:Class="Avala.Workbench.UI.ToolView"
              x:ClassModifier="internal"
              x:DataType="conversation:IToolViewModel"
@@ -30,44 +31,67 @@
       <Setter Property="TextWrapping" Value="Wrap" />
       <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
+    <Style Selector="Button#CopyOutput">
+      <Setter Property="Margin" Value="0,-4,-4,0" />
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Border#Details:pointerover Button#CopyOutput, Button#CopyOutput:copied">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button#CopyOutput:pointerover">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
   </UserControl.Styles>
   <StackPanel Spacing="2">
-    <Button x:Name="Toggle"
-            Classes="line"
-            Command="{Binding ToggleCommand}"
-            AutomationProperties.Name="{Binding Title}">
-      <Grid ColumnDefinitions="14,*,Auto" ColumnSpacing="10">
-        <Path x:Name="Icon"
-              Classes="icon"
-              VerticalAlignment="Center"
-              Data="{Binding Kind, Converter={x:Static states:ThemeIcon.Named}, ConverterParameter=Icon}"
-              IsVisible="{Binding !IsRunning}" />
-        <Arc x:Name="Spinner"
-             Width="12"
-             Height="12"
-             StartAngle="0"
-             SweepAngle="270"
-             Stroke="{DynamicResource TextSecondaryBrush}"
-             StrokeThickness="1.5"
-             VerticalAlignment="Center"
-             HorizontalAlignment="Center"
-             IsVisible="{Binding IsRunning}"
-             Classes.spin="{Binding IsRunning}" />
-        <TextBlock x:Name="Title"
-                   Grid.Column="1"
-                   VerticalAlignment="Center"
-                   Classes.code="{Binding IsCode}"
-                   Text="{Binding Title}"
-                   TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="Outcome"
-                   Grid.Column="2"
-                   Classes="caption"
-                   Classes.failure="{Binding Failed}"
-                   VerticalAlignment="Center"
-                   Text="{Binding Outcome}"
-                   IsVisible="{Binding ShowsOutcome}" />
-      </Grid>
-    </Button>
+    <Panel>
+      <Button x:Name="Toggle"
+              Classes="line"
+              Command="{Binding ToggleCommand}"
+              AutomationProperties.Name="{Binding Title}">
+        <Grid ColumnDefinitions="14,*,Auto" ColumnSpacing="10">
+          <Path x:Name="Icon"
+                Classes="icon"
+                VerticalAlignment="Center"
+                Data="{Binding Kind, Converter={x:Static states:ThemeIcon.Named}, ConverterParameter=Icon}"
+                IsVisible="{Binding !IsRunning}" />
+          <Arc x:Name="Spinner"
+               Width="12"
+               Height="12"
+               StartAngle="0"
+               SweepAngle="270"
+               Stroke="{DynamicResource TextSecondaryBrush}"
+               StrokeThickness="1.5"
+               VerticalAlignment="Center"
+               HorizontalAlignment="Center"
+               IsVisible="{Binding IsRunning}"
+               Classes.spin="{Binding IsRunning}" />
+          <TextBlock x:Name="Title"
+                     Grid.Column="1"
+                     VerticalAlignment="Center"
+                     Classes.code="{Binding IsCode}"
+                     Text="{Binding Title}"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="Outcome"
+                     Grid.Column="2"
+                     Classes="caption"
+                     Classes.failure="{Binding Failed}"
+                     VerticalAlignment="Center"
+                     Text="{Binding Outcome}"
+                     IsVisible="{Binding ShowsOutcome}" />
+        </Grid>
+      </Button>
+      <Popup x:Name="ChangesPopover"
+             IsOpen="{Binding Changes.IsOpen}"
+             PlacementTarget="{Binding #Toggle}"
+             Placement="BottomEdgeAlignedLeft"
+             VerticalOffset="4"
+             ShouldUseOverlayLayer="True"
+             IsLightDismissEnabled="True"
+             WindowManagerAddShadowHint="False">
+        <ContentControl x:Name="Changes" Classes="pop-in" Content="{Binding Changes}" />
+      </Popup>
+    </Panel>
     <Border x:Name="Details"
             Classes.fold-in="{Binding IsExpanded}"
             Background="{DynamicResource FillQuietBrush}"
@@ -75,20 +99,30 @@
             Padding="34,8,10,10"
             Margin="0,0,0,4"
             IsVisible="{Binding IsExpanded}">
-      <StackPanel Spacing="6">
-        <SelectableTextBlock x:Name="Input"
-                             Classes="output"
-                             Text="{Binding Input}"
-                             IsVisible="{Binding Input, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-        <SelectableTextBlock x:Name="Output"
-                             Classes="output"
-                             Text="{Binding Output}"
-                             IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-        <TextBlock x:Name="NoOutput"
-                   Classes="caption"
-                   Text="No output."
-                   IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
-      </StackPanel>
+      <Panel>
+        <StackPanel Spacing="6" Margin="0,0,22,0">
+          <SelectableTextBlock x:Name="Input"
+                               Classes="output"
+                               Text="{Binding Input}"
+                               IsVisible="{Binding Input, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <SelectableTextBlock x:Name="Output"
+                               Classes="output"
+                               Text="{Binding Output}"
+                               IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock x:Name="NoOutput"
+                     Classes="caption"
+                     Text="No output."
+                     IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+        </StackPanel>
+        <copying:CopyButton x:Name="CopyOutput"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Command="{Binding CopyCommand}"
+                            IsCopied="{Binding IsCopied}"
+                            IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                            ToolTip.Tip="Copy"
+                            AutomationProperties.Name="Copy the output" />
+      </Panel>
     </Border>
   </StackPanel>
 </UserControl>

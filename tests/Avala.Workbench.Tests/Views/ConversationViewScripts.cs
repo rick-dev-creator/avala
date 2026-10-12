@@ -194,7 +194,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
     private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript) Open(JobStatus status)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
-        var conversation = new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard()), new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver())).Open(summary.Job);
+        var conversation = new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard(), Tools.Files()), new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver())).Open(summary.Job);
         var transcript = Transcript.Empty.WithPrompts(summary.Instruction, []);
         conversation.Show(new BoardJob(summary, transcript));
 
@@ -585,7 +585,7 @@ public sealed class ToolViewScripts(HeadlessUi ui)
     public Task AToolIsOneLineWithItsKindIconThatOpensToItsOutputInTheCodeFontAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new ToolViewModel(new ToolEntry("t", ItemKind.Command, "npm test -- money.test.ts", "PASS src/money", ItemOutcome.Succeeded)));
+            var view = Screen.Show(Tools.Of(new ToolEntry("t", ItemKind.Command, "npm test -- money.test.ts", "PASS src/money", ItemOutcome.Succeeded)));
             var collapsed = view.Shows("Details");
 
             view.Click("Toggle");
@@ -598,11 +598,29 @@ public sealed class ToolViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task ClickingAFileEditLineOpensItsHunksInAPopoverAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var changes = new FakeChanges { Hunks = { ["src/money.ts"] = Tools.Diff("src/money.ts") } };
+            var tool = Tools.InWorktree(new ToolEntry("t", ItemKind.FileEdit, "Edit src/money.ts", string.Empty, ItemOutcome.Succeeded), changes);
+            var view = Screen.Show(tool);
+
+            view.Click("Toggle");
+            await (tool.ToggleCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            var popover = view.Find<Avalonia.Controls.Primitives.Popup>("ChangesPopover");
+            Assert.True(popover.IsOpen);
+            Assert.False(view.Shows("Details"));
+            Assert.Contains(popover.Child!.GetVisualDescendants().OfType<TextBlock>(), block => block.Text == "+    return units * pow10(exponent)");
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task EveryKindOfToolShowsAnIconAsync() =>
         ui.RunAsync(() =>
         {
             var blank = Enum.GetValues<ItemKind>()
-                .Where(kind => Screen.Show(new ToolViewModel(new ToolEntry("t", kind, "delegate", string.Empty, ItemOutcome.Succeeded))).Find<Path>("Icon").Data is null);
+                .Where(kind => Screen.Show(Tools.Of(new ToolEntry("t", kind, "delegate", string.Empty, ItemOutcome.Succeeded))).Find<Path>("Icon").Data is null);
 
             Assert.Empty(blank);
         }, TestContext.Current.CancellationToken);
@@ -611,7 +629,7 @@ public sealed class ToolViewScripts(HeadlessUi ui)
     public Task AFailedToolSaysSoInTheFailureColorAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new ToolViewModel(new ToolEntry("t", ItemKind.Command, "npm test", "FAIL", ItemOutcome.Failed)));
+            var view = Screen.Show(Tools.Of(new ToolEntry("t", ItemKind.Command, "npm test", "FAIL", ItemOutcome.Failed)));
 
             Assert.Equal("failed", view.TextOf("Outcome"));
             Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Outcome").Foreground).Color);
@@ -621,7 +639,7 @@ public sealed class ToolViewScripts(HeadlessUi ui)
     public Task ADeniedToolSaysSoInTheQuietCaptionColorAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new ToolViewModel(new ToolEntry("t", ItemKind.FileEdit, "Edit REVIEW.md", string.Empty, ItemOutcome.Cancelled) { Denied = true }));
+            var view = Screen.Show(Tools.Of(new ToolEntry("t", ItemKind.FileEdit, "Edit REVIEW.md", string.Empty, ItemOutcome.Cancelled) { Denied = true }));
 
             Assert.Equal(("denied", true, false), (view.TextOf("Outcome"), view.Shows("Outcome"), view.HasClass("Outcome", "failure")));
             Assert.True(view.Window.TryFindResource("TextTertiaryBrush", view.Window.ActualThemeVariant, out var quiet) && ReferenceEquals(quiet, view.Find<TextBlock>("Outcome").Foreground));
@@ -632,9 +650,9 @@ public sealed class ToolViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var delegated = new DelegationRecord(SessionId.New(), new ItemId("delegate"), "Migrate the database", DateTimeOffset.UnixEpoch) { Child = JobId.New() };
-            var delegation = Screen.Show(new ToolViewModel(new ToolEntry("t", ItemKind.Other, "delegate", string.Empty, Option<ItemOutcome>.None) { Delegation = delegated }));
-            var waiting = Screen.Show(new ToolViewModel(new ToolEntry("w", ItemKind.Other, "wait_child", string.Empty, Option<ItemOutcome>.None) { WaitsFor = JobId.New() }));
-            var command = Screen.Show(new ToolViewModel(new ToolEntry("c", ItemKind.Command, "dotnet test", string.Empty, Option<ItemOutcome>.None)));
+            var delegation = Screen.Show(Tools.Of(new ToolEntry("t", ItemKind.Other, "delegate", string.Empty, Option<ItemOutcome>.None) { Delegation = delegated }));
+            var waiting = Screen.Show(Tools.Of(new ToolEntry("w", ItemKind.Other, "wait_child", string.Empty, Option<ItemOutcome>.None) { WaitsFor = JobId.New() }));
+            var command = Screen.Show(Tools.Of(new ToolEntry("c", ItemKind.Command, "dotnet test", string.Empty, Option<ItemOutcome>.None)));
 
             Assert.Equal(
                 ("Inter", "Inter", "JetBrains Mono"),
@@ -645,7 +663,7 @@ public sealed class ToolViewScripts(HeadlessUi ui)
     public Task ARunningToolSpinsInsteadOfItsIconAndKeepsItsOutputOpenAsItArrivesAsync() =>
         ui.RunAsync(() =>
         {
-            var tool = new ToolViewModel(new ToolEntry("t", ItemKind.Command, "go test ./...", string.Empty, Option<ItemOutcome>.None));
+            var tool = Tools.Of(new ToolEntry("t", ItemKind.Command, "go test ./...", string.Empty, Option<ItemOutcome>.None));
             var view = Screen.Show(tool);
             var running = (view.Shows("Spinner"), view.HasClass("Spinner", "spin"), view.Shows("Icon"), view.Shows("NoOutput"));
             view.Click("Toggle");

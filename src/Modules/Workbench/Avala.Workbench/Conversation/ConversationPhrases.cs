@@ -17,6 +17,12 @@ internal static class ConversationPhrases
 {
     public const string NotCopied = "The conversation could not be copied.";
 
+    public const string BinaryChanges = "A binary file.";
+
+    public const string NoChanges = "No changes left in this file.";
+
+    public const string ChangesUnreadable = "The changes of this file could not be read.";
+
     public static string NotExported(FileSaveError error) => error switch
     {
         FileSaveError.Cancelled => string.Empty,

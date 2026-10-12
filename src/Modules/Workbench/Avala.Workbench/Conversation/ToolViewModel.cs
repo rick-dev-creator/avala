@@ -28,14 +28,27 @@ internal interface IToolViewModel
 
     bool IsExpanded { get; }
 
-    IRelayCommand ToggleCommand { get; }
+    bool IsCopied { get; }
+
+    bool ShowsChanges { get; }
+
+    IFileChangesViewModel Changes { get; }
+
+    IAsyncRelayCommand ToggleCommand { get; }
+
+    IAsyncRelayCommand CopyCommand { get; }
 }
 
 [INotifyPropertyChanged]
 internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
 {
-    public ToolViewModel(ToolEntry entry)
+    private readonly IClipboard clipboard;
+    private readonly FileChangesViewModel changes;
+
+    public ToolViewModel(ToolEntry entry, IClipboard clipboard, FileViews files)
     {
+        this.clipboard = clipboard;
+        changes = files.Changes(entry.EditedPath.Match(path => path, () => string.Empty));
         Kind = entry.Kind;
         Title = string.Empty;
         Output = string.Empty;
@@ -74,6 +87,14 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     [ObservableProperty]
     public partial bool IsExpanded { get; private set; }
 
+    [ObservableProperty]
+    public partial bool IsCopied { get; private set; }
+
+    [ObservableProperty]
+    public partial bool ShowsChanges { get; private set; }
+
+    public IFileChangesViewModel Changes => changes;
+
     public void Update(ITimelineEntry entry)
     {
         if (entry is ToolEntry tool)
@@ -91,9 +112,27 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
             Failed = ended && !tool.Denied;
             ShowsOutcome = ended;
             Outcome = tool.Outcome.Match(outcome => ConversationPhrases.Outcome(outcome, tool.Denied), () => "running");
+            ShowsChanges = changes.Path.Length > 0 && tool.Outcome == Option<ItemOutcome>.Some(ItemOutcome.Succeeded);
         }
     }
 
     [RelayCommand]
-    private void Toggle() => IsExpanded = !IsExpanded;
+    private async Task ToggleAsync(CancellationToken cancellationToken)
+    {
+        if (ShowsChanges)
+        {
+            await changes.ShowCommand.ExecuteAsync(null);
+        }
+        else
+        {
+            IsExpanded = !IsExpanded;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyAsync(CancellationToken cancellationToken)
+    {
+        IsCopied = false;
+        IsCopied = await clipboard.CopyAsync(Output, cancellationToken);
+    }
 }

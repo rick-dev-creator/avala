@@ -48,6 +48,18 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
         ```
         """;
 
+    private static readonly string[] PageLines =
+    [
+        "<!doctype html>",
+        "<html lang=\"es\">",
+        "<head><meta charset=\"utf-8\"><title>Sistema solar</title></head>",
+        "<body>",
+        "  <canvas id=\"orbits\" width=\"900\" height=\"900\"></canvas>",
+        "  <script src=\"orbits.js\"></script>",
+        "</body>",
+        "</html>",
+    ];
+
     private static readonly DateTimeOffset Start = DateTimeOffset.UnixEpoch;
     private readonly SessionId session = SessionId.New();
     private readonly TurnId turn = TurnId.New();
@@ -151,6 +163,19 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
             Assert.True(Save(view, $"09-code-block-{variant}"));
         });
 
+    [Theory]
+    [MemberData(nameof(Variants))]
+    public Task AFileEditsHunksInAPopoverAsync(string variant) =>
+        ShootAsync(() =>
+        {
+            var changes = new FakeChanges { Hunks = { ["sistema-solar.html"] = Page() } };
+            var view = Show(Conversation(Finished(), JobStatus.NeedsHelp, changes), variant);
+            var line = view.All<Button>().Last(button => button.Name == "Toggle" && button.FindAncestorOfType<UserControl>()?.GetType().Name == "ToolView");
+            view.Click(line);
+            Pump(view);
+            Assert.True(Save(view, $"10-file-edit-diff-{variant}"));
+        });
+
     private Task ShootAsync(Action shoot)
     {
         Assert.SkipUnless(Folder is not null && HeadlessApp.Renders, $"Set {Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the chat screens.");
@@ -200,10 +225,16 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
         return File.Exists(path);
     }
 
-    private static ConversationViewModel Conversation(Transcript transcript, JobStatus status)
+    private static ConversationViewModel Conversation(Transcript transcript, JobStatus status) => Conversation(transcript, status, new FakeChanges());
+
+    private static ConversationViewModel Conversation(Transcript transcript, JobStatus status, FakeChanges changes)
     {
         var jobs = new FakeJobs { Status = status };
-        var conversation = new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard()), new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver())).Open(JobId.New());
+        var catalog = new FakeCatalog();
+        var job = catalog.Add(Instruction, status).Summary.Job;
+        catalog.Change(job, history => history with { Summary = history.Summary with { Workspace = Avala.Workspaces.Contracts.WorkspaceId.New() } });
+        var items = new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard(), new Avala.Workbench.Reviewing.WorkedFiles(catalog, changes));
+        var conversation = new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), items, new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver())).Open(job);
         conversation.Show(Board(transcript, status));
 
         return conversation;
@@ -218,6 +249,9 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
             .Apply(new ItemStarted(session, turn, new ItemId("code"), ItemKind.Message, "Message"), Start.AddSeconds(41))
             .Apply(new ItemProgressed(session, turn, new ItemId("code"), CodeReply), Start.AddSeconds(41))
             .Apply(new ItemCompleted(session, turn, new ItemId("code"), ItemOutcome.Succeeded), Start.AddSeconds(42));
+
+    private static Avala.Workspaces.Contracts.FileDiff Page() =>
+        new("sistema-solar.html", false, [new Avala.Workspaces.Contracts.DiffHunk(0, 0, 1, 9, string.Empty, [.. PageLines.Select(line => new Avala.Workspaces.Contracts.DiffLine(Avala.Workspaces.Contracts.DiffLineKind.Added, line))])]);
 
     private Transcript Begun() =>
         Transcript.Empty.WithPrompts(Instruction, [])

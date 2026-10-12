@@ -156,7 +156,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
             return existing.Item;
         }
 
-        var item = items.Create(entry);
+        var item = items.Create(Job, entry);
         known.Add(entry.Key, (entry, item));
 
         if (item is PromptViewModel prompt)

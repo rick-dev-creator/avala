@@ -6,6 +6,7 @@ using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Timeline;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Tests.Conversation;
 
@@ -13,7 +14,7 @@ public sealed class ToolViewModelScripts
 {
     [Fact]
     public void ARunningToolIsOneCollapsedLineThatExpandsToItsOutput() =>
-        ViewModelScript.Given(new ToolViewModel(Running()))
+        ViewModelScript.Given(Tools.Of(Running()))
             .Then(tool => Assert.Equal((ItemKind.Command, "npm test -- money.test.ts", "running", true, false, false), (tool.Kind, tool.Title, tool.Outcome, tool.IsRunning, tool.Failed, tool.IsExpanded)))
             .Invoke(nameof(ToolViewModel.ToggleCommand))
             .ThenNotified(nameof(ToolViewModel.IsExpanded))
@@ -26,7 +27,7 @@ public sealed class ToolViewModelScripts
     [InlineData("Edit src/money.ts", 812, "Editing src/money.ts · 812 B")]
     [InlineData("Write assets/atlas.svg", 2_200_000, "Writing assets/atlas.svg · 2.1 MB")]
     public void ADraftedFileEditIsRunningAndGrowsItsSizeUntilItStartsWithItsInput(string title, int received, string drafting) =>
-        ViewModelScript.Given(new ToolViewModel(new ToolEntry("t", ItemKind.FileEdit, title, string.Empty, Option<ItemOutcome>.None) { Drafted = received }))
+        ViewModelScript.Given(Tools.Of(new ToolEntry("t", ItemKind.FileEdit, title, string.Empty, Option<ItemOutcome>.None) { Drafted = received }))
             .Then(tool => Assert.Equal((drafting, true, string.Empty), (tool.Title, tool.IsRunning, tool.Input)))
             .When(tool => tool.Update(new ToolEntry("t", ItemKind.FileEdit, title, string.Empty, Option<ItemOutcome>.None) { Input = "<html>" }))
             .ThenNotified(nameof(ToolViewModel.Title), nameof(ToolViewModel.Input))
@@ -39,28 +40,28 @@ public sealed class ToolViewModelScripts
     [InlineData("Abandoned", "abandoned", true)]
     [InlineData("Expired", "expired", true)]
     public void AFinishedToolSaysHowItEnded(string outcome, string phrase, bool failed) =>
-        ViewModelScript.Given(new ToolViewModel(Running()))
+        ViewModelScript.Given(Tools.Of(Running()))
             .When(tool => tool.Update(Running() with { Output = "PASS", Outcome = Enum.Parse<ItemOutcome>(outcome) }))
             .ThenNotified(nameof(ToolViewModel.Outcome), nameof(ToolViewModel.IsRunning))
             .Then(tool => Assert.Equal((phrase, failed, false, "PASS"), (tool.Outcome, tool.Failed, tool.IsRunning, tool.Output)));
 
     [Fact]
     public void ADeniedToolSaysItWasDeniedAndIsNoFailure() =>
-        ViewModelScript.Given(new ToolViewModel(Running()))
+        ViewModelScript.Given(Tools.Of(Running()))
             .When(tool => tool.Update(Running() with { Outcome = ItemOutcome.Cancelled, Denied = true }))
             .ThenNotified(nameof(ToolViewModel.Outcome), nameof(ToolViewModel.ShowsOutcome))
             .Then(tool => Assert.Equal(("denied", false, true), (tool.Outcome, tool.Failed, tool.ShowsOutcome)));
 
     [Fact]
     public void AnExpandedToolStaysExpandedWhileItsOutputStreams() =>
-        ViewModelScript.Given(new ToolViewModel(Running()))
+        ViewModelScript.Given(Tools.Of(Running()))
             .Invoke(nameof(ToolViewModel.ToggleCommand))
             .When(tool => tool.Update(Running() with { Output = "PASS src/money" }))
             .Then(tool => Assert.Equal((true, "PASS src/money"), (tool.IsExpanded, tool.Output)));
 
     [Fact]
     public void AHarnessToolShowsTheInputItWasCalledWith() =>
-        ViewModelScript.Given(new ToolViewModel(Running() with { Input = """{ "instruction": "Write the login tests" }""" }))
+        ViewModelScript.Given(Tools.Of(Running() with { Input = """{ "instruction": "Write the login tests" }""" }))
             .Then(tool => Assert.Equal("""{ "instruction": "Write the login tests" }""", tool.Input));
 
     [Theory]
@@ -68,7 +69,7 @@ public sealed class ToolViewModelScripts
     [InlineData("Reported", "Delegated to Extract the address step · reported its findings")]
     [InlineData("Refused", "Delegation refused · too many children")]
     public void ADelegateCallReadsAsWhatItDelegatedAndHowThatWent(string state, string title) =>
-        ViewModelScript.Given(new ToolViewModel(Delegating()))
+        ViewModelScript.Given(Tools.Of(Delegating()))
             .When(tool => tool.Update(Delegating() with { Delegation = Delegation(state) }))
             .ThenNotified(nameof(ToolViewModel.Title))
             .Then(tool => Assert.Equal(title, tool.Title));
@@ -78,13 +79,61 @@ public sealed class ToolViewModelScripts
     [InlineData("Reported", true, "Waited for Extract the address step · reported its findings")]
     [InlineData("Unknown", false, "Waiting for a sub-agent…")]
     public void AWaitForASubAgentReadsAsWhoItWaitsForAndHowThatWent(string state, bool ended, string title) =>
-        ViewModelScript.Given(new ToolViewModel(Waiting()))
+        ViewModelScript.Given(Tools.Of(Waiting()))
             .When(tool => tool.Update(Waiting() with
             {
                 Awaited = state == "Unknown" ? Option<DelegationRecord>.None : Delegation(state),
                 Outcome = ended ? ItemOutcome.Succeeded : Option<ItemOutcome>.None,
             }))
             .Then(tool => Assert.Equal(title, tool.Title));
+
+    [Fact]
+    public async Task CopyPutsTheToolsOutputOnTheClipboardAndConfirmsItAsync()
+    {
+        var clipboard = new FakeClipboard();
+        var tool = Tools.Of(Running() with { Output = "PASS src/money", Outcome = ItemOutcome.Succeeded }, clipboard);
+
+        await tool.CopyCommand.ExecuteAsync(null);
+
+        Assert.Equal(["PASS src/money"], clipboard.Copied);
+        Assert.True(tool.IsCopied);
+    }
+
+    [Fact]
+    public async Task ClickingAWrittenFilesLineOpensItsHunksInsteadOfExpandingAsync()
+    {
+        var changes = new FakeChanges { Hunks = { ["src/money.ts"] = Tools.Diff("src/money.ts") } };
+        var tool = Tools.InWorktree(new ToolEntry("t", ItemKind.FileEdit, "Edit src/money.ts", string.Empty, ItemOutcome.Succeeded), changes);
+
+        await tool.ToggleCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, false, true), (tool.ShowsChanges, tool.IsExpanded, tool.Changes.IsOpen));
+        Assert.Equal(("src/money.ts", string.Empty), (tool.Changes.Path, tool.Changes.Note));
+        Assert.Equal(["-    return units * 100", "+    return units * pow10(exponent)"], tool.Changes.Hunks.Single().Lines.Select(line => line.Text));
+    }
+
+    [Fact]
+    public async Task AFileEditStillBeingWrittenExpandsToItsInputAsync()
+    {
+        var tool = Tools.InWorktree(new ToolEntry("t", ItemKind.FileEdit, "Write src/money.ts", string.Empty, Option<ItemOutcome>.None) { Input = "export {}" }, new FakeChanges());
+
+        await tool.ToggleCommand.ExecuteAsync(null);
+
+        Assert.Equal((false, true, false), (tool.ShowsChanges, tool.IsExpanded, tool.Changes.IsOpen));
+    }
+
+    [Theory]
+    [InlineData("src/money.ts", "No changes left in this file.")]
+    [InlineData("src/gone.ts", "The changes of this file could not be read.")]
+    public async Task AFileWhoseHunksCannotBeShownSaysWhyAsync(string path, string note)
+    {
+        var changes = new FakeChanges { Hunks = { ["src/money.ts"] = new FileDiff("src/money.ts", false, []) } };
+        var tool = Tools.InWorktree(new ToolEntry("t", ItemKind.FileEdit, $"Edit {path}", string.Empty, ItemOutcome.Succeeded), changes);
+
+        await tool.ToggleCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, note), (tool.Changes.IsOpen, tool.Changes.Note));
+    }
 
     private static ToolEntry Waiting() =>
         new("item:3", ItemKind.Other, "wait_child", string.Empty, Option<ItemOutcome>.None) { Input = """{"child":"7"}""", WaitsFor = JobId.New() };

@@ -217,7 +217,7 @@ public sealed class ConversationViewModelScripts
         var clipboard = new FakeClipboard();
         var conversation = Open(new FakeJobs(), clipboard, new FakeFileSaver());
         conversation.Show(Board(Ran()));
-        conversation.Entries.OfType<ToolViewModel>().Last().ToggleCommand.Execute(null);
+        await conversation.Entries.OfType<ToolViewModel>().Last().ToggleCommand.ExecuteAsync(null);
 
         await conversation.CopyMarkdownCommand.ExecuteAsync(null);
 
@@ -270,5 +270,5 @@ public sealed class ConversationViewModelScripts
     private static ConversationViewModel Open(FakeJobs jobs) => Open(jobs, new FakeClipboard(), new FakeFileSaver());
 
     private static ConversationViewModel Open(FakeJobs jobs, FakeClipboard clipboard, FakeFileSaver saver) =>
-        new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, clipboard), new SendKeys(), new TranscriptExport(clipboard, saver)).Open(JobId.New());
+        new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, clipboard, Tools.Files()), new SendKeys(), new TranscriptExport(clipboard, saver)).Open(JobId.New());
 }

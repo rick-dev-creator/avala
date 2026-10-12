@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.FileChangesView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IFileChangesViewModel">
+  <Design.DataContext>
+    <conversation:DesignFileChangesViewModel />
+  </Design.DataContext>
+  <Border Classes="float" Padding="0" Width="640" MaxHeight="460">
+    <DockPanel>
+      <Border DockPanel.Dock="Top"
+              Padding="14,10"
+              BorderBrush="{DynamicResource SeparatorBrush}"
+              BorderThickness="0,0,0,1">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Path Classes="icon" Data="{StaticResource IconFileEdit}" VerticalAlignment="Center" />
+          <TextBlock x:Name="Path"
+                     Classes="mono"
+                     VerticalAlignment="Center"
+                     TextTrimming="PathSegmentEllipsis"
+                     Text="{Binding Path}" />
+        </StackPanel>
+      </Border>
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="12" Spacing="8">
+          <ItemsControl x:Name="Hunks" ItemsSource="{Binding Hunks}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <TextBlock x:Name="Note"
+                     Classes="caption"
+                     Text="{Binding Note}"
+                     IsVisible="{Binding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>

@@ -111,6 +111,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<SendKeys>()
             .AddForwarded<IHandle<AppearanceChanged>, SendKeys>()
             .AddSingleton<TimelineItems>()
+            .AddSingleton<WorkedFiles>()
             .AddSingleton<Conversations>()
             .AddSingleton<TranscriptExport>()
             .AddSingleton<ReviewReader>()
@@ -171,6 +172,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IWorkingViewModel, WorkingView>();
         views.Register<IReasoningViewModel, ReasoningView>();
         views.Register<IToolViewModel, ToolView>();
+        views.Register<IFileChangesViewModel, FileChangesView>();
         views.Register<IPlanViewModel, PlanView>();
         views.Register<IPlanPanelViewModel, PlanPanelView>();
         views.Register<IPlanStepViewModel, PlanStepView>();

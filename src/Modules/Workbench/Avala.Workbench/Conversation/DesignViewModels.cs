@@ -7,6 +7,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Presenting;
+using Avala.Workbench.Review;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -189,9 +190,30 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
 
     public bool IsCode => true;
 
-    public bool IsExpanded => false;
+    public bool IsExpanded { get; init; }
 
-    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+    public bool IsCopied => false;
+
+    public bool ShowsChanges { get; init; }
+
+    public IFileChangesViewModel Changes { get; init; } = new DesignFileChangesViewModel();
+
+    public IAsyncRelayCommand ToggleCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+internal sealed class DesignFileChangesViewModel : IFileChangesViewModel
+{
+    public string Path => "internal/money/minor.go";
+
+    public IReadOnlyList<IHunkViewModel> Hunks { get; } = [new DesignHunkViewModel()];
+
+    public string Note => string.Empty;
+
+    public bool IsOpen { get; set; }
+
+    public IAsyncRelayCommand ShowCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignPlanStepViewModel(string title, PlanStepStatus status) : IPlanStepViewModel
