@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 using AttemptOrigin = Avala.Jobs.Contracts.AttemptOrigin;
 using AttemptOutcome = Avala.Jobs.Contracts.AttemptOutcome;
 using HoldReason = Avala.Jobs.Contracts.HoldReason;
@@ -153,5 +154,41 @@ public sealed class JobLifecycleTests
         Outcomes.Succeeds(job.Hint(Given.Feedback));
 
         Assert.Equal((JobState.Running, Option<HoldReason>.None), (job.State, job.Held));
+    }
+
+    [Fact]
+    public void AJobThatCouldNotStartKeepsItsProblemAndTheWorkspaceItHadPrepared()
+    {
+        var job = Given.JobIn(JobState.Preparing);
+        Outcomes.Succeeds(job.Prepared(Given.Workspace));
+
+        Assert.Equal(new StartFailed(job.Id, Option<AttemptNumber>.None, "The file is locked."), Outcomes.Succeeds(job.CouldNotStart("The file is locked.")));
+        Assert.Equal(
+            (JobState.NeedsHelp, Option<HoldReason>.Some(HoldReason.CouldNotStart), Option<string>.Some("The file is locked."), Option<WorkspaceId>.Some(Given.Workspace)),
+            (job.State, job.Held, job.Problem, job.Workspace));
+    }
+
+    [Fact]
+    public void RetryingTheLaunchOfAJobThatCouldNotStartPreparesItAgainWithoutItsSessionOrProblem()
+    {
+        var job = Given.JobIn(JobState.Running);
+        Outcomes.Succeeds(job.CouldNotStart("The file is locked."));
+
+        Assert.Equal(new LaunchRetried(job.Id, Given.Workspace), Outcomes.Succeeds(job.RetryLaunch()));
+        Assert.Equal(
+            (JobState.Preparing, Option<HoldReason>.None, Option<string>.None, Option<SessionId>.None),
+            (job.State, job.Held, job.Problem, job.Session));
+        Assert.Equal(AttemptOutcome.Interrupted, Assert.Single(job.Attempts).Outcome);
+    }
+
+    [Fact]
+    public void AJobThatCouldNotStartTakesNoHintAndNoHandoff()
+    {
+        var job = Given.JobIn(JobState.Preparing);
+        Outcomes.Succeeds(job.CouldNotStart("The file is locked."));
+
+        Assert.Equal(JobError.CannotHint, Outcomes.ErrorOf(job.Hint(Given.Feedback)));
+        Assert.Equal(JobError.CannotHandOff, Outcomes.ErrorOf(job.HandOff(Given.Feedback, SessionId.New(), new Avala.Agents.Contracts.Connections.ConnectionName("personal"))));
+        Assert.Equal(JobState.NeedsHelp, job.State);
     }
 }

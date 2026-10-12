@@ -11,9 +11,6 @@ internal sealed class RecoverJob(JobLedger ledger, JobLauncher launcher, Evaluat
     {
         switch (job.State)
         {
-            case JobState.Preparing:
-                await launcher.LaunchAsync(job, cancellationToken);
-                break;
             case JobState.Checking:
                 await RecheckAsync(job, cancellationToken);
                 break;

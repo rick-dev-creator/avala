@@ -12,7 +12,7 @@ public sealed class JobLifecycleDiagramTests
             "job-lifecycle.md",
             "Job lifecycle",
             nameof(JobLifecycle),
-            JobLifecycle.Create(() => JobState.Draft, _ => { }, () => true).GetInfo(),
+            JobLifecycle.Create(() => JobState.Draft, _ => { }, () => true, () => true).GetInfo(),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(diagram.Expected, diagram.Documented);

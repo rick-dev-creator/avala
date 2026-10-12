@@ -200,6 +200,7 @@ internal static class ConversationPhrases
         JobRejection.NotAwaitingReview => "The job no longer awaits review.",
         JobRejection.NotSteerable => "This agent takes no message while it works.",
         JobRejection.NotApproved => "The job is not approved, so it cannot be reopened.",
+        JobRejection.NeverStarted => "The job never started, so it takes no message: retry it from the inspector's worktree section.",
         _ => "The job refused the command.",
     };
 
@@ -214,6 +215,7 @@ internal static class ConversationPhrases
         HoldReason.MemoryExceeded => "out of memory",
         HoldReason.Stopped => "stopped",
         HoldReason.NotResumable => "its conversation cannot resume",
+        HoldReason.CouldNotStart => "could not start",
         _ => "interrupted",
     };
 

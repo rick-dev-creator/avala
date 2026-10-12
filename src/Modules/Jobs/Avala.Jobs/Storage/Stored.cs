@@ -20,6 +20,10 @@ internal static class Stored
 
     public static string Text(Option<HoldReason> hold) => hold.Match(reason => reason.ToString(), () => string.Empty);
 
+    public static string Text(Option<string> problem) => problem.Match(found => found, () => string.Empty);
+
+    public static Option<string> Problem(string text) => text.Length == 0 ? Option<string>.None : text;
+
     public static ModelChoice Model(string text) => text.Length == 0 ? ModelChoice.Default : StoredJson.Read<ModelChoice>(text);
 
     public static Option<HoldReason> Hold(string text) => text.Length == 0 ? Option<HoldReason>.None : Enum.Parse<HoldReason>(text);

@@ -52,6 +52,7 @@ public sealed class FactPhrasesTests
     [InlineData("InvalidChecks", "held: invalid checks")]
     [InlineData("MemoryExceeded", "held: out of memory")]
     [InlineData("Stopped", "stopped")]
+    [InlineData("CouldNotStart", "could not start")]
     [InlineData("Interrupted", "interrupted")]
     [InlineData("", "held")]
     public void AHoldNamesItsReason(string reason, string phrase) =>

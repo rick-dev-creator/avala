@@ -4,6 +4,7 @@ internal enum Operation
 {
     Submit,
     Start,
+    RecordWorkspace,
     Recover,
     Recheck,
     CompleteTurn,
@@ -22,6 +23,9 @@ internal enum Operation
     Hold,
     HoldOverBudget,
     HoldUnverifiable,
+    HoldForAFailedStart,
+    CouldNotStart,
+    RetryLaunch,
     HandOff,
     Reopen,
     ReopenInNewSession,

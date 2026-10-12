@@ -17,6 +17,9 @@ internal sealed class WorkspacePlanner(IWorkspaces workspaces, IRepositoryDefaul
 
     public Task<Result<WorkspaceInfo, WorkspaceFailure>> FindAsync(Job job, CancellationToken cancellationToken) => workspaces.FindAsync(job, cancellationToken);
 
+    public async Task<bool> RemoveAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
+        (await workspaces.RemoveAsync(workspace, cancellationToken)).Match(_ => true, failure => failure == WorkspaceFailure.UnknownWorkspace);
+
     public async Task<Result<Option<ConnectionName>, JobRejection>> ConnectionOfAsync(
         Job job,
         WorkspaceInfo workspace,

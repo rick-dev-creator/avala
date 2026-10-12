@@ -42,7 +42,7 @@ public sealed class HoldJobTests
         var hold = Outcomes.Succeeds(await flow.Jobs.HoldAsync(job.Id, HoldReason.BudgetExceeded, Cancellation));
 
         Assert.Equal(expected, hold.Halt);
-        Assert.Equal(expected == SessionHalt.Stopped, flow.Agents.Stopped.Contains(hold.Session));
+        Assert.Equal(expected == SessionHalt.Stopped, flow.Agents.Stopped.Select(Option<SessionId>.Some).Contains(hold.Session));
     }
 
     [Theory]
@@ -57,7 +57,7 @@ public sealed class HoldJobTests
 
         Assert.Equal(SessionHalt.Stopped, hold.Halt);
         Assert.Empty(flow.Agents.Interrupted);
-        Assert.Equal([hold.Session], flow.Agents.Stopped);
+        Assert.Equal([hold.Session], flow.Agents.Stopped.Select(Option<SessionId>.Some));
     }
 
     [Fact]

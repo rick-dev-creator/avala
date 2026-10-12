@@ -17,6 +17,8 @@ namespace Avala.Workbench.Inspector;
 
 internal static class InspectorPhrases
 {
+    public const string CouldNotStart = "could not start";
+
     public static string Chosen(ConnectionChoice choice) => choice.Reason switch
     {
         ChoiceReason.Person => $"Moved to {choice.Connection.Value} by you",
@@ -161,6 +163,8 @@ internal static class InspectorPhrases
 
     public static string RaiseRefused(BudgetError error) =>
         "The budget was not raised: " + (error == BudgetError.NotOverBudget ? "the job is no longer held over its budget" : "the budget refused it");
+
+    public static string NotRetried(JobRejection rejection) => $"The job did not start again. {ConversationPhrases.Rejection(rejection)}";
 
     public static string NotContinued(JobRejection rejection) => $"The budget was raised, but the job did not continue. {ConversationPhrases.Rejection(rejection)}";
 

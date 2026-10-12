@@ -7,7 +7,8 @@ internal static class JobLifecycle
     public static StateMachine<JobState, JobTrigger> Create(
         Func<JobState> read,
         Action<JobState> write,
-        Func<bool> hasRetriesLeft)
+        Func<bool> hasRetriesLeft,
+        Func<bool> started)
     {
         var machine = new StateMachine<JobState, JobTrigger>(read, write);
 
@@ -24,13 +25,15 @@ internal static class JobLifecycle
 
         machine.Configure(JobState.Preparing)
             .SubstateOf(JobState.Active)
-            .Permit(JobTrigger.Start, JobState.Running);
+            .Permit(JobTrigger.Start, JobState.Running)
+            .Permit(JobTrigger.HoldUnstarted, JobState.NeedsHelp);
 
         machine.Configure(JobState.Running)
             .SubstateOf(JobState.Active)
             .Permit(JobTrigger.CompleteTurn, JobState.Checking)
             .Permit(JobTrigger.Hold, JobState.NeedsHelp)
             .Permit(JobTrigger.HoldOverBudget, JobState.NeedsHelp)
+            .Permit(JobTrigger.HoldUnstarted, JobState.NeedsHelp)
             .PermitReentry(JobTrigger.Recover);
 
         machine.Configure(JobState.Checking)
@@ -45,8 +48,9 @@ internal static class JobLifecycle
 
         machine.Configure(JobState.NeedsHelp)
             .SubstateOf(JobState.Open)
-            .Permit(JobTrigger.Hint, JobState.Running)
-            .Permit(JobTrigger.HandOff, JobState.Running);
+            .PermitIf(JobTrigger.Hint, JobState.Running, started, "started")
+            .PermitIf(JobTrigger.HandOff, JobState.Running, started, "started")
+            .PermitIf(JobTrigger.RetryLaunch, JobState.Preparing, () => !started(), "could not start");
 
         machine.Configure(JobState.AwaitingReview)
             .SubstateOf(JobState.Open)

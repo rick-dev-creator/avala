@@ -13,23 +13,33 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 {
     public const string RestartNote = "The harness restarted while you were working on this job. Continue where you left off.";
 
-    public async Task LaunchAsync(Job job, CancellationToken cancellationToken)
+    public const string GitCouldNotPrepare = "Git could not prepare the worktree.";
+
+    public const string LeftoverKept = "The worktree of the earlier start could not be removed.";
+
+    public async Task<Option<string>> LaunchAsync(Job job, CancellationToken cancellationToken)
     {
         if (job.State != JobState.Preparing)
         {
-            return;
+            return Option<string>.None;
         }
 
-        if (!(await planner.PrepareAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        if (!await job.Workspace.Match(leftover => planner.RemoveAsync(leftover, cancellationToken), () => Task.FromResult(true)))
         {
-            await FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken);
-            return;
+            return LeftoverKept;
         }
+
+        if (!(await planner.PrepareAsync(job, cancellationToken)).TryGetValue(out var workspace, out var failure))
+        {
+            return await UnpreparedAsync(job, failure, cancellationToken);
+        }
+
+        _ = job.Prepared(workspace.Id);
 
         if (!(await planner.ConnectionOfAsync(job, workspace, cancellationToken)).TryGetValue(out var connection, out _))
         {
             await FailAsync(job, FailureReason.ConnectionUnavailable, cancellationToken);
-            return;
+            return Option<string>.None;
         }
 
         var model = await planner.ModelOfAsync(job, workspace, cancellationToken);
@@ -37,13 +47,15 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         if (!(await agents.OpenAsync(new AgentRequest(workspace.Path) { Connection = connection, Model = model }, cancellationToken)).TryGetValue(out var opened, out var error))
         {
             await FailAsync(job, Failure(error), cancellationToken);
-            return;
+            return Option<string>.None;
         }
 
         if (job.Start(workspace.Id, opened.Session, opened.Connection).IsSuccess)
         {
             await BeginAsync(job, opened.Session, job.Instruction.Text, cancellationToken);
         }
+
+        return Option<string>.None;
     }
 
     public async Task RelaunchAsync(Job job, CancellationToken cancellationToken)
@@ -110,21 +122,25 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     }
 
     public async Task<Result<JobContinuation, JobRejection>> ContinueAsync(Job job, Feedback guidance, CancellationToken cancellationToken) =>
-        job.State == JobState.NeedsHelp
-            ? await NextRoundAsync(job, guidance, Round.Hint, cancellationToken)
-            : JobRejection.NotHeld;
+        await Unheld(job).Match(
+            rejection => Task.FromResult(Result<JobContinuation, JobRejection>.Failure(rejection)),
+            () => NextRoundAsync(job, guidance, Round.Hint, cancellationToken));
 
     public async Task<Result<JobContinuation, JobRejection>> ContinueOnAsync(
         Job job,
         ConnectionName connection,
         Feedback guidance,
+        CancellationToken cancellationToken) =>
+        await Unheld(job).Match(
+            rejection => Task.FromResult(Result<JobContinuation, JobRejection>.Failure(rejection)),
+            () => ContinueOnNowAsync(job, connection, guidance, cancellationToken));
+
+    private async Task<Result<JobContinuation, JobRejection>> ContinueOnNowAsync(
+        Job job,
+        ConnectionName connection,
+        Feedback guidance,
         CancellationToken cancellationToken)
     {
-        if (job.State != JobState.NeedsHelp)
-        {
-            return JobRejection.NotHeld;
-        }
-
         if (job.Connection == Option<ConnectionName>.Some(connection))
         {
             return JobRejection.SameConnection;
@@ -162,9 +178,9 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
     }
 
     public async Task<Result<JobContinuation, JobRejection>> HandOffAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
-        job.State == JobState.NeedsHelp
-            ? await HandOffNowAsync(job, handoff, cancellationToken)
-            : JobRejection.NotHeld;
+        await Unheld(job).Match(
+            rejection => Task.FromResult(Result<JobContinuation, JobRejection>.Failure(rejection)),
+            () => HandOffNowAsync(job, handoff, cancellationToken));
 
     public async Task<Result<JobContinuation, JobRejection>> HandOffAfterTurnAsync(Job job, JobHandoff handoff, CancellationToken cancellationToken) =>
         job.State == JobState.Checking
@@ -285,6 +301,23 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
         await agents.OpenAsync(
             new AgentRequest(workspace.Path) { Resume = job.Resume, Connection = job.Connection, Model = await planner.ModelOfAsync(job, workspace, cancellationToken) },
             cancellationToken);
+
+    private static Option<JobRejection> Unheld(Job job) =>
+        job.State != JobState.NeedsHelp ? JobRejection.NotHeld
+        : job.Held == Option<HoldReason>.Some(HoldReason.CouldNotStart) ? JobRejection.NeverStarted
+        : Option<JobRejection>.None;
+
+    private async Task<Option<string>> UnpreparedAsync(Job job, WorkspaceFailure failure, CancellationToken cancellationToken)
+    {
+        if (failure == WorkspaceFailure.GitFailed)
+        {
+            return GitCouldNotPrepare;
+        }
+
+        await FailAsync(job, FailureReason.WorkspaceUnavailable, cancellationToken);
+
+        return Option<string>.None;
+    }
 
     private static JobRejection Rejection(AgentError error) => error switch
     {

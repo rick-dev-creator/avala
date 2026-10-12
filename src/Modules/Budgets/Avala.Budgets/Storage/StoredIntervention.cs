@@ -37,7 +37,7 @@ internal sealed class StoredIntervention
     public static StoredIntervention Of(BudgetIntervention intervention) => new()
     {
         Job = intervention.Hold.Job.Value,
-        Session = intervention.Hold.Session.Value,
+        Session = intervention.Hold.Session.Match(session => session.Value, () => Guid.Empty),
         Reason = intervention.Hold.Reason.ToString(),
         Halt = intervention.Hold.Halt.ToString(),
         Attempt = intervention.Hold.Attempt,
@@ -51,7 +51,7 @@ internal sealed class StoredIntervention
     };
 
     public BudgetIntervention Intervention() => new(
-        new JobHold(new JobId(Job), new SessionId(Session), Enum.Parse<HoldReason>(Reason), Enum.Parse<SessionHalt>(Halt)) { Attempt = Attempt },
+        new JobHold(new JobId(Job), Session == Guid.Empty ? Option<SessionId>.None : new SessionId(Session), Enum.Parse<HoldReason>(Reason), Enum.Parse<SessionHalt>(Halt)) { Attempt = Attempt },
         new BudgetBreach(
             Enum.Parse<BudgetMeasure>(Measure),
             Subject,

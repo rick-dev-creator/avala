@@ -10,7 +10,9 @@ internal sealed class FakeWorkspaces : IWorkspaces
     private readonly ConcurrentQueue<WorkspaceRequest> requests = new();
     private readonly ConcurrentQueue<(WorkspaceId Workspace, string Label)> checkpoints = new();
 
-    public bool PreparationFails { get; init; }
+    public Option<WorkspaceFailure> PreparationFailure { get; init; }
+
+    public bool RemovalFails { get; set; }
 
     public IReadOnlyList<string> Requests => [.. requests.Select(request => request.RepositoryPath)];
 
@@ -25,9 +27,9 @@ internal sealed class FakeWorkspaces : IWorkspaces
     {
         requests.Enqueue(request);
 
-        if (PreparationFails)
+        if (PreparationFailure.IsSome)
         {
-            return ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Failure(WorkspaceFailure.GitFailed));
+            return ValueTask.FromResult(Result<WorkspaceInfo, WorkspaceFailure>.Failure(PreparationFailure.Match(failure => failure, () => WorkspaceFailure.GitFailed)));
         }
 
         var id = WorkspaceId.New();
@@ -61,7 +63,8 @@ internal sealed class FakeWorkspaces : IWorkspaces
         ValueTask.FromResult(new WorktreeReconciliation([], []));
 
     public ValueTask<Result<WorkspaceId, WorkspaceFailure>> RemoveAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(prepared.TryRemove(workspace, out _)
+        ValueTask.FromResult(RemovalFails ? Result<WorkspaceId, WorkspaceFailure>.Failure(WorkspaceFailure.GitFailed)
+            : prepared.TryRemove(workspace, out _)
             ? Result<WorkspaceId, WorkspaceFailure>.Success(workspace)
             : Result<WorkspaceId, WorkspaceFailure>.Failure(WorkspaceFailure.UnknownWorkspace));
 }

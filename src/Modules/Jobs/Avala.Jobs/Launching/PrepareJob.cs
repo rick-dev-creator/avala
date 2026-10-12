@@ -5,7 +5,7 @@ using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
 namespace Avala.Jobs.Launching;
 
-internal sealed class PrepareJob(JobQueues queues, JobLauncher launcher, IEnumerable<IJobAdmission> admissions) : IHandle<JobAnnouncement>
+internal sealed class PrepareJob(JobQueues queues, StartJob start, IEnumerable<IJobAdmission> admissions) : IHandle<JobAnnouncement>
 {
     public async ValueTask HandleAsync(JobAnnouncement integrationEvent, CancellationToken cancellationToken)
     {
@@ -14,6 +14,6 @@ internal sealed class PrepareJob(JobQueues queues, JobLauncher launcher, IEnumer
             await admission.AdmitAsync(integrationEvent.Job, cancellationToken);
         }
 
-        await queues.PostAsync(integrationEvent.Job, launcher.LaunchAsync, cancellationToken);
+        await queues.PostAsync(integrationEvent.Job, start.ExecuteAsync, cancellationToken);
     }
 }
