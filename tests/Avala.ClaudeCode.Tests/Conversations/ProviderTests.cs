@@ -360,7 +360,9 @@ public sealed class ProviderTests
 
         Assert.Equal(
             "Avala shows the person your work inside its conversation. When you are asked to show something visual, such as a chart, a diagram or a drawing, "
-            + $"call the mcp__avala__canvas tool with {formats}: Avala draws it right there. Do not write an HTML file or open a browser to show it.",
+            + $"call the mcp__avala__canvas tool with {formats}: Avala draws it right there, as a still picture. "
+            + "Do not write an HTML file or open a browser to show it, unless it must move or respond to input, such as an animation or a three.js scene: "
+            + "then write a self-contained HTML file and give its path, which the person opens in their browser from Avala.",
             After(cli.Launches.Single().Arguments, "--append-system-prompt"));
     }
 
