@@ -1,4 +1,5 @@
 using Avala.Jobs.Contracts;
+using Avala.Testing;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Linking;
 using Avala.Workbench.Reviewing;
@@ -23,9 +24,9 @@ internal static class Tools
 
 internal sealed class Worktree
 {
-    public const string Folder = "/worktrees/fix-rounding";
+    public static readonly string Folder = HostPaths.Rooted("/worktrees/fix-rounding");
 
-    public const string Repository = "/repo";
+    public static readonly string Repository = HostPaths.Rooted("/repo");
 
     public FakeChanges Changes { get; init; } = new();
 
@@ -43,7 +44,7 @@ internal sealed class Worktree
         var workspaces = new FakeWorkspaces();
         var workspace = WorkspaceId.New();
         Job = catalog.Add("Draw the solar system", JobStatus.Running).Summary.Job;
-        catalog.Change(Job, history => history with { Summary = history.Summary with { Workspace = workspace } });
+        catalog.Change(Job, history => history with { Summary = history.Summary with { Workspace = workspace, Repository = Repository } });
 
         if (!Gone)
         {

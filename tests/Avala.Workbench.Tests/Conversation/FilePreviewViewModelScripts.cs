@@ -28,7 +28,7 @@ public sealed class FilePreviewViewModelScripts
     public async Task ASmallWrittenImageShowsItsThumbnailUnderItsLineAsync()
     {
         var worktree = new Worktree();
-        worktree.Files.Stored[$"{Worktree.Folder}/orbit.png"] = Png;
+        worktree.Files.Stored[Path.Combine(Worktree.Folder, "orbit.png")] = Png;
         var tool = worktree.Tool(Written("orbit.png"));
 
         await (tool.Preview.LoadCommand.ExecutionTask ?? Task.CompletedTask);
@@ -41,7 +41,7 @@ public sealed class FilePreviewViewModelScripts
     public async Task ALargeImageHasNoThumbnailButStillOpensInTheSheetAsync()
     {
         var worktree = new Worktree();
-        worktree.Files.Stored[$"{Worktree.Folder}/atlas.png"] = new byte[FilePreviewViewModel.ThumbnailLimit + 1];
+        worktree.Files.Stored[Path.Combine(Worktree.Folder, "atlas.png")] = new byte[FilePreviewViewModel.ThumbnailLimit + 1];
         var tool = worktree.Tool(Written("atlas.png"));
         await (tool.Preview.LoadCommand.ExecutionTask ?? Task.CompletedTask);
 
@@ -54,7 +54,7 @@ public sealed class FilePreviewViewModelScripts
     public async Task AnSvgOpensInTheSheetDrawnAsASvgCanvasAndClosesAsync()
     {
         var worktree = new Worktree();
-        worktree.Files.Stored[$"{Worktree.Folder}/orbits.svg"] = Encoding.UTF8.GetBytes("<svg/>");
+        worktree.Files.Stored[Path.Combine(Worktree.Folder, "orbits.svg")] = Encoding.UTF8.GetBytes("<svg/>");
         var tool = worktree.Tool(Written("orbits.svg"));
 
         await tool.Preview.OpenCommand.ExecuteAsync(null);
@@ -66,18 +66,18 @@ public sealed class FilePreviewViewModelScripts
     }
 
     [Theory]
-    [InlineData(false, "file:///worktrees/fix-rounding/sistema-solar.html")]
-    [InlineData(true, "file:///repo/sistema-solar.html")]
-    public async Task APageOpensInTheBrowserFromTheWorktreeOrOnceItIsGoneFromTheRepositoryAsync(bool gone, string opened)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task APageOpensInTheBrowserFromTheWorktreeOrOnceItIsGoneFromTheRepositoryAsync(bool gone)
     {
         var worktree = new Worktree { Gone = gone };
-        worktree.Files.Stored[$"{Worktree.Folder}/sistema-solar.html"] = [60];
-        worktree.Files.Stored[$"{Worktree.Repository}/sistema-solar.html"] = [60];
+        worktree.Files.Stored[Path.Combine(Worktree.Folder, "sistema-solar.html")] = [60];
+        worktree.Files.Stored[Path.Combine(Worktree.Repository, "sistema-solar.html")] = [60];
         var tool = worktree.Tool(Written("sistema-solar.html"));
 
         await tool.Preview.OpenCommand.ExecuteAsync(null);
 
-        Assert.Equal([new Uri(opened)], worktree.Opener.Opened);
+        Assert.Equal([new Uri(Path.Combine(gone ? Worktree.Repository : Worktree.Folder, "sistema-solar.html"))], worktree.Opener.Opened);
         Assert.Equal((false, string.Empty, "Open in your browser"), (tool.Preview.IsOpen, tool.Preview.Notice, tool.Preview.Hint));
     }
 

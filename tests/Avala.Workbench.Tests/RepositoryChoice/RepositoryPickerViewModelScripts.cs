@@ -29,7 +29,7 @@ public sealed class RepositoryPickerViewModelScripts
 
         picker.ShowKnown();
 
-        Assert.Equal((scratch, title, detail), (picker.IsScratch, picker.Title, picker.Detail));
+        Assert.Equal((scratch, title, detail.Replace('/', Path.DirectorySeparatorChar)), (picker.IsScratch, picker.Title, picker.Detail));
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class RepositoryChoiceViewModelScripts
 
         choice.ChooseCommand.Execute(null);
 
-        Assert.Equal(("shop-api", "/home/ada/code"), (choice.Title, choice.Detail));
+        Assert.Equal(("shop-api", "/home/ada/code".Replace('/', Path.DirectorySeparatorChar)), (choice.Title, choice.Detail));
         Assert.Equal(["/home/ada/code/shop-api"], chosen);
     }
 }

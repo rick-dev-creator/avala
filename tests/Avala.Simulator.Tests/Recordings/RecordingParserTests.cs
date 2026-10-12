@@ -35,18 +35,19 @@ public sealed class RecordingParserTests
     [Fact]
     public void ADraftACanvasAUsageLimitThatResetsAndAWithdrawnRequestAreReplayedWithTheirFields()
     {
+        var work = HostPaths.Rooted("/work");
         var recorded = Outcomes.Succeeds(RecordingParser.Parse(
             Recorded.Session(
                 """{ "at": 0, "event": { "type": "itemDrafted", "turn": 1, "item": "write", "kind": "fileEdit", "title": "Write ${workingDirectory}/notes.md", "received": 512 } }""",
                 """{ "at": 0, "event": { "type": "canvasStarted", "turn": 1, "item": "sketch", "title": "Sketch of ${workingDirectory}", "mediaType": "image/svg+xml" } }""",
                 """{ "at": 5, "event": { "type": "limitReported", "turn": 1, "limit": { "window": "fiveHours", "usedFraction": 0.5, "resetsAt": "2026-10-09T13:30:00+00:00" } } }""",
                 """{ "at": 6, "event": { "type": "requestWithdrawn", "turn": 1, "item": "migrate" } }"""),
-            "/work"));
+            work));
 
         Assert.Equal(
             [
-                new ItemDrafted(default, default, new ItemId("write"), ItemKind.FileEdit, "Write /work/notes.md", 512),
-                new CanvasStarted(default, default, new ItemId("sketch"), "Sketch of /work", "image/svg+xml"),
+                new ItemDrafted(default, default, new ItemId("write"), ItemKind.FileEdit, $"Write {Path.Combine(work, "notes.md")}", 512),
+                new CanvasStarted(default, default, new ItemId("sketch"), $"Sketch of {work}", "image/svg+xml"),
                 new LimitReported(default, default, new UsageLimit("fiveHours", 0.5, new DateTimeOffset(2026, 10, 9, 13, 30, 0, TimeSpan.Zero))),
                 new RequestWithdrawn(default, default, new ItemId("migrate")),
             ],

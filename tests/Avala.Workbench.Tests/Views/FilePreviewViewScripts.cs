@@ -49,7 +49,7 @@ public sealed class FilePreviewViewScripts(HeadlessUi ui)
 
         if (bytes.Length > 0)
         {
-            worktree.Files.Stored[$"{Worktree.Folder}/{path}"] = bytes;
+            worktree.Files.Stored[Path.Combine(Worktree.Folder, path)] = bytes;
         }
 
         var worked = worktree.Worked();

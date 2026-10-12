@@ -48,7 +48,7 @@ public sealed class MarkdownReplyTests(HeadlessUi ui, PublishedPlugins plugins)
             },
             Cancellation);
 
-        Assert.Equal(("func ToMinor(amount Money) int64 {\n    return amount.Units * pow10(amount.Currency.Exponent)\n}", 1, 1), drawn);
+        Assert.Equal(("func ToMinor(amount Money) int64 {\n    return amount.Units * pow10(amount.Currency.Exponent)\n}", 1, 1), (drawn.Code.ReplaceLineEndings("\n"), drawn.Tables, drawn.Lists));
         Assert.Equal([new Uri("https://www.iso.org/iso-4217-currency-codes.html")], run.Links.Opened);
         Assert.Equal("Avala opens only web links, so file:///etc/passwd was not opened.", notice);
     }
