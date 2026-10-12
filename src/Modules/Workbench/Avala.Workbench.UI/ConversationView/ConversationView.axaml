@@ -4,6 +4,8 @@
              xmlns:conversation="using:Avala.Workbench.Conversation"
              x:Class="Avala.Workbench.UI.ConversationView"
              x:ClassModifier="internal"
+             xmlns:markdown="using:Avala.Components.UI.Markdown"
+             markdown:MarkdownStyles.AreShared="True"
              x:DataType="conversation:IConversationViewModel">
   <Design.DataContext>
     <conversation:DesignConversationViewModel />
