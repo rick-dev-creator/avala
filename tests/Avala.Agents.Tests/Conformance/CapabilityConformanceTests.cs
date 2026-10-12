@@ -78,6 +78,19 @@ public sealed class CapabilityConformanceTests
 
     [Theory]
     [InlineData(true, "")]
+    [InlineData(false, "the item write was drafted although the provider does not declare StreamsPartialOutput")]
+    public async Task AnItemIsDraftedOnlyByAProviderThatStreamsPartialOutputAsync(bool declared, string expected)
+    {
+        var provider = new ScriptedAgentProvider(Drafting)
+        {
+            Capabilities = declared ? Everything : Everything.Without<StreamsPartialOutput>(),
+        };
+
+        Assert.Equal(expected, string.Join('|', await AgentConformance.CheckTurnAsync(provider, Deadline)));
+    }
+
+    [Theory]
+    [InlineData(true, "")]
     [InlineData(false, "no usage was reported although the provider declares ReportsUsage|no cost was reported although the provider declares ReportsCost|no limit was reported although the provider declares ReportsLimits")]
     public async Task AProviderReportsTheUsageCostAndLimitsItDeclaresAsync(bool reports, string expected)
     {
@@ -212,6 +225,14 @@ public sealed class CapabilityConformanceTests
         new TurnStarted(session, turn),
         new UsageReported(session, turn, new TokenUsage(10, 5, 0, 0, 0), new Cost(0.01m, "USD")),
         new LimitReported(session, turn, new UsageLimit("5h", 0.4, Option<DateTimeOffset>.None)),
+        new TurnCompleted(session, turn, TurnOutcome.Finished),
+    ];
+
+    private static IEnumerable<IAgentEvent> Drafting(SessionId session, TurnId turn) =>
+    [
+        new TurnStarted(session, turn),
+        new ItemDrafted(session, turn, new ItemId("write"), ItemKind.FileEdit, "Write notes.md", 512),
+        new ItemDrafted(session, turn, new ItemId("write"), ItemKind.FileEdit, "Write notes.md", 1024),
         new TurnCompleted(session, turn, TurnOutcome.Finished),
     ];
 

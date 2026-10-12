@@ -13,7 +13,7 @@ internal sealed class SettingsLink(SettingsViewModel settings, JobFocus focus)
     {
         Open();
 
-        return settings.Machine.SourceControl.ConnectCommand.ExecuteAsync(null);
+        return settings.Machine.Accounts.SourceControl.ConnectCommand.ExecuteAsync(null);
     }
 }
 

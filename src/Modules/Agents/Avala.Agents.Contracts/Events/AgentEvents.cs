@@ -10,6 +10,8 @@ public sealed record ItemStarted(SessionId Session, TurnId Turn, ItemId Item, It
     public Option<string> Input { get; init; }
 }
 
+public sealed record ItemDrafted(SessionId Session, TurnId Turn, ItemId Item, ItemKind Kind, string Title, int Received) : IAgentEvent;
+
 public sealed record CanvasStarted(SessionId Session, TurnId Turn, ItemId Item, string Title, string MediaType) : IAgentEvent;
 
 public sealed record ItemProgressed(SessionId Session, TurnId Turn, ItemId Item, string Text) : IAgentEvent;

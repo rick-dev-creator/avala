@@ -1,3 +1,4 @@
+using Avala.Sdk;
 using Avala.Workbench.Linking;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -13,17 +14,23 @@ internal interface IMessageViewModel
 
     string LinkNotice { get; }
 
+    bool IsCopied { get; }
+
     IAsyncRelayCommand<string> OpenLinkCommand { get; }
+
+    IAsyncRelayCommand CopyCommand { get; }
 }
 
 [INotifyPropertyChanged]
 internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineItem
 {
     private readonly Links links;
+    private readonly IClipboard clipboard;
 
-    public MessageViewModel(MessageEntry entry, Links links)
+    public MessageViewModel(MessageEntry entry, Links links, IClipboard clipboard)
     {
         this.links = links;
+        this.clipboard = clipboard;
         Text = string.Empty;
         Update(entry);
     }
@@ -38,6 +45,9 @@ internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineIte
 
     [ObservableProperty]
     public partial string LinkNotice { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsCopied { get; private set; }
 
     public void Update(ITimelineEntry entry)
     {
@@ -54,5 +64,12 @@ internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineIte
         var text = link ?? string.Empty;
         var opened = await links.OpenAsync(text, cancellationToken);
         LinkNotice = opened.Match(_ => string.Empty, refusal => ConversationPhrases.Link(refusal, text));
+    }
+
+    [RelayCommand]
+    private async Task CopyAsync(CancellationToken cancellationToken)
+    {
+        IsCopied = false;
+        IsCopied = await clipboard.CopyAsync(Text, cancellationToken);
     }
 }

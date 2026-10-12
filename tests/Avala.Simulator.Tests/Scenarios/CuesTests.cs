@@ -20,6 +20,7 @@ public sealed class CuesTests
     {
         IAgentEvent[] recorded =
         [
+            new ItemDrafted(recording.Session, recording.Turn, Item, ItemKind.FileEdit, "Edit GREETING.md", 512),
             recording.Opened(Item, ItemKind.FileEdit, "Edit GREETING.md"),
             new CanvasStarted(recording.Session, recording.Turn, Item, "Sketch", "image/svg+xml"),
             recording.Progressed(Item, "# Hello"),

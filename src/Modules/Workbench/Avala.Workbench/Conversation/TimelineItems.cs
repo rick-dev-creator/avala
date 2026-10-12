@@ -1,3 +1,4 @@
+using Avala.Sdk;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Linking;
 using Avala.Workbench.Replies;
@@ -5,13 +6,13 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Conversation;
 
-internal sealed class TimelineItems(HumanReplies replies, Links links)
+internal sealed class TimelineItems(HumanReplies replies, Links links, IClipboard clipboard)
 {
     public ITimelineItem Create(ITimelineEntry entry) => entry switch
     {
-        PromptEntry prompt => new PromptViewModel(prompt),
+        PromptEntry prompt => new PromptViewModel(prompt, clipboard),
         InterjectionEntry interjection => new InterjectionViewModel(interjection),
-        MessageEntry message => new MessageViewModel(message, links),
+        MessageEntry message => new MessageViewModel(message, links, clipboard),
         ReasoningEntry reasoning => new ReasoningViewModel(reasoning),
         ToolEntry tool => new ToolViewModel(tool),
         PlanEntry plan => new PlanViewModel(plan),

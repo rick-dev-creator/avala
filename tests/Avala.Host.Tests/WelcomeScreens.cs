@@ -36,8 +36,25 @@ public sealed class WelcomeScreens(HeadlessUi ui, PublishedPlugins plugins)
         Gated();
         await using (var run = await SimulatedRun.PreparedAsync(plugins, Forges, []))
         {
-            await WelcomedAsync(run);
+            var workbench = await WelcomedAsync(run);
             await ShootBothAsync(run, "60-welcome");
+
+            await run.Ui.RunAsync(() =>
+            {
+                workbench.Page["Welcome"]["Harness"].Set("IsOpen", true);
+
+                return Task.CompletedTask;
+            });
+            await ShootBothAsync(run, "69-welcome-harness-menu");
+
+            var harness = workbench.Page["Welcome"]["Harness"];
+            await run.Ui.RunAsync(() =>
+            {
+                ((System.Windows.Input.ICommand)harness["Options"].Items[1]["ChooseCommand"].Target).Execute(null);
+
+                return harness["Offering"].Value<Task>();
+            });
+            await ShootBothAsync(run, "70-welcome-harness-chosen");
         }
 
         await using var bare = await SimulatedRun.PreparedAsync(plugins, [], [], developer: false);
@@ -73,7 +90,7 @@ public sealed class WelcomeScreens(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task SettingsAccountsWithDetectedAndAddedAccountsAndTheConnectSheetAsync()
+    public async Task SettingsAccountsWithDetectedAndAddedAccountsAndTheConnectSheetWithItsTokenFieldAsync()
     {
         Gated();
         await using var run = await SimulatedRun.PreparedAsync(plugins, Forges, [], signIns: SignedIn);
@@ -85,11 +102,19 @@ public sealed class WelcomeScreens(HeadlessUi ui, PublishedPlugins plugins)
 
             return settings["Loading"].Value<Task>();
         });
-        await ShootBothAsync(run, "64-settings-accounts", window => FeatureCamera.ScrollTo(window, "Accounts"));
+        await ShootBothAsync(run, "64-settings-accounts");
 
-        var sourceControl = settings["Machine"]["SourceControl"];
+        var sourceControl = settings["Machine"]["Accounts"]["SourceControl"];
         await run.Ui.RunAsync(() => sourceControl.ExecuteAsync("ConnectCommand"));
         await ShootBothAsync(run, "65-connect-sheet");
+
+        await run.Ui.RunAsync(() =>
+        {
+            sourceControl["Sheet"].Set("UsesToken", true);
+
+            return Task.CompletedTask;
+        });
+        await ShootBothAsync(run, "68-connect-sheet-token");
     }
 
     [Fact]

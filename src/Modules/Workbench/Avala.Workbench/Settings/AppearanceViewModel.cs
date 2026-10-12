@@ -25,6 +25,8 @@ internal interface IAppearanceViewModel
 
     bool IsReadingWide { get; }
 
+    bool SendsWithCommandEnter { get; }
+
     string Error { get; }
 
     IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; }
@@ -33,6 +35,8 @@ internal interface IAppearanceViewModel
 
     IAsyncRelayCommand<ReadingChoice> ChooseReadingCommand { get; }
 
+    IAsyncRelayCommand ToggleSendKeyCommand { get; }
+
     Task LoadAsync(CancellationToken cancellationToken);
 }
 
@@ -40,7 +44,7 @@ internal interface IAppearanceViewModel
 internal sealed partial class AppearanceViewModel(IAppearance appearance) : IAppearanceViewModel
 {
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(FollowsSystem), nameof(IsLight), nameof(IsDark), nameof(MotionFollowsSystem), nameof(IsMotionReduced), nameof(IsMotionFull), nameof(IsReadingComfortable), nameof(IsReadingWide))]
+    [NotifyPropertyChangedFor(nameof(FollowsSystem), nameof(IsLight), nameof(IsDark), nameof(MotionFollowsSystem), nameof(IsMotionReduced), nameof(IsMotionFull), nameof(IsReadingComfortable), nameof(IsReadingWide), nameof(SendsWithCommandEnter))]
     public partial AppearancePreference Preference { get; private set; } = AppearancePreference.Default;
 
     [ObservableProperty]
@@ -64,6 +68,7 @@ internal sealed partial class AppearanceViewModel(IAppearance appearance) : IApp
     public bool IsReadingComfortable => Preference.Reading == ReadingChoice.Comfortable;
 
     public bool IsReadingWide => Preference.Reading == ReadingChoice.Wide;
+    public bool SendsWithCommandEnter => Preference.Send == SendKey.CommandEnter;
 
     public async Task LoadAsync(CancellationToken cancellationToken) => Show(await appearance.ReadAsync(cancellationToken));
 
@@ -78,6 +83,10 @@ internal sealed partial class AppearanceViewModel(IAppearance appearance) : IApp
     [RelayCommand]
     private Task ChooseReadingAsync(ReadingChoice reading, CancellationToken cancellationToken) =>
         ChangeAsync(Preference with { Reading = reading }, cancellationToken);
+
+    [RelayCommand]
+    private Task ToggleSendKeyAsync(CancellationToken cancellationToken) =>
+        ChangeAsync(Preference with { Send = SendsWithCommandEnter ? SendKey.Enter : SendKey.CommandEnter }, cancellationToken);
 
     private async Task ChangeAsync(AppearancePreference preference, CancellationToken cancellationToken)
     {

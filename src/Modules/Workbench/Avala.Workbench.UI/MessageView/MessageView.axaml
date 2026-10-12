@@ -3,15 +3,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:markdown="using:Avala.Components.UI.Markdown"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              x:Class="Avala.Workbench.UI.MessageView"
              x:ClassModifier="internal"
              x:DataType="conversation:IMessageViewModel"
+             Classes="hover-host"
              theme:Motion.Enter="Fade"
-             Margin="0,10">
+             Margin="0,10,0,0">
   <Design.DataContext>
     <conversation:DesignMessageViewModel />
   </Design.DataContext>
-  <StackPanel Spacing="6">
+  <StackPanel Spacing="4">
     <markdown:MarkdownText x:Name="Text"
                            Classes="reading"
                            Classes.streaming="{Binding IsStreaming}"
@@ -23,5 +25,12 @@
                TextWrapping="Wrap"
                Text="{Binding LinkNotice}"
                IsVisible="{Binding LinkNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <StackPanel x:Name="Actions" Classes="hover-actions" Margin="-5,-2,0,-2" IsVisible="{Binding !IsStreaming}">
+      <copying:CopyButton x:Name="Copy"
+                          Command="{Binding CopyCommand}"
+                          IsCopied="{Binding IsCopied}"
+                          ToolTip.Tip="Copy"
+                          AutomationProperties.Name="Copy the reply" />
+    </StackPanel>
   </StackPanel>
 </UserControl>

@@ -26,6 +26,27 @@ public sealed class CapabilityTests(PublishedPlugins plugins)
     }
 
     [Theory]
+    [InlineData("", new[] { 35 })]
+    [InlineData("streamsPartialOutput", new int[0])]
+    public async Task AFileEditIsDraftedBeforeItStartsOnlyOnAConnectionThatStreamsPartialOutputAsync(string without, int[] received)
+    {
+        await using var run = await SimulatedRun.ConnectedAsync(
+            plugins,
+            "edit",
+            new ConnectionName("tailored"),
+            [("connections.json", $$"""{ "connections": [ { "name": "tailored", "provider": "simulator", "settings": { "withoutCapabilities": "{{without}}" } } ] }""")],
+            (".avala/permissions.json", """{ "autonomy": "autonomous" }"""));
+
+        var turn = await run.TurnAsync();
+        var edit = new ItemId("edit");
+
+        Assert.Equal(received, turn.OfType<ItemDrafted>().Where(drafted => drafted.Item == edit).Select(drafted => drafted.Received));
+        Assert.Equal(
+            turn.TakeWhile(happened => happened is not ItemStarted { Item.Value: "edit" }).OfType<ItemDrafted>().Count(),
+            received.Length);
+    }
+
+    [Theory]
     [InlineData("", true)]
     [InlineData("exposesReasoning", false)]
     public async Task ReasoningShowsOnlyOnAConnectionThatExposesItAsync(string without, bool shown)

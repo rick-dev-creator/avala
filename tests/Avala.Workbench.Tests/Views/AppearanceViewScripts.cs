@@ -54,6 +54,24 @@ public sealed class AppearanceViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task TheSendWithCommandEnterSwitchKeepsTheChoiceAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var store = new FakeAppearance();
+            var appearance = new AppearanceViewModel(store);
+            await appearance.LoadAsync(Cancellation);
+            var view = Screen.Show(appearance, Avalonia.Styling.ThemeVariant.Dark, 900, 700);
+
+            view.Click("SendWithCommandEnter");
+            await (appearance.ToggleSendKeyCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.Equal([AppearancePreference.Default with { Send = SendKey.CommandEnter }], store.Changes);
+            Assert.True(view.Find<Avalonia.Controls.ToggleSwitch>("SendWithCommandEnter").IsChecked);
+            Assert.Equal("Send with Ctrl+Enter", view.TextOf("SendWithLabel"));
+        }, Cancellation);
+
+    [Fact]
     public Task AnErrorIsShownAboveTheChoicesAsync() =>
         ui.RunAsync(() =>
         {

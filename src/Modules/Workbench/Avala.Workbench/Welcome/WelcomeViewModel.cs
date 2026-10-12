@@ -25,6 +25,8 @@ internal interface IWelcomeViewModel
 
     IReadOnlyList<IAccountChipViewModel> Chips { get; }
 
+    IHarnessChoiceViewModel Harness { get; }
+
     IAsyncRelayCommand StartCommand { get; }
 
     IAsyncRelayCommand OpenFolderCommand { get; }
@@ -59,11 +61,13 @@ internal interface IWelcomeLinks
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl source, IWelcomeLinks links) : IWelcomeViewModel
+internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl source, IWelcomeLinks links, HarnessChoiceViewModel harness) : IWelcomeViewModel
 {
     private readonly ObservableCollection<AccountChipViewModel> chips = [];
 
     public IReadOnlyList<IAccountChipViewModel> Chips => chips;
+
+    public IHarnessChoiceViewModel Harness => harness;
 
     [ObservableProperty]
     public partial bool IsCompact { get; private set; }
@@ -81,7 +85,7 @@ internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl s
 
     public void ShowBoard(bool hasJobs) => IsCompact = hasJobs;
 
-    public async Task CheckAsync(CancellationToken cancellationToken) => Show(await launch.CatalogAsync(cancellationToken), await source.ReadAsync(cancellationToken));
+    public async Task CheckAsync(CancellationToken cancellationToken) => await ShowAsync(await launch.CatalogAsync(cancellationToken), await source.ReadAsync(cancellationToken), cancellationToken);
 
     [RelayCommand(CanExecute = nameof(CanStart))]
     private async Task StartAsync(CancellationToken cancellationToken)
@@ -95,7 +99,7 @@ internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl s
             return;
         }
 
-        var started = await launch.SubmitAsync(scratch, instruction, Option<ConnectionName>.None, supervised: false, ModelChoice.Default, cancellationToken);
+        var started = await launch.SubmitAsync(scratch, instruction, harness.Chosen, supervised: false, harness.Model, cancellationToken);
         Error = started.Match(_ => string.Empty, NewJobPhrases.Rejection);
 
         if (started.TryGetValue(out var job, out _))
@@ -119,10 +123,11 @@ internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl s
 
     private bool CanStart() => CanCompose && Instruction.Trim().Length > 0;
 
-    private void Show(ConnectionCatalog catalog, SourceControlState state)
+    private async Task ShowAsync(ConnectionCatalog catalog, SourceControlState state, CancellationToken cancellationToken)
     {
         CanCompose = catalog.File != ConnectionFileStatus.Rejected && catalog.Connections.Count > 0;
         chips.ShowOnly([.. Agents(catalog), .. Forges(state)]);
+        await harness.ShowAsync(catalog, cancellationToken);
     }
 
     private IEnumerable<AccountChipViewModel> Agents(ConnectionCatalog catalog)
@@ -158,5 +163,5 @@ internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl s
     }
 
     private async Task RediscoverAsync(CancellationToken cancellationToken) =>
-        Show(await launch.RediscoverAsync(cancellationToken), await source.ReadAsync(cancellationToken));
+        await ShowAsync(await launch.RediscoverAsync(cancellationToken), await source.ReadAsync(cancellationToken), cancellationToken);
 }

@@ -84,7 +84,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
 
     private IAsyncEnumerable<IAgentEvent> DeedAsync(Cues cues, IStep step, CancellationToken cancellationToken) => step switch
     {
-        WriteFile write => ActAsync(
+        WriteFile write => Drafts(cues, write).ToAsyncEnumerable().Concat(ActAsync(
             cues,
             new Deed(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", $"Edit {write.Path}", Path.Combine(options.WorkingDirectory, write.Path), write.Content),
             options.Permissions == PermissionMode.AskEveryTime,
@@ -94,7 +94,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
 
                 return write.Content;
             },
-            cancellationToken),
+            cancellationToken)),
         RunCommand run => ActAsync(cues, Command(run), Asks(run), _ => Task.FromResult(run.Output), cancellationToken),
         WithdrawnPermission race when Asks(race.Withdrawn) && Asks(race.Kept) => WithdrawAsync(cues, race, cancellationToken),
         WithdrawnPermission race => DeedAsync(cues, race.Withdrawn, cancellationToken).Concat(DeedAsync(cues, race.Kept, cancellationToken)),
@@ -123,6 +123,12 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             cancellationToken),
         _ => cues.Of(step).ToAsyncEnumerable(),
     };
+
+    private IEnumerable<IAgentEvent> Drafts(Cues cues, WriteFile write) =>
+        declared.Has<StreamsPartialOutput>()
+            ? Enumerable.Range(1, Math.Max(1, (write.Content.Length + Cues.DraftStride - 1) / Cues.DraftStride))
+                .Select(part => cues.Drafted(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", Math.Min(write.Content.Length, part * Cues.DraftStride)))
+            : [];
 
     private IAsyncEnumerable<IAgentEvent> ActAsync(
         Cues cues,

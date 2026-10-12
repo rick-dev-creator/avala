@@ -25,15 +25,29 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
         Status = status;
         TakesMessagesMidTurn = takesMessagesMidTurn;
         Queued = queued;
-        Draft = string.Empty;
         SendCommand = new AsyncRelayCommand(() => Task.CompletedTask, () => AcceptsMessages && Draft.Length > 0);
         InterruptCommand = new AsyncRelayCommand(() => Task.CompletedTask, () => status == JobStatus.Running);
         StopCommand = new AsyncRelayCommand(() => Task.CompletedTask, () => status == JobStatus.Running);
+        EnterCommand = SendCommand;
         WithdrawCommand = new RelayCommand(() => { }, () => Queued.Length > 0);
+        Draft = string.Empty;
     }
 
+    public int Edits => 0;
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsStop), nameof(ShowsSend))]
     public partial string Draft { get; set; }
+
+    public bool ShowsStop => CanHalt && Draft.Length == 0;
+
+    public bool ShowsSend => AcceptsMessages && !ShowsStop;
+
+    public bool SendsWithEnter => true;
+
+    public IAsyncRelayCommand EnterCommand { get; }
+
+    partial void OnDraftChanged(string value) => SendCommand.NotifyCanExecuteChanged();
 
     public JobStatus Status { get; }
 
@@ -64,6 +78,18 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
 internal sealed class DesignPromptViewModel(string text) : IPromptViewModel
 {
+    public bool IsCopied => false;
+
+    public bool CanResend => true;
+
+    public bool CanEdit => true;
+
+    public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand EditCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand RetryCommand { get; } = new RelayCommand(() => { });
+
     public DesignPromptViewModel()
         : this("TestInvoiceTotal_JPY has failed on main since the tax change. Fix it without changing the public API.")
     {
@@ -114,6 +140,10 @@ internal sealed class DesignMessageViewModel(string text, bool isStreaming) : IM
     public string LinkNotice { get; init; } = string.Empty;
 
     public IAsyncRelayCommand<string> OpenLinkCommand { get; } = new AsyncRelayCommand<string>(_ => Task.CompletedTask);
+
+    public bool IsCopied => false;
+
+    public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignReasoningViewModel(string summary, bool isThinking) : IReasoningViewModel
@@ -314,4 +344,19 @@ internal sealed record DesignConversationViewModel(string Title, string Place, I
     public JobStatus Status => JobStatus.Running;
 
     public IPlanPanelViewModel Plan { get; init; } = new DesignPlanPanelViewModel();
+
+    public IWorkingViewModel Working { get; init; } = new DesignWorkingViewModel();
+}
+
+internal sealed class DesignWorkingViewModel : IWorkingViewModel
+{
+    public bool IsShown { get; init; } = true;
+
+    public string Verb { get; init; } = "Thinking";
+
+    public bool IsWaiting { get; init; }
+
+    public bool ShowsElapsed => true;
+
+    public DateTimeOffset Since { get; init; } = DateTimeOffset.UtcNow.AddSeconds(-23);
 }

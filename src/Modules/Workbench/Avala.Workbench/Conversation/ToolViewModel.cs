@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Sdk;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -36,7 +37,6 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     public ToolViewModel(ToolEntry entry)
     {
         Kind = entry.Kind;
-        Input = entry.Input.Match(input => input, () => string.Empty);
         Title = string.Empty;
         Output = string.Empty;
         Outcome = string.Empty;
@@ -51,7 +51,8 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     [ObservableProperty]
     public partial bool IsCode { get; private set; }
 
-    public string Input { get; }
+    [ObservableProperty]
+    public partial string Input { get; private set; } = string.Empty;
 
     public bool IsShown => true;
 
@@ -77,9 +78,12 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     {
         if (entry is ToolEntry tool)
         {
+            Input = tool.Input.Match(input => input, () => string.Empty);
             Title = tool.WaitsFor.IsSome
                 ? ConversationPhrases.Waited(tool.Awaited, tool.Outcome.IsSome)
-                : tool.Delegation.Match(ConversationPhrases.Delegated, () => Presenting.CommandPhrases.Title(tool.Kind, tool.Title, Input));
+                : tool.Drafted.Bind(received => tool.Outcome.IsNone ? Option<int>.Some(received) : Option<int>.None).Match(
+                    received => ConversationPhrases.Drafting(tool.Title, received),
+                    () => tool.Delegation.Match(ConversationPhrases.Delegated, () => Presenting.CommandPhrases.Title(tool.Kind, tool.Title, Input)));
             IsCode = tool.WaitsFor.IsNone && tool.Delegation.IsNone;
             Output = tool.Output;
             IsRunning = tool.Outcome.IsNone;

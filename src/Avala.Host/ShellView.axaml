@@ -160,7 +160,8 @@
               Grid.Column="1"
               Classes="window"
               theme:Reading.Follows="True"
-              theme:Chrome.IsBare="{Binding !IsSidebarShown}">
+              theme:Chrome.IsBare="{Binding !IsSidebarShown}"
+              theme:Chrome.IsFocusMode="{Binding IsFocused}">
         <Panel>
           <ui:Stage x:Name="ContentRegion" KeepsAlive="True" Content="{Binding SelectedPage}" />
           <Border x:Name="EmptyContent"

@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:welcome="using:Avala.Workbench.Welcome"
+             x:Class="Avala.Workbench.UI.HarnessOptionView"
+             x:ClassModifier="internal"
+             x:DataType="welcome:IHarnessOptionViewModel">
+  <Design.DataContext>
+    <welcome:DesignHarnessOptionViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBlock.auto">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Option"
+          Classes="row"
+          Classes.selected="{Binding IsChosen}"
+          Command="{Binding ChooseCommand}"
+          AutomationProperties.Name="{Binding Name}">
+    <DockPanel>
+      <Path x:Name="OptionCheck"
+            DockPanel.Dock="Right"
+            Classes="icon small"
+            Margin="10,0,0,0"
+            Data="{StaticResource IconCheck}"
+            Stroke="{DynamicResource AccentBrush}"
+            VerticalAlignment="Center"
+            IsVisible="{Binding IsChosen}" />
+      <Border DockPanel.Dock="Left" Classes="mark small round" Margin="0,0,10,0">
+        <Panel>
+          <TextBlock Classes="monogram auto" Text="A" IsVisible="{Binding IsAuto}" />
+          <TextBlock x:Name="OptionMonogram" Classes="monogram" Text="{Binding Monogram}" IsVisible="{Binding !IsAuto}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Panel>
+      </Border>
+      <StackPanel VerticalAlignment="Center" Spacing="1">
+        <StackPanel Orientation="Horizontal" Spacing="7">
+          <TextBlock x:Name="OptionName" Text="{Binding Name}" VerticalAlignment="Center" />
+          <Ellipse x:Name="OptionDot" Classes="dot" Classes.attention="{Binding IsAttention}" IsVisible="{Binding !IsAuto}" />
+        </StackPanel>
+        <TextBlock x:Name="OptionHint"
+                   Classes="caption"
+                   Classes.attention="{Binding IsAttention}"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{Binding Hint}"
+                   IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+    </DockPanel>
+  </Button>
+</UserControl>

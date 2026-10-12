@@ -22,6 +22,12 @@ internal interface IComposerViewModel
 
     bool CanHalt { get; }
 
+    bool ShowsStop { get; }
+
+    bool ShowsSend { get; }
+
+    bool SendsWithEnter { get; }
+
     string SendHint { get; }
 
     string Queued { get; }
@@ -30,11 +36,15 @@ internal interface IComposerViewModel
 
     IAsyncRelayCommand SendCommand { get; }
 
+    IAsyncRelayCommand EnterCommand { get; }
+
     IAsyncRelayCommand InterruptCommand { get; }
 
     IAsyncRelayCommand StopCommand { get; }
 
     IRelayCommand WithdrawCommand { get; }
+
+    int Edits { get; }
 }
 
 [INotifyPropertyChanged]
@@ -42,22 +52,26 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 {
     private readonly JobId job;
     private readonly JobSteering steering;
+    private readonly SendKeys keys;
 
-    public ComposerViewModel(JobId job, JobSteering steering)
+    public ComposerViewModel(JobId job, JobSteering steering, SendKeys keys)
     {
         this.job = job;
         this.steering = steering;
+        this.keys = keys;
+        SendsWithEnter = keys.WithEnter;
         Draft = string.Empty;
         Error = string.Empty;
         Queued = string.Empty;
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsStop), nameof(ShowsSend))]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     public partial string Draft { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AcceptsMessages), nameof(CanHalt), nameof(Placeholder), nameof(SendHint), nameof(QueuedCaption))]
+    [NotifyPropertyChangedFor(nameof(AcceptsMessages), nameof(CanHalt), nameof(ShowsStop), nameof(ShowsSend), nameof(Placeholder), nameof(SendHint), nameof(QueuedCaption))]
     [NotifyCanExecuteChangedFor(nameof(SendCommand), nameof(InterruptCommand), nameof(StopCommand))]
     public partial JobStatus Status { get; private set; }
 
@@ -80,6 +94,16 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 
     public bool CanHalt => Status.CanBeInterrupted;
 
+    public bool ShowsStop => CanHalt && string.IsNullOrWhiteSpace(Draft);
+
+    public bool ShowsSend => AcceptsMessages && !ShowsStop;
+
+    [ObservableProperty]
+    public partial bool SendsWithEnter { get; private set; }
+
+    [ObservableProperty]
+    public partial int Edits { get; private set; }
+
     public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn, Watch);
 
     public string SendHint => ConversationPhrases.SendHint(Status, TakesMessagesMidTurn);
@@ -91,6 +115,21 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         Status = shown.Status;
         TakesMessagesMidTurn = shown.TakesMessagesMidTurn;
         Watch = shown.PullRequest;
+        SendsWithEnter = keys.WithEnter;
+        ShowQueued();
+    }
+
+    public void Edit(string text)
+    {
+        Draft = text;
+        Edits++;
+    }
+
+    [RelayCommand]
+    private async Task ResendAsync(string? text, CancellationToken cancellationToken)
+    {
+        var sent = await steering.SendAsync(job, Status, text ?? string.Empty, cancellationToken);
+        Error = sent.Match(_ => string.Empty, ConversationPhrases.Rejection);
         ShowQueued();
     }
 
@@ -102,6 +141,12 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         Error = sent.Match(_ => string.Empty, ConversationPhrases.Rejection);
         ShowQueued();
     }
+
+    [RelayCommand(CanExecute = nameof(SendsOnEnter))]
+    private Task EnterAsync(CancellationToken cancellationToken) =>
+        CanSend() ? SendAsync(cancellationToken) : Task.CompletedTask;
+
+    private bool SendsOnEnter() => keys.WithEnter;
 
     [RelayCommand(CanExecute = nameof(CanInterrupt))]
     private async Task InterruptAsync(CancellationToken cancellationToken) =>

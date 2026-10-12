@@ -102,7 +102,7 @@ public sealed class RepositoryFieldViewModelScripts
     }
 
     [Fact]
-    public async Task ANewRepositoryIsNamedInAChosenParentAndFillsTheFieldAsync()
+    public async Task ANewRepositoryIsNamedInAParentChosenFromTheProjectsFolderAndFillsTheFieldAsync()
     {
         var field = Field();
         field.Repository = "/home/ada/code/shop";
@@ -113,7 +113,7 @@ public sealed class RepositoryFieldViewModelScripts
         field.Creation.Name = "invoices";
         await field.Creation.CreateCommand.ExecuteAsync(null);
 
-        Assert.Equal((true, "/home/ada/code", (RepositoryPhrases.ParentTitle, Path.GetDirectoryName("/home/ada/code/shop"))), opened);
+        Assert.Equal((true, "/home/ada/code", (RepositoryPhrases.ParentTitle, "/home/ada/Projects")), opened);
         Assert.Equal(
             ("/home/ada/code/invoices", false, string.Empty, "Created /home/ada/code/invoices: an empty git repository with a first commit."),
             (field.Repository, field.Creation.IsOpen, field.Creation.Name, field.Notice));

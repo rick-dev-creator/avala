@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:sys="using:System">
+        xmlns:sys="using:System"
+        xmlns:theme="using:Avala.Components.UI.Theme">
   <Styles.Resources>
     <SplineEasing x:Key="SnappyEasing" X1="0.34" Y1="1.4" X2="0.64" Y2="1" />
     <SplineEasing x:Key="GentleEasing" X1="0.22" Y1="1" X2="0.36" Y2="1" />
@@ -12,4 +13,12 @@
     <sys:TimeSpan x:Key="PulseDuration">0:0:2</sys:TimeSpan>
     <sys:TimeSpan x:Key="SpinDuration">0:0:1</sys:TimeSpan>
   </Styles.Resources>
+
+  <Style Selector="StackPanel.hover-actions[(theme|Motion.IsReduced)=False], Button.copy[(theme|Motion.IsReduced)=False] Path.icon">
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.16" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
 </Styles>

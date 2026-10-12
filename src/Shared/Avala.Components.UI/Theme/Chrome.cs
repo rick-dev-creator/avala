@@ -12,6 +12,9 @@ public sealed class Chrome
     public static readonly AttachedProperty<bool> IsBareProperty =
         AvaloniaProperty.RegisterAttached<Chrome, Control, bool>("IsBare");
 
+    public static readonly AttachedProperty<bool> IsFocusModeProperty =
+        AvaloniaProperty.RegisterAttached<Chrome, Visual, bool>("IsFocusMode", inherits: true);
+
     static Chrome() => IsBareProperty.Changed.AddClassHandler<Control>((control, _) => Fit(control));
 
     private Chrome()
@@ -21,6 +24,10 @@ public sealed class Chrome
     public static bool GetIsBare(Control control) => control.GetValue(IsBareProperty);
 
     public static void SetIsBare(Control control, bool value) => control.SetValue(IsBareProperty, value);
+
+    public static bool GetIsFocusMode(Visual visual) => visual.GetValue(IsFocusModeProperty);
+
+    public static void SetIsFocusMode(Visual visual, bool value) => visual.SetValue(IsFocusModeProperty, value);
 
     private static void Fit(Control control)
     {

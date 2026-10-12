@@ -157,8 +157,69 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             Assert.Contains(Texts(view), text => text.Contains("[rounding chart]", StringComparison.Ordinal));
         }, Cancellation);
 
+    [Fact]
+    public Task HoveringAFinishedReplyRevealsCopyWhichConfirmsWithACheckmarkAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var clipboard = new FakeClipboard();
+            var message = new MessageViewModel(new MessageEntry("m", "JPY has no minor units.", ItemOutcome.Succeeded), new Links(new FakeLinks()), clipboard);
+            var view = Screen.ShowStill(message, 300);
+            var hidden = view.Find("Actions").Opacity;
+
+            view.Click("Copy");
+            await (message.CopyCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.Equal((0, 1), (hidden, view.Find("Actions").Opacity));
+            Assert.Equal(["JPY has no minor units."], clipboard.Copied);
+            Assert.True(view.HasClass("Copy", ":copied"));
+        }, Cancellation);
+
+    [Fact]
+    public Task AStreamingReplyOffersNoCopyYetAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(Message("JPY has no minor", done: false));
+
+            Assert.False(view.Shows("Actions"));
+        }, Cancellation);
+
+    [Fact]
+    public Task SelectAllThenCopyFromTheReplysMenuPutsItsTextOnTheClipboardAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var view = Screen.Show(Message("JPY has **no minor units**.", done: true));
+            var text = view.Find<MarkdownText>("Text");
+            var menu = Assert.IsType<MenuFlyout>(text.ContextFlyout);
+            var items = menu.Items.OfType<MenuItem>().ToList();
+
+            items.Single(item => item.Name == "SelectAll").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
+            await text.CopyAsync();
+
+            Assert.Equal(["Copy", "Select All"], items.Select(item => item.Header as string));
+            Assert.Equal("JPY has no minor units.", await view.Window.Clipboard!.TryGetTextAsync());
+        }, Cancellation);
+
+    [Fact]
+    public Task ASelectionInAStreamingReplyHoldsWhileMoreArrivesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var message = Message("## Rounding fixed\n\nJPY has no minor", done: false);
+            var view = Screen.Show(message);
+            var text = view.Find<MarkdownText>("Text");
+            Viewer(view, "Settled").SelectAll();
+            var selected = text.SelectedText;
+
+            message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units.\n\nUSD keeps two decimals.\n\nDone", Option<ItemOutcome>.None));
+            view.Settle();
+
+            Assert.Equal("Rounding fixed", selected.Trim());
+            Assert.Equal("Rounding fixed", Viewer(view, "Settled").GetSelectedText().Trim());
+            Assert.Equal("## Rounding fixed\n\n", Viewer(view, "Settled").Markdown);
+        }, Cancellation);
+
     private static MessageViewModel Message(string text, bool done, FakeLinks? opener = null) =>
-        new(new MessageEntry("m", text, done ? ItemOutcome.Succeeded : Option<ItemOutcome>.None), new Links(opener ?? new FakeLinks()));
+        new(new MessageEntry("m", text, done ? ItemOutcome.Succeeded : Option<ItemOutcome>.None), new Links(opener ?? new FakeLinks()), new FakeClipboard());
 
     private static MarkdownViewer Viewer(ViewScript view, string name) =>
         view.Window.GetVisualDescendants().OfType<MarkdownViewer>().Single(viewer => viewer.Name == name);

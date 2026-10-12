@@ -1,6 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:copying="using:Avala.Components.UI.Copying"
+             xmlns:focusing="using:Avala.Components.UI.Focusing"
              x:Class="Avala.Workbench.UI.ComposerView"
              x:ClassModifier="internal"
              x:DataType="conversation:IComposerViewModel">
@@ -21,8 +24,14 @@
     <Style Selector="Border#Field:focus-within">
       <Setter Property="BorderBrush" Value="{DynamicResource SeparatorStrongBrush}" />
     </Style>
-    <Style Selector="Button.glyph Path.icon">
-      <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    <Style Selector="Button.stop">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    </Style>
+    <Style Selector="Button.stop:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.stop:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillGhostHoverBrush}" />
     </Style>
     <Style Selector="Button.send Path.icon">
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
@@ -64,7 +73,7 @@
             BorderThickness="1"
             CornerRadius="{DynamicResource RadiusCard}"
             Padding="16,8,8,8">
-      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+      <Grid ColumnDefinitions="*,Auto">
         <TextBox x:Name="Draft"
                  Classes="bare"
                  VerticalAlignment="Center"
@@ -73,46 +82,42 @@
                  TextWrapping="Wrap"
                  MaxHeight="180"
                  PlaceholderText="{Binding Placeholder}"
+                 focusing:Refocus.Signal="{Binding Edits}"
                  AutomationProperties.Name="Message">
           <TextBox.KeyBindings>
-            <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SendCommand}" />
+            <KeyBinding Gesture="{x:Static copying:Hotkeys.Enter}" Command="{Binding EnterCommand}" />
+            <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandEnter}" Command="{Binding SendCommand}" />
+            <KeyBinding Gesture="Escape" Command="{Binding InterruptCommand}" />
           </TextBox.KeyBindings>
         </TextBox>
-        <Button x:Name="Interrupt"
-                Grid.Column="1"
-                Classes="glyph"
-                Padding="8"
-                Margin="6,0,0,0"
-                VerticalAlignment="Center"
-                Command="{Binding InterruptCommand}"
-                IsVisible="{Binding CanHalt}"
-                ToolTip.Tip="Interrupt the turn"
-                AutomationProperties.Name="Interrupt the turn">
-          <Path Classes="icon solid" StrokeThickness="0" Data="{StaticResource IconInterrupt}" />
-        </Button>
-        <Button x:Name="Stop"
-                Grid.Column="2"
-                Classes="glyph"
-                Padding="8"
-                Margin="6,0,0,0"
-                VerticalAlignment="Center"
-                Command="{Binding StopCommand}"
-                IsVisible="{Binding CanHalt}"
-                ToolTip.Tip="Stop the session"
-                AutomationProperties.Name="Stop the session">
-          <Path Classes="icon solid" StrokeThickness="0" Data="{StaticResource IconStop}" />
-        </Button>
-        <Button x:Name="Send"
-                Grid.Column="3"
-                Classes="send"
-                Margin="6,0,0,0"
-                VerticalAlignment="Center"
-                Command="{Binding SendCommand}"
-                IsVisible="{Binding AcceptsMessages}"
-                ToolTip.Tip="{Binding SendHint}"
-                AutomationProperties.Name="Send">
-          <Path Classes="icon" Data="{StaticResource IconSend}" />
-        </Button>
+        <Panel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Bottom">
+          <Button x:Name="Send"
+                  Classes="send"
+                  Command="{Binding SendCommand}"
+                  IsVisible="{Binding ShowsSend}"
+                  ToolTip.Tip="{Binding SendHint}"
+                  AutomationProperties.Name="Send">
+            <Path Classes="icon" Data="{StaticResource IconSend}" />
+          </Button>
+          <Button x:Name="Interrupt"
+                  Classes="stop"
+                  Command="{Binding InterruptCommand}"
+                  IsVisible="{Binding ShowsStop}"
+                  ToolTip.Tip="Stop (Esc) · the session stays open"
+                  AutomationProperties.Name="Stop">
+            <Panel Width="30" Height="30">
+              <Ellipse x:Name="Track" StrokeThickness="2" Stroke="{DynamicResource SeparatorBrush}" />
+              <Arc x:Name="Progress"
+                   theme:Motion.Loop="Spin"
+                   StrokeThickness="2"
+                   StrokeLineCap="Round"
+                   StartAngle="-90"
+                   SweepAngle="90"
+                   Stroke="{DynamicResource TextSecondaryBrush}" />
+              <Border Width="10" Height="10" CornerRadius="{DynamicResource RadiusTag}" Background="{DynamicResource TextPrimaryBrush}" />
+            </Panel>
+          </Button>
+        </Panel>
       </Grid>
     </Border>
   </StackPanel>

@@ -133,7 +133,7 @@ internal static class Choosing
         new(Field(board, picker, repositories), new RecentRepositories(board, Scratching.Folders()), new ProjectsPlace(new FakeProjects(), picker));
 
     public static NewRepositoryViewModel Creation(FakeFolderPicker picker, FakeRepositories repositories, FakePublishing publishing) =>
-        new(picker, repositories, new PublishOptionsViewModel(publishing));
+        new(new ProjectsPlace(new FakeProjects(), picker), repositories, new PublishOptionsViewModel(publishing));
 }
 
 internal sealed class FakeProjects : IProjectsFolder

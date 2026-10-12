@@ -48,7 +48,7 @@
       <TextBlock x:Name="Hero" Classes="title" HorizontalAlignment="Center" Text="What should we work on?" />
       <StackPanel Spacing="8">
         <Border x:Name="Composer" IsEnabled="{Binding CanCompose}">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
             <TextBox x:Name="WelcomeInstruction"
                      Classes="bare"
                      Text="{Binding Instruction}"
@@ -63,8 +63,13 @@
                 <KeyBinding Gesture="Ctrl+Enter" Command="{Binding StartCommand}" />
               </TextBox.KeyBindings>
             </TextBox>
+            <ContentControl x:Name="WelcomeHarness"
+                            Grid.Column="1"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,0,1"
+                            Content="{Binding Harness}" />
             <Button x:Name="WelcomeStart"
-                    Grid.Column="1"
+                    Grid.Column="2"
                     Classes="send"
                     VerticalAlignment="Bottom"
                     Command="{Binding StartCommand}"

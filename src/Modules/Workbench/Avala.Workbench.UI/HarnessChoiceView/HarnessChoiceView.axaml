@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:welcome="using:Avala.Workbench.Welcome"
+             x:Class="Avala.Workbench.UI.HarnessChoiceView"
+             x:ClassModifier="internal"
+             x:DataType="welcome:IHarnessChoiceViewModel">
+  <Design.DataContext>
+    <welcome:DesignHarnessChoiceViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ToggleButton#HarnessButton">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Padding" Value="4,4,10,4" />
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="ToggleButton#HarnessButton:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton#HarnessButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ToggleButton#HarnessButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillSelectedBrush}" />
+    </Style>
+    <Style Selector="TextBlock.heading-menu">
+      <Setter Property="Margin" Value="10,6,10,2" />
+    </Style>
+  </UserControl.Styles>
+  <Panel IsVisible="{Binding IsShown}">
+    <ToggleButton x:Name="HarnessButton"
+                  IsChecked="{Binding IsOpen}"
+                  ToolTip.Tip="{Binding Reason}"
+                  AutomationProperties.Name="Harness">
+      <StackPanel Orientation="Horizontal" Spacing="7">
+        <Border Classes="mark small round">
+          <TextBlock x:Name="HarnessMonogram" Classes="monogram" Text="{Binding Monogram}" />
+        </Border>
+        <TextBlock x:Name="HarnessLabel" Text="{Binding Label}" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center" MaxWidth="260" TextTrimming="CharacterEllipsis" />
+        <Ellipse x:Name="HarnessDot" Classes="dot attention" IsVisible="{Binding IsAttention}" />
+        <Path Classes="icon small" Data="{StaticResource IconChevronDown}" Stroke="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" />
+      </StackPanel>
+    </ToggleButton>
+    <Popup x:Name="HarnessMenu"
+           IsOpen="{Binding IsOpen}"
+           PlacementTarget="{Binding #HarnessButton}"
+           Placement="BottomEdgeAlignedRight"
+           VerticalOffset="6"
+           ShouldUseOverlayLayer="True"
+           IsLightDismissEnabled="True"
+           WindowManagerAddShadowHint="False">
+      <Border Classes="float" Padding="6" Width="440">
+        <StackPanel Spacing="1">
+          <TextBlock Classes="section heading-menu" Text="Run on" />
+          <ItemsControl x:Name="HarnessOptions" ItemsSource="{Binding Options}" />
+          <Border Classes="separator" Margin="6,6" IsVisible="{Binding Models.CanChoose}" />
+          <ContentControl x:Name="HarnessModels" Margin="10,2,10,8" Content="{Binding Models}" IsVisible="{Binding Models.CanChoose}" />
+        </StackPanel>
+      </Border>
+    </Popup>
+  </Panel>
+</UserControl>

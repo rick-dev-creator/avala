@@ -17,7 +17,7 @@ internal sealed class TranscriptBounds
 
     public Option<IAgentEvent> Bounded(IAgentEvent activity) => activity switch
     {
-        LimitReported or ResumeTokenIssued => Option<IAgentEvent>.None,
+        LimitReported or ResumeTokenIssued or ItemDrafted => Option<IAgentEvent>.None,
         ItemStarted started => started with { Input = started.Input.Map(Bounded) },
         ItemProgressed progressed => Streamed(progressed),
         ItemCompleted completed => Forgotten(completed, key => key == (completed.Turn, completed.Item)),

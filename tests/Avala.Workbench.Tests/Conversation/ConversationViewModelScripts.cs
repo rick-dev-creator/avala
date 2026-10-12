@@ -168,11 +168,56 @@ public sealed class ConversationViewModelScripts
         Assert.Equal(("repo", "repo · claude-opus-5-5\u00A0· high\u00A0effort"), (before, conversation.Place));
     }
 
+    [Fact]
+    public void EditingYourPromptPutsItsTextInTheComposer()
+    {
+        var conversation = Open();
+        conversation.Show(Board(Job().WithPrompts("Fix JPY rounding in invoice totals", []), JobStatus.NeedsHelp));
+        var prompt = Assert.IsType<PromptViewModel>(Assert.Single(conversation.Entries));
+
+        prompt.EditCommand.Execute(null);
+
+        Assert.Equal("Fix JPY rounding in invoice totals", conversation.Composer.Draft);
+    }
+
+    [Fact]
+    public async Task RetryingYourPromptSendsItAgainAsANewMessage()
+    {
+        var jobs = new FakeJobs { Status = JobStatus.NeedsHelp };
+        var conversation = Open(jobs);
+        conversation.Show(Board(Job().WithPrompts("Fix JPY rounding in invoice totals", []), JobStatus.NeedsHelp));
+        var prompt = Assert.IsType<PromptViewModel>(Assert.Single(conversation.Entries));
+
+        prompt.RetryCommand.Execute(null);
+        await (((ComposerViewModel)conversation.Composer).ResendCommand.ExecutionTask ?? Task.CompletedTask);
+
+        Assert.Equal(["continue Fix JPY rounding in invoice totals"], jobs.Calls);
+        Assert.Equal(string.Empty, conversation.Composer.Draft);
+    }
+
+    [Theory]
+    [InlineData(AttemptOrigin.Hint, JobStatus.NeedsHelp, true, true)]
+    [InlineData(AttemptOrigin.Hint, JobStatus.Running, true, false)]
+    [InlineData(AttemptOrigin.Hint, JobStatus.Approved, false, false)]
+    [InlineData(AttemptOrigin.Retry, JobStatus.NeedsHelp, false, false)]
+    public void OnlyYourPromptsCanBeEditedAndOnlyWhileTheJobTakesAMessageCanTheyBeSentAgain(AttemptOrigin origin, JobStatus status, bool edits, bool resends)
+    {
+        var conversation = Open();
+        var attempts = new[] { new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Passed, "Fix it", Option<SessionId>.None), new AttemptRecord(2, origin, AttemptOutcome.Running, "Keep the alias", Option<SessionId>.None) };
+
+        conversation.Show(Board(Job().WithPrompts("Fix it", attempts), status));
+
+        var prompt = Assert.IsType<PromptViewModel>(conversation.Entries[^1]);
+        Assert.Equal((edits, resends), (prompt.EditCommand.CanExecute(null), prompt.RetryCommand.CanExecute(null)));
+    }
+
     private static Transcript Job() => Transcript.Empty;
 
     private static BoardJob Board(Transcript transcript, JobStatus status = JobStatus.Running) =>
         new(new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary, transcript);
 
-    private static ConversationViewModel Open() =>
-        new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening).Open(JobId.New());
+    private static ConversationViewModel Open() => Open(new FakeJobs());
+
+    private static ConversationViewModel Open(FakeJobs jobs) =>
+        new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard()), new SendKeys()).Open(JobId.New());
 }

@@ -1,4 +1,6 @@
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -43,6 +45,27 @@ public sealed class WelcomeViewModelScripts
         Assert.Equal(["Sketch a CSV parser"], scratch.Instructions);
         Assert.Single(links.Selected);
         Assert.Equal(string.Empty, welcome.Instruction);
+    }
+
+    [Fact]
+    public async Task EnterStartsOnTheConnectionModelAndEffortChosenOnTheChipAndTheNextChatKeepsThemAsync()
+    {
+        connections.Catalog = connections.Catalog with { Connections = [.. connections.Catalog.Connections, new DeclaredConnection(new ConnectionName("claude-personal"), "simulator", "login")] };
+        connections.Offers["claude-personal"] = CapabilitySet.Of(new OffersModels(["large", "small"], ["low", "high"]));
+        var welcome = await CheckedAsync();
+        var harness = (HarnessChoiceViewModel)welcome.Harness;
+        harness.Options[2].ChooseCommand.Execute(null);
+        await harness.Offering;
+        harness.Models.Model = "large";
+        harness.Models.Effort = "high";
+        welcome.Instruction = "Sketch a CSV parser";
+
+        await welcome.StartCommand.ExecuteAsync(null);
+        await welcome.CheckAsync(Cancellation);
+
+        var request = Assert.Single(jobs.Requests);
+        Assert.Equal((new ConnectionName("claude-personal"), new ModelChoice("large", "high")), (request.Connection.Match(name => name, () => new ConnectionName("none")), request.Model));
+        Assert.Equal("claude-personal · large · high", welcome.Harness.Label);
     }
 
     [Fact]
@@ -116,8 +139,12 @@ public sealed class WelcomeViewModelScripts
         Assert.Equal(1, links.Connects);
     }
 
-    private WelcomeViewModel Welcome() =>
-        new(Launching.Launch(jobs, connections, new FakePreview(), new FakePolicies(), scratch: scratch), forges.Source, links);
+    private WelcomeViewModel Welcome()
+    {
+        var launch = Launching.Launch(jobs, connections, new FakePreview(), new FakePolicies(), scratch: scratch);
+
+        return new(launch, forges.Source, links, HarnessChoiceViewModelScripts.Harness(launch));
+    }
 
     private async Task<WelcomeViewModel> CheckedAsync()
     {

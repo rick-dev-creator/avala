@@ -118,6 +118,7 @@ internal static class AppearanceText
                     _ => "system",
                 },
                 ["readingWidth"] = preference.Reading.ToString().ToLowerInvariant(),
+                ["send"] = preference.Send == SendKey.CommandEnter ? "commandEnter" : "enter",
             },
             Indented) + "\n";
 
@@ -126,9 +127,10 @@ internal static class AppearanceText
         var theme = root.TryGetProperty("theme", out var named) ? Theme(named) : ThemeChoice.System;
         var motion = root.TryGetProperty("reduceMotion", out var reduce) ? Motion(reduce) : MotionChoice.System;
         var reading = root.TryGetProperty("readingWidth", out var width) ? Named<ReadingChoice>(width) : ReadingChoice.Comfortable;
+        var send = root.TryGetProperty("send", out var key) ? Send(key) : SendKey.Enter;
 
-        return theme is { } chosen && motion is { } reduced && reading is { } wide
-            ? new AppearancePreference(chosen, reduced, wide)
+        return theme is { } chosen && motion is { } reduced && reading is { } wide && send is { } sent
+            ? new AppearancePreference(chosen, reduced, wide) { Send = sent }
             : AppearanceError.Invalid;
     }
 
@@ -141,6 +143,16 @@ internal static class AppearanceText
         && text.All(char.IsAsciiLetter)
         && Enum.TryParse<TChoice>(text, ignoreCase: true, out var choice)
             ? choice
+            : null;
+
+    private static SendKey? Send(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String
+            ? value.GetString() switch
+            {
+                "enter" => SendKey.Enter,
+                "commandEnter" => SendKey.CommandEnter,
+                _ => null,
+            }
             : null;
 
     private static MotionChoice? Motion(JsonElement value) => value.ValueKind switch

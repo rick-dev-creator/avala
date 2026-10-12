@@ -29,6 +29,8 @@ internal static class Given
 
     public static ItemStarted Started(string item) => new(Session, TurnId, Item(item), ItemKind.Command, item);
 
+    public static ItemDrafted Drafted(string item, int received) => new(Session, TurnId, Item(item), ItemKind.FileEdit, $"Write {item}", received);
+
     public static ItemProgressed Progressed(string item) => new(Session, TurnId, Item(item), "output");
 
     public static ItemCompleted Completed(string item) => new(Session, TurnId, Item(item), ItemOutcome.Succeeded);

@@ -95,9 +95,9 @@ internal static class ConversationPhrases
 
     public static string SendHint(JobStatus status, bool takesMessagesMidTurn) => status switch
     {
-        JobStatus.Running when takesMessagesMidTurn => "Send into the running turn (Ctrl+Enter)",
-        JobStatus.Draft or JobStatus.Preparing or JobStatus.Running or JobStatus.Checking => "Queue for when the agent stops (Ctrl+Enter)",
-        _ => "Send (Ctrl+Enter)",
+        JobStatus.Running when takesMessagesMidTurn => "Send into the running turn",
+        JobStatus.Draft or JobStatus.Preparing or JobStatus.Running or JobStatus.Checking => "Queue for when the agent stops",
+        _ => "Send",
     };
 
     public static string Pill(BoardJob job) => job.Group switch
@@ -143,6 +143,19 @@ internal static class ConversationPhrases
                 ? $"Waited for {FactPhrases.Title(delegation.Instruction)}{delegation.Report.Match(report => $" · {DelegationPhrases.Outcome(report.Outcome)}", () => string.Empty)}"
                 : $"Waiting for {FactPhrases.Title(delegation.Instruction)}…",
             () => ended ? "Waited for a sub-agent" : "Waiting for a sub-agent…");
+
+    public static string Drafting(string title, int received) =>
+        $"{Verb(title)} · {Size(received)}";
+
+    public static string Size(int characters) =>
+        characters < 1024 ? string.Create(CultureInfo.InvariantCulture, $"{characters} B")
+        : characters < 1024 * 1024 ? string.Create(CultureInfo.InvariantCulture, $"{characters / 1024.0:0.0} KB")
+        : string.Create(CultureInfo.InvariantCulture, $"{characters / (1024.0 * 1024):0.0} MB");
+
+    private static string Verb(string title) =>
+        title.StartsWith("Write ", StringComparison.Ordinal) ? $"Writing {title["Write ".Length..]}"
+        : title.StartsWith("Edit ", StringComparison.Ordinal) ? $"Editing {title["Edit ".Length..]}"
+        : title;
 
     public static string Thought(TimeSpan duration) =>
         string.Create(CultureInfo.InvariantCulture, $"Thought for {Duration(duration)}");

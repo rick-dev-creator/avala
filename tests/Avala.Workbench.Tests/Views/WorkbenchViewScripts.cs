@@ -29,6 +29,28 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task StoppingTheSessionLivesInTheJobsMoreMenuAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var page = bench.Workbench();
+            var job = bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running);
+            bench.Jobs.Status = JobStatus.Running;
+            page.Activate();
+            bench.Messenger.Send(new JobSelected(job.Job));
+            var view = Screen.Show(page);
+
+            view.Click("More");
+            var stop = Assert.IsType<MenuItem>(Assert.Single(Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items));
+            stop.Command!.Execute(null);
+            await (page.Conversation!.Composer.StopCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal("Stop Session", stop.Header);
+            Assert.Equal(["hold Stopped"], bench.Jobs.Calls);
+            page.Deactivate();
+        }, Cancellation);
+
+    [Fact]
     public Task WithoutASelectedJobThePageWelcomesAsync() =>
         ui.RunAsync(() =>
         {
@@ -56,6 +78,30 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             Assert.True(view.HasClass("ToggleInspector", "selected"));
             page.Deactivate();
         }, Cancellation);
+
+    [Fact]
+    public Task InFocusModeTheOpenInspectorsToggleNoLongerLooksSelectedAsync() =>
+        ui.RunAsync(() =>
+        {
+            using var bench = new Bench();
+            var page = bench.Workbench();
+            var job = bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running);
+            page.Activate();
+            bench.Messenger.Send(new JobSelected(job.Job));
+            var view = Screen.Show(page);
+            view.Press(Key.I, RawInputModifiers.Control);
+            var open = Look(view);
+
+            Components.UI.Theme.Chrome.SetIsFocusMode(view.Window, true);
+            view.Settle();
+
+            Assert.NotEqual(Avalonia.Media.Brushes.Transparent, open);
+            Assert.Equal(Avalonia.Media.Brushes.Transparent, Look(view));
+            page.Deactivate();
+        }, Cancellation);
+
+    private static Avalonia.Media.IBrush? Look(ViewScript view) =>
+        view.Find("ToggleInspector").GetVisualDescendants().OfType<Avalonia.Controls.Presenters.ContentPresenter>().First().Background;
 
     [Fact]
     public Task AnOpenReviewDimsThePageUnderItsSheetAndTheSheetsCloseButtonReturnsToTheConversationAsync() =>

@@ -81,6 +81,22 @@ public sealed class StageScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ReducingMotionWhileContentFadesInShowsItAtOnceAsync() =>
+        ui.RunAsync(() =>
+        {
+            var stage = new Stage();
+            var view = ViewScript.Show(stage, new object());
+            stage.Content = new Border { Name = "Page" };
+            view.Settle();
+            var fading = Assert.Single(stage.Children).Opacity;
+
+            Motion.SetIsReduced(view.Window, true);
+            view.Settle();
+
+            Assert.Equal((0d, 1d), (fading, Assert.Single(stage.Children).Opacity));
+        }, Cancellation);
+
+    [Fact]
     public Task EntrancesInsideNewlyStagedContentHoldStillWhileLaterArrivalsPlayAsync() =>
         ui.RunAsync(() =>
         {

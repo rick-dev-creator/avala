@@ -32,5 +32,19 @@ public sealed class JobRowViewModelScripts
             .When(row => row.IsSelected = true)
             .ThenNotified(nameof(JobRowViewModel.IsSelected));
 
+    [Fact]
+    public void ARunningJobsRowCountsFromTheStartOfItsTurnUntilItStops()
+    {
+        var job = Job("Rate-limit POST /login", JobStatus.Running);
+        var turn = job with { Transcript = job.Transcript.Apply(new Agents.Contracts.Events.TurnStarted(Agents.Contracts.Sessions.SessionId.New(), Agents.Contracts.Sessions.TurnId.New()), DateTimeOffset.UnixEpoch) };
+
+        ViewModelScript.Given(new JobRowViewModel(job))
+            .Then(row => Assert.False(row.ShowsElapsed))
+            .When(row => row.Update(turn))
+            .Then(row => Assert.Equal((true, DateTimeOffset.UnixEpoch), (row.ShowsElapsed, row.Since)))
+            .When(row => row.Update(turn with { Summary = turn.Summary with { Status = JobStatus.NeedsHelp } }))
+            .Then(row => Assert.False(row.ShowsElapsed));
+    }
+
     private static BoardJob Job(string instruction, JobStatus status) => new(new FakeCatalog().Add(instruction, status).Summary, Transcript.Empty);
 }

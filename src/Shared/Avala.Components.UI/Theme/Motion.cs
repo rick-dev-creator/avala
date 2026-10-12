@@ -103,13 +103,12 @@ public sealed class Motion
 
     public static void Reveal(Visual content)
     {
-        if (GetIsReduced(content))
-        {
-            return;
-        }
+        Watch(content);
 
-        content.RenderTransform ??= MotionCatalog.Transforms();
-        _ = MotionCatalog.Reveal.Animation.RunAsync(content, CancellationToken.None);
+        if (!GetIsReduced(content) && content.GetValue(PlaybackProperty) is { } playback)
+        {
+            playback.Play(content, MotionCatalog.Reveal);
+        }
     }
 
     private static bool IsSettling(Visual visual)

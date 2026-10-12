@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:sidebar="using:Avala.Workbench.Sidebar"
              xmlns:states="using:Avala.Components.UI.States"
+             xmlns:elapsed="using:Avala.Components.UI.Elapsed"
              x:Class="Avala.Workbench.UI.JobRowView"
              x:ClassModifier="internal"
              x:DataType="sidebar:IJobRowViewModel"
@@ -43,7 +44,7 @@
       <Setter Property="IsVisible" Value="False" />
     </Style>
   </UserControl.Styles>
-  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
     <ContentControl x:Name="Dot"
                     ClipToBounds="False"
                     Content="{Binding Dot}"
@@ -69,8 +70,15 @@
                Text="{Binding Fact}"
                TextTrimming="CharacterEllipsis"
                VerticalAlignment="Center" />
+    <elapsed:ElapsedText x:Name="Elapsed"
+                         Grid.Column="4"
+                         Classes="caption"
+                         Margin="8,0,0,0"
+                         VerticalAlignment="Center"
+                         Since="{Binding Since}"
+                         IsVisible="{Binding ShowsElapsed}" />
     <Border x:Name="PendingBadge"
-            Grid.Column="4"
+            Grid.Column="5"
             Classes="badge"
             MinWidth="16"
             Margin="8,0,0,0"

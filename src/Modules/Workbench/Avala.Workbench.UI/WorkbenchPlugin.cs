@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
+using Avala.Components.UI.Copying;
 using Avala.Components.UI.Folders;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
@@ -12,6 +13,7 @@ using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Appearance;
 using Avala.Sdk.Events;
 using Avala.Sdk.Regions;
 using Avala.Sdk.UI;
@@ -105,6 +107,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<JobProgressed>, QueuedMessages>()
             .AddSingleton<HumanReplies>()
             .AddSingleton<Links>()
+            .AddSingleton<SendKeys>()
+            .AddForwarded<IHandle<AppearanceChanged>, SendKeys>()
+            .AddSingleton<TimelineItems>()
             .AddSingleton<Conversations>()
             .AddSingleton<ReviewReader>()
             .AddSingleton<ConflictFinder>()
@@ -118,6 +123,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ToolbarViewModel>()
             .AddSingleton<SettingsLink>()
             .AddSingleton<IWelcomeLinks, WelcomeLinks>()
+            .AddSingleton<HarnessChoiceViewModel>()
             .AddSingleton<IWelcomeViewModel, WelcomeViewModel>()
             .AddSingleton<WorkbenchViewModel>()
             .AddForwarded<IPage, WorkbenchViewModel>();
@@ -146,6 +152,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IWorkbenchViewModel, WorkbenchView>();
         views.Register<IWelcomeViewModel, WelcomeView>();
         views.Register<IAccountChipViewModel, AccountChipView>();
+        views.Register<IHarnessChoiceViewModel, HarnessChoiceView>();
+        views.Register<IHarnessOptionViewModel, HarnessOptionView>();
         views.Register<ISidebarViewModel, SidebarView>();
         views.Register<IJobRowViewModel, JobRowView>();
         views.Register<IContestRowViewModel, ContestRowView>();
@@ -158,6 +166,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IChildAskingViewModel, ChildAskingView>();
         views.Register<IRestartViewModel, RestartView>();
         views.Register<IMessageViewModel, MessageView>();
+        views.Register<IWorkingViewModel, WorkingView>();
         views.Register<IReasoningViewModel, ReasoningView>();
         views.Register<IToolViewModel, ToolView>();
         views.Register<IPlanViewModel, PlanView>();
@@ -238,6 +247,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     private static void RegisterRepositoryChoice(IServiceCollection services)
     {
         services.TryAddSingleton<IFolderPicker, AvaloniaFolderPicker>();
+        services.TryAddSingleton<IClipboard, AvaloniaClipboard>();
         services
             .AddTransient<PublishOptionsViewModel>()
             .AddTransient<NewRepositoryViewModel>()
@@ -369,6 +379,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
         views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
         views.Register<IMachineSettingsViewModel, MachineSettingsView>();
+        views.Register<IMachineAccountsViewModel, MachineAccountsView>();
         views.Register<INotificationsViewModel, NotificationsView>();
         views.Register<IAppearanceViewModel, AppearanceView>();
         views.Register<IAboutViewModel, AboutView>();
