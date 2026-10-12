@@ -2,6 +2,7 @@ using Avala.Components.Keycaps;
 using Avala.Components.Meters;
 using Avala.Components.Status;
 using Avala.Sdk;
+using Avala.Sdk.Appearance;
 using Avala.Sdk.Regions;
 using Avala.Shell.Regions;
 using CommunityToolkit.Mvvm.Input;
@@ -52,11 +53,21 @@ internal sealed class DesignShellViewModel : IShellViewModel
 
     public bool IsFocused => false;
 
+    public double SidebarWidth => WindowLayout.DefaultSidebarWidth;
+
     public IRelayCommand ToggleSidebarCommand { get; } = new RelayCommand(() => { });
 
     public IRelayCommand ToggleFocusCommand { get; } = new RelayCommand(() => { });
 
+    public IRelayCommand LeaveFocusCommand { get; } = new RelayCommand(() => { });
+
     public IRelayCommand<double> FitCommand { get; } = new RelayCommand<double>(_ => { });
+
+    public IRelayCommand<double> ResizeSidebarCommand { get; } = new RelayCommand<double>(_ => { });
+
+    public IRelayCommand RememberSidebarCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand ResetSidebarWidthCommand { get; } = new RelayCommand(() => { });
 
     private sealed record DesignPage(string Title, string Icon) : IPage;
 

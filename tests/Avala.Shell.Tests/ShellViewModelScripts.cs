@@ -247,18 +247,60 @@ public sealed class ShellViewModelScripts
             .Then(collapsed => Assert.False(collapsed.IsSidebarShown));
         await shell.Remembering;
 
-        Assert.Equal(new WindowLayout(true), layout.Remembered);
+        Assert.Equal(WindowLayout.Default with { IsSidebarCollapsed = true }, layout.Remembered);
     }
 
     [Fact]
-    public async Task TheSidebarStartsCollapsedWhenThePersonLeftItCollapsedAsync()
+    public async Task TheSidebarStartsCollapsedAndAsWideAsThePersonLeftItAsync()
     {
-        var shell = WithSidebar(new RememberedLayout(new WindowLayout(true)));
+        var shell = WithSidebar(new RememberedLayout(new WindowLayout(true, 312)));
 
         shell.Activate();
         await shell.Restoring;
 
-        Assert.False(shell.IsSidebarShown);
+        Assert.Equal((false, 312d), (shell.IsSidebarShown, shell.SidebarWidth));
+    }
+
+    [Fact]
+    public void ResizingTheSidebarKeepsItBetweenItsNarrowestAndWidestWidths() =>
+        ViewModelScript.Given(WithSidebar(new RememberedLayout()))
+            .Invoke(nameof(ShellViewModel.ResizeSidebarCommand), 287.6d)
+            .ThenNotified(nameof(ShellViewModel.SidebarWidth))
+            .Then(resized => Assert.Equal(288d, resized.SidebarWidth))
+            .Invoke(nameof(ShellViewModel.ResizeSidebarCommand), 120d)
+            .Then(narrowest => Assert.Equal(WindowLayout.NarrowestSidebar, narrowest.SidebarWidth))
+            .Invoke(nameof(ShellViewModel.ResizeSidebarCommand), 900d)
+            .Then(widest => Assert.Equal(WindowLayout.WidestSidebar, widest.SidebarWidth));
+
+    [Fact]
+    public async Task TheSidebarWidthIsRememberedWhenTheResizeEndsAsync()
+    {
+        var layout = new RememberedLayout();
+        var shell = WithSidebar(layout);
+
+        ViewModelScript.Given(shell)
+            .Invoke(nameof(ShellViewModel.ResizeSidebarCommand), 330d)
+            .Then(_ => Assert.Equal(WindowLayout.Default, layout.Remembered))
+            .Invoke(nameof(ShellViewModel.RememberSidebarCommand));
+        await shell.Remembering;
+
+        Assert.Equal(WindowLayout.Default with { SidebarWidth = 330 }, layout.Remembered);
+    }
+
+    [Fact]
+    public async Task ResettingTheSidebarWidthReturnsToTheDefaultAndRemembersItAsync()
+    {
+        var layout = new RememberedLayout(new WindowLayout(false, 380));
+        var shell = WithSidebar(layout);
+        shell.Activate();
+        await shell.Restoring;
+
+        ViewModelScript.Given(shell)
+            .Invoke(nameof(ShellViewModel.ResetSidebarWidthCommand))
+            .Then(reset => Assert.Equal(WindowLayout.DefaultSidebarWidth, reset.SidebarWidth));
+        await shell.Remembering;
+
+        Assert.Equal(WindowLayout.Default, layout.Remembered);
     }
 
     [Fact]
@@ -309,6 +351,14 @@ public sealed class ShellViewModelScripts
             .Invoke(nameof(ShellViewModel.ToggleFocusCommand))
             .Then(left => Assert.Equal((false, true, true), (left.IsFocused, left.IsSidebarShown, left.IsInspectorShown)));
     }
+
+    [Fact]
+    public void LeavingFocusModeIsOfferedOnlyWhileFocused() =>
+        ViewModelScript.Given(WithSidebar(new RememberedLayout()))
+            .Then(unfocused => Assert.False(unfocused.LeaveFocusCommand.CanExecute(null)))
+            .Invoke(nameof(ShellViewModel.ToggleFocusCommand))
+            .Invoke(nameof(ShellViewModel.LeaveFocusCommand))
+            .Then(left => Assert.Equal((false, true), (left.IsFocused, left.IsSidebarShown)));
 
     [Fact]
     public void ShowingTheSidebarLeavesFocusMode() =>
