@@ -21,6 +21,30 @@ public sealed class AlarmTests
     }
 
     [Fact]
+    public void AnAlarmRingsWhenTheClockReachesItsDueTimeThoughReadingTheClockMovesIt()
+    {
+        var moving = new FakeTimeProvider(clock.GetUtcNow()) { AutoAdvanceAmount = TimeSpan.FromTicks(1) };
+        var due = moving.GetUtcNow() + TimeSpan.FromMinutes(1);
+        using var alarm = moving.CreateAlarm(() => rings++, due);
+
+        moving.SetUtcNow(due);
+
+        Assert.Equal(1, rings);
+    }
+
+    [Fact]
+    public void AnAlarmWhoseTimerFiresEarlyBeforeItIsKeptStillRingsAtItsDueTime()
+    {
+        var hasty = new HastyClock(clock.GetUtcNow());
+        var due = hasty.GetUtcNow() + TimeSpan.FromMinutes(1);
+        using var alarm = hasty.CreateAlarm(() => rings++, due);
+
+        hasty.SetUtcNow(due);
+
+        Assert.Equal(1, rings);
+    }
+
+    [Fact]
     public void AnAlarmChangedToAnInfiniteWaitNeverRings()
     {
         using var alarm = clock.CreateAlarm(() => rings++, TimeSpan.FromMinutes(10));
@@ -49,5 +73,23 @@ public sealed class AlarmTests
         using var alarm = clock.CreateAlarm(() => rings++, TimeSpan.FromMinutes(10));
 
         Assert.Throws<NotSupportedException>(() => alarm.Change(TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1)));
+    }
+
+    private sealed class HastyClock(DateTimeOffset start) : FakeTimeProvider(start)
+    {
+        private bool hurried;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = base.CreateTimer(callback, state, dueTime, period);
+
+            if (!hurried)
+            {
+                hurried = true;
+                Advance(dueTime);
+            }
+
+            return timer;
+        }
     }
 }

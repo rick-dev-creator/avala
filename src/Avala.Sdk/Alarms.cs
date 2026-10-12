@@ -25,6 +25,7 @@ public static class Alarms
 
     private sealed class Alarm(TimeProvider clock, Action ring, DateTimeOffset due) : ITimer
     {
+        private static readonly TimeSpan Lead = TimeSpan.FromMilliseconds(1);
         private long dueTicks = due.UtcTicks;
         private ITimer? current;
         private int disposed;
@@ -56,8 +57,23 @@ public static class Alarms
 
         public void Arm()
         {
-            var left = Left;
-            Replace(clock.CreateTimer(Ring, null, left > LongestTimerWait ? LongestTimerWait : left > TimeSpan.Zero ? left : TimeSpan.Zero, Timeout.InfiniteTimeSpan));
+            var previous = Volatile.Read(ref current);
+            var next = clock.CreateTimer(Ring, null, Wait(Left), Timeout.InfiniteTimeSpan);
+
+            if (Interlocked.CompareExchange(ref current, next, previous) != previous)
+            {
+                next.Dispose();
+                Arm();
+
+                return;
+            }
+
+            previous?.Dispose();
+
+            if (Volatile.Read(ref disposed) == 1)
+            {
+                Interlocked.Exchange(ref current, null)?.Dispose();
+            }
         }
 
         public void Dispose()
@@ -75,6 +91,12 @@ public static class Alarms
                 await timer.DisposeAsync();
             }
         }
+
+        private static TimeSpan Wait(TimeSpan left) =>
+            left > LongestTimerWait ? LongestTimerWait
+            : left > Lead ? left - Lead
+            : left > TimeSpan.Zero ? left
+            : TimeSpan.Zero;
 
         private TimeSpan Left => new DateTimeOffset(Volatile.Read(ref dueTicks), TimeSpan.Zero) - clock.GetUtcNow();
 

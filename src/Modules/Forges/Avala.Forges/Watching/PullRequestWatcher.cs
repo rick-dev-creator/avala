@@ -89,8 +89,7 @@ internal sealed class PullRequestWatcher(WatchBook book, PullRequestReader reade
         LiveWatch(job).Match(
             kept =>
             {
-                var due = kept.State.NextPoll.Match(next => next - clock.GetUtcNow(), () => TimeSpan.Zero);
-                Arm(job, due > TimeSpan.Zero ? due : TimeSpan.Zero);
+                Arm(job, kept.State.NextPoll.Match(next => next, clock.GetUtcNow));
 
                 return true;
             },
@@ -142,7 +141,7 @@ internal sealed class PullRequestWatcher(WatchBook book, PullRequestReader reade
         {
             var failures = kept.State.Failures + 1;
             var wait = Backoff.After(poll, failures);
-            Arm(job, wait);
+            Arm(job, now + wait);
             await book.SaveAsync(
                 kept with { State = kept.State with { Status = WatchStatus.BackingOff, Failure = error, Failures = failures, LastPolled = now, NextPoll = now + wait } },
                 token);
@@ -184,7 +183,7 @@ internal sealed class PullRequestWatcher(WatchBook book, PullRequestReader reade
                 var waiting = decision.Verdict == Verdict.WaitForJob ? WatchStatus.WaitingForJob
                     : kept.State.Status == WatchStatus.NeedsPerson ? WatchStatus.NeedsPerson
                     : WatchStatus.Watching;
-                Arm(job, poll);
+                Arm(job, next);
                 await book.SaveAsync(kept with { State = kept.State with { Status = waiting, NextPoll = next } }, token);
                 break;
         }
@@ -201,7 +200,7 @@ internal sealed class PullRequestWatcher(WatchBook book, PullRequestReader reade
             Refusal = woken.Match(_ => Option<JobRejection>.None, Option<JobRejection>.Some),
         };
 
-        Arm(kept.State.Job, poll);
+        Arm(kept.State.Job, now + poll);
         await book.AddAsync(record, token);
         await book.SaveAsync(
             kept with
@@ -223,12 +222,12 @@ internal sealed class PullRequestWatcher(WatchBook book, PullRequestReader reade
         _ = await reader.CommentAsync(kept, comment, token);
         var now = clock.GetUtcNow();
 
-        Arm(kept.State.Job, poll);
+        Arm(kept.State.Job, now + poll);
         await book.AddAsync(new WakeUpRecord(kept.State.Job, kept.State.PullRequest.Number, trigger.Reason, trigger.Key, comment, now, WakeOutcome.HeldForPerson), token);
         await book.SaveAsync(kept with { State = kept.State with { Status = WatchStatus.NeedsPerson, NextPoll = now + poll } }, token);
     }
 
-    private void Arm(JobId job, TimeSpan due)
+    private void Arm(JobId job, DateTimeOffset due)
     {
         Disarm(job);
         timers[job] = clock.CreateAlarm(() => Post(token => PollAsync(job, token)), due);
