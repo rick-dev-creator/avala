@@ -49,6 +49,7 @@ internal static class LayerMap
         {
             [""] = Layer.None,
             ["UI"] = Layer.None,
+            ["UI.Surfaces"] = Layer.None,
             ["Contracts"] = Layer.Contracts,
             ["Origins"] = Layer.Domain,
             ["Navigation"] = Layer.Application,

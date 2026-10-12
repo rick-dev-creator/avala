@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Controls.WebView" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Avala.Preview\Avala.Preview.csproj" />
