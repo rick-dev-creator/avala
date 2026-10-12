@@ -39,6 +39,7 @@
             Margin="24,4,0,6"
             HorizontalAlignment="Left"
             Command="{Binding OpenCommand}"
+            states:Realized.Command="{Binding RealizeCommand}"
             IsVisible="{Binding HasThumbnail}"
             ToolTip.Tip="{Binding Hint}"
             AutomationProperties.Name="{Binding Name}">
@@ -47,7 +48,7 @@
                MaxWidth="260"
                MaxHeight="150"
                Stretch="Uniform"
-               Source="{Binding Picture, Converter={x:Static states:Pictures.Decoded}}"
+               Source="{Binding Picture, Converter={x:Static states:Pictures.Shown}}"
                IsVisible="{Binding IsImage}" />
         <components:CanvasPresenter x:Name="Drawing"
                                     Width="220"
@@ -76,6 +77,7 @@
         <Border x:Name="SheetCard"
                 Classes="float"
                 theme:Motion.Enter="Sheet"
+                states:Fitted.Command="{Binding FitCommand}"
                 Padding="0"
                 ClipToBounds="True"
                 Focusable="True">
@@ -111,7 +113,7 @@
                   <Image x:Name="SheetPicture"
                          Stretch="Uniform"
                          StretchDirection="DownOnly"
-                         Source="{Binding Picture, Converter={x:Static states:Pictures.Decoded}}"
+                         Source="{Binding Picture, Converter={x:Static states:Pictures.Shown}}"
                          IsVisible="{Binding IsImage}" />
                   <components:CanvasPresenter x:Name="SheetDrawing"
                                               Rendering="{Binding Drawing}"

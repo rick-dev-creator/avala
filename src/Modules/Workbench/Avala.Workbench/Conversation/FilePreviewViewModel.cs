@@ -1,9 +1,8 @@
 using System.Text;
 using Avala.Components.Canvases;
+using Avala.Components.Pictures;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
-using Avala.Workbench.Linking;
-using Avala.Workbench.Reviewing;
 using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -32,7 +31,7 @@ internal interface IFilePreviewViewModel
 
     bool IsImage { get; }
 
-    byte[] Picture { get; }
+    IPicture Picture { get; }
 
     CanvasRendering Drawing { get; }
 
@@ -42,7 +41,11 @@ internal interface IFilePreviewViewModel
 
     IAsyncRelayCommand LoadCommand { get; }
 
-    IRelayCommand CloseCommand { get; }
+    IAsyncRelayCommand CloseCommand { get; }
+
+    IAsyncRelayCommand<bool> RealizeCommand { get; }
+
+    IAsyncRelayCommand<int> FitCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -52,20 +55,25 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
 
     public const int SheetLimit = 16 * 1024 * 1024;
 
+    public const int ThumbnailWidth = 520;
+
     private readonly JobId job;
     private readonly string path;
-    private readonly WorkedFiles files;
-    private readonly Links links;
+    private readonly FileViewing viewing;
+    private byte[] encoded = [];
+    private bool isRealized;
+    private bool isOpening;
+    private int sheetWidth;
+    private int shownWidth;
+    private int asked;
 
-    public FilePreviewViewModel(JobId job, string path, WorkedFiles files, Links links)
+    public FilePreviewViewModel(JobId job, string path, FileViewing viewing)
     {
         this.job = job;
         this.path = path;
-        this.files = files;
-        this.links = links;
+        this.viewing = viewing;
         Name = System.IO.Path.GetFileName(path);
         Kind = KindOf(path);
-        Picture = [];
         Notice = string.Empty;
     }
 
@@ -85,7 +93,7 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
     public partial bool HasThumbnail { get; private set; }
 
     [ObservableProperty]
-    public partial byte[] Picture { get; private set; }
+    public partial IPicture Picture { get; private set; } = NoPicture.Instance;
 
     [ObservableProperty]
     public partial CanvasRendering Drawing { get; private set; } = CanvasRendering.Nothing;
@@ -106,7 +114,8 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
     {
         if (Kind is PreviewKind.Image or PreviewKind.Svg)
         {
-            Show(await files.ReadAsync(job, path, SheetLimit, cancellationToken));
+            Show(await viewing.Files.ReadAsync(job, path, SheetLimit, cancellationToken));
+            await PictureAsync();
         }
     }
 
@@ -115,26 +124,83 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
     {
         if (Kind == PreviewKind.Page)
         {
-            var located = await files.LocateAsync(job, path, cancellationToken);
+            var located = await viewing.Files.LocateAsync(job, path, cancellationToken);
             Notice = await located.Match(
                 found => found.Match(
-                    async file => (await links.OpenFileAsync(file, cancellationToken)).Match(_ => string.Empty, _ => ConversationPhrases.NotOpened(Name)),
+                    async file => (await viewing.Links.OpenFileAsync(file, cancellationToken)).Match(_ => string.Empty, _ => ConversationPhrases.NotOpened(Name)),
                     () => Task.FromResult(ConversationPhrases.Missing(Name))),
                 _ => Task.FromResult(ConversationPhrases.Missing(Name)));
 
             return;
         }
 
-        if (Picture.Length == 0 && Drawing.IsNothing)
+        if (encoded.Length == 0 && Drawing.IsNothing)
         {
+            isOpening = true;
             await LoadAsync(cancellationToken);
+            isOpening = false;
         }
 
         IsOpen = Notice.Length == 0;
+        await PictureAsync();
     }
 
-    [RelayCommand(CanExecute = nameof(IsOpen))]
-    private void Close() => IsOpen = false;
+    [RelayCommand(CanExecute = nameof(IsOpen), AllowConcurrentExecutions = true)]
+    private Task CloseAsync()
+    {
+        IsOpen = false;
+
+        if (encoded.Length > ThumbnailLimit)
+        {
+            encoded = [];
+        }
+
+        return PictureAsync();
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private Task RealizeAsync(bool shown)
+    {
+        isRealized = shown;
+
+        return PictureAsync();
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private Task FitAsync(int width)
+    {
+        sheetWidth = width;
+
+        return PictureAsync();
+    }
+
+    private async Task PictureAsync()
+    {
+        var wanted = !IsImage || encoded.Length == 0 ? 0
+            : IsOpen ? Math.Max(sheetWidth, ThumbnailWidth)
+            : isRealized && HasThumbnail ? ThumbnailWidth
+            : 0;
+        var asking = ++asked;
+
+        if (wanted == shownWidth)
+        {
+            return;
+        }
+
+        var picture = wanted == 0 ? NoPicture.Instance : await viewing.Pictures.DecodeAsync(encoded, wanted, CancellationToken.None);
+
+        if (asking != asked)
+        {
+            picture.Dispose();
+
+            return;
+        }
+
+        var shown = Picture;
+        Picture = picture;
+        shownWidth = picture.IsNothing ? 0 : wanted;
+        shown.Dispose();
+    }
 
     private void Show(Result<Option<byte[]>, WorkspaceFailure> read)
     {
@@ -146,9 +212,9 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
         {
             Drawing = new CanvasRendering(CanvasMediaTypes.Svg, Encoding.UTF8.GetString(bytes), true, 1);
         }
-        else
+        else if (bytes.Length <= ThumbnailLimit || isOpening)
         {
-            Picture = bytes;
+            encoded = bytes;
         }
 
         HasThumbnail = bytes.Length is > 0 and <= ThumbnailLimit;

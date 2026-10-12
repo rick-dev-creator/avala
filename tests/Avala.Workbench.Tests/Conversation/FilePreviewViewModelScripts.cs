@@ -32,9 +32,44 @@ public sealed class FilePreviewViewModelScripts
         var tool = worktree.Tool(Written("orbit.png"));
 
         await (tool.Preview.LoadCommand.ExecutionTask ?? Task.CompletedTask);
+        await tool.Preview.RealizeCommand.ExecuteAsync(true);
 
         Assert.Equal((true, true, true), (tool.ShowsPreview, tool.Preview.HasThumbnail, tool.Preview.IsImage));
-        Assert.Equal(Png, tool.Preview.Picture);
+        Assert.Equal([FilePreviewViewModel.ThumbnailWidth], worktree.Pictures.Held);
+        Assert.Same(worktree.Pictures.Decoded[^1], tool.Preview.Picture);
+    }
+
+    [Fact]
+    public async Task AThumbnailReleasesItsPictureOnceItsRowIsNoLongerRealizedAsync()
+    {
+        var worktree = new Worktree();
+        worktree.Files.Stored[Path.Combine(Worktree.Folder, "orbit.png")] = Png;
+        var tool = worktree.Tool(Written("orbit.png"));
+        await (tool.Preview.LoadCommand.ExecutionTask ?? Task.CompletedTask);
+        await tool.Preview.RealizeCommand.ExecuteAsync(true);
+
+        await tool.Preview.RealizeCommand.ExecuteAsync(false);
+
+        Assert.Empty(worktree.Pictures.Held);
+        Assert.True(tool.Preview.Picture.IsNothing);
+    }
+
+    [Fact]
+    public async Task TheSheetShowsThePictureAtItsOwnWidthAndClosingItReturnsToTheThumbnailAsync()
+    {
+        var worktree = new Worktree();
+        worktree.Files.Stored[Path.Combine(Worktree.Folder, "orbit.png")] = Png;
+        var tool = worktree.Tool(Written("orbit.png"));
+        await (tool.Preview.LoadCommand.ExecutionTask ?? Task.CompletedTask);
+        await tool.Preview.RealizeCommand.ExecuteAsync(true);
+
+        await tool.Preview.OpenCommand.ExecuteAsync(null);
+        await tool.Preview.FitCommand.ExecuteAsync(1600);
+        var opened = worktree.Pictures.Held.ToList();
+        await tool.Preview.CloseCommand.ExecuteAsync(null);
+
+        Assert.Equal([1600], opened);
+        Assert.Equal([FilePreviewViewModel.ThumbnailWidth], worktree.Pictures.Held);
     }
 
     [Fact]
@@ -59,7 +94,7 @@ public sealed class FilePreviewViewModelScripts
 
         await tool.Preview.OpenCommand.ExecuteAsync(null);
         var drawn = (tool.Preview.IsOpen, tool.Preview.Drawing.MediaType, tool.Preview.Drawing.Content);
-        tool.Preview.CloseCommand.Execute(null);
+        await tool.Preview.CloseCommand.ExecuteAsync(null);
 
         Assert.Equal((true, "image/svg+xml", "<svg/>"), drawn);
         Assert.False(tool.Preview.IsOpen);

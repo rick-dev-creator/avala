@@ -1,6 +1,7 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Canvas.Contracts;
 using Avala.Components.Canvases;
+using Avala.Components.Pictures;
 using Avala.Components.Status;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
@@ -225,7 +226,7 @@ internal sealed class DesignFilePreviewViewModel : IFilePreviewViewModel
 
     public bool IsImage => false;
 
-    public byte[] Picture => [];
+    public IPicture Picture => NoPicture.Instance;
 
     public CanvasRendering Drawing { get; } = new(CanvasMediaTypes.Svg, """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><circle cx="60" cy="60" r="14" fill="#E5A13A"/><circle cx="60" cy="60" r="40" fill="none" stroke="#80808A"/><circle cx="100" cy="60" r="5" fill="#8DA2FB"/></svg>""", true, 1);
 
@@ -235,7 +236,11 @@ internal sealed class DesignFilePreviewViewModel : IFilePreviewViewModel
 
     public IAsyncRelayCommand LoadCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
-    public IRelayCommand CloseCommand { get; } = new RelayCommand(() => { });
+    public IAsyncRelayCommand CloseCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand<bool> RealizeCommand { get; } = new AsyncRelayCommand<bool>(_ => Task.CompletedTask);
+
+    public IAsyncRelayCommand<int> FitCommand { get; } = new AsyncRelayCommand<int>(_ => Task.CompletedTask);
 }
 
 internal sealed class DesignFileChangesViewModel : IFileChangesViewModel

@@ -12,9 +12,13 @@ internal static class Tools
 {
     public static WorkedFiles Files() => new(new FakeCatalog(), new FakeChanges(), new FakeWorkspaces(), new FakeWorkingFiles());
 
+    public static FileViewing Viewing() => Viewing(Files());
+
+    public static FileViewing Viewing(WorkedFiles worked) => new(worked, FakeLinks.Opening, new FakePictures());
+
     public static ToolViewModel Of(ToolEntry entry) => Of(entry, new FakeClipboard());
 
-    public static ToolViewModel Of(ToolEntry entry, FakeClipboard clipboard) => new(entry, clipboard, new FileViews(JobId.New(), Files(), FakeLinks.Opening));
+    public static ToolViewModel Of(ToolEntry entry, FakeClipboard clipboard) => new(entry, clipboard, Viewing().For(JobId.New()));
 
     public static ToolViewModel InWorktree(ToolEntry entry, FakeChanges changes) => new Worktree { Changes = changes }.Tool(entry);
 
@@ -33,6 +37,8 @@ internal sealed class Worktree
     public FakeWorkingFiles Files { get; } = new();
 
     public FakeLinks Opener { get; } = new();
+
+    public FakePictures Pictures { get; } = new();
 
     public bool Gone { get; init; }
 
@@ -58,6 +64,8 @@ internal sealed class Worktree
     {
         var worked = Worked();
 
-        return new(entry, new FakeClipboard(), new FileViews(Job, worked, new Links(Opener)));
+        return new(entry, new FakeClipboard(), Viewing(worked).For(Job));
     }
+
+    public FileViewing Viewing(WorkedFiles worked) => new(worked, new Links(Opener), Pictures);
 }

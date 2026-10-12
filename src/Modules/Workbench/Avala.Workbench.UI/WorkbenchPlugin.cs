@@ -1,8 +1,10 @@
 using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
+using Avala.Components.Pictures;
 using Avala.Components.Privacy;
 using Avala.Components.UI.Copying;
 using Avala.Components.UI.Folders;
+using Avala.Components.UI.Pictures;
 using Avala.Workbench.Timeline;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
@@ -120,6 +122,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<AppearanceChanged>, PersonalDetailsViewModel>()
             .AddSingleton<TimelineItems>()
             .AddSingleton<WorkedFiles>()
+            .AddSingleton<FileViewing>()
             .AddSingleton<Conversations>()
             .AddSingleton<Composers>()
             .AddSingleton<JobHarnesses>()
@@ -287,6 +290,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     {
         services.TryAddSingleton<IFolderPicker, AvaloniaFolderPicker>();
         services.TryAddSingleton<IClipboard, AvaloniaClipboard>();
+        services.TryAddSingleton<IPictureDecoder>(_ => new PictureCache());
         services.TryAddSingleton<IFileSaver, AvaloniaFileSaver>();
         services
             .AddTransient<PublishOptionsViewModel>()
