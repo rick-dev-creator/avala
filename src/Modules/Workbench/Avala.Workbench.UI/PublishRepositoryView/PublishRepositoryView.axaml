@@ -9,15 +9,17 @@
   </Design.DataContext>
   <StackPanel Spacing="7" IsVisible="{Binding IsShown}">
     <TextBlock x:Name="Remote" Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Remote}" />
-    <Button x:Name="PublishRepository"
-            Classes="ghost"
-            Margin="-8,0,0,0"
-            HorizontalAlignment="Left"
-            FontSize="{DynamicResource FontSizeCaption}"
-            Content="Publish repository…"
-            ToolTip.Tip="Create the repository on a forge, add it as origin and push the current branch"
-            Command="{Binding StartCommand}"
-            IsVisible="{Binding CanOffer}" />
+    <Panel IsVisible="{Binding !IsOpen}">
+      <Button x:Name="PublishRepository"
+              Classes="ghost"
+              Margin="-8,0,0,0"
+              HorizontalAlignment="Left"
+              FontSize="{DynamicResource FontSizeCaption}"
+              Content="Publish repository…"
+              ToolTip.Tip="Create the repository on a forge, add it as origin and push the current branch"
+              Command="{Binding StartCommand}"
+              IsVisible="{Binding CanOffer}" />
+    </Panel>
     <Border Classes="quiet" Padding="12,10" IsVisible="{Binding IsOpen}">
       <StackPanel Spacing="8">
         <TextBlock Classes="section" Text="Publish repository" />
