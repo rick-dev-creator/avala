@@ -164,7 +164,11 @@ internal sealed class AnimatedSvg : Panel
         play.IsVisible = reduced && !playingOnce && IsPointerOver;
         StopWaiting();
         Switch(playing);
+        WaitFor(playing);
+    }
 
+    private void WaitFor(bool playing)
+    {
         if (playing && (playingOnce || !timeline.Loops))
         {
             EndWithTheTimeline();
