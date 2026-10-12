@@ -5,7 +5,7 @@ namespace Avala.Components.UI.Theme;
 
 public sealed class Chrome
 {
-    public const double Leading = 84;
+    public const double Leading = 56;
 
     public const double Clearance = 44;
 
@@ -15,7 +15,17 @@ public sealed class Chrome
     public static readonly AttachedProperty<bool> IsFocusModeProperty =
         AvaloniaProperty.RegisterAttached<Chrome, Visual, bool>("IsFocusMode", inherits: true);
 
-    static Chrome() => IsBareProperty.Changed.AddClassHandler<Control>((control, _) => Fit(control));
+    static Chrome()
+    {
+        IsBareProperty.Changed.AddClassHandler<Control>((control, _) => Fit(control));
+        IsFocusModeProperty.Changed.AddClassHandler<Control>((control, _) =>
+        {
+            if (control.IsSet(IsBareProperty))
+            {
+                Fit(control);
+            }
+        });
+    }
 
     private Chrome()
     {
@@ -31,9 +41,10 @@ public sealed class Chrome
 
     private static void Fit(Control control)
     {
-        var leading = GetIsBare(control) ? Leading : 0;
+        var bare = GetIsBare(control) && !GetIsFocusMode(control);
+        var leading = bare ? Leading : 0;
         control.Resources["ChromeLeading"] = new Thickness(leading, 0, 0, 0);
-        control.Resources["ChromeClearance"] = new Thickness(0, GetIsBare(control) ? Clearance : 0, 0, 0);
+        control.Resources["ChromeClearance"] = new Thickness(0, bare ? Clearance : 0, 0, 0);
         control.Resources["PageHeaderPadding"] = new Thickness(24 + leading, 12, 24, 12);
     }
 }

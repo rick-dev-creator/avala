@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Xml.Linq;
 using Avala.Host.Composition;
 using Avala.Sdk;
+using Avala.Sdk.Appearance;
 using Avala.Sdk.Regions;
 using Avala.Shell;
 using Avala.Shell.Regions;
@@ -167,18 +168,78 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         }, Cancellation);
 
     [Fact]
-    public Task FocusModeHidesTheSidebarAndTheInspectorUntilControlShiftFIsPressedAgainAsync() =>
+    public Task FocusModeLeavesOnlyTheContentWithAHintUntilControlShiftFIsPressedAgainAsync() =>
         ui.RunAsync(async () =>
         {
             var (view, shell) = Composed();
             await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
 
             view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
-            var focused = (view.Shows("SidebarPane"), view.Shows("InspectorPane"), view.HasClass("ToggleFocus", "selected"));
+            var focused = (view.Shows("SidebarPane"), view.Shows("InspectorPane"), view.Shows("WindowControls"), view.Shows("FocusHint"), Leading(view));
+            var hint = view.VisibleTexts;
             view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
 
-            Assert.Equal((false, false, true), focused);
-            Assert.Equal((true, true, false), (view.Shows("SidebarPane"), view.Shows("InspectorPane"), view.HasClass("ToggleFocus", "selected")));
+            Assert.Equal((false, false, false, true, 0d), focused);
+            Assert.Contains("Focus · Ctrl+Shift+F to exit", hint);
+            Assert.Equal((true, true, true, false), (view.Shows("SidebarPane"), view.Shows("InspectorPane"), view.Shows("WindowControls"), view.Shows("FocusHint")));
+        }, Cancellation);
+
+    [Fact]
+    public Task EscapeLeavesFocusModeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, shell) = Composed();
+
+            view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+            view.Press(Key.Escape);
+
+            Assert.Equal((false, true), (shell.IsFocused, view.Shows("SidebarPane")));
+        }, Cancellation);
+
+    [Fact]
+    public Task FocusModeWidensTheReadingColumnAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, _) = Composed();
+            view.Window.Width = 1920;
+            view.Settle();
+            var unfocused = Reading(view);
+
+            view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+
+            Assert.Equal((880d, 1200d), (unfocused, Reading(view)));
+        }, Cancellation);
+
+    [Fact]
+    public Task DraggingTheSidebarEdgeResizesTheSidebarAndRemembersItsWidthAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var layout = new RememberedLayout();
+            var (view, shell) = Composed(layout);
+            var start = Width(view);
+
+            view.Drag("SidebarGrip", 60);
+            var widened = Width(view);
+            view.Drag("SidebarGrip", -200);
+            await shell.Remembering;
+
+            Assert.Equal((WindowLayout.DefaultSidebarWidth, WindowLayout.DefaultSidebarWidth + 60), (start, widened));
+            Assert.Equal(WindowLayout.NarrowestSidebar, Width(view));
+            Assert.Equal(WindowLayout.Default with { SidebarWidth = WindowLayout.NarrowestSidebar }, layout.Remembered);
+        }, Cancellation);
+
+    [Fact]
+    public Task DoubleClickingTheSidebarEdgeResetsItsWidthAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var layout = new RememberedLayout();
+            var (view, shell) = Composed(layout);
+            view.Drag("SidebarGrip", 100);
+
+            view.DoubleClick("SidebarGrip");
+            await shell.Remembering;
+
+            Assert.Equal((WindowLayout.DefaultSidebarWidth, WindowLayout.Default), (Width(view), layout.Remembered));
         }, Cancellation);
 
     [Fact]
@@ -214,7 +275,11 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
 
     private static double Reading(ViewScript view) => (double)view.Find("ContentPane").Resources[Avala.Components.UI.Theme.Reading.WidthKey]!;
 
-    private static (ViewScript View, ShellViewModel Shell) Composed()
+    private static double Width(ViewScript view) => view.Find("SidebarPane").Bounds.Width;
+
+    private static (ViewScript View, ShellViewModel Shell) Composed() => Composed(new RememberedLayout());
+
+    private static (ViewScript View, ShellViewModel Shell) Composed(RememberedLayout layout)
     {
         HeadlessApp.Views.Register<JobPicker, JobPickerControl>();
         HeadlessApp.Views.Register<JobInspector, JobInspectorControl>();
@@ -223,7 +288,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             [],
             [new RegionContribution(ShellRegions.Sidebar, 0, new JobPicker(contexts)), new RegionContribution(ShellRegions.Inspector, 0, new JobInspector())],
             contexts,
-            new RememberedLayout());
+            layout);
         var view = ViewScript.Present(new ShellView { Width = 1440, Height = 900 }, shell);
         Avala.Components.UI.Theme.Motion.SetIsReduced(view.Window, true);
 

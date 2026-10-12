@@ -42,7 +42,7 @@ public sealed class Reading
     {
         control.PropertyChanged += (_, change) =>
         {
-            if (change.Property == Visual.BoundsProperty || change.Property == IsWideProperty)
+            if (change.Property == Visual.BoundsProperty || change.Property == IsWideProperty || change.Property == Chrome.IsFocusModeProperty)
             {
                 Fit(control);
             }
@@ -52,7 +52,7 @@ public sealed class Reading
 
     private static void Fit(Control control)
     {
-        var width = Width(control.Bounds.Width, GetIsWide(control));
+        var width = Width(control.Bounds.Width, GetIsWide(control) || Chrome.GetIsFocusMode(control));
 
         if (!control.Resources.TryGetValue(WidthKey, out var current) || current is not double known || Math.Abs(known - width) >= 1)
         {

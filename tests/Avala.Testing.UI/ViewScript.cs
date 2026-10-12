@@ -86,6 +86,37 @@ public sealed class ViewScript
         return Settle();
     }
 
+    public ViewScript Drag(string name, double horizontally)
+    {
+        Settle();
+        var target = Find(name);
+        var from = target.TranslatePoint(new Point(target.Bounds.Width / 2, target.Bounds.Height / 2), Window)
+            ?? throw new InvalidOperationException($"{Describe(target)} is not laid out.");
+        var to = from + new Point(horizontally, 0);
+        Window.MouseMove(from);
+        Window.MouseDown(from, MouseButton.Left);
+        Window.MouseMove(from + new Point(horizontally / 2, 0), RawInputModifiers.LeftMouseButton);
+        Window.MouseMove(to, RawInputModifiers.LeftMouseButton);
+        Window.MouseUp(to, MouseButton.Left);
+
+        return Settle();
+    }
+
+    public ViewScript DoubleClick(string name)
+    {
+        Settle();
+        var target = Find(name);
+        var center = target.TranslatePoint(new Point(target.Bounds.Width / 2, target.Bounds.Height / 2), Window)
+            ?? throw new InvalidOperationException($"{Describe(target)} is not laid out.");
+        Window.MouseMove(center);
+        Window.MouseDown(center, MouseButton.Left);
+        Window.MouseUp(center, MouseButton.Left);
+        Window.MouseDown(center, MouseButton.Left);
+        Window.MouseUp(center, MouseButton.Left);
+
+        return Settle();
+    }
+
     public ViewScript Type(string name, string text)
     {
         var named = Find(name);
