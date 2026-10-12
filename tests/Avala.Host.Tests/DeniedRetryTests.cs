@@ -16,7 +16,11 @@ public sealed class DeniedRetryTests(PublishedPlugins plugins)
         var workbench = await run.WorkbenchAsync();
         var conversation = await workbench.SelectAsync(run.Job);
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel") is { } card && card["CanAllow"].Value<bool>());
+        await run.ResumableAsync();
+        await run.DeliveredAsync();
+        await workbench.ShowsAsync(() =>
+            conversation["Composer"]["Status"].Value<JobStatus>() == JobStatus.AwaitingReview
+            && OpenWorkbench.Entry(conversation, "DeniedCardViewModel") is { } card && card["CanAllow"].Value<bool>());
 
         await run.Ui.RunAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel")!.Value.ExecuteAsync("AllowCommand"));
 
