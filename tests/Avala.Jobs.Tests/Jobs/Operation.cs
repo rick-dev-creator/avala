@@ -25,4 +25,5 @@ internal enum Operation
     HandOff,
     Reopen,
     ReopenInNewSession,
+    ChooseModel,
 }

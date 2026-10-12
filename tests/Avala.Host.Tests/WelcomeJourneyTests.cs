@@ -56,7 +56,7 @@ public sealed class WelcomeJourneyTests(PublishedPlugins plugins)
         {
             ((System.Windows.Input.ICommand)harness["Options"].Items[1]["ChooseCommand"].Target).Execute(null);
 
-            return harness["Offering"].Value<Task>();
+            return welcome["Driver"]["Offering"].Value<Task>();
         });
         await run.Ui.RunAsync(() =>
         {

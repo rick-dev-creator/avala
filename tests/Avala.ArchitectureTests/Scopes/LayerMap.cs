@@ -116,6 +116,7 @@ internal static class LayerMap
             ["Triggers"] = Layer.ViewModels,
             ["Accounts"] = Layer.ViewModels,
             ["Welcome"] = Layer.ViewModels,
+            ["Harnesses"] = Layer.ViewModels,
         }),
         .. Module("Avala.Observability", new()
         {

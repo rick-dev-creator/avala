@@ -115,6 +115,9 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries
     public ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) =>
         AnswerAsync($"hand off to {handoff.Choice.Connection.Value}", new JobContinuation(job, SessionId.New(), ContinuedIn.NewConversation));
 
+    public ValueTask<Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, ModelChoice model, CancellationToken cancellationToken) =>
+        AnswerAsync($"choose {model.Model.Match(name => name, () => "default")} · {model.Effort.Match(name => name, () => "default")}", new JobModelChosen(job, model));
+
     private JobRejection? Unless(JobStatus accepted, JobRejection rejection) =>
         Status.Match<JobRejection?>(status => status == accepted ? null : rejection, () => null);
 

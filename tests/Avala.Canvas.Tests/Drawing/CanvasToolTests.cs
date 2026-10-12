@@ -69,6 +69,16 @@ public sealed class CanvasToolTests
         Assert.DoesNotContain("mermaid", description, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task TheDescriptionSaysACanvasIsStillAndSendsAnimationsToAnHtmlFileAsync()
+    {
+        await using var composition = Compose(Sketch.Svg);
+        var description = Assert.Single(composition.All<HarnessTool>()).Description;
+
+        Assert.Contains("A canvas is drawn still: animations, such as SVG <animate> or CSS keyframes, and scripts do not play", description, StringComparison.Ordinal);
+        Assert.Contains("write a self-contained HTML file in the working directory and give the person its path", description, StringComparison.Ordinal);
+    }
+
     private static string?[] OfferedIn(JsonDocument schema) =>
         [.. schema.RootElement.GetProperty("properties").GetProperty("mediaType").GetProperty("enum").EnumerateArray().Select(type => type.GetString())];
 

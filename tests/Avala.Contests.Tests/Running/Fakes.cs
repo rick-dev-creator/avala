@@ -75,6 +75,9 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
     public ValueTask<Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     public ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public ValueTask<Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, Avala.Agents.Contracts.Sessions.ModelChoice model, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
 }
 
 internal sealed record RunFacts(bool Verified, int Attempts, int Added, int Removed, decimal Spent, params ExceptionReason[] Exceptions);

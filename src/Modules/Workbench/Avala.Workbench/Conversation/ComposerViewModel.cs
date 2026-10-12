@@ -3,6 +3,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Steering;
+using Avala.Workbench.Harnesses;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -45,6 +46,8 @@ internal interface IComposerViewModel
     IRelayCommand WithdrawCommand { get; }
 
     int Edits { get; }
+
+    IHarnessChoiceViewModel Harness { get; }
 }
 
 [INotifyPropertyChanged]
@@ -53,9 +56,12 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     private readonly JobSteering steering;
     private readonly SendKeys keys;
 
-    public ComposerViewModel(JobId job, JobSteering steering, SendKeys keys)
+    private readonly JobHarness harness;
+
+    public ComposerViewModel(JobId job, JobSteering steering, SendKeys keys, JobHarness harness)
     {
         Job = job;
+        this.harness = harness;
         this.steering = steering;
         this.keys = keys;
         SendsWithEnter = keys.WithEnter;
@@ -65,6 +71,10 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     }
 
     public JobId Job { get; }
+
+    public IHarnessChoiceViewModel Harness => harness.Chip;
+
+    public JobHarness Driver => harness;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsStop), nameof(ShowsSend))]
@@ -118,6 +128,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         Watch = shown.PullRequest;
         SendsWithEnter = keys.WithEnter;
         ShowQueued();
+        harness.Track(shown);
     }
 
     public void Edit(string text)

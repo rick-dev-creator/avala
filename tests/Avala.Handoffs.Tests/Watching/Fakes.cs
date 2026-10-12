@@ -106,6 +106,9 @@ internal sealed class MovingJobs : IJobs
         return ContinuedAsync(job, ContinuedIn.NewConversation);
     }
 
+    public ValueTask<Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, Avala.Agents.Contracts.Sessions.ModelChoice model, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
     public ValueTask<Result<JobHold, JobRejection>> HoldRunningAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) => HoldAsync(job, reason, cancellationToken);

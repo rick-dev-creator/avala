@@ -1,54 +1,32 @@
-using System.Collections.ObjectModel;
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Accounts;
+using Avala.Workbench.Harnesses;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.NewJob;
-using Avala.Workbench.Presenting;
 using Avala.Workbench.Submitting;
-using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Welcome;
 
-internal interface IHarnessChoiceViewModel
-{
-    bool IsShown { get; }
-
-    string Label { get; }
-
-    string Monogram { get; }
-
-    string Reason { get; }
-
-    bool IsAttention { get; }
-
-    bool IsOpen { get; set; }
-
-    IReadOnlyList<IHarnessOptionViewModel> Options { get; }
-
-    IModelPickerViewModel Models { get; }
-}
-
-[INotifyPropertyChanged]
-internal sealed partial class HarnessChoiceViewModel : IHarnessChoiceViewModel
+internal sealed class WelcomeHarness
 {
     private readonly JobLaunch launch;
     private readonly NewJobReadings readings;
     private readonly ModelPickerViewModel models;
-    private readonly ObservableCollection<HarnessOptionViewModel> options = [];
     private ConnectionCatalog catalog = new(ConnectionFileStatus.Absent, Option<ConnectionError>.None, [], Option<ConnectionName>.None);
     private Option<Result<ConnectionPreview, JobRejection>> preview;
     private int shows;
     private int offers;
 
-    public HarnessChoiceViewModel(JobLaunch launch, NewJobReadings readings, ModelPickerViewModel models)
+    public WelcomeHarness(JobLaunch launch, NewJobReadings readings, ModelPickerViewModel models)
     {
         this.launch = launch;
         this.readings = readings;
         this.models = models;
+        Chip = new HarnessChoiceViewModel(HarnessPhrases.RunOn, opensUpward: false, models);
         models.PropertyChanged += (_, changed) =>
         {
             if (changed.PropertyName is nameof(ModelPickerViewModel.Model) or nameof(ModelPickerViewModel.Effort))
@@ -58,33 +36,13 @@ internal sealed partial class HarnessChoiceViewModel : IHarnessChoiceViewModel
         };
     }
 
-    public IReadOnlyList<IHarnessOptionViewModel> Options => options;
-
-    public IModelPickerViewModel Models => models;
+    public HarnessChoiceViewModel Chip { get; }
 
     public Option<ConnectionName> Chosen { get; private set; }
 
     public ModelChoice Model => models.Chosen;
 
     public Task Offering { get; private set; } = Task.CompletedTask;
-
-    [ObservableProperty]
-    public partial bool IsShown { get; private set; }
-
-    [ObservableProperty]
-    public partial string Label { get; private set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string Monogram { get; private set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string Reason { get; private set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial bool IsAttention { get; private set; }
-
-    [ObservableProperty]
-    public partial bool IsOpen { get; set; }
 
     public async Task ShowAsync(ConnectionCatalog shown, CancellationToken cancellationToken)
     {
@@ -100,8 +58,8 @@ internal sealed partial class HarnessChoiceViewModel : IHarnessChoiceViewModel
         preview = previewed;
         var usable = shown.Error.IsNone ? shown.Connections.Where(connection => connection.Problem.IsNone).Select(connection => connection.Name).ToList() : [];
         Chosen = Chosen.Bind(name => usable.Contains(name) ? name : Option<ConnectionName>.None);
-        options.ShowOnly([new HarnessOptionViewModel(HarnessPhrases.Following(shown), Option<ConnectionName>.None, Choose), .. usable.Select(name => new HarnessOptionViewModel(name.Value, name, Choose))]);
-        IsShown = usable.Count > 0;
+        Chip.Offer([new HarnessOptionViewModel(HarnessPhrases.Following(shown), Option<ConnectionName>.None, Choose), .. usable.Select(name => new HarnessOptionViewModel(name.Value, name, Choose))]);
+        Chip.IsShown = usable.Count > 0;
         Mark();
         Offering = OfferAsync(cancellationToken);
         await Offering;
@@ -116,7 +74,7 @@ internal sealed partial class HarnessChoiceViewModel : IHarnessChoiceViewModel
 
     private void Mark()
     {
-        foreach (var option in options)
+        foreach (var option in Chip.Offered)
         {
             var name = option.Connection.IsSome ? option.Connection : Following();
             option.Show(
@@ -134,10 +92,11 @@ internal sealed partial class HarnessChoiceViewModel : IHarnessChoiceViewModel
         var (reason, attention) = Chosen.Match(
             name => (readings.Reading(preview, name), AtLimit(name)),
             () => HarnessPhrases.Why(catalog, preview));
-        Label = HarnessPhrases.Label(Chosen.IsSome ? Option<string>.None : Option<string>.Some(HarnessPhrases.Following(catalog)), running, models);
-        Monogram = running.Match(name => AccountPhrases.Monogram(name.Value), () => string.Empty);
-        Reason = reason;
-        IsAttention = attention;
+        Chip.Show(new HarnessChip(
+            HarnessPhrases.Label(Chosen.IsSome ? Option<string>.None : Option<string>.Some(HarnessPhrases.Following(catalog)), running, models),
+            running.Match(name => AccountPhrases.Monogram(name.Value), () => string.Empty),
+            reason,
+            attention));
     }
 
     private bool AtLimit(Option<ConnectionName> connection) =>

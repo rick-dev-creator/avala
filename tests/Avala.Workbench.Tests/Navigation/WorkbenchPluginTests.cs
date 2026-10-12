@@ -108,6 +108,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IVerifications>(audit)
             .AddSingleton<Transcripts.Contracts.ITranscripts>(new FakeTranscripts())
             .AddSingleton<Handoffs.Contracts.IHandoffs>(new FakeHandoffs())
+            .AddSingleton<Handoffs.Contracts.IHandoffRequests>(new FakeHandoffRequests())
             .AddSingleton<Avala.Triggers.Contracts.ITriggers>(new FakeTriggers())
             .AddSingleton<Avala.Notifications.Contracts.INotifications>(new FakeNotifications())
             .AddSingleton<Forges.Contracts.IPullRequests>(new FakePullRequests())

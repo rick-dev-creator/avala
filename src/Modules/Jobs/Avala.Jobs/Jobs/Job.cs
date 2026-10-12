@@ -48,7 +48,7 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Option<JobId> Parent { get; private init; }
 
-    public ModelChoice Model { get; private init; } = ModelChoice.Default;
+    public ModelChoice Model { get; private set; } = ModelChoice.Default;
 
     public Option<HoldReason> Held { get; private set; }
 
@@ -187,6 +187,18 @@ internal sealed class Job : IAggregateRoot<JobId>
 
                 return Begin(AttemptOrigin.Handoff, brief);
             });
+    }
+
+    public Result<ModelChosen, JobError> ChooseModel(ModelChoice model)
+    {
+        if (State is not (JobState.NeedsHelp or JobState.AwaitingReview))
+        {
+            return JobError.CannotChooseModel;
+        }
+
+        Model = model;
+
+        return new ModelChosen(Id, model);
     }
 
     public Result<AttemptStarted, JobError> SendBack(Feedback feedback) =>

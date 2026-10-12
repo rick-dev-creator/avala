@@ -14,6 +14,11 @@ public interface IHandoffs
     Option<ResetWait> WaitOf(JobId job);
 }
 
+public interface IHandoffRequests
+{
+    ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, ConnectionName to, CancellationToken cancellationToken);
+}
+
 public enum OnLimit
 {
     Hold,

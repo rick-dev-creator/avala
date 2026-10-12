@@ -46,6 +46,8 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<RecoverJob>()
             .AddSingleton<SubmitJob>()
             .AddSingleton<HoldJob>()
+            .AddSingleton<ChooseModel>()
+            .AddSingleton<JobControls>()
             .AddSingleton<IApprovalStrategy, KeepStrategy>()
             .AddSingleton<IApprovalStrategy, MergeStrategy>()
             .AddSingleton<Approvals>()

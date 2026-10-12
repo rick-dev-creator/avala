@@ -258,6 +258,21 @@ public sealed class ToolbarViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task FocusModeHasNoButtonInTheToolbarThePageOrTheWelcomeAsync() =>
+        ui.RunAsync(() =>
+        {
+            object[] screens = [new DesignToolbarViewModel(), new DesignWorkbenchViewModel(), new Avala.Workbench.Welcome.DesignWelcomeViewModel()];
+
+            var offered = screens
+                .SelectMany(screen => Screen.Show(screen).All<Button>())
+                .Select(button => $"{button.Name} {AutomationProperties.GetName(button)} {ToolTip.GetTip(button)}")
+                .ToList();
+
+            Assert.NotEmpty(offered);
+            Assert.DoesNotContain(offered, button => button.Contains("focus", StringComparison.OrdinalIgnoreCase));
+        }, Cancellation);
+
+    [Fact]
     public Task WithNothingPendingTheBadgeIsGoneAsync() =>
         ui.RunAsync(() =>
         {

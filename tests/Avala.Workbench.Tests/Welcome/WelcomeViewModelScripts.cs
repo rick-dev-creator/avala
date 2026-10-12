@@ -18,6 +18,7 @@ public sealed class WelcomeViewModelScripts
     private readonly FakeSourceControl forges = new();
     private readonly FakeScratch scratch = new();
     private readonly FakeLinks links = new();
+    private WelcomeHarness harness = null!;
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -53,11 +54,10 @@ public sealed class WelcomeViewModelScripts
         connections.Catalog = connections.Catalog with { Connections = [.. connections.Catalog.Connections, new DeclaredConnection(new ConnectionName("claude-personal"), "simulator", "login")] };
         connections.Offers["claude-personal"] = CapabilitySet.Of(new OffersModels(["large", "small"], ["low", "high"]));
         var welcome = await CheckedAsync();
-        var harness = (HarnessChoiceViewModel)welcome.Harness;
-        harness.Options[2].ChooseCommand.Execute(null);
+        welcome.Harness.Options[2].ChooseCommand.Execute(null);
         await harness.Offering;
-        harness.Models.Model = "large";
-        harness.Models.Effort = "high";
+        welcome.Harness.Models.Model = "large";
+        welcome.Harness.Models.Effort = "high";
         welcome.Instruction = "Sketch a CSV parser";
 
         await welcome.StartCommand.ExecuteAsync(null);
@@ -143,7 +143,9 @@ public sealed class WelcomeViewModelScripts
     {
         var launch = Launching.Launch(jobs, connections, new FakePreview(), new FakePolicies(), scratch: scratch);
 
-        return new(launch, forges.Source, links, HarnessChoiceViewModelScripts.Harness(launch));
+        harness = WelcomeHarnessScripts.Harness(launch);
+
+        return new(launch, forges.Source, links, harness);
     }
 
     private async Task<WelcomeViewModel> CheckedAsync()

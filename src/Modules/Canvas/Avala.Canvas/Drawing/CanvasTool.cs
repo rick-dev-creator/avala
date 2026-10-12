@@ -19,7 +19,13 @@ internal static class CanvasTool
                 .Prepend(
                     "Draw a canvas the user sees beside the conversation: a diagram, a chart, a screen, a design or a document. "
                     + "Give it a title, one of the offered media types and its full content. Each call draws a new canvas.")
-                .Append("A canvas in any other media type is not drawn: the user only sees its source."));
+                .Append("A canvas in any other media type is not drawn: the user only sees its source.")
+                .Append(Still));
+
+    private const string Still =
+        "A canvas is drawn still: animations, such as SVG <animate> or CSS keyframes, and scripts do not play, and nothing on it responds to input. "
+        + "For something that must move or respond, such as an animated chart or a three.js scene, write a self-contained HTML file in the working directory "
+        + "and give the person its path: Avala offers to open it in their browser.";
 
     private static string InputSchema(CanvasOffer offer) => $$"""
         {

@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Sessions;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Workbench.Harnesses;
 using Avala.Workbench.Machine;
 using Avala.Workbench.NewJob;
 using Avala.Workbench.Presenting;
@@ -61,13 +62,15 @@ internal interface IWelcomeLinks
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl source, IWelcomeLinks links, HarnessChoiceViewModel harness) : IWelcomeViewModel
+internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl source, IWelcomeLinks links, WelcomeHarness harness) : IWelcomeViewModel
 {
     private readonly ObservableCollection<AccountChipViewModel> chips = [];
 
     public IReadOnlyList<IAccountChipViewModel> Chips => chips;
 
-    public IHarnessChoiceViewModel Harness => harness;
+    public IHarnessChoiceViewModel Harness => harness.Chip;
+
+    public WelcomeHarness Driver => harness;
 
     [ObservableProperty]
     public partial bool IsCompact { get; private set; }

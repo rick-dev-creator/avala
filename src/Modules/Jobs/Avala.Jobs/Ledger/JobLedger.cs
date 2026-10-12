@@ -57,6 +57,12 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents, 
         await bus.PublishAsync(new JobSessionStarted(job.Id, session) { Autonomy = job.Autonomy }, cancellationToken);
     }
 
+    public async Task RecordModelAsync(Job job, JobModelChosen chosen, CancellationToken cancellationToken)
+    {
+        await SaveAsync(job, cancellationToken);
+        await bus.PublishAsync(chosen, cancellationToken);
+    }
+
     public Task RecordChoiceAsync(JobId job, ConnectionChoice choice, CancellationToken cancellationToken) => store.RecordAsync(job, choice, cancellationToken);
 
     public async Task RecordHandoffAsync(Job job, JobHandedOff handoff, CancellationToken cancellationToken)
