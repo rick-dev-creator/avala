@@ -36,11 +36,11 @@ public sealed class AvaloniaFileSaver : IFileSaver
             ShowOverwritePrompt = true,
         });
 
-        if (file is null)
-        {
-            return FileSaveError.Cancelled;
-        }
+        return file is null ? FileSaveError.Cancelled : await WriteAsync(file, content, cancellationToken);
+    }
 
+    private static async Task<Result<string, FileSaveError>> WriteAsync(IStorageFile file, string content, CancellationToken cancellationToken)
+    {
         try
         {
             await using var stream = await file.OpenWriteAsync();
@@ -48,11 +48,13 @@ public sealed class AvaloniaFileSaver : IFileSaver
             await using var writer = new StreamWriter(stream);
             await writer.WriteAsync(content.AsMemory(), cancellationToken);
 
-            return file.TryGetLocalPath() ?? file.Name;
+            return Where(file);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             return FileSaveError.Unwritable;
         }
     }
+
+    private static string Where(IStorageFile file) => file.TryGetLocalPath() ?? file.Name;
 }
