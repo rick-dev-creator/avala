@@ -52,6 +52,8 @@ internal static class LayerMap
             ["Contracts"] = Layer.Contracts,
             ["Origins"] = Layer.Domain,
             ["Navigation"] = Layer.Application,
+            ["Detection"] = Layer.Application,
+            ["Running"] = Layer.Application,
         }),
         .. Module("Avala.Jobs", new()
         {
