@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Forges.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.RepositoryChoice;
@@ -10,7 +11,7 @@ internal interface IPublishRepositoryViewModel
 {
     bool IsShown { get; }
 
-    string Remote { get; }
+    PersonalPhrase Remote { get; }
 
     bool CanOffer { get; }
 
@@ -20,7 +21,7 @@ internal interface IPublishRepositoryViewModel
 
     string Error { get; }
 
-    string Notice { get; }
+    PersonalPhrase Notice { get; }
 
     IAsyncRelayCommand StartCommand { get; }
 
@@ -54,7 +55,7 @@ internal sealed partial class PublishRepositoryViewModel : IPublishRepositoryVie
     public partial bool IsShown { get; private set; }
 
     [ObservableProperty]
-    public partial string Remote { get; private set; } = string.Empty;
+    public partial PersonalPhrase Remote { get; private set; } = PersonalPhrase.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartCommand))]
@@ -68,7 +69,7 @@ internal sealed partial class PublishRepositoryViewModel : IPublishRepositoryVie
     public partial string Error { get; private set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string Notice { get; private set; } = string.Empty;
+    public partial PersonalPhrase Notice { get; private set; } = PersonalPhrase.Empty;
 
     public void Show(Option<string> shown)
     {
@@ -80,7 +81,7 @@ internal sealed partial class PublishRepositoryViewModel : IPublishRepositoryVie
         repository = shown;
         IsOpen = false;
         Error = string.Empty;
-        Notice = string.Empty;
+        Notice = PersonalPhrase.Empty;
         Reading = ReadAsync(CancellationToken.None);
     }
 
@@ -100,7 +101,7 @@ internal sealed partial class PublishRepositoryViewModel : IPublishRepositoryVie
             found => options.PublishAsync(found, cancellationToken),
             () => Task.FromResult(Result<PublishedRepository, ForgeError>.Failure(ForgeError.NotFound)));
         Error = published.Match(_ => string.Empty, PublishPhrases.Failure);
-        Notice = published.Match(PublishPhrases.Published, _ => string.Empty);
+        Notice = published.Match(PublishPhrases.Published, _ => PersonalPhrase.Empty);
         IsOpen = !published.IsSuccess;
         Reading = ReadAsync(cancellationToken);
         await Reading;
@@ -131,6 +132,6 @@ internal sealed partial class PublishRepositoryViewModel : IPublishRepositoryVie
 
         IsShown = remote.IsSome;
         CanOffer = remote.Match(found => found.IsNone, () => false);
-        Remote = remote.Match(found => found.Match(PublishPhrases.Remote, () => PublishPhrases.NoRemote), () => string.Empty);
+        Remote = remote.Match(found => found.Match(PublishPhrases.Remote, () => new PersonalPhrase(PublishPhrases.NoRemote)), () => PersonalPhrase.Empty);
     }
 }

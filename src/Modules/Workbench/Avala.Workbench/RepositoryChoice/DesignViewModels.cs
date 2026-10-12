@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -15,7 +16,7 @@ internal sealed partial class DesignRepositoryFieldViewModel : IRepositoryFieldV
 
     public string Offer { get; init; } = RepositoryPhrases.MakeRepository;
 
-    public string Notice { get; init; } = string.Empty;
+    public PersonalPhrase Notice { get; init; } = PersonalPhrase.Empty;
 
     public INewRepositoryViewModel Creation { get; init; } = new DesignNewRepositoryViewModel();
 

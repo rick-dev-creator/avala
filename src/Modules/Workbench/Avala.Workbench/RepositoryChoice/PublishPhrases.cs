@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Forges.Contracts;
 using Avala.Workbench.Presenting;
 
@@ -9,13 +10,24 @@ internal static class PublishPhrases
 
     public const string NoRemote = "This repository has no remote yet, so a pull request has nowhere to go.";
 
-    public static string Published(PublishedRepository published) =>
-        $"Published {Named(published.Repository)} on {published.Forge.Forge.Value} and pushed {published.Branch}; origin is {published.PushUrl}.";
+    public static PersonalPhrase Published(PublishedRepository published) =>
+        new("Published ", Named(published.Repository), $" on {published.Forge.Forge.Value} and pushed {published.Branch}; origin is ", Address(published.PushUrl), ".");
 
-    public static string Remote(RepositoryRemote remote) =>
+    public static PersonalPhrase Remote(RepositoryRemote remote) =>
         remote.Forge.Match(
-            forge => $"{remote.Remote} is {remote.Address.Match(Named, () => remote.Url)} on {forge.Forge.Value} ({forge.ForgeKind}).",
-            () => $"{remote.Remote} is {remote.Url}, on no forge connection of forges.json.");
+            forge => new PersonalPhrase($"{remote.Remote} is ", remote.Address.Match(Named, () => Address(remote.Url)), $" on {forge.Forge.Value} ({forge.ForgeKind})."),
+            () => new PersonalPhrase($"{remote.Remote} is ", Address(remote.Url), ", on no forge connection of forges.json."));
+
+    public static PersonalPhrase Address(string url)
+    {
+        var bare = url.EndsWith(".git", StringComparison.Ordinal) ? url[..^4] : url;
+        var name = bare.TrimEnd('/').LastIndexOf('/');
+        var owner = name > 0 ? bare.LastIndexOfAny(['/', ':'], name - 1) : -1;
+
+        return owner < 1 || name - owner < 2 || url[owner - 1] == '/'
+            ? new PersonalPhrase(url)
+            : new PersonalPhrase(url[..(owner + 1)], Personal.Login(url[(owner + 1)..name]), url[name..]);
+    }
 
     public static string Failure(ForgeError error) => error switch
     {
@@ -29,5 +41,5 @@ internal static class PublishPhrases
         _ => $"Publishing failed: {ForgePhrases.Error(error)}",
     };
 
-    private static string Named(RepositoryAddress address) => $"{address.Owner}/{address.Name}";
+    private static PersonalPhrase Named(RepositoryAddress address) => new(Personal.Login(address.Owner), $"/{address.Name}");
 }

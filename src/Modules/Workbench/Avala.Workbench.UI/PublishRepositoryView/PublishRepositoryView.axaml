@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:inspector="using:Avala.Workbench.Inspector"
              x:Class="Avala.Workbench.UI.PublishRepositoryView"
              x:ClassModifier="internal"
@@ -9,7 +10,7 @@
     <inspector:DesignPublishRepositoryViewModel />
   </Design.DataContext>
   <StackPanel Spacing="7" IsVisible="{Binding IsShown}">
-    <TextBlock x:Name="Remote" Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Remote}" />
+    <TextBlock x:Name="Remote" Classes="caption secondary" TextWrapping="Wrap" privacy:PersonalDetails.Text="{Binding Remote}" />
     <Panel IsVisible="{Binding !IsOpen}">
       <Button x:Name="PublishRepository"
               Classes="ghost"
@@ -43,7 +44,7 @@
                Classes="caption"
                theme:Motion.Enter="Fade"
                TextWrapping="Wrap"
-               Text="{Binding Notice}"
-               IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+               privacy:PersonalDetails.Text="{Binding Notice}"
+               IsVisible="{Binding !Notice.IsEmpty}" />
   </StackPanel>
 </UserControl>

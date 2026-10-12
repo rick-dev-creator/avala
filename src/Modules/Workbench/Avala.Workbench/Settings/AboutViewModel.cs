@@ -16,7 +16,7 @@ internal interface IAboutViewModel
 
     Personal LogFolder { get; }
 
-    string Note { get; }
+    PersonalPhrase Note { get; }
 
     IUpdateViewModel Update { get; }
 
@@ -47,11 +47,11 @@ internal sealed partial class AboutViewModel(IUpdateViewModel update, ITelemetry
     public void Refresh() => update.Refresh();
 
     [ObservableProperty]
-    public partial string Note { get; private set; } = string.Empty;
+    public partial PersonalPhrase Note { get; private set; } = PersonalPhrase.Empty;
 
     [RelayCommand]
     private async Task OpenLogFolderAsync(CancellationToken cancellationToken) =>
-        Note = (await files.OpenLogsAsync(cancellationToken)).Match(_ => string.Empty, error => AboutPhrases.Folder(error, files.Logs));
+        Note = (await files.OpenLogsAsync(cancellationToken)).Match(_ => PersonalPhrase.Empty, error => AboutPhrases.Folder(error, files.Logs));
 
     [RelayCommand]
     private Task OpenRepositoryAsync(CancellationToken cancellationToken) => OpenAsync(AvalaBuild.Repository, cancellationToken);
@@ -60,16 +60,16 @@ internal sealed partial class AboutViewModel(IUpdateViewModel update, ITelemetry
     private Task OpenLicenseAsync(CancellationToken cancellationToken) => OpenAsync(AvalaBuild.License, cancellationToken);
 
     private async Task OpenAsync(Uri link, CancellationToken cancellationToken) =>
-        Note = (await links.OpenAsync(link, cancellationToken)).Match(_ => string.Empty, _ => AboutPhrases.Link(link));
+        Note = (await links.OpenAsync(link, cancellationToken)).Match(_ => PersonalPhrase.Empty, _ => new PersonalPhrase(AboutPhrases.Link(link)));
 }
 
 internal static class AboutPhrases
 {
-    public static string Folder(FileOpenError error, string folder) => error switch
+    public static PersonalPhrase Folder(FileOpenError error, string folder) => error switch
     {
-        FileOpenError.Uncreatable => $"The log folder could not be created at {folder}.",
-        FileOpenError.Refused => $"The system refused to open the log folder. It is {folder}.",
-        _ => $"Nothing on this computer opens folders from Avala. The log folder is {folder}.",
+        FileOpenError.Uncreatable => new("The log folder could not be created at ", Personal.Path(folder), "."),
+        FileOpenError.Refused => new("The system refused to open the log folder. It is ", Personal.Path(folder), "."),
+        _ => new("Nothing on this computer opens folders from Avala. The log folder is ", Personal.Path(folder), "."),
     };
 
     public static string Link(Uri link) => $"The browser could not be opened. The address is {link}.";

@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.RepositoryChoice;
@@ -29,9 +30,9 @@ internal static class RepositoryPhrases
         _ => string.Empty,
     };
 
-    public static string Made(string repository) => $"{Leaf(repository)} is now a git repository with a first commit.";
+    public static PersonalPhrase Made(string repository) => new($"{Leaf(repository)} is now a git repository with a first commit.");
 
-    public static string Created(string repository) => $"Created {repository}: an empty git repository with a first commit.";
+    public static PersonalPhrase Created(string repository) => new("Created ", Personal.Path(repository), ": an empty git repository with a first commit.");
 
     public static string Failure(WorkspaceFailure failure) => failure switch
     {
@@ -50,7 +51,7 @@ internal static class RepositoryPhrases
 
     public const string CloneCancelled = "Clone cancelled: nothing was kept.";
 
-    public static string Cloned(RepositoryCloned cloned) => $"Cloned {cloned.Url} into {cloned.Path}.";
+    public static PersonalPhrase Cloned(RepositoryCloned cloned) => new("Cloned ", PublishPhrases.Address(cloned.Url), " into ", Personal.Path(cloned.Path), ".");
 
     public static string Leaf(string repository) =>
         Path.GetFileName(repository.TrimEnd('/', '\\')) is { Length: > 0 } leaf ? leaf : repository;

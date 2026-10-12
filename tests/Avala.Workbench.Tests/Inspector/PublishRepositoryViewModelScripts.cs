@@ -16,7 +16,7 @@ public sealed class PublishRepositoryViewModelScripts
     {
         var publisher = await ShownAsync();
 
-        Assert.Equal((true, true, PublishPhrases.NoRemote), (publisher.IsShown, publisher.CanOffer, publisher.Remote));
+        Assert.Equal((true, true, PublishPhrases.NoRemote), (publisher.IsShown, publisher.CanOffer, publisher.Remote.Show(hidden: false)));
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public sealed class PublishRepositoryViewModelScripts
 
         var publisher = await ShownAsync();
 
-        Assert.Equal((false, "origin is octo/shop on github (GitHub)."), (publisher.CanOffer, publisher.Remote));
+        Assert.Equal((false, "origin is octo/shop on github (GitHub)."), (publisher.CanOffer, publisher.Remote.Show(hidden: false)));
         Assert.False(publisher.StartCommand.CanExecute(null));
     }
 
@@ -52,8 +52,8 @@ public sealed class PublishRepositoryViewModelScripts
         await publisher.PublishCommand.ExecuteAsync(null);
 
         Assert.Equal([(Shop, FakePublishing.GitHub.Forge, new RepositoryDraft("storefront", Private: false))], publishing.Published);
-        Assert.Equal((false, false, "origin is ada/storefront on github (GitHub)."), (publisher.IsOpen, publisher.CanOffer, publisher.Remote));
-        Assert.Equal("Published ada/storefront on github and pushed main; origin is git@github.com:ada/storefront.git.", publisher.Notice);
+        Assert.Equal((false, false, "origin is ada/storefront on github (GitHub)."), (publisher.IsOpen, publisher.CanOffer, publisher.Remote.Show(hidden: false)));
+        Assert.Equal("Published ada/storefront on github and pushed main; origin is git@github.com:ada/storefront.git.", publisher.Notice.Show(hidden: false));
     }
 
     [Fact]

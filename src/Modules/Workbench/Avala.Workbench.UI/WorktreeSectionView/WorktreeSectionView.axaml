@@ -43,7 +43,7 @@
         <TextBlock x:Name="FolderProblem"
                    Classes="caption attention"
                    TextWrapping="Wrap"
-                   Text="{Binding FolderProblem}"
+                   privacy:PersonalDetails.Scrubbed="{Binding FolderProblem}"
                    IsVisible="{Binding FolderProblem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
       <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Base, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">

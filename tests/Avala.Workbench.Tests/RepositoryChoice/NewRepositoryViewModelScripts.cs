@@ -76,7 +76,7 @@ public sealed class NewRepositoryViewModelScripts
         Assert.Equal([("/home/ada/code/invoices", FakePublishing.GitHub.Forge, new RepositoryDraft("invoices", Private: true))], publishing.Published);
         Assert.Equal(
             "Created /home/ada/code/invoices: an empty git repository with a first commit. Published ada/invoices on github and pushed main; origin is git@github.com:ada/invoices.git.",
-            Assert.Single(created).Notice);
+            Assert.Single(created).Notice.Show(hidden: false));
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class NewRepositoryViewModelScripts
         await creation.CreateCommand.ExecuteAsync(null);
 
         Assert.Equal("/home/ada/code/invoices", Assert.Single(created).Path);
-        Assert.EndsWith("A repository with that name already exists on the forge: choose another name.", created[0].Notice, StringComparison.Ordinal);
+        Assert.EndsWith("A repository with that name already exists on the forge: choose another name.", created[0].Notice.Show(hidden: false), StringComparison.Ordinal);
     }
 
     [Fact]

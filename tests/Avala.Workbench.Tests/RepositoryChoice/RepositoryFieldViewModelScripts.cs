@@ -69,7 +69,7 @@ public sealed class RepositoryFieldViewModelScripts
         await field.MakeRepositoryCommand.ExecuteAsync(null);
 
         Assert.Equal([Notes], repositories.Initialized);
-        Assert.Equal((string.Empty, string.Empty, "notes is now a git repository with a first commit."), (field.Problem, field.Offer, field.Notice));
+        Assert.Equal((string.Empty, string.Empty, "notes is now a git repository with a first commit."), (field.Problem, field.Offer, field.Notice.Show(hidden: false)));
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public sealed class RepositoryFieldViewModelScripts
         Assert.Equal((true, "/home/ada/code", (RepositoryPhrases.ParentTitle, "/home/ada/Projects")), opened);
         Assert.Equal(
             ("/home/ada/code/invoices", false, string.Empty, "Created /home/ada/code/invoices: an empty git repository with a first commit."),
-            (field.Repository, field.Creation.IsOpen, field.Creation.Name, field.Notice));
+            (field.Repository, field.Creation.IsOpen, field.Creation.Name, field.Notice.Show(hidden: false)));
     }
 
     private RepositoryFieldViewModel Field() => Choosing.Field(new Avala.Workbench.Board.JobBoard(), picker, repositories);

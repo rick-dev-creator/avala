@@ -13,8 +13,8 @@
     <Border x:Name="Note"
             Classes="quiet"
             Padding="12,8"
-            IsVisible="{Binding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-      <TextBlock x:Name="NoteText" Classes="caption" Text="{Binding Note}" TextWrapping="Wrap" />
+            IsVisible="{Binding !Note.IsEmpty}">
+      <TextBlock x:Name="NoteText" Classes="caption" privacy:PersonalDetails.Text="{Binding Note}" TextWrapping="Wrap" />
     </Border>
     <Border Classes="grouped">
       <StackPanel>

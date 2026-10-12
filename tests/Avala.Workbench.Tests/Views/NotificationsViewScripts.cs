@@ -58,4 +58,21 @@ public sealed class NotificationsViewScripts(HeadlessUi ui)
             Assert.Equal((true, true), (view.Find<CheckBox>("EventReview").IsChecked == true, view.HasClass("ChooseDetailed", "selected")));
             Assert.Equal(NotificationPhrases.TestSent, view.TextOf("TestResult"));
         }, Cancellation);
+
+    [Fact]
+    public Task AFileThePlatformRefusesToOpenIsNamedUnderTheMaskedHomeAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var notifications = new FakeNotifications { File = new NotificationFile("/data/notifications.json", NotificationFileStatus.Rejected) };
+            var files = new SettingsFiles(new FakeOpener { Refusal = FileOpenError.Refused }, new AvalaPaths("/home/ada/.local/share/Avala"));
+            var section = new NotificationsViewModel(new PhoneNotifications(notifications, files, new FakeTimeProvider(FakeNotifications.Now)));
+            await section.LoadAsync(Cancellation);
+            var view = Screen.Show(section).Settle();
+
+            view.Click("OpenNotificationsFile").Settle();
+            await (section.OpenFileCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.Equal($"The platform refused to open ~{Path.Combine("/home/ada/.local/share/Avala", "notifications.json")["/home/ada".Length..]}.", view.TextOf("NotificationsErrorText"));
+        }, Cancellation);
 }

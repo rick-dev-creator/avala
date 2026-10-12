@@ -17,7 +17,7 @@ public sealed class AboutViewModelScripts
     [Fact]
     public void ItShowsTheVersionTheShortCommitAndTheLogFolder() =>
         ViewModelScript.Given(new AboutViewModel(Update(Build), new DesignTelemetryViewModel(), new SettingsFiles(new FakeOpener(), Paths), new FakeLinks()))
-            .Then(about => Assert.Equal(("0.9.0-beta.1", "5c371e6a1b2d", Path.Combine("data", "Avala", "logs"), string.Empty), (about.Version, about.Commit, about.LogFolder.Value, about.Note)));
+            .Then(about => Assert.Equal(("0.9.0-beta.1", "5c371e6a1b2d", Path.Combine("data", "Avala", "logs"), string.Empty), (about.Version, about.Commit, about.LogFolder.Value, about.Note.Show(hidden: false))));
 
     [Fact]
     public void ABuildWithoutACommitSaysItIsUnknown() =>
@@ -33,7 +33,7 @@ public sealed class AboutViewModelScripts
         await about.OpenLogFolderCommand.ExecuteAsync(null);
 
         Assert.Equal([Paths.Logs], files.Opened);
-        Assert.Empty(about.Note);
+        Assert.True(about.Note.IsEmpty);
     }
 
     [Theory]
@@ -46,7 +46,7 @@ public sealed class AboutViewModelScripts
 
         await about.OpenLogFolderCommand.ExecuteAsync(null);
 
-        Assert.Equal($"{said}{Paths.Logs}.", about.Note);
+        Assert.Equal($"{said}{Paths.Logs}.", about.Note.Show(hidden: false));
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class AboutViewModelScripts
         await refused.OpenLicenseCommand.ExecuteAsync(null);
 
         Assert.Equal([AvalaBuild.Repository, AvalaBuild.License], links.Opened);
-        Assert.Equal($"The browser could not be opened. The address is {AvalaBuild.License}.", refused.Note);
+        Assert.Equal($"The browser could not be opened. The address is {AvalaBuild.License}.", refused.Note.Show(hidden: false));
     }
 
     private static UpdateViewModel Update(AvalaBuild build) => new(build, new FakeUpdates(), new FakeLinks());

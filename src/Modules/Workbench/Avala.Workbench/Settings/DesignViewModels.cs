@@ -354,7 +354,7 @@ internal sealed class DesignAboutViewModel : IAboutViewModel
 
     public Personal LogFolder => Personal.Path("/home/dana/.local/share/Avala/logs");
 
-    public string Note { get; init; } = string.Empty;
+    public PersonalPhrase Note { get; init; } = PersonalPhrase.Empty;
 
     public IUpdateViewModel Update { get; init; } = new DesignUpdateViewModel();
 

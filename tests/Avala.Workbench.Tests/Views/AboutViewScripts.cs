@@ -44,4 +44,18 @@ public sealed class AboutViewScripts(HeadlessUi ui)
             Assert.True(view.Shows("Note"));
             Assert.StartsWith("Nothing on this computer opens folders", view.TextOf("NoteText"), StringComparison.Ordinal);
         }, Cancellation);
+
+    [Fact]
+    public Task ALogFolderThatCannotBeOpenedIsNamedUnderTheMaskedHomeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var links = new FakeLinks();
+            var paths = new AvalaPaths("/home/ada/.local/share/Avala");
+            var view = Screen.Show(new AboutViewModel(new UpdateViewModel(new AvalaBuild("1.0.0", "abc"), new FakeUpdates(), links), new TelemetryViewModel(new FakeTelemetry { State = TelemetryState.NotConfigured }), new SettingsFiles(new FakeOpener { Refusal = FileOpenError.Refused }, paths), links));
+
+            view.Click("OpenLogFolder");
+            view.Settle();
+
+            Assert.Equal($"The system refused to open the log folder. It is ~{paths.Logs["/home/ada".Length..]}.", view.TextOf("NoteText"));
+        }, Cancellation);
 }

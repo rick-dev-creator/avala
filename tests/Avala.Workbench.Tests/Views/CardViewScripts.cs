@@ -115,6 +115,15 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task WhatACommandWritesIsNamedUnderTheMaskedHomeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new PermissionCardViewModel(new Asking().Permission("echo done > /home/ada/notes/out.txt"), Replying.With(new FakePermissionAnswers())));
+
+            Assert.Equal("Writes to ~/notes/out.txt", view.TextOf("Writes"));
+        }, Cancellation);
+
+    [Fact]
     public Task TheAnswerButtonsNameTheirShortcutsWithThePlatformsCommandKeyAsync() =>
         ui.RunAsync(() =>
         {

@@ -119,7 +119,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(bare.Job, bench);
         await section.Publisher.Reading;
-        var offered = (section.Publishing.IsShown, section.Publishing.CanOffer, section.Publishing.Remote);
+        var offered = (section.Publishing.IsShown, section.Publishing.CanOffer, section.Publishing.Remote.Show(hidden: false));
         await section.FocusAsync(watched, bench);
         await section.Publisher.Reading;
 

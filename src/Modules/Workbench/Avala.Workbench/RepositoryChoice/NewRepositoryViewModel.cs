@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Sdk;
 using Avala.Workbench.Submitting;
 using Avala.Workspaces.Contracts;
@@ -27,7 +28,7 @@ internal interface INewRepositoryViewModel
     IRelayCommand CancelCommand { get; }
 }
 
-internal sealed record RepositoryCreated(string Path, string Notice);
+internal sealed record RepositoryCreated(string Path, PersonalPhrase Notice);
 
 [INotifyPropertyChanged]
 internal sealed partial class NewRepositoryViewModel : INewRepositoryViewModel
@@ -102,7 +103,7 @@ internal sealed partial class NewRepositoryViewModel : INewRepositoryViewModel
         if (IsPublishing)
         {
             var published = await publish.PublishAsync(repository, cancellationToken);
-            notice = $"{notice} {published.Match(PublishPhrases.Published, PublishPhrases.Failure)}";
+            notice = new PersonalPhrase(notice, " ", published.Match(PublishPhrases.Published, failure => new PersonalPhrase(PublishPhrases.Failure(failure))));
         }
 
         Cancel();

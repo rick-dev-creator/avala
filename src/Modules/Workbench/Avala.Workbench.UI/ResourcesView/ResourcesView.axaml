@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:resources="using:Avala.Workbench.Resources"
              x:Class="Avala.Workbench.UI.ResourcesView"
              x:ClassModifier="internal"
@@ -95,7 +96,7 @@
                       <Ellipse DockPanel.Dock="Left" Classes="ring" Margin="0,0,12,0" />
                       <StackPanel>
                         <TextBlock Text="A leased port is taken outside Avala" />
-                        <TextBlock Classes="caption" Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Classes="caption" privacy:PersonalDetails.Scrubbed="{Binding}" TextTrimming="CharacterEllipsis" />
                       </StackPanel>
                     </DockPanel>
                   </DataTemplate>
@@ -127,7 +128,7 @@
           <ItemsControl x:Name="Leases" ItemsSource="{Binding Leases}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="x:String">
-                <TextBlock Classes="caption mono" Margin="0,2" Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Classes="caption mono" Margin="0,2" privacy:PersonalDetails.Scrubbed="{Binding}" TextTrimming="CharacterEllipsis" />
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

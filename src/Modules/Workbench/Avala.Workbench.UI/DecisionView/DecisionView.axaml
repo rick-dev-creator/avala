@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:decisions="using:Avala.Workbench.Decisions"
              x:Class="Avala.Workbench.UI.DecisionView"
              x:ClassModifier="internal"
@@ -130,7 +131,7 @@
       <TextBlock x:Name="Writes"
                  Classes="caption attention"
                  TextWrapping="Wrap"
-                 Text="{Binding Writes}"
+                 privacy:PersonalDetails.Scrubbed="{Binding Writes}"
                  IsVisible="{Binding Writes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <ItemsControl x:Name="Options" ItemsSource="{Binding Options}">
         <ItemsControl.IsVisible>

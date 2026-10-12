@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -59,7 +60,7 @@ public sealed class RepositoryPublishingTests(PublishedPlugins plugins)
         });
 
         Assert.Equal((true, "This repository has no remote yet, so a pull request has nowhere to go."), offered);
-        Assert.Equal((false, "origin is avala/repository on local (Simulated forge).", string.Empty), published);
+        Assert.Equal((false, $"origin is av{PersonalMask.Hidden}/repository on local (Simulated forge).", string.Empty), published);
         Assert.Equal(await run.Repository.GitAsync(Cancellation, "rev-parse", "main"), await run.Repository.GitInAsync(Path.Combine(run.DataFolder, "simulated-forge", "avala", "repository.git"), Cancellation, "rev-parse", "refs/heads/main"));
     }
 }

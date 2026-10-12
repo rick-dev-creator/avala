@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Workbench.RepositoryChoice;
 using CommunityToolkit.Mvvm.Input;
 
@@ -44,7 +45,7 @@ internal sealed class DesignPublishRepositoryViewModel : IPublishRepositoryViewM
 {
     public bool IsShown { get; init; } = true;
 
-    public string Remote { get; init; } = PublishPhrases.NoRemote;
+    public PersonalPhrase Remote { get; init; } = new(PublishPhrases.NoRemote);
 
     public bool CanOffer { get; init; } = true;
 
@@ -54,7 +55,7 @@ internal sealed class DesignPublishRepositoryViewModel : IPublishRepositoryViewM
 
     public string Error { get; init; } = string.Empty;
 
-    public string Notice { get; init; } = string.Empty;
+    public PersonalPhrase Notice { get; init; } = PersonalPhrase.Empty;
 
     public IAsyncRelayCommand StartCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 

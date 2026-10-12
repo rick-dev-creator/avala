@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avala.Components.Privacy;
 using Avala.Sdk;
 using Avala.Workbench.Submitting;
 using Avala.Workbench.Presenting;
@@ -18,7 +19,7 @@ internal interface IRepositoryFieldViewModel
 
     string Offer { get; }
 
-    string Notice { get; }
+    PersonalPhrase Notice { get; }
 
     INewRepositoryViewModel Creation { get; }
 
@@ -75,14 +76,14 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     public partial string Offer { get; private set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string Notice { get; private set; } = string.Empty;
+    public partial PersonalPhrase Notice { get; private set; } = PersonalPhrase.Empty;
 
     public void ShowKnown() =>
         known.ShowOnly(recent.Recent());
 
     partial void OnRepositoryChanged(string value)
     {
-        Notice = string.Empty;
+        Notice = PersonalPhrase.Empty;
         Checking = CheckAsync(CancellationToken.None);
     }
 
@@ -113,7 +114,7 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
 
     private bool CanMakeRepository() => Offer.Length > 0;
 
-    private void Arrive(string repository, string notice)
+    private void Arrive(string repository, PersonalPhrase notice)
     {
         Repository = repository;
         Notice = notice;

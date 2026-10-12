@@ -59,7 +59,7 @@
         <TextBlock x:Name="Writes"
                    Classes="caption attention"
                    TextWrapping="Wrap"
-                   Text="{Binding Writes}"
+                   privacy:PersonalDetails.Scrubbed="{Binding Writes}"
                    IsVisible="{Binding Writes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         <StackPanel x:Name="NoteField" Spacing="6" IsVisible="{Binding #AddNote.IsChecked}">
           <TextBlock Classes="label" Text="Note for the agent" />

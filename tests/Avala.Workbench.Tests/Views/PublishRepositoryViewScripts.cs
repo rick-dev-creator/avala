@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Testing.UI;
 using Avala.Workbench.Inspector;
 using Avala.Workbench.RepositoryChoice;
@@ -29,8 +30,28 @@ public sealed class PublishRepositoryViewScripts(HeadlessUi ui)
 
             Assert.Equal((PublishPhrases.NoRemote, true, false), offered);
             Assert.Equal(("github", "shop", (bool?)true), chosen);
-            Assert.Equal(("origin is ada/shop on github (GitHub).", false, false), (view.TextOf("Remote"), view.Shows("PublishRepository"), view.Shows("PublishName")));
-            Assert.StartsWith("Published ada/shop on github", view.TextOf("PublishNotice"), StringComparison.Ordinal);
+            Assert.Equal(($"origin is ad{PersonalMask.Hidden}/shop on github (GitHub).", false, false), (view.TextOf("Remote"), view.Shows("PublishRepository"), view.Shows("PublishName")));
+            Assert.StartsWith("Published ", view.TextOf("PublishNotice"), StringComparison.Ordinal);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ThePublishedNoticeHidesTheOwnersLoginInTheNameAndTheAddressAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var publishing = new FakePublishing();
+            var publisher = new PublishRepositoryViewModel(publishing, new PublishOptionsViewModel(publishing));
+            publisher.Show("/home/ada/code/shop");
+            await publisher.Reading;
+            var view = Screen.Show(publisher).Settle();
+            view.Click("PublishRepository");
+            await (publisher.StartCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            view.Click("Publish");
+            await (publisher.PublishCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.Equal($"Published ad{PersonalMask.Hidden}/shop on github and pushed main; origin is git@github.com:ad{PersonalMask.Hidden}/shop.git.", view.TextOf("PublishNotice"));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

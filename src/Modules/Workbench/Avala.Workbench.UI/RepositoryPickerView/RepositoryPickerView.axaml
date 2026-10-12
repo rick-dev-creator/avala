@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:choice="using:Avala.Workbench.RepositoryChoice"
              x:Class="Avala.Workbench.UI.RepositoryPickerView"
              x:ClassModifier="internal"
@@ -88,7 +89,7 @@
                Classes="caption"
                theme:Motion.Enter="Fade"
                TextWrapping="Wrap"
-               Text="{Binding Field.Notice}"
-               IsVisible="{Binding Field.Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+               privacy:PersonalDetails.Text="{Binding Field.Notice}"
+               IsVisible="{Binding !Field.Notice.IsEmpty}" />
   </StackPanel>
 </UserControl>
