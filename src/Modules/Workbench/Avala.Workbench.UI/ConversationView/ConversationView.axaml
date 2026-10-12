@@ -37,6 +37,14 @@
                     Margin="28,0,28,20"
                     MaxWidth="{DynamicResource ReadingWidth}"
                     Content="{Binding Composer}" />
+    <TextBlock x:Name="Notice"
+               DockPanel.Dock="Bottom"
+               Classes="caption"
+               Margin="28,0,28,8"
+               MaxWidth="{DynamicResource ReadingWidth}"
+               TextWrapping="Wrap"
+               Text="{Binding Notice}"
+               IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     <ContentControl x:Name="PlanPanel"
                     DockPanel.Dock="Bottom"
                     Margin="28,0,28,0"

@@ -346,6 +346,12 @@ internal sealed record DesignConversationViewModel(string Title, string Place, I
     public IPlanPanelViewModel Plan { get; init; } = new DesignPlanPanelViewModel();
 
     public IWorkingViewModel Working { get; init; } = new DesignWorkingViewModel();
+
+    public string Notice => string.Empty;
+
+    public IAsyncRelayCommand CopyMarkdownCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand ExportCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignWorkingViewModel : IWorkingViewModel

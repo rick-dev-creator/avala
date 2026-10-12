@@ -211,6 +211,55 @@ public sealed class ConversationViewModelScripts
         Assert.Equal((edits, resends), (prompt.EditCommand.CanExecute(null), prompt.RetryCommand.CanExecute(null)));
     }
 
+    [Fact]
+    public async Task CopyAsMarkdownPutsTheConversationOnTheClipboardWithTheOutputOfTheToolsYouExpandedAsync()
+    {
+        var clipboard = new FakeClipboard();
+        var conversation = Open(new FakeJobs(), clipboard, new FakeFileSaver());
+        conversation.Show(Board(Ran()));
+        conversation.Entries.OfType<ToolViewModel>().Last().ToggleCommand.Execute(null);
+
+        await conversation.CopyMarkdownCommand.ExecuteAsync(null);
+
+        Assert.Equal("# Fix JPY rounding in invoice totals\n\n**You**\n\nFix the failing test\n\n- Run go test ./...\n\n```\nok  money\n```\n\nAll green.\n", Assert.Single(clipboard.Copied));
+    }
+
+    [Fact]
+    public async Task ExportSavesTheConversationAsAMarkdownFileNamedAfterTheJobAsync()
+    {
+        var saver = new FakeFileSaver();
+        var conversation = Open(new FakeJobs(), new FakeClipboard(), saver);
+        conversation.Show(Board(Ran()));
+
+        await conversation.ExportCommand.ExecuteAsync(null);
+
+        var saved = Assert.Single(saver.Saved);
+        Assert.Equal(("fix-jpy-rounding-in-invoice-totals.md", "# Fix JPY rounding in invoice totals\n\n**You**\n\nFix the failing test\n\n- Run go test ./...\n\nAll green.\n"), saved);
+        Assert.Equal(string.Empty, conversation.Notice);
+    }
+
+    [Theory]
+    [InlineData(FileSaveError.Cancelled, "")]
+    [InlineData(FileSaveError.Unwritable, "The conversation could not be saved there.")]
+    public async Task AnExportThatDidNotSaveSaysWhyUnlessYouCancelledItAsync(FileSaveError refusal, string notice)
+    {
+        var conversation = Open(new FakeJobs(), new FakeClipboard(), new FakeFileSaver { Refusal = refusal });
+        conversation.Show(Board(Ran()));
+
+        await conversation.ExportCommand.ExecuteAsync(null);
+
+        Assert.Equal(notice, conversation.Notice);
+    }
+
+    private Transcript Ran() =>
+        Job().WithPrompts("Fix the failing test", []).Apply(new TurnStarted(session, turn), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("test"), ItemKind.Command, "Run go test ./...") { Input = "go test ./..." }, Now)
+            .Apply(new ItemProgressed(session, turn, new ItemId("test"), "ok  money\n"), Now)
+            .Apply(new ItemCompleted(session, turn, new ItemId("test"), ItemOutcome.Succeeded), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"), Now)
+            .Apply(new ItemProgressed(session, turn, new ItemId("reply"), "All green."), Now)
+            .Apply(new ItemCompleted(session, turn, new ItemId("reply"), ItemOutcome.Succeeded), Now);
+
     private static Transcript Job() => Transcript.Empty;
 
     private static BoardJob Board(Transcript transcript, JobStatus status = JobStatus.Running) =>
@@ -218,6 +267,8 @@ public sealed class ConversationViewModelScripts
 
     private static ConversationViewModel Open() => Open(new FakeJobs());
 
-    private static ConversationViewModel Open(FakeJobs jobs) =>
-        new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard()), new SendKeys()).Open(JobId.New());
+    private static ConversationViewModel Open(FakeJobs jobs) => Open(jobs, new FakeClipboard(), new FakeFileSaver());
+
+    private static ConversationViewModel Open(FakeJobs jobs, FakeClipboard clipboard, FakeFileSaver saver) =>
+        new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, clipboard), new SendKeys(), new TranscriptExport(clipboard, saver)).Open(JobId.New());
 }

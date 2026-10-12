@@ -50,13 +50,12 @@ internal interface IComposerViewModel
 [INotifyPropertyChanged]
 internal sealed partial class ComposerViewModel : IComposerViewModel
 {
-    private readonly JobId job;
     private readonly JobSteering steering;
     private readonly SendKeys keys;
 
     public ComposerViewModel(JobId job, JobSteering steering, SendKeys keys)
     {
-        this.job = job;
+        Job = job;
         this.steering = steering;
         this.keys = keys;
         SendsWithEnter = keys.WithEnter;
@@ -64,6 +63,8 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         Error = string.Empty;
         Queued = string.Empty;
     }
+
+    public JobId Job { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsStop), nameof(ShowsSend))]
@@ -128,7 +129,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     [RelayCommand]
     private async Task ResendAsync(string? text, CancellationToken cancellationToken)
     {
-        var sent = await steering.SendAsync(job, Status, text ?? string.Empty, cancellationToken);
+        var sent = await steering.SendAsync(Job, Status, text ?? string.Empty, cancellationToken);
         Error = sent.Match(_ => string.Empty, ConversationPhrases.Rejection);
         ShowQueued();
     }
@@ -136,7 +137,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     [RelayCommand(CanExecute = nameof(CanSend))]
     private async Task SendAsync(CancellationToken cancellationToken)
     {
-        var sent = await steering.SendAsync(job, Status, Draft.Trim(), cancellationToken);
+        var sent = await steering.SendAsync(Job, Status, Draft.Trim(), cancellationToken);
         Draft = sent.IsSuccess ? string.Empty : Draft;
         Error = sent.Match(_ => string.Empty, ConversationPhrases.Rejection);
         ShowQueued();
@@ -150,16 +151,16 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 
     [RelayCommand(CanExecute = nameof(CanInterrupt))]
     private async Task InterruptAsync(CancellationToken cancellationToken) =>
-        Report(await steering.InterruptAsync(job, cancellationToken));
+        Report(await steering.InterruptAsync(Job, cancellationToken));
 
     [RelayCommand(CanExecute = nameof(CanStop))]
     private async Task StopAsync(CancellationToken cancellationToken) =>
-        Report(await steering.StopAsync(job, cancellationToken));
+        Report(await steering.StopAsync(Job, cancellationToken));
 
     [RelayCommand(CanExecute = nameof(CanWithdraw))]
     private void Withdraw()
     {
-        steering.Withdraw(job);
+        steering.Withdraw(Job);
         ShowQueued();
     }
 
@@ -171,7 +172,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 
     private bool CanWithdraw() => Queued.Length > 0;
 
-    private void ShowQueued() => Queued = steering.Queued(job).Match(message => message, () => string.Empty);
+    private void ShowQueued() => Queued = steering.Queued(Job).Match(message => message, () => string.Empty);
 
     private void Report(Result<JobId, JobRejection> outcome) =>
         Error = outcome.Match(_ => string.Empty, ConversationPhrases.Rejection);

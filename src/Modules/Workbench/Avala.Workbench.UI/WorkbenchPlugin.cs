@@ -2,6 +2,7 @@ using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
 using Avala.Components.UI.Copying;
 using Avala.Components.UI.Folders;
+using Avala.Workbench.Timeline;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Contests.Contracts;
@@ -111,6 +112,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<AppearanceChanged>, SendKeys>()
             .AddSingleton<TimelineItems>()
             .AddSingleton<Conversations>()
+            .AddSingleton<TranscriptExport>()
             .AddSingleton<ReviewReader>()
             .AddSingleton<ConflictFinder>()
             .AddSingleton<ForgeDesk>()
@@ -248,6 +250,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     {
         services.TryAddSingleton<IFolderPicker, AvaloniaFolderPicker>();
         services.TryAddSingleton<IClipboard, AvaloniaClipboard>();
+        services.TryAddSingleton<IFileSaver, AvaloniaFileSaver>();
         services
             .AddTransient<PublishOptionsViewModel>()
             .AddTransient<NewRepositoryViewModel>()

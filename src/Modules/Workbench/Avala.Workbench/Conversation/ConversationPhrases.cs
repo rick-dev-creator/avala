@@ -15,6 +15,15 @@ namespace Avala.Workbench.Conversation;
 
 internal static class ConversationPhrases
 {
+    public const string NotCopied = "The conversation could not be copied.";
+
+    public static string NotExported(FileSaveError error) => error switch
+    {
+        FileSaveError.Cancelled => string.Empty,
+        FileSaveError.Unavailable => "There is nowhere to save the conversation right now.",
+        _ => "The conversation could not be saved there.",
+    };
+
     public static string Origin(AttemptOrigin origin) => origin switch
     {
         AttemptOrigin.Initial => "Instruction",

@@ -48,6 +48,10 @@ internal sealed class Bench : IDisposable
 
     public FakeAgents Agents { get; } = new();
 
+    public FakeClipboard Clipboard { get; } = new();
+
+    public FakeFileSaver Saver { get; } = new();
+
     public FakeTimeProvider Time { get; } = new(new DateTimeOffset(2026, 10, 9, 10, 0, 0, TimeSpan.Zero));
 
     public TestUiDispatcher Ui { get; } = new();
@@ -101,7 +105,7 @@ internal sealed class Bench : IDisposable
     public WorkbenchViewModel Workbench() => Workbench(Ui);
 
     public WorkbenchViewModel Workbench(IUiDispatcher ui) =>
-        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Queue), new TimelineItems(Replies, FakeLinks.Opening, new FakeClipboard()), new SendKeys()), new Reviews(Reader, Desk, ui)), Focus, new Avala.Workbench.Welcome.DesignWelcomeViewModel());
+        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Queue), new TimelineItems(Replies, FakeLinks.Opening, Clipboard), new SendKeys(), new TranscriptExport(Clipboard, Saver)), new Reviews(Reader, Desk, ui)), Focus, new Avala.Workbench.Welcome.DesignWelcomeViewModel());
 
     public JobSummary Job(string instruction, JobStatus status)
     {

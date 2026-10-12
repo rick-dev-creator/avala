@@ -203,7 +203,7 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
     private static ConversationViewModel Conversation(Transcript transcript, JobStatus status)
     {
         var jobs = new FakeJobs { Status = status };
-        var conversation = new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard()), new SendKeys()).Open(JobId.New());
+        var conversation = new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard()), new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver())).Open(JobId.New());
         conversation.Show(Board(transcript, status));
 
         return conversation;

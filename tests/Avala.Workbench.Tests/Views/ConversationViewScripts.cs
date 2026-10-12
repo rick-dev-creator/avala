@@ -194,7 +194,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
     private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript) Open(JobStatus status)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
-        var conversation = new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard()), new SendKeys()).Open(summary.Job);
+        var conversation = new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard()), new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver())).Open(summary.Job);
         var transcript = Transcript.Empty.WithPrompts(summary.Instruction, []);
         conversation.Show(new BoardJob(summary, transcript));
 

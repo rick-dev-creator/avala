@@ -57,6 +57,13 @@
             <Path Classes="icon solid" Width="15" Height="15" Data="{StaticResource IconMore}" />
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedRight">
+                <MenuItem x:Name="CopyMarkdown"
+                          Header="Copy as Markdown"
+                          Command="{Binding Conversation.CopyMarkdownCommand}" />
+                <MenuItem x:Name="Export"
+                          Header="Export…"
+                          Command="{Binding Conversation.ExportCommand}" />
+                <Separator />
                 <MenuItem x:Name="StopSession"
                           Header="Stop Session"
                           Command="{Binding Conversation.Composer.StopCommand}" />

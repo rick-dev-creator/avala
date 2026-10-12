@@ -6,6 +6,7 @@ using Avala.Workbench.Sidebar;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Conversation;
 
@@ -28,6 +29,12 @@ internal interface IConversationViewModel
     IWorkingViewModel Working { get; }
 
     IReadOnlyList<object> Entries { get; }
+
+    string Notice { get; }
+
+    IAsyncRelayCommand CopyMarkdownCommand { get; }
+
+    IAsyncRelayCommand ExportCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -36,22 +43,24 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     private readonly ComposerViewModel composer;
     private readonly TimelineItems items;
     private readonly PlanPanelViewModel plan;
+    private readonly TranscriptExport export;
     private readonly StatusPillViewModel pill = new(StatusKind.Working, string.Empty);
     private readonly WorkingViewModel working = new();
     private readonly Dictionary<string, (ITimelineEntry Entry, ITimelineItem Item)> known = [];
     private Transcript shown = Transcript.Empty;
 
-    public ConversationViewModel(JobId job, ComposerViewModel composer, TimelineItems items, PlanPanelViewModel plan)
+    public ConversationViewModel(ComposerViewModel composer, TimelineItems items, PlanPanelViewModel plan, TranscriptExport export)
     {
-        Job = job;
         this.composer = composer;
+        this.export = export;
         this.items = items;
         Title = string.Empty;
         Place = string.Empty;
+        Notice = string.Empty;
         this.plan = plan;
     }
 
-    public JobId Job { get; }
+    public JobId Job => composer.Job;
 
     public IComposerViewModel Composer => composer;
 
@@ -73,6 +82,12 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
 
     [ObservableProperty]
     public partial JobStatus Status { get; private set; }
+
+    [ObservableProperty]
+    public partial string Notice { get; private set; }
+
+    private MarkdownChoices Choices =>
+        new(known.Where(pair => pair.Value.Item is ToolViewModel { IsExpanded: true }).Select(pair => pair.Key).ToHashSet());
 
     public void Show(BoardJob job)
     {
@@ -97,6 +112,14 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
             prompt.CanResend = prompt.IsFromPerson && job.Status.AcceptsMessages;
         }
     }
+
+    [RelayCommand]
+    private async Task CopyMarkdownAsync(CancellationToken cancellationToken) =>
+        Notice = await export.CopyAsync(Title, shown, Choices, cancellationToken) ? string.Empty : ConversationPhrases.NotCopied;
+
+    [RelayCommand]
+    private async Task ExportAsync(CancellationToken cancellationToken) =>
+        Notice = (await export.ExportAsync(Title, shown, Choices, cancellationToken)).Match(_ => string.Empty, ConversationPhrases.NotExported);
 
     private void Arrange(Transcript transcript)
     {

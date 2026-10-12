@@ -41,12 +41,36 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             var view = Screen.Show(page);
 
             view.Click("More");
-            var stop = Assert.IsType<MenuItem>(Assert.Single(Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items));
+            var stop = Assert.Single(Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items.OfType<MenuItem>(), item => item.Name == "StopSession");
             stop.Command!.Execute(null);
             await (page.Conversation!.Composer.StopCommand.ExecutionTask ?? Task.CompletedTask);
 
             Assert.Equal("Stop Session", stop.Header);
             Assert.Equal(["hold Stopped"], bench.Jobs.Calls);
+            page.Deactivate();
+        }, Cancellation);
+
+    [Fact]
+    public Task TheJobsMoreMenuCopiesTheConversationAsMarkdownAndExportsItAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var page = bench.Workbench();
+            var job = bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running);
+            page.Activate();
+            bench.Messenger.Send(new JobSelected(job.Job));
+            var view = Screen.Show(page);
+            view.Click("More");
+            var items = Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items.OfType<MenuItem>().ToList();
+
+            items.Single(item => item.Name == "CopyMarkdown").Command!.Execute(null);
+            await (page.Conversation!.CopyMarkdownCommand.ExecutionTask ?? Task.CompletedTask);
+            items.Single(item => item.Name == "Export").Command!.Execute(null);
+            await (page.Conversation.ExportCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal(["Copy as Markdown", "Export…", "Stop Session"], items.Select(item => item.Header));
+            Assert.StartsWith("# ", Assert.Single(bench.Clipboard.Copied), StringComparison.Ordinal);
+            Assert.EndsWith(".md", Assert.Single(bench.Saver.Saved).Name, StringComparison.Ordinal);
             page.Deactivate();
         }, Cancellation);
 
