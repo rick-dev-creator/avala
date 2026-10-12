@@ -25,7 +25,7 @@ Directory.CreateDirectory(output);
 
 var stage = Path.Combine(work, "publish");
 await Build.PublishHostAsync(root, target, version, stage);
-await Build.PluginsAsync(root, version, Path.Combine(stage, "plugins"));
+await Build.PluginsAsync(root, target, version, Path.Combine(stage, "plugins"));
 Layout.Trim(stage, target);
 await Layout.ShareAsync(stage);
 var executable = Layout.RenameExecutable(stage, target);
@@ -192,23 +192,26 @@ internal static class Build
                 "--self-contained", "true",
                 "--output", stage,
                 $"-p:Version={version.Text}",
-                "-p:PublishReadyToRun=false",
+                "-p:PublishReadyToRun=true", "-p:PublishReadyToRunComposite=true",
                 "-p:PublishSingleFile=false",
                 .. Telemetry.Properties(),
             ],
             root);
 
-    public static async Task PluginsAsync(string root, PackageVersion version, string plugins)
+    public static async Task PluginsAsync(string root, Target target, PackageVersion version, string plugins)
     {
         foreach (var project in PluginProjects(root))
         {
             await Processes.RunAsync(
                 "dotnet",
                 [
-                    "build", project,
+                    "publish", project,
                     "--configuration", "Release",
+                    "--runtime", target.Rid,
+                    "--self-contained", "false",
+                    "--output", Path.Combine(plugins, Path.GetFileNameWithoutExtension(project)),
                     $"-p:Version={version.Text}",
-                    $"-p:AvalaPluginsDirectory={plugins}{Path.DirectorySeparatorChar}",
+                    "-p:PublishReadyToRun=true",
                 ],
                 root);
         }

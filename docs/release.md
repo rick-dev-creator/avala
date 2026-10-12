@@ -24,7 +24,9 @@ The release workflow packages Windows and Linux only, starting with `v0.1.0-beta
 
 Every archive has a `.sha256` next to it. Each package is self-contained, so nothing has to be installed first, and is a folder rather than a single file: the plugins are folders the host loads at startup, and the host's own assemblies must stay visible to them. The `plugins` folder sits next to the executable, where the host looks first.
 
-To keep the packages small, the script removes what the plugin loader never reads: native libraries for other platforms, a plugin's copy of an assembly the host already ships, and a file identical to one an earlier plugin already holds. The Linux package was 51 MB compressed when this was written, macOS 52 MB and Windows 79 MB.
+Everything is precompiled with ReadyToRun so Avala starts without compiling most of its code first: the host is published as one composite image with the .NET runtime and its own dependencies, such as Avalonia, and each plugin is published for the package's runtime with `PublishReadyToRun`, which precompiles the plugin and its own dependencies, such as EF Core, Markdig and MarkView. Crossgen2 targets any platform from any other, so every package still builds on any runner. Measured on Linux, the window's first frame came after about 2,700 methods were compiled instead of 19,600, in 0.9 s instead of 2.0 s, and opening a job took half as long; the archive grew from 55 MB to 84 MB.
+
+To keep the packages small, the script removes what the plugin loader never reads: native libraries for other platforms, a plugin's copy of an assembly the host already ships, and a file identical to one an earlier plugin already holds. With ReadyToRun the Linux package is 84 MB compressed, macOS on Apple silicon 82 MB and Windows 111 MB.
 
 An AppImage, a Windows installer and a macOS disk image come later. An AppImage is a SquashFS image behind the AppImage runtime, which the script would have to write from C# without calling `mksquashfs` or `appimagetool`, so it waits until that is worth its code.
 
