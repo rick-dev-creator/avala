@@ -90,7 +90,7 @@
         </Border>
       </Panel>
       <Panel>
-        <ui:Stage x:Name="Conversation" Content="{Binding Conversation}" />
+        <ui:Stage x:Name="Conversation" Keeps="4" Content="{Binding Conversation}" />
         <ContentControl x:Name="Welcome" Content="{Binding Welcome}" IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}" />
       </Panel>
     </DockPanel>

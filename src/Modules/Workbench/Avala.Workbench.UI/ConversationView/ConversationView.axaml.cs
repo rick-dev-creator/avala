@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
@@ -12,6 +13,7 @@ internal sealed partial class ConversationView : UserControl
         InitializeComponent();
         Scroller.ScrollChanged += OnScrollChanged;
         JumpToLatest.Click += OnJumpToLatest;
+        Entries.ItemsView.CollectionChanged += OnEntriesChanged;
     }
 
     public bool FollowsLiveEdge { get; private set; } = true;
@@ -21,6 +23,9 @@ internal sealed partial class ConversationView : UserControl
         base.OnDataContextChanged(e);
         Follow();
     }
+
+    private void OnEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        NewBelow.IsVisible = NewBelow.IsVisible || (!FollowsLiveEdge && e.Action == NotifyCollectionChangedAction.Add);
 
     private void OnJumpToLatest(object? sender, RoutedEventArgs e) => Follow();
 
@@ -34,21 +39,27 @@ internal sealed partial class ConversationView : UserControl
 
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
+        var atLiveEdge = Scroller.Offset.Y >= Scroller.Extent.Height - Scroller.Viewport.Height - LiveEdge;
+
+        if (e.OffsetDelta.Y < 0 && !atLiveEdge)
+        {
+            FollowsLiveEdge = false;
+            Jump.IsVisible = true;
+
+            return;
+        }
+
         if (e.ExtentDelta.Y != 0 || e.ViewportDelta.Y != 0)
         {
             if (FollowsLiveEdge)
             {
                 Scroller.ScrollToEnd();
             }
-            else if (e.ExtentDelta.Y > 0)
-            {
-                NewBelow.IsVisible = true;
-            }
 
             return;
         }
 
-        FollowsLiveEdge = Scroller.Offset.Y >= Scroller.Extent.Height - Scroller.Viewport.Height - LiveEdge;
+        FollowsLiveEdge = atLiveEdge;
         Jump.IsVisible = !FollowsLiveEdge;
         NewBelow.IsVisible = NewBelow.IsVisible && !FollowsLiveEdge;
     }
