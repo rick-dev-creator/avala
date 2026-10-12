@@ -215,6 +215,12 @@ internal sealed partial class ConnectSheetViewModel(SourceControl source) : ICon
             kind.IsSelected = kind.Id == id;
         }
 
+        Suggest(id, changed);
+        OfferCli(id);
+    }
+
+    private void Suggest(string id, bool changed)
+    {
         var info = state.Kind(id);
         NeedsHost = info.Match(found => found.DefaultUrl.IsNone, () => false);
 
@@ -223,7 +229,10 @@ internal sealed partial class ConnectSheetViewModel(SourceControl source) : ICon
             Host = NeedsHost ? Signed(id).Bind(account => account.Url).Match(url => url.GetLeftPart(UriPartial.Authority), () => info.Bind(found => found.SuggestedUrl).Match(url => url.OriginalString, () => string.Empty)) : string.Empty;
             TokenVariable = Tokens(id).FirstOrDefault() ?? AccountPhrases.TokenVariable(id);
         }
+    }
 
+    private void OfferCli(string id)
+    {
         var tool = state.Tool(id);
         OffersCli = tool.IsSome;
         Cli = tool.Match(found => found.Command, () => string.Empty);
