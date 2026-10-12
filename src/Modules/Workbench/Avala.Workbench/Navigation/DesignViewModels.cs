@@ -1,6 +1,7 @@
 using Avala.Sdk;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Review;
+using Avala.Workbench.Welcome;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Navigation;
@@ -30,19 +31,5 @@ internal sealed class DesignWorkbenchViewModel(Option<IConversationViewModel> co
 
     public IRelayCommand CloseReviewCommand { get; } = new RelayCommand(() => { });
 
-    public IFirstRunViewModel FirstRun { get; init; } = new DesignFirstRunViewModel { IsShown = false };
-}
-
-internal sealed class DesignFirstRunViewModel : IFirstRunViewModel
-{
-    public bool IsShown { get; init; } = true;
-
-    public string Heading => "No connections yet";
-
-    public string Explanation =>
-        "A job runs on a harness, and Avala found none to run it on: no Claude Code login on this computer and no connection declared in connections.json.";
-
-    public IRelayCommand OpenSettingsCommand { get; } = new RelayCommand(() => { });
-
-    public Task CheckAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public IWelcomeViewModel Welcome { get; init; } = new DesignWelcomeViewModel();
 }

@@ -83,7 +83,14 @@ internal sealed class FakeConnections(params string[] names) : IConnections
         return this;
     }
 
-    public ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken) => CatalogAsync(cancellationToken);
+    public Option<ConnectionCatalog> Discovered { get; set; }
+
+    public ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken)
+    {
+        Catalog = Discovered.Match(found => found, () => Catalog);
+
+        return CatalogAsync(cancellationToken);
+    }
 
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Catalog);
 

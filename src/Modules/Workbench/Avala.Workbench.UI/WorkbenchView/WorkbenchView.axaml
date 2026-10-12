@@ -59,19 +59,7 @@
       </Border>
       <Panel>
         <ContentControl x:Name="Conversation" Content="{Binding Conversation}" />
-        <Border x:Name="NoJob"
-                Classes="empty"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}">
-          <Panel>
-            <StackPanel x:Name="NoJobHint" Spacing="6" IsVisible="{Binding !FirstRun.IsShown}">
-              <TextBlock Classes="strong" Text="No job selected" HorizontalAlignment="Center" />
-              <TextBlock Classes="caption" Text="Choose a job in the sidebar to follow its conversation." HorizontalAlignment="Center" />
-            </StackPanel>
-            <ContentControl x:Name="FirstRun" Content="{Binding FirstRun}" IsVisible="{Binding FirstRun.IsShown}" />
-          </Panel>
-        </Border>
+        <ContentControl x:Name="Welcome" Content="{Binding Welcome}" IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}" />
       </Panel>
     </DockPanel>
     <Panel x:Name="ReviewSheet" IsVisible="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}">

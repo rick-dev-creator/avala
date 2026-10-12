@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:welcome="using:Avala.Workbench.Welcome"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.AccountChipView"
+             x:ClassModifier="internal"
+             x:DataType="welcome:IAccountChipViewModel">
+  <Design.DataContext>
+    <welcome:DesignAccountChipViewModel />
+  </Design.DataContext>
+  <Border x:Name="Chip" Classes="chip" Classes.attention="{Binding IsAttention}">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Border Classes="mark small round">
+        <Panel>
+          <Path Classes="logo" Data="{Binding Logo, Converter={x:Static states:PathData.Parsed}}" IsVisible="{Binding HasLogo}" />
+          <TextBlock x:Name="ChipMonogram" Classes="monogram" Text="{Binding Monogram}" IsVisible="{Binding !HasLogo}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Panel>
+      </Border>
+      <TextBlock x:Name="ChipLabel" Text="{Binding Label}" VerticalAlignment="Center" />
+      <Ellipse x:Name="ChipDot" Classes="dot" Classes.attention="{Binding IsAttention}" />
+      <Button x:Name="ChipFix"
+              Classes="fix"
+              Content="{Binding FixLabel}"
+              Command="{Binding FixCommand}"
+              IsVisible="{Binding FixLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </Border>
+</UserControl>

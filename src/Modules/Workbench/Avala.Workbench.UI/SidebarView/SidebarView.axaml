@@ -46,15 +46,6 @@
     </DataTemplate>
   </UserControl.Resources>
   <StackPanel Spacing="14">
-    <Border x:Name="NoJobs" Classes="empty" Margin="0,8,0,0" IsVisible="{Binding IsEmpty}">
-      <StackPanel Spacing="4">
-        <TextBlock Classes="strong" Text="No jobs yet" HorizontalAlignment="Center" />
-        <TextBlock Classes="caption"
-                   TextWrapping="Wrap"
-                   TextAlignment="Center"
-                   Text="Start one with + above. It runs in its own worktree." />
-      </StackPanel>
-    </Border>
     <StackPanel x:Name="NeedsYouGroup" Spacing="1" IsVisible="{Binding !!NeedsYou.Count}">
       <TextBlock Classes="section group" Text="Needs you" />
       <ItemsControl x:Name="NeedsYou" Classes="rows" ItemsSource="{Binding NeedsYou}" ItemTemplate="{StaticResource Row}" />

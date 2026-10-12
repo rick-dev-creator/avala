@@ -1,0 +1,117 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:welcome="using:Avala.Workbench.Welcome"
+             x:Class="Avala.Workbench.UI.WelcomeView"
+             x:ClassModifier="internal"
+             x:DataType="welcome:IWelcomeViewModel">
+  <Design.DataContext>
+    <welcome:DesignWelcomeViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Composer">
+      <Setter Property="Background" Value="{DynamicResource SurfaceComposerBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowComposer}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+      <Setter Property="Padding" Value="18,12,10,10" />
+    </Style>
+    <Style Selector="Border#Composer:focus-within">
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorStrongBrush}" />
+    </Style>
+    <Style Selector="Border#Composer:disabled">
+      <Setter Property="Opacity" Value="0.5" />
+    </Style>
+    <Style Selector="TextBox#WelcomeInstruction">
+      <Setter Property="FocusAdorner" Value="{x:Null}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
+    </Style>
+    <Style Selector="Button.send Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+      <Setter Property="StrokeThickness" Value="1.8" />
+    </Style>
+    <Style Selector="TextBlock#Hero">
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeTitle}" />
+    </Style>
+  </UserControl.Styles>
+  <ScrollViewer>
+    <StackPanel x:Name="Welcome"
+                Classes="arrive-gentle"
+                MaxWidth="{DynamicResource ReadingWidth}"
+                Margin="32,0"
+                Spacing="28"
+                VerticalAlignment="Center">
+      <TextBlock x:Name="Hero" Classes="title" HorizontalAlignment="Center" Text="What should we work on?" />
+      <StackPanel Spacing="8">
+        <Border x:Name="Composer" IsEnabled="{Binding CanCompose}">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox x:Name="WelcomeInstruction"
+                     Classes="bare"
+                     Text="{Binding Instruction}"
+                     MinHeight="56"
+                     MaxHeight="200"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     PlaceholderText="Describe a task…"
+                     AutomationProperties.Name="Instruction">
+              <TextBox.KeyBindings>
+                <KeyBinding Gesture="Enter" Command="{Binding StartCommand}" />
+                <KeyBinding Gesture="Ctrl+Enter" Command="{Binding StartCommand}" />
+              </TextBox.KeyBindings>
+            </TextBox>
+            <Button x:Name="WelcomeStart"
+                    Grid.Column="1"
+                    Classes="send"
+                    VerticalAlignment="Bottom"
+                    Command="{Binding StartCommand}"
+                    ToolTip.Tip="Start (Enter) · Shift+Enter adds a line"
+                    AutomationProperties.Name="Start">
+              <Path Classes="icon" Data="{StaticResource IconSend}" />
+            </Button>
+          </Grid>
+        </Border>
+        <TextBlock x:Name="WelcomeError"
+                   Classes="caption failure"
+                   Margin="18,0"
+                   TextWrapping="Wrap"
+                   Text="{Binding Error}"
+                   IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+      <StackPanel x:Name="Starts" Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center" IsVisible="{Binding !IsCompact}">
+        <Button x:Name="OpenFolder" Classes="tile" Command="{Binding OpenFolderCommand}">
+          <StackPanel Spacing="10">
+            <Path Classes="icon" HorizontalAlignment="Center" Data="{StaticResource IconFolder}" />
+            <TextBlock HorizontalAlignment="Center" Text="Open folder" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="Clone" Classes="tile" Command="{Binding CloneCommand}">
+          <StackPanel Spacing="10">
+            <Path Classes="icon" HorizontalAlignment="Center" Data="{StaticResource IconClone}" />
+            <TextBlock HorizontalAlignment="Center" Text="Clone" />
+          </StackPanel>
+        </Button>
+        <Button x:Name="NewRepository" Classes="tile" Command="{Binding NewRepositoryCommand}">
+          <StackPanel Spacing="10">
+            <Path Classes="icon" HorizontalAlignment="Center" Data="{StaticResource IconRepositoryNew}" />
+            <TextBlock HorizontalAlignment="Center" Text="New repository" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+      <WrapPanel x:Name="Accounts" HorizontalAlignment="Center" ItemSpacing="8" LineSpacing="8" IsVisible="{Binding !IsCompact}">
+        <ItemsControl x:Name="Chips" ItemsSource="{Binding Chips}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel ItemSpacing="8" LineSpacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+        <Button x:Name="Connect" Classes="chip" Command="{Binding ConnectCommand}" ToolTip.Tip="Connect a forge account">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Path Classes="icon small" Data="{StaticResource IconPlus}" Stroke="{DynamicResource TextSecondaryBrush}" />
+            <TextBlock Text="Connect" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </WrapPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

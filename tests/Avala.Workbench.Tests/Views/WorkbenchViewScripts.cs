@@ -24,19 +24,19 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "ConversationView");
             Assert.Equal(("Fix JPY rounding in invoice totals", "billing-worker · claude-work"), (view.TextOf("JobTitle"), view.TextOf("Place")));
             Assert.Contains("Running", view.VisibleTexts);
-            Assert.Equal((false, false, false, true), (view.Shows("NoJob"), view.Shows("ReviewSheet"), view.HasClass("ToggleInspector", "selected"), view.Shows("ToggleInspector")));
+            Assert.Equal((false, false, false, true), (view.Shows("Welcome"), view.Shows("ReviewSheet"), view.HasClass("ToggleInspector", "selected"), view.Shows("ToggleInspector")));
             Assert.False(view.Shows("OpenReview"));
         }, Cancellation);
 
     [Fact]
-    public Task WithoutASelectedJobThePageSaysHowToChooseOneAsync() =>
+    public Task WithoutASelectedJobThePageWelcomesAsync() =>
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
             var view = Screen.Show(bench.Workbench());
 
-            Assert.Equal((true, false), (view.Shows("NoJob"), view.Shows("Header")));
-            Assert.Contains("Choose a job in the sidebar to follow its conversation.", view.VisibleTexts);
+            Assert.Equal((true, false), (view.Shows("Welcome"), view.Shows("Header")));
+            Assert.Contains("What should we work on?", view.VisibleTexts);
         }, Cancellation);
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
 
             Assert.Equal((true, true, true), opened);
             Assert.Equal((false, (object?)null), (view.Shows("ReviewSheet"), page.Review));
-            Assert.False(view.Shows("NoJob"));
+            Assert.False(view.Shows("Welcome"));
             page.Deactivate();
         }, Cancellation);
 
@@ -117,14 +117,14 @@ public sealed class SidebarViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task AnEmptySidebarSaysSoAndHidesEveryGroupAsync() =>
+    public Task AnEmptySidebarHidesEveryGroupAndSaysNothingAsync() =>
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
             var view = Screen.Show(bench.Sidebar());
 
-            Assert.Equal((true, false, false, false, false, false), (view.Shows("NoJobs"), view.Shows("NeedsYouGroup"), view.Shows("RunningGroup"), view.Shows("WaitingGroup"), view.Shows("ReadyForReviewGroup"), view.Shows("DoneGroup")));
-            Assert.Contains("No jobs yet", view.VisibleTexts);
+            Assert.Equal((false, false, false, false, false), (view.Shows("NeedsYouGroup"), view.Shows("RunningGroup"), view.Shows("WaitingGroup"), view.Shows("ReadyForReviewGroup"), view.Shows("DoneGroup")));
+            Assert.Empty(view.VisibleTexts);
         }, Cancellation);
 
     [Fact]

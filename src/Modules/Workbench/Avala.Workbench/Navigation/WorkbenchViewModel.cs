@@ -8,6 +8,7 @@ using Avala.Workbench.Conversation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Review;
 using Avala.Workbench.Steering;
+using Avala.Workbench.Welcome;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -32,7 +33,7 @@ internal interface IWorkbenchViewModel
 
     IRelayCommand CloseReviewCommand { get; }
 
-    IFirstRunViewModel FirstRun { get; }
+    IWelcomeViewModel Welcome { get; }
 }
 
 [INotifyPropertyChanged]
@@ -43,16 +44,16 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     private readonly JobFocus focus;
     private Option<JobId> inspected;
 
-    public WorkbenchViewModel(BoardFeed feed, JobScreens screens, JobFocus focus, IFirstRunViewModel firstRun)
+    public WorkbenchViewModel(BoardFeed feed, JobScreens screens, JobFocus focus, IWelcomeViewModel welcome)
     {
         this.feed = feed;
         this.screens = screens;
         this.focus = focus;
-        FirstRun = firstRun;
+        Welcome = welcome;
         focus.Follow(this);
     }
 
-    public IFirstRunViewModel FirstRun { get; }
+    public IWelcomeViewModel Welcome { get; }
 
     public Task Checking { get; private set; } = Task.CompletedTask;
 
@@ -96,7 +97,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     public void Activate()
     {
         feed.Start(Show);
-        Checking = FirstRun.CheckAsync(CancellationToken.None);
+        Checking = Welcome.CheckAsync(CancellationToken.None);
         Inspect();
     }
 
@@ -216,6 +217,8 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
 
     private IReadOnlyList<Func<CancellationToken, Task>> Show(ImmutableDictionary<JobId, BoardJob> jobs)
     {
+        Welcome.ShowBoard(!jobs.IsEmpty);
+
         if (Conversation is { } open && jobs.TryGetValue(open.Job, out var job))
         {
             open.Show(job);

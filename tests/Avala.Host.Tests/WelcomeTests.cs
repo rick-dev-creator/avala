@@ -5,10 +5,10 @@ using Avala.Testing;
 
 namespace Avala.Host.Tests;
 
-public sealed class FirstRunTests(PublishedPlugins plugins)
+public sealed class WelcomeTests(PublishedPlugins plugins)
 {
     [Fact]
-    public async Task WithoutAnyConnectionTheJobsPageGuidesToSettingsAndAConnectionAddedThereEndsTheGuideAsync()
+    public async Task WithoutAnyConnectionTheWelcomeDisablesItsComposerAndAConnectionAddedInSettingsEnablesItAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, [], [], developer: false);
         var shell = run.Get<ShellViewModel>();
@@ -19,11 +19,15 @@ public sealed class FirstRunTests(PublishedPlugins plugins)
 
             return jobs["Checking"].Value<Task>();
         });
-        var firstRun = await run.Ui.ReadAsync(() => jobs["FirstRun"]);
-        var guide = await run.Ui.ReadAsync(() => (firstRun["IsShown"].Value<bool>(), firstRun["Heading"].Text));
+        var welcome = await run.Ui.ReadAsync(() => jobs["Welcome"]);
+        var blocked = await run.Ui.ReadAsync(() => (welcome["CanCompose"].Value<bool>(), welcome["Chips"].Items.Single()["IsAttention"].Value<bool>()));
 
-        await run.Ui.InvokeAsync(() => firstRun.Execute("OpenSettingsCommand"), TestContext.Current.CancellationToken);
-        await run.Ui.RunAsync(() => run.Page("Settings")["Loading"].Value<Task>());
+        await run.Ui.RunAsync(() =>
+        {
+            shell.SelectedPage = (IPage)run.Page("Settings").Target;
+
+            return run.Page("Settings")["Loading"].Value<Task>();
+        });
         var shown = await run.Ui.ReadAsync(() => shell.SelectedPage?.Title);
         await AddConnectionAsync(run, run.Page("Settings")["Machine"]);
         await run.Ui.RunAsync(() =>
@@ -32,19 +36,19 @@ public sealed class FirstRunTests(PublishedPlugins plugins)
 
             return jobs["Checking"].Value<Task>();
         });
-        var after = await run.Ui.ReadAsync(() => firstRun["IsShown"].Value<bool>());
+        var after = await run.Ui.ReadAsync(() => welcome["CanCompose"].Value<bool>());
         await run.Ui.InvokeAsync(shell.Deactivate, TestContext.Current.CancellationToken);
 
-        Assert.Equal((true, "No connections yet"), guide);
+        Assert.Equal((false, true), blocked);
         Assert.Equal("Settings", shown);
-        Assert.False(after);
+        Assert.True(after);
     }
 
     [Theory]
     [InlineData("developer mode", false)]
     [InlineData("Claude Code with an API key", false)]
     [InlineData("Claude Code without a login", true)]
-    public async Task TheGuideAppearsOnlyWhenNoConnectionCanRunAJobAsync(string machine, bool guided)
+    public async Task TheComposerIsDisabledOnlyWhenNoConnectionCanRunAJobAsync(string machine, bool blocked)
     {
         await using var home = new TemporaryFolder();
         var claudeCode = machine.StartsWith("Claude Code", StringComparison.Ordinal)
@@ -59,7 +63,7 @@ public sealed class FirstRunTests(PublishedPlugins plugins)
             return jobs["Checking"].Value<Task>();
         });
 
-        Assert.Equal(guided, await run.Ui.ReadAsync(() => jobs["FirstRun"]["IsShown"].Value<bool>()));
+        Assert.Equal(!blocked, await run.Ui.ReadAsync(() => jobs["Welcome"]["CanCompose"].Value<bool>()));
         await run.Ui.InvokeAsync(((IActivatable)jobs.Target).Deactivate, TestContext.Current.CancellationToken);
     }
 

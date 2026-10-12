@@ -52,6 +52,7 @@ using Avala.Workbench.Telemetry;
 using Avala.Workbench.Updates;
 using Avala.Workbench.Upkeep;
 using Avala.Workbench.Usage;
+using Avala.Workbench.Welcome;
 using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -116,7 +117,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<SidebarViewModel>()
             .AddSingleton<ToolbarViewModel>()
             .AddSingleton<SettingsLink>()
-            .AddSingleton<IFirstRunViewModel, FirstRunViewModel>()
+            .AddSingleton<IWelcomeLinks, WelcomeLinks>()
+            .AddSingleton<IWelcomeViewModel, WelcomeViewModel>()
             .AddSingleton<WorkbenchViewModel>()
             .AddForwarded<IPage, WorkbenchViewModel>();
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0);
@@ -142,7 +144,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     public void RegisterViews(IViewRegistrar views)
     {
         views.Register<IWorkbenchViewModel, WorkbenchView>();
-        views.Register<IFirstRunViewModel, FirstRunView>();
+        views.Register<IWelcomeViewModel, WelcomeView>();
+        views.Register<IAccountChipViewModel, AccountChipView>();
         views.Register<ISidebarViewModel, SidebarView>();
         views.Register<IJobRowViewModel, JobRowView>();
         views.Register<IContestRowViewModel, ContestRowView>();

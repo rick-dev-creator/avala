@@ -14,6 +14,9 @@ internal sealed class JobLaunch(Submissions submissions, IConnections connection
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
         connections.CatalogAsync(cancellationToken);
 
+    public ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken) =>
+        connections.RediscoverAsync(cancellationToken);
+
     public ValueTask<Result<ConnectionPreview, JobRejection>> PreviewAsync(string repository, CancellationToken cancellationToken) =>
         preview.PreviewAsync(repository.Trim(), cancellationToken);
 
