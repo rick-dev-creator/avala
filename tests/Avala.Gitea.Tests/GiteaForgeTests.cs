@@ -79,14 +79,14 @@ public sealed class GiteaForgeTests
         Assert.Equal(Enum.Parse<CheckStatus>(expected), GiteaForge.CommitStatus(status));
 
     [Fact]
-    public void TheTeaCliCallsThePathBelowTheApiRootAndReadsTheStatusFromStandardError()
+    public void TheTeaCliCallsThePathBelowTheApiRootWithTypedFlagsAndReadsTheStatusFromStandardError()
     {
-        var request = new ForgeRequest(ForgeMethod.Post, $"{Repository}/issues/7/comments") { Fields = [new("body", "Held.")] };
+        var request = new ForgeRequest(ForgeMethod.Post, $"{Repository}/issues/7/comments") { Fields = [new("body", "Held.")], Flags = [new("private", true)] };
 
         var call = Outcomes.Present(Forge("forgejo").CliFor(request, Targets.Of(Root)));
 
         Assert.Equal(("tea", CliStatusChannel.Error), (call.Command, call.Status));
-        Assert.Equal(["api", "--method", "POST", "--include", "--field", "body=Held.", "repos/octo/shop/issues/7/comments"], call.Arguments);
+        Assert.Equal(["api", "--method", "POST", "--include", "--field", "body=Held.", "-F", "private=true", "repos/octo/shop/issues/7/comments"], call.Arguments);
     }
 
     [Theory]

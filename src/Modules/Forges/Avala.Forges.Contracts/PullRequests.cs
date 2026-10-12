@@ -83,4 +83,8 @@ public enum ForgeError
     PushRejected,
     GitFailed,
     EventsUnsupported,
+    RepositoriesUnsupported,
+    NameTaken,
+    RemoteExists,
+    PushUnauthorized,
 }

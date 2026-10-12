@@ -5,7 +5,7 @@ using Avala.Sdk;
 
 namespace Avala.GitHub.Api;
 
-internal sealed class GitHubForge : IForge, IForgeEvents
+internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories
 {
     public const string Id = "github";
 
@@ -32,10 +32,20 @@ internal sealed class GitHubForge : IForge, IForgeEvents
             arguments.AddRange(["-f", $"{name}={value}"]);
         }
 
+        foreach (var (name, value) in request.Flags)
+        {
+            arguments.AddRange(["-F", $"{name}={(value ? "true" : "false")}"]);
+        }
+
         arguments.Add(request.Path.TrimStart('/'));
 
         return new CliCall("gh", arguments, CliStatusChannel.Output);
     }
+
+    public string GitHost(Uri api) => GitHubRepositories.GitHost(api);
+
+    public async ValueTask<Result<HostedRepository, ForgeError>> CreateAsync(ForgeContext context, RepositoryDraft draft, CancellationToken cancellationToken) =>
+        await GitHubRepositories.CreateAsync(context, draft, cancellationToken);
 
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         (await GetAsync(context, $"{Repository(context)}/pulls?state=open&head={Escape(context.Target.Repository.Owner)}:{Escape(head)}", cancellationToken))

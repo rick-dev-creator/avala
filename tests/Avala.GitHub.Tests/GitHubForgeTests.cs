@@ -86,15 +86,15 @@ public sealed class GitHubForgeTests
     [Theory]
     [InlineData("https://api.github.com", "")]
     [InlineData("https://ghe.example.com/api/v3", "ghe.example.com")]
-    public void TheGhCliCallsTheSameRequestWithItsFieldsAndTheHostOfAnEnterpriseServer(string api, string host)
+    public void TheGhCliCallsTheSameRequestWithItsFieldsTypedFlagsAndTheHostOfAnEnterpriseServer(string api, string host)
     {
-        var request = new ForgeRequest(ForgeMethod.Post, $"{Repository}/pulls") { Fields = [new("title", "Add a greeting")] };
+        var request = new ForgeRequest(ForgeMethod.Post, $"{Repository}/pulls") { Fields = [new("title", "Add a greeting")], Flags = [new("draft", false)] };
 
         var call = Outcomes.Present(new GitHubForge().CliFor(request, Targets.Of(new Uri(api))));
 
         Assert.Equal(("gh", CliStatusChannel.Output), (call.Command, call.Status));
         Assert.Equal(
-            ["api", "--method", "POST", "--include", "-H", "Accept: application/vnd.github+json", .. host.Length > 0 ? ["--hostname", host] : Array.Empty<string>(), "-f", "title=Add a greeting", "repos/octo/shop/pulls"],
+            ["api", "--method", "POST", "--include", "-H", "Accept: application/vnd.github+json", .. host.Length > 0 ? ["--hostname", host] : Array.Empty<string>(), "-f", "title=Add a greeting", "-F", "draft=false", "repos/octo/shop/pulls"],
             call.Arguments);
     }
 

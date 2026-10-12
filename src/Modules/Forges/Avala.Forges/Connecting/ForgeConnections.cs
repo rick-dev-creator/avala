@@ -18,6 +18,8 @@ internal interface IForgeTransports
 
 internal sealed record ResolvedForge(ForgeName Name, IForge Forge, ForgeContext Context);
 
+internal sealed record UsableForge(ForgeName Name, IForge Forge, Uri Url);
+
 internal sealed class ForgeConnections(IForgeFile file, IEnumerable<IForge> forges, IForgeTransports transports) : IForgeCatalog
 {
     public async ValueTask<TimeSpan> PollAsync(CancellationToken cancellationToken) =>
@@ -35,6 +37,19 @@ internal sealed class ForgeConnections(IForgeFile file, IEnumerable<IForge> forg
 
                 return new ResolvedForge(name, found.Forge, new ForgeContext(transports.Open(found.Declaration, found.Forge, target), target));
             }));
+
+    public async ValueTask<Result<ResolvedForge, ForgeError>> AccountAsync(ForgeName name, CancellationToken cancellationToken) =>
+        (await DeclaredAsync(name, cancellationToken)).Bind(Checked).Map(found =>
+        {
+            var target = new ForgeTarget(found.Url, new RepositoryAddress(found.Url.Host, string.Empty, string.Empty), string.Empty);
+
+            return new ResolvedForge(name, found.Forge, new ForgeContext(transports.Open(found.Declaration, found.Forge, target), target));
+        });
+
+    public async ValueTask<IReadOnlyList<UsableForge>> AllUsableAsync(CancellationToken cancellationToken) =>
+        (await file.ReadAsync(cancellationToken)).Match<IReadOnlyList<UsableForge>>(
+            settings => [.. settings.Forges.Select(Checked).SelectMany(checkedForge => checkedForge.Match<IEnumerable<UsableForge>>(found => [new UsableForge(found.Declaration.Name, found.Forge, found.Url)], _ => []))],
+            _ => []);
 
     public async ValueTask<ForgeCatalog> CatalogAsync(CancellationToken cancellationToken)
     {

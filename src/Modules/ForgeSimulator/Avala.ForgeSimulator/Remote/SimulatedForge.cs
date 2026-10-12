@@ -26,7 +26,7 @@ internal sealed record SimulatedRemote
     public List<SimulatedFailure> FailingHeads { get; init; } = [];
 }
 
-internal sealed class SimulatedForge(IProcessRunner processes) : IForge, IForgeEvents, IAsyncDisposable
+internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths) : IForge, IForgeEvents, IForgeRepositories, IAsyncDisposable
 {
     public const string Id = "simulated";
 
@@ -41,6 +41,11 @@ internal sealed class SimulatedForge(IProcessRunner processes) : IForge, IForgeE
     public HookSignature Signature { get; } = new(["X-Hub-Signature-256"], "sha256=");
 
     public Option<CliCall> CliFor(ForgeRequest request, ForgeTarget target) => Option<CliCall>.None;
+
+    public string GitHost(Uri api) => string.Empty;
+
+    public async ValueTask<Result<HostedRepository, ForgeError>> CreateAsync(ForgeContext context, RepositoryDraft draft, CancellationToken cancellationToken) =>
+        await executor.RunAsync(token => new SimulatedRepositories(processes, paths).CreateAsync(draft, token), cancellationToken);
 
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         await executor.RunAsync(

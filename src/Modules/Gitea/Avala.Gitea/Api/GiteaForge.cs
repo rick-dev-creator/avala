@@ -12,7 +12,7 @@ internal sealed record GiteaDialect(string Id, string Name, string Cli, IReadOnl
     public static GiteaDialect Forgejo { get; } = new("forgejo", "Forgejo", "tea", ["X-Forgejo-Signature", "X-Gitea-Signature"]);
 }
 
-internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents
+internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, IForgeRepositories
 {
     public const string ApiRoot = "/api/v1";
 
@@ -32,10 +32,20 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents
             arguments.AddRange(["--field", $"{name}={value}"]);
         }
 
+        foreach (var (name, value) in request.Flags)
+        {
+            arguments.AddRange(["-F", $"{name}={(value ? "true" : "false")}"]);
+        }
+
         arguments.Add(request.Path.StartsWith(ApiRoot, StringComparison.Ordinal) ? request.Path[ApiRoot.Length..].TrimStart('/') : request.Path.TrimStart('/'));
 
         return new CliCall(dialect.Cli, arguments, CliStatusChannel.Error);
     }
+
+    public string GitHost(Uri api) => api.Host;
+
+    public async ValueTask<Result<HostedRepository, ForgeError>> CreateAsync(ForgeContext context, RepositoryDraft draft, CancellationToken cancellationToken) =>
+        await GiteaRepositories.CreateAsync(context, draft, cancellationToken);
 
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         (await GetAsync(context, $"{Repository(context)}/pulls?state=open", cancellationToken))

@@ -3,6 +3,7 @@ using Avala.Forges.Contracts;
 using Avala.Forges.Delivering;
 using Avala.Forges.Git;
 using Avala.Forges.Polling;
+using Avala.Forges.Publishing;
 using Avala.Forges.RuleFiles;
 using Avala.Forges.Storage;
 using Avala.Forges.Transport;
@@ -57,6 +58,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddForwarded<IHandle<TriggersChanged>, ForgeEventPoller>()
             .AddForwarded<IHandle<ForgeTriggerNudged>, ForgeEventPoller>()
             .AddSingleton<IForgeEventLog, EventLogDesk>()
-            .AddSingleton<IForgeNudges, ForgeNudges>();
+            .AddSingleton<IForgeNudges, ForgeNudges>()
+            .AddSingleton<IRepositoryPublishing, RepositoryPublisher>();
     }
 }

@@ -23,7 +23,7 @@ public sealed class SimulatedForgeTests
     public async Task TheSimulatedForgePassesTheForgeConformanceKitOnARealBareRemoteAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
-        await using var forge = new SimulatedForge(Processes);
+        await using var forge = new SimulatedForge(Processes, new AvalaPaths(Path.GetTempPath()));
         var context = await PublishedAsync(repository, "green");
 
         Assert.Empty(await ForgeConformance.CheckAsync(new ConformanceCase(forge, context, Head, "main"), Cancellation));
@@ -33,7 +33,7 @@ public sealed class SimulatedForgeTests
     public async Task AScenarioThatFailsOnceFailsTheFirstHeadAndPassesTheNextPushedOneAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
-        await using var forge = new SimulatedForge(Processes);
+        await using var forge = new SimulatedForge(Processes, new AvalaPaths(Path.GetTempPath()));
         var context = await PublishedAsync(repository, "ci-fails-once");
         var opened = Outcomes.Succeeds(await forge.OpenAsync(context, new PullRequestDraft(Head, "main", "[forge: ci-fails-once] Greet", "Body"), Cancellation));
 
@@ -50,7 +50,7 @@ public sealed class SimulatedForgeTests
     public async Task ACommentIsKeptWithThePullRequestInTheRemoteAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
-        await using var forge = new SimulatedForge(Processes);
+        await using var forge = new SimulatedForge(Processes, new AvalaPaths(Path.GetTempPath()));
         var context = await PublishedAsync(repository, "green");
         var opened = Outcomes.Succeeds(await forge.OpenAsync(context, new PullRequestDraft(Head, "main", "Greet", "Body"), Cancellation));
 
@@ -63,7 +63,7 @@ public sealed class SimulatedForgeTests
     public async Task EventsOfAKindAreReadOldestFirstSinceTheCursorAPageAtATimeAndTheFirstReadIsABaselineAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
-        await using var forge = new SimulatedForge(Processes);
+        await using var forge = new SimulatedForge(Processes, new AvalaPaths(Path.GetTempPath()));
         var context = await PublishedAsync(repository, "green");
         var script = new SimulatedForgeRemote(repository.Remote);
         var before = await script.OpenIssueAsync("Old", "Before Avala looked", "alice", Cancellation);
@@ -90,7 +90,7 @@ public sealed class SimulatedForgeTests
     public async Task FailedChecksOnABranchAreOneEventPerHeadAndTheHeadFailingAtTheBaselineIsNoEventAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
-        await using var forge = new SimulatedForge(Processes);
+        await using var forge = new SimulatedForge(Processes, new AvalaPaths(Path.GetTempPath()));
         var context = await PublishedAsync(repository, "green");
         var script = new SimulatedForgeRemote(repository.Remote);
         await script.FailChecksAsync(await repository.GitInAsync(repository.Remote, Cancellation, "rev-parse", "main"), "alice", Cancellation);
@@ -109,6 +109,37 @@ public sealed class SimulatedForgeTests
         Assert.Equal(($"main:{head}", "bob", Option<string>.Some(head), CheckStatus.Failed), (failure.Id, failure.Actor, failure.Head, Assert.Single(failure.Checks).Status));
         Assert.Empty(again.Events);
     }
+
+    [Fact]
+    public async Task CreatingARepositoryMakesAnEmptyBareRemoteUnderTheDataFolderThatAcceptsAPushAsync()
+    {
+        await using var data = new TemporaryFolder();
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        await using var forge = new SimulatedForge(Processes, new AvalaPaths(data.Path));
+
+        var created = Outcomes.Succeeds(await forge.CreateAsync(Account(), new RepositoryDraft("invoices", Private: true), Cancellation));
+        await repository.GitAsync(Cancellation, "push", "--quiet", created.HttpsUrl, "main");
+
+        Assert.Equal((new RepositoryAddress(string.Empty, "avala", "invoices"), new Uri("https://forge.invalid/avala/invoices")), (created.Address, created.Link));
+        var bare = Path.Combine(data.Path, "simulated-forge", "avala", "invoices.git");
+        Assert.Equal((bare, bare), (created.HttpsUrl, created.SshUrl));
+        Assert.Equal(await repository.GitAsync(Cancellation, "rev-parse", "main"), await repository.GitInAsync(created.SshUrl, Cancellation, "rev-parse", "main"));
+    }
+
+    [Theory]
+    [InlineData("invoices", ForgeError.NameTaken)]
+    [InlineData("code/invoices", ForgeError.Rejected)]
+    public async Task ARepositoryNeedsAPlainNameNotTakenYetAsync(string name, ForgeError expected)
+    {
+        await using var data = new TemporaryFolder();
+        await using var forge = new SimulatedForge(Processes, new AvalaPaths(data.Path));
+        _ = Outcomes.Succeeds(await forge.CreateAsync(Account(), new RepositoryDraft("invoices", Private: true), Cancellation));
+
+        Assert.Equal(expected, Outcomes.FailsWith(await forge.CreateAsync(Account(), new RepositoryDraft(name, Private: true), Cancellation)));
+    }
+
+    private static ForgeContext Account() =>
+        new(new Unused(), new ForgeTarget(SimulatedForge.Site, new RepositoryAddress(string.Empty, string.Empty, string.Empty), string.Empty));
 
     private static ForgeEventQuery Query(ForgeEventKind kind, Option<string> cursor) =>
         new(kind, cursor, DateTimeOffset.UnixEpoch) { Branch = "main" };
