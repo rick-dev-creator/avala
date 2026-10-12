@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pane="using:Avala.Preview.Pane"
+             x:Class="Avala.Preview.UI.RunningChipView"
+             x:ClassModifier="internal"
+             x:DataType="pane:IRunningChipViewModel">
+  <Design.DataContext>
+    <pane:DesignRunningChipViewModel />
+  </Design.DataContext>
+  <Button x:Name="Chip"
+          Classes="chip"
+          IsVisible="{Binding IsShown}"
+          Command="{Binding OpenCommand}"
+          ToolTip.Tip="Show the page beside the conversation"
+          AutomationProperties.Name="{Binding Text}">
+    <StackPanel Orientation="Horizontal" Spacing="7">
+      <Ellipse x:Name="ChipDot" Classes="dot" />
+      <TextBlock x:Name="ChipText" Text="{Binding Text}" VerticalAlignment="Center" />
+      <Border x:Name="Unleased" Classes="tag" IsVisible="{Binding IsUnleased}" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Lease}" />
+      </Border>
+    </StackPanel>
+  </Button>
+</UserControl>

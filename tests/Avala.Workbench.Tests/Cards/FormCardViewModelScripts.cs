@@ -35,7 +35,7 @@ public sealed class FormCardViewModelScripts
     [Fact]
     public void AnIncompleteFormCannotBeSubmittedUntilItsFieldIsChosen()
     {
-        var card = new FormCardViewModel(asking.Form(Asking.Choice(new FormOption("PostgreSQL", "Relational"), new FormOption("SQLite", "A file"))), new(new FakePermissionAnswers(), agents));
+        var card = new FormCardViewModel(asking.Form(Asking.Choice(new FormOption("PostgreSQL", "Relational"), new FormOption("SQLite", "A file"))), Replying.With(new FakePermissionAnswers(), agents));
         var before = card.SubmitCommand.CanExecute(null);
 
         card.Fields[0].Choices[1].IsSelected = true;
@@ -58,7 +58,7 @@ public sealed class FormCardViewModelScripts
     [Fact]
     public async Task AnAnswerTheAgentRefusedIsReportedOnTheCard()
     {
-        var card = new FormCardViewModel(asking.Form(), new(new FakePermissionAnswers(), new RefusingAgents()));
+        var card = new FormCardViewModel(asking.Form(), Replying.With(new FakePermissionAnswers(), new RefusingAgents()));
 
         await card.SubmitCommand.ExecuteAsync(null);
 
@@ -76,7 +76,7 @@ public sealed class FormCardViewModelScripts
     public async Task WhileAnAnswerIsInFlightNeitherSubmitNorDeclineCanRunAgain()
     {
         var gate = new TaskCompletionSource();
-        var card = new FormCardViewModel(asking.Form(), new(new FakePermissionAnswers(), new GatedAgents(gate.Task, agents)));
+        var card = new FormCardViewModel(asking.Form(), Replying.With(new FakePermissionAnswers(), new GatedAgents(gate.Task, agents)));
 
         var first = card.SubmitCommand.ExecuteAsync(null);
         var again = (card.SubmitCommand.CanExecute(null), card.DeclineCommand.CanExecute(null));
@@ -87,7 +87,7 @@ public sealed class FormCardViewModelScripts
         Assert.False(Assert.Single(agents.Answers).Answer.Declined);
     }
 
-    private FormCardViewModel Card() => new(asking.Form(), new(new FakePermissionAnswers(), agents));
+    private FormCardViewModel Card() => new(asking.Form(), Replying.With(new FakePermissionAnswers(), agents));
 
     private sealed class RefusingAgents : IAgents
     {

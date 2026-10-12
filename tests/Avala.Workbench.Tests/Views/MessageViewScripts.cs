@@ -103,28 +103,29 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task WhileStreamingOnlyTheLastBlockIsDrawnAgainAsync() =>
+    public Task WhileStreamingSettledBlocksAreAddedWithoutDrawingEarlierOnesAgainAndTheFinishedReplyIsOneDocumentAsync() =>
         ui.RunAsync(() =>
         {
             var message = Message("## Rounding fixed\n\nJPY has no minor", done: false);
             var view = Screen.Show(message);
-            var settled = Viewer(view, "Settled");
-            var drawn = settled.Content;
+            var first = Assert.Single(Blocks(view));
+            var drawn = first.Content;
 
-            message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units, so", Option<ItemOutcome>.None));
-            view.Settle();
-            var kept = ReferenceEquals(drawn, settled.Content);
             message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units, so\n\n```go\nfunc ToMinor(", Option<ItemOutcome>.None));
             view.Settle();
+            var blocks = Blocks(view);
             var streamingCode = view.All<SelectableTextBlock>().Any(block => block.Classes.Contains("markdown-code") && block.Inlines?.Text == "func ToMinor(");
 
             message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units, so\n\n```go\nfunc ToMinor()\n```\n", ItemOutcome.Succeeded));
             view.Settle();
 
-            Assert.True(kept);
+            Assert.Equal(["## Rounding fixed\n\n", "JPY has no minor units, so\n\n"], blocks.Select(block => block.Markdown));
+            Assert.Same(first, blocks[0]);
+            Assert.Same(drawn, first.Content);
             Assert.True(streamingCode);
+            Assert.Empty(Blocks(view));
             Assert.False(Viewer(view, "Tail").IsVisible);
-            Assert.Equal("## Rounding fixed\n\nJPY has no minor units, so\n\n```go\nfunc ToMinor()\n```\n", settled.Markdown);
+            Assert.Equal("## Rounding fixed\n\nJPY has no minor units, so\n\n```go\nfunc ToMinor()\n```\n", Viewer(view, "Settled").Markdown);
         }, Cancellation);
 
     [Fact]
@@ -233,21 +234,41 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ASelectionInAStreamingReplyHoldsWhileMoreArrivesAsync() =>
+    public Task ASelectionInAStreamingReplyHoldsWhileMoreArrivesAndAfterItEndsAsync() =>
         ui.RunAsync(() =>
         {
             var message = Message("## Rounding fixed\n\nJPY has no minor", done: false);
             var view = Screen.Show(message);
             var text = view.Find<MarkdownText>("Text");
-            Viewer(view, "Settled").SelectAll();
-            var selected = text.SelectedText;
+            var first = Assert.Single(Blocks(view));
+            first.SelectAll();
 
             message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units.\n\nUSD keeps two decimals.\n\nDone", Option<ItemOutcome>.None));
             view.Settle();
+            var streaming = text.SelectedText;
+            message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units.\n\nUSD keeps two decimals.\n\nDone.", ItemOutcome.Succeeded));
+            view.Settle();
 
-            Assert.Equal("Rounding fixed", selected.Trim());
-            Assert.Equal("Rounding fixed", Viewer(view, "Settled").GetSelectedText().Trim());
-            Assert.Equal("## Rounding fixed\n\n", Viewer(view, "Settled").Markdown);
+            Assert.Equal("Rounding fixed", streaming.Trim());
+            Assert.Equal("Rounding fixed", text.SelectedText.Trim());
+            Assert.Same(first, Blocks(view)[0]);
+        }, Cancellation);
+
+    [Fact]
+    public Task SelectAllInAStreamingReplyCopiesEveryBlockSoFarAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var message = Message("JPY has no minor units.\n\nUSD keeps", done: false);
+            var view = Screen.Show(message);
+            var text = view.Find<MarkdownText>("Text");
+            message.Update(new MessageEntry("m", "JPY has no minor units.\n\nUSD keeps two decimals.\n\nDone", Option<ItemOutcome>.None));
+            view.Settle();
+
+            text.SelectAll();
+            await text.CopyAsync();
+
+            Assert.Equal(2, Blocks(view).Count);
+            Assert.Equal("JPY has no minor units.\nUSD keeps two decimals.\nDone", await view.Window.Clipboard!.TryGetTextAsync());
         }, Cancellation);
 
     private static MessageViewModel Message(string text, bool done, FakeLinks? opener = null) =>
@@ -255,6 +276,9 @@ public sealed class MessageViewScripts(HeadlessUi ui)
 
     private static MarkdownViewer Viewer(ViewScript view, string name) =>
         view.Window.GetVisualDescendants().OfType<MarkdownViewer>().Single(viewer => viewer.Name == name);
+
+    private static IReadOnlyList<MarkdownViewer> Blocks(ViewScript view) =>
+        [.. view.Window.GetVisualDescendants().OfType<MarkdownViewer>().Where(viewer => viewer.Name == "Block")];
 
     private static void Click(ViewScript view, string link) =>
         Viewer(view, "Settled").RaiseEvent(new LinkClickedEventArgs(link) { RoutedEvent = MarkdownViewer.LinkClickedEvent });

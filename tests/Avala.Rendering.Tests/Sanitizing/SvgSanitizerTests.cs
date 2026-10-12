@@ -42,6 +42,20 @@ public sealed class SvgSanitizerTests
     }
 
     [Fact]
+    public void AnimationsAreKeptAndTimedWhileTheirHandlersAndScriptsAreRemoved()
+    {
+        var svg = Open
+            + "<rect width=\"10\" height=\"0\"><animate attributeName=\"height\" to=\"10\" dur=\"1s\" fill=\"freeze\" onend=\"steal()\"/></rect>"
+            + "<script>steal()</script></svg>";
+
+        var sanitized = Sanitized(svg);
+
+        Assert.Equal(2, sanitized.Blocked);
+        Assert.Contains("<animate attributeName=\"height\" to=\"10\" dur=\"1s\" fill=\"freeze\" />", sanitized.Markup, StringComparison.Ordinal);
+        Assert.Equal(TimeSpan.FromSeconds(1), sanitized.Timeline.Match(timeline => timeline.End, () => TimeSpan.Zero));
+    }
+
+    [Fact]
     public void ExternalReferencesAreBlockedWhereverTheyAppear()
     {
         var svg = Open

@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Sdk;
 
 namespace Avala.Host.Tests;
@@ -17,7 +18,7 @@ public sealed class AboutTests(PublishedPlugins plugins)
         });
         var about = await run.Ui.ReadAsync(() => settings["About"]);
 
-        var shown = await run.Ui.ReadAsync(() => (Version: about["Version"].Text, Commit: about["Commit"].Text, Folder: about["LogFolder"].Text));
+        var shown = await run.Ui.ReadAsync(() => (Version: about["Version"].Text, Commit: about["Commit"].Text, Folder: about["LogFolder"].Value<Personal>().Value));
         await run.Ui.RunAsync(() => about.ExecuteAsync("OpenRepositoryCommand"));
         await run.Ui.RunAsync(() => about.ExecuteAsync("OpenLogFolderCommand"));
         var note = await run.Ui.ReadAsync(() => about["Note"].Text);

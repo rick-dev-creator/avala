@@ -34,6 +34,7 @@ internal static class LayerMap
             ["UI.Markdown"] = Layer.None,
             ["UI.Svg"] = Layer.None,
             ["UI.Source"] = Layer.None,
+            ["Animation"] = Layer.Application,
             ["Highlighting"] = Layer.Domain,
             ["Offer"] = Layer.Application,
             ["Sanitizing"] = Layer.Application,
@@ -44,6 +45,20 @@ internal static class LayerMap
             ["UI.Drawing"] = Layer.None,
             ["Offer"] = Layer.Application,
             ["Translating"] = Layer.Application,
+        }),
+        .. Module("Avala.Preview", new()
+        {
+            [""] = Layer.None,
+            ["UI"] = Layer.None,
+            ["UI.Surfaces"] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Origins"] = Layer.Domain,
+            ["Navigation"] = Layer.Application,
+            ["Detection"] = Layer.Application,
+            ["Running"] = Layer.Application,
+            ["Projects"] = Layer.Infrastructure,
+            ["Pages"] = Layer.Infrastructure,
+            ["Pane"] = Layer.ViewModels,
         }),
         .. Module("Avala.Jobs", new()
         {
@@ -166,6 +181,7 @@ internal static class LayerMap
             ["Housekeeping"] = Layer.Application,
             ["Settings"] = Layer.Infrastructure,
             ["Disks"] = Layer.Infrastructure,
+            ["Scratch"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Simulator", new()
         {

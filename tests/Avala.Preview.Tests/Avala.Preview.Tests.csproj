@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Preview\Avala.Preview\Avala.Preview.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Preview\Avala.Preview.UI\Avala.Preview.UI.csproj" />
+    <ProjectReference Include="..\Avala.Testing.UI\Avala.Testing.UI.csproj" />
+    <ProjectReference Include="..\Avala.Testing\Avala.Testing.csproj" />
+  </ItemGroup>
+</Project>

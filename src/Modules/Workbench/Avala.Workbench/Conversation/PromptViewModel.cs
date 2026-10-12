@@ -1,3 +1,4 @@
+using Avala.Components.Virtualizing;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Timeline;
@@ -34,7 +35,7 @@ internal interface IPromptViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
+internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem, ITextSized
 {
     private readonly IClipboard clipboard;
 
@@ -60,6 +61,8 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
     public bool ShowsOrigin { get; }
 
     public string Text { get; }
+
+    public int TextLength => Text.Length;
 
     public bool IsShown => true;
 

@@ -98,6 +98,24 @@ public sealed class RequestFactsTests
         Assert.False(Requested(ItemKind.FileEdit, "a/x.txt").Facts(workspace.Path, Links).InsideWorkspace);
     }
 
+    [Fact]
+    public void AnEditInsideTheSessionsScratchFolderIsInsideItsWorkspaceAndShownByItsPathWhileALinkOutOfItIsNot()
+    {
+        using var workspace = new TemporaryFolder();
+        using var scratch = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        Directory.CreateSymbolicLink(Path.Combine(scratch.Path, "out"), elsewhere.Path);
+        var notes = Path.Combine(scratch.Path, "notes.txt");
+
+        var kept = Requested(ItemKind.FileEdit, notes).Facts(workspace.Path, scratch.Path, Links);
+        var written = Requested(ItemKind.Command, $"echo x > {notes}").Facts(workspace.Path, scratch.Path, Links).Locate(notes);
+        var escaping = Requested(ItemKind.FileEdit, Path.Combine(scratch.Path, "out", "x.txt")).Facts(workspace.Path, scratch.Path, Links);
+
+        Assert.Equal(new PermissionRequest(ItemKind.FileEdit, notes, InsideWorkspace: true), kept);
+        Assert.Equal(kept, written);
+        Assert.False(escaping.InsideWorkspace);
+    }
+
     private static PermissionRequested Requested(ItemKind kind, string target) =>
         new(SessionId.New(), TurnId.New(), new ItemId("item"), "Request", kind, target);
 }

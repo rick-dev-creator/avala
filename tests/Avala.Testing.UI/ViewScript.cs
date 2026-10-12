@@ -145,6 +145,8 @@ public sealed class ViewScript
 
     public ViewScript Press(Key key) => Press(key, RawInputModifiers.None);
 
+    public ViewScript Press(KeyGesture gesture) => Press(gesture.Key, (RawInputModifiers)gesture.KeyModifiers);
+
     public ViewScript Press(Key key, RawInputModifiers modifiers)
     {
         Window.KeyPress(key, modifiers, PhysicalKey.None, null);

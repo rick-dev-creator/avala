@@ -32,6 +32,32 @@ public sealed class WorkloadTests
     }
 
     [Fact]
+    public async Task AServerAnswersEveryRequestWithAPageThatNamesItsPortAsync()
+    {
+        var port = Workloads.FreePort();
+        var command = Workloads.Holding("serve");
+        command.Environment["AVALA_PORT"] = port.ToString(CultureInfo.InvariantCulture);
+        var (server, _) = await Workloads.StartAsync(UncontainedProcesses.Instance, command, Cancellation);
+
+        try
+        {
+            using var client = new HttpClient();
+            var first = await client.GetAsync(new Uri($"http://127.0.0.1:{port}/"), Cancellation);
+            var page = await client.GetStringAsync(new Uri($"http://127.0.0.1:{port}/orders"), Cancellation);
+
+            Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+            Assert.Equal("text/html", first.Content.Headers.ContentType?.MediaType);
+            Assert.Contains($"Running on port {port}", page, StringComparison.Ordinal);
+        }
+        finally
+        {
+            server.Kill();
+            await server.WaitForExitAsync(Cancellation);
+            server.Dispose();
+        }
+    }
+
+    [Fact]
     public async Task AHeldProcessEndsOnceItsHarnessIsGoneAsync()
     {
         var (harness, _) = await Workloads.StartAsync(UncontainedProcesses.Instance, Workloads.Command("work", "0"), Cancellation);

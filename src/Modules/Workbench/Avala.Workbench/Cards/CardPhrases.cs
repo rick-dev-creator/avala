@@ -24,6 +24,25 @@ internal static class CardPhrases
             _ => "Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again.",
             () => answer.RepositoryError.Match(error => $"Not added to .avala/permissions.json: {NotAdded(error)} This job won't ask again.", () => string.Empty));
 
+    public static string Denied(ItemKind kind, string target) => kind switch
+    {
+        ItemKind.Command => $"Run {target}",
+        ItemKind.FileEdit => $"Edit {target}",
+        ItemKind.Web => $"Fetch {target}",
+        ItemKind.Mcp => $"Use {target}",
+        _ => target,
+    };
+
+    public static string WhyDenied(PolicyDecision decision) =>
+        decision.Scope.Bind(scope => scope.Rule).IsSome
+            ? "Nobody was watching, so the policy denied it."
+            : "A guard keeps this for a person, so it can't be allowed while the job runs on its own.";
+
+    public static string AllowedAfterDenial(Option<JobRejection> untold) =>
+        untold.Match(
+            _ => "Allowed for this job. The agent could not be told now; tell it to retry when you continue.",
+            () => "Allowed for this job. Avala told the agent it may retry.");
+
     public const string WaitingForParent = "Waiting for its parent";
 
     public static string Verdict(PermissionEntry permission) =>

@@ -21,5 +21,17 @@ internal static class FileScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Previews];
+    public static Scenario ScratchFiles { get; } = new("scratch-files",
+    [
+        [
+            Thought("I will keep my notes ", "in the temporary folder."),
+            new WriteFile(new ItemId("notes"), "$TMPDIR/notes.txt", "Scratch notes\n"),
+            new WriteFile(new ItemId("escape"), "../escape.txt", "Outside the worktree\n"),
+            Message("Kept my notes ", "and wrote beside the worktree."),
+            .. Bill(1_600, 140, 0.0080m, 0.12),
+            new Finish(),
+        ],
+    ]);
+
+    public static IReadOnlyList<Scenario> All { get; } = [Previews, ScratchFiles];
 }

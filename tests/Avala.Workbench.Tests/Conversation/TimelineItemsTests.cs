@@ -23,6 +23,7 @@ public sealed class TimelineItemsTests
         { "plan", typeof(PlanViewModel) },
         { "canvas", typeof(CanvasViewModel) },
         { "permission", typeof(PermissionCardViewModel) },
+        { "denied", typeof(DeniedCardViewModel) },
         { "form", typeof(FormCardViewModel) },
         { "turn", typeof(TurnEndViewModel) },
         { "restart", typeof(RestartViewModel) },
@@ -31,7 +32,7 @@ public sealed class TimelineItemsTests
     [Theory]
     [MemberData(nameof(EveryEntry))]
     public void EachKindOfEntryGetsItsOwnViewModel(string kind, Type item) =>
-        Assert.IsType(item, new TimelineItems(new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard(), Tools.Files()).Create(JobId.New(), Entry(kind)));
+        Assert.IsType(item, new TimelineItems(Replying.With(new FakePermissionAnswers()), FakeLinks.Opening, new FakeClipboard(), Tools.Files()).Create(JobId.New(), Entry(kind)));
 
     private static ITimelineEntry Entry(string kind) => kind switch
     {
@@ -42,6 +43,7 @@ public sealed class TimelineItemsTests
         "plan" => new PlanEntry("plan", []),
         "canvas" => new CanvasEntry("c", "Flow", "text/vnd.mermaid", string.Empty, CanvasStatus.Streaming),
         "permission" => Asked.Permission(),
+        "denied" => new Denying().Entry(),
         "form" => Asked.Form(),
         "turn" => new TurnEndEntry("turn", TurnOutcome.Finished, TimeSpan.FromSeconds(3), default, []),
         _ => new RestartEntry(EntryKeys.Restart, Kept: true),

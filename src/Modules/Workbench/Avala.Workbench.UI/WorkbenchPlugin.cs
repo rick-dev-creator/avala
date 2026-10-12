@@ -109,6 +109,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<JobSteering>()
             .AddSingleton<QueuedMessages>()
             .AddForwarded<IHandle<JobProgressed>, QueuedMessages>()
+            .AddSingleton<DeniedRetries>()
             .AddSingleton<HumanReplies>()
             .AddSingleton<Links>()
             .AddSingleton<SendKeys>()
@@ -128,6 +129,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ForgeDesk>()
             .AddSingleton<ReviewDesk>()
             .AddSingleton<Reviews>()
+            .AddSingleton<JobRegions>()
             .AddSingleton<JobScreens>()
             .AddSingleton<DecisionsViewModel>()
             .AddForwarded<IDecisionsViewModel, DecisionsViewModel>()
@@ -146,6 +148,11 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterAccounts(registrar.Services);
         RegisterRepositoryChoice(registrar.Services);
         RegisterContests(registrar);
+        RegisterFooter(registrar);
+    }
+
+    private static void RegisterFooter(IPluginRegistrar registrar)
+    {
         registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
         registrar.AddToRegion<UpdateNoticeViewModel>(ShellRegions.SidebarFooter, 10);
         RegisterTelemetry(registrar);
@@ -189,6 +196,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ICanvasViewModel, CanvasView>();
         views.Register<ITurnEndViewModel, TurnEndView>();
         views.Register<IPermissionCardViewModel, PermissionCardView>();
+        views.Register<IDeniedCardViewModel, DeniedCardView>();
         views.Register<IAnswerScopeViewModel, AnswerScopeView>();
         views.Register<IFormCardViewModel, FormCardView>();
         views.Register<IFormFieldViewModel, FormFieldView>();

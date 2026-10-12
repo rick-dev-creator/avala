@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Xml.Linq;
+using Avala.Components.UI.Copying;
 using Avala.Host.Composition;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
@@ -180,7 +181,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
 
             Assert.Equal((false, false, false, true, 0d), focused);
-            Assert.Contains("Focus · Ctrl+Shift+F to exit", hint);
+            Assert.Contains($"Focus · {Hotkeys.FocusModeLabel} to exit", hint);
             Assert.Equal((true, true, true, false), (view.Shows("SidebarPane"), view.Shows("InspectorPane"), view.Shows("WindowControls"), view.Shows("FocusHint")));
         }, Cancellation);
 

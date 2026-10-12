@@ -62,11 +62,92 @@ internal static class Modes
     {
         using var listener = new TcpListener(IPAddress.Loopback, Port());
         listener.Start();
-        Console.WriteLine($"listening {((IPEndPoint)listener.LocalEndpoint).Port}");
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        Console.WriteLine($"listening {port}");
+        using var stopping = new CancellationTokenSource();
+        var answering = AnswerAsync(listener, Page(port), stopping.Token);
         await AwaitHarnessAsync(harness);
+        await stopping.CancelAsync();
+        await answering;
 
         return 0;
     }
+
+    private static async Task AnswerAsync(TcpListener listener, byte[] page, CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                using var client = await listener.AcceptTcpClientAsync(cancellationToken);
+                await RespondAsync(client.GetStream(), page, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private static async Task RespondAsync(NetworkStream stream, byte[] page, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var request = new byte[8192];
+            var read = 0;
+
+            while (read < request.Length && !System.Text.Encoding.ASCII.GetString(request, 0, read).Contains("\r\n\r\n", StringComparison.Ordinal))
+            {
+                var more = await stream.ReadAsync(request.AsMemory(read), cancellationToken);
+
+                if (more == 0)
+                {
+                    return;
+                }
+
+                read += more;
+            }
+
+            var head = System.Text.Encoding.ASCII.GetBytes(
+                $"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {page.Length}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n");
+            await stream.WriteAsync(head, cancellationToken);
+            await stream.WriteAsync(page, cancellationToken);
+        }
+        catch (IOException)
+        {
+        }
+    }
+
+    private static byte[] Page(int port) =>
+        System.Text.Encoding.UTF8.GetBytes(
+            $$"""
+            <!doctype html>
+            <html lang="en">
+            <head>
+            <meta charset="utf-8">
+            <title>Orders service</title>
+            <style>
+            body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: #f6f5f2; color: #1d1c1a; }
+            main { max-width: 520px; margin: 64px auto; padding: 0 24px; }
+            h1 { font-size: 22px; margin: 0 0 4px; }
+            p { color: #6b6862; margin: 0 0 24px; }
+            .card { background: #fff; border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+            .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+            .row:last-child { border: 0; }
+            </style>
+            </head>
+            <body>
+            <main>
+            <h1>Orders service</h1>
+            <p>Running on port {{port}}, served by the simulated job.</p>
+            <div class="card">
+            <div class="row"><span>#1042 · Coffee beans</span><span>€ 18.00</span></div>
+            <div class="row"><span>#1043 · Grinder</span><span>€ 89.00</span></div>
+            <div class="row"><span>#1044 · Filters</span><span>€ 4.50</span></div>
+            </div>
+            </main>
+            </body>
+            </html>
+            """);
 
     private static int Spawn(int harness)
     {

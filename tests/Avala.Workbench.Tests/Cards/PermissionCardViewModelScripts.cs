@@ -34,7 +34,7 @@ public sealed class PermissionCardViewModelScripts
                     state switch { "allowed" or "denied" => DecisionDelivery.Answered, "waiting" => DecisionDelivery.LeftToParent, _ => DecisionDelivery.LeftToHuman },
                     state switch { "passed" => PassReason.ParentTimedOut, "beyond" => PassReason.BeyondParent, _ => Option<PassReason>.None },
                     state switch { "allowed" => PermissionAnswer.Allow, "denied" => PermissionAnswer.Deny, _ => Option<PermissionAnswer>.None }),
-                new(permissions, new FakeAgents())))
+                Replying.With(permissions)))
             .Then(card => Assert.Equal((verdict, awaitsYou, true), (card.Verdict, card.AwaitsYou, card.IsShown)));
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class PermissionCardViewModelScripts
     [InlineData(ScopeRefusal.StillAsked, "a rule still asks for this")]
     public async Task ALineThatCannotBeRememberedForItsProgramSaysWhyAndIsAnsweredOnce(ScopeRefusal refusal, string reason)
     {
-        var card = new PermissionCardViewModel(asking.Refused("echo $(date)", refusal), new(permissions, new FakeAgents()));
+        var card = new PermissionCardViewModel(asking.Refused("echo $(date)", refusal), Replying.With(permissions));
         var offered = card.Scope.ChooseCommand.CanExecute(AnswerScope.Always);
 
         await card.AllowCommand.ExecuteAsync(null);
@@ -84,7 +84,7 @@ public sealed class PermissionCardViewModelScripts
     [InlineData(true, Remember.EverythingInThisContest)]
     public async Task ARequestOfAContestCandidateAppliesTheChosenScopeToEveryCandidate(bool everything, Remember remember)
     {
-        var card = new PermissionCardViewModel(asking.Contested(), new(permissions, new FakeAgents()));
+        var card = new PermissionCardViewModel(asking.Contested(), Replying.With(permissions));
         card.Scope.ChooseCommand.Execute(everything ? AnswerScope.Everything : AnswerScope.Always);
 
         await card.AllowCommand.ExecuteAsync(null);
@@ -100,7 +100,7 @@ public sealed class PermissionCardViewModelScripts
     public async Task AlwaysInThisRepositoryIsSentAndTheCardSaysWhetherTheRuleWasAdded(PolicyError? refusal, string notice)
     {
         permissions.RepositoryRefusal = refusal.ToOption();
-        var card = new PermissionCardViewModel(asking.OfferingTheRepository(), new(permissions, new FakeAgents()));
+        var card = new PermissionCardViewModel(asking.OfferingTheRepository(), Replying.With(permissions));
         card.Scope.ChooseCommand.Execute(AnswerScope.InRepository);
 
         await card.AllowCommand.ExecuteAsync(null);
@@ -122,7 +122,7 @@ public sealed class PermissionCardViewModelScripts
             RepositoryError = answered == "refused" ? PolicyError.RepositoryUnwritable : Option<PolicyError>.None,
         };
 
-        ViewModelScript.Given(new PermissionCardViewModel(request, new(permissions, new FakeAgents())))
+        ViewModelScript.Given(new PermissionCardViewModel(request, Replying.With(permissions)))
             .When(card => card.Update(request with { Resolution = PermissionAnswer.Allow, Answered = answer }))
             .Then(card => Assert.Equal((notice, 0), (card.Notice, permissions.Replies.Count)));
     }
@@ -165,14 +165,14 @@ public sealed class PermissionCardViewModelScripts
 
     [Fact]
     public void ARequestThePolicyAnsweredItselfIsNotShownInTheConversation() =>
-        ViewModelScript.Given(new PermissionCardViewModel(asking.Permission(delivery: DecisionDelivery.Answered), new(permissions, new FakeAgents())))
+        ViewModelScript.Given(new PermissionCardViewModel(asking.Permission(delivery: DecisionDelivery.Answered), Replying.With(permissions)))
             .Then(card => Assert.Equal((false, false), (card.IsShown, card.AwaitsYou)));
 
     [Fact]
     public async Task WhileAnAnswerIsInFlightNeitherAnswerCanBeGivenAgain()
     {
         var gate = new TaskCompletionSource();
-        var card = new PermissionCardViewModel(asking.Permission(), new(new GatedAnswers(gate.Task, permissions), new FakeAgents()));
+        var card = new PermissionCardViewModel(asking.Permission(), Replying.With(new GatedAnswers(gate.Task, permissions)));
 
         var first = card.AllowCommand.ExecuteAsync(null);
         var again = (card.AllowCommand.CanExecute(null), card.DenyCommand.CanExecute(null));
@@ -183,7 +183,7 @@ public sealed class PermissionCardViewModelScripts
         Assert.Equal(PermissionAnswer.Allow, Assert.Single(permissions.Replies).Reply.Answer);
     }
 
-    private PermissionCardViewModel Card() => new(asking.Permission(), new(permissions, new FakeAgents()));
+    private PermissionCardViewModel Card() => new(asking.Permission(), Replying.With(permissions));
 
     private sealed class GatedAnswers(Task gate, FakePermissionAnswers inner) : IPermissionAnswers
     {

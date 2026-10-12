@@ -66,7 +66,9 @@ internal sealed class Bench : IDisposable
 
     public JobFocus Focus => new(Regions, Messenger);
 
-    public HumanReplies Replies => new(Permissions, Agents);
+    public FakeDeniedRequests Denials { get; } = new();
+
+    public HumanReplies Replies => Replying.With(Permissions, Agents, Denials, Jobs, Board);
 
     public ReviewReader Reader => new(Evidence, Catalog, Changes, Usage);
 
@@ -108,8 +110,10 @@ internal sealed class Bench : IDisposable
 
     public WorkbenchViewModel Workbench() => Workbench(Ui);
 
-    public WorkbenchViewModel Workbench(IUiDispatcher ui) =>
-        new(Feed(ui), new JobScreens(new Conversations(new Composers(new JobSteering(Jobs, Queue), new SendKeys(), Composing.Harnesses(Jobs, Handoffs, Connections)), new TimelineItems(Replies, FakeLinks.Opening, Clipboard, new WorkedFiles(Catalog, Changes, Workspaces, new FakeWorkingFiles())), new TranscriptExport(Clipboard, Saver, new FakeAppearance())), new Reviews(Reader, Desk, ui)), Focus, new Avala.Workbench.Welcome.DesignWelcomeViewModel());
+    public WorkbenchViewModel Workbench(IUiDispatcher ui) => Workbench(ui, new JobRegions([], new RememberedLayout()));
+
+    public WorkbenchViewModel Workbench(IUiDispatcher ui, JobRegions regions) =>
+        new(Feed(ui), new JobScreens(new Conversations(new Composers(new JobSteering(Jobs, Queue), new SendKeys(), Composing.Harnesses(Jobs, Handoffs, Connections)), new TimelineItems(Replies, FakeLinks.Opening, Clipboard, new WorkedFiles(Catalog, Changes, Workspaces, new FakeWorkingFiles())), new TranscriptExport(Clipboard, Saver, new FakeAppearance())), new Reviews(Reader, Desk, ui), regions), Focus, new Avala.Workbench.Welcome.DesignWelcomeViewModel());
 
     public JobSummary Job(string instruction, JobStatus status)
     {

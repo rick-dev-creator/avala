@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Avala.Preview.Contracts\Avala.Preview.Contracts.csproj" />
+    <ProjectReference Include="..\..\Jobs\Avala.Jobs.Contracts\Avala.Jobs.Contracts.csproj" />
+    <ProjectReference Include="..\..\Resources\Avala.Resources.Contracts\Avala.Resources.Contracts.csproj" />
+    <ProjectReference Include="..\..\Workspaces\Avala.Workspaces.Contracts\Avala.Workspaces.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Preview.UI" />
+    <InternalsVisibleTo Include="Avala.Preview.Tests" />
+  </ItemGroup>
+</Project>

@@ -24,7 +24,7 @@ public sealed class TemporaryRepository : IAsyncDisposable
 
     public static async Task<TemporaryRepository> CreateAsync(IProcessRunner processes, CancellationToken cancellationToken)
     {
-        var repository = new TemporaryRepository(Directory.CreateTempSubdirectory("avala-"), processes);
+        var repository = new TemporaryRepository(TemporaryFolder.Create(), processes);
         Directory.CreateDirectory(repository.Path);
 
         await repository.GitAsync(cancellationToken, "init", "--quiet", "--initial-branch=main");
@@ -83,10 +83,5 @@ public sealed class TemporaryRepository : IAsyncDisposable
         return outcome.Output.Trim();
     }
 
-    public ValueTask DisposeAsync()
-    {
-        TemporaryFolder.Remove(scratch);
-
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask DisposeAsync() => TemporaryFolder.RemoveAsync(scratch);
 }
