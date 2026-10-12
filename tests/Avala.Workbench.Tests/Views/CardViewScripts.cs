@@ -55,7 +55,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
         {
             var asking = new Asking();
             var permissions = new FakePermissionAnswers();
-            var card = new PermissionCardViewModel(asking.Permission(), new(permissions, new FakeAgents()));
+            var card = new PermissionCardViewModel(asking.Permission(), Replying.With(permissions));
             var view = Screen.Show(card);
 
             view.Click("AddNote").Type("Note", "Only the checkout tests").Click("Always").Click("Allow");
@@ -77,7 +77,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var asking = new Asking();
-            var card = new PermissionCardViewModel(asking.Permission(), new(new FakePermissionAnswers(), new FakeAgents()));
+            var card = new PermissionCardViewModel(asking.Permission(), Replying.With(new FakePermissionAnswers()));
             var view = Screen.Show(card);
 
             card.Update(state switch
@@ -99,7 +99,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
         {
             var asking = new Asking();
             var permissions = new FakePermissionAnswers();
-            var card = new PermissionCardViewModel(asking.OfferingTheRepository(), new(permissions, new FakeAgents()));
+            var card = new PermissionCardViewModel(asking.OfferingTheRepository(), Replying.With(permissions));
             var view = Screen.Show(card);
 
             var hidden = view.Shows("InRepository");
@@ -118,13 +118,13 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var permissions = new FakePermissionAnswers();
-            var allowed = new PermissionCardViewModel(new Asking().Permission(), new(permissions, new FakeAgents()));
+            var allowed = new PermissionCardViewModel(new Asking().Permission(), Replying.With(permissions));
             var view = Screen.Show(allowed);
             view.Find("Once").Focus();
             view.Press(Key.Enter, RawInputModifiers.Control);
             await (allowed.AllowCommand.ExecutionTask ?? Task.CompletedTask);
 
-            var denied = new PermissionCardViewModel(new Asking().Permission(), new(permissions, new FakeAgents()));
+            var denied = new PermissionCardViewModel(new Asking().Permission(), Replying.With(permissions));
             var other = Screen.Show(denied);
             other.Find("Allow").Focus();
             other.Press(Key.Back, RawInputModifiers.Control);
@@ -138,7 +138,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var target = string.Join(" && ", Enumerable.Repeat("pnpm vitest run CheckoutForm --repeat 20 --reporter verbose", 6));
-            var view = Screen.Show(new PermissionCardViewModel(new Asking().Permission(target), new(new FakePermissionAnswers(), new FakeAgents())));
+            var view = Screen.Show(new PermissionCardViewModel(new Asking().Permission(target), Replying.With(new FakePermissionAnswers())));
 
             var shown = view.Find<SelectableTextBlock>("Target");
             Assert.True(shown.Bounds.Width <= view.Find("Card").Bounds.Width);
@@ -167,7 +167,7 @@ public sealed class FormCardViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var agents = new FakeAgents();
-            var card = new FormCardViewModel(new Asking().Form(), new(new FakePermissionAnswers(), agents));
+            var card = new FormCardViewModel(new Asking().Form(), Replying.With(new FakePermissionAnswers(), agents));
             var view = Screen.Show(card);
 
             view.All<ToggleButton>().Single(choice => choice.Name == "Choice" && Equals((choice.DataContext as IFormChoiceViewModel)?.Label, "SQLite")).IsChecked = true;
@@ -183,7 +183,7 @@ public sealed class FormCardViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var agents = new FakeAgents();
-            var card = new FormCardViewModel(new Asking().Form(), new(new FakePermissionAnswers(), agents));
+            var card = new FormCardViewModel(new Asking().Form(), Replying.With(new FakePermissionAnswers(), agents));
             var view = Screen.Show(card);
 
             view.All<ToggleButton>().First(choice => choice.Name == "Choice").Focus();
@@ -198,7 +198,7 @@ public sealed class FormCardViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var asking = new Asking();
-            var card = new FormCardViewModel(asking.Form(), new(new FakePermissionAnswers(), new FakeAgents()));
+            var card = new FormCardViewModel(asking.Form(), Replying.With(new FakePermissionAnswers()));
             var view = Screen.Show(card);
 
             card.Update(asking.Form() with { Closed = true });

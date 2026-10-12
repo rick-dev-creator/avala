@@ -21,6 +21,9 @@ public sealed class Resizer
     public static readonly AttachedProperty<ICommand> ResetProperty =
         AvaloniaProperty.RegisterAttached<Resizer, Control, ICommand>("Reset");
 
+    public static readonly AttachedProperty<bool> FromLeftProperty =
+        AvaloniaProperty.RegisterAttached<Resizer, Control, bool>("FromLeft");
+
     private static readonly AttachedProperty<Drag?> DragProperty =
         AvaloniaProperty.RegisterAttached<Resizer, Control, Drag?>("Drag");
 
@@ -47,6 +50,10 @@ public sealed class Resizer
     public static ICommand GetReset(Control control) => control.GetValue(ResetProperty);
 
     public static void SetReset(Control control, ICommand value) => control.SetValue(ResetProperty, value);
+
+    public static bool GetFromLeft(Control control) => control.GetValue(FromLeftProperty);
+
+    public static void SetFromLeft(Control control, bool value) => control.SetValue(FromLeftProperty, value);
 
     private static void Watch(Control pane)
     {
@@ -83,7 +90,8 @@ public sealed class Resizer
             return;
         }
 
-        var width = drag.Width + e.GetPosition(null).X - drag.From;
+        var moved = e.GetPosition(null).X - drag.From;
+        var width = GetFromLeft(pane) ? drag.Width - moved : drag.Width + moved;
 
         if (Math.Abs(width - pane.Bounds.Width) >= 1 && GetCommand(pane) is { } command && command.CanExecute(width))
         {

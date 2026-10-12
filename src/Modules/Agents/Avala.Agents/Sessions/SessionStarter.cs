@@ -51,6 +51,7 @@ internal sealed partial class SessionStarter(
         var fresh = new SessionOptions(request.WorkingDirectory, PermissionMode.AskEveryTime)
         {
             Tools = chain.ToolsFor(capabilities),
+            Preview = chain.PreviewFor(capabilities),
             Model = request.Model,
             Connection = connection.Environment,
             Processes = tree,
@@ -96,13 +97,16 @@ internal sealed partial class SessionStarter(
     private partial void LogUnavailable(string connection, ConnectionError error);
 }
 
-internal sealed class ProviderChain(IEnumerable<HarnessTool> tools, IEnumerable<IAgentProviderDecorator> decorators)
+internal sealed class ProviderChain(IEnumerable<HarnessTool> tools, IEnumerable<PreviewOffer> previews, IEnumerable<IAgentProviderDecorator> decorators)
 {
     public IAgentProvider Decorate(IAgentProvider provider) =>
         decorators.Aggregate(provider, (inner, decorator) => decorator.Decorate(inner));
 
     public IReadOnlyList<HarnessTool> ToolsFor(CapabilitySet capabilities) =>
         capabilities.Get<AcceptsTools>().Match<IReadOnlyList<HarnessTool>>(accepted => [.. tools.Where(tool => accepted.Accepts(tool.Surface))], () => []);
+
+    public Option<PreviewOffer> PreviewFor(CapabilitySet capabilities) =>
+        capabilities.Has<AcceptsPreview>() ? previews.FirstOrDefault().ToOption() : Option<PreviewOffer>.None;
 }
 
 internal sealed record StartedSession(

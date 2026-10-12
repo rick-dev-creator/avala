@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pane="using:Avala.Preview.Pane"
+             x:Class="Avala.Preview.UI.PreviewPaneView"
+             x:ClassModifier="internal"
+             x:DataType="pane:IPreviewPaneViewModel">
+  <Design.DataContext>
+    <pane:DesignPreviewPaneViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon, ToggleButton.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Border#AddressPill">
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderPillBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Padding" Value="{DynamicResource PaddingPill}" />
+      <Setter Property="MinHeight" Value="28" />
+    </Style>
+    <Style Selector="Border#RefusalBar">
+      <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="{DynamicResource PaddingRow}" />
+    </Style>
+  </UserControl.Styles>
+  <DockPanel Background="{DynamicResource SurfaceWindowBrush}">
+    <Border x:Name="Toolbar"
+            DockPanel.Dock="Top"
+            Padding="10,10,10,9"
+            BorderBrush="{DynamicResource EdgeBrush}"
+            BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+        <Button x:Name="Back"
+                Classes="glyph"
+                Command="{Binding BackCommand}"
+                ToolTip.Tip="Back"
+                AutomationProperties.Name="Back">
+          <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconBack}" />
+        </Button>
+        <Button x:Name="Reload"
+                Grid.Column="1"
+                Classes="glyph"
+                Command="{Binding ReloadCommand}"
+                ToolTip.Tip="Reload"
+                AutomationProperties.Name="Reload">
+          <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconRetry}" />
+        </Button>
+        <Border x:Name="AddressPill" Grid.Column="2" Margin="8,0">
+          <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock x:Name="Address" Classes="mono" Text="{Binding Address}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <Ellipse x:Name="LiveDot" Classes="dot" Classes.hollow="{Binding !IsLive}" />
+            <TextBlock x:Name="State" Classes="caption" Text="{Binding State}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Border>
+        <ToggleButton x:Name="Network"
+                      Grid.Column="3"
+                      Classes="glyph"
+                      IsChecked="{Binding AllowsNetwork, Mode=OneWay}"
+                      Command="{Binding ToggleNetworkCommand}"
+                      ToolTip.Tip="Allow network: let this preview load scripts and data from other sites until Avala restarts"
+                      AutomationProperties.Name="Allow network">
+          <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconWeb}" />
+        </ToggleButton>
+        <Button x:Name="OpenInBrowser"
+                Grid.Column="4"
+                Classes="glyph"
+                Command="{Binding OpenInBrowserCommand}"
+                ToolTip.Tip="Open in browser"
+                AutomationProperties.Name="Open in browser">
+          <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconExternal}" />
+        </Button>
+        <Button x:Name="Close"
+                Grid.Column="5"
+                Classes="glyph"
+                Command="{Binding CloseCommand}"
+                ToolTip.Tip="Close preview"
+                AutomationProperties.Name="Close preview">
+          <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconCross}" />
+        </Button>
+      </Grid>
+    </Border>
+    <Border x:Name="RefusalBar" DockPanel.Dock="Top" IsVisible="{Binding HasRefusal}">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBlock x:Name="Refusal" Text="{Binding Refusal}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <Button x:Name="OpenRefused" Grid.Column="1" Classes="primary" Margin="10,0,0,0" Content="Open in browser" Command="{Binding OpenRefusedCommand}" />
+        <Button x:Name="DismissRefusal" Grid.Column="2" Classes="ghost" Margin="6,0,0,0" Content="Stay here" Command="{Binding DismissRefusalCommand}" />
+      </Grid>
+    </Border>
+    <Panel>
+      <ContentControl x:Name="Page" Content="{Binding Surface}" IsVisible="{Binding IsEmbedded}" />
+      <StackPanel x:Name="Notice"
+                  IsVisible="{Binding !IsEmbedded}"
+                  MaxWidth="320"
+                  Spacing="12"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center">
+        <TextBlock x:Name="NoticeText" Classes="secondary" Text="{Binding Notice}" TextWrapping="Wrap" TextAlignment="Center" />
+        <Button x:Name="NoticeOpen"
+                Classes="line"
+                HorizontalAlignment="Center"
+                Content="Open in browser"
+                Command="{Binding OpenInBrowserCommand}" />
+      </StackPanel>
+    </Panel>
+  </DockPanel>
+</UserControl>

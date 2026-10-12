@@ -39,6 +39,7 @@ public sealed class PermissionsPlugin : IPlugin
             .AddSingleton<HumanAnswers>()
             .AddSingleton<IPermissionAnswers, SharedAnswers>()
             .AddSingleton<IParentAnswers, ParentAnswers>()
+            .AddSingleton<IDeniedRequests, DeniedRequests>()
             .AddSingleton<SessionTerms>()
             .AddSingleton<SessionGovernor>()
             .AddForwarded<IHandle<SessionOpened>, SessionGovernor>()

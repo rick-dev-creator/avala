@@ -6,6 +6,7 @@ using Avala.Resources.Housekeeping;
 using Avala.Resources.Leasing;
 using Avala.Resources.Reaping;
 using Avala.Resources.Sampling;
+using Avala.Resources.Scratch;
 using Avala.Resources.Settings;
 using Avala.Resources.Tracking;
 using Avala.Sdk;
@@ -26,6 +27,9 @@ public sealed class ResourcesPlugin : IPlugin
         registrar.Services
             .AddSingleton<IResourceSettings, ResourceSettingsFile>()
             .AddSingleton<IFolderSizes, FolderSizes>()
+            .AddSingleton<TemporaryFolders>()
+            .AddForwarded<IProcessEnvironment, TemporaryFolders>()
+            .AddForwarded<IHandle<JobProgressed>, TemporaryFolders>()
             .AddSingleton<PortLeases>()
             .AddForwarded<IProcessEnvironment, PortLeases>()
             .AddForwarded<IPortLeases, PortLeases>()

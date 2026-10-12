@@ -32,4 +32,6 @@ internal sealed class DesignWorkbenchViewModel(Option<IConversationViewModel> co
     public IRelayCommand CloseReviewCommand { get; } = new RelayCommand(() => { });
 
     public IWelcomeViewModel Welcome { get; init; } = new DesignWelcomeViewModel();
+
+    public JobRegions Regions => JobRegions.Design;
 }

@@ -57,6 +57,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public RecordingLinks Links => surroundings.Links;
 
+    public SurfaceGate Surfaces => surroundings.Surfaces;
+
     public BoardGate Board => surroundings.Board;
 
     public SourceFault SourceFault => surroundings.Fault;
@@ -292,6 +294,9 @@ internal sealed class SimulatedRun : IAsyncDisposable
     public async Task<IReadOnlyList<IAgentEvent>> TurnAsync() =>
         [.. (await application.Activity.CollectUntilAsync(update => update.Event is TurnCompleted)).Select(update => update.Event)];
 
+    public async Task ProgressedAsync(string text) =>
+        _ = await application.Activity.UntilAsync(update => update.Event is ItemProgressed progressed && progressed.Text == text);
+
     public async Task<PolicyDecision> DecisionAsync() => (await application.Decisions.UntilAsync(_ => true)).Decision;
 
     public async Task<IReadOnlyList<PolicyDecision>> DecisionsAsync(int count)
@@ -413,6 +418,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public SignInGate SignIns { get; } = new();
 
+        public SurfaceGate Surfaces { get; } = new();
+
         public bool RealNotifier { get; init; }
 
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
@@ -424,7 +431,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
-                RealNotifier ? [Board, Fault, Trips, Judge, Telemetry, SignIns] : [Board, Fault, Trips, Notifier, Judge, Telemetry, SignIns]);
+                RealNotifier ? [Board, Fault, Trips, Judge, Telemetry, SignIns, Surfaces] : [Board, Fault, Trips, Notifier, Judge, Telemetry, SignIns, Surfaces]);
     }
 
     private sealed class Application : IAsyncDisposable

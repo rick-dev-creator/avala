@@ -85,7 +85,7 @@ internal static class CommandLine
             "--permission-prompt-tool", Qualified(PermissionTool),
             "--mcp-config", servers.ToJsonString(),
             .. Configuration(connection, home),
-            .. Flag(CanvasPrompt.For(options.Tools), "--append-system-prompt"),
+            .. Flag(CanvasPrompt.For(options.Tools, options.Preview), "--append-system-prompt"),
             .. Flag(model.Model, "--model"),
             .. Flag(model.Effort, "--effort"),
             .. resume.Match<string[]>(mark => ["--resume", mark.Session.ToString("D")], () => []),

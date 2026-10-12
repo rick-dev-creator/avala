@@ -80,8 +80,10 @@ public sealed class ModelChoiceTests(PublishedPlugins plugins)
         var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(run.Repository.Path, SimulatedRun.Simulate("reply")) { Connection = First }));
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
         _ = await resumable.UntilAsync(update => update.Job == job);
+        await run.DeliveredAsync();
         var workbench = await run.WorkbenchAsync();
         var composer = (await workbench.SelectAsync(job))["Composer"];
+        await workbench.ShowsAsync(() => composer["Status"].Value<JobStatus>() == JobStatus.AwaitingReview);
 
         var offered = await run.Ui.RunAsync(async () =>
         {

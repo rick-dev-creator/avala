@@ -11,8 +11,10 @@ internal sealed class Reviews(ReviewReader reader, ReviewDesk desk, IUiDispatche
     public ReviewViewModel Open(JobId job) => new(job, reader, desk, ui);
 }
 
-internal sealed class JobScreens(Conversations conversations, Reviews reviews)
+internal sealed class JobScreens(Conversations conversations, Reviews reviews, JobRegions regions)
 {
+    public JobRegions Regions => regions;
+
     public ConversationViewModel Conversation(JobId job) => conversations.Open(job);
 
     public ReviewViewModel Review(JobId job) => reviews.Open(job);

@@ -7,7 +7,7 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Replies;
 
-internal sealed class HumanReplies(IPermissionAnswers permissions, IAgents agents)
+internal sealed class HumanReplies(IPermissionAnswers permissions, IAgents agents, DeniedRetries retries)
 {
     public async Task<Result<HumanAnswer, PolicyError>> AnswerAsync(
         PermissionEntry request,
@@ -22,4 +22,7 @@ internal sealed class HumanReplies(IPermissionAnswers permissions, IAgents agent
 
     public async Task<Result<ItemId, AgentError>> AnswerAsync(FormEntry form, FormAnswer answer, CancellationToken cancellationToken) =>
         await agents.AnswerAsync(form.Session, answer, cancellationToken);
+
+    public Task<Result<Retry, PolicyError>> AllowAsync(DeniedEntry denied, CancellationToken cancellationToken) =>
+        retries.AllowAsync(denied, cancellationToken);
 }

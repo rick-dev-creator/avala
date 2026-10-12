@@ -15,6 +15,8 @@ internal static class EntryKeys
 
     public static string Permission(TurnId turn, ItemId item) => $"permission:{turn.Value}:{item.Value}";
 
+    public static string Denied(TurnId turn, ItemId item) => $"denied:{turn.Value}:{item.Value}";
+
     public static string Plan(TurnId turn) => $"plan:{turn.Value}";
 
     public static string Interjection(TurnId turn, int position) => string.Create(CultureInfo.InvariantCulture, $"interjection:{turn.Value}:{position}");

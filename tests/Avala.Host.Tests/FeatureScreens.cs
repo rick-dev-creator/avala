@@ -448,6 +448,20 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
 
     private static readonly string[] Groups = ["NeedsYou", "Running", "Waiting", "ReadyForReview", "Done"];
 
+    [Fact]
+    public async Task TheDeniedCardOfAnAutonomousJobAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.StartAsync(plugins, "tools", (".avala/permissions.json", Autonomous));
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel") is { } card && card["CanAllow"].Value<bool>());
+
+        await Camera.ShootAsync(run, "52-denied-card-dark");
+        await Camera.ShootAsync(run, "52-denied-card-light", ThemeVariant.Light);
+    }
+
     private const string Autonomous = """{ "autonomy": "autonomous" }""";
 
     private const string AsksParent = """{ "delegation": { "escalation": "parent", "parentWindowSeconds": 600 } }""";
