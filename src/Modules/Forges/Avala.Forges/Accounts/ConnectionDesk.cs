@@ -40,16 +40,16 @@ internal sealed class ConnectionDesk(IForgeFileWriter file, IEnumerable<IForge> 
             return ForgeError.UnknownForge;
         }
 
-        if (connection.Url.Match(url => !url.IsAbsoluteUri || url.Scheme is not ("https" or "http"), () => false))
-        {
-            return ForgeError.InvalidUrl;
-        }
+        return UrlProblem(connection.Url, forge.Info.DefaultUrl).Match<Result<ForgeDeclaration, ForgeError>>(problem => problem, () => Declared(connection));
+    }
 
-        if (connection.Url.IsNone && forge.Info.DefaultUrl.IsNone)
-        {
-            return ForgeError.MissingUrl;
-        }
+    private static Option<ForgeError> UrlProblem(Option<Uri> url, Option<Uri> fallback) =>
+        url.Match(
+            given => given.IsAbsoluteUri && given.Scheme is "https" or "http" ? Option<ForgeError>.None : ForgeError.InvalidUrl,
+            () => fallback.IsNone ? ForgeError.MissingUrl : Option<ForgeError>.None);
 
+    private static Result<ForgeDeclaration, ForgeError> Declared(ForgeConnectionEdit connection)
+    {
         var reference = connection.Reference.Map(found => found.Trim()).Bind(found => found.Length > 0 ? Option<string>.Some(found) : Option<string>.None);
 
         return connection.Source == CredentialSource.Environment && reference.IsNone
