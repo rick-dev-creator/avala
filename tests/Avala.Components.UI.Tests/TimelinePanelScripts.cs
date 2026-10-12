@@ -4,6 +4,7 @@ using Avala.Testing.UI;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
+using Avalonia.Input;
 
 namespace Avala.Components.UI.Tests;
 
@@ -114,6 +115,44 @@ public sealed class TimelinePanelScripts(HeadlessUi ui)
 
             Assert.InRange(top, 0, view.Find<ScrollViewer>("Scroller").Viewport.Height - 50);
         }, Cancellation);
+
+    [Theory]
+    [InlineData(NavigationDirection.Up, 99)]
+    [InlineData(NavigationDirection.Previous, 99)]
+    [InlineData(NavigationDirection.Down, 101)]
+    [InlineData(NavigationDirection.Next, 101)]
+    [InlineData(NavigationDirection.First, 0)]
+    [InlineData(NavigationDirection.Last, 199)]
+    [InlineData(NavigationDirection.Left, -1)]
+    public Task NavigatingFromAnEntryBuildsTheEntryInThatDirectionAsync(NavigationDirection direction, int expected) =>
+        ui.RunAsync(() =>
+        {
+            var list = List(Rows(200, _ => 50));
+            var view = ViewScript.Show(new ScrollViewer { Content = list }, new object());
+            list.ScrollIntoView(100);
+            view.Settle();
+
+            var reached = Navigable(list).GetControl(direction, list.ContainerFromIndex(100), wrap: false);
+
+            Assert.Equal(expected, reached is Control container ? list.IndexFromContainer(container) : -1);
+        }, Cancellation);
+
+    [Fact]
+    public Task NavigatingPastTheNewestEntryFindsNothingUnlessItWrapsToTheOldestAsync() =>
+        ui.RunAsync(() =>
+        {
+            var list = List(Rows(200, _ => 50));
+            ViewScript.Show(new ScrollViewer { Content = list }, new object());
+            var newest = list.ContainerFromIndex(199);
+
+            var stopped = Navigable(list).GetControl(NavigationDirection.Down, newest, wrap: false);
+            var wrapped = Navigable(list).GetControl(NavigationDirection.Down, newest, wrap: true);
+
+            Assert.Null(stopped);
+            Assert.Same(list.ContainerFromIndex(0), wrapped);
+        }, Cancellation);
+
+    private static INavigableContainer Navigable(ItemsControl list) => (INavigableContainer)list.ItemsPanelRoot!;
 
     private static ItemsControl List(IEnumerable<object> items) =>
         new()
