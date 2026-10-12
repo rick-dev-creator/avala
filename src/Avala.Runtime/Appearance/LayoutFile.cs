@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
@@ -25,11 +26,8 @@ internal sealed class LayoutFile(AvalaPaths paths) : IWindowLayout, IAsyncDispos
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 
             return document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("sidebar", out var sidebar)
-                && sidebar.ValueKind == JsonValueKind.String
-                && sidebar.GetString() == "collapsed"
-                    ? new WindowLayout(true)
-                    : WindowLayout.Default;
+                ? new WindowLayout(IsCollapsed(document.RootElement), Width(document.RootElement))
+                : WindowLayout.Default;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -42,6 +40,21 @@ internal sealed class LayoutFile(AvalaPaths paths) : IWindowLayout, IAsyncDispos
 
     public ValueTask DisposeAsync() => writes.DisposeAsync();
 
+    private static string Json(WindowLayout layout) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{{\n  \"sidebar\": \"{(layout.IsSidebarCollapsed ? "collapsed" : "shown")}\",\n  \"sidebarWidth\": {WindowLayout.Fit(layout.SidebarWidth)}\n}}\n");
+
+    private static bool IsCollapsed(JsonElement root) =>
+        root.TryGetProperty("sidebar", out var sidebar)
+        && sidebar.ValueKind == JsonValueKind.String
+        && sidebar.GetString() == "collapsed";
+
+    private static double Width(JsonElement root) =>
+        root.TryGetProperty("sidebarWidth", out var width) && width.ValueKind == JsonValueKind.Number
+            ? WindowLayout.Fit(width.GetDouble())
+            : WindowLayout.DefaultSidebarWidth;
+
     private async Task<bool> WriteAsync(WindowLayout layout, CancellationToken cancellationToken)
     {
         var temporary = $"{FilePath}.{Guid.NewGuid():N}.tmp";
@@ -49,7 +62,7 @@ internal sealed class LayoutFile(AvalaPaths paths) : IWindowLayout, IAsyncDispos
         try
         {
             Directory.CreateDirectory(paths.Data);
-            await File.WriteAllTextAsync(temporary, $"{{\n  \"sidebar\": \"{(layout.IsSidebarCollapsed ? "collapsed" : "shown")}\"\n}}\n", cancellationToken);
+            await File.WriteAllTextAsync(temporary, Json(layout), cancellationToken);
             File.Move(temporary, FilePath, overwrite: true);
 
             return true;

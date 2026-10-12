@@ -114,6 +114,10 @@
     <Setter Property="Padding" Value="{DynamicResource PageHeaderPadding}" />
   </Style>
 
+  <Style Selector="Border.pageHeader[(theme|Chrome.IsFocusMode)=True]">
+    <Setter Property="IsVisible" Value="False" />
+  </Style>
+
   <Style Selector="TextBlock.pageTitle">
     <Setter Property="FontSize" Value="{DynamicResource FontSizeTitleSmall}" />
     <Setter Property="FontWeight" Value="SemiBold" />

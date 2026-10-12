@@ -82,7 +82,11 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsInspectorShown))]
+    [NotifyCanExecuteChangedFor(nameof(LeaveFocusCommand))]
     public partial bool IsFocused { get; private set; }
+
+    [ObservableProperty]
+    public partial double SidebarWidth { get; private set; } = WindowLayout.DefaultSidebarWidth;
 
     public bool IsSidebarShown => HasSidebar && !IsFocused && (IsNarrow ? IsSidebarPeeking : !IsSidebarCollapsed);
 
@@ -158,11 +162,28 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         }
 
         IsSidebarCollapsed = !IsSidebarCollapsed;
-        Remembering = layout.RememberAsync(new WindowLayout(IsSidebarCollapsed), CancellationToken.None).AsTask();
+        RememberSidebar();
+    }
+
+    [RelayCommand]
+    private void ResizeSidebar(double width) => SidebarWidth = WindowLayout.Fit(width);
+
+    [RelayCommand]
+    private void RememberSidebar() =>
+        Remembering = layout.RememberAsync(new WindowLayout(IsSidebarCollapsed, SidebarWidth), CancellationToken.None).AsTask();
+
+    [RelayCommand]
+    private void ResetSidebarWidth()
+    {
+        SidebarWidth = WindowLayout.DefaultSidebarWidth;
+        RememberSidebar();
     }
 
     [RelayCommand]
     private void ToggleFocus() => IsFocused = !IsFocused;
+
+    [RelayCommand(CanExecute = nameof(IsFocused))]
+    private void LeaveFocus() => IsFocused = false;
 
     [RelayCommand]
     private void Fit(double width)
@@ -171,7 +192,12 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         IsSidebarPeeking = IsNarrow && IsSidebarPeeking;
     }
 
-    private async Task RestoreAsync() => IsSidebarCollapsed = (await layout.ReadAsync(CancellationToken.None)).IsSidebarCollapsed;
+    private async Task RestoreAsync()
+    {
+        var remembered = await layout.ReadAsync(CancellationToken.None);
+        IsSidebarCollapsed = remembered.IsSidebarCollapsed;
+        SidebarWidth = WindowLayout.Fit(remembered.SidebarWidth);
+    }
 
     partial void OnSelectedPageChanged(IPage? oldValue, IPage? newValue)
     {

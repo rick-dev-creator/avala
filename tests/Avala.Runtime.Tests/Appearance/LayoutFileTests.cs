@@ -10,27 +10,28 @@ public sealed class LayoutFileTests
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task ACollapsedSidebarIsWrittenNextToTheAppearanceAndReadBackByTheNextStartAsync()
+    public async Task ACollapsedSidebarAndItsWidthAreWrittenNextToTheAppearanceAndReadBackByTheNextStartAsync()
     {
         await using var data = new TemporaryFolder();
         await using (var file = new LayoutFile(new AvalaPaths(data.Path)))
         {
-            await file.RememberAsync(new WindowLayout(true), Cancellation);
+            await file.RememberAsync(new WindowLayout(true, 312), Cancellation);
         }
 
         await using var restarted = new LayoutFile(new AvalaPaths(data.Path));
 
-        Assert.Equal(new WindowLayout(true), await restarted.ReadAsync(Cancellation));
-        Assert.Equal("{\n  \"sidebar\": \"collapsed\"\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, LayoutFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
+        Assert.Equal(new WindowLayout(true, 312), await restarted.ReadAsync(Cancellation));
+        Assert.Equal("{\n  \"sidebar\": \"collapsed\",\n  \"sidebarWidth\": 312\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, LayoutFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("""{ "sidebar": "shown" }""")]
+    [InlineData("""{ "sidebar": "shown", "sidebarWidth": "wide" }""")]
     [InlineData("""{ "sidebar": true }""")]
     [InlineData("""[ "collapsed" ]""")]
     [InlineData("not json")]
-    public async Task WithoutARememberedCollapseTheSidebarShowsAsync(string? content)
+    public async Task WithoutARememberedLayoutTheSidebarShowsAtItsDefaultWidthAsync(string? content)
     {
         await using var data = new TemporaryFolder();
 
@@ -42,5 +43,18 @@ public sealed class LayoutFileTests
         await using var file = new LayoutFile(new AvalaPaths(data.Path));
 
         Assert.Equal(WindowLayout.Default, await file.ReadAsync(Cancellation));
+    }
+
+    [Theory]
+    [InlineData(120, WindowLayout.NarrowestSidebar)]
+    [InlineData(900, WindowLayout.WidestSidebar)]
+    public async Task ARememberedWidthOutsideTheBoundsIsReadAtTheNearestBoundAsync(double written, double read)
+    {
+        await using var data = new TemporaryFolder();
+        await File.WriteAllTextAsync(Path.Combine(data.Path, LayoutFile.FileName), $$"""{ "sidebar": "shown", "sidebarWidth": {{written}} }""", Cancellation);
+
+        await using var file = new LayoutFile(new AvalaPaths(data.Path));
+
+        Assert.Equal(read, (await file.ReadAsync(Cancellation)).SidebarWidth);
     }
 }

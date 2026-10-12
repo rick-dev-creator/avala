@@ -32,9 +32,19 @@ internal interface IShellViewModel
 
     bool IsFocused { get; }
 
+    double SidebarWidth { get; }
+
     IRelayCommand ToggleSidebarCommand { get; }
 
     IRelayCommand ToggleFocusCommand { get; }
 
+    IRelayCommand LeaveFocusCommand { get; }
+
     IRelayCommand<double> FitCommand { get; }
+
+    IRelayCommand<double> ResizeSidebarCommand { get; }
+
+    IRelayCommand RememberSidebarCommand { get; }
+
+    IRelayCommand ResetSidebarWidthCommand { get; }
 }
