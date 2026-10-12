@@ -37,9 +37,13 @@ internal sealed class FeatureCamera(HeadlessUi ui, string folder)
 
             foreach (var step in arrange)
             {
+                await ViewScript.DrawnAsync(window);
                 step(window);
                 Pump(drain);
             }
+
+            await ViewScript.DrawnAsync(window);
+            Pump(drain);
 
             window.CaptureRenderedFrame()?.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, name + ".png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
             var texts = Directory.CreateDirectory(Path.Combine(folder, "texts")).FullName;
