@@ -42,6 +42,8 @@ internal interface IPullRequestSectionViewModel
 
     string Notice { get; }
 
+    IPublishRepositoryViewModel Publishing { get; }
+
     IAsyncRelayCommand OpenLinkCommand { get; }
 
     IAsyncRelayCommand CheckNowCommand { get; }
@@ -53,13 +55,15 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
     private readonly InspectedJob inspected;
     private readonly Links links;
     private readonly ForgeDesk forge;
+    private readonly PublishRepositoryViewModel publishing;
     private Option<JobId> shown;
 
-    public PullRequestSectionViewModel(InspectedJob inspected, Links links, ForgeDesk forge)
+    public PullRequestSectionViewModel(InspectedJob inspected, Links links, ForgeDesk forge, PublishRepositoryViewModel publishing)
     {
         this.inspected = inspected;
         this.links = links;
         this.forge = forge;
+        this.publishing = publishing;
         inspected.Showing(Show);
     }
 
@@ -72,6 +76,10 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
     public long Revision => inspected.Revision;
 
     public Task Loading => inspected.Loading;
+
+    public IPublishRepositoryViewModel Publishing => publishing;
+
+    public PublishRepositoryViewModel Publisher => publishing;
 
     [ObservableProperty]
     public partial bool IsLoaded { get; private set; }
@@ -142,6 +150,7 @@ internal sealed partial class PullRequestSectionViewModel : IPullRequestSectionV
         var watched = facts.Bind(found => found.PullRequest.Map(state => (State: state, Job: found.Status)));
         ShowPullRequest(watched, facts.IsSome);
         ShowLastPoll(watched.Map(found => found.State));
+        publishing.Show(facts.Bind(found => found.PullRequest.IsNone ? Option<string>.Some(found.Record.History.Summary.Repository) : Option<string>.None));
         WakeUps = facts.Match<IReadOnlyList<string>>(found => [.. found.WakeUps.Select((wakeUp, index) => ForgePhrases.WakeUp(wakeUp, index + 1))], () => []);
     }
 

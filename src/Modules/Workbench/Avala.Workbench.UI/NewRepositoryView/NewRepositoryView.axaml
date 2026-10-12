@@ -23,6 +23,11 @@
           <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
         </TextBox.KeyBindings>
       </TextBox>
+      <CheckBox x:Name="PublishNewRepository"
+                Content="Publish it to a forge"
+                ToolTip.Tip="Also create it on a forge connection of forges.json, add it as origin and push its first commit"
+                IsChecked="{Binding IsPublishing}" />
+      <ContentControl x:Name="NewRepositoryPublish" Content="{Binding Publish}" IsVisible="{Binding IsPublishing}" />
       <TextBlock x:Name="CreationError"
                  Classes="caption failure"
                  TextWrapping="Wrap"

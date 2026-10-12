@@ -22,10 +22,14 @@ internal interface IRepositoryFieldViewModel
 
     INewRepositoryViewModel Creation { get; }
 
+    ICloneRepositoryViewModel Cloning { get; }
+
     IAsyncRelayCommand ChooseCommand { get; }
 
     IAsyncRelayCommand MakeRepositoryCommand { get; }
 }
+
+internal sealed record RepositoryStarts(NewRepositoryViewModel Creation, CloneRepositoryViewModel Cloning);
 
 [INotifyPropertyChanged]
 internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewModel
@@ -35,19 +39,18 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     private readonly IRepositories repositories;
     private readonly RecentRepositories recent;
     private readonly NewRepositoryViewModel creation;
+    private readonly CloneRepositoryViewModel cloning;
     private int checks;
 
-    public RepositoryFieldViewModel(IFolderPicker picker, IRepositories repositories, RecentRepositories recent, NewRepositoryViewModel creation)
+    public RepositoryFieldViewModel(IFolderPicker picker, IRepositories repositories, RecentRepositories recent, RepositoryStarts starts)
     {
         this.picker = picker;
         this.repositories = repositories;
         this.recent = recent;
-        this.creation = creation;
-        creation.Created += (_, created) =>
-        {
-            Repository = created;
-            Notice = RepositoryPhrases.Created(created);
-        };
+        creation = starts.Creation;
+        cloning = starts.Cloning;
+        creation.Created += (_, created) => Arrive(created.Path, created.Notice);
+        cloning.Cloned += (_, cloned) => Arrive(cloned.Path, RepositoryPhrases.Cloned(cloned));
     }
 
     public IReadOnlyList<string> Repositories => known;
@@ -55,6 +58,10 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     public INewRepositoryViewModel Creation => creation;
 
     public NewRepositoryViewModel Creating => creation;
+
+    public ICloneRepositoryViewModel Cloning => cloning;
+
+    public CloneRepositoryViewModel Clone => cloning;
 
     public Task Checking { get; private set; } = Task.CompletedTask;
 
@@ -77,6 +84,7 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     {
         Notice = string.Empty;
         creation.Near = value;
+        cloning.Near = value;
         Checking = CheckAsync(CancellationToken.None);
     }
 
@@ -106,6 +114,12 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     }
 
     private bool CanMakeRepository() => Offer.Length > 0;
+
+    private void Arrive(string repository, string notice)
+    {
+        Repository = repository;
+        Notice = notice;
+    }
 
     private async Task CheckAsync(CancellationToken cancellationToken)
     {

@@ -1,4 +1,5 @@
 using Avala.Forges.Contracts;
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 
@@ -31,5 +32,34 @@ public sealed class RepositoryPublishingTests(PublishedPlugins plugins)
         Assert.Equal(await run.Repository.GitAsync(Cancellation, "rev-parse", "HEAD"), await run.Repository.GitInAsync(bare, Cancellation, "rev-parse", "refs/heads/main"));
         Assert.Equal("origin/main", await run.Repository.GitAsync(Cancellation, "rev-parse", "--abbrev-ref", "main@{upstream}"));
         Assert.Equal(Option<PublishTarget>.Some(Local), Outcomes.Present(await publishing.RemoteOfAsync(run.Repository.Path, Cancellation)).Forge);
+    }
+
+    [Fact]
+    public async Task TheInspectorOffersToPublishTheRepositoryOfAJobWithoutARemoteAndThenKnowsItsForgeAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", """{ "autonomy": "autonomous" }""")]);
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("edit"))));
+        _ = await run.SettledAsync(job);
+        var workbench = await run.WorkbenchAsync();
+        var section = (await workbench.InspectAsync(job, "PullRequestSectionViewModel"))[0];
+        var publisher = section["Publisher"];
+
+        var offered = await run.Ui.RunAsync(async () =>
+        {
+            await publisher["Reading"].Value<Task>();
+
+            return (publisher["CanOffer"].Value<bool>(), publisher["Remote"].Text);
+        });
+        var published = await run.Ui.RunAsync(async () =>
+        {
+            await publisher.ExecuteAsync("StartCommand");
+            await publisher.ExecuteAsync("PublishCommand");
+
+            return (publisher["CanOffer"].Value<bool>(), publisher["Remote"].Text, publisher["Error"].Text);
+        });
+
+        Assert.Equal((true, "This repository has no remote yet, so a pull request has nowhere to go."), offered);
+        Assert.Equal((false, "origin is avala/repository on local (Simulated forge).", string.Empty), published);
+        Assert.Equal(await run.Repository.GitAsync(Cancellation, "rev-parse", "main"), await run.Repository.GitInAsync(Path.Combine(run.DataFolder, "simulated-forge", "avala", "repository.git"), Cancellation, "rev-parse", "refs/heads/main"));
     }
 }

@@ -1,3 +1,4 @@
+using Avala.Workbench.RepositoryChoice;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Inspector;
@@ -32,7 +33,32 @@ internal sealed class DesignPullRequestSectionViewModel : IPullRequestSectionVie
 
     public string Notice => string.Empty;
 
+    public IPublishRepositoryViewModel Publishing { get; init; } = new DesignPublishRepositoryViewModel { IsShown = false };
+
     public IAsyncRelayCommand OpenLinkCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand CheckNowCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+internal sealed class DesignPublishRepositoryViewModel : IPublishRepositoryViewModel
+{
+    public bool IsShown { get; init; } = true;
+
+    public string Remote { get; init; } = PublishPhrases.NoRemote;
+
+    public bool CanOffer { get; init; } = true;
+
+    public bool IsOpen { get; init; } = true;
+
+    public IPublishOptionsViewModel Options { get; init; } = new DesignPublishOptionsViewModel { Name = "shop" };
+
+    public string Error { get; init; } = string.Empty;
+
+    public string Notice { get; init; } = string.Empty;
+
+    public IAsyncRelayCommand StartCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand PublishCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand CancelCommand { get; } = new RelayCommand(() => { });
 }

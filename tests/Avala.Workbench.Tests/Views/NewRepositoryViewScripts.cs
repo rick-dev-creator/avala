@@ -2,6 +2,7 @@ using Avala.Testing.UI;
 using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.Tests.RepositoryChoice;
 using Avala.Workspaces.Contracts;
+using Avalonia.Controls;
 using Avalonia.Input;
 
 namespace Avala.Workbench.Tests.Views;
@@ -14,7 +15,7 @@ public sealed class NewRepositoryViewScripts(HeadlessUi ui)
         {
             var created = new List<string>();
             var creation = await OpenedAsync(new FakeRepositories());
-            creation.Created += (_, path) => created.Add(path);
+            creation.Created += (_, made) => created.Add(made.Path);
             var view = Screen.Show(creation).Settle();
 
             view.Type("NewRepositoryName", "invoices").Press(Key.Enter);
@@ -37,9 +38,25 @@ public sealed class NewRepositoryViewScripts(HeadlessUi ui)
             Assert.Equal("Name the repository with a plain folder name, without slashes.", view.TextOf("CreationError"));
         }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task CheckingPublishShowsTheForgeChoicesNamedAfterTheNewRepositoryAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var creation = await OpenedAsync(new FakeRepositories());
+            var view = Screen.Show(creation).Settle();
+            var hidden = view.Shows("PublishTarget");
+
+            view.Type("NewRepositoryName", "invoices").Click("PublishNewRepository");
+            await creation.Publishing.Loading;
+            view.Settle();
+
+            Assert.False(hidden);
+            Assert.Equal(("github", "invoices", (bool?)true), (view.Find<ComboBox>("PublishTarget").SelectedItem as string, view.Find<TextBox>("PublishName").Text, view.Find<RadioButton>("PublishPrivate").IsChecked));
+        }, TestContext.Current.CancellationToken);
+
     private static async Task<NewRepositoryViewModel> OpenedAsync(FakeRepositories repositories)
     {
-        var creation = new NewRepositoryViewModel(new FakeFolderPicker { Answer = "/home/ada/code" }, repositories);
+        var creation = Choosing.Creation(new FakeFolderPicker { Answer = "/home/ada/code" }, repositories, new FakePublishing());
         await creation.StartCommand.ExecuteAsync(null);
 
         return creation;

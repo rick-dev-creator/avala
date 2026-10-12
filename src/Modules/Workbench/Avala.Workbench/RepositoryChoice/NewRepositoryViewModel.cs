@@ -13,6 +13,10 @@ internal interface INewRepositoryViewModel
 
     string Name { get; set; }
 
+    bool IsPublishing { get; set; }
+
+    IPublishOptionsViewModel Publish { get; }
+
     string Error { get; }
 
     IAsyncRelayCommand StartCommand { get; }
@@ -22,12 +26,30 @@ internal interface INewRepositoryViewModel
     IRelayCommand CancelCommand { get; }
 }
 
+internal sealed record RepositoryCreated(string Path, string Notice);
+
 [INotifyPropertyChanged]
-internal sealed partial class NewRepositoryViewModel(IFolderPicker picker, IRepositories repositories) : INewRepositoryViewModel
+internal sealed partial class NewRepositoryViewModel : INewRepositoryViewModel
 {
-    public event EventHandler<string>? Created;
+    private readonly IFolderPicker picker;
+    private readonly IRepositories repositories;
+    private readonly PublishOptionsViewModel publish;
+
+    public NewRepositoryViewModel(IFolderPicker picker, IRepositories repositories, PublishOptionsViewModel publish)
+    {
+        this.picker = picker;
+        this.repositories = repositories;
+        this.publish = publish;
+        publish.Changed += (_, _) => CreateCommand.NotifyCanExecuteChanged();
+    }
+
+    public event EventHandler<RepositoryCreated>? Created;
 
     public string Near { get; set; } = string.Empty;
+
+    public IPublishOptionsViewModel Publish => publish;
+
+    public PublishOptionsViewModel Publishing => publish;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
@@ -41,7 +63,21 @@ internal sealed partial class NewRepositoryViewModel(IFolderPicker picker, IRepo
     public partial string Name { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
+    public partial bool IsPublishing { get; set; }
+
+    [ObservableProperty]
     public partial string Error { get; private set; } = string.Empty;
+
+    partial void OnNameChanged(string value) => publish.Suggest(value);
+
+    partial void OnIsPublishingChanged(bool value)
+    {
+        if (value)
+        {
+            _ = publish.LoadAsync(Name, CancellationToken.None);
+        }
+    }
 
     [RelayCommand]
     private async Task StartAsync(CancellationToken cancellationToken)
@@ -58,22 +94,33 @@ internal sealed partial class NewRepositoryViewModel(IFolderPicker picker, IRepo
         var created = await repositories.CreateAsync(Parent, Name, cancellationToken);
         Error = created.Match(_ => string.Empty, RepositoryPhrases.Failure);
 
-        if (created.TryGetValue(out var repository, out _))
+        if (!created.TryGetValue(out var repository, out _))
         {
-            Cancel();
-            Created?.Invoke(this, repository);
+            return;
         }
+
+        var notice = RepositoryPhrases.Created(repository);
+
+        if (IsPublishing)
+        {
+            var published = await publish.PublishAsync(repository, cancellationToken);
+            notice = $"{notice} {published.Match(PublishPhrases.Published, PublishPhrases.Failure)}";
+        }
+
+        Cancel();
+        Created?.Invoke(this, new RepositoryCreated(repository, notice));
     }
 
     [RelayCommand]
     private void Cancel()
     {
         IsOpen = false;
+        IsPublishing = false;
         Name = string.Empty;
         Error = string.Empty;
     }
 
-    private bool CanCreate() => IsOpen && !string.IsNullOrWhiteSpace(Name);
+    private bool CanCreate() => IsOpen && !string.IsNullOrWhiteSpace(Name) && (!IsPublishing || publish.IsReady);
 
     private void Open(string parent)
     {

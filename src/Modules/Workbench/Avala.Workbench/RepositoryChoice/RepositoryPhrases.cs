@@ -39,8 +39,20 @@ internal static class RepositoryPhrases
         WorkspaceFailure.FolderExists => "Something with that name is already there: choose another name.",
         WorkspaceFailure.InvalidRepositoryName => "Name the repository with a plain folder name, without slashes.",
         WorkspaceFailure.FileUnwritable => "The folder could not be created there.",
+        WorkspaceFailure.InvalidRemoteUrl => "Paste the repository's address, such as https://github.com/owner/name.git or git@github.com:owner/name.git.",
+        WorkspaceFailure.RemoteUnauthorized => "Git was refused: set up the credentials git uses for this host, an SSH key or a credential helper such as gh auth setup-git, then try again.",
+        WorkspaceFailure.RemoteNotFound => "There is no repository at that address, or your account cannot see it.",
+        WorkspaceFailure.RemoteUnreachable => "The host could not be reached: check the address and your connection.",
         _ => "Git could not make the repository.",
     };
+
+    public const string CloneParentTitle = "Choose where the clone goes";
+
+    public const string CloneCancelled = "Clone cancelled: nothing was kept.";
+
+    public static string Cloning(string url, string path) => $"Cloning {url} into {path}…";
+
+    public static string Cloned(RepositoryCloned cloned) => $"Cloned {cloned.Url} into {cloned.Path}.";
 
     private static string Leaf(string repository) =>
         Path.GetFileName(repository.TrimEnd('/', '\\')) is { Length: > 0 } leaf ? leaf : repository;

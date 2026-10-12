@@ -1,3 +1,4 @@
+using Avala.Forges.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.RepositoryChoice;
@@ -46,6 +47,67 @@ internal sealed class FakeRepositories : IRepositories
         ValueTask.FromResult(Refusal.Match<Result<string, WorkspaceFailure>>(failure => failure, () => $"{parent}/{name.Trim()}"));
 }
 
+internal sealed class FakeRemotes : IRemoteRepositories
+{
+    public Option<WorkspaceFailure> Refusal { get; set; }
+
+    public Option<TaskCompletionSource> Held { get; set; }
+
+    public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public List<(string Url, string Parent, string Name)> Cloned { get; } = [];
+
+    public ValueTask<Option<string>> RemoteAsync(string repository, string remote, CancellationToken cancellationToken) => ValueTask.FromResult(Option<string>.None);
+
+    public ValueTask<bool> HasCredentialHelperAsync(string repository, string url, CancellationToken cancellationToken) => ValueTask.FromResult(false);
+
+    public ValueTask<Result<string, WorkspaceFailure>> PublishAsync(string repository, string remote, string url, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public async ValueTask<Result<string, WorkspaceFailure>> CloneAsync(string url, string parent, string name, CancellationToken cancellationToken)
+    {
+        Cloned.Add((url, parent, name));
+        Started.TrySetResult();
+        await Held.Match(held => held.Task.WaitAsync(cancellationToken), () => Task.CompletedTask);
+
+        return Refusal.Match<Result<string, WorkspaceFailure>>(failure => failure, () => $"{parent}/{name.Trim()}");
+    }
+}
+
+internal sealed class FakePublishing : IRepositoryPublishing
+{
+    public static PublishTarget GitHub { get; } = new(new ForgeName("github"), "GitHub");
+
+    public List<PublishTarget> Targets { get; } = [GitHub];
+
+    public Dictionary<string, RepositoryRemote> Remotes { get; } = [];
+
+    public Option<ForgeError> Refusal { get; set; }
+
+    public List<(string Repository, ForgeName Forge, RepositoryDraft Draft)> Published { get; } = [];
+
+    public ValueTask<IReadOnlyList<PublishTarget>> TargetsAsync(CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<PublishTarget>>(Targets);
+
+    public ValueTask<Option<RepositoryRemote>> RemoteOfAsync(string repository, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Remotes.TryGetValue(repository, out var remote) ? remote : Option<RepositoryRemote>.None);
+
+    public ValueTask<Result<PublishedRepository, ForgeError>> PublishAsync(string repository, ForgeName forge, RepositoryDraft draft, CancellationToken cancellationToken)
+    {
+        Published.Add((repository, forge, draft));
+
+        return ValueTask.FromResult(Refusal.Match<Result<PublishedRepository, ForgeError>>(
+            error => error,
+            () =>
+            {
+                var address = new RepositoryAddress("github.com", "ada", draft.Name);
+                var url = $"git@github.com:ada/{draft.Name}.git";
+                var target = Targets.Find(found => found.Forge == forge) ?? GitHub;
+                Remotes[repository] = new RepositoryRemote("origin", url) { Address = address, Forge = target };
+
+                return new PublishedRepository(target, address, "main", url);
+            }));
+    }
+}
+
 internal static class Choosing
 {
     public static RepositoryFieldViewModel Field() => Field(new JobBoard(), new FakeFolderPicker(), new FakeRepositories());
@@ -53,7 +115,13 @@ internal static class Choosing
     public static RepositoryFieldViewModel Field(JobBoard board) => Field(board, new FakeFolderPicker(), new FakeRepositories());
 
     public static RepositoryFieldViewModel Field(JobBoard board, FakeFolderPicker picker, FakeRepositories repositories) =>
-        new(picker, repositories, new RecentRepositories(board, Scratching.Folders()), new NewRepositoryViewModel(picker, repositories));
+        Field(board, picker, repositories, new FakeRemotes());
+
+    public static RepositoryFieldViewModel Field(JobBoard board, FakeFolderPicker picker, FakeRepositories repositories, FakeRemotes remotes) =>
+        new(picker, repositories, new RecentRepositories(board, Scratching.Folders()), new RepositoryStarts(Creation(picker, repositories, new FakePublishing()), new CloneRepositoryViewModel(picker, remotes)));
+
+    public static NewRepositoryViewModel Creation(FakeFolderPicker picker, FakeRepositories repositories, FakePublishing publishing) =>
+        new(picker, repositories, new PublishOptionsViewModel(publishing));
 }
 
 internal sealed class FakeScratch : IScratchRepositories

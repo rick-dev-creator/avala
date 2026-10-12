@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:choice="using:Avala.Workbench.RepositoryChoice"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.PublishOptionsView"
+             x:ClassModifier="internal"
+             x:DataType="choice:IPublishOptionsViewModel">
+  <Design.DataContext>
+    <choice:DesignPublishOptionsViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ComboBox#PublishTarget">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="8">
+    <TextBlock x:Name="PublishProblem"
+               Classes="caption attention"
+               TextWrapping="Wrap"
+               Text="{Binding Problem}"
+               IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+      <ComboBox x:Name="PublishTarget"
+                ItemsSource="{Binding Targets}"
+                SelectedItem="{Binding Target, Converter={x:Static states:Kept.Selection}}"
+                AutomationProperties.Name="Forge connection to publish to" />
+      <TextBlock x:Name="PublishForgeKind"
+                 Grid.Column="1"
+                 Classes="caption secondary"
+                 VerticalAlignment="Center"
+                 Text="{Binding ForgeKind}" />
+    </Grid>
+    <TextBox x:Name="PublishName"
+             Text="{Binding Name}"
+             PlaceholderText="Name on the forge"
+             AutomationProperties.Name="Name of the repository on the forge" />
+    <StackPanel Orientation="Horizontal" Spacing="12">
+      <RadioButton x:Name="PublishPrivate" GroupName="Visibility" Content="Private" IsChecked="{Binding IsPrivate}" />
+      <RadioButton x:Name="PublishPublic" GroupName="Visibility" Content="Public" IsChecked="{Binding IsPublic}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

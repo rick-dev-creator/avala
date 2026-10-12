@@ -21,7 +21,7 @@
     <Style Selector=":is(Control).stacked Grid#PathRow">
       <Setter Property="RowSpacing" Value="6" />
     </Style>
-    <Style Selector=":is(Control).stacked Button#Choose">
+    <Style Selector=":is(Control).stacked StackPanel#PathActions">
       <Setter Property="Grid.Row" Value="1" />
     </Style>
   </UserControl.Styles>
@@ -33,11 +33,17 @@
                 ItemsSource="{Binding Repositories}"
                 PlaceholderText="~/code/repository"
                 AutomationProperties.Name="Repository" />
-      <Button x:Name="Choose"
-              Grid.Column="1"
-              Content="Choose folder…"
-              ToolTip.Tip="Pick the repository's folder"
-              Command="{Binding ChooseCommand}" />
+      <StackPanel x:Name="PathActions" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+        <Button x:Name="Choose"
+                Content="Choose folder…"
+                ToolTip.Tip="Pick the repository's folder"
+                Command="{Binding ChooseCommand}" />
+        <Button x:Name="CloneRepository"
+                Content="Clone…"
+                ToolTip.Tip="Clone a repository from its address into a new folder"
+                Command="{Binding Cloning.StartCommand}"
+                IsEnabled="{Binding !Cloning.IsOpen}" />
+      </StackPanel>
     </Grid>
     <Button x:Name="NewRepository"
             Classes="link"
@@ -47,6 +53,7 @@
             Command="{Binding Creation.StartCommand}"
             IsVisible="{Binding !Creation.IsOpen}" />
     <ContentControl x:Name="Creation" Content="{Binding Creation}" IsVisible="{Binding Creation.IsOpen}" />
+    <ContentControl x:Name="Cloning" Content="{Binding Cloning}" IsVisible="{Binding Cloning.IsOpen}" />
     <StackPanel x:Name="Problem"
                 Classes="fade-in"
                 Spacing="6"

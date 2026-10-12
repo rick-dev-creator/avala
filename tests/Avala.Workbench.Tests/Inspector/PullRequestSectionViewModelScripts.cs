@@ -3,6 +3,8 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Inspector;
 using Avala.Workbench.Linking;
+using Avala.Workbench.RepositoryChoice;
+using Avala.Workbench.Tests.RepositoryChoice;
 
 namespace Avala.Workbench.Tests.Inspector;
 
@@ -11,12 +13,13 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
     private static readonly PullRequestRef Pull = new(7, new Uri("https://github.com/octo/shop/pull/7"), "avala/fix-the-test", "main");
 
     private readonly Bench bench = new();
+    private readonly FakePublishing publishing = new();
 
     [Fact]
     public async Task AWatchedPullRequestShowsItsChecksReviewsConflictsWatchStateAndWakeUpsAsync()
     {
         var job = Watched(WatchStatus.WaitingForJob, Mergeability.Conflicting, JobStatus.Running);
-        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge, Publisher());
 
         await section.FocusAsync(job, bench);
 
@@ -35,7 +38,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
     {
         var job = bench.Job("Fix the flaky checkout test", JobStatus.Approved);
         bench.Publish(Bench.OnBoard(job));
-        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge, Publisher());
 
         await section.FocusAsync(job.Job, bench);
 
@@ -49,7 +52,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
     {
         var job = Watched(WatchStatus.Watching, Mergeability.Mergeable);
         var opener = new FakeLinks();
-        using var section = new PullRequestSectionViewModel(bench.Inspected(), new Links(opener), bench.Forge);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), new Links(opener), bench.Forge, Publisher());
         await section.FocusAsync(job, bench);
 
         await section.OpenLinkCommand.ExecuteAsync(null);
@@ -72,7 +75,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
     public async Task TheFoldedFactIsTheNumberAndAShortWatchStateAsync(WatchStatus status, JobStatus jobStatus, string fact)
     {
         var job = Watched(status, Mergeability.Mergeable, jobStatus);
-        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge, Publisher());
 
         await section.FocusAsync(job, bench);
 
@@ -88,7 +91,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
     public async Task CheckNowIsOfferedOnlyWhileTheWatchIsLiveAsync(WatchStatus status, bool offered)
     {
         var job = Watched(status, Mergeability.Mergeable);
-        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge, Publisher());
 
         await section.FocusAsync(job, bench);
 
@@ -99,14 +102,34 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
     public async Task TheWatchStateReadsTheJobStatusTheBoardShowsEvenBeforeTheCatalogCatchesUpAsync()
     {
         var job = Watched(WatchStatus.WaitingForJob, Mergeability.Mergeable, JobStatus.AwaitingReview, JobStatus.Approved);
-        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge, Publisher());
 
         await section.FocusAsync(job, bench);
 
         Assert.Equal(("#7 · fix pushed", "The fix of wake-up 1 of 3 is pushed, waiting for the next check"), (section.Fact, section.Status));
     }
 
+    [Fact]
+    public async Task AJobWithoutAPullRequestTellsWhetherItsRepositoryHasARemoteAndAWatchedOneDoesNotAsync()
+    {
+        var bare = bench.Job("Fix the flaky checkout test", JobStatus.Approved);
+        bench.Publish(Bench.OnBoard(bare));
+        var watched = Watched(WatchStatus.Watching, Mergeability.Mergeable);
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), FakeLinks.Opening, bench.Forge, Publisher());
+
+        await section.FocusAsync(bare.Job, bench);
+        await section.Publisher.Reading;
+        var offered = (section.Publishing.IsShown, section.Publishing.CanOffer, section.Publishing.Remote);
+        await section.FocusAsync(watched, bench);
+        await section.Publisher.Reading;
+
+        Assert.Equal((true, true, PublishPhrases.NoRemote), offered);
+        Assert.False(section.Publishing.IsShown);
+    }
+
     public void Dispose() => bench.Dispose();
+
+    private PublishRepositoryViewModel Publisher() => new(publishing, new PublishOptionsViewModel(publishing));
 
     private JobId Watched(WatchStatus status, Mergeability mergeability, JobStatus jobStatus = JobStatus.Approved, JobStatus? shown = null)
     {

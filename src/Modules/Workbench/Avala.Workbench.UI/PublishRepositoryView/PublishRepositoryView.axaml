@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inspector="using:Avala.Workbench.Inspector"
+             x:Class="Avala.Workbench.UI.PublishRepositoryView"
+             x:ClassModifier="internal"
+             x:DataType="inspector:IPublishRepositoryViewModel">
+  <Design.DataContext>
+    <inspector:DesignPublishRepositoryViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="7" IsVisible="{Binding IsShown}">
+    <TextBlock x:Name="Remote" Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Remote}" />
+    <Button x:Name="PublishRepository"
+            Classes="ghost"
+            Margin="-8,0,0,0"
+            HorizontalAlignment="Left"
+            FontSize="{DynamicResource FontSizeCaption}"
+            Content="Publish repository…"
+            ToolTip.Tip="Create the repository on a forge, add it as origin and push the current branch"
+            Command="{Binding StartCommand}"
+            IsVisible="{Binding CanOffer}" />
+    <Border Classes="quiet" Padding="12,10" IsVisible="{Binding IsOpen}">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="section" Text="Publish repository" />
+        <TextBlock Classes="caption secondary"
+                   TextWrapping="Wrap"
+                   Text="Avala creates it under the account of the connection's token, adds it as origin and pushes the current branch with the credentials your git already uses." />
+        <ContentControl x:Name="PublishOptions" Content="{Binding Options}" />
+        <TextBlock x:Name="PublishError"
+                   Classes="caption failure"
+                   TextWrapping="Wrap"
+                   Text="{Binding Error}"
+                   IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="Publish" Classes="primary" Content="Publish" Command="{Binding PublishCommand}" />
+          <Button x:Name="CancelPublish" Content="Cancel" Command="{Binding CancelCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <TextBlock x:Name="PublishNotice"
+               Classes="caption fade-in"
+               TextWrapping="Wrap"
+               Text="{Binding Notice}"
+               IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

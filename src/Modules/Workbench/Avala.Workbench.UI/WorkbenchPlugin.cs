@@ -196,6 +196,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<AutonomySectionViewModel>()
             .AddSingleton<WorktreeSectionViewModel>()
             .AddSingleton<DelegationSectionViewModel>()
+            .AddTransient<PublishRepositoryViewModel>()
             .AddSingleton<PullRequestSectionViewModel>();
         registrar
             .AddToRegion<EvidenceSectionViewModel>(ShellRegions.Inspector, 10)
@@ -231,7 +232,10 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     {
         services.TryAddSingleton<IFolderPicker, AvaloniaFolderPicker>();
         services
+            .AddTransient<PublishOptionsViewModel>()
             .AddTransient<NewRepositoryViewModel>()
+            .AddTransient<CloneRepositoryViewModel>()
+            .AddTransient<RepositoryStarts>()
             .AddTransient<RepositoryFieldViewModel>()
             .AddTransient<NewJobFields>();
     }
@@ -364,6 +368,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<INewJobViewModel, NewJobView>();
         views.Register<IRepositoryFieldViewModel, RepositoryFieldView>();
         views.Register<INewRepositoryViewModel, NewRepositoryView>();
+        views.Register<ICloneRepositoryViewModel, CloneRepositoryView>();
+        views.Register<IPublishOptionsViewModel, PublishOptionsView>();
+        views.Register<IPublishRepositoryViewModel, PublishRepositoryView>();
         views.Register<IConnectionOptionViewModel, ConnectionOptionView>();
         views.Register<IModelPickerViewModel, ModelPickerView>();
         views.Register<IJobOptionsViewModel, JobOptionsView>();

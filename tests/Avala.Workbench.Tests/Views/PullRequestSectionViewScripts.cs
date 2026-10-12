@@ -116,6 +116,8 @@ public sealed class PullRequestSectionViewScripts(HeadlessUi ui)
 
         public string Notice => string.Empty;
 
+        public IPublishRepositoryViewModel Publishing { get; } = new DesignPublishRepositoryViewModel { IsShown = false };
+
         public IAsyncRelayCommand OpenLinkCommand { get; }
 
         public IAsyncRelayCommand CheckNowCommand { get; }
