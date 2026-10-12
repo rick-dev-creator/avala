@@ -290,6 +290,8 @@ internal sealed class DesignMachineAccountsViewModel : IMachineAccountsViewModel
 
     public ISourceControlViewModel SourceControl { get; init; } = new DesignSourceControlViewModel();
 
+    public IPersonalDetailsViewModel PersonalDetails { get; init; } = new DesignPersonalDetailsViewModel();
+
     public string ForgesFile => "forges.json · checks every 60s · GitHub, Gitea, Forgejo installed";
 
     public string Error => string.Empty;

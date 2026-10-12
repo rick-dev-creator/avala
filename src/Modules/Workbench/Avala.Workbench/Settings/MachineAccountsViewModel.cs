@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Collections.ObjectModel;
 using Avala.Workbench.Accounts;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -15,6 +16,8 @@ internal interface IMachineAccountsViewModel
 
     ISourceControlViewModel SourceControl { get; }
 
+    IPersonalDetailsViewModel PersonalDetails { get; }
+
     string ForgesFile { get; }
 
     string Error { get; }
@@ -28,6 +31,7 @@ internal interface IMachineAccountsViewModel
 internal sealed partial class MachineAccountsViewModel(
     ConnectionEditorViewModel editor,
     ISourceControlViewModel sourceControl,
+    IPersonalDetailsViewModel personalDetails,
     IAsyncRelayCommand openConnections) : IMachineAccountsViewModel
 {
     public ObservableCollection<MachineConnectionViewModel> Rows { get; } = [];
@@ -39,6 +43,8 @@ internal sealed partial class MachineAccountsViewModel(
     public ConnectionEditorViewModel Editing => editor;
 
     public ISourceControlViewModel SourceControl => sourceControl;
+
+    public IPersonalDetailsViewModel PersonalDetails => personalDetails;
 
     public IAsyncRelayCommand OpenConnectionsCommand => openConnections;
 

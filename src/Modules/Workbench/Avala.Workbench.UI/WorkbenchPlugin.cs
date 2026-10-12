@@ -283,7 +283,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton(provider => new MachineSections(
                 provider.GetRequiredService<IDefaultConnectionViewModel>(),
                 provider.GetRequiredService<INotificationsViewModel>(),
-                provider.GetRequiredService<ISourceControlViewModel>()));
+                provider.GetRequiredService<ISourceControlViewModel>(),
+                provider.GetRequiredService<IPersonalDetailsViewModel>()));
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
         services
