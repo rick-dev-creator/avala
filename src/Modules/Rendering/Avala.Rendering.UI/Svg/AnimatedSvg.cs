@@ -180,20 +180,27 @@ internal sealed class AnimatedSvg : Panel
 
     private static Button Play()
     {
-        var icon = new Path { Classes = { "icon" }, Stretch = Stretch.Uniform };
+        var icon = new Path { Width = 12, Height = 12, Margin = new Thickness(2, 0, 0, 0), Stretch = Stretch.Uniform };
         icon.Bind(Path.DataProperty, icon.GetResourceObservable("IconPlay"));
         icon.Bind(Shape.FillProperty, icon.GetResourceObservable("TextPrimaryBrush"));
         var button = new Button
         {
             Name = "PlayAnimation",
-            Classes = { "mini" },
             Content = icon,
+            Width = 36,
+            Height = 36,
+            Padding = default,
+            Focusable = false,
             IsVisible = false,
+            BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
         };
         AutomationProperties.SetName(button, "Play the animation");
         button.Bind(BackgroundProperty, button.GetResourceObservable("SurfacePopoverBrush"));
+        button.Bind(Button.BorderBrushProperty, button.GetResourceObservable("EdgeFloatBrush"));
         button.Bind(Button.CornerRadiusProperty, button.GetResourceObservable("RadiusPill"));
 
         return button;
