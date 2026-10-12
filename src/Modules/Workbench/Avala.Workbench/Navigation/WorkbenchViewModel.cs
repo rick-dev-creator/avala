@@ -224,8 +224,6 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
 
     private IReadOnlyList<Func<CancellationToken, Task>> Show(ImmutableDictionary<JobId, BoardJob> jobs)
     {
-        Welcome.ShowBoard(!jobs.IsEmpty);
-
         if (Conversation is { } open && jobs.TryGetValue(open.Job, out var job))
         {
             open.Show(job);

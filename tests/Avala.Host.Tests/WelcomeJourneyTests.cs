@@ -39,7 +39,6 @@ public sealed class WelcomeJourneyTests(PublishedPlugins plugins)
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
         var summary = (await run.Get<IJobCatalog>().ListAsync(Cancellation)).Single(found => found.Job == job);
         Assert.True(run.Get<IScratchRepositories>().Holds(summary.Repository));
-        await workbench.ShowsAsync(() => welcome["IsCompact"].Value<bool>());
     }
 
     [Fact]

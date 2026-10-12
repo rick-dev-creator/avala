@@ -87,7 +87,7 @@
                    Text="{Binding Error}"
                    IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
-      <StackPanel x:Name="Starts" Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center" IsVisible="{Binding !IsCompact}">
+      <StackPanel x:Name="Starts" Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
         <Button x:Name="OpenFolder" Classes="tile" Command="{Binding OpenFolderCommand}">
           <StackPanel Spacing="10">
             <Path Classes="icon" HorizontalAlignment="Center" Data="{StaticResource IconFolder}" />
@@ -107,7 +107,7 @@
           </StackPanel>
         </Button>
       </StackPanel>
-      <WrapPanel x:Name="Accounts" HorizontalAlignment="Center" ItemSpacing="8" LineSpacing="8" IsVisible="{Binding !IsCompact}">
+      <WrapPanel x:Name="Accounts" HorizontalAlignment="Center" ItemSpacing="8" LineSpacing="8">
         <ItemsControl x:Name="Chips" ItemsSource="{Binding Chips}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
