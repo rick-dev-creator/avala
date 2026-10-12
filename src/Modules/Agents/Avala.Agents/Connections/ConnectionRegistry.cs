@@ -20,6 +20,13 @@ internal sealed class ConnectionRegistry(
             merged => CatalogAsync(merged.Status, merged.Declarations, cancellationToken),
             error => Task.FromResult(new ConnectionCatalog(ConnectionFileStatus.Rejected, error, [], Option<ConnectionName>.None)));
 
+    public async ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken)
+    {
+        Volatile.Write(ref discovering, DiscoverAsync());
+
+        return await CatalogAsync(cancellationToken);
+    }
+
     public async ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(
         Option<ConnectionName> connection,
         CancellationToken cancellationToken)

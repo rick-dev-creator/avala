@@ -155,6 +155,8 @@ internal sealed class FakeConnections : IConnections
 
     public Dictionary<ConnectionName, string> Providers { get; } = [];
 
+    public ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken) => CatalogAsync(cancellationToken);
+
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult(new ConnectionCatalog(
             ConnectionFileStatus.Absent,

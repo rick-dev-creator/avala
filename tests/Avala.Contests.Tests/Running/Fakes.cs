@@ -128,6 +128,8 @@ internal sealed class FakeConnections : IConnections, IConnectionPreview
 
     public Option<ConnectionName> Previewed { get; set; }
 
+    public ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken) => CatalogAsync(cancellationToken);
+
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult(new ConnectionCatalog(
             ConnectionFileStatus.Applied,

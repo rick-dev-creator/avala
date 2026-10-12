@@ -193,6 +193,8 @@ internal sealed class DeclaredConnections : IConnections
 
     public HashSet<ConnectionName> Unusable { get; } = [];
 
+    public ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken) => CatalogAsync(cancellationToken);
+
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult(new ConnectionCatalog(ConnectionFileStatus.Applied, Option<ConnectionError>.None, [.. Declared], Option<ConnectionName>.None));
 

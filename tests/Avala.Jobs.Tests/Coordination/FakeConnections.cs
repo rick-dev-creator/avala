@@ -20,6 +20,8 @@ internal sealed class FakeConnections : IConnections
 
     public Option<ConnectionError> Rejection { get; set; }
 
+    public ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken) => CatalogAsync(cancellationToken);
+
     public ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult(Rejection.Match(
             error => new ConnectionCatalog(ConnectionFileStatus.Rejected, error, [], Option<ConnectionName>.None),

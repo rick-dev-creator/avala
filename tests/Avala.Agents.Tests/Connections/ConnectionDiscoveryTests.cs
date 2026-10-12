@@ -109,6 +109,20 @@ public sealed class ConnectionDiscoveryTests
         Assert.Equal(1, discovery.Calls);
     }
 
+    [Fact]
+    public async Task ALoginAddedWhileRunningAppearsWhenDiscoveryRunsAgainWithoutARestartAsync()
+    {
+        var discovery = new FixedDiscovery(Found("first-a", "a-login"));
+        var registry = Connected.Discovering(Absent, [first], [discovery], new Vault());
+        _ = await registry.CatalogAsync(Cancellation);
+        discovery.Connections = [Found("first-a", "a-login"), Found("first-b", "b-login")];
+
+        var catalog = await registry.RediscoverAsync(Cancellation);
+
+        Assert.Equal(["first-a", "first-b"], catalog.Connections.Select(connection => connection.Name.Value));
+        Assert.Equal(catalog.Connections, (await registry.CatalogAsync(Cancellation)).Connections);
+    }
+
     private static Result<Option<ConnectionDeclarations>, ConnectionError> Absent => Option<ConnectionDeclarations>.None;
 
     private static Result<Option<ConnectionDeclarations>, ConnectionError> Parsed(string file) =>

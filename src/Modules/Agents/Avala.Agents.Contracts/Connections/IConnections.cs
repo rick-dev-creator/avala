@@ -86,6 +86,8 @@ public interface IConnections
 {
     ValueTask<ConnectionCatalog> CatalogAsync(CancellationToken cancellationToken);
 
+    ValueTask<ConnectionCatalog> RediscoverAsync(CancellationToken cancellationToken);
+
     ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken);
 
     ValueTask<Result<ConnectionCatalog, ConnectionError>> ChangeDefaultAsync(Option<ConnectionName> connection, CancellationToken cancellationToken);
