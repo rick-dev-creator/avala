@@ -3,6 +3,7 @@ using Avala.Workspaces.BaseFiles;
 using Avala.Workspaces.Changes;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Git;
+using Avala.Workspaces.Projects;
 using Avala.Workspaces.Provisioning;
 using Avala.Workspaces.Scratch;
 using Avala.Workspaces.Storage;
@@ -32,5 +33,9 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddSingleton<IScratchRepositories, ScratchRepositories>()
             .AddSingleton<IRemoteRepositories, GitRemotes>()
             .AddSingleton<IGitChanges, GitChangesCli>()
-            .AddSingleton<IWorkspaceChanges, WorkspaceChanges>();
+            .AddSingleton<IWorkspaceChanges, WorkspaceChanges>()
+            .AddSingleton(provider => new ProjectsSettings(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                Path.Combine(provider.GetRequiredService<AvalaPaths>().Data, ProjectsSettings.FileName)))
+            .AddSingleton<IProjectsFolder, ProjectsFolders>();
 }

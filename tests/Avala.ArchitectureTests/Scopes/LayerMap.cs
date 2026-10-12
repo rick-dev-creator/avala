@@ -212,6 +212,7 @@ internal static class LayerMap
             ["WorkingFiles"] = Layer.Infrastructure,
             ["Git"] = Layer.Infrastructure,
             ["Scratch"] = Layer.Infrastructure,
+            ["Projects"] = Layer.Infrastructure,
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
         }),

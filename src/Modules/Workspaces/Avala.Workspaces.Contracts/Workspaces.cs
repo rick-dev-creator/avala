@@ -43,4 +43,5 @@ public enum WorkspaceFailure
     RemoteNotFound,
     RemoteUnreachable,
     PushRejected,
+    RelativeFolder,
 }
