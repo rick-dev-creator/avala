@@ -95,9 +95,6 @@ public sealed class Motion
 
     public static void SetWhen(Visual visual, bool value) => visual.SetValue(WhenProperty, value);
 
-    public static bool IsPlaying(Visual visual) =>
-        visual.GetValue(PlaybackProperty) is { IsMoving: true } || visual.GetValue(LoopingProperty) is { IsMoving: true };
-
     public static void Settle(Layoutable content)
     {
         content.SetValue(SettlesProperty, true);
