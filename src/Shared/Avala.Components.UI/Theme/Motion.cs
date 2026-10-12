@@ -22,6 +22,7 @@ public enum MotionEntrance
     Scale,
     Draw,
     Linger,
+    Ping,
 }
 
 public enum MotionLoop
