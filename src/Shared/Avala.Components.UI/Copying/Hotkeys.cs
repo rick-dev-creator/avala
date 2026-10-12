@@ -54,41 +54,29 @@ public static class Hotkeys
     {
         ArgumentNullException.ThrowIfNull(gesture);
 
-        return OperatingSystem.IsMacOS() ? MacLabel(gesture) : OtherLabel(gesture);
+        return Spelled(gesture, OperatingSystem.IsMacOS() ? Keyboard.Mac : Keyboard.Other);
     }
 
-    private static string MacLabel(KeyGesture gesture) =>
+    private static string Spelled(KeyGesture gesture, Keyboard keyboard) =>
         string.Concat(
-            gesture.KeyModifiers.HasFlag(KeyModifiers.Control) ? "⌃" : string.Empty,
-            gesture.KeyModifiers.HasFlag(KeyModifiers.Alt) ? "⌥" : string.Empty,
-            gesture.KeyModifiers.HasFlag(KeyModifiers.Meta) ? "⌘" : string.Empty,
-            gesture.KeyModifiers.HasFlag(KeyModifiers.Shift) ? "⇧" : string.Empty,
-            MacKey(gesture.Key));
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Control) ? keyboard.Control : string.Empty,
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Alt) ? keyboard.Alt : string.Empty,
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Meta) ? keyboard.Meta : string.Empty,
+            gesture.KeyModifiers.HasFlag(KeyModifiers.Shift) ? keyboard.Shift : string.Empty,
+            keyboard.Name(gesture.Key));
 
-    private static string OtherLabel(KeyGesture gesture) =>
-        string.Concat(
-            gesture.KeyModifiers.HasFlag(KeyModifiers.Control) ? "Ctrl+" : string.Empty,
-            gesture.KeyModifiers.HasFlag(KeyModifiers.Alt) ? "Alt+" : string.Empty,
-            gesture.KeyModifiers.HasFlag(KeyModifiers.Shift) ? "Shift+" : string.Empty,
-            OtherKey(gesture.Key));
-
-    private static string MacKey(Key key) => key switch
+    private sealed record Keyboard(string Control, string Alt, string Meta, string Shift, string EnterName, string BackName)
     {
-        Key.Enter => "Return",
-        Key.Back => "Delete",
-        _ => CommonKey(key),
-    };
+        public static Keyboard Mac { get; } = new("⌃", "⌥", "⌘", "⇧", "Return", "Delete");
 
-    private static string OtherKey(Key key) => key switch
-    {
-        Key.Enter => "Enter",
-        Key.Back => "Backspace",
-        _ => CommonKey(key),
-    };
+        public static Keyboard Other { get; } = new("Ctrl+", "Alt+", string.Empty, "Shift+", "Enter", "Backspace");
 
-    private static string CommonKey(Key key) => key switch
-    {
-        Key.OemPipe or Key.OemBackslash => "\\",
-        _ => key.ToString(),
-    };
+        public string Name(Key key) => key switch
+        {
+            Key.Enter => EnterName,
+            Key.Back => BackName,
+            Key.OemPipe or Key.OemBackslash => "\\",
+            _ => key.ToString(),
+        };
+    }
 }
