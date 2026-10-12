@@ -117,6 +117,28 @@ public sealed class RecordingFormatTests
             (drafted.GetProperty("type").GetString(), drafted.GetProperty("item").GetString(), drafted.GetProperty("kind").GetString(), drafted.GetProperty("title").GetString(), drafted.GetProperty("received").GetInt32()));
     }
 
+    [Fact]
+    public void AnItemIsRecordedFromItsStartThroughItsProgressToItsOutcomeWithItsTextRedacted()
+    {
+        var entries = Written(Recording(
+        [
+            (5, new Observed(new ItemStarted(Session, First, new ItemId("run"), ItemKind.Command, "Mail ana@example.com") { Input = "mail ana@example.com" })),
+            (6, new Observed(new ItemProgressed(Session, First, new ItemId("run"), "Sent to ana@example.com"))),
+            (7, new Observed(new CanvasStarted(Session, First, new ItemId("chart"), "Orbits of ana@example.com", "image/svg+xml"))),
+            (8, new Observed(new ItemCompleted(Session, First, new ItemId("run"), ItemOutcome.Failed))),
+        ])).GetProperty("entries");
+
+        var (started, progressed, canvas, completed) = (entries[0].GetProperty("event"), entries[1].GetProperty("event"), entries[2].GetProperty("event"), entries[3].GetProperty("event"));
+        Assert.Equal(
+            ("itemStarted", "run", "command", "Mail [redacted]", "mail [redacted]"),
+            (started.GetProperty("type").GetString(), started.GetProperty("item").GetString(), started.GetProperty("kind").GetString(), started.GetProperty("title").GetString(), started.GetProperty("input").GetString()));
+        Assert.Equal(("itemProgressed", "run", "Sent to [redacted]"), (progressed.GetProperty("type").GetString(), progressed.GetProperty("item").GetString(), progressed.GetProperty("text").GetString()));
+        Assert.Equal(
+            ("canvasStarted", "chart", "Orbits of [redacted]", "image/svg+xml"),
+            (canvas.GetProperty("type").GetString(), canvas.GetProperty("item").GetString(), canvas.GetProperty("title").GetString(), canvas.GetProperty("mediaType").GetString()));
+        Assert.Equal(("itemCompleted", "run", "failed"), (completed.GetProperty("type").GetString(), completed.GetProperty("item").GetString(), completed.GetProperty("outcome").GetString()));
+    }
+
     private static SessionRecording Recording(IReadOnlyList<(int At, IRecordedFact Fact)> facts) =>
         facts.Aggregate(
             SessionRecording.Begin(
