@@ -110,8 +110,8 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
         await running.Match(
             async served =>
             {
-                await served.Closing.CancelAsync();
                 served.Listener.Close();
+                await served.Closing.CancelAsync();
                 await served.Loop;
                 served.Closing.Dispose();
                 await ReleaseAsync(token);
@@ -137,7 +137,7 @@ internal sealed partial class WebhookListener(TriggerCatalog catalog, WebhookDes
 
             try
             {
-                context = await listener.GetContextAsync();
+                context = await listener.GetContextAsync().WaitAsync(closing);
             }
             catch (Exception stopped) when (closing.IsCancellationRequested || stopped is HttpListenerException or ObjectDisposedException or InvalidOperationException)
             {
