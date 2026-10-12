@@ -5,11 +5,12 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.NewJob;
+using Avala.Workbench.Harnesses;
 using Avala.Workbench.Welcome;
 
 namespace Avala.Workbench.Tests.Welcome;
 
-public sealed class HarnessChoiceViewModelScripts
+public sealed class WelcomeHarnessScripts
 {
     private static readonly OffersModels Large = new(["large", "small"], ["low", "medium", "high"]) { DefaultModel = "small", DefaultEffort = "medium" };
 
@@ -23,8 +24,8 @@ public sealed class HarnessChoiceViewModelScripts
     {
         var harness = await ShownAsync();
 
-        Assert.Equal((true, "Auto · personal", "P", false), (harness.IsShown, harness.Label, harness.Monogram, harness.IsAttention));
-        Assert.Equal("Most capacity left · 41% of the 5-hour window used", harness.Reason);
+        Assert.Equal((true, "Auto · personal", "P", false), (harness.Chip.IsShown, harness.Chip.Label, harness.Chip.Monogram, harness.Chip.IsAttention));
+        Assert.Equal("Most capacity left · 41% of the 5-hour window used", harness.Chip.Reason);
     }
 
     [Fact]
@@ -40,7 +41,7 @@ public sealed class HarnessChoiceViewModelScripts
 
         Assert.Equal(
             [("Auto", true, "Recommended · now personal", false, true), ("work", false, "95% of the 5-hour window used", true, false), ("personal", false, "41% of the 5-hour window used", false, false)],
-            harness.Options.Select(option => (option.Name, option.IsAuto, option.Hint, option.IsAttention, option.IsChosen)));
+            harness.Chip.Options.Select(option => (option.Name, option.IsAuto, option.Hint, option.IsAttention, option.IsChosen)));
     }
 
     [Fact]
@@ -49,13 +50,13 @@ public sealed class HarnessChoiceViewModelScripts
         connections.Offers["work"] = CapabilitySet.Of(Large);
         var harness = await ShownAsync();
 
-        harness.Options[1].ChooseCommand.Execute(null);
+        harness.Chip.Options[1].ChooseCommand.Execute(null);
         await harness.Offering;
 
-        Assert.Equal([false, true, false], harness.Options.Select(option => option.IsChosen));
-        Assert.Equal(("work", "W", "88% of the 5-hour window used"), (harness.Label, harness.Monogram, harness.Reason));
-        Assert.True(harness.Models.CanChoose);
-        Assert.Equal(["Default (small)", "large", "small"], harness.Models.Models);
+        Assert.Equal([false, true, false], harness.Chip.Options.Select(option => option.IsChosen));
+        Assert.Equal(("work", "W", "88% of the 5-hour window used"), (harness.Chip.Label, harness.Chip.Monogram, harness.Chip.Reason));
+        Assert.True(harness.Chip.Models.CanChoose);
+        Assert.Equal(["Default (small)", "large", "small"], harness.Chip.Models.Models);
     }
 
     [Fact]
@@ -63,13 +64,13 @@ public sealed class HarnessChoiceViewModelScripts
     {
         connections.Offers["work"] = CapabilitySet.Of(Large);
         var harness = await ShownAsync();
-        harness.Options[1].ChooseCommand.Execute(null);
+        harness.Chip.Options[1].ChooseCommand.Execute(null);
         await harness.Offering;
 
-        harness.Models.Model = "large";
-        harness.Models.Effort = "high";
+        harness.Chip.Models.Model = "large";
+        harness.Chip.Models.Effort = "high";
 
-        Assert.Equal(("work · large · high", new ConnectionName("work"), new ModelChoice("large", "high")), (harness.Label, harness.Chosen.Match(name => name, () => new ConnectionName("none")), harness.Model));
+        Assert.Equal(("work · large · high", new ConnectionName("work"), new ModelChoice("large", "high")), (harness.Chip.Label, harness.Chosen.Match(name => name, () => new ConnectionName("none")), harness.Model));
     }
 
     [Fact]
@@ -79,21 +80,21 @@ public sealed class HarnessChoiceViewModelScripts
 
         var harness = await ShownAsync();
 
-        Assert.Equal((false, false, ModelChoice.Default), (harness.Models.IsShown, harness.Models.CanChoose, harness.Model));
+        Assert.Equal((false, false, ModelChoice.Default), (harness.Chip.Models.IsShown, harness.Chip.Models.CanChoose, harness.Model));
     }
 
     [Fact]
     public async Task AChosenConnectionThatIsGoneFallsBackToAutoAsync()
     {
         var harness = await ShownAsync();
-        harness.Options[1].ChooseCommand.Execute(null);
+        harness.Chip.Options[1].ChooseCommand.Execute(null);
         await harness.Offering;
         connections.Catalog = connections.Catalog with { Connections = [.. connections.Catalog.Connections.Where(connection => connection.Name.Value != "work")] };
 
         await harness.ShowAsync(connections.Catalog, Cancellation);
 
-        Assert.Equal(("Auto · personal", true), (harness.Label, harness.Chosen.IsNone));
-        Assert.Equal(["Auto", "personal"], harness.Options.Select(option => option.Name));
+        Assert.Equal(("Auto · personal", true), (harness.Chip.Label, harness.Chosen.IsNone));
+        Assert.Equal(["Auto", "personal"], harness.Chip.Options.Select(option => option.Name));
     }
 
     [Fact]
@@ -103,8 +104,8 @@ public sealed class HarnessChoiceViewModelScripts
 
         var harness = await ShownAsync();
 
-        Assert.True(harness.IsAttention);
-        Assert.StartsWith("All at their limit", harness.Reason, StringComparison.Ordinal);
+        Assert.True(harness.Chip.IsAttention);
+        Assert.StartsWith("All at their limit", harness.Chip.Reason, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -115,13 +116,13 @@ public sealed class HarnessChoiceViewModelScripts
 
         var harness = await ShownAsync();
 
-        Assert.Equal(("Default · work", "The default connection of this machine", "Default"), (harness.Label, harness.Reason, harness.Options[0].Name));
+        Assert.Equal(("Default · work", "The default connection of this machine", "Default"), (harness.Chip.Label, harness.Chip.Reason, harness.Chip.Options[0].Name));
     }
 
-    internal static HarnessChoiceViewModel Harness(Submitting.JobLaunch launch) =>
+    internal static WelcomeHarness Harness(Submitting.JobLaunch launch) =>
         new(launch, new NewJobReadings(Pages.Readings(new FakeUsage())), new ModelPickerViewModel());
 
-    private async Task<HarnessChoiceViewModel> ShownAsync()
+    private async Task<WelcomeHarness> ShownAsync()
     {
         var harness = Harness(Launching.Launch(new SubmittingJobs(), connections, preview, new FakePolicies()));
         await harness.ShowAsync(connections.Catalog, Cancellation);

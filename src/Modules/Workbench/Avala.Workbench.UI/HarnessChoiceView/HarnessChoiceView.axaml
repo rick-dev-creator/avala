@@ -1,11 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:welcome="using:Avala.Workbench.Welcome"
+             xmlns:harnesses="using:Avala.Workbench.Harnesses"
              x:Class="Avala.Workbench.UI.HarnessChoiceView"
              x:ClassModifier="internal"
-             x:DataType="welcome:IHarnessChoiceViewModel">
+             x:DataType="harnesses:IHarnessChoiceViewModel">
   <Design.DataContext>
-    <welcome:DesignHarnessChoiceViewModel />
+    <harnesses:DesignHarnessChoiceViewModel />
   </Design.DataContext>
   <UserControl.Styles>
     <Style Selector="ToggleButton#HarnessButton">
@@ -26,6 +26,14 @@
     <Style Selector="TextBlock.heading-menu">
       <Setter Property="Margin" Value="10,6,10,2" />
     </Style>
+    <Style Selector="Popup#HarnessMenu">
+      <Setter Property="Placement" Value="BottomEdgeAlignedRight" />
+      <Setter Property="VerticalOffset" Value="6" />
+    </Style>
+    <Style Selector="Popup#HarnessMenu.up">
+      <Setter Property="Placement" Value="TopEdgeAlignedRight" />
+      <Setter Property="VerticalOffset" Value="-6" />
+    </Style>
   </UserControl.Styles>
   <Panel IsVisible="{Binding IsShown}">
     <ToggleButton x:Name="HarnessButton"
@@ -42,19 +50,24 @@
       </StackPanel>
     </ToggleButton>
     <Popup x:Name="HarnessMenu"
+           Classes.up="{Binding OpensUpward}"
            IsOpen="{Binding IsOpen}"
            PlacementTarget="{Binding #HarnessButton}"
-           Placement="BottomEdgeAlignedRight"
-           VerticalOffset="6"
            ShouldUseOverlayLayer="True"
            IsLightDismissEnabled="True"
            WindowManagerAddShadowHint="False">
       <Border Classes="float" Padding="6" Width="440">
         <StackPanel Spacing="1">
-          <TextBlock Classes="section heading-menu" Text="Run on" />
+          <TextBlock x:Name="HarnessHeading" Classes="section heading-menu" Text="{Binding Heading}" />
           <ItemsControl x:Name="HarnessOptions" ItemsSource="{Binding Options}" />
-          <Border Classes="separator" Margin="6,6" IsVisible="{Binding Models.CanChoose}" />
-          <ContentControl x:Name="HarnessModels" Margin="10,2,10,8" Content="{Binding Models}" IsVisible="{Binding Models.CanChoose}" />
+          <TextBlock x:Name="HarnessNote"
+                     Classes="caption"
+                     Margin="10,4,10,2"
+                     TextWrapping="Wrap"
+                     Text="{Binding Note}"
+                     IsVisible="{Binding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <Border Classes="separator" Margin="6,6" IsVisible="{Binding Models.IsShown}" />
+          <ContentControl x:Name="HarnessModels" Margin="10,2,10,8" Content="{Binding Models}" IsVisible="{Binding Models.IsShown}" />
         </StackPanel>
       </Border>
     </Popup>

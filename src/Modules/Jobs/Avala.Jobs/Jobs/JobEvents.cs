@@ -27,4 +27,6 @@ internal sealed record JobFailed(JobId Job, FailureReason Reason) : IDomainEvent
 
 internal sealed record JobHeld(JobId Job, AttemptNumber Attempt, HoldReason Reason) : IDomainEvent;
 
+internal sealed record ModelChosen(JobId Job, ModelChoice Model) : IDomainEvent;
+
 internal sealed record ResumeRecorded(JobId Job, SessionId Session) : IDomainEvent;

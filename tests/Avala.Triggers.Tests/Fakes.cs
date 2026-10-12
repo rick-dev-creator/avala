@@ -151,6 +151,9 @@ internal sealed class FakeJobs : IJobs, IJobCatalog
 
     public ValueTask<Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) => RefusedAsync<JobContinuation>();
 
+    public ValueTask<Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, Avala.Agents.Contracts.Sessions.ModelChoice model, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     private static ValueTask<Result<T, JobRejection>> RefusedAsync<T>() => ValueTask.FromResult(Result<T, JobRejection>.Failure(JobRejection.UnknownJob));
 }
 

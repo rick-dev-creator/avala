@@ -30,6 +30,10 @@ internal sealed class Bench : IDisposable
 
     public FakeJobs Jobs { get; } = new();
 
+    public FakeHandoffRequests Handoffs { get; } = new();
+
+    public FakeConnections Connections { get; } = new("claude-work", "claude-personal");
+
     public JobBoard Board { get; } = new();
 
     public FakeRunEvidence Evidence { get; } = new();
@@ -105,7 +109,7 @@ internal sealed class Bench : IDisposable
     public WorkbenchViewModel Workbench() => Workbench(Ui);
 
     public WorkbenchViewModel Workbench(IUiDispatcher ui) =>
-        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Queue), new TimelineItems(Replies, FakeLinks.Opening, Clipboard, new WorkedFiles(Catalog, Changes, Workspaces, new FakeWorkingFiles())), new SendKeys(), new TranscriptExport(Clipboard, Saver, new FakeAppearance())), new Reviews(Reader, Desk, ui)), Focus, new Avala.Workbench.Welcome.DesignWelcomeViewModel());
+        new(Feed(ui), new JobScreens(new Conversations(new Composers(new JobSteering(Jobs, Queue), new SendKeys(), Composing.Harnesses(Jobs, Handoffs, Connections)), new TimelineItems(Replies, FakeLinks.Opening, Clipboard, new WorkedFiles(Catalog, Changes, Workspaces, new FakeWorkingFiles())), new TranscriptExport(Clipboard, Saver, new FakeAppearance())), new Reviews(Reader, Desk, ui)), Focus, new Avala.Workbench.Welcome.DesignWelcomeViewModel());
 
     public JobSummary Job(string instruction, JobStatus status)
     {

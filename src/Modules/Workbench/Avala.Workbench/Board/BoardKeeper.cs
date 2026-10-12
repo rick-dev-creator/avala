@@ -24,6 +24,7 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
     IHandle<JobProgressed>,
     IHandle<JobHeld>,
     IHandle<JobApproved>,
+    IHandle<JobModelChosen>,
     IHandle<SessionOpened>,
     IHandle<JobSessionStarted>,
     IHandle<ConnectionChosen>,
@@ -78,6 +79,9 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
 
     public ValueTask HandleAsync(JobApproved integrationEvent, CancellationToken cancellationToken) =>
         ChangedAsync(integrationEvent.Approval.Job, job => Audited(job with { Delivery = integrationEvent.Approval.Delivery }));
+
+    public ValueTask HandleAsync(JobModelChosen integrationEvent, CancellationToken cancellationToken) =>
+        ChangedAsync(integrationEvent.Job, job => Audited(job with { Summary = job.Summary with { Model = integrationEvent.Model } }));
 
     public ValueTask HandleAsync(AttemptVerified integrationEvent, CancellationToken cancellationToken) =>
         ChangedAsync(integrationEvent.Report.Job, job => Audited(job with { Verification = integrationEvent.Report }));

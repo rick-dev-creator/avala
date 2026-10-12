@@ -73,7 +73,7 @@
             BorderThickness="1"
             CornerRadius="{DynamicResource RadiusCard}"
             Padding="16,8,8,8">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto">
         <TextBox x:Name="Draft"
                  Classes="bare"
                  VerticalAlignment="Center"
@@ -90,7 +90,12 @@
             <KeyBinding Gesture="Escape" Command="{Binding InterruptCommand}" />
           </TextBox.KeyBindings>
         </TextBox>
-        <Panel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Bottom">
+        <ContentControl x:Name="ComposerHarness"
+                        Grid.Column="1"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Bottom"
+                        Content="{Binding Harness}" />
+        <Panel Grid.Column="2" Margin="8,0,0,0" VerticalAlignment="Bottom">
           <Button x:Name="Send"
                   Classes="send"
                   Command="{Binding SendCommand}"

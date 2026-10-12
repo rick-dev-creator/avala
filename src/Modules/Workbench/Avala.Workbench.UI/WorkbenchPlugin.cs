@@ -32,6 +32,7 @@ using Avala.Workbench.Conversation;
 using Avala.Workbench.Decisions;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
+using Avala.Workbench.Harnesses;
 using Avala.Workbench.Inspection;
 using Avala.Workbench.Inspector;
 using Avala.Workbench.Linking;
@@ -80,6 +81,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<JobProgressed>, BoardKeeper>()
             .AddForwarded<IHandle<JobHeld>, BoardKeeper>()
             .AddForwarded<IHandle<JobApproved>, BoardKeeper>()
+            .AddForwarded<IHandle<JobModelChosen>, BoardKeeper>()
             .AddForwarded<IHandle<SessionOpened>, BoardKeeper>()
             .AddForwarded<IHandle<JobSessionStarted>, BoardKeeper>()
             .AddForwarded<IHandle<ConnectionChosen>, BoardKeeper>()
@@ -117,6 +119,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<TimelineItems>()
             .AddSingleton<WorkedFiles>()
             .AddSingleton<Conversations>()
+            .AddSingleton<Composers>()
+            .AddSingleton<JobHarnesses>()
+            .AddSingleton<JobSwitching>()
             .AddSingleton<TranscriptExport>()
             .AddSingleton<ReviewReader>()
             .AddSingleton<ConflictFinder>()
@@ -130,7 +135,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ToolbarViewModel>()
             .AddSingleton<SettingsLink>()
             .AddSingleton<IWelcomeLinks, WelcomeLinks>()
-            .AddSingleton<HarnessChoiceViewModel>()
+            .AddSingleton<WelcomeHarness>()
             .AddSingleton<IWelcomeViewModel, WelcomeViewModel>()
             .AddSingleton<WorkbenchViewModel>()
             .AddForwarded<IPage, WorkbenchViewModel>();

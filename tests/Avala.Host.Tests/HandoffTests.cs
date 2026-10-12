@@ -296,6 +296,36 @@ public sealed class HandoffTests(PublishedPlugins plugins)
         Assert.Single(run.Get<IHandoffs>().OfJob(job));
     }
 
+    [Fact]
+    public async Task AHeldJobContinuesOnTheConnectionAPersonPicksOnTheComposersChipWithABriefOfItsWorkAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, []);
+        var recorded = run.Watch<HandoffRecorded>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("hang")) { Connection = One }));
+        _ = await run.OpenedAsync();
+        var workbench = await run.WorkbenchAsync();
+        var composer = (await workbench.SelectAsync(job))["Composer"];
+        await run.Ui.RunAsync(() => composer.ExecuteAsync("InterruptCommand"));
+        await workbench.ShowsAsync(() => composer["Status"].Value<JobStatus>() == JobStatus.NeedsHelp);
+
+        var offered = await run.Ui.RunAsync(async () =>
+        {
+            composer["Harness"].Set("IsOpen", true);
+            await composer["Driver"]["Loading"].Value<Task>();
+
+            return composer["Harness"]["Options"].Items.Select(option => (option["Name"].Text, option["IsAvailable"].Value<bool>())).ToList();
+        });
+        await run.Ui.InvokeAsync(() => composer["Harness"]["Options"].Items.Single(option => option["Name"].Text == "Continue on simulator-two").Execute("ChooseCommand"), Cancellation);
+        await run.Ui.RunAsync(() => composer["Driver"]["Moving"].Value<Task>());
+        var handoff = (await recorded.UntilAsync(announced => announced.Handoff.Job == job)).Handoff;
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation));
+
+        Assert.Equal([("simulator-one", true), ("Continue on simulator-two", true)], offered);
+        Assert.Equal((One, Two, Option<LimitReason>.None), (handoff.From, handoff.To, handoff.Why));
+        Assert.Equal((AttemptOrigin.Handoff, Option<ConnectionName>.Some(Two)), (history.Attempts[^1].Origin, history.Summary.Connection));
+        Assert.StartsWith("This job was handed off to you from simulator-one. You continue it on simulator-two in a new conversation.", Outcomes.Present(history.Attempts[^1].Guidance), StringComparison.Ordinal);
+    }
+
     private static (string Path, string Content)[] Committed(string limits) =>
     [
         (".avala/checks.json", ReviewTests.CalculatorChecks),

@@ -217,7 +217,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         jobs.Status = status;
         jobs.Steerable = takesMessagesMidTurn;
         queue = new QueuedMessages(steered);
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), keys);
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), keys, Composing.Harness(summary.Job));
         composer.Track(shown);
 
         return composer;
@@ -266,5 +266,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) => inner.ResumeAsync(job, cancellationToken);
 
         public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) => inner.HandOffAsync(job, handoff, cancellationToken);
+
+        public ValueTask<Avala.Sdk.Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, Avala.Agents.Contracts.Sessions.ModelChoice model, CancellationToken cancellationToken) => inner.ChooseModelAsync(job, model, cancellationToken);
     }
 }

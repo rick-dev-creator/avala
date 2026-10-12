@@ -2,7 +2,9 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Sdk;
 using Avala.Testing.UI;
 using Avala.Workbench.ModelChoices;
+using Avala.Workbench.Harnesses;
 using Avala.Workbench.Welcome;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Styling;
@@ -54,6 +56,32 @@ public sealed class HarnessChoiceViewScripts(HeadlessUi ui)
             view.Click(opus);
 
             Assert.Equal((true, "opus", true), (offered, models.Model, harness.IsOpen));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheConversationsComposerShowsTheSameChipBesideSendAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new Avala.Workbench.Conversation.DesignComposerViewModel(Avala.Jobs.Contracts.JobStatus.NeedsHelp), ThemeVariant.Dark, 900, 300);
+
+            Assert.Equal(("CW", "claude-work · opus · high"), (view.TextOf("HarnessMonogram"), view.TextOf("HarnessLabel")));
+            Assert.True(view.Find("HarnessButton").TranslatePoint(default, view.Window)?.X < view.Find("Send").TranslatePoint(default, view.Window)?.X);
+        }, Cancellation);
+
+    [Fact]
+    public Task TheConversationsChipOpensAboveWithItsConnectionTheConnectionsToContinueOnAndTheModelAsync() =>
+        ui.RunAsync(() =>
+        {
+            var harness = Avala.Workbench.Conversation.DesignHarnesses.Job(held: true);
+            var view = Screen.Show(harness, ThemeVariant.Dark, 900, 700);
+
+            view.Click("HarnessButton");
+
+            Assert.Equal((true, "Connection", PlacementMode.TopEdgeAlignedRight), (harness.IsOpen, view.TextOf("HarnessHeading"), view.Find<Popup>("HarnessMenu").Placement));
+            Assert.Equal(["claude-work", "Continue on claude-personal"], view.All<TextBlock>().Where(text => text.Name == "OptionName").Select(text => text.Text));
+            Assert.Equal(["CW", "CP"], view.All<TextBlock>().Where(text => text.Name == "OptionMonogram").Select(text => text.Text));
+            Assert.True(view.Shows("HarnessModels"));
+            Assert.Equal("Continuing on another connection starts a new conversation there, with a brief of the work so far.", view.TextOf("HarnessNote"));
         }, Cancellation);
 }
 

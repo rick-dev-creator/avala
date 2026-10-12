@@ -38,6 +38,7 @@ public sealed class HandoffsPlugin : IPlugin
             .AddSingleton<ConnectionReadings>()
             .AddSingleton<Situations>()
             .AddSingleton<LimitActions>()
+            .AddSingleton<IHandoffRequests, PersonHandoff>()
             .AddSingleton<LimitWatch>()
             .AddForwarded<IHandle<JobHeld>, LimitWatch>()
             .AddForwarded<IHandle<JobProgressed>, LimitWatch>()

@@ -1,5 +1,6 @@
 using Avala.Components.Privacy;
 using Avala.Testing.UI;
+using Avala.Workbench.Harnesses;
 using Avala.Workbench.Welcome;
 using Avalonia;
 using Avalonia.Controls;

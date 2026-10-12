@@ -196,7 +196,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
     private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript) Open(JobStatus status)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
-        var conversation = new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard(), Tools.Files()), new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(summary.Job);
+        var conversation = new Conversations(Composing.Of(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new SendKeys()), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard(), Tools.Files()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(summary.Job);
         var transcript = Transcript.Empty.WithPrompts(summary.Instruction, []);
         conversation.Show(new BoardJob(summary, transcript));
 
@@ -408,7 +408,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
                 ? new PullRequestWatchState(summary.Job, new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/acme/shop/pull/7"), "avala/job", "main"), policy, 3)
                 : Option<PullRequestWatchState>.None,
         };
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)), keys ?? new SendKeys());
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)), keys ?? new SendKeys(), Composing.Harness(summary.Job));
         composer.Track(shown);
 
         return (composer, jobs);
