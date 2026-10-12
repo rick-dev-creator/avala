@@ -1,3 +1,4 @@
+using Avala.Testing;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Components.UI.Elapsed;
@@ -301,7 +302,7 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
         var job = catalog.Add(Instruction, status).Summary.Job;
         catalog.Change(job, history => history with { Summary = history.Summary with { Workspace = Avala.Workspaces.Contracts.WorkspaceId.New() } });
         var items = new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard(), new Avala.Workbench.Reviewing.WorkedFiles(catalog, changes, new FakeWorkspaces(), files));
-        var conversation = new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), items, new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver())).Open(job);
+        var conversation = new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), items, new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(job);
         conversation.Show(Board(transcript, status));
 
         return conversation;
