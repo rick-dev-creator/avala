@@ -24,6 +24,9 @@
     <Style Selector="Panel#PreviewChrome[(theme|Chrome.IsFocusMode)=True]">
       <Setter Property="IsVisible" Value="False" />
     </Style>
+    <Style Selector="ItemsControl#ConversationRegion Button">
+      <Setter Property="Margin" Value="0,12,0,0" />
+    </Style>
     <Style Selector="Border#PreviewGrip">
       <Setter Property="Width" Value="5" />
       <Setter Property="Background" Value="Transparent" />
@@ -110,16 +113,17 @@
         </Border>
       </Panel>
       <Grid x:Name="Split" ColumnDefinitions="*,Auto" states:Widths.Report="{Binding Regions.FitCommand}">
-        <Panel>
-          <ui:Stage x:Name="Conversation" Content="{Binding Conversation}" />
-          <ContentControl x:Name="Welcome" Content="{Binding Welcome}" IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}" />
+        <DockPanel>
           <ItemsControl x:Name="ConversationRegion"
-                        Margin="0,14,0,0"
+                        DockPanel.Dock="Top"
                         HorizontalAlignment="Center"
-                        VerticalAlignment="Top"
                         IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}"
                         ItemsSource="{Binding Regions.Conversation}" />
-        </Panel>
+          <Panel>
+            <ui:Stage x:Name="Conversation" Content="{Binding Conversation}" />
+            <ContentControl x:Name="Welcome" Content="{Binding Welcome}" IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}" />
+          </Panel>
+        </DockPanel>
         <Panel x:Name="PreviewChrome" Grid.Column="1">
           <Panel x:Name="PreviewPane"
                  Width="{Binding Regions.PreviewWidth}"

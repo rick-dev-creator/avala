@@ -122,7 +122,6 @@ internal sealed partial class PreviewPaneViewModel
     {
         desk.Feed.Dispose();
         messenger.UnregisterAll(this);
-        Detach();
     }
 
     public void OnRegionContextChanged(Option<JobId> context)
