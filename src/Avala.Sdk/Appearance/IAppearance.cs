@@ -48,6 +48,8 @@ public sealed record AppearancePreference(ThemeChoice Theme, MotionChoice Motion
     public static AppearancePreference Default { get; } = new(ThemeChoice.System, MotionChoice.System);
 
     public SendKey Send { get; init; }
+
+    public bool HidesPersonalDetails { get; init; } = true;
 }
 
 public sealed record AppearanceSettings(AppearancePreference Preference, AppearanceFileStatus File, Option<AppearanceError> Error);

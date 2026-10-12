@@ -27,7 +27,7 @@ public sealed class AppearanceFileTests
         var bus = new RecordingBus();
         await using var file = new AppearanceFile(new AvalaPaths(data.Path), bus);
 
-        var chosen = new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced) { Send = SendKey.CommandEnter };
+        var chosen = new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced) { Send = SendKey.CommandEnter, HidesPersonalDetails = false };
         var changed = await file.ChangeAsync(chosen, Cancellation);
         await using var restarted = new AppearanceFile(new AvalaPaths(data.Path), new RecordingBus());
         var read = await restarted.ReadAsync(Cancellation);
@@ -35,7 +35,7 @@ public sealed class AppearanceFileTests
         Assert.True(changed.IsSuccess);
         Assert.Equal([new AppearanceChanged(chosen)], bus.Published);
         Assert.Equal(new AppearanceSettings(chosen, AppearanceFileStatus.Applied, Option<AppearanceError>.None), read);
-        Assert.Equal("{\n  \"theme\": \"light\",\n  \"reduceMotion\": \"on\",\n  \"readingWidth\": \"comfortable\",\n  \"send\": \"commandEnter\"\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
+        Assert.Equal("{\n  \"theme\": \"light\",\n  \"reduceMotion\": \"on\",\n  \"readingWidth\": \"comfortable\",\n  \"send\": \"commandEnter\",\n  \"hidePersonalDetails\": false\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
     }
 
     [Fact]
@@ -81,6 +81,20 @@ public sealed class AppearanceFileTests
     }
 
     [Theory]
+    [InlineData("""{ "hidePersonalDetails": false }""", false)]
+    [InlineData("""{ "hidePersonalDetails": true }""", true)]
+    [InlineData("""{ }""", true)]
+    public async Task PersonalDetailsStayHiddenUnlessTheFileRevealsThemAsync(string content, bool hidden)
+    {
+        await using var data = new TemporaryFolder();
+        await File.WriteAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), content, Cancellation);
+        await using var file = new AppearanceFile(new AvalaPaths(data.Path), new RecordingBus());
+
+        Assert.Equal(hidden, (await file.ReadAsync(Cancellation)).Preference.HidesPersonalDetails);
+    }
+
+    [Theory]
+    [InlineData("""{ "hidePersonalDetails": "no" }""")]
     [InlineData("""{ "readingWidth": "huge" }""")]
     [InlineData("""{ "theme": "sepia" }""")]
     [InlineData("""{ "theme": "1" }""")]
