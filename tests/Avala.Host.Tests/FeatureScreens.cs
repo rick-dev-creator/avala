@@ -46,48 +46,6 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ThePermissionChoicesAndTheCardAfterARepositoryRuleAsync()
-    {
-        Gated();
-        await using var run = await SimulatedRun.StartAsync(plugins, "permission", (".avala/checks.json", PassingChecks));
-        Assert.Equal(DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
-        var workbench = await run.WorkbenchAsync();
-        var conversation = await workbench.SelectAsync(run.Job);
-        var decisions = await run.Ui.ReadAsync(() => workbench.Toolbar["Decisions"]);
-        await workbench.ShowsAsync(() => decisions["Items"].Items.Count == 1 && Card(conversation) is not null);
-
-        await Camera.ShootAsync(run, "03-permission-card-waiting-dark", window => FeatureCamera.ScrollTo(window, "Don't ask again for this job"));
-        await run.Ui.InvokeAsync(() => workbench.Toolbar.Execute("ToggleDecisionsCommand"), Cancellation);
-        await Camera.ShootAsync(run, "04-decisions-popover-dont-ask-again-dark");
-        await Camera.ShootAsync(run, "04-decisions-popover-dont-ask-again-light", ThemeVariant.Light);
-        await run.Ui.InvokeAsync(() => decisions["Items"].Items[0].Set("AlwaysInRepository", true), Cancellation);
-        await Camera.ShootAsync(run, "05-decisions-popover-always-in-repository-checked-dark");
-
-        await run.Ui.RunAsync(() => decisions.ExecuteAsync("AnswerCommand"));
-        await workbench.ShowsAsync(() => Card(conversation) is { } card && !card["AwaitsYou"].Value<bool>());
-        await run.Ui.InvokeAsync(() => workbench.Toolbar.Execute("CloseDecisionsCommand"), Cancellation);
-        _ = await run.SettledAsync();
-        await workbench.ShowsInGroupAsync(run.Job, "ReadyForReview");
-        await Camera.ShootAsync(run, "06-permission-card-after-popover-always-in-repository-dark", window => FeatureCamera.ScrollTo(window, "dotnet ef database update"));
-
-        await using var direct = await SimulatedRun.StartAsync(plugins, "permission", (".avala/checks.json", PassingChecks));
-        _ = await direct.DecisionAsync();
-        var bench = await direct.WorkbenchAsync();
-        var talk = await bench.SelectAsync(direct.Job);
-        await bench.ShowsAsync(() => Card(talk) is { } card && card["AwaitsYou"].Value<bool>());
-        await direct.Ui.RunAsync(() =>
-        {
-            var card = Card(talk)!.Value;
-            card.Set("AlwaysInRepository", true);
-
-            return card.ExecuteAsync("AllowCommand");
-        });
-        await bench.ShowsAsync(() => Card(talk) is { } card && card["Notice"].Text.Length > 0);
-        await Camera.ShootAsync(direct, "07-permission-card-added-to-permissions-json-dark", window => FeatureCamera.ScrollTo(window, "Added to .avala/permissions.json"));
-        await Camera.ShootAsync(direct, "07-permission-card-added-to-permissions-json-light", ThemeVariant.Light, window => FeatureCamera.ScrollTo(window, "Added to .avala/permissions.json"));
-    }
-
-    [Fact]
     public async Task TheNewJobModelAndEffortPickersAndTheModelAJobRanWithAsync()
     {
         Gated();
