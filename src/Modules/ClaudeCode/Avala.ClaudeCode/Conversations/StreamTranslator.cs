@@ -114,46 +114,65 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
     {
         var index = (int)streamEvent.Number("index");
 
-        switch (streamEvent.TextOr("type", string.Empty))
+        return streamEvent.TextOr("type", string.Empty) switch
         {
-            case "message_start":
-                message = streamEvent.Members("message").TextOr("id", string.Empty);
-                streamed.Add(message);
+            "message_start" => MessageStarted(streamEvent.Members("message")),
+            "content_block_start" => BlockStarted(index, streamEvent.Members("content_block"), stamp),
+            "content_block_delta" => BlockGrew(index, streamEvent.Members("delta"), stamp),
+            "content_block_stop" => BlockStopped(index, stamp),
+            _ => Reaction.None,
+        };
+    }
 
-                return Reaction.None;
-            case "content_block_start":
-                var block = streamEvent.Members("content_block");
+    private Reaction MessageStarted(JsonObject started)
+    {
+        message = started.TextOr("id", string.Empty);
+        streamed.Add(message);
 
-                return block.TextOr("type", string.Empty) switch
-                {
-                    "text" => Open(index, ItemKind.Message, "Message", stamp),
-                    "thinking" => Open(index, ItemKind.Reasoning, "Thinking", stamp),
-                    "tool_use" => Drafted(index, block),
-                    _ => Reaction.None,
-                };
-            case "content_block_delta" when drafts.TryGetValue(index, out var draft):
-                draft.Json.Append(streamEvent.Members("delta").TextOr("partial_json", string.Empty));
+        return Reaction.None;
+    }
 
-                return Drawn(draft.Tool, PartialJson.Strings(draft.Json.ToString()), stamp);
-            case "content_block_delta" when sketches.TryGetValue(index, out var sketch):
-                sketch.Json.Append(streamEvent.Members("delta").TextOr("partial_json", string.Empty));
+    private Reaction BlockStarted(int index, JsonObject block, Stamp stamp) =>
+        block.TextOr("type", string.Empty) switch
+        {
+            "text" => Open(index, ItemKind.Message, "Message", stamp),
+            "thinking" => Open(index, ItemKind.Reasoning, "Thinking", stamp),
+            "tool_use" => Drafted(index, block),
+            _ => Reaction.None,
+        };
 
-                return Sketched(sketch, stamp);
-            case "content_block_delta" when blocks.TryGetValue(index, out var item):
-                var delta = streamEvent.Members("delta");
-                var text = delta.TextOr("text", delta.TextOr("thinking", string.Empty));
+    private Reaction BlockGrew(int index, JsonObject delta, Stamp stamp)
+    {
+        if (drafts.TryGetValue(index, out var draft))
+        {
+            draft.Json.Append(delta.TextOr("partial_json", string.Empty));
 
-                return text.Length == 0 ? Reaction.None : Reaction.Of(new ItemProgressed(stamp.Session, stamp.Turn, item, text));
-            case "content_block_stop" when sketches.Remove(index):
-            case "content_block_stop" when drafts.Remove(index):
-                return Reaction.None;
-            case "content_block_stop" when blocks.Remove(index, out var stopped):
-                open.Remove(stopped);
-
-                return Reaction.Of(new ItemCompleted(stamp.Session, stamp.Turn, stopped, ItemOutcome.Succeeded));
-            default:
-                return Reaction.None;
+            return Drawn(draft.Tool, PartialJson.Strings(draft.Json.ToString()), stamp);
         }
+
+        if (sketches.TryGetValue(index, out var sketch))
+        {
+            sketch.Json.Append(delta.TextOr("partial_json", string.Empty));
+
+            return Sketched(sketch, stamp);
+        }
+
+        return blocks.TryGetValue(index, out var item) ? Progressed(item, delta.TextOr("text", delta.TextOr("thinking", string.Empty)), stamp) : Reaction.None;
+    }
+
+    private static Reaction Progressed(ItemId item, string text, Stamp stamp) =>
+        text.Length == 0 ? Reaction.None : Reaction.Of(new ItemProgressed(stamp.Session, stamp.Turn, item, text));
+
+    private Reaction BlockStopped(int index, Stamp stamp)
+    {
+        if (sketches.Remove(index) || drafts.Remove(index) || !blocks.Remove(index, out var stopped))
+        {
+            return Reaction.None;
+        }
+
+        open.Remove(stopped);
+
+        return Reaction.Of(new ItemCompleted(stamp.Session, stamp.Turn, stopped, ItemOutcome.Succeeded));
     }
 
     private Reaction Drafted(int index, JsonObject block)
