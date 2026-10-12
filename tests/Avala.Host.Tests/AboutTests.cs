@@ -21,7 +21,7 @@ public sealed class AboutTests(PublishedPlugins plugins)
         var shown = await run.Ui.ReadAsync(() => (Version: about["Version"].Text, Commit: about["Commit"].Text, Folder: about["LogFolder"].Value<Personal>().Value));
         await run.Ui.RunAsync(() => about.ExecuteAsync("OpenRepositoryCommand"));
         await run.Ui.RunAsync(() => about.ExecuteAsync("OpenLogFolderCommand"));
-        var note = await run.Ui.ReadAsync(() => about["Note"].Text);
+        var note = await run.Ui.ReadAsync(() => about["Note"].Value<PersonalPhrase>().Show(hidden: false));
 
         Assert.Equal(typeof(Composition.CompositionRoot).Assembly.GetName().Version!.ToString(3), shown.Version.Split('-')[0]);
         Assert.Matches("^[0-9a-f]{12}$", shown.Commit);
