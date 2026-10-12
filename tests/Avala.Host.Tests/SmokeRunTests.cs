@@ -29,8 +29,7 @@ public sealed class SmokeRunTests(PublishedPlugins plugins)
 
         var (exitCode, output) = await RunAsync(empty.Path, data.Path, SmokeRun.Flag);
 
-        Assert.Equal(2, exitCode);
-        Assert.Equal("Avala started without any page: no plugin was loaded.", output);
+        Assert.Equal((2, "Avala started without any page: no plugin was loaded."), (exitCode, output));
     }
 
     [Fact]

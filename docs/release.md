@@ -40,7 +40,7 @@ dotnet run scripts/package.cs -- --rid linux-x64 --smoke
 
 ### The smoke run
 
-`Avala --smoke` starts the real application on Avalonia's headless platform, so it needs no display: it composes every plugin, runs the startup tasks and the migrations in a temporary data folder, shows the main window, prints `Avala <version> composed <n> pages and showed its main window.` and exits 0. With no plugin found it exits 2, on a failure 1. It never checks for updates or sends usage statistics. `Avala --version` prints `Avala <version> (<commit>)`. Use both to check a package on a machine before trusting it.
+`Avala --smoke` starts the real application on Avalonia's headless platform, so it needs no display: it composes every plugin, runs the startup tasks and the migrations in a temporary data folder, shows the main window, prints `Avala <version> composed <n> pages and showed its main window.` and exits 0. With no plugin found it exits 2, and it exits 1 when the window cannot be shown or the runtime stops before its startup completes. It exits only once Avalonia's main loop runs, however fast the startup was. It never checks for updates or sends usage statistics. `Avala --version` prints `Avala <version> (<commit>)`. Use both to check a package on a machine before trusting it.
 
 ## Release notes
 

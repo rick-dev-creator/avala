@@ -72,7 +72,7 @@ internal sealed partial class App : Application
         DataTemplates.Add(composition.Views);
         shell.Activate();
         var showing = ShowAsync(desktop, composition, appearance, shell);
-        _ = smoke ? SmokeRun.PassAsync(desktop, showing, started, shell) : showing;
+        _ = smoke ? SmokeRun.PassAsync(desktop, showing, started.FirstAsync().AsTask(), composition.Running, shell) : showing;
     }
 
     private static CompositionRoot Composed(AvalaPaths paths, LogFile log, CrashLog crashes, Option<Func<HttpMessageHandler>> network)
