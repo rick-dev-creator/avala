@@ -18,103 +18,95 @@
     </Style>
   </UserControl.Styles>
   <Panel>
-  <DockPanel>
-    <Border DockPanel.Dock="Top" Classes="pageHeader">
-      <DockPanel>
-        <TextBlock DockPanel.Dock="Right" Classes="caption" Text="Ctrl+Enter submits · Ctrl+Shift+Enter starts without a repository" VerticalAlignment="Center" />
+    <DockPanel>
+      <Border DockPanel.Dock="Top" Classes="pageHeader">
         <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
-      </DockPanel>
-    </Border>
-    <ScrollViewer>
-      <StackPanel Margin="24,36,24,48" Spacing="16" MaxWidth="640">
-        <StackPanel Spacing="2">
+      </Border>
+      <ScrollViewer>
+        <StackPanel Margin="24,36,24,48" Spacing="16" MaxWidth="640">
           <TextBlock Classes="title" Text="What should the agent do?" />
-          <TextBlock Classes="caption" TextWrapping="Wrap"
-                     Text="The job runs in its own worktree, under the repository's rules, and comes back to you for review." />
-        </StackPanel>
-        <Border Classes="float arrive-snappy">
-          <StackPanel Spacing="14">
-            <StackPanel Spacing="6">
-              <TextBlock Classes="section" Text="Repository" />
-              <ContentControl x:Name="Repository" Content="{Binding RepositoryField}" />
-            </StackPanel>
-            <StackPanel Spacing="6">
-              <TextBlock Classes="section" Text="Instruction" />
-              <TextBox x:Name="Instruction"
-                       Text="{Binding Instruction}"
-                       AcceptsReturn="True"
-                       MinHeight="132"
-                       TextWrapping="Wrap"
-                       FontSize="{DynamicResource FontSizeReading}"
-                       PlaceholderText="Fix the failing test in money/minor_test.go without changing the public API.">
-                <TextBox.KeyBindings>
-                  <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SubmitCommand}" />
-                  <KeyBinding Gesture="Ctrl+Shift+Enter" Command="{Binding StartWithoutRepositoryCommand}" />
-                </TextBox.KeyBindings>
-              </TextBox>
-            </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="6">
+          <Border Classes="float arrive-snappy">
+            <StackPanel Spacing="14">
               <StackPanel Spacing="6">
-                <TextBlock Classes="section" Text="Connection" />
-                <ComboBox x:Name="Connection"
-                          ItemsSource="{Binding Options}"
-                          SelectedValueBinding="{Binding Name, x:DataType=newJob:IConnectionOptionViewModel}"
-                          SelectedValue="{Binding Connection, Converter={x:Static states:Kept.Selection}}"
-                          HorizontalContentAlignment="Stretch" />
+                <TextBlock Classes="section" Text="Repository" />
+                <ContentControl x:Name="Repository" Content="{Binding RepositoryPicker}" />
               </StackPanel>
-              <TextBlock x:Name="Route"
-                         Grid.Row="1"
-                         Classes="caption fade-in"
-                         Classes.attention="{Binding IsRouteAttention}"
+              <StackPanel Spacing="6">
+                <TextBlock Classes="section" Text="Instruction" />
+                <TextBox x:Name="Instruction"
+                         Text="{Binding Instruction}"
+                         AcceptsReturn="True"
+                         MinHeight="132"
                          TextWrapping="Wrap"
-                         Text="{Binding Route}"
-                         IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-              <StackPanel Grid.Column="1" Spacing="6">
-                <TextBlock Classes="section" Text="Autonomy" />
-                <ComboBox x:Name="Autonomy" ItemsSource="{Binding Autonomies}" SelectedItem="{Binding Autonomy, Converter={x:Static states:Kept.Selection}}" />
+                         FontSize="{DynamicResource FontSizeReading}"
+                         PlaceholderText="Fix the failing test in money/minor_test.go without changing the public API.">
+                  <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SubmitCommand}" />
+                    <KeyBinding Gesture="Ctrl+Shift+Enter" Command="{Binding StartWithoutRepositoryCommand}" />
+                  </TextBox.KeyBindings>
+                </TextBox>
               </StackPanel>
-              <TextBlock x:Name="AutonomyNote"
-                         Grid.Row="1"
-                         Grid.Column="1"
-                         Classes="caption fade-in"
-                         TextWrapping="Wrap"
-                         Text="{Binding AutonomyNote}" />
-            </Grid>
-            <ContentControl x:Name="JobOptions" Content="{Binding JobOptions}" />
-            <Border x:Name="Error"
-                    Classes="quiet"
-                    BorderBrush="{DynamicResource FailureBorderBrush}"
-                    Padding="12,8"
-                    IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-              <TextBlock x:Name="ErrorText" Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
-            </Border>
-            <DockPanel>
-              <Button x:Name="Submit" DockPanel.Dock="Right" Classes="primary" Content="Start the job" Command="{Binding SubmitCommand}" />
-              <Button x:Name="StartWithoutRepository"
-                      DockPanel.Dock="Right"
-                      Margin="0,0,8,0"
-                      Content="Start without a repository"
-                      ToolTip.Tip="Ctrl+Shift+Enter: runs the job in a new scratch repository in Avala's data folder, merged there when you approve it"
-                      Command="{Binding StartWithoutRepositoryCommand}" />
-              <TextBlock x:Name="Submitted"
-                         Classes="caption fade-in"
-                         VerticalAlignment="Center"
-                         TextTrimming="CharacterEllipsis"
-                         Text="{Binding Submitted}"
-                         IsVisible="{Binding Submitted, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-            </DockPanel>
-          </StackPanel>
-        </Border>
-      </StackPanel>
-    </ScrollViewer>
-  </DockPanel>
-  <Panel x:Name="CloneSheet" IsVisible="{Binding RepositoryField.Cloning.IsOpen}">
-    <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
-    <ContentControl x:Name="CloneSheetContent" Content="{Binding RepositoryField.Cloning}" />
-  </Panel>
-  <Panel x:Name="ConnectSheet" IsVisible="{Binding RepositoryField.Cloning.Connect.IsOpen}">
-    <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
-    <ContentControl x:Name="ConnectSheetContent" Content="{Binding RepositoryField.Cloning.Connect}" />
-  </Panel>
+              <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="6">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="section" Text="Connection" />
+                  <ComboBox x:Name="Connection"
+                            ItemsSource="{Binding Options}"
+                            SelectedValueBinding="{Binding Name, x:DataType=newJob:IConnectionOptionViewModel}"
+                            SelectedValue="{Binding Connection, Converter={x:Static states:Kept.Selection}}"
+                            HorizontalContentAlignment="Stretch" />
+                </StackPanel>
+                <TextBlock x:Name="Route"
+                           Grid.Row="1"
+                           Classes="caption fade-in"
+                           Classes.attention="{Binding IsRouteAttention}"
+                           TextWrapping="Wrap"
+                           Text="{Binding Route}"
+                           IsVisible="{Binding Route, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <StackPanel Grid.Column="1" Spacing="6">
+                  <TextBlock Classes="section" Text="Autonomy" />
+                  <ComboBox x:Name="Autonomy" ItemsSource="{Binding Autonomies}" SelectedItem="{Binding Autonomy, Converter={x:Static states:Kept.Selection}}" />
+                </StackPanel>
+                <TextBlock x:Name="AutonomyNote"
+                           Grid.Row="1"
+                           Grid.Column="1"
+                           Classes="caption fade-in"
+                           TextWrapping="Wrap"
+                           Text="{Binding AutonomyNote}" />
+              </Grid>
+              <ContentControl x:Name="JobOptions" Content="{Binding JobOptions}" />
+              <Border x:Name="Error"
+                      Classes="quiet"
+                      BorderBrush="{DynamicResource FailureBorderBrush}"
+                      Padding="12,8"
+                      IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock x:Name="ErrorText" Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
+              </Border>
+              <DockPanel>
+                <Button x:Name="Submit"
+                        DockPanel.Dock="Right"
+                        Classes="primary"
+                        Content="Start"
+                        ToolTip.Tip="Ctrl+Enter · Ctrl+Shift+Enter starts without a repository"
+                        Command="{Binding SubmitCommand}" />
+                <TextBlock x:Name="Submitted"
+                           Classes="caption fade-in"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding Submitted}"
+                           IsVisible="{Binding Submitted, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              </DockPanel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+    <Panel x:Name="CloneSheet" IsVisible="{Binding RepositoryField.Cloning.IsOpen}">
+      <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
+      <ContentControl x:Name="CloneSheetContent" Content="{Binding RepositoryField.Cloning}" />
+    </Panel>
+    <Panel x:Name="ConnectSheet" IsVisible="{Binding RepositoryField.Cloning.Connect.IsOpen}">
+      <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
+      <ContentControl x:Name="ConnectSheetContent" Content="{Binding RepositoryField.Cloning.Connect}" />
+    </Panel>
   </Panel>
 </UserControl>

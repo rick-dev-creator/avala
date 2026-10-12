@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:choice="using:Avala.Workbench.RepositoryChoice"
+             x:Class="Avala.Workbench.UI.RepositoryChoiceView"
+             x:ClassModifier="internal"
+             x:DataType="choice:IRepositoryChoiceViewModel">
+  <Design.DataContext>
+    <choice:DesignRepositoryChoiceViewModel />
+  </Design.DataContext>
+  <Button x:Name="Choice"
+          Classes="row"
+          Classes.selected="{Binding IsSelected}"
+          Command="{Binding ChooseCommand}"
+          ToolTip.Tip="{Binding Detail}">
+    <StackPanel Orientation="Horizontal" Spacing="10">
+      <Path Classes="icon" Data="{StaticResource IconFolder}" Stroke="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+      <TextBlock x:Name="ChoiceTitle" Text="{Binding Title}" VerticalAlignment="Center" />
+      <TextBlock x:Name="ChoiceDetail" Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+    </StackPanel>
+  </Button>
+</UserControl>

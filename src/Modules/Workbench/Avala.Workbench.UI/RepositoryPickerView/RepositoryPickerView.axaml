@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:choice="using:Avala.Workbench.RepositoryChoice"
+             x:Class="Avala.Workbench.UI.RepositoryPickerView"
+             x:ClassModifier="internal"
+             x:DataType="choice:IRepositoryPickerViewModel">
+  <Design.DataContext>
+    <choice:DesignRepositoryPickerViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.row Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="6">
+    <ToggleButton x:Name="RepositoryButton"
+                  Classes="choice"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Stretch"
+                  IsChecked="{Binding IsOpen}"
+                  AutomationProperties.Name="Repository">
+      <DockPanel>
+        <Path DockPanel.Dock="Right" Classes="icon small" Data="{StaticResource IconChevronDown}" Stroke="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" />
+        <Panel DockPanel.Dock="Left" Margin="0,0,10,0" VerticalAlignment="Center">
+          <Path Classes="icon" Data="{StaticResource IconScratch}" Stroke="{DynamicResource AccentBrush}" IsVisible="{Binding IsScratch}" />
+          <Path Classes="icon" Data="{StaticResource IconFolder}" Stroke="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding !IsScratch}" />
+        </Panel>
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <TextBlock x:Name="RepositoryTitle" Text="{Binding Title}" />
+          <TextBlock x:Name="RepositoryDetail" Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </StackPanel>
+      </DockPanel>
+    </ToggleButton>
+    <Popup x:Name="RepositoryMenu"
+           IsOpen="{Binding IsOpen}"
+           PlacementTarget="{Binding #RepositoryButton}"
+           Placement="BottomEdgeAlignedLeft"
+           VerticalOffset="4"
+           ShouldUseOverlayLayer="True"
+           IsLightDismissEnabled="True"
+           WindowManagerAddShadowHint="False">
+      <Border Classes="float" Padding="6" MinWidth="{Binding #RepositoryButton.Bounds.Width}">
+        <StackPanel Spacing="1">
+          <Button x:Name="Scratch" Classes="row" Classes.selected="{Binding IsScratch}" Command="{Binding ChooseScratchCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Path Classes="icon" Data="{StaticResource IconScratch}" VerticalAlignment="Center" />
+              <TextBlock Text="No repository" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <ItemsControl x:Name="RecentRepositories" ItemsSource="{Binding Recent}" />
+          <Border Classes="separator" Margin="6,4" />
+          <Button x:Name="OpenFolder" Classes="row" Command="{Binding OpenFolderCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Path Classes="icon" Data="{StaticResource IconFolder}" VerticalAlignment="Center" />
+              <TextBlock Text="Open folder…" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="Clone" Classes="row" Command="{Binding CloneCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Path Classes="icon" Data="{StaticResource IconClone}" VerticalAlignment="Center" />
+              <TextBlock Text="Clone…" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="NewRepository" Classes="row" Command="{Binding NewRepositoryCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Path Classes="icon" Data="{StaticResource IconRepositoryNew}" VerticalAlignment="Center" />
+              <TextBlock Text="New repository…" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Border>
+    </Popup>
+    <ContentControl x:Name="Creation" Content="{Binding Field.Creation}" IsVisible="{Binding Field.Creation.IsOpen}" />
+    <DockPanel x:Name="Problem"
+               Classes="fade-in"
+               IsVisible="{Binding Field.Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <Button x:Name="MakeRepository"
+              DockPanel.Dock="Right"
+              Classes="fix"
+              Margin="10,0,0,0"
+              Content="{Binding Field.Offer}"
+              Command="{Binding Field.MakeRepositoryCommand}"
+              IsVisible="{Binding Field.Offer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock x:Name="ProblemText" Classes="caption attention" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Field.Problem}" />
+    </DockPanel>
+    <TextBlock x:Name="Notice"
+               Classes="caption fade-in"
+               TextWrapping="Wrap"
+               Text="{Binding Field.Notice}"
+               IsVisible="{Binding Field.Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

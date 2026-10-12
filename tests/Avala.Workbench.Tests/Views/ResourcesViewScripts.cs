@@ -183,7 +183,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
             connections.Offers["claude-work"] = Avala.Agents.Contracts.Capabilities.CapabilitySet.Of(
                 new Avala.Agents.Contracts.Capabilities.OffersModels(["opus", "sonnet"], ["low", "high"]) { DefaultModel = "sonnet" });
             var jobs = new SubmittingJobs();
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(jobs, connections, new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options())) { Repository = "~/code/shop-api", Instruction = "Add an endpoint" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(jobs, connections, new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options())) { Repository = "~/code/shop-api", Instruction = "Add an endpoint" };
             await page.LoadAsync(TestContext.Current.CancellationToken);
             await page.Offering;
             var view = Screen.Show(page);
@@ -208,7 +208,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
             var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
             connections.Offers["claude-work"] = Avala.Agents.Contracts.Capabilities.CapabilitySet.Of(
                 new Avala.Agents.Contracts.Capabilities.OffersModels(["opus", "sonnet"], ["low", "high"]) { DefaultModel = "sonnet" });
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), connections, new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), connections, new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
             await page.LoadAsync(TestContext.Current.CancellationToken);
             var first = Screen.Show(page);
             first.Find<ComboBox>("Connection").SelectedValue = "claude-work";
@@ -243,7 +243,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             using var bench = new Bench();
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
             await page.LoadAsync(TestContext.Current.CancellationToken);
             var view = Screen.Show(page);
             Avalonia.Rect Bounds(string name) => view.Find(name).Bounds.Translate((Avalonia.Vector)(Avalonia.VisualExtensions.TranslatePoint(view.Find(name), default, view.Window) ?? default) - (Avalonia.Vector)view.Find(name).Bounds.Position);
@@ -259,7 +259,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             using var bench = new Bench();
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
             await page.LoadAsync(TestContext.Current.CancellationToken);
             var view = Screen.Show(page);
             var shown = (view.Find<ComboBox>("Autonomy").SelectedItem, view.Find<ComboBox>("Autonomy").ItemCount);
@@ -277,7 +277,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var preview = new FakePreview { Answer = FakePreview.ByCapacity("claude-personal", ChoiceReason.MostCapacity, ("claude-work", 0.88, true), ("claude-personal", 0.31, true)) };
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview, new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview, new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
             await page.LoadAsync(TestContext.Current.CancellationToken);
             var view = Screen.Show(page);
 
@@ -290,7 +290,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var preview = new FakePreview { Answer = FakePreview.ByCapacity("claude-personal", ChoiceReason.MostCapacity, ("claude-work", 0.95, false), ("claude-personal", 0.31, true)) };
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview, new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview, new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
             await page.LoadAsync(TestContext.Current.CancellationToken);
             var view = Screen.Show(page);
 
@@ -307,7 +307,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var preview = new FakePreview { Answer = FakePreview.ByCapacity("claude-personal", ChoiceReason.MostCapacity, ("claude-work", 0.99, false), ("claude-personal", 0.31, true)) };
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview, new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work", "claude-personal").Automatic(), preview, new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
             await page.LoadAsync(TestContext.Current.CancellationToken);
             var view = Screen.Show(page);
             var picker = view.Find<ComboBox>("Connection");
@@ -324,7 +324,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
             var view = Screen.Show(page);
 
             var empty = view.Find<Button>("Submit").IsEffectivelyEnabled;
@@ -334,7 +334,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task WithoutARepositoryOnlyStartWithoutARepositoryIsOfferedAndClickingItStartsTheJobInAScratchRepositoryAsync() =>
+    public Task WithoutARepositoryStartRunsTheJobInAScratchRepositoryAsync() =>
         ui.RunAsync(async () =>
         {
             using var bench = new Bench();
@@ -342,15 +342,15 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
             var page = Scratched(bench, jobs);
             var view = Screen.Show(page);
             view.Type("Instruction", "Sketch a CSV parser");
-            var offered = (view.Find<Button>("Submit").IsEffectivelyEnabled, view.Find<Button>("StartWithoutRepository").IsEffectivelyEnabled);
+            var offered = (view.Find<Button>("Submit").IsEffectivelyEnabled, view.TextOf("RepositoryTitle"));
 
-            view.Find("StartWithoutRepository").BringIntoView();
+            view.Find("Submit").BringIntoView();
             view.Settle();
-            view.Click("StartWithoutRepository");
-            await (page.StartWithoutRepositoryCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Click("Submit");
+            await (page.SubmitCommand.ExecutionTask ?? Task.CompletedTask);
             view.Settle();
 
-            Assert.Equal((false, true), offered);
+            Assert.Equal((true, "No repository"), offered);
             Assert.Equal("/data/scratch/2026-10-12-scratch-1", Assert.Single(jobs.Requests).RepositoryPath);
             Assert.Equal("Submitted in a scratch repository: Sketch a CSV parser", view.TextOf("Submitted"));
         }, TestContext.Current.CancellationToken);
@@ -377,7 +377,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         {
             using var bench = new Bench();
             var jobs = new SubmittingJobs { Refusal = JobRejection.UnknownConnection };
-            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(jobs, new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
+            var page = new Avala.Workbench.NewJob.NewJobViewModel(Launching.Launch(jobs, new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options())) { Repository = "~/code/shop-api" };
             var view = Screen.Show(page);
 
             view.Type("Instruction", "Add invoice PDF endpoint");
@@ -390,5 +390,5 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     private static Avala.Workbench.NewJob.NewJobViewModel Scratched(Bench bench, SubmittingJobs jobs) =>
-        new(Launching.Launch(jobs, new FakeConnections("claude-work"), new FakePreview(), new FakePolicies(), scratch: bench.Scratch), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options()));
+        new(Launching.Launch(jobs, new FakeConnections("claude-work"), new FakePreview(), new FakePolicies(), scratch: bench.Scratch), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Picker(bench.Board), Launching.Options()));
 }

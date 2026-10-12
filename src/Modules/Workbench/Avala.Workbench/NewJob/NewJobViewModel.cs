@@ -22,6 +22,8 @@ internal interface INewJobViewModel
 
     IRepositoryFieldViewModel RepositoryField { get; }
 
+    IRepositoryPickerViewModel RepositoryPicker { get; }
+
     IReadOnlyList<string> Connections { get; }
 
     IReadOnlyList<IConnectionOptionViewModel> Options { get; }
@@ -59,7 +61,7 @@ internal sealed partial class NewJobViewModel
     private readonly NewJobReadings readings;
     private readonly IMessenger messenger;
     private readonly JobOptionsViewModel choices;
-    private readonly RepositoryFieldViewModel chooser;
+    private readonly RepositoryPickerViewModel picker;
     private readonly ObservableCollection<string> connections = [NewJobPhrases.Auto];
     private readonly ObservableCollection<ConnectionOptionViewModel> options = [new(NewJobPhrases.Auto)];
     private readonly ObservableCollection<string> autonomies = [NewJobPhrases.RepositoryLevel(Option<RepositoryPolicy>.None)];
@@ -75,8 +77,15 @@ internal sealed partial class NewJobViewModel
         this.readings = readings;
         this.messenger = messenger;
         choices = fields.Options;
-        chooser = fields.Repository;
-        chooser.PropertyChanged += (_, changed) =>
+        picker = fields.Repository;
+        picker.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(RepositoryPickerViewModel.IsScratch))
+            {
+                SubmitCommand.NotifyCanExecuteChanged();
+            }
+        };
+        Chooser.PropertyChanged += (_, changed) =>
         {
             if (changed.PropertyName == nameof(RepositoryFieldViewModel.Repository))
             {
@@ -90,14 +99,18 @@ internal sealed partial class NewJobViewModel
 
     public PagePlacement Placement => PagePlacement.Hidden;
 
-    public IRepositoryFieldViewModel RepositoryField => chooser;
+    public IRepositoryFieldViewModel RepositoryField => Chooser;
 
-    public RepositoryFieldViewModel Chooser => chooser;
+    public IRepositoryPickerViewModel RepositoryPicker => picker;
+
+    public RepositoryPickerViewModel Repositories => picker;
+
+    public RepositoryFieldViewModel Chooser => picker.Chooser;
 
     public string Repository
     {
-        get => chooser.Repository;
-        set => chooser.Repository = value;
+        get => Chooser.Repository;
+        set => Chooser.Repository = value;
     }
 
     public IReadOnlyList<string> Connections => connections;
@@ -166,13 +179,8 @@ internal sealed partial class NewJobViewModel
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
-        chooser.ShowKnown();
+        picker.ShowKnown();
         ShowConnections(await launch.CatalogAsync(cancellationToken));
-
-        if (string.IsNullOrWhiteSpace(Repository) && chooser.Repositories.Count > 0)
-        {
-            Repository = chooser.Repositories[0];
-        }
 
         Previewing = PreviewAsync(cancellationToken);
         await Previewing;
@@ -187,7 +195,8 @@ internal sealed partial class NewJobViewModel
     partial void OnAutonomyChanged(string value) => AutonomyNote = NewJobPhrases.AutonomyNote(policy, Supervised);
 
     [RelayCommand(CanExecute = nameof(CanSubmit))]
-    private Task SubmitAsync(CancellationToken cancellationToken) => StartAsync(Repository, string.Empty, cancellationToken);
+    private Task SubmitAsync(CancellationToken cancellationToken) =>
+        picker.IsScratch ? StartWithoutRepositoryAsync(cancellationToken) : StartAsync(Repository, string.Empty, cancellationToken);
 
     [RelayCommand(CanExecute = nameof(CanStartWithoutRepository))]
     private async Task StartWithoutRepositoryAsync(CancellationToken cancellationToken)
@@ -241,7 +250,7 @@ internal sealed partial class NewJobViewModel
         Instruction = string.Empty;
     }
 
-    private bool CanSubmit() => !string.IsNullOrWhiteSpace(Repository) && !string.IsNullOrWhiteSpace(Instruction);
+    private bool CanSubmit() => (picker.IsScratch || !string.IsNullOrWhiteSpace(Repository)) && !string.IsNullOrWhiteSpace(Instruction);
 
     private bool CanStartWithoutRepository() => !string.IsNullOrWhiteSpace(Instruction);
 

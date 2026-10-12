@@ -27,6 +27,8 @@ internal sealed partial class DesignNewJobViewModel : INewJobViewModel
         Creation = new DesignNewRepositoryViewModel { IsOpen = false },
     };
 
+    public IRepositoryPickerViewModel RepositoryPicker { get; } = new DesignRepositoryPickerViewModel();
+
     public IReadOnlyList<string> Connections { get; } = [NewJobPhrases.Auto, "claude-work", "claude-personal"];
 
     public IReadOnlyList<IConnectionOptionViewModel> Options { get; } =

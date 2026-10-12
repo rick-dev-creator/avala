@@ -38,21 +38,8 @@
                 Content="Choose folder…"
                 ToolTip.Tip="Pick the repository's folder"
                 Command="{Binding ChooseCommand}" />
-        <Button x:Name="CloneRepository"
-                Content="Clone…"
-                ToolTip.Tip="Clone a repository from its address into a new folder"
-                Command="{Binding Cloning.StartCommand}"
-                IsEnabled="{Binding !Cloning.IsOpen}" />
       </StackPanel>
     </Grid>
-    <Button x:Name="NewRepository"
-            Classes="link"
-            HorizontalAlignment="Left"
-            Content="New repository…"
-            ToolTip.Tip="Create a folder with an empty git repository in it"
-            Command="{Binding Creation.StartCommand}"
-            IsVisible="{Binding !Creation.IsOpen}" />
-    <ContentControl x:Name="Creation" Content="{Binding Creation}" IsVisible="{Binding Creation.IsOpen}" />
     <StackPanel x:Name="Problem"
                 Classes="fade-in"
                 Spacing="6"

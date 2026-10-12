@@ -6,6 +6,8 @@ internal static class RepositoryPhrases
 {
     public const string ChooseTitle = "Choose the repository";
 
+    public const string Scratch = "No repository";
+
     public const string ParentTitle = "Choose where the new repository goes";
 
     public const string MakeRepository = "Make it a repository";
@@ -50,6 +52,6 @@ internal static class RepositoryPhrases
 
     public static string Cloned(RepositoryCloned cloned) => $"Cloned {cloned.Url} into {cloned.Path}.";
 
-    private static string Leaf(string repository) =>
+    public static string Leaf(string repository) =>
         Path.GetFileName(repository.TrimEnd('/', '\\')) is { Length: > 0 } leaf ? leaf : repository;
 }

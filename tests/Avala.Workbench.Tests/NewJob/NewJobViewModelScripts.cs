@@ -267,14 +267,12 @@ public sealed class NewJobViewModelScripts
         Assert.Equal(("Add an endpoint", "No connection has that name.", false), (page.Instruction, page.Error, page.LastSubmitted.IsSome));
     }
 
-    [Theory]
-    [InlineData("", "Add an endpoint")]
-    [InlineData("/repositories/shop", " ")]
-    public void AJobNeedsARepositoryAndAnInstruction(string repository, string instruction)
+    [Fact]
+    public void AJobNeedsAnInstruction()
     {
         var page = Page();
-        page.Repository = repository;
-        page.Instruction = instruction;
+        page.Repository = "/repositories/shop";
+        page.Instruction = " ";
 
         Assert.False(page.SubmitCommand.CanExecute(null));
     }
@@ -515,7 +513,7 @@ public sealed class NewJobViewModelScripts
     }
 
     [Fact]
-    public async Task OnlyAnInstructionIsNeededToStartWithoutARepositoryAsync()
+    public async Task WithoutAnyJobYetStartRunsInAScratchRepositoryOnceThereIsAnInstructionAsync()
     {
         var page = Page();
         await page.LoadAsync(Cancellation);
@@ -523,7 +521,7 @@ public sealed class NewJobViewModelScripts
 
         page.Instruction = "Sketch a parser";
 
-        Assert.Equal((false, true, false), (blank, page.StartWithoutRepositoryCommand.CanExecute(null), page.SubmitCommand.CanExecute(null)));
+        Assert.Equal((false, true, true, true), (blank, page.StartWithoutRepositoryCommand.CanExecute(null), page.SubmitCommand.CanExecute(null), page.RepositoryPicker.IsScratch));
     }
 
     [Fact]
@@ -560,5 +558,5 @@ public sealed class NewJobViewModelScripts
     private NewJobViewModel Page(params JobSummary[] known) => Page(connections, known);
 
     private NewJobViewModel Page(FakeConnections machine, params JobSummary[] known) =>
-        new(Launching.Launch(jobs, machine, preview, policies, contests, scratch), new NewJobReadings(Pages.Readings(usage)), messenger, new NewJobFields(Choosing.Field(Pages.Board(known)), Launching.Options(contests)));
+        new(Launching.Launch(jobs, machine, preview, policies, contests, scratch), new NewJobReadings(Pages.Readings(usage)), messenger, new NewJobFields(Choosing.Picker(Pages.Board(known)), Launching.Options(contests)));
 }

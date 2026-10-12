@@ -247,6 +247,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddTransient<CloneSheetViewModel>()
             .AddTransient<RepositoryStarts>()
             .AddTransient<RepositoryFieldViewModel>()
+            .AddTransient<RepositoryPickerViewModel>()
             .AddTransient<NewJobFields>();
     }
 
@@ -391,6 +392,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IResourceIndicatorViewModel, ResourceIndicatorView>();
         views.Register<INewJobViewModel, NewJobView>();
         views.Register<IRepositoryFieldViewModel, RepositoryFieldView>();
+        views.Register<IRepositoryPickerViewModel, RepositoryPickerView>();
+        views.Register<IRepositoryChoiceViewModel, RepositoryChoiceView>();
         views.Register<INewRepositoryViewModel, NewRepositoryView>();
         views.Register<ICloneSheetViewModel, CloneSheetView>();
         views.Register<ICloneSourceViewModel, CloneSourceView>();

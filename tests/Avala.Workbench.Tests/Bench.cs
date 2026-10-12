@@ -90,7 +90,7 @@ internal sealed class Bench : IDisposable
 
     public SidebarViewModel Sidebar() => new(Feed(), Focus, ScratchFolders);
 
-    public NewJobViewModel NewJob { get; } = new(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new NewJobReadings(Pages.Readings(new FakeUsage())), new StrongReferenceMessenger(), new NewJobFields(Choosing.Field(), Launching.Options()));
+    public NewJobViewModel NewJob { get; } = new(Launching.Launch(new SubmittingJobs(), new FakeConnections("claude-work"), new FakePreview(), new FakePolicies()), new NewJobReadings(Pages.Readings(new FakeUsage())), new StrongReferenceMessenger(), new NewJobFields(Choosing.Picker(), Launching.Options()));
 
     public ToolbarViewModel Toolbar() => new(Decisions(), Feed(), Focus, NewJob);
 

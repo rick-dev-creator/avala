@@ -63,25 +63,6 @@ public sealed class RepositoryFieldViewScripts(HeadlessUi ui)
             Assert.Equal((false, true, Notes), (view.Shows("Problem"), view.Shows("Notice"), Assert.Single(repositories.Initialized)));
         }, TestContext.Current.CancellationToken);
 
-    [Fact]
-    public Task NewRepositoryAsksForAParentThenANameAndFillsTheFieldAsync() =>
-        ui.RunAsync(async () =>
-        {
-            var field = Choosing.Field(new Avala.Workbench.Board.JobBoard(), new FakeFolderPicker { Answer = "/home/ada/code" }, new FakeRepositories());
-            var view = Screen.Show(field).Settle();
-
-            view.Click("NewRepository");
-            await (field.Creation.StartCommand.ExecutionTask ?? Task.CompletedTask);
-            view.Settle();
-            var asked = (view.Shows("NewRepositoryName"), view.TextOf("ParentFolder"));
-            view.Type("NewRepositoryName", "invoices").Click("Create");
-            await (field.Creation.CreateCommand.ExecutionTask ?? Task.CompletedTask);
-            view.Settle();
-
-            Assert.Equal((true, "In /home/ada/code"), asked);
-            Assert.Equal(("/home/ada/code/invoices", false), (view.Find<ComboBox>("RepositoryPath").Text, view.Shows("NewRepositoryName")));
-        }, TestContext.Current.CancellationToken);
-
     private static JobSummary Job(string repository, int hours) =>
         Pages.Summary("Fix the failing test", JobStatus.Running) with { Repository = repository, Submitted = DateTimeOffset.UnixEpoch.AddHours(hours) };
 }

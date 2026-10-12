@@ -89,3 +89,49 @@ internal sealed partial class DesignCloneSheetViewModel : ICloneSheetViewModel
 
     public IRelayCommand CancelCommand { get; } = new RelayCommand(() => { });
 }
+
+internal sealed class DesignRepositoryChoiceViewModel(string title, string detail, bool selected) : IRepositoryChoiceViewModel
+{
+    public DesignRepositoryChoiceViewModel()
+        : this("shop-api", "/home/ada/code", true)
+    {
+    }
+
+    public string Title { get; } = title;
+
+    public string Detail { get; } = detail;
+
+    public bool IsSelected { get; } = selected;
+
+    public IRelayCommand ChooseCommand { get; } = new RelayCommand(() => { });
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DesignRepositoryPickerViewModel : IRepositoryPickerViewModel
+{
+    public IRepositoryFieldViewModel Field { get; init; } = new DesignRepositoryFieldViewModel { Problem = string.Empty, Offer = string.Empty, Creation = new DesignNewRepositoryViewModel { IsOpen = false } };
+
+    public IReadOnlyList<IRepositoryChoiceViewModel> Recent { get; init; } =
+    [
+        new DesignRepositoryChoiceViewModel(),
+        new DesignRepositoryChoiceViewModel("shop-web", "/home/ada/code", false),
+        new DesignRepositoryChoiceViewModel("ledger", "/home/ada/Projects", false),
+    ];
+
+    public bool IsScratch { get; init; }
+
+    public string Title { get; init; } = "shop-api";
+
+    public string Detail { get; init; } = "/home/ada/code";
+
+    [ObservableProperty]
+    public partial bool IsOpen { get; set; }
+
+    public IRelayCommand ChooseScratchCommand { get; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand OpenFolderCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand CloneCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand NewRepositoryCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}

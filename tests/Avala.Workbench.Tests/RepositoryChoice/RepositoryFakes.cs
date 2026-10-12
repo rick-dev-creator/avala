@@ -125,6 +125,13 @@ internal static class Choosing
 
     public static DateTimeOffset Now { get; } = new(2026, 10, 12, 12, 0, 0, TimeSpan.Zero);
 
+    public static RepositoryPickerViewModel Picker() => Picker(new JobBoard());
+
+    public static RepositoryPickerViewModel Picker(JobBoard board) => Picker(board, new FakeFolderPicker(), new FakeRepositories());
+
+    public static RepositoryPickerViewModel Picker(JobBoard board, FakeFolderPicker picker, FakeRepositories repositories) =>
+        new(Field(board, picker, repositories), new RecentRepositories(board, Scratching.Folders()), new ProjectsPlace(new FakeProjects(), picker));
+
     public static NewRepositoryViewModel Creation(FakeFolderPicker picker, FakeRepositories repositories, FakePublishing publishing) =>
         new(picker, repositories, new PublishOptionsViewModel(publishing));
 }
