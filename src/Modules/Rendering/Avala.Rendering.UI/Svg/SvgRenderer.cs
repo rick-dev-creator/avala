@@ -1,5 +1,6 @@
 using Avala.Components.UI;
 using Avala.Components.UI.Canvases;
+using Avala.Rendering.Caching;
 using Avala.Rendering.Offer;
 using Avala.Rendering.Sanitizing;
 using Avala.Sdk;
@@ -10,53 +11,21 @@ using Avalonia.VisualTree;
 
 namespace Avala.Rendering.UI.Svg;
 
-internal sealed class SvgRenderer(long budget) : ICanvasRenderer
+internal sealed class SvgRenderer : ICanvasRenderer
 {
-    public const long Budget = 64L * 1024 * 1024;
+    private const long Budget = 64L * 1024 * 1024;
 
-    private readonly Dictionary<string, LinkedListNode<(string Content, SvgModel Model)>> models = [];
-    private readonly LinkedList<(string Content, SvgModel Model)> recent = [];
-
-    public SvgRenderer()
-        : this(Budget)
-    {
-    }
+    private readonly RecentlyUsed<SvgModel> models = new(Budget, model => model.Bytes, model => model.Evict());
 
     public string MediaType => RenderedFormats.Svg.MediaType;
-
-    public IReadOnlyList<SvgModel> Kept => [.. recent.Select(entry => entry.Model)];
 
     public Option<Control> Render(string content) =>
         Load(content).Map(Show);
 
-    private Option<SvgModel> Load(string content)
-    {
-        if (models.TryGetValue(content, out var known))
-        {
-            recent.Remove(known);
-            recent.AddFirst(known);
-
-            return known.Value.Model;
-        }
-
-        return SvgSanitizer.Sanitize(content).Map(sanitized => Keep(content, new SvgModel(sanitized)));
-    }
-
-    private SvgModel Keep(string content, SvgModel model)
-    {
-        models[content] = recent.AddFirst((content, model));
-        var bytes = recent.Sum(entry => entry.Model.Bytes);
-
-        while (bytes > budget && recent.Last is { } oldest && oldest != recent.First)
-        {
-            bytes -= oldest.Value.Model.Bytes;
-            recent.RemoveLast();
-            models.Remove(oldest.Value.Content);
-            oldest.Value.Model.Evict();
-        }
-
-        return model;
-    }
+    private Option<SvgModel> Load(string content) =>
+        models.Find(content).Match(
+            known => known,
+            () => SvgSanitizer.Sanitize(content).Map(sanitized => models.Keep(content, new SvgModel(sanitized))));
 
     private static Control Show(SvgModel model)
     {

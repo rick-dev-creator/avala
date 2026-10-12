@@ -4,9 +4,6 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Avala.Rendering.Tests" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="MarkView.Avalonia" />
     <PackageReference Include="Svg.Controls.Skia.Avalonia" ExcludeAssets="native" />

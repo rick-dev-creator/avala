@@ -35,6 +35,7 @@ internal static class LayerMap
             ["UI.Svg"] = Layer.None,
             ["UI.Source"] = Layer.None,
             ["Animation"] = Layer.Application,
+            ["Caching"] = Layer.Application,
             ["Highlighting"] = Layer.Domain,
             ["Offer"] = Layer.Application,
             ["Sanitizing"] = Layer.Application,
