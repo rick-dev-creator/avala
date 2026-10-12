@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.Privacy"
+             x:Class="Avala.Components.UI.PersonalDetailsView"
+             x:ClassModifier="internal"
+             x:DataType="privacy:IPersonalDetailsViewModel">
+  <Design.DataContext>
+    <privacy:DesignPersonalDetailsViewModel />
+  </Design.DataContext>
+  <Button x:Name="TogglePersonalDetails"
+          Classes="glyph"
+          ToolTip.Tip="{Binding Action}"
+          AutomationProperties.Name="{Binding Action}"
+          Command="{Binding ToggleCommand}">
+    <Panel>
+      <Path x:Name="Hidden" Classes="icon" Data="{StaticResource IconEyeSlash}" Stroke="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding IsHidden}" />
+      <Path x:Name="Shown" Classes="icon" Data="{StaticResource IconEye}" Stroke="{DynamicResource AccentBrush}" IsVisible="{Binding !IsHidden}" />
+    </Panel>
+  </Button>
+</UserControl>

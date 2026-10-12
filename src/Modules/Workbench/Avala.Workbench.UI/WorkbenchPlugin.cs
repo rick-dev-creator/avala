@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
+using Avala.Components.Privacy;
 using Avala.Components.UI.Copying;
 using Avala.Components.UI.Folders;
 using Avala.Workbench.Timeline;
@@ -110,6 +111,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<Links>()
             .AddSingleton<SendKeys>()
             .AddForwarded<IHandle<AppearanceChanged>, SendKeys>()
+            .AddSingleton<PersonalDetailsViewModel>()
+            .AddForwarded<IPersonalDetailsViewModel, PersonalDetailsViewModel>()
+            .AddForwarded<IHandle<AppearanceChanged>, PersonalDetailsViewModel>()
             .AddSingleton<TimelineItems>()
             .AddSingleton<WorkedFiles>()
             .AddSingleton<Conversations>()

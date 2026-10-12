@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
 using Avala.Testing;
@@ -9,10 +10,12 @@ public sealed class AppearanceViewModelScripts
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
+    private static AppearanceViewModel Settings(FakeAppearance store) => new(store, new PersonalDetailsViewModel(store, InlineUiDispatcher.Instance));
+
     [Fact]
     public async Task WithoutAFileThemeAndMotionFollowTheSystem()
     {
-        var appearance = new AppearanceViewModel(new FakeAppearance());
+        var appearance = Settings(new FakeAppearance());
 
         await appearance.LoadAsync(Cancellation);
 
@@ -23,7 +26,7 @@ public sealed class AppearanceViewModelScripts
     public async Task ChoosingAThemeKeepsItAndShowsItChosen()
     {
         var store = new FakeAppearance();
-        var appearance = new AppearanceViewModel(store);
+        var appearance = Settings(store);
         await appearance.LoadAsync(Cancellation);
 
         ViewModelScript.Given(appearance)
@@ -38,7 +41,7 @@ public sealed class AppearanceViewModelScripts
     public async Task ChoosingReducedMotionOnOffOrSystemKeepsTheTheme()
     {
         var store = new FakeAppearance(new AppearancePreference(ThemeChoice.Dark, MotionChoice.System));
-        var appearance = new AppearanceViewModel(store);
+        var appearance = Settings(store);
         await appearance.LoadAsync(Cancellation);
 
         await appearance.ChooseMotionCommand.ExecuteAsync(MotionChoice.Reduced);
@@ -57,7 +60,7 @@ public sealed class AppearanceViewModelScripts
     public async Task TogglingTheSendKeyKeepsTheThemeAndMotionAndTurnsItBack()
     {
         var store = new FakeAppearance(new AppearancePreference(ThemeChoice.Dark, MotionChoice.Reduced));
-        var appearance = new AppearanceViewModel(store);
+        var appearance = Settings(store);
         await appearance.LoadAsync(Cancellation);
 
         await appearance.ToggleSendKeyCommand.ExecuteAsync(null);
@@ -74,7 +77,7 @@ public sealed class AppearanceViewModelScripts
     [Fact]
     public async Task AChangeThatCannotBeWrittenSaysSoAndKeepsTheShownAppearance()
     {
-        var appearance = new AppearanceViewModel(new FakeAppearance { Refusal = AppearanceError.Unwritable });
+        var appearance = Settings(new FakeAppearance { Refusal = AppearanceError.Unwritable });
         await appearance.LoadAsync(Cancellation);
 
         await appearance.ChooseThemeCommand.ExecuteAsync(ThemeChoice.Dark);
@@ -85,10 +88,23 @@ public sealed class AppearanceViewModelScripts
     [Fact]
     public async Task ARejectedFileSaysWhyAndShowsTheDefaults()
     {
-        var appearance = new AppearanceViewModel(new FakeAppearance { File = AppearanceFileStatus.Rejected, Fault = AppearanceError.Invalid });
+        var appearance = Settings(new FakeAppearance { File = AppearanceFileStatus.Rejected, Fault = AppearanceError.Invalid });
 
         await appearance.LoadAsync(Cancellation);
 
         Assert.Equal(("Rejected: Invalid", true), (appearance.File, appearance.FollowsSystem));
+    }
+
+    [Fact]
+    public async Task ChoosingAThemeAfterRevealingPersonalDetailsKeepsThemRevealed()
+    {
+        var store = new FakeAppearance();
+        var appearance = Settings(store);
+        await appearance.LoadAsync(Cancellation);
+
+        await appearance.PersonalDetails.ToggleCommand.ExecuteAsync(null);
+        await appearance.ChooseThemeCommand.ExecuteAsync(ThemeChoice.Dark);
+
+        Assert.Equal(AppearancePreference.Default with { Theme = ThemeChoice.Dark, HidesPersonalDetails = false }, store.Changes[^1]);
     }
 }

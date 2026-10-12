@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Workbench.Accounts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk.Appearance;
@@ -391,6 +392,8 @@ internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
     public bool SendsWithCommandEnter => false;
 
     public string Error { get; init; } = string.Empty;
+
+    public IPersonalDetailsViewModel PersonalDetails { get; } = new DesignPersonalDetailsViewModel();
 
     public IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; } = new AsyncRelayCommand<ThemeChoice>(_ => Task.CompletedTask);
 
