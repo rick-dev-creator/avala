@@ -3,7 +3,9 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing.UI;
 using Avala.Workbench.Resources;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Styling;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Tests.Views;
@@ -149,6 +151,23 @@ public sealed class StaleWorktreeViewScripts(HeadlessUi ui)
 
 public sealed class ResourceIndicatorViewScripts(HeadlessUi ui)
 {
+    [Fact]
+    public Task InANarrowSidebarTheIndicatorStacksTheCpuUnderTheMemoryAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignResourceIndicatorViewModel(), ThemeVariant.Dark, 240, 160);
+            var sideBySide = (Top(view, "Cpu") < Bottom(view, "Memory"), view.Find("Readings").Bounds.Height < 2 * view.Find("Cpu").Bounds.Height);
+            view.Window.Width = 180;
+            view.Settle();
+
+            Assert.Equal((true, true), sideBySide);
+            Assert.True(Top(view, "Cpu") >= Bottom(view, "Memory"));
+        }, TestContext.Current.CancellationToken);
+
+    private static double Top(ViewScript view, string name) => view.Find(name).TranslatePoint(default, view.Window)!.Value.Y;
+
+    private static double Bottom(ViewScript view, string name) => Top(view, name) + view.Find(name).Bounds.Height;
+
     [Fact]
     public Task TheIndicatorShowsMemoryCpuAndWhatIsLeftOverInAmberAsync() =>
         ui.RunAsync(() =>

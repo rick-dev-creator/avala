@@ -6,6 +6,7 @@ using Avala.Workbench.Sidebar;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Messaging;
 
@@ -80,7 +81,7 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task InFocusModeTheOpenInspectorsToggleNoLongerLooksSelectedAsync() =>
+    public Task InFocusModeTheJobHeaderIsHiddenAndOnlyTheConversationRemainsAsync() =>
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
@@ -89,19 +90,15 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             page.Activate();
             bench.Messenger.Send(new JobSelected(job.Job));
             var view = Screen.Show(page);
-            view.Press(Key.I, RawInputModifiers.Control);
-            var open = Look(view);
+            var shown = (view.Shows("Header"), view.Shows("Conversation"));
 
             Components.UI.Theme.Chrome.SetIsFocusMode(view.Window, true);
             view.Settle();
 
-            Assert.NotEqual(Avalonia.Media.Brushes.Transparent, open);
-            Assert.Equal(Avalonia.Media.Brushes.Transparent, Look(view));
+            Assert.Equal((true, true), shown);
+            Assert.Equal((false, false, true), (view.Shows("Header"), view.Shows("ToggleInspector"), view.Shows("Conversation")));
             page.Deactivate();
         }, Cancellation);
-
-    private static Avalonia.Media.IBrush? Look(ViewScript view) =>
-        view.Find("ToggleInspector").GetVisualDescendants().OfType<Avalonia.Controls.Presenters.ContentPresenter>().First().Background;
 
     [Fact]
     public Task AnOpenReviewDimsThePageUnderItsSheetAndTheSheetsCloseButtonReturnsToTheConversationAsync() =>
@@ -283,6 +280,22 @@ public sealed class ToolbarViewScripts(HeadlessUi ui)
 public sealed class JobRowViewScripts(HeadlessUi ui)
 {
     [Fact]
+    public Task ANarrowerRowShortensItsFactAndTheNarrowestDropsItToKeepTheTitleAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignJobRowViewModel(), ThemeVariant.Dark, 300, 40);
+            var wide = (view.Shows("Fact"), view.Find("Fact").Bounds.Width <= 104);
+            view.Window.Width = 220;
+            view.Settle();
+            var narrow = (view.Shows("Fact"), view.Find("FactSlot").MaxWidth);
+            view.Window.Width = 160;
+            view.Settle();
+
+            Assert.Equal(((true, true), (true, 90d)), (wide, narrow));
+            Assert.Equal((false, true), (view.Shows("Fact"), view.Shows("Title")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ARowIsOneLineWithItsDotTitleAndFactAsync() =>
         ui.RunAsync(() =>
         {
@@ -290,7 +303,7 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
 
             Assert.Equal(("Add invoice PDF endpoint", "asks a question"), (view.TextOf("Title"), view.TextOf("Fact")));
             Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "StatusDotView");
-            Assert.Equal(view.Find("Title").Bounds.Center.Y, view.Find("Fact").Bounds.Center.Y, 1);
+            Assert.Equal(view.Find("Title").Bounds.Center.Y, view.Find("FactSlot").Bounds.Center.Y, 1);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -298,7 +311,7 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var scratch = Screen.Show(new DesignJobRowViewModel(Presenting.SampleJobs.SyncQueue, "Sketch a CSV parser", JobStatus.AwaitingReview, "no checks", Components.Status.StatusKind.ReadyForReview, 0) { IsScratch = true });
-            var tagged = (scratch.Shows("Scratch"), scratch.Find("Scratch").Bounds.Right <= scratch.Find("Fact").Bounds.Left);
+            var tagged = (scratch.Shows("Scratch"), scratch.Find("Scratch").Bounds.Right <= scratch.Find("FactSlot").Bounds.Left);
             var ordinary = Screen.Show(new DesignJobRowViewModel());
 
             Assert.Equal((true, true), tagged);

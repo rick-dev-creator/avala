@@ -40,11 +40,21 @@
     <Style Selector=":is(UserControl).ended.selected TextBlock#Title">
       <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
-    <Style Selector=":is(UserControl).ended TextBlock#Fact">
+    <Style Selector=":is(UserControl).ended Border#FactSlot">
       <Setter Property="IsVisible" Value="False" />
     </Style>
+    <ContainerQuery Name="JobRow" Query="max-width:240">
+      <Style Selector="Border#FactSlot">
+        <Setter Property="MaxWidth" Value="90" />
+      </Style>
+    </ContainerQuery>
+    <ContainerQuery Name="JobRow" Query="max-width:180">
+      <Style Selector="Border#FactSlot">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+    </ContainerQuery>
   </UserControl.Styles>
-  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Container.Name="JobRow" Container.Sizing="Width">
     <ContentControl x:Name="Dot"
                     ClipToBounds="False"
                     Content="{Binding Dot}"
@@ -62,14 +72,14 @@
             IsVisible="{Binding IsScratch}">
       <TextBlock Text="Scratch" />
     </Border>
-    <TextBlock x:Name="Fact"
-               Grid.Column="3"
-               Classes="caption"
-               Margin="10,0,0,0"
-               MaxWidth="150"
-               Text="{Binding Fact}"
-               TextTrimming="CharacterEllipsis"
-               VerticalAlignment="Center" />
+    <Border x:Name="FactSlot" Grid.Column="3" Margin="10,0,0,0" VerticalAlignment="Center">
+      <TextBlock x:Name="Fact"
+                 Classes="caption"
+                 MaxWidth="104"
+                 Text="{Binding Fact}"
+                 TextTrimming="CharacterEllipsis"
+                 VerticalAlignment="Center" />
+    </Border>
     <elapsed:ElapsedText x:Name="Elapsed"
                          Grid.Column="4"
                          Classes="caption"
