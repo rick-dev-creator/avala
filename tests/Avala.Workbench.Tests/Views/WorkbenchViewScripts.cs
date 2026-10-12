@@ -1,3 +1,4 @@
+using Avala.Components.UI.Copying;
 using Avala.Jobs.Contracts;
 using Avala.Testing.UI;
 using Avala.Workbench.Contracts.Presentation;
@@ -97,7 +98,7 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
             bench.Messenger.Send(new JobSelected(job.Job));
             var view = Screen.Show(page);
 
-            view.Press(Key.I, RawInputModifiers.Control);
+            view.Press(new KeyGesture(Key.I, Hotkeys.Command));
 
             Assert.True(page.IsInspectorOpen);
             Assert.True(view.HasClass("ToggleInspector", "selected"));

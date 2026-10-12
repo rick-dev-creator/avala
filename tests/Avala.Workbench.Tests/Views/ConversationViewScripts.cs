@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
+using Avala.Components.UI.Copying;
 using Avala.Components.UI.Markdown;
 using Avala.Components.UI.Theme;
 using Avala.Delegation.Contracts;
@@ -249,7 +250,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             var view = Screen.Show(composer);
 
             view.Type("Draft", "Keep the old namespace as an alias");
-            view.Press(Key.Enter, RawInputModifiers.Control);
+            view.Press(Hotkeys.CommandEnter);
             await (composer.SendCommand.ExecutionTask ?? Task.CompletedTask);
             view.Settle();
 
@@ -330,7 +331,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             view.Type("Draft", "Carry on");
             view.Press(Key.Enter);
             var kept = (jobs.Calls.Count, view.Find<TextBox>("Draft").Text);
-            view.Press(Key.Enter, RawInputModifiers.Control);
+            view.Press(Hotkeys.CommandEnter);
             await (composer.SendCommand.ExecutionTask ?? Task.CompletedTask);
 
             Assert.Equal((0, "Carry on\n"), (kept.Count, kept.Text?.ReplaceLineEndings("\n")));
@@ -373,7 +374,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             var view = Screen.Show(composer);
 
             view.Type("Draft", "Carry on with the queue");
-            view.Press(Key.Enter, RawInputModifiers.Control);
+            view.Press(Hotkeys.CommandEnter);
             await (composer.SendCommand.ExecutionTask ?? Task.CompletedTask);
             view.Settle();
 
@@ -638,7 +639,7 @@ public sealed class ToolViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var worktree = new Worktree();
-            worktree.Files.Stored[$"{Worktree.Folder}/sistema-solar.html"] = [60];
+            worktree.Files.Stored[System.IO.Path.Combine(Worktree.Folder, "sistema-solar.html")] = [60];
             var tool = worktree.Tool(new ToolEntry("t", ItemKind.FileEdit, "Write sistema-solar.html", string.Empty, ItemOutcome.Succeeded));
             var view = Screen.Show(tool);
 
@@ -647,7 +648,7 @@ public sealed class ToolViewScripts(HeadlessUi ui)
 
             Assert.Equal((true, false), (view.Shows("OpenPreview"), view.Shows("Thumbnail")));
             Assert.Equal("Open in your browser", ToolTip.GetTip(view.Find<Button>("OpenPreview")));
-            Assert.Equal([new Uri("file:///worktrees/fix-rounding/sistema-solar.html")], worktree.Opener.Opened);
+            Assert.Equal([new Uri(System.IO.Path.Combine(Worktree.Folder, "sistema-solar.html"))], worktree.Opener.Opened);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

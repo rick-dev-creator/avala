@@ -5,6 +5,7 @@
         xmlns:sdk="using:Avala.Sdk"
         xmlns:states="using:Avala.Components.UI.States"
         xmlns:ui="using:Avala.Components.UI"
+        xmlns:copying="using:Avala.Components.UI.Copying"
         x:Class="Avala.Host.ShellView"
         x:ClassModifier="internal"
         x:DataType="shell:IShellViewModel"
@@ -278,7 +279,7 @@
             Margin="0,14,0,0"
             HorizontalAlignment="Center"
             VerticalAlignment="Top">
-      <TextBlock Classes="caption" Text="{OnPlatform Default='Focus · Ctrl+Shift+F to exit', macOS='Focus · ⌘⇧F to exit'}" />
+      <TextBlock Classes="caption" Text="{Binding Source={x:Static copying:Hotkeys.FocusModeLabel}, StringFormat='Focus · {0} to exit'}" />
     </Border>
   </Panel>
 </Window>

@@ -8,6 +8,8 @@ public static class Hotkeys
 
     public static string CommandEnterLabel { get; } = OperatingSystem.IsMacOS() ? "⌘Return" : "Ctrl+Enter";
 
+    public static string FocusModeLabel { get; } = OperatingSystem.IsMacOS() ? "⌘⇧F" : "Ctrl+Shift+F";
+
     public static KeyGesture Copy { get; } = new(Key.C, Command);
 
     public static KeyGesture SelectAll { get; } = new(Key.A, Command);

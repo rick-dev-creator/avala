@@ -1,3 +1,4 @@
+using Avala.Components.UI.Copying;
 using Avala.Components.Privacy;
 using Avala.Sdk.Appearance;
 using Avala.Testing;
@@ -72,7 +73,7 @@ public sealed class AppearanceViewScripts(HeadlessUi ui)
 
             Assert.Equal([AppearancePreference.Default with { Send = SendKey.CommandEnter }], store.Changes);
             Assert.True(view.Find<Avalonia.Controls.ToggleSwitch>("SendWithCommandEnter").IsChecked);
-            Assert.Equal("Send with Ctrl+Enter", view.TextOf("SendWithLabel"));
+            Assert.Equal($"Send with {Hotkeys.CommandEnterLabel}", view.TextOf("SendWithLabel"));
         }, Cancellation);
 
     [Fact]
