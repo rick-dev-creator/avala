@@ -1,8 +1,8 @@
 using System.Globalization;
+using Avala.Components.UI.Theme;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 
 namespace Avala.Components.UI.Elapsed;
 
@@ -14,7 +14,7 @@ public sealed class ElapsedText : TextBlock
     public static readonly AttachedProperty<TimeProvider> ClockProperty =
         AvaloniaProperty.RegisterAttached<ElapsedText, Visual, TimeProvider>("Clock", TimeProvider.System, inherits: true);
 
-    private readonly List<Visual> ancestors = [];
+    private Sightline? sightline;
     private ITimer? ticking;
 
     public DateTimeOffset Since
@@ -50,7 +50,7 @@ public sealed class ElapsedText : TextBlock
     {
         base.OnPropertyChanged(change);
 
-        if (change.Property == SinceProperty || change.Property == ClockProperty || change.Property == IsVisibleProperty)
+        if (change.Property == SinceProperty || change.Property == ClockProperty)
         {
             Tick();
         }
@@ -59,42 +59,23 @@ public sealed class ElapsedText : TextBlock
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        ancestors.AddRange(this.GetVisualAncestors());
-
-        foreach (var ancestor in ancestors)
-        {
-            ancestor.PropertyChanged += OnAncestorChanged;
-        }
-
+        sightline = new Sightline(this, Tick);
         Tick();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-
-        foreach (var ancestor in ancestors)
-        {
-            ancestor.PropertyChanged -= OnAncestorChanged;
-        }
-
-        ancestors.Clear();
+        sightline?.Close();
+        sightline = null;
         Stop();
-    }
-
-    private void OnAncestorChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
-    {
-        if (change.Property == IsVisibleProperty)
-        {
-            Tick();
-        }
     }
 
     private void Tick()
     {
         Stop();
 
-        if (!IsVisible || ancestors.Count == 0 || ancestors.Exists(ancestor => !ancestor.IsVisible))
+        if (sightline is not { IsClear: true })
         {
             return;
         }

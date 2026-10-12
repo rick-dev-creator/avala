@@ -73,6 +73,23 @@ public sealed class MotionScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ALoopUnderAHiddenParentLetsTheClockRestAndPlaysAgainOnceShownAsync() =>
+        ui.RunAsync(() =>
+        {
+            var thinking = Thinking();
+            var view = Arrive(new Border { Child = thinking }, reduced: false);
+            var playing = ViewScript.IsAnimating;
+
+            thinking.IsVisible = false;
+            view.Settle();
+            var hidden = ViewScript.IsAnimating;
+            thinking.IsVisible = true;
+            view.Settle();
+
+            Assert.Equal((true, false, true), (playing, hidden, ViewScript.IsAnimating));
+        }, Cancellation);
+
+    [Fact]
     public Task WithReducedMotionTheThinkingShimmerIsHiddenAndItsDotsAndCaretHoldStillAsync() =>
         ui.RunAsync(() =>
         {

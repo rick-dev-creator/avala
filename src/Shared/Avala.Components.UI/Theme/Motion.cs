@@ -55,6 +55,12 @@ public sealed class Motion
     private static readonly AttachedProperty<Playback?> PlaybackProperty =
         AvaloniaProperty.RegisterAttached<Motion, Visual, Playback?>("Playback");
 
+    private static readonly AttachedProperty<Playback?> LoopingProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, Playback?>("Looping");
+
+    private static readonly AttachedProperty<Sightline?> SightlineProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, Sightline?>("Sightline");
+
     private static readonly AttachedProperty<bool> SettlesProperty =
         AvaloniaProperty.RegisterAttached<Motion, Visual, bool>("Settles");
 
@@ -88,7 +94,8 @@ public sealed class Motion
 
     public static void SetWhen(Visual visual, bool value) => visual.SetValue(WhenProperty, value);
 
-    public static bool IsPlaying(Visual visual) => visual.GetValue(PlaybackProperty) is { IsMoving: true };
+    public static bool IsPlaying(Visual visual) =>
+        visual.GetValue(PlaybackProperty) is { IsMoving: true } || visual.GetValue(LoopingProperty) is { IsMoving: true };
 
     public static void Settle(Layoutable content)
     {
@@ -121,7 +128,11 @@ public sealed class Motion
         {
             visual.SetValue(IsWatchedProperty, true);
             visual.AttachedToVisualTree += (_, _) => Refresh(visual);
-            visual.DetachedFromVisualTree += (_, _) => Stop(visual);
+            visual.DetachedFromVisualTree += (_, _) =>
+            {
+                Stop(visual);
+                Unsight(visual);
+            };
             visual.PropertyChanged += (_, change) =>
             {
                 if (change.Property == IsReducedProperty)
@@ -168,18 +179,51 @@ public sealed class Motion
                 playback.Play(visual, entrance);
             }
 
-            if (MotionCatalog.Loops.TryGetValue(GetLoop(visual), out var loop))
+            if (GetLoop(visual) != MotionLoop.None)
             {
-                playback.Play(visual, loop);
+                Loop(visual);
             }
+        }
+    }
+
+    private static void Loop(Visual visual)
+    {
+        Release(visual, LoopingProperty);
+
+        if (visual.GetValue(SightlineProperty) is not { } sightline)
+        {
+            sightline = new Sightline(visual, () => Loop(visual));
+            visual.SetValue(SightlineProperty, sightline);
+        }
+
+        if (sightline.IsClear && visual.GetValue(PlaybackProperty) is not null && !GetIsReduced(visual) && GetWhen(visual) && MotionCatalog.Loops.TryGetValue(GetLoop(visual), out var loop))
+        {
+            var looping = new Playback();
+            visual.SetValue(LoopingProperty, looping);
+            looping.Play(visual, loop);
         }
     }
 
     private static void Stop(Visual visual)
     {
-        if (visual.GetValue(PlaybackProperty) is { } playback)
+        Release(visual, PlaybackProperty);
+        Release(visual, LoopingProperty);
+    }
+
+    private static void Unsight(Visual visual)
+    {
+        if (visual.GetValue(SightlineProperty) is { } sightline)
         {
-            visual.ClearValue(PlaybackProperty);
+            visual.ClearValue(SightlineProperty);
+            sightline.Close();
+        }
+    }
+
+    private static void Release(Visual visual, AttachedProperty<Playback?> property)
+    {
+        if (visual.GetValue(property) is { } playback)
+        {
+            visual.ClearValue(property);
             playback.Dispose();
         }
     }
