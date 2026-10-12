@@ -35,28 +35,28 @@ internal static class ReadOnlyCommands
         ["git"] = new(["--output", "--ext-diff"]) { Subcommands = ["status", "log", "diff", "show"] },
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    public static bool Reads(ShellCommand command, Func<string, PermissionRequest> locate)
+    public static bool Reads(ShellCommand command, Func<string, PermissionRequest> locate) =>
+        command.Words.Count > 0
+        && Programs.TryGetValue(command.Words[0], out var reader)
+        && Invokes(command.Words, reader)
+        && Allows(reader, [.. command.Words.Skip(reader.Skipped)], locate);
+
+    private static bool Invokes(IReadOnlyList<string> words, Reader reader) =>
+        reader.Skipped <= words.Count
+        && (reader.Subcommands.Length == 0 || reader.Subcommands.Contains(words[1], StringComparer.Ordinal));
+
+    private static bool Allows(Reader reader, List<string> rest, Func<string, PermissionRequest> locate)
     {
-        if (command.Words.Count == 0 || !Programs.TryGetValue(command.Words[0], out var reader))
-        {
-            return false;
-        }
-
-        var skipped = reader.Subcommands.Length > 0 ? 2 : 1;
-
-        if (skipped > command.Words.Count || (skipped == 2 && !reader.Subcommands.Contains(command.Words[1], StringComparer.Ordinal)))
-        {
-            return false;
-        }
-
-        List<string> rest = [.. command.Words.Skip(skipped)];
         var operands = Operands(rest).ToList();
 
         return !rest.Exists(word => word.Contains('$', StringComparison.Ordinal) || reader.Forbids(word))
             && operands.Count <= reader.Most
-            && (!reader.Paths || operands.Skip(PatternFirst(rest, reader) ? 1 : 0).All(word => Inside(word, locate)))
-            && (!reader.Paths || rest.Where(Option).All(word => Inside(word, locate)));
+            && (!reader.Paths || StayInside(reader, rest, operands, locate));
     }
+
+    private static bool StayInside(Reader reader, List<string> rest, List<string> operands, Func<string, PermissionRequest> locate) =>
+        operands.Skip(PatternFirst(rest, reader) ? 1 : 0).All(word => Inside(word, locate))
+        && rest.Where(Option).All(word => Inside(word, locate));
 
     private static bool PatternFirst(List<string> words, Reader reader) =>
         reader.TakesPattern && !words.Exists(word => word.StartsWith("--regexp", StringComparison.Ordinal)
@@ -107,6 +107,8 @@ internal static class ReadOnlyCommands
         public int Most { get; init; } = int.MaxValue;
 
         public string[] Subcommands { get; init; } = [];
+
+        public int Skipped => Subcommands.Length > 0 ? 2 : 1;
 
         public bool Forbids(string word) =>
             Forbidden.Any(option => word == option
