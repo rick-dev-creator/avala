@@ -1,14 +1,11 @@
-using Avala.Components.UI;
 using Avala.Jobs.Contracts;
 using Avala.Testing.UI;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
-using Avalonia.Interactivity;
 using Avalonia.Styling;
-using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Microsoft.Extensions.Time.Testing;
+using SvgDrawing = Avalonia.Svg.Skia.Svg;
 
 namespace Avala.Host.Tests;
 
@@ -42,20 +39,5 @@ public sealed class AnimatedCanvasScreens(HeadlessUi ui, PublishedPlugins plugin
     }
 
     private static Action<Window> Grown(TimeSpan elapsed) =>
-        window =>
-        {
-            var clock = new FakeTimeProvider();
-            CanvasPresenter.SetClock(window, clock);
-            var play = window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "PlayAnimation");
-            play.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Tick();
-            clock.Advance(elapsed);
-            Tick();
-        };
-
-    private static void Tick()
-    {
-        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-        Dispatcher.UIThread.RunJobs();
-    }
+        window => window.GetVisualDescendants().OfType<SvgDrawing>().Single().SkSvg!.SetAnimationTime(elapsed);
 }

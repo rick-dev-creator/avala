@@ -7,38 +7,42 @@ using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Svg.Skia;
+using Avalonia.Threading;
+using Svg;
+using Svg.Skia;
 using Path = Avalonia.Controls.Shapes.Path;
+using SvgDrawing = Avalonia.Svg.Skia.Svg;
 
 namespace Avala.Rendering.UI.Svg;
 
 internal sealed class AnimatedSvg : Panel
 {
-    private readonly SvgSource source;
+    private static readonly Uri Assets = new($"avares://{typeof(AnimatedSvg).Assembly.GetName().Name}/");
+
     private readonly SvgTimeline timeline;
-    private readonly Image drawing;
+    private readonly SvgDrawing drawing;
     private readonly Button play;
     private TopLevel? host;
-    private long? lastFrame;
-    private bool frameRequested;
+    private ITimer? ending;
     private bool inView = true;
     private bool playingOnce;
-    private TimeSpan time;
+    private bool ended;
 
-    public AnimatedSvg(SvgSource source, SvgTimeline timeline)
+    public AnimatedSvg(SvgDocument document, SvgTimeline timeline)
     {
-        this.source = source;
         this.timeline = timeline;
         Name = "Svg";
         Background = Brushes.Transparent;
-        drawing = new Image
+        drawing = new SvgDrawing(Assets)
         {
             Name = "SvgDrawing",
-            Source = new SvgImage { Source = source },
             Stretch = Stretch.Uniform,
+            StretchDirection = StretchDirection.DownOnly,
             HorizontalAlignment = HorizontalAlignment.Center,
             IsHitTestVisible = false,
+            AnimationBackend = SvgAnimationHostBackend.Manual,
         };
+        drawing.LoadFromSvgDocument(document);
         play = Play();
         play.Click += (_, _) => PlayOnce();
         Children.Add(drawing);
@@ -49,6 +53,8 @@ internal sealed class AnimatedSvg : Panel
             Refresh();
         };
     }
+
+    public bool Moves => drawing.SkSvg is { HasAnimations: true } && drawing.Picture is not null;
 
     private bool IsPlaying
     {
@@ -99,16 +105,22 @@ internal sealed class AnimatedSvg : Panel
 
     private void Seek(TimeSpan moment)
     {
-        time = !timeline.Loops && moment > timeline.End ? timeline.End : moment;
-        source.Svg?.SetAnimationTime(time);
+        drawing.SkSvg?.SetAnimationTime(moment);
         drawing.InvalidateVisual();
     }
 
     private void PlayOnce()
     {
         playingOnce = true;
-        lastFrame = null;
         Seek(TimeSpan.Zero);
+        Refresh();
+    }
+
+    private void End()
+    {
+        ended = !timeline.Loops;
+        playingOnce = false;
+        Seek(timeline.End);
         Refresh();
     }
 
@@ -116,47 +128,28 @@ internal sealed class AnimatedSvg : Panel
     {
         var reduced = Motion.GetIsReduced(this);
         var shown = host is not null && inView && IsEffectivelyVisible && !Minimized(host);
-        IsPlaying = shown && (reduced ? playingOnce : timeline.Loops || time < timeline.End);
+        var playing = shown && (reduced ? playingOnce : !ended);
         play.IsVisible = reduced && !playingOnce && IsPointerOver;
+        ending?.Dispose();
+        ending = null;
         LayoutUpdated -= OnLayoutUpdated;
 
-        if (!IsPlaying)
+        if (playing != IsPlaying)
         {
-            lastFrame = null;
-
-            if (host is not null && !IsEffectivelyVisible)
-            {
-                LayoutUpdated += OnLayoutUpdated;
-            }
-        }
-        else if (!frameRequested)
-        {
-            frameRequested = true;
-            host!.RequestAnimationFrame(OnFrame);
-        }
-    }
-
-    private void OnFrame(TimeSpan _)
-    {
-        frameRequested = false;
-
-        if (!IsPlaying)
-        {
-            return;
+            IsPlaying = playing;
+            drawing.AnimationBackend = playing ? SvgAnimationHostBackend.Default : SvgAnimationHostBackend.Manual;
         }
 
-        var clock = CanvasPresenter.GetClock(this);
-        var now = clock.GetTimestamp();
-        Seek(time + (lastFrame is { } previous ? clock.GetElapsedTime(previous, now) : TimeSpan.Zero));
-        lastFrame = now;
-
-        if (playingOnce && time >= timeline.End)
+        if (playing && (playingOnce || !timeline.Loops))
         {
-            playingOnce = false;
-            Seek(timeline.End);
+            var elapsed = drawing.SkSvg?.AnimationTime ?? TimeSpan.Zero;
+            var remaining = timeline.End > elapsed ? timeline.End - elapsed : TimeSpan.Zero;
+            ending = CanvasPresenter.GetClock(this).CreateTimer(_ => Dispatcher.UIThread.Post(End), null, remaining, Timeout.InfiniteTimeSpan);
         }
-
-        Refresh();
+        else if (!playing && host is not null && !IsEffectivelyVisible)
+        {
+            LayoutUpdated += OnLayoutUpdated;
+        }
     }
 
     private void OnLayoutUpdated(object? sender, EventArgs e)

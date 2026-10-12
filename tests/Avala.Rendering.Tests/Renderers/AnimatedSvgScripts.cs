@@ -8,10 +8,11 @@ using Avala.Testing.UI;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
-using Avalonia.Svg.Skia;
+using Svg.Skia;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Time.Testing;
 using SkiaSharp;
+using SvgDrawing = Avalonia.Svg.Skia.Svg;
 
 namespace Avala.Rendering.Tests.Renderers;
 
@@ -40,30 +41,33 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task EachFrameDrawsTheAnimationAtTheTimeThatPassedAsync() =>
+    public Task AnAnimationHeldStillDrawsTheFrameOfTheTimeItIsSetToAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Show(GrowingBar);
+            var drawing = Show(GrowingBar).Find<SvgDrawing>("SvgDrawing");
+            drawing.AnimationBackend = SvgAnimationHostBackend.Manual;
 
-            Frame(view, TimeSpan.Zero);
-            var first = (Painted(view, y: 25), Painted(view, y: 75));
-            Frame(view, TimeSpan.FromSeconds(1));
+            drawing.SkSvg!.SetAnimationTime(TimeSpan.Zero);
+            var first = (Painted(drawing, y: 25), Painted(drawing, y: 75));
+            drawing.SkSvg.SetAnimationTime(TimeSpan.FromSeconds(1));
 
             Assert.Equal((false, false), first);
-            Assert.Equal((true, false), (Painted(view, y: 25), Painted(view, y: 75)));
+            Assert.Equal((true, false), (Painted(drawing, y: 25), Painted(drawing, y: 75)));
         }, Cancellation);
 
     [Fact]
-    public Task AFinishedAnimationHoldsItsLastFrameAndStopsItsFrameLoopAsync() =>
+    public Task AFinishedAnimationHoldsItsLastFrameAndStopsPlayingAsync() =>
         ui.RunAsync(() =>
         {
             var view = Show(GrowingBar);
-            var playing = Playing(view);
+            var drawing = view.Find<SvgDrawing>("SvgDrawing");
+            var playing = (Playing(view), drawing.AnimationBackend);
 
-            Frame(view, TimeSpan.Zero);
-            Frame(view, TimeSpan.FromSeconds(5));
+            clock.Advance(TimeSpan.FromSeconds(2));
+            view.Settle();
 
-            Assert.Equal((true, false, true), (playing, Playing(view), Painted(view, y: 95)));
+            Assert.Equal((true, SvgAnimationHostBackend.Default), playing);
+            Assert.Equal((false, SvgAnimationHostBackend.Manual, true), (Playing(view), drawing.AnimationBackend, Painted(drawing, y: 95)));
         }, Cancellation);
 
     [Fact]
@@ -72,9 +76,9 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
         {
             var view = Show(GrowingBar);
             Motion.SetIsReduced(view.Window, true);
-            view.Settle();
+            var drawing = view.Settle().Find<SvgDrawing>("SvgDrawing");
 
-            Assert.Equal((false, true), (Playing(view), Painted(view, y: 95)));
+            Assert.Equal((false, SvgAnimationHostBackend.Manual, true), (Playing(view), drawing.AnimationBackend, Painted(drawing, y: 95)));
         }, Cancellation);
 
     [Fact]
@@ -83,21 +87,19 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
         {
             var view = Show(GrowingBar);
             Motion.SetIsReduced(view.Window, true);
-            var hidden = view.Settle().Shows("PlayAnimation");
+            var drawing = view.Settle().Find<SvgDrawing>("SvgDrawing");
+            var hidden = view.Shows("PlayAnimation");
 
             view.Window.MouseMove(Center(view.Find("Svg"), view.Window));
             var hovered = view.Settle().Shows("PlayAnimation");
             view.Click("PlayAnimation");
-            var started = (Playing(view), Painted(view, y: 25), view.Shows("PlayAnimation"));
-            Frame(view, TimeSpan.Zero);
-            Frame(view, TimeSpan.FromSeconds(1));
-            var halfway = (Painted(view, y: 25), Painted(view, y: 75));
-            Frame(view, TimeSpan.FromSeconds(2));
+            var started = (Playing(view), Painted(drawing, y: 25), view.Shows("PlayAnimation"));
+            clock.Advance(TimeSpan.FromSeconds(2));
+            view.Settle();
 
             Assert.Equal((false, true), (hidden, hovered));
             Assert.Equal((true, false, false), started);
-            Assert.Equal((true, false), halfway);
-            Assert.Equal((false, true, true), (Playing(view), Painted(view, y: 95), view.Shows("PlayAnimation")));
+            Assert.Equal((false, true, true), (Playing(view), Painted(drawing, y: 95), view.Shows("PlayAnimation")));
         }, Cancellation);
 
     [Fact]
@@ -152,25 +154,17 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
         return ViewScript.Show(drawing, Rendering(svg));
     }
 
-    private void Frame(ViewScript view, TimeSpan elapsed)
-    {
-        clock.Advance(elapsed);
-        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-        view.Settle();
-    }
-
     private static bool Playing(ViewScript view) => view.Find("Svg").Classes.Contains(":playing");
 
     private static Point Center(Visual visual, Window window) =>
         visual.TranslatePoint(new Point(visual.Bounds.Width / 2, visual.Bounds.Height / 2), window)!.Value;
 
-    private static bool Painted(ViewScript view, int y)
+    private static bool Painted(SvgDrawing drawing, int y)
     {
-        var picture = ((SvgImage)view.Find<Image>("SvgDrawing").Source!).Source!.Picture!;
         using var bitmap = new SKBitmap(100, 100);
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(SKColors.Transparent);
-        canvas.DrawPicture(picture);
+        canvas.DrawPicture(drawing.Picture);
 
         return bitmap.GetPixel(50, y).Alpha > 0;
     }
