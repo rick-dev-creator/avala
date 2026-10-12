@@ -38,7 +38,7 @@ Avala is an open-source desktop harness for coding agents. It runs each agent in
 Preparing the first beta. Every feature is proven end to end on the simulator, and Claude Code, the first real harness, has run a campaign of short scenarios against real accounts, each with its own acceptance criteria and spending cap. Everything below runs in the application today, and a built-in simulator lets you try Avala without spending tokens:
 
 - jobs in their own worktrees, verified by your repository's checks and reviewed from a verdict and a diff before they are merged or kept;
-- a welcome that starts a job from one sentence, without choosing anything: it runs in a scratch repository of its own kept in Avala's data folder and merged there when approved;
+- a welcome that starts a job from one sentence, without choosing anything, or on the connection, model and effort picked from the chip in its composer: it runs in a scratch repository of its own kept in Avala's data folder and merged there when approved;
 - permissions, questions and plan approvals answered in place or by the rules of your repository, at the autonomy you allow;
 - supervision of stalled sessions, budgets per job and per connection, a daily spending ceiling for the machine, and reclaimed processes, ports and worktrees;
 - several connections and accounts per harness: a job that nears or runs out of an account's usage window waits for the reset or is handed off to another account with a brief, and costs on a subscription are shown at API prices;

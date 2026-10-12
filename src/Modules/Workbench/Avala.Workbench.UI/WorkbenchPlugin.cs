@@ -118,6 +118,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ToolbarViewModel>()
             .AddSingleton<SettingsLink>()
             .AddSingleton<IWelcomeLinks, WelcomeLinks>()
+            .AddSingleton<HarnessChoiceViewModel>()
             .AddSingleton<IWelcomeViewModel, WelcomeViewModel>()
             .AddSingleton<WorkbenchViewModel>()
             .AddForwarded<IPage, WorkbenchViewModel>();
@@ -146,6 +147,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IWorkbenchViewModel, WorkbenchView>();
         views.Register<IWelcomeViewModel, WelcomeView>();
         views.Register<IAccountChipViewModel, AccountChipView>();
+        views.Register<IHarnessChoiceViewModel, HarnessChoiceView>();
+        views.Register<IHarnessOptionViewModel, HarnessOptionView>();
         views.Register<ISidebarViewModel, SidebarView>();
         views.Register<IJobRowViewModel, JobRowView>();
         views.Register<IContestRowViewModel, ContestRowView>();

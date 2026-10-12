@@ -1,7 +1,9 @@
 using Avala.Testing.UI;
 using Avala.Workbench.Welcome;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Tests.Views;
@@ -19,6 +21,20 @@ public sealed class WelcomeViewScripts(HeadlessUi ui)
             Assert.Equal(WelcomePhrases.Title, view.TextOf("Hero"));
             Assert.Equal((true, true, true, true, true), (view.Shows("WelcomeInstruction"), view.Shows("OpenFolder"), view.Shows("Clone"), view.Shows("NewRepository"), view.Shows("Connect")));
             Assert.Equal(["claude-work", "octocat"], view.All<TextBlock>().Where(text => text.Name == "ChipLabel").Select(text => text.Text));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheHarnessChipSitsInsideTheComposerLeftOfSendAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignWelcomeViewModel { IsCompact = true }, Avalonia.Styling.ThemeVariant.Dark, 1000, 760);
+            var composer = view.Find("Composer");
+            var chip = view.Find("HarnessButton");
+            var send = view.Find("WelcomeStart");
+            var chipEnd = chip.TranslatePoint(new Point(chip.Bounds.Width, 0), view.Window);
+            var sendStart = send.TranslatePoint(default, view.Window);
+
+            Assert.Equal(("Auto · claude-work", true, true), (view.TextOf("HarnessLabel"), composer.IsVisualAncestorOf(chip), chipEnd?.X <= sendStart?.X));
         }, Cancellation);
 
     [Fact]
@@ -68,6 +84,8 @@ public sealed class WelcomeViewScripts(HeadlessUi ui)
         public string Error => string.Empty;
 
         public IReadOnlyList<IAccountChipViewModel> Chips => [];
+
+        public IHarnessChoiceViewModel Harness { get; } = new DesignHarnessChoiceViewModel();
 
         public IAsyncRelayCommand StartCommand { get; } = new AsyncRelayCommand(() =>
         {
