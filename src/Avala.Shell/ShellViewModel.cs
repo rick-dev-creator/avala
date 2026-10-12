@@ -1,8 +1,10 @@
 using Avala.Sdk;
+using Avala.Sdk.Appearance;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Shell.Regions;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Shell;
@@ -10,12 +12,17 @@ namespace Avala.Shell;
 [INotifyPropertyChanged]
 internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IPresentation, IRecipient<PageRequested>
 {
-    private readonly RegionContexts contexts;
-    private bool active;
+    public const double NarrowWidth = 1000;
 
-    public ShellViewModel(IEnumerable<IPage> pages, IEnumerable<RegionContribution> contributions, RegionContexts contexts)
+    private readonly RegionContexts contexts;
+    private readonly IWindowLayout layout;
+    private bool active;
+    private bool restored;
+
+    public ShellViewModel(IEnumerable<IPage> pages, IEnumerable<RegionContribution> contributions, RegionContexts contexts, IWindowLayout layout)
     {
         this.contexts = contexts;
+        this.layout = layout;
         var contributed = contributions.ToList();
         Toolbar = Region.Of(ShellRegions.Toolbar, contributed);
         Sidebar = Region.Of(ShellRegions.Sidebar, contributed);
@@ -59,7 +66,29 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
 
     public bool HasSidebar => HasNavigation || Toolbar.HasItems || Sidebar.HasItems || SidebarFooter.HasItems;
 
-    public bool IsInspectorShown => Inspector.HasItems && contexts.ContextOf(ShellRegions.Inspector).IsSome;
+    public bool IsInspectorShown => !IsFocused && Inspector.HasItems && contexts.ContextOf(ShellRegions.Inspector).IsSome;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSidebarShown))]
+    public partial bool IsSidebarCollapsed { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSidebarShown))]
+    public partial bool IsNarrow { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSidebarShown))]
+    public partial bool IsSidebarPeeking { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSidebarShown), nameof(IsInspectorShown))]
+    public partial bool IsFocused { get; private set; }
+
+    public bool IsSidebarShown => HasSidebar && !IsFocused && (IsNarrow ? IsSidebarPeeking : !IsSidebarCollapsed);
+
+    public Task Restoring { get; private set; } = Task.CompletedTask;
+
+    public Task Remembering { get; private set; } = Task.CompletedTask;
 
     private IEnumerable<Region> Regions => [Toolbar, Sidebar, SidebarFooter, Content, Inspector];
 
@@ -79,6 +108,13 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         }
 
         active = true;
+
+        if (!restored)
+        {
+            restored = true;
+            Restoring = RestoreAsync();
+        }
+
         Toolbar.Activate();
         Sidebar.Activate();
         SidebarFooter.Activate();
@@ -100,6 +136,42 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         Sidebar.Deactivate();
         Toolbar.Deactivate();
     }
+
+    [RelayCommand(CanExecute = nameof(HasSidebar))]
+    private void ToggleSidebar()
+    {
+        if (IsFocused)
+        {
+            IsFocused = false;
+
+            if (IsSidebarShown)
+            {
+                return;
+            }
+        }
+
+        if (IsNarrow)
+        {
+            IsSidebarPeeking = !IsSidebarPeeking;
+
+            return;
+        }
+
+        IsSidebarCollapsed = !IsSidebarCollapsed;
+        Remembering = layout.RememberAsync(new WindowLayout(IsSidebarCollapsed), CancellationToken.None).AsTask();
+    }
+
+    [RelayCommand]
+    private void ToggleFocus() => IsFocused = !IsFocused;
+
+    [RelayCommand]
+    private void Fit(double width)
+    {
+        IsNarrow = width < NarrowWidth;
+        IsSidebarPeeking = IsNarrow && IsSidebarPeeking;
+    }
+
+    private async Task RestoreAsync() => IsSidebarCollapsed = (await layout.ReadAsync(CancellationToken.None)).IsSidebarCollapsed;
 
     partial void OnSelectedPageChanged(IPage? oldValue, IPage? newValue)
     {

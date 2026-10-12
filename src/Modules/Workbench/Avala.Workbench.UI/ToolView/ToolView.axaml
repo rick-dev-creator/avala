@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:states="using:Avala.Components.UI.States"
@@ -6,7 +7,7 @@
              x:Class="Avala.Workbench.UI.ToolView"
              x:ClassModifier="internal"
              x:DataType="conversation:IToolViewModel"
-             Classes="arrive-snappy"
+             theme:Motion.Enter="Arrive"
              Classes.running="{Binding IsRunning}"
              Classes.failed="{Binding Failed}"
              Margin="0,1">
@@ -76,7 +77,8 @@
                VerticalAlignment="Center"
                HorizontalAlignment="Center"
                IsVisible="{Binding IsRunning}"
-               Classes.spin="{Binding IsRunning}" />
+               theme:Motion.Loop="Spin"
+               theme:Motion.When="{Binding IsRunning}" />
           <TextBlock x:Name="Title"
                      Grid.Column="1"
                      VerticalAlignment="Center"
@@ -110,12 +112,13 @@
              ShouldUseOverlayLayer="True"
              IsLightDismissEnabled="True"
              WindowManagerAddShadowHint="False">
-        <ContentControl x:Name="Changes" Classes="pop-in" Content="{Binding Changes}" />
+        <ContentControl x:Name="Changes" theme:Motion.Enter="Pop" Content="{Binding Changes}" />
       </Popup>
     </Panel>
     <ContentControl x:Name="Preview" Content="{Binding Preview}" IsVisible="{Binding ShowsPreview}" />
     <Border x:Name="Details"
-            Classes.fold-in="{Binding IsExpanded}"
+            theme:Motion.Enter="Fold"
+            theme:Motion.When="{Binding IsExpanded}"
             Background="{DynamicResource FillQuietBrush}"
             CornerRadius="{DynamicResource RadiusButton}"
             Padding="34,8,10,10"

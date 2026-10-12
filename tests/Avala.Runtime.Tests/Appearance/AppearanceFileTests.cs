@@ -35,7 +35,7 @@ public sealed class AppearanceFileTests
         Assert.True(changed.IsSuccess);
         Assert.Equal([new AppearanceChanged(chosen)], bus.Published);
         Assert.Equal(new AppearanceSettings(chosen, AppearanceFileStatus.Applied, Option<AppearanceError>.None), read);
-        Assert.Equal("{\n  \"theme\": \"light\",\n  \"reduceMotion\": \"on\",\n  \"send\": \"commandEnter\"\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
+        Assert.Equal("{\n  \"theme\": \"light\",\n  \"reduceMotion\": \"on\",\n  \"readingWidth\": \"comfortable\",\n  \"send\": \"commandEnter\"\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
     }
 
     [Fact]
@@ -68,6 +68,20 @@ public sealed class AppearanceFileTests
     }
 
     [Theory]
+    [InlineData("""{ "readingWidth": "comfortable" }""", ReadingChoice.Comfortable)]
+    [InlineData("""{ "readingWidth": "wide" }""", ReadingChoice.Wide)]
+    [InlineData("""{ }""", ReadingChoice.Comfortable)]
+    public async Task TheReadingWidthIsReadAsComfortableOrWideAsync(string content, ReadingChoice reading)
+    {
+        await using var data = new TemporaryFolder();
+        await File.WriteAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), content, Cancellation);
+        await using var file = new AppearanceFile(new AvalaPaths(data.Path), new RecordingBus());
+
+        Assert.Equal(reading, (await file.ReadAsync(Cancellation)).Preference.Reading);
+    }
+
+    [Theory]
+    [InlineData("""{ "readingWidth": "huge" }""")]
     [InlineData("""{ "theme": "sepia" }""")]
     [InlineData("""{ "theme": "1" }""")]
     [InlineData("""{ "theme": 2 }""")]

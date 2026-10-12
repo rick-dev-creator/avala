@@ -1,11 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:elapsed="using:Avala.Components.UI.Elapsed"
              x:Class="Avala.Workbench.UI.WorkingView"
              x:ClassModifier="internal"
              x:DataType="conversation:IWorkingViewModel"
-             Classes="fade-in"
+             theme:Motion.Enter="Fade"
              Classes.waiting="{Binding IsWaiting}"
              IsVisible="{Binding IsShown}"
              Margin="0,4,0,8">
@@ -31,9 +32,9 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 IsVisible="{Binding !IsWaiting}">
-      <Ellipse Classes="think-dot" />
-      <Ellipse Classes="think-dot second" />
-      <Ellipse Classes="think-dot third" />
+      <Ellipse Classes="think-dot" theme:Motion.Loop="Think" />
+      <Ellipse Classes="think-dot" theme:Motion.Loop="ThinkSecond" />
+      <Ellipse Classes="think-dot" theme:Motion.Loop="ThinkThird" />
     </StackPanel>
     <Ellipse x:Name="Still" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsWaiting}" />
     <Panel Grid.Column="1" Margin="10,0,0,0" ClipToBounds="True">
@@ -44,13 +45,13 @@
                  TextTrimming="CharacterEllipsis"
                  VerticalAlignment="Center" />
       <Border x:Name="Shimmer"
-              Classes="shimmer-window"
+              theme:Motion.Loop="Shimmer"
               Width="48"
               HorizontalAlignment="Left"
               ClipToBounds="True"
               OpacityMask="{DynamicResource ShimmerMaskBrush}"
               IsVisible="{Binding !IsWaiting}">
-        <TextBlock Classes="shimmer-text"
+        <TextBlock theme:Motion.Loop="ShimmerText"
                    Text="{Binding Verb}"
                    MaxWidth="460"
                    TextTrimming="CharacterEllipsis"

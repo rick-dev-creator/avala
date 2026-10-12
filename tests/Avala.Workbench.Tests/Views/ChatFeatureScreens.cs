@@ -155,6 +155,7 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
         ShootAsync(() =>
         {
             var view = Screen.Show(new DesignWorkbenchViewModel(), Theme(variant), 1100, 520);
+            Components.UI.Theme.Motion.SetIsReduced(view.Window, true);
             view.Window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
             view.Find<Button>("More").Flyout!.ShowAt(view.Find<Button>("More"));
             Pump(view);

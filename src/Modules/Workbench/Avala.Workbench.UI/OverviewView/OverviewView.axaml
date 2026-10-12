@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
              x:Class="Avala.Workbench.UI.OverviewView"
@@ -40,8 +41,8 @@
       </Grid>
     </Border>
     <Panel>
-      <ContentControl x:Name="Connections" Classes="fade-in" Content="{Binding Connections}" IsVisible="{Binding !ShowsDelegation}" />
-      <ContentControl x:Name="Delegation" Classes="fade-in" Content="{Binding Delegation}" IsVisible="{Binding ShowsDelegation}" />
+      <ContentControl x:Name="Connections" theme:Motion.Enter="Fade" Content="{Binding Connections}" IsVisible="{Binding !ShowsDelegation}" />
+      <ContentControl x:Name="Delegation" theme:Motion.Enter="Fade" Content="{Binding Delegation}" IsVisible="{Binding ShowsDelegation}" />
     </Panel>
   </DockPanel>
 </UserControl>

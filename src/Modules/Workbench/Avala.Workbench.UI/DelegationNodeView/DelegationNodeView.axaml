@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
@@ -22,7 +23,8 @@
     </Style>
   </UserControl.Styles>
   <Button x:Name="Open"
-          Classes="bare arrive-gentle"
+          Classes="bare"
+          theme:Motion.Enter="Gentle"
           Width="380"
           AutomationProperties.Name="{Binding Title}"
           Command="{Binding $parent[local:DelegationView].((overview:IDelegationViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"

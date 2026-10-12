@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:newJob="using:Avala.Workbench.NewJob"
              x:Class="Avala.Workbench.UI.JobOptionsView"
@@ -51,12 +52,14 @@
                   IsVisible="{Binding IsContest}" />
       </WrapPanel>
       <TextBlock x:Name="Share"
-                 Classes="caption fade-in"
+                 Classes="caption"
+                 theme:Motion.Enter="Fade"
                  TextWrapping="Wrap"
                  Text="{Binding Share}"
                  IsVisible="{Binding IsContest}" />
       <TextBlock x:Name="SpreadNote"
-                 Classes="caption fade-in"
+                 Classes="caption"
+                 theme:Motion.Enter="Fade"
                  TextWrapping="Wrap"
                  Text="{Binding SpreadNote}"
                  IsVisible="{Binding Spread}" />

@@ -21,6 +21,10 @@ internal interface IAppearanceViewModel
 
     bool IsMotionFull { get; }
 
+    bool IsReadingComfortable { get; }
+
+    bool IsReadingWide { get; }
+
     bool SendsWithCommandEnter { get; }
 
     string Error { get; }
@@ -28,6 +32,8 @@ internal interface IAppearanceViewModel
     IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; }
 
     IAsyncRelayCommand<MotionChoice> ChooseMotionCommand { get; }
+
+    IAsyncRelayCommand<ReadingChoice> ChooseReadingCommand { get; }
 
     IAsyncRelayCommand ToggleSendKeyCommand { get; }
 
@@ -38,7 +44,7 @@ internal interface IAppearanceViewModel
 internal sealed partial class AppearanceViewModel(IAppearance appearance) : IAppearanceViewModel
 {
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(FollowsSystem), nameof(IsLight), nameof(IsDark), nameof(MotionFollowsSystem), nameof(IsMotionReduced), nameof(IsMotionFull), nameof(SendsWithCommandEnter))]
+    [NotifyPropertyChangedFor(nameof(FollowsSystem), nameof(IsLight), nameof(IsDark), nameof(MotionFollowsSystem), nameof(IsMotionReduced), nameof(IsMotionFull), nameof(IsReadingComfortable), nameof(IsReadingWide), nameof(SendsWithCommandEnter))]
     public partial AppearancePreference Preference { get; private set; } = AppearancePreference.Default;
 
     [ObservableProperty]
@@ -59,6 +65,9 @@ internal sealed partial class AppearanceViewModel(IAppearance appearance) : IApp
 
     public bool IsMotionFull => Preference.Motion == MotionChoice.Full;
 
+    public bool IsReadingComfortable => Preference.Reading == ReadingChoice.Comfortable;
+
+    public bool IsReadingWide => Preference.Reading == ReadingChoice.Wide;
     public bool SendsWithCommandEnter => Preference.Send == SendKey.CommandEnter;
 
     public async Task LoadAsync(CancellationToken cancellationToken) => Show(await appearance.ReadAsync(cancellationToken));
@@ -70,6 +79,10 @@ internal sealed partial class AppearanceViewModel(IAppearance appearance) : IApp
     [RelayCommand]
     private Task ChooseMotionAsync(MotionChoice motion, CancellationToken cancellationToken) =>
         ChangeAsync(Preference with { Motion = motion }, cancellationToken);
+
+    [RelayCommand]
+    private Task ChooseReadingAsync(ReadingChoice reading, CancellationToken cancellationToken) =>
+        ChangeAsync(Preference with { Reading = reading }, cancellationToken);
 
     [RelayCommand]
     private Task ToggleSendKeyAsync(CancellationToken cancellationToken) =>

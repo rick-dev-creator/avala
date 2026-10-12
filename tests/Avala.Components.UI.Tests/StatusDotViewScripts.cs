@@ -1,4 +1,5 @@
 using Avala.Components.Status;
+using Avala.Components.UI.Theme;
 using Avala.Testing.UI;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
@@ -17,7 +18,7 @@ public sealed class StatusDotViewScripts(HeadlessUi ui)
             var view = ViewScript.Show(new DesignStatusDotViewModel());
 
             Assert.True(view.Shows("Pulse"));
-            Assert.True(view.HasClass("Pulse", "pulse"));
+            Assert.True(view.LoopOf("Pulse") == MotionLoop.Pulse);
             Assert.False(view.Shows("Spinner"));
         }, Cancellation);
 

@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
@@ -69,7 +70,7 @@
                     IsVisible="{Binding Root, Converter={x:Static ObjectConverters.IsNotNull}}">
         <Grid ColumnDefinitions="Auto,Auto" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
           <ContentControl x:Name="Root"
-                          Classes="arrive-scale"
+                          theme:Motion.Enter="Scale"
                           Content="{Binding Root}"
                           VerticalAlignment="Center" />
           <ItemsControl x:Name="Children"

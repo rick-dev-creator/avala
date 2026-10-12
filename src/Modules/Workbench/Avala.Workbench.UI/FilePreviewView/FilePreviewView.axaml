@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:components="using:Avala.Components.UI"
              xmlns:states="using:Avala.Components.UI.States"
@@ -72,7 +73,12 @@
                 VerticalAlignment="Stretch"
                 Command="{Binding CloseCommand}"
                 AutomationProperties.Name="Close the preview" />
-        <Border x:Name="SheetCard" Classes="float sheet-in" Padding="0" ClipToBounds="True" Focusable="True">
+        <Border x:Name="SheetCard"
+                Classes="float"
+                theme:Motion.Enter="Sheet"
+                Padding="0"
+                ClipToBounds="True"
+                Focusable="True">
           <Border.KeyBindings>
             <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
           </Border.KeyBindings>

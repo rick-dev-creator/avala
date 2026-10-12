@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:models="using:Avala.Workbench.ModelChoices"
              xmlns:states="using:Avala.Components.UI.States"
@@ -37,7 +38,8 @@
       </StackPanel>
     </Grid>
     <TextBlock x:Name="ModelNote"
-               Classes="caption fade-in"
+               Classes="caption"
+               theme:Motion.Enter="Fade"
                TextWrapping="Wrap"
                Text="{Binding Note}"
                IsVisible="{Binding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

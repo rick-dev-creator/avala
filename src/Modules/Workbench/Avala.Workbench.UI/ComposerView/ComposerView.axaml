@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:copying="using:Avala.Components.UI.Copying"
@@ -107,7 +108,7 @@
             <Panel Width="30" Height="30">
               <Ellipse x:Name="Track" StrokeThickness="2" Stroke="{DynamicResource SeparatorBrush}" />
               <Arc x:Name="Progress"
-                   Classes="spin"
+                   theme:Motion.Loop="Spin"
                    StrokeThickness="2"
                    StrokeLineCap="Round"
                    StartAngle="-90"

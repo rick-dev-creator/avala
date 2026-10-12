@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:status="using:Avala.Components.Status"
              xmlns:states="using:Avala.Components.UI.States"
@@ -51,7 +52,8 @@
     <Ellipse x:Name="Pulse"
              Fill="{DynamicResource TextPrimaryBrush}"
              IsVisible="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Working}"
-             Classes.pulse="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Working}" />
+             theme:Motion.Loop="Pulse"
+             theme:Motion.When="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Working}" />
     <Ellipse x:Name="Core" />
     <Arc x:Name="Spinner"
          StartAngle="0"
@@ -59,6 +61,7 @@
          Stroke="{DynamicResource TextSecondaryBrush}"
          StrokeThickness="1.5"
          IsVisible="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Checking}"
-         Classes.spin="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Checking}" />
+         theme:Motion.Loop="Spin"
+         theme:Motion.When="{Binding Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter=Checking}" />
   </Panel>
 </UserControl>

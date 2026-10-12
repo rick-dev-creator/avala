@@ -49,6 +49,7 @@ internal sealed class AppearanceApplier(Application application)
         if (window is not null)
         {
             Motion.SetIsReduced(window, IsReduced);
+            Reading.SetIsWide(window, preference.Reading == ReadingChoice.Wide);
         }
     }
 

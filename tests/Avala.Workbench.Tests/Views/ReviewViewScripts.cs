@@ -1,4 +1,5 @@
 using Avala.Autopilot.Contracts;
+using Avala.Components.UI.Theme;
 using Avala.Components.UI;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -26,7 +27,7 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
 
             Assert.Equal(("Ready for review", "Rate-limit POST /login", "ledger-api · claude-work · Autonomous · 2 sessions"), (view.TextOf("Heading"), view.TextOf("Title"), view.TextOf("Facts")));
             Assert.Equal(("Verified on attempt 2 of 2", "Worth a look · 4"), (view.TextOf("VerdictText"), view.TextOf("ExceptionCount")));
-            Assert.Equal((true, true, false), (view.Shows("Check"), view.HasClass("Check", "draw"), view.Shows("Unproven")));
+            Assert.Equal((true, true, false), (view.Shows("Check"), view.EntranceOf("Check") == MotionEntrance.Draw, view.Shows("Unproven")));
             Assert.Equal(4, view.Find<ItemsControl>("Exceptions").ItemCount);
             Assert.Equal(("5 files changed", "+130 −2", false), (view.Find<Fold>("Changes").Header, view.Find<Fold>("Changes").Fact, view.Shows("Files")));
             Assert.Equal((true, false, false, false), (view.Shows("Actions"), view.Shows("Stamp"), view.Shows("Loading"), view.Shows("FeedbackBox")));

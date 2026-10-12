@@ -4,6 +4,7 @@ using Avala.Components.Status;
 using Avala.Sdk;
 using Avala.Sdk.Regions;
 using Avala.Shell.Regions;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Shell;
 
@@ -46,6 +47,16 @@ internal sealed class DesignShellViewModel : IShellViewModel
     public bool HasSidebar => true;
 
     public bool IsInspectorShown => true;
+
+    public bool IsSidebarShown => true;
+
+    public bool IsFocused => false;
+
+    public IRelayCommand ToggleSidebarCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand ToggleFocusCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand<double> FitCommand { get; } = new RelayCommand<double>(_ => { });
 
     private sealed record DesignPage(string Title, string Icon) : IPage;
 

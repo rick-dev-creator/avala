@@ -81,7 +81,32 @@
             <TextBlock Text="Reduce motion" />
             <TextBlock Classes="caption"
                        TextWrapping="Wrap"
-                       Text="Stops the pulse, the spinners, the thinking shimmer and the fades. System follows the operating system's reduced motion setting." />
+                       Text="Stops the pulse, the spinners, the thinking shimmer, the fades and the sliding panels. System follows the operating system's reduced motion setting." />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <Border DockPanel.Dock="Right" Classes="segments" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal">
+              <Button x:Name="ReadComfortably"
+                      Classes="segment"
+                      Classes.selected="{Binding IsReadingComfortable}"
+                      Content="Comfortable"
+                      Command="{Binding ChooseReadingCommand}"
+                      CommandParameter="{x:Static appearance:ReadingChoice.Comfortable}" />
+              <Button x:Name="ReadWide"
+                      Classes="segment"
+                      Classes.selected="{Binding IsReadingWide}"
+                      Content="Wide"
+                      Command="{Binding ChooseReadingCommand}"
+                      CommandParameter="{x:Static appearance:ReadingChoice.Wide}" />
+            </StackPanel>
+          </Border>
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Reading width" />
+            <TextBlock Classes="caption"
+                       TextWrapping="Wrap"
+                       Text="How wide conversations and reviews grow as the window grows. Wide uses more of a large or full-screen window." />
           </StackPanel>
         </DockPanel>
         <Border Classes="separator" Margin="16,0" />

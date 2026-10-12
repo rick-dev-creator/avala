@@ -134,7 +134,7 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             var message = Message("JPY has no minor", done: false);
             var view = Screen.Show(message);
             var caret = view.Find("Caret");
-            var streaming = (view.Shows("Caret"), caret.Classes.Contains("caret"), caret.Bounds.Top >= Viewer(view, "Tail").Bounds.Bottom);
+            var streaming = (view.Shows("Caret"), Components.UI.Theme.Motion.GetLoop(caret) == Components.UI.Theme.MotionLoop.Caret, caret.Bounds.Top >= Viewer(view, "Tail").Bounds.Bottom);
             Components.UI.Theme.Motion.SetIsReduced(view.Window, true);
             view.Settle();
             var still = caret.Opacity;

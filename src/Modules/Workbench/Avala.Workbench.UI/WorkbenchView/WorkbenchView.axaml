@@ -1,6 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:navigation="using:Avala.Workbench.Navigation"
+             xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.WorkbenchView"
              x:ClassModifier="internal"
              x:DataType="navigation:IWorkbenchViewModel">
@@ -8,6 +10,10 @@
     <navigation:DesignWorkbenchViewModel />
   </Design.DataContext>
   <UserControl.Styles>
+    <Style Selector="Button#ToggleInspector.selected[(theme|Chrome.IsFocusMode)=True] /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
     <Style Selector="Button.glyph Path.icon">
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>
@@ -28,7 +34,7 @@
               BorderBrush="{DynamicResource EdgeBrush}"
               BorderThickness="0,0,0,1"
               IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}">
-        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" Margin="{DynamicResource ChromeLeading}">
           <StackPanel VerticalAlignment="Center">
             <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" />
             <TextBlock x:Name="Place" Classes="caption" Text="{Binding Conversation.Place}" TextTrimming="CharacterEllipsis" />
@@ -76,7 +82,7 @@
                   Classes="glyph"
                   Classes.selected="{Binding IsInspectorOpen}"
                   Command="{Binding ToggleInspectorCommand}"
-                  HotKey="Ctrl+I"
+                  HotKey="{OnPlatform Default='Ctrl+I', macOS='Meta+I'}"
                   ToolTip.Tip="Inspector (Ctrl+I)"
                   AutomationProperties.Name="Toggle inspector">
             <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconInspector}" />
@@ -84,12 +90,12 @@
         </Grid>
       </Border>
       <Panel>
-        <ContentControl x:Name="Conversation" Content="{Binding Conversation}" />
+        <ui:Stage x:Name="Conversation" Content="{Binding Conversation}" />
         <ContentControl x:Name="Welcome" Content="{Binding Welcome}" IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}" />
       </Panel>
     </DockPanel>
     <Panel x:Name="ReviewSheet" IsVisible="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}">
-      <Border x:Name="ReviewScrim" Background="{DynamicResource ScrimSheetBrush}" Classes.fade-in="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      <Border x:Name="ReviewScrim" Background="{DynamicResource ScrimSheetBrush}" theme:Motion.Enter="Fade" theme:Motion.When="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}" />
       <StackPanel Margin="20,40,20,20" Spacing="10" VerticalAlignment="Top">
         <ContentControl x:Name="Candidates" Content="{Binding Candidates}" />
         <ContentControl x:Name="Review" Content="{Binding Review}" />

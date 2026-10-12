@@ -1,5 +1,6 @@
 using Avala.Sdk;
 using Avala.Shell.Regions;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Shell;
 
@@ -26,4 +27,14 @@ internal interface IShellViewModel
     bool HasSidebar { get; }
 
     bool IsInspectorShown { get; }
+
+    bool IsSidebarShown { get; }
+
+    bool IsFocused { get; }
+
+    IRelayCommand ToggleSidebarCommand { get; }
+
+    IRelayCommand ToggleFocusCommand { get; }
+
+    IRelayCommand<double> FitCommand { get; }
 }

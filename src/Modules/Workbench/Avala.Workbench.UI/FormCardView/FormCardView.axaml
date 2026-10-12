@@ -1,10 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:cards="using:Avala.Workbench.Cards"
              x:Class="Avala.Workbench.UI.FormCardView"
              x:ClassModifier="internal"
              x:DataType="cards:IFormCardViewModel"
-             Classes="arrive-snappy"
+             theme:Motion.Enter="Arrive"
              Classes.waiting="{Binding AwaitsYou}"
              Margin="0,10">
   <Design.DataContext>
@@ -78,7 +79,8 @@
           ColumnDefinitions="14,*"
           ColumnSpacing="10"
           Margin="10,6"
-          Classes.fold-in="{Binding !AwaitsYou}"
+          theme:Motion.Enter="Fold"
+          theme:Motion.When="{Binding !AwaitsYou}"
           IsVisible="{Binding !AwaitsYou}">
       <Path Classes="icon" Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
       <TextBlock x:Name="Outcome"

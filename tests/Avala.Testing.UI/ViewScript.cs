@@ -1,3 +1,4 @@
+using Avala.Components.UI.Theme;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -50,6 +51,10 @@ public sealed class ViewScript
     public bool Shows(string name) => Named(name) is { IsEffectivelyVisible: true } control && control.Bounds.Width > 0;
 
     public bool HasClass(string name, string className) => Find(name).Classes.Contains(className);
+
+    public MotionEntrance EntranceOf(string name) => Motion.GetWhen(Find(name)) ? Motion.GetEnter(Find(name)) : MotionEntrance.None;
+
+    public MotionLoop LoopOf(string name) => Motion.GetWhen(Find(name)) ? Motion.GetLoop(Find(name)) : MotionLoop.None;
 
     public IReadOnlyList<string> VisibleTexts =>
         [.. Window.GetVisualDescendants().OfType<TextBlock>()
