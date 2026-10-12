@@ -1,0 +1,61 @@
+using Avala.Testing.UI;
+using Avala.Workbench.Conversation;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+
+namespace Avala.Workbench.Tests.Views;
+
+public sealed class FilePreviewViewScripts(HeadlessUi ui)
+{
+    private const string OnePixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    [Fact]
+    public Task AnImagesThumbnailOpensItInASheetThatEscapeClosesAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var preview = await LoadedAsync("orbit.png", Convert.FromBase64String(OnePixel));
+            var view = Screen.Show(preview);
+            var thumbnail = (view.Shows("Thumbnail"), view.Find<Image>("Picture").Source is not null, view.Find<Popup>("Sheet").IsOpen);
+
+            view.Click("Thumbnail");
+            await (preview.OpenCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+            var opened = (view.Find<Popup>("Sheet").IsOpen, view.Find<Image>("SheetPicture").Source is not null);
+            view.Find<Border>("SheetCard").Focus();
+            view.Press(Key.Escape);
+            view.Settle();
+
+            Assert.Equal((true, true, false), thumbnail);
+            Assert.Equal((true, true), opened);
+            Assert.False(view.Find<Popup>("Sheet").IsOpen);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AFileThatCouldNotBeReadSaysSoWithoutAThumbnailAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var preview = await LoadedAsync("orbit.png", []);
+
+            var view = Screen.Show(preview);
+
+            Assert.Equal((false, true), (view.Shows("Thumbnail"), view.Shows("Notice")));
+            Assert.Equal("orbit.png is no longer in the workspace or the repository.", view.TextOf("Notice"));
+        }, TestContext.Current.CancellationToken);
+
+    private static async Task<FilePreviewViewModel> LoadedAsync(string path, byte[] bytes)
+    {
+        var worktree = new Worktree();
+
+        if (bytes.Length > 0)
+        {
+            worktree.Files.Stored[$"{Worktree.Folder}/{path}"] = bytes;
+        }
+
+        var worked = worktree.Worked();
+        var preview = new FilePreviewViewModel(worktree.Job, path, worked, new Linking.Links(worktree.Opener));
+        await preview.LoadCommand.ExecuteAsync(null);
+
+        return preview;
+    }
+}

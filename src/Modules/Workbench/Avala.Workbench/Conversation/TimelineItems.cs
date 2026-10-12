@@ -16,7 +16,7 @@ internal sealed class TimelineItems(HumanReplies replies, Links links, IClipboar
         InterjectionEntry interjection => new InterjectionViewModel(interjection),
         MessageEntry message => new MessageViewModel(message, links, clipboard),
         ReasoningEntry reasoning => new ReasoningViewModel(reasoning),
-        ToolEntry tool => new ToolViewModel(tool, clipboard, new FileViews(job, files)),
+        ToolEntry tool => new ToolViewModel(tool, clipboard, new FileViews(job, files, links)),
         PlanEntry plan => new PlanViewModel(plan),
         CanvasEntry canvas => new CanvasViewModel(canvas),
         PermissionEntry permission => new PermissionCardViewModel(permission, replies),

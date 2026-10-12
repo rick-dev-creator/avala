@@ -1,0 +1,121 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:components="using:Avala.Components.UI"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.FilePreviewView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IFilePreviewViewModel">
+  <Design.DataContext>
+    <conversation:DesignFilePreviewViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#Thumbnail">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBlockBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="ClipToBounds" Value="True" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button#Thumbnail:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorStrongBrush}" />
+    </Style>
+    <Style Selector="Button#Scrim">
+      <Setter Property="Background" Value="{DynamicResource ScrimSheetBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Focusable" Value="False" />
+    </Style>
+    <Style Selector="Button#Scrim:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button#Scrim:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ScrimSheetBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel>
+    <Button x:Name="Thumbnail"
+            Margin="24,4,0,6"
+            HorizontalAlignment="Left"
+            Command="{Binding OpenCommand}"
+            IsVisible="{Binding HasThumbnail}"
+            ToolTip.Tip="{Binding Hint}"
+            AutomationProperties.Name="{Binding Name}">
+      <Panel Margin="8">
+        <Image x:Name="Picture"
+               MaxWidth="260"
+               MaxHeight="150"
+               Stretch="Uniform"
+               Source="{Binding Picture, Converter={x:Static states:Pictures.Decoded}}"
+               IsVisible="{Binding IsImage}" />
+        <components:CanvasPresenter x:Name="Drawing"
+                                    Width="220"
+                                    MaxHeight="150"
+                                    Rendering="{Binding Drawing}"
+                                    IsVisible="{Binding !IsImage}" />
+      </Panel>
+    </Button>
+    <TextBlock x:Name="Notice"
+               Margin="24,2,0,6"
+               Classes="caption"
+               TextWrapping="Wrap"
+               Text="{Binding Notice}"
+               IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <Popup x:Name="Sheet"
+           Placement="Center"
+           IsLightDismissEnabled="False"
+           IsOpen="{Binding IsOpen, Mode=OneWay}">
+      <Panel x:Name="SheetRoot">
+        <Button x:Name="Scrim"
+                Classes="scrim"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Command="{Binding CloseCommand}"
+                AutomationProperties.Name="Close the preview" />
+        <Border x:Name="SheetCard" Classes="float sheet-in" Padding="0" ClipToBounds="True" Focusable="True">
+          <Border.KeyBindings>
+            <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+          </Border.KeyBindings>
+          <DockPanel>
+            <Border DockPanel.Dock="Top"
+                    Padding="16,10,10,10"
+                    BorderBrush="{DynamicResource SeparatorBrush}"
+                    BorderThickness="0,0,0,1">
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <Path Classes="icon" VerticalAlignment="Center" Data="{StaticResource IconPreview}" />
+                <TextBlock x:Name="SheetTitle"
+                           Grid.Column="1"
+                           Classes="mono"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding Name}" />
+                <Button x:Name="Close"
+                        Grid.Column="2"
+                        Classes="ghost"
+                        ToolTip.Tip="Close (Esc)"
+                        AutomationProperties.Name="Close the preview"
+                        Command="{Binding CloseCommand}">
+                  <Path Classes="icon" Data="{StaticResource IconCross}" />
+                </Button>
+              </Grid>
+            </Border>
+            <Border Background="{DynamicResource SurfaceCanvasBrush}">
+              <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                <Panel Margin="24">
+                  <Image x:Name="SheetPicture"
+                         Stretch="Uniform"
+                         StretchDirection="DownOnly"
+                         Source="{Binding Picture, Converter={x:Static states:Pictures.Decoded}}"
+                         IsVisible="{Binding IsImage}" />
+                  <components:CanvasPresenter x:Name="SheetDrawing"
+                                              Rendering="{Binding Drawing}"
+                                              IsVisible="{Binding !IsImage}" />
+                </Panel>
+              </ScrollViewer>
+            </Border>
+          </DockPanel>
+        </Border>
+      </Panel>
+    </Popup>
+  </StackPanel>
+</UserControl>

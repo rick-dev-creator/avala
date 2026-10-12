@@ -56,6 +56,23 @@ public sealed class WorkingFileStoreTests
     }
 
     [Fact]
+    public async Task AFileIsLocatedAndReadAsBytesOnlyInsideTheRepositoryAndUnderTheLimitAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var store = new WorkingFileStore(new GitCli(Processes));
+        await File.WriteAllBytesAsync(Path.Combine(repository.Path, "orbit.png"), [137, 80, 78, 71], Cancellation);
+
+        var located = Outcomes.Present(Outcomes.Succeeds(await store.LocateAsync(repository.Path, "orbit.png", Cancellation)));
+        var bytes = Outcomes.Present(Outcomes.Succeeds(await store.ReadBytesAsync(repository.Path, "orbit.png", 4, Cancellation)));
+
+        Assert.Equal(Path.Combine(repository.Path, "orbit.png").Canonical(), Path.GetFullPath(located));
+        Assert.Equal([137, 80, 78, 71], bytes);
+        Assert.False(Outcomes.Succeeds(await store.LocateAsync(repository.Path, "missing.png", Cancellation)).IsSome);
+        Assert.Equal(WorkspaceFailure.FileTooLarge, Outcomes.FailsWith(await store.ReadBytesAsync(repository.Path, "orbit.png", 3, Cancellation)));
+        Assert.Equal(WorkspaceFailure.OutsideRepository, Outcomes.FailsWith(await store.ReadBytesAsync(repository.Path, "../orbit.png", 4, Cancellation)));
+    }
+
+    [Fact]
     public async Task AFolderThatIsNotARepositoryIsRefusedAsync()
     {
         using var folder = new TemporaryFolder();

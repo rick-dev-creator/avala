@@ -23,6 +23,16 @@ internal static class ConversationPhrases
 
     public const string ChangesUnreadable = "The changes of this file could not be read.";
 
+    public const string Preview = "Preview";
+
+    public const string OpenInBrowser = "Open in your browser";
+
+    public static string Missing(string name) => $"{name} is no longer in the workspace or the repository.";
+
+    public static string NotOpened(string name) => $"{name} could not be opened.";
+
+    public static string TooLargeToPreview(string name) => $"{name} is too large to preview.";
+
     public static string NotExported(FileSaveError error) => error switch
     {
         FileSaveError.Cancelled => string.Empty,

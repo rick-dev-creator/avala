@@ -60,6 +60,18 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
         "</html>",
     ];
 
+    private static readonly (double Radius, double Angle, double Size, string Color)[] Planets =
+    [
+        (48, 0.6, 3, "#B7B0A8"),
+        (74, 2.4, 5, "#E8C27A"),
+        (102, 4.1, 5.5, "#5B9BE8"),
+        (128, 5.6, 4, "#D9643A"),
+        (182, 1.2, 12, "#D8B48A"),
+        (226, 3.5, 10, "#E6D3A0"),
+        (262, 0.2, 7, "#9FD8E0"),
+        (296, 2.0, 7, "#5D7BE0"),
+    ];
+
     private static readonly DateTimeOffset Start = DateTimeOffset.UnixEpoch;
     private readonly SessionId session = SessionId.New();
     private readonly TurnId turn = TurnId.New();
@@ -176,6 +188,58 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
             Assert.True(Save(view, $"10-file-edit-diff-{variant}"));
         });
 
+    [Theory]
+    [MemberData(nameof(Variants))]
+    public Task AWrittenPageOffersItsPreviewOnItsLineAsync(string variant) =>
+        ShootAsync(() =>
+        {
+            var files = new FakeWorkingFiles { Stored = { ["/repo/sistema-solar.html"] = [60] } };
+            var view = Show(Conversation(Finished(), JobStatus.NeedsHelp, new FakeChanges(), files), variant);
+            var preview = view.All<Button>().Single(button => button.Name == "OpenPreview" && button.IsEffectivelyVisible);
+            Hover(view, preview);
+            Assert.True(Save(view, $"11-html-line-preview-{variant}"));
+        });
+
+    [Theory]
+    [MemberData(nameof(Variants))]
+    public Task AWrittenImageShowsItsThumbnailAndOpensInASheetAsync(string variant) =>
+        ShootAsync(() =>
+        {
+            var files = new FakeWorkingFiles { Stored = { ["/repo/orbits.png"] = Orbits() } };
+            var view = Show(Conversation(Drawn(), JobStatus.NeedsHelp, new FakeChanges(), files), variant);
+            Pump(view);
+            Save(view, $"12-image-thumbnail-{variant}");
+            view.Click(view.All<Button>().Single(button => button.Name == "OpenPreview" && button.IsEffectivelyVisible));
+            Pump(view);
+            Assert.True(Save(view, $"13-image-preview-sheet-{variant}"));
+        });
+
+    private static byte[] Orbits()
+    {
+        var bitmap = new Avalonia.Media.Imaging.RenderTargetBitmap(new PixelSize(720, 420));
+
+        using (var context = bitmap.CreateDrawingContext())
+        {
+            var center = new Point(360, 210);
+            context.FillRectangle(new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#0E1222")), new Rect(0, 0, 720, 420));
+            var orbit = new Avalonia.Media.Pen(new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#3DFFFFFF")), 1);
+
+            foreach (var (radius, angle, size, color) in Planets)
+            {
+                context.DrawEllipse(null, orbit, center, radius, radius * 0.5);
+                var at = new Point(center.X + (radius * Math.Cos(angle)), center.Y + (radius * 0.5 * Math.Sin(angle)));
+                context.DrawEllipse(new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(color)), null, at, size, size);
+            }
+
+            context.DrawEllipse(new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#F5B942")), null, center, 26, 26);
+        }
+
+        using var stream = new MemoryStream();
+        bitmap.Save(stream, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+
+        return stream.ToArray();
+    }
+
     private Task ShootAsync(Action shoot)
     {
         Assert.SkipUnless(Folder is not null && HeadlessApp.Renders, $"Set {Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the chat screens.");
@@ -227,13 +291,15 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
 
     private static ConversationViewModel Conversation(Transcript transcript, JobStatus status) => Conversation(transcript, status, new FakeChanges());
 
-    private static ConversationViewModel Conversation(Transcript transcript, JobStatus status, FakeChanges changes)
+    private static ConversationViewModel Conversation(Transcript transcript, JobStatus status, FakeChanges changes) => Conversation(transcript, status, changes, new FakeWorkingFiles());
+
+    private static ConversationViewModel Conversation(Transcript transcript, JobStatus status, FakeChanges changes, FakeWorkingFiles files)
     {
         var jobs = new FakeJobs { Status = status };
         var catalog = new FakeCatalog();
         var job = catalog.Add(Instruction, status).Summary.Job;
         catalog.Change(job, history => history with { Summary = history.Summary with { Workspace = Avala.Workspaces.Contracts.WorkspaceId.New() } });
-        var items = new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard(), new Avala.Workbench.Reviewing.WorkedFiles(catalog, changes));
+        var items = new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard(), new Avala.Workbench.Reviewing.WorkedFiles(catalog, changes, new FakeWorkspaces(), files));
         var conversation = new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), items, new SendKeys(), new TranscriptExport(new FakeClipboard(), new FakeFileSaver())).Open(job);
         conversation.Show(Board(transcript, status));
 
@@ -252,6 +318,15 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
 
     private static Avala.Workspaces.Contracts.FileDiff Page() =>
         new("sistema-solar.html", false, [new Avala.Workspaces.Contracts.DiffHunk(0, 0, 1, 9, string.Empty, [.. PageLines.Select(line => new Avala.Workspaces.Contracts.DiffLine(Avala.Workspaces.Contracts.DiffLineKind.Added, line))])]);
+
+    private Transcript Drawn() =>
+        Begun()
+            .Apply(new ItemStarted(session, turn, new ItemId("png"), ItemKind.FileEdit, "Write orbits.png") { Input = "PNG" }, Start.AddSeconds(30))
+            .Apply(new ItemCompleted(session, turn, new ItemId("png"), ItemOutcome.Succeeded), Start.AddSeconds(31))
+            .Apply(new ItemStarted(session, turn, new ItemId("drawn"), ItemKind.Message, "Message"), Start.AddSeconds(32))
+            .Apply(new ItemProgressed(session, turn, new ItemId("drawn"), "Drew **orbits.png**: the sun and the eight planets on their orbits, to scale by order."), Start.AddSeconds(33))
+            .Apply(new ItemCompleted(session, turn, new ItemId("drawn"), ItemOutcome.Succeeded), Start.AddSeconds(34))
+            .Apply(new TurnCompleted(session, turn, TurnOutcome.Finished), Start.AddSeconds(35));
 
     private Transcript Begun() =>
         Transcript.Empty.WithPrompts(Instruction, [])

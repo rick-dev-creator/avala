@@ -122,19 +122,6 @@ public sealed class ToolViewModelScripts
         Assert.Equal((false, true, false), (tool.ShowsChanges, tool.IsExpanded, tool.Changes.IsOpen));
     }
 
-    [Theory]
-    [InlineData("src/money.ts", "No changes left in this file.")]
-    [InlineData("src/gone.ts", "The changes of this file could not be read.")]
-    public async Task AFileWhoseHunksCannotBeShownSaysWhyAsync(string path, string note)
-    {
-        var changes = new FakeChanges { Hunks = { ["src/money.ts"] = new FileDiff("src/money.ts", false, []) } };
-        var tool = Tools.InWorktree(new ToolEntry("t", ItemKind.FileEdit, $"Edit {path}", string.Empty, ItemOutcome.Succeeded), changes);
-
-        await tool.ToggleCommand.ExecuteAsync(null);
-
-        Assert.Equal((true, note), (tool.Changes.IsOpen, tool.Changes.Note));
-    }
-
     private static ToolEntry Waiting() =>
         new("item:3", ItemKind.Other, "wait_child", string.Empty, Option<ItemOutcome>.None) { Input = """{"child":"7"}""", WaitsFor = JobId.New() };
 

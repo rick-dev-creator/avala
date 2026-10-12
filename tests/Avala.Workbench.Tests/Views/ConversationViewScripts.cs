@@ -616,6 +616,23 @@ public sealed class ToolViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AWrittenPageOffersToOpenInTheBrowserWithoutAThumbnailAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var worktree = new Worktree();
+            worktree.Files.Stored[$"{Worktree.Folder}/sistema-solar.html"] = [60];
+            var tool = worktree.Tool(new ToolEntry("t", ItemKind.FileEdit, "Write sistema-solar.html", string.Empty, ItemOutcome.Succeeded));
+            var view = Screen.Show(tool);
+
+            view.Click("OpenPreview");
+            await (tool.Preview.OpenCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal((true, false), (view.Shows("OpenPreview"), view.Shows("Thumbnail")));
+            Assert.Equal("Open in your browser", ToolTip.GetTip(view.Find<Button>("OpenPreview")));
+            Assert.Equal([new Uri("file:///worktrees/fix-rounding/sistema-solar.html")], worktree.Opener.Opened);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task EveryKindOfToolShowsAnIconAsync() =>
         ui.RunAsync(() =>
         {

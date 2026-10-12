@@ -31,6 +31,16 @@
       <Setter Property="TextWrapping" Value="Wrap" />
       <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
+    <Style Selector="Button#Toggle.previews Grid">
+      <Setter Property="Margin" Value="0,0,30,0" />
+    </Style>
+    <Style Selector="Button#OpenPreview">
+      <Setter Property="Margin" Value="0,0,2,0" />
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Button#OpenPreview:pointerover">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
     <Style Selector="Button#CopyOutput">
       <Setter Property="Margin" Value="0,-4,-4,0" />
       <Setter Property="Opacity" Value="0" />
@@ -47,6 +57,7 @@
     <Panel>
       <Button x:Name="Toggle"
               Classes="line"
+              Classes.previews="{Binding ShowsPreview}"
               Command="{Binding ToggleCommand}"
               AutomationProperties.Name="{Binding Title}">
         <Grid ColumnDefinitions="14,*,Auto" ColumnSpacing="10">
@@ -81,6 +92,16 @@
                      IsVisible="{Binding ShowsOutcome}" />
         </Grid>
       </Button>
+      <Button x:Name="OpenPreview"
+              Classes="glyph mini"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Center"
+              Command="{Binding Preview.OpenCommand}"
+              IsVisible="{Binding ShowsPreview}"
+              ToolTip.Tip="{Binding Preview.Hint}"
+              AutomationProperties.Name="{Binding Preview.Hint}">
+        <Path Classes="icon" Data="{Binding Preview.Kind, Converter={x:Static states:ThemeIcon.Named}, ConverterParameter=IconPreview}" />
+      </Button>
       <Popup x:Name="ChangesPopover"
              IsOpen="{Binding Changes.IsOpen}"
              PlacementTarget="{Binding #Toggle}"
@@ -92,6 +113,7 @@
         <ContentControl x:Name="Changes" Classes="pop-in" Content="{Binding Changes}" />
       </Popup>
     </Panel>
+    <ContentControl x:Name="Preview" Content="{Binding Preview}" IsVisible="{Binding ShowsPreview}" />
     <Border x:Name="Details"
             Classes.fold-in="{Binding IsExpanded}"
             Background="{DynamicResource FillQuietBrush}"

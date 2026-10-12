@@ -198,9 +198,40 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
 
     public IFileChangesViewModel Changes { get; init; } = new DesignFileChangesViewModel();
 
+    public bool ShowsPreview { get; init; }
+
+    public IFilePreviewViewModel Preview { get; init; } = new DesignFilePreviewViewModel();
+
     public IAsyncRelayCommand ToggleCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+internal sealed class DesignFilePreviewViewModel : IFilePreviewViewModel
+{
+    public string Name => "orbits.svg";
+
+    public PreviewKind Kind => PreviewKind.Svg;
+
+    public string Hint => ConversationPhrases.Preview;
+
+    public bool IsOpen => false;
+
+    public bool HasThumbnail => true;
+
+    public bool IsImage => false;
+
+    public byte[] Picture => [];
+
+    public CanvasRendering Drawing { get; } = new(CanvasMediaTypes.Svg, """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><circle cx="60" cy="60" r="14" fill="#E5A13A"/><circle cx="60" cy="60" r="40" fill="none" stroke="#80808A"/><circle cx="100" cy="60" r="5" fill="#8DA2FB"/></svg>""", true, 1);
+
+    public string Notice => string.Empty;
+
+    public IAsyncRelayCommand OpenCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand LoadCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand CloseCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed class DesignFileChangesViewModel : IFileChangesViewModel

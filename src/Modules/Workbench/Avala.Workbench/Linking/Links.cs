@@ -24,6 +24,11 @@ internal sealed class Links(ILinkOpener opener)
             link => OpenWebAsync(link, cancellationToken),
             () => Task.FromResult<Result<Uri, LinkRefusal>>(LinkRefusal.NotAWebLink));
 
+    public Task<Result<Uri, LinkRefusal>> OpenFileAsync(string path, CancellationToken cancellationToken) =>
+        Path.IsPathFullyQualified(path)
+            ? OpenWebAsync(new Uri(path), cancellationToken)
+            : Task.FromResult<Result<Uri, LinkRefusal>>(LinkRefusal.Refused);
+
     private async Task<Result<Uri, LinkRefusal>> OpenWebAsync(Uri link, CancellationToken cancellationToken) =>
         (await opener.OpenAsync(link, cancellationToken)).Match<Result<Uri, LinkRefusal>>(
             opened => opened,

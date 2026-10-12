@@ -34,6 +34,10 @@ internal interface IToolViewModel
 
     IFileChangesViewModel Changes { get; }
 
+    bool ShowsPreview { get; }
+
+    IFilePreviewViewModel Preview { get; }
+
     IAsyncRelayCommand ToggleCommand { get; }
 
     IAsyncRelayCommand CopyCommand { get; }
@@ -44,11 +48,14 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
 {
     private readonly IClipboard clipboard;
     private readonly FileChangesViewModel changes;
+    private readonly FilePreviewViewModel preview;
 
     public ToolViewModel(ToolEntry entry, IClipboard clipboard, FileViews files)
     {
         this.clipboard = clipboard;
-        changes = files.Changes(entry.EditedPath.Match(path => path, () => string.Empty));
+        var path = entry.EditedPath.Match(found => found, () => string.Empty);
+        changes = files.Changes(path);
+        preview = files.Preview(path);
         Kind = entry.Kind;
         Title = string.Empty;
         Output = string.Empty;
@@ -95,6 +102,11 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
 
     public IFileChangesViewModel Changes => changes;
 
+    [ObservableProperty]
+    public partial bool ShowsPreview { get; private set; }
+
+    public IFilePreviewViewModel Preview => preview;
+
     public void Update(ITimelineEntry entry)
     {
         if (entry is ToolEntry tool)
@@ -113,7 +125,18 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
             ShowsOutcome = ended;
             Outcome = tool.Outcome.Match(outcome => ConversationPhrases.Outcome(outcome, tool.Denied), () => "running");
             ShowsChanges = changes.Path.Length > 0 && tool.Outcome == Option<ItemOutcome>.Some(ItemOutcome.Succeeded);
+            Reveal(ShowsChanges && preview.Kind != PreviewKind.None);
         }
+    }
+
+    private void Reveal(bool shows)
+    {
+        if (shows && !ShowsPreview && preview.Kind is PreviewKind.Image or PreviewKind.Svg)
+        {
+            preview.LoadCommand.Execute(null);
+        }
+
+        ShowsPreview = shows;
     }
 
     [RelayCommand]

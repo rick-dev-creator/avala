@@ -21,6 +21,12 @@ internal sealed class WorkingFiles : IWorkingFiles
 
         return ValueTask.FromResult(Result<string, WorkspaceFailure>.Success(path));
     }
+
+    public ValueTask<Result<Option<string>, WorkspaceFailure>> LocateAsync(string repository, string path, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<Option<string>, WorkspaceFailure>.Success(Option<string>.None));
+
+    public ValueTask<Result<Option<byte[]>, WorkspaceFailure>> ReadBytesAsync(string repository, string path, int limit, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<Option<byte[]>, WorkspaceFailure>.Success(Option<byte[]>.None));
 }
 
 internal sealed class OneJobCatalog(JobId known, string repository) : IJobCatalog

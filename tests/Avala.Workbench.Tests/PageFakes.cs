@@ -480,6 +480,17 @@ internal sealed class FakeWorkingFiles : IWorkingFiles
 
         return ValueTask.FromResult(Result<string, WorkspaceFailure>.Success(Path.Combine(repository, path)));
     }
+
+    public Dictionary<string, byte[]> Stored { get; } = new(StringComparer.Ordinal);
+
+    public ValueTask<Result<Option<string>, WorkspaceFailure>> LocateAsync(string repository, string path, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<Option<string>, WorkspaceFailure>.Success(
+            Stored.ContainsKey(Path.Combine(repository, path)) ? Option<string>.Some(Path.Combine(repository, path)) : Option<string>.None));
+
+    public ValueTask<Result<Option<byte[]>, WorkspaceFailure>> ReadBytesAsync(string repository, string path, int limit, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Stored.TryGetValue(Path.Combine(repository, path), out var bytes)
+            ? bytes.Length > limit ? Result<Option<byte[]>, WorkspaceFailure>.Failure(WorkspaceFailure.FileTooLarge) : Result<Option<byte[]>, WorkspaceFailure>.Success(Option<byte[]>.Some(bytes))
+            : Result<Option<byte[]>, WorkspaceFailure>.Success(Option<byte[]>.None));
 }
 
 internal sealed class BudgetLikeFormat : IRuleFileFormat

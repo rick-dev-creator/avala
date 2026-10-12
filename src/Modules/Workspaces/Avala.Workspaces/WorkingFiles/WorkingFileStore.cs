@@ -9,14 +9,20 @@ internal sealed class WorkingFileStore(IGit git) : IWorkingFiles
     public const int MaximumBytes = 64 * 1024;
 
     public async ValueTask<Result<Option<string>, WorkspaceFailure>> ReadAsync(string repository, string path, CancellationToken cancellationToken) =>
-        await (await LocateAsync(repository, path, cancellationToken)).BindAsync(file => ReadTextAsync(file, cancellationToken));
+        await (await ContainedAsync(repository, path, cancellationToken)).BindAsync(file => ReadTextAsync(file, cancellationToken));
 
     public async ValueTask<Result<string, WorkspaceFailure>> WriteAsync(string repository, string path, string content, CancellationToken cancellationToken) =>
         content.Length > MaximumBytes
             ? WorkspaceFailure.FileTooLarge
-            : await (await LocateAsync(repository, path, cancellationToken)).BindAsync(file => WriteTextAsync(file, content, cancellationToken));
+            : await (await ContainedAsync(repository, path, cancellationToken)).BindAsync(file => WriteTextAsync(file, content, cancellationToken));
 
-    private async Task<Result<string, WorkspaceFailure>> LocateAsync(string repository, string path, CancellationToken cancellationToken)
+    public async ValueTask<Result<Option<string>, WorkspaceFailure>> LocateAsync(string repository, string path, CancellationToken cancellationToken) =>
+        (await ContainedAsync(repository, path, cancellationToken)).Map(file => File.Exists(file) ? Option<string>.Some(file) : Option<string>.None);
+
+    public async ValueTask<Result<Option<byte[]>, WorkspaceFailure>> ReadBytesAsync(string repository, string path, int limit, CancellationToken cancellationToken) =>
+        await (await ContainedAsync(repository, path, cancellationToken)).BindAsync(file => ReadBytesAsync(file, limit, cancellationToken));
+
+    private async Task<Result<string, WorkspaceFailure>> ContainedAsync(string repository, string path, CancellationToken cancellationToken)
     {
         if (!(await git.FindRepositoryRootAsync(repository, cancellationToken)).TryGetValue(out var root, out var failure))
         {
@@ -50,6 +56,33 @@ internal sealed class WorkingFileStore(IGit git) : IWorkingFiles
             using var reader = new StreamReader(stream);
 
             return Option<string>.Some(await reader.ReadToEndAsync(cancellationToken));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return WorkspaceFailure.FileUnreadable;
+        }
+    }
+
+    private static async Task<Result<Option<byte[]>, WorkspaceFailure>> ReadBytesAsync(string file, int limit, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(file))
+        {
+            return Option<byte[]>.None;
+        }
+
+        try
+        {
+            await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
+
+            if (stream.Length > limit)
+            {
+                return WorkspaceFailure.FileTooLarge;
+            }
+
+            var bytes = new byte[stream.Length];
+            await stream.ReadExactlyAsync(bytes, cancellationToken);
+
+            return Option<byte[]>.Some(bytes);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
