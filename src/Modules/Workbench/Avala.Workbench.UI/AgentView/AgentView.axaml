@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
@@ -35,7 +36,8 @@
           CommandParameter="{Binding Job}">
     <Border x:Name="Node"
             Classes="node"
-            Classes.drift="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='Working,Checking'}"
+            theme:Motion.Loop="Drift"
+            theme:Motion.When="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='Working,Checking'}"
             Classes.attention="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}"
             Height="40"
             Padding="13,0">

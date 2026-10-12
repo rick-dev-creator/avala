@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              x:Class="Avala.Workbench.UI.ConversationView"
@@ -31,9 +32,9 @@
                   VerticalAlignment="Center"
                   IsVisible="{Binding !Entries.Count}">
         <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
-          <Ellipse Classes="think-dot" Width="4" Height="4" Fill="{DynamicResource TextSecondaryBrush}" />
-          <Ellipse Classes="think-dot second" Width="4" Height="4" Fill="{DynamicResource TextSecondaryBrush}" />
-          <Ellipse Classes="think-dot third" Width="4" Height="4" Fill="{DynamicResource TextSecondaryBrush}" />
+          <Ellipse Classes="think-dot" theme:Motion.Loop="Think" Width="4" Height="4" Fill="{DynamicResource TextSecondaryBrush}" />
+          <Ellipse Classes="think-dot" theme:Motion.Loop="ThinkSecond" Width="4" Height="4" Fill="{DynamicResource TextSecondaryBrush}" />
+          <Ellipse Classes="think-dot" theme:Motion.Loop="ThinkThird" Width="4" Height="4" Fill="{DynamicResource TextSecondaryBrush}" />
         </StackPanel>
         <TextBlock Classes="caption" Text="Nothing said yet. The conversation appears here as the agent works." />
       </StackPanel>

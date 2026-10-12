@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:choice="using:Avala.Workbench.RepositoryChoice"
              x:Class="Avala.Workbench.UI.RepositoryFieldView"
@@ -41,7 +42,7 @@
       </StackPanel>
     </Grid>
     <StackPanel x:Name="Problem"
-                Classes="fade-in"
+                theme:Motion.Enter="Fade"
                 Spacing="6"
                 IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <TextBlock x:Name="ProblemText" Classes="caption attention" TextWrapping="Wrap" Text="{Binding Problem}" />
@@ -53,7 +54,8 @@
               IsVisible="{Binding Offer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
     <TextBlock x:Name="Notice"
-               Classes="caption fade-in"
+               Classes="caption"
+               theme:Motion.Enter="Fade"
                TextWrapping="Wrap"
                Text="{Binding Notice}"
                IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

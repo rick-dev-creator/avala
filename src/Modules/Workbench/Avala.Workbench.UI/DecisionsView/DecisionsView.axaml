@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:decisions="using:Avala.Workbench.Decisions"
              xmlns:states="using:Avala.Components.UI.States"
@@ -50,7 +51,7 @@
       <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
     </Style>
   </UserControl.Styles>
-  <Panel x:Name="Popover" Classes="pop-in">
+  <Panel x:Name="Popover" theme:Motion.Enter="Pop">
     <Border x:Name="Surface" Margin="0,6,0,0" BorderThickness="1">
       <DockPanel>
         <Grid x:Name="Header" DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="16,14,16,10">
@@ -78,7 +79,8 @@
                     Margin="16,0,16,12"
                     Spacing="6"
                     RenderTransformOrigin="50%,0%"
-                    Classes.fold-in="{Binding IsWritingNote}"
+                    theme:Motion.Enter="Fold"
+                    theme:Motion.When="{Binding IsWritingNote}"
                     IsVisible="{Binding IsWritingNote}">
           <TextBlock Classes="caption" Text="A note for the agent, sent with your answer" />
           <TextBox x:Name="DecisionNote" Text="{Binding Note}" PlaceholderText="Only the checkout tests, please" />
@@ -125,7 +127,8 @@
                       Margin="16,26,16,22"
                       Spacing="4"
                       HorizontalAlignment="Center"
-                      Classes.rise-in="{Binding IsEmpty}"
+                      theme:Motion.Enter="Rise"
+                      theme:Motion.When="{Binding IsEmpty}"
                       IsVisible="{Binding IsEmpty}">
             <Path Classes="icon" Data="{StaticResource IconCheck}" Width="20" Height="20" HorizontalAlignment="Center" />
             <TextBlock x:Name="Empty" Classes="strong" HorizontalAlignment="Center" Text="{Binding Empty}" />

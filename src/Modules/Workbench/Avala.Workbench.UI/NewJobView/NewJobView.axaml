@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:newJob="using:Avala.Workbench.NewJob"
              xmlns:states="using:Avala.Components.UI.States"
@@ -25,7 +26,7 @@
       <ScrollViewer>
         <StackPanel Margin="24,36,24,48" Spacing="16" MaxWidth="640">
           <TextBlock Classes="title" Text="What should the agent do?" />
-          <Border Classes="float arrive-snappy">
+          <Border Classes="float" theme:Motion.Enter="Arrive">
             <StackPanel Spacing="14">
               <StackPanel Spacing="6">
                 <TextBlock Classes="section" Text="Repository" />
@@ -57,7 +58,8 @@
                 </StackPanel>
                 <TextBlock x:Name="Route"
                            Grid.Row="1"
-                           Classes="caption fade-in"
+                           Classes="caption"
+                           theme:Motion.Enter="Fade"
                            Classes.attention="{Binding IsRouteAttention}"
                            TextWrapping="Wrap"
                            Text="{Binding Route}"
@@ -69,7 +71,8 @@
                 <TextBlock x:Name="AutonomyNote"
                            Grid.Row="1"
                            Grid.Column="1"
-                           Classes="caption fade-in"
+                           Classes="caption"
+                           theme:Motion.Enter="Fade"
                            TextWrapping="Wrap"
                            Text="{Binding AutonomyNote}" />
               </Grid>
@@ -89,7 +92,8 @@
                         ToolTip.Tip="Ctrl+Enter · Ctrl+Shift+Enter starts without a repository"
                         Command="{Binding SubmitCommand}" />
                 <TextBlock x:Name="Submitted"
-                           Classes="caption fade-in"
+                           Classes="caption"
+                           theme:Motion.Enter="Fade"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
                            Text="{Binding Submitted}"
@@ -101,11 +105,11 @@
       </ScrollViewer>
     </DockPanel>
     <Panel x:Name="CloneSheet" IsVisible="{Binding RepositoryField.Cloning.IsOpen}">
-      <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
+      <Border Background="{DynamicResource ScrimSheetBrush}" theme:Motion.Enter="Fade" />
       <ContentControl x:Name="CloneSheetContent" Content="{Binding RepositoryField.Cloning}" />
     </Panel>
     <Panel x:Name="ConnectSheet" IsVisible="{Binding RepositoryField.Cloning.Connect.IsOpen}">
-      <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
+      <Border Background="{DynamicResource ScrimSheetBrush}" theme:Motion.Enter="Fade" />
       <ContentControl x:Name="ConnectSheetContent" Content="{Binding RepositoryField.Cloning.Connect}" />
     </Panel>
   </Panel>

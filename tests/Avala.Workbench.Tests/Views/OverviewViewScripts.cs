@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Components.Graphs;
 using Avala.Components.Status;
 using Avala.Components.UI.Graphs;
+using Avala.Components.UI.Theme;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
@@ -269,7 +270,7 @@ public sealed class AgentViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignAgentViewModel());
 
             Assert.Equal("Fix JPY rounding in invoice totals", view.TextOf("Title"));
-            Assert.True(view.HasClass("Node", "drift"));
+            Assert.Equal(MotionLoop.Drift, view.LoopOf("Node"));
             Assert.False(view.HasClass("Node", "attention"));
             Assert.Equal("Running — editing money/minor.go, then re-running the money tests", ToolTip.GetTip(view.Find("Open")));
             Assert.Equal(EdgeKind.Flowing, Graph.GetEdge(view.Named("AgentView").Single()));
@@ -281,7 +282,7 @@ public sealed class AgentViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignAgentViewModel(Presenting.SampleJobs.InvoicePdf, "Add invoice PDF endpoint", StatusKind.NeedsYou, "asks a question"));
 
-            Assert.Equal((true, false), (view.HasClass("Node", "attention"), view.HasClass("Node", "drift")));
+            Assert.Equal((true, MotionLoop.None), (view.HasClass("Node", "attention"), view.LoopOf("Node")));
             Assert.Equal(EdgeKind.Attention, Graph.GetEdge(view.Named("AgentView").Single()));
         }, TestContext.Current.CancellationToken);
 }

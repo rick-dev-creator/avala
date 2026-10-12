@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using Avala.Components.UI.Theme;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -39,7 +40,8 @@ public sealed class MarkdownText : StackPanel
         tail.IsVisible = false;
         Children.Add(settled);
         Children.Add(tail);
-        caret = new Border { Name = "Caret", Width = 2, Height = 16, HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false, Classes = { "caret" } };
+        caret = new Border { Name = "Caret", Width = 2, Height = 16, HorizontalAlignment = HorizontalAlignment.Left, IsVisible = false };
+        Motion.SetLoop(caret, MotionLoop.Caret);
         caret.Bind(Border.BackgroundProperty, caret.GetResourceObservable("AccentBrush"));
         Children.Add(caret);
         Styles.Add(new StyleInclude(Base) { Source = new Uri("Markdown/MarkdownStyles.axaml", UriKind.Relative) });

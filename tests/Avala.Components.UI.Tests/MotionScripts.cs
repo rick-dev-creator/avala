@@ -7,7 +7,7 @@ namespace Avala.Components.UI.Tests;
 
 public sealed class MotionScripts(HeadlessUi ui)
 {
-    private static readonly string[] Entrances = ["fade-in", "arrive-snappy", "arrive-gentle", "sheet-in", "pop-in", "fold-in", "rise-in", "stamp"];
+    private static readonly MotionEntrance[] Entrances = [MotionEntrance.Fade, MotionEntrance.Arrive, MotionEntrance.Gentle, MotionEntrance.Sheet, MotionEntrance.Pop, MotionEntrance.Fold, MotionEntrance.Rise, MotionEntrance.Stamp, MotionEntrance.Scale];
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -17,7 +17,7 @@ public sealed class MotionScripts(HeadlessUi ui)
         {
             var view = Arrive(Entering(), reduced: false);
 
-            Assert.All(Entrances, entrance => Assert.Equal(0, view.Find(entrance).Opacity));
+            Assert.All(Entrances, entrance => Assert.Equal(0, view.Find(entrance.ToString()).Opacity));
         }, Cancellation);
 
     [Fact]
@@ -26,7 +26,34 @@ public sealed class MotionScripts(HeadlessUi ui)
         {
             var view = Arrive(Entering(), reduced: true);
 
-            Assert.All(Entrances, entrance => Assert.Equal((1d, true), (view.Find(entrance).Opacity, Unmoved(view.Find(entrance)))));
+            Assert.All(Entrances, entrance => Assert.Equal((1d, true), (view.Find(entrance.ToString()).Opacity, Unmoved(view.Find(entrance.ToString())))));
+        }, Cancellation);
+
+    [Fact]
+    public Task AnEntranceWaitsForItsConditionAndPlaysWhenItTurnsTrueAsync() =>
+        ui.RunAsync(() =>
+        {
+            var body = new Border { Name = "Body", Width = 10, Height = 10 };
+            Motion.SetEnter(body, MotionEntrance.Fold);
+            Motion.SetWhen(body, false);
+            var view = Arrive(new StackPanel { Children = { body } }, reduced: false);
+            var waiting = (body.Opacity, Unmoved(body));
+
+            Motion.SetWhen(body, true);
+            view.Settle();
+
+            Assert.Equal((1d, true), waiting);
+            Assert.Equal((0d, false), (body.Opacity, Unmoved(body)));
+        }, Cancellation);
+
+    [Fact]
+    public Task NoThemeStyleMatchesEveryVisualSoOnlyTheElementsThatOptInPayForMotionAsync() =>
+        ui.RunAsync(() =>
+        {
+            var animated = Animated(Avalonia.Application.Current!.Styles).ToList();
+
+            Assert.NotEmpty(animated);
+            Assert.DoesNotContain(animated, selector => selector.StartsWith(":is(", StringComparison.Ordinal));
         }, Cancellation);
 
     [Fact]
@@ -70,6 +97,15 @@ public sealed class MotionScripts(HeadlessUi ui)
             Assert.True(Motion.GetIsReduced(inner));
         }, Cancellation);
 
+    private static IEnumerable<string> Animated(IEnumerable<Avalonia.Styling.IStyle> styles) =>
+        styles.SelectMany(style => style switch
+        {
+            Avalonia.Styling.Style { Selector: { } selector, Animations.Count: > 0 } styled => Animated(styled.Children).Prepend(selector.ToString()),
+            Avalonia.Styling.Styles nested => Animated(nested),
+            Avalonia.Styling.StyleBase other => Animated(other.Children),
+            _ => [],
+        });
+
     private static bool Unmoved(Control control) => control.RenderTransform is not { } transform || transform.Value.IsIdentity;
 
     private static ViewScript Arrive(Control content, bool reduced)
@@ -87,7 +123,9 @@ public sealed class MotionScripts(HeadlessUi ui)
 
         foreach (var entrance in Entrances)
         {
-            panel.Children.Add(new Border { Name = entrance, Width = 10, Height = 10, Classes = { entrance } });
+            var border = new Border { Name = entrance.ToString(), Width = 10, Height = 10 };
+            Motion.SetEnter(border, entrance);
+            panel.Children.Add(border);
         }
 
         return panel;
@@ -97,9 +135,16 @@ public sealed class MotionScripts(HeadlessUi ui)
     {
         Children =
         {
-            new Border { Name = "Shimmer", Width = 48, Height = 12, Classes = { "shimmer-window" } },
-            new Border { Name = "Dot", Width = 4, Height = 4, Classes = { "think-dot" } },
-            new TextBlock { Name = "Caret", Text = "|", Classes = { "caret" } },
+            Looping(new Border { Name = "Shimmer", Width = 48, Height = 12 }, MotionLoop.Shimmer),
+            Looping(new Border { Name = "Dot", Width = 4, Height = 4 }, MotionLoop.Think),
+            Looping(new TextBlock { Name = "Caret", Text = "|" }, MotionLoop.Caret),
         },
     };
+
+    private static Control Looping(Control control, MotionLoop loop)
+    {
+        Motion.SetLoop(control, loop);
+
+        return control;
+    }
 }

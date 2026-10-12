@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="using:Avala.Workbench.Settings"
              xmlns:states="using:Avala.Components.UI.States"
@@ -83,7 +84,7 @@
       </ScrollViewer>
     </Grid>
     <Panel x:Name="ConnectSheet" IsVisible="{Binding Machine.SourceControl.Sheet.IsOpen}">
-      <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
+      <Border Background="{DynamicResource ScrimSheetBrush}" theme:Motion.Enter="Fade" />
       <ContentControl x:Name="ConnectSheetContent" Content="{Binding Machine.SourceControl.Sheet}" />
     </Panel>
   </Panel>

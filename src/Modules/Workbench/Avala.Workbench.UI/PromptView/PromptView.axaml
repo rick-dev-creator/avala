@@ -1,11 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:markdown="using:Avala.Components.UI.Markdown"
              x:Class="Avala.Workbench.UI.PromptView"
              x:ClassModifier="internal"
              x:DataType="conversation:IPromptViewModel"
-             Classes="arrive-snappy"
+             theme:Motion.Enter="Arrive"
              Classes.person="{Binding IsFromPerson}"
              Margin="0,10">
   <Design.DataContext>

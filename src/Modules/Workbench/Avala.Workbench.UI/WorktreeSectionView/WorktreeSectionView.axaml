@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inspector="using:Avala.Workbench.Inspector"
              xmlns:ui="using:Avala.Components.UI"
@@ -19,7 +20,7 @@
   </UserControl.Styles>
   <ui:Fold x:Name="Section" Header="Worktree" Fact="{Binding Fact}">
     <StackPanel Margin="28,0,12,12" Spacing="7">
-      <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <TextBlock x:Name="Loading" Classes="caption" theme:Motion.Loop="Pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
       <StackPanel x:Name="ScratchRepository" Spacing="4" IsVisible="{Binding IsScratch}">
         <DockPanel>
           <Border DockPanel.Dock="Left"

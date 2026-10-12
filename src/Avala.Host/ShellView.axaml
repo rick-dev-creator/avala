@@ -1,4 +1,5 @@
 <Window xmlns="https://github.com/avaloniaui"
+        xmlns:theme="using:Avala.Components.UI.Theme"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="using:Avala.Shell"
         xmlns:sdk="using:Avala.Sdk"
@@ -132,7 +133,8 @@
            Grid.Column="2"
            Width="{DynamicResource InspectorWidth}"
            IsVisible="{Binding IsInspectorShown}"
-           Classes.arrive-gentle="{Binding IsInspectorShown}">
+           theme:Motion.Enter="Gentle"
+           theme:Motion.When="{Binding IsInspectorShown}">
       <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
       <Border Classes="edge" HorizontalAlignment="Left" />
       <ScrollViewer>

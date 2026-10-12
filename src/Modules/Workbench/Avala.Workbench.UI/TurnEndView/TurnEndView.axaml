@@ -1,11 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.TurnEndView"
              x:ClassModifier="internal"
              x:DataType="conversation:ITurnEndViewModel"
-             Classes="fade-in"
+             theme:Motion.Enter="Fade"
              Margin="0,8">
   <Design.DataContext>
     <conversation:DesignTurnEndViewModel />

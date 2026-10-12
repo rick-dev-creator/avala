@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:review="using:Avala.Workbench.Review"
              xmlns:workspaces="using:Avala.Workspaces.Contracts"
@@ -38,7 +39,8 @@
     <ItemsControl x:Name="Hunks"
                   ItemsSource="{Binding Hunks}"
                   Margin="0,2,0,8"
-                  Classes.fold-in="{Binding IsExpanded}"
+                  theme:Motion.Enter="Fold"
+                  theme:Motion.When="{Binding IsExpanded}"
                   RenderTransformOrigin="50%,0%"
                   IsVisible="{Binding IsExpanded}">
       <ItemsControl.ItemsPanel>

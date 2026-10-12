@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:review="using:Avala.Workbench.Review"
              xmlns:ui="using:Avala.Components.UI"
@@ -73,7 +74,7 @@
       <Setter Property="Foreground" Value="{DynamicResource AccentHoverBrush}" />
     </Style>
   </UserControl.Styles>
-  <Border x:Name="Sheet" Classes="sheet-in" MaxWidth="{DynamicResource ReadingWidth}">
+  <Border x:Name="Sheet" theme:Motion.Enter="Sheet" MaxWidth="{DynamicResource ReadingWidth}">
     <Grid x:Name="Layout" RowDefinitions="Auto,*,Auto">
       <Grid x:Name="Header" ColumnDefinitions="*,Auto" Margin="28,24,20,0">
         <StackPanel Spacing="4">
@@ -103,7 +104,8 @@
       <ScrollViewer x:Name="Scroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <StackPanel x:Name="Body" Margin="0,0,0,20">
           <TextBlock x:Name="Loading"
-                     Classes="caption pulse"
+                     Classes="caption"
+                     theme:Motion.Loop="Pulse"
                      Margin="28,24,28,0"
                      Text="Reading the evidence…"
                      IsVisible="{Binding !IsLoaded}" />
@@ -119,7 +121,8 @@
                   <Ellipse x:Name="Ring" Stroke="{DynamicResource RingBrush}" StrokeThickness="1.5" />
                   <Path x:Name="Check"
                         Classes="glyph"
-                        Classes.draw="{Binding IsVerified}"
+                        theme:Motion.Enter="Draw"
+                        theme:Motion.When="{Binding IsVerified}"
                         Data="{StaticResource IconCheck}"
                         IsVisible="{Binding IsVerified}" />
                   <Path x:Name="Unproven"
@@ -230,7 +233,8 @@
                     Margin="28,16,28,0"
                     Spacing="6"
                     RenderTransformOrigin="50%,0%"
-                    Classes.fold-in="{Binding #WriteFeedback.IsChecked}">
+                    theme:Motion.Enter="Fold"
+                    theme:Motion.When="{Binding #WriteFeedback.IsChecked}">
           <StackPanel.IsVisible>
             <MultiBinding Converter="{x:Static BoolConverters.And}">
               <Binding Path="#WriteFeedback.IsChecked" />
@@ -259,7 +263,8 @@
                 Background="{DynamicResource FillQuietBrush}"
                 BorderBrush="{DynamicResource AttentionBorderBrush}"
                 BorderThickness="1"
-                Classes.fold-in="{Binding Refusal, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                theme:Motion.Enter="Fold"
+                theme:Motion.When="{Binding Refusal, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                 RenderTransformOrigin="50%,0%"
                 IsVisible="{Binding Refusal, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
           <StackPanel Spacing="8">
@@ -301,7 +306,8 @@
 
           <Grid x:Name="DiscardConfirmation"
                 ColumnDefinitions="*,Auto,Auto"
-                Classes.fold-in="{Binding ConfirmingDiscard}"
+                theme:Motion.Enter="Fold"
+                theme:Motion.When="{Binding ConfirmingDiscard}"
                 IsVisible="{Binding ConfirmingDiscard}">
             <TextBlock Text="Discard the job and its worktree?" VerticalAlignment="Center" TextWrapping="Wrap" />
             <Button x:Name="CancelDiscard" Grid.Column="1" Margin="12,0,8,0" Content="Keep it" Command="{Binding CancelDiscardCommand}" />
@@ -312,7 +318,8 @@
                   Padding="14,12"
                   CornerRadius="{DynamicResource RadiusItem}"
                   Background="{DynamicResource FillHoverBrush}"
-                  Classes.stamp="{Binding IsClosed}"
+                  theme:Motion.Enter="Stamp"
+                  theme:Motion.When="{Binding IsClosed}"
                   IsVisible="{Binding IsClosed}">
             <Grid ColumnDefinitions="Auto,*,Auto">
               <Path Classes="glyph" Data="{StaticResource IconCheck}" Margin="0,0,10,0" />

@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:canvases="using:Avala.Components.Canvases"
              xmlns:ui="using:Avala.Components.UI"
@@ -63,7 +64,8 @@
             <Arc x:Name="Streaming"
                  Margin="8,0,0,0"
                  Classes="streaming"
-                 Classes.spin="{Binding IsStreaming}"
+                 theme:Motion.Loop="Spin"
+                 theme:Motion.When="{Binding IsStreaming}"
                  IsVisible="{Binding IsStreaming}" />
             <TextBlock x:Name="Status"
                        Margin="6,0,0,0"
@@ -135,7 +137,8 @@
               <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                 <Arc Margin="8,0,0,0"
                      Classes="streaming"
-                     Classes.spin="{Binding IsStreaming}"
+                     theme:Motion.Loop="Spin"
+                     theme:Motion.When="{Binding IsStreaming}"
                      IsVisible="{Binding IsStreaming}" />
                 <TextBlock Margin="6,0,0,0"
                            Classes="status"

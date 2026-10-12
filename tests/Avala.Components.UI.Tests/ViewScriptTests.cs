@@ -1,3 +1,4 @@
+using Avala.Components.UI.Theme;
 using Avala.Testing.UI;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -44,7 +45,8 @@ public sealed class ViewScriptTests(HeadlessUi ui)
     public Task MotionHoldsItsFirstFrameSoAClickLandsWhereTheScriptReadTheTargetAsync() =>
         ui.RunAsync(() =>
         {
-            var panel = new Border { Name = "Panel", Classes = { "fold-in" }, Height = 40, Background = Brushes.Black };
+            var panel = new Border { Name = "Panel", Height = 40, Background = Brushes.Black };
+            Motion.SetEnter(panel, MotionEntrance.Fold);
             var view = ViewScript.Show(panel, new object());
 
             view.Click(panel);

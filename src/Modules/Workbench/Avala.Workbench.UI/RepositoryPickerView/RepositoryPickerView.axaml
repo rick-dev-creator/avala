@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:choice="using:Avala.Workbench.RepositoryChoice"
              x:Class="Avala.Workbench.UI.RepositoryPickerView"
@@ -72,7 +73,7 @@
     </Popup>
     <ContentControl x:Name="Creation" Content="{Binding Field.Creation}" IsVisible="{Binding Field.Creation.IsOpen}" />
     <DockPanel x:Name="Problem"
-               Classes="fade-in"
+               theme:Motion.Enter="Fade"
                IsVisible="{Binding Field.Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <Button x:Name="MakeRepository"
               DockPanel.Dock="Right"
@@ -84,7 +85,8 @@
       <TextBlock x:Name="ProblemText" Classes="caption attention" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Field.Problem}" />
     </DockPanel>
     <TextBlock x:Name="Notice"
-               Classes="caption fade-in"
+               Classes="caption"
+               theme:Motion.Enter="Fade"
                TextWrapping="Wrap"
                Text="{Binding Field.Notice}"
                IsVisible="{Binding Field.Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

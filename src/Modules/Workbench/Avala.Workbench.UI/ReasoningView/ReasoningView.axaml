@@ -1,10 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              x:Class="Avala.Workbench.UI.ReasoningView"
              x:ClassModifier="internal"
              x:DataType="conversation:IReasoningViewModel"
-             Classes="fade-in"
+             theme:Motion.Enter="Fade"
              Classes.thinking="{Binding IsThinking}"
              Classes.expanded="{Binding IsExpanded}"
              Margin="0,1">
@@ -48,9 +49,9 @@
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     IsVisible="{Binding IsThinking}">
-          <Ellipse Classes="think-dot" />
-          <Ellipse Classes="think-dot second" />
-          <Ellipse Classes="think-dot third" />
+          <Ellipse Classes="think-dot" theme:Motion.Loop="Think" />
+          <Ellipse Classes="think-dot" theme:Motion.Loop="ThinkSecond" />
+          <Ellipse Classes="think-dot" theme:Motion.Loop="ThinkThird" />
         </StackPanel>
         <StackPanel x:Name="StillDots"
                     Orientation="Horizontal"
@@ -65,13 +66,13 @@
         <Panel Grid.Column="1" ClipToBounds="True">
           <TextBlock x:Name="Summary" Text="{Binding Summary}" VerticalAlignment="Center" />
           <Border x:Name="Shimmer"
-                  Classes="shimmer-window"
+                  theme:Motion.Loop="Shimmer"
                   Width="48"
                   HorizontalAlignment="Left"
                   ClipToBounds="True"
                   OpacityMask="{DynamicResource ShimmerMaskBrush}"
                   IsVisible="{Binding IsThinking}">
-            <TextBlock Classes="shimmer-text"
+            <TextBlock theme:Motion.Loop="ShimmerText"
                        Text="{Binding Summary}"
                        Foreground="{DynamicResource TextPrimaryBrush}"
                        VerticalAlignment="Center" />
@@ -85,7 +86,8 @@
       </Grid>
     </Button>
     <Border x:Name="Thought"
-            Classes.fold-in="{Binding IsExpanded}"
+            theme:Motion.Enter="Fold"
+            theme:Motion.When="{Binding IsExpanded}"
             Background="{DynamicResource FillQuietBrush}"
             CornerRadius="{DynamicResource RadiusButton}"
             Padding="34,8,12,10"

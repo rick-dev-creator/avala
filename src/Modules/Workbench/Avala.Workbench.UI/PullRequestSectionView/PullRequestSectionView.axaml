@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inspector="using:Avala.Workbench.Inspector"
              xmlns:ui="using:Avala.Components.UI"
@@ -17,7 +18,7 @@
   </UserControl.Styles>
   <ui:Fold x:Name="Section" Header="Pull request" Fact="{Binding Fact}">
     <StackPanel Margin="28,0,12,12" Spacing="7">
-      <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <TextBlock x:Name="Loading" Classes="caption" theme:Motion.Loop="Pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
       <TextBlock x:Name="Title" Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Title}" />
       <ContentControl x:Name="Publishing" Content="{Binding Publishing}" IsVisible="{Binding !HasPullRequest}" />
       <StackPanel Spacing="7" IsVisible="{Binding HasPullRequest}">

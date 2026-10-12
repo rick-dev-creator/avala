@@ -27,7 +27,7 @@ public sealed class StreamingText : SelectableTextBlock
     public StreamingText()
     {
         var bar = new Border { Width = 2, Height = 16, Margin = new Thickness(2, 0, 0, -3) };
-        bar.Classes.Add("caret");
+        Motion.SetLoop(bar, MotionLoop.Caret);
         bar.Bind(Border.BackgroundProperty, bar.GetResourceObservable("AccentBrush"));
         caret = new InlineUIContainer(bar) { BaselineAlignment = BaselineAlignment.TextBottom };
         Inlines = [settled];

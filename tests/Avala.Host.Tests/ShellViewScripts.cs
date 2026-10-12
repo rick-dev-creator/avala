@@ -30,7 +30,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             Assert.True(view.Shows("InspectorPane"));
             Assert.True(view.Shows("EmptyContent"));
             Assert.True(view.Shows("PageNavigation"));
-            Assert.True(view.HasClass("InspectorPane", "arrive-gentle"));
+            Assert.Equal(Avala.Components.UI.Theme.MotionEntrance.Gentle, view.EntranceOf("InspectorPane"));
             Assert.Superset(
                 new HashSet<string>(["Avala", "⌘K", "jump", "Add invoice PDF endpoint", "Fix JPY rounding in invoice totals", "claude-work · 5h", "88% · resets 16:20", "Inspector", "claude-personal · 5h", "Nothing to show yet", "Overview", "Usage", "Settings"]),
                 view.VisibleTexts.ToHashSet());

@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Components.UI.Markdown;
+using Avala.Components.UI.Theme;
 using Avala.Delegation.Contracts;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
@@ -504,7 +505,7 @@ public sealed class ToolViewScripts(HeadlessUi ui)
         {
             var tool = new ToolViewModel(new ToolEntry("t", ItemKind.Command, "go test ./...", string.Empty, Option<ItemOutcome>.None));
             var view = Screen.Show(tool);
-            var running = (view.Shows("Spinner"), view.HasClass("Spinner", "spin"), view.Shows("Icon"), view.Shows("NoOutput"));
+            var running = (view.Shows("Spinner"), view.LoopOf("Spinner") == MotionLoop.Spin, view.Shows("Icon"), view.Shows("NoOutput"));
             view.Click("Toggle");
 
             tool.Update(new ToolEntry("t", ItemKind.Command, "go test ./...", "ok  internal/money", ItemOutcome.Succeeded));
@@ -590,7 +591,7 @@ public sealed class CanvasViewScripts(HeadlessUi ui)
         {
             var canvas = new CanvasViewModel(new CanvasEntry("c", "Rounding path", "text/vnd.mermaid", "flowchart LR", CanvasStatus.Streaming));
             var view = Screen.Show(canvas);
-            var streaming = (view.Shows("Streaming"), view.HasClass("Streaming", "spin"));
+            var streaming = (view.Shows("Streaming"), view.LoopOf("Streaming") == MotionLoop.Spin);
 
             canvas.Update(new CanvasEntry("c", "Rounding path", "text/vnd.mermaid", "flowchart LR\n  A --> B", CanvasStatus.Completed));
             view.Settle();

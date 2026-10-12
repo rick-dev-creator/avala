@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:accounts="using:Avala.Workbench.Accounts"
              xmlns:states="using:Avala.Components.UI.States"
@@ -8,7 +9,7 @@
   <Design.DataContext>
     <accounts:DesignConnectSheetViewModel />
   </Design.DataContext>
-  <Border x:Name="Sheet" Classes="sheet sheet-in">
+  <Border x:Name="Sheet" Classes="sheet" theme:Motion.Enter="Sheet">
     <StackPanel Spacing="16">
       <TextBlock Classes="heading" Text="Connect an account" />
       <Border Classes="segments" HorizontalAlignment="Left">

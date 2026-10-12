@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:usage="using:Avala.Workbench.Usage"
              x:Class="Avala.Workbench.UI.ConnectionMeterView"
@@ -7,7 +8,7 @@
   <Design.DataContext>
     <usage:DesignConnectionMeterViewModel />
   </Design.DataContext>
-  <Border Classes="grouped arrive-snappy" Padding="22,20">
+  <Border Classes="grouped" theme:Motion.Enter="Arrive" Padding="22,20">
     <StackPanel Spacing="18">
       <StackPanel Spacing="2">
         <DockPanel>

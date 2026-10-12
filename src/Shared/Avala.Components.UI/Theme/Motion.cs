@@ -1,11 +1,66 @@
 using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Controls.Shapes;
+using Avalonia.Data;
+using Avalonia.Controls;
 
 namespace Avala.Components.UI.Theme;
+
+public enum MotionEntrance
+{
+    None,
+    Fade,
+    Arrive,
+    Gentle,
+    Sheet,
+    Pop,
+    Fold,
+    Rise,
+    Stamp,
+    Scale,
+    Draw,
+}
+
+public enum MotionLoop
+{
+    None,
+    Pulse,
+    Spin,
+    Think,
+    ThinkSecond,
+    ThinkThird,
+    Shimmer,
+    ShimmerText,
+    Caret,
+    Drift,
+}
 
 public sealed class Motion
 {
     public static readonly AttachedProperty<bool> IsReducedProperty =
         AvaloniaProperty.RegisterAttached<Motion, Visual, bool>("IsReduced", inherits: true);
+
+    public static readonly AttachedProperty<MotionEntrance> EnterProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, MotionEntrance>("Enter");
+
+    public static readonly AttachedProperty<MotionLoop> LoopProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, MotionLoop>("Loop");
+
+    public static readonly AttachedProperty<bool> WhenProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, bool>("When", defaultValue: true);
+
+    private static readonly AttachedProperty<Playback?> PlaybackProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, Playback?>("Playback");
+
+    private static readonly AttachedProperty<bool> IsWatchedProperty =
+        AvaloniaProperty.RegisterAttached<Motion, Visual, bool>("IsWatched");
+
+    static Motion()
+    {
+        EnterProperty.Changed.AddClassHandler<Visual>((visual, _) => Watch(visual));
+        LoopProperty.Changed.AddClassHandler<Visual>((visual, _) => Watch(visual));
+        WhenProperty.Changed.AddClassHandler<Visual>((visual, _) => Refresh(visual));
+    }
 
     private Motion()
     {
@@ -14,4 +69,150 @@ public sealed class Motion
     public static bool GetIsReduced(Visual visual) => visual.GetValue(IsReducedProperty);
 
     public static void SetIsReduced(Visual visual, bool value) => visual.SetValue(IsReducedProperty, value);
+
+    public static MotionEntrance GetEnter(Visual visual) => visual.GetValue(EnterProperty);
+
+    public static void SetEnter(Visual visual, MotionEntrance value) => visual.SetValue(EnterProperty, value);
+
+    public static MotionLoop GetLoop(Visual visual) => visual.GetValue(LoopProperty);
+
+    public static void SetLoop(Visual visual, MotionLoop value) => visual.SetValue(LoopProperty, value);
+
+    public static bool GetWhen(Visual visual) => visual.GetValue(WhenProperty);
+
+    public static void SetWhen(Visual visual, bool value) => visual.SetValue(WhenProperty, value);
+
+    public static bool IsPlaying(Visual visual) => visual.GetValue(PlaybackProperty) is { IsMoving: true };
+
+    private static void Watch(Visual visual)
+    {
+        if (!visual.GetValue(IsWatchedProperty))
+        {
+            visual.SetValue(IsWatchedProperty, true);
+            visual.AttachedToVisualTree += (_, _) => Refresh(visual);
+            visual.DetachedFromVisualTree += (_, _) => Stop(visual);
+            visual.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == IsReducedProperty)
+                {
+                    Refresh(visual);
+                }
+            };
+        }
+
+        Refresh(visual);
+    }
+
+    private static void Refresh(Visual visual)
+    {
+        if (!visual.GetValue(IsWatchedProperty))
+        {
+            return;
+        }
+
+        Stop(visual);
+
+        if (TopLevel.GetTopLevel(visual) is null)
+        {
+            return;
+        }
+
+        var playback = new Playback();
+        visual.SetValue(PlaybackProperty, playback);
+
+        if (GetIsReduced(visual))
+        {
+            playback.Hold(visual, MotionCatalog.Still(GetLoop(visual)));
+
+            return;
+        }
+
+        if (GetWhen(visual))
+        {
+            playback.Play(visual, MotionCatalog.Entrance(GetEnter(visual)));
+            playback.Play(visual, MotionCatalog.Loop(GetLoop(visual)));
+        }
+    }
+
+    private static void Stop(Visual visual)
+    {
+        if (visual.GetValue(PlaybackProperty) is { } playback)
+        {
+            visual.ClearValue(PlaybackProperty);
+            playback.Dispose();
+        }
+    }
+
+    private sealed class Playback : IDisposable
+    {
+        private readonly CancellationTokenSource cancellation = new();
+        private readonly List<IDisposable> held = [];
+
+        public bool IsMoving { get; private set; }
+
+        public void Hold(Visual visual, MotionCatalog.Pose? pose)
+        {
+            if (pose is not null)
+            {
+                Keep(visual.SetValue(pose.Property, pose.Value, BindingPriority.Style));
+            }
+        }
+
+        public void Play(Visual visual, MotionCatalog.Move? move)
+        {
+            if (move is null)
+            {
+                return;
+            }
+
+            IsMoving = true;
+
+            if (visual.RenderTransform is null)
+            {
+                Keep(visual.SetValue(Visual.RenderTransformProperty, MotionCatalog.Transforms(), BindingPriority.Style));
+            }
+
+            if (move.Origin is { } origin)
+            {
+                Keep(visual.SetValue(Visual.RenderTransformOriginProperty, origin, BindingPriority.Style));
+            }
+
+            if (move.Dashes is { } dashes && visual is Shape shape)
+            {
+                Keep(shape.SetValue(Shape.StrokeDashArrayProperty, dashes, BindingPriority.Style));
+            }
+
+            _ = RunAsync(visual, move, cancellation.Token);
+        }
+
+        public void Dispose()
+        {
+            cancellation.Cancel();
+            cancellation.Dispose();
+
+            foreach (var value in held)
+            {
+                value.Dispose();
+            }
+
+            held.Clear();
+        }
+
+        private void Keep(IDisposable? value)
+        {
+            if (value is not null)
+            {
+                held.Add(value);
+            }
+        }
+
+        private static async Task RunAsync(Visual visual, MotionCatalog.Move move, CancellationToken token)
+        {
+            do
+            {
+                await move.Animation.RunAsync(visual, token);
+            }
+            while (move.Repeats && !token.IsCancellationRequested);
+        }
+    }
 }

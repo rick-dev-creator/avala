@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:navigation="using:Avala.Workbench.Navigation"
              x:Class="Avala.Workbench.UI.WorkbenchView"
@@ -63,7 +64,7 @@
       </Panel>
     </DockPanel>
     <Panel x:Name="ReviewSheet" IsVisible="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}">
-      <Border x:Name="ReviewScrim" Background="{DynamicResource ScrimSheetBrush}" Classes.fade-in="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      <Border x:Name="ReviewScrim" Background="{DynamicResource ScrimSheetBrush}" theme:Motion.Enter="Fade" theme:Motion.When="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}" />
       <StackPanel Margin="20,40,20,20" Spacing="10" VerticalAlignment="Top">
         <ContentControl x:Name="Candidates" Content="{Binding Candidates}" />
         <ContentControl x:Name="Review" Content="{Binding Review}" />
