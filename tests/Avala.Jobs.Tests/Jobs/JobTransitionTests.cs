@@ -40,6 +40,7 @@ public sealed class JobTransitionTests
         [Operation.HandOff] = ([JobState.Checking, JobState.NeedsHelp], JobError.CannotHandOff),
         [Operation.Reopen] = ([JobState.Approved], JobError.CannotReopen),
         [Operation.ReopenInNewSession] = ([JobState.Approved], JobError.CannotReopen),
+        [Operation.ChooseModel] = ([JobState.NeedsHelp, JobState.AwaitingReview], JobError.CannotChooseModel),
     };
 
     [Fact]
@@ -94,6 +95,7 @@ public sealed class JobTransitionTests
         Operation.HandOff => Outcomes.ErrorOf(job.HandOff(Given.Feedback, SessionId.New(), new ConnectionName("personal"))),
         Operation.Reopen => Outcomes.ErrorOf(job.Reopen(Given.Feedback)),
         Operation.ReopenInNewSession => Outcomes.ErrorOf(job.Reopen(Given.Feedback, SessionId.New(), resumed: true)),
+        Operation.ChooseModel => Outcomes.ErrorOf(job.ChooseModel(new ModelChoice("opus", "high"))),
         _ => throw new ArgumentOutOfRangeException(nameof(operation)),
     };
 }

@@ -38,7 +38,7 @@ internal sealed class JobFlow
         Hold = new HoldJob(ledger, agents, Bus);
         Jobs = new JobsEntry(
             Submit,
-            Hold,
+            new JobControls(Hold, new ChooseModel(ledger, agents, Connections)),
             new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), new ResumeJob(deferred, launcher, Hold)),
             Queues);
         Prepare = new PrepareJob(Queues, launcher, Admissions);

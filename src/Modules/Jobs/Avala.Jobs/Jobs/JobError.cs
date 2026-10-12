@@ -25,4 +25,5 @@ internal enum JobError
     SameConnection,
     CannotHandOff,
     CannotReopen,
+    CannotChooseModel,
 }
