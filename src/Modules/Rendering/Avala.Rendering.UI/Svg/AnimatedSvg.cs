@@ -1,6 +1,7 @@
 using Avala.Components.UI;
 using Avala.Components.UI.Theme;
 using Avala.Rendering.Animation;
+using Avala.Sdk;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -45,7 +46,6 @@ internal sealed class AnimatedSvg : Panel
         _ = model.Sanitized.Area.Map(area => Sized(drawing, area));
         CanvasPresenter.SetIsDrawing(this, true);
         drawing.PropertyChanged += OnDrawingChanged;
-        _ = LoadAsync();
         play = Play();
         play.Click += (_, _) => PlayOnce();
         Children.Add(SvgModel.Fit(drawing));
@@ -73,6 +73,7 @@ internal sealed class AnimatedSvg : Panel
         base.OnAttachedToVisualTree(e);
         host = TopLevel.GetTopLevel(this);
         host?.PropertyChanged += OnHostChanged;
+        _ = LoadAsync(model.ClaimAsync());
         Hold();
         Refresh();
     }
@@ -83,14 +84,19 @@ internal sealed class AnimatedSvg : Panel
         host?.PropertyChanged -= OnHostChanged;
         host = null;
         Refresh();
+        model.Release();
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(Task<Option<SvgSource>> loading)
     {
-        var loaded = await model.Loaded;
-        _ = loaded.Map(source => drawing.SvgSource = source);
+        var loaded = await loading;
 
-        if (loaded.IsNone)
+        if (drawing.SvgSource is null && host is not null)
+        {
+            _ = loaded.Map(source => drawing.SvgSource = source);
+        }
+
+        if (loaded.IsNone && CanvasPresenter.GetIsDrawing(this))
         {
             CanvasPresenter.Drawn(this);
         }

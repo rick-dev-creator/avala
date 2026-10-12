@@ -6,17 +6,25 @@ using Avala.Sdk;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Svg.Skia;
+using Avalonia.VisualTree;
 
 namespace Avala.Rendering.UI.Svg;
 
-internal sealed class SvgRenderer : ICanvasRenderer
+internal sealed class SvgRenderer(long budget) : ICanvasRenderer
 {
-    private const int Kept = 16;
+    public const long Budget = 64L * 1024 * 1024;
 
-    private readonly Dictionary<string, SvgModel> models = [];
-    private readonly Queue<string> order = [];
+    private readonly Dictionary<string, LinkedListNode<(string Content, SvgModel Model)>> models = [];
+    private readonly LinkedList<(string Content, SvgModel Model)> recent = [];
+
+    public SvgRenderer()
+        : this(Budget)
+    {
+    }
 
     public string MediaType => RenderedFormats.Svg.MediaType;
+
+    public IReadOnlyList<SvgModel> Kept => [.. recent.Select(entry => entry.Model)];
 
     public Option<Control> Render(string content) =>
         Load(content).Map(Show);
@@ -25,7 +33,10 @@ internal sealed class SvgRenderer : ICanvasRenderer
     {
         if (models.TryGetValue(content, out var known))
         {
-            return known;
+            recent.Remove(known);
+            recent.AddFirst(known);
+
+            return known.Value.Model;
         }
 
         return SvgSanitizer.Sanitize(content).Map(sanitized => Keep(content, new SvgModel(sanitized)));
@@ -33,12 +44,15 @@ internal sealed class SvgRenderer : ICanvasRenderer
 
     private SvgModel Keep(string content, SvgModel model)
     {
-        models[content] = model;
-        order.Enqueue(content);
+        models[content] = recent.AddFirst((content, model));
+        var bytes = recent.Sum(entry => entry.Model.Bytes);
 
-        if (order.Count > Kept)
+        while (bytes > budget && recent.Last is { } oldest && oldest != recent.First)
         {
-            models.Remove(order.Dequeue());
+            bytes -= oldest.Value.Model.Bytes;
+            recent.RemoveLast();
+            models.Remove(oldest.Value.Content);
+            oldest.Value.Model.Evict();
         }
 
         return model;
@@ -64,15 +78,29 @@ internal sealed class SvgRenderer : ICanvasRenderer
         var image = new Image { Name = "Svg", Stretch = Stretch.Fill };
         _ = model.Sanitized.Area.Map(area => (image.Width, image.Height) = (area.Width, area.Height));
         CanvasPresenter.SetIsDrawing(image, true);
-        _ = ShowAsync(image, model.Loaded);
+        image.AttachedToVisualTree += (_, _) => _ = ShowAsync(image, model.ClaimAsync());
+        image.DetachedFromVisualTree += (_, _) =>
+        {
+            image.Source = null;
+            model.Release();
+        };
 
         return SvgModel.Fit(image);
     }
 
     private static async Task ShowAsync(Image image, Task<Option<SvgSource>> loading)
     {
-        _ = (await loading).Map(source => image.Source = new SvgImage { Source = source });
-        CanvasPresenter.Drawn(image);
+        var loaded = await loading;
+
+        if (image.IsAttachedToVisualTree())
+        {
+            _ = loaded.Map(source => image.Source = new SvgImage { Source = source });
+        }
+
+        if (CanvasPresenter.GetIsDrawing(image))
+        {
+            CanvasPresenter.Drawn(image);
+        }
     }
 
     private static TextBlock BlockedNote(int count) => new()

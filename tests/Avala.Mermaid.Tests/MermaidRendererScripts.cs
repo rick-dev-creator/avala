@@ -40,9 +40,9 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
 
     [Fact]
     public Task AnOfferedMermaidCanvasIsDrawnThroughTheSvgRendererAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var view = Show(Flow, ThemeVariant.Dark);
+            var view = await Show(Flow, ThemeVariant.Dark).DrawnAsync();
 
             Assert.True(view.Shows("Mermaid"));
             Assert.True(view.Shows("Svg"));
