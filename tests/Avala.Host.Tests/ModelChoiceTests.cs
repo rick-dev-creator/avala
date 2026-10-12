@@ -72,6 +72,38 @@ public sealed class ModelChoiceTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheModelAndEffortPickedOnTheComposersChipRunTheJobsNextMessageAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, [("connections.json", Connections)], []);
+        var activity = run.Watch<AgentActivity>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(run.Repository.Path, SimulatedRun.Simulate("reply")) { Connection = First }));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        var workbench = await run.WorkbenchAsync();
+        var composer = (await workbench.SelectAsync(job))["Composer"];
+
+        var offered = await run.Ui.RunAsync(async () =>
+        {
+            composer["Harness"].Set("IsOpen", true);
+            await composer["Driver"]["Loading"].Value<Task>();
+            var label = composer["Harness"]["Label"].Text;
+            composer["Harness"]["Models"].Set("Model", "simulated-large");
+            await composer["Driver"]["Choosing"].Value<Task>();
+            composer["Harness"]["Models"].Set("Effort", "high");
+            await composer["Driver"]["Choosing"].Value<Task>();
+            composer.Set("Draft", "Shorten the greeting");
+            await composer.ExecuteAsync("SendCommand");
+
+            return label;
+        });
+        var ran = (ModelReported)(await activity.UntilAsync(update => update.Event is ModelReported { Model: "simulated-large" })).Event;
+
+        Assert.Equal("first · simulated-medium · medium", offered);
+        Assert.Equal(Option<string>.Some("high"), ran.Effort);
+        Assert.Equal(new ModelChoice("simulated-large", "high"), Outcomes.Present(await run.Get<Jobs.Contracts.IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Model);
+        await workbench.ShowsAsync(() => composer["Harness"]["Label"].Text == "first · simulated-large · high");
+    }
+
+    [Fact]
     public async Task AJobOnTheSecondHarnessRunsWithItsDefaultAndNoEffortAsync()
     {
         await using var run = await SimulatedRun.ConnectedAsync(plugins, "reply", new ConnectionName("second"), [("connections.json", Connections)]);

@@ -217,7 +217,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         jobs.Status = status;
         jobs.Steerable = takesMessagesMidTurn;
         queue = new QueuedMessages(steered);
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), keys);
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), keys, Composing.Harness(summary.Job));
         composer.Track(shown);
 
         return composer;

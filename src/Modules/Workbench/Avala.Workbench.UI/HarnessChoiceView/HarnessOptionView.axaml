@@ -1,15 +1,18 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:welcome="using:Avala.Workbench.Welcome"
+             xmlns:harnesses="using:Avala.Workbench.Harnesses"
              x:Class="Avala.Workbench.UI.HarnessOptionView"
              x:ClassModifier="internal"
-             x:DataType="welcome:IHarnessOptionViewModel">
+             x:DataType="harnesses:IHarnessOptionViewModel">
   <Design.DataContext>
-    <welcome:DesignHarnessOptionViewModel />
+    <harnesses:DesignHarnessOptionViewModel />
   </Design.DataContext>
   <UserControl.Styles>
     <Style Selector="TextBlock.auto">
       <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Button#Option:disabled">
+      <Setter Property="Opacity" Value="0.5" />
     </Style>
   </UserControl.Styles>
   <Button x:Name="Option"

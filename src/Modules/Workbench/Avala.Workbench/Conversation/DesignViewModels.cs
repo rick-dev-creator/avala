@@ -6,6 +6,8 @@ using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Cards;
+using Avala.Workbench.Harnesses;
+using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Review;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -35,6 +37,8 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
     }
 
     public int Edits => 0;
+
+    public IHarnessChoiceViewModel Harness { get; init; } = DesignHarnesses.Job(held: false);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsStop), nameof(ShowsSend))]
@@ -418,4 +422,24 @@ internal sealed class DesignWorkingViewModel : IWorkingViewModel
     public bool ShowsElapsed => true;
 
     public DateTimeOffset Since { get; init; } = DateTimeOffset.UtcNow.AddSeconds(-23);
+}
+
+internal static class DesignHarnesses
+{
+    public static DesignHarnessChoiceViewModel Job(bool held) => new()
+    {
+        Heading = JobHarnessPhrases.Heading,
+        OpensUpward = true,
+        Label = "claude-work · opus · high",
+        Reason = "Runs on claude-work · 12% of the 5-hour window used",
+        Note = JobHarnessPhrases.Moving(held),
+        Options =
+        [
+            new DesignHarnessOptionViewModel { Name = "claude-work", Hint = "12% of the 5-hour window used", IsChosen = true },
+            new DesignHarnessOptionViewModel { Name = "Continue on claude-personal", Connection = "claude-personal", Hint = "40% of the 5-hour window used", IsAvailable = held },
+        ],
+        Models = held
+            ? new DesignModelPickerViewModel { Model = "opus", Effort = "high", Note = JobHarnessPhrases.NextMessage }
+            : new DesignModelPickerViewModel { CanChoose = false, Models = ["opus"], Model = "opus", Efforts = ["high"], Effort = "high", Note = "Change it once the agent stops." },
+    };
 }
