@@ -11,6 +11,9 @@
     <ProjectReference Include="..\Avala.Components\Avala.Components.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Avala.Components.UI.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <AvaloniaResource Include="Fonts\*.ttf" />
     <None Include="Fonts\JetBrainsMono-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

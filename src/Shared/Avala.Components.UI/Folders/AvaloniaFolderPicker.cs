@@ -28,31 +28,9 @@ public sealed class AvaloniaFolderPicker : IFolderPicker
             return Option<string>.None;
         }
 
-        var start = await storage.TryGetFolderFromPathAsync(StartingFolder(near));
+        var start = await storage.TryGetFolderFromPathAsync(StartingFolders.Near(near, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
         var picked = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = title, AllowMultiple = false, SuggestedStartLocation = start });
 
         return picked.Count > 0 ? picked[0].TryGetLocalPath().ToOption() : Option<string>.None;
-    }
-
-    private static string StartingFolder(string near)
-    {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var typed = near.Trim();
-        var expanded = typed == "~" || typed.StartsWith("~/", StringComparison.Ordinal) ? Path.Join(home, typed[1..]) : typed;
-
-        if (expanded.Length == 0 || !Path.IsPathFullyQualified(expanded))
-        {
-            return home;
-        }
-
-        for (var folder = expanded; folder is not null; folder = Path.GetDirectoryName(folder))
-        {
-            if (Directory.Exists(folder))
-            {
-                return folder;
-            }
-        }
-
-        return home;
     }
 }
