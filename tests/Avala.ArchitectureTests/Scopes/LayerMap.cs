@@ -165,6 +165,7 @@ internal static class LayerMap
             ["Housekeeping"] = Layer.Application,
             ["Settings"] = Layer.Infrastructure,
             ["Disks"] = Layer.Infrastructure,
+            ["Scratch"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Simulator", new()
         {

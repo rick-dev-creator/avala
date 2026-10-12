@@ -20,6 +20,8 @@ internal sealed record GovernedSession(
     {
     }
 
+    public Option<string> Scratch { get; init; }
+
     public Option<SessionAutonomy> Autonomy { get; init; }
 
     public IReadOnlyList<FormDecision> Forms { get; init; } = [];

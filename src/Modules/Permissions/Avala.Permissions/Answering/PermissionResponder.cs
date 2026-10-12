@@ -16,7 +16,7 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
         IReadOnlyList<PolicyRule> jobRules,
         CancellationToken cancellationToken)
     {
-        var request = requested.Facts(session.WorkingDirectory, paths);
+        var request = requested.Facts(session.WorkingDirectory, session.Scratch, paths);
         var verdict = session.Policy.Decide(request, jobRules);
         var delivery = verdict.Answer switch
         {
