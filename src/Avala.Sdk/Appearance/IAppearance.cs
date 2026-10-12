@@ -16,6 +16,12 @@ public enum MotionChoice
     Full,
 }
 
+public enum ReadingChoice
+{
+    Comfortable,
+    Wide,
+}
+
 public enum AppearanceFileStatus
 {
     Absent,
@@ -31,7 +37,7 @@ public enum AppearanceError
     Unwritable,
 }
 
-public sealed record AppearancePreference(ThemeChoice Theme, MotionChoice Motion)
+public sealed record AppearancePreference(ThemeChoice Theme, MotionChoice Motion, ReadingChoice Reading = ReadingChoice.Comfortable)
 {
     public static AppearancePreference Default { get; } = new(ThemeChoice.System, MotionChoice.System);
 }

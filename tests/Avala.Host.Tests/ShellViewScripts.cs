@@ -194,7 +194,25 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             Assert.Equal((WindowState.FullScreen, WindowState.Normal), (full, view.Window.WindowState));
         }, Cancellation);
 
+    [Fact]
+    public Task TheReadingColumnGrowsWithTheWindowAndGrowsFurtherWhenWideAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, _) = Composed();
+            var at1440 = Reading(view);
+            view.Window.Width = 1920;
+            view.Settle();
+            var at1920 = Reading(view);
+
+            Avala.Components.UI.Theme.Reading.SetIsWide(view.Window, true);
+            view.Settle();
+
+            Assert.Equal((720d, 880d, 1200d), (at1440, at1920, Reading(view)));
+        }, Cancellation);
+
     private static double Leading(ViewScript view) => ((Thickness)view.Find("ContentPane").Resources["ChromeLeading"]!).Left;
+
+    private static double Reading(ViewScript view) => (double)view.Find("ContentPane").Resources[Avala.Components.UI.Theme.Reading.WidthKey]!;
 
     private static (ViewScript View, ShellViewModel Shell) Composed()
     {

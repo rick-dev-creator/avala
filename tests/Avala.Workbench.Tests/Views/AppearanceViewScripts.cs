@@ -38,6 +38,22 @@ public sealed class AppearanceViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ClickingWideWidensTheReadingAndKeepsTheThemeAndMotionAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var store = new FakeAppearance(new AppearancePreference(ThemeChoice.Dark, MotionChoice.Reduced));
+            var appearance = new AppearanceViewModel(store);
+            await appearance.LoadAsync(Cancellation);
+            var view = Screen.Show(appearance);
+
+            view.Click("ReadWide");
+            view.Settle();
+
+            Assert.Equal([new AppearancePreference(ThemeChoice.Dark, MotionChoice.Reduced, ReadingChoice.Wide)], store.Changes);
+            Assert.Equal((false, true), (view.HasClass("ReadComfortably", "selected"), view.HasClass("ReadWide", "selected")));
+        }, Cancellation);
+
+    [Fact]
     public Task AnErrorIsShownAboveTheChoicesAsync() =>
         ui.RunAsync(() =>
         {

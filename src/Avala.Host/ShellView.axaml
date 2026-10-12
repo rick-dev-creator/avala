@@ -159,6 +159,7 @@
       <Border x:Name="ContentPane"
               Grid.Column="1"
               Classes="window"
+              theme:Reading.Follows="True"
               theme:Chrome.IsBare="{Binding !IsSidebarShown}">
         <Panel>
           <ui:Stage x:Name="ContentRegion" KeepsAlive="True" Content="{Binding SelectedPage}" />

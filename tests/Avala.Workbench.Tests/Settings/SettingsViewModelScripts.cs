@@ -47,11 +47,17 @@ public sealed class SettingsViewModelScripts
 
         public bool IsMotionFull => appearance.IsMotionFull;
 
+        public bool IsReadingComfortable => appearance.IsReadingComfortable;
+
+        public bool IsReadingWide => appearance.IsReadingWide;
+
         public string Error => appearance.Error;
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.ThemeChoice> ChooseThemeCommand => appearance.ChooseThemeCommand;
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.MotionChoice> ChooseMotionCommand => appearance.ChooseMotionCommand;
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.ReadingChoice> ChooseReadingCommand => appearance.ChooseReadingCommand;
 
         public Task LoadAsync(CancellationToken cancellationToken)
         {

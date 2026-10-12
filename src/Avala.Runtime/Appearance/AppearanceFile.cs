@@ -117,6 +117,7 @@ internal static class AppearanceText
                     MotionChoice.Full => "off",
                     _ => "system",
                 },
+                ["readingWidth"] = preference.Reading.ToString().ToLowerInvariant(),
             },
             Indented) + "\n";
 
@@ -124,18 +125,22 @@ internal static class AppearanceText
     {
         var theme = root.TryGetProperty("theme", out var named) ? Theme(named) : ThemeChoice.System;
         var motion = root.TryGetProperty("reduceMotion", out var reduce) ? Motion(reduce) : MotionChoice.System;
+        var reading = root.TryGetProperty("readingWidth", out var width) ? Named<ReadingChoice>(width) : ReadingChoice.Comfortable;
 
-        return theme is { } chosen && motion is { } reduced
-            ? new AppearancePreference(chosen, reduced)
+        return theme is { } chosen && motion is { } reduced && reading is { } wide
+            ? new AppearancePreference(chosen, reduced, wide)
             : AppearanceError.Invalid;
     }
 
-    private static ThemeChoice? Theme(JsonElement value) =>
+    private static ThemeChoice? Theme(JsonElement value) => Named<ThemeChoice>(value);
+
+    private static TChoice? Named<TChoice>(JsonElement value)
+        where TChoice : struct, Enum =>
         value.ValueKind == JsonValueKind.String
         && value.GetString() is { Length: > 0 } text
         && text.All(char.IsAsciiLetter)
-        && Enum.TryParse<ThemeChoice>(text, ignoreCase: true, out var theme)
-            ? theme
+        && Enum.TryParse<TChoice>(text, ignoreCase: true, out var choice)
+            ? choice
             : null;
 
     private static MotionChoice? Motion(JsonElement value) => value.ValueKind switch

@@ -379,11 +379,17 @@ internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
 
     public bool IsMotionFull => false;
 
+    public bool IsReadingComfortable => true;
+
+    public bool IsReadingWide => false;
+
     public string Error { get; init; } = string.Empty;
 
     public IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; } = new AsyncRelayCommand<ThemeChoice>(_ => Task.CompletedTask);
 
     public IAsyncRelayCommand<MotionChoice> ChooseMotionCommand { get; } = new AsyncRelayCommand<MotionChoice>(_ => Task.CompletedTask);
+
+    public IAsyncRelayCommand<ReadingChoice> ChooseReadingCommand { get; } = new AsyncRelayCommand<ReadingChoice>(_ => Task.CompletedTask);
 
     public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
