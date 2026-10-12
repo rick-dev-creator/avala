@@ -90,6 +90,16 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheAnimatedCanvasScenarioDrawsItsChartWithTheAnimatingSvgRendererAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "animated-canvas");
+
+        var surfaces = await CanvasSurfacesAsync(run, count: 1);
+
+        await ui.RunAsync(() => Presented(run, Assert.Single(surfaces), view => Assert.True(view.Shows("SvgDrawing"))), Cancellation);
+    }
+
+    [Fact]
     public async Task ACanvasInAMediaTypeThatIsNotOfferedIsShownAsItsSourceWithANoteAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "unoffered-canvas");
