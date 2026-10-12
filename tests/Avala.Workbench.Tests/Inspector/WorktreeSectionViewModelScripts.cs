@@ -14,7 +14,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AJobInFocusShowsItsBranchBaseFolderAndPortLease()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
         var job = InspectedJobs.Reviewed(bench);
 
         await section.FocusAsync(job.Job, bench);
@@ -28,7 +28,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AJobStartedWithoutARepositoryIsLabelledScratchAndOpensItsScratchFolder()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
         var job = Scratch();
         await section.FocusAsync(job.Job, bench);
 
@@ -41,7 +41,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AScratchFolderThatCannotBeOpenedSaysWhereItIs()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
         bench.Opener.Refusal = FileOpenError.Unavailable;
         await section.FocusAsync(Scratch().Job, bench);
 
@@ -53,7 +53,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AJobWithoutAWorktreeSaysSo()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
         var job = bench.Catalog.Add("Add invoice PDF endpoint", JobStatus.Preparing).Summary;
 
         await section.FocusAsync(job.Job, bench);
@@ -67,7 +67,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
         var first = bench.Job("Rate-limit POST /login", JobStatus.AwaitingReview);
         var second = bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running);
         var hooked = new HookedDispatcher(bench.Ui);
-        using var section = new WorktreeSectionViewModel(bench.Inspected(hooked), bench.ScratchFolders);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(hooked), bench.ScratchFolders, bench.Jobs);
         await bench.Ui.InvokeAsync(section.Activate, Cancellation);
         hooked.BeforeNext = () => section.OnRegionContextChanged(second.Job);
 
@@ -81,7 +81,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task AJobTheCatalogNoLongerKnowsLeavesTheSectionEmpty()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
 
         await section.FocusAsync(JobId.New(), bench);
 
@@ -91,7 +91,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
     [Fact]
     public async Task TheHeaderFactIsTheBranchsShortNameAndItsBaseOrNone()
     {
-        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders);
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
         await section.FocusAsync(InspectedJobs.Reviewed(bench).Job, bench);
         var reviewed = section.Fact;
 
@@ -100,7 +100,56 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
         Assert.Equal(("fix-the-test from main", "none"), (reviewed, section.Fact));
     }
 
+    [Fact]
+    public async Task AJobThatCouldNotStartSaysWhyAndRetriesItsStart()
+    {
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        var job = CouldNotStart();
+        await section.FocusAsync(job.Job, bench);
+        var shown = (section.CouldNotStart, section.Fact, section.StartProblem, section.RetryCommand.CanExecute(null));
+
+        await section.RetryCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, "could not start", Locked, true), shown);
+        Assert.Equal(["retry"], bench.Jobs.Calls);
+        Assert.Equal(string.Empty, section.RetryRefusal);
+    }
+
+    [Fact]
+    public async Task ARetryTheJobRefusesSaysWhy()
+    {
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        bench.Jobs.Refusal = JobRejection.NotHeld;
+        await section.FocusAsync(CouldNotStart().Job, bench);
+
+        await section.RetryCommand.ExecuteAsync(null);
+
+        Assert.Equal("The job did not start again. The job takes a message only when it needs you or awaits review.", section.RetryRefusal);
+    }
+
+    [Fact]
+    public async Task AJobHeldForAnotherReasonOffersNoRetry()
+    {
+        using var section = new WorktreeSectionViewModel(bench.Inspected(), bench.ScratchFolders, bench.Jobs);
+        var job = bench.Catalog.Add("Add invoice PDF endpoint", JobStatus.NeedsHelp).Summary;
+        bench.Catalog.Change(job.Job, history => history with { Summary = history.Summary with { Hold = HoldReason.Stalled, Problem = Locked } });
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal((false, string.Empty, false), (section.CouldNotStart, section.StartProblem, section.RetryCommand.CanExecute(null)));
+    }
+
+    private const string Locked = "The process cannot access the file because it is being used by another process.";
+
     private const string ScratchFolder = "/data/scratch/2026-10-12-fix-the-test-a1b2c3";
+
+    private JobSummary CouldNotStart()
+    {
+        var job = bench.Catalog.Add("Add invoice PDF endpoint", JobStatus.NeedsHelp).Summary;
+        bench.Catalog.Change(job.Job, history => history with { Summary = history.Summary with { Hold = HoldReason.CouldNotStart, Problem = Locked } });
+
+        return job;
+    }
 
     private JobSummary Scratch()
     {

@@ -36,21 +36,27 @@ internal sealed class JobFlow
         var deferred = new DeferredJobs(Deferrals);
         Submit = new SubmitJob(ledger, Bus, Connections, Clock);
         Hold = new HoldJob(ledger, agents, Bus);
+        var start = new StartJob(ledger, launcher, Hold, Logs);
+        Launches = new JobLaunches(Queues, start);
         Jobs = new JobsEntry(
             Submit,
             new JobControls(Hold, new ChooseModel(ledger, agents, Connections)),
             new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), new ResumeJob(deferred, launcher, Hold)),
             Queues);
-        Prepare = new PrepareJob(Queues, launcher, Admissions);
+        Prepare = new PrepareJob(Queues, start, Admissions);
         var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), new NextRound(Routers, launcher, Hold));
         Check = new CheckTurn(ledger, Queues, evaluate, Hold);
         var recover = new RecoverJob(ledger, launcher, evaluate, deferred);
-        Recovery = new JobRecovery(new JobLedger(Store, Bus, agents, Clock), Queues, recover);
-        RecoveryInThisRun = new JobRecovery(ledger, Queues, recover);
+        Recovery = new JobRecovery(new JobLedger(Store, Bus, agents, Clock), Queues, recover, start);
+        RecoveryInThisRun = new JobRecovery(ledger, Queues, recover, start);
         Catalog = new JobCatalog(Store);
     }
 
     public IJobCatalog Catalog { get; }
+
+    public IJobLaunches Launches { get; }
+
+    public RecordingLogger<StartJob> Logs { get; } = new();
 
     public List<IApprovalStrategy> Strategies { get; } = [new KeepStrategy()];
 

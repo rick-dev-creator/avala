@@ -36,6 +36,7 @@ public enum HoldReason
     Stopped,
     NotResumable,
     InvalidChecks,
+    CouldNotStart,
 }
 
 public enum SessionHalt
@@ -46,11 +47,13 @@ public enum SessionHalt
     AlreadyClosed,
 }
 
-public sealed record JobHold(JobId Job, SessionId Session, HoldReason Reason, SessionHalt Halt)
+public sealed record JobHold(JobId Job, Option<SessionId> Session, HoldReason Reason, SessionHalt Halt)
 {
     public int Attempt { get; init; }
 
     public Option<UsageLimit> Limit { get; init; }
+
+    public Option<string> Problem { get; init; }
 }
 
 public sealed record JobSubmitted(JobId Job) : IIntegrationEvent

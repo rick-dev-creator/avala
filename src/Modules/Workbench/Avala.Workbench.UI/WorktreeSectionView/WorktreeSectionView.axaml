@@ -22,6 +22,29 @@
   <ui:Fold x:Name="Section" Header="Worktree" Fact="{Binding Fact}">
     <StackPanel Margin="28,0,12,12" Spacing="7">
       <Border x:Name="Loading" Classes="placeholder" theme:Motion.Enter="Linger" IsVisible="{Binding !IsLoaded}" AutomationProperties.Name="Reading" />
+      <StackPanel x:Name="CouldNotStart" Spacing="4" IsVisible="{Binding CouldNotStart}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Left" Classes="caption attention" VerticalAlignment="Center" Text="Could not start" />
+          <Button x:Name="Retry"
+                  DockPanel.Dock="Right"
+                  Classes="link"
+                  HorizontalAlignment="Right"
+                  Padding="6,2"
+                  Content="Retry"
+                  ToolTip.Tip="Remove what the failed start left and start the job again from its repository"
+                  Command="{Binding RetryCommand}" />
+        </DockPanel>
+        <SelectableTextBlock x:Name="StartProblem"
+                             Classes="caption secondary"
+                             TextWrapping="Wrap"
+                             privacy:PersonalDetails.Scrubbed="{Binding StartProblem}"
+                             IsVisible="{Binding StartProblem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock x:Name="RetryRefusal"
+                   Classes="caption attention"
+                   TextWrapping="Wrap"
+                   privacy:PersonalDetails.Scrubbed="{Binding RetryRefusal}"
+                   IsVisible="{Binding RetryRefusal, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
       <StackPanel x:Name="ScratchRepository" Spacing="4" IsVisible="{Binding IsScratch}">
         <DockPanel>
           <Border DockPanel.Dock="Left"

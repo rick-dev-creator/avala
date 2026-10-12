@@ -63,6 +63,7 @@ internal sealed class JobsDbContext(string database) : DbContext
             value => value == Guid.Empty ? Option<JobId>.None : Option<JobId>.Some(new JobId(value)));
         job.Property(entity => entity.Model).HasConversion(choice => Stored.Text(choice), text => Stored.Model(text));
         job.Property(entity => entity.Held).HasColumnName("Hold").HasConversion(hold => Stored.Text(hold), text => Stored.Hold(text));
+        job.Property(entity => entity.Problem).HasConversion(problem => Stored.Text(problem), text => Stored.Problem(text));
         job.OwnsMany(entity => entity.Attempts, Configure);
     }
 

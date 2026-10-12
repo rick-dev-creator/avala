@@ -19,9 +19,11 @@ stateDiagram-v2
 	Active --> Failed : Fail
 	Draft --> Preparing : Submit
 	Preparing --> Running : Start
+	Preparing --> NeedsHelp : HoldUnstarted
 	Running --> Checking : CompleteTurn
 	Running --> NeedsHelp : Hold
 	Running --> NeedsHelp : HoldOverBudget
+	Running --> NeedsHelp : HoldUnstarted
 	Running --> Running : Recover
 	Checking --> Checking : Recheck
 	Checking --> AwaitingReview : Pass
@@ -30,8 +32,9 @@ stateDiagram-v2
 	Checking --> Running : Retry [retries left]
 	Checking --> NeedsHelp : RequestHelp [budget exhausted]
 	Checking --> Running : HandOff [retries left]
-	NeedsHelp --> Running : Hint
-	NeedsHelp --> Running : HandOff
+	NeedsHelp --> Running : Hint [started]
+	NeedsHelp --> Running : HandOff [started]
+	NeedsHelp --> Preparing : RetryLaunch [could not start]
 	AwaitingReview --> Running : SendBack
 	AwaitingReview --> Approved : Approve
 	AwaitingReview --> NeedsHelp : HoldOverBudget

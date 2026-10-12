@@ -52,6 +52,8 @@ public sealed record JobSummary(
 
     public Option<HoldReason> Hold { get; init; }
 
+    public Option<string> Problem { get; init; }
+
     public ModelChoice Model { get; init; } = ModelChoice.Default;
 }
 

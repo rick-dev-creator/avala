@@ -27,6 +27,23 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
                 : Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)),
             () => Task.FromResult(Result<JobHold, JobRejection>.Failure(JobRejection.NotRunning)));
 
+    public async Task CouldNotStartAsync(Job job, string problem, CancellationToken cancellationToken)
+    {
+        if (!job.CouldNotStart(problem).TryGetValue(out var failed, out _))
+        {
+            return;
+        }
+
+        await ledger.RecordAsync(job, cancellationToken);
+        var halt = await job.Session.Match(session => StopAsync(session, cancellationToken), () => Task.FromResult(SessionHalt.AlreadyClosed));
+        var hold = new JobHold(job.Id, job.Session, HoldReason.CouldNotStart, halt)
+        {
+            Attempt = failed.Attempt.Match(attempt => attempt.Value, () => 0),
+            Problem = problem,
+        };
+        await bus.PublishAsync(new HoldAnnouncement(hold), cancellationToken);
+    }
+
     public async Task<Result<JobSteered, JobRejection>> SteerAsync(Job job, Feedback message, CancellationToken cancellationToken) =>
         await job.Session.Match(
             async session => job.State != JobState.Running

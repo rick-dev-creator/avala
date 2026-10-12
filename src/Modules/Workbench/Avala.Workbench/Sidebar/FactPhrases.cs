@@ -87,6 +87,7 @@ internal static class FactPhrases
         HoldReason.MemoryExceeded => "held: out of memory",
         HoldReason.Stopped => "stopped",
         HoldReason.NotResumable => "held: its conversation cannot resume",
+        HoldReason.CouldNotStart => "could not start",
         _ => "interrupted",
     };
 }

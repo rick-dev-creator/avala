@@ -441,6 +441,30 @@ public sealed class WorktreeSectionViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AJobThatCouldNotStartShowsItsProblemWithoutTheHomeFolderAndARetryButtonThatRetriesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var retried = 0;
+            var view = Sections.Open(Screen.Show(new DesignWorktreeSectionViewModel
+            {
+                CouldNotStart = true,
+                RetryCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() =>
+                {
+                    retried++;
+
+                    return Task.CompletedTask;
+                }),
+            }));
+
+            view.Click("Retry");
+
+            Assert.Equal(
+                (true, "The process cannot access the file '~/code/shop-api/.avala/jobs.json' because it is being used by another process.", 1),
+                (view.Shows("CouldNotStart"), view.Find<SelectableTextBlock>("StartProblem").Text, retried));
+            Assert.False(view.Shows("RetryRefusal"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ALongWorktreeIdIsEllipsizedAndNeverTruncatesTheSectionsHeaderAsync() =>
         ui.RunAsync(() =>
         {
@@ -480,6 +504,14 @@ public sealed class WorktreeSectionViewScripts(HeadlessUi ui)
         public string Repository => "~/code/dogfood";
 
         public string FolderProblem => string.Empty;
+
+        public bool CouldNotStart => false;
+
+        public string StartProblem => string.Empty;
+
+        public string RetryRefusal => string.Empty;
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand RetryCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand OpenFolderCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
     }

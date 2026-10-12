@@ -38,6 +38,11 @@ public interface IOpenDeliveries
     ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken);
 }
 
+public interface IJobLaunches
+{
+    ValueTask<Result<JobId, JobRejection>> RetryAsync(JobId job, CancellationToken cancellationToken);
+}
+
 public interface IJobAdmission
 {
     ValueTask AdmitAsync(JobId job, CancellationToken cancellationToken);
@@ -109,4 +114,5 @@ public enum JobRejection
     UnofferedModel,
     UnofferedEffort,
     NotApproved,
+    NeverStarted,
 }

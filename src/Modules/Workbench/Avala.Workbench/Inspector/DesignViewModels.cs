@@ -122,7 +122,15 @@ internal sealed class DesignWorktreeSectionViewModel : IWorktreeSectionViewModel
 
     public string FolderProblem => string.Empty;
 
+    public bool CouldNotStart { get; init; }
+
+    public string StartProblem { get; init; } = "The process cannot access the file '/home/dana/code/shop-api/.avala/jobs.json' because it is being used by another process.";
+
+    public string RetryRefusal { get; init; } = string.Empty;
+
     public IAsyncRelayCommand OpenFolderCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand RetryCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignDelegationSectionViewModel : IDelegationSectionViewModel

@@ -67,6 +67,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public JudgeGate Judging => surroundings.Judge;
 
+    public LaunchFault LaunchFault => surroundings.Launch;
+
     public FakeNotifierEndpoint Notifier => surroundings.Notifier.Endpoint;
 
     public TelemetryGate Telemetry => surroundings.Telemetry;
@@ -420,6 +422,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public JudgeGate Judge { get; } = new();
 
+        public LaunchFault Launch { get; } = new();
+
         public TelemetryGate Telemetry { get; } = new();
 
         public SignInGate SignIns { get; } = new();
@@ -437,7 +441,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
-                RealNotifier ? [Board, Fault, Trips, Judge, Telemetry, SignIns, Surfaces] : [Board, Fault, Trips, Notifier, Judge, Telemetry, SignIns, Surfaces]);
+                RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Surfaces] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Surfaces]);
     }
 
     private sealed class Application : IAsyncDisposable

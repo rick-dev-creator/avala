@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 using HoldAnnouncement = Avala.Jobs.Contracts.JobHeld;
 using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
@@ -44,7 +45,7 @@ public sealed class JobFlowTests
     [Fact]
     public async Task AWorkspaceThatCannotBePreparedFailsTheJobAsync()
     {
-        var flow = new JobFlow(new FakeWorkspaces { PreparationFails = true }, new FakeAgents());
+        var flow = new JobFlow(new FakeWorkspaces { PreparationFailure = WorkspaceFailure.NotAGitRepository }, new FakeAgents());
 
         var job = await flow.RunningAsync();
 

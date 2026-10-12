@@ -44,11 +44,19 @@ public sealed class SqliteJobStoreTests
         var held = Given.JobIn(JobState.Running);
         Outcomes.Succeeds(held.Hold(HoldReason.BudgetExceeded));
         var running = Given.JobIn(JobState.Running);
-        await SaveAsync(folder, held, running);
+        var unstarted = Given.JobIn(JobState.Preparing);
+        Outcomes.Succeeds(unstarted.Prepared(Given.Workspace));
+        Outcomes.Succeeds(unstarted.CouldNotStart("The file is locked."));
+        await SaveAsync(folder, held, running, unstarted);
 
         var reloaded = (await ReloadAsync(folder, store => store.FindAsync(held.Id, Cancellation)), await ReloadAsync(folder, store => store.FindAsync(running.Id, Cancellation)));
+        var stuck = await ReloadAsync(folder, store => store.FindAsync(unstarted.Id, Cancellation));
 
         Assert.Equal((Option<HoldReason>.Some(HoldReason.BudgetExceeded), Option<HoldReason>.None), (reloaded.Item1.Held, reloaded.Item2.Held));
+        Assert.Equal((Option<string>.None, Option<string>.None), (reloaded.Item1.Problem, reloaded.Item2.Problem));
+        Assert.Equal(
+            (JobState.NeedsHelp, Option<HoldReason>.Some(HoldReason.CouldNotStart), Option<string>.Some("The file is locked."), Option<Avala.Workspaces.Contracts.WorkspaceId>.Some(Given.Workspace)),
+            (stuck.State, stuck.Held, stuck.Problem, stuck.Workspace));
     }
 
     [Fact]

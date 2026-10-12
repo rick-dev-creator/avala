@@ -26,4 +26,5 @@ internal enum JobError
     CannotHandOff,
     CannotReopen,
     CannotChooseModel,
+    CannotRetryLaunch,
 }

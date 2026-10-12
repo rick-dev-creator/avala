@@ -19,7 +19,7 @@ internal sealed class Job : IAggregateRoot<JobId>
         Instruction = instruction;
         Budget = budget;
         Repository = repository;
-        machine = JobLifecycle.Create(() => State, state => State = state, HasRetriesLeft);
+        machine = JobLifecycle.Create(() => State, state => State = state, HasRetriesLeft, () => Held != Option<HoldReason>.Some(HoldReason.CouldNotStart));
     }
 
     public JobId Id { get; }
@@ -51,6 +51,8 @@ internal sealed class Job : IAggregateRoot<JobId>
     public ModelChoice Model { get; private set; } = ModelChoice.Default;
 
     public Option<HoldReason> Held { get; private set; }
+
+    public Option<string> Problem { get; private set; }
 
     public IReadOnlyList<Attempt> Attempts => attempts;
 
@@ -87,6 +89,18 @@ internal sealed class Job : IAggregateRoot<JobId>
 
                 return Begin(AttemptOrigin.Initial, Option<Feedback>.None);
             });
+
+    public Result<WorkspacePrepared, JobError> Prepared(WorkspaceId workspace)
+    {
+        if (State != JobState.Preparing)
+        {
+            return JobError.CannotStart;
+        }
+
+        Workspace = workspace;
+
+        return new WorkspacePrepared(Id, workspace);
+    }
 
     public Result<AttemptStarted, JobError> Recover(SessionId session, bool resumed) =>
         machine.TryFire(JobTrigger.Recover, JobError.CannotRecover)
@@ -265,13 +279,38 @@ internal sealed class Job : IAggregateRoot<JobId>
             });
 
     public Result<JobHeld, JobError> Hold(HoldReason reason) =>
-        machine.TryFire(Trigger(reason), JobError.CannotHold)
+        reason == HoldReason.CouldNotStart
+            ? JobError.CannotHold
+            : machine.TryFire(Trigger(reason), JobError.CannotHold)
+                .Map(_ =>
+                {
+                    InterruptUnderwayAttempt();
+                    Held = reason;
+
+                    return new JobHeld(Id, attempts[^1].Number, reason);
+                });
+
+    public Result<StartFailed, JobError> CouldNotStart(string problem) =>
+        machine.TryFire(JobTrigger.HoldUnstarted, JobError.CannotHold)
             .Map(_ =>
             {
                 InterruptUnderwayAttempt();
-                Held = reason;
+                Held = HoldReason.CouldNotStart;
+                Problem = problem;
 
-                return new JobHeld(Id, attempts[^1].Number, reason);
+                return new StartFailed(Id, attempts is [.., var last] ? last.Number : Option<AttemptNumber>.None, problem);
+            });
+
+    public Result<LaunchRetried, JobError> RetryLaunch() =>
+        machine.TryFire(JobTrigger.RetryLaunch, JobError.CannotRetryLaunch)
+            .Map(_ =>
+            {
+                Held = Option<HoldReason>.None;
+                Problem = Option<string>.None;
+                Session = Option<SessionId>.None;
+                Resume = Option<ResumeToken>.None;
+
+                return new LaunchRetried(Id, Workspace);
             });
 
     private static JobTrigger Trigger(HoldReason reason) => reason switch
@@ -307,6 +346,7 @@ internal sealed class Job : IAggregateRoot<JobId>
     {
         var number = attempts.Count == 0 ? AttemptNumber.First : attempts[^1].Number.Next;
         Held = Option<HoldReason>.None;
+        Problem = Option<string>.None;
         attempts.Add(new Attempt(number, origin, guidance, Session));
 
         return new AttemptStarted(Id, number, origin, guidance);

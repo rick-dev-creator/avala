@@ -18,6 +18,8 @@ internal enum JobTrigger
     Hold,
     HoldOverBudget,
     HoldUnverifiable,
+    HoldUnstarted,
+    RetryLaunch,
     HandOff,
     Reopen,
 }

@@ -83,9 +83,16 @@ internal sealed class FakeRepositoryDefaults : IRepositoryDefaults
 
     public Result<Option<string>, JobRejection> Approval { get; set; } = Option<string>.None;
 
+    public Exception? Fault { get; set; }
+
     public ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken)
     {
         Read.Add(worktree);
+
+        if (Fault is { } fault)
+        {
+            throw fault;
+        }
 
         return ValueTask.FromResult(Connection);
     }
