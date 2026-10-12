@@ -5,6 +5,7 @@ using Avala.Workbench.Inspector;
 using Avala.Workbench.Linking;
 using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.Tests.RepositoryChoice;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Inspector;
 
@@ -52,7 +53,7 @@ public sealed class PullRequestSectionViewModelScripts : IDisposable
     {
         var job = Watched(WatchStatus.Watching, Mergeability.Mergeable);
         var opener = new FakeLinks();
-        using var section = new PullRequestSectionViewModel(bench.Inspected(), new Links(opener), bench.Forge, Publisher());
+        using var section = new PullRequestSectionViewModel(bench.Inspected(), new Links(opener, new StrongReferenceMessenger()), bench.Forge, Publisher());
         await section.FocusAsync(job, bench);
 
         await section.OpenLinkCommand.ExecuteAsync(null);
