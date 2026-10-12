@@ -37,4 +37,10 @@ public enum WorkspaceFailure
     InvalidRepositoryName,
     AlreadyARepository,
     NoGitIdentity,
+    InvalidRemoteUrl,
+    RemoteExists,
+    RemoteUnauthorized,
+    RemoteNotFound,
+    RemoteUnreachable,
+    PushRejected,
 }

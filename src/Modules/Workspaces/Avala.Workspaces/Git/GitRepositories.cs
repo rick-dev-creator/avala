@@ -71,7 +71,7 @@ internal sealed class GitRepositories(IProcessRunner processes) : IRepositories
     {
         var named = name.Trim();
 
-        if (!IsPlainName(named))
+        if (!OwnedFolders.IsPlainName(named))
         {
             return WorkspaceFailure.InvalidRepositoryName;
         }
@@ -104,12 +104,6 @@ internal sealed class GitRepositories(IProcessRunner processes) : IRepositories
             ? await CommitAsync(path, known ? [] : LentIdentity, cancellationToken)
             : WorkspaceFailure.GitFailed;
     }
-
-    private static bool IsPlainName(string name) =>
-        name.Length > 0
-        && name is not "." and not ".."
-        && name.IndexOfAny(['/', '\\']) < 0
-        && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
 
     private static async Task<bool> PlantAsync(string path, RepositorySeed seed, CancellationToken cancellationToken)
     {
