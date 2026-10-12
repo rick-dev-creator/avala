@@ -125,16 +125,20 @@ internal static class AppearanceText
 
     private static Result<AppearancePreference, AppearanceError> Preference(JsonElement root)
     {
-        var theme = root.TryGetProperty("theme", out var named) ? Theme(named) : ThemeChoice.System;
-        var motion = root.TryGetProperty("reduceMotion", out var reduce) ? Motion(reduce) : MotionChoice.System;
-        var reading = root.TryGetProperty("readingWidth", out var width) ? Named<ReadingChoice>(width) : ReadingChoice.Comfortable;
-        var send = root.TryGetProperty("send", out var key) ? Send(key) : SendKey.Enter;
-        var hides = root.TryGetProperty("hidePersonalDetails", out var hidden) ? Switch(hidden) : true;
+        var theme = Read(root, "theme", Theme, ThemeChoice.System);
+        var motion = Read(root, "reduceMotion", Motion, MotionChoice.System);
+        var reading = Read(root, "readingWidth", Named<ReadingChoice>, ReadingChoice.Comfortable);
+        var send = Read(root, "send", Send, SendKey.Enter);
+        var hides = Read(root, "hidePersonalDetails", Switch, true);
 
         return theme is { } chosen && motion is { } reduced && reading is { } wide && send is { } sent && hides is { } hiding
             ? new AppearancePreference(chosen, reduced, wide) { Send = sent, HidesPersonalDetails = hiding }
             : AppearanceError.Invalid;
     }
+
+    private static TValue? Read<TValue>(JsonElement root, string name, Func<JsonElement, TValue?> parse, TValue fallback)
+        where TValue : struct =>
+        root.TryGetProperty(name, out var value) ? parse(value) : fallback;
 
     private static ThemeChoice? Theme(JsonElement value) => Named<ThemeChoice>(value);
 
