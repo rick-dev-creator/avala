@@ -70,7 +70,7 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
         var surfaces = await CanvasSurfacesAsync(run, count: 1);
 
         Assert.Equal(("text/vnd.mermaid", true), (snapshot.MediaType, snapshot.IsOffered));
-        await ui.RunAsync(() => Presented(run, Assert.Single(surfaces), view =>
+        await ui.RunAsync(() => PresentedAsync(run, Assert.Single(surfaces), view =>
         {
             Assert.True(view.Shows("Mermaid"));
             Assert.True(view.Shows("Svg"));
@@ -96,7 +96,26 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
 
         var surfaces = await CanvasSurfacesAsync(run, count: 1);
 
-        await ui.RunAsync(() => Presented(run, Assert.Single(surfaces), view => Assert.True(view.Shows("SvgDrawing"))), Cancellation);
+        await ui.RunAsync(() => PresentedAsync(run, Assert.Single(surfaces), view => Assert.True(view.Shows("SvgDrawing"))), Cancellation);
+    }
+
+    [Fact]
+    public async Task AnAnimatedDrawingWithALargeViewBoxFillsTheWidthOfItsCardWhoseHeightFollowsItAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "solar-system");
+
+        var surfaces = await CanvasSurfacesAsync(run, count: 1);
+
+        await ui.RunAsync(() => PresentedAsync(run, Assert.Single(surfaces), view =>
+        {
+            view.Window.Height = 900;
+            view.Settle();
+            var card = view.Find("Drawing").Bounds.Size;
+            var drawing = view.Find("SvgFit").Bounds.Size;
+
+            Assert.Equal((card.Width, Math.Round(card.Width * 0.8)), (Math.Round(drawing.Width), Math.Round(drawing.Height)));
+            Assert.Equal(Math.Round(drawing.Height), Math.Round(card.Height));
+        }), Cancellation);
     }
 
     [Fact]
@@ -108,7 +127,7 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
         var surfaces = await CanvasSurfacesAsync(run, count: 1);
 
         Assert.Equal(("text/html", false, "<h1>Job report</h1>\n<p>Submitted, then running.</p>\n"), (snapshot.MediaType, snapshot.IsOffered, snapshot.Content));
-        await ui.RunAsync(() => Presented(run, Assert.Single(surfaces), view =>
+        await ui.RunAsync(() => PresentedAsync(run, Assert.Single(surfaces), view =>
         {
             Assert.Equal("CanvasFallback", Drawing(view));
             Assert.Equal(
@@ -133,11 +152,11 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
     {
         List<(string, string)> drawn = [];
         await ui.RunAsync(
-            () =>
+            async () =>
             {
                 foreach (var surface in surfaces)
                 {
-                    Presented(run, surface, view => drawn.Add((surface.Title, Drawing(view))));
+                    await PresentedAsync(run, surface, view => drawn.Add((surface.Title, Drawing(view))));
                 }
             },
             Cancellation);
@@ -145,13 +164,13 @@ public sealed class CanvasOfferTests(HeadlessUi ui, PublishedPlugins plugins)
         return drawn;
     }
 
-    private static void Presented(SimulatedRun run, ICanvasSurfaceViewModel surface, Action<ViewScript> inspect)
+    private static async Task PresentedAsync(SimulatedRun run, ICanvasSurfaceViewModel surface, Action<ViewScript> inspect)
     {
         Application.Current!.DataTemplates.Add(run.Views);
 
         try
         {
-            inspect(ViewScript.Show(surface));
+            inspect(await ViewScript.Show(surface).DrawnAsync());
         }
         finally
         {

@@ -1,13 +1,11 @@
+using Avala.Components.UI;
 using Avala.Components.UI.Canvases;
-using Avala.Rendering.Animation;
 using Avala.Rendering.Offer;
 using Avala.Rendering.Sanitizing;
 using Avala.Sdk;
 using Avalonia.Controls;
-using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Svg.Skia;
-using Svg.Model.Services;
 
 namespace Avala.Rendering.UI.Svg;
 
@@ -15,7 +13,7 @@ internal sealed class SvgRenderer : ICanvasRenderer
 {
     private const int Kept = 16;
 
-    private readonly Dictionary<string, Drawn> drawn = [];
+    private readonly Dictionary<string, SvgModel> models = [];
     private readonly Queue<string> order = [];
 
     public string MediaType => RenderedFormats.Svg.MediaType;
@@ -23,75 +21,59 @@ internal sealed class SvgRenderer : ICanvasRenderer
     public Option<Control> Render(string content) =>
         Load(content).Map(Show);
 
-    private Option<Drawn> Load(string content)
+    private Option<SvgModel> Load(string content)
     {
-        if (drawn.TryGetValue(content, out var known))
+        if (models.TryGetValue(content, out var known))
         {
             return known;
         }
 
-        var loaded = SvgSanitizer.Sanitize(content).Bind(Parse);
-        _ = loaded.Map(found => Keep(content, found));
-
-        return loaded;
+        return SvgSanitizer.Sanitize(content).Map(sanitized => Keep(content, new SvgModel(sanitized)));
     }
 
-    private Drawn Keep(string content, Drawn found)
+    private SvgModel Keep(string content, SvgModel model)
     {
-        drawn[content] = found;
+        models[content] = model;
         order.Enqueue(content);
 
         if (order.Count > Kept)
         {
-            drawn.Remove(order.Dequeue());
+            models.Remove(order.Dequeue());
         }
 
-        return found;
+        return model;
     }
 
-    private static Option<Drawn> Parse(SanitizedSvg svg)
+    private static Control Show(SvgModel model)
     {
-        var source = SvgSource.LoadFromSvg(svg.Markup);
+        var drawing = model.Sanitized.Timeline.Match<Control>(timeline => new AnimatedSvg(model, timeline), () => Still(model));
 
-        if (source.Picture is null)
-        {
-            source.Dispose();
-
-            return Option<Drawn>.None;
-        }
-
-        return new Drawn(source, svg);
-    }
-
-    private static Control Show(Drawn svg)
-    {
-        var drawing = svg.Sanitized.Timeline.Match(timeline => Animated(svg, timeline), () => Still(svg));
-
-        if (svg.Sanitized.Blocked == 0)
+        if (model.Sanitized.Blocked == 0)
         {
             return drawing;
         }
 
-        var panel = new StackPanel { Children = { drawing, BlockedNote(svg.Sanitized.Blocked) } };
+        var panel = new StackPanel { Children = { drawing, BlockedNote(model.Sanitized.Blocked) } };
         panel.Bind(StackPanel.SpacingProperty, panel.GetResourceObservable("Space2"));
 
         return panel;
     }
 
-    private static Control Animated(Drawn svg, SvgTimeline timeline) =>
-        SvgService.FromSvg(svg.Sanitized.Markup) is { } document && new AnimatedSvg(document, timeline) is { Moves: true } animated
-            ? animated
-            : Still(svg);
-
-    private static Image Still(Drawn svg) => new()
+    private static Viewbox Still(SvgModel model)
     {
-        Name = "Svg",
-        Source = new SvgImage { Source = svg.Source },
-        Stretch = Stretch.Uniform,
-        HorizontalAlignment = HorizontalAlignment.Center,
-    };
+        var image = new Image { Name = "Svg", Stretch = Stretch.Fill };
+        _ = model.Sanitized.Area.Map(area => (image.Width, image.Height) = (area.Width, area.Height));
+        CanvasPresenter.SetIsDrawing(image, true);
+        _ = ShowAsync(image, model.Loaded);
 
-    private sealed record Drawn(SvgSource Source, SanitizedSvg Sanitized);
+        return SvgModel.Fit(image);
+    }
+
+    private static async Task ShowAsync(Image image, Task<Option<SvgSource>> loading)
+    {
+        _ = (await loading).Map(source => image.Source = new SvgImage { Source = source });
+        CanvasPresenter.Drawn(image);
+    }
 
     private static TextBlock BlockedNote(int count) => new()
     {

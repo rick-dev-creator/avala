@@ -8,7 +8,7 @@ using Avalonia.Controls.Shapes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
-using Svg;
+using Avalonia.Svg.Skia;
 using Svg.Skia;
 using Path = Avalonia.Controls.Shapes.Path;
 using SvgDrawing = Avalonia.Svg.Skia.Svg;
@@ -19,6 +19,7 @@ internal sealed class AnimatedSvg : Panel
 {
     private static readonly Uri Assets = new($"avares://{typeof(AnimatedSvg).Assembly.GetName().Name}/");
 
+    private readonly SvgModel model;
     private readonly SvgTimeline timeline;
     private readonly SvgDrawing drawing;
     private readonly Button play;
@@ -28,33 +29,38 @@ internal sealed class AnimatedSvg : Panel
     private bool playingOnce;
     private bool ended;
 
-    public AnimatedSvg(SvgDocument document, SvgTimeline timeline)
+    public AnimatedSvg(SvgModel model, SvgTimeline timeline)
     {
+        this.model = model;
         this.timeline = timeline;
         Name = "Svg";
         Background = Brushes.Transparent;
         drawing = new SvgDrawing(Assets)
         {
             Name = "SvgDrawing",
-            Stretch = Stretch.Uniform,
-            StretchDirection = StretchDirection.DownOnly,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            Stretch = Stretch.Fill,
             IsHitTestVisible = false,
             AnimationBackend = SvgAnimationHostBackend.Manual,
         };
-        drawing.LoadFromSvgDocument(document);
+        _ = model.Sanitized.Area.Map(area => Sized(drawing, area));
+        CanvasPresenter.SetIsDrawing(this, true);
+        drawing.PropertyChanged += OnDrawingChanged;
+        _ = LoadAsync();
         play = Play();
         play.Click += (_, _) => PlayOnce();
-        Children.Add(drawing);
+        Children.Add(SvgModel.Fit(drawing));
         Children.Add(play);
         EffectiveViewportChanged += (_, change) =>
         {
-            inView = change.EffectiveViewport.Intersects(new Rect(Bounds.Size));
-            Refresh();
+            var seen = change.EffectiveViewport.Intersects(new Rect(Bounds.Size));
+
+            if (seen != inView)
+            {
+                inView = seen;
+                Refresh();
+            }
         };
     }
-
-    public bool Moves => drawing.SkSvg is { HasAnimations: true } && drawing.Picture is not null;
 
     private bool IsPlaying
     {
@@ -77,6 +83,27 @@ internal sealed class AnimatedSvg : Panel
         host?.PropertyChanged -= OnHostChanged;
         host = null;
         Refresh();
+    }
+
+    private async Task LoadAsync()
+    {
+        var loaded = await model.Loaded;
+        _ = loaded.Map(source => drawing.SvgSource = source);
+
+        if (loaded.IsNone)
+        {
+            CanvasPresenter.Drawn(this);
+        }
+    }
+
+    private void OnDrawingChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
+    {
+        if (change.Property == BoundsProperty && drawing.Bounds.Width > 0 && CanvasPresenter.GetIsDrawing(this))
+        {
+            CanvasPresenter.Drawn(this);
+            Hold();
+            Refresh();
+        }
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -166,6 +193,14 @@ internal sealed class AnimatedSvg : Panel
         {
             Refresh();
         }
+    }
+
+    private static SvgDrawing Sized(SvgDrawing drawing, Sizing.SvgArea area)
+    {
+        drawing.Width = area.Width;
+        drawing.Height = area.Height;
+
+        return drawing;
     }
 
     private static bool Minimized(TopLevel top) =>
