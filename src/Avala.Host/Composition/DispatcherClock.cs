@@ -12,12 +12,12 @@ internal static class DispatcherClock
         var provider = fields.FirstOrDefault(field => field.Name == "_timeProvider");
         if (provider is null || provider.FieldType != typeof(Func<long>)
             || fields.FirstOrDefault(field => field.Name == "_impl")?.GetValue(dispatcher) is not { } platform
-            || platform.GetType().GetInterfaces().Select(contract => contract.GetProperty("Now")).FirstOrDefault(now => now?.PropertyType == typeof(long)) is not { } now)
+            || platform.GetType().GetInterfaces().Select(contract => contract.GetProperty("Now")).FirstOrDefault(now => now?.PropertyType == typeof(long))?.GetMethod is not { } now)
         {
             return false;
         }
 
-        provider.SetValue(dispatcher, new Func<long>(() => (long)now.GetValue(platform)!));
+        provider.SetValue(dispatcher, now.CreateDelegate<Func<long>>(platform));
         return true;
     }
 }

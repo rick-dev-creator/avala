@@ -2,6 +2,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace Avala.Components.UI.Elapsed;
 
@@ -13,7 +14,8 @@ public sealed class ElapsedText : TextBlock
     public static readonly AttachedProperty<TimeProvider> ClockProperty =
         AvaloniaProperty.RegisterAttached<ElapsedText, Visual, TimeProvider>("Clock", TimeProvider.System, inherits: true);
 
-    private DispatcherTimer? ticking;
+    private readonly List<Visual> ancestors = [];
+    private ITimer? ticking;
 
     public DateTimeOffset Since
     {
@@ -36,6 +38,14 @@ public sealed class ElapsedText : TextBlock
             : string.Create(CultureInfo.InvariantCulture, $"{(int)whole.TotalHours}h {whole.Minutes}m");
     }
 
+    public static TimeSpan UntilNextChange(TimeSpan elapsed)
+    {
+        var whole = elapsed < TimeSpan.Zero ? TimeSpan.Zero : elapsed;
+        var step = whole.TotalHours < 1 ? TimeSpan.FromSeconds(1) : TimeSpan.FromMinutes(1);
+
+        return step - TimeSpan.FromTicks(whole.Ticks % step.Ticks);
+    }
+
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
@@ -49,23 +59,55 @@ public sealed class ElapsedText : TextBlock
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        ancestors.AddRange(this.GetVisualAncestors());
+
+        foreach (var ancestor in ancestors)
+        {
+            ancestor.PropertyChanged += OnAncestorChanged;
+        }
+
         Tick();
-        ticking = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) => Tick());
-        ticking.Start();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        ticking?.Stop();
-        ticking = null;
+
+        foreach (var ancestor in ancestors)
+        {
+            ancestor.PropertyChanged -= OnAncestorChanged;
+        }
+
+        ancestors.Clear();
+        Stop();
+    }
+
+    private void OnAncestorChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
+    {
+        if (change.Property == IsVisibleProperty)
+        {
+            Tick();
+        }
     }
 
     private void Tick()
     {
-        if (IsVisible)
+        Stop();
+
+        if (!IsVisible || ancestors.Count == 0 || ancestors.Exists(ancestor => !ancestor.IsVisible))
         {
-            Text = Phrase(GetClock(this).GetUtcNow() - Since);
+            return;
         }
+
+        var clock = GetClock(this);
+        var elapsed = clock.GetUtcNow() - Since;
+        Text = Phrase(elapsed);
+        ticking = clock.CreateTimer(_ => Dispatcher.UIThread.Post(Tick), null, UntilNextChange(elapsed), Timeout.InfiniteTimeSpan);
+    }
+
+    private void Stop()
+    {
+        ticking?.Dispose();
+        ticking = null;
     }
 }
