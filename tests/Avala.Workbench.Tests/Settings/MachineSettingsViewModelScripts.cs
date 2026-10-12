@@ -174,6 +174,27 @@ public sealed class MachineSettingsViewModelScripts
     }
 }
 
+public sealed class MachineAccountsViewModelScripts
+{
+    [Fact]
+    public async Task TheAccountsShowTheConnectionsTheirFileAndTheNoticeOfOpeningItAsync()
+    {
+        var connections = new FakeConnections("simulator").Automatic();
+        connections.Catalog = connections.Catalog with { File = ConnectionFileStatus.Absent };
+        var settings = new MachineSettings(connections, new FakeSupervision(), new FakeResources(), new FakeForgeCatalog());
+        var machine = new MachineSettingsViewModel(
+            settings,
+            new MachineSections(new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel()),
+            new ConnectionEditorViewModel(settings, new ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
+
+        await machine.OpenConnectionsCommand.ExecuteAsync(null);
+
+        var accounts = machine.Accounts;
+        Assert.Equal((SettingsPhrases.CreatedConnections, "Applied", string.Empty), (accounts.Notice, accounts.ConnectionsFile, accounts.Error));
+        Assert.Equal(["simulator"], accounts.Connections.Select(connection => connection.Name));
+    }
+}
+
 public sealed class ConnectionEditorViewModelScripts
 {
     private readonly FakeConnections connections = new("work", "personal");

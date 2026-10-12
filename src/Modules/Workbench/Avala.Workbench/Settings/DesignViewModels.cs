@@ -250,19 +250,7 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 
     public INotificationsViewModel Notifications { get; } = new DesignNotificationsViewModel();
 
-    public IConnectionEditorViewModel Editor { get; init; } = new DesignConnectionEditorViewModel { IsOpen = false };
-
-    public IReadOnlyList<IMachineConnectionViewModel> Connections { get; } =
-    [
-        new DesignMachineConnectionViewModel("claude-work", "keychain: claude-work", false) { IsDeclared = true },
-        new DesignMachineConnectionViewModel("claude-personal", "the provider's own login", false),
-    ];
-
-    public string ConnectionsFile => "Applied";
-
-    public ISourceControlViewModel SourceControl { get; init; } = new DesignSourceControlViewModel();
-
-    public string ForgesFile => "forges.json · checks every 60s · GitHub, Gitea, Forgejo installed";
+    public IMachineAccountsViewModel Accounts { get; init; } = new DesignMachineAccountsViewModel();
 
     public string Silence => "600s";
 
@@ -282,15 +270,32 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 
     public string Resources => "Applied: samples every 5s, orphans Kill, ports 41000-41999 by 10";
 
+    public IAsyncRelayCommand SaveSilenceCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+internal sealed class DesignMachineAccountsViewModel : IMachineAccountsViewModel
+{
+    public IConnectionEditorViewModel Editor { get; init; } = new DesignConnectionEditorViewModel { IsOpen = false };
+
+    public IReadOnlyList<IMachineConnectionViewModel> Connections { get; } =
+    [
+        new DesignMachineConnectionViewModel("claude-work", "keychain: claude-work", false) { IsDeclared = true },
+        new DesignMachineConnectionViewModel("claude-personal", "the provider's own login", false),
+    ];
+
+    public string ConnectionsFile => "Applied";
+
+    public ISourceControlViewModel SourceControl { get; init; } = new DesignSourceControlViewModel();
+
+    public string ForgesFile => "forges.json · checks every 60s · GitHub, Gitea, Forgejo installed";
+
     public string Error => string.Empty;
 
     public string Notice { get; init; } = string.Empty;
 
-    public IAsyncRelayCommand SaveSilenceCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
-
     public IAsyncRelayCommand OpenConnectionsCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
-
-    public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 [INotifyPropertyChanged]

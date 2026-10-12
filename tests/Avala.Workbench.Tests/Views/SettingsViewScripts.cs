@@ -6,6 +6,7 @@ using Avala.Workbench.Machine;
 using Avala.Workbench.RepositoryRules;
 using Avala.Workbench.Settings;
 using Avala.Workbench.Tests.RepositoryChoice;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
@@ -28,6 +29,19 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
             Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "MachineSettingsView");
             Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "AppearanceView");
             Assert.False(view.Shows("NoRepositories"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AccountsComeFirstAboveTheRepositoryRulesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Wide(new DesignSettingsViewModel());
+            var accounts = view.Find("MachineAccounts").TranslatePoint(default, view.Window);
+            var repository = view.Find("Repository").TranslatePoint(default, view.Window);
+
+            Assert.True(view.Shows("MachineAccounts"));
+            Assert.True(accounts?.Y < repository?.Y, $"Accounts at {accounts}, the repository's rules at {repository}.");
+            Assert.Contains(view.All<UserControl>(), control => control.GetType().Name == "MachineAccountsView");
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -141,13 +155,12 @@ public sealed class RepositorySettingsViewScripts(HeadlessUi ui)
 public sealed class MachineSettingsViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task TheMachineShowsItsConnectionsFilesAndSilenceWindowOnTheSliderAsync() =>
+    public Task TheMachineShowsItsSilenceWindowOnTheSliderAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignMachineSettingsViewModel());
 
-            Assert.Equal(("connections.json · Applied", "10 min", 10d), (view.TextOf("ConnectionsFile"), view.TextOf("SilenceLabel"), view.Find<Slider>("SilenceSlider").Value));
-            Assert.Equal((2, false), (view.Find<ItemsControl>("Connections").ItemCount, view.Shows("SaveSilence")));
+            Assert.Equal(("10 min", 10d, false), (view.TextOf("SilenceLabel"), view.Find<Slider>("SilenceSlider").Value, view.Shows("SaveSilence")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -209,7 +222,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var machine = Machine(new FakeConnections(), new FakeSupervision());
-            var view = Screen.Show(machine);
+            var view = Page(machine);
 
             view.Find<TextBox>("SilenceDraft").Text = "later";
             await machine.SaveSilenceCommand.ExecuteAsync(null);
@@ -219,17 +232,20 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task TheDefaultConnectionIsChosenAboveTheConnectionsAsync() =>
+    public Task WithAutoAsTheDefaultNoConnectionIsMarkedDefaultAsync() =>
         ui.RunAsync(async () =>
         {
             var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
-            var machine = Machine(connections, new FakeSupervision());
+            var machine = MachineSettingsViewScripts.Machine(connections, new FakeSupervision());
             await machine.LoadAsync(TestContext.Current.CancellationToken);
-            var view = Screen.Show(machine);
+            var view = Page(machine);
 
             Assert.Equal((DefaultPhrases.Auto, true, false), (view.Find<ComboBox>("Choices").SelectedItem, view.Shows("Recommended"), view.Shows("Save")));
             Assert.Equal([false, false], view.Find<ItemsControl>("Connections").Items.Cast<IMachineConnectionViewModel>().Select(connection => connection.IsDefault));
         }, TestContext.Current.CancellationToken);
+
+    private static ViewScript Page(MachineSettingsViewModel machine) =>
+        Screen.Show(new SettingsViewModel(new DesignRepositorySettingsViewModel(), machine, new DesignAppearanceViewModel(), new DesignAboutViewModel()), Avalonia.Styling.ThemeVariant.Dark, 1280, 1400);
 
     internal static MachineSettingsViewModel Machine(FakeConnections connections, FakeSupervision supervision)
     {
@@ -241,14 +257,27 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
             new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
     }
 
+}
+
+public sealed class MachineAccountsViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task TheAccountsShowTheConnectionsAndTheirFilesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignMachineAccountsViewModel());
+
+            Assert.Equal(("connections.json · Applied", 2), (view.TextOf("ConnectionsFile"), view.Find<ItemsControl>("Connections").ItemCount));
+        }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task AddingAConnectionOpensTheFormUnderTheListAndSavingClosesItAsync() =>
         ui.RunAsync(async () =>
         {
             var connections = new FakeConnections("claude-work");
-            var machine = Machine(connections, new FakeSupervision());
+            var machine = MachineSettingsViewScripts.Machine(connections, new FakeSupervision());
             await machine.LoadAsync(TestContext.Current.CancellationToken);
-            var view = Screen.Show(machine);
+            var view = Screen.Show(machine.Accounts);
 
             view.Click("AddConnection");
             view.Settle();
@@ -269,9 +298,9 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var connections = new FakeConnections("claude-work", "claude-personal");
-            var machine = Machine(connections, new FakeSupervision());
+            var machine = MachineSettingsViewScripts.Machine(connections, new FakeSupervision());
             await machine.LoadAsync(TestContext.Current.CancellationToken);
-            var view = Screen.Show(machine);
+            var view = Screen.Show(machine.Accounts);
 
             var remove = view.All<Button>().Where(button => button.Name == "Remove").ToList();
             remove[1].Command!.Execute(null);

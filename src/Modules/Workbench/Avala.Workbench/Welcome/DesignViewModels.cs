@@ -1,4 +1,5 @@
 using Avala.Workbench.Accounts;
+using Avala.Workbench.ModelChoices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -39,6 +40,8 @@ internal sealed partial class DesignWelcomeViewModel : IWelcomeViewModel
         new DesignAccountChipViewModel { Label = "octocat", Logo = DesignLogos.Hub },
     ];
 
+    public IHarnessChoiceViewModel Harness { get; init; } = new DesignHarnessChoiceViewModel();
+
     public IAsyncRelayCommand StartCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand OpenFolderCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
@@ -54,4 +57,47 @@ internal sealed partial class DesignWelcomeViewModel : IWelcomeViewModel
     }
 
     public Task CheckAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+internal sealed class DesignHarnessOptionViewModel : IHarnessOptionViewModel
+{
+    public string Name { get; init; } = "Auto";
+
+    public string Monogram => IsAuto ? string.Empty : AccountPhrases.Monogram(Name);
+
+    public bool IsAuto => Name == HarnessPhrases.Auto;
+
+    public string Hint { get; init; } = string.Empty;
+
+    public bool IsAttention { get; init; }
+
+    public bool IsChosen { get; init; }
+
+    public IRelayCommand ChooseCommand { get; } = new RelayCommand(() => { });
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DesignHarnessChoiceViewModel : IHarnessChoiceViewModel
+{
+    public bool IsShown { get; init; } = true;
+
+    public string Label { get; init; } = "Auto · claude-work";
+
+    public string Monogram => AccountPhrases.Monogram("claude-work");
+
+    public string Reason { get; init; } = "Most capacity left · 12% of the 5-hour window used";
+
+    public bool IsAttention { get; init; }
+
+    [ObservableProperty]
+    public partial bool IsOpen { get; set; }
+
+    public IReadOnlyList<IHarnessOptionViewModel> Options { get; init; } =
+    [
+        new DesignHarnessOptionViewModel { Hint = "Recommended · now claude-work", IsChosen = true },
+        new DesignHarnessOptionViewModel { Name = "claude-work", Hint = "12% of the 5-hour window used" },
+        new DesignHarnessOptionViewModel { Name = "claude-personal", Hint = "94% of the 5-hour window used", IsAttention = true },
+    ];
+
+    public IModelPickerViewModel Models { get; init; } = new DesignModelPickerViewModel { CanChoose = false, Models = ["Default (sonnet)"], Model = "Default (sonnet)", Efforts = ["Default (medium)"], Effort = "Default (medium)", Note = string.Empty };
 }

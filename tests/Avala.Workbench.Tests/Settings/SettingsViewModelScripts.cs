@@ -78,9 +78,9 @@ public sealed class SettingsViewModelScripts
 
         public INotificationsViewModel Notifications => machine.Notifications;
 
-        IConnectionEditorViewModel IMachineSettingsViewModel.Editor => machine.Editor;
+        public IMachineAccountsViewModel Accounts => machine.Accounts;
 
-        IRuleFileEditorViewModel IRepositorySettingsViewModel.Editor => repository.Editor;
+        public IRuleFileEditorViewModel Editor => repository.Editor;
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<IRuleFileViewModel> EditHereCommand => repository.EditHereCommand;
 
@@ -124,14 +124,6 @@ public sealed class SettingsViewModelScripts
 
         public double SilenceMinutes { get; set; } = 10;
 
-        public IReadOnlyList<IMachineConnectionViewModel> Connections => machine.Connections;
-
-        public string ConnectionsFile => machine.ConnectionsFile;
-
-        public Avala.Workbench.Accounts.ISourceControlViewModel SourceControl => machine.SourceControl;
-
-        public string ForgesFile => machine.ForgesFile;
-
         public string Silence => machine.Silence;
 
         public string SupervisionFile => machine.SupervisionFile;
@@ -141,8 +133,6 @@ public sealed class SettingsViewModelScripts
         public string Resources => machine.Resources;
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand SaveSilenceCommand => machine.SaveSilenceCommand;
-
-        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand OpenConnectionsCommand => machine.OpenConnectionsCommand;
 
         public Task LoadAsync(CancellationToken cancellationToken)
         {

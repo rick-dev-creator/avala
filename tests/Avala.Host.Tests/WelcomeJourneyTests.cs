@@ -1,3 +1,5 @@
+using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -38,6 +40,39 @@ public sealed class WelcomeJourneyTests(PublishedPlugins plugins)
         var summary = (await run.Get<IJobCatalog>().ListAsync(Cancellation)).Single(found => found.Job == job);
         Assert.True(run.Get<IScratchRepositories>().Holds(summary.Repository));
         await workbench.ShowsAsync(() => welcome["IsCompact"].Value<bool>());
+    }
+
+    [Fact]
+    public async Task AChatStartedFromTheWelcomeRunsOnTheConnectionModelAndEffortChosenOnItsChipAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins);
+        var workbench = await run.WorkbenchAsync();
+        var welcome = await run.Ui.ReadAsync(() => workbench.Page["Welcome"]);
+        await run.Ui.RunAsync(() => workbench.Page["Checking"].Value<Task>());
+        var harness = await run.Ui.ReadAsync(() => welcome["Harness"]);
+        var connection = await run.Ui.ReadAsync(() => harness["Options"].Items[1]["Name"].Text);
+
+        await run.Ui.RunAsync(() =>
+        {
+            ((System.Windows.Input.ICommand)harness["Options"].Items[1]["ChooseCommand"].Target).Execute(null);
+
+            return harness["Offering"].Value<Task>();
+        });
+        await run.Ui.RunAsync(() =>
+        {
+            harness["Models"].Set("Model", "simulated-large");
+            harness["Models"].Set("Effort", "high");
+            welcome.Set("Instruction", SimulatedRun.Simulate("reply"));
+
+            return welcome.ExecuteAsync("StartCommand");
+        });
+        await workbench.ShowsAsync(() => workbench.Page.Has("Conversation"));
+        var job = await run.Ui.ReadAsync(() => workbench.Page["Conversation"]["Job"].Value<JobId>());
+
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        var summary = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary;
+        Assert.Equal((new ConnectionName(connection), new ModelChoice("simulated-large", "high")), (Outcomes.Present(summary.Connection), summary.Model));
+        Assert.Equal($"{connection} · simulated-large · high", await run.Ui.ReadAsync(() => harness["Label"].Text));
     }
 
     [Fact]

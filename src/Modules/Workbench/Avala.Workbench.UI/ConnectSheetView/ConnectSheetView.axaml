@@ -8,6 +8,12 @@
   <Design.DataContext>
     <accounts:DesignConnectSheetViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBox#TokenVariable">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+    </Style>
+  </UserControl.Styles>
   <Border x:Name="Sheet" Classes="sheet sheet-in">
     <StackPanel Spacing="16">
       <TextBlock Classes="heading" Text="Connect an account" />
@@ -59,14 +65,13 @@
         </DockPanel>
       </StackPanel>
       <TextBox x:Name="TokenVariable"
-               Classes="mono"
                Text="{Binding TokenVariable}"
                PlaceholderText="TOKEN_VARIABLE"
                AutomationProperties.Name="Name of the environment variable that holds the token"
                ToolTip.Tip="The name of an environment variable: Avala never stores the token"
                IsVisible="{Binding UsesToken}">
         <TextBox.InnerLeftContent>
-          <TextBlock Classes="caption mono" Margin="10,0,0,0" VerticalAlignment="Center" Text="$" />
+          <TextBlock x:Name="TokenPrefix" Classes="mono secondary" Margin="10,0,-6,0" VerticalAlignment="Center" Text="$" />
         </TextBox.InnerLeftContent>
       </TextBox>
       <TextBlock x:Name="Error"

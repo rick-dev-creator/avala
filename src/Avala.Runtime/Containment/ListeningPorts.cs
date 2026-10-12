@@ -8,37 +8,20 @@ namespace Avala.Runtime.Containment;
 
 internal sealed class LinuxListeningPorts : IListeningPorts
 {
-    private const string Listening = "0A";
+    public async ValueTask<IReadOnlyList<Listener>> ListAsync(IReadOnlySet<int> owners, CancellationToken cancellationToken) =>
+        LinuxListings.Listeners(
+            [await TableAsync("/proc/net/tcp", cancellationToken), await TableAsync("/proc/net/tcp6", cancellationToken)],
+            [.. owners.Select(owner => (owner, (IReadOnlyList<long>)Sockets(owner)))]);
 
-    public async ValueTask<IReadOnlyList<Listener>> ListAsync(IReadOnlySet<int> owners, CancellationToken cancellationToken)
-    {
-        var sockets = new Dictionary<long, int>();
-
-        foreach (var table in (string[])["/proc/net/tcp", "/proc/net/tcp6"])
-        {
-            foreach (var fields in (await TableAsync(table, cancellationToken)).Select(line => line.Split(' ', StringSplitOptions.RemoveEmptyEntries)))
-            {
-                if (fields.Length > 9 && fields[3] == Listening && long.TryParse(fields[9], CultureInfo.InvariantCulture, out var inode))
-                {
-                    sockets[inode] = int.Parse(fields[1][(fields[1].LastIndexOf(':') + 1)..], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                }
-            }
-        }
-
-        var holders = owners.SelectMany(owner => Sockets(owner).Select(inode => (Inode: inode, Owner: owner))).ToDictionary(held => held.Inode, held => held.Owner);
-
-        return [.. sockets.Select(socket => new Listener(socket.Value, holders.TryGetValue(socket.Key, out var owner) ? owner : Option<int>.None)).Distinct()];
-    }
-
-    private static async Task<IReadOnlyList<string>> TableAsync(string table, CancellationToken cancellationToken)
+    private static async Task<string> TableAsync(string table, CancellationToken cancellationToken)
     {
         try
         {
-            return (await File.ReadAllTextAsync(table, cancellationToken)).Split('\n').Skip(1).ToList();
+            return await File.ReadAllTextAsync(table, cancellationToken);
         }
         catch (IOException)
         {
-            return [];
+            return string.Empty;
         }
     }
 
