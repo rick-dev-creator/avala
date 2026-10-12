@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text;
 using Avala.Sdk;
@@ -5,12 +6,50 @@ using Avala.Sdk.Processes;
 
 namespace Avala.Runtime.Processes;
 
-internal sealed class ProcessRunner(IProcessTrees trees) : IProcessRunner
+internal sealed class ProcessRunner : IProcessRunner, IAsyncDisposable
 {
-    public async ValueTask<Result<ProcessOutcome, ProcessError>> RunAsync(
+    private readonly IProcessTrees trees;
+    private readonly CancellationTokenSource stopping = new();
+    private readonly CancellationToken stopped;
+    private ImmutableHashSet<Task> running = [];
+
+    public ProcessRunner(IProcessTrees trees)
+    {
+        this.trees = trees;
+        stopped = stopping.Token;
+    }
+
+    public ValueTask<Result<ProcessOutcome, ProcessError>> RunAsync(
         ProcessRequest request,
         CancellationToken cancellationToken)
     {
+        var admitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var run = AdmittedAsync(admitted.Task, request, cancellationToken);
+        ImmutableInterlocked.Update(ref running, runs => runs.Add(run));
+        _ = run.ContinueWith(ended => ImmutableInterlocked.Update(ref running, runs => runs.Remove(ended)), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        admitted.SetResult();
+
+        return new(run);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await stopping.CancelAsync();
+        await Task.WhenAll(Volatile.Read(ref running)).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        stopping.Dispose();
+    }
+
+    private async Task<Result<ProcessOutcome, ProcessError>> AdmittedAsync(Task admitted, ProcessRequest request, CancellationToken cancellationToken)
+    {
+        await admitted;
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopped);
+
+        return await RunUntilStoppedAsync(request, linked.Token);
+    }
+
+    private async Task<Result<ProcessOutcome, ProcessError>> RunUntilStoppedAsync(ProcessRequest request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         var launcher = request.WorkingDirectory
             .Bind(trees.In)
             .Match(tree => (IProcessLauncher)tree, () => UncontainedProcesses.Instance);

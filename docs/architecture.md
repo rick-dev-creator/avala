@@ -44,6 +44,8 @@ Modules learn what happened through integration events on an in-process bus, imp
 
 The same discipline holds everywhere: concurrency between components goes through the bus or channels only, and nothing waits on time where it could await the event that states the thing happened.
 
+Nothing Avala starts outlives it. Stopping the application disposes the process runner, which cancels every process it still runs, kills its tree and returns only once each has exited, and refuses to start another; a read nobody awaits, such as the inspector checking a repository's remote, therefore never keeps a repository's folder in use after Avala stops.
+
 ## Agents and the provider contract
 
 `Avala.Agents.Contracts` is the only thing a provider plugin depends on. A provider implements `IAgentProvider`: it starts an `IAgentSession` that streams agnostic events, such as turns, messages, reasoning, file edits, commands, permission requests, forms, usage and limits, and accepts turns, permission decisions, form answers and interruptions. The Agents module checks every event of every turn against one `Turn` aggregate, so a provider translates a protocol and never re-derives lifecycle rules.

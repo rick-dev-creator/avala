@@ -69,6 +69,22 @@ public sealed class ProcessRunnerTests
     }
 
     [Fact]
+    public async Task StoppingTheApplicationEndsEveryProcessItStartedBeforeItReturnsAsync()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var command = Workloads.Command("verdict", ((IPEndPoint)listener.LocalEndpoint).Port.ToString(CultureInfo.InvariantCulture));
+        var services = new ServiceCollection().AddRuntime(new AvalaPaths(Path.GetTempPath())).BuildServiceProvider();
+
+        var running = services.GetRequiredService<IProcessRunner>().RunAsync(new ProcessRequest(command.FileName, [.. command.ArgumentList]), CancellationToken.None).AsTask();
+        using var held = await listener.AcceptTcpClientAsync(Cancellation).AsTask().WaitAsync(HangGuard, Cancellation);
+        await services.DisposeAsync();
+
+        Assert.True(held.Client.Poll(0, SelectMode.SelectRead) && held.Available == 0, "A process the application started still ran after it stopped");
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => running);
+    }
+
+    [Fact]
     public async Task ARequestsEnvironmentReachesTheProcessAsync()
     {
         var request = new ProcessRequest("git", ["config", "--get", "avala.probe"])

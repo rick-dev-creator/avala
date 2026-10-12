@@ -12,6 +12,7 @@ using Avala.Mermaid.UI;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Resources.Contracts;
+using Avala.Runtime;
 using Avala.Supervision.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
@@ -191,7 +192,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         }
 
         var root = surroundings.Compose(plugins, data);
-        var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
+        var repository = await TemporaryRepository.CreateAsync(surroundings.Tools.GetRequiredService<IProcessRunner>(), Cancellation);
 
         foreach (var (path, content) in committed)
         {
@@ -371,6 +372,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
     {
         await StopAsync();
         await repository.DisposeAsync();
+        await surroundings.Tools.DisposeAsync();
         await data.DisposeAsync();
         surroundings.Notifier.Dispose();
         Ui.Dispose();
@@ -394,6 +396,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
     private sealed record Surroundings(TestUiDispatcher Ui, FakeTimeProvider Clock, bool Harnesses, bool Developer, Option<IPlugin> ClaudeCode)
     {
         public RecordingLinks Links { get; } = new();
+
+        public ServiceProvider Tools { get; } = new ServiceCollection().AddRuntime(new AvalaPaths(Path.GetTempPath())).BuildServiceProvider();
 
         public BoardGate Board { get; } = new();
 

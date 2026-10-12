@@ -4,6 +4,8 @@ public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
 {
     private const int Attempts = 50;
 
+    private const int RemainingShown = 20;
+
     private static readonly TimeSpan Settling = TimeSpan.FromMilliseconds(100);
 
     private static readonly EnumerationOptions OwnFiles = new()
@@ -33,7 +35,23 @@ public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
             file.Attributes = FileAttributes.Normal;
         }
 
-        folder.Delete(recursive: true);
+        try
+        {
+            folder.Delete(recursive: true);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException($"{folder.FullName} could not be removed: {exception.Message} What remains, of which something is still held open or is a process's working directory: {Remaining(folder)}", exception);
+        }
+    }
+
+    private static string Remaining(DirectoryInfo folder)
+    {
+        folder.Refresh();
+
+        return !folder.Exists
+            ? "nothing"
+            : string.Join(", ", folder.EnumerateFileSystemInfos("*", OwnFiles).Select(entry => entry.FullName).Prepend(folder.FullName).Take(RemainingShown));
     }
 
     public async ValueTask DisposeAsync()
