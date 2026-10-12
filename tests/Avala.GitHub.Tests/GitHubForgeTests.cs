@@ -84,13 +84,14 @@ public sealed class GitHubForgeTests
     }
 
     [Theory]
-    [InlineData("https://api.github.com", "")]
-    [InlineData("https://ghe.example.com/api/v3", "ghe.example.com")]
-    public void TheGhCliCallsTheSameRequestWithItsFieldsTypedFlagsAndTheHostOfAnEnterpriseServer(string api, string host)
+    [InlineData("https://api.github.com", null, "")]
+    [InlineData("https://ghe.example.com/api/v3", null, "ghe.example.com")]
+    [InlineData("https://ghe.example.com/api/v3", "ghe.internal", "ghe.internal")]
+    public void TheGhCliCallsTheSameRequestWithItsFieldsTypedFlagsAndTheHostOfAnEnterpriseServerOrTheLoginItNames(string api, string? login, string host)
     {
         var request = new ForgeRequest(ForgeMethod.Post, $"{Repository}/pulls") { Fields = [new("title", "Add a greeting")], Flags = [new("draft", false)] };
 
-        var call = Outcomes.Present(new GitHubForge().CliFor(request, Targets.Of(new Uri(api))));
+        var call = Outcomes.Present(new GitHubForge().CliFor(request, Targets.Of(new Uri(api)) with { Login = login.ToOption() }));
 
         Assert.Equal(("gh", CliStatusChannel.Output), (call.Command, call.Status));
         Assert.Equal(

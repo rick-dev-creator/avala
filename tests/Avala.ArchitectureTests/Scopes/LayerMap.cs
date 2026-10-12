@@ -313,6 +313,7 @@ internal static class LayerMap
             ["Watching"] = Layer.Application,
             ["Polling"] = Layer.Application,
             ["Publishing"] = Layer.Application,
+            ["Accounts"] = Layer.Application,
             ["RuleFiles"] = Layer.Infrastructure,
             ["Transport"] = Layer.Infrastructure,
             ["Git"] = Layer.Infrastructure,

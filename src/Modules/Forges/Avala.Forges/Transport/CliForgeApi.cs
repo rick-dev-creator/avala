@@ -58,7 +58,7 @@ internal sealed class ForgeTransports(IProcessRunner processes, ForgeHttp http) 
 
     public IForgeApi Open(ForgeDeclaration declaration, IForge forge, ForgeTarget target) => declaration.Source switch
     {
-        CredentialSource.Cli => new CliForgeApi(processes, forge, target),
+        CredentialSource.Cli => new CliForgeApi(processes, forge, target with { Login = declaration.Reference }),
         CredentialSource.Environment => new HttpForgeApi(http.Client, target.Api, declaration.Reference.Map(variable => new ForgeToken(forge.Info.TokenScheme, variable)), Environment),
         _ => new HttpForgeApi(http.Client, target.Api, Option<ForgeToken>.None, Environment),
     };

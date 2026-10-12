@@ -1,3 +1,4 @@
+using Avala.Forges.Accounts;
 using Avala.Forges.Connecting;
 using Avala.Forges.Contracts;
 using Avala.Forges.Delivering;
@@ -31,7 +32,9 @@ public sealed class ForgesPlugin : IPlugin
             .AddForwarded<IStartupTask, SqliteWatchStore>()
             .AddSingleton<WatchBook>()
             .AddForwarded<IStartupTask, WatchBook>()
-            .AddSingleton<IForgeFile, ForgeFileReader>()
+            .AddSingleton<ForgeFile>()
+            .AddForwarded<IForgeFile, ForgeFile>()
+            .AddForwarded<IForgeFileWriter, ForgeFile>()
             .AddSingleton<ForgeHttp>()
             .AddSingleton<IForgeTransports, ForgeTransports>()
             .AddSingleton<ForgeConnections>()
@@ -59,6 +62,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddForwarded<IHandle<ForgeTriggerNudged>, ForgeEventPoller>()
             .AddSingleton<IForgeEventLog, EventLogDesk>()
             .AddSingleton<IForgeNudges, ForgeNudges>()
-            .AddSingleton<IRepositoryPublishing, RepositoryPublisher>();
+            .AddSingleton<IRepositoryPublishing, RepositoryPublisher>()
+            .AddSingleton<IForgeConnections, ConnectionDesk>();
     }
 }

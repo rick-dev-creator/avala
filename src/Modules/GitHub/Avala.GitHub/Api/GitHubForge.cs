@@ -22,9 +22,11 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories
     {
         List<string> arguments = ["api", "--method", request.Method == ForgeMethod.Post ? "POST" : "GET", "--include", "-H", "Accept: application/vnd.github+json"];
 
-        if (target.Api.Host != Public.Host)
+        var hostname = target.Login.Match(login => login, () => target.Api.Host != Public.Host ? target.Api.Host : string.Empty);
+
+        if (hostname.Length > 0)
         {
-            arguments.AddRange(["--hostname", target.Api.Host]);
+            arguments.AddRange(["--hostname", hostname]);
         }
 
         foreach (var (name, value) in request.Fields)

@@ -9,7 +9,7 @@ namespace Avala.Forges.Tests.RuleFiles;
 public sealed class ParserTests
 {
     [Fact]
-    public void AForgesFileKeepsEveryConnectionWithItsForgeUrlAndCredentialReference()
+    public void AForgesFileKeepsEveryConnectionWithItsForgeUrlAndCredentialReferenceAndACliLoginItNames()
     {
         var settings = Outcomes.Succeeds(ForgeFileParser.Parse("""
             {
@@ -18,6 +18,7 @@ public sealed class ParserTests
                 { "name": "github", "forge": "github", "credential": { "source": "env", "reference": "GITHUB_TOKEN" } },
                 { "name": "github-cli", "forge": "github", "credential": { "source": "cli" } },
                 { "name": "codeberg", "forge": "forgejo", "url": "https://codeberg.org" },
+                { "name": "codeberg-tea", "forge": "forgejo", "url": "https://codeberg.org", "credential": { "source": "cli", "reference": "codeberg" } },
                 { "name": "local", "forge": "simulated" }
               ]
             }
@@ -29,6 +30,7 @@ public sealed class ParserTests
                 new ForgeDeclaration(new ForgeName("github"), "github", Option<Uri>.None, CredentialSource.Environment, "GITHUB_TOKEN"),
                 new ForgeDeclaration(new ForgeName("github-cli"), "github", Option<Uri>.None, CredentialSource.Cli, Option<string>.None),
                 new ForgeDeclaration(new ForgeName("codeberg"), "forgejo", new Uri("https://codeberg.org"), CredentialSource.None, Option<string>.None),
+                new ForgeDeclaration(new ForgeName("codeberg-tea"), "forgejo", new Uri("https://codeberg.org"), CredentialSource.Cli, "codeberg"),
                 new ForgeDeclaration(new ForgeName("local"), "simulated", Option<Uri>.None, CredentialSource.None, Option<string>.None),
             ],
             settings.Forges);
@@ -54,7 +56,6 @@ public sealed class ParserTests
     [InlineData("""{ "forges": [{ "name": "a", "forge": "github", "credential": "env" }] }""", "Malformed")]
     [InlineData("""{ "forges": [{ "name": "a", "forge": "github", "credential": { "source": "env", "reference": "T", "value": "x" } }] }""", "UnknownField")]
     [InlineData("""{ "forges": [{ "name": "a", "forge": "github", "credential": { "source": "env", "reference": 7 } }] }""", "Malformed")]
-    [InlineData("""{ "forges": [{ "name": "a", "forge": "github", "credential": { "source": "cli", "reference": "GH_TOKEN" } }] }""", "UnknownField")]
     [InlineData("""{ "pollSeconds": 5 }""", "InvalidInterval")]
     [InlineData("""{ "pollSeconds": 7200 }""", "InvalidInterval")]
     [InlineData("""{ "pollSeconds": "60" }""", "Malformed")]

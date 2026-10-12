@@ -87,4 +87,5 @@ public enum ForgeError
     NameTaken,
     RemoteExists,
     PushUnauthorized,
+    Unwritable,
 }

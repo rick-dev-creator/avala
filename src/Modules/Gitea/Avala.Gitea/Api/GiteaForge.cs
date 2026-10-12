@@ -26,6 +26,7 @@ internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, I
     public Option<CliCall> CliFor(ForgeRequest request, ForgeTarget target)
     {
         List<string> arguments = ["api", "--method", request.Method == ForgeMethod.Post ? "POST" : "GET", "--include"];
+        arguments.AddRange(target.Login.Match<IEnumerable<string>>(login => ["--login", login], () => []));
 
         foreach (var (name, value) in request.Fields)
         {

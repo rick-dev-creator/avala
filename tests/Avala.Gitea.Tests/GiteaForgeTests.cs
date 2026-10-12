@@ -78,15 +78,17 @@ public sealed class GiteaForgeTests
     public void ACommitStatusMapsToTheAgnosticCheckStatus(string status, string expected) =>
         Assert.Equal(Enum.Parse<CheckStatus>(expected), GiteaForge.CommitStatus(status));
 
-    [Fact]
-    public void TheTeaCliCallsThePathBelowTheApiRootWithTypedFlagsAndReadsTheStatusFromStandardError()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("codeberg")]
+    public void TheTeaCliCallsThePathBelowTheApiRootWithTypedFlagsOnTheLoginItNamesAndReadsTheStatusFromStandardError(string? login)
     {
         var request = new ForgeRequest(ForgeMethod.Post, $"{Repository}/issues/7/comments") { Fields = [new("body", "Held.")], Flags = [new("private", true)] };
 
-        var call = Outcomes.Present(Forge("forgejo").CliFor(request, Targets.Of(Root)));
+        var call = Outcomes.Present(Forge("forgejo").CliFor(request, Targets.Of(Root) with { Login = login.ToOption() }));
 
         Assert.Equal(("tea", CliStatusChannel.Error), (call.Command, call.Status));
-        Assert.Equal(["api", "--method", "POST", "--include", "--field", "body=Held.", "-F", "private=true", "repos/octo/shop/issues/7/comments"], call.Arguments);
+        Assert.Equal(["api", "--method", "POST", "--include", .. login is null ? Array.Empty<string>() : ["--login", login], "--field", "body=Held.", "-F", "private=true", "repos/octo/shop/issues/7/comments"], call.Arguments);
     }
 
     [Theory]

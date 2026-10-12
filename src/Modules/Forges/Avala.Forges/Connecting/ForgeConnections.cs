@@ -9,6 +9,11 @@ internal interface IForgeFile
     ValueTask<Result<ForgeSettings, ForgeError>> ReadAsync(CancellationToken cancellationToken);
 }
 
+internal interface IForgeFileWriter
+{
+    ValueTask<Result<ForgeSettings, ForgeError>> ChangeAsync(Func<ForgeSettings, Result<ForgeSettings, ForgeError>> change, CancellationToken cancellationToken);
+}
+
 internal interface IForgeTransports
 {
     IForgeApi Open(ForgeDeclaration declaration, IForge forge, ForgeTarget target);

@@ -12,9 +12,9 @@ internal static class ForgeFileParser
 
     public const int MaximumBytes = 64 * 1024;
 
-    private const string EnvironmentSource = "env";
+    public const string EnvironmentSource = "env";
 
-    private const string CliSource = "cli";
+    public const string CliSource = "cli";
 
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 4, AllowDuplicateProperties = false };
 
@@ -159,8 +159,7 @@ internal static class ForgeFileParser
         {
             EnvironmentSource when string.IsNullOrWhiteSpace(referenced) => ForgeError.MissingReference,
             EnvironmentSource => (CredentialSource.Environment, Option<string>.Some(referenced)),
-            CliSource when reference.ValueKind != JsonValueKind.Undefined => ForgeError.UnknownField,
-            CliSource => (CredentialSource.Cli, Option<string>.None),
+            CliSource => (CredentialSource.Cli, string.IsNullOrWhiteSpace(referenced) ? Option<string>.None : Option<string>.Some(referenced)),
             _ => ForgeError.UnknownSource,
         };
     }

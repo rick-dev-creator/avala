@@ -31,7 +31,10 @@ public sealed record ForgeInfo(string Id, string Name)
 
 public sealed record RepositoryAddress(string Host, string Owner, string Name);
 
-public sealed record ForgeTarget(Uri Api, RepositoryAddress Repository, string Remote);
+public sealed record ForgeTarget(Uri Api, RepositoryAddress Repository, string Remote)
+{
+    public Option<string> Login { get; init; }
+}
 
 public sealed record ForgeContext(IForgeApi Api, ForgeTarget Target);
 
