@@ -34,7 +34,7 @@ public sealed class MarkdownReplyTests(HeadlessUi ui, PublishedPlugins plugins)
                 {
                     var view = ViewScript.Show(message);
                     drawn = (
-                        Assert.Single(view.All<SelectableTextBlock>(), block => block.Classes.Contains("markdown-code")).Inlines?.Text ?? string.Empty,
+                        Assert.Single(view.All<SelectableTextBlock>(), block => block.Classes.Contains("markdown-code")).Text ?? string.Empty,
                         view.All<Control>().Count(control => control.Classes.Contains("markdown-table")),
                         view.All<Control>().Count(control => control.Classes.Contains("markdown-list")));
                     await ClickAsync(view, "https://www.iso.org/iso-4217-currency-codes.html");

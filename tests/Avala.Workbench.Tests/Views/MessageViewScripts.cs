@@ -54,21 +54,22 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             Assert.Single(view.All<Control>(), control => control.Classes.Contains("markdown-list"));
             Assert.Single(view.All<Control>(), control => control.Classes.Contains("markdown-table"));
             var code = Assert.Single(view.All<SelectableTextBlock>(), block => block.Classes.Contains("markdown-code"));
-            Assert.StartsWith("func ToMinor(amount Money) int64 {", code.Inlines?.Text, StringComparison.Ordinal);
+            Assert.StartsWith("func ToMinor(amount Money) int64 {", code.Text, StringComparison.Ordinal);
             Assert.Equal(Application.Current!.FindResource("MonoFont"), code.FontFamily);
         }, Cancellation);
 
     [Fact]
     public Task ACodeBlockIsLabelledWithItsLanguageAndColoredByItsGrammarAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
             var view = Screen.Show(Message(Rich, done: true), Avalonia.Styling.ThemeVariant.Light, 800, 600);
-            var code = Assert.Single(view.All<SelectableTextBlock>(), block => block.Classes.Contains("markdown-code"));
-            var keyword = code.Inlines!.OfType<Run>().First(run => run.Text == "func");
+            var code = Assert.Single(view.All<CodeText>());
+            await CodeBlocks.PaintedAsync(code);
+            view.Settle();
 
             Assert.Equal("go", Assert.Single(view.All<TextBlock>(), block => block.Classes.Contains("code-language")).Text);
-            Assert.Contains("syntax-keyword", keyword.Classes);
-            Assert.Equal(Application.Current!.FindResource(view.Window.ActualThemeVariant, "SyntaxKeywordBrush"), keyword.Foreground);
+            Assert.Equal("keyword", code.RoleAt(0));
+            Assert.Equal(Application.Current!.FindResource(view.Window.ActualThemeVariant, "SyntaxKeywordBrush"), CodeBlocks.ForegroundOf(code, "func"));
         }, Cancellation);
 
     [Fact]
@@ -114,7 +115,7 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units, so\n\n```go\nfunc ToMinor(", Option<ItemOutcome>.None));
             view.Settle();
             var blocks = Blocks(view);
-            var streamingCode = view.All<SelectableTextBlock>().Any(block => block.Classes.Contains("markdown-code") && block.Inlines?.Text == "func ToMinor(");
+            var streamingCode = view.All<SelectableTextBlock>().Any(block => block.Classes.Contains("markdown-code") && block.Text == "func ToMinor(");
 
             message.Update(new MessageEntry("m", "## Rounding fixed\n\nJPY has no minor units, so\n\n```go\nfunc ToMinor()\n```\n", ItemOutcome.Succeeded));
             view.Settle();

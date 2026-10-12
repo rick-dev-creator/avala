@@ -1,6 +1,6 @@
+using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using Avala.Sdk;
-using TextMateSharp.Grammars;
-using TextMateSharp.Registry;
 
 namespace Avala.Components.UI.Markdown;
 
@@ -8,129 +8,106 @@ public sealed record CodeSpan(string Text, string Role);
 
 public static class CodeColors
 {
-    private static readonly TimeSpan Budget = TimeSpan.FromMilliseconds(200);
-    private static readonly RegistryOptions Options = new(ThemeName.DarkPlus);
-    private static readonly Registry Grammars = new(Options);
-    private static readonly Dictionary<string, Option<IGrammar>> Loaded = new(StringComparer.OrdinalIgnoreCase);
+    public const int HighlightedLines = 300;
 
-    private static readonly (string Scope, string Role)[] Roles =
-    [
-        ("comment", "comment"),
-        ("punctuation.definition.comment", "comment"),
-        ("string", "string"),
-        ("markup.inline.raw", "string"),
-        ("constant.numeric", "number"),
-        ("constant.language", "number"),
-        ("constant.character", "number"),
-        ("entity.name.function", "function"),
-        ("support.function", "function"),
-        ("meta.function-call", "function"),
-        ("entity.name.type", "type"),
-        ("entity.name.class", "type"),
-        ("entity.other.inherited-class", "type"),
-        ("support.type", "type"),
-        ("support.class", "type"),
-        ("entity.other.attribute-name", "type"),
-        ("entity.name.tag", "keyword"),
-        ("storage", "keyword"),
-        ("keyword.operator", string.Empty),
-        ("keyword", "keyword"),
-        ("markup.heading", "keyword"),
-        ("markup.inserted", "string"),
-        ("markup.deleted", "deleted"),
-    ];
+    public const int ChunkLines = 60;
 
-    public static IReadOnlyList<IReadOnlyList<CodeSpan>> Lines(string code, string language)
+    public const long CacheBudget = 8L * 1024 * 1024;
+
+    private static readonly SerialExecutor Owner = new();
+    private static readonly LinkedList<(string Language, string Code, long Bytes)> Recent = [];
+    private static long cachedBytes;
+    private static ImmutableDictionary<(string Language, string Code), IReadOnlyList<IReadOnlyList<CodeSpan>>> colored =
+        ImmutableDictionary<(string Language, string Code), IReadOnlyList<IReadOnlyList<CodeSpan>>>.Empty;
+
+    public static long CachedBytes => Volatile.Read(ref cachedBytes);
+
+    public static int Count(string code) => code.Count(character => character == '\n') + 1;
+
+    public static Option<IReadOnlyList<IReadOnlyList<CodeSpan>>> Cached(string code, string language) =>
+        Volatile.Read(ref colored).TryGetValue((Key(language), code), out var lines)
+            ? Option<IReadOnlyList<IReadOnlyList<CodeSpan>>>.Some(lines)
+            : Option<IReadOnlyList<IReadOnlyList<CodeSpan>>>.None;
+
+    public static async Task<IReadOnlyList<IReadOnlyList<CodeSpan>>> LinesAsync(string code, string language, CancellationToken cancellationToken)
     {
+        var lines = new List<IReadOnlyList<CodeSpan>>();
+
+        await foreach (var chunk in ColorAsync(code, language, cancellationToken))
+        {
+            lines.AddRange(chunk);
+        }
+
+        return lines;
+    }
+
+    public static async IAsyncEnumerable<IReadOnlyList<IReadOnlyList<CodeSpan>>> ColorAsync(
+        string code,
+        string language,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var key = (Key(language), code);
+
+        if (Volatile.Read(ref colored).TryGetValue(key, out var known))
+        {
+            yield return known;
+
+            yield break;
+        }
+
         var lines = code.Split('\n');
+        var all = new List<IReadOnlyList<CodeSpan>>(lines.Length);
+        var coloring = new CodeTokens(key.Item1);
 
-        return Grammar(language).Match<IReadOnlyList<IReadOnlyList<CodeSpan>>>(
-            grammar => Colored(grammar, lines),
-            () => [.. lines.Select(line => (IReadOnlyList<CodeSpan>)[new CodeSpan(line, string.Empty)])]);
-    }
-
-    private static List<IReadOnlyList<CodeSpan>> Colored(IGrammar grammar, string[] lines)
-    {
-        var colored = new List<IReadOnlyList<CodeSpan>>(lines.Length);
-        IStateStack? state = null;
-
-        foreach (var line in lines)
+        for (var start = 0; start < lines.Length; start += ChunkLines)
         {
-            var result = grammar.TokenizeLine(line, state, Budget);
-            state = result.RuleStack;
-            var spans = new List<CodeSpan>();
+            var chunk = lines[start..Math.Min(lines.Length, start + ChunkLines)];
+            var last = start + ChunkLines >= lines.Length;
 
-            foreach (var token in result.Tokens)
-            {
-                var start = Math.Min(token.StartIndex, line.Length);
-                var end = Math.Min(token.EndIndex, line.Length);
-
-                if (end > start)
+            yield return await Owner.RunAsync(
+                _ =>
                 {
-                    Add(spans, new CodeSpan(line[start..end], Role(token.Scopes)));
-                }
-            }
+                    var spans = coloring.Next(chunk);
+                    all.AddRange(spans);
 
-            colored.Add(spans.Count == 0 ? [new CodeSpan(line, string.Empty)] : spans);
+                    if (last)
+                    {
+                        Remember(key, all);
+                    }
+
+                    return Task.FromResult(spans);
+                },
+                cancellationToken);
         }
-
-        return colored;
     }
 
-    private static void Add(List<CodeSpan> spans, CodeSpan span)
+    private static string Key(string language) => language.Trim().ToLowerInvariant();
+
+    private static long Size(string code, IReadOnlyList<IReadOnlyList<CodeSpan>> lines) =>
+        (code.Length * 4L) + (lines.Sum(line => line.Count) * 64L);
+
+    private static void Remember((string Language, string Code) key, IReadOnlyList<IReadOnlyList<CodeSpan>> lines)
     {
-        if (spans.Count > 0 && spans[^1].Role == span.Role)
+        var current = Volatile.Read(ref colored);
+
+        if (current.ContainsKey(key))
         {
-            spans[^1] = spans[^1] with { Text = spans[^1].Text + span.Text };
+            return;
         }
-        else
+
+        var bytes = Size(key.Code, lines);
+        current = current.SetItem(key, lines);
+        Recent.AddLast((key.Language, key.Code, bytes));
+        Volatile.Write(ref cachedBytes, cachedBytes + bytes);
+
+        while (cachedBytes > CacheBudget && Recent.First is { } oldest)
         {
-            spans.Add(span);
+            Recent.RemoveFirst();
+            Volatile.Write(ref cachedBytes, cachedBytes - oldest.Value.Bytes);
+            current = current.Remove((oldest.Value.Language, oldest.Value.Code));
         }
+
+        Volatile.Write(ref colored, current);
     }
 
-    private static string Role(List<string> scopes)
-    {
-        for (var index = scopes.Count - 1; index >= 0; index--)
-        {
-            foreach (var (scope, role) in Roles)
-            {
-                if (scopes[index].StartsWith(scope, StringComparison.Ordinal))
-                {
-                    return role;
-                }
-            }
-        }
-
-        return string.Empty;
-    }
-
-    private static Option<IGrammar> Grammar(string language)
-    {
-        var name = language.Trim();
-
-        if (name.Length == 0)
-        {
-            return Option<IGrammar>.None;
-        }
-
-        if (!Loaded.TryGetValue(name, out var grammar))
-        {
-            grammar = Scope(name).Bind(scope => Grammars.LoadGrammar(scope).ToOption());
-            Loaded[name] = grammar;
-        }
-
-        return grammar;
-    }
-
-    private static Option<string> Scope(string name)
-    {
-        var extension = "." + name;
-        var language = Options.GetAvailableLanguages().FirstOrDefault(known =>
-            string.Equals(known.Id, name, StringComparison.OrdinalIgnoreCase)
-            || known.Aliases?.Any(alias => string.Equals(alias, name, StringComparison.OrdinalIgnoreCase)) == true
-            || known.Extensions?.Any(found => string.Equals(found, extension, StringComparison.OrdinalIgnoreCase)) == true);
-
-        return language is null ? Option<string>.None : Options.GetScopeByLanguageId(language.Id).ToOption();
-    }
 }
