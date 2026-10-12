@@ -62,10 +62,11 @@ public sealed class TranscriptKeeperTests
     }
 
     [Fact]
-    public async Task LimitsAndResumeTokensAreNotKeptSinceTheConversationDoesNotShowThemAsync()
+    public async Task LimitsResumeTokensAndDraftsAreNotKeptSinceARestartedConversationDoesNotShowThemAsync()
     {
         await keeper.HandleAsync(new JobSessionStarted(job, Session), Cancellation);
 
+        await keeper.HandleAsync(new AgentActivity(new ItemDrafted(Session, Turn, new ItemId("write"), ItemKind.FileEdit, "Write notes.md", 512)), Cancellation);
         await keeper.HandleAsync(new AgentActivity(new LimitReported(Session, Turn, new UsageLimit("5h", 0.5, Option<DateTimeOffset>.None))), Cancellation);
         await keeper.HandleAsync(new AgentActivity(new ResumeTokenIssued(Session, Turn, new ResumeToken("conversation"))), Cancellation);
 

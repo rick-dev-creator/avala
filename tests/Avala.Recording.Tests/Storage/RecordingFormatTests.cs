@@ -104,6 +104,19 @@ public sealed class RecordingFormatTests
                 (written.GetProperty("item").GetString(), written.GetProperty("content").GetString(), written.GetProperty("isError").GetBoolean())));
     }
 
+    [Fact]
+    public void ADraftIsRecordedWithItsKindItsRedactedTitleAndTheInputItHasReceived()
+    {
+        var drafted = Written(Recording(
+        [
+            (5, new Observed(new ItemDrafted(Session, First, new ItemId("write"), ItemKind.FileEdit, "Write ana@example.com.md", 1536))),
+        ])).GetProperty("entries")[0].GetProperty("event");
+
+        Assert.Equal(
+            ("itemDrafted", "write", "fileEdit", "Write [redacted].md", 1536),
+            (drafted.GetProperty("type").GetString(), drafted.GetProperty("item").GetString(), drafted.GetProperty("kind").GetString(), drafted.GetProperty("title").GetString(), drafted.GetProperty("received").GetInt32()));
+    }
+
     private static SessionRecording Recording(IReadOnlyList<(int At, IRecordedFact Fact)> facts) =>
         facts.Aggregate(
             SessionRecording.Begin(

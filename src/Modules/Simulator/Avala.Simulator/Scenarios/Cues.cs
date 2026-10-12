@@ -20,6 +20,10 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 
     public ItemStarted Opened(ItemId item, ItemKind kind, string title, string input) => Opened(item, kind, title) with { Input = input };
 
+    public const int DraftStride = 512;
+
+    public ItemDrafted Drafted(ItemId item, ItemKind kind, string title, int received) => new(Session, Turn, item, kind, title, received);
+
     public ItemProgressed Progressed(ItemId item, string text) => new(Session, Turn, item, text);
 
     public ItemCompleted Closed(ItemId item, ItemOutcome outcome) => new(Session, Turn, item, outcome);
@@ -77,6 +81,7 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
     private IAgentEvent ReaddressItem(IAgentEvent recorded) => recorded switch
     {
         ItemStarted started => started with { Session = Session, Turn = Turn },
+        ItemDrafted drafted => drafted with { Session = Session, Turn = Turn },
         CanvasStarted canvas => canvas with { Session = Session, Turn = Turn },
         ItemProgressed progressed => progressed with { Session = Session, Turn = Turn },
         ItemCompleted completed => completed with { Session = Session, Turn = Turn },
