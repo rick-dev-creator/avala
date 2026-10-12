@@ -78,6 +78,35 @@ public sealed class PageProxyTests
         Assert.Equal(new Uri($"http://127.0.0.1:{proxy.Port}/signed-in?next=orders"), response.Headers.Location);
     }
 
+    [Fact]
+    public async Task AFormPostedThroughTheProxyReachesTheServerWithItsBodyAndTypeAsync()
+    {
+        var upstreamPort = Workloads.FreePort();
+        using var upstream = new HttpListener();
+        upstream.Prefixes.Add($"http://localhost:{upstreamPort}/");
+        upstream.Start();
+        var receiving = ReceiveAsync(upstream);
+        await using var proxy = Outcomes.Present(Workloads.OnFreePort(port => PageProxy.Start(port, upstreamPort)));
+        using var client = new HttpClient();
+        using var form = new FormUrlEncodedContent([new("order", "1042")]);
+
+        var response = await client.PostAsync(new Uri($"http://127.0.0.1:{proxy.Port}/orders"), form, Cancellation);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(("POST", "application/x-www-form-urlencoded", "order=1042"), await receiving);
+    }
+
+    private static async Task<(string Method, string? Type, string Body)> ReceiveAsync(HttpListener listener)
+    {
+        var context = await listener.GetContextAsync();
+        using var reader = new StreamReader(context.Request.InputStream);
+        var received = (context.Request.HttpMethod, context.Request.ContentType, await reader.ReadToEndAsync(CancellationToken.None));
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
+        context.Response.Close();
+
+        return received;
+    }
+
     private static async Task RedirectAsync(HttpListener listener, string location)
     {
         var context = await listener.GetContextAsync();
