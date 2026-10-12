@@ -62,7 +62,9 @@ internal sealed class Bench : IDisposable
 
     public JobFocus Focus => new(Regions, Messenger);
 
-    public HumanReplies Replies => new(Permissions, Agents);
+    public FakeDeniedRequests Denials { get; } = new();
+
+    public HumanReplies Replies => Replying.With(Permissions, Agents, Denials, Jobs, Board);
 
     public ReviewReader Reader => new(Evidence, Catalog, Changes, Usage);
 

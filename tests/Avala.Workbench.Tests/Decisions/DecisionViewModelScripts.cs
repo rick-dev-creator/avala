@@ -157,7 +157,7 @@ public sealed class DecisionViewModelScripts
         Assert.Equal(1, opened);
     }
 
-    private Workbench.Replies.HumanReplies Replies() => new(permissions, agents);
+    private Workbench.Replies.HumanReplies Replies() => Replying.With(permissions, agents);
 
     private DecisionViewModel Decision() => Decision(new PermissionCardViewModel(asking.Permission(), Replies()));
 

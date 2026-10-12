@@ -82,6 +82,14 @@ internal sealed record PermissionEntry(string Key, SessionId Session, TurnId Tur
     public bool AwaitsParent => Decision.Match(decision => decision.Delivery == DecisionDelivery.LeftToParent, () => false) && Resolution.IsNone && !Closed && !Withdrawn;
 }
 
+internal sealed record DeniedEntry(string Key, PolicyDecision Decision) : ITimelineEntry
+{
+    public Option<HumanAnswer> Allowed { get; init; }
+
+    public static bool Shows(PolicyDecision decision) =>
+        decision is { Delivery: DecisionDelivery.Answered, Answer: PolicyAnswer.Deny, Autonomy: Autonomy.Autonomous, Job.IsSome: true };
+}
+
 internal sealed record FormEntry(string Key, SessionId Session, TurnId Turn, ItemId Item, AgentForm Form) : ITimelineEntry
 {
     public Option<FormDecision> Decision { get; init; }
