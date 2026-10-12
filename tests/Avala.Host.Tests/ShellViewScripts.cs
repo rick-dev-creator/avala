@@ -143,6 +143,24 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         }, Cancellation);
 
     [Fact]
+    public Task AnOverlayContributionCoversTheWholeWindowAboveTheSidebarAndTheContentAsync() =>
+        ui.RunAsync(() =>
+        {
+            HeadlessApp.Views.Register<Curtain, CurtainControl>();
+            var shell = new ShellViewModel(
+                [],
+                [new RegionContribution(ShellRegions.Sidebar, 0, new JobPicker(new RegionContexts())), new RegionContribution(ShellRegions.Overlay, 0, new Curtain("Curtain"))],
+                new RegionContexts(),
+                new RememberedLayout());
+            var view = ViewScript.Present(new ShellView(), shell);
+            var overlay = view.Find("OverlayRegion");
+            var root = (Panel)overlay.GetVisualParent()!;
+
+            Assert.Equal((view.Window.Bounds.Size, root.Children[^1]), (overlay.Bounds.Size, overlay));
+            Assert.Contains("Curtain", view.VisibleTexts);
+        }, Cancellation);
+
+    [Fact]
     public Task TheToolbarButtonCollapsesTheSidebarAndCommandBackslashBringsItBackAsync() =>
         ui.RunAsync(() =>
         {
@@ -325,6 +343,15 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
         }
 
         protected override Type StyleKeyOverride => typeof(Button);
+    }
+
+    private sealed record Curtain(string Text);
+
+    internal sealed class CurtainControl : TextBlock
+    {
+        public CurtainControl() => this[!TextProperty] = new ReflectionBinding("Text");
+
+        protected override Type StyleKeyOverride => typeof(TextBlock);
     }
 
     internal sealed class JobInspectorControl : TextBlock

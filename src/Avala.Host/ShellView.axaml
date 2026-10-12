@@ -278,5 +278,12 @@
             VerticalAlignment="Top">
       <TextBlock Classes="caption" Text="{Binding Source={x:Static copying:Hotkeys.FocusModeLabel}, StringFormat='Focus · {0} to exit'}" />
     </Border>
+    <ItemsControl x:Name="OverlayRegion" ItemsSource="{Binding Overlay.Items}" IsVisible="{Binding Overlay.HasItems}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <Panel />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
   </Panel>
 </Window>

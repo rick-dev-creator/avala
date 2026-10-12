@@ -28,6 +28,8 @@ internal sealed class DesignShellViewModel : IShellViewModel
 
     public Region Inspector { get; } = new(ShellRegions.Inspector, [Usage("claude-personal · 5h", 0.31, "resets 17:05")]);
 
+    public Region Overlay { get; } = new(ShellRegions.Overlay, []);
+
     public IReadOnlyList<IPage> Pages { get; } =
     [
         new DesignPage("Overview", "IconOverview"),
