@@ -28,8 +28,6 @@ internal sealed class DesignAccountChipViewModel : IAccountChipViewModel
 [INotifyPropertyChanged]
 internal sealed partial class DesignWelcomeViewModel : IWelcomeViewModel
 {
-    public bool IsCompact { get; init; }
-
     public bool CanCompose { get; init; } = true;
 
     [ObservableProperty]
@@ -54,10 +52,6 @@ internal sealed partial class DesignWelcomeViewModel : IWelcomeViewModel
     public IAsyncRelayCommand NewRepositoryCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand ConnectCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
-
-    public void ShowBoard(bool hasJobs)
-    {
-    }
 
     public Task CheckAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

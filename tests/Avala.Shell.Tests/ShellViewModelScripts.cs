@@ -42,12 +42,14 @@ public sealed class ShellViewModelScripts
         var late = new Section();
         var early = new Section();
         var footer = new Section();
+        var overlay = new Section();
 
-        ViewModelScript.Given(Shell([], [Into(ShellRegions.Sidebar, 20, late), Into(ShellRegions.Sidebar, 10, early), Into(ShellRegions.SidebarFooter, 0, footer)]))
+        ViewModelScript.Given(Shell([], [Into(ShellRegions.Sidebar, 20, late), Into(ShellRegions.Sidebar, 10, early), Into(ShellRegions.SidebarFooter, 0, footer), Into(ShellRegions.Overlay, 0, overlay)]))
             .Then(shell =>
             {
                 Assert.Equal([early, late], shell.Sidebar.Items);
                 Assert.Equal([footer], shell.SidebarFooter.Items);
+                Assert.Equal([overlay], shell.Overlay.Items);
                 Assert.Empty(shell.Toolbar.Items);
                 Assert.True(shell.HasSidebar);
             });

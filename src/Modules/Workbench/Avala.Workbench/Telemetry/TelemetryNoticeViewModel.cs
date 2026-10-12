@@ -1,4 +1,5 @@
 using Avala.Sdk;
+using Avala.Sdk.Appearance;
 using Avala.Sdk.Telemetry;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,7 +18,7 @@ internal interface ITelemetryNoticeViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class TelemetryNoticeViewModel(ITelemetry telemetry) : ITelemetryNoticeViewModel, IActivatable
+internal sealed partial class TelemetryNoticeViewModel(ITelemetry telemetry, IOnboarding onboarding) : ITelemetryNoticeViewModel, IActivatable
 {
     private bool claimed;
 
@@ -42,7 +43,8 @@ internal sealed partial class TelemetryNoticeViewModel(ITelemetry telemetry) : I
     {
     }
 
-    private async Task ClaimAsync(CancellationToken cancellationToken) => IsShown = await telemetry.ClaimNoticeAsync(cancellationToken);
+    private async Task ClaimAsync(CancellationToken cancellationToken) =>
+        IsShown = await onboarding.IsDoneAsync(cancellationToken) && await telemetry.ClaimNoticeAsync(cancellationToken);
 
     [RelayCommand(CanExecute = nameof(IsShown))]
     private async Task TurnOffAsync(CancellationToken cancellationToken)

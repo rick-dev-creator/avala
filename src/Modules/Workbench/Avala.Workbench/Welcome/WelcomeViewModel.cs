@@ -17,8 +17,6 @@ namespace Avala.Workbench.Welcome;
 
 internal interface IWelcomeViewModel
 {
-    bool IsCompact { get; }
-
     bool CanCompose { get; }
 
     string Instruction { get; set; }
@@ -38,8 +36,6 @@ internal interface IWelcomeViewModel
     IAsyncRelayCommand NewRepositoryCommand { get; }
 
     IAsyncRelayCommand ConnectCommand { get; }
-
-    void ShowBoard(bool hasJobs);
 
     Task CheckAsync(CancellationToken cancellationToken);
 }
@@ -74,9 +70,6 @@ internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl s
     public WelcomeHarness Driver => harness;
 
     [ObservableProperty]
-    public partial bool IsCompact { get; private set; }
-
-    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartCommand))]
     public partial bool CanCompose { get; private set; } = true;
 
@@ -86,8 +79,6 @@ internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl s
 
     [ObservableProperty]
     public partial string Error { get; private set; } = string.Empty;
-
-    public void ShowBoard(bool hasJobs) => IsCompact = hasJobs;
 
     public async Task CheckAsync(CancellationToken cancellationToken) => await ShowAsync(await launch.CatalogAsync(cancellationToken), await source.ReadAsync(cancellationToken), cancellationToken);
 

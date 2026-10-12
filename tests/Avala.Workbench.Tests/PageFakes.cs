@@ -96,9 +96,16 @@ internal sealed class FakeConnections(params string[] names) : IConnections
 
     public Dictionary<string, CapabilitySet> Offers { get; } = new(StringComparer.Ordinal);
 
+    public HashSet<string> SignedOut { get; } = new(StringComparer.Ordinal);
+
     public ValueTask<Result<ConnectionInfo, ConnectionError>> CheckAsync(Option<ConnectionName> connection, CancellationToken cancellationToken)
     {
         var name = connection.Match(named => named, () => Catalog.Default.Match(found => found, () => new ConnectionName("none")));
+
+        if (SignedOut.Contains(name.Value))
+        {
+            return ValueTask.FromResult(Result<ConnectionInfo, ConnectionError>.Failure(ConnectionError.MissingFolder));
+        }
 
         return ValueTask.FromResult(Result<ConnectionInfo, ConnectionError>.Success(
             new ConnectionInfo(name, new ProviderInfo("simulator", "Simulator")) { Capabilities = Offers.GetValueOrDefault(name.Value, CapabilitySet.None) }));

@@ -1,0 +1,92 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:onboarding="using:Avala.Workbench.Onboarding"
+             x:Class="Avala.Workbench.UI.OnboardingView"
+             x:ClassModifier="internal"
+             x:DataType="onboarding:IOnboardingViewModel"
+             IsVisible="{Binding IsShown}">
+  <Design.DataContext>
+    <onboarding:DesignOnboardingViewModel />
+  </Design.DataContext>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding SkipCommand}" />
+    <KeyBinding Gesture="Enter" Command="{Binding ContinueCommand}" />
+  </UserControl.KeyBindings>
+  <UserControl.Styles>
+    <Style Selector="Border#Card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceFloatBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusSheet}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowSheet}" />
+      <Setter Property="Padding" Value="40,40,40,28" />
+      <Setter Property="Width" Value="560" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.step">
+      <Setter Property="Width" Value="6" />
+      <Setter Property="Height" Value="6" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Background" Value="{DynamicResource SeparatorStrongBrush}" />
+    </Style>
+    <Style Selector="Border.step.current">
+      <Setter Property="Width" Value="18" />
+      <Setter Property="Background" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Border.step[(theme|Motion.IsReduced)=False]">
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Width" Duration="{StaticResource SnappyDuration}" Easing="{StaticResource GentleEasing}" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button#Continue">
+      <Setter Property="MinWidth" Value="104" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+  </UserControl.Styles>
+  <Panel>
+    <Border x:Name="Scrim" Background="{DynamicResource ScrimAssistantBrush}" theme:Motion.Enter="Fade" theme:Motion.When="{Binding IsShown}" />
+    <Border x:Name="Card"
+            Margin="24"
+            theme:Motion.Enter="Sheet"
+            theme:Motion.When="{Binding IsShown}"
+            KeyboardNavigation.TabNavigation="Cycle">
+      <DockPanel>
+        <Grid x:Name="Footer" DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,*" Margin="-8,32,0,0">
+          <Button x:Name="Skip"
+                  Classes="ghost"
+                  HorizontalAlignment="Left"
+                  Content="Skip"
+                  IsVisible="{Binding !IsLast}"
+                  Command="{Binding SkipCommand}" />
+          <ItemsControl x:Name="Dots" Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding Dots}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="6" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="onboarding:OnboardingDot">
+                <Border Classes="step" Classes.current="{Binding IsCurrent}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Button x:Name="Continue"
+                  Grid.Column="2"
+                  Classes="primary"
+                  HorizontalAlignment="Right"
+                  Content="{Binding ContinueLabel}"
+                  Command="{Binding ContinueCommand}" />
+        </Grid>
+        <ContentControl x:Name="Step" MinHeight="372" VerticalContentAlignment="Top" Content="{Binding Step}" />
+      </DockPanel>
+    </Border>
+    <Panel x:Name="ConnectSheet" IsVisible="{Binding Code.Accounts.Sheet.IsOpen}">
+      <Border Background="{DynamicResource ScrimSheetBrush}" />
+      <ContentControl x:Name="ConnectSheetContent" Content="{Binding Code.Accounts.Sheet}" />
+    </Panel>
+  </Panel>
+</UserControl>

@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:onboarding="using:Avala.Workbench.Onboarding"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.AgentRowView"
+             x:ClassModifier="internal"
+             x:DataType="onboarding:IAgentRowViewModel">
+  <Design.DataContext>
+    <onboarding:DesignAgentRowViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="StackPanel#Status Path.icon">
+      <Setter Property="Width" Value="11" />
+      <Setter Property="Height" Value="11" />
+      <Setter Property="StrokeThickness" Value="1.8" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="0,10">
+    <Border Classes="mark round">
+      <TextBlock x:Name="Monogram" Classes="monogram" Text="{Binding Monogram}" />
+    </Border>
+    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+      <TextBlock x:Name="AgentName" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+    <StackPanel x:Name="Status" Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+      <Path x:Name="Ready"
+            Classes="icon"
+            Data="{StaticResource IconCheck}"
+            Stroke="{DynamicResource AccentBrush}"
+            IsVisible="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Ready}" />
+      <Path x:Name="AtLimit"
+            Classes="icon"
+            Data="{StaticResource IconAttention}"
+            Stroke="{DynamicResource AttentionBrush}"
+            IsVisible="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter=AtLimit}" />
+      <Path x:Name="SignedOut"
+            Classes="icon"
+            Data="{StaticResource IconCross}"
+            Stroke="{DynamicResource FailureBrush}"
+            IsVisible="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter=SignedOut}" />
+      <TextBlock x:Name="StatusText"
+                 Classes="caption"
+                 Classes.attention="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter=AtLimit}"
+                 Classes.failure="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter=SignedOut}"
+                 VerticalAlignment="Center"
+                 Text="{Binding Status}" />
+    </StackPanel>
+  </Grid>
+</UserControl>

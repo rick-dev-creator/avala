@@ -1,12 +1,14 @@
 using Avala.Sdk;
+using Avala.Sdk.Telemetry;
 using Avala.Testing.UI;
 using Avala.Workbench.Machine;
+using Avala.Workbench.Onboarding;
 using Avala.Workbench.Settings;
-using Avala.Sdk.Telemetry;
 using Avala.Workbench.Telemetry;
 using Avala.Workbench.Tests.Telemetry;
 using Avala.Workbench.Tests.Updates;
 using Avala.Workbench.Updates;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Views;
 
@@ -26,18 +28,24 @@ public sealed class AboutViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ClickingOpenAndTheLinksReachesTheOpenersAndARefusalIsShownAsync() =>
+    public Task ClickingOpenTheLinksAndTheTourReachesTheOpenersAndARefusalIsShownAsync() =>
         ui.RunAsync(() =>
         {
             var files = new FakeOpener { Refusal = FileOpenError.Unavailable };
             var links = new FakeLinks();
             var paths = new AvalaPaths(Path.Combine("data", "Avala"));
-            var view = Screen.Show(new AboutViewModel(new UpdateViewModel(new AvalaBuild("1.0.0", "abc"), new FakeUpdates(), links), new TelemetryViewModel(new FakeTelemetry { State = TelemetryState.NotConfigured }), new SettingsFiles(files, paths), links));
+            var messenger = new WeakReferenceMessenger();
+            var tours = new List<TourRequested>();
+            messenger.Register<List<TourRequested>, TourRequested>(tours, (asked, request) => asked.Add(request));
+            var view = Screen.Show(new AboutViewModel(new UpdateViewModel(new AvalaBuild("1.0.0", "abc"), new FakeUpdates(), links), new TelemetryViewModel(new FakeTelemetry { State = TelemetryState.NotConfigured }), new SettingsFiles(files, paths), new AboutLinks(links, messenger)));
 
             view.Click("OpenRepository");
             view.Click("OpenLicense");
             view.Click("OpenLogFolder");
+            view.Click("ShowTour");
             view.Settle();
+
+            Assert.Single(tours);
 
             Assert.Equal([AvalaBuild.Repository, AvalaBuild.License], links.Opened);
             Assert.Equal([paths.Logs], files.Opened);
@@ -51,7 +59,7 @@ public sealed class AboutViewScripts(HeadlessUi ui)
         {
             var links = new FakeLinks();
             var paths = new AvalaPaths("/home/ada/.local/share/Avala");
-            var view = Screen.Show(new AboutViewModel(new UpdateViewModel(new AvalaBuild("1.0.0", "abc"), new FakeUpdates(), links), new TelemetryViewModel(new FakeTelemetry { State = TelemetryState.NotConfigured }), new SettingsFiles(new FakeOpener { Refusal = FileOpenError.Refused }, paths), links));
+            var view = Screen.Show(new AboutViewModel(new UpdateViewModel(new AvalaBuild("1.0.0", "abc"), new FakeUpdates(), links), new TelemetryViewModel(new FakeTelemetry { State = TelemetryState.NotConfigured }), new SettingsFiles(new FakeOpener { Refusal = FileOpenError.Refused }, paths), new AboutLinks(links, new WeakReferenceMessenger())));
 
             view.Click("OpenLogFolder");
             view.Settle();

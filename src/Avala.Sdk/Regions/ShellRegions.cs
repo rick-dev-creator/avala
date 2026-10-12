@@ -11,4 +11,6 @@ public static class ShellRegions
     public static RegionName Content { get; } = new("Shell.Content");
 
     public static RegionName Inspector { get; } = new("Shell.Inspector");
+
+    public static RegionName Overlay { get; } = new("Shell.Overlay");
 }

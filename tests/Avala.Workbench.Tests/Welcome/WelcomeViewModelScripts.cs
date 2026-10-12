@@ -24,17 +24,6 @@ public sealed class WelcomeViewModelScripts
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public void TheWholeWelcomeShowsOnAnEmptyBoardAndOnlyTheComposerOnceJobsExist()
-    {
-        var welcome = Welcome();
-        var empty = welcome.IsCompact;
-
-        welcome.ShowBoard(hasJobs: true);
-
-        Assert.Equal((false, true), (empty, welcome.IsCompact));
-    }
-
-    [Fact]
     public async Task EnterStartsTheInstructionInAScratchRepositoryOnAutoAndSelectsTheJobAsync()
     {
         var welcome = await CheckedAsync();

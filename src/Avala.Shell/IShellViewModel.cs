@@ -16,6 +16,8 @@ internal interface IShellViewModel
 
     Region Inspector { get; }
 
+    Region Overlay { get; }
+
     IReadOnlyList<IPage> Pages { get; }
 
     IReadOnlyList<IPage> NavigationPages { get; }

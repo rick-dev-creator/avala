@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:onboarding="using:Avala.Workbench.Onboarding"
+             x:Class="Avala.Workbench.UI.AgentsStepView"
+             x:ClassModifier="internal"
+             x:DataType="onboarding:IAgentsStepViewModel">
+  <Design.DataContext>
+    <onboarding:DesignAgentsStepViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ItemsControl#Agents > ContentPresenter:not(:nth-child(1))">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel x:Name="AgentsStep" theme:Motion.Enter="Gentle">
+    <Border Classes="illustration">
+      <Path Classes="icon" Data="{StaticResource IconSubagent}" />
+    </Border>
+    <TextBlock Classes="hero" Margin="0,22,0,0" Text="{x:Static onboarding:OnboardingPhrases.AgentsTitle}" />
+    <TextBlock x:Name="Lede" Classes="lede" Margin="0,8,0,0" Text="{x:Static onboarding:OnboardingPhrases.AgentsText}" IsVisible="{Binding HasAgents}" />
+    <TextBlock x:Name="NoAgents" Classes="lede" Margin="0,8,0,0" Text="{x:Static onboarding:OnboardingPhrases.NoAgentsText}" IsVisible="{Binding !HasAgents}" />
+    <Border x:Name="Found" Classes="grouped" Margin="0,24,0,0" IsVisible="{Binding HasAgents}">
+      <ItemsControl x:Name="Agents" Margin="14,0" ItemsSource="{Binding Agents}" />
+    </Border>
+    <StackPanel x:Name="Missing" Margin="0,24,0,0" Spacing="14" IsVisible="{Binding !HasAgents}">
+      <ItemsControl x:Name="Installs" ItemsSource="{Binding Installs}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="14" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+      <Button x:Name="CheckAgain" HorizontalAlignment="Center" Content="Check again" Command="{Binding CheckAgainCommand}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

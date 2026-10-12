@@ -25,6 +25,9 @@ internal sealed class JobLaunch(Submissions submissions, IConnections connection
             ? Option<RepositoryPolicy>.None
             : await policies.OfRepositoryAsync(repository.Trim(), cancellationToken);
 
+    public async ValueTask<Option<ConnectionError>> ProblemAsync(ConnectionName connection, CancellationToken cancellationToken) =>
+        (await connections.CheckAsync(connection, cancellationToken)).Match(_ => Option<ConnectionError>.None, error => error);
+
     public async ValueTask<Option<OffersModels>> OfferAsync(ConnectionName connection, CancellationToken cancellationToken) =>
         (await connections.CheckAsync(connection, cancellationToken)).Match(found => found.Capabilities.Get<OffersModels>(), _ => Option<OffersModels>.None);
 

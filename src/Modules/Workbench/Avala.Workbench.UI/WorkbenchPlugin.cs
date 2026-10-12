@@ -39,6 +39,7 @@ using Avala.Workbench.Linking;
 using Avala.Workbench.Machine;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.NewJob;
+using Avala.Workbench.Onboarding;
 using Avala.Workbench.Overview;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Replies;
@@ -164,6 +165,22 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ITelemetryViewModel, TelemetryViewModel>()
             .AddSingleton<TelemetryNoticeViewModel>();
         registrar.AddToRegion<TelemetryNoticeViewModel>(ShellRegions.SidebarFooter, 20);
+        RegisterOnboarding(registrar);
+    }
+
+    private static void RegisterOnboarding(IPluginRegistrar registrar)
+    {
+        registrar.Services
+            .AddSingleton<IAgentsStepViewModel, AgentsStepViewModel>()
+            .AddSingleton<ICodeStepViewModel, CodeStepViewModel>()
+            .AddSingleton<IPrivacyStepViewModel, PrivacyStepViewModel>()
+            .AddSingleton(provider => new OnboardingSteps(
+                new WelcomeStepViewModel(),
+                provider.GetRequiredService<IAgentsStepViewModel>(),
+                provider.GetRequiredService<ICodeStepViewModel>(),
+                provider.GetRequiredService<IPrivacyStepViewModel>()))
+            .AddSingleton<OnboardingViewModel>();
+        registrar.AddToRegion<OnboardingViewModel>(ShellRegions.Overlay, 0);
     }
 
     public void RegisterViews(IViewRegistrar views)
@@ -362,6 +379,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IMachineSettingsViewModel, MachineSettingsViewModel>()
             .AddSingleton<IAppearanceViewModel, AppearanceViewModel>()
             .AddSingleton<IUpdateViewModel, UpdateViewModel>()
+            .AddSingleton<AboutLinks>()
             .AddSingleton<IAboutViewModel, AboutViewModel>()
             .AddSingleton<UpdateNoticeViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
@@ -411,6 +429,13 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IUpdateNoticeViewModel, UpdateNoticeView>();
         views.Register<ITelemetryViewModel, TelemetryView>();
         views.Register<ITelemetryNoticeViewModel, TelemetryNoticeView>();
+        views.Register<IOnboardingViewModel, OnboardingView>();
+        views.Register<IWelcomeStepViewModel, WelcomeStepView>();
+        views.Register<IAgentsStepViewModel, AgentsStepView>();
+        views.Register<IAgentRowViewModel, AgentRowView>();
+        views.Register<IInstallRowViewModel, InstallRowView>();
+        views.Register<ICodeStepViewModel, CodeStepView>();
+        views.Register<IPrivacyStepViewModel, PrivacyStepView>();
         views.Register<IRuleFileViewModel, RuleFileView>();
         views.Register<IRuleViewModel, RuleView>();
         views.Register<ICapsViewModel, CapsView>();

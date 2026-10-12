@@ -63,15 +63,14 @@ public sealed class WelcomeScreens(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task TheCompactLauncherAndTheNewJobRepositoryMenuAsync()
+    public async Task TheWholeWelcomeWithJobsOnTheBoardAndTheNewJobRepositoryMenuAsync()
     {
         Gated();
         await using var run = await SimulatedRun.PreparedAsync(plugins, Forges, []);
         var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(run.Repository.Path, SimulatedRun.Simulate("reply"))));
         _ = await run.SettledAsync(job);
         var workbench = await WelcomedAsync(run);
-        await workbench.ShowsAsync(() => workbench.Page["Welcome"]["IsCompact"].Value<bool>());
-        await ShootBothAsync(run, "62-welcome-compact");
+        await ShootBothAsync(run, "62-welcome-with-jobs");
 
         var page = run.Page("New job");
         await run.Ui.RunAsync(() =>

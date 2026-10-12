@@ -87,6 +87,7 @@ internal static class DogfoodRepository
             new("connections.json", Connections(scenario, setup)),
             new("budgets.json", $$"""{ "spendPerDay": { "USD": {{Money(scenario.Cap)}} } }"""),
             new("recording.json", """{ "enabled": true }"""),
+            new("onboarding.json", """{ "onboarded": true }"""),
             .. seed.Recordings.Select(script => new DogfoodFile($"recordings/{script.Name}.json", script.Json)),
         ];
         await WriteAllAsync(place.Data, [.. data.Where(file => seed.Data.All(chosen => chosen.Path != file.Path)), .. seed.Data]);

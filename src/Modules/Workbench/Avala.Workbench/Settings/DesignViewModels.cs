@@ -366,6 +366,8 @@ internal sealed class DesignAboutViewModel : IAboutViewModel
 
     public IAsyncRelayCommand OpenLicenseCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
+    public IRelayCommand ShowTourCommand { get; } = new RelayCommand(() => { });
+
     public void Refresh()
     {
     }

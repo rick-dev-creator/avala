@@ -33,6 +33,7 @@
         <StackPanel Orientation="Horizontal" Spacing="4" Margin="4,0">
           <Button x:Name="OpenRepository" Classes="link" Padding="12,11" Content="Repository" Command="{Binding OpenRepositoryCommand}" />
           <Button x:Name="OpenLicense" Classes="link" Padding="12,11" Content="License (MIT)" Command="{Binding OpenLicenseCommand}" />
+          <Button x:Name="ShowTour" Classes="link" Padding="12,11" Content="Show welcome tour" Command="{Binding ShowTourCommand}" />
         </StackPanel>
       </StackPanel>
     </Border>

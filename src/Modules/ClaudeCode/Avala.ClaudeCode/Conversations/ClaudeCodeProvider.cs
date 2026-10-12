@@ -12,7 +12,9 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
 {
     public const string Id = "claude-code";
 
-    public ProviderInfo Info { get; } = new(Id, "Claude Code") { OffersImplicitConnection = signIn.IsAvailable };
+    public const string InstallCommand = "npm install -g @anthropic-ai/claude-code";
+
+    public ProviderInfo Info { get; } = new(Id, "Claude Code") { OffersImplicitConnection = signIn.IsAvailable, Install = InstallCommand, SignIn = "claude" };
 
     private static readonly CapabilitySet Declared = CapabilitySet.Of(
         new StreamsPartialOutput(),

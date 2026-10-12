@@ -15,7 +15,7 @@ public sealed class WelcomeViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task AnEmptyBoardShowsTheQuestionTheComposerTheThreeStartsAndTheAccountsWithLoginsMaskedAsync() =>
+    public Task TheWelcomeShowsTheQuestionTheComposerTheThreeStartsAndTheAccountsWithLoginsMaskedAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignWelcomeViewModel(), Avalonia.Styling.ThemeVariant.Dark, 1000, 760);
@@ -29,7 +29,7 @@ public sealed class WelcomeViewScripts(HeadlessUi ui)
     public Task TheHarnessChipSitsInsideTheComposerLeftOfSendAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignWelcomeViewModel { IsCompact = true }, Avalonia.Styling.ThemeVariant.Dark, 1000, 760);
+            var view = Screen.Show(new DesignWelcomeViewModel(), Avalonia.Styling.ThemeVariant.Dark, 1000, 760);
             var composer = view.Find("Composer");
             var chip = view.Find("HarnessButton");
             var send = view.Find("WelcomeStart");
@@ -37,15 +37,6 @@ public sealed class WelcomeViewScripts(HeadlessUi ui)
             var sendStart = send.TranslatePoint(default, view.Window);
 
             Assert.Equal(("Auto · claude-work", true, true), (view.TextOf("HarnessLabel"), composer.IsVisualAncestorOf(chip), chipEnd?.X <= sendStart?.X));
-        }, Cancellation);
-
-    [Fact]
-    public Task WithJobsOnTheBoardOnlyTheQuestionAndTheComposerShowAsync() =>
-        ui.RunAsync(() =>
-        {
-            var view = Screen.Show(new DesignWelcomeViewModel { IsCompact = true }, Avalonia.Styling.ThemeVariant.Dark, 1000, 760);
-
-            Assert.Equal((true, true, false, false), (view.Shows("Hero"), view.Shows("WelcomeInstruction"), view.Shows("Starts"), view.Shows("Accounts")));
         }, Cancellation);
 
     [Fact]
@@ -77,8 +68,6 @@ public sealed class WelcomeViewScripts(HeadlessUi ui)
 
     private sealed class Started(Action start) : IWelcomeViewModel
     {
-        public bool IsCompact => false;
-
         public bool CanCompose => true;
 
         public string Instruction { get; set; } = string.Empty;
@@ -103,10 +92,6 @@ public sealed class WelcomeViewScripts(HeadlessUi ui)
         public IAsyncRelayCommand NewRepositoryCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
         public IAsyncRelayCommand ConnectCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
-
-        public void ShowBoard(bool hasJobs)
-        {
-        }
 
         public Task CheckAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }

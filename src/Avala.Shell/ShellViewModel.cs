@@ -28,6 +28,7 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         Sidebar = Region.Of(ShellRegions.Sidebar, contributed);
         SidebarFooter = Region.Of(ShellRegions.SidebarFooter, contributed);
         Inspector = Region.Of(ShellRegions.Inspector, contributed);
+        Overlay = Region.Of(ShellRegions.Overlay, contributed);
         Content = new Region(ShellRegions.Content, [.. pages, .. Region.Of(ShellRegions.Content, contributed).Items.Select(AsPage)]);
         Pages = [.. Content.Items.Cast<IPage>()];
         NavigationPages = [.. Pages.Where(page => page.Placement == PagePlacement.Navigation)];
@@ -54,6 +55,8 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
     public Region Content { get; }
 
     public Region Inspector { get; }
+
+    public Region Overlay { get; }
 
     public IReadOnlyList<IPage> Pages { get; }
 
@@ -94,7 +97,7 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
 
     public Task Remembering { get; private set; } = Task.CompletedTask;
 
-    private IEnumerable<Region> Regions => [Toolbar, Sidebar, SidebarFooter, Content, Inspector];
+    private IEnumerable<Region> Regions => [Toolbar, Sidebar, SidebarFooter, Content, Inspector, Overlay];
 
     public void Receive(PageRequested message)
     {
@@ -123,6 +126,7 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
         Sidebar.Activate();
         SidebarFooter.Activate();
         Inspector.Activate();
+        Overlay.Activate();
         (SelectedPage as IActivatable)?.Activate();
     }
 
@@ -135,6 +139,7 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
 
         active = false;
         (SelectedPage as IActivatable)?.Deactivate();
+        Overlay.Deactivate();
         Inspector.Deactivate();
         SidebarFooter.Deactivate();
         Sidebar.Deactivate();
