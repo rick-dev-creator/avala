@@ -8,6 +8,10 @@ internal sealed class GitRepositories(IProcessRunner processes) : IRepositories
 {
     private const string FirstCommit = "Initial commit";
 
+    private static readonly string[] LentIdentity = ["-c", "user.name=Avala", "-c", "user.email=avala@localhost", "-c", "commit.gpgsign=false"];
+
+    private static readonly RepositorySeed Empty = new([], LendsIdentity: false);
+
     public async ValueTask<RepositoryState> InspectAsync(string folder, CancellationToken cancellationToken)
     {
         var path = folder.Trim();
@@ -60,7 +64,10 @@ internal sealed class GitRepositories(IProcessRunner processes) : IRepositories
             : WorkspaceFailure.GitFailed;
     }
 
-    public async ValueTask<Result<string, WorkspaceFailure>> CreateAsync(string parent, string name, CancellationToken cancellationToken)
+    public ValueTask<Result<string, WorkspaceFailure>> CreateAsync(string parent, string name, CancellationToken cancellationToken) =>
+        CreateAsync(parent, name, Empty, cancellationToken);
+
+    public async ValueTask<Result<string, WorkspaceFailure>> CreateAsync(string parent, string name, RepositorySeed seed, CancellationToken cancellationToken)
     {
         var named = name.Trim();
 
@@ -81,22 +88,20 @@ internal sealed class GitRepositories(IProcessRunner processes) : IRepositories
             return WorkspaceFailure.FolderExists;
         }
 
-        if (!await HasIdentityAsync(Path.GetDirectoryName(path)!, cancellationToken))
+        var known = await HasIdentityAsync(Path.GetDirectoryName(path)!, cancellationToken);
+
+        if (!known && !seed.LendsIdentity)
         {
             return WorkspaceFailure.NoGitIdentity;
         }
 
-        try
-        {
-            Directory.CreateDirectory(path);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        if (!await PlantAsync(path, seed, cancellationToken))
         {
             return WorkspaceFailure.FileUnwritable;
         }
 
         return (await RunAsync(path, ["init", "--quiet"], cancellationToken)).Succeeded
-            ? await CommitAsync(path, cancellationToken)
+            ? await CommitAsync(path, known ? [] : LentIdentity, cancellationToken)
             : WorkspaceFailure.GitFailed;
     }
 
@@ -106,10 +111,34 @@ internal sealed class GitRepositories(IProcessRunner processes) : IRepositories
         && name.IndexOfAny(['/', '\\']) < 0
         && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
 
-    private async Task<Result<string, WorkspaceFailure>> CommitAsync(string repository, CancellationToken cancellationToken)
+    private static async Task<bool> PlantAsync(string path, RepositorySeed seed, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Directory.CreateDirectory(path);
+
+            foreach (var (file, content) in seed.Files)
+            {
+                var target = Path.Combine(path, file);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                await File.WriteAllTextAsync(target, content, cancellationToken);
+            }
+
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private Task<Result<string, WorkspaceFailure>> CommitAsync(string repository, CancellationToken cancellationToken) =>
+        CommitAsync(repository, [], cancellationToken);
+
+    private async Task<Result<string, WorkspaceFailure>> CommitAsync(string repository, IReadOnlyList<string> identity, CancellationToken cancellationToken)
     {
         var committed = (await RunAsync(repository, ["add", "--all"], cancellationToken)).Succeeded
-            && (await RunAsync(repository, ["commit", "--allow-empty", "--quiet", "--message", FirstCommit], cancellationToken)).Succeeded;
+            && (await RunAsync(repository, [.. identity, "commit", "--allow-empty", "--quiet", "--message", FirstCommit], cancellationToken)).Succeeded;
 
         return committed ? repository : WorkspaceFailure.GitFailed;
     }

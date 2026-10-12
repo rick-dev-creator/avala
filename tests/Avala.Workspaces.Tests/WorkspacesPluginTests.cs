@@ -2,6 +2,7 @@ using Avala.Runtime;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Provisioning;
 using Avala.Workspaces.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +30,7 @@ public sealed class WorkspacesPluginTests
     }
 
     [Fact]
-    public async Task TheStoreIsOneInstanceUnderItsContractAndWorktreesLiveInTheDataFolderAsync()
+    public async Task TheStoreIsOneInstanceUnderItsContractAndWorktreesAndScratchRepositoriesLiveInTheDataFolderAsync()
     {
         await using var data = new TemporaryFolder();
         await using var composition = Compose(data);
@@ -37,9 +38,11 @@ public sealed class WorkspacesPluginTests
         Assert.Same(composition.Get<SqliteWorkspaceStore>(), composition.Get<IWorkspaceStore>());
         Assert.Same(composition.Get<SqliteWorkspaceStore>(), composition.Get<IStartupTask>());
         Assert.Equal(new AvalaPaths(data.Path).Folder("worktrees").Canonical(), composition.Get<WorkspaceSettings>().Root);
+        Assert.Equal(Path.GetFullPath(new AvalaPaths(data.Path).Folder("scratch")), composition.Get<IScratchRepositories>().Folder);
     }
 
     private static PluginComposition Compose(TemporaryFolder data) =>
         PluginComposition.Of(new WorkspacesPlugin(), new AvalaPaths(data.Path), services => services
+            .AddSingleton(TimeProvider.System)
             .AddSingleton(new ServiceCollection().AddRuntime(new AvalaPaths(data.Path)).BuildServiceProvider().GetRequiredService<IProcessRunner>()));
 }

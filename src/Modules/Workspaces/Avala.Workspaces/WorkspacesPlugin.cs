@@ -4,6 +4,7 @@ using Avala.Workspaces.Changes;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Git;
 using Avala.Workspaces.Provisioning;
+using Avala.Workspaces.Scratch;
 using Avala.Workspaces.Storage;
 using Avala.Workspaces.WorkingFiles;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +26,10 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddSingleton<IWorkspaces, WorkspaceService>()
             .AddSingleton<IBaseFiles, BaseFileReader>()
             .AddSingleton<IWorkingFiles, WorkingFileStore>()
-            .AddSingleton<IRepositories, GitRepositories>()
+            .AddSingleton<GitRepositories>()
+            .AddForwarded<IRepositories, GitRepositories>()
+            .AddSingleton(provider => new ScratchSettings(provider.GetRequiredService<AvalaPaths>().Folder("scratch")))
+            .AddSingleton<IScratchRepositories, ScratchRepositories>()
             .AddSingleton<IGitChanges, GitChangesCli>()
             .AddSingleton<IWorkspaceChanges, WorkspaceChanges>();
 }
