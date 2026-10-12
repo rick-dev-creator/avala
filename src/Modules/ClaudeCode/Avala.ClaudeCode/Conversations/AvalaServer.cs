@@ -12,6 +12,8 @@ internal sealed class AvalaServer(IReadOnlyList<HarnessTool> offered)
 {
     private const string LatestProtocol = "2025-06-18";
 
+    private const string AlwaysLoad = "anthropic/alwaysLoad";
+
     private const string PermissionDescription =
         "Internal to Avala: answers the permission prompts of Claude Code with Avala's policy. Never call it yourself.";
 
@@ -48,8 +50,20 @@ internal sealed class AvalaServer(IReadOnlyList<HarnessTool> offered)
         Tool(CommandLine.PermissionTool, PermissionDescription, """
             { "type": "object", "properties": { "tool_name": { "type": "string" }, "input": { "type": "object" }, "tool_use_id": { "type": "string" } } }
             """),
-        .. offered.Select(tool => Tool(tool.Name, tool.Description, tool.InputSchema)),
+        .. offered.Select(Offered),
     ];
+
+    private static JsonObject Offered(HarnessTool tool)
+    {
+        var listed = Tool(tool.Name, tool.Description, tool.InputSchema);
+
+        if (tool.Surface == ToolSurface.Canvas)
+        {
+            listed["_meta"] = new JsonObject { [AlwaysLoad] = true };
+        }
+
+        return listed;
+    }
 
     private static JsonObject Tool(string name, string description, string schema) => new()
     {

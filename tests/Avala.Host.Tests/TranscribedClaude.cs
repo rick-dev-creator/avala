@@ -23,7 +23,11 @@ internal sealed class TranscribedClaude : IDisposable
 
     public IPlugin Plugin => new ClaudeCodePlugin("dotnet", [typeof(TranscriptPlayer).Assembly.Location, Transcripts], home.Path, []);
 
-    public IReadOnlyList<(string File, string Content)> Data =>
+    public IReadOnlyList<(string File, string Content)> Data => Tapped(new JsonObject());
+
+    public IReadOnlyList<(string File, string Content)> Tapping(string transcripts) => Tapped(new JsonObject { ["transcripts"] = transcripts });
+
+    private IReadOnlyList<(string File, string Content)> Tapped(JsonObject settings) =>
     [
         ("connections.json", new JsonObject
         {
@@ -34,6 +38,7 @@ internal sealed class TranscribedClaude : IDisposable
                     ["name"] = Connection,
                     ["provider"] = "claude-code",
                     ["credential"] = new JsonObject { ["source"] = "login", ["reference"] = Path.Combine(home.Path, Login) },
+                    ["settings"] = settings,
                 },
                 new JsonObject { ["name"] = Simulator, ["provider"] = "simulator", ["credential"] = new JsonObject { ["source"] = "login" } }),
         }.ToJsonString()),

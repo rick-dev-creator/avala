@@ -30,6 +30,17 @@ public sealed class HarnessToolTests
     }
 
     [Fact]
+    public void OnlyTheCanvasIsListedToLoadUpFrontInsteadOfBehindToolSearch()
+    {
+        var talk = new Talk(tools: [Canvas, FollowUp]).Receive(Cli.Mcp("r1", """{ "method": "tools/list", "jsonrpc": "2.0", "id": 1 }"""));
+        var tools = talk.McpResult("r1")["tools"]!.AsArray();
+
+        Assert.Equal(
+            [null, true, null],
+            tools.Select(tool => (bool?)tool!["_meta"]?["anthropic/alwaysLoad"]));
+    }
+
+    [Fact]
     public void ACanvasCallIsDrawnWithoutAskingAndAnsweredAtOnce()
     {
         var talk = new Talk(tools: [Canvas]).Begin().Receive(

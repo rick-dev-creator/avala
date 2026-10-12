@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Avala.Jobs.Contracts;
 using Avala.Testing;
 
@@ -36,5 +37,26 @@ public sealed class ClaudeCodeTranscriptTests(PublishedPlugins plugins)
         Assert.Equal(
             TranscribedClaude.Comparable(await File.ReadAllTextAsync(RecordingFixtures.RecordingOf(name), Cancellation)),
             TranscribedClaude.Comparable(recording));
+    }
+
+    [Fact]
+    public async Task AClaudeCodeSessionIsAskedToShowVisualsOnTheCanvasWhichItLoadsWithoutToolSearchAsync()
+    {
+        var fixture = await RegressionFixture.LoadAsync("claude-code-canvas", Cancellation);
+        using var claude = await TranscribedClaude.PrepareAsync("canvas");
+        await using var tapped = new TemporaryFolder();
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, "Draw the architecture on the canvas as an SVG diagram."), claude.Tapping(tapped.Path), fixture.Committed);
+
+        Assert.Equal(fixture.Expected, await RecordedSessionTests.OutcomeAsync(run, fixture));
+        _ = await run.StopAndReadRecordingsAsync();
+        var lines = (await File.ReadAllLinesAsync(Assert.Single(Directory.GetFiles(tapped.Path, "*.jsonl")), Cancellation)).Select(line => JsonNode.Parse(line)!).ToList();
+        var arguments = lines[0]["arguments"]!.AsArray().Select(argument => (string)argument!).ToList();
+        var listed = lines.Select(line => line["in"]?["response"]?["response"]?["mcp_response"]?["result"]?["tools"]).OfType<JsonArray>().Single();
+
+        Assert.Equal(
+            "Avala shows the person your work inside its conversation. When you are asked to show something visual, such as a chart, a diagram or a drawing, "
+            + "call the mcp__avala__canvas tool with SVG or Mermaid: Avala draws it right there. Do not write an HTML file or open a browser to show it.",
+            arguments[arguments.IndexOf("--append-system-prompt") + 1]);
+        Assert.True((bool)listed.Single(tool => (string)tool!["name"]! == "canvas")!["_meta"]!["anthropic/alwaysLoad"]!);
     }
 }

@@ -346,6 +346,36 @@ public sealed class ProviderTests
         Assert.Equal((flagModel, flagEffort), (Flag(arguments, "--model"), Flag(arguments, "--effort")));
     }
 
+    [Theory]
+    [InlineData("""["image/svg+xml","text/markdown","text/vnd.mermaid"]""", "SVG or Mermaid")]
+    [InlineData("""["image/svg+xml","text/markdown"]""", "SVG")]
+    [InlineData("""["text/markdown"]""", "one of the media types it offers")]
+    public async Task ASessionOfferedTheCanvasIsToldToShowVisualsOnItInsteadOfAPageAsync(string offered, string formats)
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        var canvas = new HarnessTool("canvas", "Draw a canvas.", $$"""{ "type": "object", "properties": { "mediaType": { "type": "string", "enum": {{offered}} } } }""", ToolSurface.Canvas);
+
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Tools = [canvas] }, Cancellation));
+
+        Assert.Equal(
+            "Avala shows the person your work inside its conversation. When you are asked to show something visual, such as a chart, a diagram or a drawing, "
+            + $"call the mcp__avala__canvas tool with {formats}: Avala draws it right there. Do not write an HTML file or open a browser to show it.",
+            After(cli.Launches.Single().Arguments, "--append-system-prompt"));
+    }
+
+    [Fact]
+    public async Task ASessionWithoutTheCanvasAppendsNothingToTheSystemPromptAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        var followUp = new HarnessTool("propose_follow_up", "Propose a task.", """{ "type": "object" }""", ToolSurface.Executed);
+
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Tools = [followUp] }, Cancellation));
+
+        Assert.DoesNotContain("--append-system-prompt", cli.Launches.Single().Arguments);
+    }
+
     private static string Flag(IReadOnlyList<string> arguments, string flag) =>
         After(arguments, flag) ?? string.Empty;
 
