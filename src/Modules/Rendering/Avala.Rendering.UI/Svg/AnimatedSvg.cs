@@ -160,29 +160,44 @@ internal sealed class AnimatedSvg : Panel
     private void Refresh()
     {
         var reduced = Motion.GetIsReduced(this);
-        var shown = host is not null && inView && IsEffectivelyVisible && !Minimized(host);
-        var playing = shown && (reduced ? playingOnce : !ended);
+        var playing = IsShown() && (reduced ? playingOnce : !ended);
         play.IsVisible = reduced && !playingOnce && IsPointerOver;
-        ending?.Dispose();
-        ending = null;
-        LayoutUpdated -= OnLayoutUpdated;
-
-        if (playing != IsPlaying)
-        {
-            IsPlaying = playing;
-            drawing.AnimationBackend = playing ? SvgAnimationHostBackend.Default : SvgAnimationHostBackend.Manual;
-        }
+        StopWaiting();
+        Switch(playing);
 
         if (playing && (playingOnce || !timeline.Loops))
         {
-            var elapsed = drawing.SkSvg?.AnimationTime ?? TimeSpan.Zero;
-            var remaining = timeline.End > elapsed ? timeline.End - elapsed : TimeSpan.Zero;
-            ending = CanvasPresenter.GetClock(this).CreateTimer(_ => Dispatcher.UIThread.Post(End), null, remaining, Timeout.InfiniteTimeSpan);
+            EndWithTheTimeline();
         }
         else if (!playing && host is not null && !IsEffectivelyVisible)
         {
             LayoutUpdated += OnLayoutUpdated;
         }
+    }
+
+    private bool IsShown() => host is { } top && inView && IsEffectivelyVisible && !Minimized(top);
+
+    private void StopWaiting()
+    {
+        ending?.Dispose();
+        ending = null;
+        LayoutUpdated -= OnLayoutUpdated;
+    }
+
+    private void Switch(bool playing)
+    {
+        if (playing != IsPlaying)
+        {
+            IsPlaying = playing;
+            drawing.AnimationBackend = playing ? SvgAnimationHostBackend.Default : SvgAnimationHostBackend.Manual;
+        }
+    }
+
+    private void EndWithTheTimeline()
+    {
+        var elapsed = drawing.SkSvg?.AnimationTime ?? TimeSpan.Zero;
+        var remaining = timeline.End > elapsed ? timeline.End - elapsed : TimeSpan.Zero;
+        ending = CanvasPresenter.GetClock(this).CreateTimer(_ => Dispatcher.UIThread.Post(End), null, remaining, Timeout.InfiniteTimeSpan);
     }
 
     private void OnLayoutUpdated(object? sender, EventArgs e)
