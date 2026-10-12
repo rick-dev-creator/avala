@@ -12,6 +12,7 @@
   <StreamGeometry x:Key="IconCheck">M3.3 8.3L6 11L12.7 4.3</StreamGeometry>
   <StreamGeometry x:Key="IconCross">M4 4L12 12M12 4L4 12</StreamGeometry>
   <StreamGeometry x:Key="IconChevronRight">M6 3L11 8L6 13</StreamGeometry>
+  <StreamGeometry x:Key="IconBack">M13 8H3.5M7.5 3.5L3 8L7.5 12.5</StreamGeometry>
   <StreamGeometry x:Key="IconChevronDown">M3 6L8 11L13 6</StreamGeometry>
   <StreamGeometry x:Key="IconPlus">M8 3V13M3 8H13</StreamGeometry>
   <StreamGeometry x:Key="IconInspector">M4 3H12A2 2 0 0 1 14 5V11A2 2 0 0 1 12 13H4A2 2 0 0 1 2 11V5A2 2 0 0 1 4 3ZM10 3V13</StreamGeometry>

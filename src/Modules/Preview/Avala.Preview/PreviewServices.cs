@@ -1,7 +1,9 @@
 using Avala.Jobs.Contracts;
 using Avala.Preview.Contracts;
 using Avala.Preview.Detection;
+using Avala.Preview.Navigation;
 using Avala.Preview.Pages;
+using Avala.Preview.Pane;
 using Avala.Preview.Projects;
 using Avala.Preview.Running;
 using Avala.Resources.Contracts;
@@ -35,7 +37,11 @@ internal static class PreviewServices
                 .AddSingleton<PreviewRunner>()
                 .AddSingleton<Previews>()
                 .AddForwarded<IPreviews, Previews>()
-                .AddForwarded<IHandle<JobProgressed>, Previews>();
+                .AddForwarded<IHandle<JobProgressed>, Previews>()
+                .AddTransient<PreviewFeed>()
+                .AddTransient<PreviewDesk>()
+                .AddSingleton<PreviewPaneViewModel>()
+                .AddSingleton<RunScriptViewModel>();
         }
     }
 }
