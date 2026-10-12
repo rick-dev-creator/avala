@@ -5,18 +5,28 @@ using Avala.Sdk;
 
 namespace Avala.Gitea.Api;
 
-internal sealed record GiteaDialect(string Id, string Name, string Cli, IReadOnlyList<string> SignatureHeaders)
+internal sealed record GiteaDialect(string Id, string Name, string Cli, IReadOnlyList<string> SignatureHeaders, string Logo)
 {
-    public static GiteaDialect Gitea { get; } = new("gitea", "Gitea", "tea", ["X-Gitea-Signature"]);
+    public static GiteaDialect Gitea { get; } = new(
+        "gitea",
+        "Gitea",
+        "tea",
+        ["X-Gitea-Signature"],
+        "F0 M1.5 4.5H11.5V9A4 4 0 0 1 7.5 13H5.5A4 4 0 0 1 1.5 9ZM11.5 5.5H12.75A2.25 2.25 0 0 1 12.75 10H11.3A5 5 0 0 0 11.45 8.6H12.75A0.85 0.85 0 0 0 12.75 6.9H11.5ZM5.2 6.4L7.6 6.4L7.6 8.2L9.4 8.2L9.4 10.6L5.2 10.6Z");
 
-    public static GiteaDialect Forgejo { get; } = new("forgejo", "Forgejo", "tea", ["X-Forgejo-Signature", "X-Gitea-Signature"]);
+    public static GiteaDialect Forgejo { get; } = new(
+        "forgejo",
+        "Forgejo",
+        "tea",
+        ["X-Forgejo-Signature", "X-Gitea-Signature"],
+        "M2.7 13.5A1.8 1.8 0 1 1 6.3 13.5A1.8 1.8 0 1 1 2.7 13.5ZM10.2 3.5A1.8 1.8 0 1 1 13.8 3.5A1.8 1.8 0 1 1 10.2 3.5ZM10.2 9.5A1.8 1.8 0 1 1 13.8 9.5A1.8 1.8 0 1 1 10.2 9.5ZM3.6 12V6.5A3.9 3.9 0 0 1 7.5 2.6H10.6V4.4H7.5A2.1 2.1 0 0 0 5.4 6.5V12ZM5.4 11A3 3 0 0 1 8.4 8.6H10.6V10.4H8.4A1.2 1.2 0 0 0 7.2 11.6Z");
 }
 
 internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, IForgeRepositories, IForgeAccounts
 {
     public const string ApiRoot = "/api/v1";
 
-    public ForgeInfo Info { get; } = new(dialect.Id, dialect.Name) { TokenScheme = "token" };
+    public ForgeInfo Info { get; } = new(dialect.Id, dialect.Name) { TokenScheme = "token", Logo = dialect.Logo };
 
     public HookSignature Signature { get; } = new(dialect.SignatureHeaders, string.Empty);
 

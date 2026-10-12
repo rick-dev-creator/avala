@@ -36,7 +36,11 @@ internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths)
 
     private readonly SerialExecutor executor = new();
 
-    public ForgeInfo Info { get; } = new(Id, "Simulated forge") { DefaultUrl = Site };
+    public ForgeInfo Info { get; } = new(Id, "Simulated forge")
+    {
+        DefaultUrl = Site,
+        Logo = "M2.5 3.5A2 2 0 1 1 6.5 3.5A2 2 0 1 1 2.5 3.5ZM2.5 12.5A2 2 0 1 1 6.5 12.5A2 2 0 1 1 2.5 12.5ZM9.5 6.5A2 2 0 1 1 13.5 6.5A2 2 0 1 1 9.5 6.5ZM3.75 5.4H5.25V10.6H3.75ZM5.25 10.2A4.6 4.6 0 0 1 9.6 7.6L10.1 8.9A3.2 3.2 0 0 0 6.5 10.9Z",
+    };
 
     public HookSignature Signature { get; } = new(["X-Hub-Signature-256"], "sha256=");
 
