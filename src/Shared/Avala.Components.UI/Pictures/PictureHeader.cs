@@ -8,11 +8,19 @@ public static class PictureHeader
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     public static Option<int> Width(ReadOnlySpan<byte> bytes) =>
-        bytes.StartsWith(PngSignature) && bytes.Length >= 24 ? Positive(BinaryPrimitives.ReadInt32BigEndian(bytes[16..]))
-        : bytes.StartsWith("GIF8"u8) && bytes.Length >= 10 ? Positive(BinaryPrimitives.ReadUInt16LittleEndian(bytes[6..]))
-        : bytes.StartsWith("RIFF"u8) && bytes.Length >= 30 && bytes[8..12].SequenceEqual("WEBP"u8) ? WebP(bytes)
-        : bytes.Length >= 4 && bytes[0] == 0xFF && bytes[1] == 0xD8 ? Jpeg(bytes)
+        IsPng(bytes) ? Positive(BinaryPrimitives.ReadInt32BigEndian(bytes[16..]))
+        : IsGif(bytes) ? Positive(BinaryPrimitives.ReadUInt16LittleEndian(bytes[6..]))
+        : IsWebP(bytes) ? WebP(bytes)
+        : IsJpeg(bytes) ? Jpeg(bytes)
         : Option<int>.None;
+
+    private static bool IsPng(ReadOnlySpan<byte> bytes) => bytes.StartsWith(PngSignature) && bytes.Length >= 24;
+
+    private static bool IsGif(ReadOnlySpan<byte> bytes) => bytes.StartsWith("GIF8"u8) && bytes.Length >= 10;
+
+    private static bool IsWebP(ReadOnlySpan<byte> bytes) => bytes.StartsWith("RIFF"u8) && bytes.Length >= 30 && bytes[8..12].SequenceEqual("WEBP"u8);
+
+    private static bool IsJpeg(ReadOnlySpan<byte> bytes) => bytes.Length >= 4 && bytes[0] == 0xFF && bytes[1] == 0xD8;
 
     private static Option<int> WebP(ReadOnlySpan<byte> bytes) =>
         bytes[12..16].SequenceEqual("VP8 "u8) ? Positive(BinaryPrimitives.ReadUInt16LittleEndian(bytes[26..]) & 0x3FFF)
