@@ -13,9 +13,13 @@ public sealed class PersonalDetails
     public static readonly AttachedProperty<IPersonalText> TextProperty =
         AvaloniaProperty.RegisterAttached<PersonalDetails, TextBlock, IPersonalText>("Text", PersonalPhrase.Empty);
 
+    public static readonly AttachedProperty<string> ScrubbedProperty =
+        AvaloniaProperty.RegisterAttached<PersonalDetails, TextBlock, string>("Scrubbed", string.Empty);
+
     static PersonalDetails()
     {
         TextProperty.Changed.AddClassHandler<TextBlock>((block, _) => Show(block));
+        ScrubbedProperty.Changed.AddClassHandler<TextBlock>((block, _) => Show(block));
         AreHiddenProperty.Changed.AddClassHandler<TextBlock>((block, _) => Show(block));
     }
 
@@ -38,11 +42,20 @@ public sealed class PersonalDetails
 
     public static void SetText(TextBlock block, IPersonalText value) => block.SetValue(TextProperty, value);
 
+    public static string GetScrubbed(TextBlock block) => block.GetValue(ScrubbedProperty);
+
+    public static void SetScrubbed(TextBlock block, string value) => block.SetValue(ScrubbedProperty, value);
+
     private static void Show(TextBlock block)
     {
         if (block.IsSet(TextProperty))
         {
             block.Text = GetText(block) is { } text ? text.Show(GetAreHidden(block)) : string.Empty;
+        }
+        else if (block.IsSet(ScrubbedProperty))
+        {
+            var text = GetScrubbed(block) ?? string.Empty;
+            block.Text = GetAreHidden(block) ? PersonalMask.Scrub(text) : text;
         }
     }
 }

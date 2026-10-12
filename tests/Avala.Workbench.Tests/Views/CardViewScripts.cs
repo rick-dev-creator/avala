@@ -29,6 +29,15 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ATargetInsideTheHomeFolderShowsTheTildeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignPermissionCardViewModel { Target = "cat /home/dana/.ssh/config" });
+
+            Assert.Equal("cat ~/.ssh/config", view.Find<SelectableTextBlock>("Target").Text);
+        }, Cancellation);
+
+    [Fact]
     public Task TheNoteStaysOutOfTheWayUntilAskedForAsync() =>
         ui.RunAsync(() =>
         {

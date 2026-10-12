@@ -72,4 +72,8 @@ public sealed class PersonalMaskTests
         Assert.Equal(
             "Read ~/Projects/avala/README.md for r•••••@g••••.com and d•••••@e••••.com, then ~/notes",
             PersonalMask.Scrub("Read /home/dana/Projects/avala/README.md for rick@gmail.com and dana@example.com, then /Users/sam/notes"));
+
+    [Fact]
+    public void ScrubbingLeavesPackageVersionsThatOnlyLookLikeEmails() =>
+        Assert.Equal("pnpm add -D @testing-library/user-event@14.5.2", PersonalMask.Scrub("pnpm add -D @testing-library/user-event@14.5.2"));
 }

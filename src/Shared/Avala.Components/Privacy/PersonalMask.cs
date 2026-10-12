@@ -75,7 +75,7 @@ public static partial class PersonalMask
     private static string ScrubCurrentHome(string text) =>
         CurrentHome.Length > 1 ? CurrentHomePrefix.Replace(text, Home) : text;
 
-    [GeneratedRegex(@"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")]
+    [GeneratedRegex(@"(?<![\w.%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}(?![\w-])")]
     private static partial Regex EmailAddress();
 
     [GeneratedRegex(@"(?<![\w/\\.~-])(?:/home/[^/\s""'`]+|/Users/[^/\s""'`]+|[A-Za-z]:\\Users\\[^\\\s""'`]+)(?=$|[/\\\s""'`)\]])")]

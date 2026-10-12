@@ -66,4 +66,19 @@ public sealed class PersonalDetailsViewScripts(HeadlessUi ui)
             Assert.Equal(("octocat", "Signed in as octocat"), revealed);
             Assert.Equal(("oc•••••", "Signed in as oc•••••"), (login.Text, phrase.Text));
         }, Cancellation);
+
+    [Fact]
+    public Task AScrubbedTextMasksTheEmailsAndHomeFoldersItMentionsOnlyWhileHiddenAsync() =>
+        ui.RunAsync(() =>
+        {
+            var block = new TextBlock();
+            PersonalDetails.SetScrubbed(block, "Read /home/dana/notes.md for dana@example.com");
+            var view = ViewScript.Show(new StackPanel { Children = { block } }, new object());
+            var hidden = block.Text;
+
+            PersonalDetails.SetAreHidden(view.Window, false);
+
+            Assert.Equal("Read ~/notes.md for d•••••@e••••.com", hidden);
+            Assert.Equal("Read /home/dana/notes.md for dana@example.com", block.Text);
+        }, Cancellation);
 }

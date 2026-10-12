@@ -88,7 +88,7 @@ internal sealed partial class DesignPermissionCardViewModel : IPermissionCardVie
 
     public string Headline => "Wants to run a command";
 
-    public string Target => "pnpm add -D @testing-library/user-event@14.5.2";
+    public string Target { get; init; } = "pnpm add -D @testing-library/user-event@14.5.2";
 
     public string Writes => string.Empty;
 
