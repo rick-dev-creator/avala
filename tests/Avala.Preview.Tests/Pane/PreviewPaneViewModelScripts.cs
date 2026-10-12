@@ -1,6 +1,6 @@
 using Avala.Jobs.Contracts;
 using Avala.Preview.Pane;
-using Avala.Preview.Surfaces;
+using Avala.Preview.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
 using CommunityToolkit.Mvvm.Messaging;

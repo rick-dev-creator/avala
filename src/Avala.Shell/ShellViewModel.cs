@@ -169,8 +169,11 @@ internal sealed partial class ShellViewModel : IShellViewModel, IActivatable, IP
     private void ResizeSidebar(double width) => SidebarWidth = WindowLayout.Fit(width);
 
     [RelayCommand]
-    private void RememberSidebar() =>
-        Remembering = layout.RememberAsync(new WindowLayout(IsSidebarCollapsed, SidebarWidth), CancellationToken.None).AsTask();
+    private void RememberSidebar()
+    {
+        var (collapsed, width) = (IsSidebarCollapsed, SidebarWidth);
+        Remembering = layout.RememberAsync(remembered => remembered with { IsSidebarCollapsed = collapsed, SidebarWidth = width }, CancellationToken.None).AsTask();
+    }
 
     [RelayCommand]
     private void ResetSidebarWidth()

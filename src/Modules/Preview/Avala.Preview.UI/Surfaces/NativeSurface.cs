@@ -1,4 +1,4 @@
-using Avala.Preview.Surfaces;
+using Avala.Preview.Contracts;
 using Avala.Sdk;
 using Avalonia.Controls;
 using Avalonia.Platform;

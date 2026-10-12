@@ -1,6 +1,5 @@
 using Avala.Jobs.Contracts;
 using Avala.Preview.Contracts;
-using Avala.Preview.Surfaces;
 
 namespace Avala.Preview.Pane;
 

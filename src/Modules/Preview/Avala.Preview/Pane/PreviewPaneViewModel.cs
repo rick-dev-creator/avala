@@ -1,7 +1,6 @@
 using Avala.Jobs.Contracts;
 using Avala.Preview.Contracts;
 using Avala.Preview.Navigation;
-using Avala.Preview.Surfaces;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
@@ -269,6 +268,7 @@ internal sealed partial class PreviewPaneViewModel
         if (Surface == surface && shown == Option<PreviewTarget>.Some(target))
         {
             surface.Navigate(gateway.Match(address => address, _ => target.Address));
+            Present();
         }
     }
 

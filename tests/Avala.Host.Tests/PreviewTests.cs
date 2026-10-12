@@ -45,6 +45,39 @@ public sealed class PreviewTests(PublishedPlugins plugins)
         Assert.True(await Workloads.IsGoneAsync(server.Id), $"Process {server.Id} survived its reaping");
     }
 
+    [Fact]
+    public async Task TheRunningChipOpensThePreviewBesideTheConversationThroughItsGatewayAndThePaneFollowsTheSelectionAsync()
+    {
+        await using var run = await ServingAsync(test: 6);
+        var available = run.Watch<PreviewAvailable>();
+        var workbench = await run.WorkbenchAsync();
+        var lease = await run.LeasedAsync();
+        _ = await PreviewedAsync(run, available);
+        _ = await workbench.SelectAsync(run.Job);
+        var regions = workbench.Page["Regions"];
+        var chip = regions["Header"].Items.Single(item => item.Kind == "RunningChipViewModel");
+        var pane = Assert.Single(regions["Preview"].Items);
+        await run.Ui.PresentedAsync(chip.Presentation, () => chip["IsShown"].Value<bool>(), () => chip["Text"].Text);
+
+        await run.Ui.InvokeAsync(() => chip.Execute("OpenCommand"), Cancellation);
+        await run.Ui.PresentedAsync(pane.Presentation, () => run.Surfaces.Opened.Any(surface => surface.Visited.Count > 0), () => pane["State"].Text);
+
+        var surface = Assert.Single(run.Surfaces.Opened);
+        var gateway = Assert.Single(surface.Visited);
+        Assert.Equal((true, true, $"localhost:{lease.First}"), await run.Ui.ReadAsync(() => (pane["IsOpen"].Value<bool>(), regions["IsPreviewOpen"].Value<bool>(), pane["Address"].Text)));
+        Assert.NotEqual(lease.First, gateway.Port);
+        using var client = new HttpClient();
+        var page = await client.GetAsync(gateway, Cancellation);
+        Assert.Contains($"Running on port {lease.First}", await page.Content.ReadAsStringAsync(Cancellation), StringComparison.Ordinal);
+        Assert.True(page.Headers.Contains("Content-Security-Policy"));
+
+        var other = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("reply"))));
+        _ = await workbench.SelectAsync(other);
+
+        Assert.Equal((false, false), await run.Ui.ReadAsync(() => (pane["IsOpen"].Value<bool>(), regions["IsPreviewOpen"].Value<bool>())));
+        Assert.True(surface.IsClosed);
+    }
+
     private static async Task<PreviewTarget> PreviewedAsync(SimulatedRun run, EventWatch<PreviewAvailable> available)
     {
         var port = ServedPort(await run.TurnAsync());

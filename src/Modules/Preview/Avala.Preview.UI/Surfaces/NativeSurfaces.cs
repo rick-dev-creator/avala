@@ -1,5 +1,7 @@
-using Avala.Preview.Surfaces;
+using Avala.Preview.Contracts;
 using Avala.Sdk;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform;
 
 namespace Avala.Preview.UI.Surfaces;
@@ -14,6 +16,11 @@ internal sealed class NativeSurfaces : IWebSurfaces
 
     private static SurfaceEmbedding Detect()
     {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime)
+        {
+            return SurfaceEmbedding.None;
+        }
+
         var installed = Candidates().SelectMany(type => Describe(type).Match<DetailedWebViewAdapterInfo[]>(info => [info], () => [])).Where(info => info.IsSupported && info.IsInstalled).ToList();
 
         return installed.Any(info => info.SupportedScenarios.HasFlag(WebViewEmbeddingScenario.NativeControlHost) || info.SupportedScenarios.HasFlag(WebViewEmbeddingScenario.OffscreenRenderer))

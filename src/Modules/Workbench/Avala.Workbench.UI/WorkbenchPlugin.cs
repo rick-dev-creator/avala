@@ -120,6 +120,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ForgeDesk>()
             .AddSingleton<ReviewDesk>()
             .AddSingleton<Reviews>()
+            .AddSingleton<JobRegions>()
             .AddSingleton<JobScreens>()
             .AddSingleton<DecisionsViewModel>()
             .AddForwarded<IDecisionsViewModel, DecisionsViewModel>()

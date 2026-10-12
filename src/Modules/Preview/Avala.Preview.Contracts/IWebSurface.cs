@@ -1,17 +1,17 @@
 using Avala.Sdk;
 
-namespace Avala.Preview.Surfaces;
+namespace Avala.Preview.Contracts;
 
-internal enum SurfaceEmbedding
+public enum SurfaceEmbedding
 {
     Embedded,
     Window,
     None,
 }
 
-internal sealed record SurfaceRules(Func<Uri, bool> Admits, Func<Uri, bool> AdmitsResource);
+public sealed record SurfaceRules(Func<Uri, bool> Admits, Func<Uri, bool> AdmitsResource);
 
-internal interface IWebSurface
+public interface IWebSurface
 {
     SurfaceEmbedding Embedding { get; }
 
@@ -32,7 +32,7 @@ internal interface IWebSurface
     void Close();
 }
 
-internal interface IWebSurfaces
+public interface IWebSurfaces
 {
     IWebSurface Open(SurfaceRules rules);
 }

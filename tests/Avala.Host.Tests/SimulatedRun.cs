@@ -57,6 +57,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public RecordingLinks Links => surroundings.Links;
 
+    public SurfaceGate Surfaces => surroundings.Surfaces;
+
     public BoardGate Board => surroundings.Board;
 
     public SourceFault SourceFault => surroundings.Fault;
@@ -413,6 +415,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public SignInGate SignIns { get; } = new();
 
+        public SurfaceGate Surfaces { get; } = new();
+
         public bool RealNotifier { get; init; }
 
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
@@ -424,7 +428,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(TimeSpan.Zero, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
-                RealNotifier ? [Board, Fault, Trips, Judge, Telemetry, SignIns] : [Board, Fault, Trips, Notifier, Judge, Telemetry, SignIns]);
+                RealNotifier ? [Board, Fault, Trips, Judge, Telemetry, SignIns, Surfaces] : [Board, Fault, Trips, Notifier, Judge, Telemetry, SignIns, Surfaces]);
     }
 
     private sealed class Application : IAsyncDisposable

@@ -1,5 +1,5 @@
 using Avala.Preview.Pane;
-using Avala.Preview.Surfaces;
+using Avala.Preview.Contracts;
 using Avala.Preview.Tests.Pane;
 using Avala.Preview.UI;
 using Avala.Testing.UI;

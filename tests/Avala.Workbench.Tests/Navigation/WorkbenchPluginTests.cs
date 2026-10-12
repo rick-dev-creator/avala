@@ -86,6 +86,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<Sdk.Updates.IUpdates>(new FakeUpdates())
             .AddSingleton<Sdk.Telemetry.ITelemetry>(new Telemetry.FakeTelemetry())
             .AddSingleton<Sdk.Appearance.IAppearance>(new FakeAppearance())
+            .AddSingleton<Sdk.Appearance.IWindowLayout>(new RememberedLayout())
             .AddSingleton<IJobCatalog>(new FakeCatalog())
             .AddSingleton<IJobs>(new FakeJobs())
             .AddSingleton<IAgents>(new FakeAgents())

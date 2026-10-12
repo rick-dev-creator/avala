@@ -106,8 +106,10 @@ internal sealed class Bench : IDisposable
 
     public WorkbenchViewModel Workbench() => Workbench(Ui);
 
-    public WorkbenchViewModel Workbench(IUiDispatcher ui) =>
-        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Queue), new TimelineItems(Replies, FakeLinks.Opening, Clipboard, new WorkedFiles(Catalog, Changes, Workspaces, new FakeWorkingFiles())), new SendKeys(), new TranscriptExport(Clipboard, Saver)), new Reviews(Reader, Desk, ui)), Focus, new Avala.Workbench.Welcome.DesignWelcomeViewModel());
+    public WorkbenchViewModel Workbench(IUiDispatcher ui) => Workbench(ui, new JobRegions([], new RememberedLayout()));
+
+    public WorkbenchViewModel Workbench(IUiDispatcher ui, JobRegions regions) =>
+        new(Feed(ui), new JobScreens(new Conversations(new JobSteering(Jobs, Queue), new TimelineItems(Replies, FakeLinks.Opening, Clipboard, new WorkedFiles(Catalog, Changes, Workspaces, new FakeWorkingFiles())), new SendKeys(), new TranscriptExport(Clipboard, Saver)), new Reviews(Reader, Desk, ui), regions), Focus, new Avala.Workbench.Welcome.DesignWelcomeViewModel());
 
     public JobSummary Job(string instruction, JobStatus status)
     {

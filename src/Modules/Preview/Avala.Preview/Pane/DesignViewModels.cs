@@ -1,4 +1,4 @@
-using Avala.Preview.Surfaces;
+using Avala.Preview.Contracts;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Preview.Pane;
