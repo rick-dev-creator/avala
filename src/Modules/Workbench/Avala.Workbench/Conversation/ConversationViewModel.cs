@@ -57,6 +57,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         Title = string.Empty;
         Place = string.Empty;
         Notice = string.Empty;
+        Entries = [];
         this.plan = plan;
     }
 
@@ -70,7 +71,8 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
 
     public IWorkingViewModel Working => working;
 
-    public ObservableCollection<ITimelineItem> Entries { get; } = [];
+    [ObservableProperty]
+    public partial ObservableCollection<ITimelineItem> Entries { get; private set; }
 
     IReadOnlyList<object> IConversationViewModel.Entries => Entries;
 
@@ -123,17 +125,22 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
 
     private void Arrange(Transcript transcript)
     {
-        var position = 0;
+        var arranged = transcript.Entries.Select(Item).Where(item => item.IsShown).ToList();
 
-        foreach (var entry in transcript.Entries)
+        if (Entries.Count == 0)
         {
-            var item = Item(entry);
-
-            if (!item.IsShown)
+            if (arranged.Count > 0)
             {
-                continue;
+                Entries = [.. arranged];
             }
 
+            return;
+        }
+
+        var position = 0;
+
+        foreach (var item in arranged)
+        {
             if (position >= Entries.Count || !ReferenceEquals(Entries[position], item))
             {
                 Entries.Insert(position, item);

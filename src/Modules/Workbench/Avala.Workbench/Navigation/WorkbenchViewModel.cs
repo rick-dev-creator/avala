@@ -114,8 +114,6 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
         if (Conversation?.Job != message.Job)
         {
             var opened = screens.Conversation(message.Job);
-            Review = null;
-            Conversation = opened;
             _ = feed.Find(message.Job).Match(
                 job =>
                 {
@@ -123,7 +121,8 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
                     return true;
                 },
                 () => false);
-            OpenReviewCommand.NotifyCanExecuteChanged();
+            Review = null;
+            Conversation = opened;
         }
 
         Inspect();

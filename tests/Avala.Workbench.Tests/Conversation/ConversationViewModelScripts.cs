@@ -39,6 +39,21 @@ public sealed class ConversationViewModelScripts
     }
 
     [Fact]
+    public void OpeningAConversationFillsItsEntriesInOneChange()
+    {
+        var job = Job().WithPrompts("Fix the failing test", []).Apply(new TurnStarted(session, turn), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("think"), ItemKind.Reasoning, "Thinking"), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"), Now);
+        var conversation = Open();
+        var changes = 0;
+        conversation.PropertyChanged += (_, change) => changes += change.PropertyName == nameof(conversation.Entries) ? 1 : 0;
+
+        conversation.Show(Board(job));
+
+        Assert.Equal((1, 3), (changes, conversation.Entries.Count));
+    }
+
+    [Fact]
     public void APermissionCardAppearsInPlaceOnlyOnceThePolicyLeavesItToAPerson()
     {
         var asked = Job().Apply(new TurnStarted(session, turn), Now)

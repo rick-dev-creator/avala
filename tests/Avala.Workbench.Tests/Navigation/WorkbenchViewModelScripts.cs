@@ -58,6 +58,37 @@ public sealed class WorkbenchViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task SwitchingBackToARecentlyViewedJobReusesItsConversation()
+    {
+        var first = bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running);
+        var second = bench.Job("Rate-limit POST /login", JobStatus.Running);
+        bench.Publish(Bench.OnBoard(first), Bench.OnBoard(second));
+        await bench.Ui.InvokeAsync(() => Select(first), Cancellation);
+        var opened = await bench.Ui.ReadAsync(() => workbench.Conversation);
+
+        await bench.Ui.InvokeAsync(() => Select(second), Cancellation);
+        await bench.Ui.InvokeAsync(() => Select(first), Cancellation);
+
+        Assert.Same(opened, await bench.Ui.ReadAsync(() => workbench.Conversation));
+    }
+
+    [Fact]
+    public async Task OnlyTheMostRecentlyViewedConversationsAreKept()
+    {
+        var jobs = Enumerable.Range(1, Conversations.Kept + 1).Select(number => bench.Job($"Update dependency {number}", JobStatus.Running)).ToList();
+        bench.Publish([.. jobs.Select(job => Bench.OnBoard(job))]);
+        await bench.Ui.InvokeAsync(() => Select(jobs[0]), Cancellation);
+        var oldest = await bench.Ui.ReadAsync(() => workbench.Conversation);
+
+        foreach (var job in jobs.Skip(1).Append(jobs[0]))
+        {
+            await bench.Ui.InvokeAsync(() => Select(job), Cancellation);
+        }
+
+        Assert.NotSame(oldest, await bench.Ui.ReadAsync(() => workbench.Conversation));
+    }
+
+    [Fact]
     public async Task WhileActiveTheOpenConversationFollowsTheBoard()
     {
         var job = bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running);
