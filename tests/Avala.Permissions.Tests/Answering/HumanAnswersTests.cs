@@ -161,6 +161,22 @@ public sealed class HumanAnswersTests
     }
 
     [Fact]
+    public async Task EverythingInThisJobTheAgentNoLongerAwaitsLeavesTheJobAskingAsync()
+    {
+        await RequestAsync(session, "migrate");
+        agents.Rejection = AgentError.NoPendingPermission;
+
+        var rejected = await answers.AnswerAsync(session, Allow("migrate", Remember.EverythingInThisJob), Cancellation);
+        await RequestAsync(session, "push", "git push --force");
+
+        Assert.Equal(PolicyError.NotAwaitingAnswer, Outcomes.FailsWith(rejected));
+        Assert.True(book.RaisedAt(job).IsNone);
+        Assert.Empty(bus.Published.OfType<AutonomyApplied>());
+        var next = Assert.IsType<PermissionDecided>(bus.Published[^1]).Decision;
+        Assert.Equal((PolicyAnswer.Ask, DecisionDelivery.LeftToHuman), (next.Answer, next.Delivery));
+    }
+
+    [Fact]
     public async Task AlwaysInThisRepositoryAddsTheExactRuleTheDecisionOfferedWithTheAnswerGivenAndKeepsAJobRuleAsync()
     {
         await RequestAsync(session, "migrate");
