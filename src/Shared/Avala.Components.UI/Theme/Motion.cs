@@ -21,6 +21,7 @@ public enum MotionEntrance
     Stamp,
     Scale,
     Draw,
+    Linger,
 }
 
 public enum MotionLoop

@@ -72,8 +72,8 @@ internal sealed record InspectorFacts(JobRecord Record, AuditFacts Audit)
 
 internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.JobBoard board)
 {
-    public async Task<Option<InspectorFacts>> ReadAsync(JobId job, CancellationToken cancellationToken) =>
-        (await records.ReadAsync(job, cancellationToken)).Map(record => new InspectorFacts(record, audit.Of(record.History))
+    public async Task<Option<InspectorFacts>> EssentialsAsync(JobId job, CancellationToken cancellationToken) =>
+        (await records.HistoryAsync(job, cancellationToken)).Map(record => new InspectorFacts(record, audit.Of(record.History))
         {
             Choice = record.History.Choice.IsSome ? record.History.Choice : board.Find(job).Bind(found => found.Choice),
             Handoffs = board.Find(job).Match(found => found.Handoffs, () => []),
@@ -84,4 +84,9 @@ internal sealed class JobInspection(JobRecords records, JobAudit audit, Board.Jo
             WakeUps = board.Find(job).Match(found => found.WakeUps, () => []),
             Contest = board.ContestOf(job).Map(found => found.Contest),
         });
+
+    public async Task<Option<InspectorFacts>> CompleteAsync(Task<Option<InspectorFacts>> essentials, CancellationToken cancellationToken) =>
+        await (await essentials).Match(
+            async facts => Option<InspectorFacts>.Some(facts with { Record = await records.CompleteAsync(facts.Record, cancellationToken) }),
+            () => Task.FromResult(Option<InspectorFacts>.None));
 }

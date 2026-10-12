@@ -20,7 +20,7 @@
   </UserControl.Styles>
   <ui:Fold x:Name="Section" Header="Worktree" Fact="{Binding Fact}">
     <StackPanel Margin="28,0,12,12" Spacing="7">
-      <TextBlock x:Name="Loading" Classes="caption" theme:Motion.Loop="Pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <Border x:Name="Loading" Classes="placeholder" theme:Motion.Enter="Linger" IsVisible="{Binding !IsLoaded}" AutomationProperties.Name="Reading" />
       <StackPanel x:Name="ScratchRepository" Spacing="4" IsVisible="{Binding IsScratch}">
         <DockPanel>
           <Border DockPanel.Dock="Left"

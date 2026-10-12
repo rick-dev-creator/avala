@@ -41,7 +41,7 @@ public sealed class EvidenceSectionViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task ASectionStillLoadingSaysSoAsync() =>
+    public Task ASectionStillLoadingShowsAQuietPlaceholderThatAppearsOnlyIfTheReadTakesAWhileAsync() =>
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
@@ -49,6 +49,7 @@ public sealed class EvidenceSectionViewScripts(HeadlessUi ui)
             var view = Sections.Open(Screen.Show(section));
 
             Assert.True(view.Shows("Loading"));
+            Assert.Equal((Components.UI.Theme.MotionEntrance.Linger, 0d), (view.EntranceOf("Loading"), view.Find("Loading").Opacity));
         }, TestContext.Current.CancellationToken);
 }
 

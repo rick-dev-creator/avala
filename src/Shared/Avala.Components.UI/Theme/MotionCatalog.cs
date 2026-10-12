@@ -35,6 +35,8 @@ internal static class MotionCatalog
 
     private static readonly Move ArriveScale = Enter(0.42, Gentle, Frame(0, [.. Scale(0.94), Opacity(0)]), Frame(1, [.. Scale(1), Opacity(1)]));
 
+    private static readonly Move LingerIn = new(Animated(0.2, null, TimeSpan.FromSeconds(0.15), Frame(0, [Opacity(0)]), Frame(1, [Opacity(1)])), false);
+
     private static readonly Move DrawIn = new(Animated(0.6, Gentle, TimeSpan.FromSeconds(0.3), Frame(0, [Dash(12)]), Frame(1, [Dash(0)])), false) { Dashes = [12, 12] };
 
     public static Move StageIn { get; } = Enter(0.24, Settling, Frame(0, [Y(8), .. Scale(0.985), Opacity(0)]), Frame(1, [Y(0), .. Scale(1), Opacity(1)]));
@@ -71,6 +73,7 @@ internal static class MotionCatalog
         [MotionEntrance.Stamp] = StampIn,
         [MotionEntrance.Scale] = ArriveScale,
         [MotionEntrance.Draw] = DrawIn,
+        [MotionEntrance.Linger] = LingerIn,
     };
 
     public static IReadOnlyDictionary<MotionLoop, Move> Loops { get; } = new Dictionary<MotionLoop, Move>

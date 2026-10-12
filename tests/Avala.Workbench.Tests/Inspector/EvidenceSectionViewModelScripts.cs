@@ -27,6 +27,18 @@ public sealed class EvidenceSectionViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task TheEvidenceShowsWithoutWaitingForTheWorktreeToBeRead()
+    {
+        using var section = new EvidenceSectionViewModel(bench.Inspected());
+        var job = InspectedJobs.Reviewed(bench);
+        bench.Workspaces.Reachable = new TaskCompletionSource().Task;
+
+        await section.FocusAsync(job.Job, bench);
+
+        Assert.Equal((true, "Verified on attempt 2 of 2"), (section.IsLoaded, section.Summary));
+    }
+
+    [Fact]
     public async Task LosingTheFocusEmptiesTheSection()
     {
         using var section = new EvidenceSectionViewModel(bench.Inspected());

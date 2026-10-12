@@ -29,7 +29,7 @@ internal sealed partial class DelegationSectionViewModel : IDelegationSectionVie
     public DelegationSectionViewModel(InspectedJob inspected)
     {
         this.inspected = inspected;
-        inspected.Showing(Show);
+        inspected.Showing(Show, InspectorDepth.Complete);
     }
 
     public event EventHandler<Presented>? Presented

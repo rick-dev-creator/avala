@@ -42,7 +42,7 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     {
         this.inspected = inspected;
         this.scratch = scratch;
-        inspected.Showing(Show);
+        inspected.Showing(Show, InspectorDepth.Complete);
     }
 
     public event EventHandler<Presented>? Presented

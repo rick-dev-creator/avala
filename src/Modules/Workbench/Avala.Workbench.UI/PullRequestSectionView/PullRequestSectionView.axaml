@@ -18,7 +18,7 @@
   </UserControl.Styles>
   <ui:Fold x:Name="Section" Header="Pull request" Fact="{Binding Fact}">
     <StackPanel Margin="28,0,12,12" Spacing="7">
-      <TextBlock x:Name="Loading" Classes="caption" theme:Motion.Loop="Pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <Border x:Name="Loading" Classes="placeholder" theme:Motion.Enter="Linger" IsVisible="{Binding !IsLoaded}" AutomationProperties.Name="Reading" />
       <TextBlock x:Name="Title" Classes="caption secondary" TextWrapping="Wrap" Text="{Binding Title}" />
       <ContentControl x:Name="Publishing" Content="{Binding Publishing}" IsVisible="{Binding !HasPullRequest}" />
       <StackPanel Spacing="7" IsVisible="{Binding HasPullRequest}">
