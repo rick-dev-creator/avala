@@ -235,10 +235,10 @@ internal sealed class DogfoodActions(DogfoodApp app, DogfoodJournal journal, Dog
 
         var item = decisions["Items"].Items.First(Wanted);
         decisions.Set("Selected", item.Target);
-        var offered = item["OffersAlwaysInRepository"].Value<bool>();
-        evidence.Note($"offered:{decision.Target}", $"always in this repository offered {offered}: {item["AlwaysInRepositoryScope"].Text}");
-        item.Set("DontAskAgain", remember != DogfoodRemember.Once);
-        item.Set("AlwaysInRepository", remember == DogfoodRemember.InRepository && offered);
+        var scope = item["Scope"];
+        var offered = scope["OffersInRepository"].Value<bool>();
+        evidence.Note($"offered:{decision.Target}", $"always in this repository offered {offered}: {scope["InRepositoryHint"].Text}");
+        scope.Choose("ChooseCommand", remember == DogfoodRemember.InRepository && offered ? "InRepository" : remember == DogfoodRemember.Once ? "Once" : "Always");
         await journal.DecideAsync($"{evidence.Name(job)} {decision.Kind} '{decision.Target}' asked as '{item["Title"].Text}' ({item["Asking"].Text}) -> {(allow ? "ALLOW" : "DENY")} {remember}: {reason}");
         await camera.ShootOnceAsync($"decision-{evidence.Name(job)}-{decision.Kind}", $"decisions-popover-{evidence.Name(job)}-{decision.Kind}");
 

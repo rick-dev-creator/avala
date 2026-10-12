@@ -171,20 +171,7 @@
                  Classes="caption"
                  Text="Fill in the answer below the list"
                  IsVisible="{Binding HasFields}" />
-      <WrapPanel x:Name="Remember" Margin="17,0,0,0" IsVisible="{Binding IsPermission}">
-        <CheckBox x:Name="DontAskAgain"
-                  Margin="0,0,16,0"
-                  FontSize="{DynamicResource FontSizeCaption}"
-                  Content="{Binding DontAskAgainLabel}"
-                  ToolTip.Tip="{Binding DontAskAgainScope}"
-                  IsChecked="{Binding DontAskAgain}" />
-        <CheckBox x:Name="AlwaysInRepository"
-                  FontSize="{DynamicResource FontSizeCaption}"
-                  Content="{Binding AlwaysInRepositoryLabel}"
-                  ToolTip.Tip="{Binding AlwaysInRepositoryScope}"
-                  IsChecked="{Binding AlwaysInRepository}"
-                  IsVisible="{Binding OffersAlwaysInRepository}" />
-      </WrapPanel>
+      <ContentControl x:Name="Remember" Margin="17,0,0,0" Content="{Binding Scope}" IsVisible="{Binding IsPermission}" />
       <TextBlock x:Name="Error"
                  Classes="caption failure"
                  Margin="17,0,0,0"

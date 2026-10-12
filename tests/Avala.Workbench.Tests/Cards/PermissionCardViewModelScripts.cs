@@ -38,11 +38,11 @@ public sealed class PermissionCardViewModelScripts
             .Then(card => Assert.Equal((verdict, awaitsYou, true), (card.Verdict, card.AwaitsYou, card.IsShown)));
 
     [Fact]
-    public async Task AllowingSendsTheTrimmedNoteAndDontAskAgainForThisJobToTheSessionOfTheRequest()
+    public async Task AllowingSendsTheTrimmedNoteAndAlwaysTheProgramInThisJobToTheSessionOfTheRequest()
     {
         var card = Card();
         card.Note = " Only the checkout tests ";
-        card.DontAskAgain = true;
+        card.Scope.ChooseCommand.Execute(AnswerScope.Always);
 
         await card.AllowCommand.ExecuteAsync(null);
 
@@ -50,42 +50,48 @@ public sealed class PermissionCardViewModelScripts
         Assert.Equal(
             (asking.Session, new ItemId("run"), PermissionAnswer.Allow, Option<string>.Some("Only the checkout tests"), Remember.ForThisJob),
             (answered, reply.Item, reply.Answer, reply.Message, reply.Remember));
-        Assert.Equal(("Don't ask again for this job", string.Empty), (card.DontAskAgainLabel, card.Notice));
-        Assert.StartsWith("Your answer is reused only for this exact command, in every session of this job", card.DontAskAgainScope, StringComparison.Ordinal);
+        Assert.Equal((true, false, string.Empty), (card.Scope.IsAlways, card.Scope.IsOnce, card.Notice));
     }
 
-    [Fact]
-    public async Task ARequestOfAContestCandidateOffersDontAskAgainInThisContestAndSendsItForEveryCandidate()
+    [Theory]
+    [InlineData(ScopeRefusal.Unanalysable, "can't tell what this line runs")]
+    [InlineData(ScopeRefusal.StillAsked, "a rule still asks for this")]
+    public async Task ALineThatCannotBeRememberedForItsProgramSaysWhyAndIsAnsweredOnce(ScopeRefusal refusal, string reason)
     {
-        var card = new PermissionCardViewModel(asking.Contested(), new(permissions, new FakeAgents()));
-        card.DontAskAgain = true;
+        var card = new PermissionCardViewModel(asking.Refused("echo $(date)", refusal), new(permissions, new FakeAgents()));
+        var offered = card.Scope.ChooseCommand.CanExecute(AnswerScope.Always);
 
         await card.AllowCommand.ExecuteAsync(null);
 
-        Assert.Equal(Remember.ForThisContest, Assert.Single(permissions.Replies).Reply.Remember);
-        Assert.Equal("Don't ask again in this contest", card.DontAskAgainLabel);
-        Assert.StartsWith("Your answer goes to every candidate of this contest", card.DontAskAgainScope, StringComparison.Ordinal);
+        Assert.Equal((false, "Always this program in this job", reason), (offered, card.Scope.AlwaysLabel, card.Scope.AlwaysUnavailable));
+        Assert.Equal(Remember.Once, Assert.Single(permissions.Replies).Reply.Remember);
     }
 
     [Fact]
-    public void AlwaysInThisRepositoryIsOfferedOnlyWhenThePolicyFoundAnExactRuleForTheRequest() =>
-        ViewModelScript.Given(new PermissionCardViewModel(asking.OfferingTheRepository("dotnet test"), new(permissions, new FakeAgents())))
-            .Then(card =>
-            {
-                Assert.Equal((true, "Always in this repository"), (card.OffersAlwaysInRepository, card.AlwaysInRepositoryLabel));
-                Assert.Equal(
-                    "Adds a rule for exactly dotnet test to .avala/permissions.json in the repository. It applies to new jobs once committed; this job stops asking now.",
-                    card.AlwaysInRepositoryScope);
-                Assert.False(Card().OffersAlwaysInRepository);
-            });
+    public async Task EverythingInThisJobIsSentAndTheCardSaysTheRestOfTheJobRunsWithoutAsking()
+    {
+        var card = Card();
+        card.Scope.ChooseCommand.Execute(AnswerScope.Everything);
 
-    [Fact]
-    public void AlwaysInThisRepositoryAlsoStopsThisJobAskingAndGivingThatUpGivesUpTheRepositoryToo() =>
-        ViewModelScript.Given(new PermissionCardViewModel(asking.OfferingTheRepository(), new(permissions, new FakeAgents())))
-            .When(card => card.AlwaysInRepository = true)
-            .Then(card => Assert.Equal((true, true), (card.AlwaysInRepository, card.DontAskAgain)))
-            .When(card => card.DontAskAgain = false)
-            .Then(card => Assert.Equal((false, false), (card.AlwaysInRepository, card.DontAskAgain)));
+        await card.AllowCommand.ExecuteAsync(null);
+
+        Assert.Equal(Remember.EverythingInThisJob, Assert.Single(permissions.Replies).Reply.Remember);
+        Assert.Equal("The rest of this job runs without asking, within the repository's guards.", card.Notice);
+    }
+
+    [Theory]
+    [InlineData(false, Remember.ForThisContest)]
+    [InlineData(true, Remember.EverythingInThisContest)]
+    public async Task ARequestOfAContestCandidateAppliesTheChosenScopeToEveryCandidate(bool everything, Remember remember)
+    {
+        var card = new PermissionCardViewModel(asking.Contested(), new(permissions, new FakeAgents()));
+        card.Scope.ChooseCommand.Execute(everything ? AnswerScope.Everything : AnswerScope.Always);
+
+        await card.AllowCommand.ExecuteAsync(null);
+
+        Assert.Equal(remember, Assert.Single(permissions.Replies).Reply.Remember);
+        Assert.Equal(("Always dotnet in this contest", "Everything in this contest"), (card.Scope.AlwaysLabel, card.Scope.EverythingLabel));
+    }
 
     [Theory]
     [InlineData(null, "Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again.")]
@@ -95,11 +101,11 @@ public sealed class PermissionCardViewModelScripts
     {
         permissions.RepositoryRefusal = refusal.ToOption();
         var card = new PermissionCardViewModel(asking.OfferingTheRepository(), new(permissions, new FakeAgents()));
-        card.AlwaysInRepository = true;
+        card.Scope.ChooseCommand.Execute(AnswerScope.InRepository);
 
         await card.AllowCommand.ExecuteAsync(null);
 
-        Assert.Equal(Remember.InThisRepository, Assert.Single(permissions.Replies).Reply.Remember);
+        Assert.Equal((Remember.InThisRepository, true), (Assert.Single(permissions.Replies).Reply.Remember, card.Scope.IsInRepository));
         Assert.Equal(notice, card.Notice);
     }
 
@@ -119,17 +125,6 @@ public sealed class PermissionCardViewModelScripts
         ViewModelScript.Given(new PermissionCardViewModel(request, new(permissions, new FakeAgents())))
             .When(card => card.Update(request with { Resolution = PermissionAnswer.Allow, Answered = answer }))
             .Then(card => Assert.Equal((notice, 0), (card.Notice, permissions.Replies.Count)));
-    }
-
-    [Fact]
-    public async Task AlwaysInThisRepositoryIsNeverSentForARequestItWasNotOfferedFor()
-    {
-        var card = Card();
-        card.AlwaysInRepository = true;
-
-        await card.AllowCommand.ExecuteAsync(null);
-
-        Assert.Equal(Remember.ForThisJob, Assert.Single(permissions.Replies).Reply.Remember);
     }
 
     [Fact]

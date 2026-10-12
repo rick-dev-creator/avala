@@ -24,7 +24,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
             Assert.Equal(("Wants to run a command", "pnpm add -D @testing-library/user-event@14.5.2"), (view.TextOf("Headline"), view.Find<SelectableTextBlock>("Target").Text));
             Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Headline").Foreground).Color);
             Assert.Equal("JetBrains Mono", view.Find<SelectableTextBlock>("Target").FontFamily.FamilyNames[0]);
-            Assert.True(view.Shows("Allow") && view.Shows("Deny") && view.Shows("DontAskAgain"));
+            Assert.True(view.Shows("Allow") && view.Shows("Deny") && view.Shows("Once") && view.Shows("Always") && view.Shows("Everything"));
             Assert.Equal((false, false), (view.Shows("Resolved"), view.Shows("Error")));
         }, Cancellation);
 
@@ -41,7 +41,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task AllowingWithANoteAndDontAskAgainSendsBothAndFoldsTheCardIntoItsVerdictAsync() =>
+    public Task AllowingWithANoteAndAlwaysTheProgramSendsBothAndFoldsTheCardIntoItsVerdictAsync() =>
         ui.RunAsync(async () =>
         {
             var asking = new Asking();
@@ -49,7 +49,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
             var card = new PermissionCardViewModel(asking.Permission(), new(permissions, new FakeAgents()));
             var view = Screen.Show(card);
 
-            view.Click("AddNote").Type("Note", "Only the checkout tests").Click("DontAskAgain").Click("Allow");
+            view.Click("AddNote").Type("Note", "Only the checkout tests").Click("Always").Click("Allow");
             await (card.AllowCommand.ExecutionTask ?? Task.CompletedTask);
             card.Update(asking.Permission() with { Resolution = PermissionAnswer.Allow });
             view.Settle();
@@ -57,7 +57,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
             var reply = Assert.Single(permissions.Replies).Reply;
             Assert.Equal(("Only the checkout tests", Remember.ForThisJob), (reply.Message.Match(note => note, () => string.Empty), reply.Remember));
             Assert.Equal(("Allowed", false, true), (view.TextOf("Outcome"), view.Shows("Card"), view.Shows("Resolved")));
-            Assert.False(view.Shows("AlwaysInRepository"));
+            Assert.False(view.Shows("More"));
         }, Cancellation);
 
     [Theory]
@@ -93,12 +93,13 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
             var card = new PermissionCardViewModel(asking.OfferingTheRepository(), new(permissions, new FakeAgents()));
             var view = Screen.Show(card);
 
-            view.Click("AlwaysInRepository").Click("Allow");
+            var hidden = view.Shows("InRepository");
+            view.Click("More").Click("InRepository").Click("Allow");
             await (card.AllowCommand.ExecutionTask ?? Task.CompletedTask);
             card.Update(asking.OfferingTheRepository() with { Resolution = PermissionAnswer.Allow });
             view.Settle();
 
-            Assert.Equal(("Always in this repository", true), (view.Find<CheckBox>("AlwaysInRepository").Content, view.Find<CheckBox>("DontAskAgain").IsChecked == true));
+            Assert.Equal((false, "Always in this repository"), (hidden, view.Find<Button>("InRepository").Content));
             Assert.Equal(Remember.InThisRepository, Assert.Single(permissions.Replies).Reply.Remember);
             Assert.Equal("Added to .avala/permissions.json. It applies to new jobs once you commit it; this job won't ask again.", view.TextOf("Notice"));
         }, Cancellation);
@@ -110,7 +111,7 @@ public sealed class PermissionCardViewScripts(HeadlessUi ui)
             var permissions = new FakePermissionAnswers();
             var allowed = new PermissionCardViewModel(new Asking().Permission(), new(permissions, new FakeAgents()));
             var view = Screen.Show(allowed);
-            view.Find("DontAskAgain").Focus();
+            view.Find("Once").Focus();
             view.Press(Key.Enter, RawInputModifiers.Control);
             await (allowed.AllowCommand.ExecutionTask ?? Task.CompletedTask);
 

@@ -147,6 +147,7 @@ internal sealed class FakePermissionAnswers : IPermissionAnswers
             {
                 RepositoryRule = inRepository && RepositoryRefusal.IsNone ? rule : Option<PolicyRule>.None,
                 RepositoryError = inRepository ? RepositoryRefusal : Option<PolicyError>.None,
+                Everything = reply.Remember is Remember.EverythingInThisJob or Remember.EverythingInThisContest,
             }));
     }
 }

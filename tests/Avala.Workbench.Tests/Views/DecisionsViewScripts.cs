@@ -17,7 +17,7 @@ namespace Avala.Workbench.Tests.Views;
 
 public sealed class DecisionsViewScripts(HeadlessUi ui)
 {
-    private static readonly string[] Actions = ["Open", "DontAskAgain", "AlwaysInRepository", "Deny", "Answer"];
+    private static readonly string[] Actions = ["Open", "Once", "Always", "Everything", "More", "Deny", "Answer"];
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -280,7 +280,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task DontAskAgainForThisJobIsOfferedOnAPermissionAndSentWithTheAnswerAsync() =>
+    public Task TheScopeOfAPermissionIsChosenInTheRowsSegmentedControlAndSentWithTheAnswerAsync() =>
         ui.RunAsync(async () =>
         {
             using var bench = new Bench();
@@ -288,13 +288,13 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             decisions.Show(Bench.Of(Asking(bench)));
             var view = Tall(decisions);
 
-            view.Click("DontAskAgain");
+            view.Click("Everything");
             view.Click("Answer");
             await (decisions.Items[0].AnswerCommand.ExecutionTask ?? Task.CompletedTask);
 
-            Assert.Equal("Don't ask again for this job", view.Find<CheckBox>("DontAskAgain").Content);
-            Assert.False(view.Shows("AlwaysInRepository"));
-            Assert.Equal(Remember.ForThisJob, Assert.Single(bench.Permissions.Replies).Reply.Remember);
+            Assert.Equal(("Once", "Always npm in this job"), (view.Find<Button>("Once").Content, view.Find<Button>("Always").Content));
+            Assert.False(view.Shows("More"));
+            Assert.Equal(Remember.EverythingInThisJob, Assert.Single(bench.Permissions.Replies).Reply.Remember);
         }, Cancellation);
 
     [Fact]
@@ -306,12 +306,13 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             decisions.Show(Bench.Of(Asking(bench, "dotnet test", inRepository: true)));
             var view = Tall(decisions);
 
-            view.Click("AlwaysInRepository");
+            view.Click("More");
+            view.Click("InRepository");
             view.Click("Answer");
             await (decisions.Items[0].AnswerCommand.ExecutionTask ?? Task.CompletedTask);
 
-            Assert.Equal("Always in this repository", view.Find<CheckBox>("AlwaysInRepository").Content);
-            Assert.True(view.Find<CheckBox>("DontAskAgain").IsChecked);
+            Assert.Equal("Always in this repository", view.Find<Button>("InRepository").Content);
+            Assert.True(view.HasClass("InRepository", "selected"));
             Assert.Equal(Remember.InThisRepository, Assert.Single(bench.Permissions.Replies).Reply.Remember);
         }, Cancellation);
 
@@ -330,7 +331,7 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
                 .SelectMany(action => action.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text)).Select(text => (Action: action, Text: text)))
                 .ToList();
 
-            Assert.Equal(["Open conversation", "Don't ask again for this job", "Always in this repository", "Deny  ⌫", "Allow  ⏎"], texts.Select(shown => shown.Text.Text));
+            Assert.Equal(["Open conversation", "Once", "Always dotnet in this job", "Everything in this job", "…", "Deny  ⌫", "Allow  ⏎"], texts.Select(shown => shown.Text.Text));
             Assert.All(texts, shown =>
             {
                 var action = Avalonia.VisualExtensions.TranslatePoint(shown.Action, default, surface)?.X ?? double.MinValue;
@@ -412,7 +413,11 @@ public sealed class DecisionsViewScripts(HeadlessUi ui)
             Transcript = Transcript.Empty
                 .Apply(new TurnStarted(session, turn), asked)
                 .Apply(new PermissionRequested(session, turn, new ItemId("run"), "Run the CheckoutForm tests", ItemKind.Command, target), asked)
-                .Apply(new PolicyDecision(session, turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, asked) { RepositoryRule = offered }),
+                .Apply(new PolicyDecision(session, turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, DecisionDelivery.LeftToHuman, asked)
+                {
+                    RepositoryRule = offered,
+                    Scope = Cards.Asking.Offered(target.Split(' ')[0]),
+                }),
         };
     }
 

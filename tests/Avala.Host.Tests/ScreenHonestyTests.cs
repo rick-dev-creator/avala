@@ -51,7 +51,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task DontAskAgainChosenInThePopoverAnswersTheNextIdenticalRequestOfThatJobAndTheRepositoryOptionIsOfferedBesideItAsync()
+    public async Task AlwaysTheProgramChosenInThePopoverAnswersTheNextRequestOfThatJobAndTheRepositoryOptionIsOfferedBesideItAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "repeated-permission");
         Assert.Equal(DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
@@ -61,16 +61,16 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
 
         var offered = await run.Ui.ReadAsync(() =>
         {
-            var decision = decisions["Items"].Items[0];
-            decision.Set("DontAskAgain", true);
+            var scope = decisions["Items"].Items[0]["Scope"];
+            scope.Choose("ChooseCommand", "Always");
 
-            return (decision["DontAskAgainLabel"].Text, decision["AlwaysInRepositoryLabel"].Text, decision["OffersAlwaysInRepository"].Value<bool>());
+            return (scope["AlwaysLabel"].Text, scope["InRepositoryLabel"].Text, scope["OffersInRepository"].Value<bool>());
         });
         await run.Ui.RunAsync(() => decisions.ExecuteAsync("AnswerCommand"));
         var second = await run.DecisionAsync();
 
-        Assert.Equal(("Don't ask again for this job", "Always in this repository", true), offered);
-        Assert.Equal((DecisionDelivery.Answered, "don't ask again for this job"), (second.Delivery, Outcomes.Present(second.Rule).Name));
+        Assert.Equal(("Always dotnet in this job", "Always in this repository", true), offered);
+        Assert.Equal((DecisionDelivery.Answered, "always dotnet in this job"), (second.Delivery, Outcomes.Present(second.Rule).Name));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         Assert.False(File.Exists(Path.Combine(run.Repository.Path, ".avala", "permissions.json")));
     }
@@ -86,7 +86,7 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
 
         await run.Ui.RunAsync(() =>
         {
-            decisions["Items"].Items[0].Set("AlwaysInRepository", true);
+            decisions["Items"].Items[0]["Scope"].Choose("ChooseCommand", "InRepository");
 
             return decisions.ExecuteAsync("AnswerCommand");
         });

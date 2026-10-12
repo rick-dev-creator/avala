@@ -24,6 +24,7 @@
   <StreamGeometry x:Key="IconInterrupt">M5 3H5.6A1 1 0 0 1 6.6 4V12A1 1 0 0 1 5.6 13H5A1 1 0 0 1 4 12V4A1 1 0 0 1 5 3ZM10.4 3H11A1 1 0 0 1 12 4V12A1 1 0 0 1 11 13H10.4A1 1 0 0 1 9.4 12V4A1 1 0 0 1 10.4 3Z</StreamGeometry>
   <StreamGeometry x:Key="IconStop">M5.5 3.5H10.5A2 2 0 0 1 12.5 5.5V10.5A2 2 0 0 1 10.5 12.5H5.5A2 2 0 0 1 3.5 10.5V5.5A2 2 0 0 1 5.5 3.5Z</StreamGeometry>
   <StreamGeometry x:Key="IconExternal">M6 3H13V10M13 3L4 12</StreamGeometry>
+  <StreamGeometry x:Key="IconLock">M4.5 7.5H11.5V13.5H4.5ZM6 7.5V5.5A2 2 0 0 1 10 5.5V7.5</StreamGeometry>
   <StreamGeometry x:Key="LogoMark">M12 3.5L20.5 19H3.5Z</StreamGeometry>
   <StreamGeometry x:Key="LogoEye">M9.9 14.2A2.1 2.1 0 1 1 14.1 14.2A2.1 2.1 0 1 1 9.9 14.2Z</StreamGeometry>
 </ResourceDictionary>

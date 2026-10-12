@@ -160,6 +160,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ICanvasViewModel, CanvasView>();
         views.Register<ITurnEndViewModel, TurnEndView>();
         views.Register<IPermissionCardViewModel, PermissionCardView>();
+        views.Register<IAnswerScopeViewModel, AnswerScopeView>();
         views.Register<IFormCardViewModel, FormCardView>();
         views.Register<IFormFieldViewModel, FormFieldView>();
         views.Register<IFormChoiceViewModel, FormChoiceView>();

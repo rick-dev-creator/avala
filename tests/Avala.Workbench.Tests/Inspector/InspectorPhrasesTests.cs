@@ -65,6 +65,7 @@ public sealed class InspectorPhrasesTests
     [InlineData("Allow", "Job", "Written", "You allowed: edit src/auth/login.ts · don't ask again for this job · always in this repository")]
     [InlineData("Deny", "Job", "Malformed", "You denied: edit src/auth/login.ts · don't ask again for this job · not added to the repository")]
     [InlineData("Deny", "", "", "You denied: edit src/auth/login.ts")]
+    [InlineData("Allow", "", "Everything", "You allowed: edit src/auth/login.ts · everything in this job")]
     public void APersonsAnswerSaysWhatWasAnsweredAndHowLongItIsRemembered(string answer, string remembered, string repository, string phrase) =>
         Assert.Equal(
             phrase,
@@ -86,6 +87,7 @@ public sealed class InspectorPhrasesTests
             {
                 RepositoryRule = repository == "Written" ? Remembered with { Origin = RuleOrigin.Repository, Name = "always in this repository" } : Option<PolicyRule>.None,
                 RepositoryError = repository == "Malformed" ? PolicyError.Malformed : Option<PolicyError>.None,
+                Everything = repository == "Everything",
             }));
 
     [Theory]
@@ -223,6 +225,12 @@ public sealed class InspectorPhrasesTests
         Assert.Equal(
             "Autonomous, as the repository declares · read-only",
             InspectorPhrases.Autonomy(new SessionAutonomy(SessionId.New(), JobId.New(), Autonomy.Autonomous, Option<Autonomy>.None, Autonomy.Autonomous, Refused: false) { ReadOnly = true }));
+
+    [Fact]
+    public void AJobRaisedToEverythingSaysWhoAllowedItAndWhen() =>
+        Assert.Equal(
+            $"Everything allowed in this job by you at {Presenting.Amounts.Time(DateTimeOffset.UnixEpoch)}",
+            InspectorPhrases.Autonomy(new SessionAutonomy(SessionId.New(), JobId.New(), Autonomy.Supervised, Option<Autonomy>.None, Autonomy.Autonomous, Refused: false) { Raised = DateTimeOffset.UnixEpoch }));
 
     [Theory]
     [InlineData("Supervised", "Supervised", false, "Supervised, as the repository declares")]

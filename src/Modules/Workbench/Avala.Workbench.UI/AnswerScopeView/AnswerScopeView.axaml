@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cards="using:Avala.Workbench.Cards"
+             x:Class="Avala.Workbench.UI.AnswerScopeView"
+             x:ClassModifier="internal"
+             x:DataType="cards:IAnswerScopeViewModel">
+  <Design.DataContext>
+    <cards:DesignAnswerScopeViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Path.lock">
+      <Setter Property="Width" Value="11" />
+      <Setter Property="Height" Value="11" />
+      <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="6">
+    <WrapPanel x:Name="Choices" Orientation="Horizontal">
+      <Border Classes="segments" Margin="0,0,6,0">
+        <StackPanel Orientation="Horizontal">
+          <Button x:Name="Once"
+                  Classes="segment"
+                  Classes.selected="{Binding IsOnce}"
+                  Content="Once"
+                  Command="{Binding ChooseCommand}"
+                  CommandParameter="{x:Static cards:AnswerScope.Once}" />
+          <Button x:Name="Always"
+                  Classes="segment"
+                  Classes.selected="{Binding IsAlways}"
+                  Content="{Binding AlwaysLabel}"
+                  Command="{Binding ChooseCommand}"
+                  CommandParameter="{x:Static cards:AnswerScope.Always}" />
+          <Button x:Name="Everything"
+                  Classes="segment"
+                  Classes.selected="{Binding IsEverything}"
+                  Command="{Binding ChooseCommand}"
+                  CommandParameter="{x:Static cards:AnswerScope.Everything}">
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <Path x:Name="Lock"
+                    Classes="icon lock"
+                    Data="{StaticResource IconLock}"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding EverythingUnavailable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <TextBlock Text="{Binding EverythingLabel}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Border>
+      <ToggleButton x:Name="More"
+                    Classes="quiet"
+                    Content="…"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="More choices"
+                    ToolTip.Tip="More choices"
+                    IsVisible="{Binding OffersInRepository}" />
+    </WrapPanel>
+    <Border x:Name="MoreChoices"
+            Classes="segments"
+            HorizontalAlignment="Left"
+            IsVisible="{Binding #More.IsChecked}">
+      <Button x:Name="InRepository"
+              Classes="segment"
+              Classes.selected="{Binding IsInRepository}"
+              Content="{Binding InRepositoryLabel}"
+              ToolTip.Tip="{Binding InRepositoryHint}"
+              Command="{Binding ChooseCommand}"
+              CommandParameter="{x:Static cards:AnswerScope.InRepository}" />
+    </Border>
+    <WrapPanel x:Name="Reasons" Orientation="Horizontal">
+      <TextBlock x:Name="AlwaysUnavailable"
+                 Classes="caption"
+                 Margin="0,0,12,0"
+                 Text="{Binding AlwaysUnavailable}"
+                 IsVisible="{Binding AlwaysUnavailable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <StackPanel x:Name="EverythingUnavailable"
+                  Orientation="Horizontal"
+                  Spacing="4"
+                  IsVisible="{Binding EverythingUnavailable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <Path Classes="icon lock" Data="{StaticResource IconLock}" VerticalAlignment="Center" />
+        <TextBlock Classes="caption" Text="{Binding EverythingUnavailable}" VerticalAlignment="Center" />
+      </StackPanel>
+    </WrapPanel>
+  </StackPanel>
+</UserControl>

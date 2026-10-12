@@ -111,6 +111,7 @@ internal static class InspectorPhrases
     public static string Answer(HumanAnswer answer) =>
         $"{(answer.Parent.IsSome ? "Its parent" : "You")} {(answer.Answer == PermissionAnswer.Allow ? "allowed" : "denied")}: {Presenting.CommandPhrases.Request(answer.Kind, answer.Target)}"
         + answer.Rule.Match(rule => $" · {rule.Name}", () => string.Empty)
+        + (answer.Everything ? " · everything in this job" : string.Empty)
         + answer.RepositoryRule.Match(
             rule => $" · {rule.Name}",
             () => answer.RepositoryError.Match(_ => " · not added to the repository", () => string.Empty));
@@ -180,6 +181,9 @@ internal static class InspectorPhrases
         Level(autonomy) + (autonomy.ReadOnly ? " · read-only" : string.Empty);
 
     private static string Level(SessionAutonomy autonomy) =>
+        autonomy.Raised.Match(at => $"Everything allowed in this job by you at {Presenting.Amounts.Time(at)}", () => Declared(autonomy));
+
+    private static string Declared(SessionAutonomy autonomy) =>
         autonomy.Refused
             ? $"{autonomy.Effective}: asked for {autonomy.Requested.Match(requested => requested.ToString(), () => "more")}, refused by the repository"
             : autonomy.Effective == autonomy.Declared

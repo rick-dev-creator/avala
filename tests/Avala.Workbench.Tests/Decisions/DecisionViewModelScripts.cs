@@ -90,32 +90,29 @@ public sealed class DecisionViewModelScripts
             .Then(decision => Assert.Equal(string.Empty, decision.Waiting));
 
     [Fact]
-    public async Task DontAskAgainChosenInThePopoverReachesTheAnswerAndSaysItLastsTheWholeJob()
+    public async Task TheScopeChosenInThePopoverIsTheCardsOwnAndReachesTheAnswer()
     {
         var decision = Decision();
+        var scope = Assert.IsAssignableFrom<IAnswerScopeViewModel>(decision.Scope);
 
-        decision.DontAskAgain = true;
+        scope.ChooseCommand.Execute(AnswerScope.Always);
         await decision.AnswerCommand.ExecuteAsync(null);
 
         var (_, reply) = Assert.Single(permissions.Replies);
-        Assert.Equal((PermissionAnswer.Allow, Remember.ForThisJob), (reply.Answer, reply.Remember));
-        Assert.Equal(("Don't ask again for this job", false), (decision.DontAskAgainLabel, decision.OffersAlwaysInRepository));
-        Assert.StartsWith("Your answer is reused only for this exact command, in every session of this job", decision.DontAskAgainScope, StringComparison.Ordinal);
+        Assert.Equal((PermissionAnswer.Allow, Remember.ForThisJob, "Always npm in this job"), (reply.Answer, reply.Remember, scope.AlwaysLabel));
+        Assert.Same(((IPermissionCardViewModel)decision.Card).Scope, scope);
     }
 
     [Fact]
-    public async Task AlwaysInThisRepositoryChosenInThePopoverReachesTheAnswerAndChecksDontAskAgainToo()
+    public async Task AlwaysInThisRepositoryChosenInThePopoverReachesTheDenial()
     {
         var decision = Decision(new PermissionCardViewModel(asking.OfferingTheRepository("dotnet test"), Replies()));
-        var notified = new List<string?>();
-        decision.PropertyChanged += (_, changed) => notified.Add(changed.PropertyName);
+        var scope = Assert.IsAssignableFrom<IAnswerScopeViewModel>(decision.Scope);
 
-        decision.AlwaysInRepository = true;
+        scope.ChooseCommand.Execute(AnswerScope.InRepository);
         await decision.DenyCommand.ExecuteAsync(null);
 
-        Assert.Equal((true, true, true, "Always in this repository"), (decision.OffersAlwaysInRepository, decision.AlwaysInRepository, decision.DontAskAgain, decision.AlwaysInRepositoryLabel));
-        Assert.Contains("exactly dotnet test", decision.AlwaysInRepositoryScope, StringComparison.Ordinal);
-        Assert.Equal([nameof(DecisionViewModel.DontAskAgain), nameof(DecisionViewModel.AlwaysInRepository)], notified.Where(name => name is nameof(DecisionViewModel.DontAskAgain) or nameof(DecisionViewModel.AlwaysInRepository)));
+        Assert.Equal((true, true, "Always in this repository"), (scope.OffersInRepository, scope.IsInRepository, scope.InRepositoryLabel));
         Assert.Equal((PermissionAnswer.Deny, Remember.InThisRepository), (Assert.Single(permissions.Replies).Reply.Answer, permissions.Replies[0].Reply.Remember));
     }
 

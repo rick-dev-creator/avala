@@ -32,19 +32,7 @@ internal interface IPermissionCardViewModel
 
     string Note { get; set; }
 
-    bool DontAskAgain { get; set; }
-
-    string DontAskAgainLabel { get; }
-
-    string DontAskAgainScope { get; }
-
-    bool OffersAlwaysInRepository { get; }
-
-    bool AlwaysInRepository { get; set; }
-
-    string AlwaysInRepositoryLabel { get; }
-
-    string AlwaysInRepositoryScope { get; }
+    IAnswerScopeViewModel Scope { get; }
 
     string Notice { get; }
 
@@ -59,12 +47,14 @@ internal interface IPermissionCardViewModel
 internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel, ITimelineItem
 {
     private readonly HumanReplies replies;
+    private readonly AnswerScopeViewModel scope;
     private PermissionEntry request;
 
     public PermissionCardViewModel(PermissionEntry entry, HumanReplies replies)
     {
         this.replies = replies;
         request = entry;
+        scope = new AnswerScopeViewModel(entry.Kind, entry.Decision);
         Note = string.Empty;
         Verdict = string.Empty;
         Notice = string.Empty;
@@ -82,15 +72,7 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
 
     public string Writes => CardPhrases.Writes(CommandPhrases.Writes(request.Kind, request.Target));
 
-    public string DontAskAgainLabel => Contested ? CardPhrases.DontAskAgainInContest : CardPhrases.DontAskAgain;
-
-    public string DontAskAgainScope => Contested ? CardPhrases.DontAskAgainInContestScope(request.Kind) : CardPhrases.DontAskAgainScope(request.Kind);
-
-    public bool OffersAlwaysInRepository => RepositoryRule.IsSome;
-
-    public string AlwaysInRepositoryLabel => CardPhrases.AlwaysInRepository;
-
-    public string AlwaysInRepositoryScope => RepositoryRule.Match(CardPhrases.AlwaysInRepositoryScope, () => string.Empty);
+    public IAnswerScopeViewModel Scope => scope;
 
     [ObservableProperty]
     public partial bool IsShown { get; private set; }
@@ -112,20 +94,10 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
     public partial string Note { get; set; }
 
     [ObservableProperty]
-    public partial bool DontAskAgain { get; set; }
-
-    [ObservableProperty]
-    public partial bool AlwaysInRepository { get; set; }
-
-    [ObservableProperty]
     public partial string Notice { get; private set; }
 
     [ObservableProperty]
     public partial string Error { get; private set; }
-
-    private Option<PolicyRule> RepositoryRule => request.Decision.Bind(decision => decision.RepositoryRule);
-
-    private bool Contested => request.Decision.Match(decision => decision.Contested, () => false);
 
     public void Update(ITimelineEntry entry)
     {
@@ -138,32 +110,13 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
             IsAllowed = permission.Resolution.Match(answer => answer == PermissionAnswer.Allow, () => false);
             IsDenied = permission.Resolution.Match(answer => answer == PermissionAnswer.Deny, () => false);
             Notice = permission.Answered.Match(CardPhrases.Remembered, () => Notice);
-            OnPropertyChanged(nameof(OffersAlwaysInRepository));
-            OnPropertyChanged(nameof(AlwaysInRepositoryScope));
-            OnPropertyChanged(nameof(DontAskAgainLabel));
-            OnPropertyChanged(nameof(DontAskAgainScope));
+            scope.Update(permission.Kind, permission.Decision);
         }
     }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AllowCommand), nameof(DenyCommand))]
     public partial bool IsAnswering { get; private set; }
-
-    partial void OnDontAskAgainChanged(bool value)
-    {
-        if (!value)
-        {
-            AlwaysInRepository = false;
-        }
-    }
-
-    partial void OnAlwaysInRepositoryChanged(bool value)
-    {
-        if (value)
-        {
-            DontAskAgain = true;
-        }
-    }
 
     [RelayCommand(CanExecute = nameof(CanAnswer))]
     private Task AllowAsync(CancellationToken cancellationToken) => AnswerAsync(PermissionAnswer.Allow, cancellationToken);
@@ -173,12 +126,6 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
 
     private bool CanAnswer() => AwaitsYou && !IsAnswering;
 
-    private Remember Remembered =>
-        AlwaysInRepository && OffersAlwaysInRepository ? Remember.InThisRepository
-        : DontAskAgain && Contested ? Remember.ForThisContest
-        : DontAskAgain ? Remember.ForThisJob
-        : Remember.Once;
-
     private async Task AnswerAsync(PermissionAnswer answer, CancellationToken cancellationToken)
     {
         IsAnswering = true;
@@ -186,7 +133,7 @@ internal sealed partial class PermissionCardViewModel : IPermissionCardViewModel
         try
         {
             var note = string.IsNullOrWhiteSpace(Note) ? Option<string>.None : Note.Trim();
-            var answered = await replies.AnswerAsync(request, answer, note, Remembered, cancellationToken);
+            var answered = await replies.AnswerAsync(request, answer, note, scope.Remember, cancellationToken);
             Error = answered.Match(_ => string.Empty, CardPhrases.Error);
             Notice = answered.Match(CardPhrases.Remembered, _ => string.Empty);
         }

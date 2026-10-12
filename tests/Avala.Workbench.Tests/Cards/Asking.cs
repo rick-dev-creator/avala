@@ -24,17 +24,31 @@ internal sealed class Asking
     public PermissionEntry Permission(string target = "npm test -- CheckoutForm.test.tsx --runInBand", DecisionDelivery delivery = DecisionDelivery.LeftToHuman) =>
         Permission(target, delivery, Option<PolicyRule>.None);
 
+    public PermissionEntry Scoped(string target, string programs, bool raisable = true) =>
+        Permission(target, DecisionDelivery.LeftToHuman, Option<PolicyRule>.None, scope: Offered(programs, raisable));
+
+    public PermissionEntry Refused(string target, ScopeRefusal refusal, bool raisable = true) =>
+        Permission(target, DecisionDelivery.LeftToHuman, Option<PolicyRule>.None, scope: new JobScope(Option<PolicyRule>.None, refusal, raisable));
+
+    public static JobScope Offered(string programs, bool raisable = true) =>
+        new(new PolicyRule(RuleOrigin.Job, $"always {programs.Replace(" ", ", ", StringComparison.Ordinal)} in this job", ItemKind.Command, programs, RuleScope.Anywhere, PolicyAnswer.Allow) { AnyArguments = true }, Option<ScopeRefusal>.None, raisable);
+
     public PermissionEntry OfferingTheRepository(string target = "npm test -- CheckoutForm.test.tsx --runInBand") =>
         Permission(target, DecisionDelivery.LeftToHuman, new PolicyRule(RuleOrigin.Repository, "always in this repository", ItemKind.Command, target, RuleScope.Anywhere, PolicyAnswer.Allow));
 
     public PermissionEntry Contested(string target = "dotnet ef database update") =>
         Permission(target, DecisionDelivery.LeftToHuman, Option<PolicyRule>.None, contested: true);
 
-    private PermissionEntry Permission(string target, DecisionDelivery delivery, Option<PolicyRule> repository, bool contested = false) =>
+    private PermissionEntry Permission(string target, DecisionDelivery delivery, Option<PolicyRule> repository, bool contested = false, Option<JobScope> scope = default) =>
         Assert.IsType<PermissionEntry>(Assert.Single(Transcript.Empty
             .Apply(new TurnStarted(Session, Turn), Now)
             .Apply(new PermissionRequested(Session, Turn, new ItemId("run"), "Run the CheckoutForm tests", ItemKind.Command, target), Now)
-            .Apply(new PolicyDecision(Session, Turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, delivery, Now) { RepositoryRule = repository, Contested = contested })
+            .Apply(new PolicyDecision(Session, Turn, new ItemId("run"), Option<JobId>.None, ItemKind.Command, target, PolicyAnswer.Ask, Option<PolicyRule>.None, delivery, Now)
+            {
+                RepositoryRule = repository,
+                Contested = contested,
+                Scope = scope.IsSome ? scope : Offered(target.Split(' ')[0]),
+            })
             .Entries));
 
     public PermissionEntry AskingParent(JobId parent, DecisionDelivery delivery, Option<PassReason> passed, Option<PermissionAnswer> resolution)

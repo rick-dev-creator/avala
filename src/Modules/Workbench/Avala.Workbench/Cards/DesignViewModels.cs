@@ -103,22 +103,7 @@ internal sealed partial class DesignPermissionCardViewModel : IPermissionCardVie
     [ObservableProperty]
     public partial string Note { get; set; } = string.Empty;
 
-    [ObservableProperty]
-    public partial bool DontAskAgain { get; set; }
-
-    public string DontAskAgainLabel => CardPhrases.DontAskAgain;
-
-    public string DontAskAgainScope => CardPhrases.DontAskAgainScope(Kind);
-
-    public bool OffersAlwaysInRepository => true;
-
-    [ObservableProperty]
-    public partial bool AlwaysInRepository { get; set; }
-
-    public string AlwaysInRepositoryLabel => CardPhrases.AlwaysInRepository;
-
-    public string AlwaysInRepositoryScope =>
-        CardPhrases.AlwaysInRepositoryScope(new(RuleOrigin.Repository, "always in this repository", Kind, Target, RuleScope.Anywhere, PolicyAnswer.Allow));
+    public IAnswerScopeViewModel Scope { get; } = new DesignAnswerScopeViewModel();
 
     public string Notice => string.Empty;
 
@@ -127,4 +112,34 @@ internal sealed partial class DesignPermissionCardViewModel : IPermissionCardVie
     public IAsyncRelayCommand AllowCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand DenyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+internal sealed class DesignAnswerScopeViewModel : IAnswerScopeViewModel
+{
+    public AnswerScope Scope { get; init; } = AnswerScope.Always;
+
+    public bool IsOnce => Scope == AnswerScope.Once;
+
+    public bool IsAlways => Scope == AnswerScope.Always;
+
+    public bool IsEverything => Scope == AnswerScope.Everything;
+
+    public bool IsInRepository => Scope == AnswerScope.InRepository;
+
+    public string AlwaysLabel { get; init; } = "Always pnpm in this job";
+
+    public string EverythingLabel => ScopePhrases.Everything(contest: false);
+
+    public string InRepositoryLabel => CardPhrases.AlwaysInRepository;
+
+    public string InRepositoryHint =>
+        CardPhrases.AlwaysInRepositoryScope(new(RuleOrigin.Repository, "always in this repository", ItemKind.Command, "pnpm add -D @testing-library/user-event@14.5.2", RuleScope.Anywhere, PolicyAnswer.Allow));
+
+    public bool OffersInRepository => true;
+
+    public string AlwaysUnavailable { get; init; } = string.Empty;
+
+    public string EverythingUnavailable { get; init; } = string.Empty;
+
+    public IRelayCommand<AnswerScope> ChooseCommand { get; } = new RelayCommand<AnswerScope>(_ => { });
 }

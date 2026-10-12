@@ -80,19 +80,7 @@ internal sealed class DesignDecisionViewModel : IDecisionViewModel
 
     public bool IsSingleChoice => true;
 
-    public bool DontAskAgain { get; set; }
-
-    public string DontAskAgainLabel => CardPhrases.DontAskAgain;
-
-    public string DontAskAgainScope => IsPermission ? CardPhrases.DontAskAgainScope(Agents.Contracts.Events.ItemKind.Command) : string.Empty;
-
-    public bool OffersAlwaysInRepository => IsPermission;
-
-    public bool AlwaysInRepository { get; set; }
-
-    public string AlwaysInRepositoryLabel => CardPhrases.AlwaysInRepository;
-
-    public string AlwaysInRepositoryScope => Card is IPermissionCardViewModel permission ? permission.AlwaysInRepositoryScope : string.Empty;
+    public object Scope => Card is IPermissionCardViewModel permission ? permission.Scope : string.Empty;
 
     public string Error { get; init; } = string.Empty;
 
