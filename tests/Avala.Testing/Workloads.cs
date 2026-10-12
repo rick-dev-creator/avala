@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using Avala.Sdk;
 using Avala.Sdk.Processes;
 
 namespace Avala.Testing;
@@ -33,6 +34,10 @@ public static class Workloads
 
         return port;
     }
+
+    public static Option<T> OnFreePort<T>(Func<int, Option<T>> start)
+        where T : notnull =>
+        Enumerable.Range(0, 5).Select(_ => start(FreePort())).FirstOrDefault(started => started.IsSome, Option<T>.None);
 
     public static ProcessStartInfo Holding(string mode) => Command(mode, Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
 

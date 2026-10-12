@@ -13,11 +13,10 @@ public sealed class PageServerTests
     {
         using var worktree = new TemporaryFolder();
         await File.WriteAllTextAsync(Path.Combine(worktree.Path, "index.html"), "<h1>Orders</h1>", Cancellation);
-        var port = Workloads.FreePort();
-        await using var server = Outcomes.Present(PageServer.Start(worktree.Path, port));
+        await using var server = Outcomes.Present(Workloads.OnFreePort(port => PageServer.Start(worktree.Path, port)));
         using var client = new HttpClient();
 
-        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{port}/"), Cancellation);
+        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{server.Port}/"), Cancellation);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
@@ -30,12 +29,11 @@ public sealed class PageServerTests
     {
         using var worktree = new TemporaryFolder();
         await File.WriteAllTextAsync(Path.Combine(worktree.Path, "index.html"), "<h1>Orders</h1>", Cancellation);
-        var port = Workloads.FreePort();
-        await using var server = Outcomes.Present(PageServer.Start(worktree.Path, port));
+        await using var server = Outcomes.Present(Workloads.OnFreePort(port => PageServer.Start(worktree.Path, port)));
         using var client = new HttpClient();
 
         server.AllowsNetwork = true;
-        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{port}/index.html"), Cancellation);
+        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{server.Port}/index.html"), Cancellation);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(response.Headers.Contains("Content-Security-Policy"));
@@ -48,11 +46,10 @@ public sealed class PageServerTests
         using var elsewhere = new TemporaryFolder();
         await File.WriteAllTextAsync(Path.Combine(elsewhere.Path, "secrets.html"), "<p>secret</p>", Cancellation);
         Directory.CreateSymbolicLink(Path.Combine(worktree.Path, "out"), elsewhere.Path);
-        var port = Workloads.FreePort();
-        await using var server = Outcomes.Present(PageServer.Start(worktree.Path, port));
+        await using var server = Outcomes.Present(Workloads.OnFreePort(port => PageServer.Start(worktree.Path, port)));
         using var client = new HttpClient();
 
-        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{port}/out/secrets.html"), Cancellation);
+        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{server.Port}/out/secrets.html"), Cancellation);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -62,11 +59,10 @@ public sealed class PageServerTests
     {
         using var worktree = new TemporaryFolder();
         await File.WriteAllTextAsync(Path.Combine(worktree.Path, "index.html"), "<h1>Orders</h1>", Cancellation);
-        var port = Workloads.FreePort();
-        await using var server = Outcomes.Present(PageServer.Start(worktree.Path, port));
+        await using var server = Outcomes.Present(Workloads.OnFreePort(port => PageServer.Start(worktree.Path, port)));
         using var client = new HttpClient();
 
-        var response = await client.PostAsync(new Uri($"http://127.0.0.1:{port}/index.html"), new StringContent("x"), Cancellation);
+        var response = await client.PostAsync(new Uri($"http://127.0.0.1:{server.Port}/index.html"), new StringContent("x"), Cancellation);
 
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
     }

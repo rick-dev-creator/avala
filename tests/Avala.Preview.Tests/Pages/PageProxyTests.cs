@@ -15,11 +15,10 @@ public sealed class PageProxyTests
     public async Task AServersPageIsServedThroughTheProxyWithAPolicyThatKeepsOtherOriginsOutAsync()
     {
         await using var server = await ServerAsync();
-        var port = Workloads.FreePort();
-        await using var proxy = Outcomes.Present(PageProxy.Start(port, server.Port));
+        await using var proxy = Outcomes.Present(Workloads.OnFreePort(port => PageProxy.Start(port, server.Port)));
         using var client = new HttpClient();
 
-        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{port}/orders"), Cancellation);
+        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{proxy.Port}/orders"), Cancellation);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains($"Running on port {server.Port}", await response.Content.ReadAsStringAsync(Cancellation), StringComparison.Ordinal);
@@ -30,12 +29,11 @@ public sealed class PageProxyTests
     public async Task AllowingNetworkPassesTheServersPagesWithoutThePolicyAsync()
     {
         await using var server = await ServerAsync();
-        var port = Workloads.FreePort();
-        await using var proxy = Outcomes.Present(PageProxy.Start(port, server.Port));
+        await using var proxy = Outcomes.Present(Workloads.OnFreePort(port => PageProxy.Start(port, server.Port)));
         using var client = new HttpClient();
 
         proxy.AllowsNetwork = true;
-        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{port}/"), Cancellation);
+        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{proxy.Port}/"), Cancellation);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(response.Headers.Contains("Content-Security-Policy"));
@@ -49,11 +47,10 @@ public sealed class PageProxyTests
         upstream.Prefixes.Add($"http://localhost:{upstreamPort}/");
         upstream.Start();
         var echoing = EchoAsync(upstream);
-        var port = Workloads.FreePort();
-        await using var proxy = Outcomes.Present(PageProxy.Start(port, upstreamPort));
+        await using var proxy = Outcomes.Present(Workloads.OnFreePort(port => PageProxy.Start(port, upstreamPort)));
         using var socket = new ClientWebSocket();
 
-        await socket.ConnectAsync(new Uri($"ws://127.0.0.1:{port}/@vite/client"), Cancellation);
+        await socket.ConnectAsync(new Uri($"ws://127.0.0.1:{proxy.Port}/@vite/client"), Cancellation);
         await socket.SendAsync("update"u8.ToArray(), WebSocketMessageType.Text, endOfMessage: true, Cancellation);
         var buffer = new byte[64];
         var received = await socket.ReceiveAsync(buffer, Cancellation);
