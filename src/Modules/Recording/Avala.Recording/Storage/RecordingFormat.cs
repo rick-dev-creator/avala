@@ -27,11 +27,13 @@ internal sealed class RecordingFormat
     private readonly Dictionary<TurnId, int> turns = [];
     private readonly Utf8JsonWriter json;
     private readonly Redaction redaction;
+    private readonly RecordedItems items;
 
     private RecordingFormat(Utf8JsonWriter json, Redaction redaction)
     {
         this.json = json;
         this.redaction = redaction;
+        items = new RecordedItems(json, redaction);
     }
 
     public static byte[] Write(SessionRecording recording)
@@ -180,27 +182,10 @@ internal sealed class RecordingFormat
 
     private void ItemEvent(IAgentEvent recorded)
     {
+        items.Write(recorded);
+
         switch (recorded)
         {
-            case ItemStarted started:
-                Item(started.Item);
-                json.WriteString("kind", Enum(started.Kind));
-                Text("title", started.Title);
-                Optional("input", started.Input);
-                break;
-            case CanvasStarted canvas:
-                Item(canvas.Item);
-                Text("title", canvas.Title);
-                json.WriteString("mediaType", canvas.MediaType);
-                break;
-            case ItemProgressed progressed:
-                Item(progressed.Item);
-                Text("text", progressed.Text);
-                break;
-            case ItemCompleted completed:
-                Item(completed.Item);
-                json.WriteString("outcome", Enum(completed.Outcome));
-                break;
             case ToolCalled called:
                 Item(called.Item);
                 json.WriteString("tool", called.Tool);

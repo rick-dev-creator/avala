@@ -32,6 +32,7 @@ public sealed class AdaptationTests
         new ItemCompleted(Session, Turn, new ItemId("reply"), ItemOutcome.Succeeded),
         new UsageReported(Session, Turn, new TokenUsage(10, 5, 0, 0, 0), new Cost(0.01m, "USD")),
         new LimitReported(Session, Turn, new UsageLimit("5h", 0.3, Option<DateTimeOffset>.None)),
+        new ItemDrafted(Session, Turn, new ItemId("write"), ItemKind.FileEdit, "Write notes.md", 512),
     ];
 
     [Fact]
@@ -51,7 +52,7 @@ public sealed class AdaptationTests
                 new UsageReported(Session, Turn, new TokenUsage(10, 5, 0, 0, 0), Option<Cost>.None),
             ],
             Adapted(bare));
-        Assert.Equal([Played[4], Played[5], Played[6], Played[7], Played[9]], Adapted(Everything.Without<ReportsUsage>().Without<ExposesReasoning>().Without<Resumable>()));
+        Assert.Equal([Played[4], Played[5], Played[6], Played[7], Played[9], Played[10]], Adapted(Everything.Without<ReportsUsage>().Without<ExposesReasoning>().Without<Resumable>()));
     }
 
     [Fact]

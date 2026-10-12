@@ -39,6 +39,19 @@ public sealed class TurnTests
     }
 
     [Fact]
+    public void AcceptsDraftsOfAnItemUntilItStartsAndLeavesAnUnstartedDraftOpenToNothing()
+    {
+        var turn = Given.Turn();
+        IAgentEvent[] drafted = [Given.Drafted("write", 120), Given.Drafted("write", 640), Given.Started("write"), Given.Drafted("abandoned", 80)];
+
+        var forwarded = drafted.Select(agentEvent => Outcomes.Succeeds(turn.Apply(agentEvent, Given.Now)).Events).ToList();
+        var ended = Outcomes.Succeeds(turn.Apply(Given.Completed("write"), Given.Now)).Events.Concat(Outcomes.Succeeds(turn.Apply(Given.Ended(), Given.Now)).Events);
+
+        Assert.Equal(drafted.Select(agentEvent => new[] { agentEvent }), forwarded);
+        Assert.Equal<IAgentEvent>([Given.Completed("write"), Given.Ended()], ended);
+    }
+
+    [Fact]
     public void RejectsActivityOnAnItemThatNeverStarted()
     {
         var turn = Given.Turn();
@@ -53,6 +66,7 @@ public sealed class TurnTests
         var turn = Given.Turn(Given.Started("build"));
 
         Assert.Equal(TurnError.ItemAlreadyStarted, Outcomes.FailsWith(turn.Apply(Given.Started("build"), Given.Now)));
+        Assert.Equal(TurnError.ItemAlreadyStarted, Outcomes.FailsWith(turn.Apply(Given.Drafted("build", 10), Given.Now)));
     }
 
     [Fact]
@@ -63,6 +77,7 @@ public sealed class TurnTests
         Assert.Equal(TurnError.ItemAlreadyCompleted, Outcomes.FailsWith(turn.Apply(Given.Progressed("build"), Given.Now)));
         Assert.Equal(TurnError.ItemAlreadyCompleted, Outcomes.FailsWith(turn.Apply(Given.Completed("build"), Given.Now)));
         Assert.Equal(TurnError.ItemAlreadyStarted, Outcomes.FailsWith(turn.Apply(Given.Started("build"), Given.Now)));
+        Assert.Equal(TurnError.ItemAlreadyStarted, Outcomes.FailsWith(turn.Apply(Given.Drafted("build", 10), Given.Now)));
     }
 
     [Fact]
@@ -245,6 +260,7 @@ public sealed class TurnTests
         var turn = Given.Turn(Given.Ended());
 
         Assert.Equal(TurnError.TurnEnded, Outcomes.FailsWith(turn.Apply(Given.Started("build"), Given.Now)));
+        Assert.Equal(TurnError.TurnEnded, Outcomes.FailsWith(turn.Apply(Given.Drafted("build", 10), Given.Now)));
         Assert.Equal(TurnError.TurnEnded, Outcomes.FailsWith(turn.Apply(Given.Ended(), Given.Now)));
     }
 

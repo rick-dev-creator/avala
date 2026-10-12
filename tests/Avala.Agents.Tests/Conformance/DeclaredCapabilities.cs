@@ -18,6 +18,8 @@ internal static class DeclaredCapabilities
                 .Select(item => $"the reasoning {item.Value} was exposed although the provider does not declare ExposesReasoning"),
             .. Undeclared<StreamsPartialOutput>(declared, Started(events, ItemKind.Message).Where(item => events.OfType<ItemProgressed>().Count(progressed => progressed.Item == item) > 1))
                 .Select(item => $"the message {item.Value} streamed in parts although the provider does not declare StreamsPartialOutput"),
+            .. Undeclared<StreamsPartialOutput>(declared, events.OfType<ItemDrafted>().Select(drafted => drafted.Item))
+                .Select(item => $"the item {item.Value} was drafted although the provider does not declare StreamsPartialOutput"),
         ];
 
         return [.. breaches.Distinct(StringComparer.Ordinal)];

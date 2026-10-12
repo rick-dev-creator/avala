@@ -29,6 +29,8 @@ internal sealed record ReasoningEntry(string Key, string Text, DateTimeOffset St
 
 internal sealed record ToolEntry(string Key, ItemKind Kind, string Title, string Output, Option<ItemOutcome> Outcome) : ITimelineEntry
 {
+    public Option<int> Drafted { get; init; }
+
     public Option<string> Input { get; init; }
 
     public Option<ToolCalled> Called { get; init; }

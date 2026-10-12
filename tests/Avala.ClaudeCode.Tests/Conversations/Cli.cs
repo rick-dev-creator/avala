@@ -88,7 +88,7 @@ internal static class Cli
                 ["event"] = new JsonObject
                 {
                     ["type"] = "content_block_delta",
-                    ["index"] = index,
+                    ["index"] = (long)index,
                     ["delta"] = new JsonObject { ["type"] = "input_json_delta", ["partial_json"] = partial },
                 },
                 ["parent_tool_use_id"] = null,

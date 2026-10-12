@@ -20,6 +20,7 @@ internal sealed class Adaptation(CapabilitySet declared)
 
     private IEnumerable<IAgentEvent> Report(IAgentEvent cue) => cue switch
     {
+        ItemDrafted when !declared.Has<StreamsPartialOutput>() => [],
         LimitReported when !declared.Has<ReportsLimits>() => [],
         UsageReported when !declared.Has<ReportsUsage>() => [],
         UsageReported usage when !declared.Has<ReportsCost>() => [usage with { Cost = Option<Cost>.None }],

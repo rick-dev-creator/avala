@@ -96,7 +96,8 @@ internal sealed record Transcript
     public Transcript Apply(IAgentEvent activity, DateTimeOffset now) => activity switch
     {
         TurnStarted started => this with { Turns = Turns.SetItem(started.Turn, new TurnTally(now, default, [])), LiveSince = now },
-        ItemStarted started => Add(Opened(started, now)).Refused(started.Turn, started.Item),
+        ItemDrafted drafted => Drafted(drafted),
+        ItemStarted started => Begun(Opened(started, now)).Refused(started.Turn, started.Item),
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
         ItemCompleted completed => Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
@@ -183,6 +184,18 @@ internal sealed record Transcript
             Handoff = Handoffs.TryGetValue(attempt.Number, out var handoff) ? handoff : Option<HandoffRecord>.None,
         };
 
+    private Transcript Drafted(ItemDrafted drafted)
+    {
+        var key = EntryKeys.Item(drafted.Turn, drafted.Item);
+
+        return Find(key).Match(entry => entry is ToolEntry { Drafted.IsSome: true }, () => true)
+            ? Put(new ToolEntry(key, drafted.Kind, drafted.Title, string.Empty, Option<ItemOutcome>.None) { Drafted = drafted.Received })
+            : this;
+    }
+
+    private Transcript Begun(ITimelineEntry opened) =>
+        Find(opened.Key).Match(entry => entry is ToolEntry { Drafted.IsSome: true }, () => false) ? Put(opened) : Add(opened);
+
     private static ITimelineEntry Opened(ItemStarted started, DateTimeOffset now)
     {
         var key = EntryKeys.Item(started.Turn, started.Item);
@@ -219,6 +232,7 @@ internal sealed record Transcript
         {
             PermissionEntry permission when permission.Turn == completed.Turn => transcript.Put(permission with { Closed = true }),
             FormEntry form when form.Turn == completed.Turn => transcript.Put(form with { Closed = true }),
+            ToolEntry { Drafted.IsSome: true, Outcome.IsNone: true } drafted => transcript.Put(drafted with { Outcome = ItemOutcome.Abandoned }),
             _ => transcript,
         });
 

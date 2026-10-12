@@ -38,6 +38,7 @@ internal sealed class RecordingParser
             {
                 Input = Optional(recorded, "input"),
             },
+            ["itemDrafted"] = recorded => new ItemDrafted(default, default, Item(recorded), Enum<ItemKind>(recorded.GetProperty("kind")), Text(recorded.GetProperty("title")), recorded.GetProperty("received").GetInt32()),
             ["canvasStarted"] = recorded => new CanvasStarted(default, default, Item(recorded), Text(recorded.GetProperty("title")), Plain(recorded.GetProperty("mediaType"))),
             ["itemProgressed"] = recorded => new ItemProgressed(default, default, Item(recorded), Text(recorded.GetProperty("text"))),
             ["itemCompleted"] = recorded => new ItemCompleted(default, default, Item(recorded), Enum<ItemOutcome>(recorded.GetProperty("outcome"))),
