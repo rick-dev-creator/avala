@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:inspector="using:Avala.Workbench.Inspector"
              xmlns:ui="using:Avala.Components.UI"
              x:Class="Avala.Workbench.UI.WorktreeSectionView"
@@ -57,9 +58,9 @@
         <TextBlock Classes="caption secondary" Text="Base" />
         <TextBlock x:Name="Base" Grid.Column="1" Classes="value" Text="{Binding Base}" />
       </Grid>
-      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Path, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding !!Path.Value.Length}">
         <TextBlock Classes="caption secondary" Text="Path" />
-        <SelectableTextBlock x:Name="Path" Grid.Column="1" Classes="value" TextWrapping="Wrap" Text="{Binding Path}" />
+        <SelectableTextBlock x:Name="Path" Grid.Column="1" Classes="value" TextWrapping="Wrap" privacy:PersonalDetails.Text="{Binding Path}" />
       </Grid>
       <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Ports, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <TextBlock Classes="caption secondary" Text="Ports" />

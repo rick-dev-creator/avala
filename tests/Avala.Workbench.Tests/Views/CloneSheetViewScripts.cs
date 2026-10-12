@@ -22,7 +22,7 @@ public sealed class CloneSheetViewScripts(HeadlessUi ui)
 
             Assert.Equal(["oc•••••", "ad•••••"], view.All<TextBlock>().Where(text => text.Name == "SourceLogin").Select(text => text.Text));
             Assert.Equal(["shop", "design-system", "ledger"], view.All<TextBlock>().Where(text => text.Name == "RepositoryName").Select(text => text.Text));
-            Assert.Equal(("/home/ada/Projects", "Search or paste a URL", false), (view.TextOf("Destination"), view.Find<TextBox>("CloneSearch").PlaceholderText, view.Shows("CloneAddress")));
+            Assert.Equal(("~/Projects", "Search or paste a URL", false), (view.TextOf("Destination"), view.Find<TextBox>("CloneSearch").PlaceholderText, view.Shows("CloneAddress")));
         }, Cancellation);
 
     [Fact]

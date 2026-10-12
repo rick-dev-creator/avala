@@ -406,13 +406,14 @@ public sealed class AutonomySectionViewScripts(HeadlessUi ui)
 public sealed class WorktreeSectionViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task TheWorktreeSectionShowsBranchBasePathAndPortsAsync() =>
+    public Task TheWorktreeSectionShowsBranchBaseMaskedPathAndPortsAsync() =>
         ui.RunAsync(() =>
         {
             var view = Sections.Open(Screen.Show(new DesignWorktreeSectionViewModel()));
 
             Assert.Equal((string?)"rate-limit-post-login", Sections.Row(view).Fact);
             Assert.Equal(("avala/rate-limit-post-login", "main at 4f2c9e1", "Ports 41000–41009"), (view.TextOf("Branch"), view.TextOf("Base"), view.TextOf("Ports")));
+            Assert.Equal("~/.avala/worktrees/shop-api/rate-limit-post-login", view.TextOf("Path"));
             Assert.False(view.Shows("NoWorktree"));
             Assert.False(view.Shows("ScratchRepository"));
         }, TestContext.Current.CancellationToken);
@@ -469,7 +470,7 @@ public sealed class WorktreeSectionViewScripts(HeadlessUi ui)
 
         public string Base => "main at 4f2c9e1";
 
-        public string Path => "~/.avala/worktrees/dogfood/01a122dd1eef75e58739993947fac499";
+        public Components.Privacy.Personal Path => Components.Privacy.Personal.Path("~/.avala/worktrees/dogfood/01a122dd1eef75e58739993947fac499");
 
         public string Ports => string.Empty;
 

@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Sdk;
 using Avala.Workbench.Machine;
 using Avala.Workbench.Telemetry;
@@ -13,7 +14,7 @@ internal interface IAboutViewModel
 
     string Commit { get; }
 
-    string LogFolder { get; }
+    Personal LogFolder { get; }
 
     string Note { get; }
 
@@ -41,7 +42,7 @@ internal sealed partial class AboutViewModel(IUpdateViewModel update, ITelemetry
 
     public ITelemetryViewModel Telemetry => telemetry;
 
-    public string LogFolder => files.Logs;
+    public Personal LogFolder => Personal.Path(files.Logs);
 
     public void Refresh() => update.Refresh();
 

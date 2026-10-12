@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Components.Meters;
 using CommunityToolkit.Mvvm.Input;
 
@@ -111,7 +112,7 @@ internal sealed class DesignWorktreeSectionViewModel : IWorktreeSectionViewModel
 
     public string Base => "main at 4f2c9e1";
 
-    public string Path => "~/.avala/worktrees/shop-api/rate-limit-post-login";
+    public Personal Path => Personal.Path("/home/dana/.avala/worktrees/shop-api/rate-limit-post-login");
 
     public string Ports => "Ports 41000–41009";
 

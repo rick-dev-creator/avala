@@ -352,7 +352,7 @@ internal sealed class DesignAboutViewModel : IAboutViewModel
 
     public string Commit => "5c371e6a1b2d";
 
-    public string LogFolder => "/home/dana/.local/share/Avala/logs";
+    public Personal LogFolder => Personal.Path("/home/dana/.local/share/Avala/logs");
 
     public string Note { get; init; } = string.Empty;
 

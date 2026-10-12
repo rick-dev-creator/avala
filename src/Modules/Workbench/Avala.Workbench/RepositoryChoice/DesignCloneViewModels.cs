@@ -72,7 +72,7 @@ internal sealed partial class DesignCloneSheetViewModel : ICloneSheetViewModel
 
     public string Status { get; init; } = string.Empty;
 
-    public string Destination { get; init; } = "/home/ada/Projects";
+    public Personal Destination { get; init; } = Personal.Path("/home/ada/Projects");
 
     public string Error { get; init; } = string.Empty;
 

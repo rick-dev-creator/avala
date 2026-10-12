@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Collections.ObjectModel;
 using Avala.Forges.Contracts;
 using Avala.Sdk;
@@ -29,7 +30,7 @@ internal interface ICloneSheetViewModel
 
     string Status { get; }
 
-    string Destination { get; }
+    Personal Destination { get; }
 
     string Error { get; }
 
@@ -97,7 +98,10 @@ internal sealed partial class CloneSheetViewModel(CloneServices services, Connec
     public partial string Status { get; private set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string Destination { get; private set; } = string.Empty;
+    [NotifyPropertyChangedFor(nameof(Destination))]
+    public partial string DestinationFolder { get; private set; } = string.Empty;
+
+    public Personal Destination => Personal.Path(DestinationFolder);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFixable), nameof(IsFailure))]
@@ -125,7 +129,7 @@ internal sealed partial class CloneSheetViewModel(CloneServices services, Connec
         Search = string.Empty;
         Failed(string.Empty, string.Empty, _ => Task.CompletedTask);
         IsOpen = true;
-        Destination = (await services.Projects.ReadAsync(cancellationToken)).Folder;
+        DestinationFolder = (await services.Projects.ReadAsync(cancellationToken)).Folder;
         Loading = LoadSourcesAsync(Option<ForgeName>.None, cancellationToken);
         await Loading;
     }
@@ -135,7 +139,7 @@ internal sealed partial class CloneSheetViewModel(CloneServices services, Connec
 
     [RelayCommand]
     private async Task ChangeDestinationAsync(CancellationToken cancellationToken) =>
-        Destination = (await services.Projects.ChangeAsync(cancellationToken)).Match(found => found, () => Destination);
+        DestinationFolder = (await services.Projects.ChangeAsync(cancellationToken)).Match(found => found, () => DestinationFolder);
 
     [RelayCommand]
     private Task FixAsync(CancellationToken cancellationToken) => fix(cancellationToken);
@@ -230,8 +234,8 @@ internal sealed partial class CloneSheetViewModel(CloneServices services, Connec
             return;
         }
 
-        var parent = folder.Match(found => found, () => Destination);
-        Destination = parent;
+        var parent = folder.Match(found => found, () => DestinationFolder);
+        DestinationFolder = parent;
         IsCloning = true;
         Failed(string.Empty, string.Empty, _ => Task.CompletedTask);
         Status = ClonePhrases.Cloning(name);

@@ -21,7 +21,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
 
         Assert.Equal(
             ("avala/fix-the-test", "main at ba5eba5", $"/worktrees/{job.Job.Value}", "Ports 41000–41009"),
-            (section.Branch, section.Base, section.Path, section.Ports));
+            (section.Branch, section.Base, section.Path.Value, section.Ports));
         Assert.Equal((false, false), (section.IsScratch, section.OpenFolderCommand.CanExecute(null)));
     }
 
@@ -58,7 +58,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
 
         await section.FocusAsync(job.Job, bench);
 
-        Assert.Equal(("No worktree", string.Empty, string.Empty), (section.Branch, section.Path, section.Ports));
+        Assert.Equal(("No worktree", string.Empty, string.Empty), (section.Branch, section.Path.Value, section.Ports));
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class WorktreeSectionViewModelScripts : IDisposable
         await ViewModelScript.Given(section).WhenPresentedAsync(_ => bench.Post(() => section.OnRegionContextChanged(first.Job)), Cancellation);
         await bench.Ui.ReadAsync(() => true);
 
-        Assert.Equal($"/worktrees/{second.Job.Value}", await bench.Ui.ReadAsync(() => section.Path));
+        Assert.Equal($"/worktrees/{second.Job.Value}", await bench.Ui.ReadAsync(() => section.Path.Value));
         Assert.Equal(1L, await bench.Ui.ReadAsync(() => section.Revision));
     }
 

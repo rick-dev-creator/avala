@@ -39,7 +39,7 @@ public sealed class StaleWorktreeViewModelScripts
     [Fact]
     public void AStaleWorktreeSaysWhereItIsAndWhy() =>
         ViewModelScript.Given(new StaleWorktreeViewModel("/worktrees/old-checkout-spike", "not known to any job"))
-            .Then(stale => Assert.Equal(("/worktrees/old-checkout-spike", "not known to any job"), (stale.Path, stale.Reason)));
+            .Then(stale => Assert.Equal(("/worktrees/old-checkout-spike", "not known to any job"), (stale.Path.ToString(), stale.Reason)));
 }
 
 public sealed class AgentTreeViewModelScripts

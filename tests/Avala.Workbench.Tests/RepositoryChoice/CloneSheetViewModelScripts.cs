@@ -32,7 +32,7 @@ public sealed class CloneSheetViewModelScripts
         Assert.Equal(
             [("shop", "oc•••••", true, "2h"), ("design-system", "ac•••••", false, "3d"), ("ledger", "oc•••••", false, "Sep 2025")],
             sheet.Repositories.Select(row => (row.Name, row.Owner.ToString(), row.IsPrivate, row.Updated)));
-        Assert.Equal("/home/ada/Projects", sheet.Destination);
+        Assert.Equal("~/Projects", sheet.Destination.ToString());
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class CloneSheetViewModelScripts
 
         await sheet.ChangeDestinationCommand.ExecuteAsync(null);
 
-        Assert.Equal("/home/ada/code", sheet.Destination);
+        Assert.Equal("~/code", sheet.Destination.ToString());
         Assert.Equal(["/home/ada/code"], projects.Choices);
     }
 
