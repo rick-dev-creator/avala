@@ -67,4 +67,17 @@ public sealed class ProcessRunnerTests
 
         Assert.True(held.Client.Poll(0, SelectMode.SelectRead) && held.Available == 0, "The process still held its connection when cancelling returned");
     }
+
+    [Fact]
+    public async Task ARequestsEnvironmentReachesTheProcessAsync()
+    {
+        var request = new ProcessRequest("git", ["config", "--get", "avala.probe"])
+        {
+            Environment = new Dictionary<string, string>(StringComparer.Ordinal) { ["GIT_CONFIG_COUNT"] = "1", ["GIT_CONFIG_KEY_0"] = "avala.probe", ["GIT_CONFIG_VALUE_0"] = "reached" },
+        };
+
+        var outcome = Outcomes.Succeeds(await Runner.RunAsync(request, Cancellation));
+
+        Assert.Equal("reached", outcome.Output.Trim());
+    }
 }

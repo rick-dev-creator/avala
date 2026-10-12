@@ -59,6 +59,11 @@ internal sealed class ProcessRunner(IProcessTrees trees) : IProcessRunner
             info.ArgumentList.Add(argument);
         }
 
+        foreach (var (name, value) in request.Environment)
+        {
+            info.Environment[name] = value;
+        }
+
         return info;
     }
 }
