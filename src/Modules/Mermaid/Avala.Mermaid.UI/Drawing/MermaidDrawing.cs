@@ -1,10 +1,10 @@
 using Avala.Components.Canvases;
+using Avala.Components.UI;
 using Avala.Components.UI.Canvases;
 using Avala.Mermaid.Translating;
 using Avala.Sdk;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -23,6 +23,7 @@ internal sealed class MermaidDrawing : ContentControl
         this.source = source;
         this.drawings = drawings;
         HorizontalContentAlignment = HorizontalAlignment.Center;
+        CanvasPresenter.SetIsDrawing(this, true);
         ActualThemeVariantChanged += (_, _) => _ = DrawAsync();
     }
 
@@ -42,7 +43,14 @@ internal sealed class MermaidDrawing : ContentControl
         }
 
         shown = palette;
-        var drawn = await drawings.DrawAsync(source, palette);
+        var drawing = drawings.DrawAsync(source, palette);
+
+        if (!drawing.IsCompleted)
+        {
+            CanvasPresenter.SetIsDrawing(this, true);
+        }
+
+        var drawn = await drawing;
 
         if (palette == shown)
         {
@@ -53,7 +61,7 @@ internal sealed class MermaidDrawing : ContentControl
     private void Show(Result<string, MermaidFailure> drawn)
     {
         Content = drawn.Match<object>(svg => new CanvasRendering(CanvasMediaTypes.Svg, svg, true, 1), _ => CanvasSource.Show(Unrenderable, source));
-        RaiseEvent(new RoutedEventArgs(MermaidDrawn.Event));
+        CanvasPresenter.Drawn(this);
     }
 
     private string Color(string key) =>

@@ -2,7 +2,6 @@ using Avala.Canvas.Contracts;
 using Avala.Components.Canvases;
 using Avala.Components.UI.Canvases;
 using Avala.Mermaid.UI;
-using Avala.Mermaid.UI.Drawing;
 using Avala.Rendering.UI;
 using Avala.Sdk;
 using Avala.Sdk.UI;
@@ -68,11 +67,9 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
         {
             var view = await ShownAsync(Flow + "  Checking --> Switched\n", ThemeVariant.Dark);
 
-            var redrawn = DrawnAsync(view);
             view.Window.RequestedThemeVariant = ThemeVariant.Light;
             var meanwhile = Drawing(view);
-            await redrawn;
-            view.Settle();
+            await view.DrawnAsync();
 
             Assert.Contains("#EDEDEF", meanwhile, StringComparison.Ordinal);
             Assert.Contains("#1D1D1F", Drawing(view), StringComparison.Ordinal);
@@ -100,25 +97,7 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
             Assert.Null(Renderers().Build(new CanvasRendering(CanvasMediaTypes.Mermaid, "not a diagram at all", true, 1)));
         }, Cancellation);
 
-    private static async Task<ViewScript> ShownAsync(string source, ThemeVariant variant)
-    {
-        var view = Show(source, variant);
-
-        if (view.Find<ContentControl>("Mermaid").Content is null)
-        {
-            await DrawnAsync(view);
-        }
-
-        return view.Settle();
-    }
-
-    private static Task DrawnAsync(ViewScript view)
-    {
-        var drawn = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        view.Window.AddHandler(MermaidDrawn.Event, (_, _) => drawn.TrySetResult());
-
-        return drawn.Task;
-    }
+    private static Task<ViewScript> ShownAsync(string source, ThemeVariant variant) => Show(source, variant).DrawnAsync();
 
     private static ViewScript Show(string source, ThemeVariant variant)
     {

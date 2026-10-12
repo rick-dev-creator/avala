@@ -27,9 +27,6 @@
     <Style Selector="Button.step:disabled Path.icon">
       <Setter Property="Stroke" Value="{DynamicResource TextDisabledBrush}" />
     </Style>
-    <Style Selector="ui|CanvasPresenter#Drawing Image">
-      <Setter Property="StretchDirection" Value="DownOnly" />
-    </Style>
     <Style Selector="Arc.streaming">
       <Setter Property="Width" Value="10" />
       <Setter Property="Height" Value="10" />

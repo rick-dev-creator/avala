@@ -19,6 +19,9 @@ internal sealed class PreviewDesk(IPreviews previews, PreviewBook book, IGateway
 
     public bool IsRunning(JobId job) => previews.IsRunning(job);
 
+    public bool Serves(JobId job, Uri page) =>
+        PreviewOrigins.LoopbackPort(page).IsSome && ScopeOf(job).Admits(page, Option<string>.None);
+
     public ValueTask<Option<string>> ScriptAsync(JobId job, CancellationToken cancellationToken) => previews.ScriptAsync(job, cancellationToken);
 
     public ValueTask<Result<PreviewRun, PreviewError>> RunAsync(JobId job, CancellationToken cancellationToken) => previews.RunAsync(job, cancellationToken);

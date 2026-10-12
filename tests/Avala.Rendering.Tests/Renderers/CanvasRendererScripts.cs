@@ -106,9 +106,9 @@ public sealed class CanvasRendererScripts(HeadlessUi ui)
 
     [Fact]
     public Task AnSvgDrawingIsRenderedAsAnImageAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var view = Show("image/svg+xml", Drawing);
+            var view = await Show("image/svg+xml", Drawing).DrawnAsync();
 
             Assert.True(view.Shows("Svg"));
             Assert.False(view.Shows("Blocked"));
@@ -116,13 +116,13 @@ public sealed class CanvasRendererScripts(HeadlessUi ui)
 
     [Fact]
     public Task AnSvgDrawnAgainIsParsedOnlyOnceAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
             var renderers = Renderers();
             var rendering = new CanvasRendering("image/svg+xml", Drawing, true, 1);
 
-            var first = Assert.IsType<Image>(renderers.Build(rendering));
-            var again = Assert.IsType<Image>(renderers.Build(rendering));
+            var first = (await ViewScript.Show(renderers.Build(rendering)!, rendering).DrawnAsync()).Find<Image>("Svg");
+            var again = (await ViewScript.Show(renderers.Build(rendering)!, rendering).DrawnAsync()).Find<Image>("Svg");
 
             Assert.NotSame(first, again);
             Assert.Same(Assert.IsType<Avalonia.Svg.Skia.SvgImage>(first.Source).Source, Assert.IsType<Avalonia.Svg.Skia.SvgImage>(again.Source).Source);
@@ -130,9 +130,9 @@ public sealed class CanvasRendererScripts(HeadlessUi ui)
 
     [Fact]
     public Task AnSvgDrawingSaysWhatWasBlockedAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var view = Show("image/svg+xml", Drawing.Replace("</svg>", "<script>alert(1)</script><image href=\"https://example.com/t.png\"/></svg>", StringComparison.Ordinal));
+            var view = await Show("image/svg+xml", Drawing.Replace("</svg>", "<script>alert(1)</script><image href=\"https://example.com/t.png\"/></svg>", StringComparison.Ordinal)).DrawnAsync();
 
             Assert.True(view.Shows("Svg"));
             Assert.Equal("2 scripts or external references were blocked.", view.TextOf("Blocked"));

@@ -5,6 +5,7 @@ using Avala.Workbench.Linking;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Timeline;
 using Avala.Workspaces.Contracts;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests;
 
@@ -67,5 +68,5 @@ internal sealed class Worktree
         return new(entry, new FakeClipboard(), Viewing(worked).For(Job));
     }
 
-    public FileViewing Viewing(WorkedFiles worked) => new(worked, new Links(Opener), Pictures);
+    public FileViewing Viewing(WorkedFiles worked) => new(worked, new Links(Opener, new StrongReferenceMessenger()), Pictures);
 }

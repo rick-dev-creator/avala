@@ -15,6 +15,8 @@ using Avalonia.Styling;
 using Avalonia.VisualTree;
 using MarkView.Avalonia;
 using MarkView.Avalonia.Rendering;
+using Avala.Sdk.Presentation;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.Views;
 
@@ -164,6 +166,31 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Theory]
+    [InlineData("http://localhost:24000/scene.html", false)]
+    [InlineData("http://127.0.0.1:24000/", false)]
+    [InlineData("http://localhost:8080/", true)]
+    [InlineData("https://example.com/localhost:24000", true)]
+    public Task ALinkToAPageOnThisMachineThatAvalaShowsOpensThereInsteadOfTheBrowserAsync(string link, bool browser) =>
+        ui.RunAsync(async () =>
+        {
+            var opener = new FakeLinks();
+            var messenger = new StrongReferenceMessenger();
+            messenger.Register<LocalPageRequested>(this, (_, request) =>
+            {
+                if (request.Page.Port == 24000)
+                {
+                    request.Show();
+                }
+            });
+            var view = Screen.Show(Message($"It is [running]({link}).", done: true, opener, messenger));
+
+            Click(view, link);
+            await OpenedAsync(view);
+
+            Assert.Equal((browser, false), (opener.Opened.Count == 1, view.Shows("LinkNotice")));
+        }, Cancellation);
+
+    [Theory]
     [InlineData("file:///etc/passwd")]
     [InlineData("javascript:alert(1)")]
     [InlineData("docs/money.md")]
@@ -196,7 +223,7 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var clipboard = new FakeClipboard();
-            var message = new MessageViewModel(new MessageEntry("m", "JPY has no minor units.", ItemOutcome.Succeeded), new Links(new FakeLinks()), clipboard);
+            var message = new MessageViewModel(new MessageEntry("m", "JPY has no minor units.", ItemOutcome.Succeeded), new Links(new FakeLinks(), new StrongReferenceMessenger()), clipboard);
             var view = Screen.ShowStill(message, 300);
             var hidden = view.Find("Actions").Opacity;
 
@@ -272,8 +299,8 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             Assert.Equal("JPY has no minor units.\nUSD keeps two decimals.\nDone", await view.Window.Clipboard!.TryGetTextAsync());
         }, Cancellation);
 
-    private static MessageViewModel Message(string text, bool done, FakeLinks? opener = null) =>
-        new(new MessageEntry("m", text, done ? ItemOutcome.Succeeded : Option<ItemOutcome>.None), new Links(opener ?? new FakeLinks()), new FakeClipboard());
+    private static MessageViewModel Message(string text, bool done, FakeLinks? opener = null, IMessenger? messenger = null) =>
+        new(new MessageEntry("m", text, done ? ItemOutcome.Succeeded : Option<ItemOutcome>.None), new Links(opener ?? new FakeLinks(), messenger ?? new StrongReferenceMessenger()), new FakeClipboard());
 
     private static MarkdownViewer Viewer(ViewScript view, string name) =>
         view.Window.GetVisualDescendants().OfType<MarkdownViewer>().Single(viewer => viewer.Name == name);

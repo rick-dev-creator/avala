@@ -56,7 +56,7 @@ public sealed class FilePreviewViewScripts(HeadlessUi ui)
         }
 
         var worked = worktree.Worked();
-        var preview = new FilePreviewViewModel(worktree.Job, path, new FileViewing(worked, new Linking.Links(worktree.Opener), new PictureCache()));
+        var preview = new FilePreviewViewModel(worktree.Job, path, new FileViewing(worked, new Linking.Links(worktree.Opener, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new PictureCache()));
         await preview.LoadCommand.ExecuteAsync(null);
 
         return preview;

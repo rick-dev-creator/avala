@@ -78,6 +78,23 @@ public sealed class PreviewTests(PublishedPlugins plugins)
         Assert.True(surface.IsClosed);
     }
 
+    [Fact]
+    public async Task AServerTheWatchedJobStartsOpensThePreviewPaneByItselfAsync()
+    {
+        await using var run = await ServingAsync(test: 6);
+        var available = run.Watch<PreviewAvailable>();
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(run.Job);
+        var regions = workbench.Page["Regions"];
+        var pane = Assert.Single(regions["Preview"].Items);
+        var lease = await run.LeasedAsync();
+
+        _ = await PreviewedAsync(run, available);
+        await run.Ui.PresentedAsync(pane.Presentation, () => run.Surfaces.Opened.Any(surface => surface.Visited.Count > 0), () => pane["State"].Text);
+
+        Assert.Equal((true, true, $"localhost:{lease.First}"), await run.Ui.ReadAsync(() => (pane["IsOpen"].Value<bool>(), regions["IsPreviewOpen"].Value<bool>(), pane["Address"].Text)));
+    }
+
     private static async Task<PreviewTarget> PreviewedAsync(SimulatedRun run, EventWatch<PreviewAvailable> available)
     {
         await run.StartedAsync();

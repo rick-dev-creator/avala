@@ -39,6 +39,8 @@ internal static class MotionCatalog
 
     private static readonly Move DrawIn = new(Animated(0.6, Gentle, TimeSpan.FromSeconds(0.3), Frame(0, [Dash(12)]), Frame(1, [Dash(0)])), false) { Dashes = [12, 12] };
 
+    private static readonly Move PingOut = Enter(0.9, new CubicEaseOut(), Frame(0, [.. Scale(1), Opacity(0.8)]), Frame(1, [.. Scale(2.8), Opacity(0)]));
+
     public static Move StageIn { get; } = Enter(0.24, Settling, Frame(0, [Y(8), .. Scale(0.985), Opacity(0)]), Frame(1, [Y(0), .. Scale(1), Opacity(1)]));
 
     public static Move StageOut { get; } = Enter(0.24, Settling, Frame(0, [.. Scale(1), Opacity(1)]), Frame(1, [.. Scale(0.995), Opacity(0)]));
@@ -74,6 +76,7 @@ internal static class MotionCatalog
         [MotionEntrance.Scale] = ArriveScale,
         [MotionEntrance.Draw] = DrawIn,
         [MotionEntrance.Linger] = LingerIn,
+        [MotionEntrance.Ping] = PingOut,
     };
 
     public static IReadOnlyDictionary<MotionLoop, Move> Loops { get; } = new Dictionary<MotionLoop, Move>

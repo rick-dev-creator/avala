@@ -9,7 +9,7 @@ internal sealed class FakeLinks : ILinkOpener
 
     public FileOpenError? Refusal { get; init; }
 
-    public static Links Opening => new(new FakeLinks());
+    public static Links Opening => new(new FakeLinks(), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
 
     public ValueTask<Result<Uri, FileOpenError>> OpenAsync(Uri link, CancellationToken cancellationToken)
     {

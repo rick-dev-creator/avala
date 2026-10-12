@@ -25,6 +25,19 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
     private const string StillBar =
         "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" width=\"100\" height=\"100\"><rect width=\"100\" height=\"100\" fill=\"#ff0000\"/></svg>";
 
+    private const string Corners =
+        "<rect width=\"1000\" height=\"800\" fill=\"#000010\"/>"
+        + "<rect x=\"0\" y=\"0\" width=\"20\" height=\"20\" fill=\"#ff0000\"/><rect x=\"980\" y=\"0\" width=\"20\" height=\"20\" fill=\"#ff0000\"/>"
+        + "<rect x=\"0\" y=\"780\" width=\"20\" height=\"20\" fill=\"#ff0000\"/><rect x=\"980\" y=\"780\" width=\"20\" height=\"20\" fill=\"#ff0000\"/>";
+
+    private const string AnimatedOrbit =
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 800\" width=\"400\" height=\"320\">" + Corners
+        + "<circle cx=\"500\" cy=\"400\" r=\"40\" fill=\"#ffb020\"><animate attributeName=\"r\" values=\"40;60;40\" dur=\"2s\" repeatCount=\"indefinite\"/></circle></svg>";
+
+    private const string StillOrbit =
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 800\" width=\"400\" height=\"320\">" + Corners
+        + "<circle cx=\"500\" cy=\"400\" r=\"40\" fill=\"#ffb020\"/></svg>";
+
     private readonly FakeTimeProvider clock = new();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -33,18 +46,53 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
     [InlineData(GrowingBar, true)]
     [InlineData(StillBar, false)]
     public Task AnAnimatedSvgIsDrawnByTheAnimatingControlAndAStillOneAsAPlainImageAsync(string svg, bool animated) =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var view = Show(svg);
+            var view = await ShowAsync(svg);
 
             Assert.Equal((animated, !animated), (view.Shows("SvgDrawing"), view.Find("Svg") is Image));
         }, Cancellation);
 
     [Fact]
-    public Task AnAnimationHeldStillDrawsTheFrameOfTheTimeItIsSetToAsync() =>
-        ui.RunAsync(() =>
+    public Task AnAnimatedSvgWhoseViewBoxIsLargerThanItsSizeFillsTheCanvasWidthAndDrawsTheWholeViewBoxAsync() =>
+        ui.RunAsync(async () =>
         {
-            var drawing = Show(GrowingBar).Find<SvgDrawing>("SvgDrawing");
+            var view = await ShowAsync(AnimatedOrbit, width: 560);
+            var drawing = view.Find<SvgDrawing>("SvgDrawing");
+
+            Assert.Equal(new Size(560, 448), Rounded(view.Find("SvgFit").Bounds.Size));
+            Assert.Equal(new Size(1000, 800), drawing.Bounds.Size);
+            Assert.Equal([true, true, true, true], new[] { (10, 10), (990, 10), (10, 790), (990, 790) }.Select(corner => Red(drawing, corner.Item1, corner.Item2)));
+        }, Cancellation);
+
+    [Theory]
+    [InlineData(300)]
+    [InlineData(560)]
+    public Task AnAnimatedAndAStillSvgOfTheSameViewBoxTakeTheSameSizeScaledDownOrUpAsync(double width) =>
+        ui.RunAsync(async () =>
+        {
+            var animated = Rounded((await ShowAsync(AnimatedOrbit, width)).Find("SvgFit").Bounds.Size);
+            var still = Rounded((await ShowAsync(StillOrbit, width)).Find("SvgFit").Bounds.Size);
+
+            Assert.Equal((new Size(width, width * 0.8), animated), (still, still));
+        }, Cancellation);
+
+    [Fact]
+    public Task AnAnimatedSvgShownAgainReusesTheDrawingParsedTheFirstTimeAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var renderers = Renderers();
+            var first = await ViewScript.Show(renderers.Build(Rendering(GrowingBar))!, Rendering(GrowingBar)).DrawnAsync();
+            var again = await ViewScript.Show(renderers.Build(Rendering(GrowingBar))!, Rendering(GrowingBar)).DrawnAsync();
+
+            Assert.Same(first.Find<SvgDrawing>("SvgDrawing").SvgSource, again.Find<SvgDrawing>("SvgDrawing").SvgSource);
+        }, Cancellation);
+
+    [Fact]
+    public Task AnAnimationHeldStillDrawsTheFrameOfTheTimeItIsSetToAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var drawing = (await ShowAsync(GrowingBar)).Find<SvgDrawing>("SvgDrawing");
             drawing.AnimationBackend = SvgAnimationHostBackend.Manual;
 
             drawing.SkSvg!.SetAnimationTime(TimeSpan.Zero);
@@ -57,9 +105,9 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
 
     [Fact]
     public Task AFinishedAnimationHoldsItsLastFrameAndStopsPlayingAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var view = Show(GrowingBar);
+            var view = await ShowAsync(GrowingBar);
             var drawing = view.Find<SvgDrawing>("SvgDrawing");
             var playing = (Playing(view), drawing.AnimationBackend);
 
@@ -72,9 +120,9 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
 
     [Fact]
     public Task WithReducedMotionTheDrawingShowsItsEndStateWithoutPlayingAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var view = Show(GrowingBar);
+            var view = await ShowAsync(GrowingBar);
             Motion.SetIsReduced(view.Window, true);
             var drawing = view.Settle().Find<SvgDrawing>("SvgDrawing");
 
@@ -83,9 +131,9 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
 
     [Fact]
     public Task WithReducedMotionThePlayButtonOnHoverPlaysTheAnimationOnceAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var view = Show(GrowingBar);
+            var view = await ShowAsync(GrowingBar);
             Motion.SetIsReduced(view.Window, true);
             var drawing = view.Settle().Find<SvgDrawing>("SvgDrawing");
             var hidden = view.Shows("PlayAnimation");
@@ -104,9 +152,9 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
 
     [Fact]
     public Task TheFrameLoopRunsOnlyWhileTheDrawingIsOnScreenAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var (view, scroller, drawing) = Scrolled();
+            var (view, scroller, drawing) = await ScrolledAsync();
             var shown = Playing(view);
 
             view.Window.WindowState = WindowState.Minimized;
@@ -124,9 +172,9 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
 
     [Fact]
     public Task AWheelOverAnAnimatedDrawingScrollsWhatHoldsItAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var (view, scroller, drawing) = Scrolled();
+            var (view, scroller, drawing) = await ScrolledAsync();
 
             view.Window.MouseWheel(Center(drawing, view.Window), new Vector(0, -3));
             view.Settle();
@@ -134,7 +182,7 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
             Assert.True(scroller.Offset.Y > 0);
         }, Cancellation);
 
-    private (ViewScript View, ScrollViewer Scroller, Control Drawing) Scrolled()
+    private async Task<(ViewScript View, ScrollViewer Scroller, Control Drawing)> ScrolledAsync()
     {
         var drawing = Renderers().Build(Rendering(GrowingBar))!;
         var scroller = new ScrollViewer
@@ -143,15 +191,36 @@ public sealed class AnimatedSvgScripts(HeadlessUi ui)
         };
         CanvasPresenter.SetClock(scroller, clock);
 
-        return (ViewScript.Show(scroller, Rendering(GrowingBar)), scroller, drawing);
+        return (await ViewScript.Show(scroller, Rendering(GrowingBar)).DrawnAsync(), scroller, drawing);
     }
 
-    private ViewScript Show(string svg)
+    private Task<ViewScript> ShowAsync(string svg)
     {
         var drawing = Renderers().Build(Rendering(svg))!;
         CanvasPresenter.SetClock(drawing, clock);
 
-        return ViewScript.Show(drawing, Rendering(svg));
+        return ViewScript.Show(drawing, Rendering(svg)).DrawnAsync();
+    }
+
+    private Task<ViewScript> ShowAsync(string svg, double width)
+    {
+        var drawing = Renderers().Build(Rendering(svg))!;
+        var canvas = new Border { Width = width, MaxHeight = 480, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top, Child = drawing };
+        CanvasPresenter.SetClock(canvas, clock);
+
+        return ViewScript.Show(canvas, Rendering(svg)).DrawnAsync();
+    }
+
+    private static Size Rounded(Size size) => new(Math.Round(size.Width), Math.Round(size.Height));
+
+    private static bool Red(SvgDrawing drawing, int x, int y)
+    {
+        using var bitmap = new SKBitmap(1000, 800);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.Transparent);
+        canvas.DrawPicture(drawing.Picture);
+
+        return bitmap.GetPixel(x, y) == SKColors.Red;
     }
 
     private static bool Playing(ViewScript view) => view.Find("Svg").Classes.Contains(":playing");
