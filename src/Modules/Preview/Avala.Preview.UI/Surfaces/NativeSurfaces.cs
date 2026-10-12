@@ -28,21 +28,21 @@ internal sealed class NativeSurfaces : IWebSurfaces
     [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "setenv", CharSet = System.Runtime.InteropServices.CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
     private static extern int SetNative(string name, string value, int overwrite);
 
-    private static SurfaceEmbedding Detect()
-    {
-        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime)
-        {
-            return SurfaceEmbedding.None;
-        }
+    private static SurfaceEmbedding Detect() =>
+        Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime ? Best(Installed()) : SurfaceEmbedding.None;
 
-        var installed = Candidates().SelectMany(type => Describe(type).Match<DetailedWebViewAdapterInfo[]>(info => [info], () => [])).Where(info => info.IsSupported && info.IsInstalled).ToList();
+    private static List<WebViewEmbeddingScenario> Installed() =>
+        [.. Candidates().SelectMany(type => Describe(type).Match<DetailedWebViewAdapterInfo[]>(info => [info], () => [])).Where(Usable).Select(info => info.SupportedScenarios)];
 
-        return installed.Any(info => info.SupportedScenarios.HasFlag(WebViewEmbeddingScenario.NativeControlHost) || info.SupportedScenarios.HasFlag(WebViewEmbeddingScenario.OffscreenRenderer))
-            ? SurfaceEmbedding.Embedded
-            : installed.Any(info => info.SupportedScenarios.HasFlag(WebViewEmbeddingScenario.NativeDialog))
-                ? SurfaceEmbedding.Window
-                : SurfaceEmbedding.None;
-    }
+    private static bool Usable(DetailedWebViewAdapterInfo info) => info.IsSupported && info.IsInstalled;
+
+    private static SurfaceEmbedding Best(List<WebViewEmbeddingScenario> installed) =>
+        installed.Exists(Embeds) ? SurfaceEmbedding.Embedded
+        : installed.Exists(scenarios => scenarios.HasFlag(WebViewEmbeddingScenario.NativeDialog)) ? SurfaceEmbedding.Window
+        : SurfaceEmbedding.None;
+
+    private static bool Embeds(WebViewEmbeddingScenario scenarios) =>
+        scenarios.HasFlag(WebViewEmbeddingScenario.NativeControlHost) || scenarios.HasFlag(WebViewEmbeddingScenario.OffscreenRenderer);
 
     private static WebViewAdapterType[] Candidates() =>
         OperatingSystem.IsWindows() ? [WebViewAdapterType.WebView2]
