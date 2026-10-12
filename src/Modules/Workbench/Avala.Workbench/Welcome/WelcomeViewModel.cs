@@ -70,6 +70,8 @@ internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl s
 
     public IHarnessChoiceViewModel Harness => harness.Chip;
 
+    public WelcomeHarness Driver => harness;
+
     [ObservableProperty]
     public partial bool IsCompact { get; private set; }
 
