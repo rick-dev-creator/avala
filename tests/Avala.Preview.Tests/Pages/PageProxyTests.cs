@@ -60,6 +60,32 @@ public sealed class PageProxyTests
         await echoing;
     }
 
+    [Fact]
+    public async Task ARedirectToTheServerItselfStaysOnTheProxyAsync()
+    {
+        var upstreamPort = Workloads.FreePort();
+        using var upstream = new HttpListener();
+        upstream.Prefixes.Add($"http://localhost:{upstreamPort}/");
+        upstream.Start();
+        var redirecting = RedirectAsync(upstream, $"http://localhost:{upstreamPort}/signed-in?next=orders");
+        await using var proxy = Outcomes.Present(Workloads.OnFreePort(port => PageProxy.Start(port, upstreamPort)));
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync(new Uri($"http://127.0.0.1:{proxy.Port}/sign-in"), Cancellation);
+        await redirecting;
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal(new Uri($"http://127.0.0.1:{proxy.Port}/signed-in?next=orders"), response.Headers.Location);
+    }
+
+    private static async Task RedirectAsync(HttpListener listener, string location)
+    {
+        var context = await listener.GetContextAsync();
+        context.Response.StatusCode = (int)HttpStatusCode.Redirect;
+        context.Response.RedirectLocation = location;
+        context.Response.Close();
+    }
+
     private static async Task EchoAsync(HttpListener listener)
     {
         var context = await listener.GetContextAsync();
