@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Avala.Preview.Contracts;
 using Avala.Sdk;
 using Avalonia.Controls;
@@ -7,6 +8,8 @@ namespace Avala.Preview.UI.Surfaces;
 
 internal sealed class NativeSurface(SurfaceRules rules, SurfaceEmbedding embedding) : IWebSurface, IDisposable
 {
+    private static readonly FrozenSet<string> InlineSchemes = new[] { "about", "data", "blob" }.ToFrozenSet(StringComparer.Ordinal);
+
     private NativeWebView? view;
     private NativeWebDialog? dialog;
     private bool closed;
@@ -21,19 +24,12 @@ internal sealed class NativeSurface(SurfaceRules rules, SurfaceEmbedding embeddi
 
     public bool CanGoBack => view?.CanGoBack ?? dialog?.CanGoBack ?? false;
 
+    private bool OpensInWindow => Embedding == SurfaceEmbedding.Window && !closed;
+
     public void Navigate(Uri address)
     {
         Address = address;
-
-        if (view is not null)
-        {
-            view.Navigate(address);
-        }
-        else if (Embedding == SurfaceEmbedding.Window && !closed)
-        {
-            Dialog().Navigate(address);
-        }
-
+        Show(address);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -54,13 +50,56 @@ internal sealed class NativeSurface(SurfaceRules rules, SurfaceEmbedding embeddi
     public void Close()
     {
         closed = true;
+        ReleaseView();
+        ReleaseDialog();
+    }
 
+    public void Attach(NativeWebView host)
+    {
+        if (closed)
+        {
+            return;
+        }
+
+        Watch(host);
+        _ = Address.Map(address => host.Source = address);
+    }
+
+    private static bool IsInline(Uri address) => address.IsAbsoluteUri && InlineSchemes.Contains(address.Scheme);
+
+    private void Show(Uri address)
+    {
+        if (view is not null)
+        {
+            view.Navigate(address);
+        }
+        else if (OpensInWindow)
+        {
+            Dialog().Navigate(address);
+        }
+    }
+
+    private void Watch(NativeWebView host)
+    {
+        ReleaseView();
+        view = host;
+        host.EnvironmentRequested += OnEnvironmentRequested;
+        host.NavigationStarted += OnNavigationStarted;
+        host.NewWindowRequested += OnNewWindowRequested;
+        host.NavigationCompleted += OnNavigationCompleted;
+    }
+
+    private void ReleaseView()
+    {
         if (view is not null)
         {
             Unwatch(view);
             view = null;
         }
+    }
 
+    private void ReleaseDialog()
+    {
         if (dialog is not null)
         {
             dialog.NavigationStarted -= OnNavigationStarted;
@@ -72,35 +111,6 @@ internal sealed class NativeSurface(SurfaceRules rules, SurfaceEmbedding embeddi
             dialog = null;
         }
     }
-
-    public void Attach(NativeWebView host)
-    {
-        if (closed)
-        {
-            return;
-        }
-
-        if (view is not null)
-        {
-            Unwatch(view);
-        }
-
-        view = host;
-        host.EnvironmentRequested += OnEnvironmentRequested;
-        host.NavigationStarted += OnNavigationStarted;
-        host.NewWindowRequested += OnNewWindowRequested;
-        host.NavigationCompleted += OnNavigationCompleted;
-        _ = Address.Match(
-            address =>
-            {
-                host.Source = address;
-
-                return true;
-            },
-            () => false);
-    }
-
-    private static bool IsInline(Uri address) => address.IsAbsoluteUri && address.Scheme is "about" or "data" or "blob";
 
     private NativeWebDialog Dialog()
     {
@@ -147,12 +157,16 @@ internal sealed class NativeSurface(SurfaceRules rules, SurfaceEmbedding embeddi
 
     private void OnNavigationStarted(object? sender, WebViewNavigationStartingEventArgs e)
     {
-        if (e.Request is { } address && !IsInline(address) && !rules.Admits(address))
+        if (e.Request is { } address && Refuses(address))
         {
             e.Cancel = true;
-            Refused?.Invoke(this, address);
+            Refuse(address);
         }
     }
+
+    private bool Refuses(Uri address) => !IsInline(address) && !rules.Admits(address);
+
+    private void Refuse(Uri address) => Refused?.Invoke(this, address);
 
     private void OnNewWindowRequested(object? sender, WebViewNewWindowRequestedEventArgs e)
     {
@@ -160,14 +174,19 @@ internal sealed class NativeSurface(SurfaceRules rules, SurfaceEmbedding embeddi
 
         if (e.Request is { } address)
         {
-            if (rules.Admits(address))
-            {
-                Navigate(address);
-            }
-            else
-            {
-                Refused?.Invoke(this, address);
-            }
+            Follow(address);
+        }
+    }
+
+    private void Follow(Uri address)
+    {
+        if (rules.Admits(address))
+        {
+            Navigate(address);
+        }
+        else
+        {
+            Refuse(address);
         }
     }
 
