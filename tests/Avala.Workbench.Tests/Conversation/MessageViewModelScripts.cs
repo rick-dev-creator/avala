@@ -10,7 +10,7 @@ public sealed class MessageViewModelScripts
 {
     [Fact]
     public void AMessageStreamsUntilItsOutcomeArrives() =>
-        ViewModelScript.Given(new MessageViewModel(new MessageEntry("m", "Totals now round", Option<ItemOutcome>.None), FakeLinks.Opening))
+        ViewModelScript.Given(new MessageViewModel(new MessageEntry("m", "Totals now round", Option<ItemOutcome>.None), FakeLinks.Opening, new FakeClipboard()))
             .Then(message => Assert.Equal(("Totals now round", true), (message.Text, message.IsStreaming)))
             .When(message => message.Update(new MessageEntry("m", "Totals now round to whole yen.", ItemOutcome.Succeeded)))
             .ThenNotified(nameof(MessageViewModel.Text), nameof(MessageViewModel.IsStreaming))
@@ -26,7 +26,7 @@ public sealed class MessageViewModelScripts
     public async Task OnlyWebLinksReachTheOpener(string link, bool opened)
     {
         var opener = new FakeLinks();
-        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(opener));
+        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(opener), new FakeClipboard());
 
         await message.OpenLinkCommand.ExecuteAsync(link);
 
@@ -39,7 +39,7 @@ public sealed class MessageViewModelScripts
     [InlineData(FileOpenError.Refused, "The platform refused to open https://go.dev.")]
     public async Task ALinkThePlatformCannotOpenSaysSo(FileOpenError refusal, string notice)
     {
-        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(new FakeLinks { Refusal = refusal }));
+        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(new FakeLinks { Refusal = refusal }), new FakeClipboard());
 
         await message.OpenLinkCommand.ExecuteAsync("https://go.dev");
 
@@ -47,8 +47,30 @@ public sealed class MessageViewModelScripts
     }
 
     [Fact]
+    public async Task CopyPutsTheWholeReplyOnTheClipboardAndConfirmsIt()
+    {
+        var clipboard = new FakeClipboard();
+        var message = new MessageViewModel(new MessageEntry("m", "Totals now **round** to whole yen.", ItemOutcome.Succeeded), FakeLinks.Opening, clipboard);
+
+        await message.CopyCommand.ExecuteAsync(null);
+
+        Assert.Equal(["Totals now **round** to whole yen."], clipboard.Copied);
+        Assert.True(message.IsCopied);
+    }
+
+    [Fact]
+    public async Task ACopyThePlatformRefusesConfirmsNothing()
+    {
+        var message = new MessageViewModel(new MessageEntry("m", "Totals now round", ItemOutcome.Succeeded), FakeLinks.Opening, new FakeClipboard { Refuses = true });
+
+        await message.CopyCommand.ExecuteAsync(null);
+
+        Assert.False(message.IsCopied);
+    }
+
+    [Fact]
     public void AnEntryOfAnotherKindChangesNothing() =>
-        ViewModelScript.Given(new MessageViewModel(new MessageEntry("m", "Hello", Option<ItemOutcome>.None), FakeLinks.Opening))
+        ViewModelScript.Given(new MessageViewModel(new MessageEntry("m", "Hello", Option<ItemOutcome>.None), FakeLinks.Opening, new FakeClipboard()))
             .When(message => message.Update(new RestartEntry("m", Kept: true)))
             .Then(message => Assert.Equal(("Hello", true, true), (message.Text, message.IsStreaming, message.IsShown)));
 }

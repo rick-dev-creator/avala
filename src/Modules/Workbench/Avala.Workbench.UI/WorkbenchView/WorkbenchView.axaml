@@ -11,6 +11,10 @@
     <Style Selector="Button.glyph Path.icon">
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>
+    <Style Selector="Button.glyph Path.icon.solid">
+      <Setter Property="Stroke" Value="{x:Null}" />
+      <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
     <Style Selector="TextBlock#JobTitle">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
       <Setter Property="LineHeight" Value="20" />
@@ -24,7 +28,7 @@
               BorderBrush="{DynamicResource EdgeBrush}"
               BorderThickness="0,0,0,1"
               IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}">
-        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
           <StackPanel VerticalAlignment="Center">
             <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" />
             <TextBlock x:Name="Place" Classes="caption" Text="{Binding Conversation.Place}" TextTrimming="CharacterEllipsis" />
@@ -44,11 +48,26 @@
                   IsVisible="{Binding $self.IsEffectivelyEnabled}"
                   ToolTip.Tip="Open the review (Ctrl+R)"
                   HotKey="Ctrl+R" />
-          <Button x:Name="ToggleInspector"
+          <Button x:Name="More"
                   Grid.Column="3"
                   Classes="glyph"
-                  Classes.selected="{Binding IsInspectorOpen}"
                   Margin="12,0,0,0"
+                  ToolTip.Tip="More"
+                  AutomationProperties.Name="More actions for this job">
+            <Path Classes="icon solid" Width="15" Height="15" Data="{StaticResource IconMore}" />
+            <Button.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedRight">
+                <MenuItem x:Name="StopSession"
+                          Header="Stop Session"
+                          Command="{Binding Conversation.Composer.StopCommand}" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+          <Button x:Name="ToggleInspector"
+                  Grid.Column="4"
+                  Margin="4,0,0,0"
+                  Classes="glyph"
+                  Classes.selected="{Binding IsInspectorOpen}"
                   Command="{Binding ToggleInspectorCommand}"
                   HotKey="Ctrl+I"
                   ToolTip.Tip="Inspector (Ctrl+I)"

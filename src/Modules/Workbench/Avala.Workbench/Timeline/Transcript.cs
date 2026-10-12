@@ -55,6 +55,8 @@ internal sealed record Transcript
 
     public Option<ModelReported> Ran { get; private init; }
 
+    public Option<DateTimeOffset> LiveSince { get; private init; }
+
     public Option<PlanEntry> Plan => Entries.OfType<PlanEntry>().LastOrDefault().ToOption();
 
     public Option<ITimelineEntry> Find(string key) =>
@@ -80,7 +82,7 @@ internal sealed record Transcript
     public Transcript WithEarlierRestart(int number) => Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true));
 
     public Transcript Stopped(DateTimeOffset at) =>
-        Entries.Aggregate(this, (transcript, entry) => entry switch
+        Entries.Aggregate(this with { LiveSince = Option<DateTimeOffset>.None }, (transcript, entry) => entry switch
         {
             PermissionEntry { Closed: false } permission => transcript.Put(permission with { Closed = true }),
             FormEntry { Closed: false } form => transcript.Put(form with { Closed = true }),
@@ -93,7 +95,7 @@ internal sealed record Transcript
 
     public Transcript Apply(IAgentEvent activity, DateTimeOffset now) => activity switch
     {
-        TurnStarted started => this with { Turns = Turns.SetItem(started.Turn, new TurnTally(now, default, [])) },
+        TurnStarted started => this with { Turns = Turns.SetItem(started.Turn, new TurnTally(now, default, [])), LiveSince = now },
         ItemStarted started => Add(Opened(started, now)).Refused(started.Turn, started.Item),
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
@@ -220,7 +222,7 @@ internal sealed record Transcript
             _ => transcript,
         });
 
-        return closed.Add(new TurnEndEntry(EntryKeys.TurnEnd(completed.Turn), completed.Outcome, now - tally.Started, tally.Tokens, tally.Costs));
+        return (closed with { LiveSince = Option<DateTimeOffset>.None }).Add(new TurnEndEntry(EntryKeys.TurnEnd(completed.Turn), completed.Outcome, now - tally.Started, tally.Tokens, tally.Costs));
     }
 
     private Transcript Tally(TurnId turn, Func<TurnTally, TurnTally> change) =>

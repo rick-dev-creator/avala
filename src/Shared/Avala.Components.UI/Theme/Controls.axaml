@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:copying="using:Avala.Components.UI.Copying">
   <Style Selector=":is(Control)">
     <Setter Property="FocusAdorner">
       <FocusAdornerTemplate>
@@ -356,5 +357,74 @@
     <Setter Property="Background" Value="{DynamicResource FillCodeBrush}" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
     <Setter Property="Padding" Value="5,1" />
+  </Style>
+
+  <Style Selector="Button.mini">
+    <Setter Property="Padding" Value="5" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+  </Style>
+  <Style Selector="Button.mini Path.icon">
+    <Setter Property="Width" Value="13" />
+    <Setter Property="Height" Value="13" />
+    <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+  </Style>
+  <Style Selector="Button.copy Path#Copied">
+    <Setter Property="Opacity" Value="0" />
+  </Style>
+  <Style Selector="Button.copy:copied Path#Copy">
+    <Setter Property="Opacity" Value="0" />
+  </Style>
+  <Style Selector="Button.copy:copied Path#Copied">
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+
+  <Style Selector="StackPanel.hover-actions">
+    <Setter Property="Orientation" Value="Horizontal" />
+    <Setter Property="Spacing" Value="2" />
+    <Setter Property="Opacity" Value="0" />
+  </Style>
+  <Style Selector=":is(Control).hover-host:pointerover StackPanel.hover-actions, :is(Control).hover-host:focus-within StackPanel.hover-actions, StackPanel.hover-actions:pointerover">
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+
+  <Style Selector="ContextMenu, MenuFlyoutPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPopover}" />
+    <Setter Property="Padding" Value="5" />
+    <Setter Property="MinWidth" Value="0" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
+    <Setter Property="Padding" Value="9,3" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="MinWidth" Value="168" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:pointerover /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:pointerover /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:pointerover /template/ TextBlock#PART_InputGestureText">
+    <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource TextDisabledBrush}" />
+  </Style>
+  <Style Selector="ContextMenu MenuItem /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem /template/ TextBlock#PART_InputGestureText">
+    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+  </Style>
+  <Style Selector="ContextMenu Separator, MenuFlyoutPresenter Separator">
+    <Setter Property="Margin" Value="9,4" />
+    <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+  </Style>
+
+  <Style Selector="SelectableTextBlock">
+    <Setter Property="copying:SelectionMenu.Offers" Value="True" />
   </Style>
 </Styles>

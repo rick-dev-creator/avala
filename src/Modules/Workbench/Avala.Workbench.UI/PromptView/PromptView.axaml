@@ -2,12 +2,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:markdown="using:Avala.Components.UI.Markdown"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              x:Class="Avala.Workbench.UI.PromptView"
              x:ClassModifier="internal"
              x:DataType="conversation:IPromptViewModel"
-             Classes="arrive-snappy"
+             Classes="arrive-snappy hover-host"
              Classes.person="{Binding IsFromPerson}"
-             Margin="0,10">
+             Margin="0,10,0,2">
   <Design.DataContext>
     <conversation:DesignPromptViewModel />
   </Design.DataContext>
@@ -24,7 +25,10 @@
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusBubble}" />
       <Setter Property="HorizontalAlignment" Value="Right" />
     </Style>
-    <Style Selector=":is(UserControl).person StackPanel#Heading">
+    <Style Selector="StackPanel#Actions">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+    <Style Selector=":is(UserControl).person StackPanel#Heading, :is(UserControl).person StackPanel#Actions">
       <Setter Property="HorizontalAlignment" Value="Right" />
     </Style>
     <Style Selector="SelectableTextBlock#Text">
@@ -54,5 +58,30 @@
         <markdown:MarkdownText x:Name="Brief" Classes="compact" Markdown="{Binding Text}" IsVisible="{Binding !IsFromPerson}" />
       </Panel>
     </Border>
+    <StackPanel x:Name="Actions"
+                Classes="hover-actions"
+                IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <copying:CopyButton x:Name="Copy"
+                          Command="{Binding CopyCommand}"
+                          IsCopied="{Binding IsCopied}"
+                          ToolTip.Tip="Copy"
+                          AutomationProperties.Name="Copy the message" />
+      <Button x:Name="Edit"
+              Classes="glyph mini"
+              Command="{Binding EditCommand}"
+              IsVisible="{Binding CanEdit}"
+              ToolTip.Tip="Edit in the composer"
+              AutomationProperties.Name="Edit the message in the composer">
+        <Path Classes="icon" Data="{StaticResource IconEdit}" />
+      </Button>
+      <Button x:Name="Retry"
+              Classes="glyph mini"
+              Command="{Binding RetryCommand}"
+              IsVisible="{Binding CanResend}"
+              ToolTip.Tip="Send again"
+              AutomationProperties.Name="Send the message again">
+        <Path Classes="icon" Data="{StaticResource IconRetry}" />
+      </Button>
+    </StackPanel>
   </StackPanel>
 </UserControl>

@@ -106,6 +106,14 @@
     </Style.Animations>
   </Style>
 
+  <Style Selector="StackPanel.hover-actions[(theme|Motion.IsReduced)=False], Button.copy[(theme|Motion.IsReduced)=False] Path.icon">
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.16" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+
   <Style Selector=":is(Visual).eased[(theme|Motion.IsReduced)=False]">
     <Setter Property="Transitions">
       <Transitions>

@@ -27,14 +27,15 @@ public sealed class AppearanceFileTests
         var bus = new RecordingBus();
         await using var file = new AppearanceFile(new AvalaPaths(data.Path), bus);
 
-        var changed = await file.ChangeAsync(new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced), Cancellation);
+        var chosen = new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced) { Send = SendKey.CommandEnter };
+        var changed = await file.ChangeAsync(chosen, Cancellation);
         await using var restarted = new AppearanceFile(new AvalaPaths(data.Path), new RecordingBus());
         var read = await restarted.ReadAsync(Cancellation);
 
         Assert.True(changed.IsSuccess);
-        Assert.Equal([new AppearanceChanged(new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced))], bus.Published);
-        Assert.Equal(new AppearanceSettings(new AppearancePreference(ThemeChoice.Light, MotionChoice.Reduced), AppearanceFileStatus.Applied, Option<AppearanceError>.None), read);
-        Assert.Equal("{\n  \"theme\": \"light\",\n  \"reduceMotion\": \"on\"\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
+        Assert.Equal([new AppearanceChanged(chosen)], bus.Published);
+        Assert.Equal(new AppearanceSettings(chosen, AppearanceFileStatus.Applied, Option<AppearanceError>.None), read);
+        Assert.Equal("{\n  \"theme\": \"light\",\n  \"reduceMotion\": \"on\",\n  \"send\": \"commandEnter\"\n}\n", (await File.ReadAllTextAsync(Path.Combine(data.Path, AppearanceFile.FileName), Cancellation)).ReplaceLineEndings("\n"));
     }
 
     [Fact]
@@ -71,6 +72,7 @@ public sealed class AppearanceFileTests
     [InlineData("""{ "theme": "1" }""")]
     [InlineData("""{ "theme": 2 }""")]
     [InlineData("""{ "reduceMotion": "yes" }""")]
+    [InlineData("""{ "send": "space" }""")]
     [InlineData("""[ "light" ]""")]
     [InlineData("not json")]
     public async Task AFileThatIsNotAnAppearanceIsRejectedAndTheDefaultsApplyAsync(string content)

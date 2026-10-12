@@ -3,6 +3,7 @@ using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
 using Avala.Workbench.Sidebar;
+using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -24,6 +25,8 @@ internal interface IConversationViewModel
 
     IComposerViewModel Composer { get; }
 
+    IWorkingViewModel Working { get; }
+
     IReadOnlyList<object> Entries { get; }
 }
 
@@ -34,6 +37,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     private readonly TimelineItems items;
     private readonly PlanPanelViewModel plan;
     private readonly StatusPillViewModel pill = new(StatusKind.Working, string.Empty);
+    private readonly WorkingViewModel working = new();
     private readonly Dictionary<string, (ITimelineEntry Entry, ITimelineItem Item)> known = [];
     private Transcript shown = Transcript.Empty;
 
@@ -54,6 +58,8 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     public IStatusPillViewModel Pill => pill;
 
     public IPlanPanelViewModel Plan => plan;
+
+    public IWorkingViewModel Working => working;
 
     public ObservableCollection<ITimelineItem> Entries { get; } = [];
 
@@ -76,15 +82,20 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         pill.Kind = FactPhrases.Dot(job);
         pill.Text = ConversationPhrases.Pill(job);
         composer.Track(job);
+        working.Show(job);
 
-        if (ReferenceEquals(job.Transcript, shown))
+        if (!ReferenceEquals(job.Transcript, shown))
         {
-            return;
+            shown = job.Transcript;
+            plan.Show(job.Transcript.Plan);
+            Arrange(job.Transcript);
         }
 
-        shown = job.Transcript;
-        plan.Show(job.Transcript.Plan);
-        Arrange(job.Transcript);
+        foreach (var prompt in Entries.OfType<PromptViewModel>())
+        {
+            prompt.CanEdit = prompt.IsFromPerson && composer.AcceptsMessages;
+            prompt.CanResend = prompt.IsFromPerson && job.Status.AcceptsMessages;
+        }
     }
 
     private void Arrange(Transcript transcript)
@@ -124,6 +135,12 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
 
         var item = items.Create(entry);
         known.Add(entry.Key, (entry, item));
+
+        if (item is PromptViewModel prompt)
+        {
+            prompt.EditRequested += (_, text) => composer.Edit(text);
+            prompt.RetryRequested += (_, text) => composer.ResendCommand.Execute(text);
+        }
 
         return item;
     }

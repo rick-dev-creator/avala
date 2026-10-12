@@ -7,6 +7,7 @@ using Avala.Delegation.Contracts;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Appearance;
 using Avala.Testing.UI;
 using Avala.Workbench.Board;
 using Avala.Workbench.Conversation;
@@ -36,7 +37,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             Assert.Equal(
                 ["PromptView", "ToolView", "ToolView", "ReasoningView", "PlanView", "MessageView", "CanvasView", "ToolView", "ReasoningView", "MessageView"],
                 Rows(view).Select(row => row.GetType().Name));
-            Assert.True(view.Shows("Send"));
+            Assert.True(view.Shows("Interrupt"));
             Assert.False(view.Shows("Quiet"));
         }, Cancellation);
 
@@ -87,6 +88,47 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal(40, scroller.Offset.Y, 1);
+        }, Cancellation);
+
+    [Fact]
+    public Task ScrolledUpARoundButtonJumpsBackToTheLatestAndADotSaysMoreArrivedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (conversation, summary, transcript) = Open(JobStatus.Running);
+            var view = Screen.Show(conversation);
+            var longer = Attempts(transcript, summary, 20);
+            conversation.Show(new BoardJob(summary, longer));
+            view.Settle();
+            var scroller = view.Find<ScrollViewer>("Scroller");
+            var following = view.Shows("JumpToLatest");
+
+            scroller.Offset = scroller.Offset.WithY(40);
+            view.Settle();
+            var away = (view.Shows("JumpToLatest"), view.Shows("NewBelow"));
+            conversation.Show(new BoardJob(summary, Attempts(longer, summary, 26)));
+            view.Settle();
+            var arrived = view.Shows("NewBelow");
+            view.Click("JumpToLatest");
+
+            Assert.False(following);
+            Assert.Equal((true, false), away);
+            Assert.True(arrived);
+            Assert.Equal(scroller.Extent.Height - scroller.Viewport.Height, scroller.Offset.Y, 1);
+            Assert.False(view.Shows("JumpToLatest"));
+        }, Cancellation);
+
+    [Fact]
+    public Task WhileTheAgentWorksItsRowFollowsTheLastEntryAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignConversationViewModel());
+
+            var entries = view.Find("Entries");
+            var working = view.Find("Working");
+            Assert.True(view.Shows("Verb"));
+            Assert.Equal("Running go test ./internal/money", view.TextOf("Verb"));
+            Assert.True(working.Bounds.Top >= entries.Bounds.Bottom);
+            Assert.Matches("^[0-9]+s$", view.TextOf("Elapsed"));
         }, Cancellation);
 
     [Fact]
@@ -146,13 +188,13 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             var view = Screen.Show(conversation);
 
             Assert.False(view.Shows("PlanBox"));
-            Assert.True(view.Shows("Send"));
+            Assert.True(view.Shows("Interrupt"));
         }, Cancellation);
 
     private static (ConversationViewModel Conversation, JobSummary Summary, Transcript Transcript) Open(JobStatus status)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
-        var conversation = new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening).Open(summary.Job);
+        var conversation = new Conversations(new JobSteering(new FakeJobs(), new QueuedMessages(new FakeJobs())), new TimelineItems(new(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, new FakeClipboard()), new SendKeys()).Open(summary.Job);
         var transcript = Transcript.Empty.WithPrompts(summary.Instruction, []);
         conversation.Show(new BoardJob(summary, transcript));
 
@@ -165,14 +207,18 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task ARunningJobOffersInterruptAndStopAndSaysAMessageJoinsTheTurnAsync() =>
+    public Task ARunningJobOffersStopInPlaceOfSendUntilAMessageIsTypedAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignComposerViewModel());
+            var idle = (view.Shows("Send"), view.Shows("Interrupt"), view.Find<Button>("Interrupt").IsEffectivelyEnabled);
 
-            Assert.Equal((false, true, true), (view.Find<Button>("Send").IsEffectivelyEnabled, view.Find<Button>("Interrupt").IsEffectivelyEnabled, view.Find<Button>("Stop").IsEffectivelyEnabled));
+            view.Type("Draft", "Keep the alias");
+
+            Assert.Equal((false, true, true), idle);
+            Assert.Equal((true, false, true), (view.Shows("Send"), view.Shows("Interrupt"), view.Find<Button>("Send").IsEffectivelyEnabled));
             Assert.Equal("Message the agent while it works…", view.Find<TextBox>("Draft").PlaceholderText);
-            Assert.Equal("Send into the running turn (Ctrl+Enter)", ToolTip.GetTip(view.Find<Button>("Send")));
+            Assert.Equal("Send into the running turn", ToolTip.GetTip(view.Find<Button>("Send")));
             Assert.False(view.Shows("Error"));
             Assert.False(view.Shows("QueuedNote"));
         }, Cancellation);
@@ -192,7 +238,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             Assert.Empty(jobs.Calls);
             Assert.True(view.Shows("QueuedNote"));
             Assert.Equal("Keep the old namespace as an alias", view.TextOf("QueuedText"));
-            Assert.Equal("Queue for when the agent stops (Ctrl+Enter)", ToolTip.GetTip(view.Find<Button>("Send")));
+            Assert.Equal("Queue for when the agent stops", ToolTip.GetTip(view.Find<Button>("Send")));
 
             view.Click("Withdraw");
             view.Settle();
@@ -206,7 +252,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignComposerViewModel(JobStatus.Approved));
 
-            Assert.Equal((false, false, false), (view.Shows("Send"), view.Shows("Interrupt"), view.Shows("Stop")));
+            Assert.Equal((false, false), (view.Shows("Send"), view.Shows("Interrupt")));
             Assert.Equal("This job has ended", view.Find<TextBox>("Draft").PlaceholderText);
         }, Cancellation);
 
@@ -215,12 +261,12 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
     [InlineData(JobStatus.AwaitingReview)]
     [InlineData(JobStatus.Checking)]
     [InlineData(JobStatus.Preparing)]
-    public Task AJobThatIsNotRunningOffersNoInterruptOrStopAsync(JobStatus status) =>
+    public Task AJobThatIsNotRunningOffersSendAndNoStopAsync(JobStatus status) =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(Composer(status).Composer);
 
-            Assert.Equal((true, false, false), (view.Shows("Send"), view.Shows("Interrupt"), view.Shows("Stop")));
+            Assert.Equal((true, false), (view.Shows("Send"), view.Shows("Interrupt")));
         }, Cancellation);
 
     [Fact]
@@ -230,8 +276,75 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             var (composer, _) = Composer(JobStatus.Approved, OnPullRequest.WakeOnCi);
             var view = Screen.Show(composer);
 
-            Assert.Equal((false, false, false), (view.Shows("Send"), view.Shows("Interrupt"), view.Shows("Stop")));
+            Assert.Equal((false, false), (view.Shows("Send"), view.Shows("Interrupt")));
             Assert.Equal("Approved · Avala watches pull request #7 and wakes the agent if CI fails or it conflicts", view.Find<TextBox>("Draft").PlaceholderText);
+        }, Cancellation);
+
+    [Fact]
+    public Task EnterSendsTheMessageAndShiftEnterAddsALineAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var (composer, jobs) = Composer(JobStatus.NeedsHelp);
+            var view = Screen.Show(composer);
+
+            view.Type("Draft", "Carry on");
+            view.Press(Key.Enter, RawInputModifiers.Shift);
+            var kept = (jobs.Calls.Count, view.Find<TextBox>("Draft").Text);
+            view.Type("Draft", "with the queue");
+            view.Press(Key.Enter);
+            await (composer.EnterCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.Equal((0, "Carry on\n"), (kept.Count, kept.Text?.ReplaceLineEndings("\n")));
+            Assert.Equal(["continue Carry on\nwith the queue"], jobs.Calls.Select(call => call.ReplaceLineEndings("\n")));
+            Assert.Equal(string.Empty, view.Find<TextBox>("Draft").Text);
+        }, Cancellation);
+
+    [Fact]
+    public Task WithCommandEnterChosenEnterAddsALineAndOnlyCommandEnterSendsAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var keys = new SendKeys();
+            await keys.HandleAsync(new AppearanceChanged(AppearancePreference.Default with { Send = SendKey.CommandEnter }), Cancellation);
+            var (composer, jobs) = Composer(JobStatus.NeedsHelp, keys: keys);
+            var view = Screen.Show(composer);
+
+            view.Type("Draft", "Carry on");
+            view.Press(Key.Enter);
+            var kept = (jobs.Calls.Count, view.Find<TextBox>("Draft").Text);
+            view.Press(Key.Enter, RawInputModifiers.Control);
+            await (composer.SendCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal((0, "Carry on\n"), (kept.Count, kept.Text?.ReplaceLineEndings("\n")));
+            Assert.Equal(["continue Carry on"], jobs.Calls);
+        }, Cancellation);
+
+    [Fact]
+    public Task AnEditedPromptLandsInTheFocusedDraftWithTheCaretAtItsEndAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (composer, _) = Composer(JobStatus.NeedsHelp);
+            var view = Screen.Show(composer);
+
+            composer.Edit("Use the ISO table");
+            view.Settle();
+
+            var draft = view.Find<TextBox>("Draft");
+            Assert.Equal(("Use the ISO table", true, 17), (draft.Text, draft.IsFocused, draft.CaretIndex));
+        }, Cancellation);
+
+    [Fact]
+    public Task EscapeInTheDraftStopsTheRunningTurnAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var (composer, jobs) = Composer(JobStatus.Running);
+            var view = Screen.Show(composer);
+
+            view.Find("Draft").Focus();
+            view.Press(Key.Escape);
+            await (composer.InterruptCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.StartsWith("hold", Assert.Single(jobs.Calls), StringComparison.Ordinal);
         }, Cancellation);
 
     [Fact]
@@ -251,7 +364,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task TheKeyboardReachesInterruptAndStopFromTheDraftAsync() =>
+    public Task TheKeyboardReachesStopFromTheDraftAsync() =>
         ui.RunAsync(async () =>
         {
             var (composer, jobs) = Composer(JobStatus.Running);
@@ -275,15 +388,15 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
             jobs.Refusal = JobRejection.NotRunning;
             var view = Screen.Show(composer);
 
-            view.Click("Stop");
-            await (composer.StopCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Click("Interrupt");
+            await (composer.InterruptCommand.ExecutionTask ?? Task.CompletedTask);
             view.Settle();
 
             Assert.Equal("The job is not running.", view.TextOf("Error"));
             Assert.Equal(Color.Parse("#EF6461"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("Error").Foreground).Color);
         }, Cancellation);
 
-    private static (ComposerViewModel Composer, FakeJobs Jobs) Composer(JobStatus status, OnPullRequest? watched = null)
+    private static (ComposerViewModel Composer, FakeJobs Jobs) Composer(JobStatus status, OnPullRequest? watched = null, SendKeys? keys = null)
     {
         var jobs = new FakeJobs { Status = status, Steerable = false };
         var summary = new FakeCatalog().Add("Extract sync queue into a module", status).Summary;
@@ -293,7 +406,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
                 ? new PullRequestWatchState(summary.Job, new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/acme/shop/pull/7"), "avala/job", "main"), policy, 3)
                 : Option<PullRequestWatchState>.None,
         };
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)));
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)), keys ?? new SendKeys());
         composer.Track(shown);
 
         return (composer, jobs);
@@ -302,6 +415,36 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
 
 public sealed class PromptViewScripts(HeadlessUi ui)
 {
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public Task UnderYourPromptCopyEditAndSendAgainAreOfferedAsTheJobAllowsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var prompt = new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Hint, "Use the ISO table", AttemptOutcome.Passed), new FakeClipboard());
+            var view = Screen.ShowStill(prompt, 300);
+            var before = (view.Shows("Copy"), view.Shows("Edit"), view.Shows("Retry"));
+
+            prompt.CanEdit = true;
+            prompt.CanResend = true;
+            view.Settle();
+
+            Assert.Equal((true, false, false), before);
+            Assert.Equal((true, true, true), (view.Shows("Copy"), view.Shows("Edit"), view.Shows("Retry")));
+            Assert.Equal(HorizontalAlignment.Right, view.Find("Actions").HorizontalAlignment);
+        }, Cancellation);
+
+    [Fact]
+    public Task YourPromptsTextOffersCopyAndSelectAllOnRightClickAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Hint, "Use the ISO table", AttemptOutcome.Passed), new FakeClipboard()));
+            var text = view.Find<SelectableTextBlock>("Text");
+            var menu = Assert.IsType<MenuFlyout>(text.ContextFlyout);
+
+            Assert.Equal(["Copy", "Select All"], menu.Items.OfType<MenuItem>().Select(item => item.Header as string));
+        }, Cancellation);
+
     [Fact]
     public Task TheInstructionIsABubbleOnTheRightWithoutAnOriginAsync() =>
         ui.RunAsync(() =>
@@ -317,7 +460,7 @@ public sealed class PromptViewScripts(HeadlessUi ui)
     public Task AFollowUpSaysWhoSentItAndHowItWentAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Hint, "Use the ISO table", AttemptOutcome.Passed)));
+            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Hint, "Use the ISO table", AttemptOutcome.Passed), new FakeClipboard()));
 
             Assert.Equal(("You", "attempt 2 passed its checks", true), (view.TextOf("Origin"), view.TextOf("Outcome"), view.Shows("Heading")));
         }, TestContext.Current.CancellationToken);
@@ -326,7 +469,7 @@ public sealed class PromptViewScripts(HeadlessUi ui)
     public Task ARecoveryPromptShowsNoEmptyTextAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Recovery, Option<string>.None, Option<AttemptOutcome>.None)));
+            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Recovery, Option<string>.None, Option<AttemptOutcome>.None), new FakeClipboard()));
 
             Assert.False(view.Shows("Text"));
             Assert.False(view.HasClass("Bubble", "person"));
@@ -336,7 +479,7 @@ public sealed class PromptViewScripts(HeadlessUi ui)
     public Task AnAvalaPromptSuchAsAHandoffBriefIsDrawnAsMarkdownAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Handoff, "This job was handed off to you.\n\n## Checks\n- calculator: failed, exit 1", Option<AttemptOutcome>.None)));
+            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Handoff, "This job was handed off to you.\n\n## Checks\n- calculator: failed, exit 1", Option<AttemptOutcome>.None), new FakeClipboard()));
             var texts = view.All<TextBlock>().Select(text => text.Inlines is { Count: > 0 } inlines ? inlines.Text ?? string.Empty : text.Text ?? string.Empty).ToList();
 
             Assert.Contains("Checks", texts);
@@ -348,7 +491,7 @@ public sealed class PromptViewScripts(HeadlessUi ui)
     public Task TheHeadingsOfAnAvalaPromptStayAtTheSizeOfItsTextAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Handoff, "## Checks\n\nThe last verification failed.", Option<AttemptOutcome>.None)));
+            var view = Screen.Show(new PromptViewModel(new PromptEntry("attempt:2", 2, AttemptOrigin.Handoff, "## Checks\n\nThe last verification failed.", Option<AttemptOutcome>.None), new FakeClipboard()));
             var heading = Assert.Single(view.All<TextBlock>(), text => text.Classes.Contains("markdown-h2"));
             var paragraph = Assert.Single(view.All<TextBlock>(), text => text.Classes.Contains("markdown-paragraph"));
 

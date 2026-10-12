@@ -16,6 +16,12 @@ public enum MotionChoice
     Full,
 }
 
+public enum SendKey
+{
+    Enter,
+    CommandEnter,
+}
+
 public enum AppearanceFileStatus
 {
     Absent,
@@ -34,6 +40,8 @@ public enum AppearanceError
 public sealed record AppearancePreference(ThemeChoice Theme, MotionChoice Motion)
 {
     public static AppearancePreference Default { get; } = new(ThemeChoice.System, MotionChoice.System);
+
+    public SendKey Send { get; init; }
 }
 
 public sealed record AppearanceSettings(AppearancePreference Preference, AppearanceFileStatus File, Option<AppearanceError> Error);

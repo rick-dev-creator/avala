@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:settings="using:Avala.Workbench.Settings"
              xmlns:appearance="using:Avala.Sdk.Appearance"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              x:Class="Avala.Workbench.UI.AppearanceView"
              x:ClassModifier="internal"
              x:DataType="settings:IAppearanceViewModel">
@@ -81,6 +82,21 @@
             <TextBlock Classes="caption"
                        TextWrapping="Wrap"
                        Text="Stops the pulse, the spinners, the thinking shimmer and the fades. System follows the operating system's reduced motion setting." />
+          </StackPanel>
+        </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="SendWithCommandEnter"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        IsChecked="{Binding SendsWithCommandEnter, Mode=OneWay}"
+                        Command="{Binding ToggleSendKeyCommand}"
+                        AutomationProperties.Name="Send with Command or Control and Return" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock x:Name="SendWithLabel" Text="{Binding Source={x:Static copying:Hotkeys.CommandEnterLabel}, StringFormat='Send with {0}'}" />
+            <TextBlock Classes="caption" Text="When off, Enter sends and Shift+Enter adds a line." TextWrapping="Wrap" />
           </StackPanel>
         </DockPanel>
       </StackPanel>

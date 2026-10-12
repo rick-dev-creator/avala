@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:elapsed="using:Avala.Components.UI.Elapsed"
+             x:Class="Avala.Workbench.UI.WorkingView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IWorkingViewModel"
+             Classes="fade-in"
+             Classes.waiting="{Binding IsWaiting}"
+             IsVisible="{Binding IsShown}"
+             Margin="0,4,0,8">
+  <Design.DataContext>
+    <conversation:DesignWorkingViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Ellipse.think-dot">
+      <Setter Property="Width" Value="3" />
+      <Setter Property="Height" Value="3" />
+      <Setter Property="Fill" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Still">
+      <Setter Property="Width" Value="6" />
+      <Setter Property="Height" Value="6" />
+      <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="14,Auto,Auto,Auto" ColumnSpacing="10" Margin="10,0,0,0">
+    <StackPanel x:Name="Mark"
+                Orientation="Horizontal"
+                Spacing="3"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                IsVisible="{Binding !IsWaiting}">
+      <Ellipse Classes="think-dot" />
+      <Ellipse Classes="think-dot second" />
+      <Ellipse Classes="think-dot third" />
+    </StackPanel>
+    <Ellipse x:Name="Still" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsWaiting}" />
+    <Panel Grid.Column="1" ClipToBounds="True">
+      <TextBlock x:Name="Verb"
+                 Classes="secondary"
+                 Text="{Binding Verb}"
+                 MaxWidth="460"
+                 TextTrimming="CharacterEllipsis"
+                 VerticalAlignment="Center" />
+      <Border x:Name="Shimmer"
+              Classes="shimmer-window"
+              Width="48"
+              HorizontalAlignment="Left"
+              ClipToBounds="True"
+              OpacityMask="{DynamicResource ShimmerMaskBrush}"
+              IsVisible="{Binding !IsWaiting}">
+        <TextBlock Classes="shimmer-text"
+                   Text="{Binding Verb}"
+                   MaxWidth="460"
+                   TextTrimming="CharacterEllipsis"
+                   Foreground="{DynamicResource TextPrimaryBrush}"
+                   VerticalAlignment="Center" />
+      </Border>
+    </Panel>
+    <TextBlock Grid.Column="2" Classes="caption" Text="·" VerticalAlignment="Center" IsVisible="{Binding ShowsElapsed}" />
+    <elapsed:ElapsedText x:Name="Elapsed"
+                         Grid.Column="3"
+                         Classes="caption"
+                         VerticalAlignment="Center"
+                         Since="{Binding Since}"
+                         IsVisible="{Binding ShowsElapsed}" />
+  </Grid>
+</UserControl>

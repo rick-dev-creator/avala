@@ -95,9 +95,9 @@ internal static class ConversationPhrases
 
     public static string SendHint(JobStatus status, bool takesMessagesMidTurn) => status switch
     {
-        JobStatus.Running when takesMessagesMidTurn => "Send into the running turn (Ctrl+Enter)",
-        JobStatus.Draft or JobStatus.Preparing or JobStatus.Running or JobStatus.Checking => "Queue for when the agent stops (Ctrl+Enter)",
-        _ => "Send (Ctrl+Enter)",
+        JobStatus.Running when takesMessagesMidTurn => "Send into the running turn",
+        JobStatus.Draft or JobStatus.Preparing or JobStatus.Running or JobStatus.Checking => "Queue for when the agent stops",
+        _ => "Send",
     };
 
     public static string Pill(BoardJob job) => job.Group switch

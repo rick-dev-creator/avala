@@ -1,6 +1,8 @@
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Conversation;
 
@@ -17,13 +19,28 @@ internal interface IPromptViewModel
     string Text { get; }
 
     string Outcome { get; }
+
+    bool IsCopied { get; }
+
+    bool CanResend { get; }
+
+    bool CanEdit { get; }
+
+    IAsyncRelayCommand CopyCommand { get; }
+
+    IRelayCommand EditCommand { get; }
+
+    IRelayCommand RetryCommand { get; }
 }
 
 [INotifyPropertyChanged]
 internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
 {
-    public PromptViewModel(PromptEntry entry)
+    private readonly IClipboard clipboard;
+
+    public PromptViewModel(PromptEntry entry, IClipboard clipboard)
     {
+        this.clipboard = clipboard;
         Attempt = entry.Attempt;
         Origin = ConversationPhrases.Origin(entry);
         IsFromPerson = entry.Origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack;
@@ -49,6 +66,21 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
     [ObservableProperty]
     public partial string Outcome { get; private set; }
 
+    [ObservableProperty]
+    public partial bool IsCopied { get; private set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
+    public partial bool CanResend { get; set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(EditCommand))]
+    public partial bool CanEdit { get; set; }
+
+    public event EventHandler<string>? EditRequested;
+
+    public event EventHandler<string>? RetryRequested;
+
     public void Update(ITimelineEntry entry)
     {
         if (entry is PromptEntry prompt)
@@ -57,4 +89,17 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem
             Origin = ConversationPhrases.Origin(prompt);
         }
     }
+
+    [RelayCommand]
+    private async Task CopyAsync(CancellationToken cancellationToken)
+    {
+        IsCopied = false;
+        IsCopied = await clipboard.CopyAsync(Text, cancellationToken);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEdit))]
+    private void Edit() => EditRequested?.Invoke(this, Text);
+
+    [RelayCommand(CanExecute = nameof(CanResend))]
+    private void Retry() => RetryRequested?.Invoke(this, Text);
 }

@@ -47,6 +47,10 @@ public sealed class SettingsViewModelScripts
 
         public bool IsMotionFull => appearance.IsMotionFull;
 
+        public bool SendsWithCommandEnter => appearance.SendsWithCommandEnter;
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand ToggleSendKeyCommand => appearance.ToggleSendKeyCommand;
+
         public string Error => appearance.Error;
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.ThemeChoice> ChooseThemeCommand => appearance.ChooseThemeCommand;

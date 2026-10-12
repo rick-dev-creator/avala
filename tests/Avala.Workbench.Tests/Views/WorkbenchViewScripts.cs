@@ -29,6 +29,28 @@ public sealed class WorkbenchViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task StoppingTheSessionLivesInTheJobsMoreMenuAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var page = bench.Workbench();
+            var job = bench.Job("Fix JPY rounding in invoice totals", JobStatus.Running);
+            bench.Jobs.Status = JobStatus.Running;
+            page.Activate();
+            bench.Messenger.Send(new JobSelected(job.Job));
+            var view = Screen.Show(page);
+
+            view.Click("More");
+            var stop = Assert.IsType<MenuItem>(Assert.Single(Assert.IsType<MenuFlyout>(view.Find<Button>("More").Flyout).Items));
+            stop.Command!.Execute(null);
+            await (page.Conversation!.Composer.StopCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal("Stop Session", stop.Header);
+            Assert.Equal(["hold Stopped"], bench.Jobs.Calls);
+            page.Deactivate();
+        }, Cancellation);
+
+    [Fact]
     public Task WithoutASelectedJobThePageWelcomesAsync() =>
         ui.RunAsync(() =>
         {

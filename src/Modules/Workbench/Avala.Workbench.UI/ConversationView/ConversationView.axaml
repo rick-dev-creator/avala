@@ -7,6 +7,30 @@
   <Design.DataContext>
     <conversation:DesignConversationViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.jump">
+      <Setter Property="Width" Value="32" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Button.jump:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.jump:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorStrongBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Button.jump Path.icon">
+      <Setter Property="Width" Value="13" />
+      <Setter Property="Height" Value="13" />
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+  </UserControl.Styles>
   <DockPanel>
     <ContentControl x:Name="Composer"
                     DockPanel.Dock="Bottom"
@@ -20,11 +44,36 @@
                     Content="{Binding Plan}" />
     <Panel>
       <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
-        <ItemsControl x:Name="Entries"
-                      ItemsSource="{Binding Entries}"
-                      Margin="28,18,28,14"
-                      MaxWidth="{DynamicResource ReadingWidth}" />
+        <StackPanel Margin="28,18,28,14" MaxWidth="{DynamicResource ReadingWidth}">
+          <ItemsControl x:Name="Entries" ItemsSource="{Binding Entries}" />
+          <ContentControl x:Name="Working" Content="{Binding Working}" />
+        </StackPanel>
       </ScrollViewer>
+      <Border x:Name="Jump"
+              Classes="fade-in"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Bottom"
+              Margin="0,0,0,12"
+              CornerRadius="{DynamicResource RadiusPill}"
+              BoxShadow="{DynamicResource ShadowFloat}"
+              IsVisible="False">
+        <Button x:Name="JumpToLatest"
+                Classes="jump"
+                ToolTip.Tip="Jump to latest"
+                AutomationProperties.Name="Jump to latest">
+          <Panel>
+            <Path Classes="icon" Data="{StaticResource IconArrowDown}" />
+            <Ellipse x:Name="NewBelow"
+                     Width="7"
+                     Height="7"
+                     Margin="0,-6,-6,0"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Top"
+                     Fill="{DynamicResource AccentBrush}"
+                     IsVisible="False" />
+          </Panel>
+        </Button>
+      </Border>
       <StackPanel x:Name="Quiet"
                   Spacing="8"
                   HorizontalAlignment="Center"

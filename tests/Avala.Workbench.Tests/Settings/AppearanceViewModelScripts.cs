@@ -54,6 +54,24 @@ public sealed class AppearanceViewModelScripts
     }
 
     [Fact]
+    public async Task TogglingTheSendKeyKeepsTheThemeAndMotionAndTurnsItBack()
+    {
+        var store = new FakeAppearance(new AppearancePreference(ThemeChoice.Dark, MotionChoice.Reduced));
+        var appearance = new AppearanceViewModel(store);
+        await appearance.LoadAsync(Cancellation);
+
+        await appearance.ToggleSendKeyCommand.ExecuteAsync(null);
+        var commandEnter = appearance.SendsWithCommandEnter;
+        await appearance.ToggleSendKeyCommand.ExecuteAsync(null);
+
+        Assert.True(commandEnter);
+        Assert.False(appearance.SendsWithCommandEnter);
+        Assert.Equal(
+            [new AppearancePreference(ThemeChoice.Dark, MotionChoice.Reduced) { Send = SendKey.CommandEnter }, new AppearancePreference(ThemeChoice.Dark, MotionChoice.Reduced)],
+            store.Changes);
+    }
+
+    [Fact]
     public async Task AChangeThatCannotBeWrittenSaysSoAndKeepsTheShownAppearance()
     {
         var appearance = new AppearanceViewModel(new FakeAppearance { Refusal = AppearanceError.Unwritable });

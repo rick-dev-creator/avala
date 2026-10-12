@@ -11,6 +11,7 @@ namespace Avala.Workbench.Tests.Conversation;
 public sealed class ComposerViewModelScripts : IAsyncDisposable
 {
     private readonly FakeJobs jobs = new();
+    private readonly SendKeys keys = new();
     private BoardJob shown = null!;
     private QueuedMessages queue = null!;
 
@@ -74,7 +75,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
 
         Assert.Empty(jobs.Calls);
         Assert.Equal((string.Empty, "Keep the old namespace as an alias", true), (composer.Draft, composer.Queued, composer.WithdrawCommand.CanExecute(null)));
-        Assert.Equal(("This agent takes no message mid-turn · queue one for when it stops…", "Queue for when the agent stops (Ctrl+Enter)"), (composer.Placeholder, composer.SendHint));
+        Assert.Equal(("This agent takes no message mid-turn · queue one for when it stops…", "Queue for when the agent stops"), (composer.Placeholder, composer.SendHint));
     }
 
     [Fact]
@@ -216,7 +217,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         jobs.Status = status;
         jobs.Steerable = takesMessagesMidTurn;
         queue = new QueuedMessages(steered);
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue));
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), keys);
         composer.Track(shown);
 
         return composer;

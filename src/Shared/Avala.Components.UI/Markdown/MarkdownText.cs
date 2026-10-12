@@ -1,6 +1,9 @@
 using System.Windows.Input;
+using Avala.Components.UI.Copying;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.Styling;
@@ -44,6 +47,28 @@ public sealed class MarkdownText : StackPanel
         Children.Add(caret);
         Styles.Add(new StyleInclude(Base) { Source = new Uri("Markdown/MarkdownStyles.axaml", UriKind.Relative) });
         AddHandler(MarkdownViewer.LinkClickedEvent, OnLinkClicked);
+        AddHandler(PointerReleasedEvent, (_, _) => Show(Markdown, IsLive), RoutingStrategies.Bubble, handledEventsToo: true);
+        ContextFlyout = SelectionMenu.For(() => _ = CopyAsync(), SelectAll, () => SelectedText.Length > 0);
+    }
+
+    public string SelectedText => string.Concat(settled.GetSelectedText(), tail.IsVisible ? tail.GetSelectedText() : string.Empty);
+
+    public void SelectAll()
+    {
+        settled.SelectAll();
+
+        if (tail.IsVisible)
+        {
+            tail.SelectAll();
+        }
+    }
+
+    public async Task CopyAsync()
+    {
+        if (SelectedText is { Length: > 0 } selected && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(selected);
+        }
     }
 
     public string Markdown
@@ -84,7 +109,7 @@ public sealed class MarkdownText : StackPanel
 
     private void Show(string text, bool live)
     {
-        var cut = live ? MarkdownBlocks.Settled(text) : text.Length;
+        var cut = Cut(text, live);
         var done = text[..cut];
         var growing = text[cut..];
 
@@ -96,6 +121,16 @@ public sealed class MarkdownText : StackPanel
         tail.Markdown = growing;
         tail.IsVisible = growing.Length > 0;
         caret.IsVisible = live;
+    }
+
+    private int Cut(string text, bool live)
+    {
+        var kept = settled.Markdown ?? string.Empty;
+        var holding = kept.Length > 0
+            && settled.GetSelectedText().Length > 0
+            && text.StartsWith(kept, StringComparison.Ordinal);
+
+        return holding ? kept.Length : live ? MarkdownBlocks.Settled(text) : text.Length;
     }
 
     private void OnLinkClicked(object? sender, LinkClickedEventArgs link)
