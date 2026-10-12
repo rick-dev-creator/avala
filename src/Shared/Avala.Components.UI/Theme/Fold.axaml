@@ -105,9 +105,9 @@
     <Style Selector="^:expanded /template/ Path.chevron">
       <Setter Property="Data" Value="{StaticResource IconChevronDown}" />
     </Style>
-    <Style Selector="^:expanded[(theme|Motion.IsReduced)=False] /template/ Path.chevron">
+    <Style Selector="^:expanded[(theme|Motion.IsReduced)=False]:not(.trailing) /template/ Viewbox#PART_Lead > Path.chevron, ^:expanded.trailing[(theme|Motion.IsReduced)=False] /template/ Viewbox#PART_Trail > Path.chevron">
       <Style.Animations>
-        <Animation Duration="0:0:0.24" Easing="0.34,1.4,0.64,1" FillMode="Both">
+        <Animation Duration="0:0:0.24" Easing="0.34,1.4,0.64,1" FillMode="Both" PlaybackBehavior="Always">
           <KeyFrame Cue="0%">
             <Setter Property="RotateTransform.Angle" Value="-90" />
           </KeyFrame>
@@ -129,7 +129,7 @@
     </Style>
     <Style Selector="^:expanded[(theme|Motion.IsReduced)=False] /template/ ContentPresenter#PART_Body">
       <Style.Animations>
-        <Animation Duration="0:0:0.22" Easing="0.34,1.4,0.64,1" FillMode="Both">
+        <Animation Duration="0:0:0.22" Easing="0.34,1.4,0.64,1" FillMode="Both" PlaybackBehavior="Always">
           <KeyFrame Cue="0%">
             <Setter Property="ScaleTransform.ScaleY" Value="1.4" />
             <Setter Property="Opacity" Value="0" />

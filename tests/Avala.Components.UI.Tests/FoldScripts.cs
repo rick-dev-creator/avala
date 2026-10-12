@@ -37,6 +37,20 @@ public sealed class FoldScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task OnceAFoldHasOpenedNoAnimationKeepsTheClockTickingAsync() =>
+        ui.RunAsync(() =>
+        {
+            var fold = Fold();
+            var view = ViewScript.Show(fold, new object());
+
+            view.Click(Header(fold));
+            var opening = ViewScript.IsAnimating;
+            view.Elapse(TimeSpan.FromSeconds(1));
+
+            Assert.Equal((true, false), (opening, ViewScript.IsAnimating));
+        }, Cancellation);
+
+    [Fact]
     public Task AnOpenFoldSitsOnAQuietFillAsync() =>
         ui.RunAsync(() =>
         {

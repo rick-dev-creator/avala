@@ -56,6 +56,17 @@ public sealed class ViewScript
 
     public MotionLoop LoopOf(string name) => Motion.GetWhen(Find(name)) ? Motion.GetLoop(Find(name)) : MotionLoop.None;
 
+    public static bool IsAnimating => AnimationClock.IsTicking;
+
+    public ViewScript Elapse(TimeSpan time)
+    {
+        AnimationClock.Advance(time);
+        Settle();
+        AnimationClock.Pulse();
+
+        return Settle();
+    }
+
     public IReadOnlyList<string> VisibleTexts =>
         [.. Window.GetVisualDescendants().OfType<TextBlock>()
             .Where(text => text.IsEffectivelyVisible && !string.IsNullOrEmpty(text.Text))
