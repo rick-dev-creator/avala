@@ -45,6 +45,8 @@ Preparing the first beta. Every feature is proven end to end on the simulator, a
 - delegation to sub-agents that ask their parent first, and an autopilot that works through a backlog in loops with their own limits;
 - triggers that start jobs on a schedule, from a signed webhook, or from events on GitHub, Gitea or Forgejo, such as a labeled issue, a command in a comment or a failing check;
 - pull requests opened from approved jobs, with their checks watched and the agent woken when they fail;
+- a repository cloned from its address in the background, with its progress and a cancel, without leaving New job;
+- a repository published by you to GitHub, Gitea or Forgejo, private by default: created through the forge, added as origin and pushed with the credentials your git already uses;
 - best of N: one request run as several candidate jobs, the best kept by its evidence and the others discarded once you approve it;
 - notifications on your phone, through ntfy or a webhook, when a job needs you while you are away;
 - usage and limits per connection, canvases drawn as Markdown, SVG and Mermaid, a light and a dark theme, and jobs that survive a restart.
