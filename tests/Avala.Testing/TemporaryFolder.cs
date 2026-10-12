@@ -1,3 +1,5 @@
+using Avala.Sdk;
+
 namespace Avala.Testing;
 
 public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
@@ -14,11 +16,36 @@ public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
         AttributesToSkip = FileAttributes.ReparsePoint,
     };
 
-    private readonly DirectoryInfo folder = Directory.CreateTempSubdirectory("avala-");
+    private readonly DirectoryInfo folder = Create();
 
     public string Path => folder.FullName;
 
-    public void Dispose()
+    internal static DirectoryInfo Create() => new(Directory.CreateTempSubdirectory("avala-").FullName.Canonical());
+
+    public void Dispose() => RemoveExisting(folder);
+
+    public ValueTask DisposeAsync() => RemoveAsync(folder);
+
+    internal static async ValueTask RemoveAsync(DirectoryInfo folder)
+    {
+        for (var attempt = 1; attempt < Attempts; attempt++)
+        {
+            try
+            {
+                RemoveExisting(folder);
+
+                return;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                await Task.Delay(Settling);
+            }
+        }
+
+        RemoveExisting(folder);
+    }
+
+    private static void RemoveExisting(DirectoryInfo folder)
     {
         folder.Refresh();
 
@@ -28,7 +55,7 @@ public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
         }
     }
 
-    internal static void Remove(DirectoryInfo folder)
+    private static void Remove(DirectoryInfo folder)
     {
         foreach (var file in folder.EnumerateFiles("*", OwnFiles))
         {
@@ -52,24 +79,5 @@ public sealed class TemporaryFolder : IDisposable, IAsyncDisposable
         return !folder.Exists
             ? "nothing"
             : string.Join(", ", folder.EnumerateFileSystemInfos("*", OwnFiles).Select(entry => entry.FullName).Prepend(folder.FullName).Take(RemainingShown));
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        for (var attempt = 1; attempt < Attempts; attempt++)
-        {
-            try
-            {
-                Dispose();
-
-                return;
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                await Task.Delay(Settling);
-            }
-        }
-
-        Dispose();
     }
 }
