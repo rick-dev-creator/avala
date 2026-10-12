@@ -1,3 +1,4 @@
+using System.Text;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
 using Avala.Sdk;
@@ -30,6 +31,23 @@ internal sealed class TrackedTool(ToolUse use, ToolRole role)
     public bool Narrated { get; set; }
 
     public string Drawn { get; set; } = string.Empty;
+}
+
+internal sealed class SketchedTool(ToolUse use)
+{
+    public const int Stride = 512;
+
+    public static IReadOnlyList<string> Paths { get; } = ["file_path", "notebook_path"];
+
+    public ToolUse Use { get; } = use;
+
+    public StringBuilder Json { get; } = new();
+
+    public Option<ToolUse> Known { get; set; }
+
+    public bool Abandoned { get; set; }
+
+    public int Reported { get; set; }
 }
 
 internal sealed class ToolBook(IReadOnlyList<HarnessTool> offered)

@@ -15,6 +15,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
 
     private readonly Dictionary<int, ItemId> blocks = [];
     private readonly Dictionary<int, (TrackedTool Tool, StringBuilder Json)> drafts = [];
+    private readonly Dictionary<int, SketchedTool> sketches = [];
     private readonly HashSet<string> streamed = new(StringComparer.Ordinal);
     private readonly List<ItemId> open = [];
     private readonly PlanBook plan = new();
@@ -44,6 +45,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         open.Clear();
         blocks.Clear();
         drafts.Clear();
+        sketches.Clear();
         streamed.Clear();
         tools.Forget();
 
@@ -133,11 +135,16 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
                 draft.Json.Append(streamEvent.Members("delta").TextOr("partial_json", string.Empty));
 
                 return Drawn(draft.Tool, PartialJson.Strings(draft.Json.ToString()), stamp);
+            case "content_block_delta" when sketches.TryGetValue(index, out var sketch):
+                sketch.Json.Append(streamEvent.Members("delta").TextOr("partial_json", string.Empty));
+
+                return Sketched(sketch, stamp);
             case "content_block_delta" when blocks.TryGetValue(index, out var item):
                 var delta = streamEvent.Members("delta");
                 var text = delta.TextOr("text", delta.TextOr("thinking", string.Empty));
 
                 return text.Length == 0 ? Reaction.None : Reaction.Of(new ItemProgressed(stamp.Session, stamp.Turn, item, text));
+            case "content_block_stop" when sketches.Remove(index):
             case "content_block_stop" when drafts.Remove(index):
                 return Reaction.None;
             case "content_block_stop" when blocks.Remove(index, out var stopped):
@@ -157,8 +164,48 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         {
             drafts[index] = (tools.Track(use), new StringBuilder());
         }
+        else if (use.Id.Length > 0 && tools.Find(use.Id).IsNone && tools.Harness(use.Name).IsNone && use.Kind == ItemKind.FileEdit)
+        {
+            sketches[index] = new SketchedTool(use);
+        }
 
         return Reaction.None;
+    }
+
+    private Reaction Sketched(SketchedTool sketch, Stamp stamp)
+    {
+        if (sketch.Abandoned)
+        {
+            return Reaction.None;
+        }
+
+        if (sketch.Known.IsNone)
+        {
+            var input = PartialJson.Strings(sketch.Json.ToString());
+            var path = SketchedTool.Paths.FirstOrDefault(name => input.TryGetValue(name, out var found) && found.Complete);
+
+            if (path is null)
+            {
+                return Reaction.None;
+            }
+
+            var known = sketch.Use with { Input = new JsonObject { [path] = input[path].Value } };
+            sketch.Abandoned = known.WritesPlan(places);
+            sketch.Known = known;
+
+            return sketch.Abandoned ? Reaction.None : Draft(known, sketch, stamp);
+        }
+
+        return sketch.Json.Length / SketchedTool.Stride > sketch.Reported / SketchedTool.Stride
+            ? sketch.Known.Match(known => Draft(known, sketch, stamp), () => Reaction.None)
+            : Reaction.None;
+    }
+
+    private Reaction Draft(ToolUse known, SketchedTool sketch, Stamp stamp)
+    {
+        sketch.Reported = sketch.Json.Length;
+
+        return Reaction.Of(new ItemDrafted(stamp.Session, stamp.Turn, new ItemId(known.Id), known.KindIn(places), known.Heading(places), sketch.Json.Length));
     }
 
     private static Reaction Drawn(TrackedTool tool, IReadOnlyDictionary<string, PartialText> input, Stamp stamp)
