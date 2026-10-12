@@ -54,6 +54,8 @@ internal static class LayerMap
             ["Navigation"] = Layer.Application,
             ["Detection"] = Layer.Application,
             ["Running"] = Layer.Application,
+            ["Projects"] = Layer.Infrastructure,
+            ["Pages"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Jobs", new()
         {

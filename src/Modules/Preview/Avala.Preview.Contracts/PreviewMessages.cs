@@ -10,7 +10,6 @@ public enum PreviewError
     NoLease,
     NotStarted,
     NotRunning,
-    NotAPage,
 }
 
 public enum PreviewSource
