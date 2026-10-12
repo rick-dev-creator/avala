@@ -16,6 +16,14 @@
         MinHeight="480"
         Background="Transparent"
         TransparencyLevelHint="Mica, AcrylicBlur, None">
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+OemPipe" Command="{Binding ToggleSidebarCommand}" />
+    <KeyBinding Gesture="Meta+OemPipe" Command="{Binding ToggleSidebarCommand}" />
+    <KeyBinding Gesture="Ctrl+OemBackslash" Command="{Binding ToggleSidebarCommand}" />
+    <KeyBinding Gesture="Meta+OemBackslash" Command="{Binding ToggleSidebarCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+F" Command="{Binding ToggleFocusCommand}" />
+    <KeyBinding Gesture="Meta+Shift+F" Command="{Binding ToggleFocusCommand}" />
+  </Window.KeyBindings>
   <Design.DataContext>
     <shell:DesignShellViewModel />
   </Design.DataContext>
@@ -34,122 +42,183 @@
     <Style Selector="ListBox#PageNavigation ListBoxItem Path.icon">
       <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
     </Style>
+    <Style Selector="Panel#SidebarPane">
+      <Setter Property="Width" Value="0" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+      <Setter Property="KeyboardNavigation.TabNavigation" Value="None" />
+    </Style>
+    <Style Selector="Panel#SidebarPane.shown">
+      <Setter Property="Width" Value="{DynamicResource ShellSidebarWidth}" />
+      <Setter Property="IsHitTestVisible" Value="True" />
+      <Setter Property="KeyboardNavigation.TabNavigation" Value="Continue" />
+    </Style>
+    <Style Selector="Panel#InspectorPane">
+      <Setter Property="Width" Value="0" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+      <Setter Property="KeyboardNavigation.TabNavigation" Value="None" />
+    </Style>
+    <Style Selector="Panel#InspectorPane.shown">
+      <Setter Property="Width" Value="{DynamicResource InspectorWidth}" />
+      <Setter Property="IsHitTestVisible" Value="True" />
+      <Setter Property="KeyboardNavigation.TabNavigation" Value="Continue" />
+    </Style>
+    <Style Selector="Panel#SidebarPane[(theme|Motion.IsReduced)=False], Panel#InspectorPane[(theme|Motion.IsReduced)=False]">
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="0.22,1,0.36,1" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="StackPanel#WindowControls Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
   </Window.Styles>
-  <Grid ColumnDefinitions="Auto,*,Auto">
-    <Panel x:Name="SidebarPane"
-           Width="{DynamicResource ShellSidebarWidth}"
-           IsVisible="{Binding HasSidebar}">
-      <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
-      <DockPanel>
-        <Grid x:Name="Titlebar"
-              DockPanel.Dock="Top"
-              ColumnDefinitions="Auto,*,Auto"
-              Margin="18,16,14,10">
-          <Viewbox Width="18" Height="18" VerticalAlignment="Center">
-            <Canvas Width="24" Height="24">
-              <Path Data="{StaticResource LogoMark}"
-                    Stroke="{DynamicResource TextPrimaryBrush}"
-                    StrokeThickness="1.8"
-                    StrokeJoin="Round" />
-              <Path Data="{StaticResource LogoEye}" Fill="{DynamicResource AccentBrush}" />
-            </Canvas>
-          </Viewbox>
-          <TextBlock Grid.Column="1"
-                     Margin="8,0,0,0"
-                     Text="Avala"
-                     Classes="strong"
-                     VerticalAlignment="Center" />
-          <ItemsControl x:Name="ToolbarRegion"
-                        Grid.Column="2"
-                        ItemsSource="{Binding Toolbar.Items}"
-                        VerticalAlignment="Center">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal" Spacing="4" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-          </ItemsControl>
-        </Grid>
-        <StackPanel x:Name="Footer" DockPanel.Dock="Bottom">
-          <Border Classes="separator" />
-          <StackPanel Margin="10" Spacing="2">
-            <ItemsControl x:Name="SidebarFooterRegion"
-                          ItemsSource="{Binding SidebarFooter.Items}"
-                          IsVisible="{Binding SidebarFooter.HasItems}"
-                          Margin="0,0,0,8">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <StackPanel Spacing="8" />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-            </ItemsControl>
-            <ListBox x:Name="PageNavigation"
-                     IsVisible="{Binding HasNavigation}"
-                     ItemsSource="{Binding NavigationPages}"
-                     SelectedItem="{Binding SelectedPage, Converter={x:Static states:Kept.Selection}}">
-              <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="sdk:IPage">
-                  <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Path Classes="icon"
-                          Data="{Binding Icon, Converter={x:Static states:ThemeIcon.Named}}"
-                          IsVisible="{Binding Icon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                          VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
-                  </StackPanel>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </StackPanel>
-        </StackPanel>
-        <ScrollViewer x:Name="SidebarScroller">
-          <ItemsControl x:Name="SidebarRegion" Margin="10,4,10,10" ItemsSource="{Binding Sidebar.Items}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Spacing="2" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-          </ItemsControl>
-        </ScrollViewer>
-      </DockPanel>
-      <Border Classes="edge" HorizontalAlignment="Right" />
-    </Panel>
-
-    <Border x:Name="ContentPane" Grid.Column="1" Classes="window">
-      <Panel>
-        <ui:Stage x:Name="ContentRegion" KeepsAlive="True" Content="{Binding SelectedPage}" />
-        <Border x:Name="EmptyContent"
-                Classes="empty"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                IsVisible="{Binding SelectedPage, Converter={x:Static ObjectConverters.IsNull}}">
-          <StackPanel Spacing="6" HorizontalAlignment="Center">
-            <TextBlock Text="Nothing to show yet" Classes="strong" HorizontalAlignment="Center" />
-            <TextBlock Classes="caption" Text="Plugins add their pages to this window." HorizontalAlignment="Center" />
-          </StackPanel>
-        </Border>
+  <Panel states:Widths.Report="{Binding FitCommand}">
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <Panel x:Name="SidebarPane"
+             ClipToBounds="True"
+             Classes.shown="{Binding IsSidebarShown}"
+             IsVisible="{Binding HasSidebar}">
+        <Panel Width="{DynamicResource ShellSidebarWidth}" HorizontalAlignment="Right">
+          <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
+          <DockPanel>
+            <Grid x:Name="Titlebar"
+                  DockPanel.Dock="Top"
+                  ColumnDefinitions="Auto,*,Auto"
+                  Margin="82,20,14,10">
+              <Viewbox Width="18" Height="18" VerticalAlignment="Center">
+                <Canvas Width="24" Height="24">
+                  <Path Data="{StaticResource LogoMark}"
+                        Stroke="{DynamicResource TextPrimaryBrush}"
+                        StrokeThickness="1.8"
+                        StrokeJoin="Round" />
+                  <Path Data="{StaticResource LogoEye}" Fill="{DynamicResource AccentBrush}" />
+                </Canvas>
+              </Viewbox>
+              <TextBlock Grid.Column="1"
+                         Margin="8,0,0,0"
+                         Text="Avala"
+                         Classes="strong"
+                         VerticalAlignment="Center" />
+              <ItemsControl x:Name="ToolbarRegion"
+                            Grid.Column="2"
+                            ItemsSource="{Binding Toolbar.Items}"
+                            VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </Grid>
+            <StackPanel x:Name="Footer" DockPanel.Dock="Bottom">
+              <Border Classes="separator" />
+              <StackPanel Margin="10" Spacing="2">
+                <ItemsControl x:Name="SidebarFooterRegion"
+                              ItemsSource="{Binding SidebarFooter.Items}"
+                              IsVisible="{Binding SidebarFooter.HasItems}"
+                              Margin="0,0,0,8">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <StackPanel Spacing="8" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <ListBox x:Name="PageNavigation"
+                         IsVisible="{Binding HasNavigation}"
+                         ItemsSource="{Binding NavigationPages}"
+                         SelectedItem="{Binding SelectedPage, Converter={x:Static states:Kept.Selection}}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="sdk:IPage">
+                      <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Path Classes="icon"
+                              Data="{Binding Icon, Converter={x:Static states:ThemeIcon.Named}}"
+                              IsVisible="{Binding Icon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                              VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </StackPanel>
+            </StackPanel>
+            <ScrollViewer x:Name="SidebarScroller">
+              <ItemsControl x:Name="SidebarRegion" Margin="10,4,10,10" ItemsSource="{Binding Sidebar.Items}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="2" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </ScrollViewer>
+          </DockPanel>
+          <Border Classes="edge" HorizontalAlignment="Right" />
+        </Panel>
       </Panel>
-    </Border>
 
-    <Panel x:Name="InspectorPane"
-           Grid.Column="2"
-           Width="{DynamicResource InspectorWidth}"
-           IsVisible="{Binding IsInspectorShown}"
-           theme:Motion.Enter="Gentle"
-           theme:Motion.When="{Binding IsInspectorShown}">
-      <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
-      <Border Classes="edge" HorizontalAlignment="Left" />
-      <ScrollViewer>
-        <StackPanel Margin="14,16" Spacing="6">
-          <TextBlock Classes="section" Margin="10,2,10,8" Text="Inspector" />
-          <ItemsControl x:Name="InspectorRegion" ItemsSource="{Binding Inspector.Items}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Spacing="6" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-          </ItemsControl>
-        </StackPanel>
-      </ScrollViewer>
-    </Panel>
-  </Grid>
+      <Border x:Name="ContentPane"
+              Grid.Column="1"
+              Classes="window"
+              theme:Chrome.IsBare="{Binding !IsSidebarShown}">
+        <Panel>
+          <ui:Stage x:Name="ContentRegion" KeepsAlive="True" Content="{Binding SelectedPage}" />
+          <Border x:Name="EmptyContent"
+                  Classes="empty"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  IsVisible="{Binding SelectedPage, Converter={x:Static ObjectConverters.IsNull}}">
+            <StackPanel Spacing="6" HorizontalAlignment="Center">
+              <TextBlock Text="Nothing to show yet" Classes="strong" HorizontalAlignment="Center" />
+              <TextBlock Classes="caption" Text="Plugins add their pages to this window." HorizontalAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </Panel>
+      </Border>
+
+      <Panel x:Name="InspectorPane"
+             Grid.Column="2"
+             ClipToBounds="True"
+             Classes.shown="{Binding IsInspectorShown}">
+        <Panel Width="{DynamicResource InspectorWidth}" HorizontalAlignment="Left">
+          <ExperimentalAcrylicBorder Material="{DynamicResource PanelMaterial}" IsHitTestVisible="False" />
+          <Border Classes="edge" HorizontalAlignment="Left" />
+          <ScrollViewer>
+            <StackPanel Margin="14,16" Spacing="6">
+              <TextBlock Classes="section" Margin="10,2,10,8" Text="Inspector" />
+              <ItemsControl x:Name="InspectorRegion" ItemsSource="{Binding Inspector.Items}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </Panel>
+      </Panel>
+    </Grid>
+    <StackPanel x:Name="WindowControls"
+                Orientation="Horizontal"
+                Spacing="2"
+                Margin="12,16,0,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top">
+      <Button x:Name="ToggleSidebar"
+              Classes="glyph"
+              Command="{Binding ToggleSidebarCommand}"
+              IsVisible="{Binding HasSidebar}"
+              ToolTip.Tip="Sidebar (Ctrl+\)"
+              AutomationProperties.Name="Toggle sidebar">
+        <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconSidebar}" />
+      </Button>
+      <Button x:Name="ToggleFocus"
+              Classes="glyph"
+              Classes.selected="{Binding IsFocused}"
+              Command="{Binding ToggleFocusCommand}"
+              ToolTip.Tip="Focus (Ctrl+Shift+F)"
+              AutomationProperties.Name="Toggle focus mode">
+        <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconFocus}" />
+      </Button>
+    </StackPanel>
+  </Panel>
 </Window>

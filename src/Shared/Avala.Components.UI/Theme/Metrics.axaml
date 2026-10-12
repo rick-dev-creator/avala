@@ -29,6 +29,9 @@
   <x:Double x:Key="ShellSidebarWidth">376</x:Double>
   <x:Double x:Key="InspectorWidth">320</x:Double>
   <x:Double x:Key="ReadingWidth">720</x:Double>
+  <Thickness x:Key="ChromeLeading">0</Thickness>
+  <Thickness x:Key="ChromeClearance">0</Thickness>
+  <Thickness x:Key="PageHeaderPadding">24,12</Thickness>
 
   <x:Double x:Key="FontSizeTitle">22</x:Double>
   <x:Double x:Key="FontSizeHeading">15</x:Double>

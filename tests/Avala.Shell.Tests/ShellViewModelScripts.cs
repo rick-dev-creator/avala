@@ -1,4 +1,5 @@
 using Avala.Sdk;
+using Avala.Sdk.Appearance;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Shell.Regions;
@@ -108,7 +109,7 @@ public sealed class ShellViewModelScripts
         var usage = new Section();
         var decisions = new Section();
         var sidebar = new Section();
-        _ = new ShellViewModel([], [Into(ShellRegions.Inspector, 0, usage), Into(ShellRegions.Inspector, 1, decisions), Into(ShellRegions.Sidebar, 0, sidebar)], contexts);
+        _ = new ShellViewModel([], [Into(ShellRegions.Inspector, 0, usage), Into(ShellRegions.Inspector, 1, decisions), Into(ShellRegions.Sidebar, 0, sidebar)], contexts, new RememberedLayout());
 
         contexts.SetContext(ShellRegions.Inspector, new JobInFocus("job-1"));
 
@@ -122,7 +123,7 @@ public sealed class ShellViewModelScripts
     {
         var contexts = new RegionContexts();
         var section = new Section();
-        _ = new ShellViewModel([], [Into(ShellRegions.Inspector, 0, section)], contexts);
+        _ = new ShellViewModel([], [Into(ShellRegions.Inspector, 0, section)], contexts, new RememberedLayout());
         contexts.SetContext(ShellRegions.Inspector, new JobInFocus("job-1"));
 
         contexts.SetContext(ShellRegions.Inspector, "not a job");
@@ -140,7 +141,7 @@ public sealed class ShellViewModelScripts
         contexts.SetContext(ShellRegions.Inspector, new JobInFocus("job-7"));
         var section = new Section();
 
-        _ = new ShellViewModel([], [Into(ShellRegions.Inspector, 0, section)], contexts);
+        _ = new ShellViewModel([], [Into(ShellRegions.Inspector, 0, section)], contexts, new RememberedLayout());
 
         Assert.True(section.Focus.IsSome);
     }
@@ -151,7 +152,7 @@ public sealed class ShellViewModelScripts
         var contexts = new RegionContexts();
         var list = new JobList(contexts);
         var details = new Section();
-        var shell = new ShellViewModel([], [Into(ShellRegions.Sidebar, 0, list), Into(ShellRegions.Inspector, 0, details)], contexts);
+        var shell = new ShellViewModel([], [Into(ShellRegions.Sidebar, 0, list), Into(ShellRegions.Inspector, 0, details)], contexts, new RememberedLayout());
 
         await ViewModelScript.Given(shell).WhenPresentedAsync(_ => list.Select("job-3"), TestContext.Current.CancellationToken);
 
@@ -163,7 +164,7 @@ public sealed class ShellViewModelScripts
     public void TheInspectorShowsOnlyWhileSomethingIsInFocus()
     {
         var contexts = new RegionContexts();
-        var script = ViewModelScript.Given(new ShellViewModel([], [Into(ShellRegions.Inspector, 0, new Section())], contexts));
+        var script = ViewModelScript.Given(new ShellViewModel([], [Into(ShellRegions.Inspector, 0, new Section())], contexts, new RememberedLayout()));
         var hidden = script.ViewModel.IsInspectorShown;
 
         script.When(_ => contexts.SetContext(ShellRegions.Inspector, new JobInFocus("job-1")))
@@ -177,7 +178,7 @@ public sealed class ShellViewModelScripts
     public void AnInspectorWithoutSectionsStaysHiddenWhateverIsInFocus()
     {
         var contexts = new RegionContexts();
-        var shell = new ShellViewModel([], [], contexts);
+        var shell = new ShellViewModel([], [], contexts, new RememberedLayout());
 
         contexts.SetContext(ShellRegions.Inspector, new JobInFocus("job-1"));
 
@@ -189,7 +190,7 @@ public sealed class ShellViewModelScripts
     {
         var jobs = new Page("Jobs");
         var usage = new Page("Usage");
-        var services = new ServiceCollection().AddShell().AddSingleton<IPage>(usage).AddSingleton<IPage>(jobs).BuildServiceProvider();
+        var services = new ServiceCollection().AddShell().AddSingleton<IWindowLayout>(new RememberedLayout()).AddSingleton<IPage>(usage).AddSingleton<IPage>(jobs).BuildServiceProvider();
         var shell = services.GetRequiredService<ShellViewModel>();
         shell.Activate();
 
@@ -232,7 +233,92 @@ public sealed class ShellViewModelScripts
     }
 
     private static ShellViewModel Shell(IEnumerable<IPage> pages, IEnumerable<RegionContribution> contributions) =>
-        new(pages, contributions, new RegionContexts());
+        new(pages, contributions, new RegionContexts(), new RememberedLayout());
+
+    [Fact]
+    public async Task CollapsingTheSidebarHidesItAndRemembersTheChoiceAsync()
+    {
+        var layout = new RememberedLayout();
+        var shell = WithSidebar(layout);
+
+        ViewModelScript.Given(shell)
+            .Invoke(nameof(ShellViewModel.ToggleSidebarCommand))
+            .ThenNotified(nameof(ShellViewModel.IsSidebarShown))
+            .Then(collapsed => Assert.False(collapsed.IsSidebarShown));
+        await shell.Remembering;
+
+        Assert.Equal(new WindowLayout(true), layout.Remembered);
+    }
+
+    [Fact]
+    public async Task TheSidebarStartsCollapsedWhenThePersonLeftItCollapsedAsync()
+    {
+        var shell = WithSidebar(new RememberedLayout(new WindowLayout(true)));
+
+        shell.Activate();
+        await shell.Restoring;
+
+        Assert.False(shell.IsSidebarShown);
+    }
+
+    [Fact]
+    public void ANarrowWindowCollapsesTheSidebarAndAWiderOneBringsItBack() =>
+        ViewModelScript.Given(WithSidebar(new RememberedLayout()))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth - 1)
+            .Then(narrow => Assert.False(narrow.IsSidebarShown))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth)
+            .Then(wide => Assert.True(wide.IsSidebarShown));
+
+    [Fact]
+    public void AWiderWindowKeepsTheSidebarThePersonCollapsedHidden() =>
+        ViewModelScript.Given(WithSidebar(new RememberedLayout()))
+            .Invoke(nameof(ShellViewModel.ToggleSidebarCommand))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth - 1)
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth + 400)
+            .Then(wide => Assert.False(wide.IsSidebarShown));
+
+    [Fact]
+    public async Task InANarrowWindowTheToggleShowsTheSidebarUntilTheWindowWidensWithoutChangingTheRememberedChoiceAsync()
+    {
+        var layout = new RememberedLayout();
+        var shell = WithSidebar(layout);
+
+        ViewModelScript.Given(shell)
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth - 200)
+            .Invoke(nameof(ShellViewModel.ToggleSidebarCommand))
+            .Then(peeking => Assert.True(peeking.IsSidebarShown))
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth + 200)
+            .Invoke(nameof(ShellViewModel.FitCommand), ShellViewModel.NarrowWidth - 200)
+            .Then(narrowAgain => Assert.False(narrowAgain.IsSidebarShown));
+        await shell.Remembering;
+
+        Assert.Equal(WindowLayout.Default, layout.Remembered);
+    }
+
+    [Fact]
+    public void FocusModeHidesTheSidebarAndTheInspectorTogetherUntilItIsLeft()
+    {
+        var contexts = new RegionContexts();
+        var shell = new ShellViewModel([], [Into(ShellRegions.Sidebar, 0, new Section()), Into(ShellRegions.Inspector, 0, new Section())], contexts, new RememberedLayout());
+        contexts.SetContext(ShellRegions.Inspector, new JobInFocus("job-1"));
+
+        ViewModelScript.Given(shell)
+            .Invoke(nameof(ShellViewModel.ToggleFocusCommand))
+            .ThenNotified(nameof(ShellViewModel.IsSidebarShown), nameof(ShellViewModel.IsInspectorShown))
+            .Then(focused => Assert.Equal((true, false, false), (focused.IsFocused, focused.IsSidebarShown, focused.IsInspectorShown)))
+            .Invoke(nameof(ShellViewModel.ToggleFocusCommand))
+            .Then(left => Assert.Equal((false, true, true), (left.IsFocused, left.IsSidebarShown, left.IsInspectorShown)));
+    }
+
+    [Fact]
+    public void ShowingTheSidebarLeavesFocusMode() =>
+        ViewModelScript.Given(WithSidebar(new RememberedLayout()))
+            .Invoke(nameof(ShellViewModel.ToggleFocusCommand))
+            .Invoke(nameof(ShellViewModel.ToggleSidebarCommand))
+            .Then(shell => Assert.Equal((false, true), (shell.IsFocused, shell.IsSidebarShown)));
+
+    private static ShellViewModel WithSidebar(RememberedLayout layout) =>
+        new([], [Into(ShellRegions.Sidebar, 0, new Section())], new RegionContexts(), layout);
 
     private static RegionContribution Into(RegionName region, int order, object viewModel) => new(region, order, viewModel);
 

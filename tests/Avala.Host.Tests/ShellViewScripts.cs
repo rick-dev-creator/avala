@@ -10,6 +10,7 @@ using Avala.Testing.UI;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,7 +31,7 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             Assert.True(view.Shows("InspectorPane"));
             Assert.True(view.Shows("EmptyContent"));
             Assert.True(view.Shows("PageNavigation"));
-            Assert.Equal(Avala.Components.UI.Theme.MotionEntrance.Gentle, view.EntranceOf("InspectorPane"));
+            Assert.True(view.HasClass("InspectorPane", "shown"));
             Assert.Superset(
                 new HashSet<string>(["Avala", "⌘K", "jump", "Add invoice PDF endpoint", "Fix JPY rounding in invoice totals", "claude-work · 5h", "88% · resets 16:20", "Inspector", "claude-personal · 5h", "Nothing to show yet", "Overview", "Usage", "Settings"]),
                 view.VisibleTexts.ToHashSet());
@@ -126,8 +127,10 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             var shell = new ShellViewModel(
                 [],
                 [new RegionContribution(ShellRegions.Sidebar, 0, new JobPicker(contexts)), new RegionContribution(ShellRegions.Inspector, 0, new JobInspector())],
-                contexts);
+                contexts,
+                new RememberedLayout());
             var view = ViewScript.Present(new ShellView(), shell);
+            Avala.Components.UI.Theme.Motion.SetIsReduced(view.Window, true);
             Assert.False(view.Shows("InspectorPane"));
 
             await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
@@ -136,6 +139,78 @@ public sealed partial class ShellViewScripts(HeadlessUi ui, PublishedPlugins plu
             Assert.True(view.Shows("InspectorPane"));
             Assert.Contains("Inspecting job-3", view.VisibleTexts);
         }, Cancellation);
+
+    [Fact]
+    public Task TheToolbarButtonCollapsesTheSidebarAndControlBackslashBringsItBackAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, _) = Composed();
+
+            view.Click("ToggleSidebar");
+            var collapsed = (view.Shows("SidebarPane"), view.Shows("ToggleSidebar"), Leading(view));
+            view.Press(Key.OemPipe, RawInputModifiers.Control);
+
+            Assert.Equal((false, true, Avala.Components.UI.Theme.Chrome.Leading), collapsed);
+            Assert.Equal((true, 0d), (view.Shows("SidebarPane"), Leading(view)));
+        }, Cancellation);
+
+    [Fact]
+    public Task ANarrowWindowCollapsesTheSidebarAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, _) = Composed();
+
+            view.Window.Width = ShellViewModel.NarrowWidth - 100;
+            view.Settle();
+
+            Assert.False(view.Shows("SidebarPane"));
+        }, Cancellation);
+
+    [Fact]
+    public Task FocusModeHidesTheSidebarAndTheInspectorUntilControlShiftFIsPressedAgainAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var (view, shell) = Composed();
+            await shell.PresentsAfterAsync(() => view.Click("PickJob"), () => string.Join(", ", view.VisibleTexts), Cancellation);
+
+            view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+            var focused = (view.Shows("SidebarPane"), view.Shows("InspectorPane"), view.HasClass("ToggleFocus", "selected"));
+            view.Press(Key.F, RawInputModifiers.Control | RawInputModifiers.Shift);
+
+            Assert.Equal((false, false, true), focused);
+            Assert.Equal((true, true, false), (view.Shows("SidebarPane"), view.Shows("InspectorPane"), view.HasClass("ToggleFocus", "selected")));
+        }, Cancellation);
+
+    [Fact]
+    public Task F11TogglesFullScreenAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (view, _) = Composed();
+
+            view.Press(Key.F11);
+            var full = view.Window.WindowState;
+            view.Press(Key.F11);
+
+            Assert.Equal((WindowState.FullScreen, WindowState.Normal), (full, view.Window.WindowState));
+        }, Cancellation);
+
+    private static double Leading(ViewScript view) => ((Thickness)view.Find("ContentPane").Resources["ChromeLeading"]!).Left;
+
+    private static (ViewScript View, ShellViewModel Shell) Composed()
+    {
+        HeadlessApp.Views.Register<JobPicker, JobPickerControl>();
+        HeadlessApp.Views.Register<JobInspector, JobInspectorControl>();
+        var contexts = new RegionContexts();
+        var shell = new ShellViewModel(
+            [],
+            [new RegionContribution(ShellRegions.Sidebar, 0, new JobPicker(contexts)), new RegionContribution(ShellRegions.Inspector, 0, new JobInspector())],
+            contexts,
+            new RememberedLayout());
+        var view = ViewScript.Present(new ShellView { Width = 1440, Height = 900 }, shell);
+        Avala.Components.UI.Theme.Motion.SetIsReduced(view.Window, true);
+
+        return (view.Settle(), shell);
+    }
 
     private sealed partial class JobPicker(IRegions regions)
     {

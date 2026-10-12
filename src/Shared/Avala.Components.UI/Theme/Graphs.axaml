@@ -111,7 +111,7 @@
     <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
     <Setter Property="BorderThickness" Value="0,0,0,1" />
-    <Setter Property="Padding" Value="24,12" />
+    <Setter Property="Padding" Value="{DynamicResource PageHeaderPadding}" />
   </Style>
 
   <Style Selector="TextBlock.pageTitle">
