@@ -6,10 +6,11 @@ using Avalonia.Controls;
 
 namespace Avala.Mermaid.UI.Drawing;
 
-internal sealed class MermaidRenderer : ICanvasRenderer
+internal sealed class MermaidRenderer(TimeProvider clock) : ICanvasRenderer
 {
     public string MediaType => MermaidFormat.Mermaid.MediaType;
 
     public Option<Control> Render(string content) =>
-        MermaidSvg.Draw(content, MermaidPalette.Dark).Map<Control>(_ => new MermaidDrawing(content) { Name = "Mermaid" });
+        MermaidSvg.Draw(content, MermaidPalette.Dark, MermaidBudget.Standard(clock))
+            .Match(_ => Option<Control>.Some(new MermaidDrawing(content, clock) { Name = "Mermaid" }), _ => Option<Control>.None);
 }

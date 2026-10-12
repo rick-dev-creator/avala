@@ -11,6 +11,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
+using Microsoft.Extensions.Time.Testing;
 
 [assembly: AssemblyFixture(typeof(HeadlessUi))]
 
@@ -27,9 +28,9 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
     [Fact]
     public async Task ThePluginOffersMermaidAndRegistersItsRendererAsync()
     {
-        await using var composition = PluginComposition.Of(new MermaidPlugin(), new AvalaPaths("unused"), _ => { });
+        await using var composition = PluginComposition.Of(new MermaidPlugin(new FakeTimeProvider()), new AvalaPaths("unused"), _ => { });
         var views = new RecordingRegistrar();
-        new MermaidPlugin().RegisterViews(views);
+        new MermaidPlugin(new FakeTimeProvider()).RegisterViews(views);
 
         var offered = Assert.Single(composition.All<CanvasFormat>());
 
@@ -91,7 +92,7 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
     private static ViewRegistry Renderers()
     {
         var views = new ViewRegistry();
-        new MermaidPlugin().RegisterViews(views);
+        new MermaidPlugin(new FakeTimeProvider()).RegisterViews(views);
 
         return views;
     }
@@ -101,7 +102,7 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
         if (!registered)
         {
             new RenderingPlugin().RegisterViews(HeadlessApp.Views);
-            new MermaidPlugin().RegisterViews(HeadlessApp.Views);
+            new MermaidPlugin(new FakeTimeProvider()).RegisterViews(HeadlessApp.Views);
             registered = true;
         }
     }

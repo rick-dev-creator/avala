@@ -6,11 +6,16 @@ using Avala.Sdk.UI;
 
 namespace Avala.Mermaid.UI;
 
-public sealed class MermaidPlugin : IPlugin, IViewContributor
+public sealed class MermaidPlugin(TimeProvider clock) : IPlugin, IViewContributor
 {
+    public MermaidPlugin()
+        : this(TimeProvider.System)
+    {
+    }
+
     public PluginInfo Info { get; } = new("avala.mermaid", "Mermaid canvases");
 
     public void Register(IPluginRegistrar registrar) => registrar.Services.AddMermaidFormat();
 
-    public void RegisterViews(IViewRegistrar views) => views.AddCanvasRenderer(new MermaidRenderer());
+    public void RegisterViews(IViewRegistrar views) => views.AddCanvasRenderer(new MermaidRenderer(clock));
 }

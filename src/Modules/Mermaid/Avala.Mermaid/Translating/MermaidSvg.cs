@@ -9,26 +9,41 @@ internal sealed record MermaidPalette(string Background, string Foreground, stri
     public static MermaidPalette Dark { get; } = new("#17181C", "#EDEDEF", "#8DA2FB", "#A3A3AD");
 }
 
+internal sealed record MermaidBudget(TimeProvider Clock, TimeSpan Deadline)
+{
+    public static MermaidBudget Standard(TimeProvider clock) => new(clock, TimeSpan.FromSeconds(5));
+}
+
+internal enum MermaidFailure
+{
+    NotADiagram,
+    OutOfTime,
+}
+
 internal static class MermaidSvg
 {
-    public static Option<string> Draw(string source, MermaidPalette palette)
+    public static Result<string, MermaidFailure> Draw(string source, MermaidPalette palette, MermaidBudget budget)
     {
         if (string.IsNullOrWhiteSpace(source))
         {
-            return Option<string>.None;
+            return MermaidFailure.NotADiagram;
         }
 
         try
         {
-            return CssVariables.Flatten(MermaidRenderer.RenderSvg(source, Options(palette)));
+            return CssVariables.Flatten(MermaidRenderer.RenderSvg(source, Options(palette, budget))).ToResult(MermaidFailure.NotADiagram);
+        }
+        catch (Exception exception) when (exception is OperationCanceledException or MermaidResourceLimitException { LimitName: nameof(ResourceLimits.RenderDeadline) })
+        {
+            return MermaidFailure.OutOfTime;
         }
         catch (Exception exception) when (exception is MermaidParseException or MermaidRenderException or MermaidSvgException or ArgumentException or InvalidOperationException)
         {
-            return Option<string>.None;
+            return MermaidFailure.NotADiagram;
         }
     }
 
-    private static RenderOptions Options(MermaidPalette palette) => new()
+    private static RenderOptions Options(MermaidPalette palette, MermaidBudget budget) => new()
     {
         Bg = palette.Background,
         Fg = palette.Foreground,
@@ -39,5 +54,6 @@ internal static class MermaidSvg
         Transparent = true,
         Elevation = 0,
         Padding = 16,
+        Limits = ResourceLimits.Default with { RenderDeadline = budget.Deadline, TimeProvider = budget.Clock },
     };
 }

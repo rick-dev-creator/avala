@@ -1,5 +1,6 @@
 using Avala.Mermaid.Translating;
 using Avala.Sdk;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Mermaid.Tests;
 
@@ -58,7 +59,11 @@ public sealed class MermaidSvgTests
     [InlineData("   ")]
     [InlineData("this is not a diagram")]
     public void TextThatIsNotADiagramDrawsNothing(string source) =>
-        Assert.Equal(Option<string>.None, MermaidSvg.Draw(source, MermaidPalette.Dark));
+        Assert.Equal(MermaidFailure.NotADiagram, Failure(MermaidSvg.Draw(source, MermaidPalette.Dark, Unhurried)));
+
+    [Fact]
+    public void ADiagramWhoseRenderDeadlineHasPassedFailsAsOutOfTime() =>
+        Assert.Equal(MermaidFailure.OutOfTime, Failure(MermaidSvg.Draw(Flow, MermaidPalette.Dark, new MermaidBudget(new FakeTimeProvider(), TimeSpan.Zero))));
 
     [Fact]
     public void ScriptsAndExternalLinksNeverReachTheSvg()
@@ -70,6 +75,11 @@ public sealed class MermaidSvgTests
         Assert.DoesNotContain("https://example.com", svg, StringComparison.Ordinal);
     }
 
+    private static MermaidBudget Unhurried => MermaidBudget.Standard(new FakeTimeProvider());
+
     private static string Drawn(string source, MermaidPalette? palette = null) =>
-        MermaidSvg.Draw(source, palette ?? MermaidPalette.Dark).Match(svg => svg, () => throw new InvalidOperationException("The diagram was not drawn."));
+        MermaidSvg.Draw(source, palette ?? MermaidPalette.Dark, Unhurried).Match(svg => svg, failure => throw new InvalidOperationException($"The diagram was not drawn: {failure}."));
+
+    private static MermaidFailure? Failure(Result<string, MermaidFailure> drawn) =>
+        drawn.Match<MermaidFailure?>(_ => null, failure => failure);
 }
