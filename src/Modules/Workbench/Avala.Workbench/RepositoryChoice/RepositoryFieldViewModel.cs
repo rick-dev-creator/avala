@@ -22,14 +22,14 @@ internal interface IRepositoryFieldViewModel
 
     INewRepositoryViewModel Creation { get; }
 
-    ICloneRepositoryViewModel Cloning { get; }
+    ICloneSheetViewModel Cloning { get; }
 
     IAsyncRelayCommand ChooseCommand { get; }
 
     IAsyncRelayCommand MakeRepositoryCommand { get; }
 }
 
-internal sealed record RepositoryStarts(NewRepositoryViewModel Creation, CloneRepositoryViewModel Cloning);
+internal sealed record RepositoryStarts(NewRepositoryViewModel Creation, CloneSheetViewModel Cloning);
 
 [INotifyPropertyChanged]
 internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewModel
@@ -39,7 +39,7 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     private readonly IRepositories repositories;
     private readonly RecentRepositories recent;
     private readonly NewRepositoryViewModel creation;
-    private readonly CloneRepositoryViewModel cloning;
+    private readonly CloneSheetViewModel cloning;
     private int checks;
 
     public RepositoryFieldViewModel(IFolderPicker picker, IRepositories repositories, RecentRepositories recent, RepositoryStarts starts)
@@ -59,9 +59,9 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
 
     public NewRepositoryViewModel Creating => creation;
 
-    public ICloneRepositoryViewModel Cloning => cloning;
+    public ICloneSheetViewModel Cloning => cloning;
 
-    public CloneRepositoryViewModel Clone => cloning;
+    public CloneSheetViewModel Clone => cloning;
 
     public Task Checking { get; private set; } = Task.CompletedTask;
 
@@ -84,7 +84,6 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     {
         Notice = string.Empty;
         creation.Near = value;
-        cloning.Near = value;
         Checking = CheckAsync(CancellationToken.None);
     }
 

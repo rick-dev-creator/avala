@@ -46,11 +46,7 @@ internal static class RepositoryPhrases
         _ => "Git could not make the repository.",
     };
 
-    public const string CloneParentTitle = "Choose where the clone goes";
-
     public const string CloneCancelled = "Clone cancelled: nothing was kept.";
-
-    public static string Cloning(string url, string path) => $"Cloning {url} into {path}…";
 
     public static string Cloned(RepositoryCloned cloned) => $"Cloned {cloned.Url} into {cloned.Path}.";
 

@@ -97,6 +97,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IWorkingFiles>(new FakeWorkingFiles())
             .AddSingleton<IRepositories>(new RepositoryChoice.FakeRepositories())
             .AddSingleton<IScratchRepositories>(new RepositoryChoice.FakeScratch())
+            .AddSingleton<IProjectsFolder>(new RepositoryChoice.FakeProjects())
             .AddSingleton<IRemoteRepositories>(new RepositoryChoice.FakeRemotes())
             .AddSingleton<Forges.Contracts.IRepositoryPublishing>(new RepositoryChoice.FakePublishing())
             .AddSingleton<IUsage>(new FakeUsage())

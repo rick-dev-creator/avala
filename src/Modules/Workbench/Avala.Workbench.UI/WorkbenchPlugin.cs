@@ -52,6 +52,7 @@ using Avala.Workbench.Telemetry;
 using Avala.Workbench.Updates;
 using Avala.Workbench.Upkeep;
 using Avala.Workbench.Usage;
+using Avala.Workspaces.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -237,7 +238,13 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         services
             .AddTransient<PublishOptionsViewModel>()
             .AddTransient<NewRepositoryViewModel>()
-            .AddTransient<CloneRepositoryViewModel>()
+            .AddSingleton<ProjectsPlace>()
+            .AddSingleton(provider => new CloneServices(
+                provider.GetRequiredService<SourceControl>(),
+                provider.GetRequiredService<IRemoteRepositories>(),
+                provider.GetRequiredService<ProjectsPlace>(),
+                provider.GetRequiredService<TimeProvider>()))
+            .AddTransient<CloneSheetViewModel>()
             .AddTransient<RepositoryStarts>()
             .AddTransient<RepositoryFieldViewModel>()
             .AddTransient<NewJobFields>();
@@ -385,7 +392,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<INewJobViewModel, NewJobView>();
         views.Register<IRepositoryFieldViewModel, RepositoryFieldView>();
         views.Register<INewRepositoryViewModel, NewRepositoryView>();
-        views.Register<ICloneRepositoryViewModel, CloneRepositoryView>();
+        views.Register<ICloneSheetViewModel, CloneSheetView>();
+        views.Register<ICloneSourceViewModel, CloneSourceView>();
+        views.Register<IRemoteRowViewModel, RemoteRowView>();
         views.Register<IPublishOptionsViewModel, PublishOptionsView>();
         views.Register<IPublishRepositoryViewModel, PublishRepositoryView>();
         views.Register<IConnectionOptionViewModel, ConnectionOptionView>();

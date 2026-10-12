@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:choice="using:Avala.Workbench.RepositoryChoice"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.CloneSourceView"
+             x:ClassModifier="internal"
+             x:DataType="choice:ICloneSourceViewModel">
+  <Design.DataContext>
+    <choice:DesignCloneSourceViewModel />
+  </Design.DataContext>
+  <Button x:Name="Source"
+          Classes="segment"
+          Classes.selected="{Binding IsSelected}"
+          Padding="12,6"
+          ToolTip.Tip="{Binding Name}"
+          Command="{Binding SelectCommand}">
+    <StackPanel Orientation="Horizontal" Spacing="7">
+      <Path Classes="logo inline" Data="{Binding Logo, Converter={x:Static states:PathData.Parsed}}" />
+      <TextBlock x:Name="SourceLogin" Text="{Binding Login}" VerticalAlignment="Center" />
+    </StackPanel>
+  </Button>
+</UserControl>

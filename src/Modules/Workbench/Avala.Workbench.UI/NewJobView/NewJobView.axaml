@@ -17,6 +17,7 @@
       <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
     </Style>
   </UserControl.Styles>
+  <Panel>
   <DockPanel>
     <Border DockPanel.Dock="Top" Classes="pageHeader">
       <DockPanel>
@@ -107,4 +108,13 @@
       </StackPanel>
     </ScrollViewer>
   </DockPanel>
+  <Panel x:Name="CloneSheet" IsVisible="{Binding RepositoryField.Cloning.IsOpen}">
+    <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
+    <ContentControl x:Name="CloneSheetContent" Content="{Binding RepositoryField.Cloning}" />
+  </Panel>
+  <Panel x:Name="ConnectSheet" IsVisible="{Binding RepositoryField.Cloning.Connect.IsOpen}">
+    <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
+    <ContentControl x:Name="ConnectSheetContent" Content="{Binding RepositoryField.Cloning.Connect}" />
+  </Panel>
+  </Panel>
 </UserControl>

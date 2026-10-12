@@ -19,7 +19,7 @@ internal sealed partial class DesignRepositoryFieldViewModel : IRepositoryFieldV
 
     public INewRepositoryViewModel Creation { get; init; } = new DesignNewRepositoryViewModel();
 
-    public ICloneRepositoryViewModel Cloning { get; init; } = new DesignCloneRepositoryViewModel { IsOpen = false };
+    public ICloneSheetViewModel Cloning { get; init; } = new DesignCloneSheetViewModel { IsOpen = false };
 
     public IAsyncRelayCommand ChooseCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
@@ -46,34 +46,6 @@ internal sealed partial class DesignNewRepositoryViewModel : INewRepositoryViewM
     public IAsyncRelayCommand StartCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand CreateCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
-
-    public IRelayCommand CancelCommand { get; } = new RelayCommand(() => { });
-}
-
-[INotifyPropertyChanged]
-internal sealed partial class DesignCloneRepositoryViewModel : ICloneRepositoryViewModel
-{
-    public bool IsOpen { get; init; } = true;
-
-    [ObservableProperty]
-    public partial string Url { get; set; } = "git@github.com:octo/shop.git";
-
-    public string Parent { get; init; } = "/home/ada/code";
-
-    [ObservableProperty]
-    public partial string Name { get; set; } = "shop";
-
-    public bool IsCloning { get; init; } = true;
-
-    public string Status { get; init; } = "Cloning git@github.com:octo/shop.git into /home/ada/code/shop…";
-
-    public string Error { get; init; } = string.Empty;
-
-    public IAsyncRelayCommand StartCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
-
-    public IAsyncRelayCommand ChooseParentCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
-
-    public IAsyncRelayCommand CloneCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IRelayCommand CancelCommand { get; } = new RelayCommand(() => { });
 }

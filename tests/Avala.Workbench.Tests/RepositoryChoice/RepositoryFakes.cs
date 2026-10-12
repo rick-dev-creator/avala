@@ -118,10 +118,34 @@ internal static class Choosing
         Field(board, picker, repositories, new FakeRemotes());
 
     public static RepositoryFieldViewModel Field(JobBoard board, FakeFolderPicker picker, FakeRepositories repositories, FakeRemotes remotes) =>
-        new(picker, repositories, new RecentRepositories(board, Scratching.Folders()), new RepositoryStarts(Creation(picker, repositories, new FakePublishing()), new CloneRepositoryViewModel(picker, remotes)));
+        new(picker, repositories, new RecentRepositories(board, Scratching.Folders()), new RepositoryStarts(Creation(picker, repositories, new FakePublishing()), Cloning(new Accounts.FakeSourceControl(), remotes, new FakeProjects(), picker)));
+
+    public static CloneSheetViewModel Cloning(Accounts.FakeSourceControl forges, FakeRemotes remotes, FakeProjects projects, FakeFolderPicker picker) =>
+        new(new CloneServices(forges.Source, remotes, new ProjectsPlace(projects, picker), new Microsoft.Extensions.Time.Testing.FakeTimeProvider(Now)), new Avala.Workbench.Accounts.ConnectSheetViewModel(forges.Source));
+
+    public static DateTimeOffset Now { get; } = new(2026, 10, 12, 12, 0, 0, TimeSpan.Zero);
 
     public static NewRepositoryViewModel Creation(FakeFolderPicker picker, FakeRepositories repositories, FakePublishing publishing) =>
         new(picker, repositories, new PublishOptionsViewModel(publishing));
+}
+
+internal sealed class FakeProjects : IProjectsFolder
+{
+    public string Suggested { get; set; } = "/home/ada/Projects";
+
+    public Option<string> Chosen { get; set; }
+
+    public List<string> Choices { get; } = [];
+
+    public ValueTask<ProjectsFolder> ReadAsync(CancellationToken cancellationToken) => ValueTask.FromResult(new ProjectsFolder(Suggested, Chosen));
+
+    public ValueTask<Result<ProjectsFolder, WorkspaceFailure>> ChooseAsync(string folder, CancellationToken cancellationToken)
+    {
+        Choices.Add(folder);
+        Chosen = folder;
+
+        return ValueTask.FromResult(Result<ProjectsFolder, WorkspaceFailure>.Success(new ProjectsFolder(Suggested, Chosen)));
+    }
 }
 
 internal sealed class FakeScratch : IScratchRepositories

@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:choice="using:Avala.Workbench.RepositoryChoice"
+             x:Class="Avala.Workbench.UI.RemoteRowView"
+             x:ClassModifier="internal"
+             x:DataType="choice:IRemoteRowViewModel">
+  <Design.DataContext>
+    <choice:DesignRemoteRowViewModel />
+  </Design.DataContext>
+  <Button x:Name="CloneRow"
+          Classes="row"
+          Command="{Binding CloneCommand}"
+          ToolTip.Tip="Clone"
+          AutomationProperties.Name="{Binding Name}">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
+      <Path Classes="icon" Data="{StaticResource IconRepositoryNew}" Stroke="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <TextBlock x:Name="RepositoryName" Classes="strong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="Owner" Classes="caption" Text="{Binding Owner}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      </StackPanel>
+      <Path x:Name="Private"
+            Grid.Column="2"
+            Classes="icon"
+            Data="{StaticResource IconLock}"
+            Stroke="{DynamicResource TextTertiaryBrush}"
+            VerticalAlignment="Center"
+            ToolTip.Tip="Private"
+            IsVisible="{Binding IsPrivate}" />
+      <Border x:Name="Archived" Grid.Column="3" Classes="tag" IsVisible="{Binding IsArchived}">
+        <TextBlock Text="archived" />
+      </Border>
+      <TextBlock x:Name="Updated" Grid.Column="4" Classes="caption" Text="{Binding Updated}" VerticalAlignment="Center" />
+    </Grid>
+  </Button>
+</UserControl>

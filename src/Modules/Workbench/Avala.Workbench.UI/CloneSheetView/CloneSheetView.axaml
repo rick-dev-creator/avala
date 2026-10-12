@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:choice="using:Avala.Workbench.RepositoryChoice"
+             x:Class="Avala.Workbench.UI.CloneSheetView"
+             x:ClassModifier="internal"
+             x:DataType="choice:ICloneSheetViewModel">
+  <Design.DataContext>
+    <choice:DesignCloneSheetViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ItemsControl#CloneRows > ContentPresenter">
+      <Setter Property="Margin" Value="0,1" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Sheet" Classes="sheet sheet-in">
+    <StackPanel Spacing="14">
+      <TextBlock Classes="heading" Text="Clone" />
+      <TextBox x:Name="CloneSearch"
+               Text="{Binding Search}"
+               PlaceholderText="Search or paste a URL"
+               AutomationProperties.Name="Search the repositories or paste an address">
+        <TextBox.InnerLeftContent>
+          <Path Classes="icon" Margin="10,0,2,0" Data="{StaticResource IconSearch}" Stroke="{DynamicResource TextTertiaryBrush}" />
+        </TextBox.InnerLeftContent>
+        <TextBox.KeyBindings>
+          <KeyBinding Gesture="Enter" Command="{Binding CloneAddressCommand}" />
+          <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+        </TextBox.KeyBindings>
+      </TextBox>
+      <Border Classes="segments" HorizontalAlignment="Left" IsVisible="{Binding !!Sources.Count}">
+        <ItemsControl x:Name="CloneSources" ItemsSource="{Binding Sources}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </Border>
+      <Button x:Name="CloneAddress"
+              Classes="row"
+              Command="{Binding CloneAddressCommand}"
+              IsVisible="{Binding Address, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Path Classes="icon" Data="{StaticResource IconClone}" Stroke="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+          <TextBlock x:Name="CloneAddressText" Text="{Binding Address, StringFormat='Clone {0}'}" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Button>
+      <ScrollViewer MaxHeight="300" IsVisible="{Binding !!Repositories.Count}">
+        <ItemsControl x:Name="CloneRows" ItemsSource="{Binding Repositories}" />
+      </ScrollViewer>
+      <StackPanel x:Name="CloneProgress" Spacing="6" IsVisible="{Binding IsCloning}">
+        <ProgressBar IsIndeterminate="True" />
+        <TextBlock x:Name="CloneStatus" Classes="caption" Text="{Binding Status}" />
+      </StackPanel>
+      <ProgressBar x:Name="CloneLoading" IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+      <DockPanel x:Name="CloneProblem" IsVisible="{Binding FixLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <Button x:Name="CloneFix" DockPanel.Dock="Right" Classes="fix" Content="{Binding FixLabel}" Command="{Binding FixCommand}" />
+        <TextBlock x:Name="CloneError" Classes="caption attention" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding Error}" />
+      </DockPanel>
+      <TextBlock x:Name="CloneFailure"
+                 Classes="caption failure"
+                 TextWrapping="Wrap"
+                 Text="{Binding Error}"
+                 IsVisible="{Binding FixLabel, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+      <DockPanel>
+        <Button x:Name="CancelClone" DockPanel.Dock="Right" Content="Cancel" Command="{Binding CancelCommand}" />
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Path Classes="icon" Data="{StaticResource IconFolder}" Stroke="{DynamicResource TextTertiaryBrush}" />
+          <TextBlock x:Name="Destination" Classes="caption mono" Text="{Binding Destination}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+          <Button x:Name="ChangeDestination" Classes="link" Content="Change" Command="{Binding ChangeDestinationCommand}" />
+        </StackPanel>
+      </DockPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

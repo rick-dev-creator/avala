@@ -53,7 +53,6 @@
             Command="{Binding Creation.StartCommand}"
             IsVisible="{Binding !Creation.IsOpen}" />
     <ContentControl x:Name="Creation" Content="{Binding Creation}" IsVisible="{Binding Creation.IsOpen}" />
-    <ContentControl x:Name="Cloning" Content="{Binding Cloning}" IsVisible="{Binding Cloning.IsOpen}" />
     <StackPanel x:Name="Problem"
                 Classes="fade-in"
                 Spacing="6"
