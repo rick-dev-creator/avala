@@ -25,7 +25,14 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             return PolicyError.ScopeNotOffered;
         }
 
-        var answer = reply.Answer == PermissionAnswer.Allow ? PolicyAnswer.Allow : PolicyAnswer.Deny;
+        return await DecideAsync(governed, asked, reply, cancellationToken);
+    }
+
+    public static bool Everything(Remember remember) => remember is Remember.EverythingInThisJob or Remember.EverythingInThisContest;
+
+    private async ValueTask<Result<HumanAnswer, PolicyError>> DecideAsync(GovernedSession governed, PolicyDecision asked, PermissionReply reply, CancellationToken cancellationToken)
+    {
+        var answer = PolicyAnswerTo(reply);
         var kept = governed.Job.Match(job => Rules(reply.Remember, asked, answer).Select(rule => (Job: job, Rule: rule)).ToList(), () => []);
         var raised = governed.Job.Match(job => Everything(reply.Remember) && ledger.Raise(job) ? new[] { job } : [], () => []);
 
@@ -34,17 +41,9 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             book.Remember(job, rule);
         }
 
-        if ((await agents.RespondAsync(session, new PermissionDecision(reply.Item, reply.Answer) { Message = reply.Message }, cancellationToken)).IsFailure)
+        if ((await agents.RespondAsync(governed.Session, new PermissionDecision(reply.Item, reply.Answer) { Message = reply.Message }, cancellationToken)).IsFailure)
         {
-            foreach (var (job, rule) in kept)
-            {
-                book.Forget(job, rule);
-            }
-
-            foreach (var job in raised)
-            {
-                ledger.Lower(job);
-            }
+            Undo(kept, raised);
 
             return PolicyError.NotAwaitingAnswer;
         }
@@ -54,12 +53,31 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             await ledger.RaisedAsync(job, cancellationToken);
         }
 
+        return await RecordAsync(governed, asked, reply, kept.Select(found => found.Rule).FirstOrDefault().ToOption(), cancellationToken);
+    }
+
+    private void Undo(List<(JobId Job, PolicyRule Rule)> kept, JobId[] raised)
+    {
+        foreach (var (job, rule) in kept)
+        {
+            book.Forget(job, rule);
+        }
+
+        foreach (var job in raised)
+        {
+            ledger.Lower(job);
+        }
+    }
+
+    private async ValueTask<Result<HumanAnswer, PolicyError>> RecordAsync(GovernedSession governed, PolicyDecision asked, PermissionReply reply, Option<PolicyRule> kept, CancellationToken cancellationToken)
+    {
+        var answer = PolicyAnswerTo(reply);
         var written = reply.Remember == Remember.InThisRepository
             ? Option<Result<PolicyRule, PolicyError>>.Some(await WriteAsync(governed.Job, asked.RepositoryRule.Map(rule => rule with { Answer = answer }), cancellationToken))
             : Option<Result<PolicyRule, PolicyError>>.None;
 
         return await ledger.RecordAsync(
-            new HumanAnswer(session, governed.Job, reply.Item, asked.Kind, asked.Target, reply.Answer, reply.Message, kept.Select(found => found.Rule).FirstOrDefault().ToOption(), default)
+            new HumanAnswer(governed.Session, governed.Job, reply.Item, asked.Kind, asked.Target, reply.Answer, reply.Message, kept, default)
             {
                 RepositoryRule = written.Bind(result => result.Match(Option<PolicyRule>.Some, _ => Option<PolicyRule>.None)),
                 RepositoryError = written.Bind(result => result.Match(_ => Option<PolicyError>.None, Option<PolicyError>.Some)),
@@ -68,7 +86,8 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             cancellationToken);
     }
 
-    public static bool Everything(Remember remember) => remember is Remember.EverythingInThisJob or Remember.EverythingInThisContest;
+    private static PolicyAnswer PolicyAnswerTo(PermissionReply reply) =>
+        reply.Answer == PermissionAnswer.Allow ? PolicyAnswer.Allow : PolicyAnswer.Deny;
 
     private static bool Offered(Remember remember, PolicyDecision asked) => remember switch
     {
