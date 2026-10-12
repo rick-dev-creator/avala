@@ -17,10 +17,12 @@ namespace Avala.Workbench.Inspector;
 
 internal static class InspectorPhrases
 {
-    public static string Chosen(ConnectionChoice choice) =>
-        choice.Reason == ChoiceReason.AllAtLimit
-            ? $"Chosen by capacity: every connection was at its limit, so {choice.Connection.Value}, the least used"
-            : $"Chosen by capacity: {choice.Connection.Value} had the most left";
+    public static string Chosen(ConnectionChoice choice) => choice.Reason switch
+    {
+        ChoiceReason.Person => $"Moved to {choice.Connection.Value} by you",
+        ChoiceReason.AllAtLimit => $"Chosen by capacity: every connection was at its limit, so {choice.Connection.Value}, the least used",
+        _ => $"Chosen by capacity: {choice.Connection.Value} had the most left",
+    };
 
     public static string Capacity(CandidateCapacity candidate) =>
         Amounts.Joined([
