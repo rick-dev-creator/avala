@@ -149,7 +149,7 @@ public sealed class TimelinePanelScripts(HeadlessUi ui)
             var wrapped = Navigable(list).GetControl(NavigationDirection.Down, newest, wrap: true);
 
             Assert.Null(stopped);
-            Assert.Same(list.ContainerFromIndex(0), wrapped);
+            Assert.Equal(0, list.IndexFromContainer(Assert.IsAssignableFrom<Control>(wrapped)));
         }, Cancellation);
 
     private static INavigableContainer Navigable(ItemsControl list) => (INavigableContainer)list.ItemsPanelRoot!;
