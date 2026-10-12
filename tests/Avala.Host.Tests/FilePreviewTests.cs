@@ -22,13 +22,13 @@ public sealed class FilePreviewTests(HeadlessUi ui, PublishedPlugins plugins)
         var shown = await run.Ui.ReadAsync(() => (drawing["IsOpen"].Value<bool>(), drawing["HasThumbnail"].Value<bool>(), drawing["Drawing"].Value<CanvasRendering>().Content, page["IsOpen"].Value<bool>()));
         var drawn = false;
         await ui.RunAsync(
-            () =>
+            async () =>
             {
                 Application.Current!.DataTemplates.Add(run.Views);
 
                 try
                 {
-                    drawn = ViewScript.Show(drawing.Target).Shows("Svg");
+                    drawn = (await ViewScript.Show(drawing.Target).DrawnAsync()).Shows("Svg");
                 }
                 finally
                 {

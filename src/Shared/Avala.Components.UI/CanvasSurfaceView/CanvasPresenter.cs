@@ -7,6 +7,8 @@ using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
+using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -20,8 +22,17 @@ public sealed class CanvasPresenter : Panel
     public static readonly AttachedProperty<TimeProvider> ClockProperty =
         AvaloniaProperty.RegisterAttached<CanvasPresenter, Control, TimeProvider>("Clock", TimeProvider.System, inherits: true);
 
+    public static readonly AttachedProperty<bool> IsDrawingProperty =
+        AvaloniaProperty.RegisterAttached<CanvasPresenter, Control, bool>("IsDrawing");
+
+    public static readonly RoutedEvent<RoutedEventArgs> DrawnEvent =
+        RoutedEvent.Register<CanvasPresenter, RoutedEventArgs>("Drawn", RoutingStrategies.Bubble);
+
     private CanvasRendering presented = CanvasRendering.Nothing;
+    private Control? pending;
     private int arrival;
+
+    public CanvasPresenter() => AddHandler(DrawnEvent, OnDrawn);
 
     public CanvasRendering Rendering
     {
@@ -34,6 +45,16 @@ public sealed class CanvasPresenter : Panel
     public static TimeProvider GetClock(Control control) => control.GetValue(ClockProperty);
 
     public static void SetClock(Control control, TimeProvider clock) => control.SetValue(ClockProperty, clock);
+
+    public static bool GetIsDrawing(Control control) => control.GetValue(IsDrawingProperty);
+
+    public static void SetIsDrawing(Control control, bool drawing) => control.SetValue(IsDrawingProperty, drawing);
+
+    public static void Drawn(Control drawing)
+    {
+        SetIsDrawing(drawing, false);
+        drawing.RaiseEvent(new RoutedEventArgs(DrawnEvent, drawing));
+    }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
@@ -91,6 +112,19 @@ public sealed class CanvasPresenter : Panel
         presented = rendering;
         Children.Add(layer);
 
+        if (Children.Count > 1 && IsDrawing(layer))
+        {
+            layer.Opacity = 0;
+            pending = layer;
+        }
+        else
+        {
+            Reveal(layer);
+        }
+    }
+
+    private void Reveal(Control layer)
+    {
         if (Children.Count > 1 && Motion.GetIsReduced(this))
         {
             Settle();
@@ -101,9 +135,27 @@ public sealed class CanvasPresenter : Panel
         }
     }
 
+    private void OnDrawn(object? sender, RoutedEventArgs e)
+    {
+        if (pending is { } layer && e.Source is Visual drawn && (drawn == layer || layer.IsVisualAncestorOf(drawn)) && !IsDrawing(layer))
+        {
+            pending = null;
+            Reveal(layer);
+        }
+    }
+
+    private static bool IsDrawing(Control layer) =>
+        layer.GetSelfAndLogicalDescendants().OfType<Control>().Any(GetIsDrawing);
+
     private void Settle()
     {
         arrival++;
+
+        if (pending is { } superseded)
+        {
+            pending = null;
+            Children.Remove(superseded);
+        }
 
         while (Children.Count > 1)
         {

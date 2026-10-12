@@ -1,3 +1,4 @@
+using Avala.Components.UI;
 using Avala.Components.UI.Theme;
 using Avalonia;
 using Avalonia.Controls;
@@ -12,6 +13,8 @@ namespace Avala.Testing.UI;
 public sealed class ViewScript
 {
     private static readonly List<Window> Open = [];
+
+    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(30);
 
     private ViewScript(Window window)
     {
@@ -38,6 +41,40 @@ public sealed class ViewScript
         window.DataContext = viewModel;
 
         return new ViewScript(window);
+    }
+
+    public async Task<ViewScript> DrawnAsync()
+    {
+        await DrawnAsync(Window);
+
+        return Settle();
+    }
+
+    public static async Task DrawnAsync(Window window)
+    {
+        var drawn = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void Check()
+        {
+            if (!window.GetLogicalDescendants().OfType<Control>().Any(CanvasPresenter.GetIsDrawing))
+            {
+                drawn.TrySetResult();
+            }
+        }
+
+        void OnDrawn(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Check();
+
+        window.AddHandler(CanvasPresenter.DrawnEvent, OnDrawn);
+        Check();
+
+        try
+        {
+            await drawn.Task.WaitAsync(Patience);
+        }
+        finally
+        {
+            window.RemoveHandler(CanvasPresenter.DrawnEvent, OnDrawn);
+        }
     }
 
     public T Find<T>(string name)

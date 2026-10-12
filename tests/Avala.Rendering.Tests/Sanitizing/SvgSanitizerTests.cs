@@ -94,6 +94,19 @@ public sealed class SvgSanitizerTests
         Assert.DoesNotContain("DOCTYPE", sanitized.Markup, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("viewBox=\"0 0 1000 800\" width=\"400\" height=\"320\"", "1000 x 800", "width=\"1000\" height=\"800\"")]
+    [InlineData("viewBox=\"0,0,1000,800\"", "1000 x 800", "width=\"1000\" height=\"800\"")]
+    [InlineData("width=\"40px\" height=\"20\"", "40 x 20", "width=\"40px\" height=\"20\"")]
+    [InlineData("width=\"100%\"", "none", "width=\"100%\"")]
+    public void ADrawingIsSizedByItsViewBoxSoItIsDrawnWholeAtAnyScale(string attributes, string area, string sized)
+    {
+        var sanitized = Sanitized($"<svg xmlns=\"http://www.w3.org/2000/svg\" {attributes}><rect width=\"1\"/></svg>");
+
+        Assert.Equal(area, sanitized.Area.Match(found => $"{found.Width} x {found.Height}", () => "none"));
+        Assert.Contains(sized, sanitized.Markup, StringComparison.Ordinal);
+    }
+
     private static SanitizedSvg Sanitized(string svg) =>
         SvgSanitizer.Sanitize(svg).Match(value => value, () => throw new Xunit.Sdk.XunitException("The drawing was rejected."));
 

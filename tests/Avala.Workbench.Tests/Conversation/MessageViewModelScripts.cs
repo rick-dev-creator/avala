@@ -26,7 +26,7 @@ public sealed class MessageViewModelScripts
     public async Task OnlyWebLinksReachTheOpener(string link, bool opened)
     {
         var opener = new FakeLinks();
-        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(opener), new FakeClipboard());
+        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(opener, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new FakeClipboard());
 
         await message.OpenLinkCommand.ExecuteAsync(link);
 
@@ -39,7 +39,7 @@ public sealed class MessageViewModelScripts
     [InlineData(FileOpenError.Refused, "The platform refused to open https://go.dev.")]
     public async Task ALinkThePlatformCannotOpenSaysSo(FileOpenError refusal, string notice)
     {
-        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(new FakeLinks { Refusal = refusal }), new FakeClipboard());
+        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(new FakeLinks { Refusal = refusal }, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new FakeClipboard());
 
         await message.OpenLinkCommand.ExecuteAsync("https://go.dev");
 

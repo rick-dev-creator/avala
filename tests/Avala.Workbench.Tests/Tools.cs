@@ -5,6 +5,7 @@ using Avala.Workbench.Linking;
 using Avala.Workbench.Reviewing;
 using Avala.Workbench.Timeline;
 using Avala.Workspaces.Contracts;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests;
 
@@ -58,6 +59,6 @@ internal sealed class Worktree
     {
         var worked = Worked();
 
-        return new(entry, new FakeClipboard(), new FileViews(Job, worked, new Links(Opener)));
+        return new(entry, new FakeClipboard(), new FileViews(Job, worked, new Links(Opener, new StrongReferenceMessenger())));
     }
 }

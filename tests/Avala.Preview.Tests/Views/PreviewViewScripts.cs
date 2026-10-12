@@ -1,3 +1,4 @@
+using Avala.Components.UI.Theme;
 using Avala.Preview.Pane;
 using Avala.Preview.Contracts;
 using Avala.Preview.Tests.Pane;
@@ -139,6 +140,23 @@ public sealed class RunningChipViewScripts(HeadlessUi ui) : IDisposable
             Assert.Equal("Running · localhost:24000", view.TextOf("ChipText"));
             Assert.False(view.Shows("Unleased"));
             Assert.Equal([new PreviewRequested(bench.Job)], asked);
+        }, Cancellation);
+
+    [Fact]
+    public Task TheChipPulsesOnceAsItAppearsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var chip = bench.Chip(ChipPlacement.Header);
+            chip.OnRegionContextChanged(bench.Job);
+            var view = Screen.Show(chip);
+            var hidden = (view.EntranceOf("Chip"), view.EntranceOf("ChipPing"));
+
+            bench.Serve(bench.Job, 24_000);
+            chip.OnRegionContextChanged(bench.Job);
+            view.Settle();
+
+            Assert.Equal((MotionEntrance.None, MotionEntrance.None), hidden);
+            Assert.Equal((MotionEntrance.Scale, MotionEntrance.Ping), (view.EntranceOf("Chip"), view.EntranceOf("ChipPing")));
         }, Cancellation);
 
     [Fact]

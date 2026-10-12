@@ -49,15 +49,17 @@ internal interface IPreviewPaneViewModel
 
 [INotifyPropertyChanged]
 internal sealed partial class PreviewPaneViewModel
-    : IPreviewPaneViewModel, IPane, IRegionAware<JobId>, IActivatable, IPresentation, IRecipient<PreviewRequested>, IDisposable
+    : IPreviewPaneViewModel, IPane, IRegionAware<JobId>, IActivatable, IPresentation, IRecipient<PreviewRequested>, IRecipient<LocalPageRequested>, IDisposable
 {
     private readonly PreviewDesk desk;
     private readonly IWebSurfaces surfaces;
     private readonly ILinkOpener links;
     private readonly IMessenger messenger;
     private readonly HashSet<JobId> networked = [];
+    private readonly HashSet<PreviewTarget> seen = [];
     private Option<JobId> job;
     private Option<PreviewTarget> shown;
+    private Option<Uri> page;
     private Option<Uri> refused;
     private bool starting;
 
@@ -67,7 +69,7 @@ internal sealed partial class PreviewPaneViewModel
         this.surfaces = surfaces;
         this.links = links;
         this.messenger = messenger;
-        messenger.Register(this);
+        messenger.RegisterAll(this);
     }
 
     public event EventHandler<Presented>? Presented;
@@ -134,6 +136,7 @@ internal sealed partial class PreviewPaneViewModel
         Detach();
         job = context;
         starting = false;
+        _ = job.Bind(desk.TargetOf).Map(seen.Add);
         AllowsNetwork = job.Match(networked.Contains, () => false);
         ToggleNetworkCommand.NotifyCanExecuteChanged();
         Refresh();
@@ -147,6 +150,21 @@ internal sealed partial class PreviewPaneViewModel
         }
 
         starting = desk.TargetOf(message.Job).IsNone;
+        Open(true);
+        Refresh();
+    }
+
+    public void Receive(LocalPageRequested message)
+    {
+        if (!job.Match(current => desk.Serves(current, message.Page), () => false))
+        {
+            return;
+        }
+
+        message.Show();
+        page = message.Page;
+        shown = Option<PreviewTarget>.None;
+        starting = job.Bind(desk.TargetOf).IsNone;
         Open(true);
         Refresh();
     }
@@ -217,6 +235,11 @@ internal sealed partial class PreviewPaneViewModel
         var target = job.Bind(desk.TargetOf);
         starting = starting && target.IsNone;
 
+        if (target.Match(seen.Add, () => false))
+        {
+            Open(true);
+        }
+
         if (IsOpen)
         {
             _ = target.Match(Show, () => Idle());
@@ -262,11 +285,14 @@ internal sealed partial class PreviewPaneViewModel
 
     private async Task NavigateAsync(IWebSurface surface, PreviewTarget target)
     {
+        var asked = page;
+        page = Option<Uri>.None;
         var gateway = await desk.GatewayAsync(target, CancellationToken.None);
 
         if (Surface == surface && shown == Option<PreviewTarget>.Some(target))
         {
-            surface.Navigate(gateway.Match(address => address, _ => target.Address));
+            var root = gateway.Match(address => address, _ => target.Address);
+            surface.Navigate(asked.Match(link => link.Port == target.Address.Port ? new Uri(root, link.PathAndQuery) : link, () => root));
             Present();
         }
     }

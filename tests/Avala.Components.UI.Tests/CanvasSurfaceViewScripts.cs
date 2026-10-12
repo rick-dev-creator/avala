@@ -65,6 +65,24 @@ public sealed class CanvasSurfaceViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task ADrawingStillBeingDrawnArrivesOnlyOnceDrawnKeepingThePreviousOneUntilThenAsync() =>
+        ui.RunAsync(() =>
+        {
+            var surface = Surface(Draft("circle", CanvasPhase.Streaming));
+            var view = Show(surface);
+            var presenter = view.Find<CanvasPresenter>("Drawing");
+
+            surface.Show(Draft("slow circle, square", CanvasPhase.Streaming));
+            Elapse(view);
+            var drawing = (string.Join(" | ", Drawings(view)), presenter.Children[0].Opacity, presenter.Children[1].Opacity);
+            CanvasPresenter.Drawn(presenter.Children[1]);
+            Elapse(view);
+
+            Assert.Equal(("drawn: circle | drawn: slow circle, square", 1d, 0d), drawing);
+            Assert.Equal(("drawn: slow circle, square", 1d), (string.Join(" | ", Drawings(view)), presenter.Children[0].Opacity));
+        }, Cancellation);
+
+    [Fact]
     public Task WithReducedMotionANewDrawingReplacesThePreviousOneWithoutFadingAsync() =>
         ui.RunAsync(() =>
         {
@@ -256,7 +274,17 @@ public sealed class CanvasSurfaceViewScripts(HeadlessUi ui)
 
         public string MediaType => Sketch;
 
-        public Option<Control> Render(string content) =>
-            content.EndsWith('!') ? Option<Control>.None : new TextBlock { Name = "Sketch", Text = $"drawn: {content}" };
+        public Option<Control> Render(string content)
+        {
+            if (content.EndsWith('!'))
+            {
+                return Option<Control>.None;
+            }
+
+            var sketch = new TextBlock { Name = "Sketch", Text = $"drawn: {content}" };
+            CanvasPresenter.SetIsDrawing(sketch, content.StartsWith("slow ", StringComparison.Ordinal));
+
+            return sketch;
+        }
     }
 }

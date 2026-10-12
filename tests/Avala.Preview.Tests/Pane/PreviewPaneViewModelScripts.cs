@@ -2,6 +2,7 @@ using Avala.Jobs.Contracts;
 using Avala.Preview.Pane;
 using Avala.Preview.Contracts;
 using Avala.Sdk;
+using Avala.Sdk.Presentation;
 using Avala.Testing;
 using CommunityToolkit.Mvvm.Messaging;
 
@@ -192,6 +193,54 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
         await script.WhenPresentedAsync(_ => bench.Serve(bench.Job, 24_000), Cancellation);
 
         script.Then(pane => Assert.Equal((PreviewPhrases.Running, "localhost:24000"), (pane.State, pane.Address)));
+    }
+
+    [Fact]
+    public async Task AServerThatStartsWhileItsJobIsSelectedOpensThePaneOnItsOwnAsync()
+    {
+        var script = Selected(bench.Pane());
+
+        await script.WhenPresentedAsync(_ => bench.Serve(bench.Job, 24_000), Cancellation);
+
+        script.Then(pane => Assert.Equal((true, "localhost:24000", true), (pane.IsOpen, pane.Address, pane.IsLive)));
+    }
+
+    [Fact]
+    public async Task APaneClosedAfterOpeningOnItsOwnStaysClosedForThatServerAsync()
+    {
+        var script = Selected(bench.Pane());
+        await script.WhenPresentedAsync(_ => bench.Serve(bench.Job, 24_000), Cancellation);
+
+        script.Invoke(nameof(IPreviewPaneViewModel.CloseCommand));
+        await script.WhenPresentedAsync(_ => bench.Serve(bench.Job, 24_000), Cancellation);
+
+        script.Then(pane => Assert.Equal((false, null), (pane.IsOpen, pane.Surface)));
+    }
+
+    [Fact]
+    public void AServerAlreadyRunningWhenItsJobIsSelectedLeavesThePaneClosed()
+    {
+        bench.Serve(bench.Job, 24_000);
+
+        Selected(bench.Pane()).Then(pane => Assert.False(pane.IsOpen));
+    }
+
+    [Theory]
+    [InlineData("http://localhost:24000/scene.html", true, "http://127.0.0.1:34000/scene.html")]
+    [InlineData("http://127.0.0.1:24003/", true, "http://127.0.0.1:24003/")]
+    [InlineData("http://localhost:8080/", false, "")]
+    public void ALinkToOneOfTheSelectedJobsServersOpensInThePane(string link, bool shown, string visited)
+    {
+        bench.Serve(bench.Job, 24_000);
+        var asked = new LocalPageRequested(new Uri(link));
+
+        Selected(bench.Pane())
+            .When(_ => bench.Messenger.Send(asked))
+            .Then(pane =>
+            {
+                Assert.Equal((shown, shown), (asked.IsShown, pane.IsOpen));
+                Assert.Equal(shown ? [new Uri(visited)] : [], bench.Surfaces.Opened.SelectMany(surface => surface.Visited));
+            });
     }
 
     public void Dispose() => bench.Dispose();
