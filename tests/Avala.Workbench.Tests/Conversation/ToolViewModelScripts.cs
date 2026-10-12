@@ -22,6 +22,17 @@ public sealed class ToolViewModelScripts
             .Then(tool => Assert.False(tool.IsExpanded));
 
     [Theory]
+    [InlineData("Write sistema-solar.html", 4300, "Writing sistema-solar.html · 4.2 KB")]
+    [InlineData("Edit src/money.ts", 812, "Editing src/money.ts · 812 B")]
+    [InlineData("Write assets/atlas.svg", 2_200_000, "Writing assets/atlas.svg · 2.1 MB")]
+    public void ADraftedFileEditIsRunningAndGrowsItsSizeUntilItStartsWithItsInput(string title, int received, string drafting) =>
+        ViewModelScript.Given(new ToolViewModel(new ToolEntry("t", ItemKind.FileEdit, title, string.Empty, Option<ItemOutcome>.None) { Drafted = received }))
+            .Then(tool => Assert.Equal((drafting, true, string.Empty), (tool.Title, tool.IsRunning, tool.Input)))
+            .When(tool => tool.Update(new ToolEntry("t", ItemKind.FileEdit, title, string.Empty, Option<ItemOutcome>.None) { Input = "<html>" }))
+            .ThenNotified(nameof(ToolViewModel.Title), nameof(ToolViewModel.Input))
+            .Then(tool => Assert.Equal((title, true, "<html>"), (tool.Title, tool.IsRunning, tool.Input)));
+
+    [Theory]
     [InlineData("Succeeded", "done", false)]
     [InlineData("Failed", "failed", true)]
     [InlineData("Cancelled", "cancelled", true)]

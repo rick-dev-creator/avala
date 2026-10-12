@@ -75,6 +75,30 @@ public sealed class TranscriptTests
     }
 
     [Fact]
+    public void ADraftedItemGrowsInPlaceUntilItStartsWhereItsStartReplacesIt()
+    {
+        var drafting = Played(
+            new ItemDrafted(Session, Turn, new ItemId("write"), ItemKind.FileEdit, "Write index.html", 512),
+            new ItemDrafted(Session, Turn, new ItemId("write"), ItemKind.FileEdit, "Write index.html", 1024));
+        var started = drafting.Apply(new ItemStarted(Session, Turn, new ItemId("write"), ItemKind.FileEdit, "Write index.html") { Input = "<html>" }, Start);
+
+        var drafted = Assert.IsType<ToolEntry>(Assert.Single(drafting.Entries));
+        Assert.Equal(("Write index.html", Option<int>.Some(1024), Option<ItemOutcome>.None), (drafted.Title, drafted.Drafted, drafted.Outcome));
+        var tool = Assert.IsType<ToolEntry>(Assert.Single(started.Entries));
+        Assert.Equal((Option<int>.None, Option<string>.Some("<html>")), (tool.Drafted, tool.Input));
+    }
+
+    [Fact]
+    public void ADraftThatNeverStartedIsAbandonedWhenItsTurnEnds()
+    {
+        var transcript = Played(
+            new ItemDrafted(Session, Turn, new ItemId("write"), ItemKind.FileEdit, "Write index.html", 512),
+            new TurnCompleted(Session, Turn, TurnOutcome.Interrupted));
+
+        Assert.Equal(Option<ItemOutcome>.Some(ItemOutcome.Abandoned), Assert.Single(transcript.Entries.OfType<ToolEntry>()).Outcome);
+    }
+
+    [Fact]
     public void AnExecutedToolCallShowsItsInputAndTheResultItGot()
     {
         var transcript = Played(
