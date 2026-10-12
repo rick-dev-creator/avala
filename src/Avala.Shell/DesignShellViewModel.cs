@@ -57,19 +57,23 @@ internal sealed class DesignShellViewModel : IShellViewModel
 
     public double SidebarWidth => WindowLayout.DefaultSidebarWidth;
 
-    public IRelayCommand ToggleSidebarCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand ToggleSidebarCommand => Idle;
 
-    public IRelayCommand ToggleFocusCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand ToggleFocusCommand => Idle;
 
-    public IRelayCommand LeaveFocusCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand LeaveFocusCommand => Idle;
 
-    public IRelayCommand<double> FitCommand { get; } = new RelayCommand<double>(_ => { });
+    public IRelayCommand<double> FitCommand => IdleWidth;
 
-    public IRelayCommand<double> ResizeSidebarCommand { get; } = new RelayCommand<double>(_ => { });
+    public IRelayCommand<double> ResizeSidebarCommand => IdleWidth;
 
-    public IRelayCommand RememberSidebarCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand RememberSidebarCommand => Idle;
 
-    public IRelayCommand ResetSidebarWidthCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand ResetSidebarWidthCommand => Idle;
+
+    private static RelayCommand Idle { get; } = new(() => { });
+
+    private static RelayCommand<double> IdleWidth { get; } = new(_ => { });
 
     private sealed record DesignPage(string Title, string Icon) : IPage;
 
