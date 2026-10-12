@@ -80,6 +80,7 @@ public sealed class PreviewTests(PublishedPlugins plugins)
 
     private static async Task<PreviewTarget> PreviewedAsync(SimulatedRun run, EventWatch<PreviewAvailable> available)
     {
+        await run.StartedAsync();
         var port = ServedPort(await run.TurnAsync());
         await run.DeliveredAsync();
         run.Clock.Advance(Sampling);

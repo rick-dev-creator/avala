@@ -27,6 +27,7 @@ public sealed class PreviewScreens(HeadlessUi ui, PublishedPlugins plugins)
             [(".avala/permissions.json", ServicesPolicy), ("package.json", Package)]);
         var available = run.Watch<PreviewAvailable>();
         var workbench = await run.WorkbenchAsync();
+        await run.StartedAsync();
         var port = ServedPort(await run.TurnAsync());
         await run.DeliveredAsync();
         run.Clock.Advance(TimeSpan.FromSeconds(0.2));

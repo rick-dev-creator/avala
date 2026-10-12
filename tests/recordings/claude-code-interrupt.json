@@ -1,13 +1,14 @@
 {
   "format": "avala-recording",
   "version": 1,
-  "recordedAt": "2026-10-10T05:22:33.3813336+00:00",
+  "recordedAt": "2026-10-12T10:59:23.3350156+00:00",
   "provider": {
     "id": "claude-code",
     "name": "Claude Code"
   },
   "capabilities": {
     "acceptsMessagesMidTurn": {},
+    "acceptsPreview": {},
     "acceptsTools": {
       "surfaces": [
         "canvas",
@@ -115,7 +116,7 @@
       }
     },
     {
-      "at": 0,
+      "at": 1000,
       "event": {
         "type": "itemStarted",
         "turn": 1,
@@ -125,7 +126,7 @@
       }
     },
     {
-      "at": 0,
+      "at": 1000,
       "event": {
         "type": "itemProgressed",
         "turn": 1,
@@ -134,7 +135,7 @@
       }
     },
     {
-      "at": 0,
+      "at": 1000,
       "event": {
         "type": "itemProgressed",
         "turn": 1,
