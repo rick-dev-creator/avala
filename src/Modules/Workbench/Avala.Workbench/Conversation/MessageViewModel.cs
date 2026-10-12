@@ -1,3 +1,4 @@
+using Avala.Components.Virtualizing;
 using Avala.Sdk;
 using Avala.Workbench.Linking;
 using Avala.Workbench.Timeline;
@@ -22,7 +23,7 @@ internal interface IMessageViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineItem
+internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineItem, ITextSized
 {
     private readonly Links links;
     private readonly IClipboard clipboard;
@@ -36,6 +37,8 @@ internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineIte
     }
 
     public bool IsShown => true;
+
+    public int TextLength => Text.Length;
 
     [ObservableProperty]
     public partial string Text { get; private set; }

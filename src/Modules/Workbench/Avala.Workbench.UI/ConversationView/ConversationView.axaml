@@ -5,6 +5,7 @@
              x:Class="Avala.Workbench.UI.ConversationView"
              x:ClassModifier="internal"
              xmlns:markdown="using:Avala.Components.UI.Markdown"
+             xmlns:virtualizing="using:Avala.Components.UI.Virtualizing"
              markdown:MarkdownStyles.AreShared="True"
              x:DataType="conversation:IConversationViewModel">
   <Design.DataContext>
@@ -59,7 +60,7 @@
           <ItemsControl x:Name="Entries" theme:Arrivals.OnlyNewEnter="True" ItemsSource="{Binding Entries}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <VirtualizingStackPanel />
+                <virtualizing:TimelinePanel />
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
           </ItemsControl>
