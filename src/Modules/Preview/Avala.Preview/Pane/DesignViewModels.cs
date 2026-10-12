@@ -25,19 +25,25 @@ internal sealed class DesignPreviewPaneViewModel : IPreviewPaneViewModel
 
     public string Refusal => "Open unpkg.com in your browser?";
 
-    public IRelayCommand BackCommand { get; } = new RelayCommand(() => { }, () => false);
+    public IRelayCommand BackCommand => Unavailable;
 
-    public IRelayCommand ReloadCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand ReloadCommand => Idle;
 
-    public IAsyncRelayCommand ToggleNetworkCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+    public IAsyncRelayCommand ToggleNetworkCommand => IdleAsync;
 
-    public IAsyncRelayCommand OpenInBrowserCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+    public IAsyncRelayCommand OpenInBrowserCommand => IdleAsync;
 
-    public IAsyncRelayCommand OpenRefusedCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+    public IAsyncRelayCommand OpenRefusedCommand => IdleAsync;
 
-    public IRelayCommand DismissRefusalCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand DismissRefusalCommand => Idle;
 
-    public IRelayCommand CloseCommand { get; } = new RelayCommand(() => { });
+    public IRelayCommand CloseCommand => Idle;
+
+    private static RelayCommand Idle { get; } = new(() => { });
+
+    private static RelayCommand Unavailable { get; } = new(() => { }, () => false);
+
+    private static AsyncRelayCommand IdleAsync { get; } = new(() => Task.CompletedTask);
 }
 
 internal sealed class DesignRunningChipViewModel : IRunningChipViewModel
