@@ -73,7 +73,7 @@ public sealed class WelcomeScreens(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task SettingsAccountsWithDetectedAndAddedAccountsAndTheConnectSheetAsync()
+    public async Task SettingsAccountsWithDetectedAndAddedAccountsAndTheConnectSheetWithItsTokenFieldAsync()
     {
         Gated();
         await using var run = await SimulatedRun.PreparedAsync(plugins, Forges, [], signIns: SignedIn);
@@ -90,6 +90,14 @@ public sealed class WelcomeScreens(HeadlessUi ui, PublishedPlugins plugins)
         var sourceControl = settings["Machine"]["SourceControl"];
         await run.Ui.RunAsync(() => sourceControl.ExecuteAsync("ConnectCommand"));
         await ShootBothAsync(run, "65-connect-sheet");
+
+        await run.Ui.RunAsync(() =>
+        {
+            sourceControl["Sheet"].Set("UsesToken", true);
+
+            return Task.CompletedTask;
+        });
+        await ShootBothAsync(run, "68-connect-sheet-token");
     }
 
     [Fact]

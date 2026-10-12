@@ -3,7 +3,10 @@ using Avala.Testing.UI;
 using Avala.Workbench.Accounts;
 using Avala.Workbench.Settings;
 using Avala.Workbench.Tests.Accounts;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
+using Avalonia.VisualTree;
 
 namespace Avala.Workbench.Tests.Views;
 
@@ -44,7 +47,7 @@ public sealed class ConnectSheetViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ChoosingTheTokenAsksForTheNameOfItsVariableAsync() =>
+    public Task ChoosingTheTokenAsksForTheNameOfItsVariableAfterADollarSignAsync() =>
         ui.RunAsync(() =>
         {
             var sheet = new DesignConnectSheetViewModel();
@@ -52,7 +55,12 @@ public sealed class ConnectSheetViewScripts(HeadlessUi ui)
 
             view.Click("UseToken");
 
-            Assert.Equal((true, false, "GITHUB_TOKEN"), (view.Shows("TokenVariable"), view.Shows("CliSignIn"), view.Find<TextBox>("TokenVariable").Text));
+            var field = view.Find<TextBox>("TokenVariable");
+            var text = field.GetVisualDescendants().OfType<TextPresenter>().Single();
+            var prefix = view.Find("TokenPrefix");
+            var before = prefix.TranslatePoint(new Point(prefix.Bounds.Width, 0), view.Window) is { } end && text.TranslatePoint(default, view.Window) is { } start && end.X <= start.X;
+            Assert.Equal((true, false, "GITHUB_TOKEN"), (view.Shows("TokenVariable"), view.Shows("CliSignIn"), field.Text));
+            Assert.Equal((true, "$", true), (view.Shows("TokenPrefix"), view.TextOf("TokenPrefix"), before));
         }, Cancellation);
 
 }
