@@ -50,7 +50,6 @@
         </StackPanel>
       </ScrollViewer>
       <Border x:Name="Jump"
-              Classes="fade-in"
               HorizontalAlignment="Center"
               VerticalAlignment="Bottom"
               Margin="0,0,0,12"

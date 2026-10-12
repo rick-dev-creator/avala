@@ -361,6 +361,7 @@
 
   <Style Selector="Button.mini">
     <Setter Property="Padding" Value="5" />
+    <Setter Property="Focusable" Value="False" />
     <Setter Property="MinWidth" Value="0" />
     <Setter Property="MinHeight" Value="0" />
   </Style>
@@ -384,7 +385,7 @@
     <Setter Property="Spacing" Value="2" />
     <Setter Property="Opacity" Value="0" />
   </Style>
-  <Style Selector=":is(Control).hover-host:pointerover StackPanel.hover-actions, :is(Control).hover-host:focus-within StackPanel.hover-actions, StackPanel.hover-actions:pointerover">
+  <Style Selector=":is(Control).hover-host:pointerover StackPanel.hover-actions, StackPanel.hover-actions:pointerover">
     <Setter Property="Opacity" Value="1" />
   </Style>
 
@@ -392,25 +393,26 @@
     <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPopover}" />
-    <Setter Property="Padding" Value="5" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+    <Setter Property="Padding" Value="0,5" />
     <Setter Property="MinWidth" Value="0" />
   </Style>
   <Style Selector="ContextMenu MenuItem, MenuFlyoutPresenter MenuItem">
-    <Setter Property="Padding" Value="9,3" />
+    <Setter Property="Padding" Value="9,4" />
+    <Setter Property="Margin" Value="5,0" />
     <Setter Property="MinHeight" Value="0" />
-    <Setter Property="MinWidth" Value="168" />
+    <Setter Property="MinWidth" Value="180" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:pointerover /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+  <Style Selector="ContextMenu MenuItem:pointerover /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pointerover /template/ Border#PART_LayoutRoot, ContextMenu MenuItem:selected /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:selected /template/ Border#PART_LayoutRoot">
     <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter">
+  <Style Selector="ContextMenu MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:pointerover /template/ ContentPresenter#PART_HeaderPresenter, ContextMenu MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
     <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
   </Style>
-  <Style Selector="ContextMenu MenuItem:pointerover /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:pointerover /template/ TextBlock#PART_InputGestureText">
+  <Style Selector="ContextMenu MenuItem:pointerover /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:pointerover /template/ TextBlock#PART_InputGestureText, ContextMenu MenuItem:selected /template/ TextBlock#PART_InputGestureText, MenuFlyoutPresenter MenuItem:selected /template/ TextBlock#PART_InputGestureText">
     <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
   </Style>
   <Style Selector="ContextMenu MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter, MenuFlyoutPresenter MenuItem:disabled /template/ ContentPresenter#PART_HeaderPresenter">

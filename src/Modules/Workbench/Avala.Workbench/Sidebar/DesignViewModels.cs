@@ -21,6 +21,10 @@ internal sealed record DesignJobRowViewModel(JobId Job, string Title, JobStatus 
 
     public bool IsScratch { get; init; }
 
+    public bool ShowsElapsed { get; init; }
+
+    public DateTimeOffset Since { get; init; } = DateTimeOffset.UtcNow.AddSeconds(-83);
+
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
 
     public DateTimeOffset Submitted => DateTimeOffset.UnixEpoch;
@@ -89,7 +93,7 @@ internal sealed class DesignSidebarViewModel : ISidebarViewModel
 
     public IReadOnlyList<ISidebarEntry> Running { get; } =
     [
-        new DesignJobRowViewModel(SampleJobs.JpyRounding, "Fix JPY rounding in invoice totals", JobStatus.Running, "2 of 4", StatusKind.Working, 0),
+        new DesignJobRowViewModel(SampleJobs.JpyRounding, "Fix JPY rounding in invoice totals", JobStatus.Running, "2 of 4", StatusKind.Working, 0) { ShowsElapsed = true },
         new DesignJobRowViewModel(SampleJobs.InvoicePdf, "Migrate payments to stripe-go v79", JobStatus.Running, "3 sub-agents", StatusKind.Working, 0)
         {
             Children =

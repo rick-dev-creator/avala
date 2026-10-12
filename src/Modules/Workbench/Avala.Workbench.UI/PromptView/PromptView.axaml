@@ -8,7 +8,7 @@
              x:DataType="conversation:IPromptViewModel"
              Classes="arrive-snappy hover-host"
              Classes.person="{Binding IsFromPerson}"
-             Margin="0,10,0,2">
+             Margin="0,10,0,0">
   <Design.DataContext>
     <conversation:DesignPromptViewModel />
   </Design.DataContext>
@@ -60,6 +60,7 @@
     </Border>
     <StackPanel x:Name="Actions"
                 Classes="hover-actions"
+                Margin="0,-2,-5,-2"
                 IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <copying:CopyButton x:Name="Copy"
                           Command="{Binding CopyCommand}"

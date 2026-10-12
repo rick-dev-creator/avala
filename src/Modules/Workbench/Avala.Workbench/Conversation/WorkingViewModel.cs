@@ -1,5 +1,4 @@
 using Avala.Jobs.Contracts;
-using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
@@ -42,47 +41,24 @@ internal sealed partial class WorkingViewModel : IWorkingViewModel
     {
         var transcript = job.Transcript;
         IsWaiting = job.Status.IsWorking && transcript.Awaiting.Any();
-        IsShown = job.Status.IsWorking && !Streams(transcript.Entries.LastOrDefault());
-        Verb = IsWaiting ? WorkingPhrases.Waiting : WorkingPhrases.Verb(job.Status, OpenTool(transcript));
+        IsShown = job.Status.IsWorking && (IsWaiting || !transcript.Entries.Any(Open));
+        Verb = IsWaiting ? WorkingPhrases.Waiting : WorkingPhrases.Verb(job.Status);
         ShowsElapsed = transcript.LiveSince.IsSome;
         Since = transcript.LiveSince.Match(since => since, () => Since);
     }
 
-    private static bool Streams(ITimelineEntry? last) =>
-        last is MessageEntry { Outcome.IsNone: true } or ReasoningEntry { Outcome.IsNone: true };
-
-    private static Option<ToolEntry> OpenTool(Transcript transcript) =>
-        transcript.Entries.OfType<ToolEntry>().LastOrDefault(tool => tool.Outcome.IsNone && tool.Called.IsNone).ToOption();
+    private static bool Open(ITimelineEntry entry) =>
+        entry is MessageEntry { Outcome.IsNone: true } or ReasoningEntry { Outcome.IsNone: true } or ToolEntry { Outcome.IsNone: true, Called.IsNone: true };
 }
 
 internal static class WorkingPhrases
 {
     public const string Waiting = "Waiting for you";
 
-    private static readonly Dictionary<string, string> Participles = new(StringComparer.Ordinal)
-    {
-        ["Write"] = "Writing",
-        ["Edit"] = "Editing",
-        ["Run"] = "Running",
-        ["Search"] = "Searching",
-        ["Fetch"] = "Fetching",
-        ["Read"] = "Reading",
-        ["Load"] = "Loading",
-        ["Find"] = "Finding",
-    };
-
-    public static string Verb(JobStatus status, Option<ToolEntry> open) => status switch
+    public static string Verb(JobStatus status) => status switch
     {
         JobStatus.Draft or JobStatus.Preparing => "Starting",
         JobStatus.Checking => "Running the checks",
-        _ => open.Match(tool => Doing(Presenting.CommandPhrases.Title(tool.Kind, tool.Title, tool.Input.Match(input => input, () => string.Empty))), () => "Thinking"),
+        _ => "Thinking",
     };
-
-    private static string Doing(string title)
-    {
-        var space = title.IndexOf(' ', StringComparison.Ordinal);
-        var first = space < 0 ? title : title[..space];
-
-        return Participles.TryGetValue(first, out var doing) ? doing + title[first.Length..] : title;
-    }
 }

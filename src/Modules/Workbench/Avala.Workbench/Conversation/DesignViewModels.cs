@@ -352,7 +352,7 @@ internal sealed class DesignWorkingViewModel : IWorkingViewModel
 {
     public bool IsShown { get; init; } = true;
 
-    public string Verb { get; init; } = "Running go test ./internal/money";
+    public string Verb { get; init; } = "Thinking";
 
     public bool IsWaiting { get; init; }
 

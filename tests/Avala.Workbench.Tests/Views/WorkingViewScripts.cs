@@ -13,11 +13,11 @@ public sealed class WorkingViewScripts(HeadlessUi ui)
     public Task TheRowAnimatesItsMarkAndCountsTheTurnsTimeAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignWorkingViewModel { Since = DateTimeOffset.UnixEpoch, Verb = "Writing sistema-solar.html" });
+            var view = Screen.Show(new DesignWorkingViewModel { Since = DateTimeOffset.UnixEpoch, Verb = "Thinking" });
             ElapsedText.SetClock(view.Window, new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddSeconds(23)));
             view.Settle();
 
-            Assert.Equal(("Writing sistema-solar.html", "23s"), (view.TextOf("Verb"), view.TextOf("Elapsed")));
+            Assert.Equal(("Thinking", "23s"), (view.TextOf("Verb"), view.TextOf("Elapsed")));
             Assert.Equal((true, false, true), (view.Shows("Mark"), view.Shows("Still"), view.Shows("Shimmer")));
         }, Cancellation);
 

@@ -37,6 +37,10 @@ internal interface IJobRowViewModel : ISidebarEntry
     JobStatus Status { get; }
 
     bool IsScratch { get; }
+
+    bool ShowsElapsed { get; }
+
+    DateTimeOffset Since { get; }
 }
 
 [INotifyPropertyChanged]
@@ -91,6 +95,12 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
+    [ObservableProperty]
+    public partial bool ShowsElapsed { get; private set; }
+
+    [ObservableProperty]
+    public partial DateTimeOffset Since { get; private set; }
+
     public void Update(BoardJob job)
     {
         Status = job.Status;
@@ -98,5 +108,7 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
         Fact = FactPhrases.Of(job.Fact);
         PendingDecisions = job.PendingDecisions;
         dot.Kind = FactPhrases.Dot(job);
+        ShowsElapsed = job.Status == JobStatus.Running && job.Transcript.LiveSince.IsSome;
+        Since = job.Transcript.LiveSince.Match(since => since, () => Since);
     }
 }

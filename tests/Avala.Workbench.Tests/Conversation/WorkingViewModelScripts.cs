@@ -17,16 +17,16 @@ public sealed class WorkingViewModelScripts
     private readonly TurnId turn = TurnId.New();
 
     [Fact]
-    public void WhileTheAgentWorksARowAtTheLiveEdgeSaysWhatItDoesAndSinceWhen()
+    public void BetweenItemsARowAtTheLiveEdgeSaysTheAgentThinksAndSinceWhen()
     {
         var running = Job().WithPrompts("Fix it", []).Apply(new TurnStarted(session, turn), Now)
             .Apply(new ItemStarted(session, turn, new ItemId("test"), ItemKind.Command, "Run npm test") { Input = "npm test" }, Now.AddSeconds(3));
 
         ViewModelScript.Given(new WorkingViewModel())
             .When(working => working.Show(Board(running)))
-            .Then(working => Assert.Equal((true, "Running npm test", true, Now), (working.IsShown, working.Verb, working.ShowsElapsed, working.Since)))
+            .Then(working => Assert.False(working.IsShown))
             .When(working => working.Show(Board(running.Apply(new ItemCompleted(session, turn, new ItemId("test"), ItemOutcome.Succeeded), Now.AddSeconds(9)))))
-            .Then(working => Assert.Equal((true, "Thinking"), (working.IsShown, working.Verb)));
+            .Then(working => Assert.Equal((true, "Thinking", true, Now), (working.IsShown, working.Verb, working.ShowsElapsed, working.Since)));
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class WorkingViewModelScripts
     }
 
     [Fact]
-    public void TheWorkingRowStepsAsideWhileAReplyStreamsAndOnceTheJobStopsWorking()
+    public void TheWorkingRowStepsAsideWhileAnItemIsOpenAndOnceTheJobStopsWorking()
     {
         var replying = Job().Apply(new TurnStarted(session, turn), Now)
             .Apply(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"), Now);

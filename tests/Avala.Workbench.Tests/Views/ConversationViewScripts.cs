@@ -126,7 +126,7 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             var entries = view.Find("Entries");
             var working = view.Find("Working");
             Assert.True(view.Shows("Verb"));
-            Assert.Equal("Running go test ./internal/money", view.TextOf("Verb"));
+            Assert.Equal("Thinking", view.TextOf("Verb"));
             Assert.True(working.Bounds.Top >= entries.Bounds.Bottom);
             Assert.Matches("^[0-9]+s$", view.TextOf("Elapsed"));
         }, Cancellation);
