@@ -7,6 +7,8 @@ namespace Avala.Permissions.Policies;
 internal sealed record PermissionRequest(ItemKind Kind, string Target, bool InsideWorkspace)
 {
     public Func<string, PermissionRequest> Locate { get; init; } = path => new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: false);
+
+    public bool ReadOnly { get; init; }
 }
 
 internal sealed record Verdict(PolicyAnswer Answer, Option<PolicyRule> Rule);

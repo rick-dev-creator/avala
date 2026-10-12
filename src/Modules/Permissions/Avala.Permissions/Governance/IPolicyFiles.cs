@@ -1,3 +1,4 @@
+using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Policies;
 using Avala.Sdk;
@@ -16,5 +17,5 @@ internal sealed record PolicyFile(Option<FileOrigin> Origin, Result<Option<Permi
         found => found.Match(
             declared => (declared, PolicyFileStatus.Applied, Option<PolicyError>.None),
             () => (PermissionPolicy.BuiltIn, PolicyFileStatus.Absent, Option<PolicyError>.None)),
-        rejection => (PermissionPolicy.BuiltIn, PolicyFileStatus.Rejected, Option<PolicyError>.Some(rejection)));
+        rejection => (PermissionPolicy.BuiltIn with { Limit = Autonomy.Supervised }, PolicyFileStatus.Rejected, Option<PolicyError>.Some(rejection)));
 }

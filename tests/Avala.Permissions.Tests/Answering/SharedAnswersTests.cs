@@ -31,7 +31,8 @@ public sealed class SharedAnswersTests
     {
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 12, 9, 0, 0, TimeSpan.Zero));
         governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(agents, new SymbolicLinks(), clock, []), bus);
-        answers = new SharedAnswers(new HumanAnswers(book, agents, new RepositoryFiles(), new AnswerLedger(book, bus, clock)), book, [new Rivals(job, rival)]);
+        var ledger = new AnswerLedger(book, bus, clock);
+        answers = new SharedAnswers(new HumanAnswers(book, agents, new RepositoryFiles(), ledger), book, ledger, [new Rivals(job, rival)]);
         book.Keep(book.Of(session).WorkingOn(job));
         book.Keep(book.Of(rivalSession).WorkingOn(rival));
     }
@@ -60,7 +61,7 @@ public sealed class SharedAnswersTests
         _ = Outcomes.Succeeds(await answers.AnswerAsync(session, Allow("migrate", Remember.ForThisContest), Cancellation));
         await RequestAsync(rivalSession, "migrate-later");
 
-        Assert.Equal([Remembering.ForContest(ItemKind.Command, Migration, PolicyAnswer.Allow)], book.JobRulesOf(rival));
+        Assert.Equal([Remembering.Always(ItemKind.Command, ["dotnet"], PolicyAnswer.Allow, contest: true)], book.JobRulesOf(rival));
         var later = Assert.IsType<PermissionDecided>(bus.Published[^1]).Decision;
         Assert.Equal((rivalSession, PolicyAnswer.Allow, DecisionDelivery.Answered), (later.Session, later.Answer, later.Delivery));
     }
@@ -75,6 +76,17 @@ public sealed class SharedAnswersTests
 
         Assert.Equal([session], agents.Responses.Select(response => response.Item1));
         Assert.Empty(book.JobRulesOf(rival));
+    }
+
+    [Fact]
+    public async Task EverythingInThisContestRaisesARivalCandidateThatHasNotAskedYetAsync()
+    {
+        await RequestAsync(session, "migrate");
+
+        _ = Outcomes.Succeeds(await answers.AnswerAsync(session, Allow("migrate", Remember.EverythingInThisContest), Cancellation));
+
+        Assert.Equal([job, rival], bus.Published.OfType<AutonomyApplied>().Select(applied => applied.Autonomy.Job));
+        Assert.Equal(Autonomy.Autonomous, book.Of(rivalSession).Policy.Autonomy);
     }
 
     private static PermissionReply Allow(string item, Remember remember) => new(new ItemId(item), PermissionAnswer.Allow) { Remember = remember };

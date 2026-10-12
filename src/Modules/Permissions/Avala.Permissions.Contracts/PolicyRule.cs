@@ -23,6 +23,7 @@ public enum RuleScope
     Anywhere,
     Workspace,
     OutsideWorkspace,
+    ReadOnly,
 }
 
 public enum FormStrategy
@@ -37,4 +38,7 @@ public sealed record PolicyRule(
     Option<ItemKind> Kind,
     Option<string> Target,
     RuleScope Scope,
-    PolicyAnswer Answer);
+    PolicyAnswer Answer)
+{
+    public bool AnyArguments { get; init; }
+}

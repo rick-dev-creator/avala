@@ -217,9 +217,25 @@ internal static class ScenarioCatalog
         [
             Thought("I will look around ", "before I change anything."),
             new RunCommand(new ItemId("list"), "ls -la", "README.md", AsksPermission: true),
-            new RunCommand(new ItemId("chained"), "ls -la; git show --stat HEAD", "README.md\ncommit 1 file changed", AsksPermission: true),
+            new RunCommand(new ItemId("chained"), "ls -la; npm install", "README.md\nadded 1 package", AsksPermission: true),
             Message("Looked around."),
             .. Bill(1_500, 70, 0.0050m, 0.25),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario Trusting { get; } = new("trusting",
+    [
+        [
+            Thought("I will look around, ", "then set up the build folder."),
+            new RunCommand(new ItemId("explore"), "ls -la src | head -5; grep -rn TODO . | wc -l", "README.md\n3", AsksPermission: true),
+            new RunCommand(new ItemId("folder"), "mkdir build", string.Empty, AsksPermission: true),
+            new RunCommand(new ItemId("nested"), "mkdir -p build/out/logs", string.Empty, AsksPermission: true),
+            new RunCommand(new ItemId("stamp"), "touch build/stamp", string.Empty, AsksPermission: true),
+            new RunCommand(new ItemId("install"), "npm install --no-audit", "added 1 package", AsksPermission: true),
+            new WriteFile(new ItemId("loosen"), ".avala/permissions.json", "{ \"autonomy\": \"autonomous\" }\n"),
+            Message("The build folder is ready."),
+            .. Bill(1_900, 110, 0.0070m, 0.24),
             new Finish(),
         ],
     ]);
@@ -473,7 +489,7 @@ internal static class ScenarioCatalog
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Question, Governed, UnsharedThought, Fields, PlanApproval,
+        Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
         Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All,
     ];
 

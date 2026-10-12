@@ -11,16 +11,17 @@ internal static class RuleMatching
     {
         public bool Matches(PermissionRequest request) =>
             rule.Kind.Match(kind => kind == request.Kind, () => true)
-            && rule.Target.Match(pattern => rule.Answered ? pattern == request.Target : Globs(pattern, request.Target), () => true)
+            && rule.Target.Match(pattern => Targets(rule, pattern, request), () => true)
             && rule.Scope switch
             {
                 RuleScope.Workspace => request.InsideWorkspace,
                 RuleScope.OutsideWorkspace => !request.InsideWorkspace,
+                RuleScope.ReadOnly => request.ReadOnly,
                 _ => true,
             };
 
         public bool Covers(PermissionRequest line) =>
-            rule.Matches(line) && (rule.Target.IsNone || rule.Answered);
+            rule.Matches(line) && (rule.Target.IsNone || (rule.Answered && !rule.AnyArguments));
 
         public bool Answered => rule.Origin is RuleOrigin.Session or RuleOrigin.Job;
     }
@@ -33,9 +34,10 @@ internal static class RuleMatching
         public Verdict Commanded(PermissionRequest request)
         {
             var line = CommandLine.Parse(request.Target);
+            var reads = line.Writes.Count == 0 && !line.Opaque && !line.MovesDirectory;
             Verdict[] verdicts =
             [
-                .. line.Commands.Select(command => rules.First(rule => rule.Covers(request) || rule.Matches(request with { Target = command.Text }))),
+                .. line.Commands.Select(command => rules.First(rule => rule.Covers(request) || rule.Matches(Part(request, command, reads)))),
                 .. line.Writes.Select(path => rules.First(rule => (rule.Answered && rule.Covers(request)) || rule.Matches(Written(line, path, request)))),
                 .. line.Opaque ? [rules.First(rule => rule.Covers(request))] : Array.Empty<Verdict>(),
             ];
@@ -45,6 +47,17 @@ internal static class RuleMatching
                 ?? verdicts[0];
         }
     }
+
+    private static bool Targets(PolicyRule rule, string pattern, PermissionRequest request) =>
+        rule.AnyArguments ? Subjects.Of(request.Kind, request.Target).Match(subject => Names(rule, pattern, subject), () => false)
+        : rule.Answered ? pattern == request.Target
+        : Globs(pattern, request.Target);
+
+    private static bool Names(PolicyRule rule, string pattern, string subject) =>
+        rule.Kind == Option<ItemKind>.Some(ItemKind.Command) ? pattern.Split(' ').Contains(subject, StringComparer.Ordinal) : pattern == subject;
+
+    private static PermissionRequest Part(PermissionRequest request, ShellCommand command, bool reads) =>
+        request with { Target = command.Text, ReadOnly = reads && ReadOnlyCommands.Reads(command, request.Locate) };
 
     private static PermissionRequest Written(CommandLine line, string path, PermissionRequest request) =>
         line.MovesDirectory && !CommandLine.Rooted(path) ? new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: false) : request.Locate(path);

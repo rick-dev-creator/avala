@@ -26,6 +26,7 @@ public enum PolicyError
     RepositoryUnwritable,
     BeyondParent,
     InvalidAnswer,
+    ScopeNotOffered,
 }
 
 public enum PolicyFileStatus
@@ -75,6 +76,15 @@ public sealed record RepositoryPolicy(
     public FormStrategy Strategy { get; init; }
 }
 
+public enum ScopeRefusal
+{
+    Unanalysable,
+    NoSubject,
+    StillAsked,
+}
+
+public sealed record JobScope(Option<PolicyRule> Rule, Option<ScopeRefusal> Refusal, bool Raisable);
+
 public sealed record PolicyDecision(
     SessionId Session,
     TurnId Turn,
@@ -96,11 +106,15 @@ public sealed record PolicyDecision(
     public Option<PassReason> Passed { get; init; }
 
     public bool Contested { get; init; }
+
+    public Option<JobScope> Scope { get; init; }
 }
 
 public sealed record SessionAutonomy(SessionId Session, JobId Job, Autonomy Declared, Option<Autonomy> Requested, Autonomy Effective, bool Refused)
 {
     public bool ReadOnly { get; init; }
+
+    public Option<DateTimeOffset> Raised { get; init; }
 }
 
 public enum AssumptionBasis
@@ -136,6 +150,8 @@ public enum Remember
     ForThisJob,
     InThisRepository,
     ForThisContest,
+    EverythingInThisJob,
+    EverythingInThisContest,
 }
 
 public sealed record PermissionReply(ItemId Item, PermissionAnswer Answer)
@@ -161,6 +177,8 @@ public sealed record HumanAnswer(
     public Option<PolicyError> RepositoryError { get; init; }
 
     public Option<JobId> Parent { get; init; }
+
+    public bool Everything { get; init; }
 }
 
 public sealed record PolicyLoaded(SessionPolicy Policy) : IIntegrationEvent;

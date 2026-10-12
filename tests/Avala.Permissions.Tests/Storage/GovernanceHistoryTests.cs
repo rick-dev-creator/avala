@@ -87,6 +87,29 @@ public sealed class GovernanceHistoryTests
     }
 
     [Fact]
+    public async Task AJobRaisedToEverythingStaysRaisedInItsNextSessionAfterARestartUnlessItEndedAsync()
+    {
+        var store = new InMemoryGovernance();
+        var book = new GovernanceBook(store);
+        var bus = new RecordingBus();
+        var governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new Avala.Permissions.Answering.PermissionResponder(new AnsweringAgents(), new Avala.Permissions.Links.SymbolicLinks(), TimeProvider.System, []), bus);
+        var (running, ended) = (JobId.New(), JobId.New());
+        store.Earlier = GovernanceHistory.Empty with
+        {
+            Autonomies = [Raised(running), Raised(ended)],
+            Ended = new HashSet<JobId> { ended },
+        };
+        await book.RunAsync(Cancellation);
+
+        await governor.HandleAsync(new JobSessionStarted(running, SessionId.New()), Cancellation);
+        await governor.HandleAsync(new JobSessionStarted(ended, SessionId.New()), Cancellation);
+
+        Assert.Equal(
+            [(running, Autonomy.Autonomous, Option<DateTimeOffset>.Some(Nine)), (ended, Autonomy.Supervised, Option<DateTimeOffset>.None)],
+            bus.Published.OfType<AutonomyApplied>().Select(applied => (applied.Autonomy.Job, applied.Autonomy.Effective, applied.Autonomy.Raised)));
+    }
+
+    [Fact]
     public void AnAnswerKeepsTheStoredNameOfItsRuleSoAnswersOfEarlierBuildsStillReadTheirRule()
     {
         var answer = Answered(JobId.New(), new PolicyRule(RuleOrigin.Session, "don't ask again this session", ItemKind.Command, "ls", RuleScope.Anywhere, PolicyAnswer.Allow));
@@ -96,6 +119,9 @@ public sealed class GovernanceHistoryTests
         Assert.Contains("\"SessionRule\":{", stored, StringComparison.Ordinal);
         Assert.Equal(answer, StoredJson.Read<HumanAnswer>(stored));
     }
+
+    private static SessionAutonomy Raised(JobId job) =>
+        new(SessionId.New(), job, Autonomy.Supervised, Option<Autonomy>.None, Autonomy.Autonomous, Refused: false) { Raised = Nine };
 
     private static HumanAnswer Answered(JobId job, PolicyRule rule) =>
         new(SessionId.New(), job, new ItemId("migrate"), ItemKind.Command, Outcomes.Present(rule.Target), PermissionAnswer.Allow, Option<string>.None, rule, Nine);

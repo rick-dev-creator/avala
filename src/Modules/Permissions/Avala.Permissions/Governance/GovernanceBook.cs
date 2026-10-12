@@ -13,6 +13,7 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
     private ImmutableDictionary<JobId, ImmutableList<PolicyRule>> rules = ImmutableDictionary<JobId, ImmutableList<PolicyRule>>.Empty;
     private ImmutableList<HumanAnswer> earlierAnswers = [];
     private ImmutableList<HumanAnswer> answers = [];
+    private ImmutableDictionary<JobId, DateTimeOffset> raised = ImmutableDictionary<JobId, DateTimeOffset>.Empty;
 
     public GovernedSession Of(SessionId session) => Volatile.Read(ref sessions).GetValueOrDefault(session) ?? new GovernedSession(session);
 
@@ -97,9 +98,48 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
     public void Forget(JobId job, PolicyRule rule) =>
         ImmutableInterlocked.AddOrUpdate(ref rules, job, [], (_, kept) => kept.Remove(rule));
 
+    public bool Raise(JobId job, DateTimeOffset at)
+    {
+        var added = ImmutableInterlocked.TryAdd(ref raised, job, at);
+        var since = Volatile.Read(ref raised).GetValueOrDefault(job, at);
+
+        foreach (var session in OfEverySession(job).Select(kept => kept.Session).ToList())
+        {
+            Change(session, kept => kept.Raised(since));
+        }
+
+        return added;
+    }
+
+    public void Lower(JobId job)
+    {
+        ImmutableInterlocked.TryRemove(ref raised, job, out _);
+
+        foreach (var session in OfEverySession(job).Select(kept => kept.Session).ToList())
+        {
+            Change(session, kept => kept.Raised(Option<DateTimeOffset>.None));
+        }
+    }
+
+    public Option<DateTimeOffset> RaisedAt(JobId job) =>
+        Volatile.Read(ref raised).TryGetValue(job, out var at) ? at : Option<DateTimeOffset>.None;
+
+    public async Task<IReadOnlyList<SessionAutonomy>> RaisedAsync(JobId job, CancellationToken cancellationToken)
+    {
+        var autonomies = OfEverySession(job).SelectMany(session => session.Autonomy.Match(found => new[] { found }, () => [])).ToList();
+
+        foreach (var autonomy in autonomies)
+        {
+            await store.RecordAsync(autonomy, cancellationToken);
+        }
+
+        return autonomies;
+    }
+
     public async Task EndedAsync(EndedJob ended, CancellationToken cancellationToken)
     {
         ImmutableInterlocked.TryRemove(ref rules, ended.Job, out _);
+        ImmutableInterlocked.TryRemove(ref raised, ended.Job, out _);
         await store.RecordAsync(ended, cancellationToken);
     }
 
@@ -115,6 +155,14 @@ internal sealed class GovernanceBook(IGovernanceStore store) : IPermissionAudit,
         foreach (var (job, kept) in JobRules(history))
         {
             ImmutableInterlocked.TryAdd(ref rules, job, kept);
+        }
+
+        foreach (var autonomy in history.Autonomies.Where(found => !history.Ended.Contains(found.Job)))
+        {
+            foreach (var at in autonomy.Raised.Match(found => new[] { found }, () => []))
+            {
+                ImmutableInterlocked.TryAdd(ref raised, autonomy.Job, at);
+            }
         }
 
         Volatile.Write(ref earlierAnswers, [.. history.Answers]);

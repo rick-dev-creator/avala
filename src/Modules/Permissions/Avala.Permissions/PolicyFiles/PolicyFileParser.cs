@@ -51,7 +51,10 @@ internal static class PolicyFileParser
         return new PermissionPolicy(
             rules,
             autonomy.Match(level => level, () => Autonomy.Supervised),
-            strategy.Match(chosen => chosen, () => FormStrategy.Recommended));
+            strategy.Match(chosen => chosen, () => FormStrategy.Recommended))
+        {
+            Limit = autonomy.Match(level => level, () => Autonomy.Autonomous),
+        };
     }
 
     private static Result<IReadOnlyList<PolicyRule>, PolicyError> Rules(JsonElement root)
@@ -120,7 +123,7 @@ internal static class PolicyFileParser
         Text(element, "answer").Bind(text => text.IsSome ? Named<PolicyAnswer>(text, PolicyError.UnknownAnswer) : PolicyError.MissingAnswer);
 
     private static Result<Option<RuleScope>, PolicyError> Declarable(Option<RuleScope> scope) =>
-        scope == Option<RuleScope>.Some(RuleScope.OutsideWorkspace) ? PolicyError.UnknownScope : scope;
+        scope.Match(value => value is RuleScope.OutsideWorkspace or RuleScope.ReadOnly, () => false) ? PolicyError.UnknownScope : scope;
 
     private static Result<Option<string>, PolicyError> Text(JsonElement rule, string field) =>
         !rule.TryGetProperty(field, out var value) ? Option<string>.None

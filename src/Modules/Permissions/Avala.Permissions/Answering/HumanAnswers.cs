@@ -20,10 +20,14 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             return PolicyError.NotAwaitingAnswer;
         }
 
+        if (governed.Job.IsSome && !Offered(reply.Remember, asked))
+        {
+            return PolicyError.ScopeNotOffered;
+        }
+
         var answer = reply.Answer == PermissionAnswer.Allow ? PolicyAnswer.Allow : PolicyAnswer.Deny;
-        (JobId Job, PolicyRule Rule)[] kept = reply.Remember == Remember.Once
-            ? []
-            : governed.Job.Match<(JobId, PolicyRule)[]>(job => [(job, Rule(reply.Remember, asked, answer))], () => []);
+        var kept = governed.Job.Match(job => Rules(reply.Remember, asked, answer).Select(rule => (Job: job, Rule: rule)).ToList(), () => []);
+        var raised = governed.Job.Match(job => Everything(reply.Remember) && ledger.Raise(job) ? new[] { job } : [], () => []);
 
         foreach (var (job, rule) in kept)
         {
@@ -37,7 +41,17 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
                 book.Forget(job, rule);
             }
 
+            foreach (var job in raised)
+            {
+                ledger.Lower(job);
+            }
+
             return PolicyError.NotAwaitingAnswer;
+        }
+
+        foreach (var job in raised)
+        {
+            await ledger.RaisedAsync(job, cancellationToken);
         }
 
         var written = reply.Remember == Remember.InThisRepository
@@ -49,12 +63,28 @@ internal sealed class HumanAnswers(GovernanceBook book, IAgents agents, IReposit
             {
                 RepositoryRule = written.Bind(result => result.Match(Option<PolicyRule>.Some, _ => Option<PolicyRule>.None)),
                 RepositoryError = written.Bind(result => result.Match(_ => Option<PolicyError>.None, Option<PolicyError>.Some)),
+                Everything = governed.Job.IsSome && Everything(reply.Remember),
             },
             cancellationToken);
     }
 
-    private static PolicyRule Rule(Remember remember, PolicyDecision asked, PolicyAnswer answer) =>
-        remember == Remember.ForThisContest ? Remembering.ForContest(asked.Kind, asked.Target, answer) : Remembering.ForJob(asked.Kind, asked.Target, answer);
+    public static bool Everything(Remember remember) => remember is Remember.EverythingInThisJob or Remember.EverythingInThisContest;
+
+    private static bool Offered(Remember remember, PolicyDecision asked) => remember switch
+    {
+        Remember.ForThisJob or Remember.ForThisContest => asked.Scope.Match(scope => scope.Rule.IsSome, () => false),
+        Remember.EverythingInThisJob or Remember.EverythingInThisContest => asked.Scope.Match(scope => scope.Raisable, () => false),
+        _ => true,
+    };
+
+    private static PolicyRule[] Rules(Remember remember, PolicyDecision asked, PolicyAnswer answer) => remember switch
+    {
+        Remember.ForThisJob or Remember.ForThisContest => asked.Scope.Bind(scope => scope.Rule).Match<PolicyRule[]>(
+            rule => [Remembering.Contested(rule, remember == Remember.ForThisContest) with { Answer = answer }],
+            () => []),
+        Remember.InThisRepository => [Remembering.ForJob(asked.Kind, asked.Target, answer)],
+        _ => [],
+    };
 
     private Task<Result<PolicyRule, PolicyError>> WriteAsync(Option<JobId> job, Option<PolicyRule> rule, CancellationToken cancellationToken) =>
         job.Match(

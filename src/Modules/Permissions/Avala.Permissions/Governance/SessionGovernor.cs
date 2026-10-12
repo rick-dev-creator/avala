@@ -38,7 +38,8 @@ internal sealed class SessionGovernor(GovernanceBook book, SessionTerms terms, P
 
     public async ValueTask HandleAsync(JobSessionStarted integrationEvent, CancellationToken cancellationToken)
     {
-        var governed = book.Of(integrationEvent.Session).WorkingOn(integrationEvent.Job, integrationEvent.Autonomy, await terms.OfAsync(integrationEvent.Job, cancellationToken));
+        var working = book.Of(integrationEvent.Session).WorkingOn(integrationEvent.Job, integrationEvent.Autonomy, await terms.OfAsync(integrationEvent.Job, cancellationToken));
+        var governed = book.RaisedAt(integrationEvent.Job).Match(at => working.Raised(at), () => working);
         await book.WorkingOnAsync(governed, cancellationToken);
 
         await governed.Autonomy.Match(

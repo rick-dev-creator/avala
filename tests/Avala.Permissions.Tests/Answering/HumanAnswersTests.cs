@@ -41,6 +41,8 @@ public sealed class HumanAnswersTests
 
     private static PolicyRule JobRule => new(RuleOrigin.Job, "don't ask again for this job", ItemKind.Command, Migration, RuleScope.Anywhere, PolicyAnswer.Allow);
 
+    private static PolicyRule ProgramRule => new(RuleOrigin.Job, "always dotnet in this job", ItemKind.Command, "dotnet", RuleScope.Anywhere, PolicyAnswer.Allow) { AnyArguments = true };
+
     [Fact]
     public async Task ADenialWithAMessageReachesTheAgentAndIsAuditedAsync()
     {
@@ -60,7 +62,7 @@ public sealed class HumanAnswersTests
     }
 
     [Fact]
-    public async Task DontAskAgainForThisJobBecomesAJobRuleBeforeTheAgentGoesOnAndAnswersTheSameRequestInALaterSessionOfTheJobAsync()
+    public async Task AlwaysTheProgramInThisJobBecomesAJobRuleBeforeTheAgentGoesOnAndAnswersTheProgramWithOtherArgumentsInALaterSessionOfTheJobAsync()
     {
         await RequestAsync(session, "migrate");
         var rulesWhenAnswered = new List<PolicyRule>();
@@ -70,14 +72,51 @@ public sealed class HumanAnswersTests
         agents.OnRespond = () => { };
         var later = SessionId.New();
         book.Keep(book.Of(later).WorkingOn(job));
-        await RequestAsync(later, "migrate-again");
+        await RequestAsync(later, "build", "dotnet build --no-restore");
 
-        Assert.Equal([JobRule], rulesWhenAnswered);
-        Assert.Equal(Option<PolicyRule>.Some(JobRule), answer.Rule);
-        Assert.Equal([JobRule], book.JobRulesOf(job));
+        Assert.Equal([ProgramRule], rulesWhenAnswered);
+        Assert.Equal(Option<PolicyRule>.Some(ProgramRule), answer.Rule);
+        Assert.Equal([ProgramRule], book.JobRulesOf(job));
         var next = Assert.IsType<PermissionDecided>(bus.Published[^1]).Decision;
-        Assert.Equal((later, PolicyAnswer.Allow, DecisionDelivery.Answered, Option<PolicyRule>.Some(JobRule)), (next.Session, next.Answer, next.Delivery, next.Rule));
+        Assert.Equal((later, PolicyAnswer.Allow, DecisionDelivery.Answered, Option<PolicyRule>.Some(ProgramRule)), (next.Session, next.Answer, next.Delivery, next.Rule));
         Assert.Empty(repository.Added);
+    }
+
+    [Fact]
+    public async Task AlwaysTheProgramsInThisJobNamesEveryProgramAChainedLineStillNeedsButNotTheOnesAlreadyAllowedAsync()
+    {
+        await RequestAsync(session, "chain", "npm ci && npm test | tee test.log; ls -la");
+
+        var answer = Outcomes.Succeeds(await answers.AnswerAsync(session, Allow("chain", Remember.ForThisJob), Cancellation));
+
+        Assert.Equal((Option<string>.Some("always npm, tee in this job"), Option<string>.Some("npm tee")), (answer.Rule.Map(rule => rule.Name), answer.Rule.Bind(rule => rule.Target)));
+    }
+
+    [Fact]
+    public async Task AnAnswerForAScopeTheDecisionDidNotOfferIsRefusedBeforeItReachesTheAgentAsync()
+    {
+        await RequestAsync(session, "opaque", "echo $(date)");
+        book.Keep(book.Of(session).OpenedIn("/worktrees/1", PermissionPolicy.With([]) with { Limit = Autonomy.Supervised }, Report()));
+        await RequestAsync(session, "migrate");
+
+        Assert.Equal(PolicyError.ScopeNotOffered, Outcomes.FailsWith(await answers.AnswerAsync(session, Allow("opaque", Remember.ForThisJob), Cancellation)));
+        Assert.Equal(PolicyError.ScopeNotOffered, Outcomes.FailsWith(await answers.AnswerAsync(session, Allow("migrate", Remember.EverythingInThisJob), Cancellation)));
+        Assert.Empty(agents.Responses);
+    }
+
+    [Fact]
+    public async Task EverythingInThisJobRaisesEveryLaterRequestOfTheJobToAutonomousAndAuditsItAsync()
+    {
+        await RequestAsync(session, "migrate");
+
+        var answer = Outcomes.Succeeds(await answers.AnswerAsync(session, Allow("migrate", Remember.EverythingInThisJob), Cancellation));
+        await RequestAsync(session, "push", "git push --force");
+
+        var raised = Assert.Single(bus.Published.OfType<AutonomyApplied>()).Autonomy;
+        Assert.Equal((Autonomy.Autonomous, Option<DateTimeOffset>.Some(Now)), (raised.Effective, raised.Raised));
+        Assert.Equal((true, Option<PolicyRule>.None), (answer.Everything, answer.Rule));
+        var next = Assert.IsType<PermissionDecided>(bus.Published[^1]).Decision;
+        Assert.Equal((PolicyAnswer.Allow, Autonomy.Autonomous, "autonomous-commands-in-the-worktree"), (next.Answer, next.Autonomy, Outcomes.Present(next.Rule).Name));
     }
 
     [Fact]
@@ -156,6 +195,6 @@ public sealed class HumanAnswersTests
 
     private SessionPolicy Report() => new(session, PolicyFileStatus.Applied, Option<PolicyError>.None, [], CommittedFiles.Origin());
 
-    private Task RequestAsync(SessionId asking, string item) =>
-        governor.HandleAsync(new AgentActivity(new PermissionRequested(asking, TurnId.New(), new ItemId(item), "Run", ItemKind.Command, Migration)), Cancellation).AsTask();
+    private Task RequestAsync(SessionId asking, string item, string command = Migration) =>
+        governor.HandleAsync(new AgentActivity(new PermissionRequested(asking, TurnId.New(), new ItemId(item), "Run", ItemKind.Command, command)), Cancellation).AsTask();
 }

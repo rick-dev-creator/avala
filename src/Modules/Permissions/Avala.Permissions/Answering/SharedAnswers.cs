@@ -1,20 +1,18 @@
-using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Permissions.Governance;
-using Avala.Permissions.Policies;
 using Avala.Sdk;
 
 namespace Avala.Permissions.Answering;
 
-internal sealed class SharedAnswers(HumanAnswers answers, GovernanceBook book, IEnumerable<IAnswerSharing> sharing) : IPermissionAnswers
+internal sealed class SharedAnswers(HumanAnswers answers, GovernanceBook book, AnswerLedger ledger, IEnumerable<IAnswerSharing> sharing) : IPermissionAnswers
 {
     public async ValueTask<Result<HumanAnswer, PolicyError>> AnswerAsync(SessionId session, PermissionReply reply, CancellationToken cancellationToken)
     {
         var answered = await answers.AnswerAsync(session, reply, cancellationToken);
 
-        if (reply.Remember == Remember.ForThisContest && answered.TryGetValue(out var given, out _))
+        if (reply.Remember is Remember.ForThisContest or Remember.EverythingInThisContest && answered.TryGetValue(out var given, out _))
         {
             foreach (var job in await SharersAsync(given.Job, cancellationToken))
             {
@@ -51,9 +49,19 @@ internal sealed class SharedAnswers(HumanAnswers answers, GovernanceBook book, I
             shared |= (await answers.AnswerAsync(session, reply with { Item = item }, cancellationToken)).IsSuccess;
         }
 
-        if (!shared)
+        if (shared)
         {
-            book.Remember(job, Remembering.ForContest(given.Kind, given.Target, given.Answer == PermissionAnswer.Allow ? PolicyAnswer.Allow : PolicyAnswer.Deny));
+            return;
+        }
+
+        foreach (var rule in given.Rule.Match(found => new[] { found }, () => []))
+        {
+            book.Remember(job, rule);
+        }
+
+        if (given.Everything && ledger.Raise(job))
+        {
+            await ledger.RaisedAsync(job, cancellationToken);
         }
     }
 }

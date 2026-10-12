@@ -27,7 +27,7 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
 
         var contested = delivery == DecisionDelivery.LeftToHuman && await SharedAsync(session.Job, cancellationToken);
 
-        return (Decided(session, requested, request, verdict, delivery) with { Contested = contested }, request);
+        return (Decided(session, requested, request, verdict, delivery) with { Contested = contested, Scope = Scoped(session, request, jobRules, delivery) }, request);
     }
 
     public async Task<FormDecision> DecideAsync(GovernedSession session, FormRequested requested, CancellationToken cancellationToken)
@@ -72,6 +72,11 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
             RepositoryRule = delivery is DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent && session.Job.IsSome ? session.Policy.InRepository(request) : Option<PolicyRule>.None,
             Parent = delivery == DecisionDelivery.LeftToParent ? session.AsksParent : Option<JobId>.None,
         };
+
+    private static Option<JobScope> Scoped(GovernedSession session, PermissionRequest request, IReadOnlyList<PolicyRule> jobRules, DecisionDelivery delivery) =>
+        delivery is DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent && session.Job.IsSome
+            ? session.Policy.InJob(request, jobRules)
+            : Option<JobScope>.None;
 
     private async Task<bool> SharedAsync(Option<JobId> job, CancellationToken cancellationToken)
     {

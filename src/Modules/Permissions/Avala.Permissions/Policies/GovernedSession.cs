@@ -49,6 +49,13 @@ internal sealed record GovernedSession(
         };
     }
 
+    public GovernedSession Raised(Option<DateTimeOffset> at)
+    {
+        var policy = Policy with { Raised = at.IsSome };
+
+        return this with { Policy = policy, Autonomy = Autonomy.Map(autonomy => autonomy with { Effective = policy.Autonomy, Raised = at }) };
+    }
+
     public GovernedSession Decided(PolicyDecision decision) => this with { Decisions = [.. Decisions, decision] };
 
     public GovernedSession Asked(FormDecision decision) => this with { Forms = [.. Forms, decision] };

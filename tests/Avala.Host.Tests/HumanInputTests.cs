@@ -67,7 +67,7 @@ public sealed class HumanInputTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task DontAskAgainForThisJobBecomesAJobRuleThatAnswersTheNextIdenticalRequestAsync()
+    public async Task AlwaysTheProgramInThisJobBecomesAJobRuleThatAnswersTheNextRequestOfThatProgramAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "repeated-permission");
         var first = await run.DecisionAsync();
@@ -81,7 +81,7 @@ public sealed class HumanInputTests(PublishedPlugins plugins)
         Assert.Equal(DecisionDelivery.LeftToHuman, first.Delivery);
         var rule = Outcomes.Present(answer.Rule);
         Assert.Equal((PolicyAnswer.Allow, DecisionDelivery.Answered, Option<PolicyRule>.Some(rule)), (second.Answer, second.Delivery, second.Rule));
-        Assert.Equal((RuleOrigin.Job, "dotnet ef database update"), (rule.Origin, Outcomes.Present(rule.Target)));
+        Assert.Equal((RuleOrigin.Job, "always dotnet in this job", "dotnet"), (rule.Origin, rule.Name, Outcomes.Present(rule.Target)));
         Assert.Equal([rule], run.Get<IPermissionAudit>().JobRulesOf(run.Job));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
     }
@@ -143,11 +143,40 @@ public sealed class HumanInputTests(PublishedPlugins plugins)
         Assert.Equal(
             [
                 ("ls -la", PolicyAnswer.Allow, DecisionDelivery.Answered),
-                ("ls -la; git show --stat HEAD", PolicyAnswer.Ask, DecisionDelivery.LeftToHuman),
+                ("ls -la; npm install", PolicyAnswer.Ask, DecisionDelivery.LeftToHuman),
             ],
             decisions.Select(decision => (decision.Target, decision.Answer, decision.Delivery)));
         Outcomes.Succeeds(await run.Get<IPermissionAnswers>().AnswerAsync(decisions[1].Session, new PermissionReply(decisions[1].Item, PermissionAnswer.Allow), Cancellation));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+    }
+
+    [Fact]
+    public async Task ASupervisedJobReadsUnaskedRemembersAProgramThenRunsEverythingButStillStopsAnEditOfThePolicyFileAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "trusting");
+        var answers = run.Get<IPermissionAnswers>();
+
+        var explored = await run.DecisionsAsync(count: 2);
+        var always = Outcomes.Succeeds(await answers.AnswerAsync(explored[1].Session, new PermissionReply(explored[1].Item, PermissionAnswer.Allow) { Remember = Remember.ForThisJob }, Cancellation));
+        var remembered = await run.DecisionsAsync(count: 2);
+        var everything = Outcomes.Succeeds(await answers.AnswerAsync(remembered[1].Session, new PermissionReply(remembered[1].Item, PermissionAnswer.Allow) { Remember = Remember.EverythingInThisJob }, Cancellation));
+        var trusted = await run.DecisionsAsync(count: 2);
+
+        Assert.Equal(
+            [
+                ("ls -la src | head -5; grep -rn TODO . | wc -l", PolicyAnswer.Allow, DecisionDelivery.Answered, "read-only allowed"),
+                ("mkdir build", PolicyAnswer.Ask, DecisionDelivery.LeftToHuman, string.Empty),
+                ("mkdir -p build/out/logs", PolicyAnswer.Allow, DecisionDelivery.Answered, "always mkdir in this job"),
+                ("touch build/stamp", PolicyAnswer.Ask, DecisionDelivery.LeftToHuman, string.Empty),
+                ("npm install --no-audit", PolicyAnswer.Allow, DecisionDelivery.Answered, "autonomous-commands-in-the-worktree"),
+                (".avala/permissions.json", PolicyAnswer.Deny, DecisionDelivery.Answered, "policy-file-goes-to-a-human"),
+            ],
+            explored.Concat(remembered).Concat(trusted).Select(decision => (decision.Target, decision.Answer, decision.Delivery, decision.Rule.Match(rule => rule.Name, () => string.Empty))));
+        Assert.Equal(("always mkdir in this job", true), (Outcomes.Present(always.Rule).Name, everything.Everything));
+        var raised = Outcomes.Present(run.Get<IPermissionAudit>().AutonomyOf(trusted[0].Session));
+        Assert.Equal((Autonomy.Supervised, Autonomy.Autonomous, true), (raised.Declared, raised.Effective, raised.Raised.IsSome));
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        Assert.False(File.Exists(Path.Combine(run.Worktree, ".avala", "permissions.json")));
     }
 
     [Theory]

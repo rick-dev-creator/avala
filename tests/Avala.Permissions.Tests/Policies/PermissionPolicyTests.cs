@@ -182,6 +182,21 @@ public sealed class PermissionPolicyTests
         Assert.Equal((answer, rule.ToOption()), (verdict.Answer, verdict.Rule.Map(found => found.Name)));
     }
 
+    [Theory]
+    [InlineData(Autonomy.Autonomous, ItemKind.Command, "rm -rf build", false, PolicyAnswer.Allow, "autonomous-commands-in-the-worktree")]
+    [InlineData(Autonomy.Autonomous, ItemKind.Web, "https://example.com", false, PolicyAnswer.Deny, "autonomous-denies-the-rest")]
+    [InlineData(Autonomy.Autonomous, ItemKind.FileEdit, ".avala/permissions.json", true, PolicyAnswer.Deny, "policy-file-goes-to-a-human")]
+    [InlineData(Autonomy.Autonomous, ItemKind.FileEdit, "/etc/hosts", false, PolicyAnswer.Deny, "edits-outside-the-workspace-go-to-a-human")]
+    [InlineData(Autonomy.Supervised, ItemKind.Command, "rm -rf build", false, PolicyAnswer.Ask, null)]
+    public void EverythingInThisJobRunsTheJobAtTheRepositorysCeilingWithTheGuardsStillFirst(Autonomy ceiling, ItemKind kind, string target, bool inside, PolicyAnswer answer, string? rule)
+    {
+        var raised = PermissionPolicy.With([]) with { Limit = ceiling, Raised = true };
+
+        var verdict = raised.Decide(new PermissionRequest(kind, target, inside));
+
+        Assert.Equal((ceiling, answer, rule.ToOption()), (raised.Autonomy, verdict.Answer, verdict.Rule.Map(found => found.Name)));
+    }
+
     private static PermissionPolicy Autonomous(IReadOnlyList<PolicyRule> repository) =>
         new(repository, Autonomy.Autonomous, FormStrategy.Recommended);
 

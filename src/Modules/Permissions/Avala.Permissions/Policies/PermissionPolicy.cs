@@ -15,9 +15,12 @@ internal sealed record PermissionPolicy(IReadOnlyList<PolicyRule> Repository, Au
         new(RuleOrigin.BuiltIn, "edits-outside-the-workspace-go-to-a-human", ItemKind.FileEdit, Option<string>.None, RuleScope.OutsideWorkspace, PolicyAnswer.Ask),
     ];
 
+    public const string ReadOnlyAllowed = "read-only allowed";
+
     public static IReadOnlyList<PolicyRule> Defaults { get; } =
     [
         new(RuleOrigin.BuiltIn, "edits-inside-the-workspace", ItemKind.FileEdit, Option<string>.None, RuleScope.Workspace, PolicyAnswer.Allow),
+        new(RuleOrigin.BuiltIn, ReadOnlyAllowed, ItemKind.Command, Option<string>.None, RuleScope.ReadOnly, PolicyAnswer.Allow),
     ];
 
     public static IReadOnlyList<PolicyRule> Unattended { get; } =
@@ -35,7 +38,13 @@ internal sealed record PermissionPolicy(IReadOnlyList<PolicyRule> Repository, Au
 
     public bool ReadOnly { get; init; }
 
-    public Autonomy Autonomy => Ceiling.Match(ceiling => ceiling < Declared ? ceiling : Declared, () => Declared);
+    public Autonomy Limit { get; init; } = Autonomy.Autonomous;
+
+    public bool Raised { get; init; }
+
+    public bool Raisable => Limit == Autonomy.Autonomous && Autonomy == Autonomy.Supervised;
+
+    public Autonomy Autonomy => Raised ? Limit : Ceiling.Match(ceiling => ceiling < Declared ? ceiling : Declared, () => Declared);
 
     public IReadOnlyList<PolicyRule> Rules => Ordered([]);
 

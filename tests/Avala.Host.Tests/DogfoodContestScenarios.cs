@@ -18,7 +18,7 @@ internal static class DogfoodContestScenarios
 
     private const string Task = "Add `clamp(value, min, max)` to calc.js, exported beside add, returning value limited to the range from min to max. Add a `node:test` test file test/clamp.test.js covering a value below, inside and above the range. Run the tests.";
 
-    private const string InContest = "Don't ask again in this contest";
+    private const string InContest = "Always the program in this contest";
 
     public static DogfoodScenario BestOfThree { get; } = new("s13", "Best of three: three candidates run the same request, the best verified one wins, and approving it discards the others", "Contests: the Candidates stepper on New job, the carved share of the per-job cap, the verdict by evidence, the contest row, the inspector's Contest section, approving the winner, discarding and reclaiming the rest, answers given in this contest", 0.30m, TimeSpan.FromMinutes(15))
     {
@@ -157,7 +157,7 @@ internal static class DogfoodContestScenarios
                         return Expect(evidence, holds, $"reclaimed [{string.Join("; ", reclaimed.Select(text => text.Replace('\t', ' ')))}], worktree list [{listed.Trim().ReplaceLineEndings("; ")}]");
                     },
                     () => DogfoodVerdict.NotReached("no winner was approved, so nothing was discarded")))),
-            new("An answer given 'Don't ask again in this contest' answers the same request of every other candidate", evidence =>
+            new("An answer given 'Always the program in this contest' answers the same request of every other candidate", evidence =>
             {
                 var given = evidence.FactsOf("contest-answer:").Select(text => text.Split('\t')).ToList();
 
@@ -168,7 +168,7 @@ internal static class DogfoodContestScenarios
 
                 var contest = evidence.First<ContestStarted>(_ => true).Match(found => found.Contest.Candidates.Select(candidate => candidate.Job).ToList(), () => []);
                 var spread = given.Select(answer => (Target: answer[2], Others: contest.Where(job => evidence.Name(job) != answer[0]).Select(job => (Job: job, Asked: evidence.All<PermissionDecided>(found => found.Decision.Job == Option<JobId>.Some(job) && found.Decision.Target == answer[2]).Select(found => found.Decision).ToList(), Answered: evidence.All<PermissionAnswered>(found => found.Answer.Job == Option<JobId>.Some(job) && found.Answer.Target == answer[2]).ToList())).ToList())).ToList();
-                var holds = spread.All(answer => answer.Others.All(other => other.Asked.Count == 0 || other.Answered.Count > 0 || other.Asked.Any(decision => decision.Delivery != DecisionDelivery.LeftToHuman && decision.Rule.Match(rule => rule.Name == "don't ask again in this contest", () => false))));
+                var holds = spread.All(answer => answer.Others.All(other => other.Asked.Count == 0 || other.Answered.Count > 0 || other.Asked.Any(decision => decision.Delivery != DecisionDelivery.LeftToHuman && decision.Rule.Match(rule => rule.Name.EndsWith(" in this contest", StringComparison.Ordinal), () => false))));
 
                 return Expect(evidence, holds, string.Join("; ", spread.Select(answer => $"'{answer.Target}': {string.Join(", ", answer.Others.Select(other => $"{evidence.Name(other.Job)} asked {other.Asked.Count} answered {other.Answered.Count} by [{string.Join(" ", other.Asked.Select(decision => $"{decision.Delivery}/{decision.Rule.Match(rule => rule.Name, () => "no rule")}"))}]"))}")));
             }),

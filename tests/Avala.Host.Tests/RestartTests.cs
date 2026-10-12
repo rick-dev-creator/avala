@@ -306,7 +306,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task DontAskAgainForThisJobAnswersTheSameRequestInTheNewSessionARestartAndARetryOpenAsync()
+    public async Task AlwaysTheProgramInThisJobAnswersItInTheNewSessionARestartAndARetryOpenAsync()
     {
         using var verdicts = new TcpListener(IPAddress.Loopback, 0);
         verdicts.Start();
@@ -333,7 +333,7 @@ public sealed class RestartTests(PublishedPlugins plugins)
 
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
         var rule = Outcomes.Present(answer.Rule);
-        Assert.Equal((RuleOrigin.Job, "don't ask again for this job", "dotnet ef database update"), (rule.Origin, rule.Name, Outcomes.Present(rule.Target)));
+        Assert.Equal((RuleOrigin.Job, "always dotnet in this job", "dotnet"), (rule.Origin, rule.Name, Outcomes.Present(rule.Target)));
         Assert.NotEqual(first.Session, again.Session);
         Assert.Equal((first.Target, PolicyAnswer.Allow, DecisionDelivery.Answered, Option<PolicyRule>.Some(rule)), (again.Target, again.Answer, again.Delivery, again.Rule));
         var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(run.Job, Cancellation));

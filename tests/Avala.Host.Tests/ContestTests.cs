@@ -211,7 +211,7 @@ public sealed class ContestTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AnAnswerForThisContestAnswersTheSameRequestOfEveryCandidateAsync()
+    public async Task AlwaysTheProgramInThisContestAnswersTheSameRequestOfEveryCandidateAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins);
         var decisions = run.Watch<PermissionDecided>();
@@ -229,7 +229,7 @@ public sealed class ContestTests(PublishedPlugins plugins)
         var candidates = contest.Candidates.Select(candidate => candidate.Job).ToArray();
         Assert.Equal([JobStatus.AwaitingReview, JobStatus.AwaitingReview], await run.SettledAsync(candidates));
         Assert.All(candidates, candidate => Assert.Equal(
-            [(PermissionAnswer.Allow, "dotnet ef database update", "don't ask again in this contest")],
+            [(PermissionAnswer.Allow, "dotnet ef database update", "always dotnet in this contest")],
             run.Get<IPermissionAudit>().AnswersOfJob(candidate).Select(answer => (answer.Answer, answer.Target, answer.Rule.Match(rule => rule.Name, () => string.Empty)))));
     }
 
