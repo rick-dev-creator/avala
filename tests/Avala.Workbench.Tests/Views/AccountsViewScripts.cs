@@ -77,7 +77,7 @@ public sealed class SourceControlViewScripts(HeadlessUi ui)
             forges.Accounts.Add(Kinds.Declared("hub", Kinds.Hub, CredentialSource.Cli, login: "octocat"));
             var accounts = new SourceControlViewModel(forges.Source, new ConnectSheetViewModel(forges.Source));
             await accounts.LoadAsync(Cancellation);
-            var settings = new SettingsViewModel(new DesignRepositorySettingsViewModel(), new DesignMachineSettingsViewModel { SourceControl = accounts }, new DesignAppearanceViewModel(), new DesignAboutViewModel());
+            var settings = new SettingsViewModel(new DesignRepositorySettingsViewModel(), new DesignMachineSettingsViewModel { Accounts = new DesignMachineAccountsViewModel { SourceControl = accounts } }, new DesignAppearanceViewModel(), new DesignAboutViewModel());
             var view = Screen.Show(settings, Avalonia.Styling.ThemeVariant.Dark, 1280, 1400).Settle();
 
             view.Find("Connect").BringIntoView();

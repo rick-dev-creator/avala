@@ -369,6 +369,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IRepositorySettingsViewModel, RepositorySettingsView>();
         views.Register<IRuleFileEditorViewModel, RuleFileEditorView>();
         views.Register<IMachineSettingsViewModel, MachineSettingsView>();
+        views.Register<IMachineAccountsViewModel, MachineAccountsView>();
         views.Register<INotificationsViewModel, NotificationsView>();
         views.Register<IAppearanceViewModel, AppearanceView>();
         views.Register<IAboutViewModel, AboutView>();

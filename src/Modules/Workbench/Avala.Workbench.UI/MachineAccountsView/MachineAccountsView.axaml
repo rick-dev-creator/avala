@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             x:Class="Avala.Workbench.UI.MachineAccountsView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IMachineAccountsViewModel">
+  <Design.DataContext>
+    <settings:DesignMachineAccountsViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ItemsControl#Connections > ContentPresenter:not(:nth-child(1))">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+    <Style Selector="Path.add">
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Height" Value="12" />
+      <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="18">
+    <Border x:Name="Error"
+            Classes="quiet"
+            Padding="12,8"
+            IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock x:Name="ErrorText" Classes="caption failure" Text="{Binding Error}" TextWrapping="Wrap" />
+    </Border>
+    <Border x:Name="Notice"
+            Classes="quiet"
+            Padding="12,8"
+            IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock x:Name="NoticeText" Classes="caption" Text="{Binding Notice}" TextWrapping="Wrap" />
+    </Border>
+    <TextBlock Classes="title" Text="Accounts" />
+    <StackPanel Spacing="8">
+      <TextBlock Classes="section" Margin="4,0" Text="Agents" />
+      <Border Classes="grouped">
+        <StackPanel>
+          <ItemsControl x:Name="Connections" Margin="16,0" ItemsSource="{Binding Connections}" />
+          <Border Classes="separator" Margin="16,0" IsVisible="{Binding !!Connections.Count}" />
+          <Button x:Name="AddConnection" Classes="link emphasis" HorizontalContentAlignment="Left" Padding="16,11" FontSize="{DynamicResource FontSizeBody}" Command="{Binding Editor.NewCommand}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Path Classes="icon add" Data="{StaticResource IconPlus}" />
+              <TextBlock Text="Add…" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Border>
+      <ContentControl x:Name="Editor" Content="{Binding Editor}" />
+    </StackPanel>
+    <ContentControl x:Name="SourceControl" Content="{Binding SourceControl}" />
+    <Expander x:Name="Advanced" Classes="disclosure" Header="Advanced">
+      <StackPanel Spacing="6" Margin="20,0,0,4">
+        <DockPanel>
+          <Button x:Name="OpenConnections"
+                  DockPanel.Dock="Right"
+                  Classes="link"
+                  Content="Open"
+                  ToolTip.Tip="For a connection's settings, which the form does not edit"
+                  Command="{Binding OpenConnectionsCommand}" />
+          <TextBlock x:Name="ConnectionsFile" Classes="caption" VerticalAlignment="Center" Text="{Binding ConnectionsFile, StringFormat='connections.json · {0}'}" />
+        </DockPanel>
+        <TextBlock x:Name="ForgesFile" Classes="caption" TextTrimming="CharacterEllipsis" Text="{Binding ForgesFile}" />
+      </StackPanel>
+    </Expander>
+  </StackPanel>
+</UserControl>

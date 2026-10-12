@@ -85,9 +85,9 @@ public sealed class WelcomeScreens(HeadlessUi ui, PublishedPlugins plugins)
 
             return settings["Loading"].Value<Task>();
         });
-        await ShootBothAsync(run, "64-settings-accounts", window => FeatureCamera.ScrollTo(window, "Accounts"));
+        await ShootBothAsync(run, "64-settings-accounts");
 
-        var sourceControl = settings["Machine"]["SourceControl"];
+        var sourceControl = settings["Machine"]["Accounts"]["SourceControl"];
         await run.Ui.RunAsync(() => sourceControl.ExecuteAsync("ConnectCommand"));
         await ShootBothAsync(run, "65-connect-sheet");
 

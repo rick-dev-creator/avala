@@ -75,6 +75,8 @@
       </Border>
       <ScrollViewer Grid.Column="1">
         <StackPanel Margin="24,32,24,48" Spacing="30" MaxWidth="680">
+          <ContentControl x:Name="MachineAccounts" Content="{Binding Machine.Accounts}" />
+          <Border Classes="separator" />
           <ContentControl x:Name="Repository" Content="{Binding Repository}" />
           <ContentControl x:Name="Machine" Content="{Binding Machine}" />
           <ContentControl x:Name="Appearance" Content="{Binding Appearance}" />
@@ -82,9 +84,9 @@
         </StackPanel>
       </ScrollViewer>
     </Grid>
-    <Panel x:Name="ConnectSheet" IsVisible="{Binding Machine.SourceControl.Sheet.IsOpen}">
+    <Panel x:Name="ConnectSheet" IsVisible="{Binding Machine.Accounts.SourceControl.Sheet.IsOpen}">
       <Border Background="{DynamicResource ScrimSheetBrush}" Classes="fade-in" />
-      <ContentControl x:Name="ConnectSheetContent" Content="{Binding Machine.SourceControl.Sheet}" />
+      <ContentControl x:Name="ConnectSheetContent" Content="{Binding Machine.Accounts.SourceControl.Sheet}" />
     </Panel>
   </Panel>
 </UserControl>

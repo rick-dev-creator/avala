@@ -18,15 +18,7 @@ internal interface IMachineSettingsViewModel
 
     INotificationsViewModel Notifications { get; }
 
-    IConnectionEditorViewModel Editor { get; }
-
-    IReadOnlyList<IMachineConnectionViewModel> Connections { get; }
-
-    string ConnectionsFile { get; }
-
-    ISourceControlViewModel SourceControl { get; }
-
-    string ForgesFile { get; }
+    IMachineAccountsViewModel Accounts { get; }
 
     string Silence { get; }
 
@@ -40,13 +32,7 @@ internal interface IMachineSettingsViewModel
 
     string Resources { get; }
 
-    string Error { get; }
-
-    string Notice { get; }
-
     IAsyncRelayCommand SaveSilenceCommand { get; }
-
-    IAsyncRelayCommand OpenConnectionsCommand { get; }
 
     Task LoadAsync(CancellationToken cancellationToken);
 }
@@ -79,6 +65,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     private readonly ObservableCollection<MachineConnectionViewModel> connections = [];
     private readonly MachineSettings settings;
     private readonly ConnectionEditorViewModel editor;
+    private readonly MachineAccountsViewModel accounts;
 
     public MachineSettingsViewModel(MachineSettings settings, MachineSections sections, ConnectionEditorViewModel editor)
     {
@@ -87,6 +74,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
         DefaultConnection = sections.DefaultConnection;
         Notifications = sections.Notifications;
         SourceControl = sections.SourceControl;
+        accounts = new MachineAccountsViewModel(connections, editor, SourceControl, OpenConnectionsCommand);
         DefaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
         editor.Edited += (_, edited) =>
         {
@@ -100,17 +88,25 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
 
     public INotificationsViewModel Notifications { get; }
 
+    public IMachineAccountsViewModel Accounts => accounts;
+
     public IConnectionEditorViewModel Editor => editor;
 
     public IReadOnlyList<IMachineConnectionViewModel> Connections => connections;
 
-    [ObservableProperty]
-    public partial string ConnectionsFile { get; private set; } = string.Empty;
+    public string ConnectionsFile
+    {
+        get => accounts.ConnectionsFile;
+        private set => accounts.ConnectionsFile = value;
+    }
 
     public ISourceControlViewModel SourceControl { get; }
 
-    [ObservableProperty]
-    public partial string ForgesFile { get; private set; } = string.Empty;
+    public string ForgesFile
+    {
+        get => accounts.ForgesFile;
+        private set => accounts.ForgesFile = value;
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSilenceChanged), nameof(SilenceMinutes))]
@@ -135,11 +131,17 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     [ObservableProperty]
     public partial string Resources { get; private set; } = string.Empty;
 
-    [ObservableProperty]
-    public partial string Error { get; private set; } = string.Empty;
+    public string Error
+    {
+        get => accounts.Error;
+        private set => accounts.Error = value;
+    }
 
-    [ObservableProperty]
-    public partial string Notice { get; private set; } = string.Empty;
+    public string Notice
+    {
+        get => accounts.Notice;
+        private set => accounts.Notice = value;
+    }
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
