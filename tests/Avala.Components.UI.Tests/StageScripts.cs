@@ -19,10 +19,10 @@ public sealed class StageScripts(HeadlessUi ui)
 
             stage.Content = new Border { Name = "Page" };
             Dispatcher.UIThread.RunJobs(DispatcherPriority.Render);
-            var waiting = stage.Presented;
+            var waiting = stage.Children.Count;
             view.Settle();
 
-            Assert.Null(waiting);
+            Assert.Equal(0, waiting);
             Assert.True(view.Shows("Page"));
         }, Cancellation);
 

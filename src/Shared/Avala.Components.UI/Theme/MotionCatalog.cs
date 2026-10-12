@@ -56,40 +56,39 @@ internal static class MotionCatalog
 
     private static readonly Move DriftLoop = Repeat(4.8, new SineEaseInOut(), TimeSpan.Zero, Frame(0, [X(0), Y(0)]), Frame(0.5, [X(2), Y(-4)]), Frame(1, [X(0), Y(0)]));
 
-    public static Move? Entrance(MotionEntrance entrance) => entrance switch
+    public static IReadOnlyDictionary<MotionEntrance, Move> Entrances { get; } = new Dictionary<MotionEntrance, Move>
     {
-        MotionEntrance.Fade => FadeIn,
-        MotionEntrance.Arrive => ArriveSnappy,
-        MotionEntrance.Gentle => ArriveGentle,
-        MotionEntrance.Sheet => SheetIn,
-        MotionEntrance.Pop => PopIn,
-        MotionEntrance.Fold => FoldIn,
-        MotionEntrance.Rise => RiseIn,
-        MotionEntrance.Stamp => StampIn,
-        MotionEntrance.Scale => ArriveScale,
-        MotionEntrance.Draw => DrawIn,
-        _ => null,
+        [MotionEntrance.Fade] = FadeIn,
+        [MotionEntrance.Arrive] = ArriveSnappy,
+        [MotionEntrance.Gentle] = ArriveGentle,
+        [MotionEntrance.Sheet] = SheetIn,
+        [MotionEntrance.Pop] = PopIn,
+        [MotionEntrance.Fold] = FoldIn,
+        [MotionEntrance.Rise] = RiseIn,
+        [MotionEntrance.Stamp] = StampIn,
+        [MotionEntrance.Scale] = ArriveScale,
+        [MotionEntrance.Draw] = DrawIn,
     };
 
-    public static Move? Loop(MotionLoop loop) => loop switch
+    public static IReadOnlyDictionary<MotionLoop, Move> Loops { get; } = new Dictionary<MotionLoop, Move>
     {
-        MotionLoop.Pulse => PulseLoop,
-        MotionLoop.Spin => SpinLoop,
-        MotionLoop.Think => ThinkLoop,
-        MotionLoop.ThinkSecond => ThinkSecondLoop,
-        MotionLoop.ThinkThird => ThinkThirdLoop,
-        MotionLoop.Shimmer => ShimmerLoop,
-        MotionLoop.ShimmerText => ShimmerTextLoop,
-        MotionLoop.Caret => CaretLoop,
-        MotionLoop.Drift => DriftLoop,
-        _ => null,
+        [MotionLoop.Pulse] = PulseLoop,
+        [MotionLoop.Spin] = SpinLoop,
+        [MotionLoop.Think] = ThinkLoop,
+        [MotionLoop.ThinkSecond] = ThinkSecondLoop,
+        [MotionLoop.ThinkThird] = ThinkThirdLoop,
+        [MotionLoop.Shimmer] = ShimmerLoop,
+        [MotionLoop.ShimmerText] = ShimmerTextLoop,
+        [MotionLoop.Caret] = CaretLoop,
+        [MotionLoop.Drift] = DriftLoop,
     };
 
-    public static Pose? Still(MotionLoop loop) => loop switch
+    public static IReadOnlyDictionary<MotionLoop, Pose> Stills { get; } = new Dictionary<MotionLoop, Pose>
     {
-        MotionLoop.Think or MotionLoop.ThinkSecond or MotionLoop.ThinkThird => new Pose(Visual.OpacityProperty, 0.6),
-        MotionLoop.Shimmer => new Pose(Visual.OpacityProperty, 0d),
-        _ => null,
+        [MotionLoop.Think] = new(Visual.OpacityProperty, 0.6),
+        [MotionLoop.ThinkSecond] = new(Visual.OpacityProperty, 0.6),
+        [MotionLoop.ThinkThird] = new(Visual.OpacityProperty, 0.6),
+        [MotionLoop.Shimmer] = new(Visual.OpacityProperty, 0d),
     };
 
     public static TransformGroup Transforms() => new() { Children = [new ScaleTransform(), new RotateTransform(), new TranslateTransform()] };
@@ -155,9 +154,9 @@ internal static class MotionCatalog
 
     internal sealed record Move(Animation Animation, bool Repeats)
     {
-        public RelativePoint? Origin { get; init; }
+        public RelativePoint Origin { get; init; } = RelativePoint.Center;
 
-        public AvaloniaList<double>? Dashes { get; init; }
+        public AvaloniaList<double> Dashes { get; init; } = [];
     }
 
     internal sealed record Pose(AvaloniaProperty Property, object Value);

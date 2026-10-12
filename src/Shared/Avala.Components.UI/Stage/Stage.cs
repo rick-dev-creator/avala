@@ -8,8 +8,8 @@ namespace Avala.Components.UI;
 
 public sealed class Stage : Panel
 {
-    public static readonly StyledProperty<object?> ContentProperty =
-        AvaloniaProperty.Register<Stage, object?>(nameof(Content));
+    public static readonly StyledProperty<object> ContentProperty =
+        AvaloniaProperty.Register<Stage, object>(nameof(Content));
 
     public static readonly StyledProperty<bool> KeepsAliveProperty =
         AvaloniaProperty.Register<Stage, bool>(nameof(KeepsAlive));
@@ -18,7 +18,7 @@ public sealed class Stage : Panel
     private ContentPresenter? shown;
     private bool posted;
 
-    public object? Content
+    public object Content
     {
         get => GetValue(ContentProperty);
         set => SetValue(ContentProperty, value);
@@ -29,8 +29,6 @@ public sealed class Stage : Panel
         get => GetValue(KeepsAliveProperty);
         set => SetValue(KeepsAliveProperty, value);
     }
-
-    public object? Presented => shown?.Content;
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {

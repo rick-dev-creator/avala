@@ -163,15 +163,25 @@ public sealed class Motion
 
         if (GetIsReduced(visual))
         {
-            playback.Hold(visual, MotionCatalog.Still(GetLoop(visual)));
+            if (MotionCatalog.Stills.TryGetValue(GetLoop(visual), out var still))
+            {
+                playback.Hold(visual, still);
+            }
 
             return;
         }
 
         if (GetWhen(visual))
         {
-            playback.Play(visual, IsSettling(visual) ? null : MotionCatalog.Entrance(GetEnter(visual)));
-            playback.Play(visual, MotionCatalog.Loop(GetLoop(visual)));
+            if (!IsSettling(visual) && MotionCatalog.Entrances.TryGetValue(GetEnter(visual), out var entrance))
+            {
+                playback.Play(visual, entrance);
+            }
+
+            if (MotionCatalog.Loops.TryGetValue(GetLoop(visual), out var loop))
+            {
+                playback.Play(visual, loop);
+            }
         }
     }
 
@@ -191,21 +201,11 @@ public sealed class Motion
 
         public bool IsMoving { get; private set; }
 
-        public void Hold(Visual visual, MotionCatalog.Pose? pose)
-        {
-            if (pose is not null)
-            {
-                Keep(visual.SetValue(pose.Property, pose.Value, BindingPriority.Style));
-            }
-        }
+        public void Hold(Visual visual, MotionCatalog.Pose pose) =>
+            Keep(visual.SetValue(pose.Property, pose.Value, BindingPriority.Style));
 
-        public void Play(Visual visual, MotionCatalog.Move? move)
+        public void Play(Visual visual, MotionCatalog.Move move)
         {
-            if (move is null)
-            {
-                return;
-            }
-
             IsMoving = true;
 
             if (visual.RenderTransform is null)
@@ -213,14 +213,14 @@ public sealed class Motion
                 Keep(visual.SetValue(Visual.RenderTransformProperty, MotionCatalog.Transforms(), BindingPriority.Style));
             }
 
-            if (move.Origin is { } origin)
+            if (move.Origin != RelativePoint.Center)
             {
-                Keep(visual.SetValue(Visual.RenderTransformOriginProperty, origin, BindingPriority.Style));
+                Keep(visual.SetValue(Visual.RenderTransformOriginProperty, move.Origin, BindingPriority.Style));
             }
 
-            if (move.Dashes is { } dashes && visual is Shape shape)
+            if (move.Dashes.Count > 0 && visual is Shape shape)
             {
-                Keep(shape.SetValue(Shape.StrokeDashArrayProperty, dashes, BindingPriority.Style));
+                Keep(shape.SetValue(Shape.StrokeDashArrayProperty, move.Dashes, BindingPriority.Style));
             }
 
             _ = RunAsync(visual, move, cancellation.Token);
