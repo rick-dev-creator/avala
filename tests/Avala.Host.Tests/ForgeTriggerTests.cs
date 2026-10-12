@@ -154,10 +154,12 @@ public sealed class ForgeTriggerTests(PublishedPlugins plugins)
         await using var forge = await ForgeTriggerRun.StartAsync(plugins, """ "event": "issue-labeled", "label": "avala" """, nudged: true);
         await forge.Remote.LabelAsync(await forge.Remote.OpenIssueAsync("Checkout button does nothing", "Clicking it shows nothing.", "carol", Cancellation), "avala", "alice", Cancellation);
         var fired = forge.Run.Watch<TriggerFired>();
+        var nudged = forge.PolledAgainAsync();
 
         Assert.Equal(HttpStatusCode.Accepted, await forge.NudgeAsync(ForgeTriggerRun.Secret));
         var run = (await fired.UntilAsync(happened => happened.Run.Trigger == Watched)).Run;
         _ = await forge.Run.SettledAsync(Outcomes.Present(run.Job));
+        _ = await nudged;
         await forge.PolledOnScheduleAsync();
 
         Assert.Single(forge.Run.Get<ITriggers>().RunsOf(Watched));
@@ -233,9 +235,17 @@ public sealed class ForgeTriggerTests(PublishedPlugins plugins)
         public async Task<TriggerRun> FiredOnNextPollAsync()
         {
             var fired = Run.Watch<TriggerFired>();
-            Run.AdvanceTo(Outcomes.Present(Assert.Single(Log.Watches()).NextPoll));
+            await PolledOnScheduleAsync();
 
             return (await fired.UntilAsync(happened => happened.Run.Trigger == Watched)).Run;
+        }
+
+        public Task<ForgeEventsChanged> PolledAgainAsync()
+        {
+            var changed = Run.Watch<ForgeEventsChanged>();
+            var before = Assert.Single(Log.Watches()).LastPolled;
+
+            return changed.UntilAsync(_ => Log.Watches().Any(watch => watch.LastPolled != before));
         }
 
         public async Task PolledOnScheduleAsync()
