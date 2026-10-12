@@ -42,6 +42,31 @@ public sealed class GitHubRepositoriesTests
         Assert.Equal(expected, Outcomes.FailsWith(await new GitHubForge().CreateAsync(context, new RepositoryDraft("shop", Private: false), Cancellation)));
     }
 
+    [Fact]
+    public async Task TheRepositoriesOfTheTokensUserAreReadMostRecentlyPushedFirstWithTheArchivedOnesMarkedAsync()
+    {
+        var server = new FixtureServer().Route("GET", "/user/repos?sort=pushed&per_page=100", HttpStatusCode.OK, await FixtureServer.FixtureAsync("github", "repositories", Cancellation));
+        var context = new ForgeContext(server.Api(Root), Targets.Of(Root));
+
+        var listed = Outcomes.Succeeds(await new GitHubForge().ListAsync(context, Cancellation));
+
+        Assert.Equal(
+            [("octo/shop", true, false, "2026-10-12"), ("acme/design-system", false, false, "2026-09-30"), ("octo/ledger", false, true, "2025-03-01")],
+            listed.Select(found => ($"{found.Repository.Address.Owner}/{found.Repository.Address.Name}", found.Private, found.Archived, found.UpdatedAt.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture))));
+        Assert.Equal(("https://github.com/octo/shop.git", "git@github.com:octo/shop.git"), (listed[0].Repository.HttpsUrl, listed[0].Repository.SshUrl));
+    }
+
+    [Fact]
+    public async Task GitHubPassesTheAccountPartOfTheForgeConformanceKitAsync()
+    {
+        var server = new FixtureServer()
+            .Route("GET", "/user", HttpStatusCode.OK, await FixtureServer.FixtureAsync("github", "user", Cancellation))
+            .Route("POST", "/user/repos", HttpStatusCode.Created, await FixtureServer.FixtureAsync("github", "repository", Cancellation))
+            .Route("GET", "/user/repos?sort=pushed&per_page=100", HttpStatusCode.OK, await FixtureServer.FixtureAsync("github", "repositories", Cancellation));
+
+        Assert.Empty(await ForgeConformance.CheckAccountAsync(new GitHubForge(), new ForgeContext(server.Api(Root), Targets.Of(Root)), Cancellation));
+    }
+
     [Theory]
     [InlineData("https://api.github.com", "github.com")]
     [InlineData("https://ghe.example.com/api/v3", "ghe.example.com")]

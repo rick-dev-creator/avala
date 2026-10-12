@@ -14,12 +14,44 @@ internal interface ILoginDetection
     ValueTask<DetectedAccounts> DetectAsync(CancellationToken cancellationToken);
 }
 
-internal sealed class SourceControlDesk(ForgeConnections connections, IEnumerable<IForge> forges, ILoginDetection detection) : ISourceControlAccounts
+internal sealed class SourceControlDesk(ForgeConnections connections, IEnumerable<IForge> forges, ILoginDetection detection, CloneUrls urls) : ISourceControlAccounts
 {
+    public async ValueTask<Result<IReadOnlyList<RemoteRepository>, ForgeError>> RepositoriesAsync(ForgeName forge, string search, CancellationToken cancellationToken)
+    {
+        if (!(await connections.AccountAsync(forge, cancellationToken)).TryGetValue(out var account, out var error))
+        {
+            return error;
+        }
+
+        if (account.Forge is not IForgeRepositories hosting)
+        {
+            return ForgeError.RepositoriesUnsupported;
+        }
+
+        if (!(await hosting.ListAsync(account.Context, cancellationToken)).TryGetValue(out var listed, out error))
+        {
+            return error;
+        }
+
+        var wanted = search.Trim();
+        var matching = listed
+            .Where(found => wanted.Length == 0 || $"{found.Repository.Address.Owner}/{found.Repository.Address.Name}".Contains(wanted, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(found => found.UpdatedAt)
+            .ToList();
+
+        return Result<IReadOnlyList<RemoteRepository>, ForgeError>.Success(await urls.ChosenAsync(matching, cancellationToken));
+    }
+
     public async ValueTask<SourceControlAccounts> AccountsAsync(CancellationToken cancellationToken)
     {
         var catalog = await connections.CatalogAsync(cancellationToken);
-        var declared = catalog.Connections.Select(Declared).ToList();
+        var declared = new List<AccountStatus>();
+
+        foreach (var connection in catalog.Connections)
+        {
+            declared.Add(await SignedInAsync(Declared(connection), cancellationToken));
+        }
+
         var detected = await detection.DetectAsync(cancellationToken);
         var taken = declared.Select(account => account.Name.Value).ToHashSet(StringComparer.Ordinal);
         var suggested = new List<AccountStatus>();
@@ -36,6 +68,23 @@ internal sealed class SourceControlDesk(ForgeConnections connections, IEnumerabl
         }
 
         return new SourceControlAccounts([.. declared, .. suggested], detected.Tools);
+    }
+
+    private async Task<AccountStatus> SignedInAsync(AccountStatus account, CancellationToken cancellationToken)
+    {
+        if (account.Problem.IsSome || !(await connections.AccountAsync(account.Name, cancellationToken)).TryGetValue(out var resolved, out _))
+        {
+            return account;
+        }
+
+        if (resolved.Forge is not IForgeAccounts signedIn)
+        {
+            return account;
+        }
+
+        return (await signedIn.MeAsync(resolved.Context, cancellationToken)).Match(
+            me => account with { Account = me },
+            failure => account with { Problem = failure });
     }
 
     private static bool Same(AccountStatus declared, DetectedAccount detected) =>

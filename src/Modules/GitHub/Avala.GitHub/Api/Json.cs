@@ -30,6 +30,9 @@ internal static class Json
     public static Option<int> Number(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : Option<int>.None;
 
+    public static Option<DateTimeOffset> Moment(JsonElement element, string name) =>
+        DateTimeOffset.TryParse(Text(element, name), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var moment) ? moment : Option<DateTimeOffset>.None;
+
     public static Option<Uri> Link(JsonElement element, string name) =>
         Uri.TryCreate(Text(element, name), UriKind.Absolute, out var link) ? link : Option<Uri>.None;
 }

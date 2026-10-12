@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1296270,
+    "name": "ledger",
+    "full_name": "octo/ledger",
+    "owner": { "login": "octo", "id": 1, "type": "User" },
+    "private": false,
+    "archived": true,
+    "html_url": "https://github.com/octo/ledger",
+    "ssh_url": "git@github.com:octo/ledger.git",
+    "clone_url": "https://github.com/octo/ledger.git",
+    "default_branch": "main",
+    "pushed_at": "2025-03-01T10:00:00Z",
+    "updated_at": "2025-03-01T10:00:00Z"
+  },
+  {
+    "id": 1296269,
+    "name": "shop",
+    "full_name": "octo/shop",
+    "owner": { "login": "octo", "id": 1, "type": "User" },
+    "private": true,
+    "archived": false,
+    "html_url": "https://github.com/octo/shop",
+    "ssh_url": "git@github.com:octo/shop.git",
+    "clone_url": "https://github.com/octo/shop.git",
+    "default_branch": "main",
+    "pushed_at": "2026-10-12T08:00:00Z",
+    "updated_at": "2026-10-11T08:00:00Z"
+  },
+  {
+    "id": 1296271,
+    "name": "design-system",
+    "full_name": "acme/design-system",
+    "owner": { "login": "acme", "id": 7, "type": "Organization" },
+    "private": false,
+    "archived": false,
+    "html_url": "https://github.com/acme/design-system",
+    "ssh_url": "git@github.com:acme/design-system.git",
+    "clone_url": "https://github.com/acme/design-system.git",
+    "default_branch": "main",
+    "pushed_at": "2026-09-30T16:20:00Z",
+    "updated_at": "2026-10-01T09:00:00Z"
+  }
+]

@@ -6,12 +6,23 @@ public sealed record RepositoryDraft(string Name, bool Private);
 
 public sealed record HostedRepository(RepositoryAddress Address, Uri Link, string HttpsUrl, string SshUrl);
 
+public sealed record ListedRepository(HostedRepository Repository, bool Private, bool Archived, DateTimeOffset UpdatedAt);
+
 public interface IForgeRepositories
 {
     string GitHost(Uri api);
 
     ValueTask<Result<HostedRepository, ForgeError>> CreateAsync(ForgeContext context, RepositoryDraft draft, CancellationToken cancellationToken);
+
+    ValueTask<Result<IReadOnlyList<ListedRepository>, ForgeError>> ListAsync(ForgeContext context, CancellationToken cancellationToken);
 }
+
+public interface IForgeAccounts
+{
+    ValueTask<Result<ForgeAccount, ForgeError>> MeAsync(ForgeContext context, CancellationToken cancellationToken);
+}
+
+public sealed record RemoteRepository(RepositoryAddress Address, Uri Link, bool Private, bool Archived, DateTimeOffset UpdatedAt, string CloneUrl);
 
 public sealed record PublishTarget(ForgeName Forge, string ForgeKind);
 

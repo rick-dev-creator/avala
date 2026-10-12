@@ -66,4 +66,6 @@ public sealed record SourceControlAccounts(IReadOnlyList<AccountStatus> Accounts
 public interface ISourceControlAccounts
 {
     ValueTask<SourceControlAccounts> AccountsAsync(CancellationToken cancellationToken);
+
+    ValueTask<Result<IReadOnlyList<RemoteRepository>, ForgeError>> RepositoriesAsync(ForgeName forge, string search, CancellationToken cancellationToken);
 }

@@ -26,7 +26,7 @@ internal sealed record SimulatedRemote
     public List<SimulatedFailure> FailingHeads { get; init; } = [];
 }
 
-internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths) : IForge, IForgeEvents, IForgeRepositories, IAsyncDisposable
+internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths) : IForge, IForgeEvents, IForgeRepositories, IForgeAccounts, IAsyncDisposable
 {
     public const string Id = "simulated";
 
@@ -46,6 +46,12 @@ internal sealed class SimulatedForge(IProcessRunner processes, AvalaPaths paths)
 
     public async ValueTask<Result<HostedRepository, ForgeError>> CreateAsync(ForgeContext context, RepositoryDraft draft, CancellationToken cancellationToken) =>
         await executor.RunAsync(token => new SimulatedRepositories(processes, paths).CreateAsync(draft, token), cancellationToken);
+
+    public async ValueTask<Result<IReadOnlyList<ListedRepository>, ForgeError>> ListAsync(ForgeContext context, CancellationToken cancellationToken) =>
+        await executor.RunAsync(_ => Task.FromResult(Result<IReadOnlyList<ListedRepository>, ForgeError>.Success(new SimulatedRepositories(processes, paths).List())), cancellationToken);
+
+    public ValueTask<Result<ForgeAccount, ForgeError>> MeAsync(ForgeContext context, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<ForgeAccount, ForgeError>.Success(new ForgeAccount(SimulatedRepositories.Owner)));
 
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         await executor.RunAsync(

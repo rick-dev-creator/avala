@@ -30,6 +30,33 @@ public sealed class SimulatedForgeTests
     }
 
     [Fact]
+    public async Task TheSimulatedForgePassesTheAccountPartOfTheForgeConformanceKitAsync()
+    {
+        await using var data = new TemporaryFolder();
+        await using var forge = new SimulatedForge(Processes, new AvalaPaths(data.Path));
+
+        Assert.Empty(await ForgeConformance.CheckAccountAsync(forge, Account(), Cancellation));
+    }
+
+    [Fact]
+    public async Task TheSimulatedForgeListsItsBareRepositoriesMostRecentlyChangedFirstAsync()
+    {
+        await using var data = new TemporaryFolder();
+        await using var forge = new SimulatedForge(Processes, new AvalaPaths(data.Path));
+        var older = Outcomes.Succeeds(await forge.CreateAsync(Account(), new RepositoryDraft("older", Private: true), Cancellation));
+        var newer = Outcomes.Succeeds(await forge.CreateAsync(Account(), new RepositoryDraft("newer", Private: true), Cancellation));
+        Directory.SetLastWriteTimeUtc(older.HttpsUrl, new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc));
+        Directory.SetLastWriteTimeUtc(newer.HttpsUrl, new DateTime(2026, 10, 12, 8, 0, 0, DateTimeKind.Utc));
+        Directory.SetLastWriteTimeUtc(Path.Combine(older.HttpsUrl, "refs"), new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc));
+        Directory.SetLastWriteTimeUtc(Path.Combine(newer.HttpsUrl, "refs"), new DateTime(2026, 10, 12, 8, 0, 0, DateTimeKind.Utc));
+        await TouchAsync(Path.Combine(older.HttpsUrl, "refs", "heads", "main"), new DateTime(2026, 10, 12, 9, 0, 0, DateTimeKind.Utc));
+
+        var listed = Outcomes.Succeeds(await forge.ListAsync(Account(), Cancellation));
+
+        Assert.Equal(["older", "newer"], listed.Select(found => found.Repository.Address.Name));
+    }
+
+    [Fact]
     public async Task AScenarioThatFailsOnceFailsTheFirstHeadAndPassesTheNextPushedOneAsync()
     {
         await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
@@ -143,6 +170,12 @@ public sealed class SimulatedForgeTests
 
     private static ForgeEventQuery Query(ForgeEventKind kind, Option<string> cursor) =>
         new(kind, cursor, DateTimeOffset.UnixEpoch) { Branch = "main" };
+
+    private static async Task TouchAsync(string file, DateTime at)
+    {
+        await File.WriteAllTextAsync(file, "0000000000000000000000000000000000000000\n", Cancellation);
+        File.SetLastWriteTimeUtc(file, at);
+    }
 
     private static async Task<ForgeContext> PublishedAsync(TemporaryRepository repository, string scenario)
     {

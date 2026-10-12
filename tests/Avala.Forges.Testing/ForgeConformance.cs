@@ -68,6 +68,33 @@ public static class ForgeConformance
         return problems;
     }
 
+    public static async Task<IReadOnlyList<string>> CheckAccountAsync(IForge forge, ForgeContext context, CancellationToken cancellationToken)
+    {
+        var problems = new List<string>();
+
+        if (forge is IForgeAccounts accounts)
+        {
+            var me = await accounts.MeAsync(context, cancellationToken);
+            Check(me.Match(account => account.Login.Length > 0, _ => false), problems, "Me returns no login");
+        }
+
+        if (forge is IForgeRepositories hosting)
+        {
+            if (!(await hosting.CreateAsync(context, new RepositoryDraft("shop", Private: true), cancellationToken)).TryGetValue(out var created, out var error))
+            {
+                problems.Add($"creating failed with {error}");
+
+                return problems;
+            }
+
+            var listed = await hosting.ListAsync(context, cancellationToken);
+            Check(listed.Match(found => found.Any(item => item.Repository.Address == created.Address), _ => false), problems, "the repository it created is not listed");
+            Check(listed.Match(found => found.Zip(found.Skip(1)).All(pair => pair.First.UpdatedAt >= pair.Second.UpdatedAt), _ => false), problems, "the repositories are not listed most recently updated first");
+        }
+
+        return problems;
+    }
+
     private static void Check(bool holds, List<string> problems, string problem)
     {
         if (!holds)

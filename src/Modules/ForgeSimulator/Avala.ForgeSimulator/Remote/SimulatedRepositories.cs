@@ -30,7 +30,31 @@ internal sealed class SimulatedRepositories(IProcessRunner processes, AvalaPaths
         var created = await processes.RunAsync(new ProcessRequest("git", ["init", "--quiet", "--bare", path]), cancellationToken);
 
         return created.Match(outcome => outcome.Succeeded, _ => false)
-            ? new HostedRepository(new RepositoryAddress(string.Empty, Owner, name), new Uri(SimulatedForge.Site, $"{Owner}/{Uri.EscapeDataString(name)}"), path, path)
+            ? Hosted(name, path)
             : ForgeError.GitFailed;
     }
+
+    public IReadOnlyList<ListedRepository> List()
+    {
+        var owner = new DirectoryInfo(Path.Combine(Root, Owner));
+
+        return owner.Exists
+            ? [.. owner.EnumerateDirectories("*.git")
+                .Select(folder => new ListedRepository(Hosted(folder.Name[..^".git".Length], folder.FullName), Private: true, Archived: false, Latest(folder)))
+                .OrderByDescending(listed => listed.UpdatedAt)]
+            : [];
+    }
+
+    private static DateTimeOffset Latest(DirectoryInfo folder)
+    {
+        var refs = new DirectoryInfo(Path.Combine(folder.FullName, "refs"));
+        IEnumerable<DateTime> changes = refs.Exists
+            ? [folder.LastWriteTimeUtc, refs.LastWriteTimeUtc, .. refs.EnumerateFiles("*", SearchOption.AllDirectories).Select(file => file.LastWriteTimeUtc)]
+            : [folder.LastWriteTimeUtc];
+
+        return new DateTimeOffset(changes.Max(), TimeSpan.Zero);
+    }
+
+    private static HostedRepository Hosted(string name, string path) =>
+        new(new RepositoryAddress(string.Empty, Owner, name), new Uri(SimulatedForge.Site, $"{Owner}/{Uri.EscapeDataString(name)}"), path, path);
 }

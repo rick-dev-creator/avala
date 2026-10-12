@@ -6,6 +6,7 @@ using Avala.Forges.Policy;
 using Avala.Forges.Transport;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Forges.Tests.Accounts;
 
@@ -100,7 +101,7 @@ public sealed class SourceControlAccountsTests : IDisposable
         var file = new Declared(() => declared);
         var connections = new ForgeConnections(file, kinds, new ForgeTransports(runner, http) { Environment = Lookup });
 
-        return new SourceControlDesk(connections, kinds, new LoginDetection([logins], kinds, runner, probes) { Environment = Lookup });
+        return new SourceControlDesk(connections, kinds, new LoginDetection([logins], kinds, runner, probes) { Environment = Lookup }, new CloneUrls(new NoRemotes(), new AvalaPaths("/data")));
     }
 
     private Option<string> Lookup(string variable) => environment.TryGetValue(variable, out var value) ? value : Option<string>.None;
@@ -132,6 +133,17 @@ public sealed class SourceControlAccountsTests : IDisposable
 
         public ValueTask<Result<ProcessOutcome, ProcessError>> RunAsync(ProcessRequest request, CancellationToken cancellationToken) =>
             ValueTask.FromResult(Answers.TryGetValue(request.FileName, out var outcome) ? Result<ProcessOutcome, ProcessError>.Success(outcome) : ProcessError.NotFound);
+    }
+
+    private sealed class NoRemotes : IRemoteRepositories
+    {
+        public ValueTask<Option<string>> RemoteAsync(string repository, string remote, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<bool> HasCredentialHelperAsync(string repository, string url, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<string, WorkspaceFailure>> PublishAsync(string repository, string remote, string url, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public ValueTask<Result<string, WorkspaceFailure>> CloneAsync(string url, string parent, string name, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class Probes : IForgeProbes

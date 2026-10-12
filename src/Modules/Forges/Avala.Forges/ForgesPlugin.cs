@@ -67,6 +67,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddSingleton<IForgeConnections, ConnectionDesk>()
             .AddSingleton<IForgeProbes, HttpForgeProbes>()
             .AddSingleton<ILoginDetection, LoginDetection>()
+            .AddSingleton<CloneUrls>()
             .AddSingleton<ISourceControlAccounts, SourceControlDesk>();
     }
 }

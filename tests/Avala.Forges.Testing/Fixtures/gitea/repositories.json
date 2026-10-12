@@ -1,0 +1,28 @@
+[
+  {
+    "id": 41,
+    "owner": { "id": 1, "login": "octo", "username": "octo" },
+    "name": "ledger",
+    "full_name": "octo/ledger",
+    "private": false,
+    "archived": true,
+    "html_url": "https://git.example.com/octo/ledger",
+    "ssh_url": "git@git.example.com:octo/ledger.git",
+    "clone_url": "https://git.example.com/octo/ledger.git",
+    "default_branch": "main",
+    "updated_at": "2025-03-01T10:00:00Z"
+  },
+  {
+    "id": 42,
+    "owner": { "id": 1, "login": "octo", "username": "octo" },
+    "name": "shop",
+    "full_name": "octo/shop",
+    "private": true,
+    "archived": false,
+    "html_url": "https://git.example.com/octo/shop",
+    "ssh_url": "git@git.example.com:octo/shop.git",
+    "clone_url": "https://git.example.com/octo/shop.git",
+    "default_branch": "main",
+    "updated_at": "2026-10-12T08:00:00Z"
+  }
+]

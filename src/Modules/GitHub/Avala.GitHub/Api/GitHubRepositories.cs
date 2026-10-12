@@ -23,6 +23,22 @@ internal static class GitHubRepositories
                 ? Json.Read(response.Body, Refusal).Bind(Result<HostedRepository, ForgeError>.Failure)
                 : Json.Read(response.Body, Hosted));
 
+    public static async ValueTask<Result<IReadOnlyList<ListedRepository>, ForgeError>> ListAsync(ForgeContext context, CancellationToken cancellationToken) =>
+        (await context.Api.SendAsync(new ForgeRequest(ForgeMethod.Get, "/user/repos?sort=pushed&per_page=100"), cancellationToken))
+            .Bind(response => Json.Read<IReadOnlyList<ListedRepository>>(response.Body, root => [.. root.EnumerateArray().Select(Listed).OrderByDescending(listed => listed.UpdatedAt)]));
+
+    public static async ValueTask<Result<ForgeAccount, ForgeError>> MeAsync(ForgeContext context, CancellationToken cancellationToken) =>
+        (await context.Api.SendAsync(new ForgeRequest(ForgeMethod.Get, "/user"), cancellationToken))
+            .Bind(response => Json.Read(response.Body, root => new ForgeAccount(Json.Text(root, "login"))))
+            .Bind(account => account.Login.Length > 0 ? Result<ForgeAccount, ForgeError>.Success(account) : ForgeError.Malformed);
+
+    private static ListedRepository Listed(JsonElement repository) =>
+        new(
+            Hosted(repository),
+            repository.GetProperty("private").GetBoolean(),
+            repository.TryGetProperty("archived", out var archived) && archived.ValueKind == JsonValueKind.True,
+            Json.Moment(repository, "pushed_at").Match(moment => moment, () => Json.Moment(repository, "updated_at").Match(moment => moment, () => DateTimeOffset.MinValue)));
+
     private static ForgeError Refusal(JsonElement root) =>
         root.TryGetProperty("errors", out var errors)
         && errors.ValueKind == JsonValueKind.Array

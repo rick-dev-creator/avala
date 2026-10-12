@@ -35,6 +35,32 @@ public sealed class GiteaRepositoriesTests
     }
 
     [Theory]
+    [MemberData(nameof(Dialects))]
+    public async Task TheRepositoriesOfTheTokensUserAreReadMostRecentlyUpdatedFirstWithTheArchivedOnesMarkedAsync(string dialect)
+    {
+        var forge = Forge(dialect);
+        var server = new FixtureServer().Route("GET", "/api/v1/user/repos?limit=50", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "repositories", Cancellation));
+        var context = new ForgeContext(server.Api(Root, forge.Info.TokenScheme), Targets.Of(Root));
+
+        var listed = Outcomes.Succeeds(await forge.ListAsync(context, Cancellation));
+
+        Assert.Equal([("shop", true, false), ("ledger", false, true)], listed.Select(found => (found.Repository.Address.Name, found.Private, found.Archived)));
+    }
+
+    [Theory]
+    [MemberData(nameof(Dialects))]
+    public async Task GiteaAndForgejoPassTheAccountPartOfTheForgeConformanceKitAsync(string dialect)
+    {
+        var forge = Forge(dialect);
+        var server = new FixtureServer()
+            .Route("GET", "/api/v1/user", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "user", Cancellation))
+            .Route("POST", "/api/v1/user/repos", HttpStatusCode.Created, await FixtureServer.FixtureAsync("gitea", "repository", Cancellation))
+            .Route("GET", "/api/v1/user/repos?limit=50", HttpStatusCode.OK, await FixtureServer.FixtureAsync("gitea", "repositories", Cancellation));
+
+        Assert.Empty(await ForgeConformance.CheckAccountAsync(forge, new ForgeContext(server.Api(Root, forge.Info.TokenScheme), Targets.Of(Root)), Cancellation));
+    }
+
+    [Theory]
     [InlineData("repository-taken", HttpStatusCode.Conflict, ForgeError.NameTaken)]
     [InlineData("repository-taken", HttpStatusCode.UnprocessableEntity, ForgeError.Rejected)]
     [InlineData("unauthorized", HttpStatusCode.Unauthorized, ForgeError.Unauthorized)]

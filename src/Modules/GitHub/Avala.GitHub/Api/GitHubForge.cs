@@ -5,7 +5,7 @@ using Avala.Sdk;
 
 namespace Avala.GitHub.Api;
 
-internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories
+internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories, IForgeAccounts
 {
     public const string Id = "github";
 
@@ -48,6 +48,12 @@ internal sealed class GitHubForge : IForge, IForgeEvents, IForgeRepositories
 
     public async ValueTask<Result<HostedRepository, ForgeError>> CreateAsync(ForgeContext context, RepositoryDraft draft, CancellationToken cancellationToken) =>
         await GitHubRepositories.CreateAsync(context, draft, cancellationToken);
+
+    public async ValueTask<Result<IReadOnlyList<ListedRepository>, ForgeError>> ListAsync(ForgeContext context, CancellationToken cancellationToken) =>
+        await GitHubRepositories.ListAsync(context, cancellationToken);
+
+    public async ValueTask<Result<ForgeAccount, ForgeError>> MeAsync(ForgeContext context, CancellationToken cancellationToken) =>
+        await GitHubRepositories.MeAsync(context, cancellationToken);
 
     public async ValueTask<Result<Option<PullRequestRef>, ForgeError>> FindAsync(ForgeContext context, string head, CancellationToken cancellationToken) =>
         (await GetAsync(context, $"{Repository(context)}/pulls?state=open&head={Escape(context.Target.Repository.Owner)}:{Escape(head)}", cancellationToken))
