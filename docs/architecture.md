@@ -142,6 +142,15 @@ Comments are banned, so every exception to an analyzer is recorded here. The arc
 | `S3011` | `tests/Avala.Testing.UI/AnimationClock.cs` | Avalonia keeps its animation clock private, so the headless test application stops it by reflection. |
 | All analyzers | `Avala.ArchitectureTests.Fixtures` and `Avala.ArchitectureTests.Fixtures.UI` | The fixtures break rules on purpose. |
 
+## Platform workarounds
+
+Each workaround answers a problem that was reproduced and measured, and goes when its cause is fixed.
+
+| Workaround | Problem | Measured | Goes when |
+| --- | --- | --- | --- |
+| Wayland backend (`DesktopSession`) | Avalonia draws through X11 on Linux by default. Under a Wayland compositor at a fractional scale (1.6 on Hyprland), XWayland renders the window at scale 1 and the compositor stretches it, so text is blurry. The X11 alternative (`xwayland:force_zero_scaling` with Avalonia's own scale) misplaces clicks. On a Linux session with `WAYLAND_DISPLAY`, the host uses Avalonia's Wayland backend (falling back to X11), drawn at the screen's own scale; `AVALA_X11=1` forces X11. Windows, macOS, X11 sessions and the headless `--smoke` run are untouched. | 2026-10-12, Hyprland at 1.6: blurry over XWayland, sharp over Wayland | Avalonia uses Wayland by default |
+| Dispatcher clock (`DispatcherClock`) | [Avalonia #22064](https://github.com/AvaloniaUI/Avalonia/issues/22064): on Wayland the UI dispatcher measures timers on a stopwatch started before the platform's run loop clock, so every timer fires 120 to 260 ms late and animations run at 4 to 7 frames a second. With the Wayland backend, the host points the dispatcher's clock at the platform's by reflection, and does nothing when a later Avalonia no longer has those fields. | 2026-10-10, Hyprland with NVIDIA and AMD, Avalonia 12.1.3: 3 to 9 frames a second, 60 with the clock aligned | Avalonia fixes #22064 |
+
 ## Learn more
 
 - [Releasing](release.md): packages, usage statistics, signing and the update check.
