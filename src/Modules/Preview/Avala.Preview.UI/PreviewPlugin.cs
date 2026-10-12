@@ -16,6 +16,7 @@ public sealed class PreviewPlugin : IPlugin, IViewContributor
 
     public void Register(IPluginRegistrar registrar)
     {
+        NativeSurfaces.Prepare();
         registrar.Services
             .AddPreview()
             .AddSingleton<IWebSurfaces, NativeSurfaces>()

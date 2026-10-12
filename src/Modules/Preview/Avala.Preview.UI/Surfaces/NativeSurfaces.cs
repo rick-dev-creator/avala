@@ -8,11 +8,25 @@ namespace Avala.Preview.UI.Surfaces;
 
 internal sealed class NativeSurfaces : IWebSurfaces
 {
+    private const string DmabufVariable = "WEBKIT_DISABLE_DMABUF_RENDERER";
+
+    public static void Prepare()
+    {
+        if (OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable(DmabufVariable) is null)
+        {
+            Environment.SetEnvironmentVariable(DmabufVariable, "1");
+            _ = SetNative(DmabufVariable, "1", 0);
+        }
+    }
+
     private readonly Lazy<SurfaceEmbedding> embedding = new(Detect);
 
     public SurfaceEmbedding Embedding => embedding.Value;
 
     public IWebSurface Open(SurfaceRules rules) => new NativeSurface(rules, Embedding);
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "setenv", CharSet = System.Runtime.InteropServices.CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+    private static extern int SetNative(string name, string value, int overwrite);
 
     private static SurfaceEmbedding Detect()
     {
