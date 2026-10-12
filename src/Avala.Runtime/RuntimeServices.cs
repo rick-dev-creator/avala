@@ -45,6 +45,7 @@ public static class RuntimeServices
                 .AddForwarded<IStartupTask, AppearanceFile>()
                 .AddSingleton<LayoutFile>()
                 .AddForwarded<IWindowLayout, LayoutFile>()
+                .AddSingleton<IOnboarding, OnboardingFile>()
                 .AddSingleton<WindowPresence>()
                 .AddForwarded<IPresence, WindowPresence>()
                 .AddSingleton<IRedaction>(_ => LogRedaction.FromEnvironment())
