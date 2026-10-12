@@ -17,5 +17,5 @@ public sealed class MermaidPlugin(TimeProvider clock) : IPlugin, IViewContributo
 
     public void Register(IPluginRegistrar registrar) => registrar.Services.AddMermaidFormat();
 
-    public void RegisterViews(IViewRegistrar views) => views.AddCanvasRenderer(new MermaidRenderer(clock));
+    public void RegisterViews(IViewRegistrar views) => views.AddCanvasRenderer(new MermaidRenderer(new MermaidDrawings(clock)));
 }

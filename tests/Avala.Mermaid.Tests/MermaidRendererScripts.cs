@@ -2,6 +2,7 @@ using Avala.Canvas.Contracts;
 using Avala.Components.Canvases;
 using Avala.Components.UI.Canvases;
 using Avala.Mermaid.UI;
+using Avala.Mermaid.UI.Drawing;
 using Avala.Rendering.UI;
 using Avala.Sdk;
 using Avala.Sdk.UI;
@@ -40,9 +41,9 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
 
     [Fact]
     public Task AnOfferedMermaidCanvasIsDrawnThroughTheSvgRendererAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var view = Show(Flow, ThemeVariant.Dark);
+            var view = await ShownAsync(Flow, ThemeVariant.Dark);
 
             Assert.True(view.Shows("Mermaid"));
             Assert.True(view.Shows("Svg"));
@@ -51,10 +52,10 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
 
     [Fact]
     public Task TheDiagramIsDrawnInTheColorsOfTheWindowsThemeAsync() =>
-        ui.RunAsync(() =>
+        ui.RunAsync(async () =>
         {
-            var dark = Drawing(Show(Flow, ThemeVariant.Dark));
-            var light = Drawing(Show(Flow, ThemeVariant.Light));
+            var dark = Drawing(await ShownAsync(Flow, ThemeVariant.Dark));
+            var light = Drawing(await ShownAsync(Flow, ThemeVariant.Light));
 
             Assert.Contains("#EDEDEF", dark, StringComparison.Ordinal);
             Assert.Contains("#1D1D1F", light, StringComparison.Ordinal);
@@ -62,20 +63,62 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task SwitchingTheThemeRedrawsTheDiagramAsync() =>
-        ui.RunAsync(() =>
+    public Task SwitchingTheThemeRedrawsTheDiagramWhileTheEarlierDrawingStaysUntilTheNewOneIsReadyAsync() =>
+        ui.RunAsync(async () =>
         {
-            var view = Show(Flow, ThemeVariant.Dark);
+            var view = await ShownAsync(Flow + "  Checking --> Switched\n", ThemeVariant.Dark);
 
+            var redrawn = DrawnAsync(view);
             view.Window.RequestedThemeVariant = ThemeVariant.Light;
+            var meanwhile = Drawing(view);
+            await redrawn;
             view.Settle();
 
+            Assert.Contains("#EDEDEF", meanwhile, StringComparison.Ordinal);
             Assert.Contains("#1D1D1F", Drawing(view), StringComparison.Ordinal);
         }, Cancellation);
 
     [Fact]
-    public void MermaidThatCannotBeParsedIsNotDrawn() =>
-        Assert.Null(Renderers().Build(new CanvasRendering(CanvasMediaTypes.Mermaid, "not a diagram at all", true, 1)));
+    public Task ADiagramShownAgainIsDrawnOnceAndReusedAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var source = Flow + "  Checking --> Reused\n";
+            var drawn = Drawing(await ShownAsync(source, ThemeVariant.Dark));
+
+            var again = Drawing(Show(source, ThemeVariant.Dark));
+
+            Assert.Same(drawn, again);
+        }, Cancellation);
+
+    [Fact]
+    public Task MermaidThatCannotBeParsedShowsItsSourceAndIsNotDrawnAgainAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var view = await ShownAsync("not a diagram at all", ThemeVariant.Dark);
+
+            Assert.True(view.Shows("CanvasSource"));
+            Assert.Null(Renderers().Build(new CanvasRendering(CanvasMediaTypes.Mermaid, "not a diagram at all", true, 1)));
+        }, Cancellation);
+
+    private static async Task<ViewScript> ShownAsync(string source, ThemeVariant variant)
+    {
+        var view = Show(source, variant);
+
+        if (view.Find<ContentControl>("Mermaid").Content is null)
+        {
+            await DrawnAsync(view);
+        }
+
+        return view.Settle();
+    }
+
+    private static Task DrawnAsync(ViewScript view)
+    {
+        var drawn = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        view.Window.AddHandler(MermaidDrawn.Event, (_, _) => drawn.TrySetResult());
+
+        return drawn.Task;
+    }
 
     private static ViewScript Show(string source, ThemeVariant variant)
     {
@@ -89,13 +132,7 @@ public sealed class MermaidRendererScripts(HeadlessUi ui)
     private static string Drawing(ViewScript view) =>
         Assert.IsType<CanvasRendering>(view.Find<ContentControl>("Mermaid").Content).Content;
 
-    private static ViewRegistry Renderers()
-    {
-        var views = new ViewRegistry();
-        new MermaidPlugin(new FakeTimeProvider()).RegisterViews(views);
-
-        return views;
-    }
+    private static ViewRegistry Renderers() => HeadlessApp.Views;
 
     private static void RegisterRenderers()
     {
