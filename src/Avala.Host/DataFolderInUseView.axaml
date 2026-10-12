@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:privacy="using:Avala.Components.UI.Privacy"
         xmlns:shell="using:Avala.Shell"
         x:Class="Avala.Host.DataFolderInUseView"
         x:ClassModifier="internal"
@@ -18,7 +19,7 @@
     <TextBlock x:Name="Heading" Classes="heading" Text="Avala is already running" />
     <StackPanel Spacing="4">
       <TextBlock Classes="caption" Text="Data folder" />
-      <TextBlock x:Name="Folder" Classes="mono" Text="{Binding Folder}" TextWrapping="Wrap" />
+      <TextBlock x:Name="Folder" Classes="mono" privacy:PersonalDetails.Text="{Binding Folder}" TextWrapping="Wrap" />
     </StackPanel>
     <TextBlock x:Name="Reason" Classes="body secondary" Text="{Binding Reason}" TextWrapping="Wrap" />
     <Button x:Name="Quit"
