@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Text;
 using Avala.Components.Canvases;
 using Avala.Components.Pictures;
@@ -57,6 +58,18 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
 
     public const int ThumbnailWidth = 520;
 
+    private static readonly FrozenDictionary<string, PreviewKind> Kinds = new Dictionary<string, PreviewKind>(StringComparer.Ordinal)
+    {
+        [".png"] = PreviewKind.Image,
+        [".jpg"] = PreviewKind.Image,
+        [".jpeg"] = PreviewKind.Image,
+        [".gif"] = PreviewKind.Image,
+        [".webp"] = PreviewKind.Image,
+        [".svg"] = PreviewKind.Svg,
+        [".html"] = PreviewKind.Page,
+        [".htm"] = PreviewKind.Page,
+    }.ToFrozenDictionary(StringComparer.Ordinal);
+
     private readonly JobId job;
     private readonly string path;
     private readonly FileViewing viewing;
@@ -101,13 +114,8 @@ internal sealed partial class FilePreviewViewModel : IFilePreviewViewModel
     [ObservableProperty]
     public partial string Notice { get; private set; }
 
-    public static PreviewKind KindOf(string path) => System.IO.Path.GetExtension(path).ToLowerInvariant() switch
-    {
-        ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" => PreviewKind.Image,
-        ".svg" => PreviewKind.Svg,
-        ".html" or ".htm" => PreviewKind.Page,
-        _ => PreviewKind.None,
-    };
+    public static PreviewKind KindOf(string path) =>
+        Kinds.GetValueOrDefault(System.IO.Path.GetExtension(path).ToLowerInvariant(), PreviewKind.None);
 
     [RelayCommand]
     private async Task LoadAsync(CancellationToken cancellationToken)
