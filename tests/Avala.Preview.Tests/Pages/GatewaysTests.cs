@@ -36,6 +36,22 @@ public sealed class GatewaysTests
     }
 
     [Fact]
+    public async Task StoppingAJobsPageFreesItsPortWhileTheJobKeepsItsLeaseAsync()
+    {
+        using var worktree = new TemporaryFolder();
+        var leases = new BlockLeases(Workloads.FreePort());
+        await using var gateways = new Gateways(leases);
+        var job = JobId.New();
+        var served = Outcomes.Succeeds(await gateways.ServeFilesAsync(job, worktree.Path, Cancellation));
+
+        await gateways.StopFilesAsync(job, Cancellation);
+
+        Assert.Empty(gateways.PortsOf(job));
+        Assert.Empty(leases.Released);
+        Assert.Equal(served, Outcomes.Succeeds(await gateways.ServeFilesAsync(job, worktree.Path, Cancellation)));
+    }
+
+    [Fact]
     public async Task AServedPageNeedsNoProxyAsync()
     {
         await using var gateways = new Gateways(new BlockLeases(Workloads.FreePort()));
