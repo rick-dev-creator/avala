@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:accounts="using:Avala.Workbench.Accounts"
              xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.ConnectSheetView"
@@ -51,7 +52,7 @@
           <Ellipse x:Name="CliDot"
                    Classes="dot"
                    Classes.attention="{Binding CliState, Converter={x:Static states:EnumIs.Any}, ConverterParameter='SignedOut,Missing'}" />
-          <TextBlock x:Name="CliStatus" Text="{Binding CliStatus}" VerticalAlignment="Center" />
+          <TextBlock x:Name="CliStatus" privacy:PersonalDetails.Text="{Binding CliStatus}" VerticalAlignment="Center" />
         </StackPanel>
         <DockPanel x:Name="CliFix" IsVisible="{Binding CliState, Converter={x:Static states:EnumIs.Any}, ConverterParameter='SignedOut,Missing'}">
           <Button x:Name="CheckAgain"

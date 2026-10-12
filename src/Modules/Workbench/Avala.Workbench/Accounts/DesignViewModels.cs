@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -14,7 +15,7 @@ internal sealed class DesignAccountRowViewModel : IAccountRowViewModel
 {
     public string Name { get; init; } = "github";
 
-    public string Login { get; init; } = "octocat";
+    public Personal Login { get; init; } = Personal.Login("octocat");
 
     public string Host { get; init; } = "github.com";
 
@@ -84,7 +85,7 @@ internal sealed partial class DesignConnectSheetViewModel : IConnectSheetViewMod
 
     public CliState CliState { get; init; } = CliState.SignedOut;
 
-    public string CliStatus { get; init; } = AccountPhrases.Cli(CliState.SignedOut, "gh", string.Empty);
+    public PersonalPhrase CliStatus { get; init; } = AccountPhrases.Cli(CliState.SignedOut, "gh", string.Empty);
 
     public string SignInCommand { get; init; } = "gh auth login";
 
@@ -105,8 +106,8 @@ internal sealed class DesignSourceControlViewModel : ISourceControlViewModel
     public IReadOnlyList<IAccountRowViewModel> Accounts { get; init; } =
     [
         new DesignAccountRowViewModel(),
-        new DesignAccountRowViewModel { Name = "work", Login = "work", Host = "github.com", SignIn = AccountPhrases.Token, State = AccountState.Attention, Problem = "Token not set" },
-        new DesignAccountRowViewModel { Name = "codeberg", Login = "ada", Host = "codeberg.org", SignIn = "tea", Logo = DesignLogos.Cup, State = AccountState.Detected },
+        new DesignAccountRowViewModel { Name = "work", Login = Personal.Plain("work"), Host = "github.com", SignIn = AccountPhrases.Token, State = AccountState.Attention, Problem = "Token not set" },
+        new DesignAccountRowViewModel { Name = "codeberg", Login = Personal.Login("ada"), Host = "codeberg.org", SignIn = "tea", Logo = DesignLogos.Cup, State = AccountState.Detected },
     ];
 
     public IConnectSheetViewModel Sheet { get; init; } = new DesignConnectSheetViewModel { IsOpen = false };

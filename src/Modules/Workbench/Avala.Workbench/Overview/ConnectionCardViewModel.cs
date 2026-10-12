@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Collections.ObjectModel;
 using Avala.Agents.Contracts.Connections;
 using Avala.Components.Meters;
@@ -19,7 +20,7 @@ internal interface IConnectionCardViewModel
 
     string Provider { get; }
 
-    string Account { get; }
+    Personal Account { get; }
 
     bool IsDefault { get; }
 
@@ -37,7 +38,7 @@ internal interface IConnectionCardViewModel
 
     bool IsProminent { get; }
 
-    string Summary { get; }
+    PersonalPhrase Summary { get; }
 }
 
 internal interface IAgentViewModel
@@ -68,7 +69,7 @@ internal sealed partial class ConnectionCardViewModel : IConnectionCardViewModel
         Connection = connection.Name;
         Name = connection.Name.Value;
         Provider = string.Empty;
-        Account = string.Empty;
+        Account = Personal.None;
         Cost = string.Empty;
         Use = string.Empty;
         Update(connection, hold);
@@ -82,7 +83,7 @@ internal sealed partial class ConnectionCardViewModel : IConnectionCardViewModel
     public partial string Provider { get; private set; }
 
     [ObservableProperty]
-    public partial string Account { get; private set; }
+    public partial Personal Account { get; private set; }
 
     [ObservableProperty]
     public partial bool IsDefault { get; private set; }
@@ -103,7 +104,7 @@ internal sealed partial class ConnectionCardViewModel : IConnectionCardViewModel
     public partial bool IsProminent { get; private set; }
 
     [ObservableProperty]
-    public partial string Summary { get; private set; } = string.Empty;
+    public partial PersonalPhrase Summary { get; private set; } = PersonalPhrase.Empty;
 
     public IReadOnlyList<ILimitViewModel> Limits => limits;
 
@@ -112,7 +113,7 @@ internal sealed partial class ConnectionCardViewModel : IConnectionCardViewModel
     public void Update(ConnectionState connection, Option<double> hold)
     {
         Provider = connection.Provider;
-        Account = connection.Account.Match(account => account.Label, () => "account not reported yet");
+        Account = connection.Account.Match(account => Personal.Account(account.Label), () => Personal.Plain("account not reported yet"));
         IsDefault = connection.IsDefault;
         Cost = connection.Usage.Match(usage => Amounts.Costs(usage.Costs), () => "no usage yet");
         limits.ShowOnly(connection.Limits.Select(limit => new LimitViewModel(limit, hold)));

@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
@@ -90,12 +91,12 @@ public sealed class WelcomeViewModelScripts
         var welcome = await CheckedAsync();
         welcome.Instruction = "Sketch a CSV parser";
         var chip = Assert.Single(welcome.Chips);
-        var blocked = (welcome.CanCompose, welcome.StartCommand.CanExecute(null), chip.Label, chip.IsAttention, chip.FixLabel);
+        var blocked = (welcome.CanCompose, welcome.StartCommand.CanExecute(null), chip.Label.ToString(), chip.IsAttention, chip.FixLabel);
 
         await chip.FixCommand.ExecuteAsync(null);
 
         Assert.Equal((false, false, WelcomePhrases.NoAgent, true, WelcomePhrases.CheckAgain), blocked);
-        Assert.Equal((true, true, "claude-work"), (welcome.CanCompose, welcome.StartCommand.CanExecute(null), Assert.Single(welcome.Chips).Label));
+        Assert.Equal((true, true, "claude-work"), (welcome.CanCompose, welcome.StartCommand.CanExecute(null), Assert.Single(welcome.Chips).Label.ToString()));
     }
 
     [Fact]
@@ -121,8 +122,8 @@ public sealed class WelcomeViewModelScripts
         var welcome = await CheckedAsync();
 
         Assert.Equal(
-            [("claude-work", "CW", false, false, string.Empty), ("octocat", "O", true, false, string.Empty), ("work", "W", true, true, WelcomePhrases.CheckAgain)],
-            welcome.Chips.Select(chip => (chip.Label, chip.Monogram, chip.HasLogo, chip.IsAttention, chip.FixLabel)));
+            [("claude-work", "CW", false, false, string.Empty), ("oc•••••", "O", true, false, string.Empty), ("work", "W", true, true, WelcomePhrases.CheckAgain)],
+            welcome.Chips.Select(chip => (chip.Label.ToString(), chip.Monogram, chip.HasLogo, chip.IsAttention, chip.FixLabel)));
     }
 
     [Fact]
@@ -190,8 +191,8 @@ public sealed class AccountChipViewModelScripts
     public void AnAgentChipShowsItsMonogramAndAForgeChipItsLogo()
     {
         var agent = AccountChipViewModel.Agent("claude-personal", attention: false, string.Empty, new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask));
-        var forge = AccountChipViewModel.Forge("octocat", Kinds.Hub.Logo, attention: false, string.Empty, new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask));
+        var forge = AccountChipViewModel.Forge(Personal.Login("octocat"), Kinds.Hub.Logo, attention: false, string.Empty, new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask));
 
-        Assert.Equal(("CP", false, "octocat", true), (agent.Monogram, agent.HasLogo, forge.Label, forge.HasLogo));
+        Assert.Equal(("CP", false, "oc•••••", true), (agent.Monogram, agent.HasLogo, forge.Label.ToString(), forge.HasLogo));
     }
 }

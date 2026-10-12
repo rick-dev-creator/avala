@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Collections.ObjectModel;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
@@ -149,7 +150,7 @@ internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl s
         state.Accounts.Accounts
             .Where(account => account.Origin == AccountOrigin.Declared)
             .Select(account => AccountChipViewModel.Forge(
-                account.Account.Match(found => found.Login, () => account.Name.Value),
+                Accounts.AccountPhrases.Login(account),
                 state.Kind(account.ForgeKind).Match(kind => kind.Logo, () => string.Empty),
                 account.Problem.IsSome,
                 account.Problem.IsSome ? WelcomePhrases.CheckAgain : string.Empty,

@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Globalization;
 using Avala.Forges.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -9,7 +10,7 @@ internal interface ICloneSourceViewModel
 {
     string Name { get; }
 
-    string Login { get; }
+    Personal Login { get; }
 
     string Logo { get; }
 
@@ -22,7 +23,7 @@ internal interface IRemoteRowViewModel
 {
     string Name { get; }
 
-    string Owner { get; }
+    Personal Owner { get; }
 
     bool IsPrivate { get; }
 
@@ -40,7 +41,7 @@ internal sealed partial class CloneSourceViewModel(AccountStatus account, string
 
     public string Name { get; } = account.Name.Value;
 
-    public string Login { get; } = account.Account.Match(found => found.Login, () => account.Name.Value);
+    public Personal Login { get; } = Accounts.AccountPhrases.Login(account);
 
     public string Logo { get; } = logo;
 
@@ -57,7 +58,7 @@ internal sealed class RemoteRowViewModel(RemoteRepository repository, DateTimeOf
 
     public string Name { get; } = repository.Address.Name;
 
-    public string Owner { get; } = repository.Address.Owner;
+    public Personal Owner { get; } = Personal.Login(repository.Address.Owner);
 
     public bool IsPrivate { get; } = repository.Private;
 

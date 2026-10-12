@@ -28,10 +28,10 @@ public sealed class CloneSheetViewModelScripts
     {
         var sheet = await OpenedAsync();
 
-        Assert.Equal([("octocat", true), ("ada", false)], sheet.Sources.Select(source => (source.Login, source.IsSelected)));
+        Assert.Equal([("oc•••••", true), ("ad•••••", false)], sheet.Sources.Select(source => (source.Login.ToString(), source.IsSelected)));
         Assert.Equal(
-            [("shop", "octo", true, "2h"), ("design-system", "acme", false, "3d"), ("ledger", "octo", false, "Sep 2025")],
-            sheet.Repositories.Select(row => (row.Name, row.Owner, row.IsPrivate, row.Updated)));
+            [("shop", "oc•••••", true, "2h"), ("design-system", "ac•••••", false, "3d"), ("ledger", "oc•••••", false, "Sep 2025")],
+            sheet.Repositories.Select(row => (row.Name, row.Owner.ToString(), row.IsPrivate, row.Updated)));
         Assert.Equal("/home/ada/Projects", sheet.Destination);
     }
 
@@ -205,6 +205,6 @@ public sealed class CloneSourceViewModelScripts
         var named = new CloneSourceViewModel(Kinds.Declared("hub", Kinds.Hub, CredentialSource.Cli, login: "octocat"), Kinds.Hub.Logo, _ => { });
         var unknown = new CloneSourceViewModel(Kinds.Declared("work", Kinds.Hub, CredentialSource.Environment), Kinds.Hub.Logo, _ => { });
 
-        Assert.Equal(("octocat", "work", Kinds.Hub.Logo), (named.Login, unknown.Login, named.Logo));
+        Assert.Equal(("oc•••••", "work", Kinds.Hub.Logo), (named.Login.ToString(), unknown.Login.ToString(), named.Logo));
     }
 }
