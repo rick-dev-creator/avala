@@ -20,12 +20,13 @@ internal static class CanvasTool
                     "Draw a canvas the user sees beside the conversation: a diagram, a chart, a screen, a design or a document. "
                     + "Give it a title, one of the offered media types and its full content. Each call draws a new canvas.")
                 .Append("A canvas in any other media type is not drawn: the user only sees its source.")
-                .Append(Still));
+                .Append(Motion));
 
-    private const string Still =
-        "A canvas is drawn still: animations, such as SVG <animate> or CSS keyframes, and scripts do not play, and nothing on it responds to input. "
-        + "For something that must move or respond, such as an animated chart or a three.js scene, write a self-contained HTML file in the working directory "
-        + "and give the person its path: Avala offers to open it in their browser.";
+    private const string Motion =
+        "SVG animations written in SMIL, such as <animate>, <animateTransform>, <animateMotion> and <set>, play on the canvas, so a chart may grow or a flow may move; "
+        + "CSS keyframes and scripts do not run, and nothing on a canvas responds to input. "
+        + "For something that must respond to input, such as an interactive chart or a three.js scene, write a self-contained HTML file in the working directory "
+        + "and give the person its path: Avala offers to open it.";
 
     private static string InputSchema(CanvasOffer offer) => $$"""
         {

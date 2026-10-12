@@ -347,10 +347,10 @@ public sealed class ProviderTests
     }
 
     [Theory]
-    [InlineData("""["image/svg+xml","text/markdown","text/vnd.mermaid"]""", "SVG or Mermaid")]
-    [InlineData("""["image/svg+xml","text/markdown"]""", "SVG")]
-    [InlineData("""["text/markdown"]""", "one of the media types it offers")]
-    public async Task ASessionOfferedTheCanvasIsToldToShowVisualsOnItInsteadOfAPageAsync(string offered, string formats)
+    [InlineData("""["image/svg+xml","text/markdown","text/vnd.mermaid"]""", "SVG or Mermaid", true)]
+    [InlineData("""["image/svg+xml","text/markdown"]""", "SVG", true)]
+    [InlineData("""["text/markdown"]""", "one of the media types it offers", false)]
+    public async Task ASessionOfferedTheCanvasIsToldToShowVisualsOnItInsteadOfAPageAsync(string offered, string formats, bool animated)
     {
         using var folder = new TemporaryFolder();
         var cli = new FakeCli();
@@ -360,9 +360,10 @@ public sealed class ProviderTests
 
         Assert.Equal(
             "Avala shows the person your work inside its conversation. When you are asked to show something visual, such as a chart, a diagram or a drawing, "
-            + $"call the mcp__avala__canvas tool with {formats}: Avala draws it right there, as a still picture. "
-            + "Do not write an HTML file or open a browser to show it, unless it must move or respond to input, such as an animation or a three.js scene: "
-            + "then write a self-contained HTML file and give its path, which the person opens in their browser from Avala.",
+            + $"call the mcp__avala__canvas tool with {formats}: Avala draws it right there"
+            + (animated ? " and plays its SVG animations written in SMIL, such as <animate> or <animateTransform>, so a chart may grow or a flow may move" : string.Empty) + ". "
+            + "Do not write an HTML file or open a browser to show it, unless it must respond to input, such as an interactive chart or a three.js scene: "
+            + "then write a self-contained HTML file and give its path, which the person opens from Avala.",
             After(cli.Launches.Single().Arguments, "--append-system-prompt"));
     }
 

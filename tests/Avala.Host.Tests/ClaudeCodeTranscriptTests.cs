@@ -55,9 +55,10 @@ public sealed class ClaudeCodeTranscriptTests(PublishedPlugins plugins)
 
         Assert.Equal(
             "Avala shows the person your work inside its conversation. When you are asked to show something visual, such as a chart, a diagram or a drawing, "
-            + "call the mcp__avala__canvas tool with SVG or Mermaid: Avala draws it right there, as a still picture. "
-            + "Do not write an HTML file or open a browser to show it, unless it must move or respond to input, such as an animation or a three.js scene: "
-            + "then write a self-contained HTML file and give its path, which the person opens in their browser from Avala.",
+            + "call the mcp__avala__canvas tool with SVG or Mermaid: Avala draws it right there "
+            + "and plays its SVG animations written in SMIL, such as <animate> or <animateTransform>, so a chart may grow or a flow may move. "
+            + "Do not write an HTML file or open a browser to show it, unless it must respond to input, such as an interactive chart or a three.js scene: "
+            + "then write a self-contained HTML file and give its path, which the person opens from Avala.",
             arguments[arguments.IndexOf("--append-system-prompt") + 1]);
         Assert.True((bool)listed.Single(tool => (string)tool!["name"]! == "canvas")!["_meta"]!["anthropic/alwaysLoad"]!);
     }

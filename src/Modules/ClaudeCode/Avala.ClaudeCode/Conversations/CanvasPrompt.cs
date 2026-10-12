@@ -15,10 +15,15 @@ internal static class CanvasPrompt
     public static Option<string> For(IReadOnlyList<HarnessTool> tools) =>
         tools.FirstOrDefault(tool => tool.Surface == ToolSurface.Canvas) is { } canvas
             ? $"Avala shows the person your work inside its conversation. When you are asked to show something visual, such as a chart, a diagram or a drawing, "
-              + $"call the {CommandLine.Qualified(canvas.Name)} tool with {Formats(canvas.InputSchema)}: Avala draws it right there, as a still picture. "
-              + "Do not write an HTML file or open a browser to show it, unless it must move or respond to input, such as an animation or a three.js scene: "
-              + "then write a self-contained HTML file and give its path, which the person opens in their browser from Avala."
+              + $"call the {CommandLine.Qualified(canvas.Name)} tool with {Formats(canvas.InputSchema)}: Avala draws it right there{Animated(canvas.InputSchema)}. "
+              + "Do not write an HTML file or open a browser to show it, unless it must respond to input, such as an interactive chart or a three.js scene: "
+              + "then write a self-contained HTML file and give its path, which the person opens from Avala."
             : Option<string>.None;
+
+    private static string Animated(string schema) =>
+        MediaTypes(schema).Contains("image/svg+xml", StringComparer.OrdinalIgnoreCase)
+            ? " and plays its SVG animations written in SMIL, such as <animate> or <animateTransform>, so a chart may grow or a flow may move"
+            : string.Empty;
 
     private static string Formats(string schema)
     {
