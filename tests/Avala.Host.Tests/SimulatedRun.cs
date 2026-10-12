@@ -172,7 +172,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         Func<string, IReadOnlyList<(string File, string Content)>>? placed = null,
         bool realNotifier = false,
         bool telemetry = false,
-        IReadOnlyList<Avala.Forges.Contracts.IForgeLogins>? logins = null)
+        IReadOnlyDictionary<string, Avala.Sdk.Processes.ProcessOutcome>? signIns = null)
     {
         var data = new TemporaryFolder();
 
@@ -185,7 +185,11 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier };
         surroundings.Telemetry.Configured = telemetry;
-        surroundings.SignIns.Logins.AddRange(logins ?? []);
+        foreach (var (tool, outcome) in signIns ?? new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>())
+        {
+            surroundings.SignIns.Recorded[tool] = outcome;
+        }
+
         var root = surroundings.Compose(plugins, data);
         var repository = await TemporaryRepository.CreateAsync(root.Services.GetRequiredService<IProcessRunner>(), Cancellation);
 

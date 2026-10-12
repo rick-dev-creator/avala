@@ -71,7 +71,7 @@ public sealed class WelcomeViewModelScripts
 
         await chip.FixCommand.ExecuteAsync(null);
 
-        Assert.Equal((false, false, "Simulator", true, WelcomePhrases.CheckAgain), blocked);
+        Assert.Equal((false, false, WelcomePhrases.NoAgent, true, WelcomePhrases.CheckAgain), blocked);
         Assert.Equal((true, true, "claude-work"), (welcome.CanCompose, welcome.StartCommand.CanExecute(null), Assert.Single(welcome.Chips).Label));
     }
 

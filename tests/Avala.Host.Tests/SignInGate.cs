@@ -1,39 +1,34 @@
-using Avala.Forges.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Processes;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Avala.Host.Tests;
 
 internal sealed class SignInGate : IPlugin
 {
+    private static readonly string[] SignInTools = ["gh", "tea"];
+
     public PluginInfo Info { get; } = new("sign-in-gate", "Sign-in gate");
 
-    public List<IForgeLogins> Logins { get; } = [];
+    public Dictionary<string, ProcessOutcome> Recorded { get; } = new(StringComparer.Ordinal);
 
     public void Register(IPluginRegistrar registrar)
     {
-        registrar.Services.RemoveAll<IForgeLogins>();
-
-        foreach (var logins in Logins)
-        {
-            registrar.Services.AddSingleton(logins);
-        }
+        var real = registrar.Services.Last(service => service.ServiceType == typeof(IProcessRunner));
+        registrar.Services.Remove(real);
+        registrar.Services.AddSingleton<IProcessRunner>(provider => new RecordedTools(Real(provider, real), Recorded));
     }
-}
 
-internal sealed class RecordedLogins(string forge, IReadOnlyList<DetectedLogin> found) : IForgeLogins
-{
-    public string Forge => forge;
+    private static IProcessRunner Real(IServiceProvider provider, ServiceDescriptor real) =>
+        real.ImplementationInstance as IProcessRunner
+        ?? real.ImplementationFactory?.Invoke(provider) as IProcessRunner
+        ?? (IProcessRunner)ActivatorUtilities.CreateInstance(provider, real.ImplementationType!);
 
-    public Option<CliCall> Logins { get; } = new CliCall("git", ["--version"], CliStatusChannel.Output);
-
-    public Option<string> SignInCommand => $"{forge} auth login";
-
-    public IReadOnlyList<string> TokenVariables => [];
-
-    public Option<ForgeProbe> Probe => Option<ForgeProbe>.None;
-
-    public IReadOnlyList<DetectedLogin> Read(ProcessOutcome outcome) => outcome.Succeeded ? found : [];
+    private sealed class RecordedTools(IProcessRunner real, IReadOnlyDictionary<string, ProcessOutcome> recorded) : IProcessRunner
+    {
+        public ValueTask<Result<ProcessOutcome, ProcessError>> RunAsync(ProcessRequest request, CancellationToken cancellationToken) =>
+            SignInTools.Contains(request.FileName, StringComparer.Ordinal)
+                ? ValueTask.FromResult(recorded.TryGetValue(request.FileName, out var outcome) ? Result<ProcessOutcome, ProcessError>.Success(outcome) : ProcessError.NotFound)
+                : real.RunAsync(request, cancellationToken);
+    }
 }

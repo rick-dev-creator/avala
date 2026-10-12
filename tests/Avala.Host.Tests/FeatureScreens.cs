@@ -519,8 +519,8 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
             return Task.CompletedTask;
         });
 
-        await Camera.ShootAsync(run, "50-new-job-start-without-a-repository-dark", window => FeatureCamera.ScrollTo(window, "Start without a repository"));
-        await Camera.ShootAsync(run, "50-new-job-start-without-a-repository-light", ThemeVariant.Light, window => FeatureCamera.ScrollTo(window, "Start without a repository"));
+        await Camera.ShootAsync(run, "50-new-job-start-without-a-repository-dark", window => FeatureCamera.ScrollTo(window, "No repository"));
+        await Camera.ShootAsync(run, "50-new-job-start-without-a-repository-light", ThemeVariant.Light, window => FeatureCamera.ScrollTo(window, "No repository"));
         await run.Ui.RunAsync(() => page.ExecuteAsync("StartWithoutRepositoryCommand"));
         var job = Outcomes.Present(await run.Ui.ReadAsync(() => page["LastSubmitted"].Value<Option<JobId>>()));
         Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));

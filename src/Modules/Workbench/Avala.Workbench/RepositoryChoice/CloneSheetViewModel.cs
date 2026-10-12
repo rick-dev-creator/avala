@@ -35,6 +35,10 @@ internal interface ICloneSheetViewModel
 
     string FixLabel { get; }
 
+    bool IsFixable { get; }
+
+    bool IsFailure { get; }
+
     IConnectSheetViewModel Connect { get; }
 
     IAsyncRelayCommand StartCommand { get; }
@@ -96,10 +100,16 @@ internal sealed partial class CloneSheetViewModel(CloneServices services, Connec
     public partial string Destination { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFixable), nameof(IsFailure))]
     public partial string Error { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFixable), nameof(IsFailure))]
     public partial string FixLabel { get; private set; } = string.Empty;
+
+    public bool IsFixable => FixLabel.Length > 0;
+
+    public bool IsFailure => Error.Length > 0 && FixLabel.Length == 0;
 
     partial void OnSearchChanged(string value)
     {
@@ -204,9 +214,9 @@ internal sealed partial class CloneSheetViewModel(CloneServices services, Connec
 
     private void ShowRows()
     {
-        var wanted = Address.Length > 0 ? string.Empty : Search.Trim();
+        var wanted = Search.Trim();
         var now = services.Clock.GetUtcNow();
-        repositories.ShowOnly(listed
+        repositories.ShowOnly(Address.Length > 0 ? [] : listed
             .Where(found => wanted.Length == 0 || $"{found.Address.Owner}/{found.Address.Name}".Contains(wanted, StringComparison.OrdinalIgnoreCase))
             .Select(found => new RemoteRowViewModel(found, now, new AsyncRelayCommand(token => CloneAsync(found.CloneUrl, found.Address.Name, token), () => !IsCloning))));
     }

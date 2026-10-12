@@ -41,5 +41,5 @@ internal static class WelcomePhrases
 
     public const string ConnectionsFile = "connections.json";
 
-    public const string Harness = "Agent";
+    public const string NoAgent = "No agent";
 }

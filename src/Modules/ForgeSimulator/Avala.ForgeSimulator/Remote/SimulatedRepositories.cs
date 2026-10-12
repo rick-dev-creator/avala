@@ -27,7 +27,7 @@ internal sealed class SimulatedRepositories(IProcessRunner processes, AvalaPaths
             return ForgeError.NameTaken;
         }
 
-        var created = await processes.RunAsync(new ProcessRequest("git", ["init", "--quiet", "--bare", path]), cancellationToken);
+        var created = await processes.RunAsync(new ProcessRequest("git", ["init", "--quiet", "--bare", "--initial-branch=main", path]), cancellationToken);
 
         return created.Match(outcome => outcome.Succeeded, _ => false)
             ? Hosted(name, path)

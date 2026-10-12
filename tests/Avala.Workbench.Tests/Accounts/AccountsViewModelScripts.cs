@@ -131,6 +131,17 @@ public sealed class ConnectSheetViewModelScripts
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task TheForgesACommandLineToolSignsInToComeFirstAndTheFirstIsChosenAsync()
+    {
+        forges.Tools.Add(Kinds.CupCli);
+
+        var sheet = await OpenedAsync();
+
+        Assert.Equal(["cup", "saucer", "hub"], sheet.Kinds.Select(kind => kind.Id));
+        Assert.Equal("cup", sheet.Kind);
+    }
+
+    [Fact]
     public async Task ASignedInCliIsChosenAndConnectsAtOnceAsync()
     {
         forges.Tools.Add(Kinds.HubCli);
@@ -149,7 +160,7 @@ public sealed class ConnectSheetViewModelScripts
     {
         forges.Tools.Add(Kinds.CupCli);
         var sheet = await OpenedAsync();
-        sheet.Kinds[1].SelectCommand.Execute(null);
+        sheet.Kinds.Single(kind => kind.Id == "cup").SelectCommand.Execute(null);
         sheet.Host = "git.example.com";
         var signedOut = (sheet.CliState, sheet.CliStatus, sheet.SignInCommand, sheet.ConnectCommand.CanExecute(null));
         forges.Accounts.Add(Kinds.Detected("work", Kinds.Cup, CredentialSource.Cli, "ada", "git.example.com", reference: "work"));

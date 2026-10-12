@@ -94,7 +94,7 @@ public sealed class CloneSheetViewModelScripts
         var row = (sheet.Address, sheet.Repositories.Count);
         await sheet.CloneAddressCommand.ExecuteAsync(null);
 
-        Assert.Equal((Pasted, 3), row);
+        Assert.Equal((Pasted, 0), row);
         Assert.Equal([(Pasted, "/home/ada/Projects", "ledger")], remotes.Cloned);
     }
 

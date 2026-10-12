@@ -11,11 +11,11 @@
   <Border x:Name="Sheet" Classes="sheet sheet-in">
     <StackPanel Spacing="16">
       <TextBlock Classes="heading" Text="Connect an account" />
-      <Border Classes="segments">
+      <Border Classes="segments" HorizontalAlignment="Left">
         <ItemsControl x:Name="Kinds" ItemsSource="{Binding Kinds}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <UniformGrid Rows="1" />
+              <StackPanel Orientation="Horizontal" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
@@ -64,7 +64,11 @@
                PlaceholderText="TOKEN_VARIABLE"
                AutomationProperties.Name="Name of the environment variable that holds the token"
                ToolTip.Tip="The name of an environment variable: Avala never stores the token"
-               IsVisible="{Binding UsesToken}" />
+               IsVisible="{Binding UsesToken}">
+        <TextBox.InnerLeftContent>
+          <TextBlock Classes="caption mono" Margin="10,0,0,0" VerticalAlignment="Center" Text="$" />
+        </TextBox.InnerLeftContent>
+      </TextBox>
       <TextBlock x:Name="Error"
                  Classes="caption failure"
                  TextWrapping="Wrap"

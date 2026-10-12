@@ -13,7 +13,7 @@
           ToolTip.Tip="Clone"
           AutomationProperties.Name="{Binding Name}">
     <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
-      <Path Classes="icon" Data="{StaticResource IconRepositoryNew}" Stroke="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" />
+      <Path Classes="icon" Data="{StaticResource IconRepository}" Stroke="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" />
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <TextBlock x:Name="RepositoryName" Classes="strong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="Owner" Classes="caption" Text="{Binding Owner}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />

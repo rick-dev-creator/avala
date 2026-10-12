@@ -77,6 +77,10 @@ internal sealed partial class DesignCloneSheetViewModel : ICloneSheetViewModel
 
     public string FixLabel { get; init; } = string.Empty;
 
+    public bool IsFixable => FixLabel.Length > 0;
+
+    public bool IsFailure => Error.Length > 0 && FixLabel.Length == 0;
+
     public IConnectSheetViewModel Connect { get; init; } = new DesignConnectSheetViewModel { IsOpen = false };
 
     public IAsyncRelayCommand StartCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);

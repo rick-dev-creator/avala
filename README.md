@@ -38,14 +38,15 @@ Avala is an open-source desktop harness for coding agents. It runs each agent in
 Preparing the first beta. Every feature is proven end to end on the simulator, and Claude Code, the first real harness, has run a campaign of short scenarios against real accounts, each with its own acceptance criteria and spending cap. Everything below runs in the application today, and a built-in simulator lets you try Avala without spending tokens:
 
 - jobs in their own worktrees, verified by your repository's checks and reviewed from a verdict and a diff before they are merged or kept;
-- jobs started without a repository, in a scratch repository of their own kept in Avala's data folder and merged there when approved;
+- a welcome that starts a job from one sentence, without choosing anything: it runs in a scratch repository of its own kept in Avala's data folder and merged there when approved;
 - permissions, questions and plan approvals answered in place or by the rules of your repository, at the autonomy you allow;
 - supervision of stalled sessions, budgets per job and per connection, a daily spending ceiling for the machine, and reclaimed processes, ports and worktrees;
 - several connections and accounts per harness: a job that nears or runs out of an account's usage window waits for the reset or is handed off to another account with a brief, and costs on a subscription are shown at API prices;
 - delegation to sub-agents that ask their parent first, and an autopilot that works through a backlog in loops with their own limits;
 - triggers that start jobs on a schedule, from a signed webhook, or from events on GitHub, Gitea or Forgejo, such as a labeled issue, a command in a comment or a failing check;
 - pull requests opened from approved jobs, with their checks watched and the agent woken when they fail;
-- a repository cloned from its address in the background, with its progress and a cancel, without leaving New job;
+- your forge accounts found on their own, from the `gh` and `tea` logins and token variables you already have, and added with one click; Avala keeps only references, never a token;
+- a repository cloned in one click from a searchable list of your accounts' repositories, or from a pasted address, into your projects folder;
 - a repository published by you to GitHub, Gitea or Forgejo, private by default: created through the forge, added as origin and pushed with the credentials your git already uses;
 - best of N: one request run as several candidate jobs, the best kept by its evidence and the others discarded once you approve it;
 - notifications on your phone, through ntfy or a webhook, when a job needs you while you are away;

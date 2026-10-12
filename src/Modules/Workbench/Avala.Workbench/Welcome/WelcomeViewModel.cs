@@ -134,9 +134,7 @@ internal sealed partial class WelcomeViewModel(JobLaunch launch, SourceControl s
 
         if (catalog.Connections.Count == 0)
         {
-            var harness = catalog.Providers.FirstOrDefault(provider => provider.OffersImplicitConnection)?.Name ?? (catalog.Providers.Count > 0 ? catalog.Providers[0].Name : null) ?? WelcomePhrases.Harness;
-
-            return [AccountChipViewModel.Agent(harness, attention: true, WelcomePhrases.CheckAgain, new AsyncRelayCommand(RediscoverAsync))];
+            return [AccountChipViewModel.Agent(WelcomePhrases.NoAgent, attention: true, WelcomePhrases.CheckAgain, new AsyncRelayCommand(RediscoverAsync))];
         }
 
         return catalog.Connections.Select(connection => AccountChipViewModel.Agent(connection.Name.Value, connection.Problem.IsSome, string.Empty, new AsyncRelayCommand(() => Task.CompletedTask)));

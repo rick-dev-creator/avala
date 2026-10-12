@@ -19,7 +19,9 @@ public sealed class RepositoryScreens(HeadlessUi ui, PublishedPlugins plugins)
     public async Task TheNewJobRepositoryFieldClonesAnAddressAndPublishesANewRepositoryAsync()
     {
         Gated();
+        await using var projects = new TemporaryFolder();
         await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, []);
+        _ = Outcomes.Succeeds(await run.Get<Avala.Workspaces.Contracts.IProjectsFolder>().ChooseAsync(projects.Path, TestContext.Current.CancellationToken));
         var workbench = await run.WorkbenchAsync();
         var page = run.Page("New job");
         await run.Ui.RunAsync(() =>
@@ -34,9 +36,9 @@ public sealed class RepositoryScreens(HeadlessUi ui, PublishedPlugins plugins)
             await page["Chooser"]["Checking"].Value<Task>();
             var cloning = page["Chooser"]["Clone"];
             await cloning.ExecuteAsync("StartCommand");
-            cloning.Set("Url", "https://github.com/octo/shop.git");
+            cloning.Set("Search", "https://github.com/octo/shop.git");
             cloning.Set("IsCloning", true);
-            cloning.Set("Status", $"Cloning https://github.com/octo/shop.git into {Path.Combine(cloning["Parent"].Text, "shop")}…");
+            cloning.Set("Status", "Cloning shop…");
         });
         await Camera.ShootAsync(run, "43-new-job-clone-running-dark");
         await Camera.ShootAsync(run, "43-new-job-clone-running-light", ThemeVariant.Light);

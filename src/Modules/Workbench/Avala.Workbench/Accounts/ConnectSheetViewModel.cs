@@ -199,7 +199,8 @@ internal sealed partial class ConnectSheetViewModel(SourceControl source) : ICon
     private async Task ReadAsync(CancellationToken cancellationToken)
     {
         state = await source.ReadAsync(cancellationToken);
-        kinds.Reconcile(state.Kinds, kind => kind.Id, kind => kind.Id, kind => new ForgeKindViewModel(kind, Select), (_, _) => { });
+        IReadOnlyList<ForgeInfo> ordered = [.. state.Kinds.OrderBy(kind => state.Tool(kind.Id).IsSome ? 0 : 1)];
+        kinds.Reconcile(ordered, kind => kind.Id, kind => kind.Id, kind => new ForgeKindViewModel(kind, Select), (_, _) => { });
         Select(kinds.Any(kind => kind.Id == Kind) ? Kind : kinds.FirstOrDefault()?.Id ?? string.Empty);
     }
 
