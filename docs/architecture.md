@@ -44,6 +44,8 @@ Modules learn what happened through integration events on an in-process bus, imp
 
 The same discipline holds everywhere: concurrency between components goes through the bus or channels only, and nothing waits on time where it could await the event that states the thing happened.
 
+The runtime starts on the thread pool, whoever starts it: the router and the startup tasks never run on the UI thread, so only handlers that change what the interface shows marshal to it, through `IUiDispatcher`. Startup runs in stages. In `Open`, every module opens and migrates its own database, all at once since no two share a file; then the `Restore` tasks run one after another, then `Recovery`, and `StartupCompleted` follows.
+
 Nothing Avala starts outlives it. Stopping the application disposes the process runner, which cancels every process it still runs, kills its tree and returns only once each has exited, and refuses to start another; a read nobody awaits, such as the inspector checking a repository's remote, therefore never keeps a repository's folder in use after Avala stops.
 
 ## Agents and the provider contract

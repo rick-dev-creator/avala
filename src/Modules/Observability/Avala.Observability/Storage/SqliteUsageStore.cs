@@ -61,6 +61,8 @@ internal sealed class SqliteUsageStore(AvalaPaths paths) : IUsageStore, IStartup
             },
             cancellationToken);
 
+    public StartupStage Stage => StartupStage.Open;
+
     public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();

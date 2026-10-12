@@ -31,6 +31,8 @@ internal sealed class SqliteContestStore(AvalaPaths paths) : IContestStore, ISta
 {
     private readonly DatabaseOwner<ContestsDbContext> owner = new(paths.Database("contests"), file => new ContestsDbContext(file));
 
+    public StartupStage Stage => StartupStage.Open;
+
     public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
     public Task<IReadOnlyList<ContestRecord>> ContestsAsync(CancellationToken cancellationToken) =>

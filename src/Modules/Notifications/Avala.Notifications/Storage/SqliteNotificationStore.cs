@@ -10,6 +10,8 @@ internal sealed class SqliteNotificationStore(AvalaPaths paths) : INotificationS
 {
     private readonly DatabaseOwner<NotificationsDbContext> owner = new(paths.Database("notifications"), file => new NotificationsDbContext(file));
 
+    public StartupStage Stage => StartupStage.Open;
+
     public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
     public Task<IReadOnlyList<SentSubject>> SentAsync(DateTimeOffset since, CancellationToken cancellationToken) =>

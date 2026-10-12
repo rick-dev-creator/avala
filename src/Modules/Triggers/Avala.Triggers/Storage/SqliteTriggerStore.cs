@@ -12,6 +12,8 @@ internal sealed class SqliteTriggerStore(AvalaPaths paths) : IScheduleStore, IRu
 {
     private readonly DatabaseOwner<TriggersDbContext> owner = new(paths.Database("triggers"), file => new TriggersDbContext(file));
 
+    public StartupStage Stage => StartupStage.Open;
+
     public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
     public Task<IReadOnlyList<ScheduleState>> SchedulesAsync(CancellationToken cancellationToken) =>

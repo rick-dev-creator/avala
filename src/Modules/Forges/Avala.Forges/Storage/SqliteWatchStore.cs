@@ -98,6 +98,8 @@ internal sealed class SqliteWatchStore(AvalaPaths paths) : IWatchStore, IEventSt
 {
     private readonly DatabaseOwner<ForgesDbContext> owner = new(paths.Database("forges"), file => new ForgesDbContext(file));
 
+    public StartupStage Stage => StartupStage.Open;
+
     public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
     public Task<IReadOnlyList<KeptWatch>> WatchesAsync(CancellationToken cancellationToken) =>

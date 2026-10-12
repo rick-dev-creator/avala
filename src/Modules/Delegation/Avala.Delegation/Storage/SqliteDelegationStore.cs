@@ -36,6 +36,8 @@ internal sealed class SqliteDelegationStore(AvalaPaths paths) : IDelegationStore
             ],
             cancellationToken);
 
+    public StartupStage Stage => StartupStage.Open;
+
     public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();

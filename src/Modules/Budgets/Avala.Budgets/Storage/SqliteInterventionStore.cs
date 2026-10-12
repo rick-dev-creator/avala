@@ -110,6 +110,8 @@ internal sealed class SqliteInterventionStore(AvalaPaths paths) : IInterventionS
             ],
             cancellationToken);
 
+    public StartupStage Stage => StartupStage.Open;
+
     public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();

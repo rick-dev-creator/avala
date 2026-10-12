@@ -45,6 +45,8 @@ internal sealed partial class SqliteTranscriptLog : ITranscriptLog, IStartupTask
             ],
             cancellationToken);
 
+    public StartupStage Stage => StartupStage.Open;
+
     public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
     public async ValueTask DisposeAsync()

@@ -62,6 +62,31 @@ public sealed class StartupTests
     }
 
     [Fact]
+    public async Task TheDatabasesOpenTogetherAndEveryRestoreWaitsForAllOfThemAsync()
+    {
+        using var data = new TemporaryFolder();
+        var ran = new List<string>();
+        var together = new Together(2);
+        await using var services = new ServiceCollection()
+            .AddSingleton(typeof(ILogger<>), typeof(NullLogger<>))
+            .AddRuntime(new AvalaPaths(data.Path))
+            .AddSingleton<IStartupTask>(new Noting(ran, "restore"))
+            .AddSingleton<IStartupTask>(new Opening(together, ran, "first database"))
+            .AddSingleton<IStartupTask>(new Opening(together, ran, "second database"))
+            .BuildServiceProvider();
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        var completions = new EventWatch<StartupCompleted>(services.GetRequiredService<IEventFeed>().SubscribeAsync<StartupCompleted>(lifetime.Token), lifetime.Token);
+        var running = services.RunAsync(lifetime.Token);
+
+        _ = await completions.UntilAsync(_ => true);
+
+        Assert.True(together.Met);
+        Assert.Equal("restore", ran[^1]);
+        await lifetime.CancelAsync();
+        await running;
+    }
+
+    [Fact]
     public async Task AHostStartedOnTheUiThreadRunsItsStartupTasksOffItAsync()
     {
         using var data = new TemporaryFolder();
@@ -202,6 +227,47 @@ public sealed class StartupTests
             Events.Add((integrationEvent.Sequence, cancellationToken.IsCancellationRequested));
 
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class Together(int expected)
+    {
+        private readonly TaskCompletionSource all = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int arrived;
+        private int alone;
+
+        public bool Met => Volatile.Read(ref alone) == 0 && all.Task.IsCompletedSuccessfully;
+
+        public async Task ArriveAsync(CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref arrived) == expected)
+            {
+                all.TrySetResult();
+            }
+
+            try
+            {
+                await all.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                Interlocked.Increment(ref alone);
+            }
+        }
+    }
+
+    private sealed class Opening(Together together, List<string> ran, string name) : IStartupTask
+    {
+        public StartupStage Stage => StartupStage.Open;
+
+        public async Task RunAsync(CancellationToken cancellationToken)
+        {
+            await together.ArriveAsync(cancellationToken);
+
+            lock (ran)
+            {
+                ran.Add(name);
+            }
         }
     }
 

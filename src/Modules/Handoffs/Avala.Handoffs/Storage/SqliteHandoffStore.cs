@@ -11,6 +11,8 @@ internal sealed class SqliteHandoffStore(AvalaPaths paths) : IHandoffStore, ISta
 {
     private readonly DatabaseOwner<HandoffsDbContext> owner = new(paths.Database("handoffs"), file => new HandoffsDbContext(file));
 
+    public StartupStage Stage => StartupStage.Open;
+
     public Task RunAsync(CancellationToken cancellationToken) => owner.OpenedAsync(cancellationToken);
 
     public Task<IReadOnlyList<HandoffRecord>> HandoffsAsync(CancellationToken cancellationToken) =>

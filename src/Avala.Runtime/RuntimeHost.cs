@@ -23,10 +23,9 @@ public static partial class RuntimeHost
 
             try
             {
-                foreach (var task in services.GetServices<IStartupTask>().OrderBy(task => task.Stage))
+                foreach (var stage in services.GetServices<IStartupTask>().GroupBy(task => task.Stage).OrderBy(stage => stage.Key))
                 {
-                    await task.RunAsync(cancellationToken);
-                    await bus.PublishAsync(new StartupProgressed(task.GetType().Name, task.Stage), cancellationToken);
+                    await RunStageAsync(bus, stage.Key, [.. stage], cancellationToken);
                 }
 
                 await bus.PublishAsync(new StartupCompleted(), cancellationToken);
@@ -65,6 +64,27 @@ public static partial class RuntimeHost
                 LogShutdownGraceElapsed(services.GetService<ILoggerFactory>()?.CreateLogger(typeof(RuntimeHost).FullName!) ?? NullLogger.Instance, ShutdownGrace.TotalSeconds);
             }
         }
+    }
+
+    private static async Task RunStageAsync(EventBus bus, StartupStage stage, IReadOnlyList<IStartupTask> tasks, CancellationToken cancellationToken)
+    {
+        if (stage == StartupStage.Open)
+        {
+            await Task.WhenAll(tasks.Select(task => RunTaskAsync(bus, task, cancellationToken)));
+
+            return;
+        }
+
+        foreach (var task in tasks)
+        {
+            await RunTaskAsync(bus, task, cancellationToken);
+        }
+    }
+
+    private static async Task RunTaskAsync(EventBus bus, IStartupTask task, CancellationToken cancellationToken)
+    {
+        await task.RunAsync(cancellationToken);
+        await bus.PublishAsync(new StartupProgressed(task.GetType().Name, task.Stage), cancellationToken);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The handlers did not drain within {Seconds} seconds of shutdown, so the event bus stopped with events still queued")]

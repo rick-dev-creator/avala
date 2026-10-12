@@ -11,6 +11,7 @@ public interface IStartupTask
 
 public enum StartupStage
 {
+    Open,
     Restore,
     Recovery,
 }
