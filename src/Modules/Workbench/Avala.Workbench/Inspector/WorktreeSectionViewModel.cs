@@ -104,16 +104,27 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
         Repository = facts.Match(found => found.Record.History.Summary.Repository, () => string.Empty);
         IsScratch = scratch.Holds(Repository);
         FolderProblem = string.Empty;
+        ShowWorktree(facts);
+        Ports = facts.Bind(found => found.Record.Ports).Match(
+            lease => lease.First == lease.Last ? $"Port {lease.First}" : $"Ports {lease.First}–{lease.Last}",
+            () => string.Empty);
+    }
+
+    private void ShowWorktree(Option<InspectorFacts> facts)
+    {
         var workspace = facts.Bind(found => found.Record.Workspace);
         var fact = facts.IsNone ? string.Empty : workspace.Match(found => InspectorPhrases.Worktree(found.Branch, found.BaseBranch), () => "none");
         Fact = IsScratch ? InspectorPhrases.Scratch(fact) : fact;
         Branch = facts.IsNone ? string.Empty : workspace.Match(found => found.Branch, () => "No worktree");
+        ShowWhere(facts);
+    }
+
+    private void ShowWhere(Option<InspectorFacts> facts)
+    {
+        var workspace = facts.Bind(found => found.Record.Workspace);
         Base = workspace.Match(
             found => found.BaseBranch.Match(branch => $"{branch} at {Short(found.BaseCommit)}", () => Short(found.BaseCommit)),
             () => string.Empty);
         Path = workspace.Match(found => Personal.Path(found.Path), () => Personal.None);
-        Ports = facts.Bind(found => found.Record.Ports).Match(
-            lease => lease.First == lease.Last ? $"Port {lease.First}" : $"Ports {lease.First}–{lease.Last}",
-            () => string.Empty);
     }
 }
