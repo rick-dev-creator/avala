@@ -8,6 +8,7 @@ using Avala.Delegation.Contracts;
 using Avala.ClaudeCode;
 using Avala.Host.Composition;
 using Avala.Jobs.Contracts;
+using Avala.Mermaid.UI;
 using Avala.Observability.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Resources.Contracts;
@@ -406,7 +407,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 new AvalaPaths(data.Path),
                 Ui,
                 Clock,
-                [new SimulatorPlugin(TimeSpan.Zero, Developer), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
+                [new SimulatorPlugin(TimeSpan.Zero, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
                 RealNotifier ? [Board, Fault, Trips, Judge, Telemetry] : [Board, Fault, Trips, Notifier, Judge, Telemetry]);
