@@ -124,7 +124,7 @@ public sealed class SettingsViewModelScripts
 
         public string ConnectionsFile => machine.ConnectionsFile;
 
-        public IReadOnlyList<IForgeConnectionViewModel> Forges => machine.Forges;
+        public Avala.Workbench.Accounts.ISourceControlViewModel SourceControl => machine.SourceControl;
 
         public string ForgesFile => machine.ForgesFile;
 

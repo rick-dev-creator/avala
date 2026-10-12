@@ -19,6 +19,7 @@ using Avala.Sdk.Updates;
 using Avala.Supervision.Contracts;
 using Avala.Triggers.Contracts;
 using Avala.Verification.Contracts;
+using Avala.Workbench.Accounts;
 using Avala.Workbench.Automation;
 using Avala.Workbench.Board;
 using Avala.Workbench.Cards;
@@ -121,6 +122,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         registrar.AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0);
         RegisterInspector(registrar);
         RegisterGlobalPages(registrar.Services);
+        RegisterAccounts(registrar.Services);
         RegisterRepositoryChoice(registrar.Services);
         RegisterContests(registrar);
         registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
@@ -241,6 +243,17 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddTransient<NewJobFields>();
     }
 
+    private static void RegisterAccounts(IServiceCollection services) =>
+        services
+            .AddSingleton<SourceControl>()
+            .AddSingleton<ConnectSheetViewModel>()
+            .AddSingleton<SourceControlViewModel>()
+            .AddForwarded<ISourceControlViewModel, SourceControlViewModel>()
+            .AddSingleton(provider => new MachineSections(
+                provider.GetRequiredService<IDefaultConnectionViewModel>(),
+                provider.GetRequiredService<INotificationsViewModel>(),
+                provider.GetRequiredService<ISourceControlViewModel>()));
+
     private static void RegisterGlobalPages(IServiceCollection services) =>
         services
             .AddSingleton<Pulse>()
@@ -358,7 +371,10 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ICheckViewModel, CheckView>();
         views.Register<IJobSectionViewModel, JobSectionView>();
         views.Register<IMachineConnectionViewModel, MachineConnectionView>();
-        views.Register<IForgeConnectionViewModel, ForgeConnectionView>();
+        views.Register<ISourceControlViewModel, SourceControlView>();
+        views.Register<IAccountRowViewModel, AccountRowView>();
+        views.Register<IConnectSheetViewModel, ConnectSheetView>();
+        views.Register<IForgeKindViewModel, ForgeKindView>();
         views.Register<IDefaultConnectionViewModel, DefaultConnectionView>();
         views.Register<IConnectionEditorViewModel, ConnectionEditorView>();
         views.Register<IResourcesViewModel, ResourcesView>();

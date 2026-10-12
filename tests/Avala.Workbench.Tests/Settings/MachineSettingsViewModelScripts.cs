@@ -138,39 +138,25 @@ public sealed class MachineSettingsViewModelScripts
     }
 
     [Fact]
-    public async Task TheForgesOfTheMachineShowTheirForgeUrlAndCredentialReferenceNeverAValueAsync()
+    public async Task TheForgesFileShowsItsPollIntervalUnderAdvancedAsync()
     {
-        var github = new Forges.Contracts.ForgeInfo("github", "GitHub") { DefaultUrl = new Uri("https://api.github.com") };
-        var forges = new FakeForgeCatalog
-        {
-            Catalog = new(
-                [github],
-                [
-                    new(new Forges.Contracts.ForgeName("work"), "github", Option<Uri>.None, Forges.Contracts.CredentialSource.Environment, "GITHUB_TOKEN"),
-                    new(new Forges.Contracts.ForgeName("codeberg"), "forgejo", new Uri("https://codeberg.org"), Forges.Contracts.CredentialSource.Cli, Option<string>.None) { Problem = Forges.Contracts.ForgeError.UnknownForge },
-                ],
-                Option<Forges.Contracts.ForgeError>.None,
-                TimeSpan.FromSeconds(60)),
-        };
+        var forges = new FakeForgeCatalog { Catalog = new([], [], Option<Forges.Contracts.ForgeError>.None, TimeSpan.FromSeconds(90)) };
         var machine = Machine(new FakeConnections("work"), forges);
 
         await machine.LoadAsync(Cancellation);
 
-        Assert.Equal("forges.json · checks every 60s · GitHub installed", machine.ForgesFile);
-        Assert.Equal(
-            [("work", "GitHub", "https://api.github.com/", "token in $GITHUB_TOKEN", string.Empty), ("codeberg", "forgejo", "https://codeberg.org/", "the forge's own command-line login", "Not usable: no plugin of that forge is installed.")],
-            machine.Forges.Select(forge => (forge.Name, forge.Forge, forge.Url, forge.Credential, forge.Problem)));
+        Assert.Equal("forges.json · checks every 90s", machine.ForgesFile);
     }
 
     [Fact]
-    public async Task ARejectedForgesFileSaysWhyAndListsNoForgeAsync()
+    public async Task ARejectedForgesFileSaysWhyAsync()
     {
         var forges = new FakeForgeCatalog { Catalog = new([], [], Forges.Contracts.ForgeError.UnknownField, TimeSpan.FromSeconds(60)) };
         var machine = Machine(new FakeConnections("work"), forges);
 
         await machine.LoadAsync(Cancellation);
 
-        Assert.Equal(("forges.json is rejected: forges.json or the pullRequest section is invalid (UnknownField).", 0), (machine.ForgesFile, machine.Forges.Count));
+        Assert.Equal("forges.json is rejected: forges.json or the pullRequest section is invalid (UnknownField).", machine.ForgesFile);
     }
 
     private MachineSettingsViewModel Machine() => Machine(new FakeConnections("work", "personal"));
@@ -183,9 +169,8 @@ public sealed class MachineSettingsViewModelScripts
 
         return new(
             settings,
-            new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()),
-            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(opener, new AvalaPaths("/data"))),
-            new DesignNotificationsViewModel());
+            new MachineSections(new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel()),
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(opener, new AvalaPaths("/data"))));
     }
 }
 
@@ -315,9 +300,8 @@ public sealed class ConnectionEditorViewModelScripts
         var settings = new MachineSettings(connections, new FakeSupervision(), new FakeResources(), new FakeForgeCatalog());
         var machine = new MachineSettingsViewModel(
             settings,
-            new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()),
-            new ConnectionEditorViewModel(settings, new ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))),
-            new DesignNotificationsViewModel());
+            new MachineSections(new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel()),
+            new ConnectionEditorViewModel(settings, new ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
         await machine.LoadAsync(Cancellation);
 
         return machine;

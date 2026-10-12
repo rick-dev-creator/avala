@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Connections;
 using Avala.Resources.Contracts;
 using Avala.Sdk;
 using Avala.Supervision.Contracts;
+using Avala.Workbench.Accounts;
 using Avala.Workbench.Machine;
 using Avala.Workbench.Presenting;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -23,7 +24,7 @@ internal interface IMachineSettingsViewModel
 
     string ConnectionsFile { get; }
 
-    IReadOnlyList<IForgeConnectionViewModel> Forges { get; }
+    ISourceControlViewModel SourceControl { get; }
 
     string ForgesFile { get; }
 
@@ -50,6 +51,8 @@ internal interface IMachineSettingsViewModel
     Task LoadAsync(CancellationToken cancellationToken);
 }
 
+internal sealed record MachineSections(IDefaultConnectionViewModel DefaultConnection, INotificationsViewModel Notifications, ISourceControlViewModel SourceControl);
+
 internal static class SilenceDial
 {
     public const double Fewest = 1;
@@ -74,17 +77,17 @@ internal static class SilenceDial
 internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewModel
 {
     private readonly ObservableCollection<MachineConnectionViewModel> connections = [];
-    private readonly ObservableCollection<ForgeConnectionViewModel> forges = [];
     private readonly MachineSettings settings;
     private readonly ConnectionEditorViewModel editor;
 
-    public MachineSettingsViewModel(MachineSettings settings, IDefaultConnectionViewModel defaultConnection, ConnectionEditorViewModel editor, INotificationsViewModel notifications)
+    public MachineSettingsViewModel(MachineSettings settings, MachineSections sections, ConnectionEditorViewModel editor)
     {
         this.settings = settings;
         this.editor = editor;
-        DefaultConnection = defaultConnection;
-        Notifications = notifications;
-        defaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
+        DefaultConnection = sections.DefaultConnection;
+        Notifications = sections.Notifications;
+        SourceControl = sections.SourceControl;
+        DefaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
         editor.Edited += (_, edited) =>
         {
             ShowConnections(edited.Catalog);
@@ -104,7 +107,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     [ObservableProperty]
     public partial string ConnectionsFile { get; private set; } = string.Empty;
 
-    public IReadOnlyList<IForgeConnectionViewModel> Forges => forges;
+    public ISourceControlViewModel SourceControl { get; }
 
     [ObservableProperty]
     public partial string ForgesFile { get; private set; } = string.Empty;
@@ -142,6 +145,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     {
         Show(await settings.ReadAsync(cancellationToken));
         await Notifications.LoadAsync(cancellationToken);
+        await SourceControl.LoadAsync(cancellationToken);
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveSilence))]
@@ -179,7 +183,6 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
         ShowSupervision(state.Supervision);
         Resources = Describe(state.Resources);
         ForgesFile = state.Forges.Match(ForgeSettingsPhrases.File, () => string.Empty);
-        forges.ShowOnly(state.Forges.Match(catalog => catalog.Connections.Select(connection => new ForgeConnectionViewModel(connection, catalog.Forges)), () => []));
     }
 
     private void ShowConnections(ConnectionCatalog catalog)

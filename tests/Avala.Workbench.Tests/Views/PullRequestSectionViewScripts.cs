@@ -123,30 +123,3 @@ public sealed class PullRequestSectionViewScripts(HeadlessUi ui)
         public IAsyncRelayCommand CheckNowCommand { get; }
     }
 }
-
-public sealed class ForgeConnectionViewScripts(HeadlessUi ui)
-{
-    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
-
-    [Fact]
-    public Task TheMachineSettingsListTheForgesWithTheirCredentialReferenceAsync() =>
-        ui.RunAsync(() =>
-        {
-            var view = Screen.Show(new DesignMachineSettingsViewModel());
-
-            Assert.Equal(1, view.Find<ItemsControl>("Forges").ItemCount);
-            Assert.Contains("token in $GITHUB_TOKEN", view.VisibleTexts);
-            Assert.Equal("forges.json · checks every 60s · GitHub, Gitea, Forgejo installed", view.TextOf("ForgesFile"));
-            Assert.False(view.Shows("NoForges"));
-        }, Cancellation);
-
-    [Fact]
-    public Task AForgeConnectionShowsItsForgeUrlCredentialAndAProblemOnlyWhenItHasOneAsync() =>
-        ui.RunAsync(() =>
-        {
-            var view = Screen.Show(new DesignForgeConnectionViewModel());
-
-            Assert.Equal(("github", "GitHub", "https://api.github.com/", "token in $GITHUB_TOKEN"), (view.TextOf("ForgeName"), view.TextOf("Forge"), view.TextOf("Url"), view.TextOf("Credential")));
-            Assert.False(view.Shows("Problem"));
-        }, Cancellation);
-}

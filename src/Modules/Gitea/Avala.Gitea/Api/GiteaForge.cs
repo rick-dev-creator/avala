@@ -7,6 +7,10 @@ namespace Avala.Gitea.Api;
 
 internal sealed record GiteaDialect(string Id, string Name, string Cli, IReadOnlyList<string> SignatureHeaders, string Logo)
 {
+    public static Uri Codeberg { get; } = new("https://codeberg.org");
+
+    public Option<Uri> Suggested { get; init; }
+
     public static GiteaDialect Gitea { get; } = new(
         "gitea",
         "Gitea",
@@ -19,14 +23,17 @@ internal sealed record GiteaDialect(string Id, string Name, string Cli, IReadOnl
         "Forgejo",
         "tea",
         ["X-Forgejo-Signature", "X-Gitea-Signature"],
-        "M2.7 13.5A1.8 1.8 0 1 1 6.3 13.5A1.8 1.8 0 1 1 2.7 13.5ZM10.2 3.5A1.8 1.8 0 1 1 13.8 3.5A1.8 1.8 0 1 1 10.2 3.5ZM10.2 9.5A1.8 1.8 0 1 1 13.8 9.5A1.8 1.8 0 1 1 10.2 9.5ZM3.6 12V6.5A3.9 3.9 0 0 1 7.5 2.6H10.6V4.4H7.5A2.1 2.1 0 0 0 5.4 6.5V12ZM5.4 11A3 3 0 0 1 8.4 8.6H10.6V10.4H8.4A1.2 1.2 0 0 0 7.2 11.6Z");
+        "M2.7 13.5A1.8 1.8 0 1 1 6.3 13.5A1.8 1.8 0 1 1 2.7 13.5ZM10.2 3.5A1.8 1.8 0 1 1 13.8 3.5A1.8 1.8 0 1 1 10.2 3.5ZM10.2 9.5A1.8 1.8 0 1 1 13.8 9.5A1.8 1.8 0 1 1 10.2 9.5ZM3.6 12V6.5A3.9 3.9 0 0 1 7.5 2.6H10.6V4.4H7.5A2.1 2.1 0 0 0 5.4 6.5V12ZM5.4 11A3 3 0 0 1 8.4 8.6H10.6V10.4H8.4A1.2 1.2 0 0 0 7.2 11.6Z")
+    {
+        Suggested = Codeberg,
+    };
 }
 
 internal sealed class GiteaForge(GiteaDialect dialect) : IForge, IForgeEvents, IForgeRepositories, IForgeAccounts
 {
     public const string ApiRoot = "/api/v1";
 
-    public ForgeInfo Info { get; } = new(dialect.Id, dialect.Name) { TokenScheme = "token", Logo = dialect.Logo };
+    public ForgeInfo Info { get; } = new(dialect.Id, dialect.Name) { TokenScheme = "token", Logo = dialect.Logo, SuggestedUrl = dialect.Suggested };
 
     public HookSignature Signature { get; } = new(dialect.SignatureHeaders, string.Empty);
 

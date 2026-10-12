@@ -1,3 +1,4 @@
+using Avala.Workbench.Accounts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk.Appearance;
 using Avala.Workbench.ModelChoices;
@@ -93,6 +94,8 @@ internal sealed class DesignMachineConnectionViewModel(string name, string sourc
     }
 
     public string Name { get; } = name;
+
+    public string Monogram => AccountPhrases.Monogram(Name);
 
     public string Provider => "claude-code";
 
@@ -257,7 +260,7 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 
     public string ConnectionsFile => "Applied";
 
-    public IReadOnlyList<IForgeConnectionViewModel> Forges { get; } = [new DesignForgeConnectionViewModel()];
+    public ISourceControlViewModel SourceControl { get; init; } = new DesignSourceControlViewModel();
 
     public string ForgesFile => "forges.json · checks every 60s · GitHub, Gitea, Forgejo installed";
 
@@ -383,17 +386,4 @@ internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
     public IAsyncRelayCommand<MotionChoice> ChooseMotionCommand { get; } = new AsyncRelayCommand<MotionChoice>(_ => Task.CompletedTask);
 
     public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-}
-
-internal sealed class DesignForgeConnectionViewModel : IForgeConnectionViewModel
-{
-    public string Name => "github";
-
-    public string Forge => "GitHub";
-
-    public string Url => "https://api.github.com/";
-
-    public string Credential => "token in $GITHUB_TOKEN";
-
-    public string Problem => string.Empty;
 }

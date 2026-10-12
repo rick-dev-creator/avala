@@ -7,15 +7,21 @@
   <Design.DataContext>
     <settings:DesignMachineConnectionViewModel />
   </Design.DataContext>
-  <DockPanel Margin="0,12">
+  <DockPanel Margin="0,10">
+    <Border DockPanel.Dock="Left" Classes="mark round" Margin="0,0,12,0">
+      <TextBlock x:Name="Monogram" Classes="monogram" Text="{Binding Monogram}" />
+    </Border>
     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+      <Ellipse x:Name="Status"
+               Classes="dot"
+               Classes.attention="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       <Border x:Name="Default" Classes="tag" IsVisible="{Binding IsDefault}">
         <TextBlock Text="default" />
       </Border>
       <Button x:Name="Edit" Classes="link" Content="Edit" IsVisible="{Binding IsDeclared}" Command="{Binding EditCommand}" />
       <Button x:Name="Remove" Classes="link" Content="Remove" IsVisible="{Binding IsDeclared}" Command="{Binding RemoveCommand}" />
     </StackPanel>
-    <StackPanel>
+    <StackPanel VerticalAlignment="Center">
       <TextBlock x:Name="ConnectionName" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
       <StackPanel Orientation="Horizontal" Spacing="6">
         <TextBlock x:Name="Provider" Classes="caption" Text="{Binding Provider}" />

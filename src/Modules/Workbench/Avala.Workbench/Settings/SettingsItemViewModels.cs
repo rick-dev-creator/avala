@@ -4,6 +4,7 @@ using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Supervision.Contracts;
 using Avala.Verification.Contracts;
+using Avala.Workbench.Accounts;
 using Avala.Workbench.Presenting;
 using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.Input;
@@ -74,6 +75,8 @@ internal interface IJobSectionViewModel
 internal interface IMachineConnectionViewModel
 {
     string Name { get; }
+
+    string Monogram { get; }
 
     string Provider { get; }
 
@@ -164,6 +167,8 @@ internal sealed class MachineConnectionViewModel(DeclaredConnection connection, 
     public IRelayCommand RemoveCommand { get; } = remove;
 
     public string Name { get; } = connection.Name.Value;
+
+    public string Monogram { get; } = AccountPhrases.Monogram(connection.Name.Value);
 
     public string Provider { get; } = connection.Provider;
 

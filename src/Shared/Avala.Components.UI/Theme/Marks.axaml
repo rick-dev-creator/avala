@@ -1,0 +1,141 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style Selector="Border.mark">
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="Background" Value="{DynamicResource FillSelectedBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.mark.round">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+  </Style>
+  <Style Selector="Border.mark.small">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="20" />
+  </Style>
+  <Style Selector="Border.mark > Path.logo">
+    <Setter Property="Width" Value="15" />
+    <Setter Property="Height" Value="15" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.mark.small > Path.logo">
+    <Setter Property="Width" Value="11" />
+    <Setter Property="Height" Value="11" />
+  </Style>
+  <Style Selector="Path.logo">
+    <Setter Property="Stretch" Value="Uniform" />
+    <Setter Property="Fill" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="Path.logo.inline">
+    <Setter Property="Width" Value="13" />
+    <Setter Property="Height" Value="13" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.mark > TextBlock.monogram">
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBlock.monogram">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="Border.mark.small > TextBlock.monogram">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeTag}" />
+  </Style>
+
+  <Style Selector="Ellipse.dot">
+    <Setter Property="Width" Value="7" />
+    <Setter Property="Height" Value="7" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Fill" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="Ellipse.dot.attention">
+    <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
+  </Style>
+  <Style Selector="Ellipse.dot.hollow">
+    <Setter Property="Fill" Value="Transparent" />
+    <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
+    <Setter Property="StrokeThickness" Value="1.2" />
+  </Style>
+
+  <Style Selector="Border.chip">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderPillBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Padding" Value="4,4,12,4" />
+    <Setter Property="Height" Value="30" />
+  </Style>
+  <Style Selector="Border.chip.attention">
+    <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
+  </Style>
+  <Style Selector="Button.chip">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderPillBrush}" />
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="Button.fix">
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Background" Value="{DynamicResource AttentionBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnAttentionBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="Padding" Value="10,2" />
+  </Style>
+  <Style Selector="Button.fix:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AttentionBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnAttentionBrush}" />
+  </Style>
+
+  <Style Selector="Button.tile">
+    <Setter Property="Width" Value="168" />
+    <Setter Property="Height" Value="96" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+    <Setter Property="Background" Value="{DynamicResource FillQuietBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.tile Path.icon">
+    <Setter Property="Width" Value="22" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Stroke" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="ToggleButton.segment">
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="12,4" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.segment:checked /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.segment:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfaceSelectedTabBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.segment:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource FillGhostHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+
+  <Style Selector="Border.sheet">
+    <Setter Property="Background" Value="{DynamicResource SurfaceFloatBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusSheet}" />
+    <Setter Property="BoxShadow" Value="{DynamicResource ShadowSheet}" />
+    <Setter Property="Padding" Value="22,20" />
+    <Setter Property="Width" Value="520" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Top" />
+    <Setter Property="Margin" Value="0,56,0,24" />
+  </Style>
+</Styles>

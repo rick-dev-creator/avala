@@ -29,6 +29,8 @@ public sealed record ForgeInfo(string Id, string Name)
     public string TokenScheme { get; init; } = "Bearer";
 
     public string Logo { get; init; } = string.Empty;
+
+    public Option<Uri> SuggestedUrl { get; init; }
 }
 
 public sealed record RepositoryAddress(string Host, string Owner, string Name);

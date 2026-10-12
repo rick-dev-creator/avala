@@ -29,4 +29,5 @@
   <StyleInclude Source="avares://Avala.Components.UI/Theme/Motion.axaml" />
   <StyleInclude Source="avares://Avala.Components.UI/Theme/Controls.axaml" />
   <StyleInclude Source="avares://Avala.Components.UI/Theme/Graphs.axaml" />
+  <StyleInclude Source="avares://Avala.Components.UI/Theme/Marks.axaml" />
 </Styles>

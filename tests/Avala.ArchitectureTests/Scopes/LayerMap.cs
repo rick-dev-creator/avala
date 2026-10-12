@@ -100,6 +100,8 @@ internal static class LayerMap
             ["ModelChoices"] = Layer.ViewModels,
             ["Automation"] = Layer.Application,
             ["Triggers"] = Layer.ViewModels,
+            ["Accounts"] = Layer.ViewModels,
+            ["Welcome"] = Layer.ViewModels,
         }),
         .. Module("Avala.Observability", new()
         {

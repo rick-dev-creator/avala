@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:accounts="using:Avala.Workbench.Accounts"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.ForgeKindView"
+             x:ClassModifier="internal"
+             x:DataType="accounts:IForgeKindViewModel">
+  <Design.DataContext>
+    <accounts:DesignForgeKindViewModel />
+  </Design.DataContext>
+  <Button x:Name="Kind"
+          Classes="segment"
+          Classes.selected="{Binding IsSelected}"
+          HorizontalAlignment="Stretch"
+          HorizontalContentAlignment="Center"
+          Padding="12,6"
+          Command="{Binding SelectCommand}">
+    <StackPanel Orientation="Horizontal" Spacing="7">
+      <Path Classes="logo inline" Data="{Binding Logo, Converter={x:Static states:PathData.Parsed}}" />
+      <TextBlock x:Name="KindName" Text="{Binding Name}" VerticalAlignment="Center" />
+    </StackPanel>
+  </Button>
+</UserControl>

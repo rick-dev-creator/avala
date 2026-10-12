@@ -5,7 +5,7 @@ namespace Avala.Workbench.RepositoryChoice;
 
 internal static class PublishPhrases
 {
-    public const string NoTargets = "No forge connection can create repositories yet: add one to forges.json in Avala's data folder, such as GitHub with a token, then open this again.";
+    public const string NoTargets = "Connect a forge account in Settings to publish.";
 
     public const string NoRemote = "This repository has no remote yet, so a pull request has nowhere to go.";
 

@@ -146,7 +146,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignMachineSettingsViewModel());
 
-            Assert.Equal(("connections.json: Applied", "10 min", 10d), (view.TextOf("ConnectionsFile"), view.TextOf("SilenceLabel"), view.Find<Slider>("SilenceSlider").Value));
+            Assert.Equal(("connections.json · Applied", "10 min", 10d), (view.TextOf("ConnectionsFile"), view.TextOf("SilenceLabel"), view.Find<Slider>("SilenceSlider").Value));
             Assert.Equal((2, false), (view.Find<ItemsControl>("Connections").ItemCount, view.Shows("SaveSilence")));
         }, TestContext.Current.CancellationToken);
 
@@ -237,9 +237,8 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
 
         return new(
             settings,
-            new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()),
-            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))),
-            new DesignNotificationsViewModel());
+            new MachineSections(new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel()),
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
     }
 
     [Fact]
