@@ -1,0 +1,81 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cards="using:Avala.Workbench.Cards"
+             x:Class="Avala.Workbench.UI.DeniedCardView"
+             x:ClassModifier="internal"
+             x:DataType="cards:IDeniedCardViewModel"
+             theme:Motion.Enter="Arrive"
+             Margin="0,6">
+  <Design.DataContext>
+    <cards:DesignDeniedCardViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceFloatBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderCardBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+      <Setter Property="Padding" Value="{DynamicResource PaddingCard}" />
+    </Style>
+    <Style Selector="Path#Mark">
+      <Setter Property="Data" Value="{StaticResource IconCross}" />
+    </Style>
+    <Style Selector="Path#Mark.allowed">
+      <Setter Property="Data" Value="{StaticResource IconCheck}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Card">
+    <StackPanel Spacing="6">
+      <Grid ColumnDefinitions="14,Auto,*,Auto" ColumnSpacing="10">
+        <Path x:Name="Mark"
+              Classes="icon"
+              Classes.allowed="{Binding IsAllowed}"
+              Width="12"
+              Height="12"
+              VerticalAlignment="Center" />
+        <TextBlock x:Name="Verdict"
+                   Grid.Column="1"
+                   Classes="secondary"
+                   Text="Denied"
+                   IsVisible="{Binding !IsAllowed}"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1"
+                   Classes="secondary"
+                   Text="Allowed"
+                   IsVisible="{Binding IsAllowed}"
+                   VerticalAlignment="Center" />
+        <TextBlock x:Name="What"
+                   Grid.Column="2"
+                   Classes="mono tertiary"
+                   FontSize="{DynamicResource FontSizeCode}"
+                   Text="{Binding What}"
+                   ToolTip.Tip="{Binding What}"
+                   TextTrimming="CharacterEllipsis"
+                   VerticalAlignment="Center" />
+        <Button x:Name="Allow"
+                Grid.Column="3"
+                Classes="quiet"
+                Content="Allow and retry"
+                Command="{Binding AllowCommand}"
+                IsVisible="{Binding CanAllow}"
+                ToolTip.Tip="Allow it for the rest of this job and tell the agent it may retry" />
+      </Grid>
+      <TextBlock x:Name="Why"
+                 Classes="caption"
+                 TextWrapping="Wrap"
+                 Text="{Binding Why}"
+                 IsVisible="{Binding !IsAllowed}" />
+      <TextBlock x:Name="Notice"
+                 Classes="caption"
+                 TextWrapping="Wrap"
+                 Text="{Binding Notice}"
+                 IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock x:Name="Error"
+                 Classes="caption failure"
+                 TextWrapping="Wrap"
+                 Text="{Binding Error}"
+                 IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </Border>
+</UserControl>

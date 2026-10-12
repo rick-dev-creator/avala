@@ -270,5 +270,5 @@ public sealed class ConversationViewModelScripts
     private static ConversationViewModel Open(FakeJobs jobs) => Open(jobs, new FakeClipboard(), new FakeFileSaver());
 
     private static ConversationViewModel Open(FakeJobs jobs, FakeClipboard clipboard, FakeFileSaver saver) =>
-        new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(new HumanReplies(new FakePermissionAnswers(), new FakeAgents()), FakeLinks.Opening, clipboard, Tools.Files()), new SendKeys(), new TranscriptExport(clipboard, saver)).Open(JobId.New());
+        new Conversations(new JobSteering(jobs, new QueuedMessages(jobs)), new TimelineItems(Replying.With(new FakePermissionAnswers()), FakeLinks.Opening, clipboard, Tools.Files()), new SendKeys(), new TranscriptExport(clipboard, saver)).Open(JobId.New());
 }

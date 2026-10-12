@@ -1,5 +1,7 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
+using Avala.Sdk;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -112,6 +114,23 @@ internal sealed partial class DesignPermissionCardViewModel : IPermissionCardVie
     public IAsyncRelayCommand AllowCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand DenyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+internal sealed class DesignDeniedCardViewModel : IDeniedCardViewModel
+{
+    public string What { get; init; } = "Fetch https://registry.npmjs.org/@testing-library/user-event";
+
+    public string Why => "Nobody was watching, so the policy denied it.";
+
+    public bool IsAllowed { get; init; }
+
+    public bool CanAllow => !IsAllowed;
+
+    public string Notice => IsAllowed ? CardPhrases.AllowedAfterDenial(Option<JobRejection>.None) : string.Empty;
+
+    public string Error => string.Empty;
+
+    public IAsyncRelayCommand AllowCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignAnswerScopeViewModel : IAnswerScopeViewModel

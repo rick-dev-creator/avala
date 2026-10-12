@@ -20,6 +20,7 @@ internal sealed class TimelineItems(HumanReplies replies, Links links, IClipboar
         PlanEntry plan => new PlanViewModel(plan),
         CanvasEntry canvas => new CanvasViewModel(canvas),
         PermissionEntry permission => new PermissionCardViewModel(permission, replies),
+        DeniedEntry denied => new DeniedCardViewModel(denied, replies),
         FormEntry form => new FormCardViewModel(form, replies),
         TurnEndEntry ended => new TurnEndViewModel(ended),
         ChildAskingEntry asked => new ChildAskingViewModel(asked),

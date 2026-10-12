@@ -106,6 +106,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<JobSteering>()
             .AddSingleton<QueuedMessages>()
             .AddForwarded<IHandle<JobProgressed>, QueuedMessages>()
+            .AddSingleton<DeniedRetries>()
             .AddSingleton<HumanReplies>()
             .AddSingleton<Links>()
             .AddSingleton<SendKeys>()
@@ -180,6 +181,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ICanvasViewModel, CanvasView>();
         views.Register<ITurnEndViewModel, TurnEndView>();
         views.Register<IPermissionCardViewModel, PermissionCardView>();
+        views.Register<IDeniedCardViewModel, DeniedCardView>();
         views.Register<IAnswerScopeViewModel, AnswerScopeView>();
         views.Register<IFormCardViewModel, FormCardView>();
         views.Register<IFormFieldViewModel, FormFieldView>();
