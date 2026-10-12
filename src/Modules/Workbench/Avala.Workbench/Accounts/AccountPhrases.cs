@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Avala.Components.Privacy;
 using Avala.Forges.Contracts;
 using Avala.Sdk;
@@ -24,6 +25,17 @@ internal static class AccountPhrases
 {
     public const string Token = "token";
 
+    private static readonly FrozenDictionary<ForgeError, string> Problems = new Dictionary<ForgeError, string>
+    {
+        [ForgeError.MissingCredential] = "Token not set",
+        [ForgeError.CliUnavailable] = "CLI not installed",
+        [ForgeError.Unauthorized] = "Signed out",
+        [ForgeError.Unreachable] = "Unreachable",
+        [ForgeError.RateLimited] = "Rate limited",
+        [ForgeError.UnknownForge] = "Plugin missing",
+        [ForgeError.MissingUrl] = "No host",
+    }.ToFrozenDictionary();
+
     public static string SignIn(AccountStatus account, Option<SignInTool> tool) => account.Source switch
     {
         CredentialSource.Cli => tool.Match(found => found.Command, () => "cli"),
@@ -31,17 +43,7 @@ internal static class AccountPhrases
         _ => string.Empty,
     };
 
-    public static string Problem(ForgeError error) => error switch
-    {
-        ForgeError.MissingCredential => "Token not set",
-        ForgeError.CliUnavailable => "CLI not installed",
-        ForgeError.Unauthorized => "Signed out",
-        ForgeError.Unreachable => "Unreachable",
-        ForgeError.RateLimited => "Rate limited",
-        ForgeError.UnknownForge => "Plugin missing",
-        ForgeError.MissingUrl => "No host",
-        _ => "Not usable",
-    };
+    public static string Problem(ForgeError error) => Problems.GetValueOrDefault(error, "Not usable");
 
     public static PersonalPhrase Cli(CliState state, string cli, string login) => state switch
     {
