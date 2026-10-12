@@ -50,7 +50,10 @@ internal sealed class WindowsListeningPorts : IListeningPorts
     public ValueTask<IReadOnlyList<Listener>> ListAsync(IReadOnlySet<int> owners, CancellationToken cancellationToken) =>
         ValueTask.FromResult<IReadOnlyList<Listener>>([.. Read(TcpFamily.Ipv4).Concat(Read(TcpFamily.Ipv6)).Distinct()]);
 
-    private static IReadOnlyList<Listener> Read(TcpFamily family)
+    private static IReadOnlyList<Listener> Read(TcpFamily family) =>
+        Table(family).Match<IReadOnlyList<Listener>>(table => TcpTables.Listeners(table, family), () => []);
+
+    private static Option<byte[]> Table(TcpFamily family)
     {
         var size = 0;
         byte[]? table = null;
@@ -61,7 +64,7 @@ internal sealed class WindowsListeningPorts : IListeningPorts
             table = new byte[size];
         }
 
-        return outcome == 0 && table is not null ? TcpTables.Listeners(table, family) : [];
+        return outcome == 0 ? table.ToOption() : Option<byte[]>.None;
     }
 
     [DllImport("iphlpapi.dll")]
