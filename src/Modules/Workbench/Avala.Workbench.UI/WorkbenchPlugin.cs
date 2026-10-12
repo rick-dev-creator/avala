@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
+using Avala.Components.Privacy;
 using Avala.Components.UI.Copying;
 using Avala.Components.UI.Folders;
 using Avala.Workbench.Timeline;
@@ -108,10 +109,14 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<JobSteering>()
             .AddSingleton<QueuedMessages>()
             .AddForwarded<IHandle<JobProgressed>, QueuedMessages>()
+            .AddSingleton<DeniedRetries>()
             .AddSingleton<HumanReplies>()
             .AddSingleton<Links>()
             .AddSingleton<SendKeys>()
             .AddForwarded<IHandle<AppearanceChanged>, SendKeys>()
+            .AddSingleton<PersonalDetailsViewModel>()
+            .AddForwarded<IPersonalDetailsViewModel, PersonalDetailsViewModel>()
+            .AddForwarded<IHandle<AppearanceChanged>, PersonalDetailsViewModel>()
             .AddSingleton<TimelineItems>()
             .AddSingleton<WorkedFiles>()
             .AddSingleton<Conversations>()
@@ -124,6 +129,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ForgeDesk>()
             .AddSingleton<ReviewDesk>()
             .AddSingleton<Reviews>()
+            .AddSingleton<JobRegions>()
             .AddSingleton<JobScreens>()
             .AddSingleton<DecisionsViewModel>()
             .AddForwarded<IDecisionsViewModel, DecisionsViewModel>()
@@ -142,6 +148,11 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterAccounts(registrar.Services);
         RegisterRepositoryChoice(registrar.Services);
         RegisterContests(registrar);
+        RegisterFooter(registrar);
+    }
+
+    private static void RegisterFooter(IPluginRegistrar registrar)
+    {
         registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
         registrar.AddToRegion<UpdateNoticeViewModel>(ShellRegions.SidebarFooter, 10);
         RegisterTelemetry(registrar);
@@ -185,6 +196,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ICanvasViewModel, CanvasView>();
         views.Register<ITurnEndViewModel, TurnEndView>();
         views.Register<IPermissionCardViewModel, PermissionCardView>();
+        views.Register<IDeniedCardViewModel, DeniedCardView>();
         views.Register<IAnswerScopeViewModel, AnswerScopeView>();
         views.Register<IFormCardViewModel, FormCardView>();
         views.Register<IFormFieldViewModel, FormFieldView>();
@@ -284,7 +296,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton(provider => new MachineSections(
                 provider.GetRequiredService<IDefaultConnectionViewModel>(),
                 provider.GetRequiredService<INotificationsViewModel>(),
-                provider.GetRequiredService<ISourceControlViewModel>()));
+                provider.GetRequiredService<ISourceControlViewModel>(),
+                provider.GetRequiredService<IPersonalDetailsViewModel>()));
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
         services

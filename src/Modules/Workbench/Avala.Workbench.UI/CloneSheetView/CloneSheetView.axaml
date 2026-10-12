@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:choice="using:Avala.Workbench.RepositoryChoice"
              x:Class="Avala.Workbench.UI.CloneSheetView"
              x:ClassModifier="internal"
@@ -67,7 +68,7 @@
         <Button x:Name="CancelClone" DockPanel.Dock="Right" Content="Cancel" Command="{Binding CancelCommand}" />
         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <Path Classes="icon" Data="{StaticResource IconFolder}" Stroke="{DynamicResource TextTertiaryBrush}" />
-          <TextBlock x:Name="Destination" Classes="caption mono" Text="{Binding Destination}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+          <TextBlock x:Name="Destination" Classes="caption mono" privacy:PersonalDetails.Text="{Binding Destination}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
           <Button x:Name="ChangeDestination" Classes="link" Content="Change" Command="{Binding ChangeDestinationCommand}" />
         </StackPanel>
       </DockPanel>

@@ -35,6 +35,11 @@ public interface IPermissionAnswers
     ValueTask<Result<HumanAnswer, PolicyError>> AnswerAsync(SessionId session, PermissionReply reply, CancellationToken cancellationToken);
 }
 
+public interface IDeniedRequests
+{
+    ValueTask<Result<HumanAnswer, PolicyError>> AllowAsync(SessionId session, ItemId item, CancellationToken cancellationToken);
+}
+
 public interface IAnswerSharing
 {
     ValueTask<IReadOnlyList<JobId>> SharersAsync(JobId job, CancellationToken cancellationToken);

@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -29,6 +30,8 @@ internal interface IAppearanceViewModel
 
     string Error { get; }
 
+    IPersonalDetailsViewModel PersonalDetails { get; }
+
     IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; }
 
     IAsyncRelayCommand<MotionChoice> ChooseMotionCommand { get; }
@@ -41,7 +44,7 @@ internal interface IAppearanceViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class AppearanceViewModel(IAppearance appearance) : IAppearanceViewModel
+internal sealed partial class AppearanceViewModel(IAppearance appearance, IPersonalDetailsViewModel personalDetails) : IAppearanceViewModel
 {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FollowsSystem), nameof(IsLight), nameof(IsDark), nameof(MotionFollowsSystem), nameof(IsMotionReduced), nameof(IsMotionFull), nameof(IsReadingComfortable), nameof(IsReadingWide), nameof(SendsWithCommandEnter))]
@@ -68,29 +71,33 @@ internal sealed partial class AppearanceViewModel(IAppearance appearance) : IApp
     public bool IsReadingComfortable => Preference.Reading == ReadingChoice.Comfortable;
 
     public bool IsReadingWide => Preference.Reading == ReadingChoice.Wide;
+
     public bool SendsWithCommandEnter => Preference.Send == SendKey.CommandEnter;
+
+    public IPersonalDetailsViewModel PersonalDetails => personalDetails;
 
     public async Task LoadAsync(CancellationToken cancellationToken) => Show(await appearance.ReadAsync(cancellationToken));
 
     [RelayCommand]
     private Task ChooseThemeAsync(ThemeChoice theme, CancellationToken cancellationToken) =>
-        ChangeAsync(Preference with { Theme = theme }, cancellationToken);
+        ChangeAsync(latest => latest with { Theme = theme }, cancellationToken);
 
     [RelayCommand]
     private Task ChooseMotionAsync(MotionChoice motion, CancellationToken cancellationToken) =>
-        ChangeAsync(Preference with { Motion = motion }, cancellationToken);
+        ChangeAsync(latest => latest with { Motion = motion }, cancellationToken);
 
     [RelayCommand]
     private Task ChooseReadingAsync(ReadingChoice reading, CancellationToken cancellationToken) =>
-        ChangeAsync(Preference with { Reading = reading }, cancellationToken);
+        ChangeAsync(latest => latest with { Reading = reading }, cancellationToken);
 
     [RelayCommand]
     private Task ToggleSendKeyAsync(CancellationToken cancellationToken) =>
-        ChangeAsync(Preference with { Send = SendsWithCommandEnter ? SendKey.Enter : SendKey.CommandEnter }, cancellationToken);
+        ChangeAsync(latest => latest with { Send = SendsWithCommandEnter ? SendKey.Enter : SendKey.CommandEnter }, cancellationToken);
 
-    private async Task ChangeAsync(AppearancePreference preference, CancellationToken cancellationToken)
+    private async Task ChangeAsync(Func<AppearancePreference, AppearancePreference> change, CancellationToken cancellationToken)
     {
-        var changed = await appearance.ChangeAsync(preference, cancellationToken);
+        var latest = (await appearance.ReadAsync(cancellationToken)).Preference;
+        var changed = await appearance.ChangeAsync(change(latest), cancellationToken);
         Error = changed.Match(_ => string.Empty, AppearancePhrases.Error);
 
         if (changed.TryGetValue(out var settings, out _))

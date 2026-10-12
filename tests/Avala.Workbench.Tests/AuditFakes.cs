@@ -131,10 +131,16 @@ internal sealed class FakeWorkspaces : IWorkspaces
 {
     public Dictionary<WorkspaceId, WorkspaceInfo> Known { get; } = [];
 
-    public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> FindAsync(WorkspaceId workspace, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(Known.TryGetValue(workspace, out var found)
+    public Task Reachable { get; set; } = Task.CompletedTask;
+
+    public async ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> FindAsync(WorkspaceId workspace, CancellationToken cancellationToken)
+    {
+        await Reachable.WaitAsync(cancellationToken);
+
+        return Known.TryGetValue(workspace, out var found)
             ? Result<WorkspaceInfo, WorkspaceFailure>.Success(found)
-            : Result<WorkspaceInfo, WorkspaceFailure>.Failure(WorkspaceFailure.UnknownWorkspace));
+            : Result<WorkspaceInfo, WorkspaceFailure>.Failure(WorkspaceFailure.UnknownWorkspace);
+    }
 
     public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> PrepareAsync(WorkspaceRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 

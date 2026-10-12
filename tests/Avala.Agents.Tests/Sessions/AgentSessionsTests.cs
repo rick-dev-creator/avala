@@ -366,6 +366,20 @@ public sealed class AgentSessionsTests
     }
 
     [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task APreviewIsOfferedOnlyToAProviderThatAcceptsItAsync(bool accepts, bool offered)
+    {
+        var preview = new PreviewOffer("AVALA_PORT", "AVALA_PORTS");
+        var provider = new ScriptedAgentProvider(ScriptedAgentProvider.Reply) { Capabilities = accepts ? Declared.With(new AcceptsPreview()) : Declared };
+        await using var agents = new AgentSessions(Connected.Offering([provider], preview), new RecordingBus(), TimeProvider.System, NullLogger<AgentSessions>.Instance);
+
+        Outcomes.Succeeds(await agents.OpenAsync(Request, Cancellation));
+
+        Assert.Equal(offered ? Option<PreviewOffer>.Some(preview) : Option<PreviewOffer>.None, Assert.Single(provider.Sessions).Options.Preview);
+    }
+
+    [Theory]
     [InlineData(true, false, true)]
     [InlineData(false, false, false)]
     [InlineData(true, true, false)]

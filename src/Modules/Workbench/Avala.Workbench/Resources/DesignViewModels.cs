@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Components.Meters;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
@@ -44,11 +45,11 @@ internal sealed class DesignOrphanViewModel(Option<JobId> job, IReadOnlyList<str
 internal sealed class DesignStaleWorktreeViewModel(string path, string reason) : IStaleWorktreeViewModel
 {
     public DesignStaleWorktreeViewModel()
-        : this("~/.avala/worktrees/ledger-api/switch-queue-fifo", "not known to any job")
+        : this("/home/dana/.avala/worktrees/ledger-api/switch-queue-fifo", "not known to any job")
     {
     }
 
-    public string Path { get; } = path;
+    public Personal Path { get; } = Personal.Path(path);
 
     public string Reason { get; } = reason;
 }
@@ -99,7 +100,7 @@ internal sealed class DesignResourcesViewModel : IResourcesViewModel
     public IReadOnlyList<IStaleWorktreeViewModel> StaleWorktrees { get; } =
     [
         new DesignStaleWorktreeViewModel(),
-        new DesignStaleWorktreeViewModel("~/.avala/worktrees/ledger-api/paginate-audit-export", "missing from the disk"),
+        new DesignStaleWorktreeViewModel("/home/dana/.avala/worktrees/ledger-api/paginate-audit-export", "missing from the disk"),
     ];
 
     public IReadOnlyList<string> Leases { get; } =

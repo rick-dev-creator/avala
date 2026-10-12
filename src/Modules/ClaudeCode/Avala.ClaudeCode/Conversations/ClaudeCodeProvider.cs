@@ -20,6 +20,7 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         new Interruptible(),
         new Resumable(),
         new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
+        new AcceptsPreview(),
         new AsksForms(),
         new AcceptsMessagesMidTurn(),
         new ReportsUsage(),

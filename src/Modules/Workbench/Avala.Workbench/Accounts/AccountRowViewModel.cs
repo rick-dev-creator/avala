@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Forges.Contracts;
 using Avala.Workbench.Machine;
 using CommunityToolkit.Mvvm.Input;
@@ -8,7 +9,7 @@ internal interface IAccountRowViewModel
 {
     string Name { get; }
 
-    string Login { get; }
+    Personal Login { get; }
 
     string Host { get; }
 
@@ -33,7 +34,7 @@ internal sealed class AccountRowViewModel(AccountStatus account, SourceControlSt
 
     public string Name { get; } = account.Name.Value;
 
-    public string Login { get; } = account.Account.Match(found => found.Login, () => account.Name.Value);
+    public Personal Login { get; } = AccountPhrases.Login(account);
 
     public string Host { get; } = account.Host.Length > 0 ? account.Host : state.Kind(account.ForgeKind).Match(kind => kind.Name, () => account.ForgeKind);
 

@@ -1,10 +1,11 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Avala.Sdk.Regions;
 using ArchUnitNET.Domain.Dependencies;
 
 namespace Avala.ArchitectureTests.Views;
 
-internal static class ViewModelRules
+internal static partial class ViewModelRules
 {
     private const BindingFlags InstanceFields = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
@@ -55,6 +56,15 @@ internal static class ViewModelRules
                 ViewRule.NoUiFrameworkInViewModels,
                 found.Type,
                 $"lives in {found.Type.Assembly.GetName().Name}, which references {found.Framework}; move it to the module's core assembly, which knows no UI framework"));
+
+    public static IEnumerable<Finding> PersonalDetailsAsText(ViewScope scope) =>
+        scope.Types.Where(type => type.IsViewModelInterface)
+            .SelectMany(contract => contract.GetProperties()
+                .Where(property => property.PropertyType == typeof(string) && PersonalName().IsMatch(property.Name))
+                .Select(property => Finding.OfType(
+                    ViewRule.PersonalDetailsThroughPersonal,
+                    contract,
+                    $"exposes {property.Name} as plain text; expose a person's email, login, account name or organization as Avala.Components.Privacy.Personal, or a sentence holding one as PersonalPhrase, and show it with PersonalDetails.Text so it is masked while personal details are hidden")));
 
     public static IEnumerable<Finding> ReferencingParentOrSibling(ViewScope scope)
     {
@@ -114,4 +124,7 @@ internal static class ViewModelRules
             .Select(reference => reference.Name ?? string.Empty)
             .FirstOrDefault(name => UiFrameworks.Any(framework =>
                 name == framework || name.StartsWith($"{framework}.", StringComparison.Ordinal)));
+
+    [GeneratedRegex("(?:Email|Login|Account|Organization|UserName|Owner)(?=[A-Z]|$)")]
+    private static partial Regex PersonalName();
 }

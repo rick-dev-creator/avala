@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Forges.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Presenting;
@@ -42,13 +43,16 @@ internal static class AccountPhrases
         _ => "Not usable",
     };
 
-    public static string Cli(CliState state, string cli, string login) => state switch
+    public static PersonalPhrase Cli(CliState state, string cli, string login) => state switch
     {
-        CliState.SignedIn => $"Signed in as {login}",
-        CliState.SignedOut => $"{cli} is not signed in",
-        CliState.Missing => $"{cli} is not installed",
-        _ => string.Empty,
+        CliState.SignedIn => new PersonalPhrase("Signed in as ", Personal.Login(login)),
+        CliState.SignedOut => new PersonalPhrase($"{cli} is not signed in"),
+        CliState.Missing => new PersonalPhrase($"{cli} is not installed"),
+        _ => PersonalPhrase.Empty,
     };
+
+    public static Personal Login(AccountStatus account) =>
+        account.Account.Match(found => Personal.Login(found.Login), () => Personal.Plain(account.Name.Value));
 
     public static string Monogram(string name)
     {

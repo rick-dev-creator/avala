@@ -17,7 +17,7 @@ public sealed class AboutViewModelScripts
     [Fact]
     public void ItShowsTheVersionTheShortCommitAndTheLogFolder() =>
         ViewModelScript.Given(new AboutViewModel(Update(Build), new DesignTelemetryViewModel(), new SettingsFiles(new FakeOpener(), Paths), new FakeLinks()))
-            .Then(about => Assert.Equal(("0.9.0-beta.1", "5c371e6a1b2d", Path.Combine("data", "Avala", "logs"), string.Empty), (about.Version, about.Commit, about.LogFolder, about.Note)));
+            .Then(about => Assert.Equal(("0.9.0-beta.1", "5c371e6a1b2d", Path.Combine("data", "Avala", "logs"), string.Empty), (about.Version, about.Commit, about.LogFolder.Value, about.Note)));
 
     [Fact]
     public void ABuildWithoutACommitSaysItIsUnknown() =>

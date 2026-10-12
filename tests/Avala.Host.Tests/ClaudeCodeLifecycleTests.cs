@@ -36,6 +36,7 @@ public sealed class ClaudeCodeLifecycleTests(PublishedPlugins plugins)
             [.. claude.Data, Silence(Window)],
             []);
 
+        await run.ProgressedAsync("starting with the parser");
         await run.SilentForAsync(Window);
 
         await AssertStalledAsync(run);

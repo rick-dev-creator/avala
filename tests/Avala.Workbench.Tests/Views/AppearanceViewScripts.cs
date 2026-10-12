@@ -1,4 +1,6 @@
+using Avala.Components.Privacy;
 using Avala.Sdk.Appearance;
+using Avala.Testing;
 using Avala.Testing.UI;
 using Avala.Workbench.Settings;
 
@@ -7,6 +9,8 @@ namespace Avala.Workbench.Tests.Views;
 public sealed class AppearanceViewScripts(HeadlessUi ui)
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    private static AppearanceViewModel Settings(FakeAppearance store) => new(store, new PersonalDetailsViewModel(store, InlineUiDispatcher.Instance));
 
     [Fact]
     public Task TheSectionShowsTheChosenThemeTheChosenMotionAndTheFileAsync() =>
@@ -25,7 +29,7 @@ public sealed class AppearanceViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var store = new FakeAppearance();
-            var appearance = new AppearanceViewModel(store);
+            var appearance = Settings(store);
             await appearance.LoadAsync(Cancellation);
             var view = Screen.Show(appearance);
 
@@ -42,7 +46,7 @@ public sealed class AppearanceViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var store = new FakeAppearance(new AppearancePreference(ThemeChoice.Dark, MotionChoice.Reduced));
-            var appearance = new AppearanceViewModel(store);
+            var appearance = Settings(store);
             await appearance.LoadAsync(Cancellation);
             var view = Screen.Show(appearance);
 
@@ -58,7 +62,7 @@ public sealed class AppearanceViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var store = new FakeAppearance();
-            var appearance = new AppearanceViewModel(store);
+            var appearance = Settings(store);
             await appearance.LoadAsync(Cancellation);
             var view = Screen.Show(appearance, Avalonia.Styling.ThemeVariant.Dark, 900, 700);
 
@@ -79,5 +83,24 @@ public sealed class AppearanceViewScripts(HeadlessUi ui)
 
             Assert.True(view.Shows("AppearanceError"));
             Assert.Contains("appearance.json could not be written, so the change was not kept.", view.VisibleTexts);
+        }, Cancellation);
+
+    [Fact]
+    public Task TheHidePersonalDetailsSwitchIsOnByDefaultAndTurningItOffRevealsThemAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var store = new FakeAppearance();
+            var appearance = Settings(store);
+            await appearance.LoadAsync(Cancellation);
+            var view = Screen.Show(appearance, Avalonia.Styling.ThemeVariant.Dark, 900, 700);
+            var onAtFirst = view.Find<Avalonia.Controls.ToggleSwitch>("HidePersonalDetails").IsChecked;
+
+            view.Click("HidePersonalDetails");
+            await (appearance.PersonalDetails.ToggleCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.True(onAtFirst);
+            Assert.Equal([AppearancePreference.Default with { HidesPersonalDetails = false }], store.Changes);
+            Assert.False(view.Find<Avalonia.Controls.ToggleSwitch>("HidePersonalDetails").IsChecked);
         }, Cancellation);
 }

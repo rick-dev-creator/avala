@@ -61,6 +61,7 @@ public sealed class RecordingProcessTrees(IReadOnlyDictionary<string, string> en
 public sealed class RecordingTree(ProcessTreeId id, string home, IReadOnlyDictionary<string, string> environment) : IProcessTree
 {
     private readonly ConcurrentQueue<int> started = new();
+    private readonly ConcurrentQueue<ProcessStartInfo> requests = new();
 
     public ProcessTreeId Id { get; } = id;
 
@@ -71,12 +72,16 @@ public sealed class RecordingTree(ProcessTreeId id, string home, IReadOnlyDictio
 
     public IReadOnlyList<int> Started => [.. started];
 
+    public IReadOnlyList<ProcessStartInfo> Requests => [.. requests];
+
     public Result<Process, ProcessError> Start(ProcessStartInfo info)
     {
         foreach (var (name, value) in Environment)
         {
             info.Environment[name] = value;
         }
+
+        requests.Enqueue(info);
 
         return ProcessStarts.Start(info).Map(process =>
         {

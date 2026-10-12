@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Testing.UI;
 using Avala.Workbench.Harnesses;
 using Avala.Workbench.Welcome;
@@ -14,14 +15,14 @@ public sealed class WelcomeViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task AnEmptyBoardShowsTheQuestionTheComposerTheThreeStartsAndTheAccountsAsync() =>
+    public Task AnEmptyBoardShowsTheQuestionTheComposerTheThreeStartsAndTheAccountsWithLoginsMaskedAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignWelcomeViewModel(), Avalonia.Styling.ThemeVariant.Dark, 1000, 760);
 
             Assert.Equal(WelcomePhrases.Title, view.TextOf("Hero"));
             Assert.Equal((true, true, true, true, true), (view.Shows("WelcomeInstruction"), view.Shows("OpenFolder"), view.Shows("Clone"), view.Shows("NewRepository"), view.Shows("Connect")));
-            Assert.Equal(["claude-work", "octocat"], view.All<TextBlock>().Where(text => text.Name == "ChipLabel").Select(text => text.Text));
+            Assert.Equal(["claude-work", "oc•••••"], view.All<TextBlock>().Where(text => text.Name == "ChipLabel").Select(text => text.Text));
         }, Cancellation);
 
     [Fact]
@@ -52,7 +53,7 @@ public sealed class WelcomeViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var view = Screen.Show(
-                new DesignWelcomeViewModel { CanCompose = false, Chips = [new DesignAccountChipViewModel { Label = "Claude Code", IsAttention = true, FixLabel = WelcomePhrases.CheckAgain }] },
+                new DesignWelcomeViewModel { CanCompose = false, Chips = [new DesignAccountChipViewModel { Label = Personal.Plain("Claude Code"), IsAttention = true, FixLabel = WelcomePhrases.CheckAgain }] },
                 Avalonia.Styling.ThemeVariant.Dark,
                 1000,
                 760);

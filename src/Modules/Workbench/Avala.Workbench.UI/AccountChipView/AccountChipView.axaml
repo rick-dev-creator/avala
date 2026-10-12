@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:welcome="using:Avala.Workbench.Welcome"
              xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.AccountChipView"
@@ -16,7 +17,7 @@
           <TextBlock x:Name="ChipMonogram" Classes="monogram" Text="{Binding Monogram}" IsVisible="{Binding !HasLogo}" HorizontalAlignment="Center" VerticalAlignment="Center" />
         </Panel>
       </Border>
-      <TextBlock x:Name="ChipLabel" Text="{Binding Label}" VerticalAlignment="Center" />
+      <TextBlock x:Name="ChipLabel" privacy:PersonalDetails.Text="{Binding Label}" VerticalAlignment="Center" />
       <Ellipse x:Name="ChipDot" Classes="dot" Classes.attention="{Binding IsAttention}" />
       <Button x:Name="ChipFix"
               Classes="fix"

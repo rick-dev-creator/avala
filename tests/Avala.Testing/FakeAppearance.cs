@@ -1,9 +1,9 @@
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
 
-namespace Avala.Workbench.Tests;
+namespace Avala.Testing;
 
-internal sealed class FakeAppearance(AppearancePreference? initial = null) : IAppearance
+public sealed class FakeAppearance(AppearancePreference? initial = null) : IAppearance
 {
     private AppearancePreference current = initial ?? AppearancePreference.Default;
 

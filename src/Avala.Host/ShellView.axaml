@@ -219,7 +219,7 @@
               theme:Chrome.IsBare="{Binding !IsSidebarShown}"
               theme:Chrome.IsFocusMode="{Binding IsFocused}">
         <Panel>
-          <ui:Stage x:Name="ContentRegion" KeepsAlive="True" Content="{Binding SelectedPage}" />
+          <ui:Stage x:Name="ContentRegion" Keeps="16" Content="{Binding SelectedPage}" />
           <Border x:Name="EmptyContent"
                   Classes="empty"
                   HorizontalAlignment="Center"

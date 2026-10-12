@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Budgets.Contracts;
@@ -8,6 +9,7 @@ using Avala.Sdk;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
 using Avala.Workbench.Spending;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Usage;
 
@@ -95,22 +97,55 @@ internal interface IInterventionViewModel
     string Detail { get; }
 }
 
-internal sealed class ConnectionMeterViewModel(ConnectionSpend connection) : IConnectionMeterViewModel
+[INotifyPropertyChanged]
+internal sealed partial class ConnectionMeterViewModel : IConnectionMeterViewModel
 {
-    public string Name { get; } = connection.Usage.Connection.Value;
+    private readonly ObservableCollection<LimitViewModel> limits = [];
 
-    public string Provider { get; } = connection.Usage.Provider.Name;
+    public ConnectionMeterViewModel(ConnectionSpend connection)
+    {
+        Name = connection.Usage.Connection.Value;
+        Provider = string.Empty;
+        Cost = string.Empty;
+        Tokens = string.Empty;
+        Unpriced = string.Empty;
+        Caps = string.Empty;
+        Show(connection);
+    }
 
-    public string Cost { get; } = Amounts.Costs(connection.Usage.Usage.Costs);
+    public string Name { get; }
 
-    public string Tokens { get; } = Amounts.Tokens(connection.Usage.Usage.Tokens.Total());
+    [ObservableProperty]
+    public partial string Provider { get; private set; }
 
-    public string Unpriced { get; } = Amounts.Unpriced(connection.Usage.Usage.UnpricedReports);
+    [ObservableProperty]
+    public partial string Cost { get; private set; }
 
-    public string Caps { get; } = connection.Caps.Match(Amounts.Caps, () => "no caps known yet");
+    [ObservableProperty]
+    public partial string Tokens { get; private set; }
 
-    public IReadOnlyList<ILimitViewModel> Limits { get; } =
-        [.. connection.Limits.Select(limit => new LimitViewModel(limit, connection.Caps.Bind(caps => caps.HoldAtLimit)))];
+    [ObservableProperty]
+    public partial string Unpriced { get; private set; }
+
+    [ObservableProperty]
+    public partial string Caps { get; private set; }
+
+    public IReadOnlyList<ILimitViewModel> Limits => limits;
+
+    public void Show(ConnectionSpend connection)
+    {
+        Provider = connection.Usage.Provider.Name;
+        Cost = Amounts.Costs(connection.Usage.Usage.Costs);
+        Tokens = Amounts.Tokens(connection.Usage.Usage.Tokens.Total());
+        Unpriced = Amounts.Unpriced(connection.Usage.Usage.UnpricedReports);
+        Caps = connection.Caps.Match(Amounts.Caps, () => "no caps known yet");
+        var holdAt = connection.Caps.Bind(caps => caps.HoldAtLimit);
+        limits.ShowInPlace(
+            connection.Limits,
+            (limit, reading) => limit.Window == reading.Limit.Window,
+            reading => new LimitViewModel(reading, holdAt),
+            (limit, reading) => limit.Show(reading, holdAt));
+    }
 }
 
 internal sealed class UsageWindowViewModel(string label, UsagePeriod period) : IUsageWindowViewModel

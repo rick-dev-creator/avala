@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:accounts="using:Avala.Workbench.Accounts"
              xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.AccountRowView"
@@ -13,7 +14,7 @@
       <Path x:Name="Logo" Classes="logo" Data="{Binding Logo, Converter={x:Static states:PathData.Parsed}}" />
     </Border>
     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-      <TextBlock x:Name="Login" Text="{Binding Login}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="Login" privacy:PersonalDetails.Text="{Binding Login}" TextTrimming="CharacterEllipsis" />
       <StackPanel Orientation="Horizontal" Spacing="6">
         <TextBlock x:Name="Host" Classes="caption" Text="{Binding Host}" TextTrimming="CharacterEllipsis" />
         <TextBlock x:Name="Problem"

@@ -1,3 +1,4 @@
+using Avala.Components.UI.Privacy;
 using Avala.Components.UI.Theme;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
@@ -50,6 +51,7 @@ internal sealed class AppearanceApplier(Application application)
         {
             Motion.SetIsReduced(window, IsReduced);
             Reading.SetIsWide(window, preference.Reading == ReadingChoice.Wide);
+            PersonalDetails.SetAreHidden(window, preference.HidesPersonalDetails);
         }
     }
 

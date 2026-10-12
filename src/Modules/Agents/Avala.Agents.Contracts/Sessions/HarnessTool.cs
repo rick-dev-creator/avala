@@ -12,3 +12,5 @@ public sealed record ToolResult(ItemId Item, string Content)
 {
     public bool IsError { get; init; }
 }
+
+public sealed record PreviewOffer(string PortVariable, string PortsVariable);

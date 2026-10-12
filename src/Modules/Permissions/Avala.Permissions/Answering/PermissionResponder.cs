@@ -16,7 +16,7 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
         IReadOnlyList<PolicyRule> jobRules,
         CancellationToken cancellationToken)
     {
-        var request = requested.Facts(session.WorkingDirectory, paths);
+        var request = requested.Facts(session.WorkingDirectory, session.Scratch, paths);
         var verdict = session.Policy.Decide(request, jobRules);
         var delivery = verdict.Answer switch
         {
@@ -27,7 +27,7 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
 
         var contested = delivery == DecisionDelivery.LeftToHuman && await SharedAsync(session.Job, cancellationToken);
 
-        return (Decided(session, requested, request, verdict, delivery) with { Contested = contested, Scope = Scoped(session, request, jobRules, delivery) }, request);
+        return (Decided(session, requested, request, verdict, delivery) with { Contested = contested, Scope = Scoped(session, request, jobRules, verdict, delivery) }, request);
     }
 
     public async Task<FormDecision> DecideAsync(GovernedSession session, FormRequested requested, CancellationToken cancellationToken)
@@ -73,10 +73,13 @@ internal sealed class PermissionResponder(IAgents agents, IRealPaths paths, Time
             Parent = delivery == DecisionDelivery.LeftToParent ? session.AsksParent : Option<JobId>.None,
         };
 
-    private static Option<JobScope> Scoped(GovernedSession session, PermissionRequest request, IReadOnlyList<PolicyRule> jobRules, DecisionDelivery delivery) =>
-        delivery is DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent && session.Job.IsSome
+    private static Option<JobScope> Scoped(GovernedSession session, PermissionRequest request, IReadOnlyList<PolicyRule> jobRules, Verdict verdict, DecisionDelivery delivery) =>
+        (delivery is DecisionDelivery.LeftToHuman or DecisionDelivery.LeftToParent || AutonomouslyDenied(session, verdict, delivery)) && session.Job.IsSome
             ? session.Policy.InJob(request, jobRules)
             : Option<JobScope>.None;
+
+    private static bool AutonomouslyDenied(GovernedSession session, Verdict verdict, DecisionDelivery delivery) =>
+        delivery == DecisionDelivery.Answered && verdict.Answer == PolicyAnswer.Deny && session.Policy.Autonomy == Autonomy.Autonomous;
 
     private async Task<bool> SharedAsync(Option<JobId> job, CancellationToken cancellationToken)
     {

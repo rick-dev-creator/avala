@@ -19,4 +19,5 @@ internal enum ViewRule
     NamedIconButtons,
     TypedRegionReferences,
     KeptSelections,
+    PersonalDetailsThroughPersonal,
 }

@@ -13,9 +13,9 @@ public sealed class RememberedLayout(WindowLayout remembered) : IWindowLayout
 
     public ValueTask<WindowLayout> ReadAsync(CancellationToken cancellationToken) => ValueTask.FromResult(Remembered);
 
-    public ValueTask RememberAsync(WindowLayout layout, CancellationToken cancellationToken)
+    public ValueTask RememberAsync(Func<WindowLayout, WindowLayout> change, CancellationToken cancellationToken)
     {
-        Remembered = layout;
+        Remembered = change(Remembered);
 
         return ValueTask.CompletedTask;
     }

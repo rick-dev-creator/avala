@@ -2,6 +2,7 @@ using Avala.Components.Meters;
 using Avala.Sdk;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Spending;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Usage;
 
@@ -30,31 +31,64 @@ internal interface ILimitViewModel
     bool IsExpired { get; }
 }
 
-internal sealed class LimitViewModel(LimitReading reading, Option<double> holdAt) : ILimitViewModel
+[INotifyPropertyChanged]
+internal sealed partial class LimitViewModel : ILimitViewModel
 {
-    public string Window { get; } = reading.Limit.Window;
+    public LimitViewModel(LimitReading reading, Option<double> holdAt)
+    {
+        Window = reading.Limit.Window;
+        Label = UsagePhrases.Window(reading.Limit.Window);
+        UsedText = string.Empty;
+        Resets = string.Empty;
+        HoldAt = string.Empty;
+        Show(reading, holdAt);
+    }
 
-    public string Label { get; } = UsagePhrases.Window(reading.Limit.Window);
+    public string Window { get; }
 
-    public double Used { get; } = Math.Clamp(reading.Used, 0, 1);
+    public string Label { get; }
 
-    public string UsedText { get; } = reading.Expired ? "reset" : Amounts.Percent(reading.Limit.UsedFraction);
+    [ObservableProperty]
+    public partial double Used { get; private set; }
 
-    public string Resets { get; } = reading.Limit.ResetsAt.Match(
-        at => reading.Expired ? $"reset {Amounts.Time(at)}, no reading since" : $"resets {Amounts.Time(at)}",
-        () => "no reset reported");
+    [ObservableProperty]
+    public partial string UsedText { get; private set; }
 
-    public string HoldAt { get; } = holdAt.Match(threshold => $"Jobs on this connection hold at the {Amounts.Percent(threshold)} threshold.", () => string.Empty);
+    [ObservableProperty]
+    public partial string Resets { get; private set; }
 
-    public bool HasHold { get; } = holdAt.IsSome;
+    [ObservableProperty]
+    public partial string HoldAt { get; private set; }
 
-    public double Hold { get; } = holdAt.Match(threshold => Math.Clamp(threshold, 0, 1), () => 0d);
+    [ObservableProperty]
+    public partial bool HasHold { get; private set; }
 
-    public bool IsNear { get; } = holdAt.Match(threshold => reading.Used >= threshold - MeterViewModel.AttentionMargin, () => false);
+    [ObservableProperty]
+    public partial double Hold { get; private set; }
 
-    public bool ReachesHold { get; } = holdAt.Match(threshold => reading.Used >= threshold, () => false);
+    [ObservableProperty]
+    public partial bool IsNear { get; private set; }
 
-    public bool IsExpired { get; } = reading.Expired;
+    [ObservableProperty]
+    public partial bool ReachesHold { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsExpired { get; private set; }
+
+    public void Show(LimitReading reading, Option<double> holdAt)
+    {
+        Used = Math.Clamp(reading.Used, 0, 1);
+        UsedText = reading.Expired ? "reset" : Amounts.Percent(reading.Limit.UsedFraction);
+        Resets = reading.Limit.ResetsAt.Match(
+            at => reading.Expired ? $"reset {Amounts.Time(at)}, no reading since" : $"resets {Amounts.Time(at)}",
+            () => "no reset reported");
+        HoldAt = holdAt.Match(threshold => $"Jobs on this connection hold at the {Amounts.Percent(threshold)} threshold.", () => string.Empty);
+        HasHold = holdAt.IsSome;
+        Hold = holdAt.Match(threshold => Math.Clamp(threshold, 0, 1), () => 0d);
+        IsNear = holdAt.Match(threshold => reading.Used >= threshold - MeterViewModel.AttentionMargin, () => false);
+        ReachesHold = holdAt.Match(threshold => reading.Used >= threshold, () => false);
+        IsExpired = reading.Expired;
+    }
 }
 
 internal static class UsagePhrases

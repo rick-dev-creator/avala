@@ -20,9 +20,9 @@ public sealed class CloneSheetViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignCloneSheetViewModel());
 
-            Assert.Equal(["octocat", "ada"], view.All<TextBlock>().Where(text => text.Name == "SourceLogin").Select(text => text.Text));
+            Assert.Equal(["oc•••••", "ad•••••"], view.All<TextBlock>().Where(text => text.Name == "SourceLogin").Select(text => text.Text));
             Assert.Equal(["shop", "design-system", "ledger"], view.All<TextBlock>().Where(text => text.Name == "RepositoryName").Select(text => text.Text));
-            Assert.Equal(("/home/ada/Projects", "Search or paste a URL", false), (view.TextOf("Destination"), view.Find<TextBox>("CloneSearch").PlaceholderText, view.Shows("CloneAddress")));
+            Assert.Equal(("~/Projects", "Search or paste a URL", false), (view.TextOf("Destination"), view.Find<TextBox>("CloneSearch").PlaceholderText, view.Shows("CloneAddress")));
         }, Cancellation);
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class CloneSheetViewScripts(HeadlessUi ui)
 public sealed class RemoteRowViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ARowShowsItsNameOwnerPrivacyAndAgeAndAClickClonesItAsync() =>
+    public Task ARowShowsItsNameMaskedOwnerPrivacyAndAgeAndAClickClonesItAsync() =>
         ui.RunAsync(() =>
         {
             var cloned = 0;
@@ -75,7 +75,7 @@ public sealed class RemoteRowViewScripts(HeadlessUi ui)
 
             view.Click("CloneRow");
 
-            Assert.Equal(("shop", "octo", "3h", true, true), (view.TextOf("RepositoryName"), view.TextOf("Owner"), view.TextOf("Updated"), view.Shows("Private"), view.Shows("Archived")));
+            Assert.Equal(("shop", "oc•••••", "3h", true, true), (view.TextOf("RepositoryName"), view.TextOf("Owner"), view.TextOf("Updated"), view.Shows("Private"), view.Shows("Archived")));
             Assert.Equal(1, cloned);
         }, TestContext.Current.CancellationToken);
 }
@@ -83,7 +83,7 @@ public sealed class RemoteRowViewScripts(HeadlessUi ui)
 public sealed class CloneSourceViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task AnAccountSegmentShowsItsLoginAndWhetherItIsChosenAsync() =>
+    public Task AnAccountSegmentShowsItsMaskedLoginAndWhetherItIsChosenAsync() =>
         ui.RunAsync(() =>
         {
             var chosen = new List<ForgeName>();
@@ -92,7 +92,7 @@ public sealed class CloneSourceViewScripts(HeadlessUi ui)
 
             view.Click("Source");
 
-            Assert.Equal(("octocat", true), (view.TextOf("SourceLogin"), view.HasClass("Source", "selected")));
+            Assert.Equal(("oc•••••", true), (view.TextOf("SourceLogin"), view.HasClass("Source", "selected")));
             Assert.Equal([new ForgeName("hub")], chosen);
         }, TestContext.Current.CancellationToken);
 }

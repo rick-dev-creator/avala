@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Workbench.Accounts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -13,7 +14,7 @@ internal sealed class DesignCloneSourceViewModel(string name, string login, stri
 
     public string Name { get; } = name;
 
-    public string Login { get; } = login;
+    public Personal Login { get; } = Personal.Login(login);
 
     public string Logo { get; } = logo;
 
@@ -31,7 +32,7 @@ internal sealed class DesignRemoteRowViewModel(string name, string owner, bool i
 
     public string Name { get; } = name;
 
-    public string Owner { get; } = owner;
+    public Personal Owner { get; } = Personal.Login(owner);
 
     public bool IsPrivate { get; } = isPrivate;
 
@@ -71,7 +72,7 @@ internal sealed partial class DesignCloneSheetViewModel : ICloneSheetViewModel
 
     public string Status { get; init; } = string.Empty;
 
-    public string Destination { get; init; } = "/home/ada/Projects";
+    public Personal Destination { get; init; } = Personal.Path("/home/ada/Projects");
 
     public string Error { get; init; } = string.Empty;
 

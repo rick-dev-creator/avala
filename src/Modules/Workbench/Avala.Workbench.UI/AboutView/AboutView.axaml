@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:settings="using:Avala.Workbench.Settings"
              x:Class="Avala.Workbench.UI.AboutView"
              x:ClassModifier="internal"
@@ -47,7 +48,7 @@
                 Command="{Binding OpenLogFolderCommand}" />
         <StackPanel Spacing="2">
           <TextBlock Text="Log folder" />
-          <TextBlock x:Name="LogFolder" Classes="mono caption" Text="{Binding LogFolder}" TextWrapping="Wrap" />
+          <TextBlock x:Name="LogFolder" Classes="mono caption" privacy:PersonalDetails.Text="{Binding LogFolder}" TextWrapping="Wrap" />
           <TextBlock Classes="caption"
                      TextWrapping="Wrap"
                      Text="Startup failures, crashes and what a harness writes to its standard error, with secrets redacted. Attach the latest file when you report a problem." />

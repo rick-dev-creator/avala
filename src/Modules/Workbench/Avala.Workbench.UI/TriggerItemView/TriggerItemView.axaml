@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:triggers="using:Avala.Workbench.Triggers"
              xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.TriggerItemView"
@@ -44,7 +45,11 @@
         <TextBlock x:Name="TriggerName" Text="{Binding Name}" />
         <TextBlock x:Name="Fires" Classes="secondary" Text="{Binding Fires}" />
       </StackPanel>
-      <TextBlock x:Name="Repository" Classes="caption mono" Text="{Binding Repository}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Repository}" />
+      <TextBlock x:Name="Repository" Classes="caption mono" privacy:PersonalDetails.Scrubbed="{Binding Repository}" TextTrimming="CharacterEllipsis">
+        <ToolTip.Tip>
+          <TextBlock privacy:PersonalDetails.Scrubbed="{Binding Repository}" />
+        </ToolTip.Tip>
+      </TextBlock>
       <StackPanel Orientation="Horizontal">
         <TextBlock x:Name="Next" Classes="caption" Text="{Binding Next}" />
         <TextBlock x:Name="Running" Classes="caption" Text="{Binding Running, StringFormat=' · {0}'}" />

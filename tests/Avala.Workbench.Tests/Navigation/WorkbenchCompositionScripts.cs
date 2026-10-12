@@ -83,11 +83,11 @@ public sealed class WorkbenchCompositionScripts : IDisposable
                 page.ToggleInspectorCommand.Execute(null);
             },
             Cancellation);
-        await bench.Ui.PresentedAsync(worktree, () => worktree.Path.EndsWith(first.Job.Value.ToString(), StringComparison.Ordinal), () => worktree.Path);
+        await bench.Ui.PresentedAsync(worktree, () => worktree.Path.Value.EndsWith(first.Job.Value.ToString(), StringComparison.Ordinal), () => worktree.Path.Value);
 
-        await worktree.PresentsAfterAsync(() => bench.Post(() => sidebar.SelectCommand.Execute(sidebar.Running.Single(row => row.Job == second.Job))), () => worktree.Path, Cancellation);
+        await worktree.PresentsAfterAsync(() => bench.Post(() => sidebar.SelectCommand.Execute(sidebar.Running.Single(row => row.Job == second.Job))), () => worktree.Path.Value, Cancellation);
 
-        Assert.Equal($"/worktrees/{second.Job.Value}", await bench.Ui.ReadAsync(() => worktree.Path));
+        Assert.Equal($"/worktrees/{second.Job.Value}", await bench.Ui.ReadAsync(() => worktree.Path.Value));
         Assert.Equal(second.Job, await bench.Ui.ReadAsync(() => page.Conversation!.Job));
     }
 
@@ -104,9 +104,9 @@ public sealed class WorkbenchCompositionScripts : IDisposable
                 page.ToggleInspectorCommand.Execute(null);
             },
             Cancellation);
-        await bench.Ui.PresentedAsync(worktree, () => worktree.IsLoaded, () => worktree.Path);
+        await bench.Ui.PresentedAsync(worktree, () => worktree.IsLoaded, () => worktree.Path.Value);
 
-        await worktree.PresentsAfterAsync(() => bench.Post(() => page.ToggleInspectorCommand.Execute(null)), () => worktree.Path, Cancellation);
+        await worktree.PresentsAfterAsync(() => bench.Post(() => page.ToggleInspectorCommand.Execute(null)), () => worktree.Path.Value, Cancellation);
 
         Assert.Equal((false, false), await bench.Ui.ReadAsync(() => (worktree.IsLoaded, usage.IsLoaded)));
     }

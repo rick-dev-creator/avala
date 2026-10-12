@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:settings="using:Avala.Workbench.Settings"
              x:Class="Avala.Workbench.UI.RepositorySettingsView"
              x:ClassModifier="internal"
@@ -48,7 +49,7 @@
     <StackPanel x:Name="Rules" Spacing="30" IsVisible="{Binding Shown, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <StackPanel Spacing="2">
         <TextBlock x:Name="RepositoryName" Classes="title" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="Shown" Classes="caption mono" Text="{Binding Shown}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="Shown" Classes="caption mono" privacy:PersonalDetails.Scrubbed="{Binding Shown}" TextTrimming="CharacterEllipsis" />
         <TextBlock Classes="caption" Margin="0,6,0,0" TextWrapping="Wrap"
                    Text="Read from the repository's .avala files as committed. Each job uses the copy at its own base commit, so its rules never change while it runs." />
       </StackPanel>

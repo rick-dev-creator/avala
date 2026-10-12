@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:navigation="using:Avala.Workbench.Navigation"
              xmlns:ui="using:Avala.Components.UI"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.WorkbenchView"
              x:ClassModifier="internal"
              x:DataType="navigation:IWorkbenchViewModel">
@@ -20,6 +21,17 @@
     <Style Selector="Panel#HeaderChrome[(theme|Chrome.IsFocusMode)=True]">
       <Setter Property="IsVisible" Value="False" />
     </Style>
+    <Style Selector="Panel#PreviewChrome[(theme|Chrome.IsFocusMode)=True]">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="ItemsControl#ConversationRegion Button">
+      <Setter Property="Margin" Value="0,12,0,0" />
+    </Style>
+    <Style Selector="Border#PreviewGrip">
+      <Setter Property="Width" Value="5" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Cursor" Value="SizeWestEast" />
+    </Style>
     <Style Selector="TextBlock#JobTitle">
       <Setter Property="FontSize" Value="{DynamicResource FontSizeReading}" />
       <Setter Property="LineHeight" Value="20" />
@@ -33,19 +45,30 @@
                 BorderBrush="{DynamicResource EdgeBrush}"
                 BorderThickness="0,0,0,1"
                 IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}">
-          <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" Margin="{DynamicResource ChromeLeading}">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" Margin="{DynamicResource ChromeLeading}">
             <StackPanel VerticalAlignment="Center">
               <TextBlock x:Name="JobTitle" Classes="strong" Text="{Binding Conversation.Title}" TextTrimming="CharacterEllipsis" />
               <TextBlock x:Name="Place" Classes="caption" Text="{Binding Conversation.Place}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
+            <ItemsControl x:Name="JobHeaderRegion"
+                          Grid.Column="1"
+                          Margin="12,0,0,0"
+                          VerticalAlignment="Center"
+                          ItemsSource="{Binding Regions.Header}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="8" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
             <ContentControl x:Name="Pill"
                             ClipToBounds="False"
-                            Grid.Column="1"
+                            Grid.Column="2"
                             Margin="12,0,0,0"
                             VerticalAlignment="Center"
                             Content="{Binding Conversation.Pill}" />
             <Button x:Name="OpenReview"
-                    Grid.Column="2"
+                    Grid.Column="3"
                     Classes="primary"
                     Margin="12,0,0,0"
                     Content="Review"
@@ -54,7 +77,7 @@
                     ToolTip.Tip="Open the review (Ctrl+R)"
                     HotKey="Ctrl+R" />
             <Button x:Name="More"
-                    Grid.Column="3"
+                    Grid.Column="4"
                     Classes="glyph"
                     Margin="12,0,0,0"
                     ToolTip.Tip="More"
@@ -76,7 +99,7 @@
               </Button.Flyout>
             </Button>
             <Button x:Name="ToggleInspector"
-                    Grid.Column="4"
+                    Grid.Column="5"
                     Margin="4,0,0,0"
                     Classes="glyph"
                     Classes.selected="{Binding IsInspectorOpen}"
@@ -89,10 +112,43 @@
           </Grid>
         </Border>
       </Panel>
-      <Panel>
-        <ui:Stage x:Name="Conversation" Content="{Binding Conversation}" />
-        <ContentControl x:Name="Welcome" Content="{Binding Welcome}" IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}" />
-      </Panel>
+      <Grid x:Name="Split" ColumnDefinitions="*,Auto" states:Widths.Report="{Binding Regions.FitCommand}">
+        <DockPanel>
+          <ItemsControl x:Name="ConversationRegion"
+                        DockPanel.Dock="Top"
+                        HorizontalAlignment="Center"
+                        IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        ItemsSource="{Binding Regions.Conversation}" />
+          <Panel>
+            <ui:Stage x:Name="Conversation" Keeps="4" Content="{Binding Conversation}" />
+            <ContentControl x:Name="Welcome" Content="{Binding Welcome}" IsVisible="{Binding Conversation, Converter={x:Static ObjectConverters.IsNull}}" />
+          </Panel>
+        </DockPanel>
+        <Panel x:Name="PreviewChrome" Grid.Column="1">
+          <Panel x:Name="PreviewPane"
+                 Width="{Binding Regions.PreviewWidth}"
+                 IsVisible="{Binding Regions.IsPreviewOpen}"
+                 ClipToBounds="True"
+                 states:Resizer.FromLeft="True"
+                 states:Resizer.Command="{Binding Regions.ResizePreviewCommand}"
+                 states:Resizer.Committed="{Binding Regions.RememberPreviewCommand}"
+                 states:Resizer.Reset="{Binding Regions.ResetPreviewWidthCommand}">
+            <ItemsControl x:Name="PreviewRegion" ItemsSource="{Binding Regions.Preview}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <Panel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+            <Border Classes="edge" HorizontalAlignment="Left" />
+            <Border x:Name="PreviewGrip"
+                    Classes="grip"
+                    HorizontalAlignment="Left"
+                    ToolTip.Tip="Drag to resize, double-click to reset"
+                    AutomationProperties.Name="Resize preview" />
+          </Panel>
+        </Panel>
+      </Grid>
     </DockPanel>
     <Panel x:Name="ReviewSheet" IsVisible="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}">
       <Border x:Name="ReviewScrim" Background="{DynamicResource ScrimSheetBrush}" theme:Motion.Enter="Fade" theme:Motion.When="{Binding Review, Converter={x:Static ObjectConverters.IsNotNull}}" />

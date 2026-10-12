@@ -13,56 +13,87 @@ namespace Avala.Rendering.UI.Svg;
 
 internal sealed class SvgRenderer : ICanvasRenderer
 {
+    private const int Kept = 16;
+
+    private readonly Dictionary<string, Drawn> drawn = [];
+    private readonly Queue<string> order = [];
+
     public string MediaType => RenderedFormats.Svg.MediaType;
 
     public Option<Control> Render(string content) =>
-        SvgSanitizer.Sanitize(content).Bind(Draw);
+        Load(content).Map(Show);
 
-    private static Option<Control> Draw(SanitizedSvg svg) =>
-        svg.Timeline.Match(timeline => Animated(svg.Markup, timeline), () => Still(svg.Markup))
-            .Map(drawing => Captioned(drawing, svg.Blocked));
-
-    private static Option<Control> Animated(string markup, SvgTimeline timeline)
+    private Option<Drawn> Load(string content)
     {
-        var drawing = SvgService.FromSvg(markup) is { } document ? new AnimatedSvg(document, timeline) : null;
+        if (drawn.TryGetValue(content, out var known))
+        {
+            return known;
+        }
 
-        return drawing is { Moves: true } ? drawing : Still(markup);
+        var loaded = SvgSanitizer.Sanitize(content).Bind(Parse);
+        _ = loaded.Map(found => Keep(content, found));
+
+        return loaded;
     }
 
-    private static Option<Control> Still(string markup)
+    private Drawn Keep(string content, Drawn found)
     {
-        var source = SvgSource.LoadFromSvg(markup);
+        drawn[content] = found;
+        order.Enqueue(content);
+
+        if (order.Count > Kept)
+        {
+            drawn.Remove(order.Dequeue());
+        }
+
+        return found;
+    }
+
+    private static Option<Drawn> Parse(SanitizedSvg svg)
+    {
+        var source = SvgSource.LoadFromSvg(svg.Markup);
 
         if (source.Picture is null)
         {
             source.Dispose();
 
-            return Option<Control>.None;
+            return Option<Drawn>.None;
         }
 
-        return new Image
-        {
-            Name = "Svg",
-            Source = new SvgImage { Source = source },
-            Stretch = Stretch.Uniform,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
+        return new Drawn(source, svg);
     }
 
-    private static Control Captioned(Control drawing, int blocked)
+    private static Control Show(Drawn svg)
     {
-        if (blocked == 0)
+        var drawing = svg.Sanitized.Timeline.Match(timeline => Animated(svg, timeline), () => Still(svg));
+
+        if (svg.Sanitized.Blocked == 0)
         {
             return drawing;
         }
 
-        var panel = new StackPanel { Children = { drawing, Blocked(blocked) } };
+        var panel = new StackPanel { Children = { drawing, BlockedNote(svg.Sanitized.Blocked) } };
         panel.Bind(StackPanel.SpacingProperty, panel.GetResourceObservable("Space2"));
 
         return panel;
     }
 
-    private static TextBlock Blocked(int count) => new()
+    private static Control Animated(Drawn svg, SvgTimeline timeline) =>
+        SvgService.FromSvg(svg.Sanitized.Markup) is { } document && new AnimatedSvg(document, timeline) is { Moves: true } animated
+            ? animated
+            : Still(svg);
+
+    private static Image Still(Drawn svg) => new()
+    {
+        Name = "Svg",
+        Source = new SvgImage { Source = svg.Source },
+        Stretch = Stretch.Uniform,
+        HorizontalAlignment = HorizontalAlignment.Center,
+    };
+
+    private sealed record Drawn(SvgSource Source, SanitizedSvg Sanitized);
+
+    private static TextBlock BlockedNote(int count) => new()
     {
         Name = "Blocked",
         Text = count == 1

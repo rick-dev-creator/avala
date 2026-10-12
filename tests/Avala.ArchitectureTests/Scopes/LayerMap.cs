@@ -46,6 +46,20 @@ internal static class LayerMap
             ["Offer"] = Layer.Application,
             ["Translating"] = Layer.Application,
         }),
+        .. Module("Avala.Preview", new()
+        {
+            [""] = Layer.None,
+            ["UI"] = Layer.None,
+            ["UI.Surfaces"] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Origins"] = Layer.Domain,
+            ["Navigation"] = Layer.Application,
+            ["Detection"] = Layer.Application,
+            ["Running"] = Layer.Application,
+            ["Projects"] = Layer.Infrastructure,
+            ["Pages"] = Layer.Infrastructure,
+            ["Pane"] = Layer.ViewModels,
+        }),
         .. Module("Avala.Jobs", new()
         {
             ["UI"] = Layer.None,
@@ -167,6 +181,7 @@ internal static class LayerMap
             ["Housekeeping"] = Layer.Application,
             ["Settings"] = Layer.Infrastructure,
             ["Disks"] = Layer.Infrastructure,
+            ["Scratch"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Simulator", new()
         {

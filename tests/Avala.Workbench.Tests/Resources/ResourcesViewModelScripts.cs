@@ -68,7 +68,7 @@ public sealed class ResourcesViewModelScripts : IDisposable
         await ui.PresentedAsync(page, () => page.Orphans.Count == 1, () => $"{page.Orphans.Count} orphans");
         Assert.Equal(
             [("/worktrees/stray", "not known to any job"), ("/worktrees/gone", "missing from the disk")],
-            await ui.ReadAsync(() => page.StaleWorktrees.Select(stale => (stale.Path, stale.Reason)).ToList()));
+            await ui.ReadAsync(() => page.StaleWorktrees.Select(stale => (stale.Path.ToString(), stale.Reason)).ToList()));
         Assert.Equal(("Resources", "512 MB", 3), await ui.ReadAsync(() => (page.Title, page.Memory, page.LeftBehind)));
     }
 

@@ -86,11 +86,11 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
     {
         WriteFile write => Drafts(cues, write).ToAsyncEnumerable().Concat(ActAsync(
             cues,
-            new Deed(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", $"Edit {write.Path}", Path.Combine(options.WorkingDirectory, write.Path), write.Content),
+            new Deed(write.Item, ItemKind.FileEdit, $"Edit {write.Path}", $"Edit {write.Path}", Placed(write.Path), write.Content),
             options.Permissions == PermissionMode.AskEveryTime,
             async token =>
             {
-                await craft.Files.WriteAsync(Path.Combine(options.WorkingDirectory, write.Path), write.Content, token);
+                await craft.Files.WriteAsync(Placed(write.Path), write.Content, token);
 
                 return write.Content;
             },
@@ -123,6 +123,12 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             cancellationToken),
         _ => cues.Of(step).ToAsyncEnumerable(),
     };
+
+    private string Placed(string path) =>
+        path.StartsWith('$') && path.IndexOf('/') is var slash and > 1
+            && options.Processes.Environment.TryGetValue(path.Substring(1, slash - 1), out var folder)
+            ? Path.Combine(folder, path.Substring(slash + 1))
+            : Path.Combine(options.WorkingDirectory, path);
 
     private IEnumerable<IAgentEvent> Drafts(Cues cues, WriteFile write) =>
         declared.Has<StreamsPartialOutput>()

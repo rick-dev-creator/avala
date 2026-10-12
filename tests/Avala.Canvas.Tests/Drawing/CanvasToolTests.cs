@@ -77,7 +77,9 @@ public sealed class CanvasToolTests
 
         Assert.Contains("SVG animations written in SMIL, such as <animate>, <animateTransform>, <animateMotion> and <set>, play on the canvas", description, StringComparison.Ordinal);
         Assert.Contains("CSS keyframes and scripts do not run, and nothing on a canvas responds to input", description, StringComparison.Ordinal);
-        Assert.Contains("must respond to input, such as an interactive chart or a three.js scene, write a self-contained HTML file in the working directory and give the person its path", description, StringComparison.Ordinal);
+        Assert.Contains("must respond to input, such as an interactive chart, a three.js scene or an app, is a page instead", description, StringComparison.Ordinal);
+        Assert.Contains("when Avala offers its preview, serve the page and give the person its URL, which Avala shows in its preview pane", description, StringComparison.Ordinal);
+        Assert.Contains("otherwise write a self-contained HTML file in the working directory and give the person its path", description, StringComparison.Ordinal);
         Assert.DoesNotContain("drawn still", description, StringComparison.Ordinal);
     }
 

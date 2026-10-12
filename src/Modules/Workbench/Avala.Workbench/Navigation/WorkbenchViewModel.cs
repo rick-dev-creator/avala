@@ -34,6 +34,8 @@ internal interface IWorkbenchViewModel
     IRelayCommand CloseReviewCommand { get; }
 
     IWelcomeViewModel Welcome { get; }
+
+    JobRegions Regions { get; }
 }
 
 [INotifyPropertyChanged]
@@ -54,6 +56,8 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     }
 
     public IWelcomeViewModel Welcome { get; }
+
+    public JobRegions Regions => screens.Regions;
 
     public Task Checking { get; private set; } = Task.CompletedTask;
 
@@ -98,12 +102,15 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     {
         feed.Start(Show);
         Checking = Welcome.CheckAsync(CancellationToken.None);
+        Regions.Activate();
+        Regions.Show(Conversation is { } open ? open.Job : Option<JobId>.None);
         Inspect();
     }
 
     public void Deactivate()
     {
         feed.Stop();
+        Regions.Deactivate();
         Inspect();
     }
 
@@ -114,8 +121,6 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
         if (Conversation?.Job != message.Job)
         {
             var opened = screens.Conversation(message.Job);
-            Review = null;
-            Conversation = opened;
             _ = feed.Find(message.Job).Match(
                 job =>
                 {
@@ -123,7 +128,9 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
                     return true;
                 },
                 () => false);
-            OpenReviewCommand.NotifyCanExecuteChanged();
+            Review = null;
+            Conversation = opened;
+            Regions.Show(message.Job);
         }
 
         Inspect();

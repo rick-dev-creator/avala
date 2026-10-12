@@ -57,6 +57,8 @@ public sealed class SettingsViewModelScripts
 
         public string Error => appearance.Error;
 
+        public Components.Privacy.IPersonalDetailsViewModel PersonalDetails => appearance.PersonalDetails;
+
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.ThemeChoice> ChooseThemeCommand => appearance.ChooseThemeCommand;
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<Sdk.Appearance.MotionChoice> ChooseMotionCommand => appearance.ChooseMotionCommand;

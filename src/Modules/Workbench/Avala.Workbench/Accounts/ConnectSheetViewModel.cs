@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Collections.ObjectModel;
 using Avala.Forges.Contracts;
 using Avala.Sdk;
@@ -41,7 +42,7 @@ internal interface IConnectSheetViewModel
 
     CliState CliState { get; }
 
-    string CliStatus { get; }
+    PersonalPhrase CliStatus { get; }
 
     string SignInCommand { get; }
 
@@ -124,7 +125,7 @@ internal sealed partial class ConnectSheetViewModel(SourceControl source) : ICon
     public partial CliState CliState { get; private set; }
 
     [ObservableProperty]
-    public partial string CliStatus { get; private set; } = string.Empty;
+    public partial PersonalPhrase CliStatus { get; private set; } = PersonalPhrase.Empty;
 
     [ObservableProperty]
     public partial string SignInCommand { get; private set; } = string.Empty;

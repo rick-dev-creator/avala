@@ -292,6 +292,7 @@ public sealed class ProviderTests
                 new Interruptible(),
                 new Resumable(),
                 new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
+                new AcceptsPreview(),
                 new AsksForms(),
                 new AcceptsMessagesMidTurn(),
                 new ReportsUsage(),
@@ -362,8 +363,47 @@ public sealed class ProviderTests
             "Avala shows the person your work inside its conversation. When you are asked to show something visual, such as a chart, a diagram or a drawing, "
             + $"call the mcp__avala__canvas tool with {formats}: Avala draws it right there"
             + (animated ? " and plays its SVG animations written in SMIL, such as <animate> or <animateTransform>, so a chart may grow or a flow may move" : string.Empty) + ". "
-            + "Do not write an HTML file or open a browser to show it, unless it must respond to input, such as an interactive chart or a three.js scene: "
+            + "Do not write an HTML file or open a browser to show it, unless it must respond to input, such as an interactive chart, a three.js scene or an app: "
             + "then write a self-contained HTML file and give its path, which the person opens from Avala.",
+            After(cli.Launches.Single().Arguments, "--append-system-prompt"));
+    }
+
+    [Fact]
+    public async Task ASessionOfferedThePreviewIsToldToServeItsPagesOnItsPortAndTellThePersonTheUrlAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+        var canvas = new HarnessTool("canvas", "Draw a canvas.", """{ "type": "object", "properties": { "mediaType": { "type": "string", "enum": ["image/svg+xml"] } } }""", ToolSurface.Canvas);
+        var preview = new PreviewOffer("AVALA_PORT", "AVALA_PORTS");
+
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Tools = [canvas], Preview = preview }, Cancellation));
+
+        Assert.Equal(
+            "Avala shows the person your work inside its conversation. When you are asked to show something visual, such as a chart, a diagram or a drawing, "
+            + "call the mcp__avala__canvas tool with SVG: Avala draws it right there "
+            + "and plays its SVG animations written in SMIL, such as <animate> or <animateTransform>, so a chart may grow or a flow may move. "
+            + "Do not write an HTML file or open a browser to show it, unless it must respond to input, such as an interactive chart, a three.js scene or an app: "
+            + "then make it a page, as follows. "
+            + "For a page or an app, keep every file in the worktree, scratch files included, and vendor its libraries into it instead of loading them from a CDN. "
+            + "Serve it bound to 127.0.0.1 on port $AVALA_PORT, or start its dev server there; the ports $AVALA_PORTS are yours. "
+            + "Then tell the person its URL, such as http://localhost:$AVALA_PORT: Avala shows it beside the conversation. "
+            + "Never open a browser or take screenshots.",
+            After(cli.Launches.Single().Arguments, "--append-system-prompt"));
+    }
+
+    [Fact]
+    public async Task ASessionOfferedOnlyThePreviewIsToldOnlyHowToServeItsPagesAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime) { Preview = new PreviewOffer("AVALA_PORT", "AVALA_PORTS") }, Cancellation));
+
+        Assert.Equal(
+            "For a page or an app, keep every file in the worktree, scratch files included, and vendor its libraries into it instead of loading them from a CDN. "
+            + "Serve it bound to 127.0.0.1 on port $AVALA_PORT, or start its dev server there; the ports $AVALA_PORTS are yours. "
+            + "Then tell the person its URL, such as http://localhost:$AVALA_PORT: Avala shows it beside the conversation. "
+            + "Never open a browser or take screenshots.",
             After(cli.Launches.Single().Arguments, "--append-system-prompt"));
     }
 

@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Workbench.Accounts;
 using Avala.Workbench.ModelChoices;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -9,9 +10,9 @@ namespace Avala.Workbench.Welcome;
 
 internal sealed class DesignAccountChipViewModel : IAccountChipViewModel
 {
-    public string Label { get; init; } = "claude-work";
+    public Personal Label { get; init; } = Personal.Plain("claude-work");
 
-    public string Monogram => AccountPhrases.Monogram(Label);
+    public string Monogram => AccountPhrases.Monogram(Label.Value);
 
     public string Logo { get; init; } = string.Empty;
 
@@ -39,7 +40,7 @@ internal sealed partial class DesignWelcomeViewModel : IWelcomeViewModel
     public IReadOnlyList<IAccountChipViewModel> Chips { get; init; } =
     [
         new DesignAccountChipViewModel(),
-        new DesignAccountChipViewModel { Label = "octocat", Logo = DesignLogos.Hub },
+        new DesignAccountChipViewModel { Label = Personal.Login("octocat"), Logo = DesignLogos.Hub },
     ];
 
     public IHarnessChoiceViewModel Harness { get; init; } = new DesignHarnessChoiceViewModel();

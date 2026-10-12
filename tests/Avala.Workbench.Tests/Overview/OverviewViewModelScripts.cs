@@ -196,7 +196,7 @@ public sealed class ConnectionCardViewModelScripts
             Option<double>.None))
             .Then(card =>
             {
-                Assert.Equal(("claude-work", "Claude Code", "rick@acme.dev", true, "3.21 USD"), (card.Name, card.Provider, card.Account, card.IsDefault, card.Cost));
+                Assert.Equal(("claude-work", "Claude Code", "r•••••@a••••.dev", true, "3.21 USD"), (card.Name, card.Provider, card.Account.ToString(), card.IsDefault, card.Cost));
                 Assert.Equal(("88%", "5h · 88%", false), (Assert.Single(card.Limits).UsedText, card.Use, card.IsNearLimit));
                 Assert.Equal("Fix JPY rounding in invoice totals", Assert.Single(card.Agents).Title);
             });
@@ -204,7 +204,7 @@ public sealed class ConnectionCardViewModelScripts
     [Fact]
     public void AConnectionNotUsedYetSaysSo() =>
         ViewModelScript.Given(new ConnectionCardViewModel(new ConnectionState(new ConnectionName("claude-personal"), "Claude Code", false, Option<Agents.Contracts.Sessions.AgentAccount>.None, Option<UsageSummary>.None, []), Option<double>.None))
-            .Then(card => Assert.Equal(("account not reported yet", "no usage yet", 0, 0), (card.Account, card.Cost, card.Limits.Count, card.Agents.Count)));
+            .Then(card => Assert.Equal(("account not reported yet", "no usage yet", 0, 0), (card.Account.ToString(), card.Cost, card.Limits.Count, card.Agents.Count)));
 }
 
 public sealed class ConnectionCardUpdateScripts

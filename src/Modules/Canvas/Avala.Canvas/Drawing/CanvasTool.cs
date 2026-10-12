@@ -25,8 +25,9 @@ internal static class CanvasTool
     private const string Motion =
         "SVG animations written in SMIL, such as <animate>, <animateTransform>, <animateMotion> and <set>, play on the canvas, so a chart may grow or a flow may move; "
         + "CSS keyframes and scripts do not run, and nothing on a canvas responds to input. "
-        + "For something that must respond to input, such as an interactive chart or a three.js scene, write a self-contained HTML file in the working directory "
-        + "and give the person its path: Avala offers to open it.";
+        + "Something that must respond to input, such as an interactive chart, a three.js scene or an app, is a page instead: "
+        + "when Avala offers its preview, serve the page and give the person its URL, which Avala shows in its preview pane; "
+        + "otherwise write a self-contained HTML file in the working directory and give the person its path, which Avala offers to open.";
 
     private static string InputSchema(CanvasOffer offer) => $$"""
         {

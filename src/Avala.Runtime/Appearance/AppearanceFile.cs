@@ -119,6 +119,7 @@ internal static class AppearanceText
                 },
                 ["readingWidth"] = preference.Reading.ToString().ToLowerInvariant(),
                 ["send"] = preference.Send == SendKey.CommandEnter ? "commandEnter" : "enter",
+                ["hidePersonalDetails"] = preference.HidesPersonalDetails,
             },
             Indented) + "\n";
 
@@ -128,9 +129,10 @@ internal static class AppearanceText
         var motion = root.TryGetProperty("reduceMotion", out var reduce) ? Motion(reduce) : MotionChoice.System;
         var reading = root.TryGetProperty("readingWidth", out var width) ? Named<ReadingChoice>(width) : ReadingChoice.Comfortable;
         var send = root.TryGetProperty("send", out var key) ? Send(key) : SendKey.Enter;
+        var hides = root.TryGetProperty("hidePersonalDetails", out var hidden) ? Switch(hidden) : true;
 
-        return theme is { } chosen && motion is { } reduced && reading is { } wide && send is { } sent
-            ? new AppearancePreference(chosen, reduced, wide) { Send = sent }
+        return theme is { } chosen && motion is { } reduced && reading is { } wide && send is { } sent && hides is { } hiding
+            ? new AppearancePreference(chosen, reduced, wide) { Send = sent, HidesPersonalDetails = hiding }
             : AppearanceError.Invalid;
     }
 
@@ -154,6 +156,13 @@ internal static class AppearanceText
                 _ => null,
             }
             : null;
+
+    private static bool? Switch(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        _ => null,
+    };
 
     private static MotionChoice? Motion(JsonElement value) => value.ValueKind switch
     {
