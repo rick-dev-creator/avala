@@ -105,6 +105,16 @@ public sealed class PreviewPaneViewScripts(HeadlessUi ui) : IDisposable
             Assert.Equal([new Uri("http://localhost:24000/")], bench.Links.Opened);
         }, Cancellation);
 
+    [Fact]
+    public Task TheDesignTimePaneShowsARunningPageAndARefusalAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignPreviewPaneViewModel());
+
+            Assert.Equal(("localhost:24000", PreviewPhrases.Running), (view.TextOf("Address"), view.TextOf("State")));
+            Assert.Equal("Open unpkg.com in your browser?", view.TextOf("Refusal"));
+        }, Cancellation);
+
     public void Dispose() => bench.Dispose();
 
     private PreviewPaneViewModel Opened()
