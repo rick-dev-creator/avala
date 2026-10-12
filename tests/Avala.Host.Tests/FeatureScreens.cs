@@ -541,6 +541,38 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "42-new-job-new-repository-light", ThemeVariant.Light);
     }
 
+    [Fact]
+    public async Task StartingWithoutARepositoryAndTheScratchJobInTheSidebarAndInspectorAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.PreparedAsync(plugins);
+        var workbench = await run.WorkbenchAsync();
+        var page = run.Page("New job");
+        await run.Ui.RunAsync(() =>
+        {
+            ((ICommand)workbench.Toolbar["NewJobCommand"].Target).Execute(null);
+
+            return page["Loading"].Value<Task>();
+        });
+        await run.Ui.RunAsync(() =>
+        {
+            page.Set("Instruction", "[simulate: plan-across-turns] Sketch a CSV parser for bank exports");
+
+            return Task.CompletedTask;
+        });
+
+        await Camera.ShootAsync(run, "50-new-job-start-without-a-repository-dark", window => FeatureCamera.ScrollTo(window, "Start without a repository"));
+        await Camera.ShootAsync(run, "50-new-job-start-without-a-repository-light", ThemeVariant.Light, window => FeatureCamera.ScrollTo(window, "Start without a repository"));
+        await run.Ui.RunAsync(() => page.ExecuteAsync("StartWithoutRepositoryCommand"));
+        var job = Outcomes.Present(await run.Ui.ReadAsync(() => page["LastSubmitted"].Value<Option<JobId>>()));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        await workbench.ShowsInGroupAsync(job, "ReadyForReview");
+        _ = await workbench.InspectAsync(job, "WorktreeSectionViewModel");
+
+        await Camera.ShootAsync(run, "51-scratch-job-sidebar-and-inspector-dark", FeatureCamera.Unfold("Worktree"));
+        await Camera.ShootAsync(run, "51-scratch-job-sidebar-and-inspector-light", ThemeVariant.Light, FeatureCamera.Unfold("Worktree"));
+    }
+
     private static Bound? ChildRow(OpenWorkbench workbench, JobId child) =>
         Groups
             .SelectMany(group => workbench.Sidebar[group].Items)

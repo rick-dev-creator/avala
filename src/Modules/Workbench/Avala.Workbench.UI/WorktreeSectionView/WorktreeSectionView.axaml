@@ -22,7 +22,10 @@
       <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
       <StackPanel x:Name="ScratchRepository" Spacing="4" IsVisible="{Binding IsScratch}">
         <DockPanel>
-          <Border DockPanel.Dock="Left" Classes="tag" VerticalAlignment="Center">
+          <Border DockPanel.Dock="Left"
+                  Classes="tag"
+                  VerticalAlignment="Center"
+                  ToolTip.Tip="Started without a repository: this job runs in a scratch repository in Avala's data folder, kept after the job">
             <TextBlock Text="Scratch" />
           </Border>
           <Button x:Name="OpenFolder"
@@ -33,7 +36,6 @@
                   Content="Open folder"
                   ToolTip.Tip="Open the scratch repository in the file manager"
                   Command="{Binding OpenFolderCommand}" />
-          <TextBlock Classes="caption secondary" Margin="8,0,0,0" VerticalAlignment="Center" Text="Started without a repository" />
         </DockPanel>
         <SelectableTextBlock x:Name="Repository" Classes="value" Margin="0" TextAlignment="Left" TextWrapping="Wrap" Text="{Binding Repository}" />
         <TextBlock x:Name="FolderProblem"
