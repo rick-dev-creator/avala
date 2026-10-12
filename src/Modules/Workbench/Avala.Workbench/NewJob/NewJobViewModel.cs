@@ -8,6 +8,7 @@ using Avala.Sdk;
 using Avala.Workbench.Contracts.Presentation;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Presenting;
+using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -19,13 +20,11 @@ internal interface INewJobViewModel
 {
     string Title { get; }
 
-    IReadOnlyList<string> Repositories { get; }
+    IRepositoryFieldViewModel RepositoryField { get; }
 
     IReadOnlyList<string> Connections { get; }
 
     IReadOnlyList<IConnectionOptionViewModel> Options { get; }
-
-    string Repository { get; set; }
 
     string Instruction { get; set; }
 
@@ -51,10 +50,14 @@ internal interface INewJobViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings readings, IMessenger messenger, JobOptionsViewModel choices)
+internal sealed partial class NewJobViewModel
     : INewJobViewModel, IPage, IActivatable, IRecipient<DefaultConnectionChanged>
 {
-    private readonly ObservableCollection<string> repositories = [];
+    private readonly JobLaunch launch;
+    private readonly NewJobReadings readings;
+    private readonly IMessenger messenger;
+    private readonly JobOptionsViewModel choices;
+    private readonly RepositoryFieldViewModel chooser;
     private readonly ObservableCollection<string> connections = [NewJobPhrases.Auto];
     private readonly ObservableCollection<ConnectionOptionViewModel> options = [new(NewJobPhrases.Auto)];
     private readonly ObservableCollection<string> autonomies = [NewJobPhrases.RepositoryLevel(Option<RepositoryPolicy>.None)];
@@ -64,19 +67,40 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings r
     private int previews;
     private int offers;
 
+    public NewJobViewModel(JobLaunch launch, NewJobReadings readings, IMessenger messenger, NewJobFields fields)
+    {
+        this.launch = launch;
+        this.readings = readings;
+        this.messenger = messenger;
+        choices = fields.Options;
+        chooser = fields.Repository;
+        chooser.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(RepositoryFieldViewModel.Repository))
+            {
+                SubmitCommand.NotifyCanExecuteChanged();
+                Previewing = PreviewAsync(CancellationToken.None);
+            }
+        };
+    }
+
     public string Title => "New job";
 
     public PagePlacement Placement => PagePlacement.Hidden;
 
-    public IReadOnlyList<string> Repositories => repositories;
+    public IRepositoryFieldViewModel RepositoryField => chooser;
+
+    public RepositoryFieldViewModel Chooser => chooser;
+
+    public string Repository
+    {
+        get => chooser.Repository;
+        set => chooser.Repository = value;
+    }
 
     public IReadOnlyList<string> Connections => connections;
 
     public IReadOnlyList<IConnectionOptionViewModel> Options => options;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SubmitCommand))]
-    public partial string Repository { get; set; } = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SubmitCommand))]
@@ -139,19 +163,17 @@ internal sealed partial class NewJobViewModel(JobLaunch launch, NewJobReadings r
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
-        repositories.ShowOnly(readings.Repositories());
+        chooser.ShowKnown();
         ShowConnections(await launch.CatalogAsync(cancellationToken));
 
-        if (string.IsNullOrWhiteSpace(Repository) && repositories.Count > 0)
+        if (string.IsNullOrWhiteSpace(Repository) && chooser.Repositories.Count > 0)
         {
-            Repository = repositories[0];
+            Repository = chooser.Repositories[0];
         }
 
         Previewing = PreviewAsync(cancellationToken);
         await Previewing;
     }
-
-    partial void OnRepositoryChanged(string value) => Previewing = PreviewAsync(CancellationToken.None);
 
     partial void OnConnectionChanged(string value)
     {

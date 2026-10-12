@@ -5,6 +5,7 @@ using Avala.Testing.UI;
 using Avala.Workbench.Machine;
 using Avala.Workbench.RepositoryRules;
 using Avala.Workbench.Settings;
+using Avala.Workbench.Tests.RepositoryChoice;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
@@ -55,7 +56,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
         return new RepositorySettingsViewModel(
             new RulesReader(rules, rules, rules, new CommittedFiles().Workspace(Repository)),
             new SettingsFiles(opener, new AvalaPaths("/data")),
-            Pages.Board(),
+            Choosing.Field(),
             new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])));
     }
 

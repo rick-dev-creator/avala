@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
 using Avala.Sdk;
-using Avala.Workbench.Board;
 using Avala.Workbench.Machine;
 using Avala.Workbench.Presenting;
+using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.RepositoryRules;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -12,6 +12,8 @@ namespace Avala.Workbench.Settings;
 internal interface IRepositorySettingsViewModel
 {
     IReadOnlyList<string> Repositories { get; }
+
+    IRepositoryFieldViewModel RepositoryField { get; }
 
     IReadOnlyList<IRuleFileViewModel> Files { get; }
 
@@ -61,30 +63,47 @@ internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsV
 {
     private readonly RulesReader reader;
     private readonly SettingsFiles files;
-    private readonly JobBoard board;
+    private readonly RepositoryFieldViewModel chooser;
     private readonly RuleFileEditorViewModel editor;
 
-    public RepositorySettingsViewModel(RulesReader reader, SettingsFiles files, JobBoard board, RuleFileEditorViewModel editor)
+    public RepositorySettingsViewModel(RulesReader reader, SettingsFiles files, RepositoryFieldViewModel chooser, RuleFileEditorViewModel editor)
     {
         this.reader = reader;
         this.files = files;
-        this.board = board;
+        this.chooser = chooser;
         this.editor = editor;
         editor.Saved += (_, path) => Refreshing = RefreshAsync(path);
+        chooser.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(RepositoryFieldViewModel.Repository))
+            {
+                OnPropertyChanged(nameof(Repository));
+                ReadCommand.NotifyCanExecuteChanged();
+            }
+        };
     }
 
     public IRuleFileEditorViewModel Editor => editor;
 
     public Task Refreshing { get; private set; } = Task.CompletedTask;
 
-    private readonly ObservableCollection<string> repositories = [];
     private readonly ObservableCollection<RuleFileViewModel> ruleFiles = [];
     private readonly ObservableCollection<RuleViewModel> rules = [];
     private readonly ObservableCollection<CapsViewModel> caps = [];
     private readonly ObservableCollection<CheckViewModel> checks = [];
     private readonly ObservableCollection<JobSectionViewModel> jobSections = [];
 
-    public IReadOnlyList<string> Repositories => repositories;
+    public IReadOnlyList<string> Repositories => chooser.Repositories;
+
+    public IRepositoryFieldViewModel RepositoryField => chooser;
+
+    public RepositoryFieldViewModel Chooser => chooser;
+
+    public string Repository
+    {
+        get => chooser.Repository;
+        set => chooser.Repository = value;
+    }
 
     public IReadOnlyList<IRuleFileViewModel> Files => ruleFiles;
 
@@ -95,10 +114,6 @@ internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsV
     public IReadOnlyList<ICheckViewModel> Checks => checks;
 
     public IReadOnlyList<IJobSectionViewModel> JobSections => jobSections;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ReadCommand))]
-    public partial string Repository { get; set; } = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(EditCommand), nameof(EditHereCommand))]
@@ -130,11 +145,11 @@ internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsV
 
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
-        repositories.ShowOnly(board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct());
+        chooser.ShowKnown();
 
-        if (string.IsNullOrWhiteSpace(Repository) && repositories.Count > 0)
+        if (string.IsNullOrWhiteSpace(Repository) && Repositories.Count > 0)
         {
-            Repository = repositories[0];
+            Repository = Repositories[0];
         }
 
         if (CanRead())

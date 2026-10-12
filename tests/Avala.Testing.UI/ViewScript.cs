@@ -83,7 +83,10 @@ public sealed class ViewScript
 
     public ViewScript Type(string name, string text)
     {
-        if (!Find(name).Focus())
+        var named = Find(name);
+        var input = named.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(box => box.IsEffectivelyVisible) ?? named;
+
+        if (!input.Focus())
         {
             throw new InvalidOperationException($"{name} cannot take the keyboard focus, so it would not receive {text}.");
         }

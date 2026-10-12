@@ -96,6 +96,7 @@ internal static class LayerMap
             ["Telemetry"] = Layer.ViewModels,
             ["Resources"] = Layer.ViewModels,
             ["NewJob"] = Layer.ViewModels,
+            ["RepositoryChoice"] = Layer.ViewModels,
             ["ModelChoices"] = Layer.ViewModels,
             ["Automation"] = Layer.Application,
             ["Triggers"] = Layer.ViewModels,

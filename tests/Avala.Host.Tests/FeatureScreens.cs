@@ -502,6 +502,45 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         return await run.Ui.ReadAsync(() => workbench.Page["Conversation"]);
     }
 
+    [Fact]
+    public async Task TheNewJobRepositoryFieldSuggestsChoosesAndMakesRepositoriesAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.StartAsync(plugins, "plan-across-turns");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await using var notes = new TemporaryFolder();
+        await File.WriteAllTextAsync(Path.Combine(notes.Path, "ideas.md"), "# Ideas\n", Cancellation);
+        var workbench = await run.WorkbenchAsync();
+        var page = run.Page("New job");
+        await run.Ui.RunAsync(() =>
+        {
+            ((ICommand)workbench.Toolbar["NewJobCommand"].Target).Execute(null);
+
+            return page["Loading"].Value<Task>();
+        });
+
+        await Camera.ShootAsync(run, "40-new-job-repository-suggestions-dark", FeatureCamera.Open("RepositoryPath"));
+        await Camera.ShootAsync(run, "40-new-job-repository-suggestions-light", ThemeVariant.Light, FeatureCamera.Open("RepositoryPath"));
+        await run.Ui.RunAsync(async () =>
+        {
+            page.Set("Repository", notes.Path);
+            await page["Chooser"]["Checking"].Value<Task>();
+        });
+        await Camera.ShootAsync(run, "41-new-job-not-a-repository-offer-dark");
+        await Camera.ShootAsync(run, "41-new-job-not-a-repository-offer-light", ThemeVariant.Light);
+        await run.Ui.RunAsync(() =>
+        {
+            var creating = page["Chooser"]["Creating"];
+            creating.Set("Parent", Path.GetDirectoryName(notes.Path)!);
+            creating.Set("Name", "invoices");
+            creating.Set("IsOpen", true);
+
+            return Task.CompletedTask;
+        });
+        await Camera.ShootAsync(run, "42-new-job-new-repository-dark");
+        await Camera.ShootAsync(run, "42-new-job-new-repository-light", ThemeVariant.Light);
+    }
+
     private static Bound? ChildRow(OpenWorkbench workbench, JobId child) =>
         Groups
             .SelectMany(group => workbench.Sidebar[group].Items)

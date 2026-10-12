@@ -7,6 +7,7 @@ using Avala.Workbench.Contracts.Presentation;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.NewJob;
 using Avala.Workbench.Submitting;
+using Avala.Workbench.Tests.RepositoryChoice;
 using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Tests.NewJob;
@@ -496,5 +497,5 @@ public sealed class NewJobViewModelScripts
     private NewJobViewModel Page(params JobSummary[] known) => Page(connections, known);
 
     private NewJobViewModel Page(FakeConnections machine, params JobSummary[] known) =>
-        new(Launching.Launch(jobs, machine, preview, policies, contests), new NewJobReadings(Pages.Board(known), Pages.Readings(usage)), messenger, Launching.Options(contests));
+        new(Launching.Launch(jobs, machine, preview, policies, contests), new NewJobReadings(Pages.Readings(usage)), messenger, new NewJobFields(Choosing.Field(Pages.Board(known)), Launching.Options(contests)));
 }

@@ -1,16 +1,12 @@
 using Avala.Agents.Contracts.Connections;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
-using Avala.Workbench.Board;
 using Avala.Workbench.Spending;
 
 namespace Avala.Workbench.NewJob;
 
-internal sealed class NewJobReadings(JobBoard board, LimitReadings readings)
+internal sealed class NewJobReadings(LimitReadings readings)
 {
-    public IEnumerable<string> Repositories() =>
-        board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct();
-
     public string Reading(Option<Result<ConnectionPreview, JobRejection>> preview, ConnectionName name) =>
         NewJobPhrases.Compared(preview, name).Match(
             NewJobPhrases.Reading,

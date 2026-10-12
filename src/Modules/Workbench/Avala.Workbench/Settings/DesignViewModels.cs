@@ -1,6 +1,7 @@
 using Avala.Permissions.Contracts;
 using Avala.Sdk.Appearance;
 using Avala.Workbench.ModelChoices;
+using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.Telemetry;
 using Avala.Workbench.Updates;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -165,6 +166,15 @@ internal sealed partial class DesignConnectionEditorViewModel : IConnectionEdito
 internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySettingsViewModel
 {
     public IReadOnlyList<string> Repositories { get; } = ["~/code/ledger-api", "~/code/web-console", "~/code/billing-worker", "~/code/mobile-sync"];
+
+    public IRepositoryFieldViewModel RepositoryField { get; } = new DesignRepositoryFieldViewModel
+    {
+        Repository = "~/code/ledger-api",
+        Repositories = ["~/code/ledger-api", "~/code/web-console", "~/code/billing-worker", "~/code/mobile-sync"],
+        Problem = string.Empty,
+        Offer = string.Empty,
+        Creation = new DesignNewRepositoryViewModel { IsOpen = false },
+    };
 
     public IReadOnlyList<IRuleFileViewModel> Files { get; } =
     [

@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
+using Avala.Components.UI.Folders;
 using Avala.Budgets.Contracts;
 using Avala.Canvas.Contracts;
 using Avala.Contests.Contracts;
@@ -35,6 +36,7 @@ using Avala.Workbench.NewJob;
 using Avala.Workbench.Overview;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Replies;
+using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.RepositoryRules;
 using Avala.Workbench.Resources;
 using Avala.Workbench.Review;
@@ -119,6 +121,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         registrar.AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0);
         RegisterInspector(registrar);
         RegisterGlobalPages(registrar.Services);
+        RegisterRepositoryChoice(registrar.Services);
         RegisterContests(registrar);
         registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
         registrar.AddToRegion<UpdateNoticeViewModel>(ShellRegions.SidebarFooter, 10);
@@ -220,6 +223,15 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddTransient<JobOptionsViewModel>()
             .AddSingleton<ContestSectionViewModel>();
         registrar.AddToRegion<ContestSectionViewModel>(ShellRegions.Inspector, 15);
+    }
+
+    private static void RegisterRepositoryChoice(IServiceCollection services)
+    {
+        services.TryAddSingleton<IFolderPicker, AvaloniaFolderPicker>();
+        services
+            .AddTransient<NewRepositoryViewModel>()
+            .AddTransient<RepositoryFieldViewModel>()
+            .AddTransient<NewJobFields>();
     }
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
@@ -348,6 +360,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IStaleWorktreeViewModel, StaleWorktreeView>();
         views.Register<IResourceIndicatorViewModel, ResourceIndicatorView>();
         views.Register<INewJobViewModel, NewJobView>();
+        views.Register<IRepositoryFieldViewModel, RepositoryFieldView>();
+        views.Register<INewRepositoryViewModel, NewRepositoryView>();
         views.Register<IConnectionOptionViewModel, ConnectionOptionView>();
         views.Register<IModelPickerViewModel, ModelPickerView>();
         views.Register<IJobOptionsViewModel, JobOptionsView>();

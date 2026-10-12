@@ -1,4 +1,5 @@
 using Avala.Testing;
+using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.Settings;
 
 namespace Avala.Workbench.Tests.Settings;
@@ -66,6 +67,8 @@ public sealed class SettingsViewModelScripts
         private readonly DesignMachineSettingsViewModel machine = new();
 
         public IReadOnlyList<string> Repositories => repository.Repositories;
+
+        public IRepositoryFieldViewModel RepositoryField => repository.RepositoryField;
 
         public IDefaultConnectionViewModel DefaultConnection => machine.DefaultConnection;
 

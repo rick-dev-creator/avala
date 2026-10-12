@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:choice="using:Avala.Workbench.RepositoryChoice"
+             x:Class="Avala.Workbench.UI.RepositoryFieldView"
+             x:ClassModifier="internal"
+             x:DataType="choice:IRepositoryFieldViewModel">
+  <Design.DataContext>
+    <choice:DesignRepositoryFieldViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ComboBox#RepositoryPath">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+    </Style>
+    <Style Selector=":is(Control).stacked ComboBox#RepositoryPath">
+      <Setter Property="Grid.ColumnSpan" Value="2" />
+    </Style>
+    <Style Selector=":is(Control).stacked Grid#PathRow">
+      <Setter Property="RowSpacing" Value="6" />
+    </Style>
+    <Style Selector=":is(Control).stacked Button#Choose">
+      <Setter Property="Grid.Row" Value="1" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="6">
+    <Grid x:Name="PathRow" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="6">
+      <ComboBox x:Name="RepositoryPath"
+                IsEditable="True"
+                Text="{Binding Repository, Mode=TwoWay}"
+                ItemsSource="{Binding Repositories}"
+                PlaceholderText="~/code/repository"
+                AutomationProperties.Name="Repository" />
+      <Button x:Name="Choose"
+              Grid.Column="1"
+              Content="Choose folder…"
+              ToolTip.Tip="Pick the repository's folder"
+              Command="{Binding ChooseCommand}" />
+    </Grid>
+    <Button x:Name="NewRepository"
+            Classes="link"
+            HorizontalAlignment="Left"
+            Content="New repository…"
+            ToolTip.Tip="Create a folder with an empty git repository in it"
+            Command="{Binding Creation.StartCommand}"
+            IsVisible="{Binding !Creation.IsOpen}" />
+    <ContentControl x:Name="Creation" Content="{Binding Creation}" IsVisible="{Binding Creation.IsOpen}" />
+    <StackPanel x:Name="Problem"
+                Classes="fade-in"
+                Spacing="6"
+                IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock x:Name="ProblemText" Classes="caption attention" TextWrapping="Wrap" Text="{Binding Problem}" />
+      <Button x:Name="MakeRepository"
+              HorizontalAlignment="Left"
+              Content="{Binding Offer}"
+              ToolTip.Tip="Runs git init when needed and records what the folder holds as its first commit"
+              Command="{Binding MakeRepositoryCommand}"
+              IsVisible="{Binding Offer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+    <TextBlock x:Name="Notice"
+               Classes="caption fade-in"
+               TextWrapping="Wrap"
+               Text="{Binding Notice}"
+               IsVisible="{Binding Notice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

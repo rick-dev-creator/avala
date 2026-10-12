@@ -13,14 +13,11 @@
       <DockPanel Margin="10,16">
         <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,12,0,0">
           <TextBlock Classes="section" Margin="10,0" Text="Another repository" />
-          <TextBox x:Name="RepositoryPath"
-                   Classes="mono"
-                   PlaceholderText="~/code/repository"
-                   Text="{Binding Repository.Repository}">
-            <TextBox.KeyBindings>
+          <ContentControl x:Name="AnotherRepository" Classes="stacked" Content="{Binding Repository.RepositoryField}">
+            <ContentControl.KeyBindings>
               <KeyBinding Gesture="Enter" Command="{Binding Repository.ReadCommand}" />
-            </TextBox.KeyBindings>
-          </TextBox>
+            </ContentControl.KeyBindings>
+          </ContentControl>
           <Button x:Name="Read" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Read its rules" Command="{Binding Repository.ReadCommand}" />
         </StackPanel>
         <ScrollViewer>

@@ -5,6 +5,7 @@ using Avala.Testing;
 using Avala.Workbench.Machine;
 using Avala.Workbench.RepositoryRules;
 using Avala.Workbench.Settings;
+using Avala.Workbench.Tests.RepositoryChoice;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Tests.Settings;
@@ -226,7 +227,7 @@ public sealed class RepositorySettingsViewModelScripts
         new(
             Reader(new CommittedFiles().Workspace(Repository)),
             new SettingsFiles(opener, new AvalaPaths("/data")),
-            Pages.Board(jobs),
+            Choosing.Field(Pages.Board(jobs)),
             new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])));
 
     private static RulesReader Reader(CommittedFiles files)

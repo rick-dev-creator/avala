@@ -9,7 +9,7 @@
     <newJob:DesignNewJobViewModel />
   </Design.DataContext>
   <UserControl.Styles>
-    <Style Selector="AutoCompleteBox, ComboBox">
+    <Style Selector="ComboBox">
       <Setter Property="HorizontalAlignment" Value="Stretch" />
       <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
@@ -35,11 +35,7 @@
           <StackPanel Spacing="14">
             <StackPanel Spacing="6">
               <TextBlock Classes="section" Text="Repository" />
-              <AutoCompleteBox x:Name="Repository"
-                               Text="{Binding Repository}"
-                               ItemsSource="{Binding Repositories}"
-                               FilterMode="ContainsOrdinal"
-                               PlaceholderText="~/code/repository" />
+              <ContentControl x:Name="Repository" Content="{Binding RepositoryField}" />
             </StackPanel>
             <StackPanel Spacing="6">
               <TextBlock Classes="section" Text="Instruction" />
