@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Avala.Agents.Contracts.Connections;
@@ -37,7 +38,7 @@ internal interface IMachineSettingsViewModel
     Task LoadAsync(CancellationToken cancellationToken);
 }
 
-internal sealed record MachineSections(IDefaultConnectionViewModel DefaultConnection, INotificationsViewModel Notifications, ISourceControlViewModel SourceControl);
+internal sealed record MachineSections(IDefaultConnectionViewModel DefaultConnection, INotificationsViewModel Notifications, ISourceControlViewModel SourceControl, IPersonalDetailsViewModel PersonalDetails);
 
 internal static class SilenceDial
 {
@@ -70,7 +71,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
         this.settings = settings;
         DefaultConnection = sections.DefaultConnection;
         Notifications = sections.Notifications;
-        accounts = new MachineAccountsViewModel(editor, sections.SourceControl, OpenConnectionsCommand);
+        accounts = new MachineAccountsViewModel(editor, sections.SourceControl, sections.PersonalDetails, OpenConnectionsCommand);
         DefaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
         editor.Edited += (_, edited) =>
         {

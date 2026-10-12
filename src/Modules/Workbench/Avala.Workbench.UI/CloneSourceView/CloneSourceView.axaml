@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:choice="using:Avala.Workbench.RepositoryChoice"
              xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.CloneSourceView"
@@ -16,7 +17,7 @@
           Command="{Binding SelectCommand}">
     <StackPanel Orientation="Horizontal" Spacing="7">
       <Path Classes="logo inline" Data="{Binding Logo, Converter={x:Static states:PathData.Parsed}}" />
-      <TextBlock x:Name="SourceLogin" Text="{Binding Login}" VerticalAlignment="Center" />
+      <TextBlock x:Name="SourceLogin" privacy:PersonalDetails.Text="{Binding Login}" VerticalAlignment="Center" />
     </StackPanel>
   </Button>
 </UserControl>

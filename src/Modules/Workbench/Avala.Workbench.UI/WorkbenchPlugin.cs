@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts;
 using Avala.Autopilot.Contracts;
+using Avala.Components.Privacy;
 using Avala.Components.UI.Copying;
 using Avala.Components.UI.Folders;
 using Avala.Workbench.Timeline;
@@ -113,6 +114,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<Links>()
             .AddSingleton<SendKeys>()
             .AddForwarded<IHandle<AppearanceChanged>, SendKeys>()
+            .AddSingleton<PersonalDetailsViewModel>()
+            .AddForwarded<IPersonalDetailsViewModel, PersonalDetailsViewModel>()
+            .AddForwarded<IHandle<AppearanceChanged>, PersonalDetailsViewModel>()
             .AddSingleton<TimelineItems>()
             .AddSingleton<WorkedFiles>()
             .AddSingleton<Conversations>()
@@ -144,6 +148,11 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterAccounts(registrar.Services);
         RegisterRepositoryChoice(registrar.Services);
         RegisterContests(registrar);
+        RegisterFooter(registrar);
+    }
+
+    private static void RegisterFooter(IPluginRegistrar registrar)
+    {
         registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
         registrar.AddToRegion<UpdateNoticeViewModel>(ShellRegions.SidebarFooter, 10);
         RegisterTelemetry(registrar);
@@ -287,7 +296,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton(provider => new MachineSections(
                 provider.GetRequiredService<IDefaultConnectionViewModel>(),
                 provider.GetRequiredService<INotificationsViewModel>(),
-                provider.GetRequiredService<ISourceControlViewModel>()));
+                provider.GetRequiredService<ISourceControlViewModel>(),
+                provider.GetRequiredService<IPersonalDetailsViewModel>()));
 
     private static void RegisterGlobalPages(IServiceCollection services) =>
         services

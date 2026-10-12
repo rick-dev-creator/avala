@@ -21,8 +21,8 @@ public sealed class AccountRowViewModelScripts
         var accounts = await LoadedAsync();
 
         Assert.Equal(
-            [("octocat", "api.hub.example", "hub", Kinds.Hub.Logo, AccountState.SignedIn, false), ("hub-2", "api.hub.example", AccountPhrases.Token, Kinds.Hub.Logo, AccountState.Detected, true)],
-            accounts.Accounts.Select(row => (row.Login, row.Host, row.SignIn, row.Logo, row.State, row.IsDetected)));
+            [("oc•••••", "api.hub.example", "hub", Kinds.Hub.Logo, AccountState.SignedIn, false), ("hub-2", "api.hub.example", AccountPhrases.Token, Kinds.Hub.Logo, AccountState.Detected, true)],
+            accounts.Accounts.Select(row => (row.Login.ToString(), row.Host, row.SignIn, row.Logo, row.State, row.IsDetected)));
         Assert.Equal((false, true), (accounts.Accounts[0].AddCommand.CanExecute(null), accounts.Accounts[0].RemoveCommand.CanExecute(null)));
     }
 
@@ -33,7 +33,7 @@ public sealed class AccountRowViewModelScripts
 
         var row = Assert.Single((await LoadedAsync()).Accounts);
 
-        Assert.Equal((AccountState.Attention, "Token not set", "work"), (row.State, row.Problem, row.Login));
+        Assert.Equal((AccountState.Attention, "Token not set", "work"), (row.State, row.Problem, row.Login.ToString()));
     }
 
     private async Task<SourceControlViewModel> LoadedAsync()
@@ -150,7 +150,7 @@ public sealed class ConnectSheetViewModelScripts
 
         await sheet.ConnectCommand.ExecuteAsync(null);
 
-        Assert.Equal((CliState.SignedIn, "Signed in as octocat"), (sheet.CliState, sheet.CliStatus));
+        Assert.Equal((CliState.SignedIn, "Signed in as oc•••••"), (sheet.CliState, sheet.CliStatus.ToString()));
         Assert.Equal([new ForgeConnectionEdit(new ForgeName("hub"), "hub") { Source = CredentialSource.Cli }], forges.Connected);
         Assert.False(sheet.IsOpen);
     }
@@ -162,7 +162,7 @@ public sealed class ConnectSheetViewModelScripts
         var sheet = await OpenedAsync();
         sheet.Kinds.Single(kind => kind.Id == "cup").SelectCommand.Execute(null);
         sheet.Host = "git.example.com";
-        var signedOut = (sheet.CliState, sheet.CliStatus, sheet.SignInCommand, sheet.ConnectCommand.CanExecute(null));
+        var signedOut = (sheet.CliState, sheet.CliStatus.ToString(), sheet.SignInCommand, sheet.ConnectCommand.CanExecute(null));
         forges.Accounts.Add(Kinds.Detected("work", Kinds.Cup, CredentialSource.Cli, "ada", "git.example.com", reference: "work"));
 
         await sheet.CheckAgainCommand.ExecuteAsync(null);
@@ -184,7 +184,7 @@ public sealed class ConnectSheetViewModelScripts
         sheet.UsesCli = true;
 
         Assert.True(chosen);
-        Assert.Equal((CliState.Missing, "hub is not installed", false), (sheet.CliState, sheet.CliStatus, sheet.ConnectCommand.CanExecute(null)));
+        Assert.Equal((CliState.Missing, "hub is not installed", false), (sheet.CliState, sheet.CliStatus.ToString(), sheet.ConnectCommand.CanExecute(null)));
     }
 
     [Fact]

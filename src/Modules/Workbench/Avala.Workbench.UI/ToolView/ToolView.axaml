@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:states="using:Avala.Components.UI.States"
              xmlns:copying="using:Avala.Components.UI.Copying"
@@ -83,7 +84,7 @@
                      Grid.Column="1"
                      VerticalAlignment="Center"
                      Classes.code="{Binding IsCode}"
-                     Text="{Binding Title}"
+                     privacy:PersonalDetails.Scrubbed="{Binding Title}"
                      TextTrimming="CharacterEllipsis" />
           <TextBlock x:Name="Outcome"
                      Grid.Column="2"

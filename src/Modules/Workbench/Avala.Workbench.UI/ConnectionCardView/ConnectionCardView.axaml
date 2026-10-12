@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
              x:Class="Avala.Workbench.UI.ConnectionCardView"
@@ -55,7 +56,7 @@
             BoxShadow="{DynamicResource ShadowHub}">
       <ToolTip.Tip>
         <StackPanel x:Name="Detail" Spacing="10" Width="320">
-          <TextBlock x:Name="Summary" Text="{Binding Summary}" TextWrapping="Wrap" />
+          <TextBlock x:Name="Summary" privacy:PersonalDetails.Text="{Binding Summary}" TextWrapping="Wrap" />
           <TextBlock x:Name="NoLimits" Classes="caption" Text="This connection reports no usage limit." IsVisible="{Binding !Limits.Count}" />
           <ItemsControl x:Name="LimitList" ItemsSource="{Binding Limits}">
             <ItemsControl.ItemsPanel>

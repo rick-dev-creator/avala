@@ -7,7 +7,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
-using Avalonia.Markup.Xaml.Styling;
+using Avalonia.LogicalTree;
 using Markdig;
 using MarkView.Avalonia;
 using MarkView.Avalonia.Rendering;
@@ -25,11 +25,10 @@ public sealed class MarkdownText : StackPanel
     public static readonly StyledProperty<ICommand> LinkCommandProperty =
         AvaloniaProperty.Register<MarkdownText, ICommand>(nameof(LinkCommand), OpensNothing.Instance);
 
-    private static readonly Uri Base = new("avares://Avala.Components.UI/");
-
     private readonly MarkdownViewer settled;
     private readonly MarkdownViewer tail;
     private readonly Border caret;
+    private bool styled;
 
     public MarkdownText()
         : this(OfflineMarkdown.WithoutImages)
@@ -47,7 +46,6 @@ public sealed class MarkdownText : StackPanel
         Motion.SetLoop(caret, MotionLoop.Caret);
         caret.Bind(Border.BackgroundProperty, caret.GetResourceObservable("AccentBrush"));
         Children.Add(caret);
-        Styles.Add(new StyleInclude(Base) { Source = new Uri("Markdown/MarkdownStyles.axaml", UriKind.Relative) });
         AddHandler(MarkdownViewer.LinkClickedEvent, OnLinkClicked);
         AddHandler(PointerReleasedEvent, (_, _) => Show(Markdown, IsLive), RoutingStrategies.Bubble, handledEventsToo: true);
         ContextFlyout = SelectionMenu.For(() => _ = CopyAsync(), SelectAll, () => SelectedText.Length > 0);
@@ -89,6 +87,17 @@ public sealed class MarkdownText : StackPanel
     {
         get => GetValue(LinkCommandProperty);
         set => SetValue(LinkCommandProperty, value);
+    }
+
+    protected override void OnAttachedToLogicalTree(LogicalTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToLogicalTree(e);
+
+        if (!styled && !MarkdownStyles.GetAreShared(this))
+        {
+            styled = true;
+            Styles.Add(MarkdownStyles.Include());
+        }
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)

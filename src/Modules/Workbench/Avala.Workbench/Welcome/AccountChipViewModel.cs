@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Workbench.Accounts;
 using CommunityToolkit.Mvvm.Input;
 
@@ -5,7 +6,7 @@ namespace Avala.Workbench.Welcome;
 
 internal interface IAccountChipViewModel
 {
-    string Label { get; }
+    Personal Label { get; }
 
     string Monogram { get; }
 
@@ -20,15 +21,15 @@ internal interface IAccountChipViewModel
     IAsyncRelayCommand FixCommand { get; }
 }
 
-internal sealed record AccountChipViewModel(string Label, string Monogram, string Logo, bool IsAttention, string FixLabel, IAsyncRelayCommand FixCommand) : IAccountChipViewModel
+internal sealed record AccountChipViewModel(Personal Label, string Monogram, string Logo, bool IsAttention, string FixLabel, IAsyncRelayCommand FixCommand) : IAccountChipViewModel
 {
     public bool HasLogo => Logo.Length > 0;
 
     public static AccountChipViewModel Agent(string name, bool attention, string fix, IAsyncRelayCommand command) =>
-        new(name, AccountPhrases.Monogram(name), string.Empty, attention, fix, command);
+        new(Personal.Plain(name), AccountPhrases.Monogram(name), string.Empty, attention, fix, command);
 
-    public static AccountChipViewModel Forge(string login, string logo, bool attention, string fix, IAsyncRelayCommand command) =>
-        new(login, AccountPhrases.Monogram(login), logo, attention, fix, command);
+    public static AccountChipViewModel Forge(Personal login, string logo, bool attention, string fix, IAsyncRelayCommand command) =>
+        new(login, AccountPhrases.Monogram(login.Value), logo, attention, fix, command);
 }
 
 internal static class WelcomePhrases

@@ -1,3 +1,4 @@
+using Avala.Sdk.Appearance;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
@@ -36,6 +37,21 @@ public sealed class ConversationViewModelScripts
         Assert.Equal([typeof(PromptViewModel), typeof(ReasoningViewModel), typeof(MessageViewModel)], conversation.Entries.Select(entry => entry.GetType()));
         Assert.Same(message, conversation.Entries[^1]);
         Assert.Equal(("Hello team.", true), (message.Text, message.IsStreaming));
+    }
+
+    [Fact]
+    public void OpeningAConversationFillsItsEntriesInOneChange()
+    {
+        var job = Job().WithPrompts("Fix the failing test", []).Apply(new TurnStarted(session, turn), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("think"), ItemKind.Reasoning, "Thinking"), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"), Now);
+        var conversation = Open();
+        var changes = 0;
+        conversation.PropertyChanged += (_, change) => changes += change.PropertyName == nameof(conversation.Entries) ? 1 : 0;
+
+        conversation.Show(Board(job));
+
+        Assert.Equal((1, 3), (changes, conversation.Entries.Count));
     }
 
     [Fact]
@@ -239,6 +255,24 @@ public sealed class ConversationViewModelScripts
     }
 
     [Theory]
+    [InlineData(true, "# Ask r•••••@g••••.com\n\n**You**\n\nRead ~/notes.md for r•••••@g••••.com\n\n- Read ~/notes.md\n")]
+    [InlineData(false, "# Ask rick@gmail.com\n\n**You**\n\nRead /home/rick/notes.md for rick@gmail.com\n\n- Read /home/rick/notes.md\n")]
+    public async Task AnExportMasksEmailsAndTheHomeFolderOnlyWhilePersonalDetailsAreHiddenAsync(bool hidden, string markdown)
+    {
+        var saver = new FakeFileSaver();
+        var conversation = Open(new FakeJobs(), new FakeClipboard(), saver, new FakeAppearance(AppearancePreference.Default with { HidesPersonalDetails = hidden }));
+        conversation.Show(new(
+            new FakeCatalog().Add("Ask rick@gmail.com", JobStatus.Running).Summary,
+            Job().WithPrompts("Read /home/rick/notes.md for rick@gmail.com", []).Apply(new TurnStarted(session, turn), Now)
+                .Apply(new ItemStarted(session, turn, new ItemId("read"), ItemKind.FileEdit, "Read /home/rick/notes.md"), Now)
+                .Apply(new ItemCompleted(session, turn, new ItemId("read"), ItemOutcome.Succeeded), Now)));
+
+        await conversation.ExportCommand.ExecuteAsync(null);
+
+        Assert.Equal(markdown, Assert.Single(saver.Saved).Item2);
+    }
+
+    [Theory]
     [InlineData(FileSaveError.Cancelled, "")]
     [InlineData(FileSaveError.Unwritable, "The conversation could not be saved there.")]
     public async Task AnExportThatDidNotSaveSaysWhyUnlessYouCancelledItAsync(FileSaveError refusal, string notice)
@@ -269,6 +303,6 @@ public sealed class ConversationViewModelScripts
 
     private static ConversationViewModel Open(FakeJobs jobs) => Open(jobs, new FakeClipboard(), new FakeFileSaver());
 
-    private static ConversationViewModel Open(FakeJobs jobs, FakeClipboard clipboard, FakeFileSaver saver) =>
-        new Conversations(Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), FakeLinks.Opening, clipboard, Tools.Files()), new TranscriptExport(clipboard, saver)).Open(JobId.New());
+    private static ConversationViewModel Open(FakeJobs jobs, FakeClipboard clipboard, FakeFileSaver saver, FakeAppearance? appearance = null) =>
+        new Conversations(Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), FakeLinks.Opening, clipboard, Tools.Files()), new TranscriptExport(clipboard, saver, appearance ?? new FakeAppearance())).Open(JobId.New());
 }

@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Workbench.Accounts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk.Appearance;
@@ -212,7 +213,7 @@ internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySet
     [ObservableProperty]
     public partial string Repository { get; set; } = "~/code/ledger-api";
 
-    public string Shown => "~/code/ledger-api";
+    public string Shown { get; init; } = "~/code/ledger-api";
 
     public string Name => "ledger-api";
 
@@ -289,6 +290,8 @@ internal sealed class DesignMachineAccountsViewModel : IMachineAccountsViewModel
 
     public ISourceControlViewModel SourceControl { get; init; } = new DesignSourceControlViewModel();
 
+    public IPersonalDetailsViewModel PersonalDetails { get; init; } = new DesignPersonalDetailsViewModel();
+
     public string ForgesFile => "forges.json · checks every 60s · GitHub, Gitea, Forgejo installed";
 
     public string Error => string.Empty;
@@ -349,7 +352,7 @@ internal sealed class DesignAboutViewModel : IAboutViewModel
 
     public string Commit => "5c371e6a1b2d";
 
-    public string LogFolder => "/home/dana/.local/share/Avala/logs";
+    public Personal LogFolder => Personal.Path("/home/dana/.local/share/Avala/logs");
 
     public string Note { get; init; } = string.Empty;
 
@@ -391,6 +394,8 @@ internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
     public bool SendsWithCommandEnter => false;
 
     public string Error { get; init; } = string.Empty;
+
+    public IPersonalDetailsViewModel PersonalDetails { get; } = new DesignPersonalDetailsViewModel();
 
     public IAsyncRelayCommand<ThemeChoice> ChooseThemeCommand { get; } = new AsyncRelayCommand<ThemeChoice>(_ => Task.CompletedTask);
 

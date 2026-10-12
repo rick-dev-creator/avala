@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
              xmlns:choice="using:Avala.Workbench.RepositoryChoice"
              x:Class="Avala.Workbench.UI.RemoteRowView"
              x:ClassModifier="internal"
@@ -16,7 +17,7 @@
       <Path Classes="icon" Data="{StaticResource IconRepository}" Stroke="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" />
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <TextBlock x:Name="RepositoryName" Classes="strong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="Owner" Classes="caption" Text="{Binding Owner}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <TextBlock x:Name="Owner" Classes="caption" privacy:PersonalDetails.Text="{Binding Owner}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
       </StackPanel>
       <Path x:Name="Private"
             Grid.Column="2"

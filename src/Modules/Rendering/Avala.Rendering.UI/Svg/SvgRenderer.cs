@@ -11,12 +11,43 @@ namespace Avala.Rendering.UI.Svg;
 
 internal sealed class SvgRenderer : ICanvasRenderer
 {
+    private const int Kept = 16;
+
+    private readonly Dictionary<string, Drawn> drawn = [];
+    private readonly Queue<string> order = [];
+
     public string MediaType => RenderedFormats.Svg.MediaType;
 
     public Option<Control> Render(string content) =>
-        SvgSanitizer.Sanitize(content).Bind(Draw);
+        Load(content).Map(Show);
 
-    private static Option<Control> Draw(SanitizedSvg svg)
+    private Option<Drawn> Load(string content)
+    {
+        if (drawn.TryGetValue(content, out var known))
+        {
+            return known;
+        }
+
+        var loaded = SvgSanitizer.Sanitize(content).Bind(Parse);
+        _ = loaded.Map(found => Keep(content, found));
+
+        return loaded;
+    }
+
+    private Drawn Keep(string content, Drawn found)
+    {
+        drawn[content] = found;
+        order.Enqueue(content);
+
+        if (order.Count > Kept)
+        {
+            drawn.Remove(order.Dequeue());
+        }
+
+        return found;
+    }
+
+    private static Option<Drawn> Parse(SanitizedSvg svg)
     {
         var source = SvgSource.LoadFromSvg(svg.Markup);
 
@@ -24,13 +55,18 @@ internal sealed class SvgRenderer : ICanvasRenderer
         {
             source.Dispose();
 
-            return Option<Control>.None;
+            return Option<Drawn>.None;
         }
 
+        return new Drawn(source, svg.Blocked);
+    }
+
+    private static Control Show(Drawn svg)
+    {
         var drawing = new Image
         {
             Name = "Svg",
-            Source = new SvgImage { Source = source },
+            Source = new SvgImage { Source = svg.Source },
             Stretch = Stretch.Uniform,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
@@ -40,13 +76,15 @@ internal sealed class SvgRenderer : ICanvasRenderer
             return drawing;
         }
 
-        var panel = new StackPanel { Children = { drawing, Blocked(svg.Blocked) } };
+        var panel = new StackPanel { Children = { drawing, BlockedNote(svg.Blocked) } };
         panel.Bind(StackPanel.SpacingProperty, panel.GetResourceObservable("Space2"));
 
         return panel;
     }
 
-    private static TextBlock Blocked(int count) => new()
+    private sealed record Drawn(SvgSource Source, int Blocked);
+
+    private static TextBlock BlockedNote(int count) => new()
     {
         Name = "Blocked",
         Text = count == 1

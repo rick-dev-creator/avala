@@ -1,8 +1,10 @@
+using Avala.Components.Privacy;
 using Avala.Sdk;
+using Avala.Sdk.Appearance;
 
 namespace Avala.Workbench.Timeline;
 
-internal sealed class TranscriptExport(IClipboard clipboard, IFileSaver saver)
+internal sealed class TranscriptExport(IClipboard clipboard, IFileSaver saver, IAppearance appearance)
 {
     public const string Title = "Export the conversation";
 
@@ -17,8 +19,15 @@ internal sealed class TranscriptExport(IClipboard clipboard, IFileSaver saver)
     }
 
     public async Task<bool> CopyAsync(string title, Transcript transcript, MarkdownChoices choices, CancellationToken cancellationToken) =>
-        await clipboard.CopyAsync(TranscriptMarkdown.Write(title, transcript, choices), cancellationToken);
+        await clipboard.CopyAsync(await MarkdownAsync(title, transcript, choices, cancellationToken), cancellationToken);
 
     public async Task<Result<string, FileSaveError>> ExportAsync(string title, Transcript transcript, MarkdownChoices choices, CancellationToken cancellationToken) =>
-        await saver.SaveAsync(Title, FileName(title), TranscriptMarkdown.Write(title, transcript, choices), cancellationToken);
+        await saver.SaveAsync(Title, FileName(title), await MarkdownAsync(title, transcript, choices, cancellationToken), cancellationToken);
+
+    private async Task<string> MarkdownAsync(string title, Transcript transcript, MarkdownChoices choices, CancellationToken cancellationToken)
+    {
+        var markdown = TranscriptMarkdown.Write(title, transcript, choices);
+
+        return (await appearance.ReadAsync(cancellationToken)).Preference.HidesPersonalDetails ? PersonalMask.Scrub(markdown) : markdown;
+    }
 }

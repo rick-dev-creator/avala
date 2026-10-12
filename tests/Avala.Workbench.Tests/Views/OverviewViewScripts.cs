@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Collections.ObjectModel;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
@@ -233,13 +234,31 @@ public sealed class ConnectionCardViewScripts(HeadlessUi ui)
             Assert.DoesNotContain("This connection reports no usage limit.", texts);
         }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task HoveringAHubShowsItsAccountMaskedAndRevealedOnceTheWindowRevealsPersonalDetailsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignConnectionCardViewModel());
+            var core = view.Find("Core");
+            ToolTip.SetIsOpen(core, true);
+            view.Settle();
+            var summary = Assert.IsType<StackPanel>(ToolTip.GetTip(core)).Children.OfType<TextBlock>().Single(text => text.Name == "Summary");
+            var masked = summary.Text;
+
+            Components.UI.Privacy.PersonalDetails.SetAreHidden(view.Window, false);
+            view.Settle();
+
+            Assert.Equal("d•••••@a••••.dev · 9.86 USD · the default connection", masked);
+            Assert.Equal("dana@acme.dev · 9.86 USD · the default connection", summary.Text);
+        }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
     public Task LongNamesStayInsideTheHubsRingAsync(int agents) =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignConnectionCardViewModel(new string('w', 40), "Simulated Claude Code harness", "local", false, "no cost", [new DesignLimitViewModel()], [.. Enumerable.Repeat<IAgentViewModel>(new DesignAgentViewModel(), agents)]));
+            var view = Screen.Show(new DesignConnectionCardViewModel(new string('w', 40), "Simulated Claude Code harness", Personal.Plain("local"), false, "no cost", [new DesignLimitViewModel()], [.. Enumerable.Repeat<IAgentViewModel>(new DesignAgentViewModel(), agents)]));
             var hub = view.Find<Panel>("Hub");
             var inside = (hub.Bounds.Width / 2) - 5;
             var corners = HubTexts
@@ -254,7 +273,7 @@ public sealed class ConnectionCardViewScripts(HeadlessUi ui)
     public Task AQuietHubWithoutALimitStaysSmallAndNeutralAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignConnectionCardViewModel("pi-local", "Pi", "local", false, "no cost", [], [new DesignAgentViewModel()]));
+            var view = Screen.Show(new DesignConnectionCardViewModel("pi-local", "Pi", Personal.Plain("local"), false, "no cost", [], [new DesignAgentViewModel()]));
 
             Assert.Equal(("no limit", 92d, 0d), (view.TextOf("Use"), view.Find<Panel>("Hub").Bounds.Width, view.Find<Arc>("Ring").SweepAngle));
             Assert.Equal(Color.Parse("#A3A3AD"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<Arc>("Ring").Stroke).Color);

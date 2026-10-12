@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Sdk.Presentation;
@@ -35,13 +36,13 @@ internal sealed class DesignAgentViewModel(JobId job, string title, StatusKind k
     public string Summary => $"{State} — {Fact}";
 }
 
-internal sealed record DesignConnectionCardViewModel(string Name, string Provider, string Account, bool IsDefault, string Cost, IReadOnlyList<ILimitViewModel> Limits, IReadOnlyList<IAgentViewModel> Agents) : IConnectionCardViewModel
+internal sealed record DesignConnectionCardViewModel(string Name, string Provider, Personal Account, bool IsDefault, string Cost, IReadOnlyList<ILimitViewModel> Limits, IReadOnlyList<IAgentViewModel> Agents) : IConnectionCardViewModel
 {
     public DesignConnectionCardViewModel()
         : this(
             "claude-work",
             "Claude Code",
-            "account work",
+            Personal.Account("dana@acme.dev"),
             true,
             "9.86 USD",
             [new DesignLimitViewModel(), new DesignLimitViewModel("7d", "7-day window", 0.41, "41%", "resets 2026-10-15 21:00", 0.9, false)],
@@ -64,7 +65,7 @@ internal sealed record DesignConnectionCardViewModel(string Name, string Provide
 
     public bool IsProminent => Agents.Count >= 2;
 
-    public string Summary => OverviewPhrases.Hub(Account, Cost, IsDefault);
+    public PersonalPhrase Summary => OverviewPhrases.Hub(Account, Cost, IsDefault);
 }
 
 internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
@@ -75,7 +76,7 @@ internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
         new DesignConnectionCardViewModel(
             "claude-personal",
             "Claude Code",
-            "account personal",
+            Personal.Account("dana.martinez@gmail.com"),
             false,
             "4.21 USD",
             [new DesignLimitViewModel("5h", "5-hour window", 0.31, "31%", "resets 2026-10-09 17:05", 0.9, false)],
@@ -86,7 +87,7 @@ internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
         new DesignConnectionCardViewModel(
             "codex-team",
             "Codex",
-            "account team",
+            Personal.Account("Acme Platform Team"),
             false,
             "1.12 USD",
             [new DesignLimitViewModel("usage", "Usage window", 0.24, "24%", "resets 2026-10-10 09:00", 0.9, false)],
@@ -94,7 +95,7 @@ internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
         new DesignConnectionCardViewModel(
             "pi-local",
             "Pi",
-            "local",
+            Personal.Plain("local"),
             false,
             "no cost",
             [],

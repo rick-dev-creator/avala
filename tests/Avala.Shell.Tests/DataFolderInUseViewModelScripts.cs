@@ -14,7 +14,7 @@ public sealed class DataFolderInUseViewModelScripts
         ViewModelScript.Given(refusal)
             .Then(shown =>
             {
-                Assert.Equal("/data/avala", shown.Folder);
+                Assert.Equal("/data/avala", shown.Folder.ToString());
                 Assert.Contains("Another Avala already runs on this data folder", shown.Reason, StringComparison.Ordinal);
                 Assert.Contains("AVALA_DATA_PATH", shown.Reason, StringComparison.Ordinal);
             })

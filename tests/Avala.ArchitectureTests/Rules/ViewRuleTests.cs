@@ -41,6 +41,7 @@ public sealed class ViewRuleTests
     [InlineData("NamedIconButtons", "UntypedView.axaml")]
     [InlineData("TypedRegionReferences", "UntypedView.axaml")]
     [InlineData("KeptSelections", "UntypedView.axaml")]
+    [InlineData("PersonalDetailsThroughPersonal", "IVoucherViewModel")]
     public async Task TheViolatingFixtureBreaksTheRuleWhereExpectedAsync(string rule, string subjects)
     {
         var findings = await ViewFindings.OfAsync(Scope.Violating, Enum.Parse<ViewRule>(rule), Cancellation);

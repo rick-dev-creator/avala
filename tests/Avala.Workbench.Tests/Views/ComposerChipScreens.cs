@@ -70,7 +70,7 @@ public sealed class ComposerChipScreens(HeadlessUi ui)
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary with { Connection = new ConnectionName("claude-work") };
         var items = new TimelineItems(Replying.With(new FakePermissionAnswers()), FakeLinks.Opening, new FakeClipboard(), Tools.Files());
         var composers = new Composers(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys(), Composing.Harnesses(jobs, new FakeHandoffRequests(), connections));
-        var conversation = new Conversations(composers, items, new TranscriptExport(new FakeClipboard(), new FakeFileSaver())).Open(summary.Job);
+        var conversation = new Conversations(composers, items, new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new Avala.Testing.FakeAppearance())).Open(summary.Job);
         conversation.Show(new BoardJob(summary, Told(status)));
 
         return conversation;

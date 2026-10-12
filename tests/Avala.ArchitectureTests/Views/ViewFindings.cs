@@ -19,6 +19,7 @@ internal static class ViewFindings
             ViewRule.NoUiFrameworkInViewModels => [.. ViewModelRules.InUiFrameworkAssemblies(scope)],
             ViewRule.NoParentOrSiblingReferences => [.. ViewModelRules.ReferencingParentOrSibling(scope)],
             ViewRule.DeclaredRegions => [.. ViewModelRules.ConstructRegionNamesOutsideDeclarations(scope)],
+            ViewRule.PersonalDetailsThroughPersonal => [.. ViewModelRules.PersonalDetailsAsText(scope)],
             ViewRule.CompiledBindings => [.. XamlRules.WithoutDataType(await ViewsAsync(scope, cancellationToken))],
             ViewRule.DesignTimeDataContext => [.. XamlRules.WithoutDesignDataContext(await ViewsAsync(scope, cancellationToken))],
             ViewRule.ThemeResourcesOnly => [.. XamlRules.HardCodedStyling(await ViewsAsync(scope, cancellationToken), await ThemeCatalog.ReadAsync(cancellationToken))],

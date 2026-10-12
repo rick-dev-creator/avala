@@ -75,4 +75,12 @@
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
     <Setter Property="Padding" Value="16,28" />
   </Style>
+  <Style Selector="Border.placeholder">
+    <Setter Property="Height" Value="8" />
+    <Setter Property="Width" Value="132" />
+    <Setter Property="Margin" Value="0,4" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+  </Style>
 </Styles>

@@ -17,13 +17,12 @@ internal sealed record JobRecord(JobHistory History, Option<WorkspaceInfo> Works
 
 internal sealed class JobRecords(IJobCatalog catalog, IWorkspaces workspaces, IResources resources, IDelegations delegations)
 {
-    public async Task<Option<JobRecord>> ReadAsync(JobId job, CancellationToken cancellationToken) =>
-        await (await catalog.HistoryAsync(job, cancellationToken)).Match(
-            async history => Option<JobRecord>.Some(await RecordAsync(history, cancellationToken)),
-            () => Task.FromResult(Option<JobRecord>.None));
+    public async Task<Option<JobRecord>> HistoryAsync(JobId job, CancellationToken cancellationToken) =>
+        (await catalog.HistoryAsync(job, cancellationToken)).Map(history => new JobRecord(history, Option<WorkspaceInfo>.None, Option<PortLease>.None));
 
-    private async Task<JobRecord> RecordAsync(JobHistory history, CancellationToken cancellationToken)
+    public async Task<JobRecord> CompleteAsync(JobRecord record, CancellationToken cancellationToken)
     {
+        var history = record.History;
         var workspace = await history.Summary.Workspace.Match(
             async id => (await workspaces.FindAsync(id, cancellationToken)).Match(Option<WorkspaceInfo>.Some, _ => Option<WorkspaceInfo>.None),
             () => Task.FromResult(Option<WorkspaceInfo>.None));
@@ -31,8 +30,10 @@ internal sealed class JobRecords(IJobCatalog catalog, IWorkspaces workspaces, IR
             async id => (await catalog.HistoryAsync(id, cancellationToken)).Map(found => found.Summary),
             () => Task.FromResult(Option<JobSummary>.None));
 
-        return new JobRecord(history, workspace, workspace.Bind(LeaseOf))
+        return record with
         {
+            Workspace = workspace,
+            Ports = workspace.Bind(LeaseOf),
             Parent = parent,
             Children = await catalog.ChildrenAsync(history.Summary.Job, cancellationToken),
             Delegated = delegations.OfParent(history.Summary.Job),

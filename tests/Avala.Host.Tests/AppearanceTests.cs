@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Avala.Components.UI.Privacy;
 using Avala.Components.UI.Theme;
 using Avala.Host.Composition;
 using Avala.Sdk;
@@ -122,6 +123,22 @@ public sealed class AppearanceTests(HeadlessUi ui, PublishedPlugins plugins)
             applier.Attach(window);
 
             Assert.Equal((ThemeVariant.Dark, true, true), (application.RequestedThemeVariant, Motion.GetIsReduced(window), Motion.GetIsReduced((Border)window.Content)));
+        }, Cancellation);
+
+    [Fact]
+    public Task RevealingPersonalDetailsReachesTheWindowAndHidingThemAgainMasksThemLiveAsync() =>
+        ui.RunAsync(() =>
+        {
+            var applier = new AppearanceApplier(new Application());
+            var window = new Window { Content = new Border() };
+            applier.Attach(window);
+            var hiddenAtFirst = PersonalDetails.GetAreHidden((Border)window.Content);
+
+            applier.Apply(AppearancePreference.Default with { HidesPersonalDetails = false });
+            var revealed = PersonalDetails.GetAreHidden((Border)window.Content);
+            applier.Apply(AppearancePreference.Default);
+
+            Assert.Equal((true, false, true), (hiddenAtFirst, revealed, PersonalDetails.GetAreHidden((Border)window.Content)));
         }, Cancellation);
 
     [Theory]

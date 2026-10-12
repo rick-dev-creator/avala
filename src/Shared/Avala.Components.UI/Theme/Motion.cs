@@ -21,6 +21,7 @@ public enum MotionEntrance
     Stamp,
     Scale,
     Draw,
+    Linger,
 }
 
 public enum MotionLoop
@@ -98,16 +99,6 @@ public sealed class Motion
         {
             content.LayoutUpdated -= Settled;
             content.ClearValue(SettlesProperty);
-        }
-    }
-
-    public static void Reveal(Visual content)
-    {
-        Watch(content);
-
-        if (!GetIsReduced(content) && content.GetValue(PlaybackProperty) is { } playback)
-        {
-            playback.Play(content, MotionCatalog.Reveal);
         }
     }
 

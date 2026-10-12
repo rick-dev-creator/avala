@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Avala.Agents.Contracts.Connections;
@@ -86,8 +87,8 @@ internal static partial class OverviewPhrases
     public static string Count(int count, string one, string many) =>
         string.Create(CultureInfo.InvariantCulture, $"{count} {(count == 1 ? one : many)}");
 
-    public static string Hub(string account, string cost, bool isDefault) =>
-        isDefault ? $"{account} · {cost} · the default connection" : $"{account} · {cost}";
+    public static PersonalPhrase Hub(Personal account, string cost, bool isDefault) =>
+        isDefault ? new PersonalPhrase(account, $" · {cost} · the default connection") : new PersonalPhrase(account, $" · {cost}");
 
     public static string State(Components.Status.StatusKind kind) => kind switch
     {

@@ -11,6 +11,7 @@ namespace Avala.Workbench.Inspector;
 internal sealed class InspectedJob(BoardFeed feed, InspectedFacts facts) : IPresentation, IDisposable
 {
     private Action<Option<InspectorFacts>> show = _ => { };
+    private InspectorDepth depth;
     private Option<JobId> focus;
     private int requested = -1;
 
@@ -22,7 +23,11 @@ internal sealed class InspectedJob(BoardFeed feed, InspectedFacts facts) : IPres
 
     public Task Following => feed.Following;
 
-    public void Showing(Action<Option<InspectorFacts>> shown) => show = shown;
+    public void Showing(Action<Option<InspectorFacts>> shown, InspectorDepth needed = InspectorDepth.Essentials)
+    {
+        show = shown;
+        depth = needed;
+    }
 
     public void Focus(Option<JobId> job)
     {
@@ -62,7 +67,7 @@ internal sealed class InspectedJob(BoardFeed feed, InspectedFacts facts) : IPres
 
                 requested = revision;
 
-                return [_ => feed.LoadAsync(cancellationToken => facts.ReadAsync(job, revision, cancellationToken), read => ApplyIfCurrent(job, revision, read))];
+                return [_ => feed.LoadAsync(cancellationToken => facts.ReadAsync(job, revision, depth, cancellationToken), read => ApplyIfCurrent(job, revision, read))];
             },
             () => []);
 

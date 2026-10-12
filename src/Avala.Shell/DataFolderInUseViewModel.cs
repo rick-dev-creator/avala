@@ -1,10 +1,11 @@
+using Avala.Components.Privacy;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Shell;
 
 internal interface IDataFolderInUseViewModel
 {
-    string Folder { get; }
+    Personal Folder { get; }
 
     string Reason { get; }
 
@@ -15,7 +16,7 @@ internal sealed partial class DataFolderInUseViewModel(string folder) : IDataFol
 {
     public event EventHandler? QuitRequested;
 
-    public string Folder { get; } = folder;
+    public Personal Folder { get; } = Personal.Path(folder);
 
     public string Reason => DataFolderInUsePhrases.Reason;
 
@@ -25,7 +26,7 @@ internal sealed partial class DataFolderInUseViewModel(string folder) : IDataFol
 
 internal sealed class DesignDataFolderInUseViewModel : IDataFolderInUseViewModel
 {
-    public string Folder => "/home/dana/.local/share/Avala";
+    public Personal Folder => Personal.Path("/home/dana/.local/share/Avala");
 
     public string Reason => DataFolderInUsePhrases.Reason;
 

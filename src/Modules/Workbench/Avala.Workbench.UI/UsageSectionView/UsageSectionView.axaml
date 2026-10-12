@@ -15,7 +15,7 @@
            IsExpanded="True"
            Classes.attention="{Binding IsAttention}">
     <StackPanel Margin="28,0,12,12" Spacing="7">
-      <TextBlock x:Name="Loading" Classes="caption" theme:Motion.Loop="Pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <Border x:Name="Loading" Classes="placeholder" theme:Motion.Enter="Linger" IsVisible="{Binding !IsLoaded}" AutomationProperties.Name="Reading" />
       <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Spent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <TextBlock Classes="caption secondary" Text="Spent" />
         <TextBlock x:Name="Spent"

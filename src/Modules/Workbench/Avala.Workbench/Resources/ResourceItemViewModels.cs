@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using System.Globalization;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
@@ -47,7 +48,7 @@ internal interface IOrphanViewModel
 
 internal interface IStaleWorktreeViewModel
 {
-    string Path { get; }
+    Personal Path { get; }
 
     string Reason { get; }
 }
@@ -93,7 +94,7 @@ internal sealed class OrphanViewModel(OrphanReport report) : IOrphanViewModel
 
 internal sealed class StaleWorktreeViewModel(string path, string reason) : IStaleWorktreeViewModel
 {
-    public string Path { get; } = path;
+    public Personal Path { get; } = Personal.Path(path);
 
     public string Reason { get; } = reason;
 }

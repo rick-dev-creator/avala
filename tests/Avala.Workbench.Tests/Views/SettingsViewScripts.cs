@@ -87,6 +87,15 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
 public sealed class RepositorySettingsViewScripts(HeadlessUi ui)
 {
     [Fact]
+    public Task TheRepositoryReadShowsItsPathWithTheHomeFolderAsTheTildeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignRepositorySettingsViewModel { Shown = "/home/dana/code/ledger-api" });
+
+            Assert.Equal("~/code/ledger-api", view.TextOf("Shown"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task TheRulesAreShownInDecisionOrderWithTheirOriginAndAnswerColorsAsync() =>
         ui.RunAsync(() =>
         {
@@ -253,7 +262,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
 
         return new(
             settings,
-            new MachineSections(new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel()),
+            new MachineSections(new DefaultConnectionViewModel(settings, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel(), new Avala.Components.Privacy.DesignPersonalDetailsViewModel()),
             new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
     }
 
@@ -268,6 +277,24 @@ public sealed class MachineAccountsViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignMachineAccountsViewModel());
 
             Assert.Equal(("connections.json · Applied", 2), (view.TextOf("ConnectionsFile"), view.Find<ItemsControl>("Connections").ItemCount));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task TheEyeInTheAccountsHeaderRevealsPersonalDetailsAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var store = new FakeAppearance();
+            var details = new Avala.Components.Privacy.PersonalDetailsViewModel(store, InlineUiDispatcher.Instance);
+            var view = Screen.Show(new DesignMachineAccountsViewModel { PersonalDetails = details });
+            var offered = (view.Shows("TogglePersonalDetails"), view.Shows("Hidden"));
+
+            view.Click("TogglePersonalDetails");
+            await (details.ToggleCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.Equal((true, true), offered);
+            Assert.Equal((false, true), (view.Shows("Hidden"), view.Shows("Shown")));
+            Assert.False(Assert.Single(store.Changes).HidesPersonalDetails);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

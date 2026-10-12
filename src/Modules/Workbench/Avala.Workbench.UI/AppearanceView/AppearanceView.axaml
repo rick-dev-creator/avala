@@ -124,6 +124,23 @@
             <TextBlock Classes="caption" Text="When off, Enter sends and Shift+Enter adds a line." TextWrapping="Wrap" />
           </StackPanel>
         </DockPanel>
+        <Border Classes="separator" Margin="16,0" />
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="HidePersonalDetails"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        IsChecked="{Binding PersonalDetails.IsHidden, Mode=OneWay}"
+                        Command="{Binding PersonalDetails.ToggleCommand}"
+                        AutomationProperties.Name="Hide personal details" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Hide personal details" />
+            <TextBlock Classes="caption"
+                       TextWrapping="Wrap"
+                       Text="Masks emails, sign-in names, account names and your home folder in paths, on screen and in exported conversations. Useful when recording a demo." />
+          </StackPanel>
+        </DockPanel>
       </StackPanel>
     </Border>
   </StackPanel>

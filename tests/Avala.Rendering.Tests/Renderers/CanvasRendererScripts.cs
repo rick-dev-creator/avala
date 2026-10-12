@@ -115,6 +115,20 @@ public sealed class CanvasRendererScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task AnSvgDrawnAgainIsParsedOnlyOnceAsync() =>
+        ui.RunAsync(() =>
+        {
+            var renderers = Renderers();
+            var rendering = new CanvasRendering("image/svg+xml", Drawing, true, 1);
+
+            var first = Assert.IsType<Image>(renderers.Build(rendering));
+            var again = Assert.IsType<Image>(renderers.Build(rendering));
+
+            Assert.NotSame(first, again);
+            Assert.Same(Assert.IsType<Avalonia.Svg.Skia.SvgImage>(first.Source).Source, Assert.IsType<Avalonia.Svg.Skia.SvgImage>(again.Source).Source);
+        }, Cancellation);
+
+    [Fact]
     public Task AnSvgDrawingSaysWhatWasBlockedAsync() =>
         ui.RunAsync(() =>
         {

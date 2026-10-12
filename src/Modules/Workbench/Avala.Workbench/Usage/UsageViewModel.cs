@@ -78,7 +78,11 @@ internal sealed class UsageViewModel : IUsageViewModel, IPage, IActivatable, IPr
     private void Show(UsageState state)
     {
         var jobCosts = state.Spending.Jobs.ToDictionary(cost => cost.Job.Job);
-        connections.ShowOnly(state.Spending.Connections.Select(connection => new ConnectionMeterViewModel(connection)));
+        connections.ShowInPlace(
+            state.Spending.Connections,
+            (meter, connection) => meter.Name == connection.Usage.Connection.Value,
+            connection => new ConnectionMeterViewModel(connection),
+            (meter, connection) => meter.Show(connection));
         range.Show(state.Range);
         jobs.ShowOnly(state.Spending.Jobs.Select(cost => new JobMeterViewModel(cost)));
         interventions.ShowOnly(state.Spending.Interventions.Select(intervention => new InterventionViewModel(intervention, jobCosts[intervention.Job].Job.Summary.Instruction, jobCosts[intervention.Job].Spend.Spent)));

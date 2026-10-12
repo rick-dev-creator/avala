@@ -1,3 +1,4 @@
+using Avala.Components.Privacy;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
@@ -19,7 +20,7 @@ internal interface IWorktreeSectionViewModel
 
     string Base { get; }
 
-    string Path { get; }
+    Personal Path { get; }
 
     string Ports { get; }
 
@@ -42,7 +43,7 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     {
         this.inspected = inspected;
         this.scratch = scratch;
-        inspected.Showing(Show);
+        inspected.Showing(Show, InspectorDepth.Complete);
     }
 
     public event EventHandler<Presented>? Presented
@@ -68,7 +69,7 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     public partial string Base { get; private set; } = string.Empty;
 
     [ObservableProperty]
-    public partial string Path { get; private set; } = string.Empty;
+    public partial Personal Path { get; private set; } = Personal.None;
 
     [ObservableProperty]
     public partial string Ports { get; private set; } = string.Empty;
@@ -110,7 +111,7 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
         Base = workspace.Match(
             found => found.BaseBranch.Match(branch => $"{branch} at {Short(found.BaseCommit)}", () => Short(found.BaseCommit)),
             () => string.Empty);
-        Path = workspace.Match(found => found.Path, () => string.Empty);
+        Path = workspace.Match(found => Personal.Path(found.Path), () => Personal.None);
         Ports = facts.Bind(found => found.Record.Ports).Match(
             lease => lease.First == lease.Last ? $"Port {lease.First}" : $"Ports {lease.First}–{lease.Last}",
             () => string.Empty);
