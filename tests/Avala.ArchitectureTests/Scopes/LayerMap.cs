@@ -45,6 +45,14 @@ internal static class LayerMap
             ["Offer"] = Layer.Application,
             ["Translating"] = Layer.Application,
         }),
+        .. Module("Avala.Preview", new()
+        {
+            [""] = Layer.None,
+            ["UI"] = Layer.None,
+            ["Contracts"] = Layer.Contracts,
+            ["Origins"] = Layer.Domain,
+            ["Navigation"] = Layer.Application,
+        }),
         .. Module("Avala.Jobs", new()
         {
             ["UI"] = Layer.None,
