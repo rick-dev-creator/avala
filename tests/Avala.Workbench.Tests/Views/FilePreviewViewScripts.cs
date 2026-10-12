@@ -46,6 +46,16 @@ public sealed class FilePreviewViewScripts(HeadlessUi ui)
             Assert.Equal("orbit.png is no longer in the workspace or the repository.", view.TextOf("Notice"));
         }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task TheDesignTimePreviewShowsADrawingsThumbnailAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignFilePreviewViewModel());
+
+            Assert.Equal((true, true, false), (view.Shows("Thumbnail"), view.Shows("Drawing"), view.Shows("Picture")));
+            Assert.Equal("orbits.svg", Avalonia.Automation.AutomationProperties.GetName(view.Find("Thumbnail")));
+        }, TestContext.Current.CancellationToken);
+
     private static async Task<FilePreviewViewModel> LoadedAsync(string path, byte[] bytes)
     {
         var worktree = new Worktree();
