@@ -111,8 +111,23 @@ internal sealed class PageProxy : IAsyncDisposable
 
     private async Task ForwardAsync(HttpListenerContext context, CancellationToken cancellationToken)
     {
-        var request = context.Request;
-        using var message = new HttpRequestMessage(new HttpMethod(request.HttpMethod), new Uri(upstream, request.RawUrl));
+        using var message = Outward(context.Request);
+        using var answer = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var response = context.Response;
+        response.StatusCode = (int)answer.StatusCode;
+        Inward(answer, response);
+
+        await using (var body = await answer.Content.ReadAsStreamAsync(cancellationToken))
+        {
+            await body.CopyToAsync(response.OutputStream, cancellationToken);
+        }
+
+        response.Close();
+    }
+
+    private HttpRequestMessage Outward(HttpListenerRequest request)
+    {
+        var message = new HttpRequestMessage(new HttpMethod(request.HttpMethod), new Uri(upstream, request.RawUrl));
 
         if (request.HasEntityBody)
         {
@@ -129,10 +144,11 @@ internal sealed class PageProxy : IAsyncDisposable
             }
         }
 
-        using var answer = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        var response = context.Response;
-        response.StatusCode = (int)answer.StatusCode;
+        return message;
+    }
 
+    private void Inward(HttpResponseMessage answer, HttpListenerResponse response)
+    {
         foreach (var (name, values) in answer.Headers.Concat(answer.Content.Headers).Where(header => !HopHeaders.Contains(header.Key, StringComparer.OrdinalIgnoreCase)))
         {
             foreach (var value in values)
@@ -154,13 +170,6 @@ internal sealed class PageProxy : IAsyncDisposable
         {
             response.SendChunked = true;
         }
-
-        await using (var body = await answer.Content.ReadAsStreamAsync(cancellationToken))
-        {
-            await body.CopyToAsync(response.OutputStream, cancellationToken);
-        }
-
-        response.Close();
     }
 
     private async Task BridgeAsync(HttpListenerContext context, CancellationToken cancellationToken)
