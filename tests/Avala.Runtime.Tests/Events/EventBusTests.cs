@@ -1,6 +1,7 @@
 using Avala.Runtime.Events;
 using Avala.Sdk;
 using Avala.Sdk.Events;
+using Avala.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -194,6 +195,23 @@ public sealed class EventBusTests
         await subscription.CancelAsync();
 
         Assert.False(await events.MoveNextAsync().AsTask().WaitAsync(Patience, Cancellation));
+    }
+
+    [Fact]
+    public async Task ABusStartedOnTheUiThreadRoutesItsEventsOffItAsync()
+    {
+        using var ui = new TestUiDispatcher();
+        var routed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var running = await ui.ReadAsync(() => Run(services => services.AddTransient<IHandle<Pinged>>(_ =>
+        {
+            routed.TrySetResult(SynchronizationContext.Current is TestUiDispatcher);
+
+            return new RecordingHandler(expected: 1);
+        })));
+
+        await running.Bus.PublishAsync(new Pinged(1), Cancellation);
+
+        Assert.False(await routed.Task.WaitAsync(Patience, Cancellation));
     }
 
     private static RunningBus Run(params IHandle<Pinged>[] handlers) =>

@@ -54,7 +54,10 @@ internal sealed partial class EventBus(IServiceProvider services, ILogger<EventB
 
     public Task RunAsync(CancellationToken cancellationToken) => RunAsync(cancellationToken, cancellationToken);
 
-    public async Task RunAsync(CancellationToken working, CancellationToken stopped)
+    public Task RunAsync(CancellationToken working, CancellationToken stopped) =>
+        Task.Run(() => RouteAsync(working, stopped), CancellationToken.None);
+
+    private async Task RouteAsync(CancellationToken working, CancellationToken stopped)
     {
         var handling = new Handling(working, stopped);
 

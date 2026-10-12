@@ -62,6 +62,27 @@ public sealed class StartupTests
     }
 
     [Fact]
+    public async Task AHostStartedOnTheUiThreadRunsItsStartupTasksOffItAsync()
+    {
+        using var data = new TemporaryFolder();
+        using var ui = new TestUiDispatcher();
+        var placed = new Placed();
+        await using var services = new ServiceCollection()
+            .AddSingleton(typeof(ILogger<>), typeof(NullLogger<>))
+            .AddRuntime(new AvalaPaths(data.Path))
+            .AddSingleton<IStartupTask>(placed)
+            .BuildServiceProvider();
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Cancellation);
+        var running = await ui.ReadAsync(() => services.RunAsync(lifetime.Token));
+
+        var onUi = await placed.OnUi.Task.WaitAsync(Cancellation);
+
+        Assert.False(onUi);
+        await lifetime.CancelAsync();
+        await running;
+    }
+
+    [Fact]
     public async Task StoppingWhileAStartupTaskRunsEndsTheHostQuietlyAndSkipsTheRestAsync()
     {
         using var data = new TemporaryFolder();
@@ -181,6 +202,18 @@ public sealed class StartupTests
             Events.Add((integrationEvent.Sequence, cancellationToken.IsCancellationRequested));
 
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class Placed : IStartupTask
+    {
+        public TaskCompletionSource<bool> OnUi { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task RunAsync(CancellationToken cancellationToken)
+        {
+            OnUi.TrySetResult(SynchronizationContext.Current is TestUiDispatcher);
+
+            return Task.CompletedTask;
         }
     }
 

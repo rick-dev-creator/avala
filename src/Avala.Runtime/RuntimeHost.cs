@@ -12,7 +12,10 @@ public static partial class RuntimeHost
 
     extension(IServiceProvider services)
     {
-        public async Task RunAsync(CancellationToken cancellationToken)
+        public Task RunAsync(CancellationToken cancellationToken) =>
+            Task.Run(() => services.HostAsync(cancellationToken), CancellationToken.None);
+
+        private async Task HostAsync(CancellationToken cancellationToken)
         {
             var bus = services.GetRequiredService<EventBus>();
             using var stopped = new CancellationTokenSource();
