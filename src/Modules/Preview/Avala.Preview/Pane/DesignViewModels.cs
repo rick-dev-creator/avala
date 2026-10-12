@@ -29,7 +29,7 @@ internal sealed class DesignPreviewPaneViewModel : IPreviewPaneViewModel
 
     public IRelayCommand ReloadCommand { get; } = new RelayCommand(() => { });
 
-    public IRelayCommand ToggleNetworkCommand { get; } = new RelayCommand(() => { });
+    public IAsyncRelayCommand ToggleNetworkCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand OpenInBrowserCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 

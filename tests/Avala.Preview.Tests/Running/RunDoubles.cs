@@ -19,23 +19,35 @@ internal sealed class FixedWorktrees(JobId owner, string worktree) : IJobWorktre
         ValueTask.FromResult(job == owner ? Option<string>.Some(worktree) : Option<string>.None);
 }
 
-internal sealed class RecordingPages(int port) : IPageServers
+internal sealed class RecordingPages(int port) : IGateways
 {
-    public ConcurrentDictionary<JobId, bool> Network { get; } = new();
-
     public ConcurrentQueue<JobId> Stopped { get; } = new();
 
-    public ValueTask<Result<int, PreviewError>> StartAsync(JobId job, string worktree, CancellationToken cancellationToken) =>
+    public ConcurrentQueue<JobId> Closed { get; } = new();
+
+    public ValueTask<Result<int, PreviewError>> ServeFilesAsync(JobId job, string worktree, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Result<int, PreviewError>.Success(port));
 
-    public ValueTask StopAsync(JobId job, CancellationToken cancellationToken)
+    public ValueTask StopFilesAsync(JobId job, CancellationToken cancellationToken)
     {
         Stopped.Enqueue(job);
 
         return ValueTask.CompletedTask;
     }
 
-    public void AllowNetwork(JobId job, bool allowed) => Network[job] = allowed;
+    public ValueTask<Result<Uri, PreviewError>> ProxyAsync(PreviewTarget target, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<Uri, PreviewError>.Success(target.Address));
+
+    public ValueTask CloseAsync(JobId job, CancellationToken cancellationToken)
+    {
+        Closed.Enqueue(job);
+
+        return ValueTask.CompletedTask;
+    }
+
+    public IReadOnlySet<int> PortsOf(JobId job) => new HashSet<int>();
+
+    public ValueTask AllowNetworkAsync(JobId job, bool allowed, CancellationToken cancellationToken) => ValueTask.CompletedTask;
 }
 
 internal sealed class RunBench : IAsyncDisposable
@@ -50,7 +62,8 @@ internal sealed class RunBench : IAsyncDisposable
         Previews = new Previews(
             Book,
             Runs,
-            new PreviewRunner(new FixedWorktrees(Job, Worktree.Path), new FixedLaunches(launch), new ScriptRuns(Trees, Runs), new PageRuns(Pages, Book, Runs, Bus)));
+            new PreviewRunner(new FixedWorktrees(Job, Worktree.Path), new FixedLaunches(launch), new ScriptRuns(Trees, Runs), new PageRuns(Pages, Book, Runs, Bus)),
+            Pages);
     }
 
     public JobId Job { get; } = JobId.New();

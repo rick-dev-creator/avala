@@ -100,6 +100,7 @@ public sealed class PreviewRunnerTests
 
         Assert.False(bench.Previews.IsRunning(bench.Job));
         Assert.Single(bench.Trees.Closed);
+        Assert.Equal([bench.Job], bench.Pages.Closed);
     }
 
     [Fact]

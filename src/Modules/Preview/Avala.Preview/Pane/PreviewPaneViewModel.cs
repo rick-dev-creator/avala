@@ -37,7 +37,7 @@ internal interface IPreviewPaneViewModel
 
     IRelayCommand ReloadCommand { get; }
 
-    IRelayCommand ToggleNetworkCommand { get; }
+    IAsyncRelayCommand ToggleNetworkCommand { get; }
 
     IAsyncRelayCommand OpenInBrowserCommand { get; }
 
@@ -76,6 +76,8 @@ internal sealed partial class PreviewPaneViewModel
     public long Revision { get; private set; }
 
     public Task Following => desk.Feed.Following;
+
+    public Task Navigating { get; private set; } = Task.CompletedTask;
 
     [ObservableProperty]
     public partial bool IsOpen { get; private set; }
@@ -158,25 +160,13 @@ internal sealed partial class PreviewPaneViewModel
     private void Reload() => Surface?.Reload();
 
     [RelayCommand(CanExecute = nameof(HasJob))]
-    private void ToggleNetwork()
-    {
-        _ = job.Match(
-            current =>
-            {
-                AllowsNetwork = !AllowsNetwork;
-                _ = AllowsNetwork ? networked.Add(current) : networked.Remove(current);
-                desk.AllowNetwork(current, AllowsNetwork);
-                Surface?.Reload();
-
-                return true;
-            },
-            () => false);
-    }
+    private Task ToggleNetworkAsync(CancellationToken cancellationToken) =>
+        job.Match(current => SwitchNetworkAsync(current, cancellationToken), () => Task.CompletedTask);
 
     [RelayCommand(CanExecute = nameof(HasAddress))]
     private async Task OpenInBrowserAsync(CancellationToken cancellationToken) =>
         await shown.Match(
-            target => links.OpenAsync(Surface?.Address.Match(page => page, () => target.Address) ?? target.Address, cancellationToken).AsTask(),
+            target => links.OpenAsync(Outside(target), cancellationToken).AsTask(),
             () => Task.FromResult(Result<Uri, FileOpenError>.Failure(FileOpenError.Unavailable)));
 
     [RelayCommand]
@@ -202,6 +192,19 @@ internal sealed partial class PreviewPaneViewModel
         Open(false);
         Present();
     }
+
+    private async Task SwitchNetworkAsync(JobId current, CancellationToken cancellationToken)
+    {
+        AllowsNetwork = !AllowsNetwork;
+        _ = AllowsNetwork ? networked.Add(current) : networked.Remove(current);
+        await desk.AllowNetworkAsync(current, AllowsNetwork, cancellationToken);
+        Surface?.Reload();
+    }
+
+    private Uri Outside(PreviewTarget target) =>
+        (Surface?.Address ?? Option<Uri>.None).Match(
+            page => page.IsAbsoluteUri && page.Port != target.Address.Port && page.Scheme is "http" or "https" ? new Uri(target.Address, page.PathAndQuery) : page,
+            () => target.Address);
 
     private bool CanGoBack() => Surface?.CanGoBack == true;
 
@@ -234,7 +237,7 @@ internal sealed partial class PreviewPaneViewModel
         {
             var surface = Surface ?? Attach(target.Job);
             shown = target;
-            surface.Navigate(target.Address);
+            Navigating = NavigateAsync(surface, target);
             OpenInBrowserCommand.NotifyCanExecuteChanged();
         }
 
@@ -257,6 +260,16 @@ internal sealed partial class PreviewPaneViewModel
         }
 
         return false;
+    }
+
+    private async Task NavigateAsync(IWebSurface surface, PreviewTarget target)
+    {
+        var gateway = await desk.GatewayAsync(target, CancellationToken.None);
+
+        if (Surface == surface && shown == Option<PreviewTarget>.Some(target))
+        {
+            surface.Navigate(gateway.Match(address => address, _ => target.Address));
+        }
     }
 
     private IWebSurface Attach(JobId owner)

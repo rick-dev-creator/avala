@@ -152,16 +152,38 @@ internal sealed class FakeLinks : ILinkOpener
     }
 }
 
-internal sealed class FakePageNetwork : IPageServers
+internal sealed class FakeGateways : IGateways
 {
     public ConcurrentDictionary<JobId, bool> Network { get; } = new();
 
-    public ValueTask<Result<int, PreviewError>> StartAsync(JobId job, string worktree, CancellationToken cancellationToken) =>
+    public ValueTask<Result<int, PreviewError>> ServeFilesAsync(JobId job, string worktree, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Result<int, PreviewError>.Failure(PreviewError.NotStarted));
 
-    public ValueTask StopAsync(JobId job, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+    public ValueTask StopFilesAsync(JobId job, CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
-    public void AllowNetwork(JobId job, bool allowed) => Network[job] = allowed;
+    public const int Offset = 10_000;
+
+    public ConcurrentDictionary<JobId, ImmutableHashSet<int>> Ports { get; } = new();
+
+    public static Uri Through(PreviewTarget target) => new($"http://127.0.0.1:{target.Address.Port + Offset}/");
+
+    public ValueTask<Result<Uri, PreviewError>> ProxyAsync(PreviewTarget target, CancellationToken cancellationToken)
+    {
+        Ports.AddOrUpdate(target.Job, [target.Address.Port + Offset], (_, known) => known.Add(target.Address.Port + Offset));
+
+        return ValueTask.FromResult(Result<Uri, PreviewError>.Success(Through(target)));
+    }
+
+    public ValueTask CloseAsync(JobId job, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+    public IReadOnlySet<int> PortsOf(JobId job) => Ports.GetValueOrDefault(job, []);
+
+    public ValueTask AllowNetworkAsync(JobId job, bool allowed, CancellationToken cancellationToken)
+    {
+        Network[job] = allowed;
+
+        return ValueTask.CompletedTask;
+    }
 }
 
 internal sealed class PaneBench : IDisposable
@@ -187,7 +209,7 @@ internal sealed class PaneBench : IDisposable
 
     public FakeLinks Links { get; } = new();
 
-    public FakePageNetwork Pages { get; } = new();
+    public FakeGateways Pages { get; } = new();
 
     public IMessenger Messenger { get; } = new StrongReferenceMessenger();
 

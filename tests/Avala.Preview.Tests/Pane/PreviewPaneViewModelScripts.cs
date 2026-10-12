@@ -23,7 +23,7 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
             .Then(pane =>
             {
                 Assert.Equal((true, "localhost:24000", PreviewPhrases.Running, true), (pane.IsOpen, pane.Address, pane.State, pane.IsLive));
-                Assert.Equal([target.Address], bench.Surfaces.Last.Visited);
+                Assert.Equal([FakeGateways.Through(target)], bench.Surfaces.Last.Visited);
                 Assert.Same(bench.Surfaces.Last, pane.Surface);
             });
     }
@@ -56,7 +56,7 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
             .Then(pane =>
             {
                 Assert.False(pane.HasRefusal);
-                Assert.Equal(Option<Uri>.Some(target.Address), bench.Surfaces.Last.Address);
+                Assert.Equal(Option<Uri>.Some(FakeGateways.Through(target)), bench.Surfaces.Last.Address);
             });
         Assert.Empty(bench.Links.Opened);
     }
@@ -81,20 +81,20 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
         bench.Surfaces.Last.Follow(new Uri("http://localhost:24000/orders"));
 
         script.Invoke(nameof(IPreviewPaneViewModel.BackCommand));
-        Assert.Equal(Option<Uri>.Some(target.Address), bench.Surfaces.Last.Address);
+        Assert.Equal(Option<Uri>.Some(FakeGateways.Through(target)), bench.Surfaces.Last.Address);
         Assert.False(script.CanInvoke(nameof(IPreviewPaneViewModel.BackCommand)));
     }
 
     [Fact]
-    public async Task OpenInBrowserOpensThePageShownAsync()
+    public async Task OpenInBrowserOpensThePageShownOnTheServersOwnAddressAsync()
     {
-        bench.Serve(bench.Job, 24_000);
+        var target = bench.Serve(bench.Job, 24_000);
         var script = Opened();
-        bench.Surfaces.Last.Follow(new Uri("http://localhost:24000/orders"));
+        bench.Surfaces.Last.Follow(new Uri(FakeGateways.Through(target), "/orders?page=2"));
 
         await script.ViewModel.OpenInBrowserCommand.ExecuteAsync(null);
 
-        Assert.Equal([new Uri("http://localhost:24000/orders")], bench.Links.Opened);
+        Assert.Equal([new Uri("http://localhost:24000/orders?page=2")], bench.Links.Opened);
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
 
         await script.WhenPresentedAsync(_ => bench.Serve(bench.Job, 24_001), Cancellation);
         script.Then(pane => Assert.Equal(("localhost:24001", true), (pane.Address, pane.IsLive)));
-        Assert.Equal(new Uri("http://localhost:24001/"), bench.Surfaces.Last.Visited[^1]);
+        Assert.Equal(new Uri("http://127.0.0.1:34001/"), bench.Surfaces.Last.Visited[^1]);
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
             {
                 Assert.Equal((true, "localhost:24005"), (pane.IsOpen, pane.Address));
                 Assert.True(bench.Surfaces.Opened[0].IsClosed);
-                Assert.Equal([other.Address], bench.Surfaces.Last.Visited);
+                Assert.Equal([FakeGateways.Through(other)], bench.Surfaces.Last.Visited);
             })
             .When(pane => pane.OnRegionContextChanged(JobId.New()))
             .Then(pane => Assert.Equal((false, null), (pane.IsOpen, pane.Surface)));

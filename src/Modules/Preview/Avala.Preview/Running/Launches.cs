@@ -22,11 +22,17 @@ internal interface IJobWorktrees
     ValueTask<Option<string>> FindAsync(JobId job, CancellationToken cancellationToken);
 }
 
-internal interface IPageServers
+internal interface IGateways
 {
-    ValueTask<Result<int, PreviewError>> StartAsync(JobId job, string worktree, CancellationToken cancellationToken);
+    ValueTask<Result<int, PreviewError>> ServeFilesAsync(JobId job, string worktree, CancellationToken cancellationToken);
 
-    ValueTask StopAsync(JobId job, CancellationToken cancellationToken);
+    ValueTask StopFilesAsync(JobId job, CancellationToken cancellationToken);
 
-    void AllowNetwork(JobId job, bool allowed);
+    ValueTask<Result<Uri, PreviewError>> ProxyAsync(PreviewTarget target, CancellationToken cancellationToken);
+
+    ValueTask CloseAsync(JobId job, CancellationToken cancellationToken);
+
+    IReadOnlySet<int> PortsOf(JobId job);
+
+    ValueTask AllowNetworkAsync(JobId job, bool allowed, CancellationToken cancellationToken);
 }

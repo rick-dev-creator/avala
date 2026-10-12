@@ -6,7 +6,7 @@ using Avala.Sdk.Events;
 
 namespace Avala.Preview.Running;
 
-internal sealed class Previews(PreviewBook book, RunBook runs, PreviewRunner runner) : IPreviews, IHandle<JobProgressed>
+internal sealed class Previews(PreviewBook book, RunBook runs, PreviewRunner runner, IGateways gateways) : IPreviews, IHandle<JobProgressed>
 {
     private static readonly JobStatus[] Ends = [JobStatus.Approved, JobStatus.Discarded, JobStatus.Failed];
 
@@ -37,6 +37,7 @@ internal sealed class Previews(PreviewBook book, RunBook runs, PreviewRunner run
         if (Ends.Contains(integrationEvent.Status))
         {
             _ = await StopAsync(integrationEvent.Job, cancellationToken);
+            await gateways.CloseAsync(integrationEvent.Job, cancellationToken);
         }
     }
 }

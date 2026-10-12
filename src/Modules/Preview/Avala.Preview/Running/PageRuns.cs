@@ -8,11 +8,11 @@ using Avala.Sdk.Processes;
 
 namespace Avala.Preview.Running;
 
-internal sealed class PageRuns(IPageServers pages, PreviewBook book, RunBook runs, IEventBus bus)
+internal sealed class PageRuns(IGateways gateways, PreviewBook book, RunBook runs, IEventBus bus)
 {
     public async ValueTask<Result<PreviewRun, PreviewError>> StartAsync(JobId job, string worktree, Launch launch, CancellationToken cancellationToken)
     {
-        if (!(await pages.StartAsync(job, worktree, cancellationToken)).TryGetValue(out var port, out var error))
+        if (!(await gateways.ServeFilesAsync(job, worktree, cancellationToken)).TryGetValue(out var port, out var error))
         {
             return error;
         }
@@ -27,7 +27,7 @@ internal sealed class PageRuns(IPageServers pages, PreviewBook book, RunBook run
 
     public async ValueTask StopAsync(Run run, CancellationToken cancellationToken)
     {
-        await pages.StopAsync(run.Job, cancellationToken);
+        await gateways.StopFilesAsync(run.Job, cancellationToken);
         _ = await runs.EndedAsync(run.Job, current => current == run, cancellationToken);
         await book.Unserve(run.Job).Match(
             page => bus.PublishAsync(new PreviewGone(page), cancellationToken).AsTask(),

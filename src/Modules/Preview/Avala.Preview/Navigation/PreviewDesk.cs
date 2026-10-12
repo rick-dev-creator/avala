@@ -8,7 +8,7 @@ using Avala.Sdk;
 
 namespace Avala.Preview.Navigation;
 
-internal sealed class PreviewDesk(IPreviews previews, PreviewBook book, IPageServers pages, PreviewFeed feed)
+internal sealed class PreviewDesk(IPreviews previews, PreviewBook book, IGateways gateways, PreviewFeed feed)
 {
     public PreviewFeed Feed => feed;
 
@@ -26,10 +26,21 @@ internal sealed class PreviewDesk(IPreviews previews, PreviewBook book, IPageSer
 
     public ValueTask<Result<PreviewRun, PreviewError>> StopAsync(JobId job, CancellationToken cancellationToken) => previews.StopAsync(job, cancellationToken);
 
-    public void AllowNetwork(JobId job, bool allowed) => pages.AllowNetwork(job, allowed);
+    public ValueTask AllowNetworkAsync(JobId job, bool allowed, CancellationToken cancellationToken) =>
+        gateways.AllowNetworkAsync(job, allowed, cancellationToken);
+
+    public ValueTask<Result<Uri, PreviewError>> GatewayAsync(PreviewTarget target, CancellationToken cancellationToken) =>
+        gateways.ProxyAsync(target, cancellationToken);
 
     public SurfaceRules Rules(JobId job, Func<bool> network) =>
         new(
-            address => book.ScopeOf(job).Admits(address, RealFiles.Of(address)),
-            address => book.ScopeOf(job).AdmitsResource(address, network(), RealFiles.Of(address)));
+            address => ScopeOf(job).Admits(address, RealFiles.Of(address)),
+            address => ScopeOf(job).AdmitsResource(address, network(), RealFiles.Of(address)));
+
+    private PreviewScope ScopeOf(JobId job)
+    {
+        var scope = book.ScopeOf(job);
+
+        return scope with { Listening = scope.Listening.Union(gateways.PortsOf(job)) };
+    }
 }
