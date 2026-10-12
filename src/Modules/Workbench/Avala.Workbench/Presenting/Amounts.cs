@@ -81,4 +81,35 @@ internal static class ItemLists
             items.Add(item);
         }
     }
+
+    public static void ShowInPlace<T, TSource>(this ObservableCollection<T> items, IEnumerable<TSource> next, Func<T, TSource, bool> matches, Func<TSource, T> create, Action<T, TSource> update)
+    {
+        var position = 0;
+
+        foreach (var source in next)
+        {
+            var found = items.Skip(position).Select((item, offset) => (item, index: position + offset)).FirstOrDefault(pair => matches(pair.item, source));
+
+            if (found.item is { } existing)
+            {
+                update(existing, source);
+
+                if (found.index != position)
+                {
+                    items.Move(found.index, position);
+                }
+            }
+            else
+            {
+                items.Insert(position, create(source));
+            }
+
+            position++;
+        }
+
+        while (items.Count > position)
+        {
+            items.RemoveAt(items.Count - 1);
+        }
+    }
 }

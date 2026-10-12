@@ -54,6 +54,23 @@ public sealed class UsageViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task ANewReadingUpdatesAConnectionsRowInPlaceAsync()
+    {
+        var board = Pages.Board();
+        usage.Connections.Add(new ConnectionUsage(new ConnectionName("claude-work"), Pages.Simulator, Pages.Used(1m)));
+        using var page = Page(board);
+        page.Activate();
+        await ui.PresentedAsync(page, () => page.Connections.Count == 1, () => $"{page.Connections.Count} connections");
+        var row = await ui.ReadAsync(() => page.Connections[0]);
+
+        usage.Connections[0] = new ConnectionUsage(new ConnectionName("claude-work"), Pages.Simulator, Pages.Used(2m));
+        board.Publish(board.Jobs);
+
+        await ui.PresentedAsync(page, () => page.Connections[0].Cost == "2 USD", () => page.Connections[0].Cost);
+        Assert.Same(row, await ui.ReadAsync(() => page.Connections[0]));
+    }
+
+    [Fact]
     public async Task WithNothingSpentThePageListsNoConnectionsNoJobsAndNoInterventionsAsync()
     {
         using var page = Page(Pages.Board(Pages.Summary("Update lodash to 4.17.21", JobStatus.Preparing)));
