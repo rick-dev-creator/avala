@@ -1,5 +1,6 @@
 using Avala.Components.UI.Theme;
 using Avala.Jobs.Contracts;
+using Avala.Sdk.Appearance;
 using Avala.Shell;
 using Avala.Testing.UI;
 using Avalonia.Controls;
@@ -28,10 +29,18 @@ public sealed class NavigationScreens(HeadlessUi ui, PublishedPlugins plugins)
         await ShootBothAsync(run, "75-narrow-window", window => window.Width = 960);
         await ShootBothAsync(run, "76-settings-sidebar-collapsed", Page("Settings"), Toggled(shell => shell.ToggleSidebarCommand));
         await ShootBothAsync(run, "77-overview-sidebar-collapsed", Page("Overview"), Toggled(shell => shell.ToggleSidebarCommand));
+        await ShootBothAsync(run, "78-sidebar-narrowest", Sidebar(WindowLayout.NarrowestSidebar));
+        await ShootBothAsync(run, "79-sidebar-widest", Sidebar(WindowLayout.WidestSidebar));
+        await ShootBothAsync(run, "80-settings", Page("Settings"));
+        await ShootBothAsync(run, "81-settings-sidebar-narrowest", Page("Settings"), Sidebar(WindowLayout.NarrowestSidebar));
+        await ShootBothAsync(run, "82-usage-sidebar-narrowest", Page("Usage"), Sidebar(WindowLayout.NarrowestSidebar));
     }
 
     private static Action<Window> Page(string title) =>
         window => ((ShellViewModel)window.DataContext!).SelectedPage = ((ShellViewModel)window.DataContext).Pages.Single(page => page.Title == title);
+
+    private static Action<Window> Sidebar(double width) =>
+        window => ((ShellViewModel)window.DataContext!).ResizeSidebarCommand.Execute(width);
 
     private static void Wide(Window window)
     {
@@ -67,6 +76,7 @@ public sealed class NavigationScreens(HeadlessUi ui, PublishedPlugins plugins)
         }
 
         shell.FitCommand.Execute(1440d);
+        shell.ResizeSidebarCommand.Execute(WindowLayout.DefaultSidebarWidth);
         shell.SelectedPage = shell.Pages.Single(page => page.Title == "Jobs");
     }
 }
