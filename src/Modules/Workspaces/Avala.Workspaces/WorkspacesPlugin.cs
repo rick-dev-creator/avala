@@ -25,6 +25,7 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddSingleton<IWorkspaces, WorkspaceService>()
             .AddSingleton<IBaseFiles, BaseFileReader>()
             .AddSingleton<IWorkingFiles, WorkingFileStore>()
+            .AddSingleton<IRepositories, GitRepositories>()
             .AddSingleton<IGitChanges, GitChangesCli>()
             .AddSingleton<IWorkspaceChanges, WorkspaceChanges>();
 }

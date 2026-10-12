@@ -32,4 +32,9 @@ public enum WorkspaceFailure
     FileTooLarge,
     FileUnreadable,
     FileUnwritable,
+    FolderMissing,
+    FolderExists,
+    InvalidRepositoryName,
+    AlreadyARepository,
+    NoGitIdentity,
 }
