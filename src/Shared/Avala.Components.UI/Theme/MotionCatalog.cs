@@ -13,6 +13,7 @@ internal static class MotionCatalog
 
     private static readonly SplineEasing Snappy = new(0.34, 1.4, 0.64, 1);
     private static readonly SplineEasing Gentle = new(0.22, 1, 0.36, 1);
+    private static readonly SplineEasing Settling = new(0.2, 0.8, 0.2, 1);
     private static readonly RelativePoint TopLeft = new(0, 0, RelativeUnit.Relative);
     private static readonly RelativePoint TopCenter = new(0.5, 0, RelativeUnit.Relative);
 
@@ -36,7 +37,9 @@ internal static class MotionCatalog
 
     private static readonly Move DrawIn = new(Animated(0.6, Gentle, TimeSpan.FromSeconds(0.3), Frame(0, [Dash(12)]), Frame(1, [Dash(0)])), false) { Dashes = [12, 12] };
 
-    public static Move Reveal { get; } = Enter(0.18, Gentle, Frame(0, [Y(6), Opacity(0)]), Frame(1, [Y(0), Opacity(1)]));
+    public static Move StageIn { get; } = Enter(0.24, Settling, Frame(0, [Y(8), .. Scale(0.985), Opacity(0)]), Frame(1, [Y(0), .. Scale(1), Opacity(1)]));
+
+    public static Move StageOut { get; } = Enter(0.24, Settling, Frame(0, [.. Scale(1), Opacity(1)]), Frame(1, [.. Scale(0.995), Opacity(0)]));
 
     private static readonly Move PulseLoop = Repeat(2, new CubicEaseOut(), TimeSpan.Zero, Frame(0, [.. Scale(1), Opacity(0.7)]), Frame(0.8, [.. Scale(2.6), Opacity(0)]), Frame(1, [.. Scale(2.6), Opacity(0)]));
 

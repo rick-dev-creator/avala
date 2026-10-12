@@ -147,6 +147,8 @@ public sealed class ViewScript
         Dispatcher.UIThread.RunJobs();
         Window.UpdateLayout();
         Dispatcher.UIThread.RunJobs();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        Dispatcher.UIThread.RunJobs();
 
         return this;
     }

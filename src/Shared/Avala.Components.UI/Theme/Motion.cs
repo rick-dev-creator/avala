@@ -101,16 +101,6 @@ public sealed class Motion
         }
     }
 
-    public static void Reveal(Visual content)
-    {
-        Watch(content);
-
-        if (!GetIsReduced(content) && content.GetValue(PlaybackProperty) is { } playback)
-        {
-            playback.Play(content, MotionCatalog.Reveal);
-        }
-    }
-
     private static bool IsSettling(Visual visual)
     {
         for (var current = visual; current is not null; current = current.GetVisualParent())
