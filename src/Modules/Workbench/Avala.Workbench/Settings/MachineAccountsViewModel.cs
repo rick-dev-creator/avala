@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Avala.Workbench.Accounts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -25,14 +26,17 @@ internal interface IMachineAccountsViewModel
 
 [INotifyPropertyChanged]
 internal sealed partial class MachineAccountsViewModel(
-    IReadOnlyList<IMachineConnectionViewModel> connections,
-    IConnectionEditorViewModel editor,
+    ConnectionEditorViewModel editor,
     ISourceControlViewModel sourceControl,
     IAsyncRelayCommand openConnections) : IMachineAccountsViewModel
 {
-    public IReadOnlyList<IMachineConnectionViewModel> Connections => connections;
+    public ObservableCollection<MachineConnectionViewModel> Rows { get; } = [];
+
+    public IReadOnlyList<IMachineConnectionViewModel> Connections => Rows;
 
     public IConnectionEditorViewModel Editor => editor;
+
+    public ConnectionEditorViewModel Editing => editor;
 
     public ISourceControlViewModel SourceControl => sourceControl;
 

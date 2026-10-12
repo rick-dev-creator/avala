@@ -10,7 +10,6 @@ using Avala.Workbench.NewJob;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Welcome;
 

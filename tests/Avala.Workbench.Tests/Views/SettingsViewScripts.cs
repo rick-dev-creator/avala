@@ -164,15 +164,6 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task TheAccountsShowTheConnectionsAndTheirFilesAsync() =>
-        ui.RunAsync(() =>
-        {
-            var view = Screen.Show(new DesignMachineAccountsViewModel());
-
-            Assert.Equal(("connections.json · Applied", 2), (view.TextOf("ConnectionsFile"), view.Find<ItemsControl>("Connections").ItemCount));
-        }, TestContext.Current.CancellationToken);
-
-    [Fact]
     public Task MovingTheSliderSetsTheWindowInSecondsAndOffersToSaveItAsync() =>
         ui.RunAsync(() =>
         {
@@ -245,7 +236,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var connections = new FakeConnections("claude-work", "claude-personal").Automatic();
-            var machine = Machine(connections, new FakeSupervision());
+            var machine = MachineSettingsViewScripts.Machine(connections, new FakeSupervision());
             await machine.LoadAsync(TestContext.Current.CancellationToken);
             var view = Page(machine);
 
@@ -266,12 +257,25 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
             new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(new FakeOpener(), new AvalaPaths("/data"))));
     }
 
+}
+
+public sealed class MachineAccountsViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task TheAccountsShowTheConnectionsAndTheirFilesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignMachineAccountsViewModel());
+
+            Assert.Equal(("connections.json · Applied", 2), (view.TextOf("ConnectionsFile"), view.Find<ItemsControl>("Connections").ItemCount));
+        }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task AddingAConnectionOpensTheFormUnderTheListAndSavingClosesItAsync() =>
         ui.RunAsync(async () =>
         {
             var connections = new FakeConnections("claude-work");
-            var machine = Machine(connections, new FakeSupervision());
+            var machine = MachineSettingsViewScripts.Machine(connections, new FakeSupervision());
             await machine.LoadAsync(TestContext.Current.CancellationToken);
             var view = Screen.Show(machine.Accounts);
 
@@ -294,7 +298,7 @@ public sealed class MachineSettingsViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var connections = new FakeConnections("claude-work", "claude-personal");
-            var machine = Machine(connections, new FakeSupervision());
+            var machine = MachineSettingsViewScripts.Machine(connections, new FakeSupervision());
             await machine.LoadAsync(TestContext.Current.CancellationToken);
             var view = Screen.Show(machine.Accounts);
 

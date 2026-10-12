@@ -2,6 +2,7 @@ using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.NewJob;
 using Avala.Workbench.Welcome;
@@ -126,5 +127,21 @@ public sealed class HarnessChoiceViewModelScripts
         await harness.ShowAsync(connections.Catalog, Cancellation);
 
         return harness;
+    }
+}
+
+public sealed class HarnessOptionViewModelScripts
+{
+    [Fact]
+    public void AnOptionReportsItsConnectionWhenChosenAndShowsItsUsageAndMark()
+    {
+        var chosen = new List<Option<ConnectionName>>();
+        var option = new HarnessOptionViewModel("work", new ConnectionName("work"), chosen.Add);
+
+        option.ChooseCommand.Execute(null);
+        option.Show("95% of the 5-hour window used", attention: true, chosen: true);
+
+        Assert.Equal([Option<ConnectionName>.Some(new ConnectionName("work"))], chosen);
+        Assert.Equal(("W", false, "95% of the 5-hour window used", true, true), (option.Monogram, option.IsAuto, option.Hint, option.IsAttention, option.IsChosen));
     }
 }

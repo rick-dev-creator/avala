@@ -39,19 +39,6 @@ public sealed class HarnessChoiceViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task ClickingAConnectionInTheMenuChoosesItAsync() =>
-        ui.RunAsync(() =>
-        {
-            var chosen = new List<Option<ConnectionName>>();
-            var view = Screen.Show(new HarnessOptionViewModel("claude-work", new ConnectionName("claude-work"), chosen.Add));
-
-            view.Click("Option");
-
-            Assert.Equal([new ConnectionName("claude-work")], chosen.Select(name => name.Match(found => found, () => new ConnectionName("none"))));
-            Assert.Equal("CW", view.TextOf("OptionMonogram"));
-        }, Cancellation);
-
-    [Fact]
     public Task AChosenConnectionOffersItsModelsInTheMenuAndPickingOneKeepsTheMenuOpenAsync() =>
         ui.RunAsync(() =>
         {
@@ -67,5 +54,23 @@ public sealed class HarnessChoiceViewScripts(HeadlessUi ui)
             view.Click(opus);
 
             Assert.Equal((true, "opus", true), (offered, models.Model, harness.IsOpen));
+        }, Cancellation);
+}
+
+public sealed class HarnessOptionViewScripts(HeadlessUi ui)
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public Task ClickingAConnectionInTheMenuChoosesItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var chosen = new List<Option<ConnectionName>>();
+            var view = Screen.Show(new HarnessOptionViewModel("claude-work", new ConnectionName("claude-work"), chosen.Add));
+
+            view.Click("Option");
+
+            Assert.Equal([new ConnectionName("claude-work")], chosen.Select(name => name.Match(found => found, () => new ConnectionName("none"))));
+            Assert.Equal("CW", view.TextOf("OptionMonogram"));
         }, Cancellation);
 }

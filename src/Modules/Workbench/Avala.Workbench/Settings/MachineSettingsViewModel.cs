@@ -62,19 +62,15 @@ internal static class SilenceDial
 [INotifyPropertyChanged]
 internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewModel
 {
-    private readonly ObservableCollection<MachineConnectionViewModel> connections = [];
     private readonly MachineSettings settings;
-    private readonly ConnectionEditorViewModel editor;
     private readonly MachineAccountsViewModel accounts;
 
     public MachineSettingsViewModel(MachineSettings settings, MachineSections sections, ConnectionEditorViewModel editor)
     {
         this.settings = settings;
-        this.editor = editor;
         DefaultConnection = sections.DefaultConnection;
         Notifications = sections.Notifications;
-        SourceControl = sections.SourceControl;
-        accounts = new MachineAccountsViewModel(connections, editor, SourceControl, OpenConnectionsCommand);
+        accounts = new MachineAccountsViewModel(editor, sections.SourceControl, OpenConnectionsCommand);
         DefaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
         editor.Edited += (_, edited) =>
         {
@@ -90,9 +86,9 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
 
     public IMachineAccountsViewModel Accounts => accounts;
 
-    public IConnectionEditorViewModel Editor => editor;
+    public IConnectionEditorViewModel Editor => accounts.Editing;
 
-    public IReadOnlyList<IMachineConnectionViewModel> Connections => connections;
+    public IReadOnlyList<IMachineConnectionViewModel> Connections => accounts.Connections;
 
     public string ConnectionsFile
     {
@@ -100,7 +96,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
         private set => accounts.ConnectionsFile = value;
     }
 
-    public ISourceControlViewModel SourceControl { get; }
+    public ISourceControlViewModel SourceControl => accounts.SourceControl;
 
     public string ForgesFile
     {
@@ -171,7 +167,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     [RelayCommand]
     private async Task OpenConnectionsAsync(CancellationToken cancellationToken)
     {
-        var opening = await editor.OpenFileAsync(cancellationToken);
+        var opening = await accounts.Editing.OpenFileAsync(cancellationToken);
         (Error, Notice) = (opening.Error, opening.Notice);
         Show(await settings.ReadAsync(cancellationToken));
     }
@@ -190,13 +186,13 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     private void ShowConnections(ConnectionCatalog catalog)
     {
         ConnectionsFile = SettingsPhrases.Status(catalog.File, catalog.Error);
-        editor.Show(catalog);
-        connections.ShowOnly(catalog.Connections.Select(connection =>
+        accounts.Editing.Show(catalog);
+        accounts.Rows.ShowOnly(catalog.Connections.Select(connection =>
             new MachineConnectionViewModel(
                 connection,
                 catalog.DefaultMode == DefaultMode.Fixed && catalog.Default == Option<ConnectionName>.Some(connection.Name),
-                new RelayCommand(() => editor.Edit(connection)),
-                new RelayCommand(() => editor.AskToRemove(connection.Name)))));
+                new RelayCommand(() => accounts.Editing.Edit(connection)),
+                new RelayCommand(() => accounts.Editing.AskToRemove(connection.Name)))));
     }
 
     private void ShowSupervision(SupervisionSettings supervision)
