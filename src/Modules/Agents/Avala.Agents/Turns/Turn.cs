@@ -56,6 +56,7 @@ internal sealed class Turn : IAggregateRoot<TurnId>
         {
             TurnStarted => TurnError.UnexpectedTurnStart,
             ItemStarted started => Open(started, started.Item, at),
+            ItemDrafted drafted => Draft(drafted),
             CanvasStarted started => Open(started, started.Item, at),
             ItemProgressed progressed => Touch(progressed, progressed.Item, at),
             ItemCompleted completed => Close(completed),
@@ -119,6 +120,11 @@ internal sealed class Turn : IAggregateRoot<TurnId>
 
         return new TurnProgress([started]);
     }
+
+    private Result<TurnProgress, TurnError> Draft(ItemDrafted drafted) =>
+        openItems.ContainsKey(drafted.Item) || completedItems.Contains(drafted.Item)
+            ? TurnError.ItemAlreadyStarted
+            : new TurnProgress([drafted]);
 
     private Result<TurnProgress, TurnError> Touch(IAgentEvent agentEvent, ItemId item, DateTimeOffset at)
     {
