@@ -43,6 +43,20 @@ public sealed class SidebarViewModelScripts : IDisposable
     }
 
     [Fact]
+    public void AJobStartedWithoutARepositoryStaysInTheGroupOfWhatItNeedsAndIsMarkedScratch()
+    {
+        var scratch = Job("Sketch a parser", JobStatus.AwaitingReview);
+        scratch = scratch with { Summary = scratch.Summary with { Repository = $"{bench.Scratch.Folder}/2026-10-12-sketch-a-parser-a1b2c3" } };
+        var ordinary = Job("Update the dependency", JobStatus.AwaitingReview);
+
+        ViewModelScript.Given(bench.Sidebar())
+            .When(sidebar => sidebar.Show(Board(scratch, ordinary)))
+            .Then(sidebar => Assert.Equal(
+                [("Update the dependency", false), ("Sketch a parser", true)],
+                sidebar.ReadyForReview.Cast<IJobRowViewModel>().Select(row => (row.Title, row.IsScratch))));
+    }
+
+    [Fact]
     public void AJobMovesToTheGroupOfWhatItNeedsAndKeepsItsRowAndTheSelection()
     {
         var running = Job("Run the migration", JobStatus.Running);

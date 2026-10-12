@@ -49,6 +49,16 @@ public sealed class RepositoryFieldViewModelScripts
     }
 
     [Fact]
+    public void ScratchRepositoriesOfJobsStartedWithoutARepositoryAreNeverSuggested()
+    {
+        var field = Choosing.Field(Pages.Board(Job("/code/shop", 1), Job("/data/scratch/2026-10-12-sketch-a-parser-a1b2c3", 2)));
+
+        field.ShowKnown();
+
+        Assert.Equal(["/code/shop"], field.Repositories);
+    }
+
+    [Fact]
     public async Task AFolderThatIsNotARepositoryIsMadeOneWhenThePersonAcceptsTheOfferAsync()
     {
         var field = Field();

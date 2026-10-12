@@ -21,6 +21,7 @@ public sealed class NewJobViewModelScripts
     private readonly IMessenger messenger = new StrongReferenceMessenger();
     private readonly FakeUsage usage = new();
     private readonly FakeContests contests = new();
+    private readonly FakeScratch scratch = new();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -492,10 +493,72 @@ public sealed class NewJobViewModelScripts
         Assert.Equal(string.Empty, page.Submitted);
     }
 
+    [Fact]
+    public async Task StartingWithoutARepositoryMakesAScratchRepositoryFromTheInstructionAndSubmitsTheJobThereAsync()
+    {
+        var page = Page();
+        await page.LoadAsync(Cancellation);
+        page.Instruction = " Sketch a CSV parser for bank exports ";
+        page.Connection = "personal";
+        page.Autonomy = NewJobPhrases.Supervised;
+
+        await page.StartWithoutRepositoryCommand.ExecuteAsync(null);
+
+        var request = Assert.Single(jobs.Requests);
+        Assert.Equal(["Sketch a CSV parser for bank exports"], scratch.Instructions);
+        Assert.Equal(
+            ("/data/scratch/2026-10-12-scratch-1", "Sketch a CSV parser for bank exports", Option<ConnectionName>.Some(new ConnectionName("personal")), Option<Autonomy>.Some(Autonomy.Supervised)),
+            (request.RepositoryPath, request.Instruction, request.Connection, request.Autonomy));
+        Assert.Equal(
+            (string.Empty, "Submitted in a scratch repository: Sketch a CSV parser for bank exports", string.Empty, string.Empty, true),
+            (page.Instruction, page.Submitted, page.Error, page.Repository, page.LastSubmitted.IsSome));
+    }
+
+    [Fact]
+    public async Task OnlyAnInstructionIsNeededToStartWithoutARepositoryAsync()
+    {
+        var page = Page();
+        await page.LoadAsync(Cancellation);
+        var blank = page.StartWithoutRepositoryCommand.CanExecute(null);
+
+        page.Instruction = "Sketch a parser";
+
+        Assert.Equal((false, true, false), (blank, page.StartWithoutRepositoryCommand.CanExecute(null), page.SubmitCommand.CanExecute(null)));
+    }
+
+    [Fact]
+    public async Task AScratchRepositoryThatCannotBeMadeSaysWhyAndSubmitsNothingAsync()
+    {
+        scratch.Refusal = Avala.Workspaces.Contracts.WorkspaceFailure.FileUnwritable;
+        var page = Page();
+        await page.LoadAsync(Cancellation);
+        page.Instruction = "Sketch a parser";
+
+        await page.StartWithoutRepositoryCommand.ExecuteAsync(null);
+
+        Assert.Empty(jobs.Requests);
+        Assert.Equal(("The scratch repository could not be made: The folder could not be created there.", "Sketch a parser"), (page.Error, page.Instruction));
+    }
+
+    [Fact]
+    public async Task WithSeveralCandidatesStartingWithoutARepositoryRunsTheContestInOneScratchRepositoryAsync()
+    {
+        contests.Declared = new Avala.Contests.Contracts.BestOf(3, 4);
+        var page = Page(Pages.Summary("Fix the failing test", JobStatus.Running));
+        await page.LoadAsync(Cancellation);
+        await page.OptionsRead;
+        page.Instruction = "Sketch a parser";
+
+        await page.StartWithoutRepositoryCommand.ExecuteAsync(null);
+
+        Assert.Equal(("/data/scratch/2026-10-12-scratch-1", 1), (Assert.Single(contests.Requests).Job.RepositoryPath, scratch.Instructions.Count));
+        Assert.Equal("Started 3 candidates in a scratch repository: Sketch a parser", page.Submitted);
+    }
+
     private static readonly OffersModels Large = new(["large", "small"], ["low", "medium", "high"]) { DefaultModel = "small", DefaultEffort = "medium" };
 
     private NewJobViewModel Page(params JobSummary[] known) => Page(connections, known);
 
     private NewJobViewModel Page(FakeConnections machine, params JobSummary[] known) =>
-        new(Launching.Launch(jobs, machine, preview, policies, contests), new NewJobReadings(Pages.Readings(usage)), messenger, new NewJobFields(Choosing.Field(Pages.Board(known)), Launching.Options(contests)));
+        new(Launching.Launch(jobs, machine, preview, policies, contests, scratch), new NewJobReadings(Pages.Readings(usage)), messenger, new NewJobFields(Choosing.Field(Pages.Board(known)), Launching.Options(contests)));
 }

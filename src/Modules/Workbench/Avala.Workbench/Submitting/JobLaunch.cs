@@ -5,6 +5,7 @@ using Avala.Contests.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Submitting;
 
@@ -39,6 +40,9 @@ internal sealed class JobLaunch(Submissions submissions, IConnections connection
         bool spread,
         CancellationToken cancellationToken) =>
         submissions.StartAsync(new ContestRequest(request, candidates) { Spread = spread }, cancellationToken);
+
+    public ValueTask<Result<string, WorkspaceFailure>> ScratchAsync(string instruction, CancellationToken cancellationToken) =>
+        submissions.ScratchAsync(instruction, cancellationToken);
 
     public static JobRequest Request(string repository, string instruction, Option<ConnectionName> connection, bool supervised, ModelChoice model) =>
         new(repository.Trim(), instruction.Trim())

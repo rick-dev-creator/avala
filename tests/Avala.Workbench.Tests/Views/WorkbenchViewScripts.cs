@@ -248,6 +248,18 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AScratchJobsRowCarriesAScratchTagBeforeItsFactAndAnOrdinaryRowNoneAsync() =>
+        ui.RunAsync(() =>
+        {
+            var scratch = Screen.Show(new DesignJobRowViewModel(Presenting.SampleJobs.SyncQueue, "Sketch a CSV parser", JobStatus.AwaitingReview, "no checks", Components.Status.StatusKind.ReadyForReview, 0) { IsScratch = true });
+            var tagged = (scratch.Shows("Scratch"), scratch.Find("Scratch").Bounds.Right <= scratch.Find("Fact").Bounds.Left);
+            var ordinary = Screen.Show(new DesignJobRowViewModel());
+
+            Assert.Equal((true, true), tagged);
+            Assert.False(ordinary.Shows("Scratch"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ARowWithDecisionsWaitingShowsTheirCountInABadgeAndARowWithoutShowsNoneAsync() =>
         ui.RunAsync(() =>
         {

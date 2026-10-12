@@ -20,6 +20,28 @@
   <ui:Fold x:Name="Section" Header="Worktree" Fact="{Binding Fact}">
     <StackPanel Margin="28,0,12,12" Spacing="7">
       <TextBlock x:Name="Loading" Classes="caption pulse" Text="Reading…" IsVisible="{Binding !IsLoaded}" />
+      <StackPanel x:Name="ScratchRepository" Spacing="4" IsVisible="{Binding IsScratch}">
+        <DockPanel>
+          <Border DockPanel.Dock="Left" Classes="tag" VerticalAlignment="Center">
+            <TextBlock Text="Scratch" />
+          </Border>
+          <Button x:Name="OpenFolder"
+                  DockPanel.Dock="Right"
+                  Classes="link"
+                  HorizontalAlignment="Right"
+                  Padding="6,2"
+                  Content="Open folder"
+                  ToolTip.Tip="Open the scratch repository in the file manager"
+                  Command="{Binding OpenFolderCommand}" />
+          <TextBlock Classes="caption secondary" Margin="8,0,0,0" VerticalAlignment="Center" Text="Started without a repository" />
+        </DockPanel>
+        <SelectableTextBlock x:Name="Repository" Classes="value" Margin="0" TextAlignment="Left" TextWrapping="Wrap" Text="{Binding Repository}" />
+        <TextBlock x:Name="FolderProblem"
+                   Classes="caption attention"
+                   TextWrapping="Wrap"
+                   Text="{Binding FolderProblem}"
+                   IsVisible="{Binding FolderProblem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
       <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding Base, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <TextBlock Classes="caption secondary" Text="Branch" />
         <TextBlock x:Name="Branch" Grid.Column="1" Classes="value" TextTrimming="CharacterEllipsis" Text="{Binding Branch}" />

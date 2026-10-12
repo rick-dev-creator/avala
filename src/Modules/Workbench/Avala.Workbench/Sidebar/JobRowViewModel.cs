@@ -35,6 +35,8 @@ internal interface ISidebarEntry : ISidebarRow;
 internal interface IJobRowViewModel : ISidebarEntry
 {
     JobStatus Status { get; }
+
+    bool IsScratch { get; }
 }
 
 [INotifyPropertyChanged]
@@ -42,9 +44,10 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
 {
     private readonly StatusDotViewModel dot = new(StatusKind.Working);
 
-    public JobRowViewModel(BoardJob job)
+    public JobRowViewModel(BoardJob job, bool scratch = false)
     {
         Job = job.Job;
+        IsScratch = scratch;
         Parent = job.Summary.Parent;
         Submitted = job.Summary.Submitted;
         Title = FactPhrases.Title(job.Summary.Instruction);
@@ -57,6 +60,8 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
     public Option<JobId> Parent { get; }
 
     public bool IsChild => Parent.IsSome;
+
+    public bool IsScratch { get; }
 
     public ObservableCollection<JobRowViewModel> Children { get; } = [];
 

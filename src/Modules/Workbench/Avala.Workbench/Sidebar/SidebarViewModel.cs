@@ -7,6 +7,7 @@ using Avala.Sdk.Presentation;
 using Avala.Workbench.Board;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.Presenting;
+using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -36,6 +37,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
 {
     private readonly BoardFeed feed;
     private readonly JobFocus focus;
+    private readonly ScratchFolders scratch;
     private readonly Dictionary<JobId, JobRowViewModel> rows = [];
     private readonly Dictionary<ContestId, ContestRowViewModel> contests = [];
     private readonly ObservableCollection<ISidebarEntry> needsYou = [];
@@ -46,10 +48,11 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
     private ImmutableDictionary<JobId, BoardContest> shownContests = ImmutableDictionary<JobId, BoardContest>.Empty;
 
-    public SidebarViewModel(BoardFeed feed, JobFocus focus)
+    public SidebarViewModel(BoardFeed feed, JobFocus focus, ScratchFolders scratch)
     {
         this.feed = feed;
         this.focus = focus;
+        this.scratch = scratch;
     }
 
     public IReadOnlyList<ISidebarEntry> NeedsYou => needsYou;
@@ -158,7 +161,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
             return;
         }
 
-        row = new JobRowViewModel(job);
+        row = new JobRowViewModel(job, scratch.Holds(job.Summary.Repository));
         rows.Add(job.Job, row);
         Insert(row);
         Adopt(row);

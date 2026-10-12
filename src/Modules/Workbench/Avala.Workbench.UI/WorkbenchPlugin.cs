@@ -219,6 +219,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<ContestUndecided>, ContestKeeper>()
             .AddForwarded<IHandle<ContestClosed>, ContestKeeper>()
             .AddSingleton<Submissions>()
+            .AddSingleton<ScratchFolders>()
+            .AddSingleton<RecentRepositories>()
             .AddSingleton<ContestReadings>()
             .AddTransient<JobOptionsViewModel>()
             .AddSingleton<ContestSectionViewModel>();

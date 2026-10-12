@@ -414,6 +414,28 @@ public sealed class WorktreeSectionViewScripts(HeadlessUi ui)
             Assert.Equal((string?)"rate-limit-post-login", Sections.Row(view).Fact);
             Assert.Equal(("avala/rate-limit-post-login", "main at 4f2c9e1", "Ports 41000–41009"), (view.TextOf("Branch"), view.TextOf("Base"), view.TextOf("Ports")));
             Assert.False(view.Shows("NoWorktree"));
+            Assert.False(view.Shows("ScratchRepository"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AScratchJobsSectionShowsTheScratchTagItsFolderAndAnOpenFolderButtonThatOpensItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var opened = 0;
+            var view = Sections.Open(Screen.Show(new DesignWorktreeSectionViewModel
+            {
+                IsScratch = true,
+                OpenFolderCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() =>
+                {
+                    opened++;
+
+                    return Task.CompletedTask;
+                }),
+            }));
+
+            view.Click("OpenFolder");
+
+            Assert.Equal((true, "~/.local/share/avala/scratch/2026-10-12-sketch-a-csv-parser-3f9a1c", 1), (view.Shows("ScratchRepository"), view.Find<SelectableTextBlock>("Repository").Text, opened));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -450,6 +472,14 @@ public sealed class WorktreeSectionViewScripts(HeadlessUi ui)
         public string Path => "~/.avala/worktrees/dogfood/01a122dd1eef75e58739993947fac499";
 
         public string Ports => string.Empty;
+
+        public bool IsScratch => false;
+
+        public string Repository => "~/code/dogfood";
+
+        public string FolderProblem => string.Empty;
+
+        public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand OpenFolderCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
     }
 }
 

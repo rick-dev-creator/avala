@@ -2,16 +2,20 @@ using Avala.Budgets.Contracts;
 using Avala.Contests.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Submitting;
 
-internal sealed class Submissions(IJobs jobs, IContests contests)
+internal sealed class Submissions(IJobs jobs, IContests contests, ScratchFolders scratch)
 {
     public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
         jobs.SubmitAsync(request, cancellationToken);
 
     public ValueTask<Result<ContestRecord, ContestRejection>> StartAsync(ContestRequest request, CancellationToken cancellationToken) =>
         contests.StartAsync(request, cancellationToken);
+
+    public ValueTask<Result<string, WorkspaceFailure>> ScratchAsync(string instruction, CancellationToken cancellationToken) =>
+        scratch.CreateAsync(instruction, cancellationToken);
 }
 
 internal sealed class ContestReadings(IContests contests, IRepositoryBudgets budgets)

@@ -241,6 +241,10 @@ internal static class InspectorPhrases
         : delegatedByParent ? "a sub-agent"
         : "none";
 
+    public static string Scratch(string fact) => $"{fact} · scratch";
+
+    public static string FolderUnopened(string folder) => $"The folder could not be opened here: it is {folder}.";
+
     public static string Worktree(string branch, Option<string> baseBranch)
     {
         var name = branch.Split('/')[^1];

@@ -19,6 +19,8 @@ internal sealed record DesignJobRowViewModel(JobId Job, string Title, JobStatus 
 
     public bool IsChild { get; init; }
 
+    public bool IsScratch { get; init; }
+
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
 
     public DateTimeOffset Submitted => DateTimeOffset.UnixEpoch;
@@ -118,6 +120,7 @@ internal sealed class DesignSidebarViewModel : ISidebarViewModel
             ],
         },
         new DesignJobRowViewModel(SampleJobs.LoginRateLimit, "Rate-limit POST /login", JobStatus.AwaitingReview, "verified on attempt 2", StatusKind.ReadyForReview, 0),
+        new DesignJobRowViewModel(SampleJobs.SyncQueue, "Sketch a CSV parser for bank exports", JobStatus.AwaitingReview, "no checks", StatusKind.ReadyForReview, 0) { IsScratch = true },
     ];
 
     public IReadOnlyList<ISidebarEntry> Done { get; } =

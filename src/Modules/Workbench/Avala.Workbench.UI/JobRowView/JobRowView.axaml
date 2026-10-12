@@ -43,7 +43,7 @@
       <Setter Property="IsVisible" Value="False" />
     </Style>
   </UserControl.Styles>
-  <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
     <ContentControl x:Name="Dot"
                     ClipToBounds="False"
                     Content="{Binding Dot}"
@@ -53,8 +53,16 @@
                Text="{Binding Title}"
                TextTrimming="CharacterEllipsis"
                VerticalAlignment="Center" />
+    <Border x:Name="Scratch"
+            Grid.Column="2"
+            Classes="tag"
+            Margin="8,0,0,0"
+            ToolTip.Tip="Started without a repository: it runs in a scratch repository in Avala's data folder"
+            IsVisible="{Binding IsScratch}">
+      <TextBlock Text="Scratch" />
+    </Border>
     <TextBlock x:Name="Fact"
-               Grid.Column="2"
+               Grid.Column="3"
                Classes="caption"
                Margin="10,0,0,0"
                MaxWidth="150"
@@ -62,7 +70,7 @@
                TextTrimming="CharacterEllipsis"
                VerticalAlignment="Center" />
     <Border x:Name="PendingBadge"
-            Grid.Column="3"
+            Grid.Column="4"
             Classes="badge"
             MinWidth="16"
             Margin="8,0,0,0"

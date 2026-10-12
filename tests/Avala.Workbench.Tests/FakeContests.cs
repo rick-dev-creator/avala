@@ -55,8 +55,8 @@ internal sealed class CappedBudgets(params Cost[] caps) : IRepositoryBudgets
 
 internal static class Launching
 {
-    public static JobLaunch Launch(IJobs jobs, IConnections connections, IConnectionPreview preview, Permissions.Contracts.IRepositoryPolicies policies, FakeContests? contests = null) =>
-        new(new Submissions(jobs, contests ?? new FakeContests()), connections, preview, policies);
+    public static JobLaunch Launch(IJobs jobs, IConnections connections, IConnectionPreview preview, Permissions.Contracts.IRepositoryPolicies policies, FakeContests? contests = null, RepositoryChoice.FakeScratch? scratch = null) =>
+        new(new Submissions(jobs, contests ?? new FakeContests(), RepositoryChoice.Scratching.Folders(scratch ?? new RepositoryChoice.FakeScratch())), connections, preview, policies);
 
     public static JobOptionsViewModel Options(FakeContests? contests = null, params Cost[] caps) =>
         new(new ModelPickerViewModel(), new ContestReadings(contests ?? new FakeContests(), new CappedBudgets(caps)));

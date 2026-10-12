@@ -1,4 +1,5 @@
 using Avala.Components.Meters;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Inspector;
 
@@ -113,6 +114,14 @@ internal sealed class DesignWorktreeSectionViewModel : IWorktreeSectionViewModel
     public string Path => "~/.avala/worktrees/shop-api/rate-limit-post-login";
 
     public string Ports => "Ports 41000–41009";
+
+    public bool IsScratch { get; init; }
+
+    public string Repository { get; init; } = "~/.local/share/avala/scratch/2026-10-12-sketch-a-csv-parser-3f9a1c";
+
+    public string FolderProblem => string.Empty;
+
+    public IAsyncRelayCommand OpenFolderCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignDelegationSectionViewModel : IDelegationSectionViewModel

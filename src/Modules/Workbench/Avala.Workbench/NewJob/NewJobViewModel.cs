@@ -47,6 +47,8 @@ internal interface INewJobViewModel
     string Submitted { get; }
 
     IAsyncRelayCommand SubmitCommand { get; }
+
+    IAsyncRelayCommand StartWithoutRepositoryCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -104,6 +106,7 @@ internal sealed partial class NewJobViewModel
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SubmitCommand))]
+    [NotifyCanExecuteChangedFor(nameof(StartWithoutRepositoryCommand))]
     public partial string Instruction { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -184,33 +187,50 @@ internal sealed partial class NewJobViewModel
     partial void OnAutonomyChanged(string value) => AutonomyNote = NewJobPhrases.AutonomyNote(policy, Supervised);
 
     [RelayCommand(CanExecute = nameof(CanSubmit))]
-    private async Task SubmitAsync(CancellationToken cancellationToken)
+    private Task SubmitAsync(CancellationToken cancellationToken) => StartAsync(Repository, string.Empty, cancellationToken);
+
+    [RelayCommand(CanExecute = nameof(CanStartWithoutRepository))]
+    private async Task StartWithoutRepositoryAsync(CancellationToken cancellationToken)
     {
-        if (choices.IsContest)
+        var made = await launch.ScratchAsync(Instruction, cancellationToken);
+
+        if (!made.TryGetValue(out var scratch, out var failure))
         {
-            await StartContestAsync(cancellationToken);
+            Error = NewJobPhrases.NoScratch(failure);
 
             return;
         }
 
-        var submitted = await launch.SubmitAsync(Repository, Instruction, Chosen(), Supervised, choices.Picker.Chosen, cancellationToken);
+        await StartAsync(scratch, NewJobPhrases.InScratch, cancellationToken);
+    }
+
+    private async Task StartAsync(string repository, string where, CancellationToken cancellationToken)
+    {
+        if (choices.IsContest)
+        {
+            await StartContestAsync(repository, where, cancellationToken);
+
+            return;
+        }
+
+        var submitted = await launch.SubmitAsync(repository, Instruction, Chosen(), Supervised, choices.Picker.Chosen, cancellationToken);
         Error = submitted.Match(_ => string.Empty, NewJobPhrases.Rejection);
 
         if (submitted.TryGetValue(out var job, out _))
         {
-            Started(job, $"Submitted: {Instruction.Trim()}");
+            Started(job, $"Submitted{where}: {Instruction.Trim()}");
         }
     }
 
-    private async Task StartContestAsync(CancellationToken cancellationToken)
+    private async Task StartContestAsync(string repository, string where, CancellationToken cancellationToken)
     {
-        var request = JobLaunch.Request(Repository, Instruction, Chosen(), Supervised, choices.Picker.Chosen);
+        var request = JobLaunch.Request(repository, Instruction, Chosen(), Supervised, choices.Picker.Chosen);
         var started = await launch.StartContestAsync(request, choices.Candidates, choices.Spread, cancellationToken);
         Error = started.Match(_ => string.Empty, rejection => $"The contest did not start: {ContestPhrases.Rejection(rejection)}");
 
         if (started.TryGetValue(out var contest, out _))
         {
-            Started(contest.Candidates[0].Job, $"Started {ContestPhrases.Candidates(contest.Candidates.Count)}: {Instruction.Trim()}");
+            Started(contest.Candidates[0].Job, $"Started {ContestPhrases.Candidates(contest.Candidates.Count)}{where}: {Instruction.Trim()}");
         }
     }
 
@@ -222,6 +242,8 @@ internal sealed partial class NewJobViewModel
     }
 
     private bool CanSubmit() => !string.IsNullOrWhiteSpace(Repository) && !string.IsNullOrWhiteSpace(Instruction);
+
+    private bool CanStartWithoutRepository() => !string.IsNullOrWhiteSpace(Instruction);
 
     private void ShowConnections(ConnectionCatalog shown)
     {

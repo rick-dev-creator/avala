@@ -3,7 +3,9 @@ using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Workbench.Inspection;
+using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Inspector;
 
@@ -20,16 +22,26 @@ internal interface IWorktreeSectionViewModel
     string Path { get; }
 
     string Ports { get; }
+
+    bool IsScratch { get; }
+
+    string Repository { get; }
+
+    string FolderProblem { get; }
+
+    IAsyncRelayCommand OpenFolderCommand { get; }
 }
 
 [INotifyPropertyChanged]
 internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewModel, IRegionAware<JobId>, IActivatable, IPresentation, IDisposable
 {
     private readonly InspectedJob inspected;
+    private readonly ScratchFolders scratch;
 
-    public WorktreeSectionViewModel(InspectedJob inspected)
+    public WorktreeSectionViewModel(InspectedJob inspected, ScratchFolders scratch)
     {
         this.inspected = inspected;
+        this.scratch = scratch;
         inspected.Showing(Show);
     }
 
@@ -61,6 +73,16 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
     [ObservableProperty]
     public partial string Ports { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenFolderCommand))]
+    public partial bool IsScratch { get; private set; }
+
+    [ObservableProperty]
+    public partial string Repository { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string FolderProblem { get; private set; } = string.Empty;
+
     public void OnRegionContextChanged(Option<JobId> context) => inspected.Focus(context);
 
     public void Activate() => inspected.Activate();
@@ -71,11 +93,19 @@ internal sealed partial class WorktreeSectionViewModel : IWorktreeSectionViewMod
 
     private static string Short(string commit) => commit[..Math.Min(7, commit.Length)];
 
+    [RelayCommand(CanExecute = nameof(IsScratch))]
+    private async Task OpenFolderAsync(CancellationToken cancellationToken) =>
+        FolderProblem = await scratch.OpenAsync(Repository, cancellationToken) ? string.Empty : InspectorPhrases.FolderUnopened(Repository);
+
     private void Show(Option<InspectorFacts> facts)
     {
         IsLoaded = facts.IsSome;
+        Repository = facts.Match(found => found.Record.History.Summary.Repository, () => string.Empty);
+        IsScratch = scratch.Holds(Repository);
+        FolderProblem = string.Empty;
         var workspace = facts.Bind(found => found.Record.Workspace);
-        Fact = facts.IsNone ? string.Empty : workspace.Match(found => InspectorPhrases.Worktree(found.Branch, found.BaseBranch), () => "none");
+        var fact = facts.IsNone ? string.Empty : workspace.Match(found => InspectorPhrases.Worktree(found.Branch, found.BaseBranch), () => "none");
+        Fact = IsScratch ? InspectorPhrases.Scratch(fact) : fact;
         Branch = facts.IsNone ? string.Empty : workspace.Match(found => found.Branch, () => "No worktree");
         Base = workspace.Match(
             found => found.BaseBranch.Match(branch => $"{branch} at {Short(found.BaseCommit)}", () => Short(found.BaseCommit)),

@@ -60,6 +60,8 @@ internal sealed partial class DesignNewJobViewModel : INewJobViewModel
     public string Submitted => "Submitted: Fix JPY rounding in invoice totals";
 
     public IAsyncRelayCommand SubmitCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand StartWithoutRepositoryCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 [INotifyPropertyChanged]

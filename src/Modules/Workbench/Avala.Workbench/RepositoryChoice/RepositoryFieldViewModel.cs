@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using Avala.Sdk;
-using Avala.Workbench.Board;
+using Avala.Workbench.Submitting;
 using Avala.Workbench.Presenting;
 using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -33,15 +33,15 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     private readonly ObservableCollection<string> known = [];
     private readonly IFolderPicker picker;
     private readonly IRepositories repositories;
-    private readonly JobBoard board;
+    private readonly RecentRepositories recent;
     private readonly NewRepositoryViewModel creation;
     private int checks;
 
-    public RepositoryFieldViewModel(IFolderPicker picker, IRepositories repositories, JobBoard board, NewRepositoryViewModel creation)
+    public RepositoryFieldViewModel(IFolderPicker picker, IRepositories repositories, RecentRepositories recent, NewRepositoryViewModel creation)
     {
         this.picker = picker;
         this.repositories = repositories;
-        this.board = board;
+        this.recent = recent;
         this.creation = creation;
         creation.Created += (_, created) =>
         {
@@ -71,7 +71,7 @@ internal sealed partial class RepositoryFieldViewModel : IRepositoryFieldViewMod
     public partial string Notice { get; private set; } = string.Empty;
 
     public void ShowKnown() =>
-        known.ShowOnly(board.Jobs.Values.OrderByDescending(job => job.Summary.Submitted).Select(job => job.Summary.Repository).Distinct());
+        known.ShowOnly(recent.Recent());
 
     partial void OnRepositoryChanged(string value)
     {

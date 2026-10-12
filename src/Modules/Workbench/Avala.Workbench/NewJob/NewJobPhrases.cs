@@ -4,7 +4,9 @@ using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Presenting;
+using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.Usage;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.NewJob;
 
@@ -15,6 +17,11 @@ internal static class NewJobPhrases
     public const string Unavailable = "No connection is available: add one in connections.json from Settings.";
 
     public const string Supervised = "Supervised";
+
+    public const string InScratch = " in a scratch repository";
+
+    public static string NoScratch(WorkspaceFailure failure) =>
+        $"The scratch repository could not be made: {RepositoryPhrases.Failure(failure)}";
 
     public static string RepositoryLevel(Option<RepositoryPolicy> policy) =>
         policy.Match(found => $"Repository's level: {found.Autonomy.ToString().ToLowerInvariant()}", () => "Repository's level");

@@ -334,6 +334,44 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task WithoutARepositoryOnlyStartWithoutARepositoryIsOfferedAndClickingItStartsTheJobInAScratchRepositoryAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var jobs = new SubmittingJobs();
+            var page = Scratched(bench, jobs);
+            var view = Screen.Show(page);
+            view.Type("Instruction", "Sketch a CSV parser");
+            var offered = (view.Find<Button>("Submit").IsEffectivelyEnabled, view.Find<Button>("StartWithoutRepository").IsEffectivelyEnabled);
+
+            view.Find("StartWithoutRepository").BringIntoView();
+            view.Settle();
+            view.Click("StartWithoutRepository");
+            await (page.StartWithoutRepositoryCommand.ExecutionTask ?? Task.CompletedTask);
+            view.Settle();
+
+            Assert.Equal((false, true), offered);
+            Assert.Equal("/data/scratch/2026-10-12-scratch-1", Assert.Single(jobs.Requests).RepositoryPath);
+            Assert.Equal("Submitted in a scratch repository: Sketch a CSV parser", view.TextOf("Submitted"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ControlShiftEnterInTheInstructionStartsTheJobWithoutARepositoryAsync() =>
+        ui.RunAsync(async () =>
+        {
+            using var bench = new Bench();
+            var jobs = new SubmittingJobs();
+            var page = Scratched(bench, jobs);
+            var view = Screen.Show(page);
+
+            view.Type("Instruction", "Sketch a CSV parser");
+            view.Press(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.Control | Avalonia.Input.RawInputModifiers.Shift);
+            await (page.StartWithoutRepositoryCommand.ExecutionTask ?? Task.CompletedTask);
+
+            Assert.Equal(("/data/scratch/2026-10-12-scratch-1", "Sketch a CSV parser"), (Assert.Single(jobs.Requests).RepositoryPath, Assert.Single(bench.Scratch.Instructions)));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ARejectedJobShowsWhyInPlaceAndKeepsTheInstructionAsync() =>
         ui.RunAsync(async () =>
         {
@@ -350,4 +388,7 @@ public sealed class NewJobViewScripts(HeadlessUi ui)
             Assert.Equal((true, "No connection has that name.", "Add invoice PDF endpoint"), (view.Shows("Error"), view.TextOf("ErrorText"), page.Instruction));
             Assert.Single(jobs.Requests);
         }, TestContext.Current.CancellationToken);
+
+    private static Avala.Workbench.NewJob.NewJobViewModel Scratched(Bench bench, SubmittingJobs jobs) =>
+        new(Launching.Launch(jobs, new FakeConnections("claude-work"), new FakePreview(), new FakePolicies(), scratch: bench.Scratch), new Avala.Workbench.NewJob.NewJobReadings(Pages.Readings(bench.Usage)), bench.Messenger, new Avala.Workbench.NewJob.NewJobFields(RepositoryChoice.Choosing.Field(bench.Board), Launching.Options()));
 }

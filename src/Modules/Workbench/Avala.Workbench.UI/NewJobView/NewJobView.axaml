@@ -20,7 +20,7 @@
   <DockPanel>
     <Border DockPanel.Dock="Top" Classes="pageHeader">
       <DockPanel>
-        <TextBlock DockPanel.Dock="Right" Classes="caption" Text="Ctrl+Enter submits" VerticalAlignment="Center" />
+        <TextBlock DockPanel.Dock="Right" Classes="caption" Text="Ctrl+Enter submits · Ctrl+Shift+Enter starts without a repository" VerticalAlignment="Center" />
         <TextBlock x:Name="Title" Classes="pageTitle" Text="{Binding Title}" VerticalAlignment="Center" />
       </DockPanel>
     </Border>
@@ -48,6 +48,7 @@
                        PlaceholderText="Fix the failing test in money/minor_test.go without changing the public API.">
                 <TextBox.KeyBindings>
                   <KeyBinding Gesture="Ctrl+Enter" Command="{Binding SubmitCommand}" />
+                  <KeyBinding Gesture="Ctrl+Shift+Enter" Command="{Binding StartWithoutRepositoryCommand}" />
                 </TextBox.KeyBindings>
               </TextBox>
             </StackPanel>
@@ -88,6 +89,12 @@
             </Border>
             <DockPanel>
               <Button x:Name="Submit" DockPanel.Dock="Right" Classes="primary" Content="Start the job" Command="{Binding SubmitCommand}" />
+              <Button x:Name="StartWithoutRepository"
+                      DockPanel.Dock="Right"
+                      Margin="0,0,8,0"
+                      Content="Start without a repository"
+                      ToolTip.Tip="Ctrl+Shift+Enter: runs the job in a new scratch repository in Avala's data folder, merged there when you approve it"
+                      Command="{Binding StartWithoutRepositoryCommand}" />
               <TextBlock x:Name="Submitted"
                          Classes="caption fade-in"
                          VerticalAlignment="Center"
