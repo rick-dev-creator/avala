@@ -27,13 +27,9 @@ internal sealed class SvgRenderer : ICanvasRenderer
             return Option<Control>.None;
         }
 
-        var drawing = new Image
-        {
-            Name = "Svg",
-            Source = new SvgImage { Source = source },
-            Stretch = Stretch.Uniform,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
+        var drawing = svg.Timeline.Match<Control>(
+            timeline => source.Svg is { HasAnimations: true } ? new AnimatedSvg(source, timeline) : Still(source),
+            () => Still(source));
 
         if (svg.Blocked == 0)
         {
@@ -45,6 +41,14 @@ internal sealed class SvgRenderer : ICanvasRenderer
 
         return panel;
     }
+
+    private static Image Still(SvgSource source) => new Image
+    {
+        Name = "Svg",
+        Source = new SvgImage { Source = source },
+        Stretch = Stretch.Uniform,
+        HorizontalAlignment = HorizontalAlignment.Center,
+    };
 
     private static TextBlock Blocked(int count) => new()
     {
