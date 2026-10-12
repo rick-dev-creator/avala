@@ -457,21 +457,12 @@ public sealed class TimelinePanel : VirtualizingPanel
     private void OnEffectiveViewportChanged(object? sender, EffectiveViewportChangedEventArgs e)
     {
         var seen = e.EffectiveViewport;
-        var hadViewport = hasViewport;
+        var moved = !hasViewport || Moved(viewport, seen);
         hasViewport = seen.Height > 0 && seen.Width > 0;
-        var moved = !hadViewport || Math.Abs(seen.Top - viewport.Top) > 0.5 || Math.Abs(seen.Height - viewport.Height) > 0.5 || Math.Abs(seen.Width - viewport.Width) > 0.5;
         viewport = seen;
 
-        if (!hasViewport)
+        if (!hasViewport || SeeksTheEnd(seen))
         {
-            return;
-        }
-
-        if (opening && seen.Bottom < Bounds.Height - 1 && !soughtEnd)
-        {
-            soughtEnd = true;
-            this.BringIntoView(new Rect(0, Math.Max(0, Bounds.Height - 1), 1, 1));
-
             return;
         }
 
@@ -483,6 +474,22 @@ public sealed class TimelinePanel : VirtualizingPanel
         {
             InvalidateMeasure();
         }
+    }
+
+    private static bool Moved(Rect before, Rect after) =>
+        Math.Abs(after.Top - before.Top) > 0.5 || Math.Abs(after.Height - before.Height) > 0.5 || Math.Abs(after.Width - before.Width) > 0.5;
+
+    private bool SeeksTheEnd(Rect seen)
+    {
+        if (!opening || seen.Bottom >= Bounds.Height - 1 || soughtEnd)
+        {
+            return false;
+        }
+
+        soughtEnd = true;
+        this.BringIntoView(new Rect(0, Math.Max(0, Bounds.Height - 1), 1, 1));
+
+        return true;
     }
 
     private (int Index, double Offset) Anchor(double top)
