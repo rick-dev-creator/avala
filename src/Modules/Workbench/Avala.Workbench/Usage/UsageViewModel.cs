@@ -33,6 +33,7 @@ internal sealed class UsageViewModel : IUsageViewModel, IPage, IActivatable, IPr
     private readonly UsageReader reader;
     private readonly UsageWindows windows;
     private readonly LiveFeed feed;
+    private string focused = string.Empty;
 
     public UsageViewModel(UsageReader reader, UsageWindows windows, LiveFeed feed)
     {
@@ -66,9 +67,23 @@ internal sealed class UsageViewModel : IUsageViewModel, IPage, IActivatable, IPr
 
     public Task Following => feed.Following;
 
+    public void Focus(string connection)
+    {
+        focused = connection;
+
+        foreach (var meter in connections)
+        {
+            meter.IsFocused = meter.Name == focused;
+        }
+    }
+
     public void Activate() => feed.Start(ReadAsync, Show);
 
-    public void Deactivate() => feed.Stop();
+    public void Deactivate()
+    {
+        feed.Stop();
+        Focus(string.Empty);
+    }
 
     public void Dispose() => feed.Dispose();
 
@@ -81,7 +96,7 @@ internal sealed class UsageViewModel : IUsageViewModel, IPage, IActivatable, IPr
         connections.ShowInPlace(
             state.Spending.Connections,
             (meter, connection) => meter.Name == connection.Usage.Connection.Value,
-            connection => new ConnectionMeterViewModel(connection),
+            connection => new ConnectionMeterViewModel(connection) { IsFocused = connection.Usage.Connection.Value == focused },
             (meter, connection) => meter.Show(connection));
         range.Show(state.Range);
         jobs.ShowOnly(state.Spending.Jobs.Select(cost => new JobMeterViewModel(cost)));

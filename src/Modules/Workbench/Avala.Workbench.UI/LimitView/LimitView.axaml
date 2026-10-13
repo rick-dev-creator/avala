@@ -19,6 +19,6 @@
       <ProgressBar x:Name="Used" Classes="bar thick" Classes.attention="{Binding IsNear}" Value="{Binding Used}" VerticalAlignment="Center" />
       <ProgressBar x:Name="Hold" Classes="marker" Classes.attention="{Binding IsNear}" Height="14" Value="{Binding Hold}" IsVisible="{Binding HasHold}" />
     </Panel>
-    <TextBlock x:Name="HoldAt" Classes="caption" Text="{Binding HoldAt}" IsVisible="{Binding IsNear}" />
+    <TextBlock x:Name="HoldAt" Classes="caption" Text="{Binding HoldAt}" IsVisible="{Binding IsNear}" TextWrapping="Wrap" />
   </StackPanel>
 </UserControl>

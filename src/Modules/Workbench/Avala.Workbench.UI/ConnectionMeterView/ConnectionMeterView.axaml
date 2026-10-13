@@ -8,7 +8,12 @@
   <Design.DataContext>
     <usage:DesignConnectionMeterViewModel />
   </Design.DataContext>
-  <Border Classes="grouped" theme:Motion.Enter="Arrive" Padding="22,20">
+  <UserControl.Styles>
+    <Style Selector="Border#Meter.focused">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Meter" Classes="grouped" Classes.focused="{Binding IsFocused}" theme:Motion.Enter="Arrive" Padding="22,20">
     <StackPanel Spacing="18">
       <StackPanel Spacing="2">
         <DockPanel>

@@ -72,6 +72,26 @@ public sealed class WorkbenchTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheJobsHeaderShowsTheUsageLeftOnItsConnectionAndOpensUsageWithThatConnectionMarkedAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "spent-window", (".avala/budget.json", """{ "holdAtLimit": 0.9 }"""));
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(run.Job);
+        var chip = workbench.Page["Regions"]["Header"].Items.Single(item => item.Kind == "UsageLeftViewModel");
+        await run.Ui.PresentedAsync(chip.Presentation, () => chip["IsShown"].Value<bool>(), () => chip["Left"].Text);
+        var shown = await run.Ui.ReadAsync(() => (chip["Left"].Text, chip["IsNear"].Value<bool>(), chip["Windows"].Items.Count));
+
+        await run.Ui.InvokeAsync(() => chip.Execute("OpenCommand"), TestContext.Current.CancellationToken);
+        var usage = run.Page("Usage");
+        await run.Ui.PresentedAsync(usage.Presentation, () => usage["Connections"].Items.Count == 1, () => $"{usage["Connections"].Items.Count} connections");
+
+        Assert.Equal(("5% left", true, 1), shown);
+        Assert.Same(usage.Target, await run.Ui.ReadAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage));
+        Assert.True(await run.Ui.ReadAsync(() => usage["Connections"].Items[0]["IsFocused"].Value<bool>()));
+    }
+
+    [Fact]
     public async Task TheSidebarMovesAJobBetweenGroupsAsItIsInterruptedAndContinuedAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "hang");
