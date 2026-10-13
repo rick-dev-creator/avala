@@ -10,7 +10,7 @@ internal sealed class LinuxContainment : IContainment
 {
     public const int TicksPerSecond = 100;
 
-    private readonly Option<string> setsid = Executables.Find("setsid");
+    private readonly Option<string> setsid = FlatpakHost.IsSandboxed ? Option<string>.None : Executables.Find("setsid");
 
     public async ValueTask<IContainer> CreateAsync(ProcessTreeId tree, CancellationToken cancellationToken)
     {
