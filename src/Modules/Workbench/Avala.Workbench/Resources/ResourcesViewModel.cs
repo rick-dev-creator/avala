@@ -33,6 +33,8 @@ internal interface IResourcesViewModel
 
     int Processes { get; }
 
+    string ProcessCount { get; }
+
     string Disk { get; }
 
     string Ports { get; }
@@ -88,7 +90,10 @@ internal sealed partial class ResourcesViewModel(ResourceReader reader, Housekee
     public partial string Cpu { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProcessCount))]
     public partial int Processes { get; private set; }
+
+    public string ProcessCount => Review.Amounts.Count(Processes, "process", "processes");
 
     [ObservableProperty]
     public partial string Disk { get; private set; } = string.Empty;

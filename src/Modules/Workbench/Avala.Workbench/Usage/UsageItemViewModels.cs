@@ -73,6 +73,8 @@ internal interface IJobMeterViewModel
 
     int Interventions { get; }
 
+    string Held { get; }
+
     string Connection { get; }
 
     bool HasCap { get; }
@@ -193,6 +195,8 @@ internal sealed class JobMeterViewModel(JobCost cost) : IJobMeterViewModel
     public string Carve { get; } = cost.Spend.Carve.Match(carve => $"carved {Amounts.Costs(carve.Cost)}", () => string.Empty);
 
     public int Interventions { get; } = cost.Interventions.Count;
+
+    public string Held => UsagePhrases.Held(Interventions);
 
     public string Connection { get; } = cost.Spend.Session.Match(seen => seen.Connection.Value, () => cost.Job.Summary.Connection.Match(name => name.Value, () => string.Empty));
 

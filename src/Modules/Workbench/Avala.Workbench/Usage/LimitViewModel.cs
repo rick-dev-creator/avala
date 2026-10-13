@@ -98,4 +98,11 @@ internal static class UsagePhrases
         : window.Length > 1 && char.IsDigit(window[0]) && window[^1] is 'h' or 'd' && int.TryParse(window[..^1], System.Globalization.CultureInfo.InvariantCulture, out var count)
             ? $"{count}-{(window[^1] == 'h' ? "hour" : "day")} window"
             : $"{char.ToUpperInvariant(window[0])}{window[1..]} window";
+
+    public static string Held(int interventions) => interventions switch
+    {
+        0 => string.Empty,
+        1 => "held once",
+        _ => $"held {interventions} times",
+    };
 }

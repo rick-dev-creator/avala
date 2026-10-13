@@ -69,7 +69,19 @@ public sealed class ResourcesViewModelScripts : IDisposable
         Assert.Equal(
             [("/worktrees/stray", "not known to any job"), ("/worktrees/gone", "missing from the disk")],
             await ui.ReadAsync(() => page.StaleWorktrees.Select(stale => (stale.Path.ToString(), stale.Reason)).ToList()));
-        Assert.Equal(("Resources", "512 MB", 3), await ui.ReadAsync(() => (page.Title, page.Memory, page.LeftBehind)));
+        Assert.Equal(("Resources", "512 MB", "3 processes", 3), await ui.ReadAsync(() => (page.Title, page.Memory, page.ProcessCount, page.LeftBehind)));
+    }
+
+    [Fact]
+    public async Task ASingleProcessIsCountedInTheSingularAsync()
+    {
+        resources.Usage = resources.Usage with { Processes = 1 };
+        using var page = Page();
+
+        page.Activate();
+
+        await ui.PresentedAsync(page, () => page.Processes == 1, () => $"{page.Processes} processes");
+        Assert.Equal("1 process", await ui.ReadAsync(() => page.ProcessCount));
     }
 
     [Fact]

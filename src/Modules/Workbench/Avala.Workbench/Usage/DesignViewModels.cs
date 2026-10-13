@@ -103,6 +103,8 @@ internal sealed record DesignJobMeterViewModel(JobId Job, string Title, JobStatu
     {
     }
 
+    public string Held => UsagePhrases.Held(Interventions);
+
     public string Tokens => "61,250 tokens";
 
     public string Unpriced => string.Empty;

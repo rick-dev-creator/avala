@@ -36,7 +36,7 @@
             <TextBlock Classes="section" Text="Jobs · cost against their cap" VerticalAlignment="Bottom" />
           </DockPanel>
           <TextBlock x:Name="NoJobs" Classes="caption" Margin="0,8,0,0" Text="No job has spent anything yet." IsVisible="{Binding !Jobs.Count}" />
-          <ItemsControl x:Name="Jobs" ItemsSource="{Binding Jobs}" />
+          <ItemsControl x:Name="Jobs" ItemsSource="{Binding Jobs}" Grid.IsSharedSizeScope="True" />
         </StackPanel>
 
         <ContentControl x:Name="Range" Content="{Binding Range}" />

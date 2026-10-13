@@ -87,6 +87,8 @@ public sealed class ResourcesViewScripts(HeadlessUi ui)
 
         public int Processes => design.Processes;
 
+        public string ProcessCount => design.ProcessCount;
+
         public string Disk => design.Disk;
 
         public string Ports => design.Ports;

@@ -119,6 +119,8 @@ internal sealed class DesignResourcesViewModel : IResourcesViewModel
 
     public int Processes => 23;
 
+    public string ProcessCount => "23 processes";
+
     public string Disk => "11,264.0 MB";
 
     public string Ports => "41000, 41010, 41011, 41020, 41030";

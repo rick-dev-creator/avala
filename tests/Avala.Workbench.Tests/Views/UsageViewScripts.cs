@@ -203,6 +203,15 @@ public sealed class JobMeterViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AJobHeldOnlyOnceSaysOnceAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignJobMeterViewModel(Presenting.SampleJobs.SyncQueue, "Extract sync queue into a module", JobStatus.NeedsHelp, "claude-personal", "3.04 USD", 1, "3 USD", 1));
+
+            Assert.Equal("held once", view.TextOf("Interventions"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AJobWithoutACapHasNoBarAsync() =>
         ui.RunAsync(() =>
         {

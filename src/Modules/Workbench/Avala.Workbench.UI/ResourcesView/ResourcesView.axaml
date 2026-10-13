@@ -46,7 +46,7 @@
             <StackPanel Spacing="4">
               <TextBlock Classes="caption" Text="Memory" />
               <TextBlock x:Name="Memory" Classes="figure" Text="{Binding Memory}" TextTrimming="CharacterEllipsis" />
-              <TextBlock x:Name="Processes" Classes="caption" Text="{Binding Processes, StringFormat='{}{0} processes'}" />
+              <TextBlock x:Name="Processes" Classes="caption" Text="{Binding ProcessCount}" />
             </StackPanel>
           </Border>
           <Border Classes="grouped" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16">

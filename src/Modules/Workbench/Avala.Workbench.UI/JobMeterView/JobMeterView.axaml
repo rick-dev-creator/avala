@@ -8,13 +8,19 @@
     <usage:DesignJobMeterViewModel />
   </Design.DataContext>
   <Border BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,0,1" Padding="0,11">
-    <Grid ColumnDefinitions="*,120,140,110" ColumnSpacing="16">
+    <Grid ColumnSpacing="16">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="110" />
+        <ColumnDefinition Width="120" />
+        <ColumnDefinition Width="Auto" SharedSizeGroup="Cost" />
+      </Grid.ColumnDefinitions>
       <StackPanel Orientation="Horizontal" Spacing="8" ClipToBounds="True">
         <TextBlock x:Name="Title" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
         <TextBlock x:Name="Interventions"
                    Classes="caption attention"
                    VerticalAlignment="Center"
-                   Text="{Binding Interventions, StringFormat='held {0} times'}"
+                   Text="{Binding Held}"
                    IsVisible="{Binding Interventions}" />
         <TextBlock x:Name="Carve" Classes="caption" VerticalAlignment="Center" Text="{Binding Carve}" IsVisible="{Binding Carve, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
