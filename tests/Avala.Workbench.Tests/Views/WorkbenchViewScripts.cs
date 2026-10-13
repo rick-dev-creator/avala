@@ -174,25 +174,39 @@ public sealed class SidebarViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task JobsAreGroupedUnderTheirHeadingsWithTheSelectedRowHighlightedAsync() =>
+    public Task JobsAreGroupedUnderNeedsYouTheirProjectsAndChatsWithTheSelectedRowHighlightedAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignSidebarViewModel());
 
-            Assert.Superset(new HashSet<string>(["Needs you", "Running", "Waiting", "Ready for review", "Done", "Fix JPY rounding in invoice totals", "held: stalled", "waiting for its parent"]), view.VisibleTexts.ToHashSet());
+            Assert.Superset(new HashSet<string>(["Needs you", "Projects", "acme-dashboard", "payments-api", "Chats", "Fix JPY rounding in invoice totals", "held: stalled", "Sketch a CSV parser for bank exports", "1 done"]), view.VisibleTexts.ToHashSet());
+            Assert.DoesNotContain("Fix the calculator", view.VisibleTexts);
             Assert.False(view.Shows("NoJobs"));
             Assert.Single(view.All<Button>(), button => button.Classes.Contains("selected"));
         }, Cancellation);
 
     [Fact]
-    public Task AnEmptySidebarHidesEveryGroupAndSaysNothingAsync() =>
+    public Task AnEmptySidebarHidesNeedsYouAndChatsAndOnlyOffersANewProjectAsync() =>
         ui.RunAsync(() =>
         {
             using var bench = new Bench();
             var view = Screen.Show(bench.Sidebar());
 
-            Assert.Equal((false, false, false, false, false), (view.Shows("NeedsYouGroup"), view.Shows("RunningGroup"), view.Shows("WaitingGroup"), view.Shows("ReadyForReviewGroup"), view.Shows("DoneGroup")));
-            Assert.Empty(view.VisibleTexts);
+            Assert.Equal((false, false, true), (view.Shows("NeedsYouGroup"), view.Shows("Chats"), view.Shows("NewProject")));
+            Assert.Equal(["Projects"], view.VisibleTexts);
+        }, Cancellation);
+
+    [Fact]
+    public Task ThePlusBesideProjectsCreatesAProjectAsync() =>
+        ui.RunAsync(() =>
+        {
+            using var bench = new Bench();
+            var view = Screen.Show(bench.Sidebar());
+
+            view.Click("NewProject");
+
+            Assert.Equal(["create New project"], bench.ProjectBook.Calls);
+            Assert.Equal("New project", AutomationProperties.GetName(view.Find("NewProject")));
         }, Cancellation);
 
     [Fact]
@@ -220,9 +234,9 @@ public sealed class SidebarViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignSidebarViewModel());
             var rows = view.All<Button>().Where(button => button.DataContext is IJobRowViewModel).ToList();
 
-            Assert.Equal(3, rows.Count(row => row.Classes.Contains("child")));
+            Assert.Equal(2, rows.Count(row => row.Classes.Contains("child")));
             Assert.All(rows.Where(row => row.Classes.Contains("child")), row => Assert.True(Avalonia.VisualExtensions.TranslatePoint(row, default, view.Window)?.X > Avalonia.VisualExtensions.TranslatePoint(rows[0], default, view.Window)?.X));
-            Assert.Contains("Rewrite webhook signature tests", view.VisibleTexts);
+            Assert.Contains("Regenerate the API reference", view.VisibleTexts);
         }, Cancellation);
 
     [Fact]
@@ -347,15 +361,26 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task AScratchJobsRowCarriesAScratchTagBeforeItsFactAndAnOrdinaryRowNoneAsync() =>
+    public Task ARowsMenuOffersMoveToWithItsProjectsAndASubAgentsRowHidesItAsync() =>
         ui.RunAsync(() =>
         {
-            var scratch = Screen.Show(new DesignJobRowViewModel(Presenting.SampleJobs.SyncQueue, "Sketch a CSV parser", JobStatus.AwaitingReview, "no checks", Components.Status.StatusKind.ReadyForReview, 0) { IsScratch = true });
-            var tagged = (scratch.Shows("Scratch"), scratch.Find("Scratch").Bounds.Right <= scratch.Find("FactSlot").Bounds.Left);
-            var ordinary = Screen.Show(new DesignJobRowViewModel());
+            MenuItem MoveTo(object row)
+            {
+                var view = Screen.Show(row);
+                var control = view.All<UserControl>().First(found => found.GetType().Name == "JobRowView");
+                var flyout = Assert.IsType<MenuFlyout>(control.ContextFlyout);
+                flyout.ShowAt(control);
+                view.Settle();
 
-            Assert.Equal((true, true), tagged);
-            Assert.False(ordinary.Shows("Scratch"));
+                return flyout.Items.OfType<MenuItem>().Single(item => item.Name == "MoveTo");
+            }
+
+            var movable = MoveTo(new DesignJobRowViewModel());
+            var child = MoveTo(new DesignJobRowViewModel() { IsChild = true });
+
+            Assert.Equal(("Move to", true), (movable.Header, movable.IsVisible));
+            Assert.Equal(["payments-api", "Side projects", "New project…"], movable.Items.OfType<MoveTarget>().Select(target => target.Name));
+            Assert.False(child.IsVisible);
         }, TestContext.Current.CancellationToken);
 
     [Fact]

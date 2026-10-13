@@ -221,7 +221,7 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
 
         var winner = Outcomes.Present(Outcomes.Present((await decided.UntilAsync(_ => true)).Contest.Verdict).Winner);
         _ = await workbench.SelectAsync(winner);
-        await run.Ui.InvokeAsync(() => Assert.Single(workbench.Sidebar["ReadyForReview"].Items).Execute("ToggleCommand"), Cancellation);
+        await run.Ui.InvokeAsync(() => Assert.Single(SidebarRows.In(workbench.Sidebar, "ReadyForReview")).Execute("ToggleCommand"), Cancellation);
         _ = await workbench.InspectAsync(winner, "ContestSectionViewModel");
         await workbench.ShowsAsync(() => ((ICommand)workbench.Page["OpenReviewCommand"].Target).CanExecute(null));
         await run.Ui.RunAsync(() => workbench.Page.ExecuteAsync("OpenReviewCommand"));

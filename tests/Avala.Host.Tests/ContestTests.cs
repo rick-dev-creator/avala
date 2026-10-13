@@ -47,7 +47,7 @@ public sealed class ContestTests(PublishedPlugins plugins)
         var row = await workbench.RowAsync(winner, "ReadyForReview");
 
         Assert.Equal(("ReadyForReview", "3 candidates · 2 passed"), row);
-        Assert.Equal("ContestRowViewModel", await run.Ui.ReadAsync(() => Assert.Single(workbench.Sidebar["ReadyForReview"].Items).Kind));
+        Assert.Equal("ContestRowViewModel", await run.Ui.ReadAsync(() => Assert.Single(SidebarRows.In(workbench.Sidebar, "ReadyForReview")).Kind));
     }
 
     [Fact]

@@ -328,11 +328,8 @@ public sealed class ScreenHonestyTests(PublishedPlugins plugins)
             await run.Ui.ReadAsync(() => (connections["Connections"].Items[0]["Limits"].Items[0]["Window"].Text, connections["Connections"].Items[0]["Limits"].Items[0]["UsedText"].Text)));
     }
 
-    private static readonly string[] Groups = ["NeedsYou", "Running", "Waiting", "ReadyForReview", "Done"];
-
     private static Bound? Row(OpenWorkbench workbench, JobId job) =>
-        Groups
-            .SelectMany(group => workbench.Sidebar[group].Items)
+        SidebarRows.TopLevel(workbench.Sidebar)
             .Cast<Bound?>()
             .FirstOrDefault(row => row!.Value["Job"].Value<JobId>() == job);
 

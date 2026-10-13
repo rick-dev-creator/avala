@@ -1,5 +1,6 @@
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
+using Avala.Workbench.Board;
 using Avala.Workbench.Decisions;
 using Avala.Workbench.Presenting;
 using CommunityToolkit.Mvvm.Input;
@@ -19,7 +20,16 @@ internal sealed record DesignJobRowViewModel(JobId Job, string Title, JobStatus 
 
     public bool IsChild { get; init; }
 
-    public bool IsScratch { get; init; }
+    public JobGroup Group { get; init; } = JobGroup.Running;
+
+    public bool CanMove => !IsChild;
+
+    public IReadOnlyList<MoveTarget> MoveTargets { get; init; } =
+    [
+        MoveTarget.To("payments-api", _ => Task.CompletedTask),
+        MoveTarget.To("Side projects", _ => Task.CompletedTask),
+        MoveTarget.To(ProjectPhrases.NewProject, _ => Task.CompletedTask),
+    ];
 
     public bool ShowsElapsed { get; init; }
 
@@ -77,66 +87,119 @@ internal sealed record DesignContestRowViewModel(JobId Job, string Title, string
 
     public bool IsExpanded { get; init; }
 
+    public JobGroup Group => JobGroup.ReadyForReview;
+
     public IReadOnlyList<ISidebarRow> Children { get; init; } = [];
 
     public IRelayCommand ToggleCommand { get; init; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignProjectGroupViewModel : IProjectGroupViewModel
+{
+    public string Key { get; init; } = "design";
+
+    public string Name { get; init; } = "acme-dashboard";
+
+    public bool IsChats { get; init; }
+
+    public bool IsProject { get; init; } = true;
+
+    public int OpenCount => Open.Count;
+
+    public bool HasRows => Open.Count + Done.Count > 0;
+
+    public bool NeedsYou { get; init; }
+
+    public bool IsExpanded { get; init; } = true;
+
+    public IReadOnlyList<ISidebarEntry> Open { get; init; } = [];
+
+    public IReadOnlyList<ISidebarEntry> Done { get; init; } = [];
+
+    public bool HasDone => Done.Count > 0;
+
+    public string DoneLabel => ProjectPhrases.Done(Done.Count);
+
+    public bool IsDoneShown { get; init; }
+
+    public bool IsRenaming { get; init; }
+
+    public int Renames => 0;
+
+    public string Draft { get; set; } = "acme-dashboard";
+
+    public string Problem { get; init; } = string.Empty;
+
+    public bool HasProblem => Problem.Length > 0;
+
+    public bool CanDelete => IsProject && !HasRows;
+
+    public IRelayCommand<object> SelectCommand { get; init; } = new RelayCommand<object>(_ => { });
+
+    public IAsyncRelayCommand ToggleCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand ToggleDoneCommand { get; init; } = new RelayCommand(() => { });
+
+    public IRelayCommand StartRenameCommand { get; init; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand CommitRenameCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IRelayCommand CancelRenameCommand { get; init; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand DeleteCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignSidebarViewModel : ISidebarViewModel
 {
     public IReadOnlyList<ISidebarEntry> NeedsYou { get; } =
     [
-        new DesignJobRowViewModel(),
-        new DesignJobRowViewModel(SampleJobs.FlakyCheckout, "Fix flaky CheckoutForm test", JobStatus.Running, "wants to run a command", StatusKind.NeedsYou, 1),
-        new DesignJobRowViewModel(SampleJobs.SyncQueue, "Extract sync queue into a module", JobStatus.NeedsHelp, "held: stalled", StatusKind.Held, 0),
+        new DesignJobRowViewModel(SampleJobs.FlakyCheckout, "Fix flaky CheckoutForm test", JobStatus.Running, "wants to run a command", StatusKind.NeedsYou, 1) { Group = JobGroup.NeedsYou },
+        new DesignJobRowViewModel(SampleJobs.SyncQueue, "Extract sync queue into a module", JobStatus.NeedsHelp, "held: stalled", StatusKind.Held, 0) { Group = JobGroup.NeedsYou },
     ];
 
-    public IReadOnlyList<ISidebarEntry> Running { get; } =
+    public IReadOnlyList<IProjectGroupViewModel> Projects { get; } =
     [
-        new DesignJobRowViewModel(SampleJobs.JpyRounding, "Fix JPY rounding in invoice totals", JobStatus.Running, "2 of 4", StatusKind.Working, 0) { ShowsElapsed = true },
-        new DesignJobRowViewModel(SampleJobs.InvoicePdf, "Migrate payments to stripe-go v79", JobStatus.Running, "3 sub-agents", StatusKind.Working, 0)
+        new DesignProjectGroupViewModel
         {
-            Children =
+            Open =
             [
-                new DesignJobRowViewModel(SampleJobs.FlakyCheckout, "Update call sites in internal/payments", JobStatus.Running, "9 of 14 files", StatusKind.Working, 0) { IsChild = true },
-                new DesignJobRowViewModel(SampleJobs.SyncQueue, "Rewrite webhook signature tests", JobStatus.Running, "waiting for its parent", StatusKind.Held, 0) { IsChild = true },
-                new DesignJobRowViewModel(SampleJobs.LoginRateLimit, "Regenerate the API reference", JobStatus.AwaitingReview, "verified", StatusKind.ReadyForReview, 0) { IsChild = true },
+                new DesignJobRowViewModel(SampleJobs.JpyRounding, "Fix JPY rounding in invoice totals", JobStatus.Running, "2 of 4", StatusKind.Working, 0) { ShowsElapsed = true },
+                new DesignJobRowViewModel(SampleJobs.InvoicePdf, "Migrate payments to stripe-go v79", JobStatus.Running, "3 sub-agents", StatusKind.Working, 0)
+                {
+                    Children =
+                    [
+                        new DesignJobRowViewModel(SampleJobs.FlakyCheckout, "Update call sites in internal/payments", JobStatus.Running, "9 of 14 files", StatusKind.Working, 0) { IsChild = true },
+                        new DesignJobRowViewModel(SampleJobs.LoginRateLimit, "Regenerate the API reference", JobStatus.AwaitingReview, "verified", StatusKind.ReadyForReview, 0) { IsChild = true },
+                    ],
+                },
+                new DesignContestRowViewModel(),
+                new DesignJobRowViewModel(SampleJobs.LoginRateLimit, "Rate-limit POST /login", JobStatus.AwaitingReview, "verified on attempt 2", StatusKind.ReadyForReview, 0) { Group = JobGroup.ReadyForReview },
+            ],
+            Done =
+            [
+                new DesignJobRowViewModel(SampleJobs.CheckoutSplit, "Paginate audit log export", JobStatus.Approved, "merged", StatusKind.Done, 0) { Group = JobGroup.Done },
             ],
         },
-        new DesignJobRowViewModel(SampleJobs.LodashUpdate, "Update zod to 3.23", JobStatus.Checking, "verifying", StatusKind.Checking, 0),
+        new DesignProjectGroupViewModel { Key = "payments", Name = "payments-api", IsExpanded = false, NeedsYou = true, Open = [new DesignJobRowViewModel(SampleJobs.CheckoutSplit, "Fix the calculator", JobStatus.NeedsHelp, "resumes at 15:51", StatusKind.Held, 0) { Group = JobGroup.Waiting }] },
+        new DesignProjectGroupViewModel { Key = "side", Name = "Side projects", IsRenaming = true, Draft = "Side projects" },
     ];
 
-    public IReadOnlyList<ISidebarEntry> Waiting { get; } =
-    [
-        new DesignJobRowViewModel(SampleJobs.CheckoutSplit, "Fix the calculator on the first account", JobStatus.NeedsHelp, "resumes at 15:51", StatusKind.Held, 0),
-    ];
+    public IProjectGroupViewModel Chats { get; } = new DesignProjectGroupViewModel
+    {
+        Key = "chats",
+        Name = "Chats",
+        IsChats = true,
+        IsProject = false,
+        Open = [new DesignJobRowViewModel(SampleJobs.SyncQueue, "Sketch a CSV parser for bank exports", JobStatus.AwaitingReview, "no checks", StatusKind.ReadyForReview, 0) { Group = JobGroup.ReadyForReview }],
+    };
 
-    public IReadOnlyList<ISidebarEntry> ReadyForReview { get; } =
-    [
-        new DesignContestRowViewModel()
-        {
-            IsExpanded = true,
-            Children =
-            [
-                new DesignCandidateRowViewModel(SampleJobs.InvoicePdf, 1, "needs help: retries ran out", StatusKind.NeedsYou),
-                new DesignCandidateRowViewModel(SampleJobs.LodashUpdate, 2, "verified", StatusKind.ReadyForReview),
-                new DesignCandidateRowViewModel(SampleJobs.SyncQueue, 3, "verified", StatusKind.ReadyForReview),
-            ],
-        },
-        new DesignJobRowViewModel(SampleJobs.LoginRateLimit, "Rate-limit POST /login", JobStatus.AwaitingReview, "verified on attempt 2", StatusKind.ReadyForReview, 0),
-        new DesignJobRowViewModel(SampleJobs.SyncQueue, "Sketch a CSV parser for bank exports", JobStatus.AwaitingReview, "no checks", StatusKind.ReadyForReview, 0) { IsScratch = true },
-    ];
-
-    public IReadOnlyList<ISidebarEntry> Done { get; } =
-    [
-        new DesignJobRowViewModel(SampleJobs.CheckoutSplit, "Paginate audit log export", JobStatus.Approved, "merged", StatusKind.Done, 0),
-    ];
-
-    public ISidebarRow? Selected => Running[0];
+    public ISidebarRow? Selected => Projects[0].Open[0];
 
     public bool IsEmpty => false;
 
     public IRelayCommand<object> SelectCommand { get; } = new RelayCommand<object>(_ => { });
+
+    public IAsyncRelayCommand CreateProjectCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignToolbarViewModel : IToolbarViewModel

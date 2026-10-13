@@ -57,6 +57,8 @@ using Avala.Workbench.Steering;
 using Avala.Workbench.Submitting;
 using Avala.Workbench.Triggers;
 using Avala.Workbench.Telemetry;
+using Avala.Projects.Contracts;
+using Avala.Workbench.Projects;
 using Avala.Workbench.Updates;
 using Avala.Workbench.Upkeep;
 using Avala.Workbench.Usage;
@@ -150,7 +152,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterGlobalPages(registrar.Services);
         RegisterAccounts(registrar.Services);
         RegisterRepositoryChoice(registrar.Services);
-        RegisterContests(registrar);
+        RegisterBoardGroups(registrar);
         RegisterFooter(registrar);
     }
 
@@ -159,6 +161,16 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0)
             .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
             .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5);
+
+    private static void RegisterProjects(IServiceCollection services) =>
+        services
+            .AddSingleton<ProjectKeeper>()
+            .AddForwarded<IHandle<ProjectsRestored>, ProjectKeeper>()
+            .AddForwarded<IHandle<ProjectCreated>, ProjectKeeper>()
+            .AddForwarded<IHandle<ProjectRenamed>, ProjectKeeper>()
+            .AddForwarded<IHandle<ProjectDeleted>, ProjectKeeper>()
+            .AddForwarded<IHandle<ConversationMoved>, ProjectKeeper>()
+            .AddSingleton<ProjectShelf>();
 
     private static void RegisterFooter(IPluginRegistrar registrar)
     {
@@ -199,6 +211,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IHarnessChoiceViewModel, HarnessChoiceView>();
         views.Register<IHarnessOptionViewModel, HarnessOptionView>();
         views.Register<ISidebarViewModel, SidebarView>();
+        views.Register<IProjectGroupViewModel, ProjectGroupView>();
         views.Register<IJobRowViewModel, JobRowView>();
         views.Register<IContestRowViewModel, ContestRowView>();
         views.Register<ICandidateRowViewModel, CandidateRowView>();
@@ -269,6 +282,12 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<WorktreeSectionViewModel>(ShellRegions.Inspector, 50)
             .AddToRegion<DelegationSectionViewModel>(ShellRegions.Inspector, 60)
             .AddToRegion<PullRequestSectionViewModel>(ShellRegions.Inspector, 55);
+    }
+
+    private static void RegisterBoardGroups(IPluginRegistrar registrar)
+    {
+        RegisterContests(registrar);
+        RegisterProjects(registrar.Services);
     }
 
     private static void RegisterContests(IPluginRegistrar registrar)

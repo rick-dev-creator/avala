@@ -446,8 +446,6 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
         await Camera.ShootAsync(run, "26-inspector-usage-headline-under-a-cost-cap-narrow-light", ThemeVariant.Light, FeatureCamera.Unfold(), window => window.Width = 900);
     }
 
-    private static readonly string[] Groups = ["NeedsYou", "Running", "Waiting", "ReadyForReview", "Done"];
-
     [Fact]
     public async Task TheDeniedCardOfAnAutonomousJobAsync()
     {
@@ -546,8 +544,7 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
     }
 
     private static Bound? ChildRow(OpenWorkbench workbench, JobId child) =>
-        Groups
-            .SelectMany(group => workbench.Sidebar[group].Items)
+        SidebarRows.TopLevel(workbench.Sidebar)
             .SelectMany(row => row["Children"].Items)
             .Cast<Bound?>()
             .FirstOrDefault(row => row!.Value["Job"].Value<JobId>() == child);

@@ -36,7 +36,7 @@ public sealed class ScratchRepositoryTests(PublishedPlugins plugins)
         Assert.Equal(Path.Combine(Path.GetFullPath(run.DataFolder), "scratch"), Path.GetDirectoryName(scratch));
         Assert.StartsWith("simulate-plan-across-turns-", Path.GetFileName(scratch)[11..], StringComparison.Ordinal);
         await workbench.ShowsInGroupAsync(job, "ReadyForReview");
-        Assert.True(await run.Ui.ReadAsync(() => workbench.Sidebar["ReadyForReview"].Items.Single(row => row["Job"].Value<JobId>() == job)["IsScratch"].Value<bool>()));
+        Assert.True(await run.Ui.ReadAsync(() => workbench.Sidebar["Chats"]["Open"].Items.Any(row => row["Job"].Value<JobId>() == job)));
         var worktree = Assert.Single(await workbench.InspectAsync(job, "WorktreeSectionViewModel"));
         Assert.Equal((true, scratch), await run.Ui.ReadAsync(() => (worktree["IsScratch"].Value<bool>(), worktree["Repository"].Text)));
 

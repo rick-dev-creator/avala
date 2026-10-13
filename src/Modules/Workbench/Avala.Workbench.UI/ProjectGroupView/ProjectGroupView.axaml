@@ -1,0 +1,137 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sidebar="using:Avala.Workbench.Sidebar"
+             xmlns:copying="using:Avala.Components.UI.Copying"
+             xmlns:focusing="using:Avala.Components.UI.Focusing"
+             x:Class="Avala.Workbench.UI.ProjectGroupView"
+             x:ClassModifier="internal"
+             x:DataType="sidebar:IProjectGroupViewModel"
+             Classes.chats="{Binding IsChats}">
+  <Design.DataContext>
+    <sidebar:DesignProjectGroupViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Path.chevron">
+      <Setter Property="Width" Value="9" />
+      <Setter Property="Height" Value="9" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+      <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Path#Folder, Path#RenamingFolder">
+      <Setter Property="Width" Value="14" />
+      <Setter Property="Height" Value="14" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+    <Style Selector="TextBlock#ProjectName">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector=":is(UserControl).chats TextBlock#ProjectName">
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Attention">
+      <Setter Property="Width" Value="7" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="Margin" Value="8,0,0,0" />
+      <Setter Property="StrokeThickness" Value="1.6" />
+      <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="Border.rows">
+      <Setter Property="Margin" Value="13,1,0,4" />
+      <Setter Property="Padding" Value="6,0,0,0" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="BorderThickness" Value="1,0,0,0" />
+    </Style>
+    <Style Selector=":is(UserControl).chats Border.rows">
+      <Setter Property="Margin" Value="0,1,0,4" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Border.children">
+      <Setter Property="Margin" Value="13,0,0,4" />
+      <Setter Property="Padding" Value="8,0,0,0" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="BorderThickness" Value="1,0,0,0" />
+    </Style>
+    <Style Selector="Button.row.child">
+      <Setter Property="Padding" Value="8,5" />
+    </Style>
+    <Style Selector="ItemsControl.rows">
+      <Setter Property="ItemsPanel">
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="1" />
+        </ItemsPanelTemplate>
+      </Setter>
+    </Style>
+  </UserControl.Styles>
+  <UserControl.Resources>
+    <DataTemplate x:Key="Row" x:DataType="sidebar:ISidebarRow">
+      <StackPanel>
+        <Button Classes="row"
+                Classes.child="{Binding IsChild}"
+                Classes.selected="{Binding IsSelected}"
+                Command="{Binding $parent[UserControl].((sidebar:ISidebarCommands)DataContext).SelectCommand}"
+                CommandParameter="{Binding}">
+          <ContentControl ClipToBounds="False" Content="{Binding}" />
+        </Button>
+        <Border Classes="children" IsVisible="{Binding !!Children.Count}">
+          <ItemsControl Classes="rows" ItemsSource="{Binding Children}" ItemTemplate="{DynamicResource Row}" />
+        </Border>
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.Resources>
+  <StackPanel Spacing="1">
+    <Button x:Name="Header"
+            Classes="row"
+            Command="{Binding ToggleCommand}"
+            IsVisible="{Binding !IsRenaming}"
+            AutomationProperties.Name="{Binding Name}">
+      <Button.ContextFlyout>
+        <MenuFlyout>
+          <MenuItem x:Name="Rename" Header="Rename" Command="{Binding StartRenameCommand}" IsVisible="{Binding IsProject}" />
+          <MenuItem x:Name="Delete" Header="Delete Project" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}" IsVisible="{Binding IsProject}" />
+        </MenuFlyout>
+      </Button.ContextFlyout>
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+        <Panel VerticalAlignment="Center">
+          <Path x:Name="Expanded" Classes="icon chevron" Data="{StaticResource IconChevronDown}" IsVisible="{Binding IsExpanded}" />
+          <Path x:Name="Collapsed" Classes="icon chevron" Data="{StaticResource IconChevronRight}" IsVisible="{Binding !IsExpanded}" />
+        </Panel>
+        <Path x:Name="Folder" Grid.Column="1" Classes="icon" Data="{StaticResource IconFolder}" IsVisible="{Binding !IsChats}" VerticalAlignment="Center" />
+        <TextBlock x:Name="ProjectName" Grid.Column="2" Classes.strong="{Binding !IsChats}" Classes.caption="{Binding IsChats}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <Ellipse x:Name="Attention" Grid.Column="3" VerticalAlignment="Center" IsVisible="{Binding NeedsYou}" ToolTip.Tip="A conversation here needs you" />
+        <TextBlock x:Name="Count" Grid.Column="4" Classes="caption" Margin="8,0,0,0" Text="{Binding OpenCount}" VerticalAlignment="Center" IsVisible="{Binding !IsChats}" />
+      </Grid>
+    </Button>
+    <Grid x:Name="Renaming" ColumnDefinitions="Auto,Auto,*" Margin="10,2,4,2" IsVisible="{Binding IsRenaming}">
+      <Path Classes="icon chevron" Data="{StaticResource IconChevronDown}" VerticalAlignment="Center" />
+      <Path x:Name="RenamingFolder" Grid.Column="1" Classes="icon" Data="{StaticResource IconFolder}" VerticalAlignment="Center" />
+      <TextBox x:Name="Draft"
+               Grid.Column="2"
+               Text="{Binding Draft}"
+               MaxLength="60"
+               focusing:Refocus.Signal="{Binding Renames}"
+               AutomationProperties.Name="Project name">
+        <TextBox.KeyBindings>
+          <KeyBinding Gesture="{x:Static copying:Hotkeys.Enter}" Command="{Binding CommitRenameCommand}" />
+          <KeyBinding Gesture="Escape" Command="{Binding CancelRenameCommand}" />
+        </TextBox.KeyBindings>
+      </TextBox>
+    </Grid>
+    <TextBlock x:Name="Problem" Classes="caption failure" Margin="10,0,4,2" Text="{Binding Problem}" TextWrapping="Wrap" IsVisible="{Binding HasProblem}" />
+    <Border Classes="rows" IsVisible="{Binding IsExpanded}">
+      <StackPanel Spacing="1">
+        <ItemsControl x:Name="Open" Classes="rows" ItemsSource="{Binding Open}" ItemTemplate="{StaticResource Row}" />
+        <Button x:Name="ShowDone" Classes="row" Command="{Binding ToggleDoneCommand}" IsVisible="{Binding HasDone}">
+          <StackPanel Orientation="Horizontal">
+            <Panel VerticalAlignment="Center">
+              <Path Classes="icon chevron" Data="{StaticResource IconChevronDown}" IsVisible="{Binding IsDoneShown}" />
+              <Path Classes="icon chevron" Data="{StaticResource IconChevronRight}" IsVisible="{Binding !IsDoneShown}" />
+            </Panel>
+            <TextBlock x:Name="DoneLabel" Classes="caption" Text="{Binding DoneLabel}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <ItemsControl x:Name="Done" Classes="rows" ItemsSource="{Binding Done}" ItemTemplate="{StaticResource Row}" IsVisible="{Binding IsDoneShown}" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>
