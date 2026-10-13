@@ -26,7 +26,7 @@ public sealed class MermaidLeakScripts(HeadlessUi ui)
             view.Window.DataTemplates.Add(views);
             var shown = 0;
 
-            var (baseline, after) = await Leaks.ManagedAcrossAsync(async () =>
+            var retention = await Leaks.ManagedAcrossAsync(async () =>
             {
                 view.Window.Content = new ContentControl { Content = rendering };
                 await view.Settle().DrawnAsync();
@@ -36,6 +36,6 @@ public sealed class MermaidLeakScripts(HeadlessUi ui)
             });
 
             Assert.Equal(Leaks.Cycles, shown);
-            Assert.InRange(after - baseline, long.MinValue, Leaks.Tolerance);
+            Assert.InRange(retention.Sustained, long.MinValue, Leaks.Tolerance);
         }, TestContext.Current.CancellationToken);
 }

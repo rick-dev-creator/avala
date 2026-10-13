@@ -23,7 +23,7 @@ public sealed class FilePreviewLeakScripts(HeadlessUi ui)
             var view = Screen.Show(new TextBlock());
             var held = 0L;
 
-            var (baseline, after) = await Leaks.ManagedAcrossAsync(async () =>
+            var retention = await Leaks.ManagedAcrossAsync(async () =>
             {
                 var shown = new StackPanel();
                 shown.Children.AddRange(previews.Select(preview => new ContentControl { Content = preview }));
@@ -41,7 +41,7 @@ public sealed class FilePreviewLeakScripts(HeadlessUi ui)
 
             Assert.InRange(held, 1, pictures.Budget);
             Assert.Equal((0L, held), (pictures.LeasedBytes, pictures.LiveBytes));
-            Assert.InRange(after - baseline, long.MinValue, Leaks.Tolerance);
+            Assert.InRange(retention.Sustained, long.MinValue, Leaks.Tolerance);
         }, TestContext.Current.CancellationToken);
 
     private static async Task<FilePreviewViewModel> LoadedAsync(PictureCache pictures, string path, byte[] bytes)

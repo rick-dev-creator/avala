@@ -15,7 +15,7 @@ public sealed class CodeBlockLeakScripts(HeadlessUi ui)
             var view = ViewScript.Show(new TextBlock(), new object());
             var cached = 0L;
 
-            var (baseline, after) = await Leaks.ManagedAcrossAsync(async () =>
+            var retention = await Leaks.ManagedAcrossAsync(async () =>
             {
                 view.Window.Content = new MarkdownText { Markdown = $"```csharp\n{code}\n```\n" };
                 view.Settle();
@@ -26,6 +26,6 @@ public sealed class CodeBlockLeakScripts(HeadlessUi ui)
             });
 
             Assert.InRange(CodeColors.CachedBytes, 1, Math.Min(cached, CodeColors.CacheBudget));
-            Assert.InRange(after - baseline, long.MinValue, Leaks.Tolerance);
+            Assert.InRange(retention.Sustained, long.MinValue, Leaks.Tolerance);
         }, TestContext.Current.CancellationToken);
 }
