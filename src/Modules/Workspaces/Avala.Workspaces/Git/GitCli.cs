@@ -3,15 +3,18 @@ using Avala.Sdk.Processes;
 using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Provisioning;
 using Avala.Workspaces.Workspaces;
+using Microsoft.Extensions.Logging;
 
 namespace Avala.Workspaces.Git;
 
-internal sealed class GitCli(IProcessRunner processes) : IGit
+internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> logger) : IGit, IAsyncDisposable
 {
     private static readonly string[] CheckpointIdentity =
         ["-c", "user.name=Avala", "-c", "user.email=avala@localhost", "-c", "commit.gpgsign=false"];
 
     private static readonly string[] Pristine = GitRefs.Pristine;
+
+    private readonly SerialExecutor administration = new();
 
     public Task<Result<string, WorkspaceFailure>> FindRepositoryRootAsync(string path, CancellationToken cancellationToken) =>
         RunAsync(["-C", path, "rev-parse", "--show-toplevel"], WorkspaceFailure.NotAGitRepository, cancellationToken)
@@ -64,8 +67,10 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
         BranchName branch,
         CommitSha commit,
         CancellationToken cancellationToken) =>
-        RunAsync(["-C", location.Repository, "worktree", "add", "-b", branch.Value, location.Path, commit.Value], WorkspaceFailure.GitFailed, cancellationToken)
-            .MapAsync(_ => location);
+        administration.RunAsync(
+            token => AdministrationAsync(["-C", location.Repository, "worktree", "add", "-b", branch.Value, location.Path, commit.Value], token)
+                .MapAsync(_ => location),
+            cancellationToken);
 
     public Task<Result<CommitSha, WorkspaceFailure>> CommitAllAsync(
         WorkspaceLocation location,
@@ -94,12 +99,34 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
         WorkspaceLocation location,
         BranchName branch,
         CancellationToken cancellationToken) =>
-        RunAsync(["-C", location.Repository, "worktree", "remove", "--force", location.Path], WorkspaceFailure.GitFailed, cancellationToken)
-            .BindAsync(_ => RunAsync(["-C", location.Repository, "branch", "-D", branch.Value], WorkspaceFailure.GitFailed, cancellationToken))
-            .MapAsync(_ => location);
+        administration.RunAsync(
+            token => AdministrationAsync(["-C", location.Repository, "worktree", "remove", "--force", location.Path], token)
+                .BindAsync(_ => AdministrationAsync(["-C", location.Repository, "branch", "-D", branch.Value], token))
+                .MapAsync(_ => location),
+            cancellationToken);
 
     public Task<Result<string, WorkspaceFailure>> PruneWorktreesAsync(string repository, CancellationToken cancellationToken) =>
-        RunAsync(["-C", repository, "worktree", "prune"], WorkspaceFailure.GitFailed, cancellationToken);
+        administration.RunAsync(token => AdministrationAsync(["-C", repository, "worktree", "prune"], token), cancellationToken);
+
+    public ValueTask DisposeAsync() => administration.DisposeAsync();
+
+    private async Task<Result<string, WorkspaceFailure>> AdministrationAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken) =>
+        (await processes.RunAsync(new ProcessRequest("git", arguments), cancellationToken))
+            .MapError(_ => WorkspaceFailure.GitFailed)
+            .Bind(Administered(arguments));
+
+    private Func<ProcessOutcome, Result<string, WorkspaceFailure>> Administered(IReadOnlyList<string> arguments) =>
+        outcome =>
+        {
+            if (outcome.Succeeded)
+            {
+                return outcome.Output;
+            }
+
+            LogAdministrationFailed(string.Join(' ', arguments), outcome.ExitCode, outcome.Error.Trim());
+
+            return WorkspaceFailure.GitFailed;
+        };
 
     private Task<Result<string, WorkspaceFailure>> RunAsync(
         IReadOnlyList<string> arguments,
@@ -115,4 +142,7 @@ internal sealed class GitCli(IProcessRunner processes) : IGit
         (await processes.RunAsync(new ProcessRequest("git", arguments, worktree), cancellationToken))
             .MapError(_ => failure)
             .Bind<string>(outcome => outcome.Succeeded ? outcome.Output : failure);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "git {Arguments} exited with {ExitCode}: {Error}")]
+    private partial void LogAdministrationFailed(string arguments, int exitCode, string error);
 }

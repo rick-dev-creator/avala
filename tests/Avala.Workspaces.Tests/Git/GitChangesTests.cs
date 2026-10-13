@@ -8,6 +8,7 @@ using Avala.Workspaces.Git;
 using Avala.Workspaces.Provisioning;
 using Avala.Workspaces.Tests.Provisioning;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workspaces.Tests.Git;
 
@@ -241,7 +242,7 @@ public sealed class GitChangesTests
             }
 
             var store = new InMemoryWorkspaceStore();
-            var git = new GitCli(Processes);
+            var git = new GitCli(Processes, NullLogger<GitCli>.Instance);
             var settings = new WorkspaceSettings(repository.WorktreeRoot);
             var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
             var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
