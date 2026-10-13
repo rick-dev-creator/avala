@@ -62,8 +62,30 @@ The script writes into `docs/assets/readme`: an animated WebP for each reel in e
 - A change to how Avala is built updates the [architecture](docs/architecture.md).
 - Use the names the app shows, and never describe a feature that is not built yet.
 
+## Issues
+
+Work is tracked in GitHub issues, written in English. Open one with the Bug report or Feature request form; blank issues are turned off, and each form's required fields must be filled before it can be submitted. Open-ended ideas and questions start in [Discussions](https://github.com/rick-dev-creator/avala/discussions), and become an issue once the work is agreed.
+
+## How work flows
+
+Issues are planned on the [Avala project board](https://github.com/users/rick-dev-creator/projects/4), release by release:
+
+| Status | Means |
+| --- | --- |
+| Backlog | Not planned for a release yet. |
+| Ready | Triaged: it has acceptance criteria, a priority, a size and a release, the milestone it ships in. |
+| In progress | Someone is working on it in its own branch, `fix/<issue>-<words>` or `feat/<issue>-<words>`. |
+| In review | A pull request that fixes it is open. |
+| Done | Merged into `main`. |
+
+- **Priority.** P0 blocks using Avala, P1 hurts every use, P2 is an improvement, P3 an idea to explore. Ready work is taken by priority.
+- **Size.** S takes hours, M about a day, L several days; an L issue is split into sub-issues so each pull request stays small.
+- **Releases.** Each release is a milestone. When its last issue is done, the release is tagged, its notes are written from its closed issues, and the milestone is closed.
+
 ## Commits and pull requests
 
 - Keep each change small and focused, one commit per step.
 - A commit message is one English sentence in the imperative that says what changed and why, such as "Read the wrapped timeline entry by its index, since the oldest entry is built only by the navigation".
 - A pull request must be green on CI, on Linux, Windows and macOS, before it is reviewed.
+- A pull request says `Fixes #<issue>`, lists the issue's acceptance criteria, and shows the evidence: the tests that prove them and, for a change a person sees, screenshots.
+- `main` is protected: every change reaches it through a pull request with CI green, merged by squash or rebase so the history stays linear. Bugs and small changes are merged once green; a feature with a visible change waits for the maintainer's approval.
