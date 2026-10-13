@@ -291,7 +291,7 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
                     { "triggers": [ {
                       "id": "fix-labeled",
                       "repository": {{{Json(repository)}}},
-                      "instruction": "[simulate: reply] Fix issue #{{payload.number}}: {{payload.title}}",
+                      "instruction": "Fix issue #{{payload.number}}: {{payload.title}}",
                       "concurrency": 2,
                       "forge": { "connection": "local", "event": "issue-labeled", "label": "avala", "authors": ["alice"] }
                     } ] }

@@ -178,7 +178,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         bool realNotifier = false,
         bool telemetry = false,
         IReadOnlyDictionary<string, Avala.Sdk.Processes.ProcessOutcome>? signIns = null,
-        bool onboarded = true)
+        bool onboarded = true,
+        TimeSpan pace = default)
     {
         var data = new TemporaryFolder();
 
@@ -194,7 +195,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier };
+        var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier, Pace = pace };
         surroundings.Telemetry.Configured = telemetry;
         foreach (var (tool, outcome) in signIns ?? new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>())
         {
@@ -241,6 +242,10 @@ internal sealed class SimulatedRun : IAsyncDisposable
         var now = Clock.GetUtcNow();
         Clock.Advance(moment > now ? moment - now : TimeSpan.Zero);
     }
+
+    public Task PacedAsync() => ((SystemTimerClock)Clock).WaitingAsync(surroundings.Pace, Cancellation);
+
+    public void Pace() => Clock.Advance(surroundings.Pace);
 
     public EventWatch<TEvent> Watch<TEvent>()
         where TEvent : IIntegrationEvent =>
@@ -432,13 +437,15 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public bool RealNotifier { get; init; }
 
+        public TimeSpan Pace { get; init; }
+
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
                 plugins.Directory,
                 new AvalaPaths(data.Path),
                 Ui,
                 Clock,
-                [new SimulatorPlugin(TimeSpan.Zero, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
+                [new SimulatorPlugin(Pace, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
                 RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Surfaces] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Surfaces]);

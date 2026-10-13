@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
+using Avalonia.LogicalTree;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -20,9 +21,34 @@ internal sealed class FeatureCamera(HeadlessUi ui, string folder)
         ShootAsync(run, name, ThemeVariant.Dark, arrange);
 
     public Task ShootAsync(SimulatedRun run, string name, ThemeVariant variant, params Action<Window>[] arrange) =>
-        ui.RunAsync(() => run.Ui.HostAsync(drain => ShootHostedAsync(run, name, variant, arrange, drain)), TestContext.Current.CancellationToken);
+        InWindowAsync(ui, run, variant, (window, drain) => ShootHostedAsync(window, name, arrange, drain));
 
-    private async Task ShootHostedAsync(SimulatedRun run, string name, ThemeVariant variant, Action<Window>[] arrange, Action drain)
+    public static Task InWindowAsync(HeadlessUi ui, SimulatedRun run, ThemeVariant variant, Func<Window, Action, Task> body) =>
+        ui.RunAsync(() => run.Ui.HostAsync(drain => InHostedWindowAsync(run, variant, body, drain)), TestContext.Current.CancellationToken);
+
+    public static async Task SettleAsync(Window window, Action drain)
+    {
+        await ViewScript.DrawnAsync(window);
+        Pump(drain);
+    }
+
+    private async Task ShootHostedAsync(Window window, string name, Action<Window>[] arrange, Action drain)
+    {
+        foreach (var step in arrange)
+        {
+            await ViewScript.DrawnAsync(window);
+            step(window);
+            Pump(drain);
+        }
+
+        await SettleAsync(window, drain);
+
+        window.CaptureRenderedFrame()?.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, name + ".png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        var texts = Directory.CreateDirectory(Path.Combine(folder, "texts")).FullName;
+        await File.WriteAllLinesAsync(Path.Combine(texts, name + ".txt"), Texts(window), TestContext.Current.CancellationToken);
+    }
+
+    private static async Task InHostedWindowAsync(SimulatedRun run, ThemeVariant variant, Func<Window, Action, Task> body, Action drain)
     {
         Application.Current!.DataTemplates.Add(run.Views);
         var window = new ShellView { Width = 1440, Height = 900, RequestedThemeVariant = variant };
@@ -34,23 +60,15 @@ internal sealed class FeatureCamera(HeadlessUi ui, string folder)
         {
             window.Show();
             Pump(drain);
-
-            foreach (var step in arrange)
-            {
-                await ViewScript.DrawnAsync(window);
-                step(window);
-                Pump(drain);
-            }
-
-            await ViewScript.DrawnAsync(window);
-            Pump(drain);
-
-            window.CaptureRenderedFrame()?.Save(Path.Combine(Directory.CreateDirectory(folder).FullName, name + ".png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
-            var texts = Directory.CreateDirectory(Path.Combine(folder, "texts")).FullName;
-            await File.WriteAllLinesAsync(Path.Combine(texts, name + ".txt"), Texts(window), TestContext.Current.CancellationToken);
+            await body(window, drain);
         }
         finally
         {
+            foreach (var element in window.GetLogicalDescendants().OfType<StyledElement>().Reverse().ToList())
+            {
+                element.DataContext = null;
+            }
+
             window.DataContext = null;
             Pump(drain);
             window.Close();
@@ -106,7 +124,7 @@ internal sealed class FeatureCamera(HeadlessUi ui, string folder)
                 .Select(text => text.Text!.ReplaceLineEndings(" ⏎ ")),
         ];
 
-    private static void Pump(Action drain)
+    public static void Pump(Action drain)
     {
         for (var frame = 0; frame < 60; frame++)
         {

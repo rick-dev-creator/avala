@@ -1,64 +1,166 @@
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/avala-lockup-dark.png">
-    <img src="docs/assets/brand/avala-lockup-light.png" alt="Avala" width="200">
-  </picture>
-</h1>
+<div align="center">
 
-**Agents you can trust without watching.**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/avala-lockup-dark.png">
+  <img src="docs/assets/brand/avala-lockup-light.png" alt="Avala" width="220">
+</picture>
 
+### Agents you can trust without watching.
+
+An open-source desktop harness for coding agents: each agent works unattended in its own git worktree,<br>
+under your rules, with evidence for every result and a cost for every job.
+
+[![CI](https://github.com/rick-dev-creator/avala/actions/workflows/ci.yml/badge.svg)](https://github.com/rick-dev-creator/avala/actions/workflows/ci.yml)
 [![Debt grade](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/debt.svg)](docs/architecture.md#technical-debt-grade)
 [![Coverage](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/coverage.svg)](docs/architecture.md#quality-metrics)
 [![Maintainability](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/maintainability.svg)](docs/architecture.md#technical-debt-grade)
 [![Highest complexity](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/complexity.svg)](docs/architecture.md#technical-debt-grade)
 [![C# lines](https://raw.githubusercontent.com/rick-dev-creator/avala/refs/heads/badges/lines.svg)](docs/architecture.md#quality-metrics)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Avala is an open-source desktop harness for coding agents. It runs each agent in its own git worktree and lets it work unattended, while every decision is governed by your rules, every result is backed by evidence, and every cost is accounted for.
+[Install](#install) · [Quick start](#quick-start) · [Features](#features) · [Privacy](#privacy) · [Build from source](#build-from-source) · [Docs](#docs)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/avala-main-dark.png">
-  <img src="docs/assets/avala-main-light.png" alt="Avala's main window: four jobs waiting on a person, one verified and ready for review, and a job asking permission to run its tests">
-</picture>
-
-## What it does
-
-- **Evidence, not the agent's word.** A job is done only when your repository's own checks pass in its worktree, and its review shows the verdict first and only what deserves a look.
-- **Policies, not prompts.** Every permission and question goes through rules the agent cannot edit, at the autonomy level you choose, and every answer is audited.
-- **Nothing runs away.** Stalled or lost sessions are caught, spending stops at your caps, and leftover processes, ports and worktrees are reclaimed.
-- **Any agent, any account.** Harnesses plug in behind one contract, with several connections per harness, and sub-agents run as governed jobs of their own.
+<br>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/avala-question-dark.png">
-  <img src="docs/assets/avala-question-light.png" alt="An agent's question drawn as a form, the recommended answer preselected">
+  <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/hero-dark.webp">
+  <source media="(prefers-color-scheme: light)" type="image/webp" srcset="docs/assets/readme/hero-light.webp">
+  <img src="docs/assets/readme/hero-light.gif" alt="A request typed on Avala's welcome screen starts a job; the agent's reply streams in and draws an animated bar chart of the jobs finished this week in the conversation" width="900">
 </picture>
 
-## Status
+</div>
 
-Preparing the first beta. Every feature is proven end to end on the simulator, and Claude Code, the first real harness, has run a campaign of short scenarios against real accounts, each with its own acceptance criteria and spending cap. Everything below runs in the application today, and a built-in simulator lets you try Avala without spending tokens:
+## Why Avala
 
-- jobs in their own worktrees, verified by your repository's checks and reviewed from a verdict and a diff before they are merged or kept;
-- a welcome that starts a job from one sentence, without choosing anything, or on the connection, model and effort picked from the chip in its composer: it runs in a scratch repository of its own kept in Avala's data folder and merged there when approved;
-- a conversation that feels native: copy, edit or send again from icons that appear on hover, Copy and Select All on right-click, Enter to send, a stop ring that interrupts and keeps the session, a quiet row that says what the agent is doing and for how long, a file edit shown as it is written, code blocks colored by their language with a copy icon on hover, a button that jumps back to the latest, the whole conversation copied or exported as Markdown from the job's more menu, a tool's output copied from an icon, a file edit that opens its changes in a popover, and an image or SVG the agent wrote shown as a thumbnail that opens in a sheet, or a page it wrote opened in your browser;
-- permissions, questions and plan approvals answered in place or by the rules of your repository, at the autonomy you allow;
-- supervision of stalled sessions, budgets per job and per connection, a daily spending ceiling for the machine, and reclaimed processes, ports and worktrees;
-- several connections and accounts per harness: a job that nears or runs out of an account's usage window waits for the reset or is handed off to another account with a brief, and costs on a subscription are shown at API prices;
-- delegation to sub-agents that ask their parent first, and an autopilot that works through a backlog in loops with their own limits;
-- triggers that start jobs on a schedule, from a signed webhook, or from events on GitHub, Gitea or Forgejo, such as a labeled issue, a command in a comment or a failing check;
-- pull requests opened from approved jobs, with their checks watched and the agent woken when they fail;
-- your forge accounts found on their own, from the `gh` and `tea` logins and token variables you already have, and added with one click; Avala keeps only references, never a token;
-- a repository cloned in one click from a searchable list of your accounts' repositories, or from a pasted address, into your projects folder;
-- a repository published by you to GitHub, Gitea or Forgejo, private by default: created through the forge, added as origin and pushed with the credentials your git already uses;
-- best of N: one request run as several candidate jobs, the best kept by its evidence and the others discarded once you approve it;
-- notifications on your phone, through ntfy or a webhook, when a job needs you while you are away;
-- usage and limits per connection, canvases drawn as Markdown, SVG and Mermaid, a light and a dark theme, and jobs that survive a restart.
+- **Evidence, not the agent's word.** A job is done only when the checks your repository declares pass in its worktree. The review shows that verdict first, then the diff.
+- **Policies, not prompts.** Every permission, question and plan approval is answered in place or by rules the agent cannot edit, at the autonomy you allow, and every decision is audited.
+- **Nothing runs away.** Stalled sessions are caught, spending stops at your caps, and leftover processes, ports and worktrees are reclaimed.
+- **Any agent, any account.** Harnesses plug in behind one contract, with several connections per harness. Claude Code is the first; a built-in simulator lets you try everything without tokens.
 
-Screenshots are taken from the real application, driven headless by the simulator.
+## Features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Start from one sentence.** Describe a task on the welcome screen and pick the connection, model and effort from the chip in the composer, or open a folder, clone a repository or start a new one.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/welcome-dark.png">
+  <img src="docs/assets/readme/welcome-light.png" alt="The welcome screen with a task typed in the composer and the menu of connections open, Auto recommended">
+</picture>
+
+</td>
+<td width="50%" valign="top">
+
+**A conversation that feels native.** Replies render Markdown with code colored by its language, and canvases are drawn as Markdown, SVG (animations included) and Mermaid.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/conversation-dark.png">
+  <img src="docs/assets/readme/conversation-light.png" alt="An agent's reply with a heading, a list, a highlighted Go code block and a table">
+</picture>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Permissions in place.** Allow a command once, for that program for the rest of the job, or for everything in the job, or let your repository's rules answer.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/permission-dark.webp">
+  <source media="(prefers-color-scheme: light)" type="image/webp" srcset="docs/assets/readme/permission-light.webp">
+  <img src="docs/assets/readme/permission-light.gif" alt="A permission card for dotnet ef database update: Always dotnet in this job is chosen, the command is allowed and the job finishes ready for review">
+</picture>
+
+</td>
+<td width="50%" valign="top">
+
+**Review from the verdict.** The review opens on the evidence, lists only what deserves a look, and shows the diff before you approve, send back or discard.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/review-dark.webp">
+  <source media="(prefers-color-scheme: light)" type="image/webp" srcset="docs/assets/readme/review-light.webp">
+  <img src="docs/assets/readme/review-light.gif" alt="The review sheet: verified on attempt 2 of 2, the failed first attempt worth a look, the one-line diff, then approved">
+</picture>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Best of N.** Run one request as several candidates, each in its own worktree; the best is kept by its evidence and the others are discarded once you approve it.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/contest-dark.png">
+  <img src="docs/assets/readme/contest-light.png" alt="Three candidates of one request, the winner's review open and the inspector ranking them by evidence, diff and cost">
+</picture>
+
+</td>
+<td width="50%" valign="top">
+
+**A preview beside the conversation.** When a job starts a server, its page opens in a pane by itself, behind a loopback gateway that keeps other origins out.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/preview-dark.webp">
+  <source media="(prefers-color-scheme: light)" type="image/webp" srcset="docs/assets/readme/preview-light.webp">
+  <img src="docs/assets/readme/preview-light.gif" alt="The agent builds and runs a service, and the preview pane opens by itself with the running orders page">
+</picture>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Triggers and forges.** Start jobs on a schedule, from a signed webhook, or from events on GitHub, Gitea or Forgejo, and open pull requests whose checks are watched.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/triggers-dark.png">
+  <img src="docs/assets/readme/triggers-light.png" alt="The Triggers page with a forge trigger, its next poll and its events with their verdicts">
+</picture>
+
+</td>
+<td width="50%" valign="top">
+
+**Notifications on your phone.** When a job needs you while you are away, Avala tells you through ntfy or a webhook of your own, and shows exactly what is sent.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/notifications-dark.png">
+  <img src="docs/assets/readme/notifications-light.png" alt="The notification settings: an ntfy topic, the events that send, quiet hours and the exact request sent for a decision">
+</picture>
+
+</td>
+</tr>
+</table>
+
+Also: budgets per job and per connection with a daily ceiling for the machine, usage windows that hold or hand a job off to another account, sub-agents that ask their parent first, an autopilot that works through a backlog, and jobs that survive a restart. Every picture here is captured from the real application, driven headless by the simulator.
 
 ## Install
 
-Coming soon: the first beta will be published on the [releases page](https://github.com/rick-dev-creator/avala/releases) for Windows and Linux, with macOS to follow. Until then, build it from source.
+> **Coming soon.** The first beta will be published on the [releases page](https://github.com/rick-dev-creator/avala/releases). Until then, [build it from source](#build-from-source).
+
+| Platform | How |
+| --- | --- |
+| Windows x64 | Download and run `Setup.exe` from the [latest release](https://github.com/rick-dev-creator/avala/releases/latest). |
+| Linux x64 | The AppImage or the `.tar.gz` from the [latest release](https://github.com/rick-dev-creator/avala/releases/latest), `avala-bin` from the AUR, or the Flatpak. |
+| macOS | Later. Avala builds and runs from source on a Mac today. |
+
+Details for each package are in [Releasing](docs/release.md).
+
+## Quick start
+
+1. **Install Claude Code and sign in**, so `claude` is on your `PATH`. Avala finds each login on its own.
+2. **Open Avala.** A short welcome tour shows the agents it found and the privacy choices.
+3. **Start a chat or pick a repository.** Type a task on the welcome screen to run it in a scratch repository, or open a folder, clone or create one, and the job runs in its own worktree.
+
+To try Avala without an account or tokens, start it with `AVALA_DEVELOPER=1` and choose the simulator connection; a tag such as `[simulate: edit]` in the first message picks a scenario.
 
 ## Privacy
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/privacy-dark.png">
+  <img align="right" width="380" src="docs/assets/readme/privacy-light.png" alt="The privacy step of the welcome tour: hide personal details, and share anonymous usage statistics">
+</picture>
 
 A released build of Avala sends anonymous usage statistics to [Aptabase](https://aptabase.com) so we can count installs and daily active installs. Nothing else leaves your computer on Avala's behalf.
 
@@ -67,20 +169,23 @@ A released build of Avala sends anonymous usage statistics to [Aptabase](https:/
 - **Turning it off.** Choose Turn off on the notice shown on first run, or clear Send usage statistics in Settings, About; or set `DO_NOT_TRACK=1` or `AVALA_TELEMETRY=0` in Avala's environment. Settings shows the exact event that is sent and lets you reset the install ID.
 - **Builds from source** send nothing: only a packaged release holds the key that makes sending possible.
 
-## Build
+<br clear="right">
+
+## Build from source
 
 Requires the .NET 10 SDK and git 2.40 or later.
 
 ```
 dotnet build Avala.slnx
 dotnet test --solution Avala.slnx
+AVALA_DEVELOPER=1 dotnet run --project src/Avala.Host
 ```
 
-## Learn more
+## Docs
 
-- [Architecture](docs/architecture.md): the rules every change must pass.
+- [Architecture](docs/architecture.md): the big picture and the rules every change must pass.
 - [Releasing](docs/release.md): packages, usage statistics, signing and the update check.
-- [Contributing](CONTRIBUTING.md): how to build, test and send a change.
+- [Contributing](CONTRIBUTING.md): how to build, test and send a change, and how the pictures above are made.
 - [AGENTS.md](AGENTS.md): what an agent working on Avala reads first.
 
 ## License
