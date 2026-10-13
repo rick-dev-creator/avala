@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Events;
@@ -10,9 +11,13 @@ namespace Avala.Host.Tests;
 
 internal sealed class ScenarioCues : IPlugin, IAgentProviderDecorator
 {
+    private const string Tag = "[simulate:";
+
     private ImmutableDictionary<string, string> cues = ImmutableDictionary<string, string>.Empty;
 
     public PluginInfo Info { get; } = new("scenario-cues", "Scenario cues");
+
+    public bool HidesDelegatedCues { get; set; }
 
     public void Register(IPluginRegistrar registrar) => registrar.Services.AddSingleton<IAgentProviderDecorator>(this);
 
@@ -24,6 +29,24 @@ internal sealed class ScenarioCues : IPlugin, IAgentProviderDecorator
         Volatile.Read(ref cues).FirstOrDefault(cue => turn.Text.StartsWith(cue.Key, StringComparison.Ordinal)) is { Key: not null } found
             ? turn with { Text = $"[simulate: {found.Value}] {turn.Text}" }
             : turn;
+
+    private IAgentEvent Hidden(IAgentEvent agentEvent) =>
+        HidesDelegatedCues && agentEvent is ToolCalled { Tool: "delegate" } called && JsonNode.Parse(called.Input) is JsonObject input && input["instruction"]?.GetValue<string>() is { } instruction && Tagged(instruction) is ({ } scenario, { } told)
+            ? called with { Input = Untagged(input, scenario, told) }
+            : agentEvent;
+
+    private string Untagged(JsonObject input, string scenario, string told)
+    {
+        Cue(told, scenario);
+        input["instruction"] = told;
+
+        return input.ToJsonString();
+    }
+
+    private static (string? Scenario, string? Told) Tagged(string instruction) =>
+        instruction.StartsWith(Tag, StringComparison.Ordinal) && instruction.IndexOf(']', StringComparison.Ordinal) is > 0 and var end
+            ? (instruction[Tag.Length..end].Trim(), instruction[(end + 1)..].Trim())
+            : (null, null);
 
     private sealed class CuedProvider(IAgentProvider inner, ScenarioCues cues) : IAgentProvider
     {
@@ -41,7 +64,7 @@ internal sealed class ScenarioCues : IPlugin, IAgentProviderDecorator
 
         public Option<AgentAccount> Account => inner.Account;
 
-        public IAsyncEnumerable<IAgentEvent> Events => inner.Events;
+        public IAsyncEnumerable<IAgentEvent> Events => inner.Events.Select(cues.Hidden);
 
         public ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken) => inner.SendAsync(cues.Told(turn), cancellationToken);
 

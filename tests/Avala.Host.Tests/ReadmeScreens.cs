@@ -31,7 +31,32 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
         ("connections/claude/.login", string.Empty),
     ];
 
-    private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(97);
+    private const string Personal = "claude";
+
+    private const string Work = "claude-work";
+
+    private const string FleetPolicy = """{ "autonomy": "autonomous", "rules": [ { "name": "services", "kind": "command", "target": "dotnet *", "answer": "allow" } ] }""";
+
+    private const string Delegating = """{ "delegation": { "connections": ["claude", "claude-work"], "routing": "roundRobin" } }""";
+
+    private const string Budgets = """{ "spendPerDay": { "USD": 40 }, "connections": { "claude-work": { "spendPerDay": { "USD": 10 } } } }""";
+
+    private static readonly (string File, string Content)[] TwoClaudes =
+    [
+        ("connections.json", """
+            {
+              "default": "claude",
+              "connections": [
+                { "name": "claude", "provider": "simulator", "credential": { "source": "login" } },
+                { "name": "claude-work", "provider": "simulator", "credential": { "source": "login" } }
+              ]
+            }
+            """),
+        ("connections/claude/.login", string.Empty),
+        ("connections/claude-work/.login", string.Empty),
+    ];
+
+    private static readonly TimeSpan Pace =TimeSpan.FromMilliseconds(97);
 
     private static readonly TimeSpan Frame = TimeSpan.FromSeconds(1.0 / FeatureReel.FramesPerSecond);
 
@@ -201,6 +226,94 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
         await workbench.ShowsAsync(() => ((ICommand)workbench.Page["OpenReviewCommand"].Target).CanExecute(null));
         await run.Ui.RunAsync(() => workbench.Page.ExecuteAsync("OpenReviewCommand"));
         await Reel.FilmAsync(run, "contest", new ReelFrame(FeatureCamera.Unfold("Contest"), 1));
+    }
+
+    [Fact]
+    public async Task TheOverviewUsageAndResourcesOfJobsOnTwoClaudeConnectionsAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            [.. TwoClaudes, ("budgets.json", Budgets), ("resources.json", $$"""{ {{LeasedPorts.Settings(7)}}, "sampleSeconds": 0.2 }""")],
+            [(".avala/checks.json", PassingChecks), (".avala/permissions.json", FleetPolicy), (".avala/jobs.json", Delegating), (".avala/budget.json", """{ "costPerJob": { "USD": 0.50 } }""")],
+            repositoryName: Repository);
+        run.Cues.HidesDelegatedCues = true;
+        var workbench = await run.WorkbenchAsync();
+
+        _ = await run.SettledAsync(
+            await OnAsync(run, "Write the release notes and the to-do list", "delegate", Personal),
+            await OnAsync(run, "Add a dark mode toggle to the settings page", "edit", Personal),
+            await OnAsync(run, "Rebuild the search index", "expensive", Work));
+        _ = await run.SettledAsync(await OnAsync(run, "Rewrite the CSV importer for the new format", "two-windows-spent", Personal));
+        var server = await OnAsync(run, "Start the orders service and try it", "processes", Work);
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(server));
+        var running = await OnAsync(run, "Profile the slow checkout endpoint", "hang", Work);
+        await workbench.ShowsInGroupAsync(running, "Running");
+        run.Clock.Advance(TimeSpan.FromSeconds(0.2));
+        _ = await run.SampledAsync(sample => sample.Trees.Any(tree => tree.Job == Option<JobId>.Some(server) && tree.Processes.Count > 0));
+
+        var overview = await ShownAsync(run, "Overview");
+        var connections = await run.Ui.ReadAsync(() => overview["Connections"]);
+        await run.Ui.PresentedAsync(connections.Presentation, () => connections["Connections"].Items.Count == 2, () => $"{connections["Connections"].Items.Count} connection cards");
+        await Reel.FilmAsync(run, "overview", FeatureReel.Hold(0));
+
+        await run.Ui.InvokeAsync(() => overview.Execute("ShowDelegationCommand"), Cancellation);
+        var delegation = await run.Ui.ReadAsync(() => overview["Delegation"]);
+        await run.Ui.PresentedAsync(delegation.Presentation, () => delegation["Orchestrators"].Items.Count >= 1, () => "no orchestrator in the delegation view");
+        await Reel.FilmAsync(run, "delegation", FeatureReel.Hold(0));
+
+        _ = await ShownAsync(run, "Usage");
+        await Reel.FilmAsync(run, "usage", FeatureReel.Hold(0));
+
+        var resources = await ShownAsync(run, "Resources");
+        await run.Ui.PresentedAsync(resources.Presentation, () => resources["Trees"].Items.Count >= 1, () => "no agent tree on the resources page");
+        await Reel.FilmAsync(run, "resources", new ReelFrame(window => window.Height = 592));
+    }
+
+    [Fact]
+    public async Task AJobNearItsUsageLimitHandedOffToTheConnectionWithTheMostCapacityLeftAsync()
+    {
+        Gated();
+        await using var run = await SimulatedRun.PreparedAsync(
+            plugins,
+            TwoClaudes,
+            [
+                (".avala/checks.json", ReviewTests.CalculatorChecks),
+                (".avala/permissions.json", ReviewTests.TestsPolicy),
+                (".avala/jobs.json", """{ "limits": { "onLimit": "handoff-same-harness", "connections": ["claude", "claude-work"] } }"""),
+                ("calculator.txt", "add(2, 2) = 5\n"),
+            ],
+            pace: Pace,
+            repositoryName: Repository);
+        run.Cues.Cue("This job was handed off to you", "contest-passes-small");
+        var progress = run.Watch<JobProgressed>();
+        var workbench = await run.WorkbenchAsync();
+        var job = await OnAsync(run, "Fix the calculator so that add(2, 2) is 4", "near-limit", Personal);
+        _ = await workbench.InspectAsync(job, "AutonomySectionViewModel");
+        var connection = FeatureCamera.Unfold("Autonomy & connection");
+
+        await StreamAsync(run, progress.UntilAsync(update => update.Job == job && update.Status == JobStatus.AwaitingReview), () => Reel.FilmAsync(run, "handoff", new ReelFrame(connection, FeatureReel.Frames(1.0 / 6))));
+        await workbench.ShowsInGroupAsync(job, "ReadyForReview");
+        await Reel.FilmAsync(
+            run,
+            "handoff",
+            new ReelFrame(connection, FeatureReel.Frames(1.5)),
+            new ReelFrame(window => { connection(window); FeatureCamera.ScrollTo(window, "Handed off to"); }, FeatureReel.Frames(3.5)));
+    }
+
+    private static async Task<JobId> OnAsync(SimulatedRun run, string instruction, string scenario, string connection)
+    {
+        run.Cues.Cue(instruction, scenario);
+
+        return Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, instruction) { Connection = new Avala.Agents.Contracts.Connections.ConnectionName(connection) }));
+    }
+
+    private static async Task<Bound> ShownAsync(SimulatedRun run, string title)
+    {
+        var page = run.Page(title);
+        await run.Ui.InvokeAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage = (IPage)page.Target, Cancellation);
+
+        return page;
     }
 
     private Task<SimulatedRun> PreparedAsync(IReadOnlyList<(string Path, string Content)> committed, TimeSpan pace = default) =>
