@@ -7,7 +7,10 @@ using Avalonia.VisualTree;
 
 namespace Avala.Host.Tests;
 
-internal sealed record ReelFrame(Action<Window> Step, int Hold = 1);
+internal sealed record ReelFrame(Action<Window> Step, int Hold = 1)
+{
+    public Func<Window, bool> Skips { get; init; } = _ => false;
+}
 
 internal sealed class FeatureReel(HeadlessUi ui, string folder)
 {
@@ -38,6 +41,11 @@ internal sealed class FeatureReel(HeadlessUi ui, string folder)
             await FeatureCamera.SettleAsync(window, drain);
             await Task.WhenAll(window.GetVisualDescendants().OfType<CodeText>().Where(code => code.IsEffectivelyVisible).Select(CodeBlocks.PaintedAsync));
             FeatureCamera.Pump(drain);
+
+            if (frame.Skips(window))
+            {
+                continue;
+            }
 
             var first = Next(target);
             window.CaptureRenderedFrame()!.Save(first, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());

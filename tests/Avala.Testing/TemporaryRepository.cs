@@ -9,22 +9,27 @@ public sealed class TemporaryRepository : IAsyncDisposable
 
     private readonly DirectoryInfo scratch;
     private readonly IProcessRunner processes;
+    private readonly string name;
 
-    private TemporaryRepository(DirectoryInfo scratch, IProcessRunner processes)
+    private TemporaryRepository(DirectoryInfo scratch, IProcessRunner processes, string name)
     {
         this.scratch = scratch;
         this.processes = processes;
+        this.name = name;
     }
 
-    public string Path => System.IO.Path.Combine(scratch.FullName, "repository");
+    public string Path => System.IO.Path.Combine(scratch.FullName, name);
 
     public string WorktreeRoot => System.IO.Path.Combine(scratch.FullName, "worktrees");
 
     public string Remote => System.IO.Path.Combine(scratch.FullName, "octo", "shop.git");
 
-    public static async Task<TemporaryRepository> CreateAsync(IProcessRunner processes, CancellationToken cancellationToken)
+    public static Task<TemporaryRepository> CreateAsync(IProcessRunner processes, CancellationToken cancellationToken) =>
+        CreateAsync(processes, "repository", cancellationToken);
+
+    public static async Task<TemporaryRepository> CreateAsync(IProcessRunner processes, string name, CancellationToken cancellationToken)
     {
-        var repository = new TemporaryRepository(TemporaryFolder.Create(), processes);
+        var repository = new TemporaryRepository(TemporaryFolder.Create(), processes, name);
         Directory.CreateDirectory(repository.Path);
 
         await repository.GitAsync(cancellationToken, "init", "--quiet", "--initial-branch=main");

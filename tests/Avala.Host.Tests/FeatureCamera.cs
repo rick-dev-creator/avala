@@ -54,6 +54,7 @@ internal sealed class FeatureCamera(HeadlessUi ui, string folder)
         var window = new ShellView { Width = 1440, Height = 900, RequestedThemeVariant = variant };
         window.Styles.Add(new Style(selector => selector.OfType<Popup>()) { Setters = { new Setter(Popup.ShouldUseOverlayLayerProperty, true) } });
         Avala.Components.UI.Theme.Motion.SetIsReduced(window, true);
+        Avala.Components.UI.Elapsed.ElapsedText.SetClock(window, run.Clock);
         window.DataContext = run.Get<ShellViewModel>();
 
         try

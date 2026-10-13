@@ -15,6 +15,8 @@ namespace Avala.Host.Tests;
 
 public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
 {
+    private const string Repository = "acme-dashboard";
+
     private const string PassingChecks = """{ "checks": [ { "name": "git", "command": "git", "arguments": ["--version"], "timeoutSeconds": 60 } ] }""";
 
     private const string ServicesPolicy = """{ "rules": [ { "name": "services", "kind": "command", "target": "dotnet *", "answer": "allow" } ] }""";
@@ -22,6 +24,12 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
     private const string Package = """{ "name": "orders", "scripts": { "dev": "vite --port $AVALA_PORT", "build": "vite build" } }""";
 
     private const string Request = "Chart the jobs we finished this week";
+
+    private static readonly (string File, string Content)[] Claude =
+    [
+        ("connections.json", """{ "default": "claude", "connections": [ { "name": "claude", "provider": "simulator", "credential": { "source": "login" } } ] }"""),
+        ("connections/claude/.login", string.Empty),
+    ];
 
     private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(97);
 
@@ -32,25 +40,22 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task TheHeroFromARequestOnTheWelcomeToAChartDrawnInTheConversationAsync()
+    public async Task TheHeroFromARequestOnTheNewJobPageToAChartDrawnInTheConversationAsync()
     {
         Gated();
-        await using var run = await SimulatedRun.PreparedAsync(plugins, [], [], pace: Pace);
+        await using var run = await PreparedAsync([], Pace);
+        run.Cues.Cue(Request, "animated-canvas");
         var workbench = await run.WorkbenchAsync();
-        await run.Ui.RunAsync(() => workbench.Page["Checking"].Value<Task>());
-        var welcome = workbench.Page["Welcome"];
+        var page = await NewJobAsync(run, workbench);
 
-        await Reel.FilmAsync(run, "hero", [FeatureReel.Hold(1.2), .. Typed(welcome, Request), FeatureReel.Hold(0.8)]);
+        await Reel.FilmAsync(run, "hero", [new ReelFrame(_ => page.Set("Instruction", string.Empty), FeatureReel.Frames(1.0)), .. Typed(page, Request), FeatureReel.Hold(0.8)]);
 
         var progress = run.Watch<JobProgressed>();
-        await run.Ui.RunAsync(() =>
-        {
-            welcome.Set("Instruction", $"{Request}\n[simulate: animated-canvas]");
-
-            return welcome.ExecuteAsync("StartCommand");
-        });
+        await run.Ui.RunAsync(() => page.ExecuteAsync("SubmitCommand"));
+        var job = (await progress.UntilAsync(_ => true)).Job;
+        _ = await workbench.SelectAsync(job);
         var chart = new ChartClock();
-        await StreamAsync(run, progress.UntilAsync(update => update.Status == JobStatus.AwaitingReview), () => FilmChartAsync(run, chart));
+        await StreamAsync(run, progress.UntilAsync(update => update.Job == job && update.Status == JobStatus.AwaitingReview), () => FilmChartAsync(run, chart));
         var settled = chart.Elapsed;
 
         await Reel.FilmAsync(
@@ -63,10 +68,11 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
     public async Task ThePermissionCardAllowingTheProgramForTheRestOfTheJobAsync()
     {
         Gated();
-        await using var run = await SimulatedRun.InstructedAsync(plugins, "Apply the new orders migration\n[simulate: permission]", [], [(".avala/checks.json", PassingChecks)]);
+        await using var run = await PreparedAsync([(".avala/checks.json", PassingChecks)]);
+        var job = await SubmittedAsync(run, "Apply the new orders migration", "permission");
         _ = await run.DecisionAsync();
         var workbench = await run.WorkbenchAsync();
-        var conversation = await workbench.SelectAsync(run.Job);
+        var conversation = await workbench.SelectAsync(job);
         await workbench.ShowsAsync(() => Card(conversation) is { } card && card["AwaitsYou"].Value<bool>());
 
         await Reel.FilmAsync(
@@ -78,8 +84,8 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
             new ReelFrame(window => Point(window, "Allow"), FeatureReel.Frames(0.6)));
 
         await run.Ui.RunAsync(() => Card(conversation)!.Value.ExecuteAsync("AllowCommand"));
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        await workbench.ShowsInGroupAsync(run.Job, "ReadyForReview");
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        await workbench.ShowsInGroupAsync(job, "ReadyForReview");
         await Reel.FilmAsync(run, "permission", FeatureReel.Hold(2.5));
     }
 
@@ -87,14 +93,12 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
     public async Task TheReviewSheetFromItsVerdictToTheDiffAndTheApprovalAsync()
     {
         Gated();
-        await using var run = await SimulatedRun.InstructedAsync(
-            plugins,
-            "Fix the calculator so that add(2, 2) is 4\n[simulate: fix-after-feedback]",
-            [],
+        await using var run = await PreparedAsync(
             [(".avala/checks.json", ReviewTests.CalculatorChecks), (".avala/permissions.json", ReviewTests.TestsPolicy), ("calculator.txt", "add(2, 2) = 5\n")]);
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var job = await SubmittedAsync(run, "Fix the calculator so that add(2, 2) is 4", "fix-after-feedback");
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
         var workbench = await run.WorkbenchAsync();
-        _ = await workbench.SelectAsync(run.Job);
+        _ = await workbench.SelectAsync(job);
         await workbench.ShowsAsync(() => ((ICommand)workbench.Page["OpenReviewCommand"].Target).CanExecute(null));
         await Reel.FilmAsync(run, "review", new ReelFrame(window => Point(window, "Review"), FeatureReel.Frames(1.0)));
 
@@ -119,13 +123,14 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
         Gated();
         await using var run = await SimulatedRun.PreparedAsync(
             plugins,
-            [("resources.json", $$"""{ {{LeasedPorts.Settings(7)}}, "sampleSeconds": 0.2 }""")],
+            [.. Claude, ("resources.json", $$"""{ {{LeasedPorts.Settings(7)}}, "sampleSeconds": 0.2 }""")],
             [(".avala/permissions.json", ServicesPolicy), ("package.json", Package)],
-            pace: Pace);
+            pace: Pace,
+            repositoryName: Repository);
         var available = run.Watch<PreviewAvailable>();
         var progress = run.Watch<JobProgressed>();
         var workbench = await run.WorkbenchAsync();
-        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "Start the orders service and show it\n[simulate: processes]")));
+        var job = await SubmittedAsync(run, "Start the orders service and show it", "processes");
         _ = await workbench.SelectAsync(job);
         await StreamAsync(run, progress.UntilAsync(update => update.Job == job && update.Status == JobStatus.AwaitingReview), () => Reel.FilmAsync(run, "preview", FeatureReel.Hold(1.0 / 6)));
         await Reel.FilmAsync(run, "preview", FeatureReel.Hold(0.6));
@@ -141,8 +146,9 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
     public async Task TheWelcomeWithItsHarnessMenuAndAReplyWithHighlightedCodeAsync()
     {
         Gated();
-        await using var run = await SimulatedRun.InstructedAsync(plugins, "Fix the rounding of JPY amounts\n[simulate: markdown]", [], []);
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await using var run = await PreparedAsync([]);
+        var job = await SubmittedAsync(run, "Fix the rounding of JPY amounts", "markdown");
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
         var workbench = await run.WorkbenchAsync();
         await run.Ui.RunAsync(() => workbench.Page["Checking"].Value<Task>());
         var welcome = workbench.Page["Welcome"];
@@ -161,7 +167,7 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
 
             return Task.CompletedTask;
         });
-        _ = await workbench.SelectAsync(run.Job);
+        _ = await workbench.SelectAsync(job);
         await Reel.FilmAsync(run, "conversation", FeatureReel.Hold(0));
     }
 
@@ -169,14 +175,46 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
     public async Task TheReviewOfTheBestOfThreeCandidatesAsync()
     {
         Gated();
-        await using var run = await SimulatedRun.PreparedAsync(
-            plugins,
-            (".avala/checks.json", ReviewTests.CalculatorChecks),
-            (".avala/permissions.json", ReviewTests.TestsPolicy),
-            (".avala/jobs.json", """{ "bestOf": { "candidates": 3, "max": 3 } }"""),
-            (".avala/budget.json", """{ "costPerJob": { "USD": 0.60 } }"""));
+        await using var run = await PreparedAsync(
+            [
+                (".avala/checks.json", ReviewTests.CalculatorChecks),
+                (".avala/permissions.json", ReviewTests.TestsPolicy),
+                (".avala/jobs.json", """{ "bestOf": { "candidates": 3, "max": 3 } }"""),
+                (".avala/budget.json", """{ "costPerJob": { "USD": 0.60 } }"""),
+            ]);
+        const string instruction = "Fix the calculator so that add(2, 2) is 4";
+        run.Cues.Cue(instruction, "contest");
         var decided = run.Watch<ContestDecided>();
         var workbench = await run.WorkbenchAsync();
+        var page = await NewJobAsync(run, workbench);
+        await run.Ui.RunAsync(() =>
+        {
+            page.Set("Instruction", instruction);
+
+            return page.ExecuteAsync("SubmitCommand");
+        });
+
+        var winner = Outcomes.Present(Outcomes.Present((await decided.UntilAsync(_ => true)).Contest.Verdict).Winner);
+        _ = await workbench.SelectAsync(winner);
+        await run.Ui.InvokeAsync(() => Assert.Single(workbench.Sidebar["ReadyForReview"].Items).Execute("ToggleCommand"), Cancellation);
+        _ = await workbench.InspectAsync(winner, "ContestSectionViewModel");
+        await workbench.ShowsAsync(() => ((ICommand)workbench.Page["OpenReviewCommand"].Target).CanExecute(null));
+        await run.Ui.RunAsync(() => workbench.Page.ExecuteAsync("OpenReviewCommand"));
+        await Reel.FilmAsync(run, "contest", new ReelFrame(FeatureCamera.Unfold("Contest"), 1));
+    }
+
+    private Task<SimulatedRun> PreparedAsync(IReadOnlyList<(string Path, string Content)> committed, TimeSpan pace = default) =>
+        SimulatedRun.PreparedAsync(plugins, Claude, committed, pace: pace, repositoryName: Repository);
+
+    private static async Task<JobId> SubmittedAsync(SimulatedRun run, string instruction, string scenario)
+    {
+        run.Cues.Cue(instruction, scenario);
+
+        return Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, instruction)));
+    }
+
+    private static async Task<Bound> NewJobAsync(SimulatedRun run, OpenWorkbench workbench)
+    {
         var page = run.Page("New job");
         await run.Ui.RunAsync(() =>
         {
@@ -189,17 +227,9 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
             page.Set("Repository", run.Repository.Path);
             await page["Previewing"].Value<Task>();
             await page["OptionsRead"].Value<Task>();
-            page.Set("Instruction", "Fix the calculator so that add(2, 2) is 4\n[simulate: contest]");
-            await page.ExecuteAsync("SubmitCommand");
         });
 
-        var winner = Outcomes.Present(Outcomes.Present((await decided.UntilAsync(_ => true)).Contest.Verdict).Winner);
-        _ = await workbench.SelectAsync(winner);
-        await run.Ui.InvokeAsync(() => Assert.Single(workbench.Sidebar["ReadyForReview"].Items).Execute("ToggleCommand"), Cancellation);
-        _ = await workbench.InspectAsync(winner, "ContestSectionViewModel");
-        await workbench.ShowsAsync(() => ((ICommand)workbench.Page["OpenReviewCommand"].Target).CanExecute(null));
-        await run.Ui.RunAsync(() => workbench.Page.ExecuteAsync("OpenReviewCommand"));
-        await Reel.FilmAsync(run, "contest", new ReelFrame(FeatureCamera.Unfold("Contest"), 1));
+        return page;
     }
 
     private static async Task StreamAsync(SimulatedRun run, Task settled, Func<Task> film)
@@ -220,12 +250,15 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
 
     private async Task FilmChartAsync(SimulatedRun run, ChartClock chart)
     {
-        await Reel.FilmAsync(run, "hero", new ReelFrame(chart.Show));
+        await Reel.FilmAsync(run, "hero", new ReelFrame(chart.Show) { Skips = Drawing });
         chart.Advance();
     }
 
-    private static IEnumerable<ReelFrame> Typed(Bound welcome, string text) =>
-        Enumerable.Range(1, (text.Length + 1) / 2).Select(typed => new ReelFrame(_ => welcome.Set("Instruction", text[..Math.Min(text.Length, typed * 2)])));
+    private static bool Drawing(Window window) =>
+        window.GetVisualDescendants().OfType<TextBlock>().Any(block => block.IsEffectivelyVisible && block.Text?.Contains("still incomplete", StringComparison.Ordinal) == true);
+
+    private static IEnumerable<ReelFrame> Typed(Bound page, string text) =>
+        Enumerable.Range(1, (text.Length + 1) / 2).Select(typed => new ReelFrame(_ => page.Set("Instruction", text[..Math.Min(text.Length, typed * 2)])));
 
     private static void Point(Window window, string text)
     {
@@ -261,7 +294,7 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
             return drawing is not null;
         }
 
-        public void Show(Window window) => drawn = Show(window, Elapsed);
+        public void Show(Window window) => drawn = Show(window, Elapsed) && !Drawing(window);
 
         public void Advance()
         {

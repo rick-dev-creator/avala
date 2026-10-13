@@ -59,6 +59,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
     public SurfaceGate Surfaces => surroundings.Surfaces;
 
+    public ScenarioCues Cues => surroundings.Cues;
+
     public BoardGate Board => surroundings.Board;
 
     public SourceFault SourceFault => surroundings.Fault;
@@ -179,7 +181,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         bool telemetry = false,
         IReadOnlyDictionary<string, Avala.Sdk.Processes.ProcessOutcome>? signIns = null,
         bool onboarded = true,
-        TimeSpan pace = default)
+        TimeSpan pace = default,
+        string repositoryName = "repository")
     {
         var data = new TemporaryFolder();
 
@@ -203,7 +206,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         }
 
         var root = surroundings.Compose(plugins, data);
-        var repository = await TemporaryRepository.CreateAsync(surroundings.Tools.GetRequiredService<IProcessRunner>(), Cancellation);
+        var repository = await TemporaryRepository.CreateAsync(surroundings.Tools.GetRequiredService<IProcessRunner>(), repositoryName, Cancellation);
 
         foreach (var (path, content) in committed)
         {
@@ -435,6 +438,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public SurfaceGate Surfaces { get; } = new();
 
+        public ScenarioCues Cues { get; } = new();
+
         public bool RealNotifier { get; init; }
 
         public TimeSpan Pace { get; init; }
@@ -448,7 +453,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(Pace, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
                 Links,
-                RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Surfaces] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Surfaces]);
+                RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Surfaces, Cues] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Surfaces, Cues]);
     }
 
     private sealed class Application : IAsyncDisposable

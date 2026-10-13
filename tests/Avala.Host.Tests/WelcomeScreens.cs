@@ -52,7 +52,7 @@ public sealed class WelcomeScreens(HeadlessUi ui, PublishedPlugins plugins)
             {
                 ((System.Windows.Input.ICommand)harness["Options"].Items[1]["ChooseCommand"].Target).Execute(null);
 
-                return harness["Offering"].Value<Task>();
+                return workbench.Page["Welcome"]["Driver"]["Offering"].Value<Task>();
             });
             await ShootBothAsync(run, "70-welcome-harness-chosen");
         }
