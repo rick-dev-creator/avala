@@ -35,7 +35,7 @@ under your rules, with evidence for every result and a cost for every job.
 - **Evidence, not the agent's word.** A job is done only when the checks your repository declares pass in its worktree. The review shows that verdict first, then the diff.
 - **Policies, not prompts.** Every permission, question and plan approval is answered in place or by rules the agent cannot edit, at the autonomy you allow, and every decision is audited.
 - **Nothing runs away.** Stalled sessions are caught, spending stops at your caps, and leftover processes, ports and worktrees are reclaimed.
-- **Any agent, any account.** Harnesses plug in behind one contract, with several connections per harness. Claude Code is the first; a built-in simulator lets you try everything without tokens.
+- **Claude Code, every account.** Claude Code is the harness Avala supports, with several connections at once. Harnesses plug in behind one contract, so more can follow.
 
 ## Features
 
@@ -133,7 +133,7 @@ under your rules, with evidence for every result and a cost for every job.
 </tr>
 </table>
 
-Also: budgets per job and per connection with a daily ceiling for the machine, usage windows that hold or hand a job off to another account, sub-agents that ask their parent first, an autopilot that works through a backlog, and jobs that survive a restart. The [guide](docs/guide/README.md) has a page for each. Every picture here is captured from the real application, driven headless by the simulator.
+Also: budgets per job and per connection with a daily ceiling for the machine, usage windows that hold or hand a job off to another account, sub-agents that ask their parent first, an autopilot that works through a backlog, and jobs that survive a restart. The [guide](docs/guide/README.md) has a page for each. Every picture here is captured from the real application by its screen tests, which drive it headless on the development simulator; [Contributing](CONTRIBUTING.md) explains how.
 
 ## Install
 
@@ -155,7 +155,7 @@ The installers and archives are attached to each [release](https://github.com/ri
 2. **Open Avala.** A four-step welcome tour shows the agents it found, your projects folder and source-control sign-ins, and your privacy choices.
 3. **Start a chat or pick a repository.** Type a task on the welcome screen to run it in a scratch repository, or open a folder, clone or create one, and the job runs in its own worktree.
 
-To try Avala without an account or tokens, start it with `AVALA_DEVELOPER=1` and choose the simulator connection; a tag such as `[simulate: edit]` in the first message picks a scenario.
+**Supported harness:** Claude Code. It is the only harness Avala officially supports.
 
 ## Privacy
 
@@ -180,8 +180,10 @@ Requires the .NET 10 SDK and git 2.40 or later.
 ```
 dotnet build Avala.slnx
 dotnet test --solution Avala.slnx
-AVALA_DEVELOPER=1 dotnet run --project src/Avala.Host
+dotnet run --project src/Avala.Host
 ```
+
+A build from source also holds the development simulator, which the released packages leave out; [Contributing](CONTRIBUTING.md) shows how to run Avala on it.
 
 ## Docs
 
