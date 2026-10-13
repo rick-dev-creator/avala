@@ -1,35 +1,32 @@
 using System.Collections.Immutable;
-using System.Collections.ObjectModel;
 using Avala.Contests.Contracts;
 using Avala.Jobs.Contracts;
+using Avala.Projects.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Board;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.Presenting;
+using Avala.Workbench.Projects;
 using Avala.Workbench.Submitting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Sidebar;
 
-internal interface ISidebarViewModel
+internal interface ISidebarViewModel : ISidebarCommands
 {
     IReadOnlyList<ISidebarEntry> NeedsYou { get; }
 
-    IReadOnlyList<ISidebarEntry> Running { get; }
+    IReadOnlyList<IProjectGroupViewModel> Projects { get; }
 
-    IReadOnlyList<ISidebarEntry> Waiting { get; }
-
-    IReadOnlyList<ISidebarEntry> ReadyForReview { get; }
-
-    IReadOnlyList<ISidebarEntry> Done { get; }
+    IProjectGroupViewModel Chats { get; }
 
     ISidebarRow? Selected { get; }
 
     bool IsEmpty { get; }
 
-    IRelayCommand<object> SelectCommand { get; }
+    IAsyncRelayCommand CreateProjectCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -37,33 +34,28 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
 {
     private readonly BoardFeed feed;
     private readonly JobFocus focus;
-    private readonly ScratchFolders scratch;
+    private readonly ProjectShelf shelf;
+    private readonly SidebarShelves shelves;
     private readonly Dictionary<JobId, JobRowViewModel> rows = [];
-    private readonly Dictionary<ContestId, ContestRowViewModel> contests = [];
-    private readonly ObservableCollection<ISidebarEntry> needsYou = [];
-    private readonly ObservableCollection<ISidebarEntry> running = [];
-    private readonly ObservableCollection<ISidebarEntry> waiting = [];
-    private readonly ObservableCollection<ISidebarEntry> readyForReview = [];
-    private readonly ObservableCollection<ISidebarEntry> done = [];
+    private readonly Dictionary<ContestId, (ContestRowViewModel Row, JobId First, string Repository)> contests = [];
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
     private ImmutableDictionary<JobId, BoardContest> shownContests = ImmutableDictionary<JobId, BoardContest>.Empty;
+    private ProjectMap? shownMap;
+    private object? selected;
 
-    public SidebarViewModel(BoardFeed feed, JobFocus focus, ScratchFolders scratch)
+    public SidebarViewModel(BoardFeed feed, JobFocus focus, ScratchFolders scratch, ProjectShelf shelf)
     {
         this.feed = feed;
         this.focus = focus;
-        this.scratch = scratch;
+        this.shelf = shelf;
+        shelves = new SidebarShelves(shelf, scratch, SelectCommand);
     }
 
-    public IReadOnlyList<ISidebarEntry> NeedsYou => needsYou;
+    public IReadOnlyList<ISidebarEntry> NeedsYou => shelves.NeedsYou;
 
-    public IReadOnlyList<ISidebarEntry> Running => running;
+    public IReadOnlyList<IProjectGroupViewModel> Projects => shelves.Projects;
 
-    public IReadOnlyList<ISidebarEntry> Waiting => waiting;
-
-    public IReadOnlyList<ISidebarEntry> ReadyForReview => readyForReview;
-
-    public IReadOnlyList<ISidebarEntry> Done => done;
+    public IProjectGroupViewModel Chats => shelves.Chats;
 
     public Task Following => feed.Following;
 
@@ -75,14 +67,16 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         remove => feed.Presented -= value;
     }
 
-    private object? selected;
-
     public ISidebarRow? Selected => selected as ISidebarRow;
 
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
 
-    public void Activate() => feed.Start(Show);
+    public void Activate()
+    {
+        feed.Start(Show);
+        _ = feed.LoadAsync(shelf.CollapsedAsync, shelves.Collapse);
+    }
 
     public void Deactivate() => feed.Stop();
 
@@ -91,7 +85,16 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     public IReadOnlyList<Func<CancellationToken, Task>> Show(ImmutableDictionary<JobId, BoardJob> jobs)
     {
         var contested = feed.Contests;
+        var map = feed.Projects;
+        var regroup = !ReferenceEquals(map, shownMap);
         var changed = jobs.Values.Where(job => !shown.TryGetValue(job.Job, out var before) || !ReferenceEquals(before, job)).ToList();
+
+        if (regroup)
+        {
+            shelves.Show(map);
+        }
+
+        var added = changed.Where(job => !rows.ContainsKey(job.Job)).Select(job => job.Job).ToHashSet();
 
         foreach (var job in changed)
         {
@@ -103,8 +106,17 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
             Contest(contest, jobs);
         }
 
+        if (regroup)
+        {
+            Regroup();
+        }
+
+        shelves.Prune();
+        shelves.Attend();
+        Target(regroup ? rows.Values : rows.Values.Where(row => added.Contains(row.Job)));
         shown = jobs;
         shownContests = contested;
+        shownMap = map;
         IsEmpty = rows.Count == 0 && contests.Count == 0;
 
         return [];
@@ -122,12 +134,48 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
 
             foreach (var other in contests.Values)
             {
-                other.Highlight(row);
+                other.Row.Highlight(row);
             }
 
             selected = row;
             OnPropertyChanged(nameof(Selected));
             focus.Select(row.Job);
+        }
+    }
+
+    [RelayCommand]
+    private async Task CreateProjectAsync(CancellationToken cancellationToken)
+    {
+        if ((await shelf.CreateAsync(cancellationToken)).TryGetValue(out var project, out _))
+        {
+            shelves.RenameWhenShown(project);
+        }
+    }
+
+    private async Task MoveToNewAsync(JobId job, CancellationToken cancellationToken)
+    {
+        if ((await shelf.CreateAsync(cancellationToken)).TryGetValue(out var project, out _))
+        {
+            await shelf.MoveAsync(job, project, cancellationToken);
+            shelves.RenameWhenShown(project);
+        }
+    }
+
+    private void Target(IEnumerable<JobRowViewModel> targeted)
+    {
+        foreach (var row in targeted.Where(row => row.CanMove))
+        {
+            var current = shelves.Map.Of(row.Job, row.Repository).Map(project => project.Project);
+            var job = row.Job;
+
+            row.MoveTargets =
+            [
+                .. shelves.Map.Projects
+                    .Where(project => current != project.Project)
+                    .OrderBy(project => project.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(project => MoveTarget.To(project.Name, token => shelf.MoveAsync(job, project.Project, token))),
+                MoveTarget.To(ProjectPhrases.NewProject, token => MoveToNewAsync(job, token)),
+            ];
         }
     }
 
@@ -149,38 +197,54 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
 
         if (rows.TryGetValue(job.Job, out var row))
         {
-            var before = row.Group;
             row.Update(job);
 
-            if (before != row.Group && OwnerOf(row) is null)
+            if (OwnerOf(row) is null)
             {
-                GroupOf(before).Remove(row);
-                Insert(row);
+                Locate(row);
             }
 
             return;
         }
 
-        row = new JobRowViewModel(job, scratch.Holds(job.Summary.Repository));
+        row = new JobRowViewModel(job);
         rows.Add(job.Job, row);
         Insert(row);
         Adopt(row);
+    }
+
+    private void Regroup()
+    {
+        foreach (var row in rows.Values.Where(row => OwnerOf(row) is null))
+        {
+            Locate(row);
+        }
+
+        foreach (var contest in contests.Values)
+        {
+            shelves.Place(contest.Row, shelves.KeyOf(contest.First, contest.Repository));
+        }
     }
 
     private void Withdraw(JobId candidate)
     {
         if (rows.Remove(candidate, out var row))
         {
-            _ = OwnerOf(row) is { } owner ? owner.Children.Remove(row) : GroupOf(row.Group).Remove(row);
+            if (OwnerOf(row) is { } owner)
+            {
+                owner.Children.Remove(row);
+            }
+            else
+            {
+                shelves.Remove(row);
+            }
         }
     }
 
     private void Contest(ContestRecord contest, ImmutableDictionary<JobId, BoardJob> jobs)
     {
-        var known = contests.TryGetValue(contest.Contest, out var row);
-        row ??= new ContestRowViewModel(contest);
-        contests[contest.Contest] = row;
-        var before = row.Group;
+        var row = contests.TryGetValue(contest.Contest, out var known) ? known.Row : new ContestRowViewModel(contest);
+        contests[contest.Contest] = (row, contest.Candidates[0].Job, contest.Repository);
 
         foreach (var candidate in contest.Candidates)
         {
@@ -188,12 +252,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         }
 
         row.Update(contest, jobs);
-
-        if (!known || before != row.Group)
-        {
-            GroupOf(before).Remove(row);
-            Insert(row, row.Group);
-        }
+        shelves.Place(row, shelves.KeyOf(contest.Candidates[0].Job, contest.Repository));
     }
 
     private void Insert(JobRowViewModel row)
@@ -205,33 +264,20 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
             return;
         }
 
-        Insert(row, row.Group);
+        Locate(row);
     }
 
-    private void Insert(ISidebarEntry row, JobGroup at)
-    {
-        var group = GroupOf(at);
-        group.Insert(group.TakeWhile(other => other.Submitted >= row.Submitted).Count(), row);
-    }
+    private void Locate(JobRowViewModel row) => shelves.Place(row, shelves.KeyOf(row.Job, row.Repository));
 
     private void Adopt(JobRowViewModel owner)
     {
         foreach (var child in rows.Values.Where(other => other.Parent == owner.Job).ToList())
         {
-            GroupOf(child.Group).Remove(child);
+            shelves.Remove(child);
             Insert(child);
         }
     }
 
     private JobRowViewModel? OwnerOf(JobRowViewModel row) =>
         row.Parent.Match(parent => rows.GetValueOrDefault(parent), () => null);
-
-    private ObservableCollection<ISidebarEntry> GroupOf(JobGroup group) => group switch
-    {
-        JobGroup.NeedsYou => needsYou,
-        JobGroup.Waiting => waiting,
-        JobGroup.ReadyForReview => readyForReview,
-        JobGroup.Done => done,
-        _ => running,
-    };
 }

@@ -74,7 +74,7 @@ internal sealed class DogfoodActions(DogfoodApp app, DogfoodJournal journal, Dog
     {
         ShowJobs();
         var sidebar = Ui.Sidebar;
-        string? Group() => Groups.FirstOrDefault(name => sidebar[name].Items.SelectMany(Rows).Any(row => row["Job"].Value<JobId>() == job));
+        string? Group() => SidebarRows.TopLevel(sidebar).Cast<Bound?>().FirstOrDefault(top => Rows(top!.Value).Any(row => row["Job"].Value<JobId>() == job))?["Group"].Text;
         await Ui.UntilAsync(sidebar.Value<IPresentation>(), () => Group() == expected && Row(sidebar, job)!.Value["Fact"].Text.Contains(reading, StringComparison.Ordinal), $"the row of {evidence.Name(job)} in the sidebar group {expected} reading '{reading}'");
         var group = Group()!;
         var fact = Row(sidebar, job)!.Value["Fact"].Text;
@@ -345,7 +345,7 @@ internal sealed class DogfoodActions(DogfoodApp app, DogfoodJournal journal, Dog
     }
 
     private static Bound? Row(Bound sidebar, JobId job) =>
-        Groups.SelectMany(group => sidebar[group].Items).SelectMany(Rows).Cast<Bound?>().FirstOrDefault(row => row!.Value["Job"].Value<JobId>() == job);
+        SidebarRows.TopLevel(sidebar).SelectMany(Rows).Cast<Bound?>().FirstOrDefault(row => row!.Value["Job"].Value<JobId>() == job);
 
     private static IEnumerable<Bound> Rows(Bound row) => [row, .. row.Has("Children") ? row["Children"].Items.SelectMany(Rows) : []];
 }

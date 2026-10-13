@@ -220,7 +220,7 @@ public sealed class ChildEscalationTests(PublishedPlugins plugins)
     }
 
     private static string ChildFact(OpenWorkbench workbench, JobId parent) =>
-        workbench.Sidebar["Running"].Items
+        SidebarRows.In(workbench.Sidebar, "Running")
             .Where(row => row["Job"].Value<JobId>() == parent)
             .SelectMany(row => row["Children"].Items)
             .Select(child => child["Fact"].Text)

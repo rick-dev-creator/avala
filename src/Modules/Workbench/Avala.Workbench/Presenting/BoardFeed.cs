@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Avala.Jobs.Contracts;
+using Avala.Projects.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Board;
@@ -23,6 +24,8 @@ internal sealed class BoardFeed(JobBoard board, IUiDispatcher ui) : IPresentatio
     public Option<BoardJob> Find(JobId job) => board.Find(job);
 
     public ImmutableDictionary<JobId, BoardContest> Contests => board.Contests;
+
+    public ProjectMap Projects => board.Projects;
 
     public Option<BoardContest> ContestOf(JobId job) => board.ContestOf(job);
 

@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading.Channels;
 using Avala.Jobs.Contracts;
+using Avala.Projects.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Workbench.Board;
@@ -9,11 +10,14 @@ internal sealed class JobBoard
 {
     private ImmutableDictionary<JobId, BoardJob> jobs = ImmutableDictionary<JobId, BoardJob>.Empty;
     private ImmutableDictionary<JobId, BoardContest> contests = ImmutableDictionary<JobId, BoardContest>.Empty;
+    private ProjectMap projects = ProjectMap.Empty;
     private ImmutableList<ChannelWriter<bool>> watchers = [];
 
     public ImmutableDictionary<JobId, BoardJob> Jobs => Volatile.Read(ref jobs);
 
     public ImmutableDictionary<JobId, BoardContest> Contests => Volatile.Read(ref contests);
+
+    public ProjectMap Projects => Volatile.Read(ref projects);
 
     public Option<BoardJob> Find(JobId job) =>
         Jobs.TryGetValue(job, out var found) ? Option<BoardJob>.Some(found) : Option<BoardJob>.None;
@@ -33,6 +37,12 @@ internal sealed class JobBoard
     public void Publish(ImmutableDictionary<JobId, BoardContest> next)
     {
         Volatile.Write(ref contests, next);
+        Notify();
+    }
+
+    public void Publish(ProjectMap next)
+    {
+        Volatile.Write(ref projects, next);
         Notify();
     }
 

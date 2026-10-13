@@ -13,6 +13,18 @@
   <Design.DataContext>
     <sidebar:DesignJobRowViewModel />
   </Design.DataContext>
+  <UserControl.ContextFlyout>
+    <MenuFlyout>
+      <MenuItem x:Name="MoveTo" Header="Move to" ItemsSource="{Binding MoveTargets}" IsVisible="{Binding CanMove}">
+        <MenuItem.ItemContainerTheme>
+          <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="sidebar:MoveTarget">
+            <Setter Property="Header" Value="{Binding Name}" />
+            <Setter Property="Command" Value="{Binding Move}" />
+          </ControlTheme>
+        </MenuItem.ItemContainerTheme>
+      </MenuItem>
+    </MenuFlyout>
+  </UserControl.ContextFlyout>
   <UserControl.Styles>
     <Style Selector="TextBlock#Title">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
@@ -54,7 +66,7 @@
       </Style>
     </ContainerQuery>
   </UserControl.Styles>
-  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Container.Name="JobRow" Container.Sizing="Width">
+  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Container.Name="JobRow" Container.Sizing="Width">
     <ContentControl x:Name="Dot"
                     ClipToBounds="False"
                     Content="{Binding Dot}"
@@ -64,15 +76,7 @@
                Text="{Binding Title}"
                TextTrimming="CharacterEllipsis"
                VerticalAlignment="Center" />
-    <Border x:Name="Scratch"
-            Grid.Column="2"
-            Classes="tag"
-            Margin="8,0,0,0"
-            ToolTip.Tip="Started without a repository: it runs in a scratch repository in Avala's data folder"
-            IsVisible="{Binding IsScratch}">
-      <TextBlock Text="Scratch" />
-    </Border>
-    <Border x:Name="FactSlot" Grid.Column="3" Margin="10,0,0,0" VerticalAlignment="Center">
+    <Border x:Name="FactSlot" Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center">
       <TextBlock x:Name="Fact"
                  Classes="caption"
                  MaxWidth="104"
@@ -81,14 +85,14 @@
                  VerticalAlignment="Center" />
     </Border>
     <elapsed:ElapsedText x:Name="Elapsed"
-                         Grid.Column="4"
+                         Grid.Column="3"
                          Classes="caption"
                          Margin="8,0,0,0"
                          VerticalAlignment="Center"
                          Since="{Binding Since}"
                          IsVisible="{Binding ShowsElapsed}" />
     <Border x:Name="PendingBadge"
-            Grid.Column="5"
+            Grid.Column="4"
             Classes="badge"
             MinWidth="16"
             Margin="8,0,0,0"

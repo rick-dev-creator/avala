@@ -89,6 +89,7 @@ internal static class LayerMap
             ["Steering"] = Layer.Application,
             ["Replies"] = Layer.Application,
             ["Navigation"] = Layer.ViewModels,
+            ["Projects"] = Layer.Application,
             ["Sidebar"] = Layer.ViewModels,
             ["Conversation"] = Layer.ViewModels,
             ["Cards"] = Layer.ViewModels,

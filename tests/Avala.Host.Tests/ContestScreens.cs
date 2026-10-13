@@ -47,7 +47,7 @@ public sealed class ContestScreens(HeadlessUi ui, PublishedPlugins plugins)
         await run.Ui.RunAsync(() => page.ExecuteAsync("SubmitCommand"));
         var winner = Outcomes.Present(Outcomes.Present((await decided.UntilAsync(_ => true)).Contest.Verdict).Winner);
         _ = await workbench.SelectAsync(winner);
-        await run.Ui.InvokeAsync(() => Assert.Single(workbench.Sidebar["ReadyForReview"].Items).Execute("ToggleCommand"), Cancellation);
+        await run.Ui.InvokeAsync(() => Assert.Single(SidebarRows.In(workbench.Sidebar, "ReadyForReview")).Execute("ToggleCommand"), Cancellation);
 
         await Camera.ShootAsync(run, "contests-02-board-contest-row-dark");
         await Camera.ShootAsync(run, "contests-02-board-contest-row-light", ThemeVariant.Light);

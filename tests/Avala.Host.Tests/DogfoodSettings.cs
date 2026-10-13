@@ -16,7 +16,6 @@ internal static class DogfoodSettings
 
     internal const string HookSecret = "AVALA_DOGFOOD_HOOK_SECRET";
 
-    internal static readonly string[] Groups = ["NeedsYou", "Running", "Waiting", "ReadyForReview", "Done"];
 
     internal static readonly JobStatus[] Settled = [JobStatus.AwaitingReview, JobStatus.NeedsHelp, JobStatus.Failed, JobStatus.Approved, JobStatus.Discarded];
 

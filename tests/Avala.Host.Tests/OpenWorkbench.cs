@@ -7,8 +7,6 @@ namespace Avala.Host.Tests;
 
 internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar, Bound toolbar)
 {
-    private static readonly string[] Groups = ["NeedsYou", "Running", "Waiting", "ReadyForReview", "Done"];
-
     public Bound Page => page;
 
     public Bound Sidebar => sidebar;
@@ -76,14 +74,14 @@ internal sealed class OpenWorkbench(SimulatedRun run, Bound page, Bound sidebar,
 
     private (string Group, string Fact) GroupOf(JobId job) =>
         Row(job) is { } row
-            ? (Groups.Single(name => sidebar[name].Items.Any(member => member["Job"].Value<JobId>() == job)), row["Fact"].Text)
+            ? (row["Group"].Text, row["Fact"].Text)
             : (string.Empty, string.Empty);
 
     private Bound? Row(JobId job) =>
-        Groups.SelectMany(group => sidebar[group].Items).Cast<Bound?>().FirstOrDefault(row => row!.Value["Job"].Value<JobId>() == job);
+        SidebarRows.TopLevel(sidebar).Cast<Bound?>().FirstOrDefault(row => row!.Value["Job"].Value<JobId>() == job);
 
     private string Describe() =>
-        $"groups [{string.Join(", ", Groups.Select(group => $"{group}: {string.Join(" ", sidebar[group].Items.Select(row => row["Fact"].Text))}"))}]"
+        $"rows [{SidebarRows.Describe(sidebar)}]"
         + (page.Has("Conversation") ? $", entries [{string.Join(", ", Kinds(page["Conversation"]))}]" : string.Empty);
 
     private sealed class AnyOf(IReadOnlyList<IPresentation> components) : IPresentation

@@ -30,13 +30,18 @@ internal interface ISidebarRow
     IReadOnlyList<ISidebarRow> Children { get; }
 }
 
-internal interface ISidebarEntry : ISidebarRow;
+internal interface ISidebarEntry : ISidebarRow
+{
+    JobGroup Group { get; }
+}
 
 internal interface IJobRowViewModel : ISidebarEntry
 {
     JobStatus Status { get; }
 
-    bool IsScratch { get; }
+    bool CanMove { get; }
+
+    IReadOnlyList<MoveTarget> MoveTargets { get; }
 
     bool ShowsElapsed { get; }
 
@@ -48,10 +53,11 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
 {
     private readonly StatusDotViewModel dot = new(StatusKind.Working);
 
-    public JobRowViewModel(BoardJob job, bool scratch = false)
+    public JobRowViewModel(BoardJob job)
     {
         Job = job.Job;
-        IsScratch = scratch;
+        Repository = job.Summary.Repository;
+        MoveTargets = [];
         Parent = job.Summary.Parent;
         Submitted = job.Summary.Submitted;
         Title = FactPhrases.Title(job.Summary.Instruction);
@@ -65,7 +71,9 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
 
     public bool IsChild => Parent.IsSome;
 
-    public bool IsScratch { get; }
+    public string Repository { get; }
+
+    public bool CanMove => !IsChild;
 
     public ObservableCollection<JobRowViewModel> Children { get; } = [];
 
@@ -94,6 +102,9 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
+
+    [ObservableProperty]
+    public partial IReadOnlyList<MoveTarget> MoveTargets { get; set; }
 
     [ObservableProperty]
     public partial bool ShowsElapsed { get; private set; }

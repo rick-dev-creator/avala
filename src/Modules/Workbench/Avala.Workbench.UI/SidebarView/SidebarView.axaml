@@ -28,6 +28,10 @@
         </ItemsPanelTemplate>
       </Setter>
     </Style>
+    <Style Selector="Button#NewProject">
+      <Setter Property="Padding" Value="5" />
+      <Setter Property="Margin" Value="0,0,4,0" />
+    </Style>
   </UserControl.Styles>
   <UserControl.Resources>
     <DataTemplate x:Key="Row" x:DataType="sidebar:ISidebarRow">
@@ -50,21 +54,20 @@
       <TextBlock Classes="section group" Text="Needs you" />
       <ItemsControl x:Name="NeedsYou" Classes="rows" ItemsSource="{Binding NeedsYou}" ItemTemplate="{StaticResource Row}" />
     </StackPanel>
-    <StackPanel x:Name="RunningGroup" Spacing="1" IsVisible="{Binding !!Running.Count}">
-      <TextBlock Classes="section group" Text="Running" />
-      <ItemsControl x:Name="Running" Classes="rows" ItemsSource="{Binding Running}" ItemTemplate="{StaticResource Row}" />
+    <StackPanel x:Name="ProjectsGroup" Spacing="1">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Classes="section group" Text="Projects" VerticalAlignment="Center" />
+        <Button x:Name="NewProject"
+                Grid.Column="1"
+                Classes="glyph"
+                Command="{Binding CreateProjectCommand}"
+                ToolTip.Tip="New project"
+                AutomationProperties.Name="New project">
+          <Path Classes="icon small" Data="{StaticResource IconPlus}" />
+        </Button>
+      </Grid>
+      <ItemsControl x:Name="Projects" Classes="rows" ItemsSource="{Binding Projects}" />
     </StackPanel>
-    <StackPanel x:Name="WaitingGroup" Spacing="1" IsVisible="{Binding !!Waiting.Count}">
-      <TextBlock Classes="section group" Text="Waiting" />
-      <ItemsControl x:Name="Waiting" Classes="rows" ItemsSource="{Binding Waiting}" ItemTemplate="{StaticResource Row}" />
-    </StackPanel>
-    <StackPanel x:Name="ReadyForReviewGroup" Spacing="1" IsVisible="{Binding !!ReadyForReview.Count}">
-      <TextBlock Classes="section group" Text="Ready for review" />
-      <ItemsControl x:Name="ReadyForReview" Classes="rows" ItemsSource="{Binding ReadyForReview}" ItemTemplate="{StaticResource Row}" />
-    </StackPanel>
-    <StackPanel x:Name="DoneGroup" Spacing="1" IsVisible="{Binding !!Done.Count}">
-      <TextBlock Classes="section group" Text="Done" />
-      <ItemsControl x:Name="Done" Classes="rows" ItemsSource="{Binding Done}" ItemTemplate="{StaticResource Row}" />
-    </StackPanel>
+    <ContentControl x:Name="Chats" Content="{Binding Chats}" IsVisible="{Binding Chats.HasRows}" />
   </StackPanel>
 </UserControl>
