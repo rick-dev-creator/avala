@@ -78,6 +78,7 @@ A new capability, such as an issue tracker or another way to isolate work, arriv
 | Transcripts | Each job's conversation, kept across restarts |
 | Canvas | The canvas tool and its versions; Rendering draws Markdown and SVG, Mermaid draws diagrams |
 | Preview | A job's page or app served and shown beside its conversation |
+| Projects | The projects conversations are grouped into: one per repository, made with its first job, and the conversations a person moved |
 | Recording | Records real sessions for the simulator to replay; development only |
 | Simulator | The simulated harnesses, with `Avala.Simulator.Workload` for the processes its scenarios run; development only |
 | ClaudeCode | The Claude Code provider |
