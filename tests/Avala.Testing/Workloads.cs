@@ -35,6 +35,34 @@ public static class Workloads
         return port;
     }
 
+    public static int FreeBlock(int size)
+    {
+        while (true)
+        {
+            var first = FreePort();
+            var held = new List<System.Net.Sockets.TcpListener>();
+
+            try
+            {
+                foreach (var port in Enumerable.Range(first, size))
+                {
+                    var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+                    listener.Start();
+                    held.Add(listener);
+                }
+
+                return first;
+            }
+            catch (Exception failure) when (failure is System.Net.Sockets.SocketException or ArgumentOutOfRangeException)
+            {
+            }
+            finally
+            {
+                held.ForEach(listener => listener.Stop());
+            }
+        }
+    }
+
     public static Option<T> OnFreePort<T>(Func<int, Option<T>> start)
         where T : notnull =>
         Enumerable.Range(0, 5).Select(_ => start(FreePort())).FirstOrDefault(started => started.IsSome, Option<T>.None);
