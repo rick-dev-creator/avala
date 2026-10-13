@@ -12,7 +12,7 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignUsageLeftViewModel());
 
-            Assert.Equal(("12% left", true, true, true), (view.TextOf("Left"), view.Shows("Open"), view.HasClass("Left", "attention"), view.HasClass("Ring", "attention")));
+            Assert.Equal(("12% usage left", true, true, true), (view.TextOf("Left"), view.Shows("Open"), view.HasClass("Left", "attention"), view.HasClass("Ring", "attention")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
 
         public string Connection => "claude-work";
 
-        public string Left => "28% left";
+        public string Left => "28% usage left";
 
         public double Used => 0.72;
 

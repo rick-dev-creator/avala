@@ -17,7 +17,7 @@ Caps on cost, tokens and memory hold a job before it overspends, and a job that 
 2. **Set the machine's limits** in `budgets.json` in the data folder.
 3. **Choose what happens at a limit** in the `limits` section of `.avala/jobs.json`, or for every repository in `limits.json` in the data folder.
 4. **Follow spending** on the **Usage** page: Connections, Jobs · cost against their cap, Interventions across jobs and Usage by day, for Today, 7 days or 30 days.
-5. **See what is left while you work.** A job's header shows what is left of the most used usage window on its connection, such as "28% left", and turns amber near the limit. Hover it for every window with its use and reset; click it to open Usage with that connection marked. A connection that reports no usage window, such as one with an API key, shows nothing there.
+5. **See what is left while you work.** A job's header shows what is left of the most used usage window on its connection, such as "28% usage left", and turns amber near the limit. Hover it for every window with its use and reset; click it to open Usage with that connection marked. A connection that reports no usage window, such as one with an API key, shows nothing there.
 6. **Continue a held job** with **Raise budget and continue** in its inspector, which adds one more original allowance above what it already spent, or move it with "Continue on" another connection from its harness chip.
 7. **Change the silence** after which a job is held in Settings, Machine, Supervision: "Hold a job after silence of … seconds".
 

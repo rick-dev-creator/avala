@@ -111,7 +111,7 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
 
 internal static class UsageLeftPhrases
 {
-    public static string Left(double used) => $"{Amounts.Percent(1 - used)} left";
+    public static string Left(double used) => $"{Amounts.Percent(1 - used)} usage left";
 
     public static string Summary(string connection, IEnumerable<ILimitViewModel> windows) =>
         string.Join(" · ", windows.Select(window => $"{window.Label} {window.UsedText} used, {window.Resets}").Prepend($"Usage left on {connection}"));
