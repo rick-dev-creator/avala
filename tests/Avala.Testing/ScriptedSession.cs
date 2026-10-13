@@ -18,6 +18,7 @@ public sealed class ScriptedSession(
     private readonly ConcurrentQueue<TurnId> turns = new();
     private readonly ConcurrentQueue<FormAnswer> answers = new();
     private readonly ConcurrentQueue<ToolResult> results = new();
+    private readonly TaskCompletionSource interrupting = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int interruptions;
 
     public SessionId Id { get; } = SessionId.New();
@@ -37,6 +38,10 @@ public sealed class ScriptedSession(
     public int Interruptions => interruptions;
 
     public bool IsDisposed { get; private set; }
+
+    public bool IgnoresInterrupts { get; init; }
+
+    public Task Interrupting => interrupting.Task;
 
     public IAsyncEnumerable<IAgentEvent> Events => events.Reader.ReadAllAsync(CancellationToken.None);
 
@@ -103,6 +108,12 @@ public sealed class ScriptedSession(
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref interruptions);
+        interrupting.TrySetResult();
+
+        if (IgnoresInterrupts)
+        {
+            return new ValueTask<Result<TurnId, AgentError>>(new TaskCompletionSource<Result<TurnId, AgentError>>().Task);
+        }
 
         return ValueTask.FromResult(turns.IsEmpty
             ? Result<TurnId, AgentError>.Failure(AgentError.NoTurnInProgress)

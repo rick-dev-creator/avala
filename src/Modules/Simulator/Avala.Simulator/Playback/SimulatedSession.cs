@@ -64,10 +64,19 @@ internal sealed class SimulatedSession : IAgentSession
         await gates.Tools.RespondAsync(result.Item, result, cancellationToken);
 
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) =>
-        await (await stage.RunAsync(_ => Task.FromResult(act.Map(running => (running.Turn, running.Interruption, Conducted: conducting))), cancellationToken)).Match(
+        await (await stage.RunAsync(_ => Task.FromResult(act.Map(running => (running.Turn, running.Interruption, running.Unheard, Conducted: conducting))), cancellationToken)).Match(
             async running =>
             {
-                await running.Interruption.CancelAsync();
+                foreach (var cue in running.Unheard.Match(unheard => Unheard(running.Turn, unheard), () => []))
+                {
+                    events.Writer.TryWrite(cue);
+                }
+
+                if (!running.Unheard.IsSome)
+                {
+                    await running.Interruption.CancelAsync();
+                }
+
                 await running.Conducted;
 
                 return Result<TurnId, AgentError>.Success(running.Turn);
@@ -91,6 +100,9 @@ internal sealed class SimulatedSession : IAgentSession
         await stage.DisposeAsync();
         lifetime.Dispose();
     }
+
+    private IEnumerable<IAgentEvent> Unheard(TurnId turn, IgnoreInterrupt unheard) =>
+        new Cues(Id, turn).Of(new Say(unheard.Item, ItemKind.Message, "Reply", unheard.Chunks));
 
     private Result<TurnId, AgentError> Queue(UserTurn turn) =>
         closed ? AgentError.SessionClosed
@@ -120,7 +132,7 @@ internal sealed class SimulatedSession : IAgentSession
         var current = await conversation.Match(
             known => Task.FromResult(known),
             async () => Conversation.Begin(await craft.Library.ChooseAsync(turn.Text, options, cancellationToken), SimulatedAccounts.Holder(Account)));
-        var next = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token), turn.Text);
+        var next = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token), turn.Text) { Unheard = current.NextScript.OfType<IgnoreInterrupt>().FirstOrDefault().ToOption() };
         conversation = current.Advanced;
         act = next;
         conducting = Task.Run(() => ConductAsync(next, current), CancellationToken.None);
@@ -212,7 +224,10 @@ internal sealed class SimulatedSession : IAgentSession
         return ends;
     }
 
-    private sealed record Act(TurnId Turn, CancellationTokenSource Interruption, string Told);
+    private sealed record Act(TurnId Turn, CancellationTokenSource Interruption, string Told)
+    {
+        public Option<IgnoreInterrupt> Unheard { get; init; }
+    }
 }
 
 internal sealed record Casting(Option<AgentAccount> Account, CapabilitySet Declared);

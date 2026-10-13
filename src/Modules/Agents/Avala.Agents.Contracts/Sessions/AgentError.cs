@@ -16,4 +16,5 @@ public enum AgentError
     NoPendingCall,
     UnofferedModel,
     UnofferedEffort,
+    InterruptUnconfirmed,
 }
