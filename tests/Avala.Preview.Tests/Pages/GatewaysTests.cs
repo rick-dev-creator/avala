@@ -16,7 +16,7 @@ public sealed class GatewaysTests
     public async Task AJobsPageAndProxiesShareOneLeaseThatIsReleasedOnceTheJobClosesAsync()
     {
         using var worktree = new TemporaryFolder();
-        var leases = new BlockLeases(Workloads.FreePort());
+        var leases = new BlockLeases(Workloads.FreeBlock(BlockLeases.Size));
         await using var gateways = new Gateways(leases);
         var job = JobId.New();
         var server = new PreviewTarget(job, new Uri("http://localhost:5173/"), PreviewSource.Server);
@@ -39,7 +39,7 @@ public sealed class GatewaysTests
     public async Task StoppingAJobsPageFreesItsPortWhileTheJobKeepsItsLeaseAsync()
     {
         using var worktree = new TemporaryFolder();
-        var leases = new BlockLeases(Workloads.FreePort());
+        var leases = new BlockLeases(Workloads.FreeBlock(BlockLeases.Size));
         await using var gateways = new Gateways(leases);
         var job = JobId.New();
         var served = Outcomes.Succeeds(await gateways.ServeFilesAsync(job, worktree.Path, Cancellation));
@@ -54,7 +54,7 @@ public sealed class GatewaysTests
     [Fact]
     public async Task AServedPageNeedsNoProxyAsync()
     {
-        await using var gateways = new Gateways(new BlockLeases(Workloads.FreePort()));
+        await using var gateways = new Gateways(new BlockLeases(Workloads.FreeBlock(BlockLeases.Size)));
         var page = new PreviewTarget(JobId.New(), new Uri("http://127.0.0.1:24010/index.html"), PreviewSource.File);
 
         Assert.Equal(page.Address, Outcomes.Succeeds(await gateways.ProxyAsync(page, Cancellation)));
@@ -71,12 +71,14 @@ public sealed class GatewaysTests
 
     private sealed class BlockLeases(int first) : IPortLeases
     {
+        public const int Size = 10;
+
         public int First { get; } = first;
 
         public ConcurrentQueue<string> Released { get; } = new();
 
         public ValueTask<Option<PortLease>> LeaseAsync(string holder, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(First == 0 ? Option<PortLease>.None : new PortLease(holder, First, First + 9) { Own = true });
+            ValueTask.FromResult(First == 0 ? Option<PortLease>.None : new PortLease(holder, First, First + Size - 1) { Own = true });
 
         public Task ReleaseAsync(string holder, CancellationToken cancellationToken)
         {
