@@ -7,7 +7,7 @@ What leaves your computer, how to turn it off, and how to hide personal details 
 - **Usage statistics.** A released build of Avala sends anonymous usage statistics to [Aptabase](https://aptabase.com) to count installs and daily active installs: an `installed` event once ever and an `active` event at most once per local day, each with Avala's version, your operating system's name, version and architecture, and a random install ID made on first run.
 - **Never sent**: repositories, jobs, prompts, paths, harnesses, connections, accounts, costs, the features you use or your locale. The install ID is never derived from your hardware, user name or paths.
 - **Builds from source send nothing**: only a packaged release can send.
-- **The update check** asks GitHub's public releases API whether a newer version is out, with nothing about you. It never downloads or installs anything.
+- **The update check** asks GitHub's public releases API whether a newer version is out, with nothing about you. It never downloads or installs anything on its own: with the Windows installer, the portable zip or the AppImage, the new version downloads only when you click it and installs when you choose to restart.
 - **Hide personal details**, on by default, masks emails, sign-in names, account names and your home folder in paths, on screen and in copied or exported conversations, so a screen can be recorded or shared as it is.
 - Notifications, pull requests and forge triggers talk only to the services you set them up with.
 
