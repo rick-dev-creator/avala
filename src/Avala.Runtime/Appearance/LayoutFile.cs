@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Text.Json;
 using Avala.Sdk;
@@ -26,7 +27,7 @@ internal sealed class LayoutFile(AvalaPaths paths) : IWindowLayout, IAsyncDispos
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 
             return document.RootElement.ValueKind == JsonValueKind.Object
-                ? new WindowLayout(IsCollapsed(document.RootElement), Width(document.RootElement)) { PreviewShare = Share(document.RootElement) }
+                ? new WindowLayout(IsCollapsed(document.RootElement), Width(document.RootElement)) { PreviewShare = Share(document.RootElement), CollapsedGroups = Collapsed(document.RootElement) }
                 : WindowLayout.Default;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -43,7 +44,15 @@ internal sealed class LayoutFile(AvalaPaths paths) : IWindowLayout, IAsyncDispos
     private static string Json(WindowLayout layout) =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"{{\n  \"sidebar\": \"{(layout.IsSidebarCollapsed ? "collapsed" : "shown")}\",\n  \"sidebarWidth\": {WindowLayout.Fit(layout.SidebarWidth)},\n  \"previewShare\": {WindowLayout.FitShare(layout.PreviewShare)}\n}}\n");
+            $"{{\n  \"sidebar\": \"{(layout.IsSidebarCollapsed ? "collapsed" : "shown")}\",\n  \"sidebarWidth\": {WindowLayout.Fit(layout.SidebarWidth)},\n  \"previewShare\": {WindowLayout.FitShare(layout.PreviewShare)}{CollapsedJson(layout.CollapsedGroups)}\n}}\n");
+
+    private static string CollapsedJson(ImmutableArray<string> groups) =>
+        groups.IsDefaultOrEmpty ? string.Empty : $",\n  \"collapsedGroups\": {JsonSerializer.Serialize(groups.Distinct().Order(StringComparer.Ordinal).ToArray())}";
+
+    private static ImmutableArray<string> Collapsed(JsonElement root) =>
+        root.TryGetProperty("collapsedGroups", out var groups) && groups.ValueKind == JsonValueKind.Array
+            ? [.. groups.EnumerateArray().Where(group => group.ValueKind == JsonValueKind.String).Select(group => group.GetString() ?? string.Empty).Where(group => group.Length > 0).Distinct()]
+            : [];
 
     private static bool IsCollapsed(JsonElement root) =>
         root.TryGetProperty("sidebar", out var sidebar)

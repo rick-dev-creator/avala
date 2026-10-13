@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace Avala.Sdk.Appearance;
 
 public sealed record WindowLayout(bool IsSidebarCollapsed, double SidebarWidth)
@@ -17,6 +19,8 @@ public sealed record WindowLayout(bool IsSidebarCollapsed, double SidebarWidth)
     public static WindowLayout Default { get; } = new(false, DefaultSidebarWidth);
 
     public double PreviewShare { get; init; } = DefaultPreviewShare;
+
+    public ImmutableArray<string> CollapsedGroups { get; init; } = [];
 
     public static double Fit(double sidebarWidth) =>
         double.IsFinite(sidebarWidth) ? Math.Round(Math.Clamp(sidebarWidth, NarrowestSidebar, WidestSidebar)) : DefaultSidebarWidth;

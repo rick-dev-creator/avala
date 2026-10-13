@@ -60,6 +60,21 @@ public sealed class LayoutFileTests
         Assert.Equal(new WindowLayout(true, 312) { PreviewShare = 0.6 }, await restarted.ReadAsync(Cancellation));
     }
 
+    [Fact]
+    public async Task TheSidebarsCollapsedGroupsAreRememberedOnceEachAsync()
+    {
+        await using var data = new TemporaryFolder();
+        await using (var file = new LayoutFile(new AvalaPaths(data.Path)))
+        {
+            await file.RememberAsync(remembered => remembered with { CollapsedGroups = ["chats", "0192f1c2-ledger", "chats"] }, Cancellation);
+        }
+
+        await using var restarted = new LayoutFile(new AvalaPaths(data.Path));
+
+        Assert.Equal(["0192f1c2-ledger", "chats"], (await restarted.ReadAsync(Cancellation)).CollapsedGroups);
+        Assert.Contains("\"collapsedGroups\": [\"0192f1c2-ledger\",\"chats\"]", await File.ReadAllTextAsync(Path.Combine(data.Path, LayoutFile.FileName), Cancellation), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(0.05, WindowLayout.SmallestPreviewShare)]
     [InlineData(0.95, WindowLayout.LargestPreviewShare)]
