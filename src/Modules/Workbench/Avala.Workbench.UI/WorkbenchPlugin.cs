@@ -145,8 +145,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IWelcomeViewModel, WelcomeViewModel>()
             .AddSingleton<WorkbenchViewModel>()
             .AddForwarded<IPage, WorkbenchViewModel>();
-        registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0);
-        registrar.AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0);
+        RegisterRegions(registrar);
         RegisterInspector(registrar);
         RegisterGlobalPages(registrar.Services);
         RegisterAccounts(registrar.Services);
@@ -154,6 +153,11 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterContests(registrar);
         RegisterFooter(registrar);
     }
+
+    private static void RegisterRegions(IPluginRegistrar registrar) =>
+        registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
+            .AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0)
+            .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5);
 
     private static void RegisterFooter(IPluginRegistrar registrar)
     {
@@ -365,6 +369,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<FleetReader>()
             .AddSingleton<DelegationReader>()
             .AddSingleton<UsageReader>()
+            .AddSingleton<JobAllowance>()
             .AddSingleton<UsageWindows>()
             .AddSingleton<RulesReader>()
             .AddSingleton<RuleFileEditing>()
@@ -391,6 +396,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IAboutViewModel, AboutViewModel>()
             .AddSingleton<UpdateNoticeViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
+            .AddSingleton<UsageLeftViewModel>()
             .AddTransient<ModelPickerViewModel>()
             .AddSingleton<NewJobReadings>()
             .AddSingleton<NewJobViewModel>()
@@ -420,6 +426,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IDelegationRefusalViewModel, DelegationRefusalView>();
         views.Register<IUsageViewModel, UsageView>();
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();
+        views.Register<IUsageLeftViewModel, UsageLeftView>();
         views.Register<IUsageWindowViewModel, UsageWindowView>();
         views.Register<IUsageRangeViewModel, UsageRangeView>();
         views.Register<IUsageDayViewModel, UsageDayView>();

@@ -27,6 +27,8 @@ internal interface IConnectionMeterViewModel
 
     string Caps { get; }
 
+    bool IsFocused { get; }
+
     IReadOnlyList<ILimitViewModel> Limits { get; }
 }
 
@@ -131,6 +133,9 @@ internal sealed partial class ConnectionMeterViewModel : IConnectionMeterViewMod
 
     [ObservableProperty]
     public partial string Caps { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsFocused { get; set; }
 
     public IReadOnlyList<ILimitViewModel> Limits => limits;
 

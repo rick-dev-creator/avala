@@ -40,6 +40,8 @@ internal sealed class DesignConnectionMeterViewModel(string name, string cost, s
 
     public string Caps => "3 USD per job, holds at 90% of a limit";
 
+    public bool IsFocused => false;
+
     public IReadOnlyList<ILimitViewModel> Limits { get; } = limits;
 }
 
@@ -162,4 +164,23 @@ internal sealed class DesignUsageViewModel : IUsageViewModel
         new DesignInterventionViewModel(),
         new DesignInterventionViewModel(SampleJobs.LoginRateLimit, "Paginate audit log export", "2026-10-08 18:12", HoldReason.BudgetExceeded, "cost job: 3.04 against 3"),
     ];
+}
+
+internal sealed class DesignUsageLeftViewModel : IUsageLeftViewModel
+{
+    public bool IsShown => true;
+
+    public string Connection => "claude-work";
+
+    public string Left => "12% left";
+
+    public double Used => 0.88;
+
+    public bool IsNear => true;
+
+    public string Summary => "Usage left on claude-work · 5-hour window 88% used, resets 2026-10-09 16:20 · 7-day window 43% used, resets 2026-10-13 09:00";
+
+    public IReadOnlyList<ILimitViewModel> Windows { get; } = [new DesignLimitViewModel(), new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false)];
+
+    public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
 }
