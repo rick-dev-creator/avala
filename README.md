@@ -137,13 +137,13 @@ Also: budgets per job and per connection with a daily ceiling for the machine, u
 
 ## Install
 
-> **Coming soon.** The first beta will be published on the [releases page](https://github.com/rick-dev-creator/avala/releases). Until then, [build it from source](#build-from-source).
+> **Avala 0.1.0-beta.1 is out.** It is a prerelease: [read the release notes](https://github.com/rick-dev-creator/avala/releases/tag/v0.1.0-beta.1) before you start. The builds are not signed yet, so Windows SmartScreen warns about an unknown publisher; choose More info, Run anyway.
 
 | Platform | How |
 | --- | --- |
-| Windows x64 | Run `avala-<version>-win-x64-setup.exe`, or unzip `avala-<version>-win-x64-portable.zip` anywhere. Both update themselves in place. |
-| Linux x64 | Run `avala-<version>-linux-x64.AppImage`, which updates itself in place, or unpack `avala-<version>-linux-x64.tar.gz`. |
-| Arch Linux | Install `avala-bin` from the AUR, for example with `yay -S avala-bin`. |
+| Windows x64 | Run [`avala-0.1.0-beta.1-win-x64-setup.exe`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.1/avala-0.1.0-beta.1-win-x64-setup.exe), or unzip [the portable zip](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.1/avala-0.1.0-beta.1-win-x64-portable.zip) anywhere. Both update themselves in place. |
+| Linux x64 | Run [`avala-0.1.0-beta.1-linux-x64.AppImage`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.1/avala-0.1.0-beta.1-linux-x64.AppImage) (`chmod +x` it first), which updates itself in place, or unpack [the tar.gz](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.1/avala-0.1.0-beta.1-linux-x64.tar.gz). |
+| Arch Linux | `avala-bin` on the AUR is coming soon; until then use the AppImage or the tar.gz. |
 | Flatpak | `io.github.rick_dev_creator.Avala`, built from `packaging/flatpak` for now; Flathub comes later. |
 | macOS | Later. Avala builds and runs from source on a Mac today. |
 
