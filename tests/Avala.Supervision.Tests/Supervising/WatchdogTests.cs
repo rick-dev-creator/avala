@@ -106,6 +106,21 @@ public sealed class WatchdogTests
     }
 
     [Fact]
+    public async Task ARunningJobWhoseTurnEndedIsNotHeldForSilenceUntilItsNextTurnFallsSilentAsync()
+    {
+        await using var supervised = new Supervised();
+        await supervised.RunningAsync();
+        await supervised.SeeAsync(new TurnCompleted(supervised.Session, supervised.Turn, TurnOutcome.Finished));
+
+        await supervised.AdvanceAsync(Window * 10);
+        Assert.Empty(supervised.Jobs.Holds);
+
+        await supervised.SeeAsync(new TurnStarted(supervised.Session, TurnId.New()));
+        await supervised.AdvanceAsync(Window);
+        Assert.Single(supervised.Jobs.Holds);
+    }
+
+    [Fact]
     public async Task OnlyActivityOfTheJobsCurrentSessionKeepsItAwakeAsync()
     {
         await using var supervised = new Supervised();

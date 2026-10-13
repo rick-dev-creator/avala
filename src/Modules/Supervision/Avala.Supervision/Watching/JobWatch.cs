@@ -16,17 +16,19 @@ internal sealed record JobWatch(JobId Job)
 
     public bool Running { get; private init; }
 
+    public bool BetweenTurns { get; private init; }
+
     public Option<ItemId> AwaitingHuman { get; private init; }
 
     public ImmutableHashSet<ItemId> PendingCalls { get; private init; } = [];
 
     public DateTimeOffset LastActivity { get; private init; }
 
-    public bool IsArmed => Running && AwaitingHuman.IsNone && PendingCalls.IsEmpty;
+    public bool IsArmed => Running && !BetweenTurns && AwaitingHuman.IsNone && PendingCalls.IsEmpty;
 
     public JobWatch Progressed(JobStatus status, DateTimeOffset at) =>
         status == JobStatus.Running
-            ? this with { Running = true, AwaitingHuman = Option<ItemId>.None, PendingCalls = [], LastActivity = at }
+            ? this with { Running = true, BetweenTurns = false, AwaitingHuman = Option<ItemId>.None, PendingCalls = [], LastActivity = at }
             : this with { Running = false };
 
     public JobWatch Joined(SessionId session) => this with { Session = session };
@@ -41,7 +43,8 @@ internal sealed record JobWatch(JobId Job)
             ToolReturned returned => this with { LastActivity = at, PendingCalls = PendingCalls.Remove(returned.Item) },
             ItemCompleted completed => this with { LastActivity = at, PendingCalls = PendingCalls.Remove(completed.Item) },
             PermissionResolved or FormAnswered or RequestWithdrawn => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None },
-            TurnCompleted => this with { LastActivity = at, AwaitingHuman = Option<ItemId>.None, PendingCalls = [] },
+            TurnStarted => this with { LastActivity = at, BetweenTurns = false },
+            TurnCompleted => this with { LastActivity = at, BetweenTurns = true, AwaitingHuman = Option<ItemId>.None, PendingCalls = [] },
             _ => this with { LastActivity = at },
         };
 
