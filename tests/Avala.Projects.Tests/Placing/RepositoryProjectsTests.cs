@@ -61,6 +61,7 @@ public sealed class RepositoryProjectsTests
         await store.KeepAsync(website, Samples.Cancellation);
         await using var projected = new Projected(store);
         var moved = projected.Catalog.Add(Samples.Ledger);
+        projected.Catalog.Add(Samples.Ledger);
         projected.Catalog.Add(Samples.Scratch);
         await store.PlaceAsync(moved, website.Project, Samples.Cancellation);
 

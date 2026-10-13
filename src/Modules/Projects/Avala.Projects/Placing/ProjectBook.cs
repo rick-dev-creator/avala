@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Avala.Jobs.Contracts;
 using Avala.Projects.Catalog;
 using Avala.Projects.Contracts;
@@ -12,6 +11,8 @@ internal interface IProjectStore
     Task<ProjectMap> ReadAsync(CancellationToken cancellationToken);
 
     Task KeepAsync(ProjectRecord project, CancellationToken cancellationToken);
+
+    Task RemoveAsync(ProjectId project, CancellationToken cancellationToken);
 
     Task PlaceAsync(JobId job, ProjectId project, CancellationToken cancellationToken);
 }
@@ -49,25 +50,51 @@ internal sealed class ProjectBook(IProjectStore store, IEventBus bus) : IAsyncDi
 
     public bool Holds(string repository) => projects.Values.Any(project => project.Repository == repository);
 
-    public async Task OpenAsync(Project project, CancellationToken cancellationToken)
+    public async Task<ProjectCreated> OpenAsync(Project project, CancellationToken cancellationToken)
     {
         await store.KeepAsync(project.Record, cancellationToken);
         projects[project.Id] = project;
         Volatile.Write(ref map, Current with { Projects = Current.Projects.Add(project.Record) });
-        await bus.PublishAsync(new ProjectCreated(project.Record), cancellationToken);
+
+        return await AnnounceAsync(new ProjectCreated(project.Record), cancellationToken);
+    }
+
+    public async Task<ProjectRenamed> RenameAsync(ProjectNamed named, CancellationToken cancellationToken)
+    {
+        await store.KeepAsync(named.Project, cancellationToken);
+        Volatile.Write(ref map, Current with { Projects = Current.Projects.Replace(Current.Find(named.Project.Project).Match(old => old, () => named.Project), named.Project) });
+
+        return await AnnounceAsync(new ProjectRenamed(named.Project), cancellationToken);
+    }
+
+    public async Task<ProjectDeleted> RemoveAsync(ProjectRemoved removed, CancellationToken cancellationToken)
+    {
+        await store.RemoveAsync(removed.Project, cancellationToken);
+        projects.Remove(removed.Project);
+        Volatile.Write(ref map, new ProjectMap(
+            Current.Projects.RemoveAll(project => project.Project == removed.Project),
+            Current.Placements.RemoveRange(Current.Placements.Where(placement => placement.Value == removed.Project).Select(placement => placement.Key))));
+
+        return await AnnounceAsync(new ProjectDeleted(removed.Project), cancellationToken);
     }
 
     public async Task<ConversationMoved> PlaceAsync(JobPlaced placed, CancellationToken cancellationToken)
     {
         await store.PlaceAsync(placed.Job, placed.Project, cancellationToken);
         Volatile.Write(ref map, Current with { Placements = Current.Placements.SetItem(placed.Job, placed.Project) });
-        var moved = new ConversationMoved(placed.Job, placed.Project);
-        await bus.PublishAsync(moved, cancellationToken);
 
-        return moved;
+        return await AnnounceAsync(new ConversationMoved(placed.Job, placed.Project), cancellationToken);
     }
 
     public ValueTask AnnounceAsync(CancellationToken cancellationToken) => bus.PublishAsync(new ProjectsRestored(Current), cancellationToken);
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();
+
+    private async Task<TEvent> AnnounceAsync<TEvent>(TEvent announced, CancellationToken cancellationToken)
+        where TEvent : IIntegrationEvent
+    {
+        await bus.PublishAsync(announced, cancellationToken);
+
+        return announced;
+    }
 }
