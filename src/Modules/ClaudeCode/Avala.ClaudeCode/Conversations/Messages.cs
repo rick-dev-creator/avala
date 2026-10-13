@@ -8,12 +8,13 @@ internal static class Messages
 {
     public const string GateHook = "avala-gate";
 
-    public static JsonNode User(UserTurn turn) => new JsonObject
+    public static JsonNode User(UserTurn turn, string command) => new JsonObject
     {
         ["type"] = "user",
         ["message"] = new JsonObject { ["role"] = "user", ["content"] = turn.Text },
         ["parent_tool_use_id"] = null,
         ["session_id"] = string.Empty,
+        ["uuid"] = command,
     };
 
     public static JsonNode Initialize() => Request("avala-initialize", new JsonObject

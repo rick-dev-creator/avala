@@ -122,6 +122,9 @@ internal static class Cli
                          "output_tokens_details": { "thinking_tokens": 12 } } }
             """);
 
+    public static JsonNode Lifecycle(string command, string state) =>
+        Parse($$"""{ "type": "command_lifecycle", "command_uuid": "{{command}}", "state": "{{state}}", "uuid": "{{Guid.NewGuid()}}", "session_id": "{{Session}}" }""");
+
     public static JsonNode RateLimit() =>
         Parse("""
             { "type": "rate_limit_event", "rate_limit_info": { "status": "allowed_warning", "resetsAt": 1791691200, "rateLimitType": "seven_day", "utilization": 0.99,

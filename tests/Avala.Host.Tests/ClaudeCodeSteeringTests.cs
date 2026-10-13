@@ -1,9 +1,14 @@
 using Avala.Jobs.Contracts;
+using Avala.Supervision.Contracts;
 
 namespace Avala.Host.Tests;
 
 public sealed class ClaudeCodeSteeringTests(PublishedPlugins plugins)
 {
+    private const string Folded = "queued-fold";
+
+    private const string Counting = "Count from 1 to 40, one number per line, nothing else.";
+
     [Fact]
     public async Task AClaudeCodeMessageMidTurnJoinsTheTurnAndOneQueuedBeforeAnInterruptionNeverLeaksIntoTheNextTurnAsync()
     {
@@ -45,6 +50,55 @@ public sealed class ClaudeCodeSteeringTests(PublishedPlugins plugins)
         Assert.Equal("ok", messages[^1]);
         Assert.DoesNotContain(messages, text => text.Contains("cherry", StringComparison.Ordinal));
         Assert.Equal(3, turnEnds.Count);
+    }
+
+    [Fact]
+    public async Task AClaudeCodeTurnThatFoldsAMessageSentMidTurnEndsWithItsOneResultAndStopsWorkingAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync(Folded);
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Counting), claude.Data, []);
+        var (workbench, conversation) = await FoldAsync(run);
+
+        await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Contains("TurnEndViewModel") && !conversation["Working"]["IsShown"].Value<bool>());
+        var (turnEnds, placeholder, messages) = await run.Ui.ReadAsync(() => (
+            OpenWorkbench.Kinds(conversation).Count(kind => kind == "TurnEndViewModel"),
+            conversation["Composer"]["Placeholder"].Text,
+            string.Join('|', OpenWorkbench.Texts(conversation, "MessageViewModel", "Text"))));
+
+        Assert.Equal(1, turnEnds);
+        Assert.Equal("Send the agent more to do before you review…", placeholder);
+        Assert.Contains("banana", messages, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AClaudeCodeConversationIdleForLongerThanTheStallWindowTakesTheNextMessageAndStartsATurnAsync()
+    {
+        using var claude = await TranscribedClaude.PrepareAsync(Folded);
+        await using var run = await SimulatedRun.TranscribedAsync(plugins, claude.Plugin, new JobRequest(string.Empty, Counting), claude.Data, []);
+        var (workbench, conversation) = await FoldAsync(run);
+
+        run.Clock.Advance(TimeSpan.FromHours(1));
+        await SendAsync(run, workbench, conversation, JobStatus.AwaitingReview, "Reply with the single word ok.");
+
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Count(kind => kind == "TurnEndViewModel") == 2);
+        var messages = await run.Ui.ReadAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text"));
+        Assert.Equal("ok", messages[^1]);
+        Assert.Empty(run.Get<ISupervision>().OfJob(run.Job));
+    }
+
+    private static async Task<(OpenWorkbench Workbench, Bound Conversation)> FoldAsync(SimulatedRun run)
+    {
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await workbench.ShowsAsync(() =>
+            conversation["Composer"]["Placeholder"].Text == "Message the agent while it works…"
+            && OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Any(text => text.StartsWith("1\n2\n3\n4", StringComparison.Ordinal)));
+
+        await SendAsync(run, workbench, conversation, JobStatus.Running, "Then end with the single word banana.");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+
+        return (workbench, conversation);
     }
 
     private static async Task SendAsync(SimulatedRun run, OpenWorkbench workbench, Bound conversation, JobStatus shown, string message)

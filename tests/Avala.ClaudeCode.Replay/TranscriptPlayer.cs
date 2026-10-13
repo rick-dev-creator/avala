@@ -9,6 +9,8 @@ public static class TranscriptPlayer
 
     public const string ConfigurationDirectory = "${configurationDirectory}";
 
+    private const string CommandPrefix = "command:";
+
     public static async Task<int> PlayAsync(string[] args, TextReader input, TextWriter output, TextWriter error)
     {
         var resume = args.SkipWhile(argument => argument != "--resume").Skip(1).FirstOrDefault();
@@ -74,6 +76,11 @@ public static class TranscriptPlayer
 
     private static void Remember(JsonNode? message, Dictionary<string, string> results)
     {
+        if (message?["type"]?.GetValue<string>() == "user" && message["uuid"]?.GetValue<string>() is { } command)
+        {
+            results[$"{CommandPrefix}{results.Keys.Count(key => key.StartsWith(CommandPrefix, StringComparison.Ordinal)) + 1}"] = command;
+        }
+
         var text = message?["response"]?["response"]?["mcp_response"]?["result"]?["content"]?[0]?["text"]?.GetValue<string>();
 
         if (text is null || !text.StartsWith('{'))
@@ -106,7 +113,10 @@ public static class TranscriptPlayer
     }
 
     private static string Resolved(string line, Dictionary<string, string> results) =>
-        results.Aggregate(line, (resolved, result) => resolved.Replace($"${{result:{result.Key}}}", result.Value, StringComparison.Ordinal));
+        results.Aggregate(line, (resolved, result) => resolved.Replace(
+            result.Key.StartsWith(CommandPrefix, StringComparison.Ordinal) ? $"${{{result.Key}}}" : $"${{result:{result.Key}}}",
+            result.Value,
+            StringComparison.Ordinal));
 
     private static async Task ActAsync(JsonNode entry, TextWriter output, string cwd, Dictionary<string, string> results)
     {

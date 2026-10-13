@@ -34,6 +34,21 @@ public sealed class InterruptTests
     }
 
     [Fact]
+    public void AnInterruptionWhenClaudeCodeOwesNoResultEndsTheTurnAtOnce()
+    {
+        var talk = new Talk().Begin();
+        talk.Receive(Cli.Lifecycle(talk.Command, "started"), Cli.Init());
+        talk.Take(talk.Conversation.Begin(new UserTurn("Keep the alias") { MidTurn = true }).Match(begun => begun.Reaction, _ => Reaction.None));
+        talk.Receive(Cli.Lifecycle(talk.Command, "queued"), Cli.Result(0.010m), Cli.Lifecycle(talk.Command, "cancelled"));
+        talk.Drain();
+
+        talk.Take(talk.Conversation.Interrupt().Match(begun => begun.Reaction, _ => Reaction.None));
+
+        Assert.Empty(talk.Sent);
+        Assert.Equal(new TurnCompleted(talk.Session, talk.Turn, TurnOutcome.Interrupted), talk.Events[^1]);
+    }
+
+    [Fact]
     public void NothingToInterruptOutsideATurn()
     {
         var talk = new Talk();
