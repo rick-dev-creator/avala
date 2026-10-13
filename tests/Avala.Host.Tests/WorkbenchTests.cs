@@ -92,6 +92,22 @@ public sealed class WorkbenchTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheJobsHeaderShowsHowMuchOfTheContextWindowItsConversationUsesAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "near-limit");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var workbench = await run.WorkbenchAsync();
+        _ = await workbench.SelectAsync(run.Job);
+        var gauge = workbench.Page["Regions"]["Header"].Items.Single(item => item.Kind == "ContextLeftViewModel");
+
+        await run.Ui.PresentedAsync(gauge.Presentation, () => gauge["IsShown"].Value<bool>(), () => gauge["Share"].Text);
+
+        Assert.Equal(
+            ("30% context left", "141,000 of 200,000 tokens in use", false),
+            await run.Ui.ReadAsync(() => (gauge["Share"].Text, gauge["Tokens"].Text, gauge["IsNear"].Value<bool>())));
+    }
+
+    [Fact]
     public async Task TheSidebarMovesAJobBetweenGroupsAsItIsInterruptedAndContinuedAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "hang");

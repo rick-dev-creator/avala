@@ -12,6 +12,7 @@ internal sealed class Conversation
     private readonly StreamTranslator translator;
     private readonly ControlDesk desk;
     private readonly Commands commands = new();
+    private readonly ContextGauge context = new();
     private readonly Option<string> effort;
     private Option<Stamp> live;
     private Option<Guid> conversation;
@@ -64,6 +65,7 @@ internal sealed class Conversation
         tokenIssued = false;
         modelReported = false;
         rejected = false;
+        context.Begin();
 
         return (stamp.Turn, new Reaction([new TurnStarted(session, stamp.Turn)], [Messages.User(turn, commands.Send(midTurn: false))]));
     }
@@ -102,11 +104,27 @@ internal sealed class Conversation
 
     private Reaction During(string type, JsonNode message, Stamp stamp) => type switch
     {
-        "stream_event" or "assistant" or "user" when stale == 0 => translator.Receive(message, stamp),
+        "assistant" when stale == 0 => Said(message, stamp),
+        "stream_event" or "user" when stale == 0 => translator.Receive(message, stamp),
+        "system" when message.TextOr("subtype", string.Empty) == "compact_boundary" => Compacted(),
         "rate_limit_event" => Limited(message, stamp),
         "result" => commands.Pending && !interrupting ? Carried(message, stamp) : Ended(message, stamp),
         _ => Reaction.None,
     };
+
+    private Reaction Said(JsonNode message, Stamp stamp)
+    {
+        context.Saw(message);
+
+        return translator.Receive(message, stamp);
+    }
+
+    private Reaction Compacted()
+    {
+        context.Compacted();
+
+        return Reaction.None;
+    }
 
     private Reaction Limited(JsonNode message, Stamp stamp)
     {
@@ -163,7 +181,9 @@ internal sealed class Conversation
     {
         commands.Answered();
 
-        return translator.Close(stamp, interrupted: false).Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), Spent(result))));
+        return translator.Close(stamp, interrupted: false)
+            .Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), Spent(result))))
+            .Then(context.Report(session, stamp.Turn, result));
     }
 
     private Reaction Swallowed()
@@ -188,7 +208,7 @@ internal sealed class Conversation
         var cost = Spent(result);
         var outcome = interrupting ? TurnOutcome.Interrupted : Outcome(result);
 
-        return Closed(stamp, outcome, Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), cost)));
+        return Closed(stamp, outcome, Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), cost)).Then(context.Report(session, stamp.Turn, result)));
     }
 
     private Reaction Closed(Stamp stamp, TurnOutcome outcome, Reaction usage)

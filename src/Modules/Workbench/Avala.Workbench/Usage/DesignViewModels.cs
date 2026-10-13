@@ -184,3 +184,22 @@ internal sealed class DesignUsageLeftViewModel : IUsageLeftViewModel
 
     public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
 }
+
+internal sealed class DesignContextLeftViewModel : IContextLeftViewModel
+{
+    public bool IsShown => true;
+
+    public string Share => "30% context left";
+
+    public double Used => 0.705;
+
+    public bool IsNear => false;
+
+    public bool WasCompacted => true;
+
+    public string Tokens => "141,000 of 200,000 tokens in use";
+
+    public string Model => "claude-opus-5-5";
+
+    public string Compaction => "Compacted during the last turn, so older messages were summarized.";
+}

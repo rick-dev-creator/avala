@@ -26,6 +26,7 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         new AsksForms(),
         new AcceptsMessagesMidTurn(),
         new ReportsUsage(),
+        new ReportsContext(),
         new ReportsCost(Telemetry.Currency));
 
     private static readonly CapabilitySet Subscription = Declared.With(

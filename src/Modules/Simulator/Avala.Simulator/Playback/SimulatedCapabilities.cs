@@ -32,6 +32,7 @@ internal static class SimulatedCapabilities
         new AsksForms(),
         new AcceptsMessagesMidTurn(),
         new ReportsUsage(),
+        new ReportsContext(),
         new ReportsCost("USD"));
 
     public static ReportsLimits SubscriptionLimits { get; } = new(["5h", "7d", "7d opus", "7d sonnet"]);
@@ -81,6 +82,7 @@ internal static class SimulatedCapabilities
         (nameof(AcceptsMessagesMidTurn), declared => declared.Without<AcceptsMessagesMidTurn>()),
         (nameof(ReportsUsage), declared => declared.Without<ReportsUsage>().Without<ReportsCost>()),
         (nameof(ReportsCost), declared => declared.Without<ReportsCost>()),
+        (nameof(ReportsContext), declared => declared.Without<ReportsContext>()),
         (nameof(ReportsLimits), declared => declared.Without<ReportsLimits>()),
         (nameof(OffersModels), declared => declared.Without<OffersModels>()),
     ];

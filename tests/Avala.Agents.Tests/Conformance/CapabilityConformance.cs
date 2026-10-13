@@ -22,6 +22,7 @@ internal static class CapabilityConformance
             .. Missing<ReportsUsage>(declared, run.Events.OfType<UsageReported>().Any(), "no usage was reported although the provider declares ReportsUsage"),
             .. Missing<ReportsCost>(declared, run.Events.OfType<UsageReported>().Any(usage => usage.Cost.IsSome), "no cost was reported although the provider declares ReportsCost"),
             .. Missing<ReportsLimits>(declared, run.Events.OfType<LimitReported>().Any(), "no limit was reported although the provider declares ReportsLimits"),
+            .. Missing<ReportsContext>(declared, run.Events.OfType<ContextReported>().Any(context => context.Used > 0 && context.Window >= context.Used), "no context was reported although the provider declares ReportsContext"),
         ];
     }
 
