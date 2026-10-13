@@ -171,6 +171,27 @@ public sealed class SteeringTests(PublishedPlugins plugins)
         Assert.Equal((Steering, string.Empty), (texts[1], queued));
     }
 
+    [Fact]
+    public async Task AJobHeldAsStalledSaysWhyAndAMessageSentToItStartsItsNextTurnAsync()
+    {
+        var window = TimeSpan.FromMinutes(15);
+        await using var run = await SimulatedRun.SupervisedAsync(plugins, "hang", window);
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await run.SilentForAsync(window);
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "Held · stalled · send a message to continue the job…");
+
+        run.Clock.Advance(TimeSpan.FromMinutes(30));
+        await SendAsync(run, conversation, Steering);
+
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains("Finished what I was doing."));
+        var (origins, error) = await run.Ui.ReadAsync(() => (OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin"), conversation["Composer"]["Error"].Text));
+        Assert.Equal(["Instruction", "You"], origins);
+        Assert.Empty(error);
+    }
+
     private static Task SendAsync(SimulatedRun run, Bound conversation, string message) =>
         run.Ui.RunAsync(() =>
         {

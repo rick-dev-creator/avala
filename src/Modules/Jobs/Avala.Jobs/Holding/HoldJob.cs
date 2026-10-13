@@ -11,7 +11,7 @@ using HoldAnnouncement = Avala.Jobs.Contracts.JobHeld;
 
 namespace Avala.Jobs.Holding;
 
-internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
+internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus, JobJournal journal)
 {
     private ImmutableHashSet<TurnId> interrupted = [];
 
@@ -65,6 +65,7 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus)
         await ledger.RecordAsync(job, cancellationToken);
 
         var hold = new JobHold(job.Id, session, held.Reason, await HaltAsync(session, held.Reason, cancellationToken)) { Attempt = held.Attempt.Value, Limit = limit };
+        journal.Held(hold);
         await bus.PublishAsync(new HoldAnnouncement(hold), cancellationToken);
 
         return hold;

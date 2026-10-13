@@ -38,6 +38,7 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<WorkspacePlanner>()
             .AddSingleton<JobMessenger>()
             .AddSingleton<DeferredJobs>()
+            .AddSingleton<JobJournal>()
             .AddSingleton<HoldJob>()
             .AddSingleton<JobLauncher>()
             .AddSingleton<StartJob>()

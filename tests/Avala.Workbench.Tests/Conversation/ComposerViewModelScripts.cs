@@ -193,6 +193,17 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
             .Then(composer => Assert.Equal("Continue the job with a message…", composer.Placeholder));
 
     [Fact]
+    public void AJobHeldAsStalledSaysWhyInItsComposerAndStillTakesAMessage() =>
+        ViewModelScript.Given(Composer(JobStatus.Running))
+            .When(composer =>
+            {
+                shown = shown with { Summary = shown.Summary with { Status = JobStatus.NeedsHelp }, Hold = HoldReason.Stalled };
+                composer.Draft = "Carry on";
+                composer.Track(shown);
+            })
+            .Then(composer => Assert.Equal(("Held · stalled · send a message to continue the job…", true), (composer.Placeholder, composer.SendCommand.CanExecute(null))));
+
+    [Fact]
     public async Task ASecondSendWhileTheFirstIsInFlightIsRefusedByTheCommand()
     {
         var gate = new TaskCompletionSource();

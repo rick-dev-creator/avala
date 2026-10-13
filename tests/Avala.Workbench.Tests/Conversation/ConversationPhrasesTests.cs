@@ -43,7 +43,15 @@ public sealed class ConversationPhrasesTests
     [InlineData(JobStatus.Discarded, false, "This job has ended", "Send")]
     [InlineData(JobStatus.Failed, true, "This job has ended", "Send")]
     public void TheComposerSaysWhatAMessageDoesForEachStatus(JobStatus status, bool takesMessagesMidTurn, string phrase, string hint) =>
-        Assert.Equal((phrase, hint), (ConversationPhrases.Placeholder(status, takesMessagesMidTurn, Option<PullRequestWatchState>.None), ConversationPhrases.SendHint(status, takesMessagesMidTurn)));
+        Assert.Equal((phrase, hint), (ConversationPhrases.Placeholder(status, takesMessagesMidTurn, Option<PullRequestWatchState>.None, Option<HoldReason>.None), ConversationPhrases.SendHint(status, takesMessagesMidTurn)));
+
+    [Theory]
+    [InlineData(HoldReason.Stalled, "Held · stalled · send a message to continue the job…")]
+    [InlineData(HoldReason.SessionLost, "Held · session lost · send a message to continue the job…")]
+    [InlineData(HoldReason.Interrupted, "Held · interrupted · send a message to continue the job…")]
+    [InlineData(HoldReason.CouldNotStart, "Could not start · retry it from the inspector's worktree section")]
+    public void AHeldJobsComposerSaysWhyItIsHeldAndWhatAMessageDoes(HoldReason hold, string phrase) =>
+        Assert.Equal(phrase, ConversationPhrases.Placeholder(JobStatus.NeedsHelp, true, Option<PullRequestWatchState>.None, hold));
 
     [Theory]
     [InlineData(OnPullRequest.WatchOnly, WatchStatus.Watching, "Approved · Avala watches pull request #7 until it is merged or closed")]
@@ -55,7 +63,7 @@ public sealed class ConversationPhrasesTests
     {
         var watch = new PullRequestWatchState(JobId.New(), new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/acme/shop/pull/7"), "avala/job", "main"), policy, 3) { Status = status };
 
-        Assert.Equal(phrase, ConversationPhrases.Placeholder(JobStatus.Approved, false, watch));
+        Assert.Equal(phrase, ConversationPhrases.Placeholder(JobStatus.Approved, false, watch, Option<HoldReason>.None));
     }
 
     [Theory]

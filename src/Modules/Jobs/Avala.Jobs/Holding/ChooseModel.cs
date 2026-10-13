@@ -51,4 +51,4 @@ internal sealed class ChooseModel(JobLedger ledger, IAgents agents, IConnections
             _ => Result<bool, JobRejection>.Failure(JobRejection.UnusableConnection));
 }
 
-internal sealed record JobControls(HoldJob Hold, ChooseModel Model);
+internal sealed record JobControls(HoldJob Hold, ChooseModel Model, JobJournal Journal);

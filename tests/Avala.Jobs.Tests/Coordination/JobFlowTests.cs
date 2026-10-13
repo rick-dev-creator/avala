@@ -6,6 +6,7 @@ using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workspaces.Contracts;
+using Microsoft.Extensions.Logging;
 using HoldAnnouncement = Avala.Jobs.Contracts.JobHeld;
 using JobAnnouncement = Avala.Jobs.Contracts.JobSubmitted;
 
@@ -284,5 +285,28 @@ public sealed class JobFlowTests
         Assert.Equal(
             [new JobSessionStarted(job.Id, first) { Autonomy = Autonomy.Supervised }, new JobSessionStarted(job.Id, second) { Autonomy = Autonomy.Supervised }],
             flow.Bus.Published.OfType<JobSessionStarted>());
+    }
+
+    [Fact]
+    public async Task EveryHoldIsLoggedWithItsReasonAsync()
+    {
+        var flow = JobFlow.With();
+
+        var job = await flow.HeldAsync(HoldReason.Stalled);
+
+        var entry = Assert.Single(flow.Journal.Entries);
+        Assert.Equal((LogLevel.Warning, $"Job {job.Id.Value} is held as Stalled, its session Interrupted"), (entry.Level, entry.Message));
+    }
+
+    [Fact]
+    public async Task EveryRefusedMessageIsLoggedWithWhyAsync()
+    {
+        var flow = JobFlow.With();
+        var job = await flow.RunningAsync();
+
+        Assert.Equal(JobRejection.NotHeld, Outcomes.FailsWith(await flow.Jobs.ContinueAsync(job.Id, "Use the staging database", Cancellation)));
+
+        var entry = Assert.Single(flow.Journal.Entries);
+        Assert.Equal((LogLevel.Warning, $"A message to job {job.Id.Value} was refused: NotHeld"), (entry.Level, entry.Message));
     }
 }

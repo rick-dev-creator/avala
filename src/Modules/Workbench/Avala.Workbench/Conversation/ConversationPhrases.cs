@@ -85,10 +85,17 @@ internal static class ConversationPhrases
         _ => string.Create(CultureInfo.InvariantCulture, $"Failed after {Duration(duration)}"),
     };
 
-    public static string Placeholder(JobStatus status, bool takesMessagesMidTurn, Option<PullRequestWatchState> watch) =>
-        status == JobStatus.Approved
-            ? watch.Bind(Watched).Match(phrase => phrase, () => Placeholder(status, takesMessagesMidTurn))
-            : Placeholder(status, takesMessagesMidTurn);
+    public static string Placeholder(JobStatus status, bool takesMessagesMidTurn, Option<PullRequestWatchState> watch, Option<HoldReason> hold) => status switch
+    {
+        JobStatus.Approved => watch.Bind(Watched).Match(phrase => phrase, () => Placeholder(status, takesMessagesMidTurn)),
+        JobStatus.NeedsHelp => hold.Match(HeldPlaceholder, () => Placeholder(status, takesMessagesMidTurn)),
+        _ => Placeholder(status, takesMessagesMidTurn),
+    };
+
+    private static string HeldPlaceholder(HoldReason reason) =>
+        reason == HoldReason.CouldNotStart
+            ? "Could not start · retry it from the inspector's worktree section"
+            : $"Held · {Held(reason)} · send a message to continue the job…";
 
     private static Option<string> Watched(PullRequestWatchState state) => state.Status switch
     {
