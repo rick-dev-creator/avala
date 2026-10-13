@@ -1,0 +1,34 @@
+app-id: io.github.rick_dev_creator.Avala
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+command: avala
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --filesystem=home
+  - --talk-name=org.freedesktop.Flatpak
+  - --talk-name=org.freedesktop.Notifications
+modules:
+  - name: avala
+    buildsystem: simple
+    build-options:
+      strip: false
+      no-debuginfo: true
+    build-commands:
+      - install -d /app/avala /app/bin
+      - cp -a . /app/avala/
+      - rm /app/avala/avala.desktop /app/avala/avala.png /app/avala/LICENSE /app/avala/io.github.rick_dev_creator.Avala.metainfo.xml
+      - ln -s /app/avala/Avala /app/bin/avala
+      - sed -e 's/^Exec=Avala$/Exec=avala/' -e 's/^Icon=avala$/Icon=io.github.rick_dev_creator.Avala/' avala.desktop | install -Dm644 /dev/stdin /app/share/applications/io.github.rick_dev_creator.Avala.desktop
+      - install -Dm644 avala.png /app/share/icons/hicolor/256x256/apps/io.github.rick_dev_creator.Avala.png
+      - install -Dm644 io.github.rick_dev_creator.Avala.metainfo.xml /app/share/metainfo/io.github.rick_dev_creator.Avala.metainfo.xml
+      - install -Dm644 LICENSE /app/share/licenses/io.github.rick_dev_creator.Avala/LICENSE
+    sources:
+      - type: archive
+        path: avala-linux-x64.tar.gz
+      - type: file
+        path: io.github.rick_dev_creator.Avala.metainfo.xml

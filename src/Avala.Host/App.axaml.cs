@@ -6,6 +6,7 @@ using Avala.Sdk;
 using Avala.Sdk.Appearance;
 using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
+using Avala.Sdk.Updates;
 using Avala.Shell;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -61,6 +62,7 @@ internal sealed partial class App : Application
             composition.Services.GetRequiredService<IUiDispatcher>(),
             composition.Lifetime);
         var started = feed.SubscribeAsync<StartupCompleted>(composition.Lifetime);
+        _ = UpdateRestart.FollowAsync(desktop, feed.SubscribeAsync<RestartingToUpdate>(composition.Lifetime), composition.Services.GetRequiredService<IUiDispatcher>(), composition.Lifetime);
         composition.Start();
         _ = crashes.ObserveAsync(composition.Running);
         var shell = composition.Services.GetRequiredService<ShellViewModel>();

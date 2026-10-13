@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.rick_dev_creator.Avala</id>
+  <name>Avala</name>
+  <summary>Agents you can trust without watching</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.rick_dev_creator">
+    <name>rick-dev-creator</name>
+  </developer>
+  <description>
+    <p>Avala is an open-source desktop harness for coding agents. It runs each agent in its own git worktree and lets it work unattended, while every decision is governed by your rules, every result is backed by evidence, and every cost is accounted for.</p>
+  </description>
+  <launchable type="desktop-id">io.github.rick_dev_creator.Avala.desktop</launchable>
+  <url type="homepage">https://github.com/rick-dev-creator/avala</url>
+  <url type="bugtracker">https://github.com/rick-dev-creator/avala/issues</url>
+  <categories>
+    <category>Development</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+</component>

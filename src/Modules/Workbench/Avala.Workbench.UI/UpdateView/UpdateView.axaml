@@ -9,11 +9,11 @@
   </Design.DataContext>
   <DockPanel Margin="16,12">
     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
-      <Button x:Name="OpenRelease"
+      <Button x:Name="Update"
               Classes="primary"
-              Content="Download"
+              Content="{Binding Action}"
               IsVisible="{Binding IsAvailable}"
-              Command="{Binding OpenReleaseCommand}" />
+              Command="{Binding UpdateCommand}" />
       <Button x:Name="Check" Content="Check now" Command="{Binding CheckCommand}" />
     </StackPanel>
     <StackPanel Spacing="2" VerticalAlignment="Center">

@@ -29,6 +29,7 @@ internal sealed class Pulse(JobBoard board)
         IHandle<BudgetIntervened>,
         IHandle<SupervisorIntervened>,
         IHandle<UpdateFound>,
+        IHandle<UpdateDownloaded>,
         IHandle<TriggerFired>,
         IHandle<WebhookReceived>,
         IHandle<TriggersChanged>,
@@ -72,6 +73,8 @@ internal sealed class Pulse(JobBoard board)
     public ValueTask HandleAsync(SupervisorIntervened integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(UpdateFound integrationEvent, CancellationToken cancellationToken) => BeatAsync();
+
+    public ValueTask HandleAsync(UpdateDownloaded integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 
     public ValueTask HandleAsync(TriggerFired integrationEvent, CancellationToken cancellationToken) => BeatAsync();
 

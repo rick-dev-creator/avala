@@ -19,7 +19,7 @@ internal static class TelemetryBuild
     {
         public IServiceCollection AddNetwork(Func<HttpMessageHandler> network)
         {
-            services.AddReleaseFeed(network());
+            services.AddReleaseFeed(network()).AddInstalledUpdates(CompositionRoot.Build);
 
             return Key.Match(key => services.AddTelemetrySender(network(), key, SelfHostedHost), () => services);
         }

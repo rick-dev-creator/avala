@@ -36,8 +36,10 @@ jobs:
         include:
           - rid: win-x64
             os: windows-latest
+            archives: artifacts/stage
           - rid: linux-x64
             os: ubuntu-latest
+            archives: artifacts/release
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -47,15 +49,17 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+      - name: Restore tools
+        run: dotnet tool restore
       - name: Package and smoke test, unsigned
         if: vars.AVALA_SIGNING != 'true'
-        run: dotnet run scripts/package.cs -- --rid ${{ matrix.rid }} --smoke --output artifacts/release
+        run: dotnet run scripts/package.cs -- --rid ${{ matrix.rid }} --smoke --output ${{ matrix.archives }}
         env:
           AVALA_TELEMETRY_KEY: ${{ vars.AVALA_TELEMETRY_KEY }}
           AVALA_TELEMETRY_HOST: ${{ vars.AVALA_TELEMETRY_HOST }}
       - name: Package, sign and smoke test
         if: vars.AVALA_SIGNING == 'true'
-        run: dotnet run scripts/package.cs -- --rid ${{ matrix.rid }} --sign --smoke --output artifacts/release
+        run: dotnet run scripts/package.cs -- --rid ${{ matrix.rid }} --sign --smoke --output ${{ matrix.archives }}
         env:
           AVALA_TELEMETRY_KEY: ${{ vars.AVALA_TELEMETRY_KEY }}
           AVALA_TELEMETRY_HOST: ${{ vars.AVALA_TELEMETRY_HOST }}
@@ -67,6 +71,11 @@ jobs:
           AVALA_APPLE_ID: ${{ secrets.AVALA_APPLE_ID }}
           AVALA_APPLE_TEAM_ID: ${{ secrets.AVALA_APPLE_TEAM_ID }}
           AVALA_APPLE_APP_PASSWORD: ${{ secrets.AVALA_APPLE_APP_PASSWORD }}
+      - name: Velopack installers and update feed, smoke tested where they run
+        run: dotnet run scripts/installer.cs -- --rid ${{ matrix.rid }} --archive ${{ matrix.archives }} --output artifacts/release --smoke
+      - name: AUR package recipe
+        if: matrix.rid == 'linux-x64'
+        run: dotnet run scripts/aur.cs -- --archive artifacts/release --output artifacts/release
       - uses: actions/upload-artifact@v7
         with:
           name: package-${{ matrix.rid }}

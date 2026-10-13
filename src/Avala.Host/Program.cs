@@ -2,6 +2,7 @@ using Avala.Host.Composition;
 using Avala.Sdk;
 using Avalonia;
 using Avalonia.Headless;
+using Velopack;
 
 namespace Avala.Host;
 
@@ -12,6 +13,8 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        VelopackApp.Build().SetArgs(args).SetAutoApplyOnStartup(false).Run();
+
         if (args is [VersionFlag])
         {
             Console.WriteLine(VersionLine);
