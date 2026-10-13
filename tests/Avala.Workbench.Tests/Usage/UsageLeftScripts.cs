@@ -36,7 +36,7 @@ public sealed class UsageLeftViewModelScripts : IDisposable
         chip.OnRegionContextChanged(job.Job);
 
         await ui.PresentedAsync(chip, () => chip.IsShown, () => chip.Left);
-        Assert.Equal(("claude-work", "28% left", 0.72, false), await ui.ReadAsync(() => (chip.Connection, chip.Left, chip.Used, chip.IsNear)));
+        Assert.Equal(("claude-work", "28% usage left", 0.72, false), await ui.ReadAsync(() => (chip.Connection, chip.Left, chip.Used, chip.IsNear)));
         Assert.Equal(
             [("5-hour window", "72%", $"resets {Amounts(FiveHourReset)}"), ("7-day window", "43%", $"resets {Amounts(SevenDayReset)}")],
             await ui.ReadAsync(() => chip.Windows.Select(window => (window.Label, window.UsedText, window.Resets)).ToList()));
@@ -57,7 +57,7 @@ public sealed class UsageLeftViewModelScripts : IDisposable
         Reports("claude-work", 0.8, 0.43);
         board.Publish(board.Jobs);
 
-        await ui.PresentedAsync(chip, () => chip.Left == "20% left", () => chip.Left);
+        await ui.PresentedAsync(chip, () => chip.Left == "20% usage left", () => chip.Left);
         Assert.Same(window, await ui.ReadAsync(() => chip.Windows[0]));
     }
 
@@ -72,7 +72,7 @@ public sealed class UsageLeftViewModelScripts : IDisposable
         chip.OnRegionContextChanged(job.Job);
 
         await ui.PresentedAsync(chip, () => chip.IsShown, () => chip.Left);
-        Assert.Equal(("7% left", true), await ui.ReadAsync(() => (chip.Left, chip.IsNear)));
+        Assert.Equal(("7% usage left", true), await ui.ReadAsync(() => (chip.Left, chip.IsNear)));
     }
 
     [Fact]

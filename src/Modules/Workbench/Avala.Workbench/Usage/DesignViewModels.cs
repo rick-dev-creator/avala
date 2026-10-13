@@ -172,7 +172,7 @@ internal sealed class DesignUsageLeftViewModel : IUsageLeftViewModel
 
     public string Connection => "claude-work";
 
-    public string Left => "12% left";
+    public string Left => "12% usage left";
 
     public double Used => 0.88;
 

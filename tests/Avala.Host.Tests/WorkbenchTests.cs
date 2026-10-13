@@ -86,7 +86,7 @@ public sealed class WorkbenchTests(PublishedPlugins plugins)
         var usage = run.Page("Usage");
         await run.Ui.PresentedAsync(usage.Presentation, () => usage["Connections"].Items.Count == 1, () => $"{usage["Connections"].Items.Count} connections");
 
-        Assert.Equal(("5% left", true, 1), shown);
+        Assert.Equal(("5% usage left", true, 1), shown);
         Assert.Same(usage.Target, await run.Ui.ReadAsync(() => run.Get<Avala.Shell.ShellViewModel>().SelectedPage));
         Assert.True(await run.Ui.ReadAsync(() => usage["Connections"].Items[0]["IsFocused"].Value<bool>()));
     }
