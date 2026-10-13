@@ -15,7 +15,7 @@ Both must be green before and after every change. Warnings are errors, so a clea
 
 ## Run the simulator
 
-Avala ships with a simulated harness, so you can run it end to end without an agent account or tokens. Build, then start the application in developer mode:
+A build from source holds a simulated harness, so you can run Avala end to end without an agent account or tokens. It exists only to develop and test Avala: the simulators and the session recorder are development-only plugins that the released packages leave out, as [Releasing](docs/release.md#the-production-plugin-set) describes. Build, then start the application in developer mode:
 
 ```
 AVALA_DEVELOPER=1 dotnet run --project src/Avala.Host

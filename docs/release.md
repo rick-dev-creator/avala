@@ -42,6 +42,18 @@ Everything is precompiled with ReadyToRun so Avala starts without compiling most
 
 To keep the packages small, the script removes what the plugin loader never reads: native libraries for other platforms, a plugin's copy of an assembly the host already ships, and a file identical to one an earlier plugin already holds. With ReadyToRun the Linux package is 84 MB compressed, macOS on Apple silicon 82 MB and Windows 111 MB.
 
+### The production plugin set
+
+A package holds every plugin project under `src/Modules` that declares `<AvalaPlugin>true</AvalaPlugin>`, except those that also declare `<AvalaDevelopmentOnly>true</AvalaDevelopmentOnly>`. Those exist only to develop and test Avala, and no package, installer, AUR package or Flatpak holds them, since all of them are made from the archives `scripts/package.cs` builds:
+
+| Plugin | What it is for |
+| --- | --- |
+| `Avala.Simulator`, with `Avala.Simulator.Workload` | the simulated harnesses that play scripted sessions without a model or tokens, and the processes their scenarios run |
+| `Avala.ForgeSimulator` | the simulated forge, for pull requests and forge triggers without GitHub or Gitea |
+| `Avala.Recording` | records real sessions as files the simulator replays |
+
+A development build keeps them: `dotnet build` copies every plugin to `artifacts/plugins`, which the tests, the screen tests and `dotnet run --project src/Avala.Host` load. The script names the plugins it leaves out as it packages, and `PackagingTests` in the architecture tests fails when the development-only set changes without this table. Claude Code is the only harness a package offers.
+
 ### The installers
 
 The Windows installer, the portable zip and the AppImage are made with [Velopack](https://velopack.io) (MIT) by `scripts/installer.cs`, from the archive `scripts/package.cs` made and smoke tested. The script unpacks the archive and runs `vpk pack` on its folder with the pack id `Avala.Desktop`, the title Avala, the brand icon, the release notes from `docs/releases/v<version>.md` when they exist, and the channel `win` or `linux`. It first asks `vpk download github` for the full package of the newest published release on that channel, a prerelease too when this version is one, so `vpk pack` can make the delta from it; the first release with Velopack has no delta. It then copies to the output the installer, the portable package, renamed after the archives, the full and delta packages, and `releases.<channel>.json` holding only this version, since a running Avala looks in each release for its own packages.
@@ -142,7 +154,7 @@ dotnet run scripts/installer.cs -- --rid linux-x64 --archive artifacts/packages 
 
 ### The smoke run
 
-`Avala --smoke` starts the real application on Avalonia's headless platform, so it needs no display: it composes every plugin, runs the startup tasks and the migrations in a temporary data folder, shows the main window, prints `Avala <version> composed <n> pages and showed its main window.` and exits 0. With no plugin found it exits 2, and it exits 1 when the window cannot be shown or the runtime stops before its startup completes. It exits only once Avalonia's main loop runs, however fast the startup was. It never checks for updates or sends usage statistics. `Avala --version` prints `Avala <version> (<commit>)`. Use both to check a package on a machine before trusting it.
+`Avala --smoke` starts the real application on Avalonia's headless platform, so it needs no display: it composes every plugin in the package, runs the startup tasks and the migrations in a temporary data folder, shows the main window, prints `Avala <version> composed <n> pages and showed its main window.` and exits 0. With no plugin found it exits 2, and it exits 1 when the window cannot be shown or the runtime stops before its startup completes. It exits only once Avalonia's main loop runs, however fast the startup was. It never checks for updates or sends usage statistics. `Avala --version` prints `Avala <version> (<commit>)`. Use both to check a package on a machine before trusting it.
 
 ## Release notes
 

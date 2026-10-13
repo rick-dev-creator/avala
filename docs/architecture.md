@@ -73,13 +73,13 @@ A new capability, such as an issue tracker or another way to isolate work, arriv
 | Autopilot | Loops that work through a backlog unattended |
 | Triggers | Jobs started on a schedule, from a webhook or from a forge event |
 | Contests | Best of N: several candidate jobs for one request |
-| Forges | Forge connections, logins, repositories and pull requests, behind the forge plugins GitHub, Gitea (also Forgejo) and ForgeSimulator |
+| Forges | Forge connections, logins, repositories and pull requests, behind the forge plugins GitHub, Gitea (also Forgejo) and the development-only ForgeSimulator |
 | Notifications | Notices sent to a phone through ntfy or a webhook |
 | Transcripts | Each job's conversation, kept across restarts |
 | Canvas | The canvas tool and its versions; Rendering draws Markdown and SVG, Mermaid draws diagrams |
 | Preview | A job's page or app served and shown beside its conversation |
-| Recording | Records real sessions for the simulator to replay |
-| Simulator | The simulated harnesses, with `Avala.Simulator.Workload` for the processes its scenarios run |
+| Recording | Records real sessions for the simulator to replay; development only |
+| Simulator | The simulated harnesses, with `Avala.Simulator.Workload` for the processes its scenarios run; development only |
 | ClaudeCode | The Claude Code provider |
 | Workbench | The user interface |
 
@@ -279,6 +279,8 @@ Each workaround answers a problem that was reproduced and measured, and goes whe
 Everything Avala does is proven through the **simulator**, a provider plugin that plays scripted Claude Code sessions through the same public contracts as a real provider, without a model and without tokens. Its scenarios are declarative data: reasoning, streamed replies, real file edits, commands with real child processes, permission requests, forms, plan approvals, usage and limits, canvases, delegation and resumed conversations. It also registers a second simulated harness, so behavior across harnesses runs without a real one.
 
 The **Recording** plugin decorates every provider and, when enabled, records each session as a file the simulator replays. Recordings committed under `tests/recordings` with their expected outcomes are regression tests, and the screenshots in the README are taken from the real application driven headless by the simulator.
+
+The simulator, the simulated forge and Recording exist only to develop and test Avala. Their projects declare `<AvalaDevelopmentOnly>true</AvalaDevelopmentOnly>`, so `dotnet build` still copies them to `artifacts/plugins` but no package holds them; see [the production plugin set](release.md#the-production-plugin-set). Claude Code is the only harness Avala officially supports.
 
 ### Tests
 
