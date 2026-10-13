@@ -29,6 +29,24 @@ public sealed class ProcessCliTests
         Assert.Contains((LogLevel.Warning, "Claude Code wrote to its standard error: unknown option: --no-such-option"), logger.Entries);
     }
 
+    [Fact]
+    public async Task WhatTheProcessWroteIsReadToTheEndEvenAfterItIsDisposedAsync()
+    {
+        await using var folder = new TemporaryFolder();
+        var cli = Outcomes.Succeeds(new ProcessCli(new CliCommand("git", []), TimeProvider.System, new RecordingLogger())
+            .Start(new CliLaunch(folder.Path, ["--version"], [], new Dictionary<string, string>()), UncontainedProcesses.Instance, Option<string>.None));
+        var lines = new List<string>();
+
+        await cli.DisposeAsync();
+
+        await foreach (var line in cli.Lines.WithCancellation(Cancellation))
+        {
+            lines.Add(line);
+        }
+
+        Assert.StartsWith("git version", Assert.Single(lines), StringComparison.Ordinal);
+    }
+
     private sealed class RecordingLogger : ILogger<ProcessCli>
     {
         public List<(LogLevel Level, string Message)> Entries { get; } = [];

@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Channels;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Conversations;
 using Avala.Sdk;
@@ -63,18 +63,21 @@ internal sealed partial class ProcessCli(CliCommand command, TimeProvider clock,
 
     private sealed class LaunchedCli : ICliProcess
     {
+        private readonly Channel<string> output = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleWriter = true });
         private readonly Process process;
         private readonly Option<TranscriptTap> tap;
         private readonly Task errors;
+        private readonly Task reading;
 
         public LaunchedCli(Process process, Option<TranscriptTap> tap, ProcessCli cli)
         {
             this.process = process;
             this.tap = tap;
             errors = cli.ReadErrorsAsync(process.StandardError);
+            reading = ReadOutputAsync(process.StandardOutput);
         }
 
-        public IAsyncEnumerable<string> Lines => ReadAsync(CancellationToken.None);
+        public IAsyncEnumerable<string> Lines => output.Reader.ReadAllAsync(CancellationToken.None);
 
         public async Task WriteAsync(string line, CancellationToken cancellationToken)
         {
@@ -96,17 +99,26 @@ internal sealed partial class ProcessCli(CliCommand command, TimeProvider clock,
 
             await process.WaitForExitAsync();
             await errors;
+            await reading;
             await tap.Match(transcript => transcript.DisposeAsync().AsTask(), () => Task.CompletedTask);
             process.Dispose();
         }
 
-        private async IAsyncEnumerable<string> ReadAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+        private async Task ReadOutputAsync(StreamReader reader)
         {
-            while (await process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
+            try
             {
-                Tap(TranscriptTap.Output, line);
+                while (await reader.ReadLineAsync() is { } line)
+                {
+                    Tap(TranscriptTap.Output, line);
+                    output.Writer.TryWrite(line);
+                }
 
-                yield return line;
+                output.Writer.TryComplete();
+            }
+            catch (IOException failure)
+            {
+                output.Writer.TryComplete(failure);
             }
         }
 
