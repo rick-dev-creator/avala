@@ -9,12 +9,15 @@ using Avala.Agents.Tests.Connections;
 using Avala.Sdk;
 using Avala.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Avala.Agents.Tests.Sessions;
 
 public sealed class AgentSessionsTests
 {
     private static readonly AgentRequest Request = new("/worktrees/1");
+
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(10);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -236,6 +239,24 @@ public sealed class AgentSessionsTests
 
         Assert.Equal(turn.Turn, Outcomes.Succeeds(await agents.InterruptAsync(turn.Session, Cancellation)));
         Assert.Equal(1, Assert.Single(provider.Sessions).Interruptions);
+    }
+
+    [Fact]
+    public async Task AnInterruptTheAgentNeverConfirmsIsGivenUpAsUnconfirmedOnceItsTimeLimitPassesAsync()
+    {
+        var clock = new FakeTimeProvider();
+        var provider = new ScriptedAgentProvider((session, turn) => [new TurnStarted(session, turn)], canInterrupt: true) { IgnoresInterrupts = true };
+        await using var agents = new AgentSessions(Connected.Starter([provider], [], []), new RecordingBus(), clock, NullLogger<AgentSessions>.Instance);
+        var turn = await StartTurnAsync(agents, "Add GitHub login");
+
+        var interrupting = agents.InterruptAsync(turn.Session, Cancellation).AsTask();
+        await Assert.Single(provider.Sessions).Interrupting;
+        clock.Advance(AgentSessions.InterruptLimit - TimeSpan.FromTicks(1));
+        var waitedBeforeTheLimit = !interrupting.IsCompleted;
+        clock.Advance(TimeSpan.FromTicks(1));
+
+        Assert.True(waitedBeforeTheLimit);
+        Assert.Equal(AgentError.InterruptUnconfirmed, Outcomes.FailsWith(await interrupting.WaitAsync(HangGuard, Cancellation)));
     }
 
     [Fact]

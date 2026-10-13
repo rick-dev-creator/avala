@@ -65,6 +65,8 @@ internal sealed record AwaitReturn(ToolResult Result) : IStep;
 
 internal sealed record AwaitInterrupt : IStep;
 
+internal sealed record IgnoreInterrupt(ItemId Item, IReadOnlyList<string> Chunks) : IStep;
+
 internal sealed record AwaitMessage : IStep;
 
 internal sealed record PutFile(TimeSpan Gap, string Path, string Content) : IStep;

@@ -9,6 +9,8 @@ public sealed class SteeringTests(PublishedPlugins plugins)
 
     private const string Late = "Also update the changelog.";
 
+    private static readonly TimeSpan InterruptLimit = TimeSpan.FromSeconds(30);
+
     [Fact]
     public async Task AMessageWrittenWhileTheAgentWorksJoinsTheRunningTurnAndTheAgentAnswersItAsync()
     {
@@ -190,6 +192,28 @@ public sealed class SteeringTests(PublishedPlugins plugins)
         var (origins, error) = await run.Ui.ReadAsync(() => (OpenWorkbench.Texts(conversation, "PromptViewModel", "Origin"), conversation["Composer"]["Error"].Text));
         Assert.Equal(["Instruction", "You"], origins);
         Assert.Empty(error);
+    }
+
+    [Fact]
+    public async Task AnInterruptTheAgentNeverConfirmsStopsItsSessionSoAMessageSentAfterwardsContinuesTheJobAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "unconfirmed-interrupt");
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await run.ResumableAsync();
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "Message the agent while it works…");
+
+        var interrupting = run.Ui.RunAsync(() => conversation["Composer"].ExecuteAsync("InterruptCommand"));
+        await run.ProgressedAsync("the interrupt can wait.");
+        run.Clock.Advance(InterruptLimit);
+        var hold = await run.HoldAsync();
+        await interrupting;
+        Assert.Equal(JobStatus.NeedsHelp, await run.SettledAsync());
+        await SendAsync(run, conversation, Steering);
+
+        Assert.Equal((HoldReason.Interrupted, SessionHalt.Stopped), (hold.Reason, hold.Halt));
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        await workbench.ShowsAsync(() => OpenWorkbench.Texts(conversation, "MessageViewModel", "Text").Contains("Finished what I was doing."));
     }
 
     private static Task SendAsync(SimulatedRun run, Bound conversation, string message) =>

@@ -29,6 +29,8 @@ public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IA
 
     public bool RejectsResume { get; init; }
 
+    public bool IgnoresInterrupts { get; init; }
+
     public bool RefusesToStart { get; init; }
 
     public Action<SessionOptions> Launching { get; init; } = _ => { };
@@ -56,7 +58,7 @@ public sealed class ScriptedAgentProvider(Func<SessionId, TurnId, IEnumerable<IA
         }
 
         Launching(options);
-        var session = new ScriptedSession(script, options, Account) { MidTurn = MidTurn };
+        var session = new ScriptedSession(script, options, Account) { MidTurn = MidTurn, IgnoresInterrupts = IgnoresInterrupts };
         sessions.Enqueue(session);
 
         return ValueTask.FromResult(Result<IAgentSession, AgentError>.Success(session));

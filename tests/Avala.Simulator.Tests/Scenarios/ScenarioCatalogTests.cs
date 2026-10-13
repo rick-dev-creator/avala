@@ -21,7 +21,8 @@ public sealed class ScenarioCatalogTests
     {
         var scripts = ScenarioCatalog.All
             .Where(scenario => scenario != ScenarioCatalog.Hang)
-            .SelectMany(scenario => scenario.Turns.Select(script => (scenario.Name, Script: script)));
+            .SelectMany(scenario => scenario.Turns.Select(script => (scenario.Name, Script: script)))
+            .Where(turn => !turn.Script.OfType<IgnoreInterrupt>().Any());
 
         Assert.All(scripts, turn =>
         {

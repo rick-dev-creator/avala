@@ -299,6 +299,20 @@ public sealed class JobFlowTests
     }
 
     [Fact]
+    public async Task AnInterruptNeverConfirmedIsLoggedWithTheJobItsConnectionAndItsSessionAsync()
+    {
+        var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { InterruptRejection = AgentError.InterruptUnconfirmed });
+        var job = await flow.RunningAsync();
+        var session = Outcomes.Present(job.Session);
+
+        Outcomes.Succeeds(await flow.Jobs.HoldAsync(job.Id, HoldReason.Stalled, Cancellation));
+
+        Assert.Equal(
+            (LogLevel.Warning, $"Job {job.Id.Value} on default never confirmed the interrupt of its session {session.Value}, so the session is stopped"),
+            (flow.Journal.Entries[0].Level, flow.Journal.Entries[0].Message));
+    }
+
+    [Fact]
     public async Task EveryRefusedMessageIsLoggedWithWhyAsync()
     {
         var flow = JobFlow.With();

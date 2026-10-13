@@ -64,14 +64,14 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus, J
     {
         await ledger.RecordAsync(job, cancellationToken);
 
-        var hold = new JobHold(job.Id, session, held.Reason, await HaltAsync(session, held.Reason, cancellationToken)) { Attempt = held.Attempt.Value, Limit = limit };
+        var hold = new JobHold(job.Id, session, held.Reason, await HaltAsync(job, session, held.Reason, cancellationToken)) { Attempt = held.Attempt.Value, Limit = limit };
         journal.Held(hold);
         await bus.PublishAsync(new HoldAnnouncement(hold), cancellationToken);
 
         return hold;
     }
 
-    private async Task<SessionHalt> HaltAsync(SessionId session, HoldReason reason, CancellationToken cancellationToken)
+    private async Task<SessionHalt> HaltAsync(Job job, SessionId session, HoldReason reason, CancellationToken cancellationToken)
     {
         if (reason is HoldReason.SessionLost or HoldReason.Stopped)
         {
@@ -89,8 +89,16 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus, J
             {
                 AgentError.NoTurnInProgress => Task.FromResult(SessionHalt.Idle),
                 AgentError.SessionClosed => Task.FromResult(SessionHalt.AlreadyClosed),
+                AgentError.InterruptUnconfirmed => UnconfirmedAsync(job, session, cancellationToken),
                 _ => StopAsync(session, cancellationToken),
             });
+    }
+
+    private Task<SessionHalt> UnconfirmedAsync(Job job, SessionId session, CancellationToken cancellationToken)
+    {
+        journal.Unconfirmed(job.Id, session, job.Connection);
+
+        return StopAsync(session, cancellationToken);
     }
 
     private async Task<SessionHalt> StopAsync(SessionId session, CancellationToken cancellationToken) =>

@@ -352,6 +352,17 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario UnconfirmedInterrupt { get; } = new("unconfirmed-interrupt",
+    [
+        [new IgnoreInterrupt(new ItemId("unheard"), ["Still working, ", "the interrupt can wait."])],
+        [
+            Thought("Back at work ", "after the pause."),
+            Message("Finished what I was doing."),
+            .. Bill(1_300, 90, 0.0045m, 0.36),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario Canvas { get; } = new("canvas",
     [
         [
@@ -490,7 +501,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        Crash, LeftOpen, Hang, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All,
+        Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";

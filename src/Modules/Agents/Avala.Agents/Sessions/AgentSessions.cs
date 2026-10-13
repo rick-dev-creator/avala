@@ -16,6 +16,8 @@ internal sealed partial class AgentSessions(
     TimeProvider clock,
     ILogger<AgentSessions> logger) : IAgents, IShutdownTask, IAsyncDisposable
 {
+    public static readonly TimeSpan InterruptLimit = TimeSpan.FromSeconds(30);
+
     private ImmutableDictionary<SessionId, LiveSession> live = ImmutableDictionary<SessionId, LiveSession>.Empty;
 
     public async ValueTask<Result<OpenedSession, AgentError>> OpenAsync(AgentRequest request, CancellationToken cancellationToken)
@@ -84,7 +86,7 @@ internal sealed partial class AgentSessions(
     public async ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
         !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
         : !running.Capabilities.Has<Interruptible>() ? AgentError.Unsupported
-        : await running.Session.InterruptAsync(cancellationToken);
+        : await ConfirmedAsync(running, cancellationToken);
 
     public async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)
     {
@@ -108,6 +110,20 @@ internal sealed partial class AgentSessions(
     }
 
     public async ValueTask DisposeAsync() => await StopAsync(CancellationToken.None);
+
+    private async Task<Result<TurnId, AgentError>> ConfirmedAsync(LiveSession running, CancellationToken cancellationToken)
+    {
+        using var limit = new CancellationTokenSource(InterruptLimit, clock);
+
+        try
+        {
+            return await running.Session.InterruptAsync(cancellationToken).AsTask().WaitAsync(limit.Token);
+        }
+        catch (OperationCanceledException) when (limit.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            return AgentError.InterruptUnconfirmed;
+        }
+    }
 
     private async Task PumpAsync(LiveSession running, CancellationToken cancellationToken)
     {

@@ -34,6 +34,7 @@ public sealed class HoldJobTests
     [Theory]
     [InlineData(AgentError.Unsupported, SessionHalt.Stopped)]
     [InlineData(AgentError.NoTurnInProgress, SessionHalt.Idle)]
+    [InlineData(AgentError.InterruptUnconfirmed, SessionHalt.Stopped)]
     public async Task ASessionThatCannotBeInterruptedIsStoppedAndAnIdleOneIsLeftOpenAsync(AgentError rejection, SessionHalt expected)
     {
         var flow = new JobFlow(new FakeWorkspaces(), new FakeAgents { InterruptRejection = rejection });
