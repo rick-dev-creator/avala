@@ -11,6 +11,7 @@ internal sealed class Conversation
     private readonly SessionId session;
     private readonly StreamTranslator translator;
     private readonly ControlDesk desk;
+    private readonly Commands commands = new();
     private readonly Option<string> effort;
     private Option<Stamp> live;
     private Option<Guid> conversation;
@@ -20,7 +21,6 @@ internal sealed class Conversation
     private bool interrupting;
     private bool rejected;
     private int interruptions;
-    private int queued;
     private int stale;
 
     public Conversation(SessionId session, SessionOptions options, Places places, Option<ConversationMark> resumed)
@@ -51,11 +51,7 @@ internal sealed class Conversation
         if (turn.MidTurn)
         {
             return live.ToResult(AgentError.NoTurnInProgress).Map(running =>
-            {
-                queued++;
-
-                return (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text)], [Messages.User(turn)]));
-            });
+                (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text)], [Messages.User(turn, commands.Send(midTurn: true))])));
         }
 
         if (live.IsSome)
@@ -69,7 +65,7 @@ internal sealed class Conversation
         modelReported = false;
         rejected = false;
 
-        return (stamp.Turn, new Reaction([new TurnStarted(session, stamp.Turn)], [Messages.User(turn)]));
+        return (stamp.Turn, new Reaction([new TurnStarted(session, stamp.Turn)], [Messages.User(turn, commands.Send(midTurn: false))]));
     }
 
     public Reaction Receive(JsonNode message) => message.TextOr("type", string.Empty) switch
@@ -77,6 +73,7 @@ internal sealed class Conversation
         "system" when message.TextOr("subtype", string.Empty) == "init" => Initialized(message),
         "control_request" => desk.Receive(message, live),
         "control_cancel_request" => desk.Cancel(message, live),
+        "command_lifecycle" => Tracked(message),
         "result" when stale > 0 => Swallowed(),
         var type => live.Match(stamp => During(type, message, stamp), () => Reaction.None),
     };
@@ -93,6 +90,11 @@ internal sealed class Conversation
     public Result<(TurnId Turn, Reaction Reaction), AgentError> Interrupt() =>
         live.ToResult(AgentError.NoTurnInProgress).Map(stamp =>
         {
+            if (!commands.Owed)
+            {
+                return (stamp.Turn, Closed(stamp, TurnOutcome.Interrupted, Reaction.None));
+            }
+
             interrupting = true;
 
             return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send(Messages.Interrupt(++interruptions))));
@@ -102,7 +104,7 @@ internal sealed class Conversation
     {
         "stream_event" or "assistant" or "user" when stale == 0 => translator.Receive(message, stamp),
         "rate_limit_event" => Limited(message, stamp),
-        "result" => queued > 0 && !interrupting ? Carried(message, stamp) : Ended(message, stamp),
+        "result" => commands.Pending && !interrupting ? Carried(message, stamp) : Ended(message, stamp),
         _ => Reaction.None,
     };
 
@@ -150,9 +152,16 @@ internal sealed class Conversation
         return Reaction.Of(new ModelReported(session, stamp.Turn, model) { Effort = effort });
     }
 
+    private Reaction Tracked(JsonNode lifecycle)
+    {
+        commands.Report(lifecycle);
+
+        return Reaction.None;
+    }
+
     private Reaction Carried(JsonNode result, Stamp stamp)
     {
-        queued--;
+        commands.Answered();
 
         return translator.Close(stamp, interrupted: false).Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), Spent(result))));
     }
@@ -160,6 +169,7 @@ internal sealed class Conversation
     private Reaction Swallowed()
     {
         stale--;
+        commands.Answered();
 
         return Reaction.None;
     }
@@ -176,15 +186,22 @@ internal sealed class Conversation
     private Reaction Ended(JsonNode result, Stamp stamp)
     {
         var cost = Spent(result);
-        stale = interrupting ? queued : 0;
-        queued = 0;
         var outcome = interrupting ? TurnOutcome.Interrupted : Outcome(result);
-        var closing = desk.Release(interrupting).Then(translator.Close(stamp, interrupting));
+
+        return Closed(stamp, outcome, Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), cost)));
+    }
+
+    private Reaction Closed(Stamp stamp, TurnOutcome outcome, Reaction usage)
+    {
+        var interrupted = outcome == TurnOutcome.Interrupted;
+        var left = commands.Abandon();
+        stale = interrupting ? left : 0;
+        var closing = desk.Release(interrupted).Then(translator.Close(stamp, interrupted));
         live = Option<Stamp>.None;
         interrupting = false;
 
         return closing
-            .Then(Reaction.Of(new UsageReported(session, stamp.Turn, Telemetry.Tokens(result), cost)))
+            .Then(usage)
             .Then(Token(stamp))
             .Then(Reaction.Of(new TurnCompleted(session, stamp.Turn, outcome)));
     }

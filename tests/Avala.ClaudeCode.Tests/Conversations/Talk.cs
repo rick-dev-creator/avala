@@ -35,6 +35,8 @@ internal sealed class Talk
         return Take(begun.Reaction);
     }
 
+    public string Command => (string)Sent.Last(message => (string?)message["type"] == "user")["uuid"]!;
+
     public Talk Receive(params IEnumerable<JsonNode> messages)
     {
         foreach (var message in messages)

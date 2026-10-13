@@ -24,7 +24,7 @@ public sealed class MidTurnTests
     }
 
     [Fact]
-    public void TheResultOfTheFirstMessageKeepsTheTurnOpenUntilClaudeCodeAnswersTheQueuedOne()
+    public void WithoutReportsOfItsCommandsTheResultOfTheFirstMessageKeepsTheTurnOpenUntilClaudeCodeAnswersTheQueuedOne()
     {
         var talk = new Talk().Begin().Receive(Cli.Init());
         talk.Take(talk.Conversation.Begin(Steering).Match(begun => begun.Reaction, _ => Reaction.None));
@@ -36,6 +36,34 @@ public sealed class MidTurnTests
         Assert.DoesNotContain(carried, agentEvent => agentEvent is TurnCompleted);
         Assert.Equal(0.010m, carried.OfType<UsageReported>().Single().Cost.Match(cost => cost.Amount, () => 0m));
         Assert.Equal(0.015m, talk.Events.OfType<UsageReported>().Single().Cost.Match(cost => cost.Amount, () => 0m));
+        Assert.Equal(new TurnCompleted(talk.Session, talk.Turn, TurnOutcome.Finished), talk.Events[^1]);
+    }
+
+    [Fact]
+    public void AMessageFoldedIntoTheRunningTurnEndsTheTurnWithItsOneResult()
+    {
+        var talk = new Talk().Begin();
+        talk.Receive(Cli.Lifecycle(talk.Command, "queued"), Cli.Lifecycle(talk.Command, "started"), Cli.Init());
+        talk.Take(talk.Conversation.Begin(Steering).Match(begun => begun.Reaction, _ => Reaction.None));
+
+        talk.Receive(Cli.Lifecycle(talk.Command, "queued"), Cli.Lifecycle(talk.Command, "started"), Cli.Lifecycle(talk.Command, "completed"), Cli.Result(0.010m));
+
+        Assert.Equal(new TurnCompleted(talk.Session, talk.Turn, TurnOutcome.Finished), talk.Events[^1]);
+    }
+
+    [Fact]
+    public void AResultLeavesTheTurnOpenWhileClaudeCodeHasNotStartedAQueuedMessage()
+    {
+        var talk = new Talk().Begin();
+        talk.Receive(Cli.Lifecycle(talk.Command, "queued"), Cli.Lifecycle(talk.Command, "started"), Cli.Init());
+        talk.Take(talk.Conversation.Begin(Steering).Match(begun => begun.Reaction, _ => Reaction.None));
+        var queued = talk.Command;
+
+        talk.Receive(Cli.Lifecycle(queued, "queued"), Cli.Result(0.010m));
+        var carried = talk.Drain();
+        talk.Receive(Cli.Lifecycle(queued, "started"), Cli.Init(), Cli.Result(0.025m));
+
+        Assert.DoesNotContain(carried, agentEvent => agentEvent is TurnCompleted);
         Assert.Equal(new TurnCompleted(talk.Session, talk.Turn, TurnOutcome.Finished), talk.Events[^1]);
     }
 
