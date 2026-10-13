@@ -12,7 +12,7 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
         {
             var view = Screen.Show(new DesignUsageLeftViewModel());
 
-            Assert.Equal(("12% left", true, true, true), (view.TextOf("Left"), view.Shows("Open"), view.HasClass("Left", "attention"), view.HasClass("Used", "attention")));
+            Assert.Equal(("12% left", true, true, true), (view.TextOf("Left"), view.Shows("Open"), view.HasClass("Left", "attention"), view.HasClass("Ring", "attention")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
