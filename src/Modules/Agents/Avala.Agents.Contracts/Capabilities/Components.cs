@@ -29,6 +29,8 @@ public sealed record AcceptsMessagesMidTurn : ICapability;
 
 public sealed record ReportsUsage : ICapability;
 
+public sealed record ReportsContext : ICapability;
+
 public sealed record ReportsCost(string Currency) : ICapability
 {
     public CostBasis Basis { get; init; }

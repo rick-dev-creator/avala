@@ -36,6 +36,7 @@ A job is one piece of work an agent does in its own worktree, and its conversati
 - An image previews up to 512 KB as a thumbnail and up to 16 MB in its sheet.
 - Code blocks over 300 lines are shown without colors.
 - The exported conversation leaves out reasoning, and hides personal details while that setting is on.
+- **How much context is left** shows in the job's header beside the usage left, such as "30% context left", once the agent's first turn ends. Hover it for the tokens in use against the model's window, and whether the harness compacted the conversation during the last turn; it turns amber when the context is nearly full. A harness that reports no context window shows nothing there.
 - Jobs and their conversations survive a restart; a pending permission request does not.
 
 ## See also

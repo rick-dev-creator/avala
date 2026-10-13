@@ -296,6 +296,7 @@ public sealed class ProviderTests
                 new AsksForms(),
                 new AcceptsMessagesMidTurn(),
                 new ReportsUsage(),
+                new ReportsContext(),
                 new ReportsCost("USD") { Basis = limits ? CostBasis.ApiEquivalent : CostBasis.Billed }),
             declared.Without<ReportsLimits>().Without<OffersModels>());
     }

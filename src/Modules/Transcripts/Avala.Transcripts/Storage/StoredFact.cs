@@ -28,6 +28,7 @@ internal sealed class StoredFact
         [nameof(MessageQueued)] = StoredJson.Read<MessageQueued>,
         [nameof(PlanUpdated)] = StoredJson.Read<PlanUpdated>,
         [nameof(UsageReported)] = StoredJson.Read<UsageReported>,
+        [nameof(ContextReported)] = StoredJson.Read<ContextReported>,
         [nameof(ModelReported)] = StoredJson.Read<ModelReported>,
         [nameof(TurnCompleted)] = StoredJson.Read<TurnCompleted>,
     }.ToFrozenDictionary(StringComparer.Ordinal);

@@ -55,6 +55,8 @@ internal sealed record Transcript
 
     public Option<ModelReported> Ran { get; private init; }
 
+    public Option<ContextReported> Context { get; private init; }
+
     public Option<DateTimeOffset> LiveSince { get; private init; }
 
     public Option<PlanEntry> Plan => Entries.OfType<PlanEntry>().LastOrDefault().ToOption();
@@ -105,6 +107,7 @@ internal sealed record Transcript
         PlanUpdated plan => Put(new PlanEntry(EntryKeys.Plan(plan.Turn), plan.Steps)),
         UsageReported usage => Tally(usage.Turn, tally => tally.Add(usage.Tokens, usage.Cost)),
         ModelReported reported => this with { Ran = reported },
+        ContextReported context => this with { Context = context },
         TurnCompleted completed => Ended(completed, now),
         _ => Exchange(activity),
     };

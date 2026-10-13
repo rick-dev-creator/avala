@@ -248,6 +248,11 @@ internal sealed class RecordingFormat
                     Present(limit.Limit.ResetsAt, resets => json.WriteString("resetsAt", resets));
                 });
                 break;
+            case ContextReported context:
+                json.WriteNumber("used", context.Used);
+                json.WriteNumber("window", context.Window);
+                json.WriteBoolean("compacted", context.Compacted);
+                break;
             case MessageQueued queued:
                 Text("text", queued.Text);
                 break;

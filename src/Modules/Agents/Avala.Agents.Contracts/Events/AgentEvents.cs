@@ -40,6 +40,11 @@ public sealed record UsageReported(SessionId Session, TurnId Turn, TokenUsage To
 
 public sealed record LimitReported(SessionId Session, TurnId Turn, UsageLimit Limit) : IAgentEvent;
 
+public sealed record ContextReported(SessionId Session, TurnId Turn, long Used, long Window) : IAgentEvent
+{
+    public bool Compacted { get; init; }
+}
+
 public sealed record ModelReported(SessionId Session, TurnId Turn, string Model) : IAgentEvent
 {
     public Option<string> Effort { get; init; }

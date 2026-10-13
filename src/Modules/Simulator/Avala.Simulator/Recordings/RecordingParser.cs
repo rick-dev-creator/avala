@@ -32,6 +32,7 @@ internal sealed class RecordingParser
             ["planUpdated"] = Plan,
             ["usageReported"] = Usage,
             ["limitReported"] = Limit,
+            ["contextReported"] = Context,
             ["modelReported"] = recorded => new ModelReported(default, default, Text(recorded.GetProperty("model"))) { Effort = Optional(recorded, "effort") },
             ["turnCompleted"] = recorded => new TurnCompleted(default, default, Enum<TurnOutcome>(recorded.GetProperty("outcome"))),
             ["itemStarted"] = recorded => new ItemStarted(default, default, Item(recorded), Enum<ItemKind>(recorded.GetProperty("kind")), Text(recorded.GetProperty("title")))
@@ -139,6 +140,12 @@ internal sealed class RecordingParser
             limit.GetProperty("usedFraction").GetDouble(),
             Property(limit, "resetsAt").Map(resets => resets.GetDateTimeOffset())));
     }
+
+    private static ContextReported Context(JsonElement recorded) =>
+        new(default, default, recorded.GetProperty("used").GetInt64(), recorded.GetProperty("window").GetInt64())
+        {
+            Compacted = recorded.GetProperty("compacted").GetBoolean(),
+        };
 
     private IAgentEvent Event(JsonElement recorded)
     {

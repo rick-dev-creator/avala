@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:usage="using:Avala.Workbench.Usage"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             x:Class="Avala.Workbench.UI.ContextLeftView"
+             x:ClassModifier="internal"
+             x:DataType="usage:IContextLeftViewModel">
+  <Design.DataContext>
+    <usage:DesignContextLeftViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Arc#Ring">
+      <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Arc#Ring.attention">
+      <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Gauge"
+          Background="Transparent"
+          Padding="6,4"
+          IsVisible="{Binding IsShown}"
+          AutomationProperties.Name="{Binding Tokens, StringFormat='Context window: {0}'}">
+    <ToolTip.Tip>
+      <StackPanel Width="280" Spacing="6">
+        <TextBlock x:Name="Tokens" Text="{Binding Tokens}" />
+        <TextBlock x:Name="Model" Classes="caption" Text="{Binding Model, StringFormat='Context window of {0}'}" IsVisible="{Binding Model, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="Compaction" Classes="caption" Text="{Binding Compaction}" IsVisible="{Binding WasCompacted}" TextWrapping="Wrap" />
+        <TextBlock x:Name="Near" Classes="caption attention" Text="Nearly full: the harness will compact it soon." IsVisible="{Binding IsNear}" TextWrapping="Wrap" />
+      </StackPanel>
+    </ToolTip.Tip>
+    <StackPanel Orientation="Horizontal" Spacing="7">
+      <Panel Width="16" Height="16" VerticalAlignment="Center">
+        <Ellipse Margin="1" Stroke="{DynamicResource HubTrackBrush}" StrokeThickness="2.5" />
+        <Arc x:Name="Ring"
+             Margin="1"
+             Classes.attention="{Binding IsNear}"
+             StartAngle="-90"
+             SweepAngle="{Binding Used, Converter={x:Static graphs:Graph.Degrees}}"
+             StrokeThickness="2.5"
+             StrokeLineCap="Round" />
+      </Panel>
+      <TextBlock x:Name="Share" FontSize="{DynamicResource FontSizeMono}" Classes.attention="{Binding IsNear}" Text="{Binding Share}" VerticalAlignment="Center" />
+    </StackPanel>
+  </Border>
+</UserControl>

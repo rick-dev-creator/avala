@@ -550,5 +550,8 @@ internal static class ScenarioCatalog
     [
         new ReportUsage(new TokenUsage(input, output, input / 2, input / 10, output / 4), new Cost(cost, "USD")),
         new ReportLimit(new UsageLimit("5h", used, Option<DateTimeOffset>.None)),
+        new ReportContext(input + (input / 2) + (input / 10), ContextWindow, Compacted: false),
     ];
+
+    public const long ContextWindow = 200_000;
 }

@@ -157,6 +157,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     private static void RegisterRegions(IPluginRegistrar registrar) =>
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
             .AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0)
+            .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
             .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5);
 
     private static void RegisterFooter(IPluginRegistrar registrar)
@@ -397,6 +398,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<UpdateNoticeViewModel>()
             .AddSingleton<ResourceIndicatorViewModel>()
             .AddSingleton<UsageLeftViewModel>()
+            .AddSingleton<ContextLeftViewModel>()
             .AddTransient<ModelPickerViewModel>()
             .AddSingleton<NewJobReadings>()
             .AddSingleton<NewJobViewModel>()
@@ -427,6 +429,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IUsageViewModel, UsageView>();
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();
         views.Register<IUsageLeftViewModel, UsageLeftView>();
+        views.Register<IContextLeftViewModel, ContextLeftView>();
         views.Register<IUsageWindowViewModel, UsageWindowView>();
         views.Register<IUsageRangeViewModel, UsageRangeView>();
         views.Register<IUsageDayViewModel, UsageDayView>();

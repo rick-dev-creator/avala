@@ -13,6 +13,7 @@ internal static class LimitScenarios
             Message("Done, ", "though the usage window is nearly spent."),
             new ReportUsage(new TokenUsage(9_000, 700, 4_500, 900, 175), new Cost(0.0600m, "USD")),
             new ReportLimitResetting("5h", 0.95, TimeSpan.FromSeconds(2)),
+            new ReportContext(141_000, ContextWindow, Compacted: false),
             new Finish(),
         ],
     ]);

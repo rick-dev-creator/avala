@@ -49,6 +49,7 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         UpdatePlan plan => [new PlanUpdated(Session, Turn, plan.Steps)],
         ReportUsage usage => [new UsageReported(Session, Turn, usage.Tokens, usage.Cost)],
         ReportLimit limit => [new LimitReported(Session, Turn, limit.Limit)],
+        ReportContext context => [new ContextReported(Session, Turn, context.Used, context.Window) { Compacted = context.Compacted }],
         Open open => [Opened(open.Item, open.Kind, open.Title)],
         Recall recall => Stream(Opened(recall.Item, ItemKind.Message, "Reply"), recall.Item, ["I was told: ", Told]),
         Finish => [Ended(TurnOutcome.Finished)],
@@ -72,6 +73,7 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         PlanUpdated plan => plan with { Session = Session, Turn = Turn },
         UsageReported usage => usage with { Session = Session, Turn = Turn },
         LimitReported limit => limit with { Session = Session, Turn = Turn },
+        ContextReported context => context with { Session = Session, Turn = Turn },
         ModelReported model => model with { Session = Session, Turn = Turn },
         _ => ReaddressItem(recorded),
     };

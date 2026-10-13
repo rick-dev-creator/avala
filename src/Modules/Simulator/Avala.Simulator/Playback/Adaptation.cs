@@ -22,6 +22,7 @@ internal sealed class Adaptation(CapabilitySet declared)
     {
         ItemDrafted when !declared.Has<StreamsPartialOutput>() => [],
         LimitReported when !declared.Has<ReportsLimits>() => [],
+        ContextReported when !declared.Has<ReportsContext>() => [],
         UsageReported when !declared.Has<ReportsUsage>() => [],
         UsageReported usage when !declared.Has<ReportsCost>() => [usage with { Cost = Option<Cost>.None }],
         ResumeTokenIssued when !declared.Has<Resumable>() => [],
