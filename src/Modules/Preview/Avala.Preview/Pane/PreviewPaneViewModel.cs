@@ -254,17 +254,17 @@ internal sealed partial class PreviewPaneViewModel
 
     private bool Show(PreviewTarget target)
     {
+        Address = target.Origin;
+        State = PreviewPhrases.Running;
+        IsLive = true;
+
         if (shown != Option<PreviewTarget>.Some(target) || Surface is null)
         {
             var surface = Surface ?? Attach(target.Job);
             shown = target;
-            Navigating = NavigateAsync(surface, target);
             OpenInBrowserCommand.NotifyCanExecuteChanged();
+            Navigating = NavigateAsync(surface, target);
         }
-
-        Address = target.Origin;
-        State = PreviewPhrases.Running;
-        IsLive = true;
 
         return true;
     }

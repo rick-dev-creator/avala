@@ -48,6 +48,32 @@ public sealed class ViewModelScript<TViewModel>
         return this;
     }
 
+    public async Task<T> PresentedAsync<T>(Action<TViewModel> action, Func<TViewModel, T> read, CancellationToken cancellationToken)
+    {
+        var component = Assert.IsAssignableFrom<IPresentation>(ViewModel);
+        var seen = new List<T>();
+        void Read(object? sender, Presented signal)
+        {
+            if (seen.Count == 0)
+            {
+                seen.Add(read(ViewModel));
+            }
+        }
+
+        component.Presented += Read;
+
+        try
+        {
+            await WhenPresentedAsync(action, cancellationToken);
+        }
+        finally
+        {
+            component.Presented -= Read;
+        }
+
+        return seen[0];
+    }
+
     public ViewModelScript<TViewModel> Invoke(string command) => Invoke(command, null);
 
     public ViewModelScript<TViewModel> Invoke(string command, object? parameter)

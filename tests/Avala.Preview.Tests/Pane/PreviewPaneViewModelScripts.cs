@@ -190,9 +190,9 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
             .When(_ => bench.Messenger.Send(new PreviewRequested(bench.Job)))
             .Then(pane => Assert.Equal((true, PreviewPhrases.Starting, null), (pane.IsOpen, pane.State, pane.Surface)));
 
-        await script.WhenPresentedAsync(_ => bench.Serve(bench.Job, 24_000), Cancellation);
+        var shown = await script.PresentedAsync(_ => bench.Serve(bench.Job, 24_000), pane => (pane.State, pane.Address), Cancellation);
 
-        script.Then(pane => Assert.Equal((PreviewPhrases.Running, "localhost:24000"), (pane.State, pane.Address)));
+        Assert.Equal((PreviewPhrases.Running, "localhost:24000"), shown);
     }
 
     [Fact]
@@ -200,9 +200,9 @@ public sealed class PreviewPaneViewModelScripts : IDisposable
     {
         var script = Selected(bench.Pane());
 
-        await script.WhenPresentedAsync(_ => bench.Serve(bench.Job, 24_000), Cancellation);
+        var shown = await script.PresentedAsync(_ => bench.Serve(bench.Job, 24_000), pane => (pane.IsOpen, pane.Address, pane.IsLive), Cancellation);
 
-        script.Then(pane => Assert.Equal((true, "localhost:24000", true), (pane.IsOpen, pane.Address, pane.IsLive)));
+        Assert.Equal((true, "localhost:24000", true), shown);
     }
 
     [Fact]
