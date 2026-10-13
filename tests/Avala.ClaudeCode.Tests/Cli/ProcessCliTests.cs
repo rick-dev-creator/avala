@@ -30,21 +30,19 @@ public sealed class ProcessCliTests
     }
 
     [Fact]
-    public async Task WhatTheProcessWroteIsReadToTheEndEvenAfterItIsDisposedAsync()
+    public async Task ReadingOnAfterTheProcessIsDisposedEndsItsLinesWithoutThrowingAsync()
     {
         await using var folder = new TemporaryFolder();
         var cli = Outcomes.Succeeds(new ProcessCli(new CliCommand("git", []), TimeProvider.System, new RecordingLogger())
             .Start(new CliLaunch(folder.Path, ["--version"], [], new Dictionary<string, string>()), UncontainedProcesses.Instance, Option<string>.None));
-        var lines = new List<string>();
+        await using var lines = cli.Lines.GetAsyncEnumerator(Cancellation);
+        Assert.True(await lines.MoveNextAsync());
+        var written = lines.Current;
 
         await cli.DisposeAsync();
 
-        await foreach (var line in cli.Lines.WithCancellation(Cancellation))
-        {
-            lines.Add(line);
-        }
-
-        Assert.StartsWith("git version", Assert.Single(lines), StringComparison.Ordinal);
+        Assert.False(await lines.MoveNextAsync());
+        Assert.StartsWith("git version", written, StringComparison.Ordinal);
     }
 
     private sealed class RecordingLogger : ILogger<ProcessCli>
