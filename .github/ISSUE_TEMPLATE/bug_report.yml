@@ -1,0 +1,64 @@
+name: Bug report
+description: Something in Avala does not work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is wrong, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence of steps that shows the bug.
+      placeholder: |
+        1. Open ...
+        2. Choose ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Avala version
+      description: Shown in Settings, About, or the commit you built from.
+      placeholder: 0.1.0-beta.2
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+        - macOS
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Harness and connections
+      description: The harness, how many connections Avala shows, and anything else about the setup that matters.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs and screenshots
+      description: Relevant log lines or pictures. Hide personal details first.
