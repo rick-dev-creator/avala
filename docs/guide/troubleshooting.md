@@ -51,7 +51,7 @@ A blank WebKitGTK window under Wayland comes from its DMA-BUF renderer. Avala se
 
 - **Logs**: the `logs` folder of the data folder, as `avala-YYYYMMDD-NNN.log`, each up to 4 MB, the newest ten kept.
 - **Data folder**: `AVALA_DATA_PATH`, or `Avala` in your local application data folder; see [where files live](../README.md#where-files-live).
-- **Environment variables**: `AVALA_X11=1` forces X11, `AVALA_DATA_PATH` moves the data folder, `AVALA_DEVELOPER=1` turns on developer mode, and `WEBKIT_DISABLE_DMABUF_RENDERER` is described above.
+- **Environment variables**: `AVALA_X11=1` forces X11, `AVALA_DATA_PATH` moves the data folder, and `WEBKIT_DISABLE_DMABUF_RENDERER` is described above.
 
 ## Good to know
 
