@@ -19,6 +19,8 @@ using Avala.Sdk.Events;
 using Avala.Sdk.Processes;
 using Avala.Sdk.UI;
 using Avala.Simulator;
+using Avala.ForgeSimulator;
+using Avala.Recording;
 using Avala.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -182,7 +184,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
         IReadOnlyDictionary<string, Avala.Sdk.Processes.ProcessOutcome>? signIns = null,
         bool onboarded = true,
         TimeSpan pace = default,
-        string repositoryName = "repository")
+        string repositoryName = "repository",
+        bool production = false)
     {
         var data = new TemporaryFolder();
 
@@ -198,7 +201,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             await File.WriteAllTextAsync(path, content, Cancellation);
         }
 
-        var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier, Pace = pace };
+        var surroundings = new Surroundings(new TestUiDispatcher(), new SystemTimerClock(DateTimeOffset.UtcNow) { AutoAdvanceAmount = TimeSpan.FromTicks(1) }, harnesses, developer, claudeCode) { RealNotifier = realNotifier, Pace = pace, Production = production };
         surroundings.Telemetry.Configured = telemetry;
         foreach (var (tool, outcome) in signIns ?? new Dictionary<string, Avala.Sdk.Processes.ProcessOutcome>())
         {
@@ -444,6 +447,14 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public TimeSpan Pace { get; init; }
 
+        public bool Production { get; init; }
+
+        private IReadOnlyList<Type> Left =>
+        [
+            .. Harnesses || ClaudeCode.IsSome ? Array.Empty<Type>() : [typeof(ClaudeCodePlugin)],
+            .. Production ? [typeof(SimulatorPlugin), typeof(ForgeSimulatorPlugin), typeof(RecordingPlugin)] : Array.Empty<Type>(),
+        ];
+
         public CompositionRoot Compose(PublishedPlugins plugins, TemporaryFolder data) =>
             CompositionRoot.Create(
                 plugins.Directory,
@@ -451,7 +462,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 Ui,
                 Clock,
                 [new SimulatorPlugin(Pace, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
-                Harnesses || ClaudeCode.IsSome ? [] : [typeof(ClaudeCodePlugin)],
+                Left,
                 Links,
                 RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Surfaces, Cues] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Surfaces, Cues]);
     }
