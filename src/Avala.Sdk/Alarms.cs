@@ -58,7 +58,8 @@ public static class Alarms
         public void Arm()
         {
             var previous = Volatile.Read(ref current);
-            var next = clock.CreateTimer(Ring, null, Wait(Left), Timeout.InfiniteTimeSpan);
+            var wait = Wait(Left);
+            var next = clock.CreateTimer(Ring, null, wait, Timeout.InfiniteTimeSpan);
 
             if (Interlocked.CompareExchange(ref current, next, previous) != previous)
             {
@@ -73,6 +74,13 @@ public static class Alarms
             if (Volatile.Read(ref disposed) == 1)
             {
                 Interlocked.Exchange(ref current, null)?.Dispose();
+
+                return;
+            }
+
+            if (Overslept(wait))
+            {
+                Arm();
             }
         }
 
@@ -97,6 +105,13 @@ public static class Alarms
             : left > Lead ? left - Lead
             : left > TimeSpan.Zero ? left
             : TimeSpan.Zero;
+
+        private bool Overslept(TimeSpan wait)
+        {
+            var left = Left;
+
+            return wait > TimeSpan.Zero && (left <= TimeSpan.Zero || wait - left > Lead);
+        }
 
         private TimeSpan Left => new DateTimeOffset(Volatile.Read(ref dueTicks), TimeSpan.Zero) - clock.GetUtcNow();
 

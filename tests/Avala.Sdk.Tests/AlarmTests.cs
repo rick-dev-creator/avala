@@ -44,6 +44,20 @@ public sealed class AlarmTests
         Assert.Equal(1, rings);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(30)]
+    public void AnAlarmArmedWhileTheClockJumpsTowardsItsDueTimeStillRingsWhenTheClockReachesIt(int secondsShort)
+    {
+        var due = clock.GetUtcNow() + TimeSpan.FromMinutes(1);
+        var jumping = new JumpingClock(clock.GetUtcNow(), due - TimeSpan.FromSeconds(secondsShort));
+        using var alarm = jumping.CreateAlarm(() => rings++, due);
+
+        jumping.SetUtcNow(due);
+
+        Assert.Equal(1, rings);
+    }
+
     [Fact]
     public void AnAlarmChangedToAnInfiniteWaitNeverRings()
     {
@@ -73,6 +87,22 @@ public sealed class AlarmTests
         using var alarm = clock.CreateAlarm(() => rings++, TimeSpan.FromMinutes(10));
 
         Assert.Throws<NotSupportedException>(() => alarm.Change(TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1)));
+    }
+
+    private sealed class JumpingClock(DateTimeOffset start, DateTimeOffset leap) : FakeTimeProvider(start)
+    {
+        private bool jumped;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            if (!jumped)
+            {
+                jumped = true;
+                SetUtcNow(leap);
+            }
+
+            return base.CreateTimer(callback, state, dueTime, period);
+        }
     }
 
     private sealed class HastyClock(DateTimeOffset start) : FakeTimeProvider(start)
