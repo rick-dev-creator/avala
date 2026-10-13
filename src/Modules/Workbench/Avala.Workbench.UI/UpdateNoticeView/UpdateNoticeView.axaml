@@ -12,7 +12,7 @@
     <Button x:Name="Open"
             Classes="link emphasis"
             Command="{Binding OpenCommand}"
-            ToolTip.Tip="Open the release page">
+            ToolTip.Tip="{Binding Hint}">
       <StackPanel Orientation="Horizontal" Spacing="8">
         <Ellipse Width="6" Height="6" Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
         <TextBlock x:Name="Text" Text="{Binding Text}" />

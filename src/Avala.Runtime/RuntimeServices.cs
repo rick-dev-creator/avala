@@ -53,7 +53,7 @@ public static class RuntimeServices
                 .AddSingleton(provider => new UpdateCheck(
                     provider.GetService<AvalaBuild>() ?? AvalaBuild.From(Option<string>.None),
                     provider.GetRequiredService<UpdatesFile>(),
-                    provider.GetService<ReleaseFeed>().ToOption(),
+                    new UpdateSources(provider.GetService<ReleaseFeed>().ToOption(), provider.GetService<IUpdateInstaller>().ToOption()),
                     provider.GetRequiredService<IEventBus>()))
                 .AddForwarded<IUpdates, UpdateCheck>()
                 .AddForwarded<IStartupTask, UpdateCheck>()
@@ -91,6 +91,10 @@ public static class RuntimeServices
 
         public IServiceCollection AddReleaseFeed(HttpMessageHandler handler) =>
             services.AddSingleton(_ => new ReleaseFeed(new HttpClient(handler) { Timeout = ReleaseFeed.Patience }));
+
+        public IServiceCollection AddInstalledUpdates(AvalaBuild build) =>
+            VelopackInstaller.ForThisInstall(ReleaseVersion.Parse(build.Version).Match(version => version.IsPrerelease, () => false))
+                .Match(installer => services.AddSingleton(installer), () => services);
     }
 
     private static IContainment Containment() =>

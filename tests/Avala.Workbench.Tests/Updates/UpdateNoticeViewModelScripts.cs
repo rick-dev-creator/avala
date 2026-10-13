@@ -47,6 +47,36 @@ public sealed class UpdateNoticeViewModelScripts : IDisposable
         Assert.Equal((string.Empty, $"The browser could not be opened. The release is at {FakeUpdates.Newer.Release}."), await ui.ReadAsync(() => (notice.Note, refused.Note)));
     }
 
+    [Fact]
+    public async Task ClickingAnUpdateThatInstallsInPlaceDownloadsItThenOffersToRestartAndRestartsAsync()
+    {
+        var links = new FakeLinks();
+        var updates = new FakeUpdates { Latest = FakeUpdates.Installable };
+        using var notice = Notice(updates, links);
+        notice.Activate();
+        await ui.PresentedAsync(notice, () => notice.IsShown, () => notice.Text);
+
+        await ui.RunAsync(() => notice.OpenCommand.ExecuteAsync(null));
+        var downloaded = await ui.ReadAsync(() => (notice.Text, notice.Hint, notice.Note));
+        await ui.RunAsync(() => notice.OpenCommand.ExecuteAsync(null));
+
+        Assert.Equal(("Restart to update", "Restart Avala and update", string.Empty), downloaded);
+        Assert.Equal((1, 1), (updates.Downloading, updates.Restarts));
+        Assert.Empty(links.Opened);
+    }
+
+    [Fact]
+    public async Task AFailedDownloadKeepsTheNoticeAndSaysToTryAgainAsync()
+    {
+        using var notice = Notice(new FakeUpdates { Latest = FakeUpdates.Installable, Downloads = false }, new FakeLinks());
+        notice.Activate();
+        await ui.PresentedAsync(notice, () => notice.IsShown, () => notice.Text);
+
+        await ui.RunAsync(() => notice.OpenCommand.ExecuteAsync(null));
+
+        Assert.Equal(("Version 0.2.0 is available", "The download failed. Click to try again.", true), await ui.ReadAsync(() => (notice.Text, notice.Note, notice.OpenCommand.CanExecute(null))));
+    }
+
     public void Dispose() => ui.Dispose();
 
     private UpdateNoticeViewModel Notice(FakeUpdates updates, FakeLinks links) => new(updates, new LiveFeed(pulse, ui), links);

@@ -320,7 +320,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
                 provider.GetRequiredService<ISourceControlViewModel>(),
                 provider.GetRequiredService<IPersonalDetailsViewModel>()));
 
-    private static void RegisterGlobalPages(IServiceCollection services) =>
+    private static IServiceCollection RegisterPulse(IServiceCollection services) =>
         services
             .AddSingleton<Pulse>()
             .AddForwarded<IHandle<UsageRecorded>, Pulse>()
@@ -337,6 +337,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<BudgetIntervened>, Pulse>()
             .AddForwarded<IHandle<SupervisorIntervened>, Pulse>()
             .AddForwarded<IHandle<UpdateFound>, Pulse>()
+            .AddForwarded<IHandle<UpdateDownloaded>, Pulse>()
             .AddForwarded<IHandle<TriggerFired>, Pulse>()
             .AddForwarded<IHandle<WebhookReceived>, Pulse>()
             .AddForwarded<IHandle<TriggersChanged>, Pulse>()
@@ -349,7 +350,10 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<LoopPaused>, Pulse>()
             .AddForwarded<IHandle<LoopResumed>, Pulse>()
             .AddForwarded<IHandle<BreakerTripped>, Pulse>()
-            .AddForwarded<IHandle<LoopEnded>, Pulse>()
+            .AddForwarded<IHandle<LoopEnded>, Pulse>();
+
+    private static void RegisterGlobalPages(IServiceCollection services) =>
+        RegisterPulse(services)
             .AddSingleton<SessionBook>()
             .AddForwarded<IHandle<SessionOpened>, SessionBook>()
             .AddForwarded<IHandle<JobSessionStarted>, SessionBook>()

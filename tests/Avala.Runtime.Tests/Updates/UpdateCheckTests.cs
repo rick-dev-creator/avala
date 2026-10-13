@@ -173,7 +173,7 @@ public sealed class UpdateCheckTests
     public async Task WithoutAFeedNothingIsAskedAsync()
     {
         await using var data = new TemporaryFolder();
-        var check = new UpdateCheck(new AvalaBuild("0.1.0", Option<string>.None), new UpdatesFile(new AvalaPaths(data.Path)), Option<ReleaseFeed>.None, new RecordingBus());
+        var check = new UpdateCheck(new AvalaBuild("0.1.0", Option<string>.None), new UpdatesFile(new AvalaPaths(data.Path)), UpdateSources.None, new RecordingBus());
 
         await check.RunAsync(Cancellation);
         var asked = await check.CheckAsync(Cancellation);
@@ -185,6 +185,6 @@ public sealed class UpdateCheckTests
         new(
             AvalaBuild.From(version),
             new UpdatesFile(new AvalaPaths(data.Path)),
-            new ReleaseFeed(new HttpClient(releases, disposeHandler: false)),
+            new UpdateSources(new ReleaseFeed(new HttpClient(releases, disposeHandler: false)), Option<IUpdateInstaller>.None),
             bus);
 }

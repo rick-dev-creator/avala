@@ -37,6 +37,8 @@ public sealed class UpdateNoticeViewScripts(HeadlessUi ui)
 
         public string Note => string.Empty;
 
+        public string Hint => "Open the release page";
+
         public IAsyncRelayCommand OpenCommand => new AsyncRelayCommand(() =>
         {
             Opened++;
