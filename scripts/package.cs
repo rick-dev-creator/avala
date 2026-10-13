@@ -4,6 +4,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 var options = PackageOptions.Parse(args);
 
@@ -200,7 +201,11 @@ internal static class Build
 
     public static async Task PluginsAsync(string root, Target target, PackageVersion version, string plugins)
     {
-        foreach (var project in PluginProjects(root))
+        var projects = PluginProjects(root).ToList();
+        var leftOut = projects.Where(PluginSet.IsDevelopmentOnly).Select(Path.GetFileNameWithoutExtension);
+        Console.WriteLine($"Leaving out the development-only plugins: {string.Join(", ", leftOut)}.");
+
+        foreach (var project in projects.Where(project => !PluginSet.IsDevelopmentOnly(project)))
         {
             await Processes.RunAsync(
                 "dotnet",
@@ -219,8 +224,20 @@ internal static class Build
 
     private static IEnumerable<string> PluginProjects(string root) =>
         Directory.EnumerateFiles(Path.Combine(root, "src", "Modules"), "*.csproj", SearchOption.AllDirectories)
-            .Where(project => File.ReadLines(project).Any(line => line.Contains("<AvalaPlugin>true</AvalaPlugin>", StringComparison.Ordinal)))
+            .Where(project => PluginSet.Declares(project, PluginSet.Plugin))
             .Order(StringComparer.Ordinal);
+}
+
+internal static class PluginSet
+{
+    public const string Plugin = "AvalaPlugin";
+
+    public const string DevelopmentOnly = "AvalaDevelopmentOnly";
+
+    public static bool IsDevelopmentOnly(string project) => Declares(project, DevelopmentOnly);
+
+    public static bool Declares(string project, string property) =>
+        XDocument.Load(project).Descendants(property).Any(element => string.Equals(element.Value.Trim(), "true", StringComparison.OrdinalIgnoreCase));
 }
 
 internal static class Layout
