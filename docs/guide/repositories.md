@@ -18,7 +18,7 @@ Pick, clone, create or publish the git repositories your jobs work in, or let a 
 
 ### Jobs without a repository
 
-Start a job from the welcome, choose **No repository** in New job's Repository pop-up, or press Ctrl/⌘+Shift+Enter in the instruction. The job runs in a **scratch repository** of its own in the data folder's `scratch` folder, named after the day and the first words of the instruction, such as `scratch/2026-10-12-sketch-a-csv-parser-3f9a1c`. Approving the job merges its work there; the inspector's worktree section names the folder and opens it.
+Start a job from the welcome, choose **No repository** in New job's Repository pop-up, or press Ctrl/⌘+Shift+Enter in the instruction. The job runs in a **scratch repository** of its own in the data folder's `scratch` folder, named after the day and the first words of the instruction, such as `scratch/2026-10-12-sketch-a-csv-parser-3f9a1c`. Approving the job merges its work there; the inspector's worktree section names the folder and opens it. Such a job is listed under **Chats** in the sidebar until you move it to a project.
 
 ## Settings and files
 
