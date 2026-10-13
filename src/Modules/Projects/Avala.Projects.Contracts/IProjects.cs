@@ -13,7 +13,12 @@ public sealed record ProjectRecord(ProjectId Project, string Name, Option<string
 
 public sealed record ProjectMap(ImmutableList<ProjectRecord> Projects, ImmutableDictionary<JobId, ProjectId> Placements)
 {
+    public const int LongestName = 60;
+
     public static ProjectMap Empty { get; } = new([], ImmutableDictionary<JobId, ProjectId>.Empty);
+
+    public Option<ProjectRecord> Find(ProjectId project) =>
+        Projects.Find(found => found.Project == project) is { } known ? known : Option<ProjectRecord>.None;
 
     public Option<ProjectRecord> Of(JobId job, string repository) =>
         Placements.TryGetValue(job, out var placed) && Projects.Find(project => project.Project == placed) is { } moved
@@ -25,12 +30,22 @@ public interface IProjects
 {
     ProjectMap Current { get; }
 
+    ValueTask<Result<ProjectCreated, ProjectRejection>> CreateAsync(string name, CancellationToken cancellationToken);
+
+    ValueTask<Result<ProjectRenamed, ProjectRejection>> RenameAsync(ProjectId project, string name, CancellationToken cancellationToken);
+
+    ValueTask<Result<ProjectDeleted, ProjectRejection>> DeleteAsync(ProjectId project, CancellationToken cancellationToken);
+
     ValueTask<Result<ConversationMoved, ProjectRejection>> MoveAsync(JobId job, ProjectId project, CancellationToken cancellationToken);
 }
 
 public enum ProjectRejection
 {
+    NameEmpty,
+    NameTooLong,
+    NameTaken,
     UnknownProject,
     UnknownJob,
+    NotEmpty,
     FollowsItsParent,
 }

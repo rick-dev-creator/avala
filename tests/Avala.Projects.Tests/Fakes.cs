@@ -68,6 +68,14 @@ internal sealed class MemoryStore : IProjectStore
         return Task.CompletedTask;
     }
 
+    public Task RemoveAsync(ProjectId project, CancellationToken cancellationToken)
+    {
+        Projects = Projects.RemoveAll(kept => kept.Project == project);
+        Placements = Placements.RemoveRange(Placements.Where(placement => placement.Value == project).Select(placement => placement.Key));
+
+        return Task.CompletedTask;
+    }
+
     public Task PlaceAsync(JobId job, ProjectId project, CancellationToken cancellationToken)
     {
         Placements = Placements.SetItem(job, project);
@@ -80,9 +88,10 @@ internal sealed class Projected : IAsyncDisposable
 {
     private readonly ProjectBook book;
 
-    public Projected(MemoryStore? store = null)
+    public Projected(MemoryStore? store = null, FakeCatalog? catalog = null)
     {
         Store = store ?? new MemoryStore();
+        Catalog = catalog ?? new FakeCatalog();
         book = new ProjectBook(Store, Bus);
         Repositories = new RepositoryProjects(book, Catalog, new FakeScratch());
         Entry = new ProjectsEntry(book, Catalog);
@@ -90,7 +99,7 @@ internal sealed class Projected : IAsyncDisposable
 
     public MemoryStore Store { get; }
 
-    public FakeCatalog Catalog { get; } = new();
+    public FakeCatalog Catalog { get; }
 
     public RecordingBus Bus { get; } = new();
 

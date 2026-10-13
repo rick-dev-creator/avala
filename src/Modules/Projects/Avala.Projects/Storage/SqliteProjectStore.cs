@@ -77,6 +77,16 @@ internal sealed class SqliteProjectStore(AvalaPaths paths) : IProjectStore, ISta
             },
             cancellationToken);
 
+    public Task RemoveAsync(ProjectId project, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            async database =>
+            {
+                await database.Placements.Where(row => row.Project == project.Value).ExecuteDeleteAsync(cancellationToken);
+
+                return await database.Projects.Where(row => row.Id == project.Value).ExecuteDeleteAsync(cancellationToken);
+            },
+            cancellationToken);
+
     public Task PlaceAsync(JobId job, ProjectId project, CancellationToken cancellationToken) =>
         owner.RunAsync(
             async database =>
