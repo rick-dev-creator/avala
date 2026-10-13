@@ -34,8 +34,9 @@ under your rules, with evidence for every result and a cost for every job.
 
 - **Evidence, not the agent's word.** A job is done only when the checks your repository declares pass in its worktree. The review shows that verdict first, then the diff.
 - **Policies, not prompts.** Every permission, question and plan approval is answered in place or by rules the agent cannot edit, at the autonomy you allow, and every decision is audited.
-- **Nothing runs away.** Stalled sessions are caught, spending stops at your caps, and leftover processes, ports and worktrees are reclaimed.
-- **Claude Code, every account.** Claude Code is the harness Avala supports, with several connections at once. Harnesses plug in behind one contract, so more can follow.
+- **Nothing runs away.** Stalled sessions are caught, spending stops at your caps, the memory, CPU and ports of Avala's agents are measured, and leftover processes, ports and worktrees are reclaimed.
+- **Claude Code, every account.** Claude Code is the harness Avala supports. Each Claude Code login is a connection, and jobs, and the sub-agents they delegate to, run on several at once. Harnesses plug in behind one contract, so more can follow.
+- **A usage limit is not a dead end.** A job that nears the limit of a usage window waits for the reset, or is handed off with a brief of its work to the connection with the most room left.
 
 ## Features
 
@@ -89,6 +90,63 @@ under your rules, with evidence for every result and a cost for every job.
 <tr>
 <td width="50%" valign="top">
 
+**Several accounts at once.** Each Claude Code login is a connection, and jobs run on all of them in parallel. Overview draws every connection with its usage window and the jobs it carries.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/overview-dark.png">
+  <img src="docs/assets/readme/overview-light.png" alt="Overview with two connections, claude at 95% of its 5-hour window and claude-work at 29%, each surrounded by the jobs running, held or ready for review on it">
+</picture>
+
+</td>
+<td width="50%" valign="top">
+
+**Sub-agents across connections.** An agent hands self-contained work to child jobs, each in its own worktree on a connection Avala picks, with a budget carved from its parent's. Children can ask their parent first, and reviewers only read.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/delegation-dark.png">
+  <img src="docs/assets/readme/delegation-light.png" alt="The delegation view: an orchestrator on claude with two sub-agents, one on claude and one on claude-work, each with the budget carved for it and integrated into its parent">
+</picture>
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+
+**Handoff at the usage limit.** When a job nears the limit of its connection's usage window, it is held and, when your rules allow, handed off to the connection with the most capacity left, with a brief of the work so far built from Avala's own records. You can also move a held job yourself with Continue on from its harness chip.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/handoff-dark.webp">
+  <source media="(prefers-color-scheme: light)" type="image/webp" srcset="docs/assets/readme/handoff-light.webp">
+  <img src="docs/assets/readme/handoff-light.gif" alt="A job on claude reaches 95% of its 5-hour window, is handed off to claude-work with a brief of its work, fixes the calculator there and passes its check; the inspector reads Handed off from claude to claude-work at 95% of the 5-hour window" width="900">
+</picture>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Usage at a glance.** Each connection's 5-hour and 7-day windows, spend at API prices against your caps, every job against its cap and how often it was held, and usage by day, under a daily ceiling for the machine.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/usage-dark.png">
+  <img src="docs/assets/readme/usage-light.png" alt="The Usage page: claude near the end of its 5-hour and 7-day windows, claude-work at 29%, and the jobs with their cost against a 0.50 USD cap, one of them held once">
+</picture>
+
+</td>
+<td width="50%" valign="top">
+
+**Avala's agents, measured.** The sidebar card and the Resources page show the memory, CPU, processes, disk and ports of Avala's agents alone, per job and connection, and anything left behind, which you can stop or clean up.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/resources-dark.png">
+  <img src="docs/assets/readme/resources-light.png" alt="The Resources page: memory, CPU, disk and leased ports of Avala's agents, nothing left behind, and each job's process tree with its connection, memory, CPU and port">
+</picture>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
 **Best of N.** Run one request as several candidates, each in its own worktree; the best is kept by its evidence and the others are discarded once you approve it.
 
 <picture>
@@ -133,7 +191,7 @@ under your rules, with evidence for every result and a cost for every job.
 </tr>
 </table>
 
-Also: budgets per job and per connection with a daily ceiling for the machine, usage windows that hold or hand a job off to another account, sub-agents that ask their parent first, an autopilot that works through a backlog, and jobs that survive a restart. The [guide](docs/guide/README.md) has a page for each. Every picture here is captured from the real application by its screen tests, which drive it headless on the development simulator; [Contributing](CONTRIBUTING.md) explains how.
+Also: caps on tokens and memory per job, an autopilot that works through a backlog, follow-up jobs an agent proposes, and jobs that survive a restart. The [guide](docs/guide/README.md) has a page for each. Every picture here is captured from the real application by its screen tests, which drive it headless on the development simulator; [Contributing](CONTRIBUTING.md) explains how.
 
 ## Install
 
