@@ -133,7 +133,7 @@ under your rules, with evidence for every result and a cost for every job.
 </tr>
 </table>
 
-Also: budgets per job and per connection with a daily ceiling for the machine, usage windows that hold or hand a job off to another account, sub-agents that ask their parent first, an autopilot that works through a backlog, and jobs that survive a restart. Every picture here is captured from the real application, driven headless by the simulator.
+Also: budgets per job and per connection with a daily ceiling for the machine, usage windows that hold or hand a job off to another account, sub-agents that ask their parent first, an autopilot that works through a backlog, and jobs that survive a restart. The [guide](docs/guide/README.md) has a page for each. Every picture here is captured from the real application, driven headless by the simulator.
 
 ## Install
 
@@ -150,7 +150,7 @@ Details for each package are in [Releasing](docs/release.md).
 ## Quick start
 
 1. **Install Claude Code and sign in**, so `claude` is on your `PATH`. Avala finds each login on its own.
-2. **Open Avala.** A short welcome tour shows the agents it found and the privacy choices.
+2. **Open Avala.** A four-step welcome tour shows the agents it found, your projects folder and source-control sign-ins, and your privacy choices.
 3. **Start a chat or pick a repository.** Type a task on the welcome screen to run it in a scratch repository, or open a folder, clone or create one, and the job runs in its own worktree.
 
 To try Avala without an account or tokens, start it with `AVALA_DEVELOPER=1` and choose the simulator connection; a tag such as `[simulate: edit]` in the first message picks a scenario.
@@ -183,6 +183,8 @@ AVALA_DEVELOPER=1 dotnet run --project src/Avala.Host
 
 ## Docs
 
+- [Guide](docs/guide/README.md): one page per feature, starting with [Getting started](docs/guide/getting-started.md).
+- [Documentation index](docs/README.md): every document, by who it is for.
 - [Architecture](docs/architecture.md): the big picture and the rules every change must pass.
 - [Releasing](docs/release.md): packages, usage statistics, signing and the update check.
 - [Contributing](CONTRIBUTING.md): how to build, test and send a change, and how the pictures above are made.

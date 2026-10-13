@@ -16,6 +16,10 @@ public sealed class BestOfReaderTests
     public void ADeclarationNamesTheCandidatesAJobStartsWithAndTheMostAContestMayHave(string json, int candidates, int max) =>
         Assert.Equal(new BestOf(candidates, max), Outcomes.Succeeds(BestOfReader.Parse(json)));
 
+    [Fact]
+    public void TheSectionIsReadWhateverTheDepthOfTheOtherSections() =>
+        Assert.Equal(new BestOf(2, 4), Outcomes.Succeeds(BestOfReader.Parse("""{ "bestOf": { "candidates": 2 }, "future": { "nested": { "deeper": ["x"] } } }""")));
+
     [Theory]
     [InlineData("""[]""", ContestRejection.Malformed)]
     [InlineData("""{ "bestOf": 3 }""", ContestRejection.Malformed)]

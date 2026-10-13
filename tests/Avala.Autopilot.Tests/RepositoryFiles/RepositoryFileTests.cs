@@ -29,6 +29,19 @@ public sealed class RepositoryFileTests
     }
 
     [Fact]
+    public async Task TheAutopilotSectionIsReadWhateverTheDepthOfTheOtherSectionsAsync()
+    {
+        var files = new CommittedFiles().With(
+            Worktree,
+            AutopilotRulesReader.JobFile,
+            """{ "autopilot": { "approve": "cleanEvidence" }, "delegation": { "connections": ["work", "spare"] }, "limits": { "connections": ["work"] } }""");
+
+        Assert.Equal(
+            new AutopilotRules(ApprovalRule.CleanEvidence, FollowUpRule.Refuse),
+            Outcomes.Succeeds(await new AutopilotRulesReader(files).OfWorktreeAsync(Worktree, Cancellation)));
+    }
+
+    [Fact]
     public async Task WithoutAJobFileNothingIsApprovedAutomaticallyAndNoFollowUpIsAcceptedAsync() =>
         Assert.Equal(
             AutopilotRules.Default,

@@ -18,37 +18,16 @@ internal sealed class AutopilotRulesReader(IBaseFiles files) : IAutopilotRules
 
     public static IReadOnlyList<string> RuleFields { get; } = ["approve", "followUps"];
 
-    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 2, AllowDuplicateProperties = false };
+    public const int SectionDepth = 1;
 
     public async Task<Result<AutopilotRules, AutopilotError>> OfWorktreeAsync(string worktree, CancellationToken cancellationToken) =>
         (await files.ReadAsync(worktree, JobFile, cancellationToken)).Match(
             file => file.Content.Match(Parse, () => AutopilotRules.Default),
             _ => AutopilotError.Unreadable);
 
-    public static Result<AutopilotRules, AutopilotError> Parse(string text)
-    {
-        if (Encoding.UTF8.GetByteCount(text) > MaximumBytes)
-        {
-            return AutopilotError.TooLarge;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(text, Options);
-            var root = document.RootElement;
-
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return AutopilotError.Malformed;
-            }
-
-            return root.TryGetProperty(Section, out var section) ? Declared(section) : AutopilotRules.Default;
-        }
-        catch (JsonException)
-        {
-            return AutopilotError.Malformed;
-        }
-    }
+    public static Result<AutopilotRules, AutopilotError> Parse(string text) =>
+        Encoding.UTF8.GetByteCount(text) > MaximumBytes ? AutopilotError.TooLarge
+        : JsonSections.Read(text, Section, SectionDepth, AutopilotError.Malformed, section => section.Match(Declared, () => AutopilotRules.Default));
 
     private static Result<AutopilotRules, AutopilotError> Declared(JsonElement section)
     {

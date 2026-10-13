@@ -86,6 +86,12 @@ public sealed class ParserTests
             Outcomes.Present(Outcomes.Succeeds(PullRequestRulesParser.ParseJobFile($$"""{ "pullRequest": { "forge": "github"{{field}} } }"""))).Redelivery);
 
     [Fact]
+    public void ThePullRequestSectionIsReadWhateverTheDepthOfTheOtherSections() =>
+        Assert.Equal(
+            new ForgeName("github"),
+            Outcomes.Present(Outcomes.Succeeds(PullRequestRulesParser.ParseJobFile("""{ "pullRequest": { "forge": "github" }, "future": { "nested": { "deeper": ["x"] } } }"""))).Forge);
+
+    [Fact]
     public void AJobFileWithoutThePullRequestSectionDeclaresNone() =>
         Assert.True(Outcomes.Succeeds(PullRequestRulesParser.ParseJobFile("""{ "approval": "merge" }""")).IsNone);
 

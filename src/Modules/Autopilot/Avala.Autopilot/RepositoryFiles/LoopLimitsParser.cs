@@ -19,13 +19,16 @@ internal static class LoopLimitsParser
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 2, AllowDuplicateProperties = false };
 
     public static Result<LoopLimitsDeclaration, AutopilotError> ParseMachine(string text) =>
-        Read(text, root => Limits(root, []));
+        Encoding.UTF8.GetByteCount(text) > MaximumBytes ? AutopilotError.TooLarge : Machine(text);
 
     public static Result<LoopLimitsDeclaration, AutopilotError> ParseJobFile(string text) =>
-        Read(text, root =>
-            root.ValueKind != JsonValueKind.Object ? AutopilotError.Malformed
-            : root.TryGetProperty(AutopilotRulesReader.Section, out var section) ? Limits(section, AutopilotRulesReader.RuleFields)
-            : LoopLimitsDeclaration.None);
+        Encoding.UTF8.GetByteCount(text) > MaximumBytes ? AutopilotError.TooLarge
+        : JsonSections.Read(
+            text,
+            AutopilotRulesReader.Section,
+            AutopilotRulesReader.SectionDepth,
+            AutopilotError.Malformed,
+            section => section.Match(declared => Limits(declared, AutopilotRulesReader.RuleFields), () => LoopLimitsDeclaration.None));
 
     public static Result<LoopLimitsDeclaration, AutopilotError> Limits(JsonElement section, IReadOnlyList<string> others)
     {
@@ -54,18 +57,13 @@ internal static class LoopLimitsParser
                             })))));
     }
 
-    private static Result<T, AutopilotError> Read<T>(string text, Func<JsonElement, Result<T, AutopilotError>> read)
+    private static Result<LoopLimitsDeclaration, AutopilotError> Machine(string text)
     {
-        if (Encoding.UTF8.GetByteCount(text) > MaximumBytes)
-        {
-            return AutopilotError.TooLarge;
-        }
-
         try
         {
             using var document = JsonDocument.Parse(text, Options);
 
-            return read(document.RootElement);
+            return Limits(document.RootElement, []);
         }
         catch (JsonException)
         {

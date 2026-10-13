@@ -21,29 +21,17 @@ internal static class DelegationRulesParser
 
     private static readonly string[] MachineFields = [EscalationField, WindowField];
 
+    private const int SectionDepth = 2;
+
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
 
-    public static Result<Option<DelegationRules>, DelegationError> Parse(string jobFile)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(jobFile, Options);
-            var root = document.RootElement;
-
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return DelegationError.Malformed;
-            }
-
-            return root.TryGetProperty(Section, out var section)
-                ? Declared(section).Map(Option<DelegationRules>.Some)
-                : Option<DelegationRules>.None;
-        }
-        catch (JsonException)
-        {
-            return DelegationError.Malformed;
-        }
-    }
+    public static Result<Option<DelegationRules>, DelegationError> Parse(string jobFile) =>
+        JsonSections.Read(
+            jobFile,
+            Section,
+            SectionDepth,
+            DelegationError.Malformed,
+            section => section.Match(declared => Declared(declared).Map(Option<DelegationRules>.Some), () => Option<DelegationRules>.None));
 
     private static Result<DelegationRules, DelegationError> Declared(JsonElement section)
     {
