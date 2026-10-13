@@ -21,6 +21,17 @@ public sealed class LoopLimitsReaderTests : IDisposable
             Outcomes.Succeeds(await Reader(new CommittedFiles().With(Repository, AutopilotRulesReader.JobFile, """{ "autopilot": { "approve": "cleanEvidence" } }""")).OfRepositoryAsync(Repository, Cancellation)));
 
     [Fact]
+    public async Task TheLimitsAreReadWhateverTheDepthOfTheOtherSectionsOfTheJobFileAsync()
+    {
+        var files = new CommittedFiles().With(
+            Repository,
+            AutopilotRulesReader.JobFile,
+            """{ "autopilot": { "iterations": 20 }, "delegation": { "connections": ["work", "spare"] } }""");
+
+        Assert.Equal(new LoopLimits { Iterations = 20 }, Outcomes.Succeeds(await Reader(files).OfRepositoryAsync(Repository, Cancellation)));
+    }
+
+    [Fact]
     public async Task TheMachineFileSetsTheLimitsAndTheRepositoryOnlyTightensThemAsync()
     {
         await File.WriteAllTextAsync(

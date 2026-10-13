@@ -80,6 +80,12 @@ public sealed class DelegationRulesTests
     }
 
     [Fact]
+    public void TheSectionIsReadWhateverTheDepthOfTheOtherSections() =>
+        Assert.Equal(
+            2,
+            Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse("""{ "delegation": { "maxDepth": 2 }, "future": { "nested": { "deeper": ["x"] } } }"""))).MaxDepth);
+
+    [Fact]
     public void AJobFileWithoutADelegationSectionDeclaresNone() =>
         Assert.Equal(Option<DelegationRules>.None, Outcomes.Succeeds(DelegationRulesParser.Parse("""{ "approval": "merge" }""")));
 

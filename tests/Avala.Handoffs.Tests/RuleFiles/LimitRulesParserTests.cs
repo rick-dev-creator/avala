@@ -24,6 +24,12 @@ public sealed class LimitRulesParserTests
     }
 
     [Fact]
+    public void TheSectionIsReadWhateverTheDepthOfTheOtherSectionsOfTheJobFile() =>
+        Assert.Equal(
+            OnLimit.HandOffAnyHarness,
+            Outcomes.Present(Outcomes.Succeeds(LimitRulesParser.ParseJobFile("""{ "limits": { "onLimit": "handoff-any-harness" }, "future": { "nested": { "deeper": ["x"] } } }"""))).OnLimit);
+
+    [Fact]
     public void AnEmptySectionHoldsAtNinetyPercentWithNoList()
     {
         var rules = Outcomes.Succeeds(LimitRulesParser.ParseMachine("{}"));

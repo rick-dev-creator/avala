@@ -6,7 +6,7 @@ How Avala is built: its parts, how they fit together and the rules every change 
 
 1. [Overview](#overview)
 2. [Modules](#modules): [plugins](#a-modular-monolith-of-plugins), [the module map](#the-module-map), [agents and providers](#agents-and-the-provider-contract), [the trust layer](#the-trust-layer), [unattended work](#unattended-work), [repositories and accounts](#repositories-and-accounts), [jobs without a repository](#jobs-without-a-repository), [best of N](#best-of-n), [notifications](#notifications), [usage statistics](#usage-statistics)
-3. [Cross-cutting rules](#cross-cutting-rules): [the domain](#the-domain), [the event bus](#the-event-bus), [startup and shutdown](#startup-and-shutdown)
+3. [Cross-cutting rules](#cross-cutting-rules): [the domain](#the-domain), [the event bus](#the-event-bus), [shared rule files](#shared-rule-files), [startup and shutdown](#startup-and-shutdown)
 4. [Persistence](#persistence)
 5. [The Workbench](#the-workbench): [regions and view models](#regions-and-view-models), [the welcome and the harness chip](#the-welcome-and-the-harness-chip), [the welcome tour](#the-welcome-tour), [the conversation](#the-conversation), [canvases](#canvases), [previews](#previews), [motion and layout](#motion-and-layout), [personal details](#personal-details)
 6. [Performance practices](#performance-practices), with the [platform workarounds](#platform-workarounds)
@@ -163,6 +163,10 @@ Each module's domain is plain, deterministic C#: no I/O, no async methods, no ex
 Modules learn what happened through integration events on an in-process bus, implemented in `Avala.Runtime` over `System.Threading.Channels`. Publishing never blocks: one router reads events in publishing order and posts each to the mailbox of every handler of its type. Each handler has its own mailbox and reader loop, so it sees its events one at a time, in order, and keeps plain state without locks; a slow or failing handler delays or fails only itself. Events state facts: nothing asks a question over the bus and waits for a reply, since a contract makes that dependency explicit.
 
 The same discipline holds everywhere: concurrency between components goes through the bus or channels only, and nothing waits on time where it could await the event that states the thing happened.
+
+### Shared rule files
+
+Several modules read their own section of one file, such as `.avala/jobs.json`. Each reads the file through `JsonSections` in the SDK: the whole file must be one JSON object without duplicate fields, any other module's section may nest as deep as it needs, and only the module's own section is bounded to its depth and checked strictly. Jobs owns the file's overall shape and rejects a field or a nesting the format does not define. A section one module cannot read therefore never makes another module reject the file.
 
 ### Startup and shutdown
 

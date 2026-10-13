@@ -14,29 +14,16 @@ internal static class PullRequestRulesParser
 
     public const int MaximumBytes = 16 * 1024;
 
-    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
+    private const int SectionDepth = 1;
 
-    public static Result<Option<PullRequestRules>, ForgeError> ParseJobFile(string text)
-    {
-        if (Encoding.UTF8.GetByteCount(text) > MaximumBytes)
-        {
-            return ForgeError.TooLarge;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(text, Options);
-            var root = document.RootElement;
-
-            return root.ValueKind != JsonValueKind.Object ? ForgeError.Malformed
-                : root.TryGetProperty(Section, out var section) ? Rules(section).Map(Option<PullRequestRules>.Some)
-                : Result<Option<PullRequestRules>, ForgeError>.Success(Option<PullRequestRules>.None);
-        }
-        catch (JsonException)
-        {
-            return ForgeError.Malformed;
-        }
-    }
+    public static Result<Option<PullRequestRules>, ForgeError> ParseJobFile(string text) =>
+        Encoding.UTF8.GetByteCount(text) > MaximumBytes ? ForgeError.TooLarge
+        : JsonSections.Read(
+            text,
+            Section,
+            SectionDepth,
+            ForgeError.Malformed,
+            section => section.Match(declared => Rules(declared).Map(Option<PullRequestRules>.Some), () => Option<PullRequestRules>.None));
 
     public static Result<PullRequestRules, ForgeError> Rules(JsonElement section)
     {

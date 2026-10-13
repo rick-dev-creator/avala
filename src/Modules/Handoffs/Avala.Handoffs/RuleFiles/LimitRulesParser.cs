@@ -21,16 +21,21 @@ internal static class LimitRulesParser
 
     private const int MostConnections = 16;
 
+    private const int SectionDepth = 2;
+
     private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
 
     public static Result<LimitRules, HandoffError> ParseMachine(string text) =>
-        Read(text, root => Rules(root));
+        Encoding.UTF8.GetByteCount(text) > MaximumBytes ? HandoffError.TooLarge : Machine(text);
 
     public static Result<Option<LimitRules>, HandoffError> ParseJobFile(string text) =>
-        Read(text, root =>
-            root.ValueKind != JsonValueKind.Object ? HandoffError.Malformed
-            : root.TryGetProperty(Section, out var section) ? Rules(section).Map(Option<LimitRules>.Some)
-            : Result<Option<LimitRules>, HandoffError>.Success(Option<LimitRules>.None));
+        Encoding.UTF8.GetByteCount(text) > MaximumBytes ? HandoffError.TooLarge
+        : JsonSections.Read(
+            text,
+            Section,
+            SectionDepth,
+            HandoffError.Malformed,
+            section => section.Match(declared => Rules(declared).Map(Option<LimitRules>.Some), () => Option<LimitRules>.None));
 
     public static Result<LimitRules, HandoffError> Rules(JsonElement section)
     {
@@ -47,18 +52,13 @@ internal static class LimitRulesParser
         return Action(section).Bind(action => Threshold(section).Bind(threshold => Connections(section).Map(connections => new LimitRules(action, threshold, connections))));
     }
 
-    private static Result<T, HandoffError> Read<T>(string text, Func<JsonElement, Result<T, HandoffError>> read)
+    private static Result<LimitRules, HandoffError> Machine(string text)
     {
-        if (Encoding.UTF8.GetByteCount(text) > MaximumBytes)
-        {
-            return HandoffError.TooLarge;
-        }
-
         try
         {
             using var document = JsonDocument.Parse(text, Options);
 
-            return read(document.RootElement);
+            return Rules(document.RootElement);
         }
         catch (JsonException)
         {

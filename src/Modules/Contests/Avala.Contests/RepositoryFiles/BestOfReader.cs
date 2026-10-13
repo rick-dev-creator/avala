@@ -17,34 +17,16 @@ internal sealed class BestOfReader(IBaseFiles files) : IBestOfFile
 
     private static readonly string[] Fields = ["candidates", "max"];
 
-    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
+    private const int SectionDepth = 1;
 
     public async Task<Result<BestOf, ContestRejection>> OfRepositoryAsync(string repository, CancellationToken cancellationToken) =>
         (await files.ReadCurrentAsync(repository.Trim(), JobFile, cancellationToken)).Match(
             file => file.Content.Match(Parse, () => BestOf.Default),
             _ => ContestRejection.Unreadable);
 
-    public static Result<BestOf, ContestRejection> Parse(string text)
-    {
-        if (Encoding.UTF8.GetByteCount(text) > MaximumBytes)
-        {
-            return ContestRejection.TooLarge;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(text, Options);
-            var root = document.RootElement;
-
-            return root.ValueKind != JsonValueKind.Object ? ContestRejection.Malformed
-                : root.TryGetProperty(Section, out var section) ? Declared(section)
-                : BestOf.Default;
-        }
-        catch (JsonException)
-        {
-            return ContestRejection.Malformed;
-        }
-    }
+    public static Result<BestOf, ContestRejection> Parse(string text) =>
+        Encoding.UTF8.GetByteCount(text) > MaximumBytes ? ContestRejection.TooLarge
+        : JsonSections.Read(text, Section, SectionDepth, ContestRejection.Malformed, section => section.Match(Declared, () => BestOf.Default));
 
     private static Result<BestOf, ContestRejection> Declared(JsonElement section)
     {
