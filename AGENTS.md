@@ -25,5 +25,6 @@ Both must be green, with no warnings, before and after every change.
 
 ## Learn more
 
+- [Documentation](docs/README.md): every document and who it is for.
 - [Architecture](docs/architecture.md): the big picture.
 - [Contributing](CONTRIBUTING.md): how a change gets in.
