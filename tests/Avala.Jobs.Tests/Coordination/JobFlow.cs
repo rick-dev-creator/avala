@@ -35,12 +35,13 @@ internal sealed class JobFlow
             new JobMessenger(agents, Briefings));
         var deferred = new DeferredJobs(Deferrals);
         Submit = new SubmitJob(ledger, Bus, Connections, Clock);
-        Hold = new HoldJob(ledger, agents, Bus);
+        var journal = new JobJournal(Journal);
+        Hold = new HoldJob(ledger, agents, Bus, journal);
         var start = new StartJob(ledger, launcher, Hold, Logs);
         Launches = new JobLaunches(Queues, start);
         Jobs = new JobsEntry(
             Submit,
-            new JobControls(Hold, new ChooseModel(ledger, agents, Connections)),
+            new JobControls(Hold, new ChooseModel(ledger, agents, Connections), journal),
             new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), new ResumeJob(deferred, launcher, Hold)),
             Queues);
         Prepare = new PrepareJob(Queues, start, Admissions);
@@ -57,6 +58,8 @@ internal sealed class JobFlow
     public IJobLaunches Launches { get; }
 
     public RecordingLogger<StartJob> Logs { get; } = new();
+
+    public RecordingLogger<JobJournal> Journal { get; } = new();
 
     public List<IApprovalStrategy> Strategies { get; } = [new KeepStrategy()];
 

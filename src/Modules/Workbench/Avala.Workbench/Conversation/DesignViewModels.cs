@@ -61,7 +61,7 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
     public string Error => string.Empty;
 
-    public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn, Option<PullRequestWatchState>.None);
+    public string Placeholder => ConversationPhrases.Placeholder(Status, TakesMessagesMidTurn, Option<PullRequestWatchState>.None, Option<HoldReason>.None);
 
     public string SendHint => ConversationPhrases.SendHint(Status, TakesMessagesMidTurn);
 

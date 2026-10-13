@@ -36,9 +36,11 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
         await WithFeedbackAsync(job, message, (found, guidance, token) => review.ContinueOnAsync(found, connection, guidance, token), cancellationToken);
 
     public async ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
-        Feedback.Create(message).TryGetValue(out var steering, out _)
-            ? await InQueueAsync(job, (found, token) => controls.Hold.SteerAsync(found, steering, token), cancellationToken)
-            : JobRejection.EmptyMessage;
+        controls.Journal.Delivered(
+            job,
+            Feedback.Create(message).TryGetValue(out var steering, out _)
+                ? await InQueueAsync(job, (found, token) => controls.Hold.SteerAsync(found, steering, token), cancellationToken)
+                : JobRejection.EmptyMessage);
 
     public async ValueTask<Result<JobId, JobRejection>> DiscardAsync(JobId job, CancellationToken cancellationToken) =>
         await InQueueAsync(job, review.DiscardAsync, cancellationToken);
@@ -69,9 +71,11 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
         string message,
         Func<Job, Feedback, CancellationToken, Task<Result<JobContinuation, JobRejection>>> round,
         CancellationToken cancellationToken) =>
-        Feedback.Create(message).TryGetValue(out var feedback, out _)
-            ? await InQueueAsync(job, (found, token) => round(found, feedback, token), cancellationToken)
-            : JobRejection.EmptyMessage;
+        controls.Journal.Delivered(
+            job,
+            Feedback.Create(message).TryGetValue(out var feedback, out _)
+                ? await InQueueAsync(job, (found, token) => round(found, feedback, token), cancellationToken)
+                : JobRejection.EmptyMessage);
 
     private async Task<Result<T, JobRejection>> InQueueAsync<T>(
         JobId job,
