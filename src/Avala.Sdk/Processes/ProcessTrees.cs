@@ -79,7 +79,7 @@ public static class ProcessStarts
 
         try
         {
-            return Process.Start(info) is { } process ? process : ProcessError.Invalid;
+            return Process.Start(FlatpakHost.Prepared(info)) is { } process ? process : ProcessError.Invalid;
         }
         catch (System.ComponentModel.Win32Exception)
         {

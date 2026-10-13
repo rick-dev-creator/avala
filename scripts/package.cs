@@ -311,6 +311,7 @@ internal static class LinuxFolder
         var folder = Path.Combine(work, $"avala-{version.Text}");
         Directory.Move(stage, folder);
         File.Copy(Path.Combine(root, "docs", "assets", "brand", "avala-icon-256.png"), Path.Combine(folder, "avala.png"));
+        File.Copy(Path.Combine(root, "LICENSE"), Path.Combine(folder, "LICENSE"));
         await File.WriteAllTextAsync(Path.Combine(folder, "avala.desktop"), $"""
             [Desktop Entry]
             Type=Application

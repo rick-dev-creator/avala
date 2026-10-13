@@ -17,14 +17,14 @@ public sealed class UpdateViewScripts(HeadlessUi ui)
             var links = new FakeLinks();
             var update = new UpdateViewModel(new AvalaBuild("0.1.0", "abc"), new FakeUpdates { Latest = FakeUpdates.Of(UpdateStatus.UpToDate) }, links);
             var view = Screen.Show(update);
-            var before = (view.TextOf("Status"), view.Shows("OpenRelease"));
+            var before = (view.TextOf("Status"), view.Shows("Update"));
 
             view.Click("Check");
             await update.CheckCommand.ExecutionTask!;
             view.Settle();
-            var after = (view.TextOf("Status"), view.Shows("OpenRelease"));
-            view.Click("OpenRelease");
-            await update.OpenReleaseCommand.ExecutionTask!;
+            var after = (view.TextOf("Status"), view.Shows("Update"));
+            view.Click("Update");
+            await update.UpdateCommand.ExecutionTask!;
 
             Assert.Equal(("Avala is up to date.", false), before);
             Assert.Equal(("Version 0.2.0 is available.", true), after);

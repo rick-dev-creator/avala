@@ -12,9 +12,11 @@ internal sealed class DesignUpdateViewModel : IUpdateViewModel
 
     public bool IsAvailable { get; init; } = true;
 
+    public string Action { get; init; } = "Download";
+
     public IAsyncRelayCommand CheckCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
-    public IAsyncRelayCommand OpenReleaseCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+    public IAsyncRelayCommand UpdateCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public void Refresh()
     {
@@ -26,6 +28,8 @@ internal sealed class DesignUpdateNoticeViewModel : IUpdateNoticeViewModel
     public bool IsShown => true;
 
     public string Text => "Version 0.9.0 is available";
+
+    public string Hint => "Download the update";
 
     public string Note { get; init; } = string.Empty;
 

@@ -346,5 +346,5 @@ Comments are banned, so every exception to an analyzer is recorded here. The arc
 
 - [Documentation index](README.md): every document and who it is for.
 - [Contributing](../CONTRIBUTING.md): building, testing and sending a change.
-- [Releasing](release.md): packages, usage statistics, signing and the update check.
+- [Releasing](release.md): packages, the Velopack installers, the AUR and Flatpak packages, usage statistics, signing and updates.
 - [Diagrams](diagrams/): the lifecycles of jobs, turns, workspaces, canvases and contests, generated from the code.

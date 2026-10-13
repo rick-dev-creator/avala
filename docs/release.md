@@ -10,10 +10,24 @@ A tag with a hyphen is drafted as a prerelease. A stable build of Avala is only 
 
 ## The packages
 
-| Platform | Runner | Archive | What is inside | Smoke run in CI |
-| --- | --- | --- | --- | --- |
-| Windows x64 | `windows-latest` | `avala-<version>-win-x64.zip` | `Avala/`: `Avala.exe`, the runtime, `plugins/` | yes |
-| Linux x64 | `ubuntu-latest` | `avala-<version>-linux-x64.tar.gz` | `avala-<version>/`: `Avala`, the runtime, `plugins/`, `avala.png`, `avala.desktop` | yes |
+Each release holds these files, each with a `.sha256` next to it:
+
+| Platform | File | What it is | Smoke run in CI |
+| --- | --- | --- | --- |
+| Windows x64 | `avala-<version>-win-x64-setup.exe` | the installer, with Velopack | no, it installs |
+| Windows x64 | `avala-<version>-win-x64-portable.zip` | the same app to unzip anywhere, updating itself in place | the folder inside, yes |
+| Linux x64 | `avala-<version>-linux-x64.AppImage` | one file to run, updating itself in place | yes |
+| Linux x64 | `avala-<version>-linux-x64.tar.gz` | the plain folder, for package managers and by hand | yes |
+| Arch Linux | `avala-bin-<version>.PKGBUILD`, `avala-bin-<version>.SRCINFO` | the AUR recipe of `avala-bin`, built from the tar.gz | no |
+
+and the Velopack update feed: `releases.win.json`, `releases.linux.json`, the full packages `Avala.Desktop-<version>-full.nupkg` and `Avala.Desktop-<version>-linux-full.nupkg`, and their deltas `…-delta.nupkg` once an earlier release has a package. A running Avala reads only the feed; people never download it themselves.
+
+The archives the installers are made from:
+
+| Platform | Runner | Archive | What is inside |
+| --- | --- | --- | --- |
+| Windows x64 | `windows-latest` | `avala-<version>-win-x64.zip`, not attached to the release | `Avala/`: `Avala.exe`, the runtime, `plugins/` |
+| Linux x64 | `ubuntu-latest` | `avala-<version>-linux-x64.tar.gz` | `avala-<version>/`: `Avala`, the runtime, `plugins/`, `avala.png`, `avala.desktop`, `LICENSE` |
 
 The release workflow packages Windows and Linux only, starting with `v0.1.0-beta.1`. The script still builds the macOS bundles below, and they return to the release once they are signed and notarized: add their two entries back to the workflow's `package` matrix, `osx-arm64` and `osx-x64`, both on `macos-latest`.
 
@@ -28,7 +42,86 @@ Everything is precompiled with ReadyToRun so Avala starts without compiling most
 
 To keep the packages small, the script removes what the plugin loader never reads: native libraries for other platforms, a plugin's copy of an assembly the host already ships, and a file identical to one an earlier plugin already holds. With ReadyToRun the Linux package is 84 MB compressed, macOS on Apple silicon 82 MB and Windows 111 MB.
 
-An AppImage, a Windows installer and a macOS disk image come later. An AppImage is a SquashFS image behind the AppImage runtime, which the script would have to write from C# without calling `mksquashfs` or `appimagetool`, so it waits until that is worth its code.
+### The installers
+
+The Windows installer, the portable zip and the AppImage are made with [Velopack](https://velopack.io) (MIT) by `scripts/installer.cs`, from the archive `scripts/package.cs` made and smoke tested. The script unpacks the archive and runs `vpk pack` on its folder with the pack id `Avala.Desktop`, the title Avala, the brand icon, the release notes from `docs/releases/v<version>.md` when they exist, and the channel `win` or `linux`. It first asks `vpk download github` for the full package of the newest published release on that channel, a prerelease too when this version is one, so `vpk pack` can make the delta from it; the first release with Velopack has no delta. It then copies to the output the installer, the portable package, renamed after the archives, the full and delta packages, and `releases.<channel>.json` holding only this version, since a running Avala looks in each release for its own packages.
+
+`vpk` is a .NET tool pinned in `dotnet-tools.json`; restore it with `dotnet tool restore`. It packs Windows from any system, as the `[win]` directive when it is not Windows. An AppImage needs `mksquashfs` on Linux, which the `ubuntu-latest` runners have through `snapd`; on Arch it is `squashfs-tools`, and on Windows `vpk` brings its own, so the `[linux]` directive packs the AppImage there if a runner ever lacks it. `--smoke` runs the AppImage's `--version` and `--smoke` on Linux with `APPIMAGE_EXTRACT_AND_RUN=1`, so it needs no FUSE.
+
+| Package | Measured for 0.1.0-test.1 |
+| --- | --- |
+| `avala-<version>-win-x64-setup.exe` | 99.6 MB |
+| `avala-<version>-win-x64-portable.zip` | 92.1 MB |
+| `Avala.Desktop-<version>-full.nupkg` | 92.1 MB |
+| `avala-<version>-linux-x64.AppImage` | 89.7 MB |
+| `Avala.Desktop-<version>-linux-full.nupkg` | 88.7 MB |
+| `avala-<version>-linux-x64.tar.gz`, for comparison | 86.4 MB |
+| the AUR package `makepkg` built from it | 82.8 MB |
+| the Flatpak bundle built from it | 61.3 MB |
+| a delta between two builds of the same code | under 1 MB |
+
+The installers are unsigned. Velopack signs `Setup.exe`, `Update.exe` and the app with `vpk pack --signParams` on Windows, or `--signTemplate` for Azure Trusted Signing: add it to `Velopack.PackAsync` behind `--sign` when the Windows certificate exists. macOS can be added the same way: `vpk pack` on macOS takes the `.app`, signs and notarizes it with `--signAppIdentity`, `--signInstallIdentity` and `--notaryProfile`, and makes a `.pkg` installer; add `osx-arm64` and `osx-x64` to the script's targets and its `TargetOs`.
+
+### Where Avala is installed
+
+| How | Where the app goes | Where its data goes | Updates |
+| --- | --- | --- | --- |
+| Windows installer | `%LocalAppData%\Avala.Desktop`: `Update.exe`, a small `Avala.exe` that starts `current\Avala.exe`, and `current\` with the app and `plugins\`; shortcuts on the desktop and in the Start menu; uninstalled from Settings, Apps | `%LocalAppData%\Avala`, kept when Avala is uninstalled | in place |
+| Windows portable zip | wherever it is unzipped, the same layout with a `.portable` marker | `%LocalAppData%\Avala` | in place |
+| AppImage | wherever the file is kept; downloaded updates wait in `/var/tmp/velopack/Avala.Desktop` and replace the file on restart | `~/.local/share/Avala` | in place |
+| tar.gz | wherever it is unpacked; `avala.desktop` and `avala.png` are there to install by hand | `~/.local/share/Avala` | the release page |
+| AUR `avala-bin` | `/opt/avala`, with `/usr/bin/avala`, `/usr/share/applications/avala.desktop` and the icon | `~/.local/share/Avala` | `pacman` and an AUR helper |
+| Flatpak | `/app/avala` inside the sandbox | `~/.var/app/io.github.rick_dev_creator.Avala/data/Avala` | `flatpak update` |
+
+The pack id is `Avala.Desktop` rather than `Avala` because Velopack installs into `%LocalAppData%\<pack id>` and removes that folder when Avala is uninstalled, and `%LocalAppData%\Avala` is Avala's data folder. `AVALA_DATA_PATH` still chooses another data folder.
+
+### Arch Linux: the AUR package
+
+`packaging/aur/PKGBUILD` is the recipe of `avala-bin`, with `@VERSION@`, `@PKGVER@` and `@SHA256@` where a release's values go. `scripts/aur.cs` fills them from the release's `avala-<version>-linux-x64.tar.gz` and writes the matching `.SRCINFO`; the release workflow attaches both as `avala-bin-<version>.PKGBUILD` and `avala-bin-<version>.SRCINFO`. The package installs the tar.gz to `/opt/avala`, links `/usr/bin/avala` to it, installs the desktop entry with `Exec=avala`, the icon and the license, depends on `git` and the libraries Avalonia and .NET load, and suggests `claude-code`, `github-cli` and `tea`. The version's hyphen becomes an underscore, `0.1.0-beta.1` as `0.1.0_beta.1`, which `pacman` orders before `0.1.0`.
+
+To publish it, once, with an AUR account and an SSH key added to it:
+
+```
+git clone ssh://aur@aur.archlinux.org/avala-bin.git ~/aur/avala-bin
+```
+
+Then for each published release:
+
+```
+dotnet run scripts/aur.cs -- --archive <the downloaded avala-<version>-linux-x64.tar.gz> --into ~/aur/avala-bin
+cd ~/aur/avala-bin
+makepkg
+git add PKGBUILD .SRCINFO
+git commit -m "Update to <version>"
+git push
+```
+
+`makepkg` builds the package without installing it, `makepkg -si` also installs it; either finds the archive next to the PKGBUILD or downloads it from the release, which must be published first, and checks its checksum. `makepkg --printsrcinfo` prints the same `.SRCINFO` the script writes. The release assets `avala-bin-<version>.PKGBUILD` and `.SRCINFO` are the same two files, to copy into the clone as `PKGBUILD` and `.SRCINFO` instead of running the script.
+
+### Flatpak
+
+`packaging/flatpak/io.github.rick_dev_creator.Avala.yml` builds the Flatpak from the release's tar.gz on the freedesktop 26.08 runtime, with the metainfo next to it. The app id follows Flathub's rule for a GitHub account, `io.github.<account>` with the hyphens as underscores, and matches the macOS bundle identifier `io.github.rick-dev-creator.avala`.
+
+Avala drives git, the `claude` CLI, `gh`, `tea`, `npm` and the person's own scripts in the person's repositories, so the sandbox is open where it must be: `--filesystem=home` for the repositories, `--share=network`, `--socket=wayland` with `--socket=fallback-x11`, `--device=dri`, `--share=ipc`, `--talk-name=org.freedesktop.Notifications`, and `--talk-name=org.freedesktop.Flatpak` so every child process runs on the host. Inside Flatpak, which Avala knows from `/.flatpak-info`, `FlatpakHost` in the SDK starts each child as `flatpak-spawn --host --watch-bus --directory=<its folder>`, passes the variables Avala set or removed with `--env` and `--unset-env`, and runs the program through `sh -lc` so the person's login profile puts `~/.local/bin` and the like on `PATH`. `--watch-bus` ends the host process when Avala's side ends. Stopping a job's processes reaches the host through `flatpak-spawn`, which forwards the termination; the process tree only sees the `flatpak-spawn` side, so a host process that outlives it is reclaimed by `--watch-bus` rather than by the tree.
+
+Building it needs `flatpak`, `flatpak-builder` or the `org.flatpak.Builder` Flatpak, and the SDK, once:
+
+```
+flatpak install --user flathub org.freedesktop.Platform//26.08 org.freedesktop.Sdk//26.08 org.flatpak.Builder
+dotnet run scripts/flatpak.cs -- --archive <avala-<version>-linux-x64.tar.gz or its folder>
+flatpak install --user artifacts/packages/avala-<version>-linux-x64.flatpak
+flatpak run io.github.rick_dev_creator.Avala
+```
+
+The script copies the manifest, the metainfo and the archive, as `avala-linux-x64.tar.gz`, to `artifacts/flatpak/sources`, runs `flatpak-builder` into a local repository and makes the single-file bundle with `flatpak build-bundle`, pointing at Flathub for the runtime. By hand, the same is:
+
+```
+cp packaging/flatpak/* <folder>/ && cp avala-<version>-linux-x64.tar.gz <folder>/avala-linux-x64.tar.gz
+flatpak-builder --force-clean --repo=<repo> <build> <folder>/io.github.rick_dev_creator.Avala.yml
+flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo <repo> avala.flatpak io.github.rick_dev_creator.Avala
+```
+
+The release workflow does not build it: CI steps run only `dotnet`, and the runners have neither `flatpak` nor the SDK. Publishing on Flathub comes later: it builds from the manifest in its own repository, with the archive as a `url` and its `sha256` instead of a `path`, a `<releases>` list in the metainfo, and Flathub's review of `--filesystem=home` and `--talk-name=org.freedesktop.Flatpak`, which a tool that runs the person's programs needs.
 
 ### Building one locally
 
@@ -37,6 +130,15 @@ dotnet run scripts/package.cs -- --rid linux-x64 --smoke
 ```
 
 `--rid` is one of `win-x64`, `linux-x64`, `osx-arm64` and `osx-x64`, and any of them can be built from any system, but signing needs its own. `--version 0.1.0-beta.1` sets the version; without it the script takes the tag the workflow was started by, then the tag on `HEAD`, then `0.1.0-dev`. `--output <folder>` chooses where the archives go, `artifacts/packages` by default, and the work folder is `artifacts/package/<rid>`. `--smoke` runs the packaged `--version` and `--smoke` when the platform is the one running the script. `--sign` signs, see below.
+
+Then the installers, from that archive:
+
+```
+dotnet tool restore
+dotnet run scripts/installer.cs -- --rid linux-x64 --archive artifacts/packages --smoke
+```
+
+`--rid` is `win-x64` or `linux-x64`; `--archive` is the archive or the folder holding it; `--output` chooses where the installers and the feed go, `artifacts/packages` by default, and the work folder is `artifacts/installer/<rid>`. Both Windows and Linux installers can be made on Linux, given `mksquashfs` for the AppImage.
 
 ### The smoke run
 
@@ -58,9 +160,10 @@ The notes of a release are written by hand in `docs/releases/<tag>.md`, such as 
    git push origin v0.1.0-beta.1
    ```
 
-5. The [release workflow](../.github/workflows/release.yml) runs on that tag only. It builds and tests the tagged commit, packages each platform on its own runner with the smoke run, and creates a **draft** release named after the tag with the archives, their checksums and the notes from `docs/releases/<tag>.md`.
+5. The [release workflow](../.github/workflows/release.yml) runs on that tag only. It builds and tests the tagged commit, packages each platform on its own runner with the smoke run, makes the Velopack installers and update feed from those archives, smoke testing the AppImage, generates the AUR recipe, and creates a **draft** release named after the tag with all of them, their checksums and the notes from `docs/releases/<tag>.md`.
 6. Open the draft on GitHub, read the notes, download each package and run `--smoke` on it, then publish it. Publishing is the only step that makes it visible, and the only one the update check sees.
-7. Replace "Coming soon" in the README's Install section with a link to the release, and raise `VersionPrefix` in `Directory.Build.props`.
+7. Publish `avala-bin` to the AUR, as described above, and build the Flatpak by hand if it is wanted.
+8. Replace "Coming soon" in the README's Install section with a link to the release, and raise `VersionPrefix` in `Directory.Build.props`.
 
 To redo a release before publishing it, delete the draft and the tag, locally and on GitHub, fix what was wrong and tag again.
 
@@ -129,11 +232,15 @@ To encode a certificate for a secret: `base64 -i certificate.p12 | pbcopy` on ma
 
 ## The update check
 
-Avala tells a person when a newer version is out; it never downloads or installs one.
+Avala tells a person when a newer version is out. Installed with Velopack, by the Windows installer, the portable zip or the AppImage, it also downloads that version when the person clicks and installs it when they choose to restart; it never downloads or installs on its own. Installed any other way, by the tar.gz, the AUR or Flatpak, it opens the release page instead, and the package manager updates it.
 
 - **When.** Once at startup, in the background: the startup task returns at once and the window never waits on the network. Again whenever the person chooses Check now in Settings, About.
-- **What it asks.** `GET https://api.github.com/repos/rick-dev-creator/avala/releases`, with an `Avala` user agent and nothing else: no identifier, no usage, no telemetry. Drafts are never listed to anonymous requests and are ignored anyway.
-- **What it shows.** A newer version appears in the sidebar's footer, "Version x is available", and in About with Download; both open the release's page in the browser through `ILinkOpener`. About also says when Avala is up to date, when GitHub could not be reached, and when the startup check is off.
+- **Which releases.** Published releases only, never drafts. A stable build is offered stable releases; a prerelease build, such as `0.1.0-beta.1`, is offered prereleases too.
+- **What it shows.** A newer version appears in the sidebar's footer, "Version x is available", and in About with Download. About also says when Avala is up to date, when GitHub could not be reached, and when the startup check is off.
+- **Updating in place.** Velopack's `VelopackApp` runs first in `Main`, so an installed Avala answers its installer's hooks and exits at once, and a plain folder or a build from a checkout carries on as before; it is told not to apply a downloaded update at startup by itself. Clicking the notice, or Download in About, downloads the update: "Downloading version x…", the delta when Velopack has the previous full package and the full package otherwise, checked against the SHA-256 in the feed. When it is downloaded, the notice says "Restart to update" and About offers Restart to update. Choosing it starts Velopack's updater, which waits for Avala to close, applies the update and starts the new version, and Avala closes itself the usual way, ending its jobs' sessions and saving its state. A failed download says so and can be tried again. An update downloaded but not yet applied is offered as Restart to update at the next start, without asking GitHub again.
+- **What it asks, notifying only.** `GET https://api.github.com/repos/rick-dev-creator/avala/releases?per_page=30`, with an `Avala` user agent and nothing else: no identifier, no usage, no telemetry.
+- **What it asks, installed with Velopack.** Velopack's `GithubSource`, anonymous, with Velopack's `Velopack/<library version>` user agent: `GET https://api.github.com/repos/rick-dev-creator/avala/releases?per_page=10&page=1` with `Accept: application/vnd.github.v3+json`, then for each of those releases the browser download of its `releases.<channel>.json` with `Accept: application/octet-stream`, and, only when the person clicks, the browser download of the full or delta package. No token, no install identifier, no version, operating system or other query parameter is sent. Velopack keeps a random staging identifier on disk for staged rollouts, but the GitHub source never sends it. `VelopackApp` and the update manager write Velopack's own log: `velopack_Avala.Desktop.log` in the temporary folder for the AppImage, `velopack.log` there for a build Velopack did not install, and both in `%LocalAppData%\velopack` on Windows.
+- **Where downloads go.** Velopack's own folder: `%LocalAppData%\Avala.Desktop\packages` on Windows and `/var/tmp/velopack/Avala.Desktop/packages` for the AppImage.
 - **Turning it off.** A machine setting, `updates.json` in the data folder:
 
   ```json
@@ -141,4 +248,4 @@ Avala tells a person when a newer version is out; it never downloads or installs
   ```
 
   A file that cannot be read, or holds anything but that object, also turns the startup check off. Check now in About still asks, since the person asked.
-- **Where it lives.** `UpdateCheck` in `Avala.Runtime.Updates`, behind the SDK's `IUpdates`; only the host's real composition gives it the HTTP feed, so tests, the simulation and the smoke run never reach the network.
+- **Where it lives.** `UpdateCheck` in `Avala.Runtime.Updates`, behind the SDK's `IUpdates`, with `CheckAsync`, `DownloadAsync` and `RestartAsync`. Only the host's real composition gives it the HTTP feed and, when Velopack installed this Avala, `VelopackInstaller` behind the `IUpdateInstaller` port, so tests, the simulation and the smoke run never reach the network. The host closes the window on `RestartingToUpdate`.
