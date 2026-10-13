@@ -9,7 +9,7 @@ Caps on cost, tokens and memory hold a job before it overspends, and a job that 
 - **A hold, not a crash.** A job that reaches a cap is held, "held: over budget" or "held: out of memory", and keeps its worktree and conversation. Raise budget and continue lets it go on.
 - **Usage limits.** A job that nears or reaches an account's usage window is held, waits for the reset and resumes in its conversation, or is handed off to another connection with room left, with a brief of the work so far built from Avala's own records.
 - **Costs at API prices.** On a subscription login, costs are API-equivalent amounts, labelled "at API prices".
-- **Supervision.** A job silent for too long is held as "stalled"; a session that dies is held as "session lost". Waiting for your answer never counts as silence.
+- **Supervision.** A job whose turn falls silent for too long is held as "stalled"; a session that dies is held as "session lost". Waiting for your answer never counts as silence, nor does a conversation left idle between turns, however long: the next message starts a turn as usual.
 
 ## How to use it
 

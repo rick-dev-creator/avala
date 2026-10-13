@@ -20,7 +20,7 @@ Such a job takes no message until it has started.
 
 ### A job is held
 
-The sidebar says why, such as "held: stalled", "held: session lost", "held: over budget" or "held: near its usage limit". See [Budgets and usage limits](budgets-and-usage-limits.md) for raising a budget or continuing on another connection, and continue a stalled or lost job by sending it a message: its composer reads "Continue the job with a message…".
+The sidebar says why, such as "held: stalled", "held: session lost", "held: over budget" or "held: near its usage limit". See [Budgets and usage limits](budgets-and-usage-limits.md) for raising a budget or continuing on another connection, and continue a stalled or lost job by sending it a message: its composer names the hold, such as "Held · stalled · send a message to continue the job…". The message goes to the job's session when it is still open, or to a new session that resumes the conversation. A message the job refuses stays in the composer with the reason, and the log records every hold and every refused message.
 
 ### Find the logs
 
