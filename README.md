@@ -141,11 +141,13 @@ Also: budgets per job and per connection with a daily ceiling for the machine, u
 
 | Platform | How |
 | --- | --- |
-| Windows x64 | Download and run `Setup.exe` from the [latest release](https://github.com/rick-dev-creator/avala/releases/latest). |
-| Linux x64 | The AppImage or the `.tar.gz` from the [latest release](https://github.com/rick-dev-creator/avala/releases/latest), `avala-bin` from the AUR, or the Flatpak. |
+| Windows x64 | Run `avala-<version>-win-x64-setup.exe`, or unzip `avala-<version>-win-x64-portable.zip` anywhere. Both update themselves in place. |
+| Linux x64 | Run `avala-<version>-linux-x64.AppImage`, which updates itself in place, or unpack `avala-<version>-linux-x64.tar.gz`. |
+| Arch Linux | Install `avala-bin` from the AUR, for example with `yay -S avala-bin`. |
+| Flatpak | `io.github.rick_dev_creator.Avala`, built from `packaging/flatpak` for now; Flathub comes later. |
 | macOS | Later. Avala builds and runs from source on a Mac today. |
 
-Details for each package are in [Releasing](docs/release.md).
+The installers and archives are attached to each [release](https://github.com/rick-dev-creator/avala/releases); details for each package are in [Releasing](docs/release.md).
 
 ## Quick start
 
