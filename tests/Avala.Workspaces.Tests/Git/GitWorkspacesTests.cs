@@ -7,7 +7,9 @@ using Avala.Workspaces.Contracts;
 using Avala.Workspaces.Git;
 using Avala.Workspaces.Provisioning;
 using Avala.Workspaces.Tests.Provisioning;
+using Avala.Workspaces.Workspaces;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Avala.Workspaces.Tests.Git;
 
@@ -284,7 +286,7 @@ public sealed class GitWorkspacesTests
         var recording = new RecordingRunner(Processes);
         var store = new InMemoryWorkspaceStore();
         var settings = new WorkspaceSettings(repository.WorktreeRoot);
-        var git = new GitCli(recording);
+        var git = new GitCli(recording, NullLogger<GitCli>.Instance);
         var service = new WorkspaceService(git, store, settings, new WorktreeReconciler(git, store, settings));
         var workspace = Outcomes.Succeeds(await service.PrepareAsync(new WorkspaceRequest(repository.Path), Cancellation));
 
@@ -293,6 +295,57 @@ public sealed class GitWorkspacesTests
         Assert.Equal(
             ["add", "commit", "rev-parse"],
             recording.Requests.Where(request => request.WorkingDirectory == Option<string>.Some(workspace.Path)).Select(request => request.Arguments.SkipWhile(argument => argument != workspace.Path).ElementAt(1)));
+    }
+
+    [Fact]
+    public async Task WorktreesOfOneRepositoryAreAddedOneAtATimeAsync()
+    {
+        await using var repository = await TemporaryRepository.CreateAsync(Processes, Cancellation);
+        var held = new FirstAddHeldRunner(Processes);
+        await using var git = new GitCli(held, NullLogger<GitCli>.Instance);
+        var commit = Outcomes.Succeeds(CommitSha.Create(await repository.GitAsync(Cancellation, "rev-parse", "HEAD")));
+        Task<Result<WorkspaceLocation, WorkspaceFailure>> AddAsync(string name) =>
+            git.AddWorktreeAsync(
+                Outcomes.Succeeds(WorkspaceLocation.Create(repository.Path, Path.Combine(repository.WorktreeRoot, name))),
+                Outcomes.Succeeds(BranchName.Create($"avala/{name}")),
+                commit,
+                Cancellation);
+
+        var first = AddAsync("first");
+        await held.Adding.WaitAsync(Cancellation);
+        var second = AddAsync("second");
+
+        Assert.Equal(1, held.Adds);
+        held.Release();
+        Outcomes.Succeeds(await first);
+        Outcomes.Succeeds(await second);
+        Assert.Equal(2, held.Adds);
+    }
+
+    private sealed class FirstAddHeldRunner(IProcessRunner inner) : IProcessRunner
+    {
+        private readonly TaskCompletionSource adding = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int adds;
+
+        public Task Adding => adding.Task;
+
+        public int Adds => Volatile.Read(ref adds);
+
+        public void Release() => released.SetResult();
+
+        public ValueTask<Result<ProcessOutcome, ProcessError>> RunAsync(ProcessRequest request, CancellationToken cancellationToken) =>
+            request.Arguments.Contains("worktree") && request.Arguments.Contains("add") && Interlocked.Increment(ref adds) == 1
+                ? new(HeldAsync(request, cancellationToken))
+                : inner.RunAsync(request, cancellationToken);
+
+        private async Task<Result<ProcessOutcome, ProcessError>> HeldAsync(ProcessRequest request, CancellationToken cancellationToken)
+        {
+            adding.SetResult();
+            await released.Task.WaitAsync(cancellationToken);
+
+            return await inner.RunAsync(request, cancellationToken);
+        }
     }
 
     private sealed class RecordingRunner(IProcessRunner inner) : IProcessRunner
@@ -331,12 +384,12 @@ public sealed class GitWorkspacesTests
 
     private static WorkspaceService Service(string worktreeRoot, InMemoryWorkspaceStore? store = null)
     {
-        var git = new GitCli(Processes);
+        var git = new GitCli(Processes, NullLogger<GitCli>.Instance);
         var kept = store ?? new InMemoryWorkspaceStore();
         var settings = new WorkspaceSettings(worktreeRoot);
 
         return new(git, kept, settings, new WorktreeReconciler(git, kept, settings));
     }
 
-    private static BaseFileReader BaseFiles(InMemoryWorkspaceStore store) => new(new GitCli(Processes), store);
+    private static BaseFileReader BaseFiles(InMemoryWorkspaceStore store) => new(new GitCli(Processes, NullLogger<GitCli>.Instance), store);
 }
