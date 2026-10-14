@@ -30,6 +30,9 @@ internal sealed partial class ContestRowViewModel : IContestRowViewModel
         Title = FactPhrases.Title(contest.Instruction);
         Fact = string.Empty;
         Job = contest.Candidates[0].Job;
+        Shelved = [.. contest.Candidates.Select(candidate => candidate.Job)];
+        Refusal = string.Empty;
+        ArchiveCommand = Shelving.Idle;
     }
 
     public ContestId Contest { get; }
@@ -47,6 +50,20 @@ internal sealed partial class ContestRowViewModel : IContestRowViewModel
     IReadOnlyList<ISidebarRow> ISidebarRow.Children => Children;
 
     public IReadOnlyList<CandidateRowViewModel> Candidates => candidates;
+
+    public IReadOnlyList<JobId> Shelved { get; private set; }
+
+    public bool HasRefusal => Refusal.Length > 0;
+
+    [ObservableProperty]
+    public partial bool CanArchive { get; private set; }
+
+    [ObservableProperty]
+    public partial IAsyncRelayCommand ArchiveCommand { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRefusal))]
+    public partial string Refusal { get; set; }
 
     [ObservableProperty]
     public partial JobId Job { get; private set; }
@@ -90,6 +107,8 @@ internal sealed partial class ContestRowViewModel : IContestRowViewModel
         Job = contest.Picked.Match(picked => picked, () => contest.Verdict.Bind(verdict => verdict.Winner).Match(winner => winner, () => contest.Candidates[0].Job));
         PendingDecisions = shown.Sum(job => job.PendingDecisions);
         Group = GroupOf(contest, PendingDecisions);
+        Shelved = [.. contest.Candidates.Select(candidate => candidate.Job)];
+        CanArchive = Group != JobGroup.NeedsYou && shown.Length == contest.Candidates.Count && shown.All(job => Shelving.Archivable(job.Status));
         Fact = ContestPhrases.Row(contest, contest.Verdict.Match(verdict => verdict.Ranking.Count(standing => standing.Facts.Passed), () => shown.Count(Passed)));
         dot.Kind = Group switch
         {

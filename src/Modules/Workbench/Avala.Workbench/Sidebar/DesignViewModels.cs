@@ -16,7 +16,7 @@ internal sealed record DesignJobRowViewModel(JobId Job, string Title, JobStatus 
 
     public bool HasPendingDecisions => PendingDecisions > 0;
 
-    public bool IsSelected => Job == SampleJobs.JpyRounding;
+    public bool IsSelected { get; init; } = Job == SampleJobs.JpyRounding;
 
     public bool IsChild { get; init; }
 
@@ -40,6 +40,16 @@ internal sealed record DesignJobRowViewModel(JobId Job, string Title, JobStatus 
     public DateTimeOffset Submitted => DateTimeOffset.UnixEpoch;
 
     public IReadOnlyList<ISidebarRow> Children { get; init; } = [];
+
+    public IReadOnlyList<JobId> Shelved => [Job];
+
+    public bool CanArchive { get; init; }
+
+    public IAsyncRelayCommand ArchiveCommand { get; init; } = Shelving.Idle;
+
+    public string Refusal { get; init; } = string.Empty;
+
+    public bool HasRefusal => Refusal.Length > 0;
 }
 
 internal sealed record DesignCandidateRowViewModel(JobId Job, int Ordinal, string Fact, StatusKind Kind) : ICandidateRowViewModel
@@ -64,6 +74,14 @@ internal sealed record DesignCandidateRowViewModel(JobId Job, int Ordinal, strin
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
 
     public IReadOnlyList<ISidebarRow> Children => [];
+
+    public bool CanArchive => false;
+
+    public IAsyncRelayCommand ArchiveCommand => Shelving.Idle;
+
+    public string Refusal => string.Empty;
+
+    public bool HasRefusal => false;
 }
 
 internal sealed record DesignContestRowViewModel(JobId Job, string Title, string Fact, StatusKind Kind) : IContestRowViewModel
@@ -92,6 +110,16 @@ internal sealed record DesignContestRowViewModel(JobId Job, string Title, string
     public IReadOnlyList<ISidebarRow> Children { get; init; } = [];
 
     public IRelayCommand ToggleCommand { get; init; } = new RelayCommand(() => { });
+
+    public IReadOnlyList<JobId> Shelved => [Job];
+
+    public bool CanArchive => true;
+
+    public IAsyncRelayCommand ArchiveCommand => Shelving.Idle;
+
+    public string Refusal => string.Empty;
+
+    public bool HasRefusal => false;
 }
 
 internal sealed class DesignProjectGroupViewModel : IProjectGroupViewModel
@@ -147,6 +175,8 @@ internal sealed class DesignProjectGroupViewModel : IProjectGroupViewModel
     public IRelayCommand CancelRenameCommand { get; init; } = new RelayCommand(() => { });
 
     public IAsyncRelayCommand DeleteCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand ArchiveDoneCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignSidebarViewModel : ISidebarViewModel

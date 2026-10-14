@@ -40,6 +40,8 @@ internal sealed class SidebarShelves
 
     public ProjectMap Map { get; private set; } = ProjectMap.Empty;
 
+    public bool IsEmpty => needsYou.Count == 0 && !Chats.HasRows && projects.All(group => !group.HasRows);
+
     public static string KeyOf(ProjectId project) => project.Value.ToString();
 
     public string KeyOf(JobId job, string repository) =>
@@ -93,6 +95,18 @@ internal sealed class SidebarShelves
         {
             current.List.Remove(entry);
         }
+    }
+
+    public Option<ISidebarEntry> NeighbourOf(ISidebarEntry entry)
+    {
+        if (!places.TryGetValue(entry, out var place))
+        {
+            return Option<ISidebarEntry>.None;
+        }
+
+        var others = place.List.Where(other => !ReferenceEquals(other, entry)).ToList();
+
+        return others.Count == 0 ? Option<ISidebarEntry>.None : Option<ISidebarEntry>.Some(others[Math.Min(place.List.IndexOf(entry), others.Count - 1)]);
     }
 
     public void Prune()

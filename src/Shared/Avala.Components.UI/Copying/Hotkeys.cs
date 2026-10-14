@@ -28,6 +28,8 @@ public static class Hotkeys
 
     public static KeyGesture FocusMode { get; } = new(Key.F, Command | KeyModifiers.Shift);
 
+    public static KeyGesture Archive { get; } = new(Key.A, Command | KeyModifiers.Shift);
+
     public static KeyGesture Sidebar { get; } = new(Key.OemPipe, Command);
 
     public static KeyGesture SidebarBackslash { get; } = new(Key.OemBackslash, Command);
@@ -47,6 +49,8 @@ public static class Hotkeys
     public static string InspectorLabel { get; } = Label(Inspector);
 
     public static string FocusModeLabel { get; } = Label(FocusMode);
+
+    public static string ArchiveLabel { get; } = Label(Archive);
 
     public static string SidebarLabel { get; } = Label(Sidebar);
 

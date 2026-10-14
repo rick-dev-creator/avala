@@ -117,7 +117,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         shown = jobs;
         shownContests = contested;
         shownMap = map;
-        IsEmpty = rows.Count == 0 && contests.Count == 0;
+        IsEmpty = shelves.IsEmpty;
 
         return [];
     }
@@ -165,6 +165,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     {
         foreach (var row in targeted.Where(row => row.CanMove))
         {
+            row.ArchiveCommand = row.ArchiveCommand == Shelving.Idle ? new AsyncRelayCommand(token => ArchiveAsync(row, refusal => row.Refusal = refusal, token)) : row.ArchiveCommand;
             var current = shelves.Map.Of(row.Job, row.Repository).Map(project => project.Project);
             var job = row.Job;
 
@@ -176,6 +177,27 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
                     .Select(project => MoveTarget.To(project.Name, token => shelf.MoveAsync(job, project.Project, token))),
                 MoveTarget.To(ProjectPhrases.NewProject, token => MoveToNewAsync(job, token)),
             ];
+        }
+    }
+
+    private async Task ArchiveAsync(ISidebarEntry entry, Action<string> refuse, CancellationToken cancellationToken) =>
+        refuse((await shelf.ArchiveAsync(entry.Shelved, cancellationToken)).Match(ProjectPhrases.Refusal, () => string.Empty));
+
+    private void Shelve(ISidebarEntry entry, string key)
+    {
+        if (!entry.Shelved.Any(shelves.Map.Archived.Contains))
+        {
+            shelves.Place(entry, key);
+
+            return;
+        }
+
+        var neighbour = ReferenceEquals(selected, entry) ? shelves.NeighbourOf(entry) : Option<ISidebarEntry>.None;
+        shelves.Remove(entry);
+
+        if (neighbour.Match<ISidebarEntry?>(next => next, () => null) is { } next)
+        {
+            Select(next);
         }
     }
 
@@ -222,7 +244,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
 
         foreach (var contest in contests.Values)
         {
-            shelves.Place(contest.Row, shelves.KeyOf(contest.First, contest.Repository));
+            Shelve(contest.Row, shelves.KeyOf(contest.First, contest.Repository));
         }
     }
 
@@ -252,7 +274,8 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         }
 
         row.Update(contest, jobs);
-        shelves.Place(row, shelves.KeyOf(contest.Candidates[0].Job, contest.Repository));
+        row.ArchiveCommand = row.ArchiveCommand == Shelving.Idle ? new AsyncRelayCommand(token => ArchiveAsync(row, refusal => row.Refusal = refusal, token)) : row.ArchiveCommand;
+        Shelve(row, shelves.KeyOf(contest.Candidates[0].Job, contest.Repository));
     }
 
     private void Insert(JobRowViewModel row)
@@ -267,7 +290,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         Locate(row);
     }
 
-    private void Locate(JobRowViewModel row) => shelves.Place(row, shelves.KeyOf(row.Job, row.Repository));
+    private void Locate(JobRowViewModel row) => Shelve(row, shelves.KeyOf(row.Job, row.Repository));
 
     private void Adopt(JobRowViewModel owner)
     {

@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:archive="using:Avala.Workbench.Archive"
+             x:Class="Avala.Workbench.UI.ArchivedNoteView"
+             x:ClassModifier="internal"
+             x:DataType="archive:IArchivedNoteViewModel"
+             IsVisible="{Binding IsShown}">
+  <Design.DataContext>
+    <archive:DesignArchivedNoteViewModel />
+  </Design.DataContext>
+  <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+    <Border x:Name="Chip" Classes="tag" ToolTip.Tip="This conversation is archived">
+      <StackPanel Orientation="Horizontal" Spacing="5">
+        <Path Classes="icon small" Data="{StaticResource IconArchive}" Stroke="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+        <TextBlock Text="Archived" />
+      </StackPanel>
+    </Border>
+    <Button x:Name="Restore"
+            Classes="glyph"
+            Command="{Binding RestoreCommand}"
+            ToolTip.Tip="Restore"
+            AutomationProperties.Name="Restore">
+      <Path Classes="icon" Data="{StaticResource IconRestore}" />
+    </Button>
+  </StackPanel>
+</UserControl>

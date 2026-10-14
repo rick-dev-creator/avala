@@ -4,6 +4,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Sidebar;
 
@@ -28,11 +29,21 @@ internal interface ISidebarRow
     IStatusDotViewModel Dot { get; }
 
     IReadOnlyList<ISidebarRow> Children { get; }
+
+    bool CanArchive { get; }
+
+    IAsyncRelayCommand ArchiveCommand { get; }
+
+    string Refusal { get; }
+
+    bool HasRefusal { get; }
 }
 
 internal interface ISidebarEntry : ISidebarRow
 {
     JobGroup Group { get; }
+
+    IReadOnlyList<JobId> Shelved { get; }
 }
 
 internal interface IJobRowViewModel : ISidebarEntry
@@ -62,6 +73,8 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
         Submitted = job.Summary.Submitted;
         Title = FactPhrases.Title(job.Summary.Instruction);
         Fact = string.Empty;
+        Refusal = string.Empty;
+        ArchiveCommand = Shelving.Idle;
         Update(job);
     }
 
@@ -74,6 +87,10 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
     public string Repository { get; }
 
     public bool CanMove => !IsChild;
+
+    public IReadOnlyList<JobId> Shelved => [Job];
+
+    public bool HasRefusal => Refusal.Length > 0;
 
     public ObservableCollection<JobRowViewModel> Children { get; } = [];
 
@@ -107,6 +124,16 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
     public partial IReadOnlyList<MoveTarget> MoveTargets { get; set; }
 
     [ObservableProperty]
+    public partial bool CanArchive { get; private set; }
+
+    [ObservableProperty]
+    public partial IAsyncRelayCommand ArchiveCommand { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRefusal))]
+    public partial string Refusal { get; set; }
+
+    [ObservableProperty]
     public partial bool ShowsElapsed { get; private set; }
 
     [ObservableProperty]
@@ -121,5 +148,7 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
         dot.Kind = FactPhrases.Dot(job);
         ShowsElapsed = job.Status == JobStatus.Running && job.Transcript.LiveSince.IsSome;
         Since = job.Transcript.LiveSince.Match(since => since, () => Since);
+        CanArchive = !IsChild && job.Group != JobGroup.NeedsYou && Shelving.Archivable(job.Status);
+        Refusal = CanArchive ? string.Empty : Refusal;
     }
 }

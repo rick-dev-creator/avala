@@ -1,4 +1,5 @@
 using Avala.Testing.UI;
+using Avala.Workbench.Archive;
 using Avala.Workbench.Decisions;
 using Avala.Workbench.Navigation;
 using Avala.Workbench.Review;
@@ -16,7 +17,7 @@ public sealed class ThemeScreenScripts(HeadlessUi ui)
     private const double Legible = 3;
 
     public static TheoryData<string, string> Screens =>
-        new MatrixTheoryData<string, string>(["sidebar", "conversation", "settings", "review", "decisions", "usage"], ["Dark", "Light"]);
+        new MatrixTheoryData<string, string>(["sidebar", "conversation", "settings", "review", "decisions", "usage", "archived"], ["Dark", "Light"]);
 
     [Theory]
     [MemberData(nameof(Screens))]
@@ -42,6 +43,7 @@ public sealed class ThemeScreenScripts(HeadlessUi ui)
         "settings" => new DesignSettingsViewModel(),
         "review" => new DesignReviewViewModel(),
         "decisions" => new DesignDecisionsViewModel(),
+        "archived" => new DesignArchivedViewModel(),
         _ => new DesignUsageViewModel(),
     };
 }

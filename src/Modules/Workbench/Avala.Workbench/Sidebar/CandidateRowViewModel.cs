@@ -3,6 +3,7 @@ using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Workbench.Board;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Sidebar;
 
@@ -39,6 +40,14 @@ internal sealed partial class CandidateRowViewModel : ICandidateRowViewModel
     public IStatusDotViewModel Dot => dot;
 
     public IReadOnlyList<ISidebarRow> Children => [];
+
+    public bool CanArchive => false;
+
+    public IAsyncRelayCommand ArchiveCommand => Shelving.Idle;
+
+    public string Refusal => string.Empty;
+
+    public bool HasRefusal => false;
 
     [ObservableProperty]
     public partial string Fact { get; private set; }

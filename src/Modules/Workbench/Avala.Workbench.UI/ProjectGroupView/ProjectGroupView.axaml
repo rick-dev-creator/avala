@@ -3,6 +3,8 @@
              xmlns:sidebar="using:Avala.Workbench.Sidebar"
              xmlns:copying="using:Avala.Components.UI.Copying"
              xmlns:focusing="using:Avala.Components.UI.Focusing"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:ui="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.ProjectGroupView"
              x:ClassModifier="internal"
              x:DataType="sidebar:IProjectGroupViewModel"
@@ -55,6 +57,19 @@
     <Style Selector="Button.row.child">
       <Setter Property="Padding" Value="8,5" />
     </Style>
+    <Style Selector="Panel.entry Button.archive">
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="Margin" Value="0,0,3,0" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Panel.entry:pointerover Button.archive, Panel.entry:focus-within Button.archive">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Panel.entry.archivable:pointerover Border#FactSlot, Panel.entry.archivable:pointerover TextBlock#Elapsed, Panel.entry.archivable:focus-within Border#FactSlot">
+      <Setter Property="Opacity" Value="0" />
+    </Style>
     <Style Selector="ItemsControl.rows">
       <Setter Property="ItemsPanel">
         <ItemsPanelTemplate>
@@ -65,14 +80,32 @@
   </UserControl.Styles>
   <UserControl.Resources>
     <DataTemplate x:Key="Row" x:DataType="sidebar:ISidebarRow">
-      <StackPanel>
-        <Button Classes="row"
-                Classes.child="{Binding IsChild}"
-                Classes.selected="{Binding IsSelected}"
-                Command="{Binding $parent[UserControl].((sidebar:ISidebarCommands)DataContext).SelectCommand}"
-                CommandParameter="{Binding}">
-          <ContentControl ClipToBounds="False" Content="{Binding}" />
-        </Button>
+      <StackPanel theme:Motion.Enter="Arrive">
+        <Panel Classes="entry" Classes.archivable="{Binding CanArchive}">
+          <Button Classes="row"
+                  Classes.child="{Binding IsChild}"
+                  Classes.selected="{Binding IsSelected}"
+                  Command="{Binding $parent[UserControl].((sidebar:ISidebarCommands)DataContext).SelectCommand}"
+                  CommandParameter="{Binding}">
+            <ContentControl ClipToBounds="False" Content="{Binding}" />
+          </Button>
+          <Button Classes="glyph archive"
+                  Command="{Binding ArchiveCommand}"
+                  HotKey="{Binding IsSelected, Converter={x:Static ui:ArchiveKeys.WhenSelected}}"
+                  IsVisible="{Binding CanArchive}"
+                  ToolTip.Tip="{x:Static ui:ArchiveKeys.Tip}"
+                  AutomationProperties.Name="Archive">
+            <Path Classes="icon" Data="{StaticResource IconArchive}" />
+          </Button>
+        </Panel>
+        <Grid ColumnDefinitions="*,Auto" Margin="10,0,4,2" IsVisible="{Binding HasRefusal}">
+          <TextBlock x:Name="Refusal" Classes="caption failure" Text="{Binding Refusal}" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <Button Grid.Column="1"
+                  Classes="link"
+                  Content="Open"
+                  Command="{Binding $parent[UserControl].((sidebar:ISidebarCommands)DataContext).SelectCommand}"
+                  CommandParameter="{Binding}" />
+        </Grid>
         <Border Classes="children" IsVisible="{Binding !!Children.Count}">
           <ItemsControl Classes="rows" ItemsSource="{Binding Children}" ItemTemplate="{DynamicResource Row}" />
         </Border>
@@ -89,6 +122,7 @@
         <MenuFlyout>
           <MenuItem x:Name="Rename" Header="Rename" Command="{Binding StartRenameCommand}" IsVisible="{Binding IsProject}" />
           <MenuItem x:Name="Delete" Header="Delete Project" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}" IsVisible="{Binding IsProject}" />
+          <MenuItem x:Name="ArchiveDoneItem" Header="Archive Done" Command="{Binding ArchiveDoneCommand}" IsVisible="{Binding HasDone}" />
         </MenuFlyout>
       </Button.ContextFlyout>
       <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
@@ -120,17 +154,26 @@
     <TextBlock x:Name="Problem" Classes="caption failure" Margin="10,0,4,2" Text="{Binding Problem}" TextWrapping="Wrap" IsVisible="{Binding HasProblem}" />
     <Border Classes="rows" IsVisible="{Binding IsExpanded}">
       <StackPanel Spacing="1">
-        <ItemsControl x:Name="Open" Classes="rows" ItemsSource="{Binding Open}" ItemTemplate="{StaticResource Row}" />
-        <Button x:Name="ShowDone" Classes="row" Command="{Binding ToggleDoneCommand}" IsVisible="{Binding HasDone}">
-          <StackPanel Orientation="Horizontal">
-            <Panel VerticalAlignment="Center">
-              <Path Classes="icon chevron" Data="{StaticResource IconChevronDown}" IsVisible="{Binding IsDoneShown}" />
-              <Path Classes="icon chevron" Data="{StaticResource IconChevronRight}" IsVisible="{Binding !IsDoneShown}" />
-            </Panel>
-            <TextBlock x:Name="DoneLabel" Classes="caption" Text="{Binding DoneLabel}" VerticalAlignment="Center" />
-          </StackPanel>
-        </Button>
-        <ItemsControl x:Name="Done" Classes="rows" ItemsSource="{Binding Done}" ItemTemplate="{StaticResource Row}" IsVisible="{Binding IsDoneShown}" />
+        <ItemsControl x:Name="Open" Classes="rows" theme:Arrivals.OnlyNewEnter="True" ItemsSource="{Binding Open}" ItemTemplate="{StaticResource Row}" />
+        <Panel Classes="entry" IsVisible="{Binding HasDone}">
+          <Button x:Name="ShowDone" Classes="row" Command="{Binding ToggleDoneCommand}">
+            <StackPanel Orientation="Horizontal">
+              <Panel VerticalAlignment="Center">
+                <Path Classes="icon chevron" Data="{StaticResource IconChevronDown}" IsVisible="{Binding IsDoneShown}" />
+                <Path Classes="icon chevron" Data="{StaticResource IconChevronRight}" IsVisible="{Binding !IsDoneShown}" />
+              </Panel>
+              <TextBlock x:Name="DoneLabel" Classes="caption" Text="{Binding DoneLabel}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="ArchiveDone"
+                  Classes="glyph archive"
+                  Command="{Binding ArchiveDoneCommand}"
+                  ToolTip.Tip="Archive done"
+                  AutomationProperties.Name="Archive done">
+            <Path Classes="icon" Data="{StaticResource IconArchive}" />
+          </Button>
+        </Panel>
+        <ItemsControl x:Name="Done" Classes="rows" theme:Arrivals.OnlyNewEnter="True" ItemsSource="{Binding Done}" ItemTemplate="{StaticResource Row}" IsVisible="{Binding IsDoneShown}" />
       </StackPanel>
     </Border>
   </StackPanel>
