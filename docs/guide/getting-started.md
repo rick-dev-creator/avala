@@ -41,6 +41,13 @@ To see the tour again, choose **Show welcome tour** in **Settings**, **About**.
   ```
 
   A credential's `source` is `login`, with a sign-in folder as its `reference`, or `apiKey`, with the name of an environment variable. Avala stores names and references, never a key.
+- **Compaction** of a Claude Code conversation: Avala starts every Claude Code session with a 250,000-token window for automatic compaction (`CLAUDE_CODE_AUTO_COMPACT_WINDOW`), so a long conversation is summarized at about 217,000 tokens instead of growing to the 967,000 that Claude Code allows in a session started this way. A connection changes it in its `settings`: `compactAt` is the window in tokens, and `autoCompact` and `idleCompaction` (`true` or `false`) turn Claude Code's automatic compaction and its compaction of an idle conversation on or off. Both are on unless you turn them off, even when `userConfiguration` is off.
+
+  ```json
+  { "name": "claude-work", "provider": "claude-code", "credential": { "source": "login", "reference": "~/.claude-work" }, "settings": { "compactAt": "400000" } }
+  ```
+
+  A smaller window costs less per message and much less after an idle hour, when the whole conversation is read again; a larger one keeps more of it word for word.
 - **`forges.json`** holds your source control accounts; see [Repositories](repositories.md#settings-and-files).
 - **`onboarding.json`** records that the tour was finished or skipped, as `{ "onboarded": true }`.
 - **The data folder** is the folder in `AVALA_DATA_PATH`, or `Avala` in your local application data folder; see [where files live](../README.md#where-files-live).
