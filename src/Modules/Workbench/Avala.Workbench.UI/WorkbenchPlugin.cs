@@ -119,6 +119,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<DeniedRetries>()
             .AddSingleton<HumanReplies>()
             .AddSingleton<Links>()
+            .AddSingleton<CodeFiles>()
             .AddSingleton<SendKeys>()
             .AddForwarded<IHandle<AppearanceChanged>, SendKeys>()
             .AddSingleton<PersonalDetailsViewModel>()

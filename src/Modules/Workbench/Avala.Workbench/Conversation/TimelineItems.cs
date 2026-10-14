@@ -13,7 +13,7 @@ internal sealed class TimelineItems(HumanReplies replies, Links links, IClipboar
     {
         PromptEntry prompt => new PromptViewModel(prompt, clipboard),
         InterjectionEntry interjection => new InterjectionViewModel(interjection),
-        MessageEntry message => new MessageViewModel(message, links, clipboard),
+        MessageEntry message => new MessageViewModel(message, links, clipboard, files.Code),
         ReasoningEntry reasoning => new ReasoningViewModel(reasoning),
         ToolEntry tool => new ToolViewModel(tool, clipboard, files.For(job)),
         PlanEntry plan => new PlanViewModel(plan),

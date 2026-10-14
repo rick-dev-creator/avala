@@ -4,7 +4,11 @@ namespace Avala.Workbench.Tests;
 
 internal sealed class FakeFileSaver : IFileSaver
 {
+    private readonly TaskCompletionSource saved = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public List<(string Name, string Content)> Saved { get; } = [];
+
+    public Task SavedAsync() => saved.Task;
 
     public FileSaveError? Refusal { get; init; }
 
@@ -16,6 +20,7 @@ internal sealed class FakeFileSaver : IFileSaver
         }
 
         Saved.Add((suggestedName, content));
+        saved.TrySetResult();
 
         return ValueTask.FromResult<Result<string, FileSaveError>>($"/home/ana/{suggestedName}");
     }

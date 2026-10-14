@@ -25,6 +25,9 @@ public sealed class MarkdownText : StackPanel
     public static readonly StyledProperty<ICommand> LinkCommandProperty =
         AvaloniaProperty.Register<MarkdownText, ICommand>(nameof(LinkCommand), OpensNothing.Instance);
 
+    public static readonly StyledProperty<ICommand> CodeCommandProperty =
+        AvaloniaProperty.Register<MarkdownText, ICommand>(nameof(CodeCommand), OpensNothing.Instance);
+
     private const double BlockSpacing = 8;
 
     private readonly MarkdownPipeline pipeline;
@@ -78,6 +81,12 @@ public sealed class MarkdownText : StackPanel
     {
         get => GetValue(LinkCommandProperty);
         set => SetValue(LinkCommandProperty, value);
+    }
+
+    public ICommand CodeCommand
+    {
+        get => GetValue(CodeCommandProperty);
+        set => SetValue(CodeCommandProperty, value);
     }
 
     private IEnumerable<MarkdownViewer> Shown =>

@@ -41,6 +41,10 @@ internal interface IToolViewModel
 
     bool ShowsNoOutput { get; }
 
+    bool ShowsAllChanges { get; }
+
+    bool ShowsCopy { get; }
+
     IHunkViewModel Edit { get; }
 
     bool ShowsPreview { get; }
@@ -90,7 +94,7 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     public bool IsShown => true;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowsNoOutput))]
+    [NotifyPropertyChangedFor(nameof(ShowsNoOutput), nameof(ShowsCopy))]
     public partial string Output { get; private set; }
 
     [ObservableProperty]
@@ -112,17 +116,22 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     public partial bool IsCopied { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsAllChanges), nameof(ShowsCopy))]
     public partial bool ShowsChanges { get; private set; }
 
     public IFileChangesViewModel Changes => changes;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowsInput), nameof(ShowsNoOutput))]
+    [NotifyPropertyChangedFor(nameof(ShowsInput), nameof(ShowsNoOutput), nameof(ShowsAllChanges), nameof(ShowsCopy))]
     public partial bool ShowsEdit { get; private set; }
 
     public bool ShowsInput => Input.Length > 0 && !ShowsEdit;
 
     public bool ShowsNoOutput => Output.Length == 0 && !ShowsEdit;
+
+    public bool ShowsAllChanges => ShowsEdit && ShowsChanges;
+
+    public bool ShowsCopy => Output.Length > 0 && !ShowsAllChanges;
 
     [ObservableProperty]
     public partial IHunkViewModel Edit { get; private set; } = EditDiffViewModel.Of(string.Empty, string.Empty);

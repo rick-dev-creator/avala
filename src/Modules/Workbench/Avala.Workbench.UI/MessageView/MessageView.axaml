@@ -19,7 +19,8 @@
                            Classes.streaming="{Binding IsStreaming}"
                            Markdown="{Binding Text}"
                            IsLive="{Binding IsStreaming}"
-                           LinkCommand="{Binding OpenLinkCommand}" />
+                           LinkCommand="{Binding OpenLinkCommand}"
+                           CodeCommand="{Binding CodeCommand}" />
     <TextBlock x:Name="LinkNotice"
                Classes="caption"
                TextWrapping="Wrap"

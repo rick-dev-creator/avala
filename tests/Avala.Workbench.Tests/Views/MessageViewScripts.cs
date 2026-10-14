@@ -69,8 +69,33 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             await CodeBlocks.PaintedAsync(code);
             view.Settle();
 
-            Assert.Equal("go", Assert.Single(view.All<TextBlock>(), block => block.Classes.Contains("code-language")).Text);
+            Assert.StartsWith("go · ", Assert.Single(view.All<TextBlock>(), block => block.Classes.Contains("code-language")).Text, StringComparison.Ordinal);
             Assert.Equal(Avalonia.Media.Colors.Blue, CodeBlocks.ColorOf(code, "func"));
+        }, Cancellation);
+
+    [Fact]
+    public Task ACodeBlockSaysItsLanguageAndLengthAndSavesItsCodeFromItsSaveButtonAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var saver = new FakeFileSaver();
+            var view = Screen.Show(Message("```go\nfunc main() {\n}\n```", done: true, code: new CodeFiles(saver, new FakeOpener(), new Avala.Sdk.AvalaPaths("/home/ana"))), Avalonia.Styling.ThemeVariant.Light, 800, 600);
+
+            view.Click("SaveCode");
+            await saver.SavedAsync();
+
+            Assert.Equal("go · 2 lines", view.Find<TextBlock>("CodeLabel").Text);
+            Assert.Equal([("code.go", "func main() {\n}")], saver.Saved);
+        }, Cancellation);
+
+    [Fact]
+    public Task ACodeBlocksLinesStopWrappingFromItsWrapButtonAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(Message("```go\nfunc main() {}\n```", done: true), Avalonia.Styling.ThemeVariant.Light, 800, 600);
+
+            view.Click("WrapCode");
+
+            Assert.Equal(Avalonia.Media.TextWrapping.NoWrap, Assert.Single(view.All<CodeText>()).TextWrapping);
         }, Cancellation);
 
     [Fact]
@@ -222,7 +247,7 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var clipboard = new FakeClipboard();
-            var message = new MessageViewModel(new MessageEntry("m", "JPY has no minor units.", ItemOutcome.Succeeded), new Links(new FakeLinks(), new StrongReferenceMessenger()), clipboard);
+            var message = new MessageViewModel(new MessageEntry("m", "JPY has no minor units.", ItemOutcome.Succeeded), new Links(new FakeLinks(), new StrongReferenceMessenger()), clipboard, Tools.Code);
             var view = Screen.ShowStill(message, 300);
             var hidden = view.Find("Actions").Opacity;
 
@@ -298,8 +323,8 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             Assert.Equal("JPY has no minor units.\nUSD keeps two decimals.\nDone", await view.Window.Clipboard!.TryGetTextAsync());
         }, Cancellation);
 
-    private static MessageViewModel Message(string text, bool done, FakeLinks? opener = null, IMessenger? messenger = null) =>
-        new(new MessageEntry("m", text, done ? ItemOutcome.Succeeded : Option<ItemOutcome>.None), new Links(opener ?? new FakeLinks(), messenger ?? new StrongReferenceMessenger()), new FakeClipboard());
+    private static MessageViewModel Message(string text, bool done, FakeLinks? opener = null, IMessenger? messenger = null, CodeFiles? code = null) =>
+        new(new MessageEntry("m", text, done ? ItemOutcome.Succeeded : Option<ItemOutcome>.None), new Links(opener ?? new FakeLinks(), messenger ?? new StrongReferenceMessenger()), new FakeClipboard(), code ?? Tools.Code);
 
     private static MarkdownViewer Viewer(ViewScript view, string name) =>
         view.Window.GetVisualDescendants().OfType<MarkdownViewer>().Single(viewer => viewer.Name == name);
