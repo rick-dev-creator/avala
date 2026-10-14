@@ -150,6 +150,8 @@ internal sealed class DesignMessageViewModel(string text, bool isStreaming) : IM
 
     public IAsyncRelayCommand<Avala.Components.Code.CodeRequest> CodeCommand { get; } = new AsyncRelayCommand<Avala.Components.Code.CodeRequest>(_ => Task.CompletedTask);
 
+    public ICodePeekViewModel Peek { get; } = new DesignCodePeekViewModel();
+
     public bool IsCopied => false;
 
     public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
@@ -227,6 +229,23 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
     public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand ShowChangesCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+internal sealed class DesignCodePeekViewModel : ICodePeekViewModel
+{
+    public string Name => "money.ts";
+
+    public string Path => "src/money.ts";
+
+    public string Code => "export function toMinor(amount: number, currency: Currency) {\n  return Math.round(amount * 10 ** currency.exponent)\n}\n";
+
+    public string Language => "ts";
+
+    public int Line => 2;
+
+    public bool IsOpen => false;
+
+    public IAsyncRelayCommand CloseCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignEditDiffViewModel : IEditDiffViewModel

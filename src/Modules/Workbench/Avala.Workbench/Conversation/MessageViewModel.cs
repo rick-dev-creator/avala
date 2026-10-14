@@ -22,26 +22,30 @@ internal interface IMessageViewModel
 
     IAsyncRelayCommand<CodeRequest> CodeCommand { get; }
 
+    ICodePeekViewModel Peek { get; }
+
     IAsyncRelayCommand CopyCommand { get; }
 }
 
 [INotifyPropertyChanged]
 internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineItem, ITextSized
 {
-    private readonly Links links;
     private readonly IClipboard clipboard;
-    private readonly CodeFiles code;
+    private readonly FileViews files;
+    private readonly CodePeekViewModel peek;
 
-    public MessageViewModel(MessageEntry entry, Links links, IClipboard clipboard, CodeFiles code)
+    public MessageViewModel(MessageEntry entry, IClipboard clipboard, FileViews files)
     {
-        this.links = links;
         this.clipboard = clipboard;
-        this.code = code;
+        this.files = files;
+        peek = files.Peek();
         Text = string.Empty;
         Update(entry);
     }
 
     public bool IsShown => true;
+
+    public ICodePeekViewModel Peek => peek;
 
     public int TextLength => Text.Length;
 
@@ -70,8 +74,11 @@ internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineIte
     private async Task OpenLinkAsync(string? link, CancellationToken cancellationToken)
     {
         var text = link ?? string.Empty;
-        var opened = await links.OpenAsync(text, cancellationToken);
-        LinkNotice = opened.Match(_ => string.Empty, refusal => ConversationPhrases.Link(refusal, text));
+        LinkNotice = await Reference.Parse(text).Match(
+            async reference => reference.Kind == ReferenceKind.File
+                ? await peek.ShowAsync(reference.Target, reference.Line, cancellationToken)
+                : (await files.OpenAsync(reference, cancellationToken)).Match(_ => string.Empty, ConversationPhrases.Reference),
+            async () => (await files.Links.OpenAsync(text, cancellationToken)).Match(_ => string.Empty, refusal => ConversationPhrases.Link(refusal, text)));
     }
 
     [RelayCommand]
@@ -79,7 +86,7 @@ internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineIte
     {
         if (request is not null)
         {
-            LinkNotice = (await code.HandleAsync(request, cancellationToken)).Match(_ => string.Empty, ConversationPhrases.Code);
+            LinkNotice = (await files.Code.HandleAsync(request, cancellationToken)).Match(_ => string.Empty, ConversationPhrases.Code);
         }
     }
 

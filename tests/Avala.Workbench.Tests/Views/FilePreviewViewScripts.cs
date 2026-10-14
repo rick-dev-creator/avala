@@ -66,9 +66,35 @@ public sealed class FilePreviewViewScripts(HeadlessUi ui)
         }
 
         var worked = worktree.Worked();
-        var preview = new FilePreviewViewModel(worktree.Job, path, new FileViewing(worked, new Linking.Links(worktree.Opener, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new PictureCache(), Tools.Code));
+        var preview = new FilePreviewViewModel(worktree.Job, path, new FileViewing(worked, new Linking.Links(worktree.Opener, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new PictureCache(), Tools.Replies(FakeLinks.Opening)));
         await preview.LoadCommand.ExecuteAsync(null);
 
         return preview;
     }
+}
+
+public sealed class CodePeekViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task APeekShowsTheFileInASheetMarksItsLineAndEscapeClosesItAsync() =>
+        ui.RunAsync(async () =>
+        {
+            var worktree = new Worktree();
+            var worked = worktree.Worked();
+            worktree.Files.Stored[System.IO.Path.Combine(Worktree.Folder, "src/money.ts")] = System.Text.Encoding.UTF8.GetBytes("export function toMinor(amount: number) {\n  return Math.round(amount * 100)\n}\n");
+            var peek = new CodePeekViewModel(worktree.Job, worked);
+            var view = Screen.Show(peek);
+
+            await peek.ShowAsync("src/money.ts", 2, TestContext.Current.CancellationToken);
+            view.Settle();
+            var file = view.Find<Avala.Components.UI.Markdown.CodeFile>("File");
+            await CodeBlocks.MarkedAsync(file);
+            var opened = (view.Find<Popup>("Sheet").IsOpen, view.TextOf("SheetTitle"), file.ShownCode, file.IsMarked);
+            view.Find<Border>("SheetCard").Focus();
+            view.Press(Key.Escape);
+            view.Settle();
+
+            Assert.Equal((true, "src/money.ts", "export function toMinor(amount: number) {\n  return Math.round(amount * 100)\n}\n", true), opened);
+            Assert.False(view.Find<Popup>("Sheet").IsOpen);
+        }, TestContext.Current.CancellationToken);
 }

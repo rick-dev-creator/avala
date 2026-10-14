@@ -19,6 +19,19 @@ public static class CodeBlocks
         return painted.Task;
     }
 
+    public static Task MarkedAsync(CodeFile file)
+    {
+        if (file.IsMarked)
+        {
+            return Task.CompletedTask;
+        }
+
+        var marked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        file.AddHandler(CodeFile.MarkedEvent, (_, _) => marked.TrySetResult());
+
+        return marked.Task;
+    }
+
     public static Color? ColorOf(CodeText code, string word, bool last = false)
     {
         var runs = code.TextLayout.TextLines

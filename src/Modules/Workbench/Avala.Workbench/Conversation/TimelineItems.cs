@@ -7,13 +7,13 @@ using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Conversation;
 
-internal sealed class TimelineItems(HumanReplies replies, Links links, IClipboard clipboard, FileViewing files)
+internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, FileViewing files)
 {
     public ITimelineItem Create(JobId job, ITimelineEntry entry) => entry switch
     {
         PromptEntry prompt => new PromptViewModel(prompt, clipboard),
         InterjectionEntry interjection => new InterjectionViewModel(interjection),
-        MessageEntry message => new MessageViewModel(message, links, clipboard, files.Code),
+        MessageEntry message => new MessageViewModel(message, clipboard, files.For(job)),
         ReasoningEntry reasoning => new ReasoningViewModel(reasoning),
         ToolEntry tool => new ToolViewModel(tool, clipboard, files.For(job)),
         PlanEntry plan => new PlanViewModel(plan),

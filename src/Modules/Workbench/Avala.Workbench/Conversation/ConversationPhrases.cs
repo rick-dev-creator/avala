@@ -33,6 +33,14 @@ internal static class ConversationPhrases
 
     public const string AllChanges = "All changes to this file";
 
+    public static string NotInWorktree(string path) => $"{path} is not in this job's worktree.";
+
+    public static string NotText(string name) => $"{name} is not a text file.";
+
+    public static string Reference(Avala.Workbench.Linking.ReferenceRefusal refusal) => refusal == Avala.Workbench.Linking.ReferenceRefusal.NoWebAddress
+        ? "This repository has no web address to open it on."
+        : "The platform refused to open it.";
+
     public static string Code(Avala.Workbench.Linking.CodeRefusal refusal) => refusal switch
     {
         Avala.Workbench.Linking.CodeRefusal.Cancelled => string.Empty,

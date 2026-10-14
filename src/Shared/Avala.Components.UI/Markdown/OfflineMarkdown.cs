@@ -9,10 +9,17 @@ public static class OfflineMarkdown
 {
     public static MarkdownPipeline WithoutImages { get; } = Pipeline(_ => false);
 
-    public static MarkdownPipeline Pipeline(Func<string, bool> keepImage)
+    public static MarkdownPipeline WithReferences { get; } = Pipeline(_ => false, references: true);
+
+    public static MarkdownPipeline Pipeline(Func<string, bool> keepImage, bool references = false)
     {
         var builder = Markdig.MarkdownExtensions.UseMathematics(MarkView.Avalonia.MarkdownExtensions.UseFootnotes(MarkView.Avalonia.MarkdownExtensions.UseAlertBlocks(new MarkdownPipelineBuilder().UseSupportedExtensions())));
         builder.DocumentProcessed += document => WithoutRemoteImages(document, keepImage);
+
+        if (references)
+        {
+            builder.DocumentProcessed += References.Link;
+        }
 
         return builder.Build();
     }

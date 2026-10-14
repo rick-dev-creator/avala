@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:markdown="using:Avala.Components.UI.Markdown"
+             x:Class="Avala.Workbench.UI.CodePeekView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:ICodePeekViewModel">
+  <Design.DataContext>
+    <conversation:DesignCodePeekViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#Scrim">
+      <Setter Property="Background" Value="{DynamicResource ScrimSheetBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Focusable" Value="False" />
+    </Style>
+    <Style Selector="Button#Scrim:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button#Scrim:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ScrimSheetBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Popup x:Name="Sheet"
+         Placement="Center"
+         IsLightDismissEnabled="False"
+         IsOpen="{Binding IsOpen, Mode=OneWay}">
+    <Panel x:Name="SheetRoot">
+      <Button x:Name="Scrim"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch"
+              Command="{Binding CloseCommand}"
+              AutomationProperties.Name="Close the file" />
+      <Border x:Name="SheetCard"
+              Classes="float"
+              theme:Motion.Enter="Sheet"
+              Padding="0"
+              ClipToBounds="True"
+              Focusable="True">
+        <Border.KeyBindings>
+          <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+        </Border.KeyBindings>
+        <DockPanel>
+          <Border DockPanel.Dock="Top"
+                  Padding="16,10,10,10"
+                  BorderBrush="{DynamicResource SeparatorBrush}"
+                  BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+              <Path Classes="icon" VerticalAlignment="Center" Data="{StaticResource IconFileEdit}" />
+              <TextBlock x:Name="SheetTitle"
+                         Grid.Column="1"
+                         Classes="mono"
+                         VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis"
+                         Text="{Binding Path}" />
+              <Button x:Name="Close"
+                      Grid.Column="2"
+                      Classes="ghost"
+                      ToolTip.Tip="Close (Esc)"
+                      AutomationProperties.Name="Close the file"
+                      Command="{Binding CloseCommand}">
+                <Path Classes="icon" Data="{StaticResource IconCross}" />
+              </Button>
+            </Grid>
+          </Border>
+          <Border Background="{DynamicResource FillWellBrush}">
+            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto">
+              <markdown:CodeFile x:Name="File"
+                                 Margin="16,12"
+                                 Code="{Binding Code}"
+                                 Language="{Binding Language}"
+                                 Line="{Binding Line}" />
+            </ScrollViewer>
+          </Border>
+        </DockPanel>
+      </Border>
+    </Panel>
+  </Popup>
+</UserControl>
