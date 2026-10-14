@@ -294,7 +294,7 @@ The simulator, the simulated forge and Recording exist only to develop and test 
 ### Tests
 
 - One test per behavior, named after what it proves; behavior across modules is proven through the simulator, never a real agent.
-- Views are tested headless: every component has scripted acceptance tests that drive it as a user would, and leak tests check that a surface's managed memory does not keep growing across twenty cycles.
+- Views are tested headless: every component has scripted acceptance tests that drive it as a user would, and leak tests check that a surface's managed memory does not keep growing across twenty cycles: they compare the floor of the managed memory measured after each cycle in the second half with the first half's, so a cache that fills and empties, as image decoding does on macOS, passes, while memory that never returns fails with every reading.
 - No test waits on time: it awaits the event that states the thing happened, and a fake clock replaces the views' clock.
 - A host test's `EventWatch` gives up only when the application has gone quiet: no awaited event, no job step and no process of its own, such as git preparing a worktree or a check running, for 30 seconds. A running process counts as work, so a slow machine makes a test slower instead of failing it, and five minutes is the most any single wait takes, so a hung process still fails the test with what it last saw.
 - The lifecycle [diagrams](diagrams/) are compared with the state machines on every run; `AVALA_UPDATE_DIAGRAMS=1` rewrites them.
