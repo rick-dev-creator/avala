@@ -64,6 +64,30 @@ internal sealed class FakeProjectBook : IProjects
         });
     }
 
+    public ValueTask<Result<ConversationsArchived, ProjectRejection>> ArchiveAsync(IReadOnlyList<JobId> jobs, CancellationToken cancellationToken)
+    {
+        Calls.Add($"archive {jobs.Count}");
+
+        return DecidedAsync(() =>
+        {
+            Current = Current with { Archived = Current.Archived.Union(jobs) };
+
+            return new ConversationsArchived([.. jobs]);
+        });
+    }
+
+    public ValueTask<Result<ConversationRestored, ProjectRejection>> RestoreAsync(JobId job, CancellationToken cancellationToken)
+    {
+        Calls.Add("restore");
+
+        return DecidedAsync(() =>
+        {
+            Current = Current with { Archived = Current.Archived.Remove(job) };
+
+            return new ConversationRestored(job);
+        });
+    }
+
     private ValueTask<Result<T, ProjectRejection>> DecidedAsync<T>(Func<T> succeed) =>
         ValueTask.FromResult(Refusal.Match(Result<T, ProjectRejection>.Failure, () => Result<T, ProjectRejection>.Success(succeed())));
 }

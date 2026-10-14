@@ -26,6 +26,8 @@ using Avala.Supervision.Contracts;
 using Avala.Triggers.Contracts;
 using Avala.Verification.Contracts;
 using Avala.Workbench.Accounts;
+using Avala.Workbench.Archive;
+using Avala.Workbench.Archiving;
 using Avala.Workbench.Automation;
 using Avala.Workbench.Board;
 using Avala.Workbench.Cards;
@@ -159,6 +161,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     private static void RegisterRegions(IPluginRegistrar registrar) =>
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
             .AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0)
+            .AddToRegion<ArchivedNoteViewModel>(WorkbenchRegions.JobHeader, 3)
             .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
             .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5);
 
@@ -170,10 +173,18 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<ProjectRenamed>, ProjectKeeper>()
             .AddForwarded<IHandle<ProjectDeleted>, ProjectKeeper>()
             .AddForwarded<IHandle<ConversationMoved>, ProjectKeeper>()
-            .AddSingleton<ProjectShelf>();
+            .AddForwarded<IHandle<ConversationsArchived>, ProjectKeeper>()
+            .AddForwarded<IHandle<ConversationRestored>, ProjectKeeper>()
+            .AddSingleton<ProjectShelf>()
+            .AddSingleton<ArchivedReader>()
+            .AddSingleton<ArchivedViewModel>()
+            .AddForwarded<IPage, ArchivedViewModel>()
+            .AddSingleton<ArchivedEntryViewModel>()
+            .AddSingleton<ArchivedNoteViewModel>();
 
     private static void RegisterFooter(IPluginRegistrar registrar)
     {
+        registrar.AddToRegion<ArchivedEntryViewModel>(ShellRegions.SidebarFooter, -10);
         registrar.AddToRegion<ResourceIndicatorViewModel>(ShellRegions.SidebarFooter, 0);
         registrar.AddToRegion<UpdateNoticeViewModel>(ShellRegions.SidebarFooter, 10);
         RegisterTelemetry(registrar);
@@ -449,6 +460,10 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();
         views.Register<IUsageLeftViewModel, UsageLeftView>();
         views.Register<IContextLeftViewModel, ContextLeftView>();
+        views.Register<IArchivedViewModel, ArchivedView>();
+        views.Register<IArchivedRowViewModel, ArchivedRowView>();
+        views.Register<IArchivedEntryViewModel, ArchivedEntryView>();
+        views.Register<IArchivedNoteViewModel, ArchivedNoteView>();
         views.Register<IUsageWindowViewModel, UsageWindowView>();
         views.Register<IUsageRangeViewModel, UsageRangeView>();
         views.Register<IUsageDayViewModel, UsageDayView>();

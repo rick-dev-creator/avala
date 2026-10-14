@@ -17,6 +17,9 @@ internal static class ProjectPhrases
         ProjectRejection.NotEmpty => "Move its conversations to another project first",
         ProjectRejection.FollowsItsParent => "A sub-agent's conversation moves with its parent",
         ProjectRejection.UnknownJob => "This conversation is no longer known",
+        ProjectRejection.StillWorking => "It is working again; archive it once it stops",
+        ProjectRejection.NeedsYou => "It needs you before it can be archived",
+        ProjectRejection.NotArchived => "This conversation is no longer archived",
         _ => "This project no longer exists",
     };
 }

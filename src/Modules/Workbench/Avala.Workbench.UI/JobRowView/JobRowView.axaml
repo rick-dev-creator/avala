@@ -23,6 +23,7 @@
           </ControlTheme>
         </MenuItem.ItemContainerTheme>
       </MenuItem>
+      <MenuItem x:Name="Archive" Header="Archive" Command="{Binding ArchiveCommand}" IsVisible="{Binding CanArchive}" />
     </MenuFlyout>
   </UserControl.ContextFlyout>
   <UserControl.Styles>

@@ -27,6 +27,12 @@ internal sealed class ProjectShelf(IProjects projects, IWindowLayout layout)
     public async Task<Option<ProjectRejection>> MoveAsync(JobId job, ProjectId project, CancellationToken cancellationToken) =>
         Refusal(await projects.MoveAsync(job, project, cancellationToken));
 
+    public async Task<Option<ProjectRejection>> ArchiveAsync(IReadOnlyList<JobId> jobs, CancellationToken cancellationToken) =>
+        Refusal(await projects.ArchiveAsync(jobs, cancellationToken));
+
+    public async Task<Option<ProjectRejection>> RestoreAsync(JobId job, CancellationToken cancellationToken) =>
+        Refusal(await projects.RestoreAsync(job, cancellationToken));
+
     public async Task<ImmutableHashSet<string>> CollapsedAsync(CancellationToken cancellationToken) =>
         [.. (await layout.ReadAsync(cancellationToken)).CollapsedGroups];
 

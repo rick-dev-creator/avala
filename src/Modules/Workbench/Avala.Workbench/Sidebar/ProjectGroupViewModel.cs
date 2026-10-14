@@ -66,6 +66,8 @@ internal interface IProjectGroupViewModel : ISidebarCommands
     IRelayCommand CancelRenameCommand { get; }
 
     IAsyncRelayCommand DeleteCommand { get; }
+
+    IAsyncRelayCommand ArchiveDoneCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -205,8 +207,13 @@ internal sealed partial class ProjectGroupViewModel : IProjectGroupViewModel
         }
     }
 
+    [RelayCommand(CanExecute = nameof(HasDone))]
+    private async Task ArchiveDoneAsync(CancellationToken cancellationToken) =>
+        Problem = (await shelf.ArchiveAsync([.. done.SelectMany(entry => entry.Shelved)], cancellationToken)).Match(ProjectPhrases.Refusal, () => string.Empty);
+
     private void Counted(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        ArchiveDoneCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(OpenCount));
         OnPropertyChanged(nameof(HasRows));
         OnPropertyChanged(nameof(HasDone));

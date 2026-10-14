@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:archive="using:Avala.Workbench.Archive"
+             x:Class="Avala.Workbench.UI.ArchivedEntryView"
+             x:ClassModifier="internal"
+             x:DataType="archive:IArchivedEntryViewModel"
+             IsVisible="{Binding HasArchived}">
+  <Design.DataContext>
+    <archive:DesignArchivedEntryViewModel />
+  </Design.DataContext>
+  <Button x:Name="Open"
+          Classes="row"
+          Command="{Binding OpenCommand}"
+          AutomationProperties.Name="Archived conversations">
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <Path Classes="icon" Data="{StaticResource IconArchive}" Margin="0,0,10,0" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="1" Text="Archived" VerticalAlignment="Center" />
+      <Border Grid.Column="2" Classes="tag">
+        <TextBlock x:Name="Count" Text="{Binding Count}" />
+      </Border>
+    </Grid>
+  </Button>
+</UserControl>

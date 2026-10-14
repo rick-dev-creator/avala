@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:archive="using:Avala.Workbench.Archive"
+             x:Class="Avala.Workbench.UI.ArchivedRowView"
+             x:ClassModifier="internal"
+             x:DataType="archive:IArchivedRowViewModel">
+  <Design.DataContext>
+    <archive:DesignArchivedRowViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ContentControl#Dot">
+      <Setter Property="Width" Value="7" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+    </Style>
+    <Style Selector="Button#Restore">
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Panel#Entry:pointerover Button#Restore, Panel#Entry:focus-within Button#Restore">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Panel#Entry:pointerover TextBlock#Ended, Panel#Entry:focus-within TextBlock#Ended">
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+  </UserControl.Styles>
+  <Panel x:Name="Entry">
+    <Button x:Name="Open" Classes="row" Command="{Binding OpenCommand}" AutomationProperties.Name="{Binding Title}">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <ContentControl x:Name="Dot" Content="{Binding Dot}" VerticalAlignment="Center" />
+        <TextBlock x:Name="Title" Grid.Column="1" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <Border Grid.Column="2" Classes="tag" Margin="12,0,0,0">
+          <TextBlock x:Name="Status" Text="{Binding Status}" />
+        </Border>
+        <TextBlock x:Name="Ended" Grid.Column="3" Classes="caption" Text="{Binding Ended}" MinWidth="76" TextAlignment="Right" Margin="12,0,36,0" VerticalAlignment="Center" />
+      </Grid>
+    </Button>
+    <Button x:Name="Restore"
+            Classes="glyph"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Center"
+            Margin="0,0,4,0"
+            Command="{Binding RestoreCommand}"
+            ToolTip.Tip="Restore"
+            AutomationProperties.Name="Restore">
+      <Path Classes="icon" Data="{StaticResource IconRestore}" />
+    </Button>
+  </Panel>
+</UserControl>
