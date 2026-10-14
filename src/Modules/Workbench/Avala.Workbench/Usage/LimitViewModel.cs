@@ -29,6 +29,8 @@ internal interface ILimitViewModel
     bool ReachesHold { get; }
 
     bool IsExpired { get; }
+
+    string Outside { get; }
 }
 
 [INotifyPropertyChanged]
@@ -41,6 +43,7 @@ internal sealed partial class LimitViewModel : ILimitViewModel
         UsedText = string.Empty;
         Resets = string.Empty;
         HoldAt = string.Empty;
+        Outside = string.Empty;
         Show(reading, holdAt);
     }
 
@@ -75,6 +78,9 @@ internal sealed partial class LimitViewModel : ILimitViewModel
     [ObservableProperty]
     public partial bool IsExpired { get; private set; }
 
+    [ObservableProperty]
+    public partial string Outside { get; private set; }
+
     public void Show(LimitReading reading, Option<double> holdAt)
     {
         Used = Math.Clamp(reading.Used, 0, 1);
@@ -88,11 +94,17 @@ internal sealed partial class LimitViewModel : ILimitViewModel
         IsNear = holdAt.Match(threshold => reading.Used >= threshold - MeterViewModel.AttentionMargin, () => false);
         ReachesHold = holdAt.Match(threshold => reading.Used >= threshold, () => false);
         IsExpired = reading.Expired;
+        Outside = UsagePhrases.Outside(reading.Expired ? 0 : reading.Outside);
     }
 }
 
 internal static class UsagePhrases
 {
+    public static string Shared(string connection) => $"Shared with every app signed in to {connection}, not only Avala.";
+
+    public static string Outside(double outside) =>
+        outside < Avala.Workbench.Spending.WindowWatch.Moved ? string.Empty : $"Rose {Amounts.Percent(outside)} while Avala was idle, from use outside Avala.";
+
     public static string Window(string window) =>
         window.Length == 0 ? "Usage window"
         : window.Length > 1 && char.IsDigit(window[0]) && window[^1] is 'h' or 'd' && int.TryParse(window[..^1], System.Globalization.CultureInfo.InvariantCulture, out var count)

@@ -58,6 +58,8 @@ public sealed class UsageLeftViewScripts(HeadlessUi ui)
 
         public string Summary => "Usage left on claude-work";
 
+        public string Shared => "Shared with every app signed in to claude-work, not only Avala.";
+
         public IReadOnlyList<ILimitViewModel> Windows => [];
 
         public IRelayCommand OpenCommand { get; }

@@ -118,6 +118,10 @@ public sealed class SpendingTests : IDisposable
 
     public void Dispose() => ui.Dispose();
 
-    private UsageReader Reader(params JobSummary[] jobs) =>
-        new(Pages.Readings(usage), new JobSpending(usage, budgets, supervision, sessions), Pages.Board(jobs));
+    private UsageReader Reader(params JobSummary[] jobs)
+    {
+        var board = Pages.Board(jobs);
+
+        return new(Pages.Readings(usage), new JobSpending(usage, budgets, supervision, sessions), board, new WindowWatch(board));
+    }
 }

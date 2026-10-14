@@ -31,6 +31,7 @@
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
+        <TextBlock x:Name="Shared" Classes="caption secondary" Text="{Binding Shared}" TextWrapping="Wrap" />
         <TextBlock Classes="caption tertiary" Text="Open Usage for this connection" />
       </StackPanel>
     </ToolTip.Tip>

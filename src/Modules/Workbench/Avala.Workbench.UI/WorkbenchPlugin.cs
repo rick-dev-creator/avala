@@ -412,6 +412,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<FleetReader>()
             .AddSingleton<DelegationReader>()
             .AddSingleton<UsageReader>()
+            .AddSingleton<WindowWatch>()
             .AddSingleton<JobAllowance>()
             .AddSingleton<UsageWindows>()
             .AddSingleton<RulesReader>()

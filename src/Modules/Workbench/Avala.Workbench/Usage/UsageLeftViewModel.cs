@@ -27,6 +27,8 @@ internal interface IUsageLeftViewModel
 
     string Summary { get; }
 
+    string Shared { get; }
+
     IReadOnlyList<ILimitViewModel> Windows { get; }
 
     IRelayCommand OpenCommand { get; }
@@ -68,6 +70,9 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
     [ObservableProperty]
     public partial string Summary { get; private set; } = string.Empty;
 
+    [ObservableProperty]
+    public partial string Shared { get; private set; } = string.Empty;
+
     public IReadOnlyList<ILimitViewModel> Windows => windows;
 
     public void Activate() => feed.Start(_ => ValueTask.FromResult(job.Bind(allowance.Of)), Show);
@@ -98,6 +103,7 @@ internal sealed partial class UsageLeftViewModel(JobAllowance allowance, LiveFee
         Left = most is null ? string.Empty : UsageLeftPhrases.Left(Used);
         IsNear = windows.Any(window => window.IsNear) || (most is not null && Used >= 1 - MeterViewModel.AttentionMargin);
         Summary = UsageLeftPhrases.Summary(Connection, windows);
+        Shared = UsagePhrases.Shared(Connection);
         IsShown = shown.IsSome;
     }
 

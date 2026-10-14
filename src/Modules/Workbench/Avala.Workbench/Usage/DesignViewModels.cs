@@ -19,6 +19,8 @@ internal sealed record DesignLimitViewModel(string Window, string Label, double 
     public bool IsNear => HasHold && Used >= Hold - 0.1;
 
     public bool IsExpired => UsedText == "reset";
+
+    public string Outside { get; init; } = string.Empty;
 }
 
 internal sealed class DesignConnectionMeterViewModel(string name, string cost, string tokens, IReadOnlyList<ILimitViewModel> limits) : IConnectionMeterViewModel
@@ -43,6 +45,8 @@ internal sealed class DesignConnectionMeterViewModel(string name, string cost, s
     public bool IsFocused => false;
 
     public IReadOnlyList<ILimitViewModel> Limits { get; } = limits;
+
+    public string Shared => UsagePhrases.Shared(Name);
 }
 
 internal sealed record DesignUsageWindowViewModel(string Label, string Cost, long Input, long Output, long CacheRead, long CacheWrite, long Reasoning, string Unpriced) : IUsageWindowViewModel
@@ -179,6 +183,8 @@ internal sealed class DesignUsageLeftViewModel : IUsageLeftViewModel
     public bool IsNear => true;
 
     public string Summary => "Usage left on claude-work · 5-hour window 88% used, resets 2026-10-09 16:20 · 7-day window 43% used, resets 2026-10-13 09:00";
+
+    public string Shared => UsagePhrases.Shared("claude-work");
 
     public IReadOnlyList<ILimitViewModel> Windows { get; } = [new DesignLimitViewModel(), new DesignLimitViewModel("7d", "7-day window", 0.43, "43%", "resets 2026-10-13 09:00", 0.9, false)];
 

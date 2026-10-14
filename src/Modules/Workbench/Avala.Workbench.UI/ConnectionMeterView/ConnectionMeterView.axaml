@@ -38,6 +38,7 @@
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
       </ItemsControl>
+      <TextBlock x:Name="Shared" Classes="caption" Text="{Binding Shared}" IsVisible="{Binding !!Limits.Count}" TextWrapping="Wrap" Margin="0,-8,0,0" />
     </StackPanel>
   </Border>
 </UserControl>
