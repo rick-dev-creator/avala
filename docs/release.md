@@ -27,7 +27,7 @@ The archives the installers are made from:
 | Platform | Runner | Archive | What is inside |
 | --- | --- | --- | --- |
 | Windows x64 | `windows-latest` | `avala-<version>-win-x64.zip`, not attached to the release | `Avala/`: `Avala.exe`, the runtime, `plugins/` |
-| Linux x64 | `ubuntu-latest` | `avala-<version>-linux-x64.tar.gz` | `avala-<version>/`: `Avala`, the runtime, `plugins/`, `avala.png`, `avala.desktop`, `LICENSE` |
+| Linux x64 | `ubuntu-latest` | `avala-<version>-linux-x64.tar.gz` | `avala-<version>/`: `Avala`, the runtime, `plugins/`, `avala.png`, `icons/hicolor/` (16 to 512 px and scalable), `avala.desktop`, `LICENSE` |
 
 The release workflow packages Windows and Linux only, starting with `v0.1.0-beta.1`. The script still builds the macOS bundles below, and they return to the release once they are signed and notarized: add their two entries back to the workflow's `package` matrix, `osx-arm64` and `osx-x64`, both on `macos-latest`.
 
@@ -81,8 +81,8 @@ The installers are unsigned. Velopack signs `Setup.exe`, `Update.exe` and the ap
 | Windows installer | `%LocalAppData%\Avala.Desktop`: `Update.exe`, a small `Avala.exe` that starts `current\Avala.exe`, and `current\` with the app and `plugins\`; shortcuts on the desktop and in the Start menu; uninstalled from Settings, Apps | `%LocalAppData%\Avala`, kept when Avala is uninstalled | in place |
 | Windows portable zip | wherever it is unzipped, the same layout with a `.portable` marker | `%LocalAppData%\Avala` | in place |
 | AppImage | wherever the file is kept; downloaded updates wait in `/var/tmp/velopack/Avala.Desktop` and replace the file on restart | `~/.local/share/Avala` | in place |
-| tar.gz | wherever it is unpacked; `avala.desktop` and `avala.png` are there to install by hand | `~/.local/share/Avala` | the release page |
-| AUR `avala-bin` | `/opt/avala`, with `/usr/bin/avala`, `/usr/share/applications/avala.desktop` and the icon | `~/.local/share/Avala` | `pacman` and an AUR helper |
+| tar.gz | wherever it is unpacked; `avala.desktop` and `icons/hicolor` (or `avala.png`) are there to install by hand, the icons into `~/.local/share/icons/hicolor` | `~/.local/share/Avala` | the release page |
+| AUR `avala-bin` | `/opt/avala`, with `/usr/bin/avala`, `/usr/share/applications/avala.desktop` and the icon in every size | `~/.local/share/Avala` | `pacman` and an AUR helper |
 | Flatpak | `/app/avala` inside the sandbox | `~/.var/app/io.github.rick_dev_creator.Avala/data/Avala` | `flatpak update` |
 
 The pack id is `Avala.Desktop` rather than `Avala` because Velopack installs into `%LocalAppData%\<pack id>` and removes that folder when Avala is uninstalled, and `%LocalAppData%\Avala` is Avala's data folder. `AVALA_DATA_PATH` still chooses another data folder.
@@ -261,3 +261,7 @@ Avala tells a person when a newer version is out. Installed with Velopack, by th
 
   A file that cannot be read, or holds anything but that object, also turns the startup check off. Check now in About still asks, since the person asked.
 - **Where it lives.** `UpdateCheck` in `Avala.Runtime.Updates`, behind the SDK's `IUpdates`, with `CheckAsync`, `DownloadAsync` and `RestartAsync`. Only the host's real composition gives it the HTTP feed and, when Velopack installed this Avala, `VelopackInstaller` behind the `IUpdateInstaller` port, so tests, the simulation and the smoke run never reach the network. The host closes the window on `RestartingToUpdate`.
+
+## The window's identity
+
+The desktop shows Avala's icon for its running window only when it can match the window to the desktop entry. On Linux the window names itself `avala`, the desktop entry's name: Wayland's `app_id` (`WaylandPlatformOptions.AppId`, Avalonia 12.1.4) and X11's `WM_CLASS` (`X11PlatformOptions.WmClass`), and `avala.desktop` declares `StartupWMClass=avala`. Inside Flatpak the window takes `FLATPAK_ID`, `io.github.rick_dev_creator.Avala`, the name of the Flatpak's desktop entry and icons. On Windows the executable embeds `avala.ico` (16 to 256 px) and the window shows it; on macOS the bundle's `Info.plist` names `avala.icns`, built with every size Apple defines, retina included.

@@ -21,10 +21,10 @@ modules:
     build-commands:
       - install -d /app/avala /app/bin
       - cp -a . /app/avala/
-      - rm /app/avala/avala.desktop /app/avala/avala.png /app/avala/LICENSE /app/avala/io.github.rick_dev_creator.Avala.metainfo.xml
+      - rm -r /app/avala/avala.desktop /app/avala/avala.png /app/avala/icons /app/avala/LICENSE /app/avala/io.github.rick_dev_creator.Avala.metainfo.xml
       - ln -s /app/avala/Avala /app/bin/avala
-      - sed -e 's/^Exec=Avala$/Exec=avala/' -e 's/^Icon=avala$/Icon=io.github.rick_dev_creator.Avala/' avala.desktop | install -Dm644 /dev/stdin /app/share/applications/io.github.rick_dev_creator.Avala.desktop
-      - install -Dm644 avala.png /app/share/icons/hicolor/256x256/apps/io.github.rick_dev_creator.Avala.png
+      - sed -e 's/^Exec=Avala$/Exec=avala/' -e 's/^Icon=avala$/Icon=io.github.rick_dev_creator.Avala/' -e 's/^StartupWMClass=avala$/StartupWMClass=io.github.rick_dev_creator.Avala/' avala.desktop | install -Dm644 /dev/stdin /app/share/applications/io.github.rick_dev_creator.Avala.desktop
+      - for icon in icons/hicolor/*/apps/avala.*; do install -Dm644 "$icon" "/app/share/${icon%avala.*}io.github.rick_dev_creator.Avala.${icon##*.}"; done
       - install -Dm644 io.github.rick_dev_creator.Avala.metainfo.xml /app/share/metainfo/io.github.rick_dev_creator.Avala.metainfo.xml
       - install -Dm644 LICENSE /app/share/licenses/io.github.rick_dev_creator.Avala/LICENSE
     sources:
