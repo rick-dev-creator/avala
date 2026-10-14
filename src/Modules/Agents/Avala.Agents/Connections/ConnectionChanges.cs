@@ -21,14 +21,19 @@ internal sealed record DeclarationChange(Option<ConnectionName> Replacing, Conne
 {
     public Option<ModelChoice> Model { get; init; }
 
+    public IReadOnlyDictionary<string, Option<string>> Settings { get; init; } = ImmutableDictionary<string, Option<string>>.Empty;
+
     public ConnectionDeclaration Edited(Option<ConnectionDeclaration> replaced) =>
         replaced.Match(found => found, () => new ConnectionDeclaration(Name, Provider)) with
         {
             Name = Name,
             Provider = Provider,
             Credential = Credential,
-            Settings = Model.Match(chosen => Chosen(replaced.Match(found => found.Settings, () => ImmutableDictionary<string, string>.Empty), chosen), () => replaced.Match(found => found.Settings, () => ImmutableDictionary<string, string>.Empty)),
+            Settings = Changed(Model.Match(chosen => Chosen(replaced.Match(found => found.Settings, () => ImmutableDictionary<string, string>.Empty), chosen), () => replaced.Match(found => found.Settings, () => ImmutableDictionary<string, string>.Empty).ToImmutableDictionary())),
         };
+
+    private ImmutableDictionary<string, string> Changed(ImmutableDictionary<string, string> settings) =>
+        Settings.Aggregate(settings, (current, change) => Put(current, change.Key, change.Value));
 
     private static ImmutableDictionary<string, string> Chosen(IReadOnlyDictionary<string, string> settings, ModelChoice chosen) =>
         Put(Put(settings.ToImmutableDictionary(), OffersModels.ModelSetting, chosen.Model), OffersModels.EffortSetting, chosen.Effort);

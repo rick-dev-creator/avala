@@ -53,6 +53,11 @@ internal static class ConnectionFileEdits
         entry["provider"] = declared.Provider;
         Put(entry, "credential", declared.Credential.Map(Credential));
 
+        foreach (var (name, value) in declared.Settings)
+        {
+            Set(entry, name, value);
+        }
+
         foreach (var model in declared.Model.Match<ModelChoice[]>(chosen => [chosen], () => []))
         {
             Choose(entry, model);
@@ -70,6 +75,22 @@ internal static class ConnectionFileEdits
         Put(written, "reference", credential.Reference.Map(Value));
 
         return written;
+    }
+
+    private static void Set(JsonObject entry, string name, Option<string> value)
+    {
+        if (entry["settings"] is not JsonObject settings)
+        {
+            settings = [];
+            entry["settings"] = settings;
+        }
+
+        Put(settings, name, value.Map(Value));
+
+        if (settings.Count == 0)
+        {
+            entry.Remove("settings");
+        }
     }
 
     private static void Choose(JsonObject entry, ModelChoice model)
