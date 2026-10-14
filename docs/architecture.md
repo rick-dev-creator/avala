@@ -78,7 +78,7 @@ A new capability, such as an issue tracker or another way to isolate work, arriv
 | Transcripts | Each job's conversation, kept across restarts |
 | Canvas | The canvas tool and its versions; Rendering draws Markdown and SVG, Mermaid draws diagrams |
 | Preview | A job's page or app served and shown beside its conversation |
-| Projects | The projects conversations are grouped into: one per repository, made with its first job, and the conversations a person moved |
+| Projects | The projects conversations are grouped into: one per repository, made with its first job, the conversations a person moved, and the archive |
 | Recording | Records real sessions for the simulator to replay; development only |
 | Simulator | The simulated harnesses, with `Avala.Simulator.Workload` for the processes its scenarios run; development only |
 | ClaudeCode | The Claude Code provider |
@@ -211,6 +211,8 @@ Each step slides in from the right, and appears in place under reduced motion. F
 The sidebar groups jobs by project from one board: the Workbench's `ProjectKeeper` keeps the Projects module's `ProjectMap` on the `JobBoard` from `ProjectsRestored`, `ProjectCreated`, `ProjectRenamed`, `ProjectDeleted` and `ConversationMoved`, as `ContestKeeper` keeps contests, so a change of projects regroups the rows without another read. Needs you stays above every project, so a job waiting for a person never hides inside a folded project. Every other row goes into its project, `ProjectMap.Of`: where a person moved the job, otherwise its repository's project; a job in a scratch repository goes into Chats, and a job whose repository's project has not arrived yet sits under a group named after its folder until it does. Delegated children stay under their parent and a contest under one row, as before. A project's done jobs fold under "N done", and folded groups are interface state, kept in `layout.json` as `collapsedGroups` through `IWindowLayout`, never in the Projects module.
 
 Renaming, deleting and moving go through the Workbench's `ProjectShelf` to `IProjects`, and the sidebar shows the result when the event comes back; a refused name or deletion is said in the group, in words the Workbench chooses from `ProjectRejection`. The Projects module makes a repository's project the first time that repository runs a job, and at startup for jobs of earlier runs that were never moved, so a repository's project deleted once empty stays gone until the repository runs again.
+
+Archiving is a shelf, not a state: the Projects module keeps the archived job ids in `projects.db` and on `ProjectMap.Archived`, publishes `ConversationsArchived` and `ConversationRestored`, and never touches the job. Its domain allows a root job that is ready for review, approved, discarded or failed, and refuses one that works (`StillWorking`), needs a person (`NeedsYou`) or is a sub-agent (`FollowsItsParent`); `ArchiveReturns` restores an archived job whose `JobProgressed` says it is preparing, running, checking or needs a person, and the startup pass does the same for jobs that worked while Avala was closed, so archiving never hides work. The sidebar places no row whose jobs are archived, which keeps it small, and moves the selection to the next row of the group when the selected one leaves. The Workbench's `ArchivedReader` reads the archived conversations from the board, one per root job or contest, for the Archived page, the Archived row in the sidebar footer and the Archived chip in the job's header.
 
 ### The conversation
 
