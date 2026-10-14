@@ -61,6 +61,8 @@ public sealed class CodeText : SelectableTextBlock
         return at < 0 ? CodeInk.Plain : painted[at].Ink;
     }
 
+    public int StartOf(int line) => starts[Math.Clamp(line, 1, starts.Length) - 1];
+
     public IReadOnlyList<string> Numbers() => IsNumbered ? Gutter(TextLayout).Split('\n') : [];
 
     protected override void RenderTextLayout(DrawingContext context, Point origin)

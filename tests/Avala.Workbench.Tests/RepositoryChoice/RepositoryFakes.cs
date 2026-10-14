@@ -57,7 +57,9 @@ internal sealed class FakeRemotes : IRemoteRepositories
 
     public List<(string Url, string Parent, string Name)> Cloned { get; } = [];
 
-    public ValueTask<Option<string>> RemoteAsync(string repository, string remote, CancellationToken cancellationToken) => ValueTask.FromResult(Option<string>.None);
+    public Option<string> Origin { get; set; }
+
+    public ValueTask<Option<string>> RemoteAsync(string repository, string remote, CancellationToken cancellationToken) => ValueTask.FromResult(remote == "origin" ? Origin : Option<string>.None);
 
     public ValueTask<bool> HasCredentialHelperAsync(string repository, string url, CancellationToken cancellationToken) => ValueTask.FromResult(false);
 

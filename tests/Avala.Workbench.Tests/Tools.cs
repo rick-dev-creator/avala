@@ -15,7 +15,16 @@ internal static class Tools
 
     public static FileViewing Viewing() => Viewing(Files());
 
-    public static FileViewing Viewing(WorkedFiles worked) => new(worked, FakeLinks.Opening, new FakePictures(), Code);
+    public static FileViewing Viewing(WorkedFiles worked) => new(worked, FakeLinks.Opening, new FakePictures(), Replies(FakeLinks.Opening));
+
+    public static ReplyTools Replies(Links links, CodeFiles? code = null) => new(code ?? Code, new JobReferences(new FakeCatalog(), new Avala.Workbench.Tests.RepositoryChoice.FakeRemotes(), links));
+
+    public static FileViews Reply(FakeLinks? opener = null, CodeFiles? code = null, IMessenger? messenger = null)
+    {
+        var links = new Links(opener ?? new FakeLinks(), messenger ?? new StrongReferenceMessenger());
+
+        return new FileViewing(Files(), links, new FakePictures(), Replies(links, code)).For(JobId.New());
+    }
 
     public static Avala.Workbench.Linking.CodeFiles Code { get; } = new(new FakeFileSaver(), new FakeOpener(), new Avala.Sdk.AvalaPaths("/home/ana/.local/share/Avala"));
 
@@ -45,11 +54,15 @@ internal sealed class Worktree
 
     public bool Gone { get; init; }
 
+    public Avala.Workbench.Tests.RepositoryChoice.FakeRemotes Remotes { get; } = new();
+
+    private FakeCatalog catalog = new();
+
     public JobId Job { get; private set; }
 
     public WorkedFiles Worked()
     {
-        var catalog = new FakeCatalog();
+        catalog = new FakeCatalog();
         var workspaces = new FakeWorkspaces();
         var workspace = WorkspaceId.New();
         Job = catalog.Add("Draw the solar system", JobStatus.Running).Summary.Job;
@@ -70,5 +83,17 @@ internal sealed class Worktree
         return new(entry, new FakeClipboard(), Viewing(worked).For(Job));
     }
 
-    public FileViewing Viewing(WorkedFiles worked) => new(worked, new Links(Opener, new StrongReferenceMessenger()), Pictures, Tools.Code);
+    public FileViewing Viewing(WorkedFiles worked)
+    {
+        var links = new Links(Opener, new StrongReferenceMessenger());
+
+        return new(worked, links, Pictures, new ReplyTools(Tools.Code, new JobReferences(catalog, Remotes, links)));
+    }
+
+    public MessageViewModel Message(string text)
+    {
+        var worked = Worked();
+
+        return new(new MessageEntry("m", text, Avala.Agents.Contracts.Events.ItemOutcome.Succeeded), new FakeClipboard(), Viewing(worked).For(Job));
+    }
 }

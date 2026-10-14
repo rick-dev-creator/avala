@@ -118,8 +118,6 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<JobProgressed>, QueuedMessages>()
             .AddSingleton<DeniedRetries>()
             .AddSingleton<HumanReplies>()
-            .AddSingleton<Links>()
-            .AddSingleton<CodeFiles>()
             .AddSingleton<SendKeys>()
             .AddForwarded<IHandle<AppearanceChanged>, SendKeys>()
             .AddSingleton<PersonalDetailsViewModel>()
@@ -150,6 +148,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IWelcomeViewModel, WelcomeViewModel>()
             .AddSingleton<WorkbenchViewModel>()
             .AddForwarded<IPage, WorkbenchViewModel>();
+        RegisterReplies(registrar.Services);
         RegisterRegions(registrar);
         RegisterInspector(registrar);
         RegisterGlobalPages(registrar.Services);
@@ -158,6 +157,13 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         RegisterBoardGroups(registrar);
         RegisterFooter(registrar);
     }
+
+    private static void RegisterReplies(IServiceCollection services) =>
+        services
+            .AddSingleton<Links>()
+            .AddSingleton<CodeFiles>()
+            .AddSingleton<JobReferences>()
+            .AddSingleton<ReplyTools>();
 
     private static void RegisterRegions(IPluginRegistrar registrar) =>
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
@@ -256,6 +262,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IChangedFileViewModel, ChangedFileView>();
         views.Register<IHunkViewModel, HunkView>();
         views.Register<IEditDiffViewModel, EditDiffView>();
+        views.Register<ICodePeekViewModel, CodePeekView>();
         views.Register<IDecisionsViewModel, DecisionsView>();
         views.Register<IDecisionViewModel, DecisionView>();
         views.Register<IEvidenceSectionViewModel, EvidenceSectionView>();

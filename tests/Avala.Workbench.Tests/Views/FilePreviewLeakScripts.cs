@@ -49,7 +49,7 @@ public sealed class FilePreviewLeakScripts(HeadlessUi ui)
         var worktree = new Worktree();
         worktree.Files.Stored[Path.Combine(Worktree.Folder, path)] = bytes;
         var worked = worktree.Worked();
-        var preview = new FilePreviewViewModel(worktree.Job, path, new FileViewing(worked, new Linking.Links(worktree.Opener, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), pictures, Tools.Code));
+        var preview = new FilePreviewViewModel(worktree.Job, path, new FileViewing(worked, new Linking.Links(worktree.Opener, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), pictures, Tools.Replies(FakeLinks.Opening)));
         await preview.LoadCommand.ExecuteAsync(null);
 
         return preview;

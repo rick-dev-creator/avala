@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Controls.Documents;
 using Avalonia.LogicalTree;
 using Markdig;
 using MarkView.Avalonia;
@@ -25,12 +26,15 @@ public sealed class MarkdownText : StackPanel
     public static readonly StyledProperty<ICommand> LinkCommandProperty =
         AvaloniaProperty.Register<MarkdownText, ICommand>(nameof(LinkCommand), OpensNothing.Instance);
 
+    public static readonly StyledProperty<bool> FindsReferencesProperty =
+        AvaloniaProperty.Register<MarkdownText, bool>(nameof(FindsReferences));
+
     public static readonly StyledProperty<ICommand> CodeCommandProperty =
         AvaloniaProperty.Register<MarkdownText, ICommand>(nameof(CodeCommand), OpensNothing.Instance);
 
     private const double BlockSpacing = 8;
 
-    private readonly MarkdownPipeline pipeline;
+    private MarkdownPipeline pipeline;
     private readonly MarkdownViewer settled;
     private readonly StackPanel streaming;
     private readonly MarkdownViewer tail;
@@ -83,6 +87,12 @@ public sealed class MarkdownText : StackPanel
         set => SetValue(LinkCommandProperty, value);
     }
 
+    public bool FindsReferences
+    {
+        get => GetValue(FindsReferencesProperty);
+        set => SetValue(FindsReferencesProperty, value);
+    }
+
     public ICommand CodeCommand
     {
         get => GetValue(CodeCommandProperty);
@@ -126,15 +136,46 @@ public sealed class MarkdownText : StackPanel
     {
         base.OnPropertyChanged(change);
 
-        if (change.Property == MarkdownProperty || change.Property == IsLiveProperty)
+        if (change.Property == FindsReferencesProperty)
+        {
+            pipeline = FindsReferences ? OfflineMarkdown.WithReferences : OfflineMarkdown.WithoutImages;
+            Forget();
+
+            foreach (var viewer in new[] { settled, tail })
+            {
+                viewer.Pipeline = pipeline;
+            }
+        }
+
+        if (change.Property == MarkdownProperty || change.Property == IsLiveProperty || change.Property == FindsReferencesProperty)
         {
             Show(Markdown, IsLive);
         }
     }
 
+    private static void Tint(MarkdownViewer viewer)
+    {
+        foreach (var link in viewer.GetLogicalDescendants().OfType<TextBlock>().SelectMany(block => Links(block.Inlines ?? [])))
+        {
+            link[!TextElement.ForegroundProperty] = link.GetResourceObservable("AccentBrush").ToBinding();
+        }
+    }
+
+    private static IEnumerable<Inline> Links(IEnumerable<Inline> inlines) =>
+        inlines.SelectMany(inline => inline is Span span
+            ? span.Classes.Contains("markdown-link") ? [span, .. span.Inlines] : Links(span.Inlines)
+            : []);
+
     private MarkdownViewer Viewer(string name)
     {
         var viewer = new MarkdownViewer { Name = name, Pipeline = pipeline };
+        viewer.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == MarkdownViewer.MarkdownProperty || change.Property == MarkdownViewer.PipelineProperty)
+            {
+                Tint(viewer);
+            }
+        };
         viewer.Extensions.Add(MathText.Instance);
         viewer.Extensions.Add(CopyableCode.Instance);
         viewer.Extensions.Add(ScrollingTables.Instance);

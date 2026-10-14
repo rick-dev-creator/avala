@@ -88,6 +88,19 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task AReplyLinksTheFilesCommitsAndIssuesItMentionsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(Message("Fixed in `src/money.ts:2`, committed as 01a13a5, closes #12.", done: true), Avalonia.Styling.ThemeVariant.Light, 800, 600);
+
+            view.Settle();
+            var links = view.All<TextBlock>().SelectMany(block => block.Inlines ?? []).OfType<Span>().Where(span => span.Classes.Contains("markdown-link")).ToList();
+
+            Assert.Equal(3, links.Count);
+            Assert.All(links, link => Assert.Equal(Application.Current!.FindResource(ThemeVariant.Light, "AccentBrush"), link.Foreground));
+        }, Cancellation);
+
+    [Fact]
     public Task ACodeBlocksLinesStopWrappingFromItsWrapButtonAsync() =>
         ui.RunAsync(() =>
         {
@@ -247,7 +260,7 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         ui.RunAsync(async () =>
         {
             var clipboard = new FakeClipboard();
-            var message = new MessageViewModel(new MessageEntry("m", "JPY has no minor units.", ItemOutcome.Succeeded), new Links(new FakeLinks(), new StrongReferenceMessenger()), clipboard, Tools.Code);
+            var message = new MessageViewModel(new MessageEntry("m", "JPY has no minor units.", ItemOutcome.Succeeded), clipboard, Tools.Reply());
             var view = Screen.ShowStill(message, 300);
             var hidden = view.Find("Actions").Opacity;
 
@@ -324,7 +337,7 @@ public sealed class MessageViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     private static MessageViewModel Message(string text, bool done, FakeLinks? opener = null, IMessenger? messenger = null, CodeFiles? code = null) =>
-        new(new MessageEntry("m", text, done ? ItemOutcome.Succeeded : Option<ItemOutcome>.None), new Links(opener ?? new FakeLinks(), messenger ?? new StrongReferenceMessenger()), new FakeClipboard(), code ?? Tools.Code);
+        new(new MessageEntry("m", text, done ? ItemOutcome.Succeeded : Option<ItemOutcome>.None), new FakeClipboard(), Tools.Reply(opener, code, messenger));
 
     private static MarkdownViewer Viewer(ViewScript view, string name) =>
         view.Window.GetVisualDescendants().OfType<MarkdownViewer>().Single(viewer => viewer.Name == name);

@@ -12,7 +12,7 @@ public sealed class MessageViewModelScripts
 {
     [Fact]
     public void AMessageStreamsUntilItsOutcomeArrives() =>
-        ViewModelScript.Given(new MessageViewModel(new MessageEntry("m", "Totals now round", Option<ItemOutcome>.None), FakeLinks.Opening, new FakeClipboard(), Code()))
+        ViewModelScript.Given(new MessageViewModel(new MessageEntry("m", "Totals now round", Option<ItemOutcome>.None), new FakeClipboard(), Tools.Reply()))
             .Then(message => Assert.Equal(("Totals now round", true), (message.Text, message.IsStreaming)))
             .When(message => message.Update(new MessageEntry("m", "Totals now round to whole yen.", ItemOutcome.Succeeded)))
             .ThenNotified(nameof(MessageViewModel.Text), nameof(MessageViewModel.IsStreaming))
@@ -28,7 +28,7 @@ public sealed class MessageViewModelScripts
     public async Task OnlyWebLinksReachTheOpener(string link, bool opened)
     {
         var opener = new FakeLinks();
-        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(opener, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new FakeClipboard(), Code());
+        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new FakeClipboard(), Tools.Reply(opener));
 
         await message.OpenLinkCommand.ExecuteAsync(link);
 
@@ -41,7 +41,7 @@ public sealed class MessageViewModelScripts
     [InlineData(FileOpenError.Refused, "The platform refused to open https://go.dev.")]
     public async Task ALinkThePlatformCannotOpenSaysSo(FileOpenError refusal, string notice)
     {
-        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new Avala.Workbench.Linking.Links(new FakeLinks { Refusal = refusal }, new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new FakeClipboard(), Code());
+        var message = new MessageViewModel(new MessageEntry("m", "See the link", ItemOutcome.Succeeded), new FakeClipboard(), Tools.Reply(new FakeLinks { Refusal = refusal }));
 
         await message.OpenLinkCommand.ExecuteAsync("https://go.dev");
 
@@ -52,7 +52,7 @@ public sealed class MessageViewModelScripts
     public async Task CopyPutsTheWholeReplyOnTheClipboardAndConfirmsIt()
     {
         var clipboard = new FakeClipboard();
-        var message = new MessageViewModel(new MessageEntry("m", "Totals now **round** to whole yen.", ItemOutcome.Succeeded), FakeLinks.Opening, clipboard, Code());
+        var message = new MessageViewModel(new MessageEntry("m", "Totals now **round** to whole yen.", ItemOutcome.Succeeded), clipboard, Tools.Reply());
 
         await message.CopyCommand.ExecuteAsync(null);
 
@@ -63,7 +63,7 @@ public sealed class MessageViewModelScripts
     [Fact]
     public async Task ACopyThePlatformRefusesConfirmsNothing()
     {
-        var message = new MessageViewModel(new MessageEntry("m", "Totals now round", ItemOutcome.Succeeded), FakeLinks.Opening, new FakeClipboard { Refuses = true }, Code());
+        var message = new MessageViewModel(new MessageEntry("m", "Totals now round", ItemOutcome.Succeeded), new FakeClipboard { Refuses = true }, Tools.Reply());
 
         await message.CopyCommand.ExecuteAsync(null);
 
@@ -74,7 +74,7 @@ public sealed class MessageViewModelScripts
     public async Task SavingACodeBlockOffersItUnderANameWithItsLanguagesExtensionAsync()
     {
         var saver = new FakeFileSaver();
-        var message = new MessageViewModel(new MessageEntry("m", "Here", ItemOutcome.Succeeded), FakeLinks.Opening, new FakeClipboard(), Code(saver));
+        var message = new MessageViewModel(new MessageEntry("m", "Here", ItemOutcome.Succeeded), new FakeClipboard(), Tools.Reply(code: Code(saver)));
 
         await message.CodeCommand.ExecuteAsync(new CodeRequest(CodeAction.Save, "var x = 1;", ".cs"));
 
@@ -86,7 +86,7 @@ public sealed class MessageViewModelScripts
     public async Task OpeningACodeBlockInTheEditorWritesItToAvalasCodeFolderAndOpensThatFileAsync()
     {
         var opener = new FakeOpener();
-        var message = new MessageViewModel(new MessageEntry("m", "Here", ItemOutcome.Succeeded), FakeLinks.Opening, new FakeClipboard(), Code(opener: opener));
+        var message = new MessageViewModel(new MessageEntry("m", "Here", ItemOutcome.Succeeded), new FakeClipboard(), Tools.Reply(code: Code(opener: opener)));
 
         await message.CodeCommand.ExecuteAsync(new CodeRequest(CodeAction.Open, "print(1)", ".py"));
 
@@ -99,7 +99,7 @@ public sealed class MessageViewModelScripts
     [InlineData(FileSaveError.Unwritable, "The code could not be written to a file.")]
     public async Task ASaveThatDoesNotHappenSaysWhyUnlessThePersonCancelledAsync(FileSaveError refusal, string notice)
     {
-        var message = new MessageViewModel(new MessageEntry("m", "Here", ItemOutcome.Succeeded), FakeLinks.Opening, new FakeClipboard(), Code(new FakeFileSaver { Refusal = refusal }));
+        var message = new MessageViewModel(new MessageEntry("m", "Here", ItemOutcome.Succeeded), new FakeClipboard(), Tools.Reply(code: Code(new FakeFileSaver { Refusal = refusal })));
 
         await message.CodeCommand.ExecuteAsync(new CodeRequest(CodeAction.Save, "x", ".txt"));
 
@@ -109,7 +109,7 @@ public sealed class MessageViewModelScripts
     [Fact]
     public async Task ACodeBlockNoAppOpensSaysSoAsync()
     {
-        var message = new MessageViewModel(new MessageEntry("m", "Here", ItemOutcome.Succeeded), FakeLinks.Opening, new FakeClipboard(), Code(opener: new FakeOpener { Refusal = FileOpenError.Refused }));
+        var message = new MessageViewModel(new MessageEntry("m", "Here", ItemOutcome.Succeeded), new FakeClipboard(), Tools.Reply(code: Code(opener: new FakeOpener { Refusal = FileOpenError.Refused })));
 
         await message.CodeCommand.ExecuteAsync(new CodeRequest(CodeAction.Open, "x", ".zig"));
 
@@ -118,7 +118,7 @@ public sealed class MessageViewModelScripts
 
     [Fact]
     public void AnEntryOfAnotherKindChangesNothing() =>
-        ViewModelScript.Given(new MessageViewModel(new MessageEntry("m", "Hello", Option<ItemOutcome>.None), FakeLinks.Opening, new FakeClipboard(), Code()))
+        ViewModelScript.Given(new MessageViewModel(new MessageEntry("m", "Hello", Option<ItemOutcome>.None), new FakeClipboard(), Tools.Reply()))
             .When(message => message.Update(new RestartEntry("m", Kept: true)))
             .Then(message => Assert.Equal(("Hello", true, true), (message.Text, message.IsStreaming, message.IsShown)));
 

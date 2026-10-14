@@ -19,6 +19,7 @@
                            Classes.streaming="{Binding IsStreaming}"
                            Markdown="{Binding Text}"
                            IsLive="{Binding IsStreaming}"
+                           FindsReferences="True"
                            LinkCommand="{Binding OpenLinkCommand}"
                            CodeCommand="{Binding CodeCommand}" />
     <TextBlock x:Name="LinkNotice"
@@ -26,6 +27,7 @@
                TextWrapping="Wrap"
                Text="{Binding LinkNotice}"
                IsVisible="{Binding LinkNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    <ContentControl x:Name="Peek" Content="{Binding Peek}" />
     <StackPanel x:Name="Actions" Classes="hover-actions" Margin="-5,-2,0,-2" IsVisible="{Binding !IsStreaming}">
       <copying:CopyButton x:Name="Copy"
                           Command="{Binding CopyCommand}"

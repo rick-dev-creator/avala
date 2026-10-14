@@ -304,5 +304,5 @@ public sealed class ConversationViewModelScripts
     private static ConversationViewModel Open(FakeJobs jobs) => Open(jobs, new FakeClipboard(), new FakeFileSaver());
 
     private static ConversationViewModel Open(FakeJobs jobs, FakeClipboard clipboard, FakeFileSaver saver, FakeAppearance? appearance = null) =>
-        new Conversations(Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), FakeLinks.Opening, clipboard, Tools.Viewing()), new TranscriptExport(clipboard, saver, appearance ?? new FakeAppearance())).Open(JobId.New());
+        new Conversations(Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys()), new TimelineItems(Replying.With(new FakePermissionAnswers()), clipboard, Tools.Viewing()), new TranscriptExport(clipboard, saver, appearance ?? new FakeAppearance())).Open(JobId.New());
 }
