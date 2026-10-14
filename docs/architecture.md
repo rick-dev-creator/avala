@@ -81,7 +81,7 @@ A new capability, such as an issue tracker or another way to isolate work, arriv
 | Projects | The projects conversations are grouped into: one per repository, made with its first job, the conversations a person moved, and the archive |
 | Recording | Records real sessions for the simulator to replay; development only |
 | Simulator | The simulated harnesses, with `Avala.Simulator.Workload` for the processes its scenarios run; development only |
-| ClaudeCode | The Claude Code provider |
+| ClaudeCode | The Claude Code provider, and its section of Settings: how each login compacts its conversations |
 | Workbench | The user interface |
 
 ### Agents and the provider contract
@@ -187,7 +187,7 @@ Settings that are not a module's records live as small JSON files in the data fo
 
 The Workbench is the module of the user interface, built on other modules' contracts only. It follows MVVM, view model first: view models live in the module's core assembly and reference no UI framework, and views live in its `.UI` assembly, so another UI technology means replacing the `.UI` assemblies and nothing else. A view only binds, with compiled bindings, theme resources and commands, binds a selection through `Kept.Selection` so a view torn down cannot clear it, and takes every shortcut and the label its tooltip shows from `Hotkeys`, which presses ⌘ on macOS and Ctrl elsewhere; the view registry picks the view for each view model.
 
-The main window is drawn as named **regions**, an idea taken from Prism: a page declares its regions, plugins register view models into them, and a region's context, such as the selected job, reaches every component in it, so a page never knows the components other modules contribute. Components that live apart talk through small UI messages over an injected messenger. Every view model has a design-time implementation, so every view renders in the designer, and every component has scripted acceptance tests that drive it as a user would, headless.
+The main window is drawn as named **regions**, an idea taken from Prism: a page declares its regions, plugins register view models into them, and a region's context, such as the selected job, reaches every component in it, so a page never knows the components other modules contribute. Settings works the same way: `WorkbenchRegions.Settings` holds the sections a harness contributes, drawn in the machine's part of Settings and activated with it, such as Claude Code's compaction settings, so the Workbench never names a harness. Components that live apart talk through small UI messages over an injected messenger. Every view model has a design-time implementation, so every view renders in the designer, and every component has scripted acceptance tests that drive it as a user would, headless.
 
 ### The welcome and the harness chip
 

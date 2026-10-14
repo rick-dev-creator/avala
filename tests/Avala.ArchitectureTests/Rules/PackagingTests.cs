@@ -34,7 +34,7 @@ public sealed class PackagingTests
         Assert.True(
             developmentOnly.SequenceEqual(DevelopmentPlugins),
             $"The development-only plugins are {string.Join(", ", developmentOnly)} instead of {string.Join(", ", DevelopmentPlugins)}. The simulators and the recorder never ship: declare <{DevelopmentOnly}>true</{DevelopmentOnly}> on them, and list a new one here and in docs/release.md.");
-        Assert.Contains(plugins, plugin => plugin is { Name: "Avala.ClaudeCode", DevelopmentOnly: false });
+        Assert.Contains(plugins, plugin => plugin is { Name: "Avala.ClaudeCode.UI", DevelopmentOnly: false });
         Assert.Contains($"\"{DevelopmentOnly}\"", script, StringComparison.Ordinal);
     }
 

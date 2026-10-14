@@ -145,6 +145,7 @@
   </Folder>
   <Folder Name="/src/Modules/ClaudeCode/">
     <Project Path="src/Modules/ClaudeCode/Avala.ClaudeCode/Avala.ClaudeCode.csproj" />
+    <Project Path="src/Modules/ClaudeCode/Avala.ClaudeCode.UI/Avala.ClaudeCode.UI.csproj" />
   </Folder>
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/Avala.Components.UI/Avala.Components.UI.csproj" />

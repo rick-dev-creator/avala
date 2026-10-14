@@ -5,6 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Simulator\Avala.Simulator\Avala.Simulator.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\ClaudeCode\Avala.ClaudeCode\Avala.ClaudeCode.csproj" Private="false" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\..\src\Modules\ClaudeCode\Avala.ClaudeCode.UI\Avala.ClaudeCode.UI.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\ForgeSimulator\Avala.ForgeSimulator\Avala.ForgeSimulator.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Recording\Avala.Recording\Avala.Recording.csproj" Private="false" ExcludeAssets="runtime" />
     <ProjectReference Include="..\..\src\Modules\Mermaid\Avala.Mermaid.UI\Avala.Mermaid.UI.csproj" Private="false" ExcludeAssets="runtime" />

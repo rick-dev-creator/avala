@@ -5,13 +5,17 @@ using Avala.ClaudeCode.Cli;
 using Avala.ClaudeCode.Conversations;
 using Avala.ClaudeCode.Discovery;
 using Avala.ClaudeCode.Folders;
+using Avala.ClaudeCode.Settings;
 using Avala.Sdk;
+using Avala.Sdk.Regions;
+using Avala.Sdk.UI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
+
 namespace Avala.ClaudeCode;
 
-public sealed class ClaudeCodePlugin(string executable, IReadOnlyList<string> arguments, string home, IReadOnlyDictionary<string, string> environment) : IPlugin
+public sealed class ClaudeCodePlugin(string executable, IReadOnlyList<string> arguments, string home, IReadOnlyDictionary<string, string> environment) : IPlugin, IViewContributor
 {
     public ClaudeCodePlugin()
         : this(CliCommand.Installed.FileName, CliCommand.Installed.Prefix, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Variables())
@@ -45,7 +49,15 @@ public sealed class ClaudeCodePlugin(string executable, IReadOnlyList<string> ar
             .AddSingleton<ICli, ProcessCli>()
             .AddSingleton<IConfigurationFolders, ConfigurationFolders>()
             .AddSingleton<IConnectionDiscovery, LoginFolders>()
-            .AddSingleton<IAgentProvider, ClaudeCodeProvider>();
+            .AddSingleton<IAgentProvider, ClaudeCodeProvider>()
+            .AddSingleton(provider => new ClaudeCodeSettingsViewModel(provider.GetRequiredService<IConnections>(), provider.GetRequiredService<IUiDispatcher>()));
+        registrar.AddToRegion<ClaudeCodeSettingsViewModel>(WorkbenchRegions.Settings, 0);
+    }
+
+    public void RegisterViews(IViewRegistrar views)
+    {
+        views.Register<IClaudeCodeSettingsViewModel, Avala.ClaudeCode.UI.ClaudeCodeSettingsView>();
+        views.Register<IClaudeCodeLoginViewModel, Avala.ClaudeCode.UI.ClaudeCodeLoginView>();
     }
 
     private static Dictionary<string, string> Configured(IReadOnlyList<string> configured)
