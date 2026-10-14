@@ -130,7 +130,15 @@
           <SelectableTextBlock x:Name="Input"
                                Classes="output"
                                Text="{Binding Input}"
-                               IsVisible="{Binding Input, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                               IsVisible="{Binding ShowsInput}" />
+          <ContentControl x:Name="Edit" Content="{Binding Edit}" IsVisible="{Binding ShowsEdit}" />
+          <Button x:Name="AllChanges"
+                  Classes="ghost"
+                  HorizontalAlignment="Left"
+                  FontSize="{DynamicResource FontSizeCaption}"
+                  Content="{x:Static conversation:ConversationPhrases.AllChanges}"
+                  Command="{Binding ShowChangesCommand}"
+                  IsVisible="{Binding ShowsChanges}" />
           <SelectableTextBlock x:Name="Output"
                                Classes="output"
                                Text="{Binding Output}"
@@ -138,7 +146,7 @@
           <TextBlock x:Name="NoOutput"
                      Classes="caption"
                      Text="No output."
-                     IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                     IsVisible="{Binding ShowsNoOutput}" />
         </StackPanel>
         <copying:CopyButton x:Name="CopyOutput"
                             HorizontalAlignment="Right"

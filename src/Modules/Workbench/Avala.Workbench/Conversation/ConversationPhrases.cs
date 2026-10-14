@@ -29,6 +29,10 @@ internal static class ConversationPhrases
 
     public static string Missing(string name) => $"{name} is no longer in the workspace or the repository.";
 
+    public static string MoreLines(int count) => count == 1 ? "… 1 more line" : $"… {count.ToString(System.Globalization.CultureInfo.InvariantCulture)} more lines";
+
+    public const string AllChanges = "All changes to this file";
+
     public static string NotOpened(string name) => $"{name} could not be opened.";
 
     public static string TooLargeToPreview(string name) => $"{name} is too large to preview.";

@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Sdk;
+using Avala.Workbench.Review;
 using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -34,6 +35,14 @@ internal interface IToolViewModel
 
     IFileChangesViewModel Changes { get; }
 
+    bool ShowsEdit { get; }
+
+    bool ShowsInput { get; }
+
+    bool ShowsNoOutput { get; }
+
+    IHunkViewModel Edit { get; }
+
     bool ShowsPreview { get; }
 
     IFilePreviewViewModel Preview { get; }
@@ -41,6 +50,8 @@ internal interface IToolViewModel
     IAsyncRelayCommand ToggleCommand { get; }
 
     IAsyncRelayCommand CopyCommand { get; }
+
+    IAsyncRelayCommand ShowChangesCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -49,11 +60,12 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     private readonly IClipboard clipboard;
     private readonly FileChangesViewModel changes;
     private readonly FilePreviewViewModel preview;
+    private readonly string path;
 
     public ToolViewModel(ToolEntry entry, IClipboard clipboard, FileViews files)
     {
         this.clipboard = clipboard;
-        var path = entry.EditedPath.Match(found => found, () => string.Empty);
+        path = entry.EditedPath.Match(found => found, () => string.Empty);
         changes = files.Changes(path);
         preview = files.Preview(path);
         Kind = entry.Kind;
@@ -72,11 +84,13 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     public partial bool IsCode { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsInput))]
     public partial string Input { get; private set; } = string.Empty;
 
     public bool IsShown => true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsNoOutput))]
     public partial string Output { get; private set; }
 
     [ObservableProperty]
@@ -103,6 +117,17 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     public IFileChangesViewModel Changes => changes;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsInput), nameof(ShowsNoOutput))]
+    public partial bool ShowsEdit { get; private set; }
+
+    public bool ShowsInput => Input.Length > 0 && !ShowsEdit;
+
+    public bool ShowsNoOutput => Output.Length == 0 && !ShowsEdit;
+
+    [ObservableProperty]
+    public partial IHunkViewModel Edit { get; private set; } = EditDiffViewModel.Of(string.Empty, string.Empty);
+
+    [ObservableProperty]
     public partial bool ShowsPreview { get; private set; }
 
     public IFilePreviewViewModel Preview => preview;
@@ -112,6 +137,13 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
         if (entry is ToolEntry tool)
         {
             Input = tool.Input.Match(input => input, () => string.Empty);
+            ShowsEdit = Kind == ItemKind.FileEdit && Input.Length > 0 && tool.Outcome.IsSome;
+
+            if (ShowsEdit && IsExpanded)
+            {
+                Edit = EditDiffViewModel.Of(path, Input);
+            }
+
             Title = tool.WaitsFor.IsSome
                 ? ConversationPhrases.Waited(tool.Awaited, tool.Outcome.IsSome)
                 : tool.Drafted.Bind(received => tool.Outcome.IsNone ? Option<int>.Some(received) : Option<int>.None).Match(
@@ -142,15 +174,23 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     [RelayCommand]
     private async Task ToggleAsync(CancellationToken cancellationToken)
     {
-        if (ShowsChanges)
+        if (ShowsChanges && !ShowsEdit)
         {
             await changes.ShowCommand.ExecuteAsync(null);
         }
         else
         {
+            if (ShowsEdit && !IsExpanded)
+            {
+                Edit = EditDiffViewModel.Of(path, Input);
+            }
+
             IsExpanded = !IsExpanded;
         }
     }
+
+    [RelayCommand]
+    private Task ShowChangesAsync(CancellationToken cancellationToken) => changes.ShowCommand.ExecuteAsync(null);
 
     [RelayCommand]
     private async Task CopyAsync(CancellationToken cancellationToken)
