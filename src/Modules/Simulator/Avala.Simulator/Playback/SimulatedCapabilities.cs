@@ -31,6 +31,8 @@ internal static class SimulatedCapabilities
         new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
         new AsksForms(),
         new AcceptsMessagesMidTurn(),
+        new CachesPrompt(TimeSpan.FromHours(1)),
+        new CompactsOnRequest("/compact"),
         new ReportsUsage(),
         new ReportsContext(),
         new ReportsCost("USD"));

@@ -28,6 +28,23 @@ internal static class ScenarioCatalog
         ],
     ]);
 
+    public static Scenario LargeContext { get; } = new("large-context",
+    [
+        [
+            Message("I read the whole module."),
+            new ReportUsage(new TokenUsage(530_000, 900, 0, 530_000, 0), new Cost(0.6m, "USD")),
+            new ReportLimit(new UsageLimit("5h", 0.3, Option<DateTimeOffset>.None)),
+            new ReportContext(530_000, LargeWindow, Compacted: false),
+            new Finish(),
+        ],
+        [
+            new ReportUsage(new TokenUsage(41_000, 2_000, 0, 41_000, 0), new Cost(0.05m, "USD")),
+            new ReportLimit(new UsageLimit("5h", 0.32, Option<DateTimeOffset>.None)),
+            new ReportContext(41_000, LargeWindow, Compacted: true),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario Edit { get; } = new("edit",
     [
         [
@@ -501,7 +518,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All,
+        LargeContext, Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";
@@ -565,4 +582,6 @@ internal static class ScenarioCatalog
     ];
 
     public const long ContextWindow = 200_000;
+
+    public const long LargeWindow = 1_000_000;
 }

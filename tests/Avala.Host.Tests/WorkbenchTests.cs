@@ -108,6 +108,34 @@ public sealed class WorkbenchTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task AMessageToAConversationIdleBeyondItsCacheSaysWhatItWillReReadAndCompactsFirstOnRequestAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "large-context");
+        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        var composer = conversation["Composer"];
+        await run.Ui.InvokeAsync(() => composer.Set("Draft", "Add the tax line."), TestContext.Current.CancellationToken);
+        var fresh = await run.Ui.ReadAsync(() => composer["ColdNote"].Text);
+
+        run.Clock.Advance(TimeSpan.FromMinutes(61));
+        await run.Ui.InvokeAsync(() => composer.Set("Draft", "Add the tax line too."), TestContext.Current.CancellationToken);
+        await workbench.ShowsAsync(() => composer["CanCompact"].Value<bool>());
+        var cold = await run.Ui.ReadAsync(() => (composer["ColdNote"].Text, composer["CanCompact"].Value<bool>()));
+        await run.Ui.RunAsync(() => composer.ExecuteAsync("CompactCommand"));
+        await workbench.ShowsAsync(() => composer["ColdNote"].Text.Length == 0);
+        var gauge = workbench.Page["Regions"]["Header"].Items.Single(item => item.Kind == "ContextLeftViewModel");
+        await run.Ui.PresentedAsync(gauge.Presentation, () => gauge["WasCompacted"].Value<bool>(), () => gauge["Tokens"].Text);
+        var compacted = await run.Ui.ReadAsync(() => gauge["Tokens"].Text);
+        await run.Ui.InvokeAsync(() => composer.Set("Draft", "Add the tax line, please."), TestContext.Current.CancellationToken);
+
+        Assert.Equal(string.Empty, fresh);
+        Assert.Equal(("Idle for over an hour, so the next message re-reads about 530k tokens of this conversation.", true), cold);
+        Assert.Equal("41,000 of 1,000,000 tokens in use", compacted);
+        Assert.Equal((string.Empty, "Add the tax line, please."), await run.Ui.ReadAsync(() => (composer["ColdNote"].Text, composer["Draft"].Text)));
+    }
+
+    [Fact]
     public async Task TheSidebarMovesAJobBetweenGroupsAsItIsInterruptedAndContinuedAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "hang");

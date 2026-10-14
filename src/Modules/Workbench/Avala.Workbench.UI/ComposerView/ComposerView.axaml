@@ -69,6 +69,26 @@
               Command="{Binding WithdrawCommand}"
               AutomationProperties.Name="Withdraw the queued message" />
     </Grid>
+    <Grid x:Name="ColdNote"
+          ColumnDefinitions="Auto,*,Auto"
+          ColumnSpacing="8"
+          Margin="16,0"
+          IsVisible="{Binding ColdNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <Path Classes="icon" VerticalAlignment="Top" Margin="0,2,0,0" Data="{StaticResource IconUsage}" />
+      <TextBlock x:Name="ColdText"
+                 Grid.Column="1"
+                 Classes="caption"
+                 TextWrapping="Wrap"
+                 Text="{Binding ColdNote}" />
+      <Button x:Name="Compact"
+              Grid.Column="2"
+              Classes="quiet"
+              VerticalAlignment="Top"
+              Content="Compact first"
+              Command="{Binding CompactCommand}"
+              IsVisible="{Binding CanCompact}"
+              AutomationProperties.Name="Compact the conversation before sending" />
+    </Grid>
     <Border x:Name="Field"
             BorderThickness="1"
             CornerRadius="{DynamicResource RadiusCard}"

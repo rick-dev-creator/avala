@@ -42,6 +42,12 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
     public IHarnessChoiceViewModel Harness { get; init; } = DesignHarnesses.Job(held: false);
 
+    public string ColdNote { get; init; } = string.Empty;
+
+    public bool CanCompact => ColdNote.Length > 0;
+
+    public IAsyncRelayCommand CompactCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsStop), nameof(ShowsSend))]
     public partial string Draft { get; set; }

@@ -7,6 +7,8 @@ namespace Avala.Workbench.NewJob;
 
 internal sealed class NewJobReadings(LimitReadings readings)
 {
+    public DateTimeOffset Now => readings.Now;
+
     public string Reading(Option<Result<ConnectionPreview, JobRejection>> preview, ConnectionName name) =>
         NewJobPhrases.Compared(preview, name).Match(
             NewJobPhrases.Reading,

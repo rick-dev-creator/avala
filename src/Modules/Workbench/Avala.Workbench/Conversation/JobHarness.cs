@@ -13,8 +13,12 @@ using Avala.Workbench.Steering;
 
 namespace Avala.Workbench.Conversation;
 
+internal sealed record ColdConversation(TimeSpan Idle, long Tokens, Option<string> Compact);
+
 internal sealed class JobHarness
 {
+    public const long ColdContext = 100_000;
+
     private readonly JobSwitching switching;
     private readonly NewJobReadings readings;
     private readonly ModelPickerViewModel models;
@@ -51,6 +55,8 @@ internal sealed class JobHarness
         };
     }
 
+    public event EventHandler? Loaded;
+
     public JobId Job { get; }
 
     public HarnessChoiceViewModel Chip { get; }
@@ -60,6 +66,13 @@ internal sealed class JobHarness
     public Task Choosing { get; private set; } = Task.CompletedTask;
 
     public Task Moving { get; private set; } = Task.CompletedTask;
+
+    public Option<ColdConversation> Cold() =>
+        shown.Bind(job => capabilities.Get<CachesPrompt>().Bind(cache =>
+            job.Transcript.QuietSince.Bind(quiet => job.Transcript.Context.Bind(context =>
+                readings.Now - quiet >= cache.Lifetime && context.Used >= ColdContext && !context.Compacted
+                    ? Option<ColdConversation>.Some(new ColdConversation(readings.Now - quiet, context.Used, capabilities.Get<CompactsOnRequest>().Map(compact => compact.Message)))
+                    : Option<ColdConversation>.None))));
 
     public void Track(BoardJob job)
     {
@@ -93,6 +106,7 @@ internal sealed class JobHarness
         capabilities = found;
         marked = string.Empty;
         shown.Match<Action>(job => () => Mark(job), () => () => { })();
+        Loaded?.Invoke(this, EventArgs.Empty);
     }
 
     private void ShowLabel(BoardJob job)
