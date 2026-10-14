@@ -14,7 +14,7 @@ public sealed class LeaksRunAlone;
 public sealed class MarkdownLeakScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ShowingAndClosingAMarkdownCanvasTwentyTimesReturnsMemoryToItsBaselineAsync() =>
+    public Task ShowingAndClosingAMarkdownCanvasThirtyTimesReturnsMemoryToItsBaselineAsync() =>
         ui.RunAsync(async () =>
         {
             var views = new ViewRegistry();

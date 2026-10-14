@@ -9,7 +9,7 @@ namespace Avala.Workbench.Tests.Views;
 public sealed class FilePreviewLeakScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ShowingAndClosingImagePreviewsTwentyTimesReturnsMemoryToItsBaselineAsync() =>
+    public Task ShowingAndClosingImagePreviewsThirtyTimesReturnsMemoryToItsBaselineAsync() =>
         ui.RunAsync(async () =>
         {
             var pictures = new PictureCache();
