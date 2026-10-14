@@ -29,6 +29,8 @@ internal interface IConnectionMeterViewModel
 
     bool IsFocused { get; }
 
+    string Shared { get; }
+
     IReadOnlyList<ILimitViewModel> Limits { get; }
 }
 
@@ -138,6 +140,8 @@ internal sealed partial class ConnectionMeterViewModel : IConnectionMeterViewMod
     public partial bool IsFocused { get; set; }
 
     public IReadOnlyList<ILimitViewModel> Limits => limits;
+
+    public string Shared => UsagePhrases.Shared(Name);
 
     public void Show(ConnectionSpend connection)
     {

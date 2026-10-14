@@ -8,6 +8,8 @@ namespace Avala.Workbench.Spending;
 internal sealed record LimitReading(UsageLimit Limit, bool Expired)
 {
     public double Used => Expired ? 0 : Limit.UsedFraction;
+
+    public double Outside { get; init; }
 }
 
 internal sealed class LimitReadings(IUsage usage, Pulse pulse, TimeProvider clock) : IDisposable

@@ -105,7 +105,7 @@ public sealed class UsageViewModelScripts : IDisposable
 
     private UsageViewModel Page(JobBoard board, FakeUsageHistory? history = null) =>
         new(
-            new UsageReader(Pages.Readings(usage), new JobSpending(usage, budgets, supervision, sessions), board),
+            new UsageReader(Pages.Readings(usage), new JobSpending(usage, budgets, supervision, sessions), board, new WindowWatch(board)),
             new UsageWindows(history ?? new FakeUsageHistory(), Clock),
             new LiveFeed(new Pulse(board), ui));
 

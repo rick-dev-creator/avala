@@ -14,7 +14,7 @@ internal sealed record JobCost(BoardJob Job, JobSpend Spend, IReadOnlyList<JobIn
 
 internal sealed record SpendingState(IReadOnlyList<ConnectionSpend> Connections, IReadOnlyList<JobCost> Jobs, IReadOnlyList<JobIntervention> Interventions);
 
-internal sealed class UsageReader(LimitReadings readings, JobSpending spending, JobBoard board)
+internal sealed class UsageReader(LimitReadings readings, JobSpending spending, JobBoard board, WindowWatch watch)
 {
     public SpendingState Read()
     {
@@ -28,7 +28,7 @@ internal sealed class UsageReader(LimitReadings readings, JobSpending spending, 
             [
                 .. readings.ByConnection().Select(connection => new ConnectionSpend(connection, spending.CapsOn(connection.Connection))
                 {
-                    Limits = readings.Judged(connection.Usage.Limits),
+                    Limits = watch.Watched(connection.Connection, readings.Judged(connection.Usage.Limits)),
                 }),
             ],
             jobs,

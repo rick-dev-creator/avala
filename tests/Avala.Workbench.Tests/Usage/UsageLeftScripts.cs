@@ -43,6 +43,40 @@ public sealed class UsageLeftViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task TheChipSaysTheWindowIsSharedWithEveryAppOnTheLoginAsync()
+    {
+        var job = Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running, "claude-work");
+        Reports("claude-work", 0.72, 0.43);
+        var (chip, _) = Chip(Pages.Board(job));
+
+        chip.Activate();
+        chip.OnRegionContextChanged(job.Job);
+
+        await ui.PresentedAsync(chip, () => chip.IsShown, () => chip.Left);
+        Assert.Equal("Shared with every app signed in to claude-work, not only Avala.", await ui.ReadAsync(() => chip.Shared));
+    }
+
+    [Theory]
+    [InlineData(JobStatus.AwaitingReview, "Rose 20% while Avala was idle, from use outside Avala.")]
+    [InlineData(JobStatus.Running, "")]
+    public async Task AWindowThatRoseWhileAvalaWasIdleSaysUseOutsideAvalaMovedItAsync(JobStatus before, string outside)
+    {
+        var job = Pages.Summary("Fix JPY rounding in invoice totals", before, "claude-work");
+        var board = Pages.Board(job);
+        Reports("claude-work", 0.3, 0.43);
+        var (chip, _) = Chip(board);
+        chip.Activate();
+        chip.OnRegionContextChanged(job.Job);
+        await ui.PresentedAsync(chip, () => chip.IsShown, () => chip.Left);
+
+        Reports("claude-work", 0.5, 0.43);
+        board.Publish(board.Jobs.SetItem(job.Job, board.Jobs[job.Job] with { Summary = board.Jobs[job.Job].Summary with { Status = JobStatus.Running } }));
+
+        await ui.PresentedAsync(chip, () => chip.Left == "50% usage left", () => chip.Left);
+        Assert.Equal(outside, await ui.ReadAsync(() => chip.Windows[0].Outside));
+    }
+
+    [Fact]
     public async Task ANewReadingWhileTheJobRunsUpdatesTheChipInPlaceAsync()
     {
         var job = Pages.Summary("Fix JPY rounding in invoice totals", JobStatus.Running, "claude-work");
@@ -138,8 +172,9 @@ public sealed class UsageLeftViewModelScripts : IDisposable
     {
         var readings = Pages.Readings(usage);
         var spending = new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), new SessionBook(new FakeUsage()));
-        var page = new UsageViewModel(new UsageReader(readings, spending, board), new UsageWindows(new FakeUsageHistory(), new FakeTimeProvider()), new LiveFeed(new Pulse(board), ui));
-        var chip = new UsageLeftViewModel(new JobAllowance(readings, spending, board), new LiveFeed(new Pulse(board), ui), new JobFocus(new TestRegions(), messenger), page);
+        var watch = new WindowWatch(board);
+        var page = new UsageViewModel(new UsageReader(readings, spending, board, watch), new UsageWindows(new FakeUsageHistory(), new FakeTimeProvider()), new LiveFeed(new Pulse(board), ui));
+        var chip = new UsageLeftViewModel(new JobAllowance(readings, spending, board, watch), new LiveFeed(new Pulse(board), ui), new JobFocus(new TestRegions(), messenger), page);
 
         return (chip, page);
     }
