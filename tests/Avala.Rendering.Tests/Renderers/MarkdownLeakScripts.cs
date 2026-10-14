@@ -35,6 +35,6 @@ public sealed class MarkdownLeakScripts(HeadlessUi ui)
             });
 
             Assert.Equal(Leaks.Cycles, shown);
-            Assert.InRange(retention.Sustained, long.MinValue, Leaks.Tolerance);
+            Assert.True(retention.IsBounded, retention.ToString());
         }, TestContext.Current.CancellationToken);
 }
