@@ -46,7 +46,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         this.data = data;
         this.repository = repository;
         this.surroundings = surroundings;
-        application = new Application(root);
+        application = new Application(root, surroundings.Processes.InFlight);
         Ui = surroundings.Ui;
         Clock = surroundings.Clock;
     }
@@ -302,7 +302,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
         await application.DisposeAsync();
         whileClosed();
         Clock.Advance(closed);
-        application = new Application(surroundings.Compose(plugins, data));
+        application = new Application(surroundings.Compose(plugins, data), surroundings.Processes.InFlight);
         watching();
         application.Root.Start();
     }
@@ -439,6 +439,8 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public SignInGate SignIns { get; } = new();
 
+        public ProcessGate Processes { get; } = new();
+
         public SurfaceGate Surfaces { get; } = new();
 
         public ScenarioCues Cues { get; } = new();
@@ -464,16 +466,18 @@ internal sealed class SimulatedRun : IAsyncDisposable
                 [new SimulatorPlugin(Pace, Developer), new MermaidPlugin(Clock), .. ClaudeCode.Match<IPlugin[]>(plugin => [plugin], () => [])],
                 Left,
                 Links,
-                RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Surfaces, Cues] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Surfaces, Cues]);
+                RealNotifier ? [Board, Fault, Trips, Judge, Launch, Telemetry, SignIns, Processes, Surfaces, Cues] : [Board, Fault, Trips, Notifier, Judge, Launch, Telemetry, SignIns, Processes, Surfaces, Cues]);
     }
 
     private sealed class Application : IAsyncDisposable
     {
         private readonly CancellationTokenSource subscriptions = new();
+        private readonly ProcessesInFlight processes;
 
-        public Application(CompositionRoot root)
+        public Application(CompositionRoot root, ProcessesInFlight processes)
         {
             Root = root;
+            this.processes = processes;
             Progress = Watch<JobProgressed>();
             Activity = Watch<AgentActivity>();
             Canvases = Watch<CanvasUpdated>();
@@ -491,7 +495,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
             Leased = Watch<PortsLeased>();
             Queued = Watch<JobQueued>();
             Sampled = Watch<ResourcesSampled>();
-            Started = new(Feed.SubscribeAsync<StartupCompleted>(subscriptions.Token), Feed.SubscribeAsync<StartupProgressed>(subscriptions.Token), Cancellation);
+            Started = new(Feed.SubscribeAsync<StartupCompleted>(subscriptions.Token), Feed.SubscribeAsync<StartupProgressed>(subscriptions.Token), Cancellation) { Processes = processes };
             Reported = Watch<ChildReported>();
             Delivered = Watch<ReportDelivered>();
         }
@@ -547,7 +551,7 @@ internal sealed class SimulatedRun : IAsyncDisposable
 
         public EventWatch<TEvent> Watch<TEvent>()
             where TEvent : IIntegrationEvent =>
-            new(Feed.SubscribeAsync<TEvent>(subscriptions.Token), Feed.SubscribeAsync<JobProgressed>(subscriptions.Token), LoggedAsync, Cancellation);
+            new(Feed.SubscribeAsync<TEvent>(subscriptions.Token), Feed.SubscribeAsync<JobProgressed>(subscriptions.Token), LoggedAsync, Cancellation) { Processes = processes };
 
         private Task<string> LoggedAsync(CancellationToken cancellationToken) =>
             RunLog.ProblemsAsync(Root.Services.GetRequiredService<AvalaPaths>().Logs, cancellationToken);
