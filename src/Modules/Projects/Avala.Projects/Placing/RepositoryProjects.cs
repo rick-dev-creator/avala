@@ -17,9 +17,16 @@ internal sealed class RepositoryProjects(ProjectBook book, IJobCatalog jobs, ISc
             {
                 await book.LoadAsync(token);
 
-                foreach (var job in (await jobs.ListAsync(token)).Where(job => !book.Current.Placements.ContainsKey(job.Job)))
+                var all = await jobs.ListAsync(token);
+
+                foreach (var job in all.Where(job => !book.Current.Placements.ContainsKey(job.Job)))
                 {
                     await EnsureAsync(job.Repository, token);
+                }
+
+                foreach (var job in all.Where(job => Archive.Returns(job.Status)))
+                {
+                    await ArchiveReturns.ReturnAsync(book, job.Job, token);
                 }
 
                 await book.AnnounceAsync(token);

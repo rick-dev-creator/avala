@@ -15,6 +15,10 @@ internal interface IProjectStore
     Task RemoveAsync(ProjectId project, CancellationToken cancellationToken);
 
     Task PlaceAsync(JobId job, ProjectId project, CancellationToken cancellationToken);
+
+    Task ArchiveAsync(IReadOnlyCollection<JobId> jobs, CancellationToken cancellationToken);
+
+    Task RestoreAsync(JobId job, CancellationToken cancellationToken);
 }
 
 internal sealed class ProjectBook(IProjectStore store, IEventBus bus) : IAsyncDisposable
@@ -71,9 +75,11 @@ internal sealed class ProjectBook(IProjectStore store, IEventBus bus) : IAsyncDi
     {
         await store.RemoveAsync(removed.Project, cancellationToken);
         projects.Remove(removed.Project);
-        Volatile.Write(ref map, new ProjectMap(
-            Current.Projects.RemoveAll(project => project.Project == removed.Project),
-            Current.Placements.RemoveRange(Current.Placements.Where(placement => placement.Value == removed.Project).Select(placement => placement.Key))));
+        Volatile.Write(ref map, Current with
+        {
+            Projects = Current.Projects.RemoveAll(project => project.Project == removed.Project),
+            Placements = Current.Placements.RemoveRange(Current.Placements.Where(placement => placement.Value == removed.Project).Select(placement => placement.Key)),
+        });
 
         return await AnnounceAsync(new ProjectDeleted(removed.Project), cancellationToken);
     }
@@ -84,6 +90,22 @@ internal sealed class ProjectBook(IProjectStore store, IEventBus bus) : IAsyncDi
         Volatile.Write(ref map, Current with { Placements = Current.Placements.SetItem(placed.Job, placed.Project) });
 
         return await AnnounceAsync(new ConversationMoved(placed.Job, placed.Project), cancellationToken);
+    }
+
+    public async Task<ConversationsArchived> ArchiveAsync(JobsArchived archived, CancellationToken cancellationToken)
+    {
+        await store.ArchiveAsync(archived.Jobs, cancellationToken);
+        Volatile.Write(ref map, Current with { Archived = Current.Archived.Union(archived.Jobs) });
+
+        return await AnnounceAsync(new ConversationsArchived(archived.Jobs), cancellationToken);
+    }
+
+    public async Task<ConversationRestored> RestoreAsync(JobRestored restored, CancellationToken cancellationToken)
+    {
+        await store.RestoreAsync(restored.Job, cancellationToken);
+        Volatile.Write(ref map, Current with { Archived = Current.Archived.Remove(restored.Job) });
+
+        return await AnnounceAsync(new ConversationRestored(restored.Job), cancellationToken);
     }
 
     public ValueTask AnnounceAsync(CancellationToken cancellationToken) => bus.PublishAsync(new ProjectsRestored(Current), cancellationToken);

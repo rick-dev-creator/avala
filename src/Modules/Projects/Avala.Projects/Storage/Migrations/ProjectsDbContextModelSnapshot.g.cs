@@ -16,6 +16,17 @@ namespace Avala.Projects.Storage.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("Avala.Projects.Storage.StoredArchive", b =>
+                {
+                    b.Property<Guid>("Job")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Job");
+
+                    b.ToTable("Archived", (string)null);
+                });
+
             modelBuilder.Entity("Avala.Projects.Storage.StoredPlacement", b =>
                 {
                     b.Property<Guid>("Job")

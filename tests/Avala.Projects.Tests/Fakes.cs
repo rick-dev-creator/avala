@@ -23,12 +23,18 @@ internal sealed class FakeCatalog : IJobCatalog
 {
     private readonly List<JobSummary> jobs = [];
 
-    public JobId Add(string repository, Option<JobId> parent = default)
+    public JobId Add(string repository, Option<JobId> parent = default, JobStatus status = JobStatus.Running)
     {
         var job = new JobId(Guid.CreateVersion7());
-        jobs.Add(new JobSummary(job, repository, "Fix the rounding", Samples.Monday, JobStatus.Running, default, default, default) { Parent = parent });
+        jobs.Add(new JobSummary(job, repository, "Fix the rounding", Samples.Monday, status, default, default, default) { Parent = parent });
 
         return job;
+    }
+
+    public void Set(JobId job, JobStatus status)
+    {
+        var index = jobs.FindIndex(summary => summary.Job == job);
+        jobs[index] = jobs[index] with { Status = status };
     }
 
     public ValueTask<IReadOnlyList<JobSummary>> ListAsync(CancellationToken cancellationToken) =>
@@ -59,7 +65,23 @@ internal sealed class MemoryStore : IProjectStore
 
     public ImmutableDictionary<JobId, ProjectId> Placements { get; private set; } = ImmutableDictionary<JobId, ProjectId>.Empty;
 
-    public Task<ProjectMap> ReadAsync(CancellationToken cancellationToken) => Task.FromResult(new ProjectMap(Projects, Placements));
+    public ImmutableHashSet<JobId> Archived { get; private set; } = [];
+
+    public Task<ProjectMap> ReadAsync(CancellationToken cancellationToken) => Task.FromResult(new ProjectMap(Projects, Placements) { Archived = Archived });
+
+    public Task ArchiveAsync(IReadOnlyCollection<JobId> jobs, CancellationToken cancellationToken)
+    {
+        Archived = Archived.Union(jobs);
+
+        return Task.CompletedTask;
+    }
+
+    public Task RestoreAsync(JobId job, CancellationToken cancellationToken)
+    {
+        Archived = Archived.Remove(job);
+
+        return Task.CompletedTask;
+    }
 
     public Task KeepAsync(ProjectRecord project, CancellationToken cancellationToken)
     {
@@ -95,6 +117,7 @@ internal sealed class Projected : IAsyncDisposable
         book = new ProjectBook(Store, Bus);
         Repositories = new RepositoryProjects(book, Catalog, new FakeScratch());
         Entry = new ProjectsEntry(book, Catalog);
+        Returns = new ArchiveReturns(book);
     }
 
     public MemoryStore Store { get; }
@@ -107,11 +130,13 @@ internal sealed class Projected : IAsyncDisposable
 
     public ProjectsEntry Entry { get; }
 
+    public ArchiveReturns Returns { get; }
+
     public IReadOnlyList<ProjectRecord> Created => [.. Bus.Published.OfType<ProjectCreated>().Select(created => created.Project)];
 
-    public async Task<JobId> SubmitAsync(string repository, Option<JobId> parent = default)
+    public async Task<JobId> SubmitAsync(string repository, Option<JobId> parent = default, JobStatus status = JobStatus.Running)
     {
-        var job = Catalog.Add(repository, parent);
+        var job = Catalog.Add(repository, parent, status);
         await Repositories.HandleAsync(new JobSubmitted(job), Samples.Cancellation);
 
         return job;

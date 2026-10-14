@@ -17,6 +17,8 @@ public sealed record ProjectMap(ImmutableList<ProjectRecord> Projects, Immutable
 
     public static ProjectMap Empty { get; } = new([], ImmutableDictionary<JobId, ProjectId>.Empty);
 
+    public ImmutableHashSet<JobId> Archived { get; init; } = [];
+
     public Option<ProjectRecord> Find(ProjectId project) =>
         Projects.Find(found => found.Project == project) is { } known ? known : Option<ProjectRecord>.None;
 
@@ -37,6 +39,10 @@ public interface IProjects
     ValueTask<Result<ProjectDeleted, ProjectRejection>> DeleteAsync(ProjectId project, CancellationToken cancellationToken);
 
     ValueTask<Result<ConversationMoved, ProjectRejection>> MoveAsync(JobId job, ProjectId project, CancellationToken cancellationToken);
+
+    ValueTask<Result<ConversationsArchived, ProjectRejection>> ArchiveAsync(IReadOnlyList<JobId> jobs, CancellationToken cancellationToken);
+
+    ValueTask<Result<ConversationRestored, ProjectRejection>> RestoreAsync(JobId job, CancellationToken cancellationToken);
 }
 
 public enum ProjectRejection
@@ -48,4 +54,7 @@ public enum ProjectRejection
     UnknownJob,
     NotEmpty,
     FollowsItsParent,
+    StillWorking,
+    NeedsYou,
+    NotArchived,
 }
