@@ -91,7 +91,7 @@ public sealed class MessageViewModelScripts
         await message.CodeCommand.ExecuteAsync(new CodeRequest(CodeAction.Open, "print(1)", ".py"));
 
         var opened = Assert.Single(opener.Opened);
-        Assert.Equal((Path.Combine(Paths.Data, "code"), ".py", "print(1)"), (Path.GetDirectoryName(opened), Path.GetExtension(opened), opener.Created[opened]));
+        Assert.Equal((Path.GetFullPath(Path.Combine(Paths.Data, "code")), ".py", "print(1)"), (Path.GetFullPath(Path.GetDirectoryName(opened)!), Path.GetExtension(opened), opener.Created[opened]));
     }
 
     [Theory]
@@ -122,7 +122,7 @@ public sealed class MessageViewModelScripts
             .When(message => message.Update(new RestartEntry("m", Kept: true)))
             .Then(message => Assert.Equal(("Hello", true, true), (message.Text, message.IsStreaming, message.IsShown)));
 
-    private static readonly AvalaPaths Paths = new("/home/ana/.local/share/Avala");
+    private static readonly AvalaPaths Paths = new(HostPaths.Rooted("/home/ana/.local/share/Avala"));
 
     private static CodeFiles Code(FakeFileSaver? saver = null, FakeOpener? opener = null) => new(saver ?? new FakeFileSaver(), opener ?? new FakeOpener(), Paths);
 }
