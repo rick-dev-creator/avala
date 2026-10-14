@@ -15,6 +15,8 @@ public sealed class EventWatch<TEvent>(
 
     private static TimeSpan Patience => TimeSpan.FromSeconds(30);
 
+    private static TimeSpan Ceiling => TimeSpan.FromMinutes(5);
+
     private readonly IAsyncEnumerator<TEvent> pending = events.GetAsyncEnumerator(cancellationToken);
     private readonly IAsyncEnumerator<IIntegrationEvent> progress = steps.GetAsyncEnumerator(cancellationToken);
     private readonly Stopwatch watching = Stopwatch.StartNew();
@@ -31,6 +33,10 @@ public sealed class EventWatch<TEvent>(
         : this(events, AsyncEnumerable.Empty<IIntegrationEvent>(), cancellationToken)
     {
     }
+
+    public ProcessesInFlight Processes { get; init; } = ProcessesInFlight.None;
+
+    public TimeProvider Clock { get; init; } = TimeProvider.System;
 
     public async Task<TEvent> UntilAsync(Func<TEvent, bool> match) => (await CollectUntilAsync(match))[^1];
 
@@ -67,18 +73,17 @@ public sealed class EventWatch<TEvent>(
         var stepping = stepsEnded ? Option<Task<bool>>.None : step.Match(armed => armed, () => progress.MoveNextAsync().AsTask());
         step = stepping;
 
-        try
-        {
-            await stepping.Match<Task>(armed => Task.WhenAny(next, armed), () => next).WaitAsync(Patience, cancellationToken);
-        }
-        catch (TimeoutException timeout)
+        var waiting = stepping.Match<Task>(armed => Task.WhenAny(next, armed), () => next);
+
+        if (!await PatientlyAsync(waiting))
         {
             var last = seen.Count > 0 ? $"the last was {seen[^1]}" : "none arrived";
 
             throw new TimeoutException(
-                $"No {typeof(TEvent).Name} came within {Patience.TotalSeconds:0} seconds of the last step after {seen.Count} that did not match; {last}; {Steps()}{await circumstances(cancellationToken)}",
-                timeout);
+                $"No {typeof(TEvent).Name} came {Silence()} after {seen.Count} that did not match; {last}; {Steps()}{await circumstances(cancellationToken)}");
         }
+
+        await waiting;
 
         if (next.IsCompleted)
         {
@@ -97,6 +102,35 @@ public sealed class EventWatch<TEvent>(
 
         return true;
     }
+
+    private async Task<bool> PatientlyAsync(Task waiting)
+    {
+        var started = Clock.GetTimestamp();
+
+        while (!waiting.IsCompleted)
+        {
+            var waited = Clock.GetElapsedTime(started);
+            var quiet = Processes.Running ? TimeSpan.Zero : Min(waited, Processes.Quiet);
+            var left = Min(Patience - quiet, Ceiling - waited);
+
+            if (left <= TimeSpan.Zero)
+            {
+                return false;
+            }
+
+            await waiting.WaitAsync(left, Clock, cancellationToken).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        return true;
+    }
+
+    private string Silence() =>
+        Processes.Running
+            ? $"in the {Ceiling.TotalMinutes:0} minutes a process kept running"
+            : $"within {Patience.TotalSeconds:0} seconds of the last step or process";
+
+    private static TimeSpan Min(TimeSpan first, TimeSpan second) => first < second ? first : second;
 
     private void Remember(IIntegrationEvent reached)
     {
