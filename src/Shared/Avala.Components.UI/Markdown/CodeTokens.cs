@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avala.Sdk;
 using TextMateSharp.Grammars;
 using TextMateSharp.Registry;
@@ -25,7 +26,14 @@ internal sealed class CodeTokens(string language)
 
     private static List<CodeSpan> Line(IGrammar grammar, string line, ref IStateStack? state)
     {
+        var started = Stopwatch.GetTimestamp();
         var result = grammar.TokenizeLine(line, state, Budget);
+
+        if (Stopwatch.GetElapsedTime(started) >= Budget)
+        {
+            result = grammar.TokenizeLine(line, state, Budget);
+        }
+
         state = result.RuleStack;
         var spans = new List<CodeSpan>();
 
