@@ -19,15 +19,22 @@ internal static class HandoffPhrases
             () => $"effort {fallback.Wanted.Effort.Match(effort => effort, () => "chosen")} not offered by {handoff.To.Value}, ran with its default {fallback.RanWith.Effort.Match(effort => $"{effort} effort", () => "effort")}"));
 
     public static string Waits(ResetWait wait) =>
-        wait.ResumesAt.Match(
+        wait.HasReset ? $"the {Named(wait)} reset; send a message to resume, it reads its whole conversation again"
+        : wait.AwaitsPerson ? wait.ResumesAt.Match(
+            at => $"the {Named(wait)} resets at {Clock(at, wait.Since)}, then it waits for you to resume",
+            () => "near its limit · no reset time reported, waits for you")
+        : wait.ResumesAt.Match(
             at => $"resumes at {Clock(at, wait.Since)} when the {Window(wait.Window)} resets",
             () => "near its limit · no reset time reported, waits for you");
 
     public static string Resumes(ResetWait wait) =>
-        wait.ResumesAt.Match(at => $"resumes at {Clock(at, wait.Since)}", () => "near its limit");
+        wait.HasReset ? "window reset · waiting for you"
+        : wait.AwaitsPerson ? wait.ResumesAt.Match(at => $"window resets at {Clock(at, wait.Since)}", () => "near its limit")
+        : wait.ResumesAt.Match(at => $"resumes at {Clock(at, wait.Since)}", () => "near its limit");
 
     public static string Until(ResetWait wait) =>
-        wait.ResumesAt.Match(at => $"until {Clock(at, wait.Since)}", () => "near its limit");
+        wait.HasReset ? "window reset, send a message to resume"
+        : wait.ResumesAt.Match(at => $"until {Clock(at, wait.Since)}", () => "near its limit");
 
     public static string Window(string window)
     {
@@ -38,6 +45,8 @@ internal static class HandoffPhrases
 
     private static string Reason(HandoffRecord handoff) =>
         handoff.Why.Match(why => $" at {Amounts.Percent(why.Used)} of the {Window(why.Window)}", () => string.Empty);
+
+    private static string Named(ResetWait wait) => wait.Window.Length > 0 ? Window(wait.Window) : "usage window";
 
     private static string Clock(DateTimeOffset at, DateTimeOffset since) =>
         at - since < SameDay ? at.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture) : Amounts.Time(at);

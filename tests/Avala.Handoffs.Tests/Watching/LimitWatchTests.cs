@@ -52,9 +52,10 @@ public sealed class LimitWatchTests
     }
 
     [Fact]
-    public async Task WithNowhereToGoAHeldJobWaitsForItsWindowAndIsContinuedWithItsFeedbackOnceItResetsAsync()
+    public async Task WithNowhereToGoAHeldJobWaitsForItsWindowAndIsContinuedWithItsFeedbackOnceItResetsWhenItsRulesResumeByThemselvesAsync()
     {
         await using var watched = new Watched();
+        watched.Rules.Rules = LimitRules.Default with { Resume = ResumeAtReset.Auto };
         var resets = Watched.Start.AddHours(1);
         watched.Reading(Watched.Work, 0.95, resets);
         watched.Watch.Pending(watched.Job, Feedback);
@@ -84,7 +85,42 @@ public sealed class LimitWatchTests
 
         await watched.HeldAsync(HoldReason.LimitNearlyReached, new UsageLimit("5h", 1, resets));
 
-        Assert.Equal(new ResetWait(watched.Job, Watched.Work, "5h", resets, Watched.Start), await watched.WaitingAsync());
+        Assert.Equal(new ResetWait(watched.Job, Watched.Work, "5h", resets, Watched.Start) { AwaitsPerson = true }, await watched.WaitingAsync());
+    }
+
+    [Fact]
+    public async Task ByDefaultAHeldJobIsNotContinuedAtTheResetAndItsWaitSaysTheWindowResetForThePersonAsync()
+    {
+        await using var watched = new Watched();
+        var resets = Watched.Start.AddHours(1);
+        watched.Reading(Watched.Work, 0.95, resets);
+        await watched.HeldAsync(HoldReason.LimitNearlyReached);
+        var before = await watched.WaitingAsync();
+
+        watched.Clock.Advance(TimeSpan.FromHours(1));
+        var after = (await watched.Bus.WaitForAsync<JobWaitsForReset>(found => found.Wait.Job == watched.Job && found.Wait.HasReset, Cancellation)).Wait;
+
+        Assert.Equal((true, false), (before.AwaitsPerson, before.HasReset));
+        Assert.Equal(before with { HasReset = true }, after);
+        Assert.Equal(Option<ResetWait>.Some(after), watched.Book.WaitOf(watched.Job));
+        Assert.Empty(watched.Jobs.Calls.Entries);
+        Assert.DoesNotContain(watched.Bus.Published, published => published is JobResumedAtReset);
+    }
+
+    [Fact]
+    public async Task AJobThatWaitsForThePersonStopsWaitingOnceTheyResumeItAsync()
+    {
+        await using var watched = new Watched();
+        watched.Reading(Watched.Work, 0.95, Watched.Start.AddHours(1));
+        await watched.HeldAsync(HoldReason.LimitNearlyReached);
+        _ = await watched.WaitingAsync();
+        watched.Clock.Advance(TimeSpan.FromHours(1));
+        _ = await watched.Bus.WaitForAsync<JobWaitsForReset>(found => found.Wait.HasReset, Cancellation);
+
+        await watched.ProgressedAsync(JobStatus.Running);
+        await watched.DroppedAsync();
+
+        Assert.Equal(Option<ResetWait>.None, watched.Book.WaitOf(watched.Job));
     }
 
     [Fact]
@@ -118,9 +154,10 @@ public sealed class LimitWatchTests
     }
 
     [Fact]
-    public async Task AWaitKeptBeforeARestartContinuesTheJobAtStartupWhenItsWindowHasResetAsync()
+    public async Task AWaitKeptBeforeARestartContinuesTheJobAtStartupWhenItsWindowHasResetAndItsRulesResumeByThemselvesAsync()
     {
         await using var watched = new Watched();
+        watched.Rules.Rules = LimitRules.Default with { Resume = ResumeAtReset.Auto };
         await watched.Store.KeepAsync(new KeptWait(watched.Job, Feedback, Watched.Start.AddHours(-2)), Cancellation);
         watched.Reading(Watched.Work, 0.95, Watched.Start.AddMinutes(-1));
 

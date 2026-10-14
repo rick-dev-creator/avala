@@ -38,5 +38,7 @@ internal sealed class LimitActions(IJobs jobs, BriefGatherer briefs, HandoffBook
 
     public Task WaitsAsync(ResetWait wait, CancellationToken cancellationToken) => book.WaitsAsync(wait, cancellationToken);
 
+    public Option<ResetWait> WaitOf(JobId job) => book.WaitOf(job);
+
     public void Ended(JobId job) => book.Ended(job);
 }

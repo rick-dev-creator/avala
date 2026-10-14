@@ -10,6 +10,8 @@ internal sealed record LimitRules(OnLimit OnLimit, double Threshold, IReadOnlyLi
 
     public static LimitRules Default { get; } = new(OnLimit.Hold, DefaultThreshold, []);
 
+    public ResumeAtReset Resume { get; init; } = ResumeAtReset.Ask;
+
     public Option<HandoffError> Error { get; init; }
 
     public static LimitRules Rejected(HandoffError error) => Default with { Error = error };

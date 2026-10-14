@@ -13,6 +13,8 @@ public sealed class HandoffTests(PublishedPlugins plugins)
 {
     private const string SameHarness = """{ "limits": { "onLimit": "handoff-same-harness" } }""";
 
+    private const string SameHarnessResumingByItself = """{ "limits": { "onLimit": "handoff-same-harness", "resumeAtReset": "auto" } }""";
+
     private const string AnyHarness = """{ "limits": { "onLimit": "handoff-any-harness" } }""";
 
     private const string ResetMessage = "The usage limit window has reset. Go on where you left off.";
@@ -134,9 +136,9 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AConnectionNamedOnTheJobIsNeverSwitchedAndItsJobResumesInItsConversationWhenTheWindowResetsAsync()
+    public async Task AConnectionNamedOnTheJobIsNeverSwitchedAndItsJobResumesInItsConversationWhenTheWindowResetsIfItsRulesSayAutoAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(SameHarness));
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(SameHarnessResumingByItself));
         var held = run.Watch<JobHeld>();
         var waits = run.Watch<JobWaitsForReset>();
         var resumed = run.Watch<JobResumedAtReset>();
@@ -165,6 +167,32 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task ByDefaultAJobHeldNearItsLimitWaitsForThePersonAfterTheResetAndResumesWhenTheySendAMessageAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(SameHarness));
+        var waits = run.Watch<JobWaitsForReset>();
+        var progress = run.Watch<JobProgressed>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Instruction) { Connection = One }));
+        var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;
+        var workbench = await run.WorkbenchAsync();
+        var before = await workbench.RowAsync(job, "Waiting");
+
+        run.AdvanceTo(Outcomes.Present(wait.ResumesAt));
+        var reset = (await waits.UntilAsync(announced => announced.Wait.Job == job && announced.Wait.HasReset)).Wait;
+        await workbench.ShowsInGroupAsync(job, "Waiting", "window reset · waiting for you");
+        var stillHeld = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Status;
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().ContinueAsync(job, "Go on.", Cancellation));
+        await ReviewedAsync(progress, job);
+
+        Assert.Equal((true, $"window resets at {Outcomes.Present(wait.ResumesAt).ToLocalTime():HH:mm}"), (wait.AwaitsPerson, before.Fact));
+        Assert.Equal(wait with { HasReset = true }, reset);
+        Assert.Equal(JobStatus.NeedsHelp, stillHeld);
+        var attempts = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Attempts;
+        Assert.DoesNotContain(attempts, attempt => attempt.Guidance.Match(text => text.StartsWith(ResetMessage, StringComparison.Ordinal), () => false));
+        Assert.Equal(Option<ResetWait>.None, run.Get<IHandoffs>().WaitOf(job));
+    }
+
+    [Fact]
     public async Task AJobOverTwoWindowsWaitsForTheWindowWhoseResetItWaitsForAsync()
     {
         await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(SameHarness));
@@ -178,9 +206,9 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AJobWhoseWindowRunsOutMidTurnIsHeldInsteadOfFailedAndResumesInItsConversationWhenTheWindowResetsAsync()
+    public async Task AJobWhoseWindowRunsOutMidTurnIsHeldInsteadOfFailedAndResumesInItsConversationWhenTheWindowResetsIfItsRulesSayAutoAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, []);
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, [(".avala/jobs.json", """{ "limits": { "resumeAtReset": "auto" } }""")]);
         var held = run.Watch<JobHeld>();
         var waits = run.Watch<JobWaitsForReset>();
         var resumed = run.Watch<JobResumedAtReset>();
@@ -250,9 +278,9 @@ public sealed class HandoffTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task AJobWaitingForAResetResumesItsConversationAfterARestartAsync()
+    public async Task AJobWaitingForAResetResumesItsConversationAfterARestartIfItsRulesSayAutoAsync()
     {
-        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(SameHarness));
+        await using var run = await SimulatedRun.PreparedAsync(plugins, TwoAccounts, Committed(SameHarnessResumingByItself));
         var waits = run.Watch<JobWaitsForReset>();
         var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, Instruction) { Connection = One }));
         var wait = (await waits.UntilAsync(announced => announced.Wait.Job == job)).Wait;

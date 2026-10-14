@@ -30,11 +30,11 @@ public sealed class LimitRulesParserTests
             Outcomes.Present(Outcomes.Succeeds(LimitRulesParser.ParseJobFile("""{ "limits": { "onLimit": "handoff-any-harness" }, "future": { "nested": { "deeper": ["x"] } } }"""))).OnLimit);
 
     [Fact]
-    public void AnEmptySectionHoldsAtNinetyPercentWithNoList()
+    public void AnEmptySectionHoldsAtNinetyPercentWithNoListAndAsksBeforeResumingAtAReset()
     {
         var rules = Outcomes.Succeeds(LimitRulesParser.ParseMachine("{}"));
 
-        Assert.Equal((OnLimit.Hold, LimitRules.DefaultThreshold, 0), (rules.OnLimit, rules.Threshold, rules.Connections.Count));
+        Assert.Equal((OnLimit.Hold, LimitRules.DefaultThreshold, 0, ResumeAtReset.Ask), (rules.OnLimit, rules.Threshold, rules.Connections.Count, rules.Resume));
     }
 
     [Theory]
@@ -45,6 +45,14 @@ public sealed class LimitRulesParserTests
         Assert.Equal(action, Outcomes.Succeeds(LimitRulesParser.ParseMachine($$"""{ "onLimit": "{{written}}" }""")).OnLimit);
 
     [Theory]
+    [InlineData("ask", ResumeAtReset.Ask)]
+    [InlineData("auto", ResumeAtReset.Auto)]
+    public void EachWayOfResumingAtAResetIsRead(string written, ResumeAtReset resume) =>
+        Assert.Equal(resume, Outcomes.Succeeds(LimitRulesParser.ParseMachine($$"""{ "resumeAtReset": "{{written}}" }""")).Resume);
+
+    [Theory]
+    [InlineData("""{ "resumeAtReset": "later" }""", HandoffError.UnknownResume)]
+    [InlineData("""{ "resumeAtReset": true }""", HandoffError.Malformed)]
     [InlineData("""{ "onLimit": "move" }""", HandoffError.UnknownAction)]
     [InlineData("""{ "onLimit": 1 }""", HandoffError.Malformed)]
     [InlineData("""{ "threshold": 0 }""", HandoffError.InvalidThreshold)]
