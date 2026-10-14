@@ -16,9 +16,10 @@ sha256sums=('@SHA256@')
 package() {
   install -d "$pkgdir/opt/avala" "$pkgdir/usr/bin"
   cp -a 'avala-@VERSION@/.' "$pkgdir/opt/avala/"
-  rm "$pkgdir/opt/avala/avala.desktop" "$pkgdir/opt/avala/avala.png" "$pkgdir/opt/avala/LICENSE"
+  rm -r "$pkgdir/opt/avala/avala.desktop" "$pkgdir/opt/avala/avala.png" "$pkgdir/opt/avala/icons" "$pkgdir/opt/avala/LICENSE"
   ln -s /opt/avala/Avala "$pkgdir/usr/bin/avala"
   sed 's/^Exec=Avala$/Exec=avala/' 'avala-@VERSION@/avala.desktop' | install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/avala.desktop"
-  install -Dm644 'avala-@VERSION@/avala.png' "$pkgdir/usr/share/icons/hicolor/256x256/apps/avala.png"
+  install -d "$pkgdir/usr/share/icons"
+  cp -a 'avala-@VERSION@/icons/hicolor' "$pkgdir/usr/share/icons/"
   install -Dm644 'avala-@VERSION@/LICENSE' "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

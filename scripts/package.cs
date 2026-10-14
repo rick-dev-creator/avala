@@ -323,11 +323,22 @@ internal static class WindowsFolder
 
 internal static class LinuxFolder
 {
+    private static readonly int[] IconSizes = [16, 32, 48, 64, 128, 256, 512];
+
     public static async Task<Bundle> CreateAsync(string root, string stage, string work, PackageVersion version)
     {
         var folder = Path.Combine(work, $"avala-{version.Text}");
         Directory.Move(stage, folder);
         File.Copy(Path.Combine(root, "docs", "assets", "brand", "avala-icon-256.png"), Path.Combine(folder, "avala.png"));
+
+        foreach (var size in IconSizes)
+        {
+            var apps = Directory.CreateDirectory(Path.Combine(folder, "icons", "hicolor", $"{size}x{size}", "apps")).FullName;
+            File.Copy(Path.Combine(root, "docs", "assets", "brand", $"avala-icon-{size}.png"), Path.Combine(apps, "avala.png"));
+        }
+
+        var scalable = Directory.CreateDirectory(Path.Combine(folder, "icons", "hicolor", "scalable", "apps")).FullName;
+        File.Copy(Path.Combine(root, "docs", "assets", "brand", "avala-icon.svg"), Path.Combine(scalable, "avala.svg"));
         File.Copy(Path.Combine(root, "LICENSE"), Path.Combine(folder, "LICENSE"));
         await File.WriteAllTextAsync(Path.Combine(folder, "avala.desktop"), $"""
             [Desktop Entry]
@@ -336,6 +347,7 @@ internal static class LinuxFolder
             Comment=Agents you can trust without watching
             Exec=Avala
             Icon=avala
+            StartupWMClass=avala
             Terminal=false
             Categories=Development;
             X-Avala-Version={version.Text}

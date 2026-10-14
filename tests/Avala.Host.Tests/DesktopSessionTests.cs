@@ -16,6 +16,12 @@ public sealed class DesktopSessionTests(HeadlessUi ui)
         Assert.False(DesktopSession.DrawsThroughWayland(linux: false, waylandDisplay: "wayland-1", forcedX11: ""));
     }
 
+    [Theory]
+    [InlineData("", "avala")]
+    [InlineData("io.github.rick_dev_creator.Avala", "io.github.rick_dev_creator.Avala")]
+    public void TheWindowIsNamedAfterItsDesktopEntrySoTheDesktopShowsItsIcon(string flatpakId, string appId) =>
+        Assert.Equal(appId, DesktopSession.AppIdOf(flatpakId));
+
     [Fact]
     public async Task TheDispatcherClockFollowsThePlatformsClockAsync()
     {
