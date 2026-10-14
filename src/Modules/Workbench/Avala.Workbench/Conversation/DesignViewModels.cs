@@ -203,6 +203,14 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
 
     public IFileChangesViewModel Changes { get; init; } = new DesignFileChangesViewModel();
 
+    public bool ShowsEdit { get; init; }
+
+    public bool ShowsInput => false;
+
+    public bool ShowsNoOutput => Output.Length == 0 && !ShowsEdit;
+
+    public IHunkViewModel Edit { get; init; } = EditDiffViewModel.Of("src/money.ts", "-     return units * 100\n+     return units * pow10(exponent)");
+
     public bool ShowsPreview { get; init; }
 
     public IFilePreviewViewModel Preview { get; init; } = new DesignFilePreviewViewModel();
@@ -210,6 +218,8 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
     public IAsyncRelayCommand ToggleCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand ShowChangesCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignFilePreviewViewModel : IFilePreviewViewModel
