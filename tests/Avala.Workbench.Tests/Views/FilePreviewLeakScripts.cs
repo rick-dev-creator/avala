@@ -23,7 +23,10 @@ public sealed class FilePreviewLeakScripts(HeadlessUi ui)
             var view = Screen.Show(new TextBlock());
             var held = 0L;
 
-            var retention = await Leaks.ManagedAcrossAsync(async () =>
+            var series = new List<Retention>();
+            for (var run = 0; run < 3; run++)
+            {
+            series.Add(await Leaks.ManagedAcrossAsync(async () =>
             {
                 var shown = new StackPanel();
                 shown.Children.AddRange(previews.Select(preview => new ContentControl { Content = preview }));
@@ -37,7 +40,11 @@ public sealed class FilePreviewLeakScripts(HeadlessUi ui)
                 view.Window.Content = null;
                 view.Settle();
                 held = held == 0 ? pictures.LiveBytes : held;
-            });
+            }));
+            }
+
+            var retention = series[^1];
+            Assert.Fail("DIAGNOSTIC " + string.Join(" || ", series.Select(found => found.ToString())));
 
             Assert.InRange(held, 1, pictures.Budget);
             Assert.Equal((0L, held), (pictures.LeasedBytes, pictures.LiveBytes));
