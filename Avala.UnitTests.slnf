@@ -106,6 +106,7 @@
       "tests/Avala.Gitea.Tests/Avala.Gitea.Tests.csproj",
       "tests/Avala.ForgeSimulator.Tests/Avala.ForgeSimulator.Tests.csproj",
       "src/Modules/ClaudeCode/Avala.ClaudeCode/Avala.ClaudeCode.csproj",
+      "src/Modules/ClaudeCode/Avala.ClaudeCode.UI/Avala.ClaudeCode.UI.csproj",
       "tests/Avala.ClaudeCode.Tests/Avala.ClaudeCode.Tests.csproj",
       "tests/Avala.ClaudeCode.Replay/Avala.ClaudeCode.Replay.csproj"
     ]

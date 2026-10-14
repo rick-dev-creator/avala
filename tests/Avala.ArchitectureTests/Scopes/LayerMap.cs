@@ -207,6 +207,8 @@ internal static class LayerMap
             ["Cli"] = Layer.Infrastructure,
             ["Folders"] = Layer.Infrastructure,
             ["Discovery"] = Layer.Infrastructure,
+            ["Settings"] = Layer.ViewModels,
+            ["UI"] = Layer.None,
         }),
         .. Module("Avala.Recording", new()
         {

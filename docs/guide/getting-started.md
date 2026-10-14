@@ -47,7 +47,7 @@ To see the tour again, choose **Show welcome tour** in **Settings**, **About**.
   { "name": "claude-work", "provider": "claude-code", "credential": { "source": "login", "reference": "~/.claude-work" }, "settings": { "compactAt": "400000" } }
   ```
 
-  A smaller window costs less per message and much less after an idle hour, when the whole conversation is read again; a larger one keeps more of it word for word.
+  A smaller window costs less per message and much less after an idle hour, when the whole conversation is read again; a larger one keeps more of it word for word. **Settings** shows the same choices for each Claude Code login under **Claude Code**: Compact at 150k, 250k, 500k or 1M, Summarize automatically, and Summarize while idle, which applies only while summarizing automatically is on; a change is saved to `connections.json` at once.
 - **`forges.json`** holds your source control accounts; see [Repositories](repositories.md#settings-and-files).
 - **`onboarding.json`** records that the tour was finished or skipped, as `{ "onboarded": true }`.
 - **The data folder** is the folder in `AVALA_DATA_PATH`, or `Avala` in your local application data folder; see [where files live](../README.md#where-files-live).
