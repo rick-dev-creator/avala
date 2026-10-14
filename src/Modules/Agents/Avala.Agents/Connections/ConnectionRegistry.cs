@@ -68,6 +68,7 @@ internal sealed class ConnectionRegistry(
             connection.Credential.Map(credential => new CredentialDeclaration(credential.Source, credential.Reference.Trim())))
         {
             Model = connection.Model,
+            Settings = connection.Settings,
         };
 
     private static Option<ConnectionDeclaration> Replaced(ConnectionDeclarations declarations, Option<ConnectionName> replacing) =>

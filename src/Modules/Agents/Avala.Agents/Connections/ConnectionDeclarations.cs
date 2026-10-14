@@ -18,7 +18,7 @@ internal sealed record ConnectionDeclaration(ConnectionName Name, string Provide
     public ConnectionOrigin Origin { get; init; }
 
     public DeclaredConnection Declared =>
-        new(Name, Provider, Credential.Map(credential => credential.Source)) { Origin = Origin, Reference = Credential.Bind(credential => credential.Reference) };
+        new(Name, Provider, Credential.Map(credential => credential.Source)) { Origin = Origin, Reference = Credential.Bind(credential => credential.Reference), Settings = Settings };
 
     public static bool IsValidName(string name) =>
         name.Length is > 0 and <= LongestName

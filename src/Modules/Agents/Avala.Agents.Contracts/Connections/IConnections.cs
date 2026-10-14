@@ -55,6 +55,8 @@ public sealed record DeclaredConnection(ConnectionName Name, string Provider, Op
     public Option<string> Reference { get; init; }
 
     public Option<ConnectionError> Problem { get; init; }
+
+    public IReadOnlyDictionary<string, string> Settings { get; init; } = System.Collections.Immutable.ImmutableDictionary<string, string>.Empty;
 }
 
 public sealed record ConnectionCatalog(
@@ -75,6 +77,8 @@ public sealed record ConnectionEdit(ConnectionName Name, string Provider)
     public Option<CredentialReference> Credential { get; init; }
 
     public Option<ModelChoice> Model { get; init; }
+
+    public IReadOnlyDictionary<string, Option<string>> Settings { get; init; } = System.Collections.Immutable.ImmutableDictionary<string, Option<string>>.Empty;
 }
 
 public sealed record ConnectionInfo(ConnectionName Name, ProviderInfo Provider)
