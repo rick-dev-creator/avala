@@ -54,7 +54,7 @@ under your rules, with evidence for every result and a cost for every job.
 </td>
 <td width="50%" valign="top">
 
-**A conversation that feels native.** Replies render Markdown with code colored by its language, and canvases are drawn as Markdown, SVG (animations included) and Mermaid.
+**A conversation that feels native.** Replies render Markdown with code colored by its language, and canvases are drawn as Markdown, SVG (animations included) and Mermaid. The sidebar groups conversations by project, with Chats for those started without a repository, and archives the finished ones out of the way.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/conversation-dark.png">
@@ -112,7 +112,7 @@ under your rules, with evidence for every result and a cost for every job.
 <tr>
 <td colspan="2" valign="top">
 
-**Handoff at the usage limit.** When a job nears the limit of its connection's usage window, it is held and, when your rules allow, handed off to the connection with the most capacity left, with a brief of the work so far built from Avala's own records. You can also move a held job yourself with Continue on from its harness chip.
+**Handoff at the usage limit.** When a job nears the limit of its connection's usage window, it is held and, when your rules allow, handed off to the connection with the most capacity left, with a brief of the work so far built from Avala's own records. You can also move a held job yourself with Continue on from its harness chip. A held job waits for your message once its window resets, so a new window is never spent while you are away.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" type="image/webp" srcset="docs/assets/readme/handoff-dark.webp">
@@ -125,7 +125,7 @@ under your rules, with evidence for every result and a cost for every job.
 <tr>
 <td width="50%" valign="top">
 
-**Usage at a glance.** Each connection's 5-hour and 7-day windows, spend at API prices against your caps, every job against its cap and how often it was held, and usage by day, under a daily ceiling for the machine.
+**Usage at a glance.** Each connection's 5-hour and 7-day windows, spend at API prices against your caps, every job against its cap and how often it was held, and usage by day, under a daily ceiling for the machine. The job's header shows the context and usage left as two small rings, and Claude Code compacts a long conversation at a window you choose in Settings.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/usage-dark.png">
@@ -195,12 +195,12 @@ Also: caps on tokens and memory per job, an autopilot that works through a backl
 
 ## Install
 
-> **Avala 0.1.0-beta.3 is out.** It is a prerelease: [read the release notes](https://github.com/rick-dev-creator/avala/releases/tag/v0.1.0-beta.3) before you start. The builds are not signed yet, so Windows SmartScreen warns about an unknown publisher; choose More info, Run anyway.
+> **Avala 0.1.0-beta.4 is out.** It is a prerelease: [read the release notes](https://github.com/rick-dev-creator/avala/releases/tag/v0.1.0-beta.4) before you start. The builds are not signed yet, so Windows SmartScreen warns about an unknown publisher; choose More info, Run anyway.
 
 | Platform | How |
 | --- | --- |
-| Windows x64 | Run [`avala-0.1.0-beta.3-win-x64-setup.exe`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.3/avala-0.1.0-beta.3-win-x64-setup.exe), or unzip [the portable zip](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.3/avala-0.1.0-beta.3-win-x64-portable.zip) anywhere. Both update themselves in place. |
-| Linux x64 | Run [`avala-0.1.0-beta.3-linux-x64.AppImage`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.3/avala-0.1.0-beta.3-linux-x64.AppImage) (`chmod +x` it first), which updates itself in place, or unpack [the tar.gz](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.3/avala-0.1.0-beta.3-linux-x64.tar.gz). |
+| Windows x64 | Run [`avala-0.1.0-beta.4-win-x64-setup.exe`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.4/avala-0.1.0-beta.4-win-x64-setup.exe), or unzip [the portable zip](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.4/avala-0.1.0-beta.4-win-x64-portable.zip) anywhere. Both update themselves in place. |
+| Linux x64 | Run [`avala-0.1.0-beta.4-linux-x64.AppImage`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.4/avala-0.1.0-beta.4-linux-x64.AppImage) (`chmod +x` it first), which updates itself in place, or unpack [the tar.gz](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.4/avala-0.1.0-beta.4-linux-x64.tar.gz). |
 | Arch Linux | `avala-bin` on the AUR is coming soon; until then use the AppImage or the tar.gz. |
 | Flatpak | `io.github.rick_dev_creator.Avala`, built from `packaging/flatpak` for now; Flathub comes later. |
 | macOS | Later. Avala builds and runs from source on a Mac today. |
