@@ -164,6 +164,17 @@ public sealed class RepositorySettingsViewScripts(HeadlessUi ui)
 public sealed class MachineSettingsViewScripts(HeadlessUi ui)
 {
     [Fact]
+    public Task TheMachineShowsTheSectionsHarnessesContributeOnlyWhenThereAreSomeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var none = Screen.Show(new DesignMachineSettingsViewModel()).Shows("Harnesses");
+            var view = Screen.Show(new DesignMachineSettingsViewModel { Harnesses = [new Avala.Workbench.Settings.DesignNotificationsViewModel()] });
+
+            Assert.False(none);
+            Assert.Equal(1, view.Find<ItemsControl>("Harnesses").ItemCount);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task TheMachineShowsItsSilenceWindowOnTheSliderAsync() =>
         ui.RunAsync(() =>
         {

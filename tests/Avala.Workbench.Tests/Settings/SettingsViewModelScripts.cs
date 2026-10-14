@@ -88,6 +88,8 @@ public sealed class SettingsViewModelScripts
 
         public IMachineAccountsViewModel Accounts => machine.Accounts;
 
+        public IReadOnlyList<object> Harnesses => machine.Harnesses;
+
         public IRuleFileEditorViewModel Editor => repository.Editor;
 
         public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand<IRuleFileViewModel> EditHereCommand => repository.EditHereCommand;

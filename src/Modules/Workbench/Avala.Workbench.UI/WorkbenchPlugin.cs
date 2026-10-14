@@ -353,7 +353,10 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
                 provider.GetRequiredService<IDefaultConnectionViewModel>(),
                 provider.GetRequiredService<INotificationsViewModel>(),
                 provider.GetRequiredService<ISourceControlViewModel>(),
-                provider.GetRequiredService<IPersonalDetailsViewModel>()));
+                provider.GetRequiredService<IPersonalDetailsViewModel>())
+            {
+                Harnesses = [.. provider.GetServices<RegionContribution>().Where(contribution => contribution.Region == WorkbenchRegions.Settings).OrderBy(contribution => contribution.Order).Select(contribution => contribution.ViewModel)],
+            });
 
     private static IServiceCollection RegisterPulse(IServiceCollection services) =>
         services
