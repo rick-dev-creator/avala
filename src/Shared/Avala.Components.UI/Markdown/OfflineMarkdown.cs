@@ -11,7 +11,7 @@ public static class OfflineMarkdown
 
     public static MarkdownPipeline Pipeline(Func<string, bool> keepImage)
     {
-        var builder = new MarkdownPipelineBuilder().UseSupportedExtensions();
+        var builder = Markdig.MarkdownExtensions.UseMathematics(MarkView.Avalonia.MarkdownExtensions.UseFootnotes(MarkView.Avalonia.MarkdownExtensions.UseAlertBlocks(new MarkdownPipelineBuilder().UseSupportedExtensions())));
         builder.DocumentProcessed += document => WithoutRemoteImages(document, keepImage);
 
         return builder.Build();

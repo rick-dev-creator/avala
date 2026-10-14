@@ -511,3 +511,18 @@ public sealed class HunkViewScripts(HeadlessUi ui)
             Assert.All(lines, line => Assert.Equal("JetBrains Mono", line.FontFamily.FamilyNames[0]));
         }, TestContext.Current.CancellationToken);
 }
+
+public sealed class EditDiffViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task AnEditShowsItsFileAndMarksItsRemovedAndAddedLinesInTheCodeFontAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new Avala.Workbench.Conversation.DesignEditDiffViewModel());
+            var lines = view.Find<ItemsControl>("Lines").GetVisualDescendants().OfType<TextBlock>().ToList();
+
+            Assert.StartsWith("src/money.ts", view.TextOf("Header"), StringComparison.Ordinal);
+            Assert.Equal([(true, false), (false, true)], lines.Select(line => (line.Classes.Contains("removed"), line.Classes.Contains("added"))));
+            Assert.All(lines, line => Assert.Equal("JetBrains Mono", line.FontFamily.FamilyNames[0]));
+        }, TestContext.Current.CancellationToken);
+}

@@ -4,7 +4,14 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Conversation;
 
-internal sealed class EditDiffViewModel : IHunkViewModel
+internal interface IEditDiffViewModel
+{
+    string Header { get; }
+
+    IReadOnlyList<HunkLine> Lines { get; }
+}
+
+internal sealed class EditDiffViewModel : IEditDiffViewModel
 {
     public const int ShownLines = 400;
 

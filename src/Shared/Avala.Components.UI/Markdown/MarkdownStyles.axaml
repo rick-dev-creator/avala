@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:mv="using:MarkView.Avalonia">
+        xmlns:mv="using:MarkView.Avalonia"
+        xmlns:markdown="using:Avala.Components.UI.Markdown">
   <StyleInclude Source="avares://MarkView.Avalonia/Themes/MarkdownTheme.axaml" />
   <Style Selector="mv|MarkdownViewer">
     <Setter Property="VerticalAlignment" Value="Top" />
@@ -71,6 +72,55 @@
     <Setter Property="Margin" Value="0,10,0,2" />
     <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
     <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="ScrollViewer.markdown-table-scroller">
+    <Setter Property="Margin" Value="0,2,0,2" />
+  </Style>
+  <Style Selector="Border.markdown-alert">
+    <Setter Property="BorderThickness" Value="3,0,0,0" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="Background" Value="{DynamicResource FillQuietBrush}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+    <Setter Property="Padding" Value="12,8,12,8" />
+    <Setter Property="Margin" Value="0,2,0,2" />
+  </Style>
+  <Style Selector="Border.markdown-alert-warning">
+    <Setter Property="BorderBrush" Value="{DynamicResource AttentionBrush}" />
+  </Style>
+  <Style Selector="Border.markdown-alert-caution">
+    <Setter Property="BorderBrush" Value="{DynamicResource FailureBrush}" />
+  </Style>
+  <Style Selector="Border.markdown-alert TextBlock.markdown-alert-header">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="Margin" Value="0,0,0,2" />
+  </Style>
+  <Style Selector="Border.markdown-alert-warning TextBlock.markdown-alert-header">
+    <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+  </Style>
+  <Style Selector="Border.markdown-alert-caution TextBlock.markdown-alert-header">
+    <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+  </Style>
+  <Style Selector=":is(StackPanel).markdown-footnote-group">
+    <Setter Property="Margin" Value="0,6,0,0" />
+  </Style>
+  <Style Selector=":is(StackPanel).markdown-footnote-group :is(TextBlock)">
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="markdown|MathFormula.markdown-math">
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+  </Style>
+  <Style Selector="SelectableTextBlock.markdown-math-source">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeMono}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="markdown|MathFormula.markdown-math-block">
+    <Setter Property="TextElement.FontSize" Value="{DynamicResource FontSizeReading}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    <Setter Property="Margin" Value="0,6,0,6" />
   </Style>
   <Style Selector="Run.markdown-code-inline">
     <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />

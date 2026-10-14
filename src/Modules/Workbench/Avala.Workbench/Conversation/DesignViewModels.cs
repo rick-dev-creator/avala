@@ -11,6 +11,7 @@ using Avala.Workbench.Harnesses;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Review;
+using Avala.Workspaces.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -215,7 +216,7 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
 
     public bool ShowsCopy => Output.Length > 0 && !ShowsAllChanges;
 
-    public IHunkViewModel Edit { get; init; } = EditDiffViewModel.Of("src/money.ts", "-     return units * 100\n+     return units * pow10(exponent)");
+    public IEditDiffViewModel Edit { get; init; } = new DesignEditDiffViewModel();
 
     public bool ShowsPreview { get; init; }
 
@@ -226,6 +227,17 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
     public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand ShowChangesCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+}
+
+internal sealed class DesignEditDiffViewModel : IEditDiffViewModel
+{
+    public string Header => "src/money.ts  +1 -1";
+
+    public IReadOnlyList<HunkLine> Lines { get; } =
+    [
+        new("-    return units * 100", DiffLineKind.Removed),
+        new("+    return units * pow10(exponent)", DiffLineKind.Added),
+    ];
 }
 
 internal sealed class DesignFilePreviewViewModel : IFilePreviewViewModel

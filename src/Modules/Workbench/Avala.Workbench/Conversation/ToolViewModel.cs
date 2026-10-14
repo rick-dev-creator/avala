@@ -45,7 +45,7 @@ internal interface IToolViewModel
 
     bool ShowsCopy { get; }
 
-    IHunkViewModel Edit { get; }
+    IEditDiffViewModel Edit { get; }
 
     bool ShowsPreview { get; }
 
@@ -134,7 +134,7 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     public bool ShowsCopy => Output.Length > 0 && !ShowsAllChanges;
 
     [ObservableProperty]
-    public partial IHunkViewModel Edit { get; private set; } = EditDiffViewModel.Of(string.Empty, string.Empty);
+    public partial IEditDiffViewModel Edit { get; private set; } = EditDiffViewModel.Of(string.Empty, string.Empty);
 
     [ObservableProperty]
     public partial bool ShowsPreview { get; private set; }

@@ -135,7 +135,9 @@ public sealed class MarkdownText : StackPanel
     private MarkdownViewer Viewer(string name)
     {
         var viewer = new MarkdownViewer { Name = name, Pipeline = pipeline };
+        viewer.Extensions.Add(MathText.Instance);
         viewer.Extensions.Add(CopyableCode.Instance);
+        viewer.Extensions.Add(ScrollingTables.Instance);
 
         return viewer;
     }

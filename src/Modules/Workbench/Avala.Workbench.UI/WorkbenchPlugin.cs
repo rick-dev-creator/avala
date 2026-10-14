@@ -255,6 +255,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IReviewExceptionViewModel, ReviewExceptionView>();
         views.Register<IChangedFileViewModel, ChangedFileView>();
         views.Register<IHunkViewModel, HunkView>();
+        views.Register<IEditDiffViewModel, EditDiffView>();
         views.Register<IDecisionsViewModel, DecisionsView>();
         views.Register<IDecisionViewModel, DecisionView>();
         views.Register<IEvidenceSectionViewModel, EvidenceSectionView>();
