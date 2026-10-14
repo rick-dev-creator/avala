@@ -4,12 +4,17 @@ using Avala.Sdk;
 
 namespace Avala.Components.UI.Markdown;
 
-public sealed record CodeSpan(string Text, string Role);
+public readonly record struct CodeInk(uint Dark, uint Light)
+{
+    public static CodeInk Plain { get; }
+
+    public bool IsPlain => Dark == 0 && Light == 0;
+}
+
+public sealed record CodeSpan(string Text, CodeInk Ink);
 
 public static class CodeColors
 {
-    public const int HighlightedLines = 300;
-
     public const int ChunkLines = 60;
 
     public const long CacheBudget = 8L * 1024 * 1024;
@@ -21,8 +26,6 @@ public static class CodeColors
         ImmutableDictionary<(string Language, string Code), IReadOnlyList<IReadOnlyList<CodeSpan>>>.Empty;
 
     public static long CachedBytes => Volatile.Read(ref cachedBytes);
-
-    public static int Count(string code) => code.Count(character => character == '\n') + 1;
 
     public static Option<IReadOnlyList<IReadOnlyList<CodeSpan>>> Cached(string code, string language) =>
         Volatile.Read(ref colored).TryGetValue((Key(language), code), out var lines)
@@ -96,6 +99,12 @@ public static class CodeColors
         }
 
         var bytes = Size(key.Code, lines);
+
+        if (bytes > CacheBudget / 2)
+        {
+            return;
+        }
+
         current = current.SetItem(key, lines);
         Recent.AddLast((key.Language, key.Code, bytes));
         Volatile.Write(ref cachedBytes, cachedBytes + bytes);

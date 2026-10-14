@@ -70,8 +70,7 @@ public sealed class MessageViewScripts(HeadlessUi ui)
             view.Settle();
 
             Assert.Equal("go", Assert.Single(view.All<TextBlock>(), block => block.Classes.Contains("code-language")).Text);
-            Assert.Equal("keyword", code.RoleAt(0));
-            Assert.Equal(Application.Current!.FindResource(view.Window.ActualThemeVariant, "SyntaxKeywordBrush"), CodeBlocks.ForegroundOf(code, "func"));
+            Assert.Equal(Avalonia.Media.Colors.Blue, CodeBlocks.ColorOf(code, "func"));
         }, Cancellation);
 
     [Fact]
