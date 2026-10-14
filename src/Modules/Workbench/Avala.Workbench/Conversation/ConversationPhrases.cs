@@ -33,6 +33,20 @@ internal static class ConversationPhrases
 
     public const string AllChanges = "All changes to this file";
 
+    public static string Cold(ColdConversation cold) =>
+        $"Idle for {Idle(cold.Idle)}, so the next message re-reads about {Thousands(cold.Tokens)} tokens of this conversation.";
+
+    private static string Idle(TimeSpan idle) =>
+        (int)idle.TotalHours switch
+        {
+            0 => $"{Math.Max(1, (int)idle.TotalMinutes).ToString(System.Globalization.CultureInfo.InvariantCulture)} minutes",
+            1 => "over an hour",
+            var hours => $"over {hours.ToString(System.Globalization.CultureInfo.InvariantCulture)} hours",
+        };
+
+    private static string Thousands(long tokens) =>
+        tokens >= 1_000 ? $"{Math.Round(tokens / 1_000d).ToString(System.Globalization.CultureInfo.InvariantCulture)}k" : tokens.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     public static string NotInWorktree(string path) => $"{path} is not in this job's worktree.";
 
     public static string NotText(string name) => $"{name} is not a text file.";

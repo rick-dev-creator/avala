@@ -295,6 +295,8 @@ public sealed class ProviderTests
                 new AcceptsPreview(),
                 new AsksForms(),
                 new AcceptsMessagesMidTurn(),
+                new CachesPrompt(TimeSpan.FromHours(1)),
+                new CompactsOnRequest("/compact"),
                 new ReportsUsage(),
                 new ReportsContext(),
                 new ReportsCost("USD") { Basis = limits ? CostBasis.ApiEquivalent : CostBasis.Billed }),

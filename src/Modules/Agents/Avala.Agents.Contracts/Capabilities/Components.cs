@@ -27,6 +27,10 @@ public sealed record AsksForms : ICapability;
 
 public sealed record AcceptsMessagesMidTurn : ICapability;
 
+public sealed record CachesPrompt(TimeSpan Lifetime) : ICapability;
+
+public sealed record CompactsOnRequest(string Message) : ICapability;
+
 public sealed record ReportsUsage : ICapability;
 
 public sealed record ReportsContext : ICapability;

@@ -48,6 +48,12 @@ internal interface IComposerViewModel
     int Edits { get; }
 
     IHarnessChoiceViewModel Harness { get; }
+
+    string ColdNote { get; }
+
+    bool CanCompact { get; }
+
+    IAsyncRelayCommand CompactCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -65,6 +71,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         this.steering = steering;
         this.keys = keys;
         SendsWithEnter = keys.WithEnter;
+        harness.Loaded += (_, _) => ShowCold();
         Draft = string.Empty;
         Error = string.Empty;
         Queued = string.Empty;
@@ -80,6 +87,13 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     [NotifyPropertyChangedFor(nameof(ShowsStop), nameof(ShowsSend))]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     public partial string Draft { get; set; }
+
+    [ObservableProperty]
+    public partial string ColdNote { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CompactCommand))]
+    public partial bool CanCompact { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AcceptsMessages), nameof(CanHalt), nameof(ShowsStop), nameof(ShowsSend), nameof(Placeholder), nameof(SendHint), nameof(QueuedCaption))]
@@ -134,6 +148,28 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         SendsWithEnter = keys.WithEnter;
         ShowQueued();
         harness.Track(shown);
+        ShowCold();
+    }
+
+    partial void OnDraftChanged(string value) => ShowCold();
+
+    private void ShowCold()
+    {
+        var cold = Status.AcceptsMessages && !Status.IsWorking ? harness.Cold() : Option<ColdConversation>.None;
+        ColdNote = cold.Match(ConversationPhrases.Cold, () => string.Empty);
+        CanCompact = cold.Match(found => found.Compact.IsSome, () => false);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCompact))]
+    private async Task CompactAsync(CancellationToken cancellationToken)
+    {
+        var message = harness.Cold().Bind(found => found.Compact).Match(found => found, () => string.Empty);
+
+        if (message.Length > 0)
+        {
+            var sent = await steering.SendAsync(Job, Status, message, cancellationToken);
+            Error = sent.Match(_ => string.Empty, ConversationPhrases.Rejection);
+        }
     }
 
     public void Edit(string text)

@@ -25,6 +25,8 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         new AcceptsPreview(),
         new AsksForms(),
         new AcceptsMessagesMidTurn(),
+        new CachesPrompt(TimeSpan.FromHours(1)),
+        new CompactsOnRequest("/compact"),
         new ReportsUsage(),
         new ReportsContext(),
         new ReportsCost(Telemetry.Currency));

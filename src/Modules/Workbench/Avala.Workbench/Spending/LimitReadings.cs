@@ -16,6 +16,8 @@ internal sealed class LimitReadings(IUsage usage, Pulse pulse, TimeProvider cloc
 {
     private Alarm? alarm;
 
+    public DateTimeOffset Now => clock.GetUtcNow();
+
     public IReadOnlyList<ConnectionUsage> ByConnection() => usage.ByConnection();
 
     public IReadOnlyList<LimitReading> Judged(IReadOnlyList<UsageLimit> limits)
