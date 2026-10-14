@@ -21,6 +21,8 @@ internal interface IMachineSettingsViewModel
 
     IMachineAccountsViewModel Accounts { get; }
 
+    IReadOnlyList<object> Harnesses { get; }
+
     string Silence { get; }
 
     string SupervisionFile { get; }
@@ -38,7 +40,10 @@ internal interface IMachineSettingsViewModel
     Task LoadAsync(CancellationToken cancellationToken);
 }
 
-internal sealed record MachineSections(IDefaultConnectionViewModel DefaultConnection, INotificationsViewModel Notifications, ISourceControlViewModel SourceControl, IPersonalDetailsViewModel PersonalDetails);
+internal sealed record MachineSections(IDefaultConnectionViewModel DefaultConnection, INotificationsViewModel Notifications, ISourceControlViewModel SourceControl, IPersonalDetailsViewModel PersonalDetails)
+{
+    public IReadOnlyList<object> Harnesses { get; init; } = [];
+}
 
 internal static class SilenceDial
 {
@@ -71,6 +76,7 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
         this.settings = settings;
         DefaultConnection = sections.DefaultConnection;
         Notifications = sections.Notifications;
+        Harnesses = sections.Harnesses;
         accounts = new MachineAccountsViewModel(editor, sections.SourceControl, sections.PersonalDetails, OpenConnectionsCommand);
         DefaultConnection.Changed += (_, catalog) => ShowConnections(catalog);
         editor.Edited += (_, edited) =>
@@ -86,6 +92,8 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
     public INotificationsViewModel Notifications { get; }
 
     public IMachineAccountsViewModel Accounts => accounts;
+
+    public IReadOnlyList<object> Harnesses { get; }
 
     public IConnectionEditorViewModel Editor => accounts.Editing;
 
@@ -145,6 +153,11 @@ internal sealed partial class MachineSettingsViewModel : IMachineSettingsViewMod
         Show(await settings.ReadAsync(cancellationToken));
         await Notifications.LoadAsync(cancellationToken);
         await SourceControl.LoadAsync(cancellationToken);
+
+        foreach (var harness in Harnesses.OfType<IActivatable>())
+        {
+            harness.Activate();
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveSilence))]

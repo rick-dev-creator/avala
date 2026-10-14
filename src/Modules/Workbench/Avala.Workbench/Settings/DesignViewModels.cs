@@ -251,6 +251,8 @@ internal sealed partial class DesignMachineSettingsViewModel : IMachineSettingsV
 
     public INotificationsViewModel Notifications { get; } = new DesignNotificationsViewModel();
 
+    public IReadOnlyList<object> Harnesses { get; init; } = [];
+
     public IMachineAccountsViewModel Accounts { get; init; } = new DesignMachineAccountsViewModel();
 
     public string Silence => "600s";

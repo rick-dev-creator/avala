@@ -159,6 +159,25 @@ public sealed class MachineSettingsViewModelScripts
         Assert.Equal("forges.json is rejected: forges.json or the pullRequest section is invalid (UnknownField).", machine.ForgesFile);
     }
 
+    [Fact]
+    public async Task ASectionAHarnessContributesIsListedAndActivatedWithTheMachineSettingsAsync()
+    {
+        var harness = new ContributedSection();
+        var settings = new MachineSettings(new FakeConnections("work"), supervision, new FakeResources(), new FakeForgeCatalog());
+        var machine = new MachineSettingsViewModel(
+            settings,
+            new MachineSections(new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel(), new Avala.Components.Privacy.DesignPersonalDetailsViewModel())
+            {
+                Harnesses = [harness],
+            },
+            new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(opener, new AvalaPaths("/data"))));
+
+        await machine.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Same(harness, Assert.Single(machine.Harnesses));
+        Assert.Equal(1, harness.Activations);
+    }
+
     private MachineSettingsViewModel Machine() => Machine(new FakeConnections("work", "personal"));
 
     private MachineSettingsViewModel Machine(FakeConnections connections) => Machine(connections, new FakeForgeCatalog());
@@ -171,6 +190,17 @@ public sealed class MachineSettingsViewModelScripts
             settings,
             new MachineSections(new DefaultConnectionViewModel(settings, new StrongReferenceMessenger()), new DesignNotificationsViewModel(), new Avala.Workbench.Accounts.DesignSourceControlViewModel(), new Avala.Components.Privacy.DesignPersonalDetailsViewModel()),
             new ConnectionEditorViewModel(settings, new Avala.Workbench.ModelChoices.ModelPickerViewModel(), new SettingsFiles(opener, new AvalaPaths("/data"))));
+    }
+}
+
+internal sealed class ContributedSection : Avala.Sdk.IActivatable
+{
+    public int Activations { get; private set; }
+
+    public void Activate() => Activations++;
+
+    public void Deactivate()
+    {
     }
 }
 
