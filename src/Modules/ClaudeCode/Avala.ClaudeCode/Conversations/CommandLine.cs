@@ -31,6 +31,16 @@ internal static class CommandLine
 
     public const string PlanToolsSetting = "planTools";
 
+    public const string CompactAtSetting = "compactAt";
+
+    public const string AutoCompactSetting = "autoCompact";
+
+    public const string IdleCompactionSetting = "idleCompaction";
+
+    public const string CompactWindowVariable = "CLAUDE_CODE_AUTO_COMPACT_WINDOW";
+
+    public const int DefaultCompactAt = 250_000;
+
     public const string TodoToolsVariable = "CLAUDE_CODE_ENABLE_TODO_TOOLS";
 
     public const string ConfigurationVariable = "CLAUDE_CONFIG_DIR";
@@ -43,6 +53,7 @@ internal static class CommandLine
         "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_BRIDGE_SESSION_ID",
         "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN", "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_EXECPATH",
         "CLAUDE_CODE_SSE_PORT", "CLAUDE_PID", "CLAUDE_EFFORT", "CLAUDE_AUTO_BACKGROUND_TASKS", "CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS",
+        CompactWindowVariable,
     ];
 
     public const string ToolTimeoutVariable = "MCP_TOOL_TIMEOUT";
@@ -98,6 +109,7 @@ internal static class CommandLine
         {
             ["DISABLE_AUTOUPDATER"] = "1",
             [ToolTimeoutVariable] = ToolTimeoutMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            [CompactWindowVariable] = CompactAt(connection).ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
 
         if (Switch(connection, PlanToolsSetting, true) && home.TodoTools.IsNone)
@@ -120,12 +132,12 @@ internal static class CommandLine
 
     private static string[] Configuration(ConnectionEnvironment connection, UserHome home)
     {
+        var settings = Compaction(connection);
+
         if (!Switch(connection, UserConfigurationSetting, true) || connection.ApiKey.IsSome && connection.ConfigurationDirectory.IsNone)
         {
-            return ["--strict-mcp-config", "--setting-sources", string.Empty];
+            return ["--strict-mcp-config", "--setting-sources", string.Empty, .. Settings(settings)];
         }
-
-        var settings = new JsonObject();
 
         if (!Switch(connection, UserHooksSetting, false))
         {
@@ -137,8 +149,32 @@ internal static class CommandLine
             settings["claudeMdExcludes"] = new JsonArray($"{home.DefaultFolder.Replace('\\', '/')}/**");
         }
 
-        return ["--setting-sources", "user,project,local", .. settings.Count > 0 ? ["--settings", settings.ToJsonString()] : Array.Empty<string>()];
+        return ["--setting-sources", "user,project,local", .. Settings(settings)];
     }
+
+    private static JsonObject Compaction(ConnectionEnvironment connection)
+    {
+        var settings = new JsonObject();
+
+        foreach (var (setting, name) in new[] { (AutoCompactSetting, "autoCompactEnabled"), (IdleCompactionSetting, "idleCompaction") })
+        {
+            if (connection.Settings.TryGetValue(setting, out var value) && bool.TryParse(value, out var on))
+            {
+                settings[name] = on;
+            }
+        }
+
+        return settings;
+    }
+
+    private static string[] Settings(JsonObject settings) => settings.Count > 0 ? ["--settings", settings.ToJsonString()] : [];
+
+    public static int CompactAt(ConnectionEnvironment connection) =>
+        connection.Settings.TryGetValue(CompactAtSetting, out var value)
+        && int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var tokens)
+        && tokens > 0
+            ? tokens
+            : DefaultCompactAt;
 
     private static bool Switch(ConnectionEnvironment connection, string name, bool fallback) =>
         connection.Settings.TryGetValue(name, out var value) && bool.TryParse(value, out var on) ? on : fallback;
