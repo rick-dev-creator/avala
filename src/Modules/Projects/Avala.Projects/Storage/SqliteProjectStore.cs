@@ -50,7 +50,7 @@ internal sealed class SqliteProjectStore(AvalaPaths paths) : IProjectStore, ISta
                 var placements = await database.Placements.AsNoTracking().ToListAsync(cancellationToken);
 
                 return new ProjectMap(
-                    [.. projects.OrderBy(row => row.Id).Select(row => row.Read())],
+                    [.. projects.OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase).ThenBy(row => row.Id).Select(row => row.Read())],
                     placements.ToImmutableDictionary(row => new JobId(row.Job), row => new ProjectId(row.Project)));
             },
             cancellationToken);
