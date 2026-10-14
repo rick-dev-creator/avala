@@ -29,7 +29,7 @@ public sealed class CopyableCode : IMarkViewExtension, IMarkdownObjectRenderer
 
     public void Register(AvaloniaRenderer renderer) => renderer.ReplaceOrAdd<CodeBlockRenderer>(this);
 
-    public bool Accept(RendererBase renderer, Type objectType) => typeof(CodeBlock).IsAssignableFrom(objectType);
+    public bool Accept(RendererBase renderer, Type objectType) => typeof(CodeBlock).IsAssignableFrom(objectType) && !typeof(Markdig.Extensions.Mathematics.MathBlock).IsAssignableFrom(objectType);
 
     public static string Label(string language, int lines) =>
         string.Join(" · ", new[] { language, lines > 1 ? string.Create(CultureInfo.InvariantCulture, $"{lines} lines") : string.Empty }.Where(part => part.Length > 0));

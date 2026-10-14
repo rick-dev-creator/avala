@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:review="using:Avala.Workbench.Review"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.EditDiffView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IEditDiffViewModel">
+  <Design.DataContext>
+    <conversation:DesignEditDiffViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="TextBlock.line">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+      <Setter Property="LineHeight" Value="20" />
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.line.added">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+      <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+    </Style>
+    <Style Selector="TextBlock.line.removed">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+      <Setter Property="Background" Value="{DynamicResource FillWellBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Frame"
+          CornerRadius="{DynamicResource RadiusRow}"
+          BorderBrush="{DynamicResource SeparatorBrush}"
+          BorderThickness="1"
+          ClipToBounds="True">
+    <StackPanel>
+      <TextBlock x:Name="Header"
+                 Classes="line"
+                 Padding="12,2"
+                 Background="{DynamicResource FillQuietBrush}"
+                 Text="{Binding Header}"
+                 TextWrapping="NoWrap"
+                 TextTrimming="CharacterEllipsis" />
+      <ItemsControl x:Name="Lines" ItemsSource="{Binding Lines}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="review:HunkLine">
+            <TextBlock Classes="line"
+                       Classes.added="{Binding IsAdded}"
+                       Classes.removed="{Binding IsRemoved}"
+                       Text="{Binding Text}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
+</UserControl>

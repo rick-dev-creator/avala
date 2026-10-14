@@ -5,6 +5,8 @@
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="MarkView.Avalonia" />
     <PackageReference Include="MarkView.Avalonia.SyntaxHighlighting" />
+    <PackageReference Include="CSharpMath.SkiaSharp" />
+    <PackageReference Include="Avalonia.Skia" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Avala.Sdk.UI\Avala.Sdk.UI.csproj" />

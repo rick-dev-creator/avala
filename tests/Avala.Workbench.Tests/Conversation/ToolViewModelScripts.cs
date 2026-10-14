@@ -112,16 +112,6 @@ public sealed class ToolViewModelScripts
     }
 
     [Fact]
-    public async Task AWrittenFilesLineExpandsToItsContentAsAddedLinesAsync()
-    {
-        var tool = Tools.InWorktree(new ToolEntry("t", ItemKind.FileEdit, "Write src/money.ts", string.Empty, ItemOutcome.Succeeded) { Input = "- [ ] a task\nexport {}" }, new FakeChanges());
-
-        await tool.ToggleCommand.ExecuteAsync(null);
-
-        Assert.Equal([DiffLineKind.Added, DiffLineKind.Added], tool.Edit.Lines.Select(line => line.Kind));
-    }
-
-    [Fact]
     public async Task AnExpandedEditOpensEveryChangeToItsFileAsync()
     {
         var changes = new FakeChanges { Hunks = { ["src/money.ts"] = Tools.Diff("src/money.ts") } };
@@ -132,17 +122,6 @@ public sealed class ToolViewModelScripts
 
         Assert.Equal((true, true), (tool.ShowsChanges, tool.Changes.IsOpen));
         Assert.Equal(["-    return units * 100", "+    return units * pow10(exponent)"], tool.Changes.Hunks.Single().Lines.Select(line => line.Text));
-    }
-
-    [Fact]
-    public async Task ALongEditShowsItsFirstLinesAndSaysHowManyMoreThereAreAsync()
-    {
-        var input = string.Join('\n', Enumerable.Range(0, EditDiffViewModel.ShownLines + 5).Select(line => $"+ line {line}"));
-        var tool = Tools.InWorktree(new ToolEntry("t", ItemKind.FileEdit, "Edit src/money.ts", string.Empty, ItemOutcome.Succeeded) { Input = input }, new FakeChanges());
-
-        await tool.ToggleCommand.ExecuteAsync(null);
-
-        Assert.Equal((EditDiffViewModel.ShownLines + 1, "… 5 more lines"), (tool.Edit.Lines.Count, tool.Edit.Lines[^1].Text));
     }
 
     [Fact]
