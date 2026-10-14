@@ -49,12 +49,6 @@
     <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
     <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
   </Style>
-  <Style Selector="Border.markdown-code-block TextBlock.code-hint">
-    <Setter Property="Margin" Value="0,-2,0,6" />
-    <Setter Property="FontFamily" Value="{DynamicResource InterfaceFont}" />
-    <Setter Property="FontSize" Value="{DynamicResource FontSizeHint}" />
-    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
-  </Style>
   <Style Selector="Button.code-copy">
     <Setter Property="Margin" Value="0,-6,-8,0" />
     <Setter Property="Opacity" Value="0" />

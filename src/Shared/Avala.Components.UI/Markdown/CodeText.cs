@@ -2,7 +2,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Media.TextFormatting;
+using Avalonia.Styling;
 using Avalonia.Threading;
 
 namespace Avala.Components.UI.Markdown;
@@ -12,21 +14,26 @@ public sealed class CodeText : SelectableTextBlock
     public static readonly RoutedEvent<RoutedEventArgs> PaintedEvent =
         RoutedEvent.Register<CodeText, RoutedEventArgs>("Painted", RoutingStrategies.Bubble);
 
-    private static readonly string[] Roles = ["keyword", "string", "number", "type", "function", "comment", "deleted"];
+    public const int NumberedLines = 30;
+
+    private const double GutterGap = 14;
 
     private readonly string code;
     private readonly string language;
-    private List<(int Start, string Role)> painted = [];
+    private readonly int[] starts;
+    private List<(int Start, CodeInk Ink)> painted = [];
     private Action stop = () => { };
+    private (TextLayout Code, TextLayout Numbers)? numbers;
 
     public CodeText(string code, string language)
     {
         this.code = code;
         this.language = language;
+        starts = LineStarts(code);
         Text = code;
         ActualThemeVariantChanged += (_, _) => InvalidateTextLayout();
 
-        if (Highlights(code, language))
+        if (Highlights(language))
         {
             CodeColors.Cached(code, language).Match(
                 lines =>
@@ -41,25 +48,60 @@ public sealed class CodeText : SelectableTextBlock
 
     public bool IsPainted => painted.Count > 0;
 
+    public bool IsNumbered => starts.Length >= NumberedLines;
+
     protected override Type StyleKeyOverride => typeof(SelectableTextBlock);
 
-    public static bool Highlights(string code, string language) =>
-        language.Trim().Length > 0 && CodeColors.Count(code) <= CodeColors.HighlightedLines;
+    public static bool Highlights(string language) => language.Trim().Length > 0;
 
-    public string RoleAt(int index)
+    public CodeInk InkAt(int index)
     {
         var at = Segment(painted, index);
 
-        return at < 0 ? string.Empty : painted[at].Role;
+        return at < 0 ? CodeInk.Plain : painted[at].Ink;
+    }
+
+    public IReadOnlyList<string> Numbers() => IsNumbered ? Gutter(TextLayout).Split('\n') : [];
+
+    protected override void RenderTextLayout(DrawingContext context, Point origin)
+    {
+        base.RenderTextLayout(context, origin);
+
+        if (!IsNumbered)
+        {
+            return;
+        }
+
+        var layout = TextLayout;
+
+        if (numbers is not { } shown || !ReferenceEquals(shown.Code, layout))
+        {
+            shown = (layout, NumberLayout(layout));
+            numbers = shown;
+        }
+
+        shown.Numbers.Draw(context, new Point(origin.X - Padding.Left, origin.Y));
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
 
-        if (!IsPainted && Highlights(code, language))
+        Number();
+
+        if (!IsPainted && Highlights(language))
         {
             _ = PaintAsync();
+        }
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == FontSizeProperty || change.Property == FontFamilyProperty)
+        {
+            Number();
         }
     }
 
@@ -79,8 +121,9 @@ public sealed class CodeText : SelectableTextBlock
         var typeface = new Typeface(FontFamily, FontStyle, FontWeight, FontStretch);
         var plain = new GenericTextRunProperties(typeface, FontSize, TextDecorations, Foreground, null, BaselineAlignment.Baseline, null, FontFeatures);
         var paragraph = new GenericTextParagraphProperties(FlowDirection, TextAlignment, true, false, plain, TextWrapping, LineHeight, 0, LetterSpacing);
-        var styles = Roles.ToDictionary(role => role, role => Style(typeface, role));
-        var runs = painted.Select(segment => (segment.Start, styles.GetValueOrDefault(segment.Role, plain))).ToList();
+        var dark = ActualThemeVariant == ThemeVariant.Dark;
+        var styles = new Dictionary<uint, GenericTextRunProperties>();
+        var runs = painted.Select(segment => (segment.Start, Style(styles, typeface, dark ? segment.Ink.Dark : segment.Ink.Light, plain))).ToList();
         var size = GetMaxSizeFromConstraint();
 
         return new TextLayout(new PaintedSource(code, runs), paragraph, TextTrimming, size.Width, size.Height, MaxLines);
@@ -131,9 +174,46 @@ public sealed class CodeText : SelectableTextBlock
         }
     }
 
+    private static int[] LineStarts(string code)
+    {
+        var found = new List<int> { 0 };
+
+        for (var index = 0; index < code.Length; index++)
+        {
+            if (code[index] == '\n')
+            {
+                found.Add(index + 1);
+            }
+        }
+
+        return [.. found];
+    }
+
+    private void Number()
+    {
+        if (!IsNumbered)
+        {
+            return;
+        }
+
+        var digits = new TextLayout(new string('8', starts.Length.ToString(System.Globalization.CultureInfo.InvariantCulture).Length), new Typeface(FontFamily), FontSize, Foreground);
+        Padding = new Thickness(digits.Width + GutterGap, Padding.Top, Padding.Right, Padding.Bottom);
+        numbers = null;
+    }
+
+    private string Gutter(TextLayout layout) =>
+        string.Join('\n', layout.TextLines.Select(line => Array.BinarySearch(starts, line.FirstTextSourceIndex) is var at and >= 0 ? (at + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty));
+
+    private TextLayout NumberLayout(TextLayout layout)
+    {
+        var brush = this.TryFindResource("TextTertiaryBrush", ActualThemeVariant, out var found) && found is IBrush resolved ? resolved : Foreground;
+
+        return new TextLayout(Gutter(layout), new Typeface(FontFamily), FontSize, brush, TextAlignment.Right, TextWrapping.NoWrap, maxWidth: Math.Max(0, Padding.Left - GutterGap), lineHeight: LineHeight);
+    }
+
     private void Paint(IReadOnlyList<IReadOnlyList<CodeSpan>> lines)
     {
-        var segments = new List<(int Start, string Role)>();
+        var segments = new List<(int Start, CodeInk Ink)>();
         var at = 0;
 
         for (var index = 0; index < lines.Count; index++)
@@ -142,9 +222,9 @@ public sealed class CodeText : SelectableTextBlock
 
             foreach (var span in lines[index])
             {
-                if (segments.Count == 0 || segments[^1].Role != span.Role)
+                if (segments.Count == 0 || segments[^1].Ink != span.Ink)
                 {
-                    segments.Add((at, span.Role));
+                    segments.Add((at, span.Ink));
                 }
 
                 at += span.Text.Length;
@@ -156,14 +236,20 @@ public sealed class CodeText : SelectableTextBlock
         RaiseEvent(new RoutedEventArgs(PaintedEvent));
     }
 
-    private GenericTextRunProperties Style(Typeface typeface, string role)
+    private GenericTextRunProperties Style(Dictionary<uint, GenericTextRunProperties> styles, Typeface typeface, uint color, GenericTextRunProperties plain)
     {
-        var brush = this.TryFindResource($"Syntax{char.ToUpperInvariant(role[0])}{role[1..]}Brush", ActualThemeVariant, out var found) && found is IBrush resolved
-            ? resolved
-            : Foreground;
-        var face = role == "comment" ? new Typeface(typeface.FontFamily, FontStyle.Italic, typeface.Weight, typeface.Stretch) : typeface;
+        if (color == 0)
+        {
+            return plain;
+        }
 
-        return new GenericTextRunProperties(face, FontSize, TextDecorations, brush, null, BaselineAlignment.Baseline, null, FontFeatures);
+        if (!styles.TryGetValue(color, out var style))
+        {
+            style = new GenericTextRunProperties(typeface, FontSize, TextDecorations, new ImmutableSolidColorBrush(Color.FromUInt32(color)), null, BaselineAlignment.Baseline, null, FontFeatures);
+            styles[color] = style;
+        }
+
+        return style;
     }
 
     private readonly struct PaintedSource(string text, List<(int Start, GenericTextRunProperties Value)> runs) : ITextSource

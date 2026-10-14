@@ -15,8 +15,6 @@ namespace Avala.Components.UI.Markdown;
 
 public sealed class CopyableCode : IMarkViewExtension, IMarkdownObjectRenderer
 {
-    public const string LongBlockHint = "Highlighting is off for long blocks";
-
     public static CopyableCode Instance { get; } = new();
 
     public void Register(AvaloniaRenderer renderer) => renderer.ReplaceOrAdd<CodeBlockRenderer>(this);
@@ -34,12 +32,11 @@ public sealed class CopyableCode : IMarkViewExtension, IMarkdownObjectRenderer
         var language = block is FencedCodeBlock { Info: { Length: > 0 } info } ? info : string.Empty;
         var text = new CodeText(code, language) { TextWrapping = TextWrapping.Wrap, Classes = { "markdown-code" } };
         var label = new TextBlock { Text = language, IsVisible = language.Length > 0, Classes = { "code-language" } };
-        var hint = new TextBlock { Text = LongBlockHint, IsVisible = language.Length > 0 && !CodeText.Highlights(code, language), Classes = { "code-hint" } };
         var copy = new CopyButton { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Classes = { "code-copy" } };
         ToolTip.SetTip(copy, "Copy");
         AutomationProperties.SetName(copy, "Copy the code");
         copy.Command = new CopyCommand(copy, code);
-        var frame = new Border { Child = new Panel { Children = { new StackPanel { Children = { label, hint, text } }, copy } }, Classes = { "markdown-code-block" } };
+        var frame = new Border { Child = new Panel { Children = { new StackPanel { Children = { label, text } }, copy } }, Classes = { "markdown-code-block" } };
 
         if (language.Length > 0)
         {

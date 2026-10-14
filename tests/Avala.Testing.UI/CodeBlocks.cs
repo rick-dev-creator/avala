@@ -19,10 +19,14 @@ public static class CodeBlocks
         return painted.Task;
     }
 
-    public static IBrush? ForegroundOf(CodeText code, string word) =>
-        code.TextLayout.TextLines
+    public static Color? ColorOf(CodeText code, string word, bool last = false)
+    {
+        var runs = code.TextLayout.TextLines
             .SelectMany(line => line.TextRuns)
             .OfType<ShapedTextRun>()
-            .FirstOrDefault(run => run.Text.Span.Trim().SequenceEqual(word))
-            ?.Properties.ForegroundBrush;
+            .Where(run => run.Text.Span.Trim().SequenceEqual(word));
+        var run = last ? runs.LastOrDefault() : runs.FirstOrDefault();
+
+        return (run?.Properties.ForegroundBrush as ISolidColorBrush)?.Color;
+    }
 }

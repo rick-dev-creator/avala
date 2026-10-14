@@ -1,6 +1,7 @@
 using Avala.Sdk;
 using TextMateSharp.Grammars;
 using TextMateSharp.Registry;
+using EditorTheme = TextMateSharp.Themes.Theme;
 
 namespace Avala.Components.UI.Markdown;
 
@@ -11,39 +12,16 @@ internal sealed class CodeTokens(string language)
     private static readonly Registry Grammars = new(Options);
     private static readonly Dictionary<string, Option<IGrammar>> Loaded = new(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly (string Scope, string Role)[] Roles =
-    [
-        ("comment", "comment"),
-        ("punctuation.definition.comment", "comment"),
-        ("string", "string"),
-        ("markup.inline.raw", "string"),
-        ("constant.numeric", "number"),
-        ("constant.language", "number"),
-        ("constant.character", "number"),
-        ("entity.name.function", "function"),
-        ("support.function", "function"),
-        ("meta.function-call", "function"),
-        ("entity.name.type", "type"),
-        ("entity.name.class", "type"),
-        ("entity.other.inherited-class", "type"),
-        ("support.type", "type"),
-        ("support.class", "type"),
-        ("entity.other.attribute-name", "type"),
-        ("entity.name.tag", "keyword"),
-        ("storage", "keyword"),
-        ("keyword.operator", string.Empty),
-        ("keyword", "keyword"),
-        ("markup.heading", "keyword"),
-        ("markup.inserted", "string"),
-        ("markup.deleted", "deleted"),
-    ];
+    private static readonly EditorTheme Dark = EditorTheme.CreateFromRawTheme(Options.LoadTheme(ThemeName.DarkPlus), Options);
+    private static readonly EditorTheme Light = EditorTheme.CreateFromRawTheme(Options.LoadTheme(ThemeName.LightPlus), Options);
+    private static readonly Dictionary<string, CodeInk> Inks = new(StringComparer.Ordinal);
 
     private IStateStack? state;
 
     public IReadOnlyList<IReadOnlyList<CodeSpan>> Next(string[] lines) =>
         Grammar(language).Match<IReadOnlyList<IReadOnlyList<CodeSpan>>>(
             grammar => [.. lines.Select(line => Line(grammar, line, ref state))],
-            () => [.. lines.Select(line => (IReadOnlyList<CodeSpan>)[new CodeSpan(line, string.Empty)])]);
+            () => [.. lines.Select(line => (IReadOnlyList<CodeSpan>)[new CodeSpan(line, CodeInk.Plain)])]);
 
     private static List<CodeSpan> Line(IGrammar grammar, string line, ref IStateStack? state)
     {
@@ -58,16 +36,16 @@ internal sealed class CodeTokens(string language)
 
             if (end > start)
             {
-                Add(spans, new CodeSpan(line[start..end], Role(token.Scopes)));
+                Add(spans, new CodeSpan(line[start..end], Ink(token.Scopes)));
             }
         }
 
-        return spans.Count == 0 ? [new CodeSpan(line, string.Empty)] : spans;
+        return spans.Count == 0 ? [new CodeSpan(line, CodeInk.Plain)] : spans;
     }
 
     private static void Add(List<CodeSpan> spans, CodeSpan span)
     {
-        if (spans.Count > 0 && spans[^1].Role == span.Role)
+        if (spans.Count > 0 && spans[^1].Ink == span.Ink)
         {
             spans[^1] = spans[^1] with { Text = spans[^1].Text + span.Text };
         }
@@ -77,20 +55,24 @@ internal sealed class CodeTokens(string language)
         }
     }
 
-    private static string Role(List<string> scopes)
+    private static CodeInk Ink(List<string> scopes)
     {
-        for (var index = scopes.Count - 1; index >= 0; index--)
+        var key = string.Join(' ', scopes);
+
+        if (!Inks.TryGetValue(key, out var ink))
         {
-            foreach (var (scope, role) in Roles)
-            {
-                if (scopes[index].StartsWith(scope, StringComparison.Ordinal))
-                {
-                    return role;
-                }
-            }
+            ink = new CodeInk(Color(Dark, scopes), Color(Light, scopes));
+            Inks[key] = ink;
         }
 
-        return string.Empty;
+        return ink;
+    }
+
+    private static uint Color(EditorTheme theme, List<string> scopes)
+    {
+        var rule = theme.Match(scopes).FirstOrDefault(found => found.foreground > 0);
+
+        return rule is null ? 0 : uint.Parse(theme.GetColor(rule.foreground).TrimStart('#')[..6], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture) | 0xFF000000;
     }
 
     private static Option<IGrammar> Grammar(string language)
