@@ -8,10 +8,10 @@ namespace Avala.Components.UI.Tests;
 public sealed class CodeBlockLeakScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ShowingAndClosingACodeBlockTwentyTimesReturnsMemoryToItsBaselineAsync() =>
+    public Task ShowingAndClosingACodeBlockThirtyTimesReturnsMemoryToItsBaselineAsync() =>
         ui.RunAsync(async () =>
         {
-            var code = CodeBlockScripts.Code(nameof(ShowingAndClosingACodeBlockTwentyTimesReturnsMemoryToItsBaselineAsync), 120);
+            var code = CodeBlockScripts.Code(nameof(ShowingAndClosingACodeBlockThirtyTimesReturnsMemoryToItsBaselineAsync), 120);
             var view = ViewScript.Show(new TextBlock(), new object());
             var cached = 0L;
 

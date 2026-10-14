@@ -6,7 +6,19 @@ public sealed record Retention(long Baseline, long Halfway, long After)
 {
     public IReadOnlyList<long> Cycles { get; init; } = [];
 
-    public long Sustained => Floor(Cycles.Skip(Cycles.Count / 2)) - Floor(Cycles.Take(Cycles.Count / 2).Prepend(Baseline));
+    public long Sustained
+    {
+        get
+        {
+            long[] readings = [Baseline, .. Cycles];
+            var third = readings.Length / 3;
+            var first = Floor(readings.Take(third));
+            var second = Floor(readings.Skip(third).Take(third));
+            var last = Floor(readings.Skip(2 * third));
+
+            return Math.Min(second - first, last - second);
+        }
+    }
 
     public bool IsBounded => Sustained <= Leaks.Tolerance;
 
@@ -15,14 +27,14 @@ public sealed record Retention(long Baseline, long Halfway, long After)
     public override string ToString() =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"the floor of the second half of the cycles is {Sustained:N0} bytes above the first half's, over a {Leaks.Tolerance:N0} tolerance; baseline {Baseline:N0}, halfway {Halfway:N0}, after {After:N0}; after each cycle [{string.Join(", ", Cycles.Select(bytes => (bytes - Baseline).ToString("N0", CultureInfo.InvariantCulture)))}] from the baseline");
+            $"the floor of the managed memory rose by at least {Sustained:N0} bytes from each third of the cycles to the next, over a {Leaks.Tolerance:N0} tolerance; baseline {Baseline:N0}, halfway {Halfway:N0}, after {After:N0}; after each cycle [{string.Join(", ", Cycles.Select(bytes => (bytes - Baseline).ToString("N0", CultureInfo.InvariantCulture)))}] from the baseline");
 }
 
 public static class Leaks
 {
     public const string Collection = "Leaks";
 
-    public const int Cycles = 20;
+    public const int Cycles = 30;
 
     public const long Tolerance = 2 * 1024 * 1024;
 

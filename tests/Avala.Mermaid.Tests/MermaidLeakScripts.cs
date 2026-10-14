@@ -15,7 +15,7 @@ public sealed class LeaksRunAlone;
 public sealed class MermaidLeakScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ShowingAndClosingAMermaidCanvasTwentyTimesReturnsMemoryToItsBaselineAsync() =>
+    public Task ShowingAndClosingAMermaidCanvasThirtyTimesReturnsMemoryToItsBaselineAsync() =>
         ui.RunAsync(async () =>
         {
             var views = new ViewRegistry();
