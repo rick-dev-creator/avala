@@ -8,6 +8,8 @@ internal sealed class ProjectsDbContext(string database) : DbContext
 
     public DbSet<StoredPlacement> Placements => Set<StoredPlacement>();
 
+    public DbSet<StoredArchive> Archived => Set<StoredArchive>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
@@ -22,6 +24,11 @@ internal sealed class ProjectsDbContext(string database) : DbContext
         {
             placement.ToTable("Placements");
             placement.HasKey(row => row.Job);
+        });
+        modelBuilder.Entity<StoredArchive>(archive =>
+        {
+            archive.ToTable("Archived");
+            archive.HasKey(row => row.Job);
         });
     }
 }

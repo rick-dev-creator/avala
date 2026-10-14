@@ -9,4 +9,7 @@ internal enum ProjectError
     UnknownJob,
     NotEmpty,
     FollowsItsParent,
+    StillWorking,
+    NeedsYou,
+    NotArchived,
 }

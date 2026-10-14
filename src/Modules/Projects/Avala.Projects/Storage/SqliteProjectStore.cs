@@ -34,6 +34,11 @@ internal sealed class StoredPlacement
     public Guid Project { get; init; }
 }
 
+internal sealed class StoredArchive
+{
+    public Guid Job { get; init; }
+}
+
 internal sealed class SqliteProjectStore(AvalaPaths paths) : IProjectStore, IStartupTask, IAsyncDisposable
 {
     private readonly DatabaseOwner<ProjectsDbContext> owner = new(paths.Database("projects"), file => new ProjectsDbContext(file));
@@ -48,10 +53,14 @@ internal sealed class SqliteProjectStore(AvalaPaths paths) : IProjectStore, ISta
             {
                 var projects = await database.Projects.AsNoTracking().ToListAsync(cancellationToken);
                 var placements = await database.Placements.AsNoTracking().ToListAsync(cancellationToken);
+                var archived = await database.Archived.AsNoTracking().Select(row => row.Job).ToListAsync(cancellationToken);
 
                 return new ProjectMap(
                     [.. projects.OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase).ThenBy(row => row.Id).Select(row => row.Read())],
-                    placements.ToImmutableDictionary(row => new JobId(row.Job), row => new ProjectId(row.Project)));
+                    placements.ToImmutableDictionary(row => new JobId(row.Job), row => new ProjectId(row.Project)))
+                {
+                    Archived = [.. archived.Select(job => new JobId(job))],
+                };
             },
             cancellationToken);
 
@@ -106,6 +115,23 @@ internal sealed class SqliteProjectStore(AvalaPaths paths) : IProjectStore, ISta
                 return saved;
             },
             cancellationToken);
+
+    public Task ArchiveAsync(IReadOnlyCollection<JobId> jobs, CancellationToken cancellationToken) =>
+        owner.RunAsync(
+            async database =>
+            {
+                var ids = jobs.Select(job => job.Value).ToList();
+                var kept = await database.Archived.Where(row => ids.Contains(row.Job)).Select(row => row.Job).ToListAsync(cancellationToken);
+                await database.Archived.AddRangeAsync(ids.Except(kept).Select(job => new StoredArchive { Job = job }), cancellationToken);
+                var saved = await database.SaveChangesAsync(cancellationToken);
+                database.ChangeTracker.Clear();
+
+                return saved;
+            },
+            cancellationToken);
+
+    public Task RestoreAsync(JobId job, CancellationToken cancellationToken) =>
+        owner.RunAsync(database => database.Archived.Where(row => row.Job == job.Value).ExecuteDeleteAsync(cancellationToken), cancellationToken);
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();
 }

@@ -5,7 +5,7 @@ using Avala.Sdk;
 
 namespace Avala.Projects.Placing;
 
-internal sealed class ProjectsEntry(ProjectBook book, IJobCatalog jobs) : IProjects
+internal sealed class ProjectsEntry(ProjectBook book, IJobCatalog catalog) : IProjects
 {
     public ProjectMap Current => book.Current;
 
@@ -25,7 +25,7 @@ internal sealed class ProjectsEntry(ProjectBook book, IJobCatalog jobs) : IProje
 
     public async ValueTask<Result<ProjectDeleted, ProjectRejection>> DeleteAsync(ProjectId project, CancellationToken cancellationToken)
     {
-        var all = await jobs.ListAsync(cancellationToken);
+        var all = await catalog.ListAsync(cancellationToken);
 
         return await DecideAsync(
             token =>
@@ -41,7 +41,7 @@ internal sealed class ProjectsEntry(ProjectBook book, IJobCatalog jobs) : IProje
 
     public async ValueTask<Result<ConversationMoved, ProjectRejection>> MoveAsync(JobId job, ProjectId project, CancellationToken cancellationToken)
     {
-        var history = await jobs.HistoryAsync(job, cancellationToken);
+        var history = await catalog.HistoryAsync(job, cancellationToken);
 
         return await DecideAsync(
             token => history.Match(
@@ -52,6 +52,26 @@ internal sealed class ProjectsEntry(ProjectBook book, IJobCatalog jobs) : IProje
                 : FailedAsync<ConversationMoved>(error),
             cancellationToken);
     }
+
+    public async ValueTask<Result<ConversationsArchived, ProjectRejection>> ArchiveAsync(IReadOnlyList<JobId> jobs, CancellationToken cancellationToken)
+    {
+        var all = (await catalog.ListAsync(cancellationToken)).ToDictionary(job => job.Job);
+
+        return await DecideAsync(
+            token => jobs.Any(job => !all.ContainsKey(job))
+                ? FailedAsync<ConversationsArchived>(ProjectError.UnknownJob)
+                : Archive.Of([.. jobs.Select(job => all[job]).Select(job => new Shelved(job.Job, job.Status, job.Parent))]).TryGetValue(out var archived, out var error)
+                    ? SucceededAsync(book.ArchiveAsync(archived, token))
+                    : FailedAsync<ConversationsArchived>(error),
+            cancellationToken);
+    }
+
+    public ValueTask<Result<ConversationRestored, ProjectRejection>> RestoreAsync(JobId job, CancellationToken cancellationToken) =>
+        DecideAsync(
+            token => Archive.Restore(job, book.Current.Archived).TryGetValue(out var restored, out var error)
+                ? SucceededAsync(book.RestoreAsync(restored, token))
+                : FailedAsync<ConversationRestored>(error),
+            cancellationToken);
 
     private async ValueTask<Result<TEvent, ProjectRejection>> DecideAsync<TEvent>(Func<CancellationToken, Task<Result<TEvent, ProjectRejection>>> decide, CancellationToken cancellationToken) =>
         await book.WorkAsync(decide, cancellationToken);
