@@ -19,6 +19,8 @@ internal static class LimitRulesParser
 
     private const string ConnectionsField = "connections";
 
+    private const string ResumeField = "resumeAtReset";
+
     private const int MostConnections = 16;
 
     private const int SectionDepth = 2;
@@ -44,12 +46,13 @@ internal static class LimitRulesParser
             return HandoffError.Malformed;
         }
 
-        if (section.EnumerateObject().Any(field => field.Name is not (OnLimitField or ThresholdField or ConnectionsField)))
+        if (section.EnumerateObject().Any(field => field.Name is not (OnLimitField or ThresholdField or ConnectionsField or ResumeField)))
         {
             return HandoffError.UnknownField;
         }
 
-        return Action(section).Bind(action => Threshold(section).Bind(threshold => Connections(section).Map(connections => new LimitRules(action, threshold, connections))));
+        return Action(section).Bind(action => Threshold(section).Bind(threshold => Connections(section).Bind(connections =>
+            Resume(section).Map(resume => new LimitRules(action, threshold, connections) { Resume = resume }))));
     }
 
     private static Result<LimitRules, HandoffError> Machine(string text)
@@ -75,6 +78,16 @@ internal static class LimitRulesParser
             "handoff-same-harness" => OnLimit.HandOffSameHarness,
             "handoff-any-harness" => OnLimit.HandOffAnyHarness,
             _ => HandoffError.UnknownAction,
+        };
+
+    private static Result<ResumeAtReset, HandoffError> Resume(JsonElement section) =>
+        !section.TryGetProperty(ResumeField, out var resume) ? ResumeAtReset.Ask
+        : resume.ValueKind != JsonValueKind.String ? HandoffError.Malformed
+        : resume.GetString() switch
+        {
+            "ask" => ResumeAtReset.Ask,
+            "auto" => ResumeAtReset.Auto,
+            _ => HandoffError.UnknownResume,
         };
 
     private static Result<double, HandoffError> Threshold(JsonElement section) =>

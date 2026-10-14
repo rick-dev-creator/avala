@@ -73,6 +73,21 @@ public sealed class FactPhrasesTests
         Assert.Equal($"resumes at {resumes.ToLocalTime():HH:mm}", FactPhrases.Of(new JobFact(FactKind.ResumesAtReset) { Wait = wait }));
     }
 
+    [Fact]
+    public void AJobThatWaitsForThePersonSaysWhenItsWindowResetsAndThenThatItWaitsForThem()
+    {
+        var since = new DateTimeOffset(2026, 10, 10, 13, 0, 0, TimeSpan.Zero);
+        var resets = since.AddHours(2).AddMinutes(51);
+        var wait = new ResetWait(JobId.New(), new ConnectionName("claude-work"), "5h", resets, since) { AwaitsPerson = true };
+
+        Assert.Equal(
+            ($"window resets at {resets.ToLocalTime():HH:mm}", "window reset · waiting for you"),
+            (FactPhrases.Of(new JobFact(FactKind.ResumesAtReset) { Wait = wait }), FactPhrases.Of(new JobFact(FactKind.ResumesAtReset) { Wait = wait with { HasReset = true } })));
+        Assert.Equal(
+            ($"The 5-hour window resets at {resets.ToLocalTime():HH:mm}, then it waits for you to resume", "The 5-hour window reset; send a message to resume, it reads its whole conversation again"),
+            (Workbench.Inspector.InspectorPhrases.Waiting(wait), Workbench.Inspector.InspectorPhrases.Waiting(wait with { HasReset = true })));
+    }
+
     [Theory]
     [InlineData(1, "verified")]
     [InlineData(3, "verified on attempt 3")]

@@ -7,7 +7,7 @@ Caps on cost, tokens and memory hold a job before it overspends, and a job that 
 - **Caps per job**, set by the repository: cost, tokens, memory, and the share of a provider's usage window at which a job holds.
 - **Caps per machine**, set by you: how many jobs run at once and a daily spending ceiling, for the machine and per connection.
 - **A hold, not a crash.** A job that reaches a cap is held, "held: over budget" or "held: out of memory", and keeps its worktree and conversation. Raise budget and continue lets it go on.
-- **Usage limits.** A job that nears or reaches an account's usage window is held, waits for the reset and resumes in its conversation, or is handed off to another connection with room left, with a brief of the work so far built from Avala's own records.
+- **Usage limits.** A job that nears or reaches an account's usage window is held, or is handed off to another connection with room left, with a brief of the work so far built from Avala's own records. A held job waits for the window to reset, then waits for you: its row says "window reset · waiting for you", and your next message resumes it in its conversation. It does not resume by itself unless you choose `"resumeAtReset": "auto"`.
 - **Costs at API prices.** On a subscription login, costs are API-equivalent amounts, labelled "at API prices".
 - **Supervision.** A job whose turn falls silent for too long is held as "stalled"; a session that dies is held as "session lost". Waiting for your answer never counts as silence, nor does a conversation left idle between turns, however long: the next message starts a turn as usual.
 
@@ -51,6 +51,7 @@ Without `runningJobs`, any number of jobs run at once.
 - `onLimit`: `"hold"` (the default), `"handoff-same-harness"` or `"handoff-any-harness"`.
 - `threshold`: the share of the window at which a job moves, 0.9 by default.
 - `connections`: the connections a job may move to.
+- `resumeAtReset`: `"ask"` (the default), so a held job waits for your message once its window resets, or `"auto"`, so it resumes by itself the moment the window resets.
 
 **`supervision.json`**, in the data folder: `{ "silenceSeconds": 900 }`, 15 minutes by default, at most a day.
 
@@ -58,6 +59,7 @@ Without `runningJobs`, any number of jobs run at once.
 
 - A file that cannot be read holds the job as "invalid budget" rather than running it without caps; a rejected `budgets.json` lets one job run at a time.
 - A job with no reset time reported waits for you.
+- Why resuming waits for you by default: a job held for hours has lost its prompt cache, so its first message reads its whole conversation again. On a long conversation that alone can take a fifth of a 5-hour window, which `"auto"` would spend while nobody is there.
 - A handoff starts a new conversation on the other connection; its brief holds the instruction, the plan, the files changed, the checks, the decisions taken, the open questions and what remains.
 - The daily ceiling also pauses an Autopilot loop until the next day.
 

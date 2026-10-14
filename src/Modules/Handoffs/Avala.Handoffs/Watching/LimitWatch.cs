@@ -96,9 +96,26 @@ internal sealed class LimitWatch(Situations situations, LimitActions actions, IH
 
         await (await situations.OfAsync(job, token)).Match(
             situation => situation.History.Summary.Status == JobStatus.NeedsHelp
-                ? ActAsync(situation, HandoffPolicy.ByThreshold(situation.Situation), waiting.Kept.Pending, waiting.Kept.Since, token)
+                ? RungAsync(situation, HandoffPolicy.ByThreshold(situation.Situation), waiting, token)
                 : EndAsync(job, token),
             () => EndAsync(job, token));
+    }
+
+    private async Task RungAsync(JobSituation situation, Decision decision, Waiting waiting, CancellationToken token)
+    {
+        if (decision.Verdict != Verdict.GoOn || situation.Situation.Rules.Resume == ResumeAtReset.Auto)
+        {
+            await ActAsync(situation, decision, waiting.Kept.Pending, waiting.Kept.Since, token);
+
+            return;
+        }
+
+        await DisarmAsync(situation.Job);
+        waits[situation.Job] = new Waiting(waiting.Kept, Option<ITimer>.None);
+        var reset = actions.WaitOf(situation.Job).Match(
+            kept => kept with { Connection = situation.Situation.Own.Connection },
+            () => new ResetWait(situation.Job, situation.Situation.Own.Connection, string.Empty, Option<DateTimeOffset>.None, waiting.Kept.Since));
+        await actions.WaitsAsync(reset with { AwaitsPerson = true, HasReset = true }, token);
     }
 
     private async Task ActAsync(JobSituation situation, Decision decision, Option<string> feedback, DateTimeOffset since, CancellationToken token)
@@ -117,17 +134,17 @@ internal sealed class LimitWatch(Situations situations, LimitActions actions, IH
         }
 
         await decision.Resume.Match(
-            resume => WaitAsync(situation.Job, resume, feedback, since, token),
+            resume => WaitAsync(situation.Job, resume, feedback, since, situation.Situation.Rules.Resume == ResumeAtReset.Ask, token),
             () => EndAsync(situation.Job, token));
     }
 
-    private async Task WaitAsync(JobId job, ResumePoint resume, Option<string> feedback, DateTimeOffset since, CancellationToken token)
+    private async Task WaitAsync(JobId job, ResumePoint resume, Option<string> feedback, DateTimeOffset since, bool asks, CancellationToken token)
     {
         await DisarmAsync(job);
         var kept = new KeptWait(job, feedback, since);
         await store.KeepAsync(kept, token);
         waits[job] = new Waiting(kept, resume.At.Map(at => clock.CreateAlarm(() => Post(ringing => RingAsync(job, ringing)), at)));
-        await actions.WaitsAsync(new ResetWait(job, resume.Connection, resume.Window, resume.At, since), token);
+        await actions.WaitsAsync(new ResetWait(job, resume.Connection, resume.Window, resume.At, since) { AwaitsPerson = asks }, token);
     }
 
     private async Task EndAsync(JobId job, CancellationToken token)

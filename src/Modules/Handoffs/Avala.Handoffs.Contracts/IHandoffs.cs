@@ -26,6 +26,12 @@ public enum OnLimit
     HandOffAnyHarness,
 }
 
+public enum ResumeAtReset
+{
+    Ask,
+    Auto,
+}
+
 public enum HandoffError
 {
     Unreadable,
@@ -35,6 +41,7 @@ public enum HandoffError
     UnknownAction,
     InvalidThreshold,
     InvalidConnections,
+    UnknownResume,
 }
 
 public sealed record LimitReason(ConnectionName Connection, string Window, double Used, double Threshold);
@@ -50,7 +57,12 @@ public sealed record HandoffRecord(JobId Job, int Attempt, ConnectionName From, 
 
 public sealed record ModelFallback(ModelChoice Wanted, ModelChoice RanWith);
 
-public sealed record ResetWait(JobId Job, ConnectionName Connection, string Window, Option<DateTimeOffset> ResumesAt, DateTimeOffset Since);
+public sealed record ResetWait(JobId Job, ConnectionName Connection, string Window, Option<DateTimeOffset> ResumesAt, DateTimeOffset Since)
+{
+    public bool AwaitsPerson { get; init; }
+
+    public bool HasReset { get; init; }
+}
 
 public sealed record HandoffRecorded(HandoffRecord Handoff) : IIntegrationEvent;
 
