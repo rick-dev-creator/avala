@@ -15,7 +15,9 @@ internal static class Tools
 
     public static FileViewing Viewing() => Viewing(Files());
 
-    public static FileViewing Viewing(WorkedFiles worked) => new(worked, FakeLinks.Opening, new FakePictures());
+    public static FileViewing Viewing(WorkedFiles worked) => new(worked, FakeLinks.Opening, new FakePictures(), Code);
+
+    public static Avala.Workbench.Linking.CodeFiles Code { get; } = new(new FakeFileSaver(), new FakeOpener(), new Avala.Sdk.AvalaPaths("/home/ana/.local/share/Avala"));
 
     public static ToolViewModel Of(ToolEntry entry) => Of(entry, new FakeClipboard());
 
@@ -68,5 +70,5 @@ internal sealed class Worktree
         return new(entry, new FakeClipboard(), Viewing(worked).For(Job));
     }
 
-    public FileViewing Viewing(WorkedFiles worked) => new(worked, new Links(Opener, new StrongReferenceMessenger()), Pictures);
+    public FileViewing Viewing(WorkedFiles worked) => new(worked, new Links(Opener, new StrongReferenceMessenger()), Pictures, Tools.Code);
 }

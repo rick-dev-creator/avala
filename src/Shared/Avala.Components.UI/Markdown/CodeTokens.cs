@@ -91,14 +91,22 @@ internal sealed class CodeTokens(string language)
         return grammar;
     }
 
-    private static Option<string> Scope(string name)
+    public static string Extension(string name) =>
+        Known(name.Trim()).Bind(language => (language.Extensions?.FirstOrDefault(found => found.StartsWith('.')) ?? string.Empty).ToOption()).Match(
+            found => found.Length > 0 ? found : ".txt",
+            () => ".txt");
+
+    private static Option<string> Scope(string name) =>
+        Known(name).Bind(language => Options.GetScopeByLanguageId(language.Id).ToOption());
+
+    private static Option<Language> Known(string name)
     {
         var extension = "." + name;
-        var language = Options.GetAvailableLanguages().FirstOrDefault(known =>
+        var language = name.Length == 0 ? null : Options.GetAvailableLanguages().FirstOrDefault(known =>
             string.Equals(known.Id, name, StringComparison.OrdinalIgnoreCase)
             || known.Aliases?.Any(alias => string.Equals(alias, name, StringComparison.OrdinalIgnoreCase)) == true
             || known.Extensions?.Any(found => string.Equals(found, extension, StringComparison.OrdinalIgnoreCase)) == true);
 
-        return language is null ? Option<string>.None : Options.GetScopeByLanguageId(language.Id).ToOption();
+        return language is null ? Option<Language>.None : Option<Language>.Some(language);
     }
 }

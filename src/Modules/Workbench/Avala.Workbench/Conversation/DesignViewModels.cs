@@ -147,6 +147,8 @@ internal sealed class DesignMessageViewModel(string text, bool isStreaming) : IM
 
     public IAsyncRelayCommand<string> OpenLinkCommand { get; } = new AsyncRelayCommand<string>(_ => Task.CompletedTask);
 
+    public IAsyncRelayCommand<Avala.Components.Code.CodeRequest> CodeCommand { get; } = new AsyncRelayCommand<Avala.Components.Code.CodeRequest>(_ => Task.CompletedTask);
+
     public bool IsCopied => false;
 
     public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
@@ -208,6 +210,10 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
     public bool ShowsInput => false;
 
     public bool ShowsNoOutput => Output.Length == 0 && !ShowsEdit;
+
+    public bool ShowsAllChanges => ShowsEdit && ShowsChanges;
+
+    public bool ShowsCopy => Output.Length > 0 && !ShowsAllChanges;
 
     public IHunkViewModel Edit { get; init; } = EditDiffViewModel.Of("src/money.ts", "-     return units * 100\n+     return units * pow10(exponent)");
 

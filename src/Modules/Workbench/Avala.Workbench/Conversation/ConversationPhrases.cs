@@ -33,6 +33,14 @@ internal static class ConversationPhrases
 
     public const string AllChanges = "All changes to this file";
 
+    public static string Code(Avala.Workbench.Linking.CodeRefusal refusal) => refusal switch
+    {
+        Avala.Workbench.Linking.CodeRefusal.Cancelled => string.Empty,
+        Avala.Workbench.Linking.CodeRefusal.Unwritable => "The code could not be written to a file.",
+        Avala.Workbench.Linking.CodeRefusal.NoEditor => "No app on this computer opens this kind of file.",
+        _ => "Saving and opening files is not available here.",
+    };
+
     public static string NotOpened(string name) => $"{name} could not be opened.";
 
     public static string TooLargeToPreview(string name) => $"{name} is too large to preview.";

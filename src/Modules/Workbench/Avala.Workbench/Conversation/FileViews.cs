@@ -5,8 +5,10 @@ using Avala.Workbench.Reviewing;
 
 namespace Avala.Workbench.Conversation;
 
-internal sealed class FileViewing(WorkedFiles files, Links links, IPictureDecoder pictures)
+internal sealed class FileViewing(WorkedFiles files, Links links, IPictureDecoder pictures, CodeFiles code)
 {
+    public CodeFiles Code => code;
+
     public WorkedFiles Files => files;
 
     public Links Links => links;

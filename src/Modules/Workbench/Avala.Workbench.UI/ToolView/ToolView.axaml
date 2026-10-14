@@ -48,6 +48,17 @@
       <Setter Property="Opacity" Value="0" />
       <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
     </Style>
+    <Style Selector="Button#AllChanges">
+      <Setter Property="Margin" Value="0,-4,-4,0" />
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Border#Details:pointerover Button#AllChanges, Button#AllChanges:focus-visible">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button#AllChanges:pointerover">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
     <Style Selector="Border#Details:pointerover Button#CopyOutput, Button#CopyOutput:copied">
       <Setter Property="Opacity" Value="1" />
     </Style>
@@ -132,13 +143,6 @@
                                Text="{Binding Input}"
                                IsVisible="{Binding ShowsInput}" />
           <ContentControl x:Name="Edit" Content="{Binding Edit}" IsVisible="{Binding ShowsEdit}" />
-          <Button x:Name="AllChanges"
-                  Classes="ghost"
-                  HorizontalAlignment="Left"
-                  FontSize="{DynamicResource FontSizeCaption}"
-                  Content="{x:Static conversation:ConversationPhrases.AllChanges}"
-                  Command="{Binding ShowChangesCommand}"
-                  IsVisible="{Binding ShowsChanges}" />
           <SelectableTextBlock x:Name="Output"
                                Classes="output"
                                Text="{Binding Output}"
@@ -148,12 +152,22 @@
                      Text="No output."
                      IsVisible="{Binding ShowsNoOutput}" />
         </StackPanel>
+        <Button x:Name="AllChanges"
+                Classes="glyph mini"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Command="{Binding ShowChangesCommand}"
+                IsVisible="{Binding ShowsAllChanges}"
+                ToolTip.Tip="{x:Static conversation:ConversationPhrases.AllChanges}"
+                AutomationProperties.Name="{x:Static conversation:ConversationPhrases.AllChanges}">
+          <Path Classes="icon" Data="{DynamicResource IconFileEdit}" />
+        </Button>
         <copying:CopyButton x:Name="CopyOutput"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Top"
                             Command="{Binding CopyCommand}"
                             IsCopied="{Binding IsCopied}"
-                            IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                            IsVisible="{Binding ShowsCopy}"
                             ToolTip.Tip="Copy"
                             AutomationProperties.Name="Copy the output" />
       </Panel>

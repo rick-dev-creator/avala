@@ -1,3 +1,4 @@
+using Avala.Components.Code;
 using Avala.Components.Virtualizing;
 using Avala.Sdk;
 using Avala.Workbench.Linking;
@@ -19,6 +20,8 @@ internal interface IMessageViewModel
 
     IAsyncRelayCommand<string> OpenLinkCommand { get; }
 
+    IAsyncRelayCommand<CodeRequest> CodeCommand { get; }
+
     IAsyncRelayCommand CopyCommand { get; }
 }
 
@@ -27,11 +30,13 @@ internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineIte
 {
     private readonly Links links;
     private readonly IClipboard clipboard;
+    private readonly CodeFiles code;
 
-    public MessageViewModel(MessageEntry entry, Links links, IClipboard clipboard)
+    public MessageViewModel(MessageEntry entry, Links links, IClipboard clipboard, CodeFiles code)
     {
         this.links = links;
         this.clipboard = clipboard;
+        this.code = code;
         Text = string.Empty;
         Update(entry);
     }
@@ -67,6 +72,15 @@ internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineIte
         var text = link ?? string.Empty;
         var opened = await links.OpenAsync(text, cancellationToken);
         LinkNotice = opened.Match(_ => string.Empty, refusal => ConversationPhrases.Link(refusal, text));
+    }
+
+    [RelayCommand]
+    private async Task CodeAsync(CodeRequest? request, CancellationToken cancellationToken)
+    {
+        if (request is not null)
+        {
+            LinkNotice = (await code.HandleAsync(request, cancellationToken)).Match(_ => string.Empty, ConversationPhrases.Code);
+        }
     }
 
     [RelayCommand]
