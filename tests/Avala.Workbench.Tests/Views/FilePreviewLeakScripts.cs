@@ -41,7 +41,7 @@ public sealed class FilePreviewLeakScripts(HeadlessUi ui)
 
             Assert.InRange(held, 1, pictures.Budget);
             Assert.Equal((0L, held), (pictures.LeasedBytes, pictures.LiveBytes));
-            Assert.InRange(retention.Sustained, long.MinValue, Leaks.Tolerance);
+            Assert.True(retention.IsBounded, retention.ToString());
         }, TestContext.Current.CancellationToken);
 
     private static async Task<FilePreviewViewModel> LoadedAsync(PictureCache pictures, string path, byte[] bytes)

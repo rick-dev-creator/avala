@@ -26,6 +26,6 @@ public sealed class CodeBlockLeakScripts(HeadlessUi ui)
             });
 
             Assert.InRange(CodeColors.CachedBytes, 1, Math.Min(cached, CodeColors.CacheBudget));
-            Assert.InRange(retention.Sustained, long.MinValue, Leaks.Tolerance);
+            Assert.True(retention.IsBounded, retention.ToString());
         }, TestContext.Current.CancellationToken);
 }
