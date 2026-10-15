@@ -100,7 +100,7 @@ under your rules, with evidence for every result and a cost for every job.
 </td>
 <td width="50%" valign="top">
 
-**Sub-agents across connections.** An agent hands self-contained work to child jobs, each in its own worktree on a connection Avala picks, with a budget carved from its parent's. Children can ask their parent first, and reviewers only read.
+**Sub-agents across connections.** An agent hands self-contained work to child jobs, each in its own worktree on a connection Avala picks, with a budget carved from its parent's. Children can ask their parent first, and reviewers only read. The tree, with each job's own sub-agents, follows the work in a pane beside the conversation.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/delegation-dark.png">
@@ -180,7 +180,7 @@ under your rules, with evidence for every result and a cost for every job.
 </td>
 <td width="50%" valign="top">
 
-**Notifications on your phone.** When a job needs you while you are away, Avala tells you through ntfy or a webhook of your own, and shows exactly what is sent.
+**Notifications on your phone.** When a job needs you while you are away, Avala tells you through ntfy or a webhook of your own, and shows exactly what is sent. With Claude Code signed in to claude.ai, Continue on your phone opens the job in the Claude app through Remote Control, while Avala's rules still decide.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/notifications-dark.png">
@@ -195,12 +195,12 @@ Also: caps on tokens and memory per job, an autopilot that works through a backl
 
 ## Install
 
-> **Avala 0.1.0-beta.5 is out.** It is a prerelease: [read the release notes](https://github.com/rick-dev-creator/avala/releases/tag/v0.1.0-beta.5) before you start. The builds are not signed yet, so Windows SmartScreen warns about an unknown publisher; choose More info, Run anyway.
+> **Avala 0.1.0-beta.6 is out.** It is a prerelease: [read the release notes](https://github.com/rick-dev-creator/avala/releases/tag/v0.1.0-beta.6) before you start. The builds are not signed yet, so Windows SmartScreen warns about an unknown publisher; choose More info, Run anyway.
 
 | Platform | How |
 | --- | --- |
-| Windows x64 | Run [`avala-0.1.0-beta.5-win-x64-setup.exe`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.5/avala-0.1.0-beta.5-win-x64-setup.exe), or unzip [the portable zip](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.5/avala-0.1.0-beta.5-win-x64-portable.zip) anywhere. Both update themselves in place. |
-| Linux x64 | Run [`avala-0.1.0-beta.5-linux-x64.AppImage`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.5/avala-0.1.0-beta.5-linux-x64.AppImage) (`chmod +x` it first), which updates itself in place, or unpack [the tar.gz](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.5/avala-0.1.0-beta.5-linux-x64.tar.gz). |
+| Windows x64 | Run [`avala-0.1.0-beta.6-win-x64-setup.exe`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.6/avala-0.1.0-beta.6-win-x64-setup.exe), or unzip [the portable zip](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.6/avala-0.1.0-beta.6-win-x64-portable.zip) anywhere. Both update themselves in place. |
+| Linux x64 | Run [`avala-0.1.0-beta.6-linux-x64.AppImage`](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.6/avala-0.1.0-beta.6-linux-x64.AppImage) (`chmod +x` it first), which updates itself in place, or unpack [the tar.gz](https://github.com/rick-dev-creator/avala/releases/download/v0.1.0-beta.6/avala-0.1.0-beta.6-linux-x64.tar.gz). |
 | Arch Linux | `avala-bin` on the AUR is coming soon; until then use the AppImage or the tar.gz. |
 | Flatpak | `io.github.rick_dev_creator.Avala`, built from `packaging/flatpak` for now; Flathub comes later. |
 | macOS | Later. Avala builds and runs from source on a Mac today. |
