@@ -62,9 +62,9 @@ internal sealed class MentionSource(WorkedFiles worked, IRepositoryIndex index, 
         var commits = await index.CommitsAsync(folder, CommitsListed, cancellationToken);
         IReadOnlyList<Mention> found =
         [
-            .. files.Select(file => new Mention(MentionKind.File, file, file, "file", $"the file {file} in the job's worktree")),
+            .. files.Select(file => new Mention(MentionKind.File, file, file, string.Empty, $"the file {file} in the job's worktree")),
             .. files.Select(Path.GetDirectoryName).OfType<string>().Where(directory => directory.Length > 0).Select(directory => directory.Replace('\\', '/')).Distinct(StringComparer.Ordinal)
-                .Select(directory => new Mention(MentionKind.Folder, $"{directory}/", $"{directory}/", "folder", $"the folder {directory}/ in the job's worktree")),
+                .Select(directory => new Mention(MentionKind.Folder, $"{directory}/", $"{directory}/", string.Empty, $"the folder {directory}/ in the job's worktree")),
             .. commits.Select(commit => new Mention(MentionKind.Commit, commit.Sha, commit.Sha, commit.Subject, $"commit {commit.Sha}, \"{commit.Subject}\"")),
         ];
         ImmutableInterlocked.Update(ref listed, current => current.SetItem(folder, (now, found)));
@@ -76,7 +76,7 @@ internal sealed class MentionSource(WorkedFiles worked, IRepositoryIndex index, 
         board.Jobs.Values
             .Where(other => other.Job != current)
             .OrderByDescending(other => other.Summary.Submitted)
-            .Select(other => new Mention(MentionKind.Job, Title(other.Summary.Instruction), Title(other.Summary.Instruction), "job", Brief(other)));
+            .Select(other => new Mention(MentionKind.Job, Title(other.Summary.Instruction), Title(other.Summary.Instruction), string.Empty, Brief(other)));
 
     private static string Brief(BoardJob job)
     {

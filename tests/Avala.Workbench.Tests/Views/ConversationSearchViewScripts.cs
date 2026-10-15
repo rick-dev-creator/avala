@@ -4,6 +4,8 @@ using Avala.Workbench.Conversation;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
 
+using Avalonia.Controls;
+
 namespace Avala.Workbench.Tests.Views;
 
 public sealed class ConversationSearchViewScripts(HeadlessUi ui)
@@ -66,5 +68,7 @@ public sealed class ConversationSearchViewScripts(HeadlessUi ui)
 
             Assert.Equal((true, false), (match.Classes.Contains("found"), match.Classes.Contains("current")));
             Assert.Equal((true, true), (now.Classes.Contains("found"), now.Classes.Contains("current")));
+            var (matchTint, currentTint) = (Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(match.Background).Color, Assert.IsAssignableFrom<Avalonia.Media.ISolidColorBrush>(now.Background).Color);
+            Assert.True(currentTint.A > matchTint.A);
         }, Cancellation);
 }

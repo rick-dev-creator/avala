@@ -594,10 +594,10 @@ internal sealed class DesignMentionsViewModel : IMentionsViewModel
 {
     public IReadOnlyList<IMentionRowViewModel> Suggestions { get; init; } =
     [
-        new DesignMentionRowViewModel { Label = "src/Checkout/PriceRounding.cs", Detail = "file", IsSelected = true },
-        new DesignMentionRowViewModel { Label = "src/Checkout/", Detail = "folder", Kind = MentionKind.Folder },
+        new DesignMentionRowViewModel { Label = "src/Checkout/PriceRounding.cs", IsSelected = true },
+        new DesignMentionRowViewModel { Label = "src/Checkout/", Kind = MentionKind.Folder },
         new DesignMentionRowViewModel { Label = "a3f9c21", Detail = "Round prices to the currency's minor unit", Kind = MentionKind.Commit },
-        new DesignMentionRowViewModel { Label = "Fix the checkout rounding", Detail = "job", Kind = MentionKind.Job },
+        new DesignMentionRowViewModel { Label = "Fix the checkout rounding", Kind = MentionKind.Job },
     ];
 
     public bool IsOpen { get; init; } = true;
@@ -615,7 +615,7 @@ internal sealed class DesignMentionRowViewModel : IMentionRowViewModel
 {
     public string Label { get; init; } = "src/Checkout/PriceRounding.cs";
 
-    public string Detail { get; init; } = "file";
+    public string Detail { get; init; } = string.Empty;
 
     public MentionKind Kind { get; init; }
 

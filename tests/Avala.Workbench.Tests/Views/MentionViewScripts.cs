@@ -21,7 +21,7 @@ public sealed class MentionsViewScripts(HeadlessUi ui)
             var view = Screen.Show(new DesignMentionsViewModel());
 
             Assert.Equal(4, view.Find<ItemsControl>("Suggestions").ItemCount);
-            Assert.Equal(("src/Checkout/PriceRounding.cs", "file", true), (view.TextOf("Label"), view.TextOf("Detail"), view.HasClass("Row", "selected")));
+            Assert.Equal(("src/Checkout/PriceRounding.cs", true, true), (view.TextOf("Label"), view.Shows("FileIcon"), view.HasClass("Row", "selected")));
         }, Cancellation);
 
     [Fact]
@@ -79,10 +79,10 @@ public sealed class MentionRowViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var chosen = 0;
-            var view = Screen.Show(new DesignMentionRowViewModel { Label = "a3f9c21", Detail = "Round prices", ChooseCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => chosen++) });
+            var view = Screen.Show(new DesignMentionRowViewModel { Label = "a3f9c21", Detail = "Round prices", Kind = Avala.Workbench.Mentioning.MentionKind.Commit, ChooseCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => chosen++) });
 
             view.Click("Row");
 
-            Assert.Equal(("a3f9c21", "Round prices", false, 1), (view.TextOf("Label"), view.TextOf("Detail"), view.HasClass("Row", "selected"), chosen));
+            Assert.Equal(("a3f9c21", "Round prices", true, false, 1), (view.TextOf("Label"), view.TextOf("Detail"), view.Shows("CommitIcon"), view.HasClass("Row", "selected"), chosen));
         }, Cancellation);
 }

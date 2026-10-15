@@ -30,7 +30,7 @@ public sealed class MentionSourceTests
         Assert.Equal(
             [(MentionKind.File, "docs/rounding.md"), (MentionKind.File, "src/Checkout/Rounding.cs"), (MentionKind.Commit, "a3f9c21"), (MentionKind.Job, "Explain the rounding rules")],
             found.Select(mention => (mention.Kind, mention.Label)));
-        Assert.Contains(new Mention(MentionKind.Folder, "src/Checkout/", "src/Checkout/", "folder", "the folder src/Checkout/ in the job's worktree"), await source.SuggestAsync(worktree.Job, "check", CancellationToken.None));
+        Assert.Contains(new Mention(MentionKind.Folder, "src/Checkout/", "src/Checkout/", string.Empty, "the folder src/Checkout/ in the job's worktree"), await source.SuggestAsync(worktree.Job, "check", CancellationToken.None));
     }
 
     [Fact]
