@@ -1,7 +1,7 @@
 {
   "format": "avala-recording",
   "version": 1,
-  "recordedAt": "2026-10-14T16:09:03.7684642+00:00",
+  "recordedAt": "2026-10-15T02:00:01.8105714+00:00",
   "provider": {
     "id": "claude-code",
     "name": "Claude Code"
@@ -21,6 +21,9 @@
     },
     "compactsOnRequest": {
       "message": "/compact"
+    },
+    "controlsRemotely": {
+      "startsOn": false
     },
     "exposesReasoning": {},
     "interruptible": {},

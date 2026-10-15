@@ -81,10 +81,10 @@ public sealed class RemoteControlTests
         await flow.FinishTurnAsync(job);
         var session = Outcomes.Present(job.Session);
 
-        await flow.FromDevice.HandleAsync(new RemoteMessageReceived(session, TurnId.New(), "Also cover partial refunds"), Cancellation);
+        await flow.Check.HandleAsync(new RemoteMessageReceived(session, TurnId.New(), "Also cover partial refunds"), Cancellation);
         await flow.SettledAsync(job);
         var unmoved = job.State;
-        await flow.FromDevice.HandleAsync(new RemoteMessageReceived(session, TurnId.New(), "Also cover partial refunds") { BeganTurn = true }, Cancellation);
+        await flow.Check.HandleAsync(new RemoteMessageReceived(session, TurnId.New(), "Also cover partial refunds") { BeganTurn = true }, Cancellation);
         await flow.SettledAsync(job);
 
         Assert.Equal(JobState.AwaitingReview, unmoved);

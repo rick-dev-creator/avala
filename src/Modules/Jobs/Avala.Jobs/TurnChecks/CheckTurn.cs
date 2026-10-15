@@ -10,7 +10,7 @@ using Avala.Sdk.Events;
 namespace Avala.Jobs.TurnChecks;
 
 internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn evaluate, HoldJob hold)
-    : IHandle<TurnFinished>, IHandle<SessionEnded>, IHandle<SessionResumable>
+    : IHandle<TurnFinished>, IHandle<SessionEnded>, IHandle<SessionResumable>, IHandle<RemoteMessageReceived>
 {
     public async ValueTask HandleAsync(TurnFinished integrationEvent, CancellationToken cancellationToken) =>
         await OnJobOfAsync(
@@ -35,6 +35,22 @@ internal sealed class CheckTurn(JobLedger ledger, JobQueues queues, EvaluateTurn
                 ? ledger.RecordResumeAsync(found, integrationEvent.Session, token)
                 : Task.CompletedTask,
             cancellationToken);
+
+    public async ValueTask HandleAsync(RemoteMessageReceived integrationEvent, CancellationToken cancellationToken)
+    {
+        if (integrationEvent.BeganTurn && Feedback.Create(integrationEvent.Text).TryGetValue(out var message, out _))
+        {
+            await OnJobOfAsync(integrationEvent.Session, (found, token) => ContinueFromDeviceAsync(found, integrationEvent.Session, message, token), cancellationToken);
+        }
+    }
+
+    private async Task ContinueFromDeviceAsync(Job job, SessionId session, Feedback message, CancellationToken cancellationToken)
+    {
+        if (job.State == JobState.AwaitingReview && job.Session == Option<SessionId>.Some(session) && job.ContinueFromDevice(message).IsSuccess)
+        {
+            await ledger.RecordAsync(job, cancellationToken);
+        }
+    }
 
     private Task OnJobOfAsync(SessionId session, Func<Job, CancellationToken, Task> work, CancellationToken cancellationToken) =>
         ledger.JobOfSessionAsync(session, cancellationToken).MatchAsync(
