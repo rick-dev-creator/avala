@@ -65,7 +65,7 @@
       <Path DockPanel.Dock="Left" Classes="icon" Width="13" Height="13" Margin="0,0,6,0" VerticalAlignment="Center" Stroke="{DynamicResource TextTertiaryBrush}" Data="{StaticResource IconSearch}" />
       <TextBox x:Name="Query"
                Text="{Binding Query}"
-               Watermark="Find in conversation"
+               PlaceholderText="Find in conversation"
                AutomationProperties.Name="Find in conversation">
         <TextBox.KeyBindings>
           <KeyBinding Gesture="Enter" Command="{Binding NextCommand}" />
