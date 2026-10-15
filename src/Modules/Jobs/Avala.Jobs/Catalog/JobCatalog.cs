@@ -55,6 +55,6 @@ internal sealed class JobCatalog(IJobStore store) : IJobCatalog
                     attempt.Origin,
                     attempt.Outcome,
                     attempt.Guidance.Map(guidance => guidance.Text),
-                    attempt.Session)),
+                    attempt.Session) { Attachments = attempt.Attachments }),
             ]);
 }

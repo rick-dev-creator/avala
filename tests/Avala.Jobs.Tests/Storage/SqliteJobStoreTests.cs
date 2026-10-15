@@ -38,6 +38,26 @@ public sealed class SqliteJobStoreTests
     }
 
     [Fact]
+    public async Task TheAttachmentsOfAJobsInstructionAndOfItsLaterMessagesSurviveAReloadAsync()
+    {
+        using var folder = new TemporaryFolder();
+        Attachment[] screenshot = [new("screen.png", "image/png", "/data/attachments/1/screen.png")];
+        Attachment[] log = [new("build.log", "text/plain", "/data/attachments/2/build.log")];
+        var job = Outcomes.Succeeds(Job.Create(JobId.New(), Given.Instruction, Outcomes.Succeeds(AttemptBudget.Create(3)), Given.Repository, Given.Submitted, attachments: screenshot));
+        Outcomes.Succeeds(job.Submit());
+        Outcomes.Succeeds(job.Start(Given.Workspace, Given.Session, Given.Connection));
+        Outcomes.Succeeds(job.CompleteTurn());
+        Outcomes.Succeeds(job.Pass());
+        Outcomes.Succeeds(job.SendBack(Given.Feedback.With(log)));
+        await SaveAsync(folder, job);
+
+        var reloaded = await ReloadAsync(folder, store => store.FindAsync(job.Id, Cancellation));
+
+        Assert.Equal(screenshot, reloaded.Attachments);
+        Assert.Equal([screenshot, log], reloaded.Attempts.Select(attempt => attempt.Attachments.ToArray()));
+    }
+
+    [Fact]
     public async Task WhyAJobWasHeldSurvivesAReloadAsync()
     {
         using var folder = new TemporaryFolder();

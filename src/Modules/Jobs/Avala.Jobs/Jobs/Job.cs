@@ -56,6 +56,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public bool RemoteControlled { get; private set; }
 
+    public IReadOnlyList<Attachment> Attachments { get; private init; } = [];
+
     public bool AllowsRemoteControl => RemoteControlled && State is JobState.Running or JobState.Checking or JobState.AwaitingReview;
 
     public IReadOnlyList<Attempt> Attempts => attempts;
@@ -69,9 +71,11 @@ internal sealed class Job : IAggregateRoot<JobId>
         Option<Autonomy> autonomy = default,
         Option<ConnectionName> connection = default,
         Option<JobId> parent = default,
-        Option<ModelChoice> model = default) =>
+        Option<ModelChoice> model = default,
+        IReadOnlyList<Attachment>? attachments = null) =>
         new Job(id, instruction, budget, repository)
         {
+            Attachments = attachments ?? [],
             Submitted = submitted,
             Autonomy = autonomy,
             Connection = connection,
@@ -372,7 +376,10 @@ internal sealed class Job : IAggregateRoot<JobId>
         var number = attempts.Count == 0 ? AttemptNumber.First : attempts[^1].Number.Next;
         Held = Option<HoldReason>.None;
         Problem = Option<string>.None;
-        attempts.Add(new Attempt(number, origin, guidance, Session));
+        attempts.Add(new Attempt(number, origin, guidance, Session)
+        {
+            Attachments = origin == AttemptOrigin.Initial ? Attachments : guidance.Match(feedback => feedback.Attachments, () => []),
+        });
 
         return new AttemptStarted(Id, number, origin, guidance);
     }

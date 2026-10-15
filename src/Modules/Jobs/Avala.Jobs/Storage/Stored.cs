@@ -22,11 +22,15 @@ internal static class Stored
 
     public static string Text(Option<string> problem) => problem.Match(found => found, () => string.Empty);
 
+    public static string Text(IReadOnlyList<Attachment> attachments) => attachments.Count == 0 ? string.Empty : StoredJson.Write(attachments);
+
     public static Option<string> Problem(string text) => text.Length == 0 ? Option<string>.None : text;
 
     public static ModelChoice Model(string text) => text.Length == 0 ? ModelChoice.Default : StoredJson.Read<ModelChoice>(text);
 
     public static Option<HoldReason> Hold(string text) => text.Length == 0 ? Option<HoldReason>.None : Enum.Parse<HoldReason>(text);
+
+    public static IReadOnlyList<Attachment> Attachments(string text) => text.Length == 0 ? [] : StoredJson.Read<List<Attachment>>(text);
 
     private static T Restore<T>(Result<T, JobError> stored) =>
         stored.Match(value => value, error => throw new InvalidDataException($"Stored job data is invalid: {error}"));

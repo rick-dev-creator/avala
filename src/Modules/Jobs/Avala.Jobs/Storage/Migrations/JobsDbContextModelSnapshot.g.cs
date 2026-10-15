@@ -21,6 +21,10 @@ namespace Avala.Jobs.Storage.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Attachments")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Autonomy")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -114,6 +118,10 @@ namespace Avala.Jobs.Storage.Migrations
                             b1.Property<int>("Key")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("INTEGER");
+
+                            b1.Property<string>("Attachments")
+                                .IsRequired()
+                                .HasColumnType("TEXT");
 
                             b1.Property<string>("Guidance")
                                 .IsRequired()

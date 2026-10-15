@@ -62,7 +62,10 @@ public sealed record JobSummary(
 
 public sealed record JobTree(JobSummary Job, IReadOnlyList<JobTree> Children);
 
-public sealed record AttemptRecord(int Number, AttemptOrigin Origin, AttemptOutcome Outcome, Option<string> Guidance, Option<SessionId> Session);
+public sealed record AttemptRecord(int Number, AttemptOrigin Origin, AttemptOutcome Outcome, Option<string> Guidance, Option<SessionId> Session)
+{
+    public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+}
 
 public sealed record SessionRecord(SessionId Session, IReadOnlyList<int> Attempts);
 
