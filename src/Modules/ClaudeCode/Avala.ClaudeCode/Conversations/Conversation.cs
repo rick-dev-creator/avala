@@ -13,6 +13,7 @@ internal sealed class Conversation
     private readonly ControlDesk desk;
     private readonly Commands commands = new();
     private readonly ContextGauge context = new();
+    private readonly RemoteBridge remote;
     private readonly Option<string> effort;
     private Option<Stamp> live;
     private Option<Guid> conversation;
@@ -21,6 +22,7 @@ internal sealed class Conversation
     private bool modelReported;
     private bool interrupting;
     private bool rejected;
+    private bool unsaid;
     private int interruptions;
     private int stale;
 
@@ -30,12 +32,15 @@ internal sealed class Conversation
         this.session = session;
         translator = new StreamTranslator(tools, places);
         desk = new ControlDesk(tools, options.Permissions, places);
+        remote = new RemoteBridge(session);
         conversation = resumed.Map(mark => mark.Session);
         spent = resumed.Match(mark => mark.Spent, () => 0m);
         effort = ClaudeModels.Chosen(options).Effort;
     }
 
     public Option<TurnId> Live => live.Map(stamp => stamp.Turn);
+
+    public RemoteState Remote => remote.State;
 
     public Conversation Recalling(IEnumerable<JsonNode> earlier)
     {
@@ -60,21 +65,21 @@ internal sealed class Conversation
             return AgentError.TurnInProgress;
         }
 
-        var stamp = new Stamp(session, TurnId.New());
-        live = stamp;
-        tokenIssued = false;
-        modelReported = false;
-        rejected = false;
-        context.Begin();
+        var stamp = Opened();
 
         return (stamp.Turn, new Reaction([new TurnStarted(session, stamp.Turn)], [Messages.User(turn, commands.Send(midTurn: false))]));
     }
+
+    public Reaction ControlRemotely(bool on) => remote.Turn(on);
 
     public Reaction Receive(JsonNode message) => message.TextOr("type", string.Empty) switch
     {
         "system" when message.TextOr("subtype", string.Empty) == "init" => Initialized(message),
         "control_request" => desk.Receive(message, live),
         "control_cancel_request" => desk.Cancel(message, live),
+        "control_response" when RemoteBridge.Answers(message) => remote.Answered(message),
+        "system" when message.TextOr("subtype", string.Empty) == "bridge_state" => remote.Reported(message),
+        "user" when RemoteBridge.FromDevice(message) => Arrived(message),
         "command_lifecycle" => Tracked(message),
         "result" when stale > 0 => Swallowed(),
         var type => live.Match(stamp => During(type, message, stamp), () => Reaction.None),
@@ -172,9 +177,46 @@ internal sealed class Conversation
 
     private Reaction Tracked(JsonNode lifecycle)
     {
+        var foreign = !commands.Ours(lifecycle);
         commands.Report(lifecycle);
 
-        return Reaction.None;
+        return foreign && live.IsNone && lifecycle.TextOr("state", string.Empty) == "started" ? BeganRemotely() : Reaction.None;
+    }
+
+    private Stamp Opened()
+    {
+        var stamp = new Stamp(session, TurnId.New());
+        live = stamp;
+        tokenIssued = false;
+        modelReported = false;
+        rejected = false;
+        unsaid = false;
+        context.Begin();
+
+        return stamp;
+    }
+
+    private Reaction BeganRemotely()
+    {
+        var stamp = Opened();
+        unsaid = true;
+
+        return Reaction.Of(new TurnStarted(session, stamp.Turn));
+    }
+
+    private Reaction Arrived(JsonNode user)
+    {
+        var opening = live.IsNone ? BeganRemotely() : Reaction.None;
+
+        return opening.Then(live.Match(
+            stamp =>
+            {
+                var began = unsaid;
+                unsaid = false;
+
+                return Reaction.Of(new RemoteMessageArrived(session, stamp.Turn, RemoteBridge.Said(user)) { BeganTurn = began });
+            },
+            () => Reaction.None));
     }
 
     private Reaction Carried(JsonNode result, Stamp stamp)

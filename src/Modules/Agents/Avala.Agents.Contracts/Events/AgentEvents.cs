@@ -34,6 +34,16 @@ public sealed record ToolReturned(SessionId Session, TurnId Turn, ItemId Item, T
 
 public sealed record MessageQueued(SessionId Session, TurnId Turn, string Text) : IAgentEvent;
 
+public sealed record RemoteMessageArrived(SessionId Session, TurnId Turn, string Text) : IAgentEvent
+{
+    public bool BeganTurn { get; init; }
+}
+
+public sealed record RemoteControlChanged(SessionId Session, RemoteControl Control) : IAgentEvent
+{
+    public TurnId Turn { get; init; }
+}
+
 public sealed record PlanUpdated(SessionId Session, TurnId Turn, IReadOnlyList<PlanStep> Steps) : IAgentEvent;
 
 public sealed record UsageReported(SessionId Session, TurnId Turn, TokenUsage Tokens, Option<Cost> Cost) : IAgentEvent;

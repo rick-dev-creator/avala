@@ -118,6 +118,20 @@ internal sealed class FakeAgents : IAgents
             }));
     }
 
+    public ConcurrentQueue<(SessionId Session, bool On)> RemoteControls { get; } = new();
+
+    public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(SessionId session, bool on, CancellationToken cancellationToken)
+    {
+        if (!sessions.ContainsKey(session))
+        {
+            return ValueTask.FromResult(Result<RemoteState, AgentError>.Failure(AgentError.SessionClosed));
+        }
+
+        RemoteControls.Enqueue((session, on));
+
+        return ValueTask.FromResult(Result<RemoteState, AgentError>.Success(on ? RemoteState.Ready : RemoteState.Off));
+    }
+
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken)
     {
         if (!sessions.ContainsKey(session))

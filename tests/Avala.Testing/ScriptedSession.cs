@@ -19,6 +19,7 @@ public sealed class ScriptedSession(
     private readonly ConcurrentQueue<FormAnswer> answers = new();
     private readonly ConcurrentQueue<ToolResult> results = new();
     private readonly TaskCompletionSource interrupting = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly ConcurrentQueue<bool> remoteControls = new();
     private int interruptions;
 
     public SessionId Id { get; } = SessionId.New();
@@ -120,9 +121,36 @@ public sealed class ScriptedSession(
             : Result<TurnId, AgentError>.Success(turns.Last()));
     }
 
+    public IReadOnlyList<bool> RemoteControls => [.. remoteControls];
+
+    public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(bool on, CancellationToken cancellationToken)
+    {
+        remoteControls.Enqueue(on);
+        var control = on ? new RemoteControl(RemoteState.Ready) { Link = $"https://example.test/remote/{Id.Value}" } : RemoteControl.Off;
+        events.Writer.TryWrite(new RemoteControlChanged(Id, control));
+
+        return ValueTask.FromResult(Result<RemoteState, AgentError>.Success(control.State));
+    }
+
+    public ValueTask SayFromDeviceAsync(string text, CancellationToken cancellationToken)
+    {
+        var id = TurnId.New();
+        turns.Enqueue(id);
+
+        return WriteAllAsync([new TurnStarted(Id, id), new RemoteMessageArrived(Id, id, text) { BeganTurn = true }, .. script(Id, id).Where(agentEvent => agentEvent is not TurnStarted)], cancellationToken);
+    }
+
     public void End() => events.Writer.TryComplete();
 
     public void Crash() => events.Writer.TryComplete(new InvalidOperationException("The scripted agent crashed."));
+
+    private async ValueTask WriteAllAsync(IEnumerable<IAgentEvent> all, CancellationToken cancellationToken)
+    {
+        foreach (var agentEvent in all)
+        {
+            await events.Writer.WriteAsync(agentEvent, cancellationToken);
+        }
+    }
 
     public ValueTask DisposeAsync()
     {

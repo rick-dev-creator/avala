@@ -17,7 +17,10 @@ public sealed record AgentRequest(string WorkingDirectory)
     public ModelChoice Model { get; init; } = ModelChoice.Default;
 }
 
-public sealed record OpenedSession(SessionId Session, bool Resumed, ConnectionName Connection);
+public sealed record OpenedSession(SessionId Session, bool Resumed, ConnectionName Connection)
+{
+    public CapabilitySet Capabilities { get; init; } = CapabilitySet.None;
+}
 
 public sealed record AgentTurn(SessionId Session, TurnId Turn);
 
@@ -43,6 +46,13 @@ public sealed record SessionEnded(SessionId Session, SessionEnding Ending) : IIn
 public sealed record SessionResumable(SessionId Session, ResumeToken Token) : IIntegrationEvent;
 
 public sealed record AgentActivity(IAgentEvent Event) : IIntegrationEvent;
+
+public sealed record RemoteControlReported(SessionId Session, RemoteControl Control) : IIntegrationEvent;
+
+public sealed record RemoteMessageReceived(SessionId Session, TurnId Turn, string Text) : IIntegrationEvent
+{
+    public bool BeganTurn { get; init; }
+}
 
 public sealed record TurnFinished(SessionId Session, TurnId Turn, TurnOutcome Outcome) : IIntegrationEvent
 {

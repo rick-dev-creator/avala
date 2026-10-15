@@ -46,6 +46,9 @@ internal sealed class AnsweringAgents : IAgents
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Result<TurnId, AgentError>.Failure(AgentError.Unsupported));
 
+    public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(SessionId session, bool on, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(Result<RemoteState, AgentError>.Failure(AgentError.Unsupported));
+
     public ValueTask<Result<AgentTurn, AgentError>> SteerAsync(SessionId session, string message, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Result<AgentTurn, AgentError>.Failure(AgentError.Unsupported));
 

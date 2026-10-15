@@ -88,6 +88,21 @@ internal sealed class ClaudeCodeSession : IAgentSession
         return running.Item1;
     }
 
+    public async ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(bool on, CancellationToken cancellationToken) =>
+        await stage.RunAsync(
+            async _ =>
+            {
+                if (closed)
+                {
+                    return AgentError.SessionClosed;
+                }
+
+                await ApplyAsync(conversation.ControlRemotely(on));
+
+                return Result<RemoteState, AgentError>.Success(conversation.Remote);
+            },
+            cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         await stage.RunAsync(

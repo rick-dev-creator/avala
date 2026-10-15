@@ -31,6 +31,11 @@ public sealed record CachesPrompt(TimeSpan Lifetime) : ICapability;
 
 public sealed record CompactsOnRequest(string Message) : ICapability;
 
+public sealed record ControlsRemotely : ICapability
+{
+    public bool StartsOn { get; init; }
+}
+
 public sealed record ReportsUsage : ICapability;
 
 public sealed record ReportsContext : ICapability;

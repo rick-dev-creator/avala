@@ -76,6 +76,8 @@ internal sealed class ScenarioCues : IPlugin, IAgentProviderDecorator
 
         public ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) => inner.InterruptAsync(cancellationToken);
 
+        public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(bool on, CancellationToken cancellationToken) => inner.ControlRemotelyAsync(on, cancellationToken);
+
         public ValueTask DisposeAsync() => inner.DisposeAsync();
     }
 }

@@ -20,4 +20,6 @@ public interface IAgentSession : IAsyncDisposable
     ValueTask<Result<ItemId, AgentError>> ReturnAsync(ToolResult result, CancellationToken cancellationToken);
 
     ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken);
+
+    ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(bool on, CancellationToken cancellationToken);
 }
