@@ -216,7 +216,7 @@ public sealed class ChatFeatureScreens(HeadlessUi ui)
             Assert.True(Save(view, $"13-image-preview-sheet-{variant}"));
         });
 
-    private static byte[] Orbits()
+    internal static byte[] Orbits()
     {
         var bitmap = new Avalonia.Media.Imaging.RenderTargetBitmap(new PixelSize(720, 420));
 

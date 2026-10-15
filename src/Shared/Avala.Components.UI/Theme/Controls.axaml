@@ -392,11 +392,12 @@
     <Setter Property="Spacing" Value="2" />
     <Setter Property="Opacity" Value="0" />
   </Style>
-  <Style Selector="UserControl.found">
+  <Style Selector=":is(UserControl).found">
     <Setter Property="Background" Value="{DynamicResource FindMatchBrush}" />
+    <Setter Property="Padding" Value="10,6" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusRow}" />
   </Style>
-  <Style Selector="UserControl.found.current">
+  <Style Selector=":is(UserControl).found.current">
     <Setter Property="Background" Value="{DynamicResource FindCurrentBrush}" />
   </Style>
   <Style Selector=":is(Control).hover-host:pointerover StackPanel.hover-actions, StackPanel.hover-actions:pointerover">
