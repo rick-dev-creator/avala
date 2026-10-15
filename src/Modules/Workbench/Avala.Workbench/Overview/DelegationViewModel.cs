@@ -111,9 +111,9 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
     {
         orchestrators.Reconcile(state.Orchestrators, orchestrator => orchestrator.Job, job => job.Job, job => new OrchestratorViewModel(job), (_, _) => { });
         Selected = state.Tree.Match<IOrchestratorViewModel?>(tree => orchestrators.FirstOrDefault(orchestrator => orchestrator.Job == tree.Root.Job), () => null);
-        children.ShowOnly(state.Tree.Match(tree => tree.Children.Select(node => new DelegationNodeViewModel(node)), () => []));
+        children.ShowOnly(state.Tree.Match(tree => tree.Children.Select(node => new DelegationNodeViewModel(node) { OpenCommand = OpenCommand }), () => []));
         refused.ShowOnly(state.Tree.Match(tree => tree.Refused.Select(record => new DelegationRefusalViewModel(record)), () => []));
-        Root = state.Tree.Match<IOrchestratorCardViewModel?>(tree => new OrchestratorCardViewModel(tree), () => null);
+        Root = state.Tree.Match<IOrchestratorCardViewModel?>(tree => new OrchestratorCardViewModel(tree) { OpenCommand = OpenCommand }, () => null);
         Caption = state.Tree.Match(
             tree => $"{FactPhrases.Title(tree.Root.Instruction)} · {OverviewPhrases.Count(state.Orchestrators.Count, "orchestrator")}, {OverviewPhrases.Count(tree.Children.Count, "sub-agent")}",
             () => "No job has delegated work yet");

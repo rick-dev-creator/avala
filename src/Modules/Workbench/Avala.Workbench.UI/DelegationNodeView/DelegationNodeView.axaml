@@ -4,7 +4,6 @@
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
              xmlns:states="using:Avala.Components.UI.States"
-             xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.DelegationNodeView"
              x:ClassModifier="internal"
              x:DataType="overview:IDelegationNodeViewModel"
@@ -25,13 +24,13 @@
   <Button x:Name="Open"
           Classes="bare"
           theme:Motion.Enter="Gentle"
-          Width="380"
           AutomationProperties.Name="{Binding Title}"
-          Command="{Binding $parent[local:DelegationView].((overview:IDelegationViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"
+          Command="{Binding OpenCommand}"
           CommandParameter="{Binding Job}">
     <Border x:Name="Card"
             Classes="node"
             Classes.attention="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}"
+            Classes.viewing="{Binding IsViewing}"
             CornerRadius="{DynamicResource RadiusCard}"
             Padding="16,14">
       <StackPanel Spacing="6">
@@ -60,6 +59,13 @@
           </StackPanel>
           <ProgressBar x:Name="Share" Classes="bar" Height="3" Value="{Binding SpentShare}" VerticalAlignment="Center" IsVisible="{Binding HasCarve}" />
         </DockPanel>
+        <ItemsControl x:Name="Subagents" Margin="0,4,0,0" ItemsSource="{Binding Subagents}" IsVisible="{Binding HasSubagents}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="5" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
       </StackPanel>
     </Border>
   </Button>

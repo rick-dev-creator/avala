@@ -9,6 +9,14 @@
   <Design.DataContext>
     <overview:DesignDelegationViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ItemsControl#Children Button#Open">
+      <Setter Property="Width" Value="380" />
+    </Style>
+    <Style Selector="ContentControl#Root Button#Open">
+      <Setter Property="Width" Value="340" />
+    </Style>
+  </UserControl.Styles>
   <DockPanel>
     <ScrollViewer DockPanel.Dock="Top"
                   HorizontalScrollBarVisibility="Auto"

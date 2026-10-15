@@ -100,6 +100,19 @@
   <Style Selector="Border.node.attention">
     <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
   </Style>
+  <Style Selector="Border.node.viewing">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="Rectangle.subagent">
+    <Setter Property="Stroke" Value="{DynamicResource BorderTagBrush}" />
+    <Setter Property="StrokeThickness" Value="1" />
+    <Setter Property="StrokeDashArray" Value="3,2" />
+    <Setter Property="RadiusX" Value="11" />
+    <Setter Property="RadiusY" Value="11" />
+  </Style>
+  <Style Selector="Rectangle.subagent.waiting">
+    <Setter Property="Stroke" Value="{DynamicResource AttentionBorderBrush}" />
+  </Style>
 
   <Style Selector="Border.tag.proposed">
     <Setter Property="BorderBrush" Value="{DynamicResource BorderProposedBrush}" />

@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
@@ -31,6 +32,14 @@ internal interface IOrchestratorCardViewModel
     bool HasBudget { get; }
 
     IStatusDotViewModel Dot { get; }
+
+    IReadOnlyList<ISubagentViewModel> Subagents { get; }
+
+    bool HasSubagents { get; }
+
+    bool IsViewing { get; }
+
+    IRelayCommand<JobId> OpenCommand { get; }
 }
 
 internal sealed class OrchestratorCardViewModel : IOrchestratorCardViewModel
@@ -53,7 +62,16 @@ internal sealed class OrchestratorCardViewModel : IOrchestratorCardViewModel
             ? Carved(cap, [.. children.Select(node => node.Spend.Carve.Match(carve => carve.Cost, () => []))])
             : (false, "No budget cap", [], string.Create(CultureInfo.InvariantCulture, $"{OverviewPhrases.Count(children.Count, "sub-agent")}, no budget to share"));
         Dot = new StatusDotViewModel(tree.RootJob.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(root.Status)));
+        Subagents = SubagentViewModel.Of(tree.RootJob);
     }
+
+    public IReadOnlyList<ISubagentViewModel> Subagents { get; }
+
+    public bool HasSubagents => Subagents.Count > 0;
+
+    public bool IsViewing { get; init; }
+
+    public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
 
     public JobId Job { get; }
 

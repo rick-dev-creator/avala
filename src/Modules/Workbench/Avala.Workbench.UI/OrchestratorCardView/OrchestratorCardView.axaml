@@ -3,7 +3,6 @@
              xmlns:overview="using:Avala.Workbench.Overview"
              xmlns:presenting="using:Avala.Workbench.Presenting"
              xmlns:graphs="using:Avala.Components.UI.Graphs"
-             xmlns:local="using:Avala.Workbench.UI"
              x:Class="Avala.Workbench.UI.OrchestratorCardView"
              x:ClassModifier="internal"
              x:DataType="overview:IOrchestratorCardViewModel">
@@ -22,11 +21,12 @@
   </UserControl.Styles>
   <Button x:Name="Open"
           Classes="bare"
-          Width="340"
           AutomationProperties.Name="{Binding Title}"
-          Command="{Binding $parent[local:DelegationView].((overview:IDelegationViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"
+          Command="{Binding OpenCommand}"
           CommandParameter="{Binding Job}">
-    <Border Classes="node"
+    <Border x:Name="Card"
+            Classes="node"
+            Classes.viewing="{Binding IsViewing}"
             CornerRadius="{DynamicResource RadiusOrchestrator}"
             BoxShadow="{DynamicResource ShadowOrchestrator}"
             Padding="18,16">
@@ -62,6 +62,13 @@
           </ItemsControl>
           <TextBlock x:Name="ShareNote" Classes="hint" FontSize="{DynamicResource FontSizeSection}" Text="{Binding ShareNote}" TextTrimming="CharacterEllipsis" />
         </StackPanel>
+        <ItemsControl x:Name="Subagents" ItemsSource="{Binding Subagents}" IsVisible="{Binding HasSubagents}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="5" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
       </StackPanel>
     </Border>
   </Button>

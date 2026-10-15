@@ -143,10 +143,20 @@ internal sealed partial class JobRegions : IDisposable
 
     private void OnPaneChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(IPane.IsOpen))
+        if (e.PropertyName != nameof(IPane.IsOpen))
         {
-            IsPreviewOpen = Preview.OfType<IPane>().Any(pane => pane.IsOpen);
+            return;
         }
+
+        if (sender is IPane { IsOpen: true } opened)
+        {
+            foreach (var other in Preview.OfType<IPane>().Where(pane => pane.IsOpen && !ReferenceEquals(pane, opened)))
+            {
+                other.Close();
+            }
+        }
+
+        IsPreviewOpen = Preview.OfType<IPane>().Any(pane => pane.IsOpen);
     }
 
     private sealed class FixedLayout : IWindowLayout

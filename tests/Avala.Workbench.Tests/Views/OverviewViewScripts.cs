@@ -338,8 +338,8 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
     public Task ClickingAChildOpensItsConversationAsync() =>
         ui.RunAsync(() =>
         {
-            var delegation = new RecordingDelegation(new DesignDelegationNodeViewModel());
-            var view = Wide(delegation);
+            var opened = new List<JobId>();
+            var view = Wide(new RecordingDelegation(new DesignDelegationNodeViewModel { OpenCommand = new RelayCommand<JobId>(opened.Add) }));
             var card = view.Named("DelegationNodeView").Single();
             var center = card.TranslatePoint(new Point(card.Bounds.Width / 2, card.Bounds.Height / 2), view.Window)!.Value;
 
@@ -347,7 +347,7 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
             view.Window.MouseUp(center, MouseButton.Left);
             view.Settle();
 
-            Assert.Equal([new DesignDelegationNodeViewModel().Job], delegation.Opened);
+            Assert.Equal([new DesignDelegationNodeViewModel().Job], opened);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
