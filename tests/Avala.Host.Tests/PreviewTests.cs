@@ -56,7 +56,7 @@ public sealed class PreviewTests(PublishedPlugins plugins)
         _ = await workbench.SelectAsync(run.Job);
         var regions = workbench.Page["Regions"];
         var chip = regions["Header"].Items.Single(item => item.Kind == "RunningChipViewModel");
-        var pane = Assert.Single(regions["Preview"].Items);
+        var pane = regions["Preview"].Items.Single(item => item.Kind == "PreviewPaneViewModel");
         await run.Ui.PresentedAsync(chip.Presentation, () => chip["IsShown"].Value<bool>(), () => chip["Text"].Text);
 
         await run.Ui.InvokeAsync(() => chip.Execute("OpenCommand"), Cancellation);
@@ -86,7 +86,7 @@ public sealed class PreviewTests(PublishedPlugins plugins)
         var workbench = await run.WorkbenchAsync();
         _ = await workbench.SelectAsync(run.Job);
         var regions = workbench.Page["Regions"];
-        var pane = Assert.Single(regions["Preview"].Items);
+        var pane = regions["Preview"].Items.Single(item => item.Kind == "PreviewPaneViewModel");
         var lease = await run.LeasedAsync();
 
         _ = await PreviewedAsync(run, available);

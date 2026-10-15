@@ -14,8 +14,9 @@ An agent can hand self-contained work to sub-agents, which run as child jobs gov
 
 1. **Allow delegation** in the `delegation` section of `.avala/jobs.json` and commit it.
 2. **Ask the agent to split the work.** It decides when to call `delegate`.
-3. **Follow the tree** in the job inspector's **Delegation** section, or on **Overview**, **Delegation**, which shows every job that delegated, the budget carved for each child and the delegations that were refused.
-4. **Answer a child that asks** from the card "Sub-agent … is waiting for this job" when it comes to you.
+3. **Follow the tree beside the conversation.** In the header of a job that delegated, or of one of its children, the tree glyph opens the **Delegation** pane: the job you started at the top, every child below it with its harness, connection, role, activity and spend against its carve, and the job you are viewing outlined. Under each job, its harness's own sub-agents show as dashed pills with what they are doing and whether they are running, waiting or done. Clicking a job opens it; the footer counts the jobs on each connection. The pane takes the preview's place beside the conversation, keeps its width and hides in focus mode.
+4. **See every tree** on **Overview**, **Delegation**, which shows every job that delegated, the budget carved for each child, their sub-agents and the delegations that were refused. The job inspector's **Delegation** section lists them too.
+5. **Answer a child that asks** from the card "Sub-agent … is waiting for this job" when it comes to you.
 
 ## Settings and files
 
