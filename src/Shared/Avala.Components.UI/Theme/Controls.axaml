@@ -3,6 +3,8 @@
         xmlns:copying="using:Avala.Components.UI.Copying">
   <Style Selector="Border.qr-paper">
     <Setter Property="Background" Value="{DynamicResource QrPaperBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
     <Setter Property="Padding" Value="10" />
   </Style>
