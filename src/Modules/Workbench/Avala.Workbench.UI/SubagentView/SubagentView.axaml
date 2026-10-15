@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:states="using:Avala.Components.UI.States"
+             x:Class="Avala.Workbench.UI.SubagentView"
+             x:ClassModifier="internal"
+             x:DataType="overview:ISubagentViewModel">
+  <Design.DataContext>
+    <overview:DesignSubagentViewModel Name="Find the refund call sites" Activity="Reading internal/payments/refund.go" State="Running" />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Ellipse#Dot">
+      <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Dot.waiting">
+      <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Dot.done">
+      <Setter Property="Fill" Value="{DynamicResource DotDoneBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Dot.failed">
+      <Setter Property="Fill" Value="{DynamicResource FailureBrush}" />
+    </Style>
+    <Style Selector="TextBlock#AgentName.ended">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Panel AutomationProperties.Name="{Binding Name, StringFormat='Sub-agent: {0}'}"
+         ToolTip.Tip="{Binding StateText, StringFormat='Sub-agent of this job, {0}'}">
+    <Rectangle x:Name="Outline" Classes="subagent" Classes.waiting="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Waiting'}" />
+    <DockPanel Margin="10,5">
+      <TextBlock x:Name="State" DockPanel.Dock="Right" Classes="hint" Margin="8,0,0,0" Text="{Binding StateText}" VerticalAlignment="Center" />
+      <Ellipse x:Name="Dot"
+               DockPanel.Dock="Left"
+               Width="6"
+               Height="6"
+               Margin="0,0,7,0"
+               VerticalAlignment="Center"
+               Classes.waiting="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Waiting'}"
+               Classes.done="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Done'}"
+               Classes.failed="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Failed'}" />
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock x:Name="AgentName" Classes="caption medium" Classes.ended="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Done,Failed'}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="160" VerticalAlignment="Center" />
+        <TextBlock x:Name="Activity" Classes="caption" Text="{Binding Activity}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      </StackPanel>
+    </DockPanel>
+  </Panel>
+</UserControl>

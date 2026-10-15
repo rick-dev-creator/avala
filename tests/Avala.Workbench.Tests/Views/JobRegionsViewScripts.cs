@@ -93,6 +93,8 @@ public sealed class JobRegionsViewScripts(HeadlessUi ui)
             }
         }
 
+        public void Close() => IsOpen = false;
+
         public override string ToString() => "orders page";
     }
 }

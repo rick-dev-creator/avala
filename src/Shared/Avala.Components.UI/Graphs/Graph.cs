@@ -36,6 +36,8 @@ public sealed class Graph
 
     public static IValueConverter Many { get; } = new FuncValueConverter<int, bool>(count => count > 1);
 
+    public static IValueConverter Indent { get; } = new FuncValueConverter<int, Thickness>(depth => new Thickness(Math.Max(0, depth - 1) * 16, 0, 0, 0));
+
     public static IValueConverter Degrees { get; } = new FuncValueConverter<double, double>(fraction => Math.Clamp(fraction, 0, 1) * 360);
 
     public static IValueConverter Initials { get; } = new FuncValueConverter<string, string>(name =>

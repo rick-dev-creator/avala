@@ -162,6 +162,19 @@ internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewMod
     public bool HasBudget => true;
 
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(StatusKind.Working);
+
+    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Plan the migration", "Listed 14 call sites", SubagentState.Done)];
+
+    public bool HasSubagents => Subagents.Count > 0;
+
+    public bool IsViewing { get; init; } = true;
+
+    public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
+}
+
+internal sealed record DesignSubagentViewModel(string Name, string Activity, SubagentState State) : ISubagentViewModel
+{
+    public string StateText => State.ToString().ToLowerInvariant();
 }
 
 internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, int Depth, StatusKind Kind, string Harness, string Connection, string Activity, string Spend, bool HasCarve, double SpentShare) : IDelegationNodeViewModel
@@ -178,6 +191,14 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
     public string State => OverviewPhrases.State(Kind);
 
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
+
+    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Find the refund call sites", "Reading internal/payments/refund.go", SubagentState.Running)];
+
+    public bool HasSubagents => Subagents.Count > 0;
+
+    public bool IsViewing { get; init; }
+
+    public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
 }
 
 internal sealed class DesignDelegationRefusalViewModel : IDelegationRefusalViewModel
@@ -240,4 +261,35 @@ internal sealed class DesignOverviewViewModel : IOverviewViewModel
     public IRelayCommand ShowConnectionsCommand { get; } = new RelayCommand(() => { });
 
     public IRelayCommand ShowDelegationCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignDelegationPaneViewModel : IDelegationPaneViewModel
+{
+    public IOrchestratorCardViewModel? Root { get; } = new DesignOrchestratorCardViewModel();
+
+    public IReadOnlyList<IDelegationNodeViewModel> Children { get; } =
+    [
+        new DesignDelegationNodeViewModel(),
+        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Codex", "codex-team", "Wants to run go generate ./internal/webhooks/...", "0.22 USD of 0.80 USD", true, 0.28)
+        {
+            Subagents = [new DesignSubagentViewModel("Read the signature tests", "Waiting for your answer", SubagentState.Waiting)],
+        },
+    ];
+
+    public string Caption => "3 jobs · 3 agents";
+
+    public string Footer => "claude-work · 2 jobs   codex-team · 1 job";
+
+    public bool IsOpen => true;
+
+    public IRelayCommand CloseCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignDelegationToggleViewModel : IDelegationToggleViewModel
+{
+    public bool IsShown { get; init; } = true;
+
+    public bool IsOpen { get; init; } = true;
+
+    public IRelayCommand ToggleCommand { get; init; } = new RelayCommand(() => { });
 }

@@ -9,6 +9,7 @@ using Avala.Workbench.Fleet;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
 using Avala.Workbench.Spending;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
@@ -39,6 +40,14 @@ internal interface IDelegationNodeViewModel
     string State { get; }
 
     IStatusDotViewModel Dot { get; }
+
+    IReadOnlyList<ISubagentViewModel> Subagents { get; }
+
+    bool HasSubagents { get; }
+
+    bool IsViewing { get; }
+
+    IRelayCommand<JobId> OpenCommand { get; }
 }
 
 internal interface IDelegationRefusalViewModel
@@ -79,6 +88,14 @@ internal sealed class DelegationNodeViewModel(DelegationNode node) : IDelegation
 
     public string State => OverviewPhrases.State(Dot.Kind);
 
+    public IReadOnlyList<ISubagentViewModel> Subagents { get; } = SubagentViewModel.Of(node.Seen);
+
+    public bool HasSubagents => Subagents.Count > 0;
+
+    public bool IsViewing { get; init; }
+
+    public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
+
     private static Option<IReadOnlyList<Cost>> Carved(JobSpend spend) =>
         spend.Carve.Bind(carve => carve.Cost.Count == 0 ? Option<IReadOnlyList<Cost>>.None : Option<IReadOnlyList<Cost>>.Some(carve.Cost));
 
@@ -97,6 +114,8 @@ internal sealed class DelegationRefusalViewModel(DelegationRecord record) : IDel
 
 internal static partial class OverviewPhrases
 {
+    public static IRelayCommand<JobId> Idle { get; } = new RelayCommand<JobId>(_ => { });
+
     public static StatusKind Dot(JobStatus status) => status switch
     {
         JobStatus.Checking => StatusKind.Checking,

@@ -67,6 +67,23 @@ public sealed class JobRegionsScripts : IDisposable
     }
 
     [Fact]
+    public void TheSideColumnShowsOnePaneAtATimeSoOpeningOneClosesTheOther()
+    {
+        var tree = new PaneItem();
+        var regions = new JobRegions(
+            [
+                new RegionContribution(WorkbenchRegions.Preview, 0, pane),
+                new RegionContribution(WorkbenchRegions.Preview, 10, tree),
+            ],
+            new RememberedLayout());
+
+        pane.IsOpen = true;
+        tree.IsOpen = true;
+
+        Assert.Equal((false, true, true), (pane.IsOpen, tree.IsOpen, regions.IsPreviewOpen));
+    }
+
+    [Fact]
     public async Task ThePreviewTakesItsRememberedShareOfTheWidthAsync()
     {
         var regions = Regions(new RememberedLayout(WindowLayout.Default with { PreviewShare = 0.5 }));
@@ -158,5 +175,7 @@ public sealed class JobRegionsScripts : IDisposable
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsOpen)));
             }
         }
+
+        public void Close() => IsOpen = false;
     }
 }

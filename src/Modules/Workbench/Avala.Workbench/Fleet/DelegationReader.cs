@@ -43,6 +43,13 @@ internal sealed class DelegationReader(IJobCatalog catalog, IDelegations delegat
             RootJob = board.Find(tree.Job.Job),
         });
 
+    public JobId RootOf(JobId job) =>
+        board.Find(job).Bind(found => found.Summary.Parent).Match(parent => parent == job ? job : RootOf(parent), () => job);
+
+    public bool InTree(JobId job) =>
+        board.Find(job).Match(found => found.Summary.Parent.IsSome, () => false)
+        || board.Jobs.Values.Any(other => other.Summary.Parent == Option<JobId>.Some(job));
+
     private IEnumerable<DelegationNode> Nodes(JobTree tree, int depth) =>
         tree.Children.SelectMany(child => Nodes(child, depth + 1)).Prepend(new DelegationNode(
             tree.Job,

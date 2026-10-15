@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             x:Class="Avala.Workbench.UI.DelegationToggleView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IDelegationToggleViewModel">
+  <Design.DataContext>
+    <overview:DesignDelegationToggleViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Tree"
+          Classes="glyph"
+          Classes.selected="{Binding IsOpen}"
+          IsVisible="{Binding IsShown}"
+          Command="{Binding ToggleCommand}"
+          ToolTip.Tip="Delegation"
+          AutomationProperties.Name="Toggle the delegation tree">
+    <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconTree}" />
+  </Button>
+</UserControl>

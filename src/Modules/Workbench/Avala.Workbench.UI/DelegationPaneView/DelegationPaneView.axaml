@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             x:Class="Avala.Workbench.UI.DelegationPaneView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IDelegationPaneViewModel">
+  <Design.DataContext>
+    <overview:DesignDelegationPaneViewModel />
+  </Design.DataContext>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+  </UserControl.KeyBindings>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Border#Surface">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCanvasBrush}" />
+    </Style>
+    <Style Selector="Border#Rail">
+      <Setter Property="Background" Value="{DynamicResource SeparatorStrongBrush}" />
+    </Style>
+    <Style Selector="Border#PaneHeader, Border#PaneFooter">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Surface" IsVisible="{Binding IsOpen}">
+    <DockPanel>
+      <Border x:Name="PaneHeader" DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="18,0,10,0" Height="44">
+        <DockPanel>
+          <Button x:Name="Close"
+                  DockPanel.Dock="Right"
+                  Classes="glyph"
+                  Command="{Binding CloseCommand}"
+                  ToolTip.Tip="Close"
+                  AutomationProperties.Name="Close the delegation tree">
+            <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconCross}" />
+          </Button>
+          <TextBlock x:Name="Caption" DockPanel.Dock="Right" Classes="caption" Margin="0,0,8,0" Text="{Binding Caption}" VerticalAlignment="Center" />
+          <TextBlock Classes="strong" Text="Delegation" VerticalAlignment="Center" />
+        </DockPanel>
+      </Border>
+      <Border x:Name="PaneFooter" DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" Padding="18,10">
+        <TextBlock x:Name="Footer" Classes="caption" Text="{Binding Footer}" TextTrimming="CharacterEllipsis" />
+      </Border>
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="16">
+          <ContentControl x:Name="Root" theme:Motion.Enter="Gentle" Content="{Binding Root}" />
+          <Grid ColumnDefinitions="20,*" IsVisible="{Binding !!Children.Count}">
+            <Border x:Name="Rail" Width="1" HorizontalAlignment="Center" />
+            <ItemsControl x:Name="Children" Grid.Column="1" Margin="0,12,0,4" ItemsSource="{Binding Children}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Spacing="10" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="overview:IDelegationNodeViewModel">
+                  <ContentControl Content="{Binding}" Margin="{Binding Depth, Converter={x:Static graphs:Graph.Indent}}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Grid>
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>

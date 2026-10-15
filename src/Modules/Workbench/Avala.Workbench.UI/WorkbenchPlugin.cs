@@ -180,10 +180,12 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     private static void RegisterRegions(IPluginRegistrar registrar) =>
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
             .AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0)
+            .AddToRegion<DelegationToggleViewModel>(WorkbenchRegions.JobHeader, 1)
             .AddToRegion<RemoteControlViewModel>(WorkbenchRegions.JobHeader, 2)
             .AddToRegion<ArchivedNoteViewModel>(WorkbenchRegions.JobHeader, 3)
             .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
-            .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5);
+            .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5)
+            .AddToRegion<DelegationPaneViewModel>(WorkbenchRegions.Preview, 10);
 
     private static void RegisterProjects(IServiceCollection services) =>
         services
@@ -443,6 +445,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ILoopsViewModel, LoopsViewModel>()
             .AddSingleton<IConnectionsViewModel, ConnectionsViewModel>()
             .AddSingleton<IDelegationViewModel, DelegationViewModel>()
+            .AddSingleton<DelegationPaneViewModel>()
+            .AddSingleton<DelegationToggleViewModel>()
             .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
             .AddSingleton<IDefaultConnectionViewModel, DefaultConnectionViewModel>()
             .AddSingleton<ConnectionEditorViewModel>()
@@ -481,6 +485,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IOrchestratorViewModel, OrchestratorView>();
         views.Register<IOrchestratorCardViewModel, OrchestratorCardView>();
         views.Register<IDelegationNodeViewModel, DelegationNodeView>();
+        views.Register<ISubagentViewModel, SubagentView>();
+        views.Register<IDelegationPaneViewModel, DelegationPaneView>();
+        views.Register<IDelegationToggleViewModel, DelegationToggleView>();
         views.Register<IDelegationRefusalViewModel, DelegationRefusalView>();
         views.Register<IUsageViewModel, UsageView>();
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();

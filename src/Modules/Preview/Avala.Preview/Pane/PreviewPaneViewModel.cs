@@ -200,6 +200,8 @@ internal sealed partial class PreviewPaneViewModel
         Refusal = string.Empty;
     }
 
+    void IPane.Close() => Close();
+
     [RelayCommand]
     private void Close()
     {
