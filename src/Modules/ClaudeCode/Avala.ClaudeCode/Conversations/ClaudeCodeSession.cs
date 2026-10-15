@@ -41,11 +41,18 @@ internal sealed class ClaudeCodeSession : IAgentSession
         return session;
     }
 
-    public async ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken) =>
+    public async ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, CancellationToken cancellationToken)
+    {
+        var attachments = await AttachmentBlocks.ReadAsync(turn.Attachments, cancellationToken);
+
+        return await SendAsync(turn, attachments, cancellationToken);
+    }
+
+    private async ValueTask<Result<TurnId, AgentError>> SendAsync(UserTurn turn, IReadOnlyList<JsonNode> attachments, CancellationToken cancellationToken) =>
         await stage.RunAsync(
             async _ => closed
                 ? AgentError.SessionClosed
-                : await conversation.Begin(turn).Match(
+                : await conversation.Begin(turn, attachments).Match(
                     async begun =>
                     {
                         turnEnded = turn.MidTurn ? turnEnded : new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

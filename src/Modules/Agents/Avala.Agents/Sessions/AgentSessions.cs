@@ -38,21 +38,17 @@ internal sealed partial class AgentSessions(
 
     public bool IsOpen(SessionId session) => Volatile.Read(ref live).TryGetValue(session, out var running) && !running.Ended;
 
-    public async ValueTask<Result<AgentTurn, AgentError>> SendAsync(
-        SessionId session,
-        string message,
-        CancellationToken cancellationToken) =>
-        Volatile.Read(ref live).TryGetValue(session, out var running)
-            ? (await running.Session.SendAsync(new UserTurn(message), cancellationToken)).Map(turn => new AgentTurn(session, turn))
-            : AgentError.SessionClosed;
+    public ValueTask<Result<AgentTurn, AgentError>> SendAsync(SessionId session, string message, CancellationToken cancellationToken) =>
+        SayAsync(session, new UserTurn(message), cancellationToken);
 
-    public async ValueTask<Result<AgentTurn, AgentError>> SteerAsync(
-        SessionId session,
-        string message,
-        CancellationToken cancellationToken) =>
+    public ValueTask<Result<AgentTurn, AgentError>> SteerAsync(SessionId session, string message, CancellationToken cancellationToken) =>
+        SayAsync(session, new UserTurn(message) { MidTurn = true }, cancellationToken);
+
+    public async ValueTask<Result<AgentTurn, AgentError>> SayAsync(SessionId session, UserTurn turn, CancellationToken cancellationToken) =>
         !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
-        : !running.Capabilities.Has<AcceptsMessagesMidTurn>() ? AgentError.Unsupported
-        : (await running.Session.SendAsync(new UserTurn(message) { MidTurn = true }, cancellationToken)).Map(turn => new AgentTurn(session, turn));
+        : turn.MidTurn && !running.Capabilities.Has<AcceptsMessagesMidTurn>() ? AgentError.Unsupported
+        : !turn.Attachments.All(attachment => running.Capabilities.Get<AcceptsAttachments>().Match(accepted => accepted.Accepts(attachment.MediaType), () => false)) ? AgentError.UnacceptedAttachment
+        : (await running.Session.SendAsync(turn, cancellationToken)).Map(sent => new AgentTurn(session, sent));
 
     public async ValueTask<Result<ItemId, AgentError>> RespondAsync(
         SessionId session,

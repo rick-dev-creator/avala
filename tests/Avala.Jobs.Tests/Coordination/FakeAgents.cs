@@ -122,6 +122,15 @@ internal sealed class FakeAgents : IAgents
 
     public ConcurrentQueue<(SessionId Session, bool On)> RemoteControls { get; } = new();
 
+    public ConcurrentQueue<UserTurn> Said { get; } = new();
+
+    public ValueTask<Result<AgentTurn, AgentError>> SayAsync(SessionId session, UserTurn turn, CancellationToken cancellationToken)
+    {
+        Said.Enqueue(turn);
+
+        return turn.MidTurn ? SteerAsync(session, turn.Text, cancellationToken) : SendAsync(session, turn.Text, cancellationToken);
+    }
+
     public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(SessionId session, bool on, CancellationToken cancellationToken)
     {
         if (!sessions.ContainsKey(session))

@@ -8,10 +8,16 @@ internal static class Messages
 {
     public const string GateHook = "avala-gate";
 
-    public static JsonNode User(UserTurn turn, string command) => new JsonObject
+    public static JsonNode User(UserTurn turn, string command) => User(turn, command, []);
+
+    public static JsonNode User(UserTurn turn, string command, IReadOnlyList<JsonNode> attachments) => new JsonObject
     {
         ["type"] = "user",
-        ["message"] = new JsonObject { ["role"] = "user", ["content"] = turn.Text },
+        ["message"] = new JsonObject
+        {
+            ["role"] = "user",
+            ["content"] = attachments.Count == 0 ? turn.Text : new JsonArray([new JsonObject { ["type"] = "text", ["text"] = turn.Text }, .. attachments.Select(block => block.DeepClone())]),
+        },
         ["parent_tool_use_id"] = null,
         ["session_id"] = string.Empty,
         ["uuid"] = command,

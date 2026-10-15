@@ -52,12 +52,14 @@ internal sealed class Conversation
         return this;
     }
 
-    public Result<(TurnId Turn, Reaction Reaction), AgentError> Begin(UserTurn turn)
+    public Result<(TurnId Turn, Reaction Reaction), AgentError> Begin(UserTurn turn) => Begin(turn, []);
+
+    public Result<(TurnId Turn, Reaction Reaction), AgentError> Begin(UserTurn turn, IReadOnlyList<JsonNode> attachments)
     {
         if (turn.MidTurn)
         {
             return live.ToResult(AgentError.NoTurnInProgress).Map(running =>
-                (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text)], [Messages.User(turn, commands.Send(midTurn: true))])));
+                (running.Turn, new Reaction([new MessageQueued(session, running.Turn, turn.Text) { Attachments = turn.Attachments }], [Messages.User(turn, commands.Send(midTurn: true), attachments)])));
         }
 
         if (live.IsSome)
@@ -67,7 +69,7 @@ internal sealed class Conversation
 
         var stamp = Opened();
 
-        return (stamp.Turn, new Reaction([new TurnStarted(session, stamp.Turn)], [Messages.User(turn, commands.Send(midTurn: false))]));
+        return (stamp.Turn, new Reaction([new TurnStarted(session, stamp.Turn)], [Messages.User(turn, commands.Send(midTurn: false), attachments)]));
     }
 
     public Reaction ControlRemotely(bool on) => remote.Turn(on);
