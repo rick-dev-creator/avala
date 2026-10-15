@@ -7,13 +7,12 @@ namespace Avala.Components.UI.QrCodes;
 
 public sealed class QrCode : Control
 {
+    public const string InkResource = "QrInkBrush";
+
     public static readonly StyledProperty<QrModules> ModulesProperty =
         AvaloniaProperty.Register<QrCode, QrModules>(nameof(Modules), QrModules.None);
 
-    public static readonly StyledProperty<IBrush?> ForegroundProperty =
-        AvaloniaProperty.Register<QrCode, IBrush?>(nameof(Foreground));
-
-    static QrCode() => AffectsRender<QrCode>(ModulesProperty, ForegroundProperty);
+    static QrCode() => AffectsRender<QrCode>(ModulesProperty);
 
     public QrModules Modules
     {
@@ -21,17 +20,11 @@ public sealed class QrCode : Control
         set => SetValue(ModulesProperty, value);
     }
 
-    public IBrush? Foreground
-    {
-        get => GetValue(ForegroundProperty);
-        set => SetValue(ForegroundProperty, value);
-    }
-
     public override void Render(DrawingContext context)
     {
         var modules = Modules;
 
-        if (modules.IsEmpty || Foreground is not { } ink)
+        if (modules.IsEmpty || !this.TryFindResource(InkResource, ActualThemeVariant, out var found) || found is not IBrush ink)
         {
             return;
         }
