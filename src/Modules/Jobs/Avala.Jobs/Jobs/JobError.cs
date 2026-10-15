@@ -27,4 +27,6 @@ internal enum JobError
     CannotReopen,
     CannotChooseModel,
     CannotRetryLaunch,
+    NotRoot,
+    CannotControlRemotely,
 }

@@ -50,6 +50,7 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<RecoverJob>()
             .AddSingleton<SubmitJob>()
             .AddSingleton<ChooseModel>()
+            .AddSingleton<ControlRemotely>()
             .AddSingleton<JobControls>()
             .AddSingleton<IApprovalStrategy, KeepStrategy>()
             .AddSingleton<IApprovalStrategy, MergeStrategy>()
@@ -58,12 +59,14 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<JobsEntry>()
             .AddForwarded<IJobs, JobsEntry>()
             .AddForwarded<IOpenDeliveries, JobsEntry>()
+            .AddForwarded<IRemoteJobs, JobsEntry>()
             .AddSingleton<IJobCatalog, JobCatalog>()
             .AddSingleton<IHandle<JobAnnouncement>, PrepareJob>()
             .AddSingleton<CheckTurn>()
             .AddForwarded<IHandle<TurnFinished>, CheckTurn>()
             .AddForwarded<IHandle<SessionEnded>, CheckTurn>()
             .AddForwarded<IHandle<SessionResumable>, CheckTurn>()
+            .AddSingleton<IHandle<RemoteMessageReceived>, ContinueFromDevice>()
             .AddSingleton<IStartupTask, JobRecovery>();
     }
 }

@@ -28,6 +28,8 @@ internal sealed class FakeAgents : IAgents
 
     public bool Resumes { get; init; }
 
+    public Avala.Agents.Contracts.Capabilities.CapabilitySet Capabilities { get; set; } = Avala.Agents.Contracts.Capabilities.CapabilitySet.None;
+
     public Option<AgentError> InterruptRejection { get; init; }
 
     public IReadOnlyList<AgentRequest> Requests => [.. requests];
@@ -66,7 +68,7 @@ internal sealed class FakeAgents : IAgents
         var session = SessionId.New();
         sessions[session] = request.WorkingDirectory;
 
-        return ValueTask.FromResult(Result<OpenedSession, AgentError>.Success(new OpenedSession(session, Resumes && request.Resume.IsSome, connection)));
+        return ValueTask.FromResult(Result<OpenedSession, AgentError>.Success(new OpenedSession(session, Resumes && request.Resume.IsSome, connection) { Capabilities = Capabilities }));
     }
 
     public bool IsOpen(SessionId session) => sessions.ContainsKey(session);

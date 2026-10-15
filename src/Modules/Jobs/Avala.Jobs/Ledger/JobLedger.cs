@@ -35,8 +35,19 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents, 
         {
             await job.Session.Match<Task>(session => agents.StopAsync(session, cancellationToken).AsTask(), () => Task.CompletedTask);
         }
+        else if (job.RemoteControlled)
+        {
+            await KeepRemoteControlAsync(job, cancellationToken);
+        }
 
         await bus.PublishAsync(new JobProgressed(job.Id, job.State.Status), cancellationToken);
+    }
+
+    public async Task RecordRemoteControlAsync(Job job, JobRemoteControlChosen chosen, CancellationToken cancellationToken)
+    {
+        await SaveAsync(job, cancellationToken);
+        await KeepRemoteControlAsync(job, cancellationToken);
+        await bus.PublishAsync(chosen, cancellationToken);
     }
 
     public async Task RecordApprovalAsync(Job job, JobApproval approval, CancellationToken cancellationToken)
@@ -71,6 +82,11 @@ internal sealed class JobLedger(IJobStore store, IEventBus bus, IAgents agents, 
         await bus.PublishAsync(new ConnectionChosen(job.Id, handoff.Choice), cancellationToken);
         await bus.PublishAsync(handoff, cancellationToken);
     }
+
+    private Task KeepRemoteControlAsync(Job job, CancellationToken cancellationToken) =>
+        job.Session.Match<Task>(
+            session => agents.IsOpen(session) ? agents.ControlRemotelyAsync(session, job.AllowsRemoteControl, cancellationToken).AsTask() : Task.CompletedTask,
+            () => Task.CompletedTask);
 
     private Task SaveAsync(Job job, CancellationToken cancellationToken)
     {

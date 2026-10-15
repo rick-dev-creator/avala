@@ -25,6 +25,7 @@ public enum AttemptOrigin
     Recovery,
     Handoff,
     Reopen,
+    Device,
 }
 
 public enum AttemptOutcome
@@ -55,6 +56,8 @@ public sealed record JobSummary(
     public Option<string> Problem { get; init; }
 
     public ModelChoice Model { get; init; } = ModelChoice.Default;
+
+    public bool RemoteControlled { get; init; }
 }
 
 public sealed record JobTree(JobSummary Job, IReadOnlyList<JobTree> Children);

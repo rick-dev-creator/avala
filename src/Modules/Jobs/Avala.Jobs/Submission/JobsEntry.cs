@@ -9,7 +9,7 @@ using Avala.Sdk;
 
 namespace Avala.Jobs.Submission;
 
-internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJob review, JobQueues queues) : IJobs, IOpenDeliveries
+internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJob review, JobQueues queues) : IJobs, IOpenDeliveries, IRemoteJobs
 {
     public async ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) =>
         await submit.ExecuteAsync(request, cancellationToken);
@@ -65,6 +65,9 @@ internal sealed class JobsEntry(SubmitJob submit, JobControls controls, ReviewJo
 
     public async ValueTask<Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, ModelChoice model, CancellationToken cancellationToken) =>
         await InQueueAsync(job, (found, token) => controls.Model.ExecuteAsync(found, model, token), cancellationToken);
+
+    public async ValueTask<Result<JobRemoteControlChosen, JobRejection>> ControlRemotelyAsync(JobId job, bool on, CancellationToken cancellationToken) =>
+        await InQueueAsync(job, (found, token) => controls.Remote.ExecuteAsync(found, on, token), cancellationToken);
 
     private async Task<Result<JobContinuation, JobRejection>> WithFeedbackAsync(
         JobId job,

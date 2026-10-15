@@ -41,12 +41,13 @@ internal sealed class JobFlow
         Launches = new JobLaunches(Queues, start);
         Jobs = new JobsEntry(
             Submit,
-            new JobControls(Hold, new ChooseModel(ledger, agents, Connections), journal),
+            new JobControls(Hold, new ChooseModel(ledger, agents, Connections), journal, new ControlRemotely(ledger, Connections)),
             new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), new ResumeJob(deferred, launcher, Hold)),
             Queues);
         Prepare = new PrepareJob(Queues, start, Admissions);
         var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), new NextRound(Routers, launcher, Hold));
         Check = new CheckTurn(ledger, Queues, evaluate, Hold);
+        FromDevice = new ContinueFromDevice(ledger, Queues);
         var recover = new RecoverJob(ledger, launcher, evaluate, deferred);
         Recovery = new JobRecovery(new JobLedger(Store, Bus, agents, Clock), Queues, recover, start);
         RecoveryInThisRun = new JobRecovery(ledger, Queues, recover, start);
@@ -100,6 +101,8 @@ internal sealed class JobFlow
     public PrepareJob Prepare { get; }
 
     public CheckTurn Check { get; }
+
+    public ContinueFromDevice FromDevice { get; }
 
     public JobRecovery Recovery { get; }
 

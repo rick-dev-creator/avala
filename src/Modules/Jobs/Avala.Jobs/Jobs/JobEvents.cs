@@ -36,4 +36,6 @@ internal sealed record LaunchRetried(JobId Job, Option<WorkspaceId> Leftover) : 
 
 internal sealed record ModelChosen(JobId Job, ModelChoice Model) : IDomainEvent;
 
+internal sealed record RemoteControlChosen(JobId Job, bool On) : IDomainEvent;
+
 internal sealed record ResumeRecorded(JobId Job, SessionId Session) : IDomainEvent;
