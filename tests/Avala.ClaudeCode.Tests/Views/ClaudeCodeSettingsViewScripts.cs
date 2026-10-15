@@ -39,6 +39,33 @@ public sealed class ClaudeCodeSettingsViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task OneSwitchAboveTheLoginsStartsEveryJobOnThePhoneAsync() =>
+        ui.RunAsync(() =>
+        {
+            var toggled = 0;
+            var view = Screen.Show(new DesignClaudeCodeSettingsViewModel
+            {
+                ToggleStartsOnPhoneCommand = new AsyncRelayCommand(() =>
+                {
+                    toggled++;
+
+                    return Task.CompletedTask;
+                }),
+            });
+
+            var wasOn = view.Find<ToggleSwitch>("StartsOnPhone").IsChecked == true;
+            view.Click("StartsOnPhone");
+
+            Assert.True(wasOn);
+            Assert.Equal(1, toggled);
+            Assert.False(view.Shows("PhoneProblem"));
+        }, Cancellation);
+
+    [Fact]
+    public Task ASwitchThatCouldNotBeSavedSaysSoAsync() =>
+        ui.RunAsync(() => Assert.True(Screen.Show(new DesignClaudeCodeSettingsViewModel { HasProblem = true }).Shows("PhoneProblem")), Cancellation);
+
+    [Fact]
     public Task WithoutLoginsTheSectionIsHiddenAsync() =>
         ui.RunAsync(() => Assert.False(Screen.Show(new DesignClaudeCodeSettingsViewModel { Logins = [] }).Shows("Logins")), Cancellation);
 }

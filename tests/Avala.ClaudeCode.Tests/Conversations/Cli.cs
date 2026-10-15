@@ -125,6 +125,24 @@ internal static class Cli
     public static JsonNode Lifecycle(string command, string state) =>
         Parse($$"""{ "type": "command_lifecycle", "command_uuid": "{{command}}", "state": "{{state}}", "uuid": "{{Guid.NewGuid()}}", "session_id": "{{Session}}" }""");
 
+    public static JsonNode Bridge(string state) =>
+        Parse($$"""{ "type": "system", "subtype": "bridge_state", "state": "{{state}}", "uuid": "{{Guid.NewGuid()}}", "session_id": "{{Session}}" }""");
+
+    public static JsonNode RemoteAnswer(string requestId, string link) =>
+        Parse($$"""
+            { "type": "control_response", "response": { "subtype": "success", "request_id": "{{requestId}}",
+              "response": { "session_url": "{{link}}", "connect_url": "https://claude.ai/code?environment=", "environment_id": "", "bridge_epoch": 1 } } }
+            """);
+
+    public static JsonNode RemoteRefusal(string requestId, string error) =>
+        Parse($$"""{ "type": "control_response", "response": { "subtype": "error", "request_id": "{{requestId}}", "error": "{{error}}" } }""");
+
+    public static JsonNode Replayed(string text, bool fromDevice, string uuid = "") =>
+        Parse($$"""
+            { "type": "user", "isReplay": true, {{(fromDevice ? "\"origin\": { \"kind\": \"human\" }," : string.Empty)}}
+              "message": { "role": "user", "content": "{{text}}" }, "parent_tool_use_id": null, "session_id": "{{Session}}", "uuid": "{{(uuid.Length > 0 ? uuid : Guid.NewGuid().ToString())}}" }
+            """);
+
     public static JsonNode RateLimit() =>
         Parse("""
             { "type": "rate_limit_event", "rate_limit_info": { "status": "allowed_warning", "resetsAt": 1791691200, "rateLimitType": "seven_day", "utilization": 0.99,

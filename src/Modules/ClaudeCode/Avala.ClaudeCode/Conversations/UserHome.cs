@@ -8,6 +8,8 @@ internal sealed record UserHome(string Folder, IReadOnlyList<string> Configured)
 
     public Option<string> TodoTools { get; init; }
 
+    public bool SignsInImplicitly { get; init; }
+
     public bool IsDefault(string configurationFolder) =>
         string.Equals(
             Path.TrimEndingDirectorySeparator(Path.GetFullPath(configurationFolder)),

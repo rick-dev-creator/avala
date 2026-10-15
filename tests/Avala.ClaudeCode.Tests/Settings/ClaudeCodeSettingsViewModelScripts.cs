@@ -20,7 +20,7 @@ public sealed class ClaudeCodeSettingsViewModelScripts : IDisposable
             new DeclaredConnection(new ConnectionName("claude-team"), ClaudeCodeProvider.Id, "apiKey") { Problem = ConnectionError.MissingVariable },
             new DeclaredConnection(new ConnectionName("simulator"), "simulator", Option<string>.None),
         ]);
-        var section = new ClaudeCodeSettingsViewModel(connections, ui);
+        var section = new ClaudeCodeSettingsViewModel(connections, ui, new FixedPhoneStart());
 
         section.Activate();
         await section.Loading;
@@ -32,12 +32,38 @@ public sealed class ClaudeCodeSettingsViewModelScripts : IDisposable
     [Fact]
     public async Task WithoutAClaudeCodeLoginTheSectionHasNothingToShowAsync()
     {
-        var section = new ClaudeCodeSettingsViewModel(connections, ui);
+        var section = new ClaudeCodeSettingsViewModel(connections, ui, new FixedPhoneStart());
 
         section.Activate();
         await section.Loading;
 
         Assert.False(await ui.ReadAsync(() => section.HasLogins));
+    }
+
+    [Fact]
+    public async Task StartingJobsOnThePhoneIsOneSwitchForEveryLoginThatTheProviderKeepsAsync()
+    {
+        var phone = new FixedPhoneStart();
+        var section = new ClaudeCodeSettingsViewModel(connections, ui, phone);
+        var startedOff = section.StartsOnPhone;
+
+        await section.ToggleStartsOnPhoneCommand.ExecuteAsync(null);
+
+        Assert.False(startedOff);
+        Assert.True(section.StartsOnPhone);
+        Assert.True(phone.StartsOn);
+        Assert.False(section.HasProblem);
+    }
+
+    [Fact]
+    public async Task ASwitchThatCannotBeSavedStaysAsItWasAndSaysSoAsync()
+    {
+        var section = new ClaudeCodeSettingsViewModel(connections, ui, new FixedPhoneStart(saves: false));
+
+        await section.ToggleStartsOnPhoneCommand.ExecuteAsync(null);
+
+        Assert.False(section.StartsOnPhone);
+        Assert.True(section.HasProblem);
     }
 
     public void Dispose() => ui.Dispose();

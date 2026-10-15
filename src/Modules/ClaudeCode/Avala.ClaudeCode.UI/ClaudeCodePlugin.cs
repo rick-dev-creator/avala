@@ -5,6 +5,7 @@ using Avala.ClaudeCode.Cli;
 using Avala.ClaudeCode.Conversations;
 using Avala.ClaudeCode.Discovery;
 using Avala.ClaudeCode.Folders;
+using Avala.ClaudeCode.Preferences;
 using Avala.ClaudeCode.Settings;
 using Avala.Sdk;
 using Avala.Sdk.Regions;
@@ -37,20 +38,23 @@ public sealed class ClaudeCodePlugin(string executable, IReadOnlyList<string> ar
     public void Register(IPluginRegistrar registrar)
     {
         IReadOnlyList<string> configured = environment.TryGetValue(CommandLine.ConfigurationVariable, out var folder) && folder.Length > 0 ? [folder] : [];
-        var user = new UserHome(Path.TrimEndingDirectorySeparator(Path.GetFullPath(home)), configured)
+        var found = new UserHome(Path.TrimEndingDirectorySeparator(Path.GetFullPath(home)), configured)
         {
             TodoTools = environment.TryGetValue(CommandLine.TodoToolsVariable, out var todo) && todo.Length > 0 ? todo : Option<string>.None,
         };
+        var user = found with { SignsInImplicitly = new SignIn(found, environment).IsAvailable };
         registrar.Services.TryAddSingleton(TimeProvider.System);
         registrar.Services
             .AddSingleton(new CliCommand(executable, arguments))
             .AddSingleton(user)
-            .AddSingleton(new ImplicitSignIn(new SignIn(user, environment).IsAvailable))
+            .AddSingleton<PhoneStartFile>()
+            .AddSingleton<IPhoneStart>(provider => provider.GetRequiredService<PhoneStartFile>())
+            .AddSingleton<IStartupTask>(provider => provider.GetRequiredService<PhoneStartFile>())
             .AddSingleton<ICli, ProcessCli>()
             .AddSingleton<IConfigurationFolders, ConfigurationFolders>()
             .AddSingleton<IConnectionDiscovery, LoginFolders>()
             .AddSingleton<IAgentProvider, ClaudeCodeProvider>()
-            .AddSingleton(provider => new ClaudeCodeSettingsViewModel(provider.GetRequiredService<IConnections>(), provider.GetRequiredService<IUiDispatcher>()));
+            .AddSingleton(provider => new ClaudeCodeSettingsViewModel(provider.GetRequiredService<IConnections>(), provider.GetRequiredService<IUiDispatcher>(), provider.GetRequiredService<IPhoneStart>()));
         registrar.AddToRegion<ClaudeCodeSettingsViewModel>(WorkbenchRegions.Settings, 0);
     }
 

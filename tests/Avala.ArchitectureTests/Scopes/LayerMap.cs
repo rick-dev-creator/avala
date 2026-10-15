@@ -207,6 +207,7 @@ internal static class LayerMap
             ["Cli"] = Layer.Infrastructure,
             ["Folders"] = Layer.Infrastructure,
             ["Discovery"] = Layer.Infrastructure,
+            ["Preferences"] = Layer.Infrastructure,
             ["Settings"] = Layer.ViewModels,
             ["UI"] = Layer.None,
         }),
