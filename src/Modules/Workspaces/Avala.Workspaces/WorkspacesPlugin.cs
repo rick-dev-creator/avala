@@ -32,6 +32,7 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddSingleton(provider => new ScratchSettings(provider.GetRequiredService<AvalaPaths>().Folder("scratch")))
             .AddSingleton<IScratchRepositories, ScratchRepositories>()
             .AddSingleton<IRemoteRepositories, GitRemotes>()
+            .AddSingleton<IRepositoryIndex, GitIndex>()
             .AddSingleton<IGitChanges, GitChangesCli>()
             .AddSingleton<IWorkspaceChanges, WorkspaceChanges>()
             .AddSingleton(provider => new ProjectsSettings(

@@ -121,6 +121,7 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IRemoteJobs>(new FakeJobs())
             .AddSingleton<IJobMessages>(new FakeJobs())
             .AddSingleton<IJobAttachments>(new FakeJobAttachments())
+            .AddSingleton<Avala.Workspaces.Contracts.IRepositoryIndex>(new FakeRepositoryIndex())
             .AddSingleton<IPermissionAudit>(audit)
             .AddSingleton<IBudgets>(audit)
             .AddSingleton<IResources>(sources)

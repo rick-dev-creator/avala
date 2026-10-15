@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.MentionRowView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IMentionRowViewModel">
+  <Design.DataContext>
+    <conversation:DesignMentionRowViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#Row">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    </Style>
+    <Style Selector="Button#Row.selected">
+      <Setter Property="Background" Value="{DynamicResource FillSubtleBrush}" />
+    </Style>
+    <Style Selector="TextBlock#Detail">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Row"
+          Classes.selected="{Binding IsSelected}"
+          HorizontalAlignment="Stretch"
+          HorizontalContentAlignment="Stretch"
+          Padding="8,5"
+          Focusable="False"
+          Command="{Binding ChooseCommand}"
+          AutomationProperties.Name="{Binding Label, StringFormat='Mention {0}'}">
+    <Grid ColumnDefinitions="Auto,*" >
+      <TextBlock x:Name="Label" TextTrimming="CharacterEllipsis" MaxWidth="320" VerticalAlignment="Center" Text="{Binding Label}" />
+      <TextBlock x:Name="Detail" Grid.Column="1" Classes="caption" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" HorizontalAlignment="Right" Text="{Binding Detail}" />
+    </Grid>
+  </Button>
+</UserControl>

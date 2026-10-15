@@ -8,6 +8,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Cards;
 using Avala.Workbench.Harnesses;
+using Avala.Workbench.Mentioning;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Review;
@@ -21,6 +22,8 @@ namespace Avala.Workbench.Conversation;
 internal sealed partial class DesignComposerViewModel : IComposerViewModel
 {
     public IAttachmentTrayViewModel Attachments { get; init; } = new DesignAttachmentTrayViewModel();
+
+    public IMentionsViewModel Mentions { get; init; } = new DesignMentionsViewModel { IsOpen = false };
 
     public DesignComposerViewModel()
         : this(JobStatus.Running)
@@ -585,4 +588,38 @@ internal sealed class DesignAttachmentTrayViewModel : IAttachmentTrayViewModel
     public IAsyncRelayCommand<IReadOnlyList<string>> DropCommand { get; init; } = new AsyncRelayCommand<IReadOnlyList<string>>(_ => Task.CompletedTask);
 
     public IAsyncRelayCommand<Avala.Components.Attaching.Pasted> PasteCommand { get; init; } = new AsyncRelayCommand<Avala.Components.Attaching.Pasted>(_ => Task.CompletedTask);
+}
+
+internal sealed class DesignMentionsViewModel : IMentionsViewModel
+{
+    public IReadOnlyList<IMentionRowViewModel> Suggestions { get; init; } =
+    [
+        new DesignMentionRowViewModel { Label = "src/Checkout/PriceRounding.cs", Detail = "file", IsSelected = true },
+        new DesignMentionRowViewModel { Label = "src/Checkout/", Detail = "folder", Kind = MentionKind.Folder },
+        new DesignMentionRowViewModel { Label = "a3f9c21", Detail = "Round prices to the currency's minor unit", Kind = MentionKind.Commit },
+        new DesignMentionRowViewModel { Label = "Fix the checkout rounding", Detail = "job", Kind = MentionKind.Job },
+    ];
+
+    public bool IsOpen { get; init; } = true;
+
+    public IRelayCommand NextCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand PreviousCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand ChooseCommand { get; } = new RelayCommand(() => { });
+
+    public IRelayCommand DismissCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignMentionRowViewModel : IMentionRowViewModel
+{
+    public string Label { get; init; } = "src/Checkout/PriceRounding.cs";
+
+    public string Detail { get; init; } = "file";
+
+    public MentionKind Kind { get; init; }
+
+    public bool IsSelected { get; init; }
+
+    public IRelayCommand ChooseCommand { get; init; } = new RelayCommand(() => { });
 }

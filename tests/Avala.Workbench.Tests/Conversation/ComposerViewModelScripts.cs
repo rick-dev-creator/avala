@@ -34,6 +34,23 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
     }
 
     [Fact]
+    public async Task ChoosingAMentionPutsItInTheDraftAndSendingAddsWhatItRefersToAsync()
+    {
+        var composer = Composer(JobStatus.NeedsHelp, Composing.Mentioning(new Worktree(), "src/Checkout/Rounding.cs"));
+        var mentions = (MentionsViewModel)composer.Mentions;
+        composer.Draft = "Look at @Rou";
+        await mentions.Looking;
+
+        mentions.ChooseCommand.Execute(null);
+        var chosen = composer.Draft;
+        composer.Draft += "first";
+        await composer.SendCommand.ExecuteAsync(null);
+
+        Assert.Equal("Look at @src/Checkout/Rounding.cs ", chosen);
+        Assert.Equal("Look at @src/Checkout/Rounding.cs first\n\nReferenced:\n- @src/Checkout/Rounding.cs: the file src/Checkout/Rounding.cs in the job's worktree", jobs.Messages[^1].Text);
+    }
+
+    [Fact]
     public async Task ASentMessageContinuesTheJobAndClearsTheDraft()
     {
         var composer = Composer(JobStatus.NeedsHelp);
@@ -237,14 +254,16 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
 
     private ComposerViewModel Composer(JobStatus status, bool takesMessagesMidTurn = false) => Composer(status, jobs, takesMessagesMidTurn);
 
-    private ComposerViewModel Composer(JobStatus status, IJobs steered, bool takesMessagesMidTurn = false)
+    private ComposerViewModel Composer(JobStatus status, MentionsViewModel mentions) => Composer(status, jobs, false, mentions);
+
+    private ComposerViewModel Composer(JobStatus status, IJobs steered, bool takesMessagesMidTurn = false, MentionsViewModel? mentions = null)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
         shown = new BoardJob(summary, Transcript.Empty) { TakesMessagesMidTurn = takesMessagesMidTurn };
         jobs.Status = status;
         jobs.Steerable = takesMessagesMidTurn;
         queue = new QueuedMessages((IJobMessages)steered);
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), new ComposerTools(keys, Composing.Trays().Open()), Composing.Harness(summary.Job));
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), mentions is null ? Composing.Tools(keys, summary.Job) : Composing.Tools(keys, summary.Job) with { Mentions = mentions }, Composing.Harness(summary.Job));
         composer.Track(shown);
 
         return composer;

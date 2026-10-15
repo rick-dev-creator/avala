@@ -110,11 +110,25 @@
                  focusing:Refocus.Signal="{Binding Edits}"
                  AutomationProperties.Name="Message">
           <TextBox.KeyBindings>
+            <KeyBinding Gesture="Down" Command="{Binding Mentions.NextCommand}" />
+            <KeyBinding Gesture="Up" Command="{Binding Mentions.PreviousCommand}" />
+            <KeyBinding Gesture="Enter" Command="{Binding Mentions.ChooseCommand}" />
+            <KeyBinding Gesture="Tab" Command="{Binding Mentions.ChooseCommand}" />
+            <KeyBinding Gesture="Escape" Command="{Binding Mentions.DismissCommand}" />
             <KeyBinding Gesture="{x:Static copying:Hotkeys.Enter}" Command="{Binding EnterCommand}" />
             <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandEnter}" Command="{Binding SendCommand}" />
             <KeyBinding Gesture="Escape" Command="{Binding InterruptCommand}" />
           </TextBox.KeyBindings>
         </TextBox>
+        <Popup x:Name="MentionsPopup"
+               Grid.Row="1"
+               PlacementTarget="Field"
+               Placement="TopEdgeAlignedLeft"
+               VerticalOffset="-6"
+               IsLightDismissEnabled="False"
+               IsOpen="{Binding Mentions.IsOpen}">
+          <ContentControl x:Name="Mentions" Content="{Binding Mentions}" />
+        </Popup>
         <Button x:Name="Attach"
                 Grid.Row="1"
                 Grid.Column="1"

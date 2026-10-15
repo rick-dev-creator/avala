@@ -29,5 +29,19 @@ internal static class ConversationScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [RemoteControl, Attachments];
+    public static Scenario Mentions { get; } = new("mentions",
+    [
+        [
+            Message("The rounding module is in place."),
+            .. Bill(2_100, 140, 0.0110m, 0.10),
+            new Finish(),
+        ],
+        [
+            new Recall(new ItemId("told")),
+            .. Bill(2_300, 90, 0.0100m, 0.11),
+            new Finish(),
+        ],
+    ]);
+
+    public static IReadOnlyList<Scenario> All { get; } = [RemoteControl, Attachments, Mentions];
 }

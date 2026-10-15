@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.MentionsView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IMentionsViewModel">
+  <Design.DataContext>
+    <conversation:DesignMentionsViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#List">
+      <Setter Property="Background" Value="{DynamicResource SurfaceComposerBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowComposer}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="List" BorderThickness="1" Padding="4" MinWidth="320" MaxWidth="560">
+    <ItemsControl x:Name="Suggestions" ItemsSource="{Binding Suggestions}" AutomationProperties.Name="Mentions" />
+  </Border>
+</UserControl>
