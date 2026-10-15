@@ -18,6 +18,8 @@ internal sealed class SimulatedSession : IAgentSession
     private readonly Stagecraft craft;
     private readonly Adaptation adaptation;
     private readonly bool midTurn;
+    private readonly bool remotely;
+    private RemoteControl remote = RemoteControl.Off;
     private Option<Conversation> conversation;
     private Option<Act> act;
     private bool closed;
@@ -37,6 +39,7 @@ internal sealed class SimulatedSession : IAgentSession
             new ReplyGate<ToolResult>(stage, AgentError.NoPendingCall),
             Channel.CreateUnbounded<string>());
         midTurn = capabilities.Has<AcceptsMessagesMidTurn>();
+        remotely = capabilities.Has<ControlsRemotely>();
         performer = new Performer(options, craft, gates, capabilities);
         adaptation = new Adaptation(capabilities);
         this.options = options;
@@ -83,6 +86,9 @@ internal sealed class SimulatedSession : IAgentSession
             },
             () => Task.FromResult(Result<TurnId, AgentError>.Failure(AgentError.NoTurnInProgress)));
 
+    public async ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(bool on, CancellationToken cancellationToken) =>
+        await stage.RunAsync(token => RemoteAsync(on, token), cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         var conducted = await stage.RunAsync(
@@ -99,6 +105,34 @@ internal sealed class SimulatedSession : IAgentSession
         await conducted;
         await stage.DisposeAsync();
         lifetime.Dispose();
+    }
+
+    private async Task<Result<RemoteState, AgentError>> RemoteAsync(bool on, CancellationToken cancellationToken)
+    {
+        if (closed)
+        {
+            return AgentError.SessionClosed;
+        }
+
+        if (!remotely)
+        {
+            return AgentError.NotRemoteControllable;
+        }
+
+        if (on != remote.IsOn)
+        {
+            remote = on ? new RemoteControl(RemoteState.Connected) { Link = $"https://remote.simulator.invalid/session/{Id.Value:N}" } : RemoteControl.Off;
+            events.Writer.TryWrite(new RemoteControlChanged(Id, remote));
+            await DeviceAsync(cancellationToken);
+        }
+
+        return remote.State;
+    }
+
+    private async Task DeviceAsync(CancellationToken cancellationToken)
+    {
+        var sent = !closed && remote.State == RemoteState.Connected && act.IsNone ? conversation.Bind(known => known.FromDevice) : Option<string>.None;
+        await sent.Match(text => BeginAsync(new UserTurn(text), cancellationToken), () => Task.FromResult(Result<TurnId, AgentError>.Failure(AgentError.NoTurnInProgress)));
     }
 
     private IEnumerable<IAgentEvent> Unheard(TurnId turn, IgnoreInterrupt unheard) =>
@@ -220,6 +254,11 @@ internal sealed class SimulatedSession : IAgentSession
         }
 
         events.Writer.TryWrite(cue);
+
+        if (ends)
+        {
+            await stage.RunAsync(DeviceAsync, CancellationToken.None);
+        }
 
         return ends;
     }

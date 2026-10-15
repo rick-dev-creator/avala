@@ -6,6 +6,7 @@ namespace Avala.ClaudeCode.Conversations;
 internal sealed class Commands
 {
     private readonly HashSet<string> waiting = new(StringComparer.Ordinal);
+    private readonly HashSet<string> sent = new(StringComparer.Ordinal);
     private bool tracked;
     private bool running;
     private int queued;
@@ -18,10 +19,13 @@ internal sealed class Commands
     {
         var command = Guid.NewGuid().ToString();
         waiting.Add(command);
+        sent.Add(command);
         queued += midTurn ? 1 : 0;
 
         return command;
     }
+
+    public bool Ours(JsonNode lifecycle) => sent.Contains(lifecycle.TextOr("command_uuid", string.Empty));
 
     public void Report(JsonNode lifecycle)
     {

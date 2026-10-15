@@ -21,5 +21,7 @@ public interface IAgents
 
     ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken);
 
+    ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(SessionId session, bool on, CancellationToken cancellationToken);
+
     ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken);
 }

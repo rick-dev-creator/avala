@@ -31,6 +31,9 @@ internal sealed class RecordedSession(IAgentSession inner, string workingDirecto
     public ValueTask<Result<TurnId, AgentError>> InterruptAsync(CancellationToken cancellationToken) =>
         InputAsync(sequence => new Interrupted(sequence), () => inner.InterruptAsync(cancellationToken));
 
+    public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(bool on, CancellationToken cancellationToken) =>
+        inner.ControlRemotelyAsync(on, cancellationToken);
+
     public async ValueTask DisposeAsync()
     {
         Volatile.Write(ref stopped, true);

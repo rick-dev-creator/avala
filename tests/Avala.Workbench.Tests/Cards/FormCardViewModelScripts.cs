@@ -108,6 +108,8 @@ public sealed class FormCardViewModelScripts
 
         public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) => inner.InterruptAsync(session, cancellationToken);
 
+        public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(SessionId session, bool on, CancellationToken cancellationToken) => inner.ControlRemotelyAsync(session, on, cancellationToken);
+
         public ValueTask<Result<AgentTurn, AgentError>> SteerAsync(SessionId session, string message, CancellationToken cancellationToken) => inner.SteerAsync(session, message, cancellationToken);
 
         public ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken) => inner.StopAsync(session, cancellationToken);
@@ -133,6 +135,8 @@ public sealed class FormCardViewModelScripts
         public ValueTask<Result<ItemId, AgentError>> ReturnAsync(SessionId session, ToolResult result, CancellationToken cancellationToken) => inner.ReturnAsync(session, result, cancellationToken);
 
         public ValueTask<Result<TurnId, AgentError>> InterruptAsync(SessionId session, CancellationToken cancellationToken) => inner.InterruptAsync(session, cancellationToken);
+
+        public ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(SessionId session, bool on, CancellationToken cancellationToken) => inner.ControlRemotelyAsync(session, on, cancellationToken);
 
         public ValueTask<Result<AgentTurn, AgentError>> SteerAsync(SessionId session, string message, CancellationToken cancellationToken) => inner.SteerAsync(session, message, cancellationToken);
 

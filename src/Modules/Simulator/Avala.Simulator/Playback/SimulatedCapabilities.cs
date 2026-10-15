@@ -39,13 +39,15 @@ internal static class SimulatedCapabilities
 
     public static ReportsLimits SubscriptionLimits { get; } = new(["5h", "7d", "7d opus", "7d sonnet"]);
 
+    public const string RemoteSetting = "startsRemote";
+
     private static readonly CapabilitySet Subscription = Declared.With(SubscriptionLimits, new ReportsCost("USD") { Basis = CostBasis.ApiEquivalent });
 
     public static CapabilitySet On(ConnectionEnvironment connection) => On(SimulatedProvider.Id, connection);
 
     public static CapabilitySet On(string provider, ConnectionEnvironment connection)
     {
-        var declared = (connection.ApiKey.IsSome ? Declared : Subscription).With(Models(provider, connection));
+        var declared = (connection.ApiKey.IsSome ? Declared : Subscription.With(new ControlsRemotely { StartsOn = connection.Settings.ContainsKey(RemoteSetting) })).With(Models(provider, connection));
         var surfaced = connection.Settings.TryGetValue(SurfacesSetting, out var surfaces)
             ? declared.With(new AcceptsTools([.. Names(surfaces).SelectMany(Surface)]))
             : declared;
@@ -87,6 +89,7 @@ internal static class SimulatedCapabilities
         (nameof(ReportsContext), declared => declared.Without<ReportsContext>()),
         (nameof(ReportsLimits), declared => declared.Without<ReportsLimits>()),
         (nameof(OffersModels), declared => declared.Without<OffersModels>()),
+        (nameof(ControlsRemotely), declared => declared.Without<ControlsRemotely>()),
     ];
 
     private static CapabilitySet Remove(CapabilitySet declared, string component) =>

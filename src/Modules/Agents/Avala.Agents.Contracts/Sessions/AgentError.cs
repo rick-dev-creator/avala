@@ -17,4 +17,5 @@ public enum AgentError
     UnofferedModel,
     UnofferedEffort,
     InterruptUnconfirmed,
+    NotRemoteControllable,
 }

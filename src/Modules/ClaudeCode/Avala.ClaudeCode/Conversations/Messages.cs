@@ -26,6 +26,8 @@ internal static class Messages
         },
     });
 
+    public static JsonNode RemoteControl(bool on, string id) => Request(id, new JsonObject { ["subtype"] = "remote_control", ["enabled"] = on });
+
     public static JsonNode Interrupt(int number) => Request($"avala-interrupt-{number}", new JsonObject { ["subtype"] = "interrupt" });
 
     public static JsonNode Success(string requestId, JsonNode response) => new JsonObject

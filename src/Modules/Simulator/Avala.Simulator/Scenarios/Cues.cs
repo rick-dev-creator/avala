@@ -52,6 +52,7 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         ReportContext context => [new ContextReported(Session, Turn, context.Used, context.Window) { Compacted = context.Compacted }],
         Open open => [Opened(open.Item, open.Kind, open.Title)],
         Recall recall => Stream(Opened(recall.Item, ItemKind.Message, "Reply"), recall.Item, ["I was told: ", Told]),
+        FromDevice device when device.Text == Told => [new RemoteMessageArrived(Session, Turn, device.Text) { BeganTurn = true }],
         Finish => [Ended(TurnOutcome.Finished)],
         _ => [],
     };

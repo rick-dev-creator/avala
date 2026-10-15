@@ -92,6 +92,7 @@ internal static class CommandLine
             "--verbose",
             "--include-partial-messages",
             "--forward-subagent-text",
+            "--replay-user-messages",
             "--permission-mode", "default",
             "--permission-prompt-tool", Qualified(PermissionTool),
             "--mcp-config", servers.ToJsonString(),

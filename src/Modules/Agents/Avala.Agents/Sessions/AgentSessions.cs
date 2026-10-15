@@ -33,7 +33,7 @@ internal sealed partial class AgentSessions(
             cancellationToken);
         ImmutableInterlocked.TryAdd(ref live, session.Id, new LiveSession(session, started.Capabilities, PumpAsync));
 
-        return new OpenedSession(session.Id, started.Resumed, started.Connection);
+        return new OpenedSession(session.Id, started.Resumed, started.Connection) { Capabilities = started.Capabilities };
     }
 
     public bool IsOpen(SessionId session) => Volatile.Read(ref live).TryGetValue(session, out var running) && !running.Ended;
@@ -88,6 +88,11 @@ internal sealed partial class AgentSessions(
         : !running.Capabilities.Has<Interruptible>() ? AgentError.Unsupported
         : await ConfirmedAsync(running, cancellationToken);
 
+    public async ValueTask<Result<RemoteState, AgentError>> ControlRemotelyAsync(SessionId session, bool on, CancellationToken cancellationToken) =>
+        !Volatile.Read(ref live).TryGetValue(session, out var running) ? AgentError.SessionClosed
+        : !running.Capabilities.Has<ControlsRemotely>() ? AgentError.NotRemoteControllable
+        : await running.Session.ControlRemotelyAsync(on, cancellationToken);
+
     public async ValueTask<Result<SessionId, AgentError>> StopAsync(SessionId session, CancellationToken cancellationToken)
     {
         if (!ImmutableInterlocked.TryRemove(ref live, session, out var running))
@@ -136,6 +141,13 @@ internal sealed partial class AgentSessions(
             await foreach (var reported in session.Events.WithCancellation(cancellationToken))
             {
                 var agentEvent = running.Priced(reported);
+
+                if (agentEvent is RemoteControlChanged changed)
+                {
+                    await bus.PublishAsync(new RemoteControlReported(changed.Session, changed.Control), cancellationToken);
+                    continue;
+                }
+
                 var applied = agentEvent is TurnStarted started
                     ? Turn.Begin(started).Map(begun =>
                     {
@@ -198,6 +210,9 @@ internal sealed partial class AgentSessions(
                             Limit = completed.Outcome == TurnOutcome.LimitReached ? limit : Option<UsageLimit>.None,
                         },
                         cancellationToken);
+                    break;
+                case RemoteMessageArrived arrived:
+                    await bus.PublishAsync(new RemoteMessageReceived(arrived.Session, arrived.Turn, arrived.Text) { BeganTurn = arrived.BeganTurn }, cancellationToken);
                     break;
                 case ResumeTokenIssued issued when running.Capabilities.Has<Resumable>():
                     await bus.PublishAsync(new SessionResumable(issued.Session, issued.Token), cancellationToken);
