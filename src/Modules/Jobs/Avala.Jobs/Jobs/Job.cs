@@ -72,10 +72,10 @@ internal sealed class Job : IAggregateRoot<JobId>
         Option<ConnectionName> connection = default,
         Option<JobId> parent = default,
         Option<ModelChoice> model = default,
-        IReadOnlyList<Attachment>? attachments = null) =>
+        Option<IReadOnlyList<Attachment>> attachments = default) =>
         new Job(id, instruction, budget, repository)
         {
-            Attachments = attachments ?? [],
+            Attachments = attachments.Match(attached => attached, () => []),
             Submitted = submitted,
             Autonomy = autonomy,
             Connection = connection,
