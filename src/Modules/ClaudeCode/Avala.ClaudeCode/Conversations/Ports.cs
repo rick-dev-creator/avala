@@ -26,3 +26,10 @@ internal interface IConfigurationFolders
 
     Task<IReadOnlyList<JsonNode>> EarlierAsync(ConnectionEnvironment connection, Guid conversation, CancellationToken cancellationToken);
 }
+
+internal interface IPhoneStart
+{
+    bool StartsOn { get; }
+
+    Task<bool> ChooseAsync(bool on, CancellationToken cancellationToken);
+}

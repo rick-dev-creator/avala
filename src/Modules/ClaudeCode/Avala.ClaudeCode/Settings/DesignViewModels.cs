@@ -48,4 +48,10 @@ internal sealed class DesignClaudeCodeSettingsViewModel : IClaudeCodeSettingsVie
     ];
 
     public bool HasLogins => Logins.Count > 0;
+
+    public bool StartsOnPhone { get; init; } = true;
+
+    public bool HasProblem { get; init; }
+
+    public IAsyncRelayCommand ToggleStartsOnPhoneCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }

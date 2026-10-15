@@ -8,13 +8,13 @@ using Avala.Sdk;
 
 namespace Avala.ClaudeCode.Conversations;
 
-internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders, UserHome home, ImplicitSignIn signIn) : IAgentProvider
+internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders, UserHome home, IPhoneStart phone) : IAgentProvider
 {
     public const string Id = "claude-code";
 
     public const string InstallCommand = "npm install -g @anthropic-ai/claude-code";
 
-    public ProviderInfo Info { get; } = new(Id, "Claude Code") { OffersImplicitConnection = signIn.IsAvailable, Install = InstallCommand, SignIn = "claude" };
+    public ProviderInfo Info { get; } = new(Id, "Claude Code") { OffersImplicitConnection = home.SignsInImplicitly, Install = InstallCommand, SignIn = "claude" };
 
     private static readonly CapabilitySet Declared = CapabilitySet.Of(
         new StreamsPartialOutput(),
@@ -36,7 +36,7 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         new ReportsCost(Telemetry.Currency) { Basis = CostBasis.ApiEquivalent });
 
     public CapabilitySet CapabilitiesOn(ConnectionEnvironment connection) =>
-        (connection.ApiKey.IsSome ? Declared : Subscription).With(ClaudeModels.On(connection));
+        (connection.ApiKey.IsSome ? Declared : Subscription.With(new ControlsRemotely { StartsOn = phone.StartsOn })).With(ClaudeModels.On(connection));
 
     public async ValueTask<Result<IAgentSession, AgentError>> StartAsync(SessionOptions options, CancellationToken cancellationToken)
     {

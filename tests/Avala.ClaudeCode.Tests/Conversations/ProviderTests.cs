@@ -54,6 +54,17 @@ public sealed class ProviderTests
         Assert.Contains("CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS", launch.Cleared);
     }
 
+    [Fact]
+    public async Task ASessionAsksClaudeCodeToEchoTheMessagesItReceivesSoThatADevicesMessagesReachAvalaAsync()
+    {
+        using var folder = new TemporaryFolder();
+        var cli = new FakeCli();
+
+        await using var session = Started(await Provider(cli).StartAsync(new SessionOptions(folder.Path, PermissionMode.AskEveryTime), Cancellation));
+
+        Assert.Contains("--replay-user-messages", cli.Launches.Single().Arguments);
+    }
+
     [Theory]
     [InlineData(null, null, "user,project,local", true)]
     [InlineData("true", "false", "user,project,local", true)]
@@ -300,7 +311,22 @@ public sealed class ProviderTests
                 new ReportsUsage(),
                 new ReportsContext(),
                 new ReportsCost("USD") { Basis = limits ? CostBasis.ApiEquivalent : CostBasis.Billed }),
-            declared.Without<ReportsLimits>().Without<OffersModels>());
+            declared.Without<ReportsLimits>().Without<OffersModels>().Without<ControlsRemotely>());
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, true)]
+    public void OnlyASubscriptionLoginCanBeControlledRemotelyAndItsJobsStartSoWhenTheSwitchIsOn(bool key, bool startsOn, bool expected)
+    {
+        var connection = new ConnectionEnvironment { ApiKey = key ? new Secret("sk-ant-1") : Option<Secret>.None };
+        var home = new UserHome(HostPaths.Rooted("/home/ana"), []);
+
+        var declared = new ClaudeCodeProvider(new FakeCli(), new ConfigurationFolders(home), home, new FixedPhoneStart(startsOn)).CapabilitiesOn(connection);
+        var withKey = new ClaudeCodeProvider(new FakeCli(), new ConfigurationFolders(home), home, new FixedPhoneStart(startsOn)).CapabilitiesOn(connection with { ApiKey = new Secret("sk-ant-1") });
+
+        Assert.Equal(expected, Outcomes.Present(declared.Get<ControlsRemotely>()).StartsOn);
+        Assert.False(withKey.Has<ControlsRemotely>());
     }
 
     [Fact]
@@ -428,7 +454,7 @@ public sealed class ProviderTests
     private static ClaudeCodeProvider Provider(FakeCli cli, string? home = null) =>
         Provider(cli, new UserHome(home ?? Path.Combine(Path.GetTempPath(), "avala-no-home"), []));
 
-    private static ClaudeCodeProvider Provider(FakeCli cli, UserHome home) => new(cli, new ConfigurationFolders(home), home, new ImplicitSignIn(true));
+    private static ClaudeCodeProvider Provider(FakeCli cli, UserHome home) => new(cli, new ConfigurationFolders(home), home with { SignsInImplicitly = true }, new FixedPhoneStart());
 
     private static IAgentSession Started(Result<IAgentSession, AgentError> started) =>
         started.Match(session => session, error => throw new InvalidOperationException(error.ToString()));

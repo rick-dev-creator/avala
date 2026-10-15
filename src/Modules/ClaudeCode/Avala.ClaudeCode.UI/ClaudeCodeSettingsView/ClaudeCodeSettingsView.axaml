@@ -11,8 +11,27 @@
   <StackPanel Spacing="8">
     <StackPanel Orientation="Horizontal" Spacing="10">
       <TextBlock Classes="section" Text="Claude Code" VerticalAlignment="Bottom" />
-      <TextBlock Classes="hint" Text="how each login summarizes long conversations" VerticalAlignment="Bottom" />
+      <TextBlock Classes="hint" Text="for every login" VerticalAlignment="Bottom" />
     </StackPanel>
+    <Border Classes="grouped">
+      <StackPanel>
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="StartsOnPhone"
+                        DockPanel.Dock="Right"
+                        OnContent=""
+                        OffContent=""
+                        IsChecked="{Binding StartsOnPhone, Mode=OneWay}"
+                        Command="{Binding ToggleStartsOnPhoneCommand}"
+                        AutomationProperties.Name="Start jobs on your phone" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Start jobs on your phone" />
+            <TextBlock Classes="caption" Text="Every job you start, and every chat, begins with Remote Control on, so it is already in the Claude app. Jobs it delegates never do. Its own header turns it on or off." TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+        <TextBlock x:Name="PhoneProblem" Classes="caption failure" Margin="16,0,16,12" Text="The switch could not be saved." IsVisible="{Binding HasProblem}" />
+      </StackPanel>
+    </Border>
+    <TextBlock Classes="hint" Margin="4,14,0,0" Text="how each login summarizes long conversations" />
     <ItemsControl x:Name="Logins" ItemsSource="{Binding Logins}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate>
