@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.AttachmentTrayView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IAttachmentTrayViewModel">
+  <Design.DataContext>
+    <conversation:DesignAttachmentTrayViewModel />
+  </Design.DataContext>
+  <StackPanel>
+    <ItemsControl x:Name="Chips" ItemsSource="{Binding Chips}" IsVisible="{Binding HasAttachments}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+    <TextBlock x:Name="Problem" Classes="caption attention" Margin="0,0,0,6" TextWrapping="Wrap" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" />
+  </StackPanel>
+</UserControl>

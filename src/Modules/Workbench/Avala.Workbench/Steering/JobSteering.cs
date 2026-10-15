@@ -13,6 +13,9 @@ internal enum MessageDelivery
 internal sealed class JobSteering(IJobs jobs, QueuedMessages queue)
 {
     public Task<Result<MessageDelivery, JobRejection>> SendAsync(JobId job, JobStatus shown, string message, CancellationToken cancellationToken) =>
+        SendAsync(job, shown, new JobMessage(message), cancellationToken);
+
+    public Task<Result<MessageDelivery, JobRejection>> SendAsync(JobId job, JobStatus shown, JobMessage message, CancellationToken cancellationToken) =>
         queue.DeliverAsync(job, shown, message, cancellationToken);
 
     public Option<string> Queued(JobId job) => queue.Find(job);

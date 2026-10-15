@@ -45,21 +45,6 @@ internal static class ScenarioCatalog
         ],
     ]);
 
-    public static Scenario RemoteControl { get; } = new("remote-control",
-    [
-        [
-            Message("I added the refund endpoint."),
-            .. Bill(3_200, 410, 0.0210m, 0.12),
-            new Finish(),
-        ],
-        [
-            new FromDevice("Also cover partial refunds"),
-            Message("Partial refunds are covered by the tests now."),
-            .. Bill(3_900, 520, 0.0260m, 0.14),
-            new Finish(),
-        ],
-    ]);
-
     public static Scenario Edit { get; } = new("edit",
     [
         [
@@ -533,7 +518,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        LargeContext, RemoteControl, Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All,
+        LargeContext, .. ConversationScenarios.All, Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";

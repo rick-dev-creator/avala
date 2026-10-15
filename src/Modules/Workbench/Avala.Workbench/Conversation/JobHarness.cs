@@ -67,6 +67,8 @@ internal sealed class JobHarness
 
     public Task Moving { get; private set; } = Task.CompletedTask;
 
+    public Option<AcceptsAttachments> Attachments => capabilities.Get<AcceptsAttachments>();
+
     public Option<ColdConversation> Cold() =>
         shown.Bind(job => capabilities.Get<CachesPrompt>().Bind(cache =>
             job.Transcript.QuietSince.Bind(quiet => job.Transcript.Context.Bind(context =>

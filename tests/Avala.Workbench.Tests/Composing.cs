@@ -10,7 +10,9 @@ namespace Avala.Workbench.Tests;
 
 internal static class Composing
 {
-    public static Composers Of(JobSteering steering, SendKeys keys) => new(steering, keys, Harnesses(new FakeJobs(), new FakeHandoffRequests(), new FakeConnections()));
+    public static Composers Of(JobSteering steering, SendKeys keys) => new(steering, keys, Harnesses(new FakeJobs(), new FakeHandoffRequests(), new FakeConnections()), Trays());
+
+    public static AttachmentTrays Trays() => new(new FakeJobAttachments(), new FakeFilePicker(), new FakePictures());
 
     public static JobHarnesses Harnesses(IJobs jobs, IHandoffRequests handoffs, IConnections connections) =>
         new(new JobSwitching(jobs, handoffs, connections), new NewJobReadings(Pages.Readings(new FakeUsage())));

@@ -105,7 +105,7 @@ internal sealed record Transcript
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
         ItemCompleted completed => Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
-        MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text)),
+        MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text) { Attachments = queued.Attachments }),
         RemoteMessageArrived { BeganTurn: false } arrived => Add(new InterjectionEntry(EntryKeys.Interjection(arrived.Turn, Entries.Count), arrived.Text) { FromDevice = true }),
         PlanUpdated plan => Put(new PlanEntry(EntryKeys.Plan(plan.Turn), plan.Steps)),
         UsageReported usage => Tally(usage.Turn, tally => tally.Add(usage.Tokens, usage.Cost)),
@@ -193,6 +193,7 @@ internal sealed record Transcript
             attempt.Outcome)
         {
             Handoff = Handoffs.TryGetValue(attempt.Number, out var handoff) ? handoff : Option<HandoffRecord>.None,
+            Attachments = attempt.Attachments,
         };
 
     private Transcript Drafted(ItemDrafted drafted)

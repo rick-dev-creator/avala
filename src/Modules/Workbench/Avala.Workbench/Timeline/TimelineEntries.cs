@@ -16,6 +16,8 @@ internal interface ITimelineEntry
 
 internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin, Option<string> Text, Option<AttemptOutcome> Outcome) : ITimelineEntry
 {
+    public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+
     public Option<HandoffRecord> Handoff { get; init; }
 }
 
@@ -24,6 +26,8 @@ internal sealed record RestartEntry(string Key, bool Kept) : ITimelineEntry;
 internal sealed record InterjectionEntry(string Key, string Text) : ITimelineEntry
 {
     public bool FromDevice { get; init; }
+
+    public IReadOnlyList<Attachment> Attachments { get; init; } = [];
 }
 
 internal sealed record MessageEntry(string Key, string Text, Option<ItemOutcome> Outcome) : ITimelineEntry;

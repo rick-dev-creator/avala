@@ -5,16 +5,16 @@ using Avala.Sdk.Events;
 
 namespace Avala.Workbench.Steering;
 
-internal sealed class QueuedMessages(IJobs jobs) : IHandle<JobProgressed>, IAsyncDisposable
+internal sealed class QueuedMessages(IJobMessages jobs) : IHandle<JobProgressed>, IAsyncDisposable
 {
     private readonly SerialExecutor owner = new();
-    private ImmutableDictionary<JobId, string> queued = ImmutableDictionary<JobId, string>.Empty;
+    private ImmutableDictionary<JobId, JobMessage> queued = ImmutableDictionary<JobId, JobMessage>.Empty;
 
-    public Option<string> Find(JobId job) => Volatile.Read(ref queued).GetValueOrDefault(job).ToOption();
+    public Option<string> Find(JobId job) => Volatile.Read(ref queued).TryGetValue(job, out var message) ? message.Text : Option<string>.None;
 
     public bool Withdraw(JobId job) => ImmutableInterlocked.TryRemove(ref queued, job, out _);
 
-    public Task<Result<MessageDelivery, JobRejection>> DeliverAsync(JobId job, JobStatus shown, string message, CancellationToken cancellationToken) =>
+    public Task<Result<MessageDelivery, JobRejection>> DeliverAsync(JobId job, JobStatus shown, JobMessage message, CancellationToken cancellationToken) =>
         owner.RunAsync(token => DeliveredAsync(job, shown, message, token), cancellationToken);
 
     public Task<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, CancellationToken cancellationToken) =>
@@ -25,7 +25,7 @@ internal sealed class QueuedMessages(IJobs jobs) : IHandle<JobProgressed>, IAsyn
 
     public ValueTask DisposeAsync() => owner.DisposeAsync();
 
-    private async Task<Result<MessageDelivery, JobRejection>> DeliveredAsync(JobId job, JobStatus shown, string message, CancellationToken cancellationToken)
+    private async Task<Result<MessageDelivery, JobRejection>> DeliveredAsync(JobId job, JobStatus shown, JobMessage message, CancellationToken cancellationToken)
     {
         Task<Result<MessageDelivery, JobRejection>> ContinuedAsync() =>
             AttemptAsync(jobs.ContinueAsync(job, message, cancellationToken), MessageDelivery.Sent, [JobRejection.NotHeld], () => Task.FromResult(Queued(job, message)));
@@ -52,7 +52,7 @@ internal sealed class QueuedMessages(IJobs jobs) : IHandle<JobProgressed>, IAsyn
             _ => Task.FromResult(Result<MessageDelivery, JobRejection>.Success(delivery)),
             rejection => elsewhere.Contains(rejection) ? otherwise() : Task.FromResult(Result<MessageDelivery, JobRejection>.Failure(rejection)));
 
-    private Result<MessageDelivery, JobRejection> Queued(JobId job, string message)
+    private Result<MessageDelivery, JobRejection> Queued(JobId job, JobMessage message)
     {
         Queue(job, message);
 
@@ -97,6 +97,6 @@ internal sealed class QueuedMessages(IJobs jobs) : IHandle<JobProgressed>, IAsyn
         }
     }
 
-    private void Queue(JobId job, string message) =>
-        ImmutableInterlocked.AddOrUpdate(ref queued, job, message, (_, earlier) => $"{earlier}\n\n{message}");
+    private void Queue(JobId job, JobMessage message) =>
+        ImmutableInterlocked.AddOrUpdate(ref queued, job, message, (_, earlier) => new JobMessage($"{earlier.Text}\n\n{message.Text}") { Attachments = [.. earlier.Attachments, .. message.Attachments] });
 }
