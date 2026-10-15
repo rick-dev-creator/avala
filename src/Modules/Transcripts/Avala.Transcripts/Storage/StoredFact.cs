@@ -26,6 +26,7 @@ internal sealed class StoredFact
         [nameof(ToolCalled)] = StoredJson.Read<ToolCalled>,
         [nameof(ToolReturned)] = StoredJson.Read<ToolReturned>,
         [nameof(MessageQueued)] = StoredJson.Read<MessageQueued>,
+        [nameof(RemoteMessageArrived)] = StoredJson.Read<RemoteMessageArrived>,
         [nameof(PlanUpdated)] = StoredJson.Read<PlanUpdated>,
         [nameof(UsageReported)] = StoredJson.Read<UsageReported>,
         [nameof(ContextReported)] = StoredJson.Read<ContextReported>,

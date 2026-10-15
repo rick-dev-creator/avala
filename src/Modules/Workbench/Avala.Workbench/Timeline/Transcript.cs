@@ -106,6 +106,7 @@ internal sealed record Transcript
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
         ItemCompleted completed => Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
         MessageQueued queued => Add(new InterjectionEntry(EntryKeys.Interjection(queued.Turn, Entries.Count), queued.Text)),
+        RemoteMessageArrived { BeganTurn: false } arrived => Add(new InterjectionEntry(EntryKeys.Interjection(arrived.Turn, Entries.Count), arrived.Text) { FromDevice = true }),
         PlanUpdated plan => Put(new PlanEntry(EntryKeys.Plan(plan.Turn), plan.Steps)),
         UsageReported usage => Tally(usage.Turn, tally => tally.Add(usage.Tokens, usage.Cost)),
         ModelReported reported => this with { Ran = reported },

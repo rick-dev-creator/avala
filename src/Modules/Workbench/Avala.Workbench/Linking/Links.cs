@@ -41,3 +41,5 @@ internal sealed class Links(ILinkOpener opener, IMessenger messenger)
             opened => opened,
             error => error == FileOpenError.Unavailable ? LinkRefusal.Unavailable : LinkRefusal.Refused);
 }
+
+internal sealed record LinkTools(IClipboard Clipboard, Links Links);

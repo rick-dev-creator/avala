@@ -18,6 +18,7 @@ public sealed class PromptViewModelScripts
     [InlineData("Reopen", "Pull request feedback", false, true)]
     [InlineData("Recovery", "Resumed after a restart", false, true)]
     [InlineData("Handoff", "Handed off", false, true)]
+    [InlineData("Device", "From your phone", true, true)]
     public void APromptSaysWhoSentItAndOnlyAFollowUpShowsItsOrigin(string origin, string phrase, bool fromPerson, bool showsOrigin) =>
         ViewModelScript.Given(new PromptViewModel(new PromptEntry("attempt:1", 1, Enum.Parse<AttemptOrigin>(origin), "Round to whole yen", Option<AttemptOutcome>.None), new FakeClipboard()))
             .Then(prompt => Assert.Equal((phrase, fromPerson, showsOrigin, string.Empty), (prompt.Origin, prompt.IsFromPerson, prompt.ShowsOrigin, prompt.Outcome)));

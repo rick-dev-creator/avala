@@ -1,0 +1,127 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:remoting="using:Avala.Workbench.Remoting"
+             xmlns:qr="using:Avala.Components.UI.QrCodes"
+             x:Class="Avala.Workbench.UI.RemoteControlView"
+             x:ClassModifier="internal"
+             x:DataType="remoting:IRemoteControlViewModel">
+  <Design.DataContext>
+    <remoting:DesignRemoteControlViewModel />
+  </Design.DataContext>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding ToggleOpenCommand}" />
+  </UserControl.KeyBindings>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Button#Phone.on">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Ellipse#Connected">
+      <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Stroke" Value="{DynamicResource SurfaceWindowBrush}" />
+    </Style>
+    <Style Selector="Border#Surface">
+      <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPopover}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowPopover}" />
+    </Style>
+    <Style Selector="Border#LinkWell">
+      <Setter Property="Background" Value="{DynamicResource FillInputBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderInputBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    </Style>
+    <Style Selector="TextBlock#Link">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}" />
+    </Style>
+    <Style Selector="Border#DeviceRow">
+      <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+    </Style>
+  </UserControl.Styles>
+  <Panel IsVisible="{Binding IsShown}">
+    <Button x:Name="Phone"
+            Classes="glyph"
+            Classes.on="{Binding IsOn}"
+            Classes.selected="{Binding IsOpen}"
+            Command="{Binding ToggleOpenCommand}"
+            ToolTip.Tip="Continue on your phone"
+            AutomationProperties.Name="Continue on your phone">
+      <Panel Width="15" Height="15">
+        <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconPhone}" />
+        <Ellipse x:Name="Connected"
+                 Width="7"
+                 Height="7"
+                 StrokeThickness="1.5"
+                 HorizontalAlignment="Right"
+                 VerticalAlignment="Top"
+                 Margin="0,-2,-3,0"
+                 IsVisible="{Binding IsConnected}" />
+      </Panel>
+    </Button>
+    <Popup x:Name="Popover"
+           IsOpen="{Binding IsOpen, Mode=TwoWay}"
+           PlacementTarget="{Binding #Phone}"
+           Placement="BottomEdgeAlignedRight"
+           VerticalOffset="6"
+           IsLightDismissEnabled="True">
+      <Border x:Name="Surface" Width="340" Padding="18" BorderThickness="1">
+        <StackPanel Spacing="14">
+          <DockPanel>
+            <ToggleSwitch x:Name="Toggle"
+                          DockPanel.Dock="Right"
+                          OnContent=""
+                          OffContent=""
+                          IsChecked="{Binding IsOn, Mode=OneWay}"
+                          Command="{Binding ToggleCommand}"
+                          AutomationProperties.Name="Remote Control for this job" />
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <TextBlock Classes="strong" Text="Continue on your phone" />
+              <TextBlock x:Name="Status" Classes="caption" Text="{Binding Status}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DockPanel>
+          <DockPanel x:Name="Connect" IsVisible="{Binding HasLink}">
+            <Border Classes="qr-paper" DockPanel.Dock="Left" VerticalAlignment="Top">
+              <qr:QrCode x:Name="Code" Width="112" Height="112" Modules="{Binding Code}" AutomationProperties.Name="QR code for the session link" />
+            </Border>
+            <StackPanel Margin="16,0,0,0" Spacing="10" VerticalAlignment="Center">
+              <TextBlock Classes="caption" Text="Scan with your phone, or open the link in the Claude app." TextWrapping="Wrap" />
+              <Border x:Name="LinkWell" BorderThickness="1" Padding="8,4,4,4">
+                <DockPanel>
+                  <Button x:Name="OpenLink"
+                          DockPanel.Dock="Right"
+                          Classes="glyph"
+                          Command="{Binding OpenLinkCommand}"
+                          ToolTip.Tip="Open in the browser"
+                          AutomationProperties.Name="Open the session link">
+                    <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconExternal}" />
+                  </Button>
+                  <Button x:Name="CopyLink"
+                          DockPanel.Dock="Right"
+                          Classes="glyph"
+                          Command="{Binding CopyLinkCommand}"
+                          ToolTip.Tip="Copy the link"
+                          AutomationProperties.Name="Copy the session link">
+                    <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconCopy}" />
+                  </Button>
+                  <TextBlock x:Name="Link" Text="{Binding Link}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                </DockPanel>
+              </Border>
+            </StackPanel>
+          </DockPanel>
+          <Border x:Name="DeviceRow" Padding="10,8" IsVisible="{Binding IsConnected}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Ellipse Width="7" Height="7" Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+              <TextBlock Classes="caption" Text="A device is connected" VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
+          <TextBlock x:Name="Problem" Classes="caption failure" Text="{Binding Problem}" IsVisible="{Binding HasProblem}" TextWrapping="Wrap" />
+          <TextBlock Classes="caption" Text="{x:Static remoting:RemotePhrases.Trust}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+    </Popup>
+  </Panel>
+</UserControl>

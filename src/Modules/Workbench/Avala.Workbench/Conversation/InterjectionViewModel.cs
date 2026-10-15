@@ -8,11 +8,15 @@ internal interface IInterjectionViewModel
     string Note { get; }
 
     string Text { get; }
+
+    bool IsFromDevice { get; }
 }
 
 internal sealed class InterjectionViewModel(InterjectionEntry entry) : IInterjectionViewModel, ITimelineItem, ITextSized
 {
-    public string Note => "You, while it worked · joined the turn";
+    public string Note => IsFromDevice ? "From your phone, while it worked · joined the turn" : "You, while it worked · joined the turn";
+
+    public bool IsFromDevice { get; } = entry.FromDevice;
 
     public string Text { get; } = entry.Text;
 

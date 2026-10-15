@@ -25,6 +25,7 @@ internal sealed class TranscriptBounds
         ToolCalled called => called with { Input = Bounded(called.Input) },
         ToolReturned returned => returned with { Result = returned.Result with { Content = Bounded(returned.Result.Content) } },
         MessageQueued queued => queued with { Text = Bounded(queued.Text) },
+        RemoteMessageArrived arrived => arrived with { Text = Bounded(arrived.Text) },
         _ => Option<IAgentEvent>.Some(activity),
     };
 

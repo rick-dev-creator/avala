@@ -39,7 +39,7 @@ internal sealed class FakeCatalog : IJobCatalog
         ValueTask.FromResult(Option<JobTree>.None);
 }
 
-internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches
+internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJobs
 {
     public List<string> Calls { get; } = [];
 
@@ -81,6 +81,9 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches
 
     public ValueTask<Result<JobId, JobRejection>> RetryAsync(JobId job, CancellationToken cancellationToken) =>
         AnswerAsync("retry", job);
+
+    public ValueTask<Result<JobRemoteControlChosen, JobRejection>> ControlRemotelyAsync(JobId job, bool on, CancellationToken cancellationToken) =>
+        AnswerAsync(on ? "remote on" : "remote off", new JobRemoteControlChosen(job, on));
 
     public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
         (Steerable ? Unless(JobStatus.Running, JobRejection.NotRunning) : JobRejection.NotSteerable) is { } refused
