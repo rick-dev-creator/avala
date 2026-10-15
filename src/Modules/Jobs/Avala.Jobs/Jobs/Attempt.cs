@@ -14,6 +14,8 @@ internal sealed class Attempt(AttemptNumber number, AttemptOrigin origin, Option
 
     public Option<SessionId> Session { get; } = session;
 
+    public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+
     public AttemptOutcome Outcome { get; private set; } = AttemptOutcome.Running;
 
     public bool IsUnderway => Outcome is AttemptOutcome.Running or AttemptOutcome.AwaitingCheck;

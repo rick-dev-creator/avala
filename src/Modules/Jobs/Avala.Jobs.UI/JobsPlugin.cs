@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Jobs.Attaching;
 using Avala.Jobs.Catalog;
 using Avala.Jobs.Contracts;
 using Avala.Jobs.Delivery;
@@ -60,6 +61,8 @@ public sealed class JobsPlugin : IPlugin
             .AddForwarded<IJobs, JobsEntry>()
             .AddForwarded<IOpenDeliveries, JobsEntry>()
             .AddForwarded<IRemoteJobs, JobsEntry>()
+            .AddForwarded<IJobMessages, JobsEntry>()
+            .AddSingleton<IJobAttachments, AttachmentFolder>()
             .AddSingleton<IJobCatalog, JobCatalog>()
             .AddSingleton<IHandle<JobAnnouncement>, PrepareJob>()
             .AddSingleton<CheckTurn>()

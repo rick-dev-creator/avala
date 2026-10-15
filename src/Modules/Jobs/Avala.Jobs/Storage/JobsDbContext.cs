@@ -5,12 +5,18 @@ using Avala.Jobs.Jobs;
 using Avala.Sdk;
 using Avala.Workspaces.Contracts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Avala.Jobs.Storage;
 
 internal sealed class JobsDbContext(string database) : DbContext
 {
+    private static readonly ValueComparer<IReadOnlyList<Attachment>> Listed = new(
+        (left, right) => (left ?? Array.Empty<Attachment>()).SequenceEqual(right ?? Array.Empty<Attachment>()),
+        attachments => attachments.Aggregate(0, (hash, attachment) => HashCode.Combine(hash, attachment)),
+        attachments => attachments.ToList());
+
     public DbSet<Job> Jobs => Set<Job>();
 
     public DbSet<StoredChoice> Choices => Set<StoredChoice>();
@@ -64,6 +70,7 @@ internal sealed class JobsDbContext(string database) : DbContext
         job.Property(entity => entity.Model).HasConversion(choice => Stored.Text(choice), text => Stored.Model(text));
         job.Property(entity => entity.Held).HasColumnName("Hold").HasConversion(hold => Stored.Text(hold), text => Stored.Hold(text));
         job.Property(entity => entity.Problem).HasConversion(problem => Stored.Text(problem), text => Stored.Problem(text));
+        job.Property(entity => entity.Attachments).HasConversion(attachments => Stored.Text(attachments), text => Stored.Attachments(text), Listed);
         job.OwnsMany(entity => entity.Attempts, Configure);
     }
 
@@ -79,6 +86,7 @@ internal sealed class JobsDbContext(string database) : DbContext
         attempt.Property(entity => entity.Guidance).HasConversion(
             option => option.Match(feedback => feedback.Text, () => string.Empty),
             text => text.Length == 0 ? Option<Feedback>.None : Option<Feedback>.Some(Stored.Feedback(text)));
+        attempt.Property(entity => entity.Attachments).HasConversion(attachments => Stored.Text(attachments), text => Stored.Attachments(text), Listed);
         attempt.Property(entity => entity.Session).HasConversion(
             option => option.Match(id => id.Value, () => Guid.Empty),
             value => value == Guid.Empty ? Option<SessionId>.None : Option<SessionId>.Some(new SessionId(value)));

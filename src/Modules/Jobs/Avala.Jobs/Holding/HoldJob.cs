@@ -48,7 +48,7 @@ internal sealed class HoldJob(JobLedger ledger, IAgents agents, IEventBus bus, J
         await job.Session.Match(
             async session => job.State != JobState.Running
                 ? JobRejection.NotRunning
-                : (await agents.SteerAsync(session, message.Text, cancellationToken)).Match(
+                : (await agents.SayAsync(session, new UserTurn(message.Text) { MidTurn = true, Attachments = message.Attachments }, cancellationToken)).Match(
                     steered => Result<JobSteered, JobRejection>.Success(new JobSteered(job.Id, steered.Session, steered.Turn)),
                     error => Result<JobSteered, JobRejection>.Failure(SteeringRejection(error))),
             () => Task.FromResult(Result<JobSteered, JobRejection>.Failure(JobRejection.NotRunning)));

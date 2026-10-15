@@ -74,6 +74,36 @@ public sealed record JobRequest(string RepositoryPath, string Instruction, int A
     public Option<ConnectionChoice> Choice { get; init; }
 
     public ModelChoice Model { get; init; } = ModelChoice.Default;
+
+    public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+}
+
+public sealed record JobMessage(string Text)
+{
+    public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+}
+
+public interface IJobMessages
+{
+    ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken);
+
+    ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken);
+
+    ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, JobMessage message, CancellationToken cancellationToken);
+}
+
+public enum AttachmentRefusal
+{
+    TooLarge,
+    Unreadable,
+    Unwritable,
+}
+
+public interface IJobAttachments
+{
+    ValueTask<Result<Attachment, AttachmentRefusal>> KeepAsync(string name, Stream content, CancellationToken cancellationToken);
+
+    ValueTask<Result<Attachment, AttachmentRefusal>> KeepFileAsync(string path, CancellationToken cancellationToken);
 }
 
 public enum ContinuedIn

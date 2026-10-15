@@ -79,6 +79,7 @@ internal static class LayerMap
             ["Storage"] = Layer.Infrastructure,
             ["Storage.Migrations"] = Layer.Infrastructure,
             ["JobFiles"] = Layer.Infrastructure,
+            ["Attaching"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Workbench", new()
         {
