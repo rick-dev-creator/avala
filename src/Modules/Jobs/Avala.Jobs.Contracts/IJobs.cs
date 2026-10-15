@@ -38,6 +38,11 @@ public interface IOpenDeliveries
     ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken);
 }
 
+public interface IRemoteJobs
+{
+    ValueTask<Result<JobRemoteControlChosen, JobRejection>> ControlRemotelyAsync(JobId job, bool on, CancellationToken cancellationToken);
+}
+
 public interface IJobLaunches
 {
     ValueTask<Result<JobId, JobRejection>> RetryAsync(JobId job, CancellationToken cancellationToken);
@@ -115,4 +120,6 @@ public enum JobRejection
     UnofferedEffort,
     NotApproved,
     NeverStarted,
+    NotRoot,
+    NotRemoteControllable,
 }

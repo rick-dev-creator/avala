@@ -54,6 +54,10 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Option<string> Problem { get; private set; }
 
+    public bool RemoteControlled { get; private set; }
+
+    public bool AllowsRemoteControl => RemoteControlled && State is JobState.Running or JobState.Checking or JobState.AwaitingReview;
+
     public IReadOnlyList<Attempt> Attempts => attempts;
 
     public static Result<Job, JobError> Create(
@@ -227,6 +231,27 @@ internal sealed class Job : IAggregateRoot<JobId>
 
                 return Begin(AttemptOrigin.SendBack, feedback);
             });
+
+    public Result<AttemptStarted, JobError> ContinueFromDevice(Feedback message) =>
+        machine.TryFire(JobTrigger.SendBack, JobError.CannotSendBack)
+            .Map(_ => Begin(AttemptOrigin.Device, message));
+
+    public Result<RemoteControlChosen, JobError> ControlRemotely(bool on)
+    {
+        if (Parent.IsSome)
+        {
+            return JobError.NotRoot;
+        }
+
+        if (State is JobState.Draft or JobState.Approved or JobState.Discarded or JobState.Failed)
+        {
+            return JobError.CannotControlRemotely;
+        }
+
+        RemoteControlled = on;
+
+        return new RemoteControlChosen(Id, on);
+    }
 
     public Result<AttemptStarted, JobError> Reopen(Feedback feedback) =>
         machine.TryFire(JobTrigger.Reopen, JobError.CannotReopen)

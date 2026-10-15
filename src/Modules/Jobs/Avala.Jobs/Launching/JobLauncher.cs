@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Capabilities;
 using Avala.Agents.Contracts.Connections;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
@@ -52,6 +53,7 @@ internal sealed class JobLauncher(JobLedger ledger, IAgents agents, WorkspacePla
 
         if (job.Start(workspace.Id, opened.Session, opened.Connection).IsSuccess)
         {
+            _ = opened.Capabilities.Get<ControlsRemotely>().Match(remote => remote.StartsOn, () => false) && job.ControlRemotely(true).IsSuccess;
             await BeginAsync(job, opened.Session, job.Instruction.Text, cancellationToken);
         }
 

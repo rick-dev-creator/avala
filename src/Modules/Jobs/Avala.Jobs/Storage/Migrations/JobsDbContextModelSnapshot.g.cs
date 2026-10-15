@@ -55,6 +55,9 @@ namespace Avala.Jobs.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("RemoteControlled")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Repository")
                         .IsRequired()
                         .HasColumnType("TEXT");

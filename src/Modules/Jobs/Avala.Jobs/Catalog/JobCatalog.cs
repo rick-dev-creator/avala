@@ -37,6 +37,7 @@ internal sealed class JobCatalog(IJobStore store) : IJobCatalog
             Model = job.Model,
             Hold = job.Held,
             Problem = job.Problem,
+            RemoteControlled = job.RemoteControlled,
         };
 
     private static JobHistory History(Job job) =>
