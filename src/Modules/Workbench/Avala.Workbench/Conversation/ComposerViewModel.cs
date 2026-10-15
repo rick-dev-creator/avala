@@ -56,6 +56,8 @@ internal interface IComposerViewModel
     IAsyncRelayCommand CompactCommand { get; }
 
     IAttachmentTrayViewModel Attachments { get; }
+
+    IMentionsViewModel Mentions { get; }
 }
 
 [INotifyPropertyChanged]
@@ -64,6 +66,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     private readonly JobSteering steering;
     private readonly SendKeys keys;
     private readonly AttachmentTrayViewModel attachments;
+    private readonly MentionsViewModel mentions;
 
     private readonly JobHarness harness;
 
@@ -74,6 +77,8 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         this.steering = steering;
         keys = tools.Keys;
         attachments = tools.Attachments;
+        mentions = tools.Mentions;
+        mentions.Chosen += (_, chosen) => Edit(chosen.Draft);
         SendsWithEnter = keys.WithEnter;
         harness.Loaded += (_, _) =>
         {
@@ -159,7 +164,11 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         ShowCold();
     }
 
-    partial void OnDraftChanged(string value) => ShowCold();
+    partial void OnDraftChanged(string value)
+    {
+        ShowCold();
+        mentions.Look(value);
+    }
 
     private void ShowCold()
     {
@@ -197,12 +206,13 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     [RelayCommand(CanExecute = nameof(CanSend))]
     private async Task SendAsync(CancellationToken cancellationToken)
     {
-        var sent = await steering.SendAsync(Job, Status, new JobMessage(Draft.Trim()) { Attachments = attachments.Attached }, cancellationToken);
+        var sent = await steering.SendAsync(Job, Status, new JobMessage(mentions.References(Draft.Trim())) { Attachments = attachments.Attached }, cancellationToken);
         Draft = sent.IsSuccess ? string.Empty : Draft;
 
         if (sent.IsSuccess)
         {
             attachments.Clear();
+            mentions.Forget();
         }
 
         Error = sent.Match(_ => string.Empty, ConversationPhrases.Rejection);
@@ -239,6 +249,8 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     private bool CanWithdraw() => Queued.Length > 0;
 
     public IAttachmentTrayViewModel Attachments => attachments;
+
+    public IMentionsViewModel Mentions => mentions;
 
     private void ShowQueued() => Queued = steering.Queued(Job).Match(message => message, () => string.Empty);
 

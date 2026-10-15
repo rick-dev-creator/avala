@@ -31,6 +31,9 @@ Avala presses ⌘ on macOS where Windows and Linux press Ctrl, and its tooltips 
 | Mod+Enter | Send, when Send with Mod+Enter is on; start a New job |
 | Mod+Shift+Enter | Start a New job without a repository |
 | Esc | Stop the agent; the session stays open |
+| ↑, ↓ | Choose a suggestion while the `@` mentions are open |
+| Enter, Tab | Write the chosen mention |
+| Esc | Close the mentions, before it stops the agent |
 
 ### Answering
 

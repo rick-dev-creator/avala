@@ -17,6 +17,9 @@ internal sealed class WorkedFiles(IJobCatalog catalog, IWorkspaceChanges changes
     public Task<Result<Option<byte[]>, WorkspaceFailure>> ReadAsync(JobId job, string path, int limit, CancellationToken cancellationToken) =>
         FirstAsync(job, folder => files.ReadBytesAsync(folder, path, limit, cancellationToken), cancellationToken);
 
+    public async Task<Option<string>> FolderAsync(JobId job, CancellationToken cancellationToken) =>
+        await FoldersAsync(job, cancellationToken) is [var first, ..] ? first : Option<string>.None;
+
     private async Task<Result<Option<T>, WorkspaceFailure>> FirstAsync<T>(JobId job, Func<string, ValueTask<Result<Option<T>, WorkspaceFailure>>> read, CancellationToken cancellationToken)
         where T : notnull
     {
