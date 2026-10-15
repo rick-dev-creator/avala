@@ -43,7 +43,7 @@ public sealed class SqliteJobStoreTests
         using var folder = new TemporaryFolder();
         Attachment[] screenshot = [new("screen.png", "image/png", "/data/attachments/1/screen.png")];
         Attachment[] log = [new("build.log", "text/plain", "/data/attachments/2/build.log")];
-        var job = Outcomes.Succeeds(Job.Create(JobId.New(), Given.Instruction, Outcomes.Succeeds(AttemptBudget.Create(3)), Given.Repository, Given.Submitted, attachments: screenshot));
+        var job = Outcomes.Succeeds(Job.Create(JobId.New(), Given.Instruction, Outcomes.Succeeds(AttemptBudget.Create(3)), Given.Repository, Given.Submitted, attachments: Option<IReadOnlyList<Attachment>>.Some(screenshot)));
         Outcomes.Succeeds(job.Submit());
         Outcomes.Succeeds(job.Start(Given.Workspace, Given.Session, Given.Connection));
         Outcomes.Succeeds(job.CompleteTurn());
