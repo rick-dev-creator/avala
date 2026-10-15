@@ -22,6 +22,28 @@ internal static class DelegationScenarios
         ],
     ]);
 
+    public static Scenario DelegatedWithAgents { get; } = new("delegate-agents",
+    [
+        [
+            new UseTool(new ItemId("plan-split"), ItemKind.Subagent, "Subagent: Plan the split", "Plan the split", "Say how to split the release work.", "Read the changelog.\n\nOne child writes the notes.", AsksPermission: false),
+            new CallTools([Delegation("delegate-notes", """{ "instruction": "[simulate: notes-agents] Write the release notes" }""")]),
+            Message("The notes came back ", "with their evidence."),
+            .. Bill(2_100, 160, 0.0080m, 0.22),
+            new Finish(),
+        ],
+    ]);
+
+    public static Scenario NotesWithAgents { get; } = new("notes-agents",
+    [
+        [
+            new UseTool(new ItemId("read-changelog"), ItemKind.Subagent, "Subagent: Read the changelog", "Read the changelog", "List what changed since the last release.", "Reading CHANGELOG.md.\n\nThree fixes and one feature.", AsksPermission: false),
+            new WriteFile(new ItemId("notes"), "NOTES.md", "# Notes\n\nWritten by a delegated simulator.\n"),
+            Message("Wrote NOTES.md."),
+            .. Bill(1_400, 90, 0.0050m, 0.20),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario DelegatedConflict { get; } = new("delegate-conflict",
     [
         [
@@ -285,7 +307,7 @@ internal static class DelegationScenarios
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Delegated, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedOnModels, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
+        Delegated, DelegatedWithAgents, NotesWithAgents, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedOnModels, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
         DelegatedAsking, DelegatedAskingAlongside, DelegatedAskingThenReviewed, DelegatedReview,
         Notes, RevisedNotes, Todo, Expensive, PausedNotes, Review, MulAsking,
     ];
