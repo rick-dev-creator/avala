@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Board;
 using Avala.Workbench.Contracts.Presentation;
@@ -16,44 +17,19 @@ namespace Avala.Workbench.Tests.Overview;
 
 public sealed class DelegationPaneViewModelScripts : IDisposable
 {
-    private static readonly SessionId Session = SessionId.New();
-
-    private static readonly TurnId Turn = TurnId.New();
-
-    private readonly TestUiDispatcher ui = new();
-    private readonly TreeCatalog catalog = new();
-    private readonly JobBoard board = new();
-    private readonly StrongReferenceMessenger messenger = new();
-    private readonly List<JobId> selected = [];
-    private readonly List<DelegationPaneChanged> changes = [];
-    private readonly JobSummary root = Pages.Summary("Ship the refunds flow", JobStatus.Running, "claude-work");
-    private readonly JobSummary endpoint;
-    private readonly JobSummary screen;
-
-    public DelegationPaneViewModelScripts()
-    {
-        endpoint = Pages.Summary("Refund API endpoint", JobStatus.Running, "claude-work", root.Job);
-        screen = Pages.Summary("Refunds screen", JobStatus.NeedsHelp, "personal", root.Job);
-        catalog.Jobs.AddRange([root, endpoint, screen]);
-        board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty
-            .Add(root.Job, new BoardJob(root, Ran(Agent("plan", "Plan the work", "Split it into three jobs", ItemOutcome.Succeeded))))
-            .Add(endpoint.Job, new BoardJob(endpoint, Ran(Agent("explore", "Find the refund call sites", "Reading tests/Payments", null))))
-            .Add(screen.Job, new BoardJob(screen, Transcript.Empty)));
-        messenger.Register<JobSelected>(this, (_, message) => selected.Add(message.Job));
-        messenger.Register<DelegationPaneChanged>(this, (_, message) => changes.Add(message));
-    }
+    private readonly TreeBench bench = new();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
     public async Task OpenedFromAChildThePaneShowsItsWholeTreeWithTheChildHighlightedAndEachJobsSubagentsAsync()
     {
-        using var pane = Pane(endpoint.Job);
+        using var pane = bench.Pane(bench.Endpoint.Job);
 
-        await ui.InvokeAsync(() => messenger.Send(new DelegationPaneRequested(endpoint.Job)), Cancellation);
-        await ui.PresentedAsync(pane, () => pane.Children.Count == 2, () => $"{pane.Children.Count} children");
+        await bench.Ui.InvokeAsync(() => bench.Messenger.Send(new DelegationPaneRequested(bench.Endpoint.Job)), Cancellation);
+        await bench.Ui.PresentedAsync(pane, () => pane.Children.Count == 2, () => $"{pane.Children.Count} children");
 
-        var shown = await ui.ReadAsync(() => (
+        var shown = await bench.Ui.ReadAsync(() => (
             pane.IsOpen,
             pane.Root?.Title,
             pane.Root?.IsViewing,
@@ -68,39 +44,47 @@ public sealed class DelegationPaneViewModelScripts : IDisposable
         Assert.Equal([("Plan the work", SubagentState.Done)], shown.Item5);
         Assert.Equal([("Find the refund call sites", "Reading tests/Payments", SubagentState.Running)], shown.Item6);
         Assert.Equal(("3 jobs · 2 agents", "claude-work · 2 jobs   personal · 1 job"), (shown.Item7, shown.Item8));
-        Assert.Equal([new DelegationPaneChanged(endpoint.Job, true)], changes);
+        Assert.Equal([new DelegationPaneChanged(bench.Endpoint.Job, true)], bench.Changes);
     }
 
     [Fact]
     public async Task OnlyTheShownJobsRequestTogglesThePaneAndClickingAJobOpensItAsync()
     {
-        using var pane = Pane(endpoint.Job);
+        using var pane = bench.Pane(bench.Endpoint.Job);
 
-        await ui.InvokeAsync(() => messenger.Send(new DelegationPaneRequested(screen.Job)), Cancellation);
-        var ignored = await ui.ReadAsync(() => pane.IsOpen);
-        await ui.InvokeAsync(() => messenger.Send(new DelegationPaneRequested(endpoint.Job)), Cancellation);
-        await ui.PresentedAsync(pane, () => pane.Children.Count == 2, () => $"{pane.Children.Count} children");
-        await ui.InvokeAsync(() => pane.Children[1].OpenCommand.Execute(screen.Job), Cancellation);
-        await ui.InvokeAsync(() => messenger.Send(new DelegationPaneRequested(endpoint.Job)), Cancellation);
+        await bench.Ui.InvokeAsync(() => bench.Messenger.Send(new DelegationPaneRequested(bench.Screen.Job)), Cancellation);
+        var ignored = await bench.Ui.ReadAsync(() => pane.IsOpen);
+        await bench.Ui.InvokeAsync(() => bench.Messenger.Send(new DelegationPaneRequested(bench.Endpoint.Job)), Cancellation);
+        await bench.Ui.PresentedAsync(pane, () => pane.Children.Count == 2, () => $"{pane.Children.Count} children");
+        await bench.Ui.InvokeAsync(() => pane.Children[1].OpenCommand.Execute(bench.Screen.Job), Cancellation);
+        await bench.Ui.InvokeAsync(() => bench.Messenger.Send(new DelegationPaneRequested(bench.Endpoint.Job)), Cancellation);
 
         Assert.False(ignored);
-        Assert.Equal([screen.Job], selected);
-        Assert.False(await ui.ReadAsync(() => pane.IsOpen));
-        Assert.Equal([new DelegationPaneChanged(endpoint.Job, true), new DelegationPaneChanged(endpoint.Job, false)], changes);
+        Assert.Equal([bench.Screen.Job], bench.Selected);
+        Assert.False(await bench.Ui.ReadAsync(() => pane.IsOpen));
+        Assert.Equal([new DelegationPaneChanged(bench.Endpoint.Job, true), new DelegationPaneChanged(bench.Endpoint.Job, false)], bench.Changes);
     }
 
     [Fact]
     public async Task MovingToAJobOutsideAnyTreeClosesThePaneAsync()
     {
-        var alone = Pages.Summary("Fix the README", JobStatus.Running);
-        board.Publish(board.Jobs.Add(alone.Job, new BoardJob(alone, Transcript.Empty)));
-        using var pane = Pane(endpoint.Job);
-        await ui.InvokeAsync(() => messenger.Send(new DelegationPaneRequested(endpoint.Job)), Cancellation);
+        var alone = bench.Alone();
+        using var pane = bench.Pane(bench.Endpoint.Job);
+        await bench.Ui.InvokeAsync(() => bench.Messenger.Send(new DelegationPaneRequested(bench.Endpoint.Job)), Cancellation);
 
-        await ui.InvokeAsync(() => pane.OnRegionContextChanged(alone.Job), Cancellation);
+        await bench.Ui.InvokeAsync(() => pane.OnRegionContextChanged(alone.Job), Cancellation);
 
-        Assert.False(await ui.ReadAsync(() => pane.IsOpen));
+        Assert.False(await bench.Ui.ReadAsync(() => pane.IsOpen));
     }
+
+    public void Dispose() => bench.Dispose();
+}
+
+public sealed class DelegationToggleViewModelScripts : IDisposable
+{
+    private readonly TreeBench bench = new();
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Theory]
     [InlineData("root", true)]
@@ -108,46 +92,114 @@ public sealed class DelegationPaneViewModelScripts : IDisposable
     [InlineData("alone", false)]
     public async Task TheHeaderOffersTheTreeOnlyToAJobThatIsPartOfOneAsync(string which, bool expected)
     {
-        var alone = Pages.Summary("Fix the README", JobStatus.Running);
-        board.Publish(board.Jobs.Add(alone.Job, new BoardJob(alone, Transcript.Empty)));
-        var shown = which switch { "root" => root.Job, "child" => screen.Job, _ => alone.Job };
-        using var toggle = new DelegationToggleViewModel(Reader(), board, new LiveFeed(new Pulse(board), ui), messenger);
+        var alone = bench.Alone();
+        var shown = which switch { "root" => bench.Root.Job, "child" => bench.Screen.Job, _ => alone.Job };
+        using var toggle = bench.Toggle();
         toggle.Activate();
         toggle.OnRegionContextChanged(shown);
 
-        await ui.PresentedAsync(toggle, () => toggle.Revision > 0, () => toggle.IsShown.ToString());
+        await bench.Ui.PresentedAsync(toggle, () => toggle.Revision > 0, () => toggle.IsShown.ToString());
 
-        Assert.Equal(expected, await ui.ReadAsync(() => toggle.IsShown));
+        Assert.Equal(expected, await bench.Ui.ReadAsync(() => toggle.IsShown));
     }
 
     [Fact]
     public async Task TheHeaderButtonAsksForThePaneAndShowsItOpenAsync()
     {
-        using var toggle = new DelegationToggleViewModel(Reader(), board, new LiveFeed(new Pulse(board), ui), messenger);
-        using var pane = Pane(endpoint.Job);
-        toggle.OnRegionContextChanged(endpoint.Job);
+        using var toggle = bench.Toggle();
+        using var pane = bench.Pane(bench.Endpoint.Job);
+        toggle.OnRegionContextChanged(bench.Endpoint.Job);
 
-        await ui.InvokeAsync(() => toggle.ToggleCommand.Execute(null), Cancellation);
+        await bench.Ui.InvokeAsync(() => toggle.ToggleCommand.Execute(null), Cancellation);
 
-        Assert.Equal((true, true), await ui.ReadAsync(() => (pane.IsOpen, toggle.IsOpen)));
+        Assert.Equal((true, true), await bench.Ui.ReadAsync(() => (pane.IsOpen, toggle.IsOpen)));
     }
 
-    public void Dispose() => ui.Dispose();
+    public void Dispose() => bench.Dispose();
+}
+
+public sealed class SubagentViewModelScripts
+{
+    private static readonly ToolEntry Running = new("item:explore", ItemKind.Subagent, "Subagent: Find the refund call sites", "Reading tests/\n\nReading tests/Payments", Option<ItemOutcome>.None);
+
+    [Fact]
+    public void ASubagentSaysWhatItIsAndTheLastThingItReported() =>
+        ViewModelScript.Given(new SubagentViewModel(Running, waiting: false))
+            .Then(agent => Assert.Equal(("Find the refund call sites", "Reading tests/Payments", SubagentState.Running, "running"), (agent.Name, agent.Activity, agent.State, agent.StateText)));
+
+    [Theory]
+    [InlineData(null, true, "waiting")]
+    [InlineData(ItemOutcome.Succeeded, false, "done")]
+    [InlineData(ItemOutcome.Failed, false, "failed")]
+    public void ASubagentIsWaitingWhileItsJobAsksYouAndDoneOrFailedOnceItEnds(ItemOutcome? outcome, bool waiting, string state) =>
+        ViewModelScript.Given(new SubagentViewModel(Running with { Outcome = outcome is { } ended ? ended : Option<ItemOutcome>.None }, waiting))
+            .Then(agent => Assert.Equal(state, agent.StateText));
+}
+
+internal sealed class TreeBench : IDisposable
+{
+    private static readonly SessionId Session = SessionId.New();
+
+    private static readonly TurnId Turn = TurnId.New();
+
+    private readonly TreeCatalog catalog = new();
+
+    public TreeBench()
+    {
+        Root = Pages.Summary("Ship the refunds flow", JobStatus.Running, "claude-work");
+        Endpoint = Pages.Summary("Refund API endpoint", JobStatus.Running, "claude-work", Root.Job);
+        Screen = Pages.Summary("Refunds screen", JobStatus.NeedsHelp, "personal", Root.Job);
+        catalog.Jobs.AddRange([Root, Endpoint, Screen]);
+        Board.Publish(ImmutableDictionary<JobId, BoardJob>.Empty
+            .Add(Root.Job, new BoardJob(Root, Ran(Agent("plan", "Plan the work", "Split it into three jobs", ItemOutcome.Succeeded))))
+            .Add(Endpoint.Job, new BoardJob(Endpoint, Ran(Agent("explore", "Find the refund call sites", "Reading tests/Payments", null))))
+            .Add(Screen.Job, new BoardJob(Screen, Transcript.Empty)));
+        Messenger.Register<JobSelected>(this, (_, message) => Selected.Add(message.Job));
+        Messenger.Register<DelegationPaneChanged>(this, (_, message) => Changes.Add(message));
+    }
+
+    public TestUiDispatcher Ui { get; } = new();
+
+    public JobBoard Board { get; } = new();
+
+    public StrongReferenceMessenger Messenger { get; } = new();
+
+    public List<JobId> Selected { get; } = [];
+
+    public List<DelegationPaneChanged> Changes { get; } = [];
+
+    public JobSummary Root { get; }
+
+    public JobSummary Endpoint { get; }
+
+    public JobSummary Screen { get; }
+
+    public JobSummary Alone()
+    {
+        var alone = Pages.Summary("Fix the README", JobStatus.Running);
+        Board.Publish(Board.Jobs.Add(alone.Job, new BoardJob(alone, Transcript.Empty)));
+
+        return alone;
+    }
+
+    public DelegationPaneViewModel Pane(JobId shown)
+    {
+        var pane = new DelegationPaneViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui), new JobFocus(new TestRegions(), Messenger), Messenger);
+        pane.Activate();
+        pane.OnRegionContextChanged(shown);
+
+        return pane;
+    }
+
+    public DelegationToggleViewModel Toggle() => new(Reader(), Board, new LiveFeed(new Pulse(Board), Ui), Messenger);
+
+    public void Dispose() => Ui.Dispose();
 
     private DelegationReader Reader()
     {
         var usage = new FakeUsage();
 
-        return new DelegationReader(catalog, new FakeDelegations(), Focusing.Spending(usage, new SessionBook(usage)), board);
-    }
-
-    private DelegationPaneViewModel Pane(JobId shown)
-    {
-        var pane = new DelegationPaneViewModel(Reader(), new LiveFeed(new Pulse(board), ui), new JobFocus(new TestRegions(), messenger), messenger);
-        pane.Activate();
-        pane.OnRegionContextChanged(shown);
-
-        return pane;
+        return new DelegationReader(catalog, new FakeDelegations(), Focusing.Spending(usage, new SessionBook(usage)), Board);
     }
 
     private static IAgentEvent[] Agent(string id, string name, string activity, ItemOutcome? outcome) =>

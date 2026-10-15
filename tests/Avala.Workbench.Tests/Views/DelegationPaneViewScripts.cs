@@ -40,17 +40,6 @@ public sealed class DelegationPaneViewScripts(HeadlessUi ui)
             Assert.Equal(1, closed);
         }, Cancellation);
 
-    [Fact]
-    public Task TheHeaderButtonShowsOnlyForATreeAndIsSelectedWhileThePaneIsOpenAsync() =>
-        ui.RunAsync(() =>
-        {
-            var open = Screen.Show(new DesignDelegationToggleViewModel());
-            var hidden = Screen.Show(new DesignDelegationToggleViewModel { IsShown = false });
-
-            Assert.Equal((true, true), (open.Shows("Tree"), open.HasClass("Tree", "selected")));
-            Assert.False(hidden.Shows("Tree"));
-        }, Cancellation);
-
     private sealed class ClosablePane(Action close) : IDelegationPaneViewModel
     {
         public IOrchestratorCardViewModel? Root { get; } = new DesignOrchestratorCardViewModel();
@@ -65,4 +54,34 @@ public sealed class DelegationPaneViewScripts(HeadlessUi ui)
 
         public IRelayCommand CloseCommand { get; } = new RelayCommand(close);
     }
+}
+
+public sealed class DelegationToggleViewScripts(HeadlessUi ui)
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public Task TheHeaderButtonShowsOnlyForATreeAndIsSelectedWhileThePaneIsOpenAsync() =>
+        ui.RunAsync(() =>
+        {
+            var open = Screen.Show(new DesignDelegationToggleViewModel());
+            var hidden = Screen.Show(new DesignDelegationToggleViewModel { IsShown = false });
+
+            Assert.Equal((true, true), (open.Shows("Tree"), open.HasClass("Tree", "selected")));
+            Assert.False(hidden.Shows("Tree"));
+        }, Cancellation);
+}
+
+public sealed class SubagentViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task ASubagentIsADashedPillWithItsNameActivityAndStateAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignSubagentViewModel("Read the signature tests", "Waiting for your answer", SubagentState.Waiting));
+
+            Assert.Equal(("Read the signature tests", "Waiting for your answer", "waiting"), (view.TextOf("AgentName"), view.TextOf("Activity"), view.TextOf("State")));
+            Assert.Equal((true, true), (view.HasClass("Outline", "waiting"), view.HasClass("Dot", "waiting")));
+            Assert.NotNull(view.Find<Rectangle>("Outline").StrokeDashArray);
+        }, TestContext.Current.CancellationToken);
 }
