@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Sdk;
 
@@ -35,6 +36,13 @@ public sealed record ToolReturned(SessionId Session, TurnId Turn, ItemId Item, T
 public sealed record MessageQueued(SessionId Session, TurnId Turn, string Text) : IAgentEvent
 {
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+
+    private bool PrintMembers(System.Text.StringBuilder builder)
+    {
+        builder.Append(CultureInfo.InvariantCulture, $"Session = {Session}, Turn = {Turn}, Text = {Text}, Attachments = [{string.Join(", ", Attachments)}]");
+
+        return true;
+    }
 }
 
 public sealed record RemoteMessageArrived(SessionId Session, TurnId Turn, string Text) : IAgentEvent
