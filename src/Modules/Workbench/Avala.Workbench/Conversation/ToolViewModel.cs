@@ -9,6 +9,8 @@ namespace Avala.Workbench.Conversation;
 
 internal interface IToolViewModel
 {
+    FindMark Found { get; }
+
     ItemKind Kind { get; }
 
     string Title { get; }
@@ -59,7 +61,7 @@ internal interface IToolViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
+internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISearchable
 {
     private readonly IClipboard clipboard;
     private readonly FileChangesViewModel changes;
@@ -140,6 +142,19 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem
     public partial bool ShowsPreview { get; private set; }
 
     public IFilePreviewViewModel Preview => preview;
+
+    [ObservableProperty]
+    public partial FindMark Found { get; set; }
+
+    public string SearchText => $"{Title}\n{Output}";
+
+    public bool Unfold()
+    {
+        var folded = !IsExpanded;
+        IsExpanded = true;
+
+        return folded;
+    }
 
     public void Update(ITimelineEntry entry)
     {

@@ -91,6 +91,8 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
 internal sealed class DesignPromptViewModel(string text) : IPromptViewModel
 {
+    public FindMark Found { get; init; }
+
     public bool IsCopied => false;
 
     public bool CanResend => true;
@@ -134,6 +136,8 @@ internal sealed class DesignChildAskingViewModel : IChildAskingViewModel
 
 internal sealed class DesignInterjectionViewModel : IInterjectionViewModel
 {
+    public FindMark Found { get; init; }
+
     public string Note => "You, while it worked · joined the turn";
 
     public string Text => "Keep the old Purchases namespace as an alias until the next release.";
@@ -143,6 +147,8 @@ internal sealed class DesignInterjectionViewModel : IInterjectionViewModel
 
 internal sealed class DesignMessageViewModel(string text, bool isStreaming) : IMessageViewModel
 {
+    public FindMark Found { get; init; }
+
     public DesignMessageViewModel()
         : this("I'm using the **ISO 4217 exponent** for each currency instead of a fixed 100, so yen amounts stay whole and tax is rounded exactly once. `Money.Total()` keeps its signature. Running the", true)
     {
@@ -167,6 +173,8 @@ internal sealed class DesignMessageViewModel(string text, bool isStreaming) : IM
 
 internal sealed class DesignReasoningViewModel(string summary, bool isThinking) : IReasoningViewModel
 {
+    public FindMark Found { get; init; }
+
     public DesignReasoningViewModel()
         : this("Thought for 6s", false)
     {
@@ -189,6 +197,8 @@ internal sealed class DesignReasoningViewModel(string summary, bool isThinking) 
 
 internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string Output) : IToolViewModel
 {
+    public FindMark Found { get; init; }
+
     public DesignToolViewModel()
         : this(ItemKind.Command, "go test ./internal/money/...", "--- FAIL: TestInvoiceTotal_JPY (0.00s)\n    invoice_test.go:41: want ¥1,080  got ¥1,100")
     {
@@ -396,6 +406,8 @@ internal sealed class DesignRestartViewModel : IRestartViewModel
 
 internal sealed record DesignConversationViewModel(string Title, string Place, IStatusPillViewModel Pill, IComposerViewModel Composer, IReadOnlyList<object> Entries) : IConversationViewModel
 {
+    public IConversationSearchViewModel Search { get; init; } = new DesignConversationSearchViewModel();
+
     public DesignConversationViewModel()
         : this(
             "Fix JPY rounding in invoice totals",
@@ -502,4 +514,25 @@ internal static class DesignHarnesses
             ? new DesignModelPickerViewModel { Model = "opus", Effort = "high", Note = JobHarnessPhrases.NextMessage }
             : new DesignModelPickerViewModel { CanChoose = false, Models = ["opus"], Model = "opus", Efforts = ["high"], Effort = "high", Note = "Change it once the agent stops." },
     };
+}
+
+internal sealed class DesignConversationSearchViewModel : IConversationSearchViewModel
+{
+    public bool IsOpen { get; init; }
+
+    public string Query { get; set; } = "refund";
+
+    public string Status { get; init; } = "2 of 5";
+
+    public bool HasMatches { get; init; } = true;
+
+    public int Revealed => -1;
+
+    public IRelayCommand OpenCommand { get; init; } = new RelayCommand(() => { });
+
+    public IRelayCommand CloseCommand { get; init; } = new RelayCommand(() => { });
+
+    public IRelayCommand NextCommand { get; init; } = new RelayCommand(() => { });
+
+    public IRelayCommand PreviousCommand { get; init; } = new RelayCommand(() => { });
 }

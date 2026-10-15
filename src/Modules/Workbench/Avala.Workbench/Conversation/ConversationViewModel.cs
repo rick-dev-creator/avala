@@ -30,6 +30,8 @@ internal interface IConversationViewModel
 
     IReadOnlyList<object> Entries { get; }
 
+    IConversationSearchViewModel Search { get; }
+
     string Notice { get; }
 
     IAsyncRelayCommand CopyMarkdownCommand { get; }
@@ -47,6 +49,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     private readonly StatusPillViewModel pill = new(StatusKind.Working, string.Empty);
     private readonly WorkingViewModel working = new();
     private readonly Dictionary<string, (ITimelineEntry Entry, ITimelineItem Item)> known = [];
+    private readonly ConversationSearchViewModel search;
     private Transcript shown = Transcript.Empty;
 
     public ConversationViewModel(ComposerViewModel composer, TimelineItems items, PlanPanelViewModel plan, TranscriptExport export)
@@ -59,6 +62,8 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         Notice = string.Empty;
         Entries = [];
         this.plan = plan;
+        search = new ConversationSearchViewModel(() => [.. Entries.Select(item => item is ISearchable searchable ? searchable.SearchText : string.Empty)]);
+        search.Found += (_, found) => Mark(found);
     }
 
     public JobId Job => composer.Job;
@@ -70,6 +75,8 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     public IPlanPanelViewModel Plan => plan;
 
     public IWorkingViewModel Working => working;
+
+    public IConversationSearchViewModel Search => search;
 
     [ObservableProperty]
     public partial ObservableCollection<ITimelineItem> Entries { get; private set; }
@@ -106,6 +113,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
             shown = job.Transcript;
             plan.Show(job.Transcript.Plan);
             Arrange(job.Transcript);
+            search.Refresh();
         }
 
         foreach (var prompt in Entries.OfType<PromptViewModel>())
@@ -122,6 +130,21 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     [RelayCommand]
     private async Task ExportAsync(CancellationToken cancellationToken) =>
         Notice = (await export.ExportAsync(Title, shown, Choices, cancellationToken)).Match(_ => string.Empty, ConversationPhrases.NotExported);
+
+    private void Mark(SearchFound found)
+    {
+        var matched = found.Matches.ToHashSet();
+        var current = found.Current >= 0 ? found.Matches[found.Current] : -1;
+
+        for (var index = 0; index < Entries.Count; index++)
+        {
+            if (Entries[index] is ISearchable searchable)
+            {
+                searchable.Found = index == current ? FindMark.Current : matched.Contains(index) ? FindMark.Match : FindMark.None;
+                _ = index == current && searchable.Unfold();
+            }
+        }
+    }
 
     private void Arrange(Transcript transcript)
     {

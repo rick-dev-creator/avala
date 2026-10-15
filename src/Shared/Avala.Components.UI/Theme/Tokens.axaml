@@ -46,6 +46,8 @@
       <SolidColorBrush x:Key="AccentBrush" Color="#8DA2FB" />
       <SolidColorBrush x:Key="AccentHoverBrush" Color="#B3C1FF" />
       <SolidColorBrush x:Key="AccentSubtleBrush" Color="#148DA2FB" />
+      <SolidColorBrush x:Key="FindMatchBrush" Color="#14E5A13A" />
+      <SolidColorBrush x:Key="FindCurrentBrush" Color="#38E5A13A" />
       <SolidColorBrush x:Key="OnAccentBrush" Color="#0F1220" />
       <SolidColorBrush x:Key="AttentionBrush" Color="#E5A13A" />
       <SolidColorBrush x:Key="AttentionBorderBrush" Color="#59E5A13A" />
@@ -137,6 +139,8 @@
       <SolidColorBrush x:Key="AccentBrush" Color="#4458CC" />
       <SolidColorBrush x:Key="AccentHoverBrush" Color="#3546B0" />
       <SolidColorBrush x:Key="AccentSubtleBrush" Color="#1A4458CC" />
+      <SolidColorBrush x:Key="FindMatchBrush" Color="#1AC77C0E" />
+      <SolidColorBrush x:Key="FindCurrentBrush" Color="#40C77C0E" />
       <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="AttentionBrush" Color="#945800" />
       <SolidColorBrush x:Key="AttentionBorderBrush" Color="#59945800" />

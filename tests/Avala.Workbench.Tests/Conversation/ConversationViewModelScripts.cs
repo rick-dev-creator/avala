@@ -40,6 +40,29 @@ public sealed class ConversationViewModelScripts
     }
 
     [Fact]
+    public void FindingInTheConversationTintsTheRowsThatMatchAndUnfoldsTheCurrentOne()
+    {
+        var job = Job().WithPrompts("Round the refunds", []).Apply(new TurnStarted(session, turn), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("test"), ItemKind.Command, "Run refund tests"), Now)
+            .Apply(new ItemProgressed(session, turn, new ItemId("test"), "Passed"), Now)
+            .Apply(new ItemCompleted(session, turn, new ItemId("test"), ItemOutcome.Succeeded), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"), Now)
+            .Apply(new ItemProgressed(session, turn, new ItemId("reply"), "Refunds round to whole yen."), Now);
+        var conversation = Open();
+        conversation.Show(Board(job));
+
+        conversation.Search.OpenCommand.Execute(null);
+        conversation.Search.Query = "refund";
+        conversation.Search.NextCommand.Execute(null);
+
+        var tool = Assert.IsType<ToolViewModel>(conversation.Entries[1]);
+        Assert.Equal(
+            [FindMark.Match, FindMark.Current, FindMark.Match],
+            conversation.Entries.OfType<ISearchable>().Select(entry => entry.Found));
+        Assert.Equal(("2 of 3", 1, true), (conversation.Search.Status, conversation.Search.Revealed, tool.IsExpanded));
+    }
+
+    [Fact]
     public void OpeningAConversationFillsItsEntriesInOneChange()
     {
         var job = Job().WithPrompts("Fix the failing test", []).Apply(new TurnStarted(session, turn), Now)

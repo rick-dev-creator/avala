@@ -6,11 +6,16 @@
              x:ClassModifier="internal"
              xmlns:markdown="using:Avala.Components.UI.Markdown"
              xmlns:virtualizing="using:Avala.Components.UI.Virtualizing"
+             xmlns:states="using:Avala.Components.UI.States"
+             xmlns:copying="using:Avala.Components.UI.Copying"
              markdown:MarkdownStyles.AreShared="True"
              x:DataType="conversation:IConversationViewModel">
   <Design.DataContext>
     <conversation:DesignConversationViewModel />
   </Design.DataContext>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="{x:Static copying:Hotkeys.Find}" Command="{Binding Search.OpenCommand}" />
+  </UserControl.KeyBindings>
   <UserControl.Styles>
     <Style Selector="Button.jump">
       <Setter Property="Width" Value="32" />
@@ -57,7 +62,7 @@
     <Panel>
       <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,18,28,14" MaxWidth="{DynamicResource ReadingWidth}">
-          <ItemsControl x:Name="Entries" theme:Arrivals.OnlyNewEnter="True" ItemsSource="{Binding Entries}">
+          <ItemsControl x:Name="Entries" theme:Arrivals.OnlyNewEnter="True" states:Revealed.Index="{Binding Search.Revealed}" ItemsSource="{Binding Entries}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <virtualizing:TimelinePanel />
@@ -67,6 +72,11 @@
           <ContentControl x:Name="Working" Content="{Binding Working}" />
         </StackPanel>
       </ScrollViewer>
+      <ContentControl x:Name="Search"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Top"
+                      Margin="0,10,16,0"
+                      Content="{Binding Search}" />
       <Border x:Name="Jump"
               HorizontalAlignment="Center"
               VerticalAlignment="Bottom"

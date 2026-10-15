@@ -6,6 +6,8 @@ namespace Avala.Workbench.Conversation;
 
 internal interface IReasoningViewModel
 {
+    FindMark Found { get; }
+
     string Text { get; }
 
     bool IsThinking { get; }
@@ -22,7 +24,7 @@ internal interface IReasoningViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class ReasoningViewModel : IReasoningViewModel, ITimelineItem
+internal sealed partial class ReasoningViewModel : IReasoningViewModel, ITimelineItem, ISearchable
 {
     public ReasoningViewModel(ReasoningEntry entry)
     {
@@ -51,6 +53,19 @@ internal sealed partial class ReasoningViewModel : IReasoningViewModel, ITimelin
 
     [ObservableProperty]
     public partial bool IsExpanded { get; private set; }
+
+    [ObservableProperty]
+    public partial FindMark Found { get; set; }
+
+    public string SearchText => Text;
+
+    public bool Unfold()
+    {
+        var folded = !IsExpanded;
+        IsExpanded = true;
+
+        return folded;
+    }
 
     public void Update(ITimelineEntry entry)
     {

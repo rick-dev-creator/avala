@@ -1,12 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:states="using:Avala.Components.UI.States"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              x:Class="Avala.Workbench.UI.InterjectionView"
              x:ClassModifier="internal"
              x:DataType="conversation:IInterjectionViewModel"
              theme:Motion.Enter="Arrive"
-             Margin="0,10">
+             Margin="0,10"
+             Classes.found="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Match,Current'}"
+             Classes.current="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Current'}">
   <Design.DataContext>
     <conversation:DesignInterjectionViewModel />
   </Design.DataContext>

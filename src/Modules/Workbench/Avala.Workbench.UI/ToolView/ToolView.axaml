@@ -11,7 +11,9 @@
              theme:Motion.Enter="Arrive"
              Classes.running="{Binding IsRunning}"
              Classes.failed="{Binding Failed}"
-             Margin="0,1">
+             Margin="0,1"
+             Classes.found="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Match,Current'}"
+             Classes.current="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Current'}">
   <Design.DataContext>
     <conversation:DesignToolViewModel />
   </Design.DataContext>

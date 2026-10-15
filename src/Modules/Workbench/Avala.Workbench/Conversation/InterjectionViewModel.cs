@@ -1,10 +1,13 @@
 using Avala.Components.Virtualizing;
 using Avala.Workbench.Timeline;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Avala.Workbench.Conversation;
 
 internal interface IInterjectionViewModel
 {
+    FindMark Found { get; }
+
     string Note { get; }
 
     string Text { get; }
@@ -12,7 +15,8 @@ internal interface IInterjectionViewModel
     bool IsFromDevice { get; }
 }
 
-internal sealed class InterjectionViewModel(InterjectionEntry entry) : IInterjectionViewModel, ITimelineItem, ITextSized
+[INotifyPropertyChanged]
+internal sealed partial class InterjectionViewModel(InterjectionEntry entry) : IInterjectionViewModel, ITimelineItem, ITextSized, ISearchable
 {
     public string Note => IsFromDevice ? "From your phone, while it worked · joined the turn" : "You, while it worked · joined the turn";
 
@@ -23,6 +27,13 @@ internal sealed class InterjectionViewModel(InterjectionEntry entry) : IInterjec
     public int TextLength => Text.Length;
 
     public bool IsShown => true;
+
+    [ObservableProperty]
+    public partial FindMark Found { get; set; }
+
+    public string SearchText => Text;
+
+    public bool Unfold() => false;
 
     public void Update(ITimelineEntry entry)
     {
