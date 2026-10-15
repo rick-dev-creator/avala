@@ -21,7 +21,10 @@ internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin
 
 internal sealed record RestartEntry(string Key, bool Kept) : ITimelineEntry;
 
-internal sealed record InterjectionEntry(string Key, string Text) : ITimelineEntry;
+internal sealed record InterjectionEntry(string Key, string Text) : ITimelineEntry
+{
+    public bool FromDevice { get; init; }
+}
 
 internal sealed record MessageEntry(string Key, string Text, Option<ItemOutcome> Outcome) : ITimelineEntry;
 

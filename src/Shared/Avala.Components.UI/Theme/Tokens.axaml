@@ -57,6 +57,8 @@
       <SolidColorBrush x:Key="ScrimAssistantBrush" Color="#EB0B0C0F" />
       <SolidColorBrush x:Key="RingBrush" Color="#2EFFFFFF" />
       <SolidColorBrush x:Key="SurfacePopoverBrush" Color="#282930" />
+      <SolidColorBrush x:Key="QrPaperBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="QrInkBrush" Color="#101114" />
 
       <SolidColorBrush x:Key="FillBubbleBrush" Color="#12FFFFFF" />
       <SolidColorBrush x:Key="FillRowSelectedBrush" Color="#14FFFFFF" />
@@ -146,6 +148,8 @@
       <SolidColorBrush x:Key="ScrimAssistantBrush" Color="#EBE9E9EE" />
       <SolidColorBrush x:Key="RingBrush" Color="#1F000000" />
       <SolidColorBrush x:Key="SurfacePopoverBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="QrPaperBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="QrInkBrush" Color="#101114" />
 
       <SolidColorBrush x:Key="FillBubbleBrush" Color="#0D000000" />
       <SolidColorBrush x:Key="FillRowSelectedBrush" Color="#10000000" />

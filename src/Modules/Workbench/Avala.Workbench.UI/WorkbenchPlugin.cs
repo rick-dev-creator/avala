@@ -46,6 +46,7 @@ using Avala.Workbench.NewJob;
 using Avala.Workbench.Onboarding;
 using Avala.Workbench.Overview;
 using Avala.Workbench.Presenting;
+using Avala.Workbench.Remoting;
 using Avala.Workbench.Replies;
 using Avala.Workbench.RepositoryChoice;
 using Avala.Workbench.RepositoryRules;
@@ -149,6 +150,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<WorkbenchViewModel>()
             .AddForwarded<IPage, WorkbenchViewModel>();
         RegisterReplies(registrar.Services);
+        RegisterRemoteControl(registrar.Services);
         RegisterRegions(registrar);
         RegisterInspector(registrar);
         RegisterGlobalPages(registrar.Services);
@@ -165,9 +167,20 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<JobReferences>()
             .AddSingleton<ReplyTools>();
 
+    private static void RegisterRemoteControl(IServiceCollection services) =>
+        services
+            .AddSingleton<RemoteKeeper>()
+            .AddForwarded<IHandle<SessionOpened>, RemoteKeeper>()
+            .AddForwarded<IHandle<JobSessionStarted>, RemoteKeeper>()
+            .AddForwarded<IHandle<RemoteControlReported>, RemoteKeeper>()
+            .AddForwarded<IHandle<JobRemoteControlChosen>, RemoteKeeper>()
+            .AddSingleton<LinkTools>()
+            .AddSingleton<RemoteControlViewModel>();
+
     private static void RegisterRegions(IPluginRegistrar registrar) =>
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
             .AddToRegion<ToolbarViewModel>(ShellRegions.Toolbar, 0)
+            .AddToRegion<RemoteControlViewModel>(WorkbenchRegions.JobHeader, 2)
             .AddToRegion<ArchivedNoteViewModel>(WorkbenchRegions.JobHeader, 3)
             .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
             .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5);
@@ -473,6 +486,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();
         views.Register<IUsageLeftViewModel, UsageLeftView>();
         views.Register<IContextLeftViewModel, ContextLeftView>();
+        views.Register<IRemoteControlViewModel, RemoteControlView>();
         views.Register<IArchivedViewModel, ArchivedView>();
         views.Register<IArchivedRowViewModel, ArchivedRowView>();
         views.Register<IArchivedEntryViewModel, ArchivedEntryView>();

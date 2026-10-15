@@ -10,6 +10,7 @@ internal sealed class JobBoard
 {
     private ImmutableDictionary<JobId, BoardJob> jobs = ImmutableDictionary<JobId, BoardJob>.Empty;
     private ImmutableDictionary<JobId, BoardContest> contests = ImmutableDictionary<JobId, BoardContest>.Empty;
+    private ImmutableDictionary<JobId, BoardRemote> remotes = ImmutableDictionary<JobId, BoardRemote>.Empty;
     private ProjectMap projects = ProjectMap.Empty;
     private ImmutableList<ChannelWriter<bool>> watchers = [];
 
@@ -17,7 +18,11 @@ internal sealed class JobBoard
 
     public ImmutableDictionary<JobId, BoardContest> Contests => Volatile.Read(ref contests);
 
+    public ImmutableDictionary<JobId, BoardRemote> Remotes => Volatile.Read(ref remotes);
+
     public ProjectMap Projects => Volatile.Read(ref projects);
+
+    public BoardRemote RemoteOf(JobId job) => Remotes.GetValueOrDefault(job, BoardRemote.None);
 
     public Option<BoardJob> Find(JobId job) =>
         Jobs.TryGetValue(job, out var found) ? Option<BoardJob>.Some(found) : Option<BoardJob>.None;
@@ -26,7 +31,7 @@ internal sealed class JobBoard
         Contests.TryGetValue(job, out var found) ? Option<BoardContest>.Some(found) : Option<BoardContest>.None;
 
     public int Revision(JobId job) =>
-        (Jobs.TryGetValue(job, out var found) ? found.Revision : 0) + (Contests.TryGetValue(job, out var contest) ? contest.Revision : 0);
+        (Jobs.TryGetValue(job, out var found) ? found.Revision : 0) + (Contests.TryGetValue(job, out var contest) ? contest.Revision : 0) + RemoteOf(job).Revision;
 
     public void Publish(ImmutableDictionary<JobId, BoardJob> next)
     {
@@ -37,6 +42,12 @@ internal sealed class JobBoard
     public void Publish(ImmutableDictionary<JobId, BoardContest> next)
     {
         Volatile.Write(ref contests, next);
+        Notify();
+    }
+
+    public void Publish(ImmutableDictionary<JobId, BoardRemote> next)
+    {
+        Volatile.Write(ref remotes, next);
         Notify();
     }
 

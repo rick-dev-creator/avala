@@ -53,7 +53,7 @@ internal static class TranscriptMarkdown
         }, () => string.Empty);
 
     private static string Speaker(AttemptOrigin origin) =>
-        origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack ? "**You**" : "**Avala**";
+        origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack or AttemptOrigin.Device ? "**You**" : "**Avala**";
 
     private static string Quoted(string text) =>
         string.Join('\n', text.Trim().Split('\n').Select(line => line.Length == 0 ? ">" : $"> {line}"));

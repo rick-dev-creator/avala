@@ -269,6 +269,18 @@ public sealed class TranscriptTests
     }
 
     [Fact]
+    public void AMessageFromThePhoneDuringATurnJoinsItWhereItArrivedAndOneThatStartedATurnIsLeftToItsPrompt()
+    {
+        var transcript = Played(
+            new ItemStarted(Session, Turn, new ItemId("reply"), ItemKind.Message, "Reply"),
+            new RemoteMessageArrived(Session, Turn, "Also cover partial refunds"),
+            new RemoteMessageArrived(Session, Turn, "Ship it") { BeganTurn = true });
+
+        var joined = Assert.Single(transcript.Entries.OfType<InterjectionEntry>());
+        Assert.Equal(("Also cover partial refunds", true), (joined.Text, joined.FromDevice));
+    }
+
+    [Fact]
     public void AToolWhosePermissionWasDeniedIsMarkedDeniedWhetherTheDenialArrivesBeforeOrAfterItEnds()
     {
         var edit = new ItemId("edit");

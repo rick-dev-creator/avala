@@ -137,6 +137,8 @@ internal sealed class DesignInterjectionViewModel : IInterjectionViewModel
     public string Note => "You, while it worked · joined the turn";
 
     public string Text => "Keep the old Purchases namespace as an alias until the next release.";
+
+    public bool IsFromDevice { get; init; }
 }
 
 internal sealed class DesignMessageViewModel(string text, bool isStreaming) : IMessageViewModel

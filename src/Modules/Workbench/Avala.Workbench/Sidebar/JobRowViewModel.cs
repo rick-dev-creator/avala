@@ -57,6 +57,8 @@ internal interface IJobRowViewModel : ISidebarEntry
     bool ShowsElapsed { get; }
 
     DateTimeOffset Since { get; }
+
+    bool IsOnPhone { get; }
 }
 
 [INotifyPropertyChanged]
@@ -135,6 +137,9 @@ internal sealed partial class JobRowViewModel : IJobRowViewModel
 
     [ObservableProperty]
     public partial bool ShowsElapsed { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsOnPhone { get; set; }
 
     [ObservableProperty]
     public partial DateTimeOffset Since { get; private set; }

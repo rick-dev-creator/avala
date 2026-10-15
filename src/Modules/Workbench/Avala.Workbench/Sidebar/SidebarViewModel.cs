@@ -41,6 +41,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     private ImmutableDictionary<JobId, BoardJob> shown = ImmutableDictionary<JobId, BoardJob>.Empty;
     private ImmutableDictionary<JobId, BoardContest> shownContests = ImmutableDictionary<JobId, BoardContest>.Empty;
     private ProjectMap? shownMap;
+    private ImmutableDictionary<JobId, BoardRemote> shownRemotes = ImmutableDictionary<JobId, BoardRemote>.Empty;
     private object? selected;
 
     public SidebarViewModel(BoardFeed feed, JobFocus focus, ScratchFolders scratch, ProjectShelf shelf)
@@ -111,6 +112,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
             Regroup();
         }
 
+        Phones(jobs, added);
         shelves.Prune();
         shelves.Attend();
         Target(regroup ? rows.Values : rows.Values.Where(row => added.Contains(row.Job)));
@@ -199,6 +201,20 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         {
             Select(next);
         }
+    }
+
+    private void Phones(ImmutableDictionary<JobId, BoardJob> jobs, HashSet<JobId> added)
+    {
+        var remotes = feed.Remotes;
+
+        foreach (var row in rows.Values.Where(row => added.Contains(row.Job) || !ReferenceEquals(shownRemotes.GetValueOrDefault(row.Job), remotes.GetValueOrDefault(row.Job))))
+        {
+            row.IsOnPhone = !row.IsChild && remotes.GetValueOrDefault(row.Job, BoardRemote.None).Wanted.Match(
+                on => on,
+                () => jobs.TryGetValue(row.Job, out var job) && job.Summary.RemoteControlled);
+        }
+
+        shownRemotes = remotes;
     }
 
     private IEnumerable<ContestRecord> Touched(ImmutableDictionary<JobId, BoardContest> contested, List<BoardJob> changed) =>

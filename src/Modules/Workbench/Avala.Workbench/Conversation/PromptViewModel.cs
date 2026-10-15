@@ -44,7 +44,7 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem,
         this.clipboard = clipboard;
         Attempt = entry.Attempt;
         Origin = ConversationPhrases.Origin(entry);
-        IsFromPerson = entry.Origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack;
+        IsFromPerson = entry.Origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack or AttemptOrigin.Device;
         ShowsOrigin = entry.Origin != AttemptOrigin.Initial;
         Text = entry.Text.Match(text => text, () => string.Empty);
         Outcome = string.Empty;

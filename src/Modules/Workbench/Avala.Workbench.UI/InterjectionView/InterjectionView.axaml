@@ -24,7 +24,10 @@
     </Style>
   </UserControl.Styles>
   <StackPanel Spacing="4">
-    <TextBlock x:Name="Note" Classes="caption" HorizontalAlignment="Right" Text="{Binding Note}" />
+    <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Right">
+      <Path x:Name="Device" Classes="icon" Width="11" Height="11" Data="{StaticResource IconPhone}" VerticalAlignment="Center" IsVisible="{Binding IsFromDevice}" />
+      <TextBlock x:Name="Note" Classes="caption" Text="{Binding Note}" />
+    </StackPanel>
     <Border x:Name="Bubble" MaxWidth="560" Padding="14,10">
       <SelectableTextBlock x:Name="Text" Text="{Binding Text}" />
     </Border>

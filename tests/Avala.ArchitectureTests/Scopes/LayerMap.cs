@@ -111,6 +111,7 @@ internal static class LayerMap
             ["Inspector"] = Layer.ViewModels,
             ["Overview"] = Layer.ViewModels,
             ["Usage"] = Layer.ViewModels,
+            ["Remoting"] = Layer.ViewModels,
             ["Settings"] = Layer.ViewModels,
             ["Updates"] = Layer.ViewModels,
             ["Telemetry"] = Layer.ViewModels,
