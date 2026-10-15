@@ -10,6 +10,8 @@ namespace Avala.Workbench.Conversation;
 
 internal interface IMessageViewModel
 {
+    FindMark Found { get; }
+
     string Text { get; }
 
     bool IsStreaming { get; }
@@ -28,7 +30,7 @@ internal interface IMessageViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineItem, ITextSized
+internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineItem, ITextSized, ISearchable
 {
     private readonly IClipboard clipboard;
     private readonly FileViews files;
@@ -60,6 +62,13 @@ internal sealed partial class MessageViewModel : IMessageViewModel, ITimelineIte
 
     [ObservableProperty]
     public partial bool IsCopied { get; private set; }
+
+    [ObservableProperty]
+    public partial FindMark Found { get; set; }
+
+    public string SearchText => Text;
+
+    public bool Unfold() => false;
 
     public void Update(ITimelineEntry entry)
     {

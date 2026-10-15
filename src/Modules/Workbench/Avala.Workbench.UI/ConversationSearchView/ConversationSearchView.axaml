@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             xmlns:copying="using:Avala.Components.UI.Copying"
+             x:Class="Avala.Workbench.UI.ConversationSearchView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IConversationSearchViewModel">
+  <Design.DataContext>
+    <conversation:DesignConversationSearchViewModel IsOpen="True" />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Border#Bar">
+      <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeFloatBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowFloat}" />
+    </Style>
+    <Style Selector="TextBox#Query">
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBlock#Status.none">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Bar" IsVisible="{Binding IsOpen}" Width="320" BorderThickness="1" Padding="10,4,4,4">
+    <DockPanel>
+      <Button x:Name="CloseFind"
+              DockPanel.Dock="Right"
+              Classes="glyph"
+              Command="{Binding CloseCommand}"
+              ToolTip.Tip="Close (Esc)"
+              AutomationProperties.Name="Close find">
+        <Path Classes="icon" Width="11" Height="11" Data="{StaticResource IconCross}" />
+      </Button>
+      <Button x:Name="Next"
+              DockPanel.Dock="Right"
+              Classes="glyph"
+              Command="{Binding NextCommand}"
+              IsEnabled="{Binding HasMatches}"
+              ToolTip.Tip="Next match (Enter)"
+              AutomationProperties.Name="Next match">
+        <Path Classes="icon" Width="11" Height="11" Data="{StaticResource IconChevronDown}" />
+      </Button>
+      <Button x:Name="Previous"
+              DockPanel.Dock="Right"
+              Classes="glyph"
+              Command="{Binding PreviousCommand}"
+              IsEnabled="{Binding HasMatches}"
+              ToolTip.Tip="Previous match (Shift+Enter)"
+              AutomationProperties.Name="Previous match">
+        <Path Classes="icon" Width="11" Height="11" Data="{StaticResource IconChevronDown}" RenderTransform="rotate(180deg)" />
+      </Button>
+      <TextBlock x:Name="Status"
+                 DockPanel.Dock="Right"
+                 Classes="caption"
+                 Classes.none="{Binding !HasMatches}"
+                 Margin="6,0"
+                 VerticalAlignment="Center"
+                 Text="{Binding Status}" />
+      <Path DockPanel.Dock="Left" Classes="icon" Width="13" Height="13" Margin="0,0,6,0" VerticalAlignment="Center" Stroke="{DynamicResource TextTertiaryBrush}" Data="{StaticResource IconSearch}" />
+      <TextBox x:Name="Query"
+               Text="{Binding Query}"
+               Watermark="Find in conversation"
+               AutomationProperties.Name="Find in conversation">
+        <TextBox.KeyBindings>
+          <KeyBinding Gesture="Enter" Command="{Binding NextCommand}" />
+          <KeyBinding Gesture="Shift+Enter" Command="{Binding PreviousCommand}" />
+          <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+        </TextBox.KeyBindings>
+      </TextBox>
+    </DockPanel>
+  </Border>
+</UserControl>

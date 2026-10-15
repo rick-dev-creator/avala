@@ -26,6 +26,8 @@ public static class Hotkeys
 
     public static KeyGesture Inspector { get; } = new(Key.I, Command);
 
+    public static KeyGesture Find { get; } = new(Key.F, Command);
+
     public static KeyGesture FocusMode { get; } = new(Key.F, Command | KeyModifiers.Shift);
 
     public static KeyGesture Archive { get; } = new(Key.A, Command | KeyModifiers.Shift);
@@ -41,6 +43,8 @@ public static class Hotkeys
     public static string CommandBackLabel { get; } = Label(CommandBack);
 
     public static string ReviewLabel { get; } = Label(Review);
+
+    public static string FindLabel { get; } = Label(Find);
 
     public static string DecisionsLabel { get; } = Label(Decisions);
 

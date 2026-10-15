@@ -290,6 +290,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IContestSectionViewModel, ContestSectionView>();
         views.Register<ICandidateSwitcherViewModel, CandidateSwitcherView>();
         RegisterGlobalViews(views);
+        RegisterFollowingViews(views);
     }
 
     private static void RegisterInspector(IPluginRegistrar registrar)
@@ -474,6 +475,15 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IPage, TriggersViewModel>()
             .AddForwarded<IPage, SettingsViewModel>();
 
+    private static void RegisterFollowingViews(IViewRegistrar views)
+    {
+        views.Register<IRemoteControlViewModel, RemoteControlView>();
+        views.Register<IConversationSearchViewModel, ConversationSearchView>();
+        views.Register<ISubagentViewModel, SubagentView>();
+        views.Register<IDelegationPaneViewModel, DelegationPaneView>();
+        views.Register<IDelegationToggleViewModel, DelegationToggleView>();
+    }
+
     private static void RegisterGlobalViews(IViewRegistrar views)
     {
         views.Register<IOverviewViewModel, OverviewView>();
@@ -485,15 +495,11 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IOrchestratorViewModel, OrchestratorView>();
         views.Register<IOrchestratorCardViewModel, OrchestratorCardView>();
         views.Register<IDelegationNodeViewModel, DelegationNodeView>();
-        views.Register<ISubagentViewModel, SubagentView>();
-        views.Register<IDelegationPaneViewModel, DelegationPaneView>();
-        views.Register<IDelegationToggleViewModel, DelegationToggleView>();
         views.Register<IDelegationRefusalViewModel, DelegationRefusalView>();
         views.Register<IUsageViewModel, UsageView>();
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();
         views.Register<IUsageLeftViewModel, UsageLeftView>();
         views.Register<IContextLeftViewModel, ContextLeftView>();
-        views.Register<IRemoteControlViewModel, RemoteControlView>();
         views.Register<IArchivedViewModel, ArchivedView>();
         views.Register<IArchivedRowViewModel, ArchivedRowView>();
         views.Register<IArchivedEntryViewModel, ArchivedEntryView>();

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:states="using:Avala.Components.UI.States"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:markdown="using:Avala.Components.UI.Markdown"
              xmlns:copying="using:Avala.Components.UI.Copying"
@@ -9,7 +10,9 @@
              x:DataType="conversation:IMessageViewModel"
              Classes="hover-host"
              theme:Motion.Enter="Fade"
-             Margin="0,10,0,0">
+             Margin="0,10,0,0"
+             Classes.found="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Match,Current'}"
+             Classes.current="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Current'}">
   <Design.DataContext>
     <conversation:DesignMessageViewModel />
   </Design.DataContext>

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:states="using:Avala.Components.UI.States"
              xmlns:conversation="using:Avala.Workbench.Conversation"
              x:Class="Avala.Workbench.UI.ReasoningView"
              x:ClassModifier="internal"
@@ -8,7 +9,9 @@
              theme:Motion.Enter="Fade"
              Classes.thinking="{Binding IsThinking}"
              Classes.expanded="{Binding IsExpanded}"
-             Margin="0,1">
+             Margin="0,1"
+             Classes.found="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Match,Current'}"
+             Classes.current="{Binding Found, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Current'}">
   <Design.DataContext>
     <conversation:DesignReasoningViewModel />
   </Design.DataContext>

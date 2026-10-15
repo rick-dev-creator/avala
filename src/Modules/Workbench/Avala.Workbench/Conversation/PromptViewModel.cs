@@ -9,6 +9,8 @@ namespace Avala.Workbench.Conversation;
 
 internal interface IPromptViewModel
 {
+    FindMark Found { get; }
+
     int Attempt { get; }
 
     string Origin { get; }
@@ -35,7 +37,7 @@ internal interface IPromptViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem, ITextSized
+internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem, ITextSized, ISearchable
 {
     private readonly IClipboard clipboard;
 
@@ -83,6 +85,13 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem,
     public event EventHandler<string>? EditRequested;
 
     public event EventHandler<string>? RetryRequested;
+
+    [ObservableProperty]
+    public partial FindMark Found { get; set; }
+
+    public string SearchText => Text;
+
+    public bool Unfold() => false;
 
     public void Update(ITimelineEntry entry)
     {
