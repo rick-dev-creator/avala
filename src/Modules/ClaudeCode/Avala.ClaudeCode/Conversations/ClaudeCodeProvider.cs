@@ -25,6 +25,7 @@ internal sealed class ClaudeCodeProvider(ICli cli, IConfigurationFolders folders
         new AcceptsPreview(),
         new AsksForms(),
         new AcceptsMessagesMidTurn(),
+        new AcceptsAttachments(AttachmentBlocks.Accepted),
         new CachesPrompt(TimeSpan.FromHours(1)),
         new CompactsOnRequest("/compact"),
         new ReportsUsage(),

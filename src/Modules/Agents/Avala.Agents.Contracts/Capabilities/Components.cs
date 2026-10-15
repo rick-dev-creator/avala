@@ -31,6 +31,18 @@ public sealed record CachesPrompt(TimeSpan Lifetime) : ICapability;
 
 public sealed record CompactsOnRequest(string Message) : ICapability;
 
+public sealed record AcceptsAttachments(ValueSet<string> MediaTypes) : ICapability
+{
+    public AcceptsAttachments(string[] mediaTypes)
+        : this(new ValueSet<string>(mediaTypes))
+    {
+    }
+
+    public bool Accepts(string mediaType) =>
+        MediaTypes.Contains(mediaType)
+        || (mediaType.IndexOf('/', StringComparison.Ordinal) is var slash and > 0 && MediaTypes.Contains($"{mediaType[..slash]}/*"));
+}
+
 public sealed record ControlsRemotely : ICapability
 {
     public bool StartsOn { get; init; }

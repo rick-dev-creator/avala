@@ -306,6 +306,7 @@ public sealed class ProviderTests
                 new AcceptsPreview(),
                 new AsksForms(),
                 new AcceptsMessagesMidTurn(),
+                new AcceptsAttachments(["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf", "text/*"]),
                 new CachesPrompt(TimeSpan.FromHours(1)),
                 new CompactsOnRequest("/compact"),
                 new ReportsUsage(),

@@ -18,4 +18,5 @@ public enum AgentError
     UnofferedEffort,
     InterruptUnconfirmed,
     NotRemoteControllable,
+    UnacceptedAttachment,
 }
