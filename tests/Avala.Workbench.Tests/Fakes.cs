@@ -39,7 +39,7 @@ internal sealed class FakeCatalog : IJobCatalog
         ValueTask.FromResult(Option<JobTree>.None);
 }
 
-internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJobs
+internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJobs, IJobMessages
 {
     public List<string> Calls { get; } = [];
 
@@ -64,6 +64,15 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
     public ValueTask<Result<JobHold, JobRejection>> HoldAsync(JobId job, HoldReason reason, CancellationToken cancellationToken) =>
         AnswerAsync($"hold {reason}", new JobHold(job, SessionId.New(), reason, SessionHalt.Interrupted));
 
+    public List<JobMessage> Messages { get; } = [];
+
+    public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken)
+    {
+        Messages.Add(message);
+
+        return ContinueAsync(job, message.Text, cancellationToken);
+    }
+
     public ValueTask<Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, string message, CancellationToken cancellationToken) =>
         Unless(JobStatus.NeedsHelp, JobRejection.NotHeld) is { } refused
             ? ValueTask.FromResult<Result<JobContinuation, JobRejection>>(refused)
@@ -84,6 +93,13 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
 
     public ValueTask<Result<JobRemoteControlChosen, JobRejection>> ControlRemotelyAsync(JobId job, bool on, CancellationToken cancellationToken) =>
         AnswerAsync(on ? "remote on" : "remote off", new JobRemoteControlChosen(job, on));
+
+    public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken)
+    {
+        Messages.Add(message);
+
+        return SteerAsync(job, message.Text, cancellationToken);
+    }
 
     public ValueTask<Result<JobSteered, JobRejection>> SteerAsync(JobId job, string message, CancellationToken cancellationToken) =>
         (Steerable ? Unless(JobStatus.Running, JobRejection.NotRunning) : JobRejection.NotSteerable) is { } refused
@@ -109,6 +125,13 @@ internal sealed class FakeJobs : IJobs, IOpenDeliveries, IJobLaunches, IRemoteJo
 
     public ValueTask<Result<JobContinuation, JobRejection>> ReopenAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         AnswerAsync($"reopen {feedback}", new JobContinuation(job, SessionId.New(), ContinuedIn.ResumedConversation));
+
+    public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, JobMessage message, CancellationToken cancellationToken)
+    {
+        Messages.Add(message);
+
+        return SendBackAsync(job, message.Text, cancellationToken);
+    }
 
     public ValueTask<Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
         Unless(JobStatus.AwaitingReview, JobRejection.NotAwaitingReview) is { } refused

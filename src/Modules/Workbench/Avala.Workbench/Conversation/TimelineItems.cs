@@ -11,8 +11,8 @@ internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, 
 {
     public ITimelineItem Create(JobId job, ITimelineEntry entry) => entry switch
     {
-        PromptEntry prompt => new PromptViewModel(prompt, clipboard),
-        InterjectionEntry interjection => new InterjectionViewModel(interjection),
+        PromptEntry prompt => new PromptViewModel(prompt, clipboard, Chips),
+        InterjectionEntry interjection => new InterjectionViewModel(interjection) { Attachments = Chips(interjection.Attachments) },
         MessageEntry message => new MessageViewModel(message, clipboard, files.For(job)),
         ReasoningEntry reasoning => new ReasoningViewModel(reasoning),
         ToolEntry tool => new ToolViewModel(tool, clipboard, files.For(job)),
@@ -26,4 +26,7 @@ internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, 
         RestartEntry restart => new RestartViewModel(restart),
         _ => new RestartViewModel(new RestartEntry(entry.Key, Kept: false)),
     };
+
+    private IReadOnlyList<IAttachmentChipViewModel> Chips(IReadOnlyList<Avala.Agents.Contracts.Sessions.Attachment> attachments) =>
+        [.. attachments.Select(attachment => new AttachmentChipViewModel(attachment, files.Pictures, removable: false))];
 }

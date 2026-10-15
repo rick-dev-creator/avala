@@ -4,6 +4,7 @@
              xmlns:conversation="using:Avala.Workbench.Conversation"
              xmlns:copying="using:Avala.Components.UI.Copying"
              xmlns:focusing="using:Avala.Components.UI.Focusing"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.ComposerView"
              x:ClassModifier="internal"
              x:DataType="conversation:IComposerViewModel">
@@ -90,11 +91,15 @@
               AutomationProperties.Name="Compact the conversation before sending" />
     </Grid>
     <Border x:Name="Field"
+            states:Dropping.Command="{Binding Attachments.DropCommand}"
             BorderThickness="1"
             CornerRadius="{DynamicResource RadiusCard}"
             Padding="16,8,8,8">
-      <Grid ColumnDefinitions="*,Auto,Auto">
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto,Auto,Auto">
+        <ContentControl x:Name="Attachments" Grid.ColumnSpan="4" Margin="-8,0,0,4" Content="{Binding Attachments}" IsVisible="{Binding Attachments.HasAttachments}" />
         <TextBox x:Name="Draft"
+                 Grid.Row="1"
+                 states:Pasting.Command="{Binding Attachments.PasteCommand}"
                  Classes="bare"
                  VerticalAlignment="Center"
                  Text="{Binding Draft}"
@@ -110,12 +115,25 @@
             <KeyBinding Gesture="Escape" Command="{Binding InterruptCommand}" />
           </TextBox.KeyBindings>
         </TextBox>
+        <Button x:Name="Attach"
+                Grid.Row="1"
+                Grid.Column="1"
+                Classes="glyph"
+                Margin="8,0,0,0"
+                VerticalAlignment="Bottom"
+                Command="{Binding Attachments.AttachCommand}"
+                IsVisible="{Binding Attachments.CanAttach}"
+                ToolTip.Tip="Attach files, or drop or paste them here"
+                AutomationProperties.Name="Attach files">
+          <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconAttach}" />
+        </Button>
         <ContentControl x:Name="ComposerHarness"
-                        Grid.Column="1"
+                        Grid.Row="1"
+                        Grid.Column="2"
                         Margin="8,0,0,0"
                         VerticalAlignment="Bottom"
                         Content="{Binding Harness}" />
-        <Panel Grid.Column="2" Margin="8,0,0,0" VerticalAlignment="Bottom">
+        <Panel Grid.Row="1" Grid.Column="3" Margin="8,0,0,0" VerticalAlignment="Bottom">
           <Button x:Name="Send"
                   Classes="send"
                   Command="{Binding SendCommand}"

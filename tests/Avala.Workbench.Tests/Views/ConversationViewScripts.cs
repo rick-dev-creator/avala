@@ -425,7 +425,7 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
                 ? new PullRequestWatchState(summary.Job, new ForgeName("github"), new PullRequestRef(7, new Uri("https://github.com/acme/shop/pull/7"), "avala/job", "main"), policy, 3)
                 : Option<PullRequestWatchState>.None,
         };
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)), keys ?? new SendKeys(), Composing.Harness(summary.Job));
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, new QueuedMessages(jobs)), new ComposerTools(keys ?? new SendKeys(), Composing.Trays().Open()), Composing.Harness(summary.Job));
         composer.Track(shown);
 
         return (composer, jobs);

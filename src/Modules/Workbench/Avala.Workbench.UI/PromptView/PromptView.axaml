@@ -63,6 +63,13 @@
         <markdown:MarkdownText x:Name="Brief" Classes="compact" Markdown="{Binding Text}" IsVisible="{Binding !IsFromPerson}" />
       </Panel>
     </Border>
+    <ItemsControl x:Name="Attachments" HorizontalAlignment="Right" ItemsSource="{Binding Attachments}" IsVisible="{Binding HasAttachments}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel HorizontalAlignment="Right" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
     <StackPanel x:Name="Actions"
                 Classes="hover-actions"
                 Margin="0,-2,-5,-2"

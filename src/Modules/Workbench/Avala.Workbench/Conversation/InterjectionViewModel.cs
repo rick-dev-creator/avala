@@ -6,6 +6,10 @@ namespace Avala.Workbench.Conversation;
 
 internal interface IInterjectionViewModel
 {
+    IReadOnlyList<IAttachmentChipViewModel> Attachments { get; }
+
+    bool HasAttachments { get; }
+
     FindMark Found { get; }
 
     string Note { get; }
@@ -27,6 +31,10 @@ internal sealed partial class InterjectionViewModel(InterjectionEntry entry) : I
     public int TextLength => Text.Length;
 
     public bool IsShown => true;
+
+    public IReadOnlyList<IAttachmentChipViewModel> Attachments { get; init; } = [];
+
+    public bool HasAttachments => Attachments.Count > 0;
 
     [ObservableProperty]
     public partial FindMark Found { get; set; }

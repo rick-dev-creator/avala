@@ -31,6 +31,7 @@ internal static class SimulatedCapabilities
         new AcceptsTools([ToolSurface.Canvas, ToolSurface.Executed]),
         new AsksForms(),
         new AcceptsMessagesMidTurn(),
+        new AcceptsAttachments(["image/png", "image/jpeg", "application/pdf", "text/*"]),
         new CachesPrompt(TimeSpan.FromHours(1)),
         new CompactsOnRequest("/compact"),
         new ReportsUsage(),
@@ -90,6 +91,7 @@ internal static class SimulatedCapabilities
         (nameof(ReportsLimits), declared => declared.Without<ReportsLimits>()),
         (nameof(OffersModels), declared => declared.Without<OffersModels>()),
         (nameof(ControlsRemotely), declared => declared.Without<ControlsRemotely>()),
+        (nameof(AcceptsAttachments), declared => declared.Without<AcceptsAttachments>()),
     ];
 
     private static CapabilitySet Remove(CapabilitySet declared, string component) =>

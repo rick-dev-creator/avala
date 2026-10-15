@@ -101,6 +101,8 @@ public enum AttachmentRefusal
 
 public interface IJobAttachments
 {
+    string MediaTypeOf(string name);
+
     ValueTask<Result<Attachment, AttachmentRefusal>> KeepAsync(string name, Stream content, CancellationToken cancellationToken);
 
     ValueTask<Result<Attachment, AttachmentRefusal>> KeepFileAsync(string path, CancellationToken cancellationToken);

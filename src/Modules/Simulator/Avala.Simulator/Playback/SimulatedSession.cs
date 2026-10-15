@@ -144,7 +144,7 @@ internal sealed class SimulatedSession : IAgentSession
         : act.Match(
             running =>
             {
-                events.Writer.TryWrite(new MessageQueued(Id, running.Turn, turn.Text));
+                events.Writer.TryWrite(new MessageQueued(Id, running.Turn, turn.Text) { Attachments = turn.Attachments });
                 gates.Messages.Writer.TryWrite(turn.Text);
 
                 return Result<TurnId, AgentError>.Success(running.Turn);
@@ -166,7 +166,7 @@ internal sealed class SimulatedSession : IAgentSession
         var current = await conversation.Match(
             known => Task.FromResult(known),
             async () => Conversation.Begin(await craft.Library.ChooseAsync(turn.Text, options, cancellationToken), SimulatedAccounts.Holder(Account)));
-        var next = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token), turn.Text) { Unheard = current.NextScript.OfType<IgnoreInterrupt>().FirstOrDefault().ToOption() };
+        var next = new Act(TurnId.New(), CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token), turn.Text) { Unheard = current.NextScript.OfType<IgnoreInterrupt>().FirstOrDefault().ToOption(), Attached = turn.Attachments };
         conversation = current.Advanced;
         act = next;
         conducting = Task.Run(() => ConductAsync(next, current), CancellationToken.None);
@@ -176,7 +176,7 @@ internal sealed class SimulatedSession : IAgentSession
 
     private async Task ConductAsync(Act current, Conversation played)
     {
-        var cues = new Cues(Id, current.Turn) { Told = current.Told };
+        var cues = new Cues(Id, current.Turn) { Told = current.Told, Attached = current.Attached };
         var interruption = current.Interruption.Token;
         var ended = false;
 
@@ -265,6 +265,8 @@ internal sealed class SimulatedSession : IAgentSession
 
     private sealed record Act(TurnId Turn, CancellationTokenSource Interruption, string Told)
     {
+        public IReadOnlyList<Attachment> Attached { get; init; } = [];
+
         public Option<IgnoreInterrupt> Unheard { get; init; }
     }
 }

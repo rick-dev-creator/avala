@@ -8,6 +8,8 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 {
     public string Told { get; init; } = string.Empty;
 
+    public IReadOnlyList<Attachment> Attached { get; init; } = [];
+
     public TurnStarted Started => new(Session, Turn);
 
     public TurnCompleted Ended(TurnOutcome outcome) => new(Session, Turn, outcome);
@@ -52,6 +54,7 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         ReportContext context => [new ContextReported(Session, Turn, context.Used, context.Window) { Compacted = context.Compacted }],
         Open open => [Opened(open.Item, open.Kind, open.Title)],
         Recall recall => Stream(Opened(recall.Item, ItemKind.Message, "Reply"), recall.Item, ["I was told: ", Told]),
+        RecallAttachments attachments => Stream(Opened(attachments.Item, ItemKind.Message, "Reply"), attachments.Item, [Attached.Count == 0 ? "Nothing was attached." : $"I received {string.Join(", ", Attached.Select(attached => $"{attached.Name} ({attached.MediaType})"))}."]),
         FromDevice device when device.Text == Told => [new RemoteMessageArrived(Session, Turn, device.Text) { BeganTurn = true }],
         Finish => [Ended(TurnOutcome.Finished)],
         _ => [],

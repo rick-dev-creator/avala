@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Components.Virtualizing;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -9,6 +10,10 @@ namespace Avala.Workbench.Conversation;
 
 internal interface IPromptViewModel
 {
+    IReadOnlyList<IAttachmentChipViewModel> Attachments { get; }
+
+    bool HasAttachments { get; }
+
     FindMark Found { get; }
 
     int Attempt { get; }
@@ -41,9 +46,18 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem,
 {
     private readonly IClipboard clipboard;
 
+    private readonly Func<IReadOnlyList<Attachment>, IReadOnlyList<IAttachmentChipViewModel>> chips;
+    private IReadOnlyList<Attachment> attached = [];
+
     public PromptViewModel(PromptEntry entry, IClipboard clipboard)
+        : this(entry, clipboard, _ => [])
+    {
+    }
+
+    public PromptViewModel(PromptEntry entry, IClipboard clipboard, Func<IReadOnlyList<Attachment>, IReadOnlyList<IAttachmentChipViewModel>> chips)
     {
         this.clipboard = clipboard;
+        this.chips = chips;
         Attempt = entry.Attempt;
         Origin = ConversationPhrases.Origin(entry);
         IsFromPerson = entry.Origin is AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack or AttemptOrigin.Device;
@@ -67,6 +81,12 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem,
     public int TextLength => Text.Length;
 
     public bool IsShown => true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAttachments))]
+    public partial IReadOnlyList<IAttachmentChipViewModel> Attachments { get; private set; } = [];
+
+    public bool HasAttachments => Attachments.Count > 0;
 
     [ObservableProperty]
     public partial string Outcome { get; private set; }
@@ -99,6 +119,12 @@ internal sealed partial class PromptViewModel : IPromptViewModel, ITimelineItem,
         {
             Outcome = prompt.Outcome.Match(outcome => ConversationPhrases.Outcome(prompt.Attempt, outcome), () => string.Empty);
             Origin = ConversationPhrases.Origin(prompt);
+
+            if (!prompt.Attachments.SequenceEqual(attached))
+            {
+                attached = prompt.Attachments;
+                Attachments = chips(attached);
+            }
         }
     }
 

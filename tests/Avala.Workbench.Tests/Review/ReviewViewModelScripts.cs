@@ -274,7 +274,7 @@ public sealed class ReviewViewModelScripts : IDisposable
     public async Task AMessageQueuedWhileTheAgentWorkedIsOfferedAndSentBackOnlyWhenChosen()
     {
         bench.Jobs.Status = JobStatus.AwaitingReview;
-        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await bench.Queue.DeliverAsync(job.Job, JobStatus.Running, "Keep the old namespace as an alias", Cancellation)));
+        Assert.Equal(MessageDelivery.Queued, Outcomes.Succeeds(await bench.Queue.DeliverAsync(job.Job, JobStatus.Running, new JobMessage("Keep the old namespace as an alias"), Cancellation)));
         var review = Review();
         var before = review.SendBackQueuedCommand.CanExecute(null);
 

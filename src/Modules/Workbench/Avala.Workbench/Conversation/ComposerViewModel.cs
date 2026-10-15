@@ -54,6 +54,8 @@ internal interface IComposerViewModel
     bool CanCompact { get; }
 
     IAsyncRelayCommand CompactCommand { get; }
+
+    IAttachmentTrayViewModel Attachments { get; }
 }
 
 [INotifyPropertyChanged]
@@ -61,17 +63,23 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 {
     private readonly JobSteering steering;
     private readonly SendKeys keys;
+    private readonly AttachmentTrayViewModel attachments;
 
     private readonly JobHarness harness;
 
-    public ComposerViewModel(JobId job, JobSteering steering, SendKeys keys, JobHarness harness)
+    public ComposerViewModel(JobId job, JobSteering steering, ComposerTools tools, JobHarness harness)
     {
         Job = job;
         this.harness = harness;
         this.steering = steering;
-        this.keys = keys;
+        keys = tools.Keys;
+        attachments = tools.Attachments;
         SendsWithEnter = keys.WithEnter;
-        harness.Loaded += (_, _) => ShowCold();
+        harness.Loaded += (_, _) =>
+        {
+            ShowCold();
+            attachments.Accept(harness.Attachments);
+        };
         Draft = string.Empty;
         Error = string.Empty;
         Queued = string.Empty;
@@ -189,8 +197,14 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     [RelayCommand(CanExecute = nameof(CanSend))]
     private async Task SendAsync(CancellationToken cancellationToken)
     {
-        var sent = await steering.SendAsync(Job, Status, Draft.Trim(), cancellationToken);
+        var sent = await steering.SendAsync(Job, Status, new JobMessage(Draft.Trim()) { Attachments = attachments.Attached }, cancellationToken);
         Draft = sent.IsSuccess ? string.Empty : Draft;
+
+        if (sent.IsSuccess)
+        {
+            attachments.Clear();
+        }
+
         Error = sent.Match(_ => string.Empty, ConversationPhrases.Rejection);
         ShowQueued();
     }
@@ -223,6 +237,8 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     private bool CanStop() => Status.CanBeStopped;
 
     private bool CanWithdraw() => Queued.Length > 0;
+
+    public IAttachmentTrayViewModel Attachments => attachments;
 
     private void ShowQueued() => Queued = steering.Queued(Job).Match(message => message, () => string.Empty);
 

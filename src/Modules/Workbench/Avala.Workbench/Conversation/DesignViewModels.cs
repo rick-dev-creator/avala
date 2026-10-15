@@ -20,6 +20,8 @@ namespace Avala.Workbench.Conversation;
 [INotifyPropertyChanged]
 internal sealed partial class DesignComposerViewModel : IComposerViewModel
 {
+    public IAttachmentTrayViewModel Attachments { get; init; } = new DesignAttachmentTrayViewModel();
+
     public DesignComposerViewModel()
         : this(JobStatus.Running)
     {
@@ -91,6 +93,10 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
 internal sealed class DesignPromptViewModel(string text) : IPromptViewModel
 {
+    public IReadOnlyList<IAttachmentChipViewModel> Attachments { get; init; } = [];
+
+    public bool HasAttachments => Attachments.Count > 0;
+
     public FindMark Found { get; init; }
 
     public bool IsCopied => false;
@@ -136,6 +142,10 @@ internal sealed class DesignChildAskingViewModel : IChildAskingViewModel
 
 internal sealed class DesignInterjectionViewModel : IInterjectionViewModel
 {
+    public IReadOnlyList<IAttachmentChipViewModel> Attachments { get; init; } = [];
+
+    public bool HasAttachments => Attachments.Count > 0;
+
     public FindMark Found { get; init; }
 
     public string Note => "You, while it worked · joined the turn";
@@ -535,4 +545,44 @@ internal sealed class DesignConversationSearchViewModel : IConversationSearchVie
     public IRelayCommand NextCommand { get; init; } = new RelayCommand(() => { });
 
     public IRelayCommand PreviousCommand { get; init; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignAttachmentChipViewModel : IAttachmentChipViewModel
+{
+    public string Name { get; init; } = "checkout-screen.png";
+
+    public string Kind => Path.GetExtension(Name).TrimStart('.').ToUpperInvariant();
+
+    public bool IsImage { get; init; } = true;
+
+    public Avala.Components.Pictures.IPicture Picture => Avala.Components.Pictures.NoPicture.Instance;
+
+    public bool CanRemove { get; init; } = true;
+
+    public IRelayCommand RemoveCommand { get; init; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand<bool> ShowCommand { get; } = new AsyncRelayCommand<bool>(_ => Task.CompletedTask);
+}
+
+internal sealed class DesignAttachmentTrayViewModel : IAttachmentTrayViewModel
+{
+    public IReadOnlyList<IAttachmentChipViewModel> Chips { get; init; } =
+    [
+        new DesignAttachmentChipViewModel(),
+        new DesignAttachmentChipViewModel { Name = "build.log", IsImage = false },
+    ];
+
+    public bool HasAttachments => Chips.Count > 0;
+
+    public bool CanAttach { get; init; } = true;
+
+    public string Problem { get; init; } = string.Empty;
+
+    public bool HasProblem => Problem.Length > 0;
+
+    public IAsyncRelayCommand AttachCommand { get; init; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public IAsyncRelayCommand<IReadOnlyList<string>> DropCommand { get; init; } = new AsyncRelayCommand<IReadOnlyList<string>>(_ => Task.CompletedTask);
+
+    public IAsyncRelayCommand<Avala.Components.Attaching.Pasted> PasteCommand { get; init; } = new AsyncRelayCommand<Avala.Components.Attaching.Pasted>(_ => Task.CompletedTask);
 }

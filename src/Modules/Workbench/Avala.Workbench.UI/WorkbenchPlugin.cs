@@ -175,7 +175,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddForwarded<IHandle<RemoteControlReported>, RemoteKeeper>()
             .AddForwarded<IHandle<JobRemoteControlChosen>, RemoteKeeper>()
             .AddSingleton<LinkTools>()
-            .AddSingleton<RemoteControlViewModel>();
+            .AddSingleton<RemoteControlViewModel>()
+            .AddSingleton<AttachmentTrays>();
 
     private static void RegisterRegions(IPluginRegistrar registrar) =>
         registrar.AddToRegion<SidebarViewModel>(ShellRegions.Sidebar, 0)
@@ -349,6 +350,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     private static void RegisterRepositoryChoice(IServiceCollection services)
     {
         services.TryAddSingleton<IFolderPicker, AvaloniaFolderPicker>();
+        services.TryAddSingleton<IFilePicker, AvaloniaFilePicker>();
         services.TryAddSingleton<IClipboard, AvaloniaClipboard>();
         services.TryAddSingleton<IPictureDecoder>(_ => new PictureCache());
         services.TryAddSingleton<IFileSaver, AvaloniaFileSaver>();
@@ -479,6 +481,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
     {
         views.Register<IRemoteControlViewModel, RemoteControlView>();
         views.Register<IConversationSearchViewModel, ConversationSearchView>();
+        views.Register<IAttachmentTrayViewModel, AttachmentTrayView>();
+        views.Register<IAttachmentChipViewModel, AttachmentChipView>();
         views.Register<ISubagentViewModel, SubagentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();

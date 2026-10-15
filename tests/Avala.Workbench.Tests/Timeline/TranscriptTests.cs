@@ -269,6 +269,21 @@ public sealed class TranscriptTests
     }
 
     [Fact]
+    public void APromptAndAMessageSentDuringATurnKeepTheAttachmentsTheyWereSentWith()
+    {
+        Avala.Agents.Contracts.Sessions.Attachment[] screen = [new("screen.png", "image/png", "/data/attachments/1/screen.png")];
+        Avala.Agents.Contracts.Sessions.Attachment[] log = [new("build.log", "text/plain", "/data/attachments/2/build.log")];
+
+        var transcript = Transcript.Empty
+            .WithPrompts("Fix the failing test", [Attempt(1, AttemptOrigin.Initial, AttemptOutcome.Running) with { Attachments = screen }])
+            .Apply(new TurnStarted(Session, Turn), DateTimeOffset.UnixEpoch)
+            .Apply(new MessageQueued(Session, Turn, "Here is the log") { Attachments = log }, DateTimeOffset.UnixEpoch);
+
+        Assert.Equal(screen, transcript.Entries.OfType<PromptEntry>().Single().Attachments);
+        Assert.Equal(log, transcript.Entries.OfType<InterjectionEntry>().Single().Attachments);
+    }
+
+    [Fact]
     public void AMessageFromThePhoneDuringATurnJoinsItWhereItArrivedAndOneThatStartedATurnIsLeftToItsPrompt()
     {
         var transcript = Played(

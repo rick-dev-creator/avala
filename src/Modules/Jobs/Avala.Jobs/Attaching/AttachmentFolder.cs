@@ -28,6 +28,8 @@ internal sealed class AttachmentFolder(AvalaPaths paths) : IJobAttachments
         ".c", ".h", ".cpp", ".hpp", ".sh", ".ps1", ".sql", ".graphql", ".proto", ".diff", ".patch", ".env", ".gitignore", ".dockerfile",
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
+    string IJobAttachments.MediaTypeOf(string name) => MediaTypeOf(name);
+
     public static string MediaTypeOf(string name)
     {
         var extension = Path.GetExtension(name);

@@ -34,5 +34,12 @@
     <Border x:Name="Bubble" MaxWidth="560" Padding="14,10">
       <SelectableTextBlock x:Name="Text" Text="{Binding Text}" />
     </Border>
+    <ItemsControl x:Name="Attachments" HorizontalAlignment="Right" ItemsSource="{Binding Attachments}" IsVisible="{Binding HasAttachments}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel HorizontalAlignment="Right" />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
   </StackPanel>
 </UserControl>

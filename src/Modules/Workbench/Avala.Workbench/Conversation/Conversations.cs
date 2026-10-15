@@ -1,4 +1,6 @@
+using Avala.Components.Pictures;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.NewJob;
 using Avala.Workbench.Steering;
@@ -28,9 +30,16 @@ internal sealed class Conversations(Composers composers, TimelineItems items, Tr
     }
 }
 
-internal sealed class Composers(JobSteering steering, SendKeys keys, JobHarnesses harnesses)
+internal sealed record ComposerTools(SendKeys Keys, AttachmentTrayViewModel Attachments);
+
+internal sealed class Composers(JobSteering steering, SendKeys keys, JobHarnesses harnesses, AttachmentTrays trays)
 {
-    public ComposerViewModel Open(JobId job) => new(job, steering, keys, harnesses.Open(job));
+    public ComposerViewModel Open(JobId job) => new(job, steering, new ComposerTools(keys, trays.Open()), harnesses.Open(job));
+}
+
+internal sealed class AttachmentTrays(IJobAttachments store, IFilePicker picker, IPictureDecoder pictures)
+{
+    public AttachmentTrayViewModel Open() => new(store, picker, pictures);
 }
 
 internal sealed class JobHarnesses(JobSwitching switching, NewJobReadings readings)

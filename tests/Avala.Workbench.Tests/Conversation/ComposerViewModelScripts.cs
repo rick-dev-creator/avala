@@ -18,6 +18,22 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task SendingAMessageCarriesItsAttachmentsAndEmptiesTheTrayAsync()
+    {
+        var composer = Composer(JobStatus.NeedsHelp);
+        var tray = (AttachmentTrayViewModel)composer.Attachments;
+        tray.Accept(new Avala.Agents.Contracts.Capabilities.AcceptsAttachments(["image/png"]));
+        await tray.DropCommand.ExecuteAsync(["/home/ana/screen.png"]);
+        composer.Draft = "Use this layout";
+
+        await composer.SendCommand.ExecuteAsync(null);
+
+        Assert.Equal(["screen.png"], jobs.Messages[^1].Attachments.Select(attached => attached.Name));
+        Assert.Equal("Use this layout", jobs.Messages[^1].Text);
+        Assert.Equal((false, string.Empty), (tray.HasAttachments, composer.Draft));
+    }
+
+    [Fact]
     public async Task ASentMessageContinuesTheJobAndClearsTheDraft()
     {
         var composer = Composer(JobStatus.NeedsHelp);
@@ -227,8 +243,8 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         shown = new BoardJob(summary, Transcript.Empty) { TakesMessagesMidTurn = takesMessagesMidTurn };
         jobs.Status = status;
         jobs.Steerable = takesMessagesMidTurn;
-        queue = new QueuedMessages(steered);
-        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), keys, Composing.Harness(summary.Job));
+        queue = new QueuedMessages((IJobMessages)steered);
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(steered, queue), new ComposerTools(keys, Composing.Trays().Open()), Composing.Harness(summary.Job));
         composer.Track(shown);
 
         return composer;
@@ -243,7 +259,7 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
 
     public ValueTask DisposeAsync() => queue is { } owned ? owned.DisposeAsync() : ValueTask.CompletedTask;
 
-    private sealed class GatedJobs(Task gate, FakeJobs inner) : IJobs
+    private sealed class GatedJobs(Task gate, FakeJobs inner) : IJobs, IJobMessages
     {
         public ValueTask<Avala.Sdk.Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken) => inner.SubmitAsync(request, cancellationToken);
 
@@ -277,6 +293,17 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> ResumeAsync(JobId job, CancellationToken cancellationToken) => inner.ResumeAsync(job, cancellationToken);
 
         public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> HandOffAsync(JobId job, JobHandoff handoff, CancellationToken cancellationToken) => inner.HandOffAsync(job, handoff, cancellationToken);
+
+        public async ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> ContinueAsync(JobId job, JobMessage message, CancellationToken cancellationToken)
+        {
+            await gate;
+
+            return await inner.ContinueAsync(job, message, cancellationToken);
+        }
+
+        public ValueTask<Avala.Sdk.Result<JobSteered, JobRejection>> SteerAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => inner.SteerAsync(job, message, cancellationToken);
+
+        public ValueTask<Avala.Sdk.Result<JobContinuation, JobRejection>> SendBackAsync(JobId job, JobMessage message, CancellationToken cancellationToken) => inner.SendBackAsync(job, message, cancellationToken);
 
         public ValueTask<Avala.Sdk.Result<JobModelChosen, JobRejection>> ChooseModelAsync(JobId job, Avala.Agents.Contracts.Sessions.ModelChoice model, CancellationToken cancellationToken) => inner.ChooseModelAsync(job, model, cancellationToken);
     }
