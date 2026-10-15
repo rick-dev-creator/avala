@@ -20,6 +20,7 @@ Avala presses ⌘ on macOS where Windows and Linux press Ctrl, and its tooltips 
 | Mod+Shift+F | Focus mode; Esc or the same keys leave it |
 | F11, or Ctrl+⌘+F on macOS | Full screen |
 | Mod+C, Mod+A | Copy, Select All in a conversation |
+| Mod+F | Find in the conversation; Enter and Shift+Enter step through the matches, Esc closes it |
 
 ### Writing
 
