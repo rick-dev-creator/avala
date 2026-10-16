@@ -226,10 +226,10 @@ internal static class DelegationPanePhrases
             tree.Children.Select(node => (Connection: node.Job.Connection.Match(name => name.Value, () => "not started"), Context: AgentGlance.CompactsAt(node.Seen)))
                 .Prepend((Connection: tree.Root.Connection.Match(name => name.Value, () => "default connection"), Context: AgentGlance.CompactsAt(tree.RootJob)))
                 .GroupBy(job => job.Connection, StringComparer.Ordinal)
-                .Select(group => Connection(group.Key, group.Count(), group.Select(job => job.Context).FirstOrDefault(at => at.IsSome))));
+                .Select(group => Connection(group.Key, group.Count(), [.. group.SelectMany(job => job.Context.Match<long[]>(at => [at], () => [])).Distinct().Order()])));
 
-    private static string Connection(string name, int jobs, Option<long> compactsAt) =>
-        compactsAt.Match(
-            at => $"{name} · {OverviewPhrases.Count(jobs, "job")} · compacts at {AgentGlance.TokensText(at).Replace(" tokens", string.Empty, StringComparison.Ordinal)}",
-            () => $"{name} · {OverviewPhrases.Count(jobs, "job")}");
+    private static string Connection(string name, int jobs, IReadOnlyList<long> windows) =>
+        windows.Count == 0
+            ? $"{name} · {OverviewPhrases.Count(jobs, "job")}"
+            : $"{name} · {OverviewPhrases.Count(jobs, "job")} · compacts at {string.Join(" or ", windows.Select(at => AgentGlance.TokensText(at).Replace(" tokens", string.Empty, StringComparison.Ordinal)))}";
 }

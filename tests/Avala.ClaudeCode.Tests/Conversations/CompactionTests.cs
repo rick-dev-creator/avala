@@ -25,6 +25,10 @@ public sealed class CompactionTests
     public void ASessionCompactsAtTwoHundredFiftyThousandTokensUnlessItsConnectionSetsCompactAt(string? compactAt, string window) =>
         Assert.Equal(window, Launch(compactAt is null ? [] : [(CommandLine.CompactAtSetting, compactAt)]).Variables[CommandLine.CompactWindowVariable]);
 
+    [Fact]
+    public void ASessionWhoseRoleSetsACompactionWindowCompactsThereInsteadOfAtItsConnections() =>
+        Assert.Equal("90000", Launch([(CommandLine.CompactAtSetting, "120000")], window: 90_000L).Variables[CommandLine.CompactWindowVariable]);
+
     [Theory]
     [InlineData("true")]
     [InlineData("false")]
@@ -67,7 +71,7 @@ public sealed class CompactionTests
     private static (int, string, bool) Reading(JsonNode context) =>
         (context["maxTokens"]!.GetValue<int>(), context["autocompactSource"]!.GetValue<string>(), context["isAutoCompactEnabled"]!.GetValue<bool>());
 
-    private static CliLaunch Launch((string Name, string Value)[] settings, string folder = "/repo") =>
+    private static CliLaunch Launch((string Name, string Value)[] settings, string folder = "/repo", Option<long> window = default) =>
         CommandLine.For(
             folder,
             new SessionOptions(folder, PermissionMode.AskEveryTime)
@@ -76,6 +80,7 @@ public sealed class CompactionTests
                 {
                     Settings = settings.ToDictionary(setting => setting.Name, setting => setting.Value),
                 },
+                Model = ModelChoice.Default with { CompactAt = window },
             },
             Option<ConversationMark>.None,
             new UserHome(folder, []));

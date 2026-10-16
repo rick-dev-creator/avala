@@ -109,6 +109,22 @@ public sealed class TreeOrderTests
     }
 
     [Fact]
+    public void ThePanesFooterNamesEveryWindowAConnectionsJobsCompactAtWhenTheirRolesSetTheirOwn()
+    {
+        var root = Pages.Summary("Migrate payments", JobStatus.Running, "claude-work");
+        Transcript Compacting(long at) => Transcript.Empty.Apply(new TurnStarted(Session, Turn), DateTimeOffset.UnixEpoch).Apply(new ContextReported(Session, Turn, 10_000, 200_000) { CompactsAt = at }, DateTimeOffset.UnixEpoch);
+        var tree = new DelegationTree(
+            root,
+            [
+                Node("Port the keys", JobStatus.Running, 1, Compacting(250_000L), connection: "claude-work"),
+                Node("Find the callers", JobStatus.Running, 1, Compacting(90_000L), connection: "claude-work"),
+            ],
+            []);
+
+        Assert.Equal("claude-work · 3 jobs · compacts at 90k or 250k", DelegationPanePhrases.Footer(tree));
+    }
+
+    [Fact]
     public void ARowWhoseHarnessReportedNoContextShowsNone() =>
         Assert.False(new DelegationNodeViewModel(Node("Update call sites", JobStatus.Running, 1)).Context.IsShown);
 

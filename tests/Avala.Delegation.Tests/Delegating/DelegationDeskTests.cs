@@ -49,6 +49,18 @@ public sealed class DelegationDeskTests
     }
 
     [Fact]
+    public async Task AChildTakesItsRolesModelEffortAndCompactionWindowWhereItsParentLeftThemOutAsync()
+    {
+        var research = new ModelChoice("small", "low") { CompactAt = 90_000L };
+        await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Settings = RoleSettings.Undeclared.With(ChildRole.Research, research) }));
+        await desk.StartedAsync();
+
+        await desk.CallAsync("call", """{ "instruction": "Find the notes", "role": "research", "effort": "high" }""");
+
+        Assert.Equal(new ModelChoice("small", "high") { CompactAt = 90_000L }, Assert.Single(desk.Jobs.Submitted).Model);
+    }
+
+    [Fact]
     public async Task ACapacityRoutedChildRunsOnTheListedConnectionWithCapacityAndKeepsTheReadingsComparedAsync()
     {
         await using var desk = new Desk(Option<DelegationRules>.Some(Desk.Declared with { Routing = Routing.Capacity }));

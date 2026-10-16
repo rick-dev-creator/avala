@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 
 namespace Avala.ClaudeCode.Tests.Conversations;
 
@@ -59,6 +60,14 @@ public sealed class ContextTests
         var talk = new Talk(connection: new Avala.Agents.Contracts.Connections.ConnectionEnvironment { Settings = settings }).Begin().Receive(Said(6, 51_545, 7_755), Result());
 
         Assert.Equal(compactsAt is { } at ? Avala.Sdk.Option<long>.Some(at) : Avala.Sdk.Option<long>.None, Assert.Single(talk.Events.OfType<ContextReported>()).CompactsAt);
+    }
+
+    [Fact]
+    public void TheContextSaysItCompactsWhereItsRoleSetsTheWindow()
+    {
+        var talk = new Talk(model: ModelChoice.Default with { CompactAt = 90_000L }).Begin().Receive(Said(6, 51_545, 7_755), Result());
+
+        Assert.Equal(Avala.Sdk.Option<long>.Some(90_000L), Assert.Single(talk.Events.OfType<ContextReported>()).CompactsAt);
     }
 
     [Fact]

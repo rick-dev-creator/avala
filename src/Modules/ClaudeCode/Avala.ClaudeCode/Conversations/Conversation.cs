@@ -36,7 +36,7 @@ internal sealed class Conversation
         conversation = resumed.Map(mark => mark.Session);
         spent = resumed.Match(mark => mark.Spent, () => 0m);
         effort = ClaudeModels.Chosen(options).Effort;
-        context = new ContextGauge(CommandLine.CompactsAt(options.Connection));
+        context = new ContextGauge(CommandLine.CompactsAt(options));
     }
 
     public Option<TurnId> Live => live.Map(stamp => stamp.Turn);

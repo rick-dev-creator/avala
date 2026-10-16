@@ -11,8 +11,10 @@ namespace Avala.Jobs.Holding;
 
 internal sealed class ChooseModel(JobLedger ledger, IAgents agents, IConnections connections)
 {
-    public async Task<Result<JobModelChosen, JobRejection>> ExecuteAsync(Job job, ModelChoice model, CancellationToken cancellationToken)
+    public async Task<Result<JobModelChosen, JobRejection>> ExecuteAsync(Job job, ModelChoice asked, CancellationToken cancellationToken)
     {
+        var model = asked.CompactAt.IsSome ? asked : asked with { CompactAt = job.Model.CompactAt };
+
         if (job.State is not (JobState.NeedsHelp or JobState.AwaitingReview))
         {
             return JobRejection.NotHeld;

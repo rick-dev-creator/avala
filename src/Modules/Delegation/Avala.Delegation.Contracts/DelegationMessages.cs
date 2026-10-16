@@ -33,6 +33,7 @@ public enum DelegationError
     RoleLoosened,
     UnofferedModel,
     UnofferedEffort,
+    InvalidRoleSettings,
 }
 
 public enum ChildOutcome
