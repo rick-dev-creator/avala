@@ -2,6 +2,7 @@ using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Host.Tests;
 
@@ -172,6 +173,27 @@ public sealed class ForgeTests(PublishedPlugins plugins)
 
         Assert.Equal(new PullRequestNotOpened(job, ForgeError.UnknownConnection), await refused.UntilAsync(_ => true));
         Assert.Equal(JobStatus.AwaitingReview, Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Status);
+    }
+
+    [Fact]
+    public async Task APullRequestTheAgentOpenedFromItsJobIsWatchedOnceItsTurnEndsAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var opened = run.Watch<PullRequestOpened>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("edit"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        var workspace = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Workspace);
+        var worktree = Outcomes.Succeeds(await run.Get<IWorkspaces>().FindAsync(workspace, Cancellation));
+
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "push", "--quiet", "origin", worktree.Branch);
+        var number = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync(worktree.Branch, "main", "Edit the greeting", Cancellation);
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, "Push your branch and open a pull request.", Cancellation));
+        var adopted = await opened.UntilAsync(found => found.Job == job);
+
+        Assert.Equal((number, worktree.Branch), (adopted.PullRequest.Number, adopted.PullRequest.Head));
+        var watch = Outcomes.Present(run.Get<IPullRequests>().Of(job));
+        Assert.Equal((new ForgeName("local"), OnPullRequest.WatchOnly), (watch.Forge, watch.Policy));
     }
 
     private sealed class ForgeRun : IAsyncDisposable

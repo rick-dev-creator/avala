@@ -30,11 +30,7 @@ internal sealed class RepositoryPublisher(ForgeConnections connections, IReposit
     private static RepositoryRemote Described(string url, IReadOnlyList<UsableForge> usable)
     {
         var address = RemoteAddresses.Parse(url);
-        var forge = address.Bind(found => usable
-            .Where(candidate => candidate.Forge is IForgeRepositories hosting && string.Equals(hosting.GitHost(candidate.Url), found.Host, StringComparison.OrdinalIgnoreCase))
-            .Select(Target)
-            .FirstOrDefault()
-            .ToOption());
+        var forge = address.Bind(found => ForgeConnections.Hosting(usable, found)).Map(Target);
 
         return new RepositoryRemote(Origin, url) { Address = address, Forge = forge };
     }
