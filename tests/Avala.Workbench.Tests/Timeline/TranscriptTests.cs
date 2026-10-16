@@ -272,6 +272,18 @@ public sealed class TranscriptTests
     }
 
     [Fact]
+    public void TheEndOfATurnKeepsTheModelItsSessionReported()
+    {
+        var transcript = Played(
+            new ModelReported(Session, Turn, "claude-opus-5-5"),
+            new UsageReported(Session, Turn, new TokenUsage(10, 20, 0, 0, 0), Option<Cost>.None),
+            new TurnCompleted(Session, Turn, TurnOutcome.Finished));
+
+        var ended = Assert.IsType<TurnEndEntry>(transcript.Entries[^1]);
+        Assert.Equal((Option<string>.Some("claude-opus-5-5"), new TokenUsage(10, 20, 0, 0, 0)), (ended.Model, ended.Tokens));
+    }
+
+    [Fact]
     public void AMessageQueuedIntoTheTurnAppearsWhereItArrivedAndTwoAreKeptApart()
     {
         var transcript = Played(

@@ -14,6 +14,10 @@ internal interface ITurnEndViewModel
     long Tokens { get; }
 
     string Cost { get; }
+
+    bool HasUsage { get; }
+
+    string Breakdown { get; }
 }
 
 internal sealed class TurnEndViewModel(TurnEndEntry entry) : ITurnEndViewModel, ITimelineItem
@@ -27,6 +31,10 @@ internal sealed class TurnEndViewModel(TurnEndEntry entry) : ITurnEndViewModel, 
     public long Tokens { get; } = entry.Tokens.Input + entry.Tokens.Output + entry.Tokens.CacheRead + entry.Tokens.CacheWrite + entry.Tokens.Reasoning;
 
     public string Cost { get; } = entry.Costs.Count == 0 ? string.Empty : Presenting.Amounts.Costs(entry.Costs);
+
+    public bool HasUsage { get; } = ConversationPhrases.Reported(entry.Tokens) || entry.Costs.Count > 0;
+
+    public string Breakdown { get; } = ConversationPhrases.Breakdown(entry.Tokens, entry.Model, entry.Costs);
 
     public bool IsShown => true;
 

@@ -410,6 +410,10 @@ internal sealed class DesignTurnEndViewModel : ITurnEndViewModel
     public long Tokens => 48_210;
 
     public string Cost => "0.4120 USD";
+
+    public bool HasUsage => true;
+
+    public string Breakdown => "Input: 1,204 tokens\nOutput: 6,882 tokens\nCache read: 38,410 tokens\nCache write: 1,714 tokens\nModel: claude-opus-5-5\nCost of the whole turn: 0.4120 USD";
 }
 
 internal sealed class DesignRestartViewModel : IRestartViewModel

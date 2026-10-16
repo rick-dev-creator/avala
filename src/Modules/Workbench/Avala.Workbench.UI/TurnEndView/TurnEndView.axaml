@@ -13,13 +13,18 @@
   </Design.DataContext>
   <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
     <Border Classes="separator" VerticalAlignment="Center" />
-    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+    <StackPanel x:Name="Line"
+                Grid.Column="1"
+                Orientation="Horizontal"
+                Spacing="6"
+                Background="Transparent"
+                ToolTip.Tip="{Binding Breakdown}">
       <TextBlock x:Name="Summary"
                  Classes="caption"
                  Classes.failure="{Binding Outcome, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Failed}"
                  Text="{Binding Summary}" />
-      <TextBlock Classes="caption" Text="·" />
-      <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens, StringFormat='{}{0:N0} tokens'}" />
+      <TextBlock Classes="caption" Text="·" IsVisible="{Binding HasUsage}" />
+      <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens, StringFormat='{}{0:N0} tokens'}" IsVisible="{Binding HasUsage}" />
       <TextBlock Classes="caption"
                  Text="·"
                  IsVisible="{Binding Cost, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

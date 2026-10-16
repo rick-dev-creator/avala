@@ -875,13 +875,24 @@ public sealed class TurnEndViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task ATurnWithoutCostShowsNoCostAsync() =>
+    public Task ATurnWithoutReportedUsageShowsNoTokensNorCostAndItsTipSaysWhyAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new TurnEndViewModel(new TurnEndEntry("t", TurnOutcome.Interrupted, TimeSpan.FromSeconds(9), default, [])));
 
             Assert.Equal("Interrupted after 9s", view.TextOf("Summary"));
-            Assert.False(view.Shows("Cost"));
+            Assert.Equal((false, false), (view.Shows("Tokens"), view.Shows("Cost")));
+            Assert.Equal("The harness reported no usage for this turn.", ToolTip.GetTip(view.Find("Line")));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task HoveringTheEndOfATurnShowsItsBreakdownAsync() =>
+        ui.RunAsync(() =>
+        {
+            var turn = new DesignTurnEndViewModel();
+            var view = Screen.Show(turn);
+
+            Assert.Equal(turn.Breakdown, ToolTip.GetTip(view.Find("Line")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]

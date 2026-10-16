@@ -141,4 +141,7 @@ internal sealed record ChildAskingEntry(string Key, SessionId Session, ItemId It
     public Option<PassReason> Passed { get; init; }
 }
 
-internal sealed record TurnEndEntry(string Key, TurnOutcome Outcome, TimeSpan Duration, TokenUsage Tokens, IReadOnlyList<Cost> Costs) : ITimelineEntry;
+internal sealed record TurnEndEntry(string Key, TurnOutcome Outcome, TimeSpan Duration, TokenUsage Tokens, IReadOnlyList<Cost> Costs) : ITimelineEntry
+{
+    public Option<string> Model { get; init; }
+}
