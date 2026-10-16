@@ -44,4 +44,5 @@ public enum WorkspaceFailure
     RemoteUnreachable,
     PushRejected,
     RelativeFolder,
+    UnknownCheckpoint,
 }

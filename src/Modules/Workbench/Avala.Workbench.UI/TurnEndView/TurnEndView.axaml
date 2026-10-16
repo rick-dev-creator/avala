@@ -11,28 +11,60 @@
   <Design.DataContext>
     <conversation:DesignTurnEndViewModel />
   </Design.DataContext>
-  <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
-    <Border Classes="separator" VerticalAlignment="Center" />
-    <StackPanel x:Name="Line"
-                Grid.Column="1"
+  <StackPanel Spacing="6">
+    <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
+      <Border Classes="separator" VerticalAlignment="Center" />
+      <StackPanel x:Name="Line"
+                  Grid.Column="1"
+                  Orientation="Horizontal"
+                  Spacing="6"
+                  Background="Transparent"
+                  ToolTip.Tip="{Binding Breakdown}">
+        <TextBlock x:Name="Summary"
+                   Classes="caption"
+                   Classes.failure="{Binding Outcome, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Failed}"
+                   Text="{Binding Summary}" />
+        <TextBlock Classes="caption" Text="·" IsVisible="{Binding HasUsage}" />
+        <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens, StringFormat='{}{0:N0} tokens'}" IsVisible="{Binding HasUsage}" />
+        <TextBlock Classes="caption"
+                   Text="·"
+                   IsVisible="{Binding Cost, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock x:Name="Cost"
+                   Classes="caption"
+                   Text="{Binding Cost}"
+                   IsVisible="{Binding Cost, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+      <Border Grid.Column="2" Classes="separator" VerticalAlignment="Center" />
+    </Grid>
+    <StackPanel x:Name="CheckpointRow"
                 Orientation="Horizontal"
-                Spacing="6"
-                Background="Transparent"
-                ToolTip.Tip="{Binding Breakdown}">
-      <TextBlock x:Name="Summary"
-                 Classes="caption"
-                 Classes.failure="{Binding Outcome, Converter={x:Static states:EnumIs.Any}, ConverterParameter=Failed}"
-                 Text="{Binding Summary}" />
-      <TextBlock Classes="caption" Text="·" IsVisible="{Binding HasUsage}" />
-      <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens, StringFormat='{}{0:N0} tokens'}" IsVisible="{Binding HasUsage}" />
-      <TextBlock Classes="caption"
-                 Text="·"
-                 IsVisible="{Binding Cost, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock x:Name="Cost"
-                 Classes="caption"
-                 Text="{Binding Cost}"
-                 IsVisible="{Binding Cost, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                Spacing="8"
+                HorizontalAlignment="Center"
+                IsVisible="{Binding HasCheckpoint}">
+      <TextBlock x:Name="Checkpoint" Classes="hint" Text="{Binding Checkpoint}" VerticalAlignment="Center">
+        <ToolTip.Tip>
+          <ItemsControl x:Name="Files" ItemsSource="{Binding Files}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Text="{Binding}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ToolTip.Tip>
+      </TextBlock>
+      <Button x:Name="AskRestore"
+              Classes="quiet"
+              Content="Restore to here"
+              Command="{Binding AskRestoreCommand}"
+              IsVisible="{Binding CanRestore}" />
+      <StackPanel x:Name="Confirm" Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsConfirming}">
+        <TextBlock Classes="hint" Text="Later changes are kept in a checkpoint first." VerticalAlignment="Center" />
+        <Button x:Name="Restore"
+                Classes="accent"
+                Content="Restore"
+                Command="{Binding RestoreCommand}"
+                CommandParameter="{Binding Attempt}" />
+      </StackPanel>
     </StackPanel>
-    <Border Grid.Column="2" Classes="separator" VerticalAlignment="Center" />
-  </Grid>
+  </StackPanel>
 </UserControl>

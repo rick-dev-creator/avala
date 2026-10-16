@@ -85,6 +85,9 @@ internal sealed partial class GitCli(IProcessRunner processes, ILogger<GitCli> l
             .BindAsync(_ => RunAsync(["-C", location.Path, "rev-parse", "HEAD"], WorkspaceFailure.GitFailed, location.Path, cancellationToken))
             .BindAsync(output => CommitSha.Create(output).MapError(_ => WorkspaceFailure.GitFailed));
 
+    public Task<Result<string, WorkspaceFailure>> ResetTreeAsync(WorkspaceLocation location, CommitSha commit, CancellationToken cancellationToken) =>
+        RunAsync(["-C", location.Path, "read-tree", "--reset", "-u", commit.Value], WorkspaceFailure.GitFailed, location.Path, cancellationToken);
+
     public Task<Result<bool, WorkspaceFailure>> UnchangedSinceAsync(
         WorkspaceLocation location,
         CommitSha commit,

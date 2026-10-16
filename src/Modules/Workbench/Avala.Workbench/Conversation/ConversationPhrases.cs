@@ -114,6 +114,26 @@ internal static class ConversationPhrases
 
     public static bool Reported(TokenUsage tokens) => tokens != default;
 
+    public static string Checkpoint(int files) => files switch
+    {
+        0 => "Checkpoint · no file changed",
+        1 => "Checkpoint · 1 file changed",
+        _ => string.Create(CultureInfo.InvariantCulture, $"Checkpoint · {files} files changed"),
+    };
+
+    public static string Change(Avala.Workspaces.Contracts.FileChange change) =>
+        change.Kind switch
+        {
+            Avala.Workspaces.Contracts.ChangeKind.Added => $"Added {change.Path}",
+            Avala.Workspaces.Contracts.ChangeKind.Deleted => $"Deleted {change.Path}",
+            _ => $"Changed {change.Path}",
+        };
+
+    public static string Restored(CheckpointRestored restored) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"I restored the worktree to how it was at the end of attempt {restored.Attempt}. {(restored.Files.Count == 0 ? "No file changed." : $"These files changed back: {string.Join(", ", restored.Files.Select(file => file.Path))}.")} Continue from there.");
+
     public static string Breakdown(TokenUsage tokens, Option<string> model, IReadOnlyList<Cost> costs)
     {
         if (!Reported(tokens) && costs.Count == 0)

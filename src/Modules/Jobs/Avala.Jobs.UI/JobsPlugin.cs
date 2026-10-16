@@ -60,6 +60,7 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<JobsEntry>()
             .AddForwarded<IJobs, JobsEntry>()
             .AddForwarded<IOpenDeliveries, JobsEntry>()
+            .AddSingleton<IJobCheckpoints, JobCheckpointDesk>()
             .AddForwarded<IRemoteJobs, JobsEntry>()
             .AddForwarded<IJobMessages, JobsEntry>()
             .AddSingleton<IJobAttachments, AttachmentFolder>()

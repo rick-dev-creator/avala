@@ -20,6 +20,8 @@ internal interface IGit
 
     Task<Result<bool, WorkspaceFailure>> UnchangedSinceAsync(WorkspaceLocation location, CommitSha commit, CancellationToken cancellationToken);
 
+    Task<Result<string, WorkspaceFailure>> ResetTreeAsync(WorkspaceLocation location, CommitSha commit, CancellationToken cancellationToken);
+
     Task<Result<string, WorkspaceFailure>> PruneWorktreesAsync(string repository, CancellationToken cancellationToken);
 
     Task<Result<WorkspaceLocation, WorkspaceFailure>> RemoveWorktreeAsync(WorkspaceLocation location, BranchName branch, CancellationToken cancellationToken);

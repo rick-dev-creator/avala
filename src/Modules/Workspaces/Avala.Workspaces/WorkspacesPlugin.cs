@@ -35,6 +35,7 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddSingleton<IRepositoryIndex, GitIndex>()
             .AddSingleton<IGitChanges, GitChangesCli>()
             .AddSingleton<IWorkspaceChanges, WorkspaceChanges>()
+            .AddSingleton<IWorkspaceCheckpoints, WorkspaceCheckpoints>()
             .AddSingleton(provider => new ProjectsSettings(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 Path.Combine(provider.GetRequiredService<AvalaPaths>().Data, ProjectsSettings.FileName)))

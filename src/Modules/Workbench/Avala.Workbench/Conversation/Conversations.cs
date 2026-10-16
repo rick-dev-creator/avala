@@ -32,13 +32,13 @@ internal sealed class Conversations(Composers composers, TimelineItems items, Tr
     }
 }
 
-internal sealed record ComposerTools(SendKeys Keys, AttachmentTrayViewModel Attachments, MentionsViewModel Mentions, DraftBook Drafts);
+internal sealed record ComposerTools(SendKeys Keys, AttachmentTrayViewModel Attachments, MentionsViewModel Mentions, DraftBook Drafts, IJobCheckpoints Checkpoints);
 
-internal sealed record ComposerParts(AttachmentTrays Trays, MentionSource Mentions, DraftBook Drafts);
+internal sealed record ComposerParts(AttachmentTrays Trays, MentionSource Mentions, DraftBook Drafts, IJobCheckpoints Checkpoints);
 
 internal sealed class Composers(JobSteering steering, SendKeys keys, JobHarnesses harnesses, ComposerParts parts)
 {
-    public ComposerViewModel Open(JobId job) => new(job, steering, new ComposerTools(keys, parts.Trays.Open(), new MentionsViewModel(job, parts.Mentions), parts.Drafts), harnesses.Open(job));
+    public ComposerViewModel Open(JobId job) => new(job, steering, new ComposerTools(keys, parts.Trays.Open(), new MentionsViewModel(job, parts.Mentions), parts.Drafts, parts.Checkpoints), harnesses.Open(job));
 }
 
 internal sealed class AttachmentTrays(IJobAttachments store, IFilePicker picker, IPictureDecoder pictures)
@@ -50,3 +50,4 @@ internal sealed class JobHarnesses(JobSwitching switching, NewJobReadings readin
 {
     public JobHarness Open(JobId job) => new(job, switching, readings, new ModelPickerViewModel());
 }
+
