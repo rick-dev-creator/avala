@@ -5,6 +5,23 @@ namespace Avala.Workbench.Presenting;
 
 internal static class DelegationPhrases
 {
+    public const string NoneYet = "No job has delegated work yet";
+
+    public const string NoneShown = "No orchestration matches these filters";
+
+    public static string Caption(IReadOnlyList<Overview.OrchestrationViewModel> shown)
+    {
+        var working = shown.Sum(tree => tree.Children.Count(child => !child.IsSettled));
+        var needing = shown.Sum(tree => tree.Children.Count(child => child.NeedsYou));
+
+        return string.Join(" · ", new[]
+        {
+            Overview.OverviewPhrases.Count(shown.Count, "orchestration"),
+            working == 0 ? string.Empty : $"{working} at work",
+            needing == 0 ? string.Empty : $"{needing} needs you",
+        }.Where(part => part.Length > 0));
+    }
+
     public static string Role(ChildRole role) => role switch
     {
         ChildRole.Reviewer => "reviewer, read-only",

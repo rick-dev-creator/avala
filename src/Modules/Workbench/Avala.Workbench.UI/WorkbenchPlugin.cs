@@ -507,11 +507,11 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IAgentViewModel, AgentView>();
         views.Register<ILimitViewModel, LimitView>();
         views.Register<IDelegationViewModel, DelegationView>();
-        views.Register<IOrchestratorViewModel, OrchestratorView>();
         views.Register<IOrchestratorCardViewModel, OrchestratorCardView>();
         views.Register<IDelegationNodeViewModel, DelegationNodeView>();
         views.Register<IRecentActionViewModel, RecentActionView>();
         views.Register<IPeekViewModel, PeekView>();
+        views.Register<IOrchestrationViewModel, OrchestrationView>();
         views.Register<IDelegationRefusalViewModel, DelegationRefusalView>();
         views.Register<IUsageViewModel, UsageView>();
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();

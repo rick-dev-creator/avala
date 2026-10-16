@@ -305,13 +305,14 @@ public sealed class DelegationTests(PublishedPlugins plugins)
             return overview.Has("Loading") ? overview["Loading"].Value<Task>() : Task.CompletedTask;
         });
         var delegation = overview["Delegation"];
+        await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), TestContext.Current.CancellationToken);
         await run.Ui.PresentedAsync(
             delegation.Presentation,
-            () => delegation["Children"].Items.Count > 0 && delegation["Children"].Items.All(settled),
-            () => string.Join(", ", delegation["Children"].Items.Select(child => $"{child["Activity"].Text} {child["Harness"].Text}")));
+            () => delegation["Trees"].Items.Count > 0 && delegation["Trees"].Items[0]["Children"].Items.Count > 0 && delegation["Trees"].Items[0]["Children"].Items.All(settled),
+            () => string.Join(", ", delegation["Trees"].Items[0]["Children"].Items.Select(child => $"{child["Activity"].Text} {child["Harness"].Text}")));
 
         return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
-            [.. delegation["Children"].Items.Select(child => $"{child["Harness"].Text} · {child["Connection"].Text}").Order(StringComparer.Ordinal)]);
+            [.. delegation["Trees"].Items[0]["Children"].Items.Select(child => $"{child["Harness"].Text} · {child["Connection"].Text}").Order(StringComparer.Ordinal)]);
     }
 
     private static async Task<Option<WorkspaceInfo>> WorkspaceOfAsync(SimulatedRun run, JobId job) =>

@@ -226,25 +226,26 @@ public sealed class RestartTests(PublishedPlugins plugins)
     private static async Task<IReadOnlyList<string>> DelegationAsync(SimulatedRun run, JobId orchestrator)
     {
         var delegation = (await ActivatedAsync(run, "Overview"))["Delegation"];
+        await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), TestContext.Current.CancellationToken);
         await run.Ui.PresentedAsync(
             delegation.Presentation,
-            () => delegation["Children"].Items.Count == 2 && delegation.Has("Root"),
-            () => string.Join(", ", delegation["Children"].Items.Select(child => child["Activity"].Text)));
+            () => delegation["Trees"].Items.Count > 0 && delegation["Trees"].Items[0]["Children"].Items.Count == 2 && delegation["Trees"].Items[0].Has("Root"),
+            () => string.Join(", ", delegation["Trees"].Items[0]["Children"].Items.Select(child => child["Activity"].Text)));
         var workbench = await run.WorkbenchAsync();
         await workbench.ShowsInGroupAsync(orchestrator, "ReadyForReview");
         var section = Assert.Single(await workbench.InspectAsync(orchestrator, "DelegationSectionViewModel"));
 
         return await run.Ui.ReadAsync<IReadOnlyList<string>>(() =>
         {
-            var root = delegation["Root"];
+            var root = delegation["Trees"].Items[0]["Root"];
 
             return
             [
                 $"root: {root["Title"].Text} ·{root["Harness"].Text} · {root["Connection"].Text} · {root["Budget"].Text} · {root["Spent"].Text} · {root["ShareNote"].Text}",
-                .. delegation["Children"].Items
+                .. delegation["Trees"].Items[0]["Children"].Items
                     .Select(child => $"child: {child["Title"].Text} · {child["Activity"].Text} · {child["Harness"].Text} · {child["Connection"].Text} · {child["Spend"].Text}")
                     .Order(StringComparer.Ordinal),
-                $"refused: {delegation["Refused"].Items.Count}",
+                $"refused: {delegation["Trees"].Items[0]["Refused"].Items.Count}",
                 $"inspector: {section["Fact"].Text}",
                 .. section["Children"].Value<IReadOnlyList<string>>().Select(child => $"inspected: {child}").Order(StringComparer.Ordinal),
             ];

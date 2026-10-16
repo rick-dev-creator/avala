@@ -1,8 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:theme="using:Avala.Components.UI.Theme"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:overview="using:Avala.Workbench.Overview"
-             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:states="using:Avala.Components.UI.States"
              x:Class="Avala.Workbench.UI.DelegationView"
              x:ClassModifier="internal"
              x:DataType="overview:IDelegationViewModel">
@@ -10,61 +9,60 @@
     <overview:DesignDelegationViewModel />
   </Design.DataContext>
   <UserControl.Styles>
-    <Style Selector="ItemsControl#Children Button#Open">
-      <Setter Property="Width" Value="380" />
+    <Style Selector="Border#Filters">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
     </Style>
-    <Style Selector="ContentControl#Root Button#Open">
-      <Setter Property="Width" Value="340" />
+    <Style Selector="ComboBox.filter">
+      <Setter Property="MinWidth" Value="150" />
     </Style>
   </UserControl.Styles>
   <DockPanel>
-    <ScrollViewer DockPanel.Dock="Top"
-                  HorizontalScrollBarVisibility="Auto"
-                  VerticalScrollBarVisibility="Disabled"
-                  IsVisible="{Binding Orchestrators.Count, Converter={x:Static graphs:Graph.Many}}">
-      <Border Classes="segments" Margin="24,16,24,0" HorizontalAlignment="Center">
-        <ItemsControl x:Name="Orchestrators" ItemsSource="{Binding Orchestrators}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="overview:IOrchestratorViewModel">
-              <Button Classes="segment"
-                      MaxWidth="260"
-                      Command="{Binding $parent[UserControl].((overview:IDelegationViewModel)DataContext).SelectCommand}"
-                      CommandParameter="{Binding}">
-                <ContentControl Content="{Binding}" />
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </Border>
-    </ScrollViewer>
-    <StackPanel x:Name="RefusedGroup"
-                DockPanel.Dock="Bottom"
-                Spacing="6"
-                Margin="24,0,24,20"
-                MaxWidth="760"
-                IsVisible="{Binding !!Refused.Count}">
-      <TextBlock Classes="section" Text="Refused delegations" />
-      <ItemsControl x:Name="Refused" ItemsSource="{Binding Refused}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <StackPanel Spacing="4" />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-      </ItemsControl>
-    </StackPanel>
+    <Border x:Name="Filters" DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="24,12">
+      <WrapPanel ItemSpacing="8" LineSpacing="8">
+        <Border Classes="segments" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="ShowActive"
+                    Classes="segment"
+                    Classes.selected="{Binding Scope, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Active'}"
+                    Content="{Binding ActiveLabel}"
+                    Command="{Binding ScopeCommand}"
+                    CommandParameter="{x:Static overview:DelegationScope.Active}" />
+            <Button x:Name="ShowFinished"
+                    Classes="segment"
+                    Classes.selected="{Binding Scope, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Finished'}"
+                    Content="{Binding FinishedLabel}"
+                    Command="{Binding ScopeCommand}"
+                    CommandParameter="{x:Static overview:DelegationScope.Finished}" />
+            <Button x:Name="ShowAll"
+                    Classes="segment"
+                    Classes.selected="{Binding Scope, Converter={x:Static states:EnumIs.Any}, ConverterParameter='All'}"
+                    Content="All"
+                    Command="{Binding ScopeCommand}"
+                    CommandParameter="{x:Static overview:DelegationScope.All}" />
+          </StackPanel>
+        </Border>
+        <ComboBox x:Name="Repository"
+                  Classes="filter"
+                  VerticalAlignment="Center"
+                  AutomationProperties.Name="Repository"
+                  ItemsSource="{Binding Repositories}"
+                  SelectedItem="{Binding Repository, Converter={x:Static states:Kept.Selection}}" />
+        <ComboBox x:Name="Connection"
+                  Classes="filter"
+                  VerticalAlignment="Center"
+                  AutomationProperties.Name="Connection"
+                  ItemsSource="{Binding Connections}"
+                  SelectedItem="{Binding Connection, Converter={x:Static states:Kept.Selection}}" />
+      </WrapPanel>
+    </Border>
     <Panel>
       <Border x:Name="NoOrchestrators"
               Classes="empty"
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
-              IsVisible="{Binding Root, Converter={x:Static ObjectConverters.IsNull}}">
+              IsVisible="{Binding !Trees.Count}">
         <StackPanel Spacing="6" HorizontalAlignment="Center">
-          <TextBlock Classes="strong" HorizontalAlignment="Center" Text="No job has delegated work yet" />
+          <TextBlock x:Name="Empty" Classes="strong" HorizontalAlignment="Center" Text="{Binding Empty}" />
           <TextBlock Classes="caption"
                      HorizontalAlignment="Center"
                      TextAlignment="Center"
@@ -73,25 +71,14 @@
                      Text="When a job hands work to sub-agents, its tree appears here with the budget carved for each child." />
         </StackPanel>
       </Border>
-      <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                    VerticalScrollBarVisibility="Auto"
-                    IsVisible="{Binding Root, Converter={x:Static ObjectConverters.IsNotNull}}">
-        <Grid ColumnDefinitions="Auto,Auto" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
-          <ContentControl x:Name="Root"
-                          theme:Motion.Enter="Scale"
-                          Content="{Binding Root}"
-                          VerticalAlignment="Center" />
-          <ItemsControl x:Name="Children"
-                        Grid.Column="1"
-                        ItemsSource="{Binding Children}"
-                        VerticalAlignment="Center">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <graphs:TreeGraphPanel Lead="240" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-          </ItemsControl>
-        </Grid>
+      <ScrollViewer x:Name="Canvas" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" IsVisible="{Binding !!Trees.Count}">
+        <ItemsControl x:Name="Trees" Margin="24,18" ItemsSource="{Binding Trees}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="14" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
       </ScrollViewer>
     </Panel>
   </DockPanel>
