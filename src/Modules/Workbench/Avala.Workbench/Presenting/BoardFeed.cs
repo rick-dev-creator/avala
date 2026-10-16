@@ -27,6 +27,8 @@ internal sealed class BoardFeed(JobBoard board, IUiDispatcher ui) : IPresentatio
 
     public ProjectMap Projects => board.Projects;
 
+    public ImmutableHashSet<JobId> Drafted => board.Drafted;
+
     public ImmutableDictionary<JobId, BoardRemote> Remotes => board.Remotes;
 
     public Option<BoardContest> ContestOf(JobId job) => board.ContestOf(job);

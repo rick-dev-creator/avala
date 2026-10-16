@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Testing;
 using Avala.Workbench.Board;
 using Avala.Workbench.Conversation;
@@ -48,6 +49,69 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
 
         Assert.Equal("Look at @src/Checkout/Rounding.cs ", chosen);
         Assert.Equal("Look at @src/Checkout/Rounding.cs first\n\nReferenced:\n- @src/Checkout/Rounding.cs: the file src/Checkout/Rounding.cs in the job's worktree", jobs.Messages[^1].Text);
+    }
+
+    [Fact]
+    public async Task ADraftComesBackWithItsAttachmentsAndMentionsWhenItsConversationIsOpenedAgainAsync()
+    {
+        var drafts = Composing.Drafts();
+        var composer = Composer(JobStatus.NeedsHelp, drafts, Composing.Mentioning(new Worktree(), "src/Checkout/Rounding.cs"));
+        var tray = (AttachmentTrayViewModel)composer.Attachments;
+        tray.Accept(new Avala.Agents.Contracts.Capabilities.AcceptsAttachments(["image/png"]));
+        await tray.DropCommand.ExecuteAsync(["/home/ana/screen.png"]);
+        composer.Draft = "Look at @Rou";
+        await ((MentionsViewModel)composer.Mentions).Looking;
+        composer.Mentions.ChooseCommand.Execute(null);
+
+        var reopened = Composer(JobStatus.NeedsHelp, drafts, Composing.Mentioning(new Worktree()), composer.Job);
+        await reopened.SendCommand.ExecuteAsync(null);
+
+        Assert.Equal("Look at @src/Checkout/Rounding.cs\n\nReferenced:\n- @src/Checkout/Rounding.cs: the file src/Checkout/Rounding.cs in the job's worktree", jobs.Messages[^1].Text);
+        Assert.Equal(["screen.png"], jobs.Messages[^1].Attachments.Select(attached => attached.Name));
+    }
+
+    [Fact]
+    public async Task SendingADraftForgetsItAsync()
+    {
+        var drafts = Composing.Drafts();
+        var composer = Composer(JobStatus.NeedsHelp, drafts);
+        composer.Draft = "Use the staging database";
+        var kept = drafts.Of(composer.Job).IsSome;
+
+        await composer.SendCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, true), (kept, drafts.Of(composer.Job).IsNone));
+    }
+
+    [Fact]
+    public void UpInAnEmptyComposerRecallsTheMessagesSentBeforeNewestFirstAndDownComesBack()
+    {
+        var composer = Composer(JobStatus.NeedsHelp);
+        Said(composer, "Use the ISO table");
+
+        composer.RecallEarlierCommand.Execute(null);
+        var newest = composer.Draft;
+        composer.RecallEarlierCommand.Execute(null);
+        var oldest = (composer.Draft, composer.RecallEarlierCommand.CanExecute(null));
+        composer.RecallLaterCommand.Execute(null);
+        var back = composer.Draft;
+        composer.RecallLaterCommand.Execute(null);
+
+        Assert.Equal("Use the ISO table", newest);
+        Assert.Equal(("Fix JPY rounding in invoice totals", false), oldest);
+        Assert.Equal("Use the ISO table", back);
+        Assert.Equal((string.Empty, false), (composer.Draft, composer.RecallLaterCommand.CanExecute(null)));
+    }
+
+    [Fact]
+    public void WithTextInTheComposerUpRecallsNothing()
+    {
+        var composer = Composer(JobStatus.NeedsHelp);
+        Said(composer, "Use the ISO table");
+
+        composer.Draft = "Also cover";
+
+        Assert.False(composer.RecallEarlierCommand.CanExecute(null));
     }
 
     [Fact]
@@ -256,6 +320,20 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
 
     private ComposerViewModel Composer(JobStatus status, MentionsViewModel mentions) => Composer(status, jobs, false, mentions);
 
+    private ComposerViewModel Composer(JobStatus status, Avala.Workbench.Drafting.DraftBook drafts, MentionsViewModel? mentions = null, JobId? job = null)
+    {
+        var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
+        summary = job is { } same ? summary with { Job = same } : summary;
+        shown = new BoardJob(summary, Transcript.Empty);
+        jobs.Status = status;
+        queue = new QueuedMessages(jobs);
+        var tools = Composing.Tools(keys, summary.Job) with { Drafts = drafts };
+        var composer = new ComposerViewModel(summary.Job, new JobSteering(jobs, queue), mentions is null ? tools : tools with { Mentions = mentions }, Composing.Harness(summary.Job));
+        composer.Track(shown);
+
+        return composer;
+    }
+
     private ComposerViewModel Composer(JobStatus status, IJobs steered, bool takesMessagesMidTurn = false, MentionsViewModel? mentions = null)
     {
         var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", status).Summary;
@@ -267,6 +345,20 @@ public sealed class ComposerViewModelScripts : IAsyncDisposable
         composer.Track(shown);
 
         return composer;
+    }
+
+    private void Said(ComposerViewModel composer, string hint)
+    {
+        shown = shown with
+        {
+            Transcript = Transcript.Empty.WithPrompts(
+                shown.Summary.Instruction,
+                [
+                    new AttemptRecord(1, AttemptOrigin.Initial, AttemptOutcome.Passed, Option<string>.None, Option<Avala.Agents.Contracts.Sessions.SessionId>.None),
+                    new AttemptRecord(2, AttemptOrigin.Hint, AttemptOutcome.Passed, hint, Option<Avala.Agents.Contracts.Sessions.SessionId>.None),
+                ]),
+        };
+        composer.Track(shown);
     }
 
     private void Becomes(ComposerViewModel composer, JobStatus status)

@@ -105,6 +105,8 @@ internal static class LayerMap
             ["Machine"] = Layer.Application,
             ["Linking"] = Layer.Application,
             ["Mentioning"] = Layer.Application,
+            ["Drafting"] = Layer.Application,
+            ["Drafting.Storage"] = Layer.Infrastructure,
             ["Upkeep"] = Layer.Application,
             ["Submitting"] = Layer.Application,
             ["Presenting"] = Layer.ViewModels,

@@ -37,6 +37,8 @@ internal sealed record DesignJobRowViewModel(JobId Job, string Title, JobStatus 
 
     public bool IsOnPhone { get; init; }
 
+    public bool HasDraft { get; init; }
+
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
 
     public DateTimeOffset Submitted => DateTimeOffset.UnixEpoch;

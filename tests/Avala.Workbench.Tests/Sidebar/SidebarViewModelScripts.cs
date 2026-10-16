@@ -51,6 +51,25 @@ public sealed class SidebarViewModelScripts : IDisposable
     }
 
     [Fact]
+    public void AConversationWithAnUnsentDraftIsMarkedUntilItsDraftIsGone()
+    {
+        Project("ledger", Ledger);
+        var drafted = Job("Fix the failing test", JobStatus.Running, Ledger);
+        var other = Job("Add an endpoint", JobStatus.Running, Ledger);
+        var sidebar = bench.Sidebar();
+        sidebar.Show(Board(drafted, other));
+
+        bench.Board.Publish([drafted.Job]);
+        sidebar.Show(Board(drafted, other));
+        var marked = Rows(sidebar).OfType<IJobRowViewModel>().Select(row => (row.Title, row.HasDraft)).OrderBy(row => row.Title, StringComparer.Ordinal).ToList();
+        bench.Board.Publish(ImmutableHashSet<JobId>.Empty);
+        sidebar.Show(Board(drafted, other));
+
+        Assert.Equal([("Add an endpoint", false), ("Fix the failing test", true)], marked);
+        Assert.All(Rows(sidebar).OfType<IJobRowViewModel>(), row => Assert.False(row.HasDraft));
+    }
+
+    [Fact]
     public void ProjectsAreListedAlphabeticallyAndAnEmptyOneStaysListed()
     {
         Project("website", Website);

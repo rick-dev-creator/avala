@@ -80,7 +80,11 @@ internal sealed partial class MentionsViewModel(JobId job, MentionSource source)
             : $"{text}\n\nReferenced:\n{string.Join('\n', mentioned.Select(mention => $"- @{mention.Token}: {mention.Reference}"))}";
     }
 
+    public IReadOnlyList<Mention> Mentioned => [.. chosen];
+
     public void Forget() => chosen.Clear();
+
+    public void Restore(IReadOnlyList<Mention> kept) => chosen.AddRange(kept);
 
     [RelayCommand(CanExecute = nameof(IsOpen))]
     private void Next() => Select(selected + 1);

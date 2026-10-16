@@ -67,7 +67,7 @@
       </Style>
     </ContainerQuery>
   </UserControl.Styles>
-  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Container.Name="JobRow" Container.Sizing="Width">
+  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto" Container.Name="JobRow" Container.Sizing="Width">
     <ContentControl x:Name="Dot"
                     ClipToBounds="False"
                     Content="{Binding Dot}"
@@ -104,8 +104,20 @@
           ToolTip.Tip="On your phone"
           AutomationProperties.Name="On your phone"
           IsVisible="{Binding IsOnPhone}" />
+    <Path x:Name="Drafted"
+          Grid.Column="5"
+          Classes="icon"
+          Width="11"
+          Height="11"
+          Margin="8,0,0,0"
+          VerticalAlignment="Center"
+          Stroke="{DynamicResource TextTertiaryBrush}"
+          Data="{StaticResource IconEdit}"
+          ToolTip.Tip="Unsent draft"
+          AutomationProperties.Name="Unsent draft"
+          IsVisible="{Binding HasDraft}" />
     <Border x:Name="PendingBadge"
-            Grid.Column="5"
+            Grid.Column="6"
             Classes="badge"
             MinWidth="16"
             Margin="8,0,0,0"

@@ -42,6 +42,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
     private ImmutableDictionary<JobId, BoardContest> shownContests = ImmutableDictionary<JobId, BoardContest>.Empty;
     private ProjectMap? shownMap;
     private ImmutableDictionary<JobId, BoardRemote> shownRemotes = ImmutableDictionary<JobId, BoardRemote>.Empty;
+    private ImmutableHashSet<JobId> shownDrafts = [];
     private object? selected;
 
     public SidebarViewModel(BoardFeed feed, JobFocus focus, ScratchFolders scratch, ProjectShelf shelf)
@@ -113,6 +114,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         }
 
         Phones(jobs, added);
+        Drafts(added);
         shelves.Prune();
         shelves.Attend();
         Target(regroup ? rows.Values : rows.Values.Where(row => added.Contains(row.Job)));
@@ -215,6 +217,18 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
         }
 
         shownRemotes = remotes;
+    }
+
+    private void Drafts(HashSet<JobId> added)
+    {
+        var drafted = feed.Drafted;
+
+        foreach (var row in rows.Values.Where(row => added.Contains(row.Job) || !ReferenceEquals(drafted, shownDrafts)))
+        {
+            row.HasDraft = drafted.Contains(row.Job);
+        }
+
+        shownDrafts = drafted;
     }
 
     private IEnumerable<ContestRecord> Touched(ImmutableDictionary<JobId, BoardContest> contested, List<BoardJob> changed) =>

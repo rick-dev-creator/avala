@@ -39,6 +39,8 @@ internal sealed partial class AttachmentTrayViewModel(IJobAttachments store, IFi
     private readonly ObservableCollection<AttachmentChipViewModel> chips = [];
     private Option<AcceptsAttachments> accepted;
 
+    public event EventHandler? Changed;
+
     public IReadOnlyList<IAttachmentChipViewModel> Chips => chips;
 
     public IReadOnlyList<Attachment> Attached => [.. chips.Select(chip => chip.Attachment)];
@@ -71,6 +73,15 @@ internal sealed partial class AttachmentTrayViewModel(IJobAttachments store, IFi
         chips.Clear();
         HasAttachments = false;
         Problem = string.Empty;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Restore(IReadOnlyList<Attachment> kept)
+    {
+        foreach (var attachment in kept)
+        {
+            Show(attachment);
+        }
     }
 
     public void Dispose() => Clear();
@@ -136,10 +147,16 @@ internal sealed partial class AttachmentTrayViewModel(IJobAttachments store, IFi
             return;
         }
 
+        Show(attachment);
+    }
+
+    private void Show(Attachment attachment)
+    {
         var chip = new AttachmentChipViewModel(attachment, pictures, removable: true);
         chip.Removed += (_, _) => Remove(chip);
         chips.Add(chip);
         HasAttachments = true;
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     private void Remove(AttachmentChipViewModel chip)
@@ -147,6 +164,7 @@ internal sealed partial class AttachmentTrayViewModel(IJobAttachments store, IFi
         chips.Remove(chip);
         chip.Dispose();
         HasAttachments = chips.Count > 0;
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 }
 
