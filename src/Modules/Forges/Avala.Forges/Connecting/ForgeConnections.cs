@@ -56,6 +56,16 @@ internal sealed class ForgeConnections(IForgeFile file, IEnumerable<IForge> forg
             settings => [.. settings.Forges.Select(Checked).SelectMany(checkedForge => checkedForge.Match<IEnumerable<UsableForge>>(found => [new UsableForge(found.Declaration.Name, found.Forge, found.Url)], _ => []))],
             _ => []);
 
+    public static Option<UsableForge> Hosting(IReadOnlyList<UsableForge> usable, RepositoryAddress address) =>
+        usable.FirstOrDefault(candidate => candidate.Forge is IForgeRepositories hosting && string.Equals(hosting.GitHost(candidate.Url), address.Host, StringComparison.OrdinalIgnoreCase)).ToOption();
+
+    public async ValueTask<Option<UsableForge>> HostingAsync(string remote, CancellationToken cancellationToken)
+    {
+        var usable = await AllUsableAsync(cancellationToken);
+
+        return RemoteAddresses.Parse(remote).Bind(address => Hosting(usable, address));
+    }
+
     public async ValueTask<ForgeCatalog> CatalogAsync(CancellationToken cancellationToken)
     {
         var read = await file.ReadAsync(cancellationToken);

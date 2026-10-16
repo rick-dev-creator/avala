@@ -32,6 +32,29 @@ public sealed class SimulatedForgeRemote(string remote)
         return number;
     }
 
+    public async Task<int> OpenPullRequestAsync(string head, string target, string title, CancellationToken cancellationToken)
+    {
+        var number = 0;
+        await ChangeAsync(
+            state =>
+            {
+                var pulls = List(state, "Pulls");
+                number = pulls.Count + 1;
+                pulls.Add(new JsonObject
+                {
+                    ["Number"] = number,
+                    ["Head"] = head,
+                    ["Base"] = target,
+                    ["Title"] = title,
+                    ["Body"] = string.Empty,
+                    ["Scenario"] = "green",
+                });
+            },
+            cancellationToken);
+
+        return number;
+    }
+
     public Task LabelAsync(int issue, string label, string actor, CancellationToken cancellationToken) =>
         ChangeAsync(state => Happened(state, "labeled", issue, actor)["Label"] = label, cancellationToken);
 

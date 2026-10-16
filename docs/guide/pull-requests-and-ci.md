@@ -34,6 +34,7 @@ Open a pull request from an approved job, and let Avala watch its checks and rev
 ## Good to know
 
 - Open pull request only shows when the repository declares `pullRequest`.
+- A pull request the agent opens itself from its job, for example with `gh pr create`, is found when its turn ends and watched the same way, on the forge connection that hosts the repository's `origin` when the repository declares no `pullRequest`.
 - The forge is polled, so nothing needs to reach your computer from outside.
 - Avala pushes with your own git credentials and keeps only a reference to a forge token, never the token.
 
