@@ -244,8 +244,8 @@ internal sealed class TreeBench : IDisposable
     public DelegationPaneViewModel Pane(JobId shown)
     {
         var pane = new DelegationPaneViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui), new JobFocus(new TestRegions(), Messenger), Messenger);
-        pane.Activate();
         pane.OnRegionContextChanged(shown);
+        pane.Activate();
 
         return pane;
     }
