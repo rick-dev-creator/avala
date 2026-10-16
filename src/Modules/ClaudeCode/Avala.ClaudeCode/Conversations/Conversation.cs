@@ -77,14 +77,14 @@ internal sealed class Conversation
     public Reaction Receive(JsonNode message) => message.TextOr("type", string.Empty) switch
     {
         "system" when message.TextOr("subtype", string.Empty) == "init" => Initialized(message),
-        "control_request" => desk.Receive(message, live),
+        "control_request" => Requested(message),
         "control_cancel_request" => desk.Cancel(message, live),
         "control_response" when RemoteBridge.Answers(message) => remote.Answered(message),
         "system" when message.TextOr("subtype", string.Empty) == "bridge_state" => remote.Reported(message),
         "user" when RemoteBridge.FromDevice(message) => Arrived(message),
         "command_lifecycle" => Tracked(message),
         "result" when stale > 0 => Swallowed(),
-        var type => live.Match(stamp => During(type, message, stamp), () => Reaction.None),
+        var type => Continued(type, message),
     };
 
     public Result<Reaction, AgentError> Respond(PermissionDecision decision) =>
@@ -108,6 +108,20 @@ internal sealed class Conversation
 
             return (stamp.Turn, desk.Release(interrupted: true).Then(Reaction.Send(Messages.Interrupt(++interruptions))));
         });
+
+    private Reaction Requested(JsonNode request)
+    {
+        var opening = ControlDesk.CallsTool(request) ? Woken() : Reaction.None;
+
+        return opening.Then(desk.Receive(request, live));
+    }
+
+    private Reaction Continued(string type, JsonNode message)
+    {
+        var opening = type is "assistant" or "stream_event" ? Woken() : Reaction.None;
+
+        return opening.Then(live.Match(stamp => During(type, message, stamp), () => Reaction.None));
+    }
 
     private Reaction During(string type, JsonNode message, Stamp stamp) => type switch
     {
@@ -200,11 +214,15 @@ internal sealed class Conversation
 
     private Reaction BeganRemotely()
     {
-        var stamp = Opened();
+        var started = Started();
         unsaid = true;
 
-        return Reaction.Of(new TurnStarted(session, stamp.Turn));
+        return started;
     }
+
+    private Reaction Woken() => live.IsNone && stale == 0 ? Started() : Reaction.None;
+
+    private Reaction Started() => Reaction.Of(new TurnStarted(session, Opened().Turn));
 
     private Reaction Arrived(JsonNode user)
     {

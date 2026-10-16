@@ -27,6 +27,13 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places pl
         };
     }
 
+    public static bool CallsTool(JsonNode request)
+    {
+        var body = request.Members("request");
+
+        return body.TextOr("subtype", string.Empty) == "mcp_message" && body.Members("message").TextOr("method", string.Empty) == "tools/call";
+    }
+
     public Reaction Cancel(JsonNode cancel, Option<Stamp> turn)
     {
         var requestId = cancel.TextOr("request_id", string.Empty);
