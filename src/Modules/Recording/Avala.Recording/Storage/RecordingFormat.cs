@@ -207,6 +207,7 @@ internal sealed class RecordingFormat
                 Text("title", requested.Title);
                 json.WriteString("kind", Enum(requested.Kind));
                 Text("target", requested.Target);
+                Optional("reads", requested.Reads);
                 break;
             case PermissionResolved resolved:
                 Item(resolved.Item);

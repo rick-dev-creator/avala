@@ -90,7 +90,7 @@ internal static class ReadOnlyCommands
 
         return path.Length == 0
             || (Option(word) && !path.Contains('/', StringComparison.Ordinal) && !path.StartsWith('~'))
-            || (!path.StartsWith('~') && locate(path).InsideWorkspace);
+            || (!path.StartsWith('~') && locate(path) is var located && (located.InsideWorkspace || located.Readable));
     }
 
     private static string Valued(string option) =>

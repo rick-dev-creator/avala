@@ -8,7 +8,8 @@ Every edit, command, question and plan an agent proposes goes through rules it c
 - **A job can tighten its autonomy, never loosen it** beyond what the repository declares.
 - **Rules are checked in a fixed order**, and the first that matches decides: the read-only guard, the guards, the repository's rules, your answers in this job, the defaults, then, under Autonomous, the unattended rules.
 - **Guards keep some things for a person**: an edit to `.avala/permissions.json` and any edit outside the worktree always ask.
-- **Read-only commands run without asking.** A line whose every part only reads inside the worktree, such as `ls`, `cat`, `grep`, `rg`, `find`, `git status`, `git log` or `git diff`, runs and is audited as "read-only allowed", unless a repository rule says otherwise. A redirection to a file, an option that writes, a `$` or a path outside the worktree makes it ask.
+- **Read-only commands run without asking.** A line whose every part only reads inside the worktree, such as `ls`, `cat`, `grep`, `rg`, `find`, `git status`, `git log` or `git diff`, runs and is audited as "read-only allowed", unless a repository rule says otherwise. A redirection to a file, an option that writes, a `$` or a path outside the worktree and its readable folders makes it ask.
+- **Other repositories can be read.** A job may read files in a readable folder without asking, even under Autonomous: by default the projects folder Avala clones repositories into, or the folders you name in `readable.json`. Edits there still ask, and reading anywhere else, such as `~/.ssh`, still asks, or is denied under Autonomous.
 - **Temporary files are fine.** Each job's `TMPDIR`, `TEMP` and `TMP` point to a scratch folder of its own, which counts as inside the worktree and never shows in the diff.
 - **Every decision is audited** with the reason it was made, in the job inspector's Audit section.
 
@@ -48,7 +49,15 @@ Every edit, command, question and plan an agent proposes goes through rules it c
   - `within`: `"anywhere"` (the default) or `"workspace"`, for `fileEdit` rules only.
   - `name`: shown in the audit; `rule N` otherwise.
 
-The file is at most 64 KB, and an unknown or duplicate key rejects it. A rejected file leaves the built-in rules, at Supervised. **Settings**, **Repository rules** shows the rules of every repository a job ran in, read from each job's base commit.
+**`readable.json`**, in the data folder, names the folders every job may read outside its worktree:
+
+```json
+{ "folders": ["~/Projects", "/srv/repositories"] }
+```
+
+- `folders`: absolute paths, or paths starting with `~/`. Without the file, the projects folder is readable; `{ "folders": [] }` makes nothing outside the worktree readable. A malformed file makes nothing readable. A change applies to the next request.
+
+The `.avala/permissions.json` file is at most 64 KB, and an unknown or duplicate key rejects it. A rejected file leaves the built-in rules, at Supervised. **Settings**, **Repository rules** shows the rules of every repository a job ran in, read from each job's base commit.
 
 ## Good to know
 

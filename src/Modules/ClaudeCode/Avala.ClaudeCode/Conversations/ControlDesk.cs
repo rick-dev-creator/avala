@@ -217,7 +217,7 @@ internal sealed class ControlDesk(ToolBook tools, PermissionMode mode, Places pl
             : Reaction.Of(new ItemStarted(stamp.Session, stamp.Turn, tool.Item, use.KindIn(places), use.Heading(places)) { Input = use.Details(places.WorkingDirectory) });
         tool.Opened = true;
 
-        return opening.Then(Reaction.Of(new PermissionRequested(stamp.Session, stamp.Turn, tool.Item, use.Heading(places), use.Kind, use.Target(places.WorkingDirectory))));
+        return opening.Then(Reaction.Of(new PermissionRequested(stamp.Session, stamp.Turn, tool.Item, use.Heading(places), use.Kind, use.Target(places.WorkingDirectory)) { Reads = use.Read(places.WorkingDirectory) }));
     }
 
     private static Reaction Withdrawn(IEnumerable<Prompt> withdrawn, Stamp stamp) =>

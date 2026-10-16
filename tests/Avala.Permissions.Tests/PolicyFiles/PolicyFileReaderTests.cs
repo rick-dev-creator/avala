@@ -84,6 +84,7 @@ public sealed class PolicyFileReaderTests
                 (RuleOrigin.Repository, "tests"),
                 (RuleOrigin.BuiltIn, "edits-inside-the-workspace"),
                 (RuleOrigin.BuiltIn, "read-only allowed"),
+                (RuleOrigin.BuiltIn, "reads-in-readable-folders"),
                 (RuleOrigin.BuiltIn, "autonomous-commands-in-the-worktree"),
                 (RuleOrigin.BuiltIn, "autonomous-denies-the-rest"),
             ],
@@ -104,7 +105,7 @@ public sealed class PolicyFileReaderTests
             (Enum.Parse<PolicyFileStatus>(status), error is null ? Option<PolicyError>.None : Enum.Parse<PolicyError>(error), Autonomy.Supervised),
             (policy.File, policy.Error, policy.Autonomy));
         Assert.Equal(
-            ["policy-file-goes-to-a-human", "edits-outside-the-workspace-go-to-a-human", "edits-inside-the-workspace", "read-only allowed"],
+            ["policy-file-goes-to-a-human", "edits-outside-the-workspace-go-to-a-human", "edits-inside-the-workspace", "read-only allowed", "reads-in-readable-folders"],
             policy.Rules.Select(rule => rule.Name));
     }
 

@@ -125,6 +125,16 @@ public sealed class PermissionTests
         Assert.Equal(asks ? "ask" : null, (string?)talk.HookAnswer("h1")["hookSpecificOutput"]?["permissionDecision"]);
     }
 
+    [Fact]
+    public void AReadSentToThePermissionPromptSaysWhichPathItReads()
+    {
+        const string Input = """{ "file_path": "../sibling/README.md" }""";
+
+        var talk = new Talk().Begin().Receive(Cli.ToolUse("t1", "Read", Input), Cli.Prompt("r1", "Read", Input, "t1"));
+
+        Assert.Equal(Path.GetFullPath(Path.Combine(Talk.WorkingDirectory, "..", "sibling", "README.md")), Assert.Single(talk.Events.OfType<PermissionRequested>()).Reads);
+    }
+
     [Theory]
     [InlineData("/work/src/a.cs")]
     [InlineData(@"\work\src\a.cs")]

@@ -62,9 +62,12 @@ internal sealed record ToolUse(string Id, string Name, JsonObject Input)
     public bool Gated => Tool.Gated;
 
     public bool ReadsOutside(string workingDirectory) =>
+        Tool.Reads && Read(workingDirectory).Match(path => Outside(path, workingDirectory), () => true);
+
+    public Option<string> Read(string workingDirectory) =>
         Tool.Reads
-        && Resolved(Input.TextOr("file_path", Input.TextOr("notebook_path", Input.TextOr("path", string.Empty))), workingDirectory)
-            .Match(path => Outside(path, workingDirectory), () => true);
+            ? Resolved(Input.TextOr("file_path", Input.TextOr("notebook_path", Input.TextOr("path", string.Empty))), workingDirectory)
+            : Option<string>.None;
 
     public string Title(string workingDirectory) => Shorten(Kind switch
     {

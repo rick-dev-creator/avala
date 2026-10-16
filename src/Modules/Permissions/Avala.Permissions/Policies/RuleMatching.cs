@@ -17,6 +17,7 @@ internal static class RuleMatching
                 RuleScope.Workspace => request.InsideWorkspace,
                 RuleScope.OutsideWorkspace => !request.InsideWorkspace,
                 RuleScope.ReadOnly => request.ReadOnly,
+                RuleScope.Readable => request.Readable && request.Kind != ItemKind.FileEdit,
                 _ => true,
             };
 
