@@ -53,4 +53,18 @@ public sealed class RecordingParserTests
             ],
             recorded.Steps.Cast<Emit>().Select(emit => emit.Event));
     }
+
+    [Fact]
+    public void AContextReportKeepsWhereItsConnectionCompactsAndOneWithoutItHasNone()
+    {
+        var recorded = Outcomes.Succeeds(RecordingParser.Parse(
+            Recorded.Session(
+                """{ "at": 5, "event": { "type": "contextReported", "turn": 1, "used": 59306, "window": 1000000, "compacted": false, "compactsAt": 250000 } }""",
+                """{ "at": 6, "event": { "type": "contextReported", "turn": 1, "used": 61000, "window": 1000000, "compacted": true } }"""),
+            "/work"));
+
+        Assert.Equal(
+            [Avala.Sdk.Option<long>.Some(250_000), Avala.Sdk.Option<long>.None],
+            recorded.Steps.Cast<Emit>().Select(emit => ((ContextReported)emit.Event).CompactsAt));
+    }
 }

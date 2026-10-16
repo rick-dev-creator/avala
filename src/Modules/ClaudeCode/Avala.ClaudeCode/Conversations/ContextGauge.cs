@@ -2,10 +2,11 @@ using System.Text.Json.Nodes;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.ClaudeCode.Protocol;
+using Avala.Sdk;
 
 namespace Avala.ClaudeCode.Conversations;
 
-internal sealed class ContextGauge
+internal sealed class ContextGauge(Option<long> compactsAt)
 {
     private long used;
     private string model = string.Empty;
@@ -42,7 +43,7 @@ internal sealed class ContextGauge
         var window = Window(result.Members("modelUsage"));
 
         return used > 0 && window > 0
-            ? Reaction.Of(new ContextReported(session, turn, used, window) { Compacted = compacted })
+            ? Reaction.Of(new ContextReported(session, turn, used, window) { Compacted = compacted, CompactsAt = compactsAt })
             : Reaction.None;
     }
 
