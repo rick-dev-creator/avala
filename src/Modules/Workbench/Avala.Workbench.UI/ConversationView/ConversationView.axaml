@@ -9,6 +9,7 @@
              xmlns:states="using:Avala.Components.UI.States"
              xmlns:copying="using:Avala.Components.UI.Copying"
              markdown:MarkdownStyles.AreShared="True"
+             virtualizing:TurnSteps.For="{Binding #Entries}"
              x:DataType="conversation:IConversationViewModel">
   <Design.DataContext>
     <conversation:DesignConversationViewModel />
@@ -62,7 +63,7 @@
     <Panel>
       <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,18,28,14" MaxWidth="{DynamicResource ReadingWidth}">
-          <ItemsControl x:Name="Entries" theme:Arrivals.OnlyNewEnter="True" states:Revealed.Index="{Binding Search.Revealed}" ItemsSource="{Binding Entries}">
+          <ItemsControl x:Name="Entries" theme:Arrivals.OnlyNewEnter="True" states:Revealed.Index="{Binding Search.Revealed}" virtualizing:TurnSteps.Starts="{Binding TurnStarts}" ItemsSource="{Binding Entries}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <virtualizing:TimelinePanel />
@@ -86,6 +87,7 @@
               IsVisible="False">
         <Button x:Name="JumpToLatest"
                 Classes="jump"
+                HotKey="End"
                 ToolTip.Tip="Jump to latest"
                 AutomationProperties.Name="Jump to latest">
           <Panel>

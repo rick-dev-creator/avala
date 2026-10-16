@@ -21,6 +21,8 @@ Avala presses ⌘ on macOS where Windows and Linux press Ctrl, and its tooltips 
 | F11, or Ctrl+⌘+F on macOS | Full screen |
 | Mod+C, Mod+A | Copy, Select All in a conversation |
 | Mod+F | Find in the conversation; Enter and Shift+Enter step through the matches, Esc closes it |
+| Alt+↑, Alt+↓ | Bring the previous or the next turn of the conversation to the top |
+| End | Jump to the latest, outside a text field |
 
 ### Writing
 

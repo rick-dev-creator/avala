@@ -63,6 +63,20 @@ public sealed class ConversationViewModelScripts
     }
 
     [Fact]
+    public void EachPromptAndEachMessageSentDuringATurnStartsATurnToStepTo()
+    {
+        var job = Job().WithPrompts("Round the refunds", []).Apply(new TurnStarted(session, turn), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("reply"), ItemKind.Message, "Reply"), Now)
+            .Apply(new MessageQueued(session, turn, "Keep the alias"), Now)
+            .Apply(new ItemStarted(session, turn, new ItemId("test"), ItemKind.Command, "Run refund tests"), Now);
+        var conversation = Open();
+
+        conversation.Show(Board(job));
+
+        Assert.Equal([0, 2], conversation.TurnStarts);
+    }
+
+    [Fact]
     public void OpeningAConversationFillsItsEntriesInOneChange()
     {
         var job = Job().WithPrompts("Fix the failing test", []).Apply(new TurnStarted(session, turn), Now)
