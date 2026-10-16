@@ -5,6 +5,7 @@ using Avala.Jobs.Contracts;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
@@ -42,13 +43,63 @@ internal interface IOrchestratorCardViewModel
     IRelayCommand<JobId> OpenCommand { get; }
 }
 
-internal sealed class OrchestratorCardViewModel : IOrchestratorCardViewModel
+[INotifyPropertyChanged]
+internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewModel
 {
+    private readonly StatusDotViewModel dot = new(default);
+
     public OrchestratorCardViewModel(DelegationTree tree)
+    {
+        Job = tree.Root.Job;
+        Show(tree);
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSubagents))]
+    public partial IReadOnlyList<ISubagentViewModel> Subagents { get; private set; } = [];
+
+    public bool HasSubagents => Subagents.Count > 0;
+
+    [ObservableProperty]
+    public partial bool IsViewing { get; set; }
+
+    public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
+
+    public JobId Job { get; }
+
+    [ObservableProperty]
+    public partial string Title { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Harness { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Connection { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Detail { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Budget { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Spent { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial IReadOnlyList<BudgetShare> Shares { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial string ShareNote { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool HasBudget { get; private set; }
+
+    public IStatusDotViewModel Dot => dot;
+
+    public void Show(DelegationTree tree)
     {
         var root = tree.Root;
         var children = tree.Children.Where(node => node.Depth == 1).ToList();
-        Job = root.Job;
         Title = FactPhrases.Title(root.Instruction);
         Harness = tree.RootSpend.Session.Match(seen => seen.Provider.Name, () => string.Empty);
         Connection = root.Connection.Match(name => name.Value, () => tree.RootSpend.Session.Match(seen => seen.Connection.Value, () => "default connection"));
@@ -58,42 +109,16 @@ internal sealed class OrchestratorCardViewModel : IOrchestratorCardViewModel
             new[] { OverviewPhrases.Repository(root.Repository), root.Autonomy.Match(autonomy => autonomy.ToString(), () => string.Empty), OverviewPhrases.Waiting(working) }
                 .Where(part => part.Length > 0));
         Spent = $"{Amounts.Costs(Presenting.Shares.Total(tree.RootSpend.Spent.Concat(tree.Children.SelectMany(node => node.Spend.Spent))))} spent across the tree";
-        (HasBudget, Budget, Shares, ShareNote) = tree.RootSpend.Caps.Match(caps => caps.CostPerJob, () => []) is [{ Amount: > 0 } cap, ..]
+        var (hasBudget, budget, shares, shareNote) = tree.RootSpend.Caps.Match(caps => caps.CostPerJob, () => []) is [{ Amount: > 0 } cap, ..]
             ? Carved(cap, [.. children.Select(node => node.Spend.Carve.Match(carve => carve.Cost, () => []))])
             : (false, "No budget cap", [], string.Create(CultureInfo.InvariantCulture, $"{OverviewPhrases.Count(children.Count, "sub-agent")}, no budget to share"));
-        Dot = new StatusDotViewModel(tree.RootJob.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(root.Status)));
-        Subagents = SubagentViewModel.Of(tree.RootJob);
+        HasBudget = hasBudget;
+        Budget = budget;
+        Shares = Shares.SequenceEqual(shares) ? Shares : shares;
+        ShareNote = shareNote;
+        dot.Kind = tree.RootJob.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(root.Status));
+        Subagents = SubagentViewModel.Kept(Subagents, SubagentViewModel.Of(tree.RootJob));
     }
-
-    public IReadOnlyList<ISubagentViewModel> Subagents { get; }
-
-    public bool HasSubagents => Subagents.Count > 0;
-
-    public bool IsViewing { get; init; }
-
-    public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
-
-    public JobId Job { get; }
-
-    public string Title { get; }
-
-    public string Harness { get; }
-
-    public string Connection { get; }
-
-    public string Detail { get; }
-
-    public string Budget { get; }
-
-    public string Spent { get; }
-
-    public IReadOnlyList<BudgetShare> Shares { get; }
-
-    public string ShareNote { get; }
-
-    public bool HasBudget { get; }
-
-    public IStatusDotViewModel Dot { get; }
 
     private static (bool HasBudget, string Budget, IReadOnlyList<BudgetShare> Shares, string ShareNote) Carved(Cost cap, IReadOnlyList<IReadOnlyList<Cost>> carves)
     {

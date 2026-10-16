@@ -135,11 +135,24 @@ internal sealed partial class DelegationPaneViewModel
     private void Show((Option<JobId> Viewing, Option<DelegationTree> Tree) state)
     {
         var viewing = state.Viewing;
-        children.ShowOnly(state.Tree.Match(
-            tree => tree.Children.Select(node => new DelegationNodeViewModel(node) { OpenCommand = OpenCommand, IsViewing = viewing == Option<JobId>.Some(node.Job.Job) }),
-            () => []));
+        children.ShowInPlace(
+            state.Tree.Match(tree => tree.Children, () => []),
+            (child, node) => child.Job == node.Job.Job,
+            node => new DelegationNodeViewModel(node) { OpenCommand = OpenCommand, IsViewing = viewing == Option<JobId>.Some(node.Job.Job) },
+            (child, node) =>
+            {
+                child.Show(node);
+                child.IsViewing = viewing == Option<JobId>.Some(node.Job.Job);
+            });
         Root = state.Tree.Match<IOrchestratorCardViewModel?>(
-            tree => new OrchestratorCardViewModel(tree) { OpenCommand = OpenCommand, IsViewing = viewing == Option<JobId>.Some(tree.Root.Job) },
+            tree =>
+            {
+                var card = Root is OrchestratorCardViewModel shown && shown.Job == tree.Root.Job ? shown : new OrchestratorCardViewModel(tree) { OpenCommand = OpenCommand };
+                card.Show(tree);
+                card.IsViewing = viewing == Option<JobId>.Some(tree.Root.Job);
+
+                return card;
+            },
             () => null);
         Caption = state.Tree.Match(tree => DelegationPanePhrases.Caption(tree), () => string.Empty);
         Footer = state.Tree.Match(DelegationPanePhrases.Footer, () => string.Empty);

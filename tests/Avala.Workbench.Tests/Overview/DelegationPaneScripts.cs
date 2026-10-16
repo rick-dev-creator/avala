@@ -66,6 +66,22 @@ public sealed class DelegationPaneViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task ARefreshKeepsEveryCardSoTheOneUnderThePointerStaysPutAsync()
+    {
+        using var pane = bench.Pane(bench.Endpoint.Job);
+        await bench.Ui.InvokeAsync(() => bench.Messenger.Send(new DelegationPaneRequested(bench.Endpoint.Job)), Cancellation);
+        await bench.Ui.PresentedAsync(pane, () => pane.Children.Count == 2, () => $"{pane.Children.Count} children");
+        var before = await bench.Ui.ReadAsync(() => (pane.Revision, pane.Root, pane.Children.ToList()));
+
+        await bench.Ui.InvokeAsync(() => pane.OnRegionContextChanged(bench.Endpoint.Job), Cancellation);
+        await bench.Ui.PresentedAsync(pane, () => pane.Revision > before.Revision, () => $"revision {pane.Revision}");
+
+        var after = await bench.Ui.ReadAsync(() => (pane.Root, pane.Children.ToList()));
+        Assert.Same(before.Root, after.Root);
+        Assert.Equal(before.Item3, after.Item2, ReferenceEqualityComparer.Instance);
+    }
+
+    [Fact]
     public async Task MovingToAJobOutsideAnyTreeClosesThePaneAsync()
     {
         var alone = bench.Alone();

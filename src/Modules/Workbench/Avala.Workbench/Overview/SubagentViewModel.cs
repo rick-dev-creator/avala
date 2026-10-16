@@ -63,6 +63,11 @@ internal sealed class SubagentViewModel(ToolEntry entry, bool waiting) : ISubage
             },
             () => []);
 
+    public static IReadOnlyList<ISubagentViewModel> Kept(IReadOnlyList<ISubagentViewModel> current, IReadOnlyList<ISubagentViewModel> next) =>
+        current.Select(Seen).SequenceEqual(next.Select(Seen)) ? current : next;
+
+    private static (string Name, SubagentState State, string Activity) Seen(ISubagentViewModel subagent) => (subagent.Name, subagent.State, subagent.Activity);
+
     private static string Latest(string output)
     {
         var line = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault() ?? string.Empty;
