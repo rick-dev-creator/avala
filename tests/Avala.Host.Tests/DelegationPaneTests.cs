@@ -34,21 +34,23 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
         await run.Ui.PresentedAsync(toggle.Presentation, () => toggle["IsShown"].Value<bool>(), () => "toggle hidden");
 
         await run.Ui.InvokeAsync(() => toggle.Execute("ToggleCommand"), TestContext.Current.CancellationToken);
-        await run.Ui.PresentedAsync(pane.Presentation, () => pane["Children"].Items.Count == 1 && pane.Has("Root"), () => "pane empty");
+        await run.Ui.PresentedAsync(pane.Presentation, () => pane["Settled"].Items.Count == 1 && pane.Has("Root"), () => "pane empty");
 
         var shown = await run.Ui.ReadAsync(() => (
             pane["IsOpen"].Value<bool>(),
             workbench.Page["Regions"]["IsPreviewOpen"].Value<bool>(),
             (pane["Root"]["Title"].Text, pane["Root"]["IsViewing"].Value<bool>()),
             pane["Root"]["Subagents"].Items.Select(agent => agent["Name"].Text).ToList(),
-            pane["Children"].Items[0]["IsViewing"].Value<bool>(),
-            pane["Children"].Items[0]["Subagents"].Items.Select(agent => (agent["Name"].Text, agent["StateText"].Text)).ToList()));
+            pane["Settled"].Items[0]["IsViewing"].Value<bool>(),
+            pane["Settled"].Items[0]["Subagents"].Items.Select(agent => (agent["Name"].Text, agent["StateText"].Text)).ToList(),
+            pane["SettledLabel"].Text));
         Assert.True(shown.Item1);
         Assert.True(shown.Item2);
         Assert.Equal(("[simulate: delegate-agents] Ship the release", true), shown.Item3);
         Assert.Equal(["Plan the split"], shown.Item4);
         Assert.False(shown.Item5);
         Assert.Equal([("Read the changelog", "done")], shown.Item6);
+        Assert.Equal("1 done", shown.Item7);
         Assert.True(await run.Ui.ReadAsync(() => toggle["IsOpen"].Value<bool>()));
     }
 

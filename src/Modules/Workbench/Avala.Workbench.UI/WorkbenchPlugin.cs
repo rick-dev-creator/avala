@@ -509,6 +509,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IOrchestratorViewModel, OrchestratorView>();
         views.Register<IOrchestratorCardViewModel, OrchestratorCardView>();
         views.Register<IDelegationNodeViewModel, DelegationNodeView>();
+        views.Register<IRecentActionViewModel, RecentActionView>();
         views.Register<IDelegationRefusalViewModel, DelegationRefusalView>();
         views.Register<IUsageViewModel, UsageView>();
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();

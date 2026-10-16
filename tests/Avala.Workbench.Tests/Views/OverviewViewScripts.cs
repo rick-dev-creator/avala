@@ -21,6 +21,7 @@ using Avalonia.Controls.Shapes;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
@@ -335,17 +336,13 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task ClickingAChildOpensItsConversationAsync() =>
+    public Task OpenConversationOnAnOpenChildOpensItsConversationAsync() =>
         ui.RunAsync(() =>
         {
             var opened = new List<JobId>();
-            var view = Wide(new RecordingDelegation(new DesignDelegationNodeViewModel { OpenCommand = new RelayCommand<JobId>(opened.Add) }));
-            var card = view.Named("DelegationNodeView").Single();
-            var center = card.TranslatePoint(new Point(card.Bounds.Width / 2, card.Bounds.Height / 2), view.Window)!.Value;
+            var view = Wide(new RecordingDelegation(new DesignDelegationNodeViewModel { IsOpen = true, OpenCommand = new RelayCommand<JobId>(opened.Add) }));
 
-            view.Window.MouseDown(center, MouseButton.Left);
-            view.Window.MouseUp(center, MouseButton.Left);
-            view.Settle();
+            view.Click("OpenConversation");
 
             Assert.Equal([new DesignDelegationNodeViewModel().Job], opened);
         }, TestContext.Current.CancellationToken);
@@ -386,30 +383,66 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
 public sealed class DelegationNodeViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task AChildShowsItsHarnessConnectionStateActivityAndSpendAgainstItsCarveAsync() =>
+    public Task AFoldedChildIsOneRowWithWhatItDoesItsContextLeftAndWhatItSpentAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignDelegationNodeViewModel());
+            var view = Screen.Show(new DesignDelegationNodeViewModel(), ThemeVariant.Dark, 420, 120);
 
-            Assert.Equal(("Claude Code", "claude-work", "Running", "Edited internal/payments/refund.go · 9 of 14 files", "0.41 USD of 0.80 USD"), (view.TextOf("Harness"), view.TextOf("Connection"), view.TextOf("State"), view.TextOf("Activity"), view.TextOf("Spend")));
-            Assert.Equal((0.51, true, false), (view.Find<ProgressBar>("Share").Value, view.Shows("Share"), view.Shows("RoleTag")));
+            Assert.Equal(
+                ("Update call sites in internal/payments", "Edit internal/payments/refund.go", "72%", "0.41 USD", "1 agent"),
+                (view.TextOf("Title"), view.TextOf("Doing"), view.TextOf("ContextLeft"), view.TextOf("Spent"), view.TextOf("Agents")));
+            Assert.Equal((false, false), (view.Shows("Details"), view.Shows("State")));
             Assert.Equal(1, Graph.GetDepth(view.Named("DelegationNodeView").Single()));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AnOpenChildShowsItsHarnessConnectionLastActionsSpendAgainstItsCarveTokensAndSubagentsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignDelegationNodeViewModel { IsOpen = true }, ThemeVariant.Dark, 420, 600);
+
+            Assert.Equal(("Claude Code", "claude-work", "0.41 USD of 0.80 USD", "96.4k tokens"), (view.TextOf("Harness"), view.TextOf("Connection"), view.TextOf("Spend"), view.TextOf("Tokens")));
+            Assert.Equal(3, view.Named("RecentActionView").Count);
+            Assert.Single(view.Named("SubagentView"));
+            Assert.Equal((0.51, true, false), (view.Find<ProgressBar>("Share").Value, view.Shows("Share"), view.Shows("RoleTag")));
+            Assert.True(view.HasClass("Card", "open"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AChildWhoseHarnessReportedNoContextShowsNoFigureForItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignDelegationNodeViewModel { Context = ContextGlance.None });
+
+            Assert.False(view.Shows("ContextGauge"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ClickingAChildsRowTogglesItAsync() =>
+        ui.RunAsync(() =>
+        {
+            var toggled = 0;
+            var view = Screen.Show(new ToggledNode(() => toggled++));
+
+            view.Click("Row");
+
+            Assert.Equal(1, toggled);
         }, TestContext.Current.CancellationToken);
 
     [Fact]
     public Task AChildCarvedNoCostShowsWhatItSpentWithoutAMeterAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignDelegationNodeViewModel() with { Spend = "0.005 USD spent", HasCarve = false, SpentShare = 0 });
+            var view = Screen.Show(new DesignDelegationNodeViewModel() with { Spend = "0.005 USD spent", HasCarve = false, SpentShare = 0, IsOpen = true });
 
             Assert.Equal(("0.005 USD spent", false), (view.TextOf("Spend"), view.Shows("Share")));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task AReadOnlyChildShowsItsRoleBesideItsTitleAsync() =>
+    public Task AReadOnlyChildShowsItsRoleWhenOpenAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignDelegationNodeViewModel() with { Role = "reviewer, read-only" });
+            var view = Screen.Show(new DesignDelegationNodeViewModel() with { Role = "reviewer, read-only", IsOpen = true });
 
             Assert.Equal((true, "reviewer, read-only"), (view.Shows("RoleTag"), view.TextOf("Role")));
         }, TestContext.Current.CancellationToken);
@@ -423,6 +456,67 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
             Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("State").Foreground).Color);
             Assert.True(view.HasClass("Card", "attention"));
         }, TestContext.Current.CancellationToken);
+
+    private sealed record ToggledNode(Action Toggle) : IDelegationNodeViewModel
+    {
+        private readonly DesignDelegationNodeViewModel design = new();
+
+        public JobId Job => design.Job;
+
+        public string Title => design.Title;
+
+        public int Depth => design.Depth;
+
+        public JobStatus Status => design.Status;
+
+        public string Connection => design.Connection;
+
+        public string Harness => design.Harness;
+
+        public string Activity => design.Activity;
+
+        public string Role => design.Role;
+
+        public string Spend => design.Spend;
+
+        public bool HasCarve => design.HasCarve;
+
+        public double SpentShare => design.SpentShare;
+
+        public string State => design.State;
+
+        public IStatusDotViewModel Dot => design.Dot;
+
+        public IReadOnlyList<ISubagentViewModel> Subagents => design.Subagents;
+
+        public bool HasSubagents => design.HasSubagents;
+
+        public bool IsViewing => false;
+
+        public IRelayCommand<JobId> OpenCommand => design.OpenCommand;
+
+        public ContextGlance Context => design.Context;
+
+        public string Tokens => design.Tokens;
+
+        public string Spent => design.Spent;
+
+        public IReadOnlyList<IRecentActionViewModel> Recent => design.Recent;
+
+        public string Doing => design.Doing;
+
+        public int SubagentCount => design.SubagentCount;
+
+        public string Agents => design.Agents;
+
+        public bool NeedsYou => false;
+
+        public bool IsSettled => false;
+
+        public bool IsOpen => false;
+
+        public IRelayCommand ToggleCommand { get; } = new RelayCommand(Toggle);
+    }
 }
 
 public sealed class OrchestratorCardViewScripts(HeadlessUi ui)

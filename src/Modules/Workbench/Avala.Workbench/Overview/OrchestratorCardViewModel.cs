@@ -41,7 +41,15 @@ internal interface IOrchestratorCardViewModel
     bool IsViewing { get; }
 
     IRelayCommand<JobId> OpenCommand { get; }
+
+    ContextGlance Context { get; }
+
+    string Tokens { get; }
+
+    IReadOnlyList<TreeTally> Tally { get; }
 }
+
+internal sealed record TreeTally(string Text, StatusKind Kind);
 
 [INotifyPropertyChanged]
 internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewModel
@@ -96,6 +104,15 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
 
     public IStatusDotViewModel Dot => dot;
 
+    [ObservableProperty]
+    public partial ContextGlance Context { get; private set; } = ContextGlance.None;
+
+    [ObservableProperty]
+    public partial string Tokens { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial IReadOnlyList<TreeTally> Tally { get; private set; } = [];
+
     public void Show(DelegationTree tree)
     {
         var root = tree.Root;
@@ -118,6 +135,26 @@ internal sealed partial class OrchestratorCardViewModel : IOrchestratorCardViewM
         ShareNote = shareNote;
         dot.Kind = tree.RootJob.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(root.Status));
         Subagents = SubagentViewModel.Kept(Subagents, SubagentViewModel.Of(tree.RootJob));
+        Context = AgentGlance.Context(tree.RootJob);
+        Tokens = AgentGlance.TokensText(AgentGlance.Tokens(tree.RootSpend) + tree.Children.Sum(node => AgentGlance.Tokens(node.Spend)));
+        var tally = Tallied(tree);
+        Tally = Tally.SequenceEqual(tally) ? Tally : tally;
+    }
+
+    private static IReadOnlyList<TreeTally> Tallied(DelegationTree tree)
+    {
+        var kinds = tree.Children.Select(node => node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status))).ToList();
+        var needing = kinds.Count(kind => kind is StatusKind.NeedsYou or StatusKind.Held);
+        var running = kinds.Count(kind => kind is StatusKind.Working or StatusKind.Checking);
+        var done = kinds.Count(kind => kind is StatusKind.Done or StatusKind.ReadyForReview or StatusKind.Failed);
+
+        return
+        [
+            .. needing > 0 ? [new TreeTally($"{needing} needs you", StatusKind.NeedsYou)] : Array.Empty<TreeTally>(),
+            .. running > 0 ? [new TreeTally($"{running} running", StatusKind.Working)] : Array.Empty<TreeTally>(),
+            .. done > 0 ? [new TreeTally($"{done} done", StatusKind.Done)] : Array.Empty<TreeTally>(),
+            .. tree.Refused.Count > 0 ? [new TreeTally($"{tree.Refused.Count} refused", StatusKind.Failed)] : Array.Empty<TreeTally>(),
+        ];
     }
 
     private static (bool HasBudget, string Budget, IReadOnlyList<BudgetShare> Shares, string ShareNote) Carved(Cost cap, IReadOnlyList<IReadOnlyList<Cost>> carves)

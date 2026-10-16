@@ -85,19 +85,29 @@ internal sealed partial class ContextLeftViewModel(JobBoard board, LiveFeed feed
 
     private void Show(Option<BoardJob> shown)
     {
-        var context = shown.Bind(found => found.Transcript.Context).Match(
-            reported => reported.Window > 0 ? reported : Option<ContextReported>.None,
-            () => Option<ContextReported>.None);
-        var used = context.Match(reported => Math.Clamp((double)reported.Used / reported.Window, 0, 1), () => 0d);
+        var context = ContextReading.Of(shown);
+        var used = context.Match(ContextReading.Used, () => 0d);
         Used = used;
         Share = context.Match(_ => ContextPhrases.Share(used), () => string.Empty);
-        IsNear = context.IsSome && used >= 1 - MeterViewModel.AttentionMargin;
+        IsNear = context.IsSome && ContextReading.IsNear(used);
         WasCompacted = context.Match(reported => reported.Compacted, () => false);
         Tokens = context.Match(ContextPhrases.Tokens, () => string.Empty);
         Model = shown.Bind(found => found.Transcript.Ran).Match(ran => ran.Model, () => string.Empty);
         Compaction = WasCompacted ? ContextPhrases.Compacted : string.Empty;
         IsShown = context.IsSome;
     }
+}
+
+internal static class ContextReading
+{
+    public static Option<ContextReported> Of(Option<BoardJob> job) =>
+        job.Bind(found => found.Transcript.Context).Match(
+            reported => reported.Window > 0 ? reported : Option<ContextReported>.None,
+            () => Option<ContextReported>.None);
+
+    public static double Used(ContextReported reported) => Math.Clamp((double)reported.Used / reported.Window, 0, 1);
+
+    public static bool IsNear(double used) => used >= 1 - MeterViewModel.AttentionMargin;
 }
 
 internal static class ContextPhrases

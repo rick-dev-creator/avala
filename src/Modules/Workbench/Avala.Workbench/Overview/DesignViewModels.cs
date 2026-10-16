@@ -170,6 +170,12 @@ internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewMod
     public bool IsViewing { get; init; } = true;
 
     public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
+
+    public ContextGlance Context { get; init; } = new(true, "42%", 0.58, false, true);
+
+    public string Tokens { get; init; } = "1.1M tokens";
+
+    public IReadOnlyList<TreeTally> Tally { get; init; } = [new("1 needs you", StatusKind.NeedsYou), new("1 running", StatusKind.Working), new("1 done", StatusKind.Done)];
 }
 
 internal sealed record DesignSubagentViewModel(string Name, string Activity, SubagentState State) : ISubagentViewModel
@@ -201,6 +207,33 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
     public bool IsViewing { get; init; }
 
     public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
+
+    public ContextGlance Context { get; init; } = new(true, "72%", 0.28, false, false);
+
+    public string Tokens { get; init; } = "96.4k tokens";
+
+    public IReadOnlyList<IRecentActionViewModel> Recent { get; init; } =
+    [
+        new RecentActionViewModel("Edit internal/payments/refund.go", DateTimeOffset.UnixEpoch, false),
+        new RecentActionViewModel("Run go build ./internal/payments/...", DateTimeOffset.UnixEpoch, false),
+        new RecentActionViewModel("Look up RefundParams", DateTimeOffset.UnixEpoch, false),
+    ];
+
+    public string Doing => Recent.Count > 0 ? Recent[0].Text : Activity;
+
+    public string Spent => Spend.Split(' ')[0] + " USD";
+
+    public int SubagentCount => Subagents.Count;
+
+    public string Agents => OverviewPhrases.Count(SubagentCount, "agent");
+
+    public bool NeedsYou => Kind is StatusKind.NeedsYou or StatusKind.Held;
+
+    public bool IsSettled { get; init; }
+
+    public bool IsOpen { get; init; }
+
+    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed class DesignDelegationRefusalViewModel : IDelegationRefusalViewModel
@@ -271,16 +304,44 @@ internal sealed class DesignDelegationPaneViewModel : IDelegationPaneViewModel
 
     public IReadOnlyList<IDelegationNodeViewModel> Children { get; } =
     [
-        new DesignDelegationNodeViewModel(),
-        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Codex", "codex-team", "Wants to run go generate ./internal/webhooks/...", "0.22 USD of 0.80 USD", true, 0.28)
+        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Claude Code", "claude", "Wants to run go generate ./internal/webhooks/...", "0.22 USD of 0.80 USD", true, 0.28)
         {
             Subagents = [new DesignSubagentViewModel("Read the signature tests", "Waiting for your answer", SubagentState.Waiting)],
+            Context = new(true, "88%", 0.12, false, false),
+            Tokens = "41k tokens",
+            Recent = [new RecentActionViewModel("Run go generate ./internal/webhooks/...", DateTimeOffset.UnixEpoch, false)],
+        },
+        new DesignDelegationNodeViewModel { IsOpen = true },
+        new DesignDelegationNodeViewModel(SampleAgents.IdempotencyKeys, "Port the idempotency keys", 1, StatusKind.Working, "Claude Code", "claude-work", "Run go test ./internal/idempotency/...", "0.37 USD of 0.80 USD", true, 0.46)
+        {
+            Subagents = [],
+            Context = new(true, "64%", 0.36, false, false),
+            Tokens = "88k tokens",
+            Recent = [new RecentActionViewModel("Run go test ./internal/idempotency/...", DateTimeOffset.UnixEpoch, false)],
+        },
+        new DesignDelegationNodeViewModel(SampleAgents.PayoutScheduler, "Update the payout scheduler", 1, StatusKind.Working, "Claude Code", "claude", "Edit internal/payouts/schedule.go", "0.58 USD of 0.80 USD", true, 0.73)
+        {
+            Subagents = [],
+            Context = new(true, "22%", 0.78, true, true),
+            Tokens = "212k tokens",
+            Recent = [new RecentActionViewModel("Edit internal/payouts/schedule.go", DateTimeOffset.UnixEpoch, false)],
         },
     ];
 
-    public string Caption => "3 jobs · 3 agents";
+    public IReadOnlyList<IDelegationNodeViewModel> Settled { get; } =
+    [
+        new DesignDelegationNodeViewModel(SampleAgents.ApiReference, "Regenerate the API reference", 1, StatusKind.Done, "Claude Code", "claude-work", "integrated into its parent", "0.32 USD of 0.60 USD", true, 0.53) { Subagents = [], IsSettled = true },
+    ];
 
-    public string Footer => "claude-work · 2 jobs   codex-team · 1 job";
+    public string SettledLabel => "1 done";
+
+    public bool ShowsSettled => false;
+
+    public IRelayCommand ToggleSettledCommand { get; } = new RelayCommand(() => { });
+
+    public string Caption => "6 jobs · 3 agents";
+
+    public string Footer => "claude-work · 3 jobs   claude · 2 jobs";
 
     public bool IsOpen => true;
 
@@ -294,4 +355,13 @@ internal sealed class DesignDelegationToggleViewModel : IDelegationToggleViewMod
     public bool IsOpen { get; init; } = true;
 
     public IRelayCommand ToggleCommand { get; init; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignRecentActionViewModel : IRecentActionViewModel
+{
+    public string Text => "Edit internal/payments/refund.go";
+
+    public DateTimeOffset Since => DateTimeOffset.UnixEpoch;
+
+    public bool HasSince => false;
 }

@@ -9,9 +9,9 @@
              x:DataType="overview:IDelegationNodeViewModel"
              graphs:Graph.Depth="{Binding Depth}"
              graphs:Graph.Edge="{Binding Dot.Kind, Converter={x:Static graphs:Graph.EdgeOfStatus}}"
-             Classes.attention="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}">
+             Classes.attention="{Binding NeedsYou}">
   <Design.DataContext>
-    <overview:DesignDelegationNodeViewModel />
+    <overview:DesignDelegationNodeViewModel IsOpen="True" />
   </Design.DataContext>
   <UserControl.Styles>
     <Style Selector="TextBlock#State">
@@ -20,53 +20,118 @@
     <Style Selector=".attention TextBlock#State">
       <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
     </Style>
+    <Style Selector="Arc#Ring">
+      <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="Arc#Ring.attention">
+      <Setter Property="Stroke" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="Border#Card.open">
+      <Setter Property="Padding" Value="14,12" />
+    </Style>
+    <Style Selector="Border#Card:not(.open)">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="Button#Row:pointerover Border#Card:not(.open)">
+      <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+    </Style>
   </UserControl.Styles>
-  <Button x:Name="Open"
-          Classes="bare"
-          theme:Motion.Enter="Gentle"
-          AutomationProperties.Name="{Binding Title}"
-          Command="{Binding OpenCommand}"
-          CommandParameter="{Binding Job}">
-    <Border x:Name="Card"
-            Classes="node"
-            Classes.attention="{Binding Dot.Kind, Converter={x:Static states:StatusIs.Any}, ConverterParameter='NeedsYou,Held'}"
-            Classes.viewing="{Binding IsViewing}"
-            CornerRadius="{DynamicResource RadiusCard}"
-            Padding="16,14">
-      <StackPanel Spacing="6">
+  <Border x:Name="Card"
+          Classes="node"
+          Classes.open="{Binding IsOpen}"
+          Classes.attention="{Binding NeedsYou}"
+          Classes.viewing="{Binding IsViewing}"
+          CornerRadius="{DynamicResource RadiusCard}"
+          theme:Motion.Enter="Gentle">
+    <StackPanel Spacing="6">
+      <Button x:Name="Row"
+              Classes="bare"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Stretch"
+              AutomationProperties.Name="{Binding Title}"
+              Command="{Binding ToggleCommand}">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+          <ContentControl x:Name="Dot" Content="{Binding Dot}" Width="7" Height="7" Margin="0,0,2,0" VerticalAlignment="Center" />
+          <TextBlock x:Name="Title" Grid.Column="1" Classes="medium" Text="{Binding Title}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+          <Border x:Name="AgentCount" Grid.Column="2" Classes="tag" VerticalAlignment="Center" IsVisible="{Binding !!SubagentCount}">
+            <TextBlock x:Name="Agents" Text="{Binding Agents}" />
+          </Border>
+          <TextBlock x:Name="State" Grid.Column="3" Classes="caption" Text="{Binding State}" VerticalAlignment="Center" IsVisible="{Binding NeedsYou}" />
+          <StackPanel x:Name="ContextGauge"
+                      Grid.Column="4"
+                      Orientation="Horizontal"
+                      Spacing="4"
+                      VerticalAlignment="Center"
+                      IsVisible="{Binding Context.IsShown}"
+                      ToolTip.Tip="{Binding Context.Left, StringFormat='{}{0} of the context window left'}">
+            <Panel Width="12" Height="12">
+              <Ellipse Stroke="{DynamicResource HubTrackBrush}" StrokeThickness="2.2" />
+              <Arc x:Name="Ring"
+                   Classes.attention="{Binding Context.IsNear}"
+                   StartAngle="-90"
+                   SweepAngle="{Binding Context.Used, Converter={x:Static graphs:Graph.Degrees}}"
+                   StrokeThickness="2.2"
+                   StrokeLineCap="Round" />
+            </Panel>
+            <TextBlock x:Name="ContextLeft" Classes="hint" Text="{Binding Context.Left}" />
+          </StackPanel>
+          <TextBlock x:Name="Spent" Grid.Column="5" Classes="hint" Text="{Binding Spent}" VerticalAlignment="Center" />
+          <TextBlock x:Name="Doing"
+                     Grid.Row="1"
+                     Grid.Column="1"
+                     Grid.ColumnSpan="5"
+                     Classes="caption secondary"
+                     Text="{Binding Doing}"
+                     TextTrimming="CharacterEllipsis" />
+        </Grid>
+      </Button>
+      <StackPanel x:Name="Details" Spacing="8" IsVisible="{Binding IsOpen}">
         <DockPanel>
+          <Border x:Name="RoleTag" DockPanel.Dock="Right" Classes="tag" Margin="8,0,0,0" IsVisible="{Binding Role, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock x:Name="Role" Text="{Binding Role}" />
+          </Border>
           <Border DockPanel.Dock="Left" Classes="tag" Margin="0,0,8,0" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
             <TextBlock Text="{Binding Harness, Converter={x:Static graphs:Graph.Initials}}" />
           </Border>
-          <TextBlock x:Name="State" DockPanel.Dock="Right" Classes="caption" Text="{Binding State}" Margin="8,0,0,0" />
           <StackPanel Orientation="Horizontal" Spacing="6">
             <TextBlock x:Name="Harness" Classes="caption" Text="{Binding Harness}" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             <TextBlock Classes="caption" Text="·" IsVisible="{Binding Harness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             <TextBlock x:Name="Connection" Classes="caption" Text="{Binding Connection}" TextTrimming="CharacterEllipsis" />
           </StackPanel>
         </DockPanel>
+        <ItemsControl x:Name="Recent" ItemsSource="{Binding Recent}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="3" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
         <DockPanel>
-          <Border x:Name="RoleTag" DockPanel.Dock="Right" Classes="tag" Margin="8,0,0,0" VerticalAlignment="Center" IsVisible="{Binding Role, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock x:Name="Role" Text="{Binding Role}" />
-          </Border>
-          <ContentControl x:Name="Dot" DockPanel.Dock="Left" Content="{Binding Dot}" Width="7" Height="7" Margin="0,0,10,0" VerticalAlignment="Center" />
-          <TextBlock x:Name="Title" Classes="medium" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-        </DockPanel>
-        <TextBlock x:Name="Activity" Classes="caption secondary" Text="{Binding Activity}" TextTrimming="CharacterEllipsis" />
-        <DockPanel>
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="8,0,0,0">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
             <TextBlock x:Name="Spend" Classes="hint" Text="{Binding Spend}" />
+            <TextBlock Classes="hint" Text="·" IsVisible="{Binding Tokens, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <TextBlock x:Name="Tokens" Classes="hint" Text="{Binding Tokens}" IsVisible="{Binding Tokens, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
           </StackPanel>
           <ProgressBar x:Name="Share" Classes="bar" Height="3" Value="{Binding SpentShare}" VerticalAlignment="Center" IsVisible="{Binding HasCarve}" />
         </DockPanel>
-        <ItemsControl x:Name="Subagents" Margin="0,4,0,0" ItemsSource="{Binding Subagents}" IsVisible="{Binding HasSubagents}">
+        <TextBlock x:Name="Compacted" Classes="hint" Text="Compacted during its last turn" IsVisible="{Binding Context.Compacted}" />
+        <ItemsControl x:Name="Subagents" ItemsSource="{Binding Subagents}" IsVisible="{Binding HasSubagents}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
               <StackPanel Spacing="5" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+          <Button x:Name="OpenConversation"
+                  Classes="quiet"
+                  Content="Open conversation"
+                  Command="{Binding OpenCommand}"
+                  CommandParameter="{Binding Job}" />
+        </StackPanel>
       </StackPanel>
-    </Border>
-  </Button>
+    </StackPanel>
+  </Border>
 </UserControl>

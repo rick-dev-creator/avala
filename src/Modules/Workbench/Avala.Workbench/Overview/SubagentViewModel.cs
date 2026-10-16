@@ -68,6 +68,9 @@ internal sealed class SubagentViewModel(ToolEntry entry, bool waiting) : ISubage
             },
             () => []);
 
+    public static int Count(Option<BoardJob> job) =>
+        job.Match(found => found.Transcript.Entries.OfType<ToolEntry>().Count(tool => tool.Kind == ItemKind.Subagent), () => 0);
+
     public static IReadOnlyList<ISubagentViewModel> Kept(IReadOnlyList<ISubagentViewModel> current, IReadOnlyList<ISubagentViewModel> next) =>
         current.Select(Seen).SequenceEqual(next.Select(Seen)) ? current : next;
 
