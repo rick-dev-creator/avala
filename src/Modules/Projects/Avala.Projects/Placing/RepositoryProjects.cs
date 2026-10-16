@@ -7,7 +7,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Projects.Placing;
 
-internal sealed class RepositoryProjects(ProjectBook book, IJobCatalog jobs, IScratchRepositories scratch) : IStartupTask, IHandle<JobSubmitted>
+internal sealed class RepositoryProjects(ProjectBook book, IJobCatalog jobs, IScratchRepositories scratch) : IStartupTask, IHandle<JobSubmitted>, IHandle<ConversationRestored>
 {
     public StartupStage Stage => StartupStage.Restore;
 
@@ -19,14 +19,14 @@ internal sealed class RepositoryProjects(ProjectBook book, IJobCatalog jobs, ISc
 
                 var all = await jobs.ListAsync(token);
 
-                foreach (var job in all.Where(job => !book.Current.Placements.ContainsKey(job.Job)))
-                {
-                    await EnsureAsync(job.Repository, token);
-                }
-
                 foreach (var job in all.Where(job => Archive.Returns(job.Status)))
                 {
                     await ArchiveReturns.ReturnAsync(book, job.Job, token);
+                }
+
+                foreach (var job in all.Where(job => !book.Current.Placements.ContainsKey(job.Job) && !book.Current.Archived.Contains(job.Job)))
+                {
+                    await EnsureAsync(job.Repository, token);
                 }
 
                 await book.AnnounceAsync(token);
@@ -39,6 +39,17 @@ internal sealed class RepositoryProjects(ProjectBook book, IJobCatalog jobs, ISc
         var repository = history.Match(found => found.Summary.Repository, () => string.Empty);
 
         if (repository.Length > 0)
+        {
+            await book.WorkAsync(token => EnsureAsync(repository, token), cancellationToken);
+        }
+    }
+
+    public async ValueTask HandleAsync(ConversationRestored integrationEvent, CancellationToken cancellationToken)
+    {
+        var history = await jobs.HistoryAsync(integrationEvent.Job, cancellationToken);
+        var repository = history.Match(found => found.Summary.Repository, () => string.Empty);
+
+        if (repository.Length > 0 && !book.Current.Placements.ContainsKey(integrationEvent.Job))
         {
             await book.WorkAsync(token => EnsureAsync(repository, token), cancellationToken);
         }

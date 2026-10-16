@@ -30,7 +30,7 @@ internal sealed class ProjectsEntry(ProjectBook book, IJobCatalog catalog) : IPr
         return await DecideAsync(
             token =>
             {
-                var held = all.Count(job => job.Parent.IsNone && book.Current.Of(job.Job, job.Repository).Match(found => found.Project == project, () => false));
+                var held = all.Count(job => job.Parent.IsNone && !book.Current.Archived.Contains(job.Job) && book.Current.Of(job.Job, job.Repository).Match(found => found.Project == project, () => false));
 
                 return book.Find(project).Match(found => found.Delete(held), () => ProjectError.UnknownProject).TryGetValue(out var removed, out var error)
                     ? SucceededAsync(book.RemoveAsync(removed, token))
