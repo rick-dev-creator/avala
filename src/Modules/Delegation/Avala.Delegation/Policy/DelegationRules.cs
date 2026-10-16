@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -23,6 +24,8 @@ internal sealed record DelegationRules(IReadOnlyList<ConnectionName> Connections
 
     public Option<ChildRole> Role { get; init; }
 
+    public RoleSettings Settings { get; init; } = RoleSettings.Undeclared;
+
     public Option<DelegationError> Refuses(int depth, int running, Option<Autonomy> asked, Autonomy granted) =>
         depth > MaxDepth ? DelegationError.DepthExceeded
         : running >= MaxChildren ? DelegationError.TooManyChildren
@@ -38,6 +41,28 @@ internal sealed record DelegationRules(IReadOnlyList<ConnectionName> Connections
 
     public Option<ConnectionName> InTurn(int earlierChildren) =>
         Connections.Count == 0 ? Option<ConnectionName>.None : Connections[earlierChildren % Connections.Count];
+}
+
+internal sealed record RoleSettings(ModelChoice Worker, ModelChoice Reviewer, ModelChoice Research)
+{
+    public const long SmallestWindow = 20_000;
+    public const long LargestWindow = 1_000_000;
+
+    public static RoleSettings Undeclared { get; } = new(ModelChoice.Default, ModelChoice.Default, ModelChoice.Default);
+
+    public ModelChoice Of(ChildRole role) => role switch
+    {
+        ChildRole.Reviewer => Reviewer,
+        ChildRole.Research => Research,
+        _ => Worker,
+    };
+
+    public RoleSettings With(ChildRole role, ModelChoice choice) => role switch
+    {
+        ChildRole.Reviewer => this with { Reviewer = choice },
+        ChildRole.Research => this with { Research = choice },
+        _ => this with { Worker = choice },
+    };
 }
 
 internal static class Roles

@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Connections;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Delegating;
 using Avala.Delegation.Policy;
@@ -80,6 +81,14 @@ public sealed class DelegationRulesTests
     }
 
     [Fact]
+    public void ASectionGivesEachRoleItsOwnModelEffortAndCompactionWindow() =>
+        Assert.Equal(
+            RoleSettings.Undeclared
+                .With(ChildRole.Research, new ModelChoice("small", "low") { CompactAt = 120_000L })
+                .With(ChildRole.Worker, new ModelChoice("large", Option<string>.None)),
+            Outcomes.Present(Outcomes.Succeeds(DelegationRulesParser.Parse("""{ "delegation": { "roles": { "research": { "model": "small", "effort": "low", "compactAt": 120000 }, "worker": { "model": "large" } } } }"""))).Settings);
+
+    [Fact]
     public void TheSectionIsReadWhateverTheDepthOfTheOtherSections() =>
         Assert.Equal(
             2,
@@ -114,6 +123,15 @@ public sealed class DelegationRulesTests
     [InlineData("""{ "delegation": { "parentWindowSeconds": 3601 } }""", "InvalidWindow")]
     [InlineData("""{ "delegation": { "parentWindowSeconds": 30.5 } }""", "InvalidWindow")]
     [InlineData("""{ "delegation": { "role": "editor" } }""", "UnknownRole")]
+    [InlineData("""{ "delegation": { "roles": { "editor": { "model": "small" } } } }""", "UnknownRole")]
+    [InlineData("""{ "delegation": { "roles": ["research"] } }""", "Malformed")]
+    [InlineData("""{ "delegation": { "roles": { "research": "small" } } }""", "Malformed")]
+    [InlineData("""{ "delegation": { "roles": { "research": { "budget": 5 } } } }""", "UnknownField")]
+    [InlineData("""{ "delegation": { "roles": { "research": { "model": 5 } } } }""", "Malformed")]
+    [InlineData("""{ "delegation": { "roles": { "research": { "effort": " " } } } }""", "InvalidRoleSettings")]
+    [InlineData("""{ "delegation": { "roles": { "research": { "compactAt": 19999 } } } }""", "InvalidRoleSettings")]
+    [InlineData("""{ "delegation": { "roles": { "research": { "compactAt": 1000001 } } } }""", "InvalidRoleSettings")]
+    [InlineData("""{ "delegation": { "roles": { "research": { "compactAt": "90000" } } } }""", "Malformed")]
     public void AnInvalidSectionIsRejectedWithItsReason(string text, string expected) =>
         Assert.Equal(Enum.Parse<DelegationError>(expected), Outcomes.FailsWith(DelegationRulesParser.Parse(text)));
 

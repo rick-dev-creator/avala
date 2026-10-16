@@ -70,7 +70,7 @@ internal static class CommandLine
             workingDirectory,
             Arguments(options, resume, home),
             Switch(options.Connection, PlanToolsSetting, true) ? Inherited : [.. Inherited, TodoToolsVariable],
-            Variables(options.Connection, home));
+            Variables(options, home));
 
     private static List<string> Arguments(SessionOptions options, Option<ConversationMark> resume, UserHome home)
     {
@@ -104,13 +104,14 @@ internal static class CommandLine
         ];
     }
 
-    private static Dictionary<string, string> Variables(ConnectionEnvironment connection, UserHome home)
+    private static Dictionary<string, string> Variables(SessionOptions options, UserHome home)
     {
+        var connection = options.Connection;
         var environment = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["DISABLE_AUTOUPDATER"] = "1",
             [ToolTimeoutVariable] = ToolTimeoutMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            [CompactWindowVariable] = CompactAt(connection).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            [CompactWindowVariable] = Window(options).ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
 
         if (Switch(connection, PlanToolsSetting, true) && home.TodoTools.IsNone)
@@ -170,8 +171,10 @@ internal static class CommandLine
 
     private static string[] Settings(JsonObject settings) => settings.Count > 0 ? ["--settings", settings.ToJsonString()] : [];
 
-    public static Option<long> CompactsAt(ConnectionEnvironment connection) =>
-        Switch(connection, AutoCompactSetting, true) ? CompactAt(connection) : Option<long>.None;
+    public static Option<long> CompactsAt(SessionOptions options) =>
+        Switch(options.Connection, AutoCompactSetting, true) ? Window(options) : Option<long>.None;
+
+    private static long Window(SessionOptions options) => options.Model.CompactAt.Match(tokens => tokens, () => CompactAt(options.Connection));
 
     public static int CompactAt(ConnectionEnvironment connection) =>
         connection.Settings.TryGetValue(CompactAtSetting, out var value)
