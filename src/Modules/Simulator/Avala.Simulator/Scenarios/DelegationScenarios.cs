@@ -44,6 +44,27 @@ internal static class DelegationScenarios
         ],
     ]);
 
+    public static Scenario Subagents { get; } = new("subagents",
+    [
+        [
+            Thought("A sub-agent will survey the project ", "while I wait for what it finds."),
+            new RunCommand(new ItemId("install"), "npm install", "added 12 packages", AsksPermission: true),
+            .. Subagent(
+                new ItemId("survey"),
+                "Survey the greeting",
+                "Find where the greeting is written and check that the project builds.",
+                [
+                    new UseTool(new ItemId("survey-search"), ItemKind.Search, "Search greeting", "greeting", "greeting in src/**/*.cs", "src/Greeter.cs:3: // greeting goes here", AsksPermission: false),
+                    new UseTool(new ItemId("survey-read"), ItemKind.Other, "Read src/Greeter.cs", "src/Greeter.cs", "src/Greeter.cs", "// greeting goes here", AsksPermission: false),
+                    new UseTool(new ItemId("survey-build"), ItemKind.Command, "Run dotnet build", "dotnet build", "dotnet build", "Build succeeded.", AsksPermission: true),
+                ],
+                "The greeting is written in src/Greeter.cs and the project builds."),
+            Message("The survey came back: ", "the greeting lives in src/Greeter.cs."),
+            .. Bill(2_200, 170, 0.0085m, 0.24),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario DelegatedConflict { get; } = new("delegate-conflict",
     [
         [
@@ -307,9 +328,16 @@ internal static class DelegationScenarios
 
     public static IReadOnlyList<Scenario> All { get; } =
     [
-        Delegated, DelegatedWithAgents, NotesWithAgents, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedOnModels, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
+        Delegated, DelegatedWithAgents, NotesWithAgents, Subagents, DelegatedConflict, DelegatedWaiting, DelegatedLoosely, DelegatedOnModels, DelegatedExpensively, Recursive, DelegatedPaused, DelegatedAcross, DelegatedSteered,
         DelegatedAsking, DelegatedAskingAlongside, DelegatedAskingThenReviewed, DelegatedReview,
         Notes, RevisedNotes, Todo, Expensive, PausedNotes, Review, MulAsking,
+    ];
+
+    private static IStep[] Subagent(ItemId item, string name, string prompt, UseTool[] tools, string output) =>
+    [
+        new StartSubagent(item, name, prompt),
+        .. tools.SelectMany((tool, index) => new IStep[] { tool with { Parent = item }, new MeterSubagent(item, (index + 1) * 1_800L) }),
+        new EndSubagent(item, output),
     ];
 
     private static CallTool Delegation(string item, string input) => new(new ItemId(item), ScenarioCatalog.Delegate, input);

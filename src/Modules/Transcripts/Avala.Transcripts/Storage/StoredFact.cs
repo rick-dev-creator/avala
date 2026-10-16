@@ -18,6 +18,7 @@ internal sealed class StoredFact
         [nameof(CanvasStarted)] = StoredJson.Read<CanvasStarted>,
         [nameof(ItemProgressed)] = StoredJson.Read<ItemProgressed>,
         [nameof(ItemCompleted)] = StoredJson.Read<ItemCompleted>,
+        [nameof(ItemTokensReported)] = StoredJson.Read<ItemTokensReported>,
         [nameof(PermissionRequested)] = StoredJson.Read<PermissionRequested>,
         [nameof(PermissionResolved)] = StoredJson.Read<PermissionResolved>,
         [nameof(FormRequested)] = StoredJson.Read<FormRequested>,

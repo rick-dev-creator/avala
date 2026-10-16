@@ -17,6 +17,8 @@ internal sealed record DelegationPaneRequested(JobId Job);
 
 internal sealed record DelegationPaneChanged(JobId Job, bool IsOpen);
 
+internal sealed record DelegationPaneState(Option<JobId> Viewing, Option<DelegationTree> Tree, IReadOnlyList<string> Running);
+
 internal interface IDelegationPaneViewModel
 {
     IOrchestratorCardViewModel? Root { get; }
@@ -41,6 +43,7 @@ internal sealed partial class DelegationPaneViewModel
     private readonly JobFocus focus;
     private readonly IMessenger messenger;
     private readonly ObservableCollection<DelegationNodeViewModel> children = [];
+    private readonly HashSet<string> started = new(StringComparer.Ordinal);
     private Option<JobId> job;
 
     public DelegationPaneViewModel(DelegationReader reader, LiveFeed feed, JobFocus focus, IMessenger messenger)
@@ -89,7 +92,8 @@ internal sealed partial class DelegationPaneViewModel
     public void OnRegionContextChanged(Option<JobId> context)
     {
         job = context;
-        Toggle(IsOpen && job.Match(reader.InTree, () => false));
+        started.UnionWith(context.Match(reader.Running, () => []));
+        Toggle(IsOpen && job.Match(reader.Offers, () => false));
         feed.Refresh();
     }
 
@@ -127,13 +131,27 @@ internal sealed partial class DelegationPaneViewModel
         }
     }
 
-    private async ValueTask<(Option<JobId> Viewing, Option<DelegationTree> Tree)> ReadAsync(CancellationToken cancellationToken) =>
-        IsOpen && job.Match<JobId?>(found => found, () => null) is { } viewing
-            ? (viewing, await reader.TreeAsync(reader.RootOf(viewing), cancellationToken))
-            : (job, Option<DelegationTree>.None);
-
-    private void Show((Option<JobId> Viewing, Option<DelegationTree> Tree) state)
+    private async ValueTask<DelegationPaneState> ReadAsync(CancellationToken cancellationToken)
     {
+        var shown = job;
+        var running = shown.Match(reader.Running, () => []);
+
+        return IsOpen && shown.Match<JobId?>(found => found, () => null) is { } viewing
+            ? new DelegationPaneState(viewing, await reader.TreeAsync(reader.RootOf(viewing), cancellationToken), running)
+            : new DelegationPaneState(shown, Option<DelegationTree>.None, running);
+    }
+
+    private void Show(DelegationPaneState state)
+    {
+        var fresh = state.Running.Except(started, StringComparer.Ordinal).ToList();
+        started.UnionWith(fresh);
+
+        if (fresh.Count > 0 && !IsOpen && state.Viewing == job)
+        {
+            Toggle(true);
+            feed.Refresh();
+        }
+
         var viewing = state.Viewing;
         children.ShowInPlace(
             state.Tree.Match(tree => tree.Children, () => []),

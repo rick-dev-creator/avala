@@ -111,7 +111,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             cancellationToken),
         UseTool use => ActAsync(
             cues,
-            new Deed(use.Item, use.Kind, use.Title, use.Title, use.Target, use.Input),
+            new Deed(use.Item, use.Kind, use.Title, use.Title, use.Target, use.Input) { Parent = use.Parent },
             use.AsksPermission && options.Permissions != PermissionMode.AllowAll,
             _ => Task.FromResult(use.Output),
             cancellationToken),
@@ -142,7 +142,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         bool asks,
         Func<CancellationToken, Task<string>> perform,
         CancellationToken cancellationToken) =>
-        GoAheadAsync(cues, deed, asks, perform, cancellationToken).Prepend(cues.Opened(deed.Item, deed.Kind, deed.Title, deed.Input));
+        GoAheadAsync(cues, deed, asks, perform, cancellationToken).Prepend(cues.Opened(deed.Item, deed.Kind, deed.Title, deed.Input, deed.Parent));
 
     private async IAsyncEnumerable<IAgentEvent> WithdrawAsync(Cues cues, WithdrawnPermission race, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -262,5 +262,8 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             ? (given.Confirmed ? "approved" : "not approved") + given.Text.Match(text => $" ({text})", () => string.Empty)
             : string.Join(", ", [.. given.Chosen, .. given.Text.Match<string[]>(text => [text], () => [])]);
 
-    private sealed record Deed(ItemId Item, ItemKind Kind, string Title, string Request, string Target, string Input);
+    private sealed record Deed(ItemId Item, ItemKind Kind, string Title, string Request, string Target, string Input)
+    {
+        public Option<ItemId> Parent { get; init; }
+    }
 }

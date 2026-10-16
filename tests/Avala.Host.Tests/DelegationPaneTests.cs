@@ -1,3 +1,6 @@
+using Avala.Agents.Contracts;
+using Avala.Agents.Contracts.Events;
+using Avala.Agents.Contracts.Sessions;
 using Avala.Jobs.Contracts;
 using Avala.Testing;
 
@@ -47,5 +50,32 @@ public sealed class DelegationPaneTests(PublishedPlugins plugins)
         Assert.False(shown.Item5);
         Assert.Equal([("Read the changelog", "done")], shown.Item6);
         Assert.True(await run.Ui.ReadAsync(() => toggle["IsOpen"].Value<bool>()));
+    }
+
+    [Fact]
+    public async Task ASubagentStartedWhileItsJobIsShownOpensThePaneWithItsCommandAndUsageWhileItsToolsStayOutOfTheConversationAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "subagents");
+        var install = await run.DecisionAsync();
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        var pane = workbench.Page["Regions"]["Preview"].Items.Single(item => item.Kind == "DelegationPaneViewModel");
+        var closed = await run.Ui.ReadAsync(() => pane["IsOpen"].Value<bool>());
+
+        Outcomes.Succeeds(await run.Get<IAgents>().RespondAsync(install.Session, new PermissionDecision(install.Item, PermissionAnswer.Allow), TestContext.Current.CancellationToken));
+        var build = await run.DecisionAsync();
+        await run.Ui.PresentedAsync(
+            pane.Presentation,
+            () => pane["IsOpen"].Value<bool>() && pane.Has("Root") && pane["Root"]["Subagents"].Items.Count == 1 && pane["Root"]["Subagents"].Items[0]["Meter"].Text.Length > 0,
+            () => "no sub-agent in the pane");
+
+        var agent = await run.Ui.ReadAsync(() => pane["Root"]["Subagents"].Items[0]);
+        var shown = await run.Ui.ReadAsync(() => (agent["Name"].Text, agent["Activity"].Text, agent["Meter"].Text));
+        var rows = await run.Ui.ReadAsync(() => conversation["Entries"].Items.Where(entry => entry.Kind == "ToolViewModel").Select(tool => tool["Title"].Text).ToList());
+        Assert.False(closed);
+        Assert.Equal("survey-build", build.Item.Value);
+        Assert.Equal(("Survey the greeting", "Run dotnet build", "3 tool uses · 3,600 tokens"), shown);
+        Assert.DoesNotContain(rows, title => title.Contains("greeting", StringComparison.Ordinal) && !title.StartsWith("Subagent", StringComparison.Ordinal));
+        Assert.DoesNotContain(rows, title => title.Contains("dotnet build", StringComparison.Ordinal));
     }
 }

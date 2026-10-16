@@ -174,6 +174,8 @@ internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewMod
 
 internal sealed record DesignSubagentViewModel(string Name, string Activity, SubagentState State) : ISubagentViewModel
 {
+    public string Meter { get; init; } = string.Empty;
+
     public string StateText => State.ToString().ToLowerInvariant();
 }
 
@@ -192,7 +194,7 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
 
     public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(Kind);
 
-    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Find the refund call sites", "Reading internal/payments/refund.go", SubagentState.Running)];
+    public IReadOnlyList<ISubagentViewModel> Subagents { get; init; } = [new DesignSubagentViewModel("Find the refund call sites", "Read internal/payments/refund.go", SubagentState.Running) { Meter = "6 tool uses · 18,240 tokens" }];
 
     public bool HasSubagents => Subagents.Count > 0;
 

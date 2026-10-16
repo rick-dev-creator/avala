@@ -35,7 +35,7 @@ public sealed class HarnessShapeTests(PublishedPlugins plugins)
     }
 
     [Fact]
-    public async Task ClaudeCodesToolRowsShowTheirInputAndItsSubagentsTextStaysInTheSubagentsRowAsync()
+    public async Task ClaudeCodesToolRowsShowTheirInputAndItsSubagentsTextAndToolsStayInTheSubagentsRowAsync()
     {
         using var claude = await TranscribedClaude.PrepareAsync("tools");
         await using var run = await SimulatedRun.TranscribedAsync(
@@ -54,7 +54,6 @@ public sealed class HarnessShapeTests(PublishedPlugins plugins)
                 ("Web", "Fetch https://example.com/style", "https://example.com/style\nHow should a greeting be written?"),
                 ("Web", "Search the web for team greeting conventions", "team greeting conventions"),
                 ("Subagent", "Subagent: Read the README", "Read README.md and say in one sentence how the project greets."),
-                ("Other", "Read README.md", "README.md"),
                 ("Command", "Run cat > NOTES.md <<'EOF' +3 lines", "cat > NOTES.md <<'EOF'\n# Notes\nGreetings are level one headings that name the team.\nEOF"),
             ],
             rows.Select(row => (row.Kind, row.Title, row.Input)));

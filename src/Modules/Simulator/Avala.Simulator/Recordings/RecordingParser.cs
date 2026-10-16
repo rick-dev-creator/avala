@@ -38,10 +38,12 @@ internal sealed class RecordingParser
             ["itemStarted"] = recorded => new ItemStarted(default, default, Item(recorded), Enum<ItemKind>(recorded.GetProperty("kind")), Text(recorded.GetProperty("title")))
             {
                 Input = Optional(recorded, "input"),
+                Parent = Optional(recorded, "parent").Map(parent => new ItemId(parent)),
             },
             ["itemDrafted"] = recorded => new ItemDrafted(default, default, Item(recorded), Enum<ItemKind>(recorded.GetProperty("kind")), Text(recorded.GetProperty("title")), recorded.GetProperty("received").GetInt32()),
             ["canvasStarted"] = recorded => new CanvasStarted(default, default, Item(recorded), Text(recorded.GetProperty("title")), Plain(recorded.GetProperty("mediaType"))),
             ["itemProgressed"] = recorded => new ItemProgressed(default, default, Item(recorded), Text(recorded.GetProperty("text"))),
+            ["itemTokensReported"] = recorded => new ItemTokensReported(default, default, Item(recorded), recorded.GetProperty("tokens").GetInt64()),
             ["itemCompleted"] = recorded => new ItemCompleted(default, default, Item(recorded), Enum<ItemOutcome>(recorded.GetProperty("outcome"))),
             ["toolCalled"] = recorded => new ToolCalled(default, default, Item(recorded), Plain(recorded.GetProperty("tool")), Text(recorded.GetProperty("input"))),
             ["toolReturned"] = recorded => new ToolReturned(default, default, Item(recorded), Result(recorded.GetProperty("result"))),

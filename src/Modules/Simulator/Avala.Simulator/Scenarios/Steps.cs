@@ -18,7 +18,16 @@ internal sealed record WithdrawnPermission(RunCommand Withdrawn, RunCommand Kept
 
 internal sealed record WriteThroughCommand(ItemId Item, string Command, string Path, string Content) : IStep;
 
-internal sealed record UseTool(ItemId Item, ItemKind Kind, string Title, string Target, string Input, string Output, bool AsksPermission) : IStep;
+internal sealed record UseTool(ItemId Item, ItemKind Kind, string Title, string Target, string Input, string Output, bool AsksPermission) : IStep
+{
+    public Option<ItemId> Parent { get; init; }
+}
+
+internal sealed record StartSubagent(ItemId Item, string Name, string Prompt) : IStep;
+
+internal sealed record MeterSubagent(ItemId Item, long Tokens) : IStep;
+
+internal sealed record EndSubagent(ItemId Item, string Output) : IStep;
 
 internal sealed record Spawn(ItemId Item, string Command, Workload Workload) : IStep;
 

@@ -82,6 +82,30 @@ public sealed class DelegationPaneViewModelScripts : IDisposable
     }
 
     [Fact]
+    public async Task ThePaneOpensByItselfWhenTheShownJobStartsASubagentAndAfterBeingClosedOnlyForTheNextOneAsync()
+    {
+        var alone = bench.Alone();
+        using var pane = bench.Pane(alone.Job);
+        var before = await bench.Ui.ReadAsync(() => pane.IsOpen);
+
+        bench.Starts(alone, "survey", "Survey the greeting");
+        await bench.Ui.PresentedAsync(pane, () => pane.Root?.Subagents.Count == 1, () => $"open {pane.IsOpen}");
+        await bench.Ui.InvokeAsync(pane.Close, Cancellation);
+        var revision = await bench.Ui.ReadAsync(() => pane.Revision);
+        bench.Starts(alone, "survey", "Survey the greeting");
+        await bench.Ui.PresentedAsync(pane, () => pane.Revision > revision, () => $"revision {pane.Revision}");
+        var reopened = await bench.Ui.ReadAsync(() => pane.IsOpen);
+        bench.Starts(alone, "check", "Check the build");
+        await bench.Ui.PresentedAsync(pane, () => pane.Root?.Subagents.Count == 2, () => $"open {pane.IsOpen}");
+
+        Assert.False(before);
+        Assert.False(reopened);
+        Assert.Equal(
+            [new DelegationPaneChanged(alone.Job, true), new DelegationPaneChanged(alone.Job, false), new DelegationPaneChanged(alone.Job, true)],
+            bench.Changes);
+    }
+
+    [Fact]
     public async Task MovingToAJobOutsideAnyTreeClosesThePaneAsync()
     {
         var alone = bench.Alone();
@@ -143,6 +167,17 @@ public sealed class SubagentViewModelScripts
         ViewModelScript.Given(new SubagentViewModel(Running, waiting: false))
             .Then(agent => Assert.Equal(("Find the refund call sites", "Reading tests/Payments", SubagentState.Running, "running"), (agent.Name, agent.Activity, agent.State, agent.StateText)));
 
+    [Fact]
+    public void AWorkingSubagentShowsTheCommandItRunsNowAndHowManyToolsAndTokensItHasUsedUntilItEnds()
+    {
+        var working = Running with { Steps = 3, Doing = "Run dotnet build", Tokens = 5_400 };
+
+        ViewModelScript.Given(new SubagentViewModel(working, waiting: false))
+            .Then(agent => Assert.Equal(("Run dotnet build", "3 tool uses · 5,400 tokens"), (agent.Activity, agent.Meter)));
+        ViewModelScript.Given(new SubagentViewModel(working with { Outcome = ItemOutcome.Succeeded }, waiting: false))
+            .Then(agent => Assert.Equal(("Reading tests/Payments", "3 tool uses · 5,400 tokens"), (agent.Activity, agent.Meter)));
+    }
+
     [Theory]
     [InlineData(null, true, "waiting")]
     [InlineData(ItemOutcome.Succeeded, false, "done")]
@@ -193,9 +228,17 @@ internal sealed class TreeBench : IDisposable
     public JobSummary Alone()
     {
         var alone = Pages.Summary("Fix the README", JobStatus.Running);
+        catalog.Jobs.Add(alone);
         Board.Publish(Board.Jobs.Add(alone.Job, new BoardJob(alone, Transcript.Empty)));
 
         return alone;
+    }
+
+    public void Starts(JobSummary job, string id, string name)
+    {
+        var shown = Board.Jobs[job.Job];
+        var started = Agent(id, name, $"Working on {name}", null).Aggregate(shown.Transcript.Apply(new TurnStarted(Session, Turn), DateTimeOffset.UnixEpoch), (current, next) => current.Apply(next, DateTimeOffset.UnixEpoch));
+        Board.Publish(Board.Jobs.SetItem(job.Job, shown with { Transcript = started }));
     }
 
     public DelegationPaneViewModel Pane(JobId shown)
@@ -207,7 +250,7 @@ internal sealed class TreeBench : IDisposable
         return pane;
     }
 
-    public DelegationToggleViewModel Toggle() => new(Reader(), Board, new LiveFeed(new Pulse(Board), Ui), Messenger);
+    public DelegationToggleViewModel Toggle() => new(Reader(), new LiveFeed(new Pulse(Board), Ui), Messenger);
 
     public void Dispose() => Ui.Dispose();
 

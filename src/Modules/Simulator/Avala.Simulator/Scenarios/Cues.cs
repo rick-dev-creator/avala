@@ -22,6 +22,10 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
 
     public ItemStarted Opened(ItemId item, ItemKind kind, string title, string input) => Opened(item, kind, title) with { Input = input };
 
+    public ItemStarted Opened(ItemId item, ItemKind kind, string title, string input, Option<ItemId> parent) => Opened(item, kind, title, input) with { Parent = parent };
+
+    public ItemTokensReported Metered(ItemId item, long tokens) => new(Session, Turn, item, tokens);
+
     public const int DraftStride = 512;
 
     public ItemDrafted Drafted(ItemId item, ItemKind kind, string title, int received) => new(Session, Turn, item, kind, title, received);
@@ -57,6 +61,14 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         RecallAttachments attachments => Stream(Opened(attachments.Item, ItemKind.Message, "Reply"), attachments.Item, [Attached.Count == 0 ? "Nothing was attached." : $"I received {string.Join(", ", Attached.Select(attached => $"{attached.Name} ({attached.MediaType})"))}."]),
         FromDevice device when device.Text == Told => [new RemoteMessageArrived(Session, Turn, device.Text) { BeganTurn = true }],
         Finish => [Ended(TurnOutcome.Finished)],
+        _ => Delegated(step),
+    };
+
+    private IEnumerable<IAgentEvent> Delegated(IStep step) => step switch
+    {
+        StartSubagent agent => [Opened(agent.Item, ItemKind.Subagent, $"Subagent: {agent.Name}", agent.Prompt)],
+        MeterSubagent meter => [Metered(meter.Item, meter.Tokens)],
+        EndSubagent agent => [Progressed(agent.Item, agent.Output), Closed(agent.Item, ItemOutcome.Succeeded)],
         _ => [],
     };
 
@@ -91,6 +103,7 @@ internal sealed record Cues(SessionId Session, TurnId Turn)
         CanvasStarted canvas => canvas with { Session = Session, Turn = Turn },
         ItemProgressed progressed => progressed with { Session = Session, Turn = Turn },
         ItemCompleted completed => completed with { Session = Session, Turn = Turn },
+        ItemTokensReported tokens => tokens with { Session = Session, Turn = Turn },
         ToolCalled called => called with { Session = Session, Turn = Turn },
         ToolReturned returned => returned with { Session = Session, Turn = Turn },
         _ => ReaddressExchange(recorded),

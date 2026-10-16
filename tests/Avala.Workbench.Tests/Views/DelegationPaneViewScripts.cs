@@ -75,12 +75,14 @@ public sealed class DelegationToggleViewScripts(HeadlessUi ui)
 public sealed class SubagentViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task ASubagentIsADashedPillWithItsNameActivityAndStateAsync() =>
+    public Task ASubagentIsADashedPillWithItsNameActivityMeterAndStateAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignSubagentViewModel("Read the signature tests", "Waiting for your answer", SubagentState.Waiting));
+            var view = Screen.Show(new DesignSubagentViewModel("Read the signature tests", "Waiting for your answer", SubagentState.Waiting) { Meter = "2 tool uses · 3,600 tokens" });
+            var quiet = Screen.Show(new DesignSubagentViewModel("Plan the work", "Split it into three jobs", SubagentState.Done));
 
-            Assert.Equal(("Read the signature tests", "Waiting for your answer", "waiting"), (view.TextOf("AgentName"), view.TextOf("Activity"), view.TextOf("State")));
+            Assert.Equal(("Read the signature tests", "Waiting for your answer", "2 tool uses · 3,600 tokens", "waiting"), (view.TextOf("AgentName"), view.TextOf("Activity"), view.TextOf("Meter"), view.TextOf("State")));
+            Assert.False(quiet.Shows("Meter"));
             Assert.Equal((true, true), (view.HasClass("Outline", "waiting"), view.HasClass("Dot", "waiting")));
             Assert.NotNull(view.Find<Rectangle>("Outline").StrokeDashArray);
         }, TestContext.Current.CancellationToken);

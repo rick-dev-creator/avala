@@ -85,14 +85,32 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         "assistant" => received.Members("message").Items("content")
             .Select(block => block.TextOr("type", string.Empty) switch
             {
-                "tool_use" => Used(new ToolUse(block.TextOr("id", string.Empty), block.TextOr("name", string.Empty), block.Members("input")), stamp, nested: true),
+                "tool_use" => Used(new ToolUse(block.TextOr("id", string.Empty), block.TextOr("name", string.Empty), block.Members("input")), stamp, new ItemId(parent)),
                 "text" => Narrated(parent, block.TextOr("text", string.Empty), stamp),
                 _ => Reaction.None,
             })
-            .Aggregate(Reaction.None, (all, next) => all.Then(next)),
+            .Aggregate(Reaction.None, (all, next) => all.Then(next))
+            .Then(Metered(parent, received.Members("message").Members("usage"), stamp)),
         "user" => Returned(received.Members("message"), stamp, nested: true),
         _ => Reaction.None,
     };
+
+    private Reaction Metered(string parent, JsonObject usage, Stamp stamp) =>
+        tools.Find(parent).Match(
+            tool =>
+            {
+                var used = usage.Number("input_tokens") + usage.Number("cache_read_input_tokens") + usage.Number("cache_creation_input_tokens") + usage.Number("output_tokens");
+
+                if (!tool.Opened || tool.Closed || used <= 0 || used == tool.Tokens)
+                {
+                    return Reaction.None;
+                }
+
+                tool.Tokens = used;
+
+                return Reaction.Of(new ItemTokensReported(stamp.Session, stamp.Turn, tool.Item, used));
+            },
+            () => Reaction.None);
 
     private Reaction Narrated(string parent, string text, Stamp stamp) =>
         tools.Find(parent).Match(
@@ -277,7 +295,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
         return said.Items("content")
             .Select((block, index) => block.TextOr("type", string.Empty) switch
             {
-                "tool_use" => Used(new ToolUse(block.TextOr("id", string.Empty), block.TextOr("name", string.Empty), block.Members("input")), stamp, nested: false),
+                "tool_use" => Used(new ToolUse(block.TextOr("id", string.Empty), block.TextOr("name", string.Empty), block.Members("input")), stamp, Option<ItemId>.None),
                 "text" when apiError => Whole(new ItemId($"{id}:said:{index}"), ItemKind.Other, "Claude Code error", block.TextOr("text", string.Empty), stamp, ItemOutcome.Failed),
                 "text" when whole => Whole(new ItemId($"{id}:said:{index}"), ItemKind.Message, "Message", block.TextOr("text", string.Empty), stamp),
                 "thinking" when whole => Whole(new ItemId($"{id}:said:{index}"), ItemKind.Reasoning, "Thinking", block.TextOr("thinking", string.Empty), stamp),
@@ -294,7 +312,7 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
                 new ItemProgressed(stamp.Session, stamp.Turn, item, text),
                 new ItemCompleted(stamp.Session, stamp.Turn, item, outcome));
 
-    private Reaction Used(ToolUse use, Stamp stamp, bool nested)
+    private Reaction Used(ToolUse use, Stamp stamp, Option<ItemId> parent)
     {
         if (use.Id.Length == 0)
         {
@@ -315,8 +333,8 @@ internal sealed class StreamTranslator(ToolBook tools, Places places)
             case ToolRole.Work:
                 tool.Opened = true;
 
-                return Reaction.Of(new ItemStarted(stamp.Session, stamp.Turn, tool.Item, use.KindIn(places), use.Heading(places)) { Input = use.Details(places.WorkingDirectory) });
-            case ToolRole.Plan when !nested:
+                return Reaction.Of(new ItemStarted(stamp.Session, stamp.Turn, tool.Item, use.KindIn(places), use.Heading(places)) { Input = use.Details(places.WorkingDirectory), Parent = parent });
+            case ToolRole.Plan when parent.IsNone:
                 return Planned(plan.Use(use), stamp);
             case ToolRole.Canvas:
                 return Drawn(tool, Final(use.Input), stamp);

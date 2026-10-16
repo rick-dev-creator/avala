@@ -47,6 +47,23 @@ public sealed class TranscriptTests
     }
 
     [Fact]
+    public void ASubagentsToolsStayOutOfTheConversationAndCountOnItsRowWithItsLatestCommandAndTokens()
+    {
+        var agent = new ItemId("survey");
+        var transcript = Played(
+            new ItemStarted(Session, Turn, agent, ItemKind.Subagent, "Subagent: Survey the greeting"),
+            new ItemStarted(Session, Turn, new ItemId("search"), ItemKind.Search, "Search greeting") { Parent = agent },
+            new ItemProgressed(Session, Turn, new ItemId("search"), "src/Greeter.cs:3"),
+            new ItemCompleted(Session, Turn, new ItemId("search"), ItemOutcome.Succeeded),
+            new ItemTokensReported(Session, Turn, agent, 1_800),
+            new ItemStarted(Session, Turn, new ItemId("build"), ItemKind.Command, "Run dotnet build") { Parent = agent },
+            new ItemTokensReported(Session, Turn, agent, 3_600));
+
+        var row = Assert.IsType<ToolEntry>(Assert.Single(transcript.Entries));
+        Assert.Equal((2, "Run dotnet build", 3_600L, string.Empty), (row.Steps, row.Doing, row.Tokens, row.Output));
+    }
+
+    [Fact]
     public void ReasoningMeasuresHowLongTheAgentThought()
     {
         var transcript = Transcript.Empty

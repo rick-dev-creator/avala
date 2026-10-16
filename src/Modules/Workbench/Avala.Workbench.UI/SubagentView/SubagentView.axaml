@@ -6,7 +6,7 @@
              x:ClassModifier="internal"
              x:DataType="overview:ISubagentViewModel">
   <Design.DataContext>
-    <overview:DesignSubagentViewModel Name="Find the refund call sites" Activity="Reading internal/payments/refund.go" State="Running" />
+    <overview:DesignSubagentViewModel Name="Find the refund call sites" Activity="Read internal/payments/refund.go" State="Running" Meter="6 tool uses · 18,240 tokens" />
   </Design.DataContext>
   <UserControl.Styles>
     <Style Selector="Ellipse#Dot">
@@ -30,6 +30,7 @@
     <Rectangle x:Name="Outline" Classes="subagent" Classes.waiting="{Binding State, Converter={x:Static states:EnumIs.Any}, ConverterParameter='Waiting'}" />
     <DockPanel Margin="10,5">
       <TextBlock x:Name="State" DockPanel.Dock="Right" Classes="hint" Margin="8,0,0,0" Text="{Binding StateText}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Meter" DockPanel.Dock="Right" Classes="hint" Margin="8,0,0,0" Text="{Binding Meter}" IsVisible="{Binding Meter, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" VerticalAlignment="Center" />
       <Ellipse x:Name="Dot"
                DockPanel.Dock="Left"
                Width="6"

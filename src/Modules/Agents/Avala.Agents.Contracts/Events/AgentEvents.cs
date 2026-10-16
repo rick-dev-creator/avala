@@ -9,6 +9,8 @@ public sealed record TurnStarted(SessionId Session, TurnId Turn) : IAgentEvent;
 public sealed record ItemStarted(SessionId Session, TurnId Turn, ItemId Item, ItemKind Kind, string Title) : IAgentEvent
 {
     public Option<string> Input { get; init; }
+
+    public Option<ItemId> Parent { get; init; }
 }
 
 public sealed record ItemDrafted(SessionId Session, TurnId Turn, ItemId Item, ItemKind Kind, string Title, int Received) : IAgentEvent;
@@ -16,6 +18,8 @@ public sealed record ItemDrafted(SessionId Session, TurnId Turn, ItemId Item, It
 public sealed record CanvasStarted(SessionId Session, TurnId Turn, ItemId Item, string Title, string MediaType) : IAgentEvent;
 
 public sealed record ItemProgressed(SessionId Session, TurnId Turn, ItemId Item, string Text) : IAgentEvent;
+
+public sealed record ItemTokensReported(SessionId Session, TurnId Turn, ItemId Item, long Tokens) : IAgentEvent;
 
 public sealed record ItemCompleted(SessionId Session, TurnId Turn, ItemId Item, ItemOutcome Outcome) : IAgentEvent;
 
