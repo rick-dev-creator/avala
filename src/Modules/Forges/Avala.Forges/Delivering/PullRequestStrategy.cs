@@ -35,7 +35,10 @@ internal sealed class PullRequestStrategy(IPullRequestRules rules, ForgeConnecti
         return new PullRequestDraft(head, target, title.Length > 0 ? title : $"Job {request.Job.Value}", $"{request.Instruction}\n\nOpened by Avala for job {request.Job.Value}.");
     }
 
-    public async ValueTask<Result<ApprovalDelivery, JobRejection>> DeliverAsync(ApprovalRequest request, CancellationToken cancellationToken)
+    public async ValueTask<Result<ApprovalDelivery, JobRejection>> DeliverAsync(ApprovalRequest request, CancellationToken cancellationToken) =>
+        await watches.DeliveringAsync(request.Job, () => DeliverNowAsync(request, cancellationToken));
+
+    private async Task<Result<ApprovalDelivery, JobRejection>> DeliverNowAsync(ApprovalRequest request, CancellationToken cancellationToken)
     {
         if (!(await rules.OfWorktreeAsync(request.Workspace.Path, cancellationToken)).Bind(found => found.ToResult(ForgeError.MissingForge)).TryGetValue(out var declared, out var invalid))
         {
