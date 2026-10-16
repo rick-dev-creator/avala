@@ -11,4 +11,8 @@ internal static class SampleAgents
     public static JobId WebhookTests { get; } = new(Guid.Parse("0199c3a1-7a10-7000-8000-0000000000a3"));
 
     public static JobId ApiReference { get; } = new(Guid.Parse("0199c3a1-7a10-7000-8000-0000000000a4"));
+
+    public static JobId IdempotencyKeys { get; } = new(Guid.Parse("0199c3a1-7a10-7000-8000-0000000000a5"));
+
+    public static JobId PayoutScheduler { get; } = new(Guid.Parse("0199c3a1-7a10-7000-8000-0000000000a6"));
 }

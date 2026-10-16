@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:elapsed="using:Avala.Components.UI.Elapsed"
+             x:Class="Avala.Workbench.UI.RecentActionView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IRecentActionViewModel">
+  <Design.DataContext>
+    <overview:DesignRecentActionViewModel />
+  </Design.DataContext>
+  <DockPanel>
+    <elapsed:ElapsedText x:Name="Age"
+                         DockPanel.Dock="Left"
+                         Classes="hint"
+                         Width="34"
+                         Margin="0,0,8,0"
+                         TextAlignment="Right"
+                         Since="{Binding Since}"
+                         IsVisible="{Binding HasSince}" />
+    <TextBlock x:Name="Action" Classes="caption secondary" Text="{Binding Text}" TextTrimming="CharacterEllipsis" />
+  </DockPanel>
+</UserControl>

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
@@ -55,6 +56,10 @@ internal sealed record ToolEntry(string Key, ItemKind Kind, string Title, string
     public string Doing { get; init; } = string.Empty;
 
     public long Tokens { get; init; }
+
+    public Option<DateTimeOffset> Started { get; init; }
+
+    public ImmutableList<string> Trail { get; init; } = [];
 }
 
 internal sealed record PlanEntry(string Key, IReadOnlyList<PlanStep> Steps) : ITimelineEntry

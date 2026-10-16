@@ -13,7 +13,7 @@ public sealed class DelegationPaneViewScripts(HeadlessUi ui)
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public Task ThePaneShowsTheRootAboveItsChildrenWithTheViewedJobMarkedAndSubagentsAsDashedPillsAsync() =>
+    public Task ThePaneShowsTheRootAboveOneRowPerChildWithOnlyTheOpenOneShowingItsCardAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignDelegationPaneViewModel(), ThemeVariant.Dark, 420, 900);
@@ -21,10 +21,19 @@ public sealed class DelegationPaneViewScripts(HeadlessUi ui)
             var children = view.Find("Children");
 
             Assert.True(root.TranslatePoint(default, view.Window)?.Y < children.TranslatePoint(default, view.Window)?.Y);
-            Assert.Equal(("3 jobs · 3 agents", "claude-work · 2 jobs   codex-team · 1 job"), (view.TextOf("Caption"), view.TextOf("Footer")));
-            Assert.Equal(3, view.Named("SubagentView").Count);
-            Assert.All(view.All<Rectangle>().Where(outline => outline.Name == "Outline"), outline => Assert.NotNull(outline.StrokeDashArray));
-            Assert.Equal(1, view.All<Border>().Count(card => card.Name == "Card" && card.Classes.Contains("viewing")));
+            Assert.Equal(("6 jobs · 3 agents", "claude-work · 3 jobs   claude · 2 jobs"), (view.TextOf("Caption"), view.TextOf("Footer")));
+            Assert.Single(view.All<StackPanel>(), details => details.Name == "Details" && details.IsEffectivelyVisible);
+            Assert.All(view.All<Rectangle>().Where(outline => outline.Name == "Outline" && outline.IsEffectivelyVisible), outline => Assert.NotNull(outline.StrokeDashArray));
+            Assert.Single(view.All<Border>(), card => card.Name == "Card" && card.Classes.Contains("viewing"));
+        }, Cancellation);
+
+    [Fact]
+    public Task SettledChildrenFoldIntoOneLineThatSaysHowManyAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignDelegationPaneViewModel(), ThemeVariant.Dark, 420, 900);
+
+            Assert.Equal(("1 done", false), (view.TextOf("SettledLabel"), view.Shows("Settled")));
         }, Cancellation);
 
     [Fact]
@@ -45,6 +54,14 @@ public sealed class DelegationPaneViewScripts(HeadlessUi ui)
         public IOrchestratorCardViewModel? Root { get; } = new DesignOrchestratorCardViewModel();
 
         public IReadOnlyList<IDelegationNodeViewModel> Children { get; } = [];
+
+        public IReadOnlyList<IDelegationNodeViewModel> Settled { get; } = [];
+
+        public string SettledLabel => string.Empty;
+
+        public bool ShowsSettled => false;
+
+        public IRelayCommand ToggleSettledCommand { get; } = new RelayCommand(() => { });
 
         public string Caption => "1 job";
 

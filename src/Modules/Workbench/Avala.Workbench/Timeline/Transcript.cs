@@ -13,6 +13,8 @@ namespace Avala.Workbench.Timeline;
 
 internal sealed record Transcript
 {
+    public const int TrailKept = 50;
+
     public static Transcript Empty { get; } = new();
 
     public ImmutableList<ITimelineEntry> Entries { get; private init; } = [];
@@ -207,7 +209,10 @@ internal sealed record Transcript
     }
 
     private Transcript Stepped(ItemStarted started, ItemId parent) =>
-        Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title } : entry);
+        Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title, Trail = Trailed(tool.Trail, started.Title) } : entry);
+
+    private static ImmutableList<string> Trailed(ImmutableList<string> trail, string title) =>
+        trail.Count < TrailKept ? trail.Add(title) : trail.RemoveAt(0).Add(title);
 
     private Transcript Begun(ITimelineEntry opened) =>
         Find(opened.Key).Match(entry => entry is ToolEntry { Drafted.IsSome: true }, () => false) ? Put(opened) : Add(opened);
@@ -220,7 +225,7 @@ internal sealed record Transcript
         {
             ItemKind.Message => new MessageEntry(key, string.Empty, Option<ItemOutcome>.None),
             ItemKind.Reasoning => new ReasoningEntry(key, string.Empty, now, Option<TimeSpan>.None, Option<ItemOutcome>.None),
-            _ => new ToolEntry(key, started.Kind, started.Title, string.Empty, Option<ItemOutcome>.None) { Input = started.Input },
+            _ => new ToolEntry(key, started.Kind, started.Title, string.Empty, Option<ItemOutcome>.None) { Input = started.Input, Started = now },
         };
     }
 

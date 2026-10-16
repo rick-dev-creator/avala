@@ -49,6 +49,28 @@ internal interface IDelegationNodeViewModel
     bool IsViewing { get; }
 
     IRelayCommand<JobId> OpenCommand { get; }
+
+    ContextGlance Context { get; }
+
+    string Tokens { get; }
+
+    string Spent { get; }
+
+    IReadOnlyList<IRecentActionViewModel> Recent { get; }
+
+    string Doing { get; }
+
+    int SubagentCount { get; }
+
+    string Agents { get; }
+
+    bool NeedsYou { get; }
+
+    bool IsSettled { get; }
+
+    bool IsOpen { get; }
+
+    IRelayCommand ToggleCommand { get; }
 }
 
 internal interface IDelegationRefusalViewModel
@@ -120,6 +142,45 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
 
     public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
 
+    public event EventHandler? Toggled;
+
+    [ObservableProperty]
+    public partial ContextGlance Context { get; private set; } = ContextGlance.None;
+
+    [ObservableProperty]
+    public partial string Tokens { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Spent { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial IReadOnlyList<IRecentActionViewModel> Recent { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial string Doing { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Agents))]
+    public partial int SubagentCount { get; private set; }
+
+    public string Agents => OverviewPhrases.Count(SubagentCount, "agent");
+
+    [ObservableProperty]
+    public partial bool NeedsYou { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsSettled { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsOpen { get; set; }
+
+    [RelayCommand]
+    private void Toggle()
+    {
+        IsOpen = !IsOpen;
+        Toggled?.Invoke(this, EventArgs.Empty);
+    }
+
     public void Show(DelegationNode node)
     {
         Title = FactPhrases.Title(node.Job.Instruction);
@@ -138,6 +199,15 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
         dot.Kind = node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status));
         Kind = dot.Kind;
         Subagents = SubagentViewModel.Kept(Subagents, SubagentViewModel.Of(node.Seen));
+        Context = AgentGlance.Context(node.Seen);
+        Tokens = AgentGlance.TokensText(AgentGlance.Tokens(node.Spend));
+        Spent = node.Spend.Spent.Count == 0 ? string.Empty : Amounts.Costs(node.Spend.Spent);
+        var recent = AgentGlance.Recent(node.Seen);
+        Recent = AgentGlance.SameRecent(Recent, recent) ? Recent : recent;
+        Doing = node.Report.IsSome || recent.Count == 0 ? Activity : recent[0].Text;
+        SubagentCount = SubagentViewModel.Count(node.Seen);
+        NeedsYou = dot.Kind is StatusKind.NeedsYou or StatusKind.Held;
+        IsSettled = TreeOrder.IsSettled(node);
     }
 
     private static Option<IReadOnlyList<Cost>> Carved(JobSpend spend) =>

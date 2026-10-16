@@ -35,12 +35,12 @@ public sealed class DelegationPaneViewModelScripts : IDisposable
             pane.Root?.IsViewing,
             pane.Children.Select(child => (child.Title, child.IsViewing)).ToList(),
             pane.Root?.Subagents.Select(agent => (agent.Name, agent.State)).ToList(),
-            pane.Children[0].Subagents.Select(agent => (agent.Name, agent.Activity, agent.State)).ToList(),
+            pane.Children.Single(child => child.Title == "Refund API endpoint").Subagents.Select(agent => (agent.Name, agent.Activity, agent.State)).ToList(),
             pane.Caption,
             pane.Footer));
         Assert.True(shown.Item1);
         Assert.Equal(("Ship the refunds flow", false), (shown.Item2, shown.Item3));
-        Assert.Equal([("Refund API endpoint", true), ("Refunds screen", false)], shown.Item4);
+        Assert.Equal([("Refunds screen", false), ("Refund API endpoint", true)], shown.Item4);
         Assert.Equal([("Plan the work", SubagentState.Done)], shown.Item5);
         Assert.Equal([("Find the refund call sites", "Reading tests/Payments", SubagentState.Running)], shown.Item6);
         Assert.Equal(("3 jobs · 2 agents", "claude-work · 2 jobs   personal · 1 job"), (shown.Item7, shown.Item8));
