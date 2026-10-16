@@ -17,6 +17,7 @@ using Avala.Workbench.Board;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Presenters;
@@ -680,6 +681,25 @@ public sealed class ReasoningViewScripts(HeadlessUi ui)
 
 public sealed class ToolViewScripts(HeadlessUi ui)
 {
+    [Fact]
+    public Task AFailedCommandShowsItsProblemsAboveItsOutputAndAFoldedOneOffersItsEarlierLinesAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignToolViewModel { IsExpanded = true, HiddenLines = 30 });
+
+            Assert.Equal((true, "Show 30 earlier lines", true), (view.Shows("Problems"), view.Find<Button>("ShowAllOutput").Content, view.Shows("Output")));
+            Assert.True(view.Find("Problems").TranslatePoint(default, view.Window)?.Y < view.Find("Output").TranslatePoint(default, view.Window)?.Y);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ACommandWithNothingFoldedOrFailingShowsNeitherAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new DesignToolViewModel(ItemKind.Command, "go build ./...", "ok") { IsExpanded = true });
+
+            Assert.Equal((false, false), (view.Shows("Problems"), view.Shows("ShowAllOutput")));
+        }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task AToolIsOneLineWithItsKindIconThatOpensToItsOutputInTheCodeFontAsync() =>
         ui.RunAsync(() =>
