@@ -22,6 +22,40 @@ public sealed class ToolViewModelScripts
             .Invoke(nameof(ToolViewModel.ToggleCommand))
             .Then(tool => Assert.False(tool.IsExpanded));
 
+    [Fact]
+    public void AFinishedCommandWithLongOutputShowsItsLastLinesUntilAllAreAskedFor()
+    {
+        var output = string.Join('\n', Enumerable.Range(1, 45).Select(line => $"line {line}"));
+
+        ViewModelScript.Given(Tools.Of(Running() with { Output = output, Outcome = ItemOutcome.Succeeded }))
+            .Then(tool => Assert.Equal((25, "line 26", true), (tool.HiddenLines, tool.ShownOutput.Split('\n')[0], tool.ShowAllOutputCommand.CanExecute(null))))
+            .Invoke(nameof(ToolViewModel.ShowAllOutputCommand))
+            .Then(tool => Assert.Equal((0, output), (tool.HiddenLines, tool.ShownOutput)));
+    }
+
+    [Fact]
+    public void ARunningCommandStreamsItsWholeOutput()
+    {
+        var output = string.Join('\n', Enumerable.Range(1, 45).Select(line => $"line {line}"));
+
+        ViewModelScript.Given(Tools.Of(Running() with { Output = output }))
+            .Then(tool => Assert.Equal((0, output), (tool.HiddenLines, tool.ShownOutput)));
+    }
+
+    [Fact]
+    public void AFailedCommandListsTheLinesThatLookLikeErrorsAndNotTheCleanSummaries() =>
+        ViewModelScript.Given(Tools.Of(Running() with
+            {
+                Output = "Restoring\nerror CS0103: The name 'Money' does not exist\nTests: 3 passed, 0 failed\n--- FAIL: TestInvoiceTotal (0.00s)\nBuild FAILED.\nErrors: 0",
+                Outcome = ItemOutcome.Failed,
+            }))
+            .Then(tool => Assert.Equal(["error CS0103: The name 'Money' does not exist", "--- FAIL: TestInvoiceTotal (0.00s)", "Build FAILED."], tool.Problems));
+
+    [Fact]
+    public void ASucceededCommandListsNoProblems() =>
+        ViewModelScript.Given(Tools.Of(Running() with { Output = "warning: error handling deprecated", Outcome = ItemOutcome.Succeeded }))
+            .Then(tool => Assert.Empty(tool.Problems));
+
     [Theory]
     [InlineData("Write sistema-solar.html", 4300, "Writing sistema-solar.html · 4.2 KB")]
     [InlineData("Edit src/money.ts", 812, "Editing src/money.ts · 812 B")]

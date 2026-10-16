@@ -223,6 +223,7 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
     {
         Failed = true;
         Outcome = "failed";
+        Problems = ["--- FAIL: TestInvoiceTotal_JPY (0.00s)"];
     }
 
     public string Input => string.Empty;
@@ -266,6 +267,14 @@ internal sealed record DesignToolViewModel(ItemKind Kind, string Title, string O
     public IAsyncRelayCommand CopyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public IAsyncRelayCommand ShowChangesCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
+    public string ShownOutput => Output;
+
+    public int HiddenLines { get; init; }
+
+    public IReadOnlyList<string> Problems { get; init; } = [];
+
+    public IRelayCommand ShowAllOutputCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed class DesignCodePeekViewModel : ICodePeekViewModel

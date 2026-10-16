@@ -43,6 +43,14 @@ internal interface IToolViewModel
 
     bool ShowsNoOutput { get; }
 
+    string ShownOutput { get; }
+
+    int HiddenLines { get; }
+
+    IReadOnlyList<string> Problems { get; }
+
+    IRelayCommand ShowAllOutputCommand { get; }
+
     bool ShowsAllChanges { get; }
 
     bool ShowsCopy { get; }
@@ -67,6 +75,7 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISe
     private readonly FileChangesViewModel changes;
     private readonly FilePreviewViewModel preview;
     private readonly string path;
+    private bool showsAll;
 
     public ToolViewModel(ToolEntry entry, IClipboard clipboard, FileViews files)
     {
@@ -98,6 +107,16 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISe
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsNoOutput), nameof(ShowsCopy))]
     public partial string Output { get; private set; }
+
+    [ObservableProperty]
+    public partial string ShownOutput { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ShowAllOutputCommand))]
+    public partial int HiddenLines { get; private set; }
+
+    [ObservableProperty]
+    public partial IReadOnlyList<string> Problems { get; private set; } = [];
 
     [ObservableProperty]
     public partial bool IsRunning { get; private set; }
@@ -180,6 +199,7 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISe
             Failed = ended && !tool.Denied;
             ShowsOutcome = ended;
             Outcome = tool.Outcome.Match(outcome => ConversationPhrases.Outcome(outcome, tool.Denied), () => "running");
+            Fold();
             ShowsChanges = changes.Path.Length > 0 && tool.Outcome == Option<ItemOutcome>.Some(ItemOutcome.Succeeded);
             Reveal(ShowsChanges && preview.Kind != PreviewKind.None);
         }
@@ -211,6 +231,23 @@ internal sealed partial class ToolViewModel : IToolViewModel, ITimelineItem, ISe
 
             IsExpanded = !IsExpanded;
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(HasHiddenLines))]
+    private void ShowAllOutput()
+    {
+        showsAll = true;
+        Fold();
+    }
+
+    private bool HasHiddenLines() => HiddenLines > 0;
+
+    private void Fold()
+    {
+        var folded = OutputFold.Of(Output, !IsRunning, Failed, showsAll);
+        ShownOutput = folded.Shown;
+        HiddenLines = folded.Hidden;
+        Problems = Problems.SequenceEqual(folded.Problems) ? Problems : folded.Problems;
     }
 
     [RelayCommand]

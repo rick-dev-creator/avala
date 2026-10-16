@@ -45,6 +45,14 @@
     <Style Selector="Button#OpenPreview:pointerover">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
+    <Style Selector="Border.problems">
+      <Setter Property="Background" Value="{DynamicResource FillWellBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource FailureBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBlock.failure, SelectableTextBlock.failure">
+      <Setter Property="Foreground" Value="{DynamicResource FailureBrush}" />
+    </Style>
     <Style Selector="Button#CopyOutput">
       <Setter Property="Margin" Value="0,-4,-4,0" />
       <Setter Property="Opacity" Value="0" />
@@ -145,9 +153,30 @@
                                Text="{Binding Input}"
                                IsVisible="{Binding ShowsInput}" />
           <ContentControl x:Name="Edit" Content="{Binding Edit}" IsVisible="{Binding ShowsEdit}" />
+          <Border x:Name="Problems"
+                  Classes="problems"
+                  CornerRadius="{DynamicResource RadiusControl}"
+                  Padding="8,6"
+                  IsVisible="{Binding !!Problems.Count}">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="hint failure" Text="Problems" />
+              <ItemsControl x:Name="ProblemLines" ItemsSource="{Binding Problems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <SelectableTextBlock Classes="output failure" Text="{Binding}" TextWrapping="Wrap" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+          <Button x:Name="ShowAllOutput"
+                  Classes="link"
+                  Command="{Binding ShowAllOutputCommand}"
+                  Content="{Binding HiddenLines, StringFormat='Show {0} earlier lines'}"
+                  IsVisible="{Binding !!HiddenLines}" />
           <SelectableTextBlock x:Name="Output"
                                Classes="output"
-                               Text="{Binding Output}"
+                               Text="{Binding ShownOutput}"
                                IsVisible="{Binding Output, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
           <TextBlock x:Name="NoOutput"
                      Classes="caption"
