@@ -421,6 +421,8 @@ internal sealed record DesignConversationViewModel(string Title, string Place, I
 {
     public IConversationSearchViewModel Search { get; init; } = new DesignConversationSearchViewModel();
 
+    public IReadOnlyList<int> TurnStarts => [.. Enumerable.Range(0, Entries.Count).Where(index => Entries[index] is IPromptViewModel)];
+
     public DesignConversationViewModel()
         : this(
             "Fix JPY rounding in invoice totals",

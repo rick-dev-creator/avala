@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 namespace Avala.Workbench.UI;
 
@@ -8,10 +9,13 @@ internal sealed partial class ConversationView : UserControl
 {
     private const double LiveEdge = 24;
 
+    private const double End = 1;
+
     public ConversationView()
     {
         InitializeComponent();
         Scroller.ScrollChanged += OnScrollChanged;
+        Scroller.AddHandler(RequestBringIntoViewEvent, OnBringIntoView, RoutingStrategies.Bubble, handledEventsToo: true);
         JumpToLatest.Click += OnJumpToLatest;
         Entries.ItemsView.CollectionChanged += OnEntriesChanged;
     }
@@ -29,6 +33,25 @@ internal sealed partial class ConversationView : UserControl
 
     private void OnJumpToLatest(object? sender, RoutedEventArgs e) => Follow();
 
+    private void OnBringIntoView(object? sender, RequestBringIntoViewEventArgs e)
+    {
+        if (ReferenceEquals(e.TargetObject, Entries.ItemsPanelRoot) || !FollowsLiveEdge)
+        {
+            return;
+        }
+
+        FollowsLiveEdge = false;
+        Dispatcher.UIThread.Post(Settle, DispatcherPriority.Background);
+    }
+
+    private void Settle()
+    {
+        FollowsLiveEdge = Scroller.Offset.Y >= Scroller.Extent.Height - Scroller.Viewport.Height - End;
+        Jump.IsVisible = !FollowsLiveEdge;
+    }
+
+    private bool AtLiveEdge => Scroller.Offset.Y >= Scroller.Extent.Height - Scroller.Viewport.Height - LiveEdge;
+
     private void Follow()
     {
         FollowsLiveEdge = true;
@@ -39,7 +62,7 @@ internal sealed partial class ConversationView : UserControl
 
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
-        var atLiveEdge = Scroller.Offset.Y >= Scroller.Extent.Height - Scroller.Viewport.Height - LiveEdge;
+        var atLiveEdge = AtLiveEdge;
 
         if (e.OffsetDelta.Y < 0 && !atLiveEdge)
         {

@@ -12,6 +12,8 @@ public sealed class TimelinePanel : VirtualizingPanel
 {
     private const double Fallback = 900;
 
+    private const double Seam = 0.5;
+
     private static readonly object OwnContainer = new();
     private static readonly object Unkeyed = new();
 
@@ -36,6 +38,17 @@ public sealed class TimelinePanel : VirtualizingPanel
     private IScrollAnchorProvider? anchors;
 
     public TimelinePanel() => EffectiveViewportChanged += OnEffectiveViewportChanged;
+
+    public (int Index, double Offset) Top =>
+        hasViewport && Anchor(viewport.Top + Seam) is var (index, offset) ? (index, Math.Max(0, offset - Seam)) : (-1, 0);
+
+    public void BringToTop(int index)
+    {
+        if (ScrollIntoView(index) is { } container)
+        {
+            container.BringIntoView(new Rect(0, 0, container.Bounds.Width, Math.Max(container.Bounds.Height, Room())));
+        }
+    }
 
     protected override Size MeasureOverride(Size availableSize)
     {

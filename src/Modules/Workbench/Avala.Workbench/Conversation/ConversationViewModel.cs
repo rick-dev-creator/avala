@@ -32,6 +32,8 @@ internal interface IConversationViewModel
 
     IConversationSearchViewModel Search { get; }
 
+    IReadOnlyList<int> TurnStarts { get; }
+
     string Notice { get; }
 
     IAsyncRelayCommand CopyMarkdownCommand { get; }
@@ -95,6 +97,9 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     [ObservableProperty]
     public partial string Notice { get; private set; }
 
+    [ObservableProperty]
+    public partial IReadOnlyList<int> TurnStarts { get; private set; } = [];
+
     private MarkdownChoices Choices =>
         new(known.Where(pair => pair.Value.Item is ToolViewModel { IsExpanded: true }).Select(pair => pair.Key).ToHashSet());
 
@@ -113,6 +118,7 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
             shown = job.Transcript;
             plan.Show(job.Transcript.Plan);
             Arrange(job.Transcript);
+            Mark();
             search.Refresh();
         }
 
@@ -130,6 +136,16 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
     [RelayCommand]
     private async Task ExportAsync(CancellationToken cancellationToken) =>
         Notice = (await export.ExportAsync(Title, shown, Choices, cancellationToken)).Match(_ => string.Empty, ConversationPhrases.NotExported);
+
+    private void Mark()
+    {
+        var starts = Enumerable.Range(0, Entries.Count).Where(index => Entries[index] is PromptViewModel or InterjectionViewModel).ToList();
+
+        if (!starts.SequenceEqual(TurnStarts))
+        {
+            TurnStarts = starts;
+        }
+    }
 
     private void Mark(SearchFound found)
     {

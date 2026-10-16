@@ -6,6 +6,7 @@ using Avala.Canvas.Contracts;
 using Avala.Components.UI.Copying;
 using Avala.Components.UI.Markdown;
 using Avala.Components.UI.Theme;
+using Avala.Components.UI.Virtualizing;
 using Avala.Delegation.Contracts;
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
@@ -130,6 +131,67 @@ public sealed class ConversationViewScripts(HeadlessUi ui)
             Assert.False(following);
             Assert.Equal((true, false), away);
             Assert.True(arrived);
+            Assert.Equal(scroller.Extent.Height - scroller.Viewport.Height, scroller.Offset.Y, 1);
+            Assert.False(view.Shows("JumpToLatest"));
+        }, Cancellation);
+
+    [Fact]
+    public Task AltUpAndAltDownBringThePreviousAndTheNextTurnToTheTopAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (conversation, summary, transcript) = Open(JobStatus.Running);
+            var view = Screen.Show(conversation);
+            conversation.Show(new BoardJob(summary, Attempts(transcript, summary, 20)));
+            view.Settle();
+            var panel = Assert.IsType<TimelinePanel>(view.Find<ItemsControl>("Entries").ItemsPanelRoot);
+            view.Find("Draft").Focus();
+            var latest = panel.Top;
+
+            view.Press(TurnSteps.PreviousGesture);
+            var previous = panel.Top;
+            view.Press(TurnSteps.PreviousGesture).Press(TurnSteps.PreviousGesture);
+            var earlier = panel.Top;
+            view.Press(TurnSteps.NextGesture);
+            var next = panel.Top;
+
+            Assert.Equal((latest.Index, 0d), (previous.Index, Math.Round(previous.Offset)));
+            Assert.Equal((previous.Index - 2, 0d), (earlier.Index, Math.Round(earlier.Offset)));
+            Assert.Equal((previous.Index - 1, 0d), (next.Index, Math.Round(next.Offset)));
+            Assert.True(view.Shows("JumpToLatest"));
+        }, Cancellation);
+
+    [Fact]
+    public Task AtTheFirstTurnAltUpMovesNothingAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (conversation, summary, transcript) = Open(JobStatus.Running);
+            var view = Screen.Show(conversation);
+            conversation.Show(new BoardJob(summary, Attempts(transcript, summary, 20)));
+            view.Settle();
+            var scroller = view.Find<ScrollViewer>("Scroller");
+            scroller.Offset = scroller.Offset.WithY(0);
+            view.Settle();
+            view.Find("Draft").Focus();
+
+            view.Press(TurnSteps.PreviousGesture);
+
+            Assert.Equal(0, scroller.Offset.Y, 1);
+        }, Cancellation);
+
+    [Fact]
+    public Task EndJumpsBackToTheLatestAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (conversation, summary, transcript) = Open(JobStatus.Running);
+            var view = Screen.Show(conversation);
+            conversation.Show(new BoardJob(summary, Attempts(transcript, summary, 20)));
+            view.Settle();
+            var scroller = view.Find<ScrollViewer>("Scroller");
+            scroller.Offset = scroller.Offset.WithY(40);
+            view.Settle();
+
+            view.Press(Key.End);
+
             Assert.Equal(scroller.Extent.Height - scroller.Viewport.Height, scroller.Offset.Y, 1);
             Assert.False(view.Shows("JumpToLatest"));
         }, Cancellation);
