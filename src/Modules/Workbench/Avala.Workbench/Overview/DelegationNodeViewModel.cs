@@ -9,6 +9,7 @@ using Avala.Workbench.Fleet;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
 using Avala.Workbench.Spending;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
@@ -57,44 +58,87 @@ internal interface IDelegationRefusalViewModel
     string Reason { get; }
 }
 
-internal sealed class DelegationNodeViewModel(DelegationNode node) : IDelegationNodeViewModel
+[INotifyPropertyChanged]
+internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
 {
-    public JobId Job { get; } = node.Job.Job;
+    private readonly StatusDotViewModel dot = new(default);
 
-    public string Title { get; } = FactPhrases.Title(node.Job.Instruction);
+    public DelegationNodeViewModel(DelegationNode node)
+    {
+        Job = node.Job.Job;
+        Show(node);
+    }
 
-    public int Depth { get; } = node.Depth;
+    public JobId Job { get; }
 
-    public JobStatus Status { get; } = node.Job.Status;
+    [ObservableProperty]
+    public partial string Title { get; private set; } = string.Empty;
 
-    public string Connection { get; } = node.Job.Connection
-        .Match(name => name.Value, () => node.Delegation.Bind(record => record.Connection).Match(name => name.Value, () => "not started"));
+    [ObservableProperty]
+    public partial int Depth { get; private set; }
 
-    public string Harness { get; } = node.Spend.Session.Match(seen => seen.Provider.Name, () => string.Empty);
+    [ObservableProperty]
+    public partial JobStatus Status { get; private set; }
 
-    public string Activity { get; } = node.Report.Match(
-        report => DelegationPhrases.Outcome(report.Outcome),
-        () => node.Activity.Match(FactPhrases.Of, () => DelegationPhrases.Status(node.Job.Status)));
+    [ObservableProperty]
+    public partial string Connection { get; private set; } = string.Empty;
 
-    public string Role { get; } = node.Delegation.Match(record => DelegationPhrases.Role(record.Role), () => string.Empty);
+    [ObservableProperty]
+    public partial string Harness { get; private set; } = string.Empty;
 
-    public string Spend { get; } = Spending(node.Spend);
+    [ObservableProperty]
+    public partial string Activity { get; private set; } = string.Empty;
 
-    public bool HasCarve { get; } = Carved(node.Spend).IsSome;
+    [ObservableProperty]
+    public partial string Role { get; private set; } = string.Empty;
 
-    public double SpentShare { get; } = Carved(node.Spend).Match(cost => Math.Clamp(Shares.Of(node.Spend.Spent, cost), 0, 1), () => 0d);
+    [ObservableProperty]
+    public partial string Spend { get; private set; } = string.Empty;
 
-    public IStatusDotViewModel Dot { get; } = new StatusDotViewModel(node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status)));
+    [ObservableProperty]
+    public partial bool HasCarve { get; private set; }
 
-    public string State => OverviewPhrases.State(Dot.Kind);
+    [ObservableProperty]
+    public partial double SpentShare { get; private set; }
 
-    public IReadOnlyList<ISubagentViewModel> Subagents { get; } = SubagentViewModel.Of(node.Seen);
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(State))]
+    public partial StatusKind Kind { get; private set; }
+
+    public IStatusDotViewModel Dot => dot;
+
+    public string State => OverviewPhrases.State(Kind);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSubagents))]
+    public partial IReadOnlyList<ISubagentViewModel> Subagents { get; private set; } = [];
 
     public bool HasSubagents => Subagents.Count > 0;
 
-    public bool IsViewing { get; init; }
+    [ObservableProperty]
+    public partial bool IsViewing { get; set; }
 
     public IRelayCommand<JobId> OpenCommand { get; init; } = OverviewPhrases.Idle;
+
+    public void Show(DelegationNode node)
+    {
+        Title = FactPhrases.Title(node.Job.Instruction);
+        Depth = node.Depth;
+        Status = node.Job.Status;
+        Connection = node.Job.Connection
+            .Match(name => name.Value, () => node.Delegation.Bind(record => record.Connection).Match(name => name.Value, () => "not started"));
+        Harness = node.Spend.Session.Match(seen => seen.Provider.Name, () => string.Empty);
+        Activity = node.Report.Match(
+            report => DelegationPhrases.Outcome(report.Outcome),
+            () => node.Activity.Match(FactPhrases.Of, () => DelegationPhrases.Status(node.Job.Status)));
+        Role = node.Delegation.Match(record => DelegationPhrases.Role(record.Role), () => string.Empty);
+        Spend = Spending(node.Spend);
+        HasCarve = Carved(node.Spend).IsSome;
+        SpentShare = Carved(node.Spend).Match(cost => Math.Clamp(Shares.Of(node.Spend.Spent, cost), 0, 1), () => 0d);
+        dot.Kind = node.Seen.Match(FactPhrases.Dot, () => OverviewPhrases.Dot(node.Job.Status));
+        Kind = dot.Kind;
+        Subagents = SubagentViewModel.Kept(Subagents, SubagentViewModel.Of(node.Seen));
+    }
 
     private static Option<IReadOnlyList<Cost>> Carved(JobSpend spend) =>
         spend.Carve.Bind(carve => carve.Cost.Count == 0 ? Option<IReadOnlyList<Cost>>.None : Option<IReadOnlyList<Cost>>.Some(carve.Cost));
