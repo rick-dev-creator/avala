@@ -71,6 +71,12 @@ internal interface IDelegationNodeViewModel
     bool IsOpen { get; }
 
     IRelayCommand ToggleCommand { get; }
+
+    IPeekViewModel? Peek { get; }
+
+    bool IsPeeking { get; }
+
+    IRelayCommand PeekCommand { get; }
 }
 
 internal interface IDelegationRefusalViewModel
@@ -144,6 +150,16 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
 
     public event EventHandler? Toggled;
 
+    public event EventHandler? Peeked;
+
+    public Option<BoardJob> Seen { get; private set; }
+
+    [ObservableProperty]
+    public partial IPeekViewModel? Peek { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsPeeking { get; private set; }
+
     [ObservableProperty]
     public partial ContextGlance Context { get; private set; } = ContextGlance.None;
 
@@ -178,11 +194,24 @@ internal sealed partial class DelegationNodeViewModel : IDelegationNodeViewModel
     private void Toggle()
     {
         IsOpen = !IsOpen;
+        IsPeeking = IsPeeking && IsOpen;
         Toggled?.Invoke(this, EventArgs.Empty);
     }
 
+    [RelayCommand]
+    private void PeekNow()
+    {
+        IsPeeking = !IsPeeking;
+        Peeked?.Invoke(this, EventArgs.Empty);
+    }
+
+    IRelayCommand IDelegationNodeViewModel.PeekCommand => PeekNowCommand;
+
+    partial void OnIsOpenChanged(bool value) => IsPeeking = IsPeeking && value;
+
     public void Show(DelegationNode node)
     {
+        Seen = node.Seen;
         Title = FactPhrases.Title(node.Job.Instruction);
         Depth = node.Depth;
         Status = node.Job.Status;

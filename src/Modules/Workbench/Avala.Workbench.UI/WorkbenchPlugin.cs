@@ -437,6 +437,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<LimitReadings>()
             .AddSingleton<FleetReader>()
             .AddSingleton<DelegationReader>()
+            .AddSingleton<RowActions>()
             .AddSingleton<UsageReader>()
             .AddSingleton<WindowWatch>()
             .AddSingleton<JobAllowance>()
@@ -510,6 +511,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IOrchestratorCardViewModel, OrchestratorCardView>();
         views.Register<IDelegationNodeViewModel, DelegationNodeView>();
         views.Register<IRecentActionViewModel, RecentActionView>();
+        views.Register<IPeekViewModel, PeekView>();
         views.Register<IDelegationRefusalViewModel, DelegationRefusalView>();
         views.Register<IUsageViewModel, UsageView>();
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();

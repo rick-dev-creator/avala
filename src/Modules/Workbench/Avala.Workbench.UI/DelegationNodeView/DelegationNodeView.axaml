@@ -124,7 +124,14 @@
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
+        <ContentControl x:Name="Peek" Content="{Binding Peek}" IsVisible="{Binding IsPeeking}" />
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+          <ToggleButton x:Name="PeekToggle"
+                        Classes="quiet"
+                        Content="Peek"
+                        IsChecked="{Binding IsPeeking, Mode=OneWay}"
+                        Command="{Binding PeekCommand}"
+                        ToolTip.Tip="Follow this job's conversation here" />
           <Button x:Name="OpenConversation"
                   Classes="quiet"
                   Content="Open conversation"

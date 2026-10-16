@@ -81,7 +81,7 @@ public sealed class OverviewViewModelScripts : IDisposable
             new DelegationViewModel(
                 new DelegationReader(catalog, new FakeDelegations(), new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), sessions), board),
                 new LiveFeed(pulse, ui),
-                Focusing.Focus()));
+                Focusing.Actions()));
     }
 
     private sealed class Activations
@@ -330,7 +330,7 @@ public sealed class DelegationViewModelScripts : IDisposable
         using var page = new DelegationViewModel(
             new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), sessions), board),
             new LiveFeed(new Pulse(board), ui),
-            Focusing.Focus());
+            Focusing.Actions());
 
         await page.PresentsAfterAsync(page.Activate, () => "never presented", TestContext.Current.CancellationToken);
 
@@ -344,7 +344,7 @@ public sealed class DelegationViewModelScripts : IDisposable
         using var page = new DelegationViewModel(
             new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(new FakeUsage(), new FakeBudgets(), new FakeSupervision(), new SessionBook(new FakeUsage())), board),
             new LiveFeed(new Pulse(board), ui),
-            Focusing.Focus());
+            Focusing.Actions());
 
         page.SelectCommand.Execute(null);
 
@@ -419,6 +419,16 @@ public sealed class DelegationNodeViewModelScripts
 internal static class Focusing
 {
     public static Avala.Workbench.Navigation.JobFocus Focus() => new(new TestRegions(), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger());
+
+    public static RowActions Actions(Avala.Workbench.Navigation.JobFocus focus, FakeJobs? jobs = null) => new(focus, Conversations(jobs ?? new FakeJobs()));
+
+    public static RowActions Actions() => Actions(Focus());
+
+    public static Avala.Workbench.Conversation.Conversations Conversations(FakeJobs jobs) =>
+        new(
+            Composing.Of(new Avala.Workbench.Steering.JobSteering(jobs, new Avala.Workbench.Steering.QueuedMessages(jobs)), new Avala.Workbench.Steering.SendKeys()),
+            new Avala.Workbench.Conversation.TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()),
+            new Avala.Workbench.Timeline.TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance()));
 
     public static JobSpending Spending(FakeUsage usage, SessionBook sessions) => new(usage, new FakeBudgets(), new FakeSupervision(), sessions);
 }

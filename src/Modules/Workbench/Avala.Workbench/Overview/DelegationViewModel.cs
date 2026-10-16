@@ -4,7 +4,6 @@ using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
-using Avala.Workbench.Navigation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Sidebar;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -43,7 +42,7 @@ internal interface IOrchestratorViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class DelegationViewModel(DelegationReader reader, LiveFeed feed, JobFocus focus) : IDelegationViewModel, IDisposable
+internal sealed partial class DelegationViewModel(DelegationReader reader, LiveFeed feed, RowActions actions) : IDelegationViewModel, IDisposable
 {
     private readonly ObservableCollection<OrchestratorViewModel> orchestrators = [];
     private readonly ObservableCollection<DelegationNodeViewModel> children = [];
@@ -93,7 +92,7 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
     }
 
     [RelayCommand]
-    private void Open(JobId job) => focus.Select(job);
+    private void Open(JobId job) => actions.Open(job);
 
     private async ValueTask<DelegationState> ReadAsync(CancellationToken cancellationToken)
     {
@@ -114,8 +113,19 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
         children.ShowInPlace(
             state.Tree.Match(tree => tree.Children, () => []),
             (child, node) => child.Job == node.Job.Job,
-            node => new DelegationNodeViewModel(node) { OpenCommand = OpenCommand },
-            (child, node) => child.Show(node));
+            node =>
+            {
+                var row = new DelegationNodeViewModel(node) { OpenCommand = OpenCommand };
+                row.Toggled += (_, _) => TreeOrder.OneOpen(children, row);
+                row.Peeked += (_, _) => actions.Peek(row);
+
+                return row;
+            },
+            (child, node) =>
+            {
+                child.Show(node);
+                actions.Peek(child);
+            });
         refused.ShowOnly(state.Tree.Match(tree => tree.Refused.Select(record => new DelegationRefusalViewModel(record)), () => []));
         Root = state.Tree.Match<IOrchestratorCardViewModel?>(
             tree =>
