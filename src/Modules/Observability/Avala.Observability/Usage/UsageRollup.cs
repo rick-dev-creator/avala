@@ -29,9 +29,9 @@ internal static class UsageRollup
         [
             .. sessions
                 .SelectMany(usage => usage.Provider.Match<ProviderInfo[]>(provider => [provider], () => []), (usage, provider) => (usage, provider))
-                .GroupBy(pair => pair.provider, pair => pair.usage)
-                .OrderBy(provider => provider.Key.Id, StringComparer.Ordinal)
-                .Select(provider => new ProviderUsage(provider.Key, provider.ToList().Summary)),
+                .GroupBy(pair => pair.provider.Id, StringComparer.Ordinal)
+                .OrderBy(provider => provider.Key, StringComparer.Ordinal)
+                .Select(provider => new ProviderUsage(provider.Last().provider, provider.Select(pair => pair.usage).ToList().Summary)),
         ];
 
         public IReadOnlyList<AccountUsage> ByAccount() =>
@@ -41,10 +41,10 @@ internal static class UsageRollup
                     usage => usage.Provider.Bind(provider => usage.Account.Map(account => (provider, account)))
                         .Match<(ProviderInfo Provider, AgentAccount Account)[]>(owner => [owner], () => []),
                     (usage, owner) => (usage, owner))
-                .GroupBy(pair => pair.owner, pair => pair.usage)
-                .OrderBy(owner => owner.Key.Provider.Id, StringComparer.Ordinal)
+                .GroupBy(pair => (pair.owner.Provider.Id, pair.owner.Account))
+                .OrderBy(owner => owner.Key.Id, StringComparer.Ordinal)
                 .ThenBy(owner => owner.Key.Account.Id, StringComparer.Ordinal)
-                .Select(owner => new AccountUsage(owner.Key.Provider, owner.Key.Account, owner.ToList().Summary)),
+                .Select(owner => new AccountUsage(owner.Last().owner.Provider, owner.Key.Account, owner.Select(pair => pair.usage).ToList().Summary)),
         ];
 
         public IReadOnlyList<ConnectionUsage> ByConnection() =>
@@ -54,9 +54,9 @@ internal static class UsageRollup
                     usage => usage.Connection.Bind(connection => usage.Provider.Map(provider => (connection, provider)))
                         .Match<(ConnectionName Connection, ProviderInfo Provider)[]>(owner => [owner], () => []),
                     (usage, owner) => (usage, owner))
-                .GroupBy(pair => pair.owner, pair => pair.usage)
+                .GroupBy(pair => (pair.owner.Connection, pair.owner.Provider.Id))
                 .OrderBy(owner => owner.Key.Connection.Value, StringComparer.Ordinal)
-                .Select(owner => new ConnectionUsage(owner.Key.Connection, owner.Key.Provider, owner.ToList().Summary)),
+                .Select(owner => new ConnectionUsage(owner.Key.Connection, owner.Last().owner.Provider, owner.Select(pair => pair.usage).ToList().Summary)),
         ];
 
         public IReadOnlyList<SessionUsage> Recording(IEnumerable<UsageFact> facts)

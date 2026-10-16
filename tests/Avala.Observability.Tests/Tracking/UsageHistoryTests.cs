@@ -62,6 +62,25 @@ public sealed class UsageHistoryTests
     }
 
     [Fact]
+    public async Task AConnectionUsedInEarlierRunsAndLiveIsCountedOnceUnderItsLiveProviderAsync()
+    {
+        using var tracked = new Tracked();
+        var signed = Claude with { SignIn = "claude login" };
+        var earlier = SessionId.New();
+        tracked.Store.Earlier = new StoredUsage(
+            [new SessionUsage(earlier).Attributed(new ProviderInfo(Claude.Id, Claude.Name), Option<AgentAccount>.None, new ConnectionName("work"), JobId.New())],
+            [UsageFact.Of(Usage(earlier, 100, "USD"), Nine.AddDays(-1))]);
+
+        await tracked.Book.RunAsync(Cancellation);
+        var live = await tracked.OpenAsync(signed, new ConnectionName("work"), Option<AgentAccount>.None);
+        await tracked.SeeAsync(Usage(live, 50, "USD"));
+
+        var used = Assert.Single(tracked.Book.ByConnection());
+        Assert.Equal((signed, 150L), (used.Provider, used.Usage.Tokens.Input));
+        Assert.Equal(150L, Assert.Single(tracked.Book.ByProvider()).Usage.Tokens.Input);
+    }
+
+    [Fact]
     public async Task TheSessionsOfEarlierRunsAreListedWithTheirAccountConnectionAndJobBeforeTheLiveOnesInTheOrderTheyOpenedAsync()
     {
         using var tracked = new Tracked();
