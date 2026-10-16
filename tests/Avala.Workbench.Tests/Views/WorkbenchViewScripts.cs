@@ -350,6 +350,16 @@ public sealed class JobRowViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task ARowWithAnUnsentDraftShowsAPencilAndOneWithoutDoesNotAsync() =>
+        ui.RunAsync(() =>
+        {
+            var drafted = Screen.Show(new DesignJobRowViewModel { HasDraft = true }).Shows("Drafted");
+            var plain = Screen.Show(new DesignJobRowViewModel()).Shows("Drafted");
+
+            Assert.Equal((true, false), (drafted, plain));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task ARowIsOneLineWithItsDotTitleAndFactAsync() =>
         ui.RunAsync(() =>
         {

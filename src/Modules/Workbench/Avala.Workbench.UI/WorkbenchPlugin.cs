@@ -30,6 +30,8 @@ using Avala.Workbench.Archive;
 using Avala.Workbench.Archiving;
 using Avala.Workbench.Automation;
 using Avala.Workbench.Board;
+using Avala.Workbench.Drafting;
+using Avala.Workbench.Drafting.Storage;
 using Avala.Workbench.Cards;
 using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Conversation;
@@ -179,6 +181,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<RemoteControlViewModel>()
             .AddSingleton<AttachmentTrays>()
             .AddSingleton<MentionSource>()
+            .AddSingleton<IDraftStore, DraftFile>()
+            .AddSingleton<DraftBook>()
+            .AddForwarded<IStartupTask, DraftBook>()
             .AddSingleton<ComposerParts>();
 
     private static void RegisterRegions(IPluginRegistrar registrar) =>

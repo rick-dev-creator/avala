@@ -401,6 +401,24 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
+    public Task UpInTheEmptyDraftRecallsTheLastMessageSentAndDownEmptiesItAgainAsync() =>
+        ui.RunAsync(() =>
+        {
+            var (composer, _) = Composer(JobStatus.NeedsHelp);
+            var summary = new FakeCatalog().Add("Fix JPY rounding in invoice totals", JobStatus.NeedsHelp).Summary with { Job = composer.Job };
+            composer.Track(new BoardJob(summary, Transcript.Empty.WithPrompts(summary.Instruction, [])));
+            var view = Screen.Show(composer);
+            view.Find("Draft").Focus();
+
+            view.Press(Key.Up);
+            var recalled = view.Find<TextBox>("Draft").Text;
+            view.Press(Key.Down);
+
+            Assert.Equal("Fix JPY rounding in invoice totals", recalled);
+            Assert.Equal(string.Empty, view.Find<TextBox>("Draft").Text ?? string.Empty);
+        }, Cancellation);
+
+    [Fact]
     public Task AnEditedPromptLandsInTheFocusedDraftWithTheCaretAtItsEndAsync() =>
         ui.RunAsync(() =>
         {

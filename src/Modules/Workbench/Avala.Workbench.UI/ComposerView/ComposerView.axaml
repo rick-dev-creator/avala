@@ -112,6 +112,8 @@
           <TextBox.KeyBindings>
             <KeyBinding Gesture="Down" Command="{Binding Mentions.NextCommand}" />
             <KeyBinding Gesture="Up" Command="{Binding Mentions.PreviousCommand}" />
+            <KeyBinding Gesture="Up" Command="{Binding RecallEarlierCommand}" />
+            <KeyBinding Gesture="Down" Command="{Binding RecallLaterCommand}" />
             <KeyBinding Gesture="Enter" Command="{Binding Mentions.ChooseCommand}" />
             <KeyBinding Gesture="Tab" Command="{Binding Mentions.ChooseCommand}" />
             <KeyBinding Gesture="Escape" Command="{Binding Mentions.DismissCommand}" />

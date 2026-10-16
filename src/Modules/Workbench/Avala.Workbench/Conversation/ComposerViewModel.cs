@@ -2,8 +2,10 @@ using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
+using Avala.Workbench.Drafting;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Harnesses;
+using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -58,6 +60,10 @@ internal interface IComposerViewModel
     IAttachmentTrayViewModel Attachments { get; }
 
     IMentionsViewModel Mentions { get; }
+
+    IRelayCommand RecallEarlierCommand { get; }
+
+    IRelayCommand RecallLaterCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -67,8 +73,12 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     private readonly SendKeys keys;
     private readonly AttachmentTrayViewModel attachments;
     private readonly MentionsViewModel mentions;
+    private readonly DraftBook drafts;
 
     private readonly JobHarness harness;
+    private List<string> said = [];
+    private int recalled = -1;
+    private bool remembering;
 
     public ComposerViewModel(JobId job, JobSteering steering, ComposerTools tools, JobHarness harness)
     {
@@ -78,6 +88,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         keys = tools.Keys;
         attachments = tools.Attachments;
         mentions = tools.Mentions;
+        drafts = tools.Drafts;
         mentions.Chosen += (_, chosen) => Edit(chosen.Draft);
         SendsWithEnter = keys.WithEnter;
         harness.Loaded += (_, _) =>
@@ -88,6 +99,18 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         Draft = string.Empty;
         Error = string.Empty;
         Queued = string.Empty;
+        drafts.Of(job).Match(
+            kept =>
+            {
+                Draft = kept.Text;
+                attachments.Restore(kept.Attachments);
+                mentions.Restore(kept.Mentions);
+
+                return true;
+            },
+            () => false);
+        attachments.Changed += (_, _) => Remember();
+        remembering = true;
     }
 
     public JobId Job { get; }
@@ -98,7 +121,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsStop), nameof(ShowsSend))]
-    [NotifyCanExecuteChangedFor(nameof(SendCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SendCommand), nameof(RecallEarlierCommand), nameof(RecallLaterCommand))]
     public partial string Draft { get; set; }
 
     [ObservableProperty]
@@ -162,12 +185,59 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         ShowQueued();
         harness.Track(shown);
         ShowCold();
+        Recollect(shown);
     }
 
     partial void OnDraftChanged(string value)
     {
         ShowCold();
         mentions.Look(value);
+        recalled = Recalling ? recalled : -1;
+        Remember();
+    }
+
+    private bool Recalling => recalled >= 0 && recalled < said.Count && Draft == said[^(recalled + 1)];
+
+    private void Remember()
+    {
+        if (remembering)
+        {
+            drafts.Keep(Job, new Draft(Draft, attachments.Attached, mentions.Mentioned));
+        }
+    }
+
+    private void Recollect(BoardJob shown)
+    {
+        var spoken = shown.Transcript.Entries.Select(entry => entry switch
+            {
+                PromptEntry { Origin: AttemptOrigin.Initial or AttemptOrigin.Hint or AttemptOrigin.SendBack or AttemptOrigin.Device } prompt => prompt.Text,
+                InterjectionEntry interjection => interjection.Text,
+                _ => Option<string>.None,
+            })
+            .SelectMany(text => text.Match<string[]>(found => found.Trim().Length > 0 ? [found.Trim()] : [], () => []))
+            .ToList();
+
+        if (!spoken.SequenceEqual(said))
+        {
+            said = spoken;
+            RecallEarlierCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRecallEarlier))]
+    private void RecallEarlier()
+    {
+        recalled++;
+        Edit(said[^(recalled + 1)]);
+    }
+
+    private bool CanRecallEarlier() => (Draft.Length == 0 || Recalling) && recalled + 1 < said.Count;
+
+    [RelayCommand(CanExecute = nameof(Recalling))]
+    private void RecallLater()
+    {
+        recalled--;
+        Edit(recalled >= 0 ? said[^(recalled + 1)] : string.Empty);
     }
 
     private void ShowCold()

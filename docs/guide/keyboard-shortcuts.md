@@ -34,6 +34,7 @@ Avala presses ⌘ on macOS where Windows and Linux press Ctrl, and its tooltips 
 | Mod+Shift+Enter | Start a New job without a repository |
 | Esc | Stop the agent; the session stays open |
 | ↑, ↓ | Choose a suggestion while the `@` mentions are open |
+| ↑, ↓ | In an empty composer, bring back the messages you sent in this conversation, newest first |
 | Enter, Tab | Write the chosen mention |
 | Esc | Close the mentions, before it stops the agent |
 

@@ -25,6 +25,10 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
     public IMentionsViewModel Mentions { get; init; } = new DesignMentionsViewModel { IsOpen = false };
 
+    public IRelayCommand RecallEarlierCommand { get; } = new RelayCommand(() => { }, () => false);
+
+    public IRelayCommand RecallLaterCommand { get; } = new RelayCommand(() => { }, () => false);
+
     public DesignComposerViewModel()
         : this(JobStatus.Running)
     {
