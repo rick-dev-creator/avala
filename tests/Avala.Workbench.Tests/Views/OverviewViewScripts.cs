@@ -42,7 +42,7 @@ public sealed class OverviewViewScripts(HeadlessUi ui)
 
             Assert.Equal((true, false, true), opened);
             Assert.Equal((false, true, true, false), (view.Shows("Connections"), view.Shows("Delegation"), view.HasClass("ShowDelegation", "selected"), view.HasClass("ShowConnections", "selected")));
-            Assert.Equal("Migrate payments to stripe-go v79 · 1 orchestrator, 3 sub-agents", view.TextOf("DelegationCaption"));
+            Assert.Equal("2 orchestrations · 5 at work · 1 needs you", view.TextOf("DelegationCaption"));
         }, TestContext.Current.CancellationToken);
 }
 
@@ -310,25 +310,36 @@ public sealed class AgentViewScripts(HeadlessUi ui)
 public sealed class DelegationViewScripts(HeadlessUi ui)
 {
     [Fact]
-    public Task TheTreeShowsTheOrchestratorCardItsChildrenAndAnEdgeToEachAsync() =>
+    public Task EachOrchestrationIsATreeOfItsOrchestratorAndItsChildrenWithAnEdgeToEachAsync() =>
         ui.RunAsync(() =>
         {
             var view = Wide(new DesignDelegationViewModel());
-            var tree = view.All<TreeGraphPanel>().Single();
+            var tree = view.All<TreeGraphPanel>().First(panel => panel.IsEffectivelyVisible);
 
-            Assert.Equal((1, 3), (view.Named("OrchestratorCardView").Count, view.Named("DelegationNodeView").Count));
+            Assert.Equal(2, view.Named("OrchestrationView").Count);
             Assert.Equal([-1, -1, -1], tree.Layout.Nodes.Select(node => node.Parent));
-            Assert.Equal((false, false), (view.Shows("NoOrchestrators"), view.Shows("Orchestrators")));
+            Assert.Single(view.All<StackPanel>(), panel => panel.Name == "Tree" && panel.IsEffectivelyVisible);
+            Assert.False(view.Shows("NoOrchestrators"));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
     public Task GrandchildrenHangFromTheirParentInTheNextColumnAsync() =>
         ui.RunAsync(() =>
         {
-            var delegation = new RecordingDelegation(
-                new DesignDelegationNodeViewModel(),
-                new DesignDelegationNodeViewModel(Presenting.SampleJobs.InvoicePdf, "Write the payment step's tests", 2, StatusKind.Working, "Codex", "codex-team", "starting", "no spend yet", false, 0));
-            var view = Wide(delegation);
+            var view = Wide(new DesignDelegationViewModel
+            {
+                Trees =
+                [
+                    new DesignOrchestrationViewModel
+                    {
+                        Children =
+                        [
+                            new DesignDelegationNodeViewModel(),
+                            new DesignDelegationNodeViewModel(Presenting.SampleJobs.InvoicePdf, "Write the payment step's tests", 2, StatusKind.Working, "Claude Code", "claude", "starting", "no spend yet", false, 0),
+                        ],
+                    },
+                ],
+            });
             var nodes = view.All<TreeGraphPanel>().Single().Layout.Nodes;
 
             Assert.Equal([-1, 0], nodes.Select(node => node.Parent));
@@ -340,7 +351,7 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
         ui.RunAsync(() =>
         {
             var opened = new List<JobId>();
-            var view = Wide(new RecordingDelegation(new DesignDelegationNodeViewModel { IsOpen = true, OpenCommand = new RelayCommand<JobId>(opened.Add) }));
+            var view = Wide(new DesignDelegationViewModel { Trees = [new DesignOrchestrationViewModel { Children = [new DesignDelegationNodeViewModel { IsOpen = true, OpenCommand = new RelayCommand<JobId>(opened.Add) }] }] });
 
             view.Click("OpenConversation");
 
@@ -348,26 +359,32 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task WithoutAnOrchestratorTheEmptyStateShowsAsync() =>
+    public Task WithoutAnOrchestrationTheEmptyStateSaysWhyAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Wide(new RecordingDelegation() { Root = null });
+            var view = Wide(new DesignDelegationViewModel { Trees = [] });
 
-            Assert.Equal((true, 0), (view.Shows("NoOrchestrators"), view.Named("DelegationNodeView").Count));
+            Assert.Equal((true, Presenting.DelegationPhrases.NoneYet, 0), (view.Shows("NoOrchestrators"), view.TextOf("Empty"), view.Named("OrchestrationView").Count));
         }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task SeveralOrchestratorsCanBeChosenAboveTheTreeAndRefusalsAreListedAsync() =>
+    public Task TheFiltersOfferTheStateRepositoryAndConnectionWithTheChosenStateSelectedAsync() =>
         ui.RunAsync(() =>
         {
-            var delegation = new RecordingDelegation(new DesignDelegationNodeViewModel())
-            {
-                Orchestrators = [new DesignOrchestratorViewModel(), new DesignOrchestratorViewModel(Presenting.SampleJobs.SyncQueue, "Ship the release", JobStatus.Running)],
-                Refused = [new DesignDelegationRefusalViewModel()],
-            };
-            var view = Wide(delegation);
+            var view = Wide(new DesignDelegationViewModel());
 
-            Assert.Equal((true, 2, true), (view.Shows("Orchestrators"), view.Find<ItemsControl>("Orchestrators").ItemCount, view.Shows("RefusedGroup")));
+            Assert.Equal(("Active · 2", "Finished · 5"), (view.Find<Button>("ShowActive").Content, view.Find<Button>("ShowFinished").Content));
+            Assert.Equal((true, false), (view.HasClass("ShowActive", "selected"), view.HasClass("ShowFinished", "selected")));
+            Assert.Equal((3, 3), (view.Find<ComboBox>("Repository").ItemCount, view.Find<ComboBox>("Connection").ItemCount));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task RefusalsAreListedUnderTheirTreeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Wide(new DesignDelegationViewModel { Trees = [new DesignOrchestrationViewModel { Refused = [new DesignDelegationRefusalViewModel()] }] });
+
+            Assert.True(view.Shows("RefusedGroup"));
         }, TestContext.Current.CancellationToken);
 
     private static ViewScript Wide(object viewModel)
@@ -377,6 +394,63 @@ public sealed class DelegationViewScripts(HeadlessUi ui)
         view.Window.Height = 900;
 
         return view.Settle();
+    }
+}
+
+public sealed class OrchestrationViewScripts(HeadlessUi ui)
+{
+    [Fact]
+    public Task AnOrchestrationsHeaderShowsItsTotalsAndCollapsesItsTreeAsync() =>
+        ui.RunAsync(() =>
+        {
+            var toggled = 0;
+            var view = Screen.Show(new ToggledOrchestration(() => toggled++), ThemeVariant.Dark, 1200, 600);
+
+            view.Click("Toggle");
+
+            Assert.Equal(("Migrate payments to stripe-go v79", "ledger-api", "4 jobs · 3 agents", "1 needs you", "1.1M tokens", "1.47 USD"), (view.TextOf("Title"), view.TextOf("Repository"), view.TextOf("Size"), view.TextOf("NeedsYou"), view.TextOf("Tokens"), view.TextOf("Spent")));
+            Assert.Equal(1, toggled);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ACollapsedOrchestrationShowsOnlyItsHeaderAsync() =>
+        ui.RunAsync(() =>
+        {
+            var collapsed = Screen.Show(new DesignOrchestrationViewModel { IsCollapsed = true }, ThemeVariant.Dark, 1200, 600);
+            var open = Screen.Show(new DesignOrchestrationViewModel(), ThemeVariant.Dark, 1200, 600);
+
+            Assert.Equal((false, true), (collapsed.Shows("Tree"), open.Shows("Tree")));
+        }, TestContext.Current.CancellationToken);
+
+    private sealed class ToggledOrchestration(Action toggle) : IOrchestrationViewModel
+    {
+        private readonly DesignOrchestrationViewModel design = new();
+
+        public JobId Job => design.Job;
+
+        public string Title => design.Title;
+
+        public string Repository => design.Repository;
+
+        public string Size => design.Size;
+
+        public string NeedsYou => design.NeedsYou;
+
+        public string Tokens => design.Tokens;
+
+        public string Spent => design.Spent;
+
+        public bool IsActive => true;
+
+        public bool IsCollapsed => true;
+
+        public IRelayCommand ToggleCommand { get; } = new RelayCommand(toggle);
+
+        public IOrchestratorCardViewModel Root => design.Root;
+
+        public IReadOnlyList<IDelegationNodeViewModel> Children => design.Children;
+
+        public IReadOnlyList<IDelegationRefusalViewModel> Refused => design.Refused;
     }
 }
 
@@ -451,7 +525,7 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
     public Task AChildThatNeedsYouSaysSoInAmberAsync() =>
         ui.RunAsync(() =>
         {
-            var view = Screen.Show(new DesignDelegationViewModel().Children[1]);
+            var view = Screen.Show(new DesignDelegationViewModel().Trees[0].Children[0]);
 
             Assert.Equal(Color.Parse("#E5A13A"), Assert.IsAssignableFrom<ISolidColorBrush>(view.Find<TextBlock>("State").Foreground).Color);
             Assert.True(view.HasClass("Card", "attention"));
@@ -543,18 +617,6 @@ public sealed class OrchestratorCardViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 }
 
-public sealed class OrchestratorViewScripts(HeadlessUi ui)
-{
-    [Fact]
-    public Task AnOrchestratorShowsItsTitleAndStatusAsync() =>
-        ui.RunAsync(() =>
-        {
-            var view = Screen.Show(new DesignOrchestratorViewModel());
-
-            Assert.Equal(("Migrate payments to stripe-go v79", "Running"), (view.TextOf("Title"), view.TextOf("Status")));
-        }, TestContext.Current.CancellationToken);
-}
-
 public sealed class DelegationRefusalViewScripts(HeadlessUi ui)
 {
     [Fact]
@@ -579,43 +641,6 @@ internal sealed class RecordingConnections(params ConnectionCardViewModel[] card
     public string FileNote { get; init; } = string.Empty;
 
     public string Caption => string.Empty;
-
-    public IRelayCommand<JobId> OpenCommand => new RelayCommand<JobId>(Opened.Add);
-
-    public long Revision => 0;
-
-    public event EventHandler<Presented>? Presented
-    {
-        add { }
-        remove { }
-    }
-
-    public void Activate()
-    {
-    }
-
-    public void Deactivate()
-    {
-    }
-}
-
-internal sealed class RecordingDelegation(params IDelegationNodeViewModel[] children) : IDelegationViewModel
-{
-    public List<JobId> Opened { get; } = [];
-
-    public IReadOnlyList<IOrchestratorViewModel> Orchestrators { get; init; } = [new DesignOrchestratorViewModel()];
-
-    public IReadOnlyList<IDelegationNodeViewModel> Children { get; } = children;
-
-    public IReadOnlyList<IDelegationRefusalViewModel> Refused { get; init; } = [];
-
-    public IOrchestratorViewModel? Selected => Orchestrators.Count > 0 ? Orchestrators[0] : null;
-
-    public IOrchestratorCardViewModel? Root { get; init; } = new DesignOrchestratorCardViewModel();
-
-    public string Caption => string.Empty;
-
-    public IRelayCommand<IOrchestratorViewModel> SelectCommand { get; } = new RelayCommand<IOrchestratorViewModel>(_ => { });
 
     public IRelayCommand<JobId> OpenCommand => new RelayCommand<JobId>(Opened.Add);
 

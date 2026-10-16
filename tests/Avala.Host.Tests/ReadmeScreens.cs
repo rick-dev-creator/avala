@@ -259,7 +259,8 @@ public sealed class ReadmeScreens(HeadlessUi ui, PublishedPlugins plugins)
 
         await run.Ui.InvokeAsync(() => overview.Execute("ShowDelegationCommand"), Cancellation);
         var delegation = await run.Ui.ReadAsync(() => overview["Delegation"]);
-        await run.Ui.PresentedAsync(delegation.Presentation, () => delegation["Orchestrators"].Items.Count >= 1, () => "no orchestrator in the delegation view");
+        await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), TestContext.Current.CancellationToken);
+        await run.Ui.PresentedAsync(delegation.Presentation, () => delegation["Trees"].Items.Count >= 1, () => "no orchestrator in the delegation view");
         await Reel.FilmAsync(run, "delegation", FeatureReel.Hold(0));
 
         _ = await ShownAsync(run, "Usage");

@@ -190,10 +190,11 @@ public sealed class DelegationRestartTests(PublishedPlugins plugins)
             return overview.Has("Loading") ? overview["Loading"].Value<Task>() : Task.CompletedTask;
         });
         var delegation = overview["Delegation"];
+        await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), TestContext.Current.CancellationToken);
         await run.Ui.PresentedAsync(
             delegation.Presentation,
-            () => delegation["Children"].Items.Count == 1 && delegation["Children"].Items[0]["Activity"].Text == "integrated into its parent",
-            () => string.Join(", ", delegation["Children"].Items.Select(item => item["Activity"].Text)));
+            () => delegation["Trees"].Items.Count > 0 && delegation["Trees"].Items[0]["Children"].Items.Count == 1 && delegation["Trees"].Items[0]["Children"].Items[0]["Activity"].Text == "integrated into its parent",
+            () => string.Join(", ", delegation["Trees"].Items[0]["Children"].Items.Select(item => item["Activity"].Text)));
         var workbench = await run.WorkbenchAsync();
         await workbench.ShowsInGroupAsync(parent, group);
         var section = Assert.Single(await workbench.InspectAsync(parent, "DelegationSectionViewModel"));

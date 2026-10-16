@@ -428,7 +428,8 @@ public sealed class FeatureScreens(HeadlessUi ui, PublishedPlugins plugins)
 
         await run.Ui.InvokeAsync(() => page.Execute("ShowDelegationCommand"), Cancellation);
         var delegation = await run.Ui.ReadAsync(() => page["Delegation"]);
-        await run.Ui.PresentedAsync(delegation.Presentation, () => delegation["Orchestrators"].Items.Count >= 1, () => "no orchestrator in the delegation view");
+        await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), TestContext.Current.CancellationToken);
+        await run.Ui.PresentedAsync(delegation.Presentation, () => delegation["Trees"].Items.Count >= 1, () => "no orchestrator in the delegation view");
         await Camera.ShootAsync(run, "25-overview-delegation-agents-tree-dark");
     }
 

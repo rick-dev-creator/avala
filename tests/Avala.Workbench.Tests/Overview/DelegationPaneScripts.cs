@@ -328,6 +328,24 @@ internal sealed class TreeBench : IDisposable
 
     public DelegationToggleViewModel Toggle() => new(Reader(), new LiveFeed(new Pulse(Board), Ui), Messenger);
 
+    public DelegationViewModel Page()
+    {
+        var page = new DelegationViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs));
+        page.Activate();
+
+        return page;
+    }
+
+    public JobSummary Finished()
+    {
+        var root = Pages.Summary("Write the release notes", JobStatus.Approved, "claude") with { Repository = "/repositories/website", Submitted = DateTimeOffset.UnixEpoch.AddDays(-1) };
+        var child = Pages.Summary("Write the to-do list", JobStatus.Approved, "claude", root.Job) with { Repository = "/repositories/website" };
+        catalog.Jobs.AddRange([root, child]);
+        Board.Publish(Board.Jobs.Add(root.Job, new BoardJob(root, Transcript.Empty)).Add(child.Job, new BoardJob(child, Transcript.Empty)));
+
+        return root;
+    }
+
     public void Dispose() => Ui.Dispose();
 
     private DelegationReader Reader()

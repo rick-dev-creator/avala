@@ -5,49 +5,57 @@ using Avala.Sdk.Presentation;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using Avala.Workbench.Presenting;
-using Avala.Workbench.Sidebar;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
-internal sealed record DelegationState(IReadOnlyList<JobSummary> Orchestrators, Option<DelegationTree> Tree);
+internal enum DelegationScope
+{
+    Active,
+    Finished,
+    All,
+}
+
+internal sealed record DelegationState(IReadOnlyList<DelegationTree> Trees);
 
 internal interface IDelegationViewModel : IActivatable, IPresentation
 {
-    IReadOnlyList<IOrchestratorViewModel> Orchestrators { get; }
+    IReadOnlyList<IOrchestrationViewModel> Trees { get; }
 
-    IReadOnlyList<IDelegationNodeViewModel> Children { get; }
+    DelegationScope Scope { get; }
 
-    IReadOnlyList<IDelegationRefusalViewModel> Refused { get; }
+    string ActiveLabel { get; }
 
-    IOrchestratorViewModel? Selected { get; }
+    string FinishedLabel { get; }
 
-    IOrchestratorCardViewModel? Root { get; }
+    IReadOnlyList<string> Repositories { get; }
+
+    string Repository { get; set; }
+
+    IReadOnlyList<string> Connections { get; }
+
+    string Connection { get; set; }
 
     string Caption { get; }
 
-    IRelayCommand<IOrchestratorViewModel> SelectCommand { get; }
+    string Empty { get; }
+
+    IRelayCommand<DelegationScope> ScopeCommand { get; }
 
     IRelayCommand<JobId> OpenCommand { get; }
-}
-
-internal interface IOrchestratorViewModel
-{
-    JobId Job { get; }
-
-    string Title { get; }
-
-    JobStatus Status { get; }
 }
 
 [INotifyPropertyChanged]
 internal sealed partial class DelegationViewModel(DelegationReader reader, LiveFeed feed, RowActions actions) : IDelegationViewModel, IDisposable
 {
-    private readonly ObservableCollection<OrchestratorViewModel> orchestrators = [];
-    private readonly ObservableCollection<DelegationNodeViewModel> children = [];
-    private readonly ObservableCollection<DelegationRefusalViewModel> refused = [];
-    private IOrchestratorViewModel? chosen;
+    public const string AllRepositories = "All repositories";
+
+    public const string AllConnections = "All connections";
+
+    private readonly ObservableCollection<OrchestrationViewModel> trees = [];
+    private readonly Dictionary<JobId, OrchestrationViewModel> known = [];
+    private DelegationState shown = new([]);
 
     public event EventHandler<Presented>? Presented
     {
@@ -57,20 +65,34 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
 
     public long Revision => feed.Revision;
 
-    public IReadOnlyList<IOrchestratorViewModel> Orchestrators => orchestrators;
-
-    public IReadOnlyList<IDelegationNodeViewModel> Children => children;
-
-    public IReadOnlyList<IDelegationRefusalViewModel> Refused => refused;
+    public IReadOnlyList<IOrchestrationViewModel> Trees => trees;
 
     [ObservableProperty]
-    public partial IOrchestratorViewModel? Selected { get; private set; }
+    public partial DelegationScope Scope { get; private set; }
 
     [ObservableProperty]
-    public partial IOrchestratorCardViewModel? Root { get; private set; }
+    public partial string ActiveLabel { get; private set; } = "Active";
+
+    [ObservableProperty]
+    public partial string FinishedLabel { get; private set; } = "Finished";
+
+    [ObservableProperty]
+    public partial IReadOnlyList<string> Repositories { get; private set; } = [AllRepositories];
+
+    [ObservableProperty]
+    public partial string Repository { get; set; } = AllRepositories;
+
+    [ObservableProperty]
+    public partial IReadOnlyList<string> Connections { get; private set; } = [AllConnections];
+
+    [ObservableProperty]
+    public partial string Connection { get; set; } = AllConnections;
 
     [ObservableProperty]
     public partial string Caption { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Empty { get; private set; } = DelegationPhrases.NoneYet;
 
     public Task Following => feed.Following;
 
@@ -80,16 +102,18 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
 
     public void Dispose() => feed.Dispose();
 
+    partial void OnRepositoryChanged(string value) => Filter();
+
+    partial void OnConnectionChanged(string value) => Filter();
+
     [RelayCommand]
-    private void Select(IOrchestratorViewModel? orchestrator)
+    private void ChooseScope(DelegationScope scope)
     {
-        if (orchestrator is not null)
-        {
-            Volatile.Write(ref chosen, orchestrator);
-            Selected = orchestrator;
-            feed.Refresh();
-        }
+        Scope = scope;
+        Filter();
     }
+
+    IRelayCommand<DelegationScope> IDelegationViewModel.ScopeCommand => ChooseScopeCommand;
 
     [RelayCommand]
     private void Open(JobId job) => actions.Open(job);
@@ -97,56 +121,63 @@ internal sealed partial class DelegationViewModel(DelegationReader reader, LiveF
     private async ValueTask<DelegationState> ReadAsync(CancellationToken cancellationToken)
     {
         var found = await reader.OrchestratorsAsync(cancellationToken);
-        var root = Volatile.Read(ref chosen) is { } picked && found.FirstOrDefault(job => job.Job == picked.Job) is { } kept
-            ? kept
-            : found.Count > 0 ? found[^1] : null;
+        var read = new List<DelegationTree>();
 
-        return new DelegationState(
-            found,
-            root is null ? Option<DelegationTree>.None : await reader.TreeAsync(root.Job, cancellationToken));
+        foreach (var root in found)
+        {
+            read.AddRange((await reader.TreeAsync(root.Job, cancellationToken)).Match<DelegationTree[]>(tree => [tree], () => []));
+        }
+
+        return new DelegationState(read);
     }
 
     private void Show(DelegationState state)
     {
-        orchestrators.Reconcile(state.Orchestrators, orchestrator => orchestrator.Job, job => job.Job, job => new OrchestratorViewModel(job), (_, _) => { });
-        Selected = state.Tree.Match<IOrchestratorViewModel?>(tree => orchestrators.FirstOrDefault(orchestrator => orchestrator.Job == tree.Root.Job), () => null);
-        children.ShowInPlace(
-            state.Tree.Match(tree => tree.Children, () => []),
-            (child, node) => child.Job == node.Job.Job,
-            node =>
-            {
-                var row = new DelegationNodeViewModel(node) { OpenCommand = OpenCommand };
-                row.Toggled += (_, _) => TreeOrder.OneOpen(children, row);
-                row.Peeked += (_, _) => actions.Peek(row);
+        shown = state;
 
-                return row;
-            },
-            (child, node) =>
+        foreach (var tree in state.Trees)
+        {
+            if (known.TryGetValue(tree.Root.Job, out var existing))
             {
-                child.Show(node);
-                actions.Peek(child);
-            });
-        refused.ShowOnly(state.Tree.Match(tree => tree.Refused.Select(record => new DelegationRefusalViewModel(record)), () => []));
-        Root = state.Tree.Match<IOrchestratorCardViewModel?>(
-            tree =>
+                existing.Show(tree);
+            }
+            else
             {
-                var card = Root is OrchestratorCardViewModel shown && shown.Job == tree.Root.Job ? shown : new OrchestratorCardViewModel(tree) { OpenCommand = OpenCommand };
-                card.Show(tree);
+                known[tree.Root.Job] = new OrchestrationViewModel(tree, OpenCommand, actions);
+            }
+        }
 
-                return card;
-            },
-            () => null);
-        Caption = state.Tree.Match(
-            tree => $"{FactPhrases.Title(tree.Root.Instruction)} · {OverviewPhrases.Count(state.Orchestrators.Count, "orchestrator")}, {OverviewPhrases.Count(tree.Children.Count, "sub-agent")}",
-            () => "No job has delegated work yet");
+        var all = state.Trees.Select(tree => known[tree.Root.Job]).ToList();
+        Repositories = Options(AllRepositories, all.Select(tree => tree.Repository), Repositories);
+        Connections = Options(AllConnections, all.SelectMany(tree => tree.Connections), Connections);
+        ActiveLabel = $"Active · {all.Count(tree => tree.IsActive)}";
+        FinishedLabel = $"Finished · {all.Count(tree => !tree.IsActive)}";
+        Filter();
     }
-}
 
-internal sealed class OrchestratorViewModel(JobSummary summary) : IOrchestratorViewModel
-{
-    public JobId Job { get; } = summary.Job;
+    private void Filter()
+    {
+        var chosen = shown.Trees.Select(tree => known[tree.Root.Job])
+            .Where(tree => Scope == DelegationScope.All || tree.IsActive == (Scope == DelegationScope.Active))
+            .Where(tree => Repository == AllRepositories || tree.Repository == Repository)
+            .Where(tree => Connection == AllConnections || tree.Connections.Contains(Connection))
+            .OrderByDescending(tree => tree.LastActive)
+            .ToList();
+        trees.ShowInPlace(chosen, ReferenceEquals, tree => tree, (_, _) => { });
 
-    public string Title { get; } = FactPhrases.Title(summary.Instruction);
+        while (trees.Count > chosen.Count)
+        {
+            trees.RemoveAt(trees.Count - 1);
+        }
 
-    public JobStatus Status { get; } = summary.Status;
+        Caption = shown.Trees.Count == 0 ? string.Empty : DelegationPhrases.Caption(chosen);
+        Empty = shown.Trees.Count == 0 ? DelegationPhrases.NoneYet : DelegationPhrases.NoneShown;
+    }
+
+    private static IReadOnlyList<string> Options(string all, IEnumerable<string> found, IReadOnlyList<string> shown)
+    {
+        var next = found.Where(name => name.Length > 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Prepend(all).ToList();
+
+        return next.SequenceEqual(shown) ? shown : next;
+    }
 }

@@ -24,7 +24,7 @@ public sealed class OverviewViewModelScripts : IDisposable
     private readonly JobBoard board = new();
 
     [Fact]
-    public async Task WhileActiveTheConnectionsShowTheirAgentsAndTheLatestOrchestratorsTreeUntilAnotherIsSelectedAsync()
+    public async Task WhileActiveTheConnectionsShowTheirAgentsAndEveryRunningOrchestrationShowsItsTreeAsync()
     {
         var first = Pages.Summary("Ship the release", JobStatus.Running);
         var second = Pages.Summary("Split CheckoutPage into steps", JobStatus.Running);
@@ -35,12 +35,10 @@ public sealed class OverviewViewModelScripts : IDisposable
 
         overview.Activate();
         await ui.PresentedAsync(overview.Connections, () => overview.Connections.Connections.Count == 2, () => $"{overview.Connections.Connections.Count} connections");
-        await ui.PresentedAsync(overview.Delegation, () => overview.Delegation.Children.Count == 1, () => $"{overview.Delegation.Children.Count} children");
-        var latest = await ui.ReadAsync(() => (overview.Delegation.Selected?.Title, overview.Delegation.Children[0].Title));
-        await ui.InvokeAsync(() => overview.Delegation.SelectCommand.Execute(overview.Delegation.Orchestrators[0]), TestContext.Current.CancellationToken);
-        await ui.PresentedAsync(overview.Delegation, () => overview.Delegation.Children[0].Title == "Write the notes", () => overview.Delegation.Children[0].Title);
+        await ui.PresentedAsync(overview.Delegation, () => overview.Delegation.Trees.Count == 2, () => $"{overview.Delegation.Trees.Count} trees");
+        var trees = await ui.ReadAsync(() => overview.Delegation.Trees.Select(tree => (tree.Title, tree.Children.Single().Title)).OrderBy(tree => tree.Item1, StringComparer.Ordinal).ToList());
 
-        Assert.Equal(("Split CheckoutPage into steps", "Extract the address step"), latest);
+        Assert.Equal([("Ship the release", "Write the notes"), ("Split CheckoutPage into steps", "Extract the address step")], trees);
         Assert.Equal(["Ship the release"], await ui.ReadAsync(() => overview.Connections.Connections[0].Agents.Select(agent => agent.Title).ToList()));
         overview.Deactivate();
     }
@@ -117,19 +115,27 @@ public sealed class OverviewViewModelScripts : IDisposable
 
         private sealed class ActivatedDelegation(List<string> calls) : IDelegationViewModel
         {
-            public IReadOnlyList<IOrchestratorViewModel> Orchestrators => [];
+            public IReadOnlyList<IOrchestrationViewModel> Trees => [];
 
-            public IReadOnlyList<IDelegationNodeViewModel> Children => [];
+            public DelegationScope Scope => DelegationScope.Active;
 
-            public IReadOnlyList<IDelegationRefusalViewModel> Refused => [];
+            public string ActiveLabel => string.Empty;
 
-            public IOrchestratorViewModel? Selected => null;
+            public string FinishedLabel => string.Empty;
 
-            public CommunityToolkit.Mvvm.Input.IRelayCommand<IOrchestratorViewModel> SelectCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand<IOrchestratorViewModel>(_ => { });
+            public IReadOnlyList<string> Repositories => [];
 
-            public IOrchestratorCardViewModel? Root => null;
+            public string Repository { get; set; } = string.Empty;
+
+            public IReadOnlyList<string> Connections => [];
+
+            public string Connection { get; set; } = string.Empty;
 
             public string Caption => string.Empty;
+
+            public string Empty => string.Empty;
+
+            public CommunityToolkit.Mvvm.Input.IRelayCommand<DelegationScope> ScopeCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand<DelegationScope>(_ => { });
 
             public CommunityToolkit.Mvvm.Input.IRelayCommand<Jobs.Contracts.JobId> OpenCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand<Jobs.Contracts.JobId>(_ => { });
 
@@ -319,47 +325,86 @@ public sealed class AgentViewModelScripts
 
 public sealed class DelegationViewModelScripts : IDisposable
 {
-    private readonly TestUiDispatcher ui = new();
+    private readonly TreeBench bench = new();
+
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task WithoutOrchestratorsNothingIsSelectedAsync()
+    public async Task WithoutOrchestrationsThePageSaysNoJobHasDelegatedYetAsync()
     {
         var board = new JobBoard();
         var usage = new FakeUsage();
         var sessions = new SessionBook(new FakeUsage());
+        using var ui = new TestUiDispatcher();
         using var page = new DelegationViewModel(
             new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(usage, new FakeBudgets(), new FakeSupervision(), sessions), board),
             new LiveFeed(new Pulse(board), ui),
             Focusing.Actions());
 
-        await page.PresentsAfterAsync(page.Activate, () => "never presented", TestContext.Current.CancellationToken);
+        await page.PresentsAfterAsync(page.Activate, () => "never presented", Cancellation);
 
-        Assert.Equal((0, 0, true), await ui.ReadAsync(() => (page.Orchestrators.Count, page.Children.Count, page.Selected is null)));
+        Assert.Equal((0, Presenting.DelegationPhrases.NoneYet, string.Empty), await ui.ReadAsync(() => (page.Trees.Count, page.Empty, page.Caption)));
     }
 
     [Fact]
-    public void SelectingNothingKeepsTheSelection()
+    public async Task ActiveOrchestrationsShowByDefaultAndFinishedOnesWaitUnderFinishedCollapsedAsync()
     {
-        var board = new JobBoard();
-        using var page = new DelegationViewModel(
-            new DelegationReader(new TreeCatalog(), new FakeDelegations(), new JobSpending(new FakeUsage(), new FakeBudgets(), new FakeSupervision(), new SessionBook(new FakeUsage())), board),
-            new LiveFeed(new Pulse(board), ui),
-            Focusing.Actions());
+        var finished = bench.Finished();
+        using var page = bench.Page();
+        await bench.Ui.PresentedAsync(page, () => page.FinishedLabel == "Finished · 1", () => page.FinishedLabel);
 
-        page.SelectCommand.Execute(null);
+        var active = await bench.Ui.ReadAsync(() => (page.ActiveLabel, page.Trees.Select(tree => tree.Title).ToList()));
+        await bench.Ui.InvokeAsync(() => page.ChooseScopeCommand.Execute(DelegationScope.Finished), Cancellation);
+        var done = await bench.Ui.ReadAsync(() => page.Trees.Select(tree => (tree.Job, tree.IsCollapsed)).ToList());
+        await bench.Ui.InvokeAsync(() => page.ChooseScopeCommand.Execute(DelegationScope.All), Cancellation);
+        var all = await bench.Ui.ReadAsync(() => page.Trees.Select(tree => tree.Title).ToList());
 
-        Assert.Null(page.Selected);
+        Assert.Equal("Active · 1", active.ActiveLabel);
+        Assert.Equal(["Ship the refunds flow"], active.Item2);
+        Assert.Equal([(finished.Job, true)], done);
+        Assert.Equal(["Ship the refunds flow", "Write the release notes"], all);
     }
 
-    public void Dispose() => ui.Dispose();
-}
-
-public sealed class OrchestratorViewModelScripts
-{
     [Fact]
-    public void AnOrchestratorShowsItsTitleAndStatus() =>
-        ViewModelScript.Given(new OrchestratorViewModel(Pages.Summary("Split CheckoutPage into steps\nKeep each step testable", JobStatus.Running)))
-            .Then(orchestrator => Assert.Equal(("Split CheckoutPage into steps", JobStatus.Running), (orchestrator.Title, orchestrator.Status)));
+    public async Task TheRepositoryAndConnectionFiltersKeepOnlyTheTreesThatMatchAsync()
+    {
+        bench.Finished();
+        using var page = bench.Page();
+        await bench.Ui.PresentedAsync(page, () => page.Repositories.Count == 3, () => string.Join(", ", page.Repositories));
+        await bench.Ui.InvokeAsync(() => page.ChooseScopeCommand.Execute(DelegationScope.All), Cancellation);
+
+        await bench.Ui.InvokeAsync(() => page.Repository = "website", Cancellation);
+        var website = await bench.Ui.ReadAsync(() => page.Trees.Select(tree => tree.Title).ToList());
+        await bench.Ui.InvokeAsync(
+            () =>
+            {
+                page.Repository = DelegationViewModel.AllRepositories;
+                page.Connection = "personal";
+            },
+            Cancellation);
+        var personal = await bench.Ui.ReadAsync(() => page.Trees.Select(tree => tree.Title).ToList());
+
+        Assert.Equal([DelegationViewModel.AllRepositories, "shop", "website"], await bench.Ui.ReadAsync(() => page.Repositories));
+        Assert.Equal(["Write the release notes"], website);
+        Assert.Equal(["Ship the refunds flow"], personal);
+    }
+
+    [Fact]
+    public async Task ATreesHeaderSumsItsJobsAgentsAndTheOnesThatNeedYouAndCollapsesToItselfAsync()
+    {
+        using var page = bench.Page();
+        await bench.Ui.PresentedAsync(page, () => page.Trees.Count == 1, () => $"{page.Trees.Count} trees");
+        var tree = await bench.Ui.ReadAsync(() => page.Trees[0]);
+
+        var header = await bench.Ui.ReadAsync(() => (tree.Size, tree.NeedsYou, tree.Repository, tree.IsCollapsed, tree.Children.Count));
+        await bench.Ui.InvokeAsync(() => tree.ToggleCommand.Execute(null), Cancellation);
+
+        Assert.Equal(("3 jobs · 2 agents", "1 needs you", "shop", false, 2), header);
+        Assert.True(await bench.Ui.ReadAsync(() => tree.IsCollapsed));
+        Assert.Equal("1 orchestration · 2 at work · 1 needs you", await bench.Ui.ReadAsync(() => page.Caption));
+    }
+
+    public void Dispose() => bench.Dispose();
 }
 
 public sealed class DelegationRefusalViewModelScripts

@@ -68,16 +68,17 @@ public sealed class GlobalPagesTests(PublishedPlugins plugins)
         var orchestrator = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: delegate] Ship the release")));
         Assert.Equal(JobStatus.AwaitingReview, Assert.Single(await run.SettledAsync(orchestrator)));
         var delegation = (await ActivatedAsync(run, "Overview"))["Delegation"];
+        await run.Ui.InvokeAsync(() => delegation.Choose("ChooseScopeCommand", "All"), TestContext.Current.CancellationToken);
 
         await run.Ui.PresentedAsync(
             delegation.Presentation,
-            () => delegation["Children"].Items.Count == 2 && delegation["Children"].Items.All(child => child["Activity"].Text == "integrated into its parent"),
-            () => string.Join(", ", delegation["Children"].Items.Select(child => child["Activity"].Text)));
+            () => delegation["Trees"].Items.Count > 0 && delegation["Trees"].Items[0]["Children"].Items.Count == 2 && delegation["Trees"].Items[0]["Children"].Items.All(child => child["Activity"].Text == "integrated into its parent"),
+            () => string.Join(", ", delegation["Trees"].Items[0]["Children"].Items.Select(child => child["Activity"].Text)));
 
-        Assert.Equal(orchestrator, await run.Ui.ReadAsync(() => delegation["Selected"]["Job"].Value<JobId>()));
+        Assert.Equal(orchestrator, await run.Ui.ReadAsync(() => delegation["Trees"].Items[0]["Job"].Value<JobId>()));
         Assert.Equal(
             [("work", 1, true), ("personal", 1, true)],
-            await run.Ui.ReadAsync(() => delegation["Children"].Items
+            await run.Ui.ReadAsync(() => delegation["Trees"].Items[0]["Children"].Items
                 .Select(child => (child["Connection"].Text, child["Depth"].Value<int>(), child["Spend"].Text.Contains(" USD", StringComparison.Ordinal) && child["Harness"].Text.Length > 0))
                 .ToList()));
     }

@@ -126,20 +126,6 @@ internal sealed class DesignConnectionsViewModel : IConnectionsViewModel
     }
 }
 
-internal sealed class DesignOrchestratorViewModel(JobId job, string title, JobStatus status) : IOrchestratorViewModel
-{
-    public DesignOrchestratorViewModel()
-        : this(SampleJobs.CheckoutSplit, "Migrate payments to stripe-go v79", JobStatus.Running)
-    {
-    }
-
-    public JobId Job { get; } = job;
-
-    public string Title { get; } = title;
-
-    public JobStatus Status { get; } = status;
-}
-
 internal sealed class DesignOrchestratorCardViewModel : IOrchestratorCardViewModel
 {
     public JobId Job => SampleJobs.CheckoutSplit;
@@ -258,26 +244,77 @@ internal sealed class DesignDelegationRefusalViewModel : IDelegationRefusalViewM
     public string Reason => "the repository declares no delegation to that connection";
 }
 
-internal sealed class DesignDelegationViewModel : IDelegationViewModel
+internal sealed class DesignOrchestrationViewModel : IOrchestrationViewModel
 {
-    public IReadOnlyList<IOrchestratorViewModel> Orchestrators { get; } = [new DesignOrchestratorViewModel()];
+    public JobId Job { get; init; } = SampleJobs.CheckoutSplit;
 
-    public IReadOnlyList<IDelegationNodeViewModel> Children { get; } =
+    public string Title { get; init; } = "Migrate payments to stripe-go v79";
+
+    public string Repository { get; init; } = "ledger-api";
+
+    public string Size { get; init; } = "4 jobs · 3 agents";
+
+    public string NeedsYou { get; init; } = "1 needs you";
+
+    public string Tokens { get; init; } = "1.1M tokens";
+
+    public string Spent { get; init; } = "1.47 USD";
+
+    public bool IsActive { get; init; } = true;
+
+    public bool IsCollapsed { get; init; }
+
+    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+
+    public IOrchestratorCardViewModel Root { get; init; } = new DesignOrchestratorCardViewModel();
+
+    public IReadOnlyList<IDelegationNodeViewModel> Children { get; init; } =
     [
+        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Claude Code", "claude", "Wants to run go generate ./internal/webhooks/...", "0.22 USD of 0.80 USD", true, 0.28) { Subagents = [] },
         new DesignDelegationNodeViewModel(),
-        new DesignDelegationNodeViewModel(SampleAgents.WebhookTests, "Rewrite webhook signature tests", 1, StatusKind.NeedsYou, "Codex", "codex-team", "Wants to run go generate ./internal/webhooks/...", "0.22 USD of 0.80 USD", true, 0.28),
-        new DesignDelegationNodeViewModel(SampleAgents.ApiReference, "Regenerate the API reference", 1, StatusKind.ReadyForReview, "Pi", "pi-local", "Branch ready to merge into avala/stripe-v79", "0.32 USD of 0.60 USD", true, 0.53),
+        new DesignDelegationNodeViewModel(SampleAgents.ApiReference, "Regenerate the API reference", 1, StatusKind.ReadyForReview, "Claude Code", "claude-work", "Branch ready to merge into avala/stripe-v79", "0.32 USD of 0.60 USD", true, 0.53) { Subagents = [] },
     ];
 
-    public IReadOnlyList<IDelegationRefusalViewModel> Refused { get; } = [];
+    public IReadOnlyList<IDelegationRefusalViewModel> Refused { get; init; } = [];
+}
 
-    public IOrchestratorViewModel? Selected => Orchestrators[0];
+internal sealed class DesignDelegationViewModel : IDelegationViewModel
+{
+    public IReadOnlyList<IOrchestrationViewModel> Trees { get; init; } =
+    [
+        new DesignOrchestrationViewModel(),
+        new DesignOrchestrationViewModel
+        {
+            Job = SampleAgents.ZodUpdate,
+            Title = "Profile the slow checkout and fix the hot path",
+            Repository = "acme-dashboard",
+            Size = "2 jobs",
+            NeedsYou = string.Empty,
+            Tokens = "184k tokens",
+            Spent = "0.84 USD",
+            IsCollapsed = true,
+        },
+    ];
 
-    public IOrchestratorCardViewModel? Root { get; } = new DesignOrchestratorCardViewModel();
+    public DelegationScope Scope => DelegationScope.Active;
 
-    public string Caption => "Migrate payments to stripe-go v79 · 1 orchestrator, 3 sub-agents";
+    public string ActiveLabel => "Active · 2";
 
-    public IRelayCommand<IOrchestratorViewModel> SelectCommand { get; } = new RelayCommand<IOrchestratorViewModel>(_ => { });
+    public string FinishedLabel => "Finished · 5";
+
+    public IReadOnlyList<string> Repositories { get; } = [DelegationViewModel.AllRepositories, "acme-dashboard", "ledger-api"];
+
+    public string Repository { get; set; } = DelegationViewModel.AllRepositories;
+
+    public IReadOnlyList<string> Connections { get; } = [DelegationViewModel.AllConnections, "claude", "claude-work"];
+
+    public string Connection { get; set; } = DelegationViewModel.AllConnections;
+
+    public string Caption => "2 orchestrations · 5 at work · 1 needs you";
+
+    public string Empty => DelegationPhrases.NoneYet;
+
+    public IRelayCommand<DelegationScope> ScopeCommand { get; } = new RelayCommand<DelegationScope>(_ => { });
 
     public IRelayCommand<JobId> OpenCommand { get; } = new RelayCommand<JobId>(_ => { });
 

@@ -42,6 +42,18 @@ public sealed class FollowingScreens(HeadlessUi ui)
             Assert.True(Save(view, $"delegation-pane-{variant}"));
         });
 
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    public Task EveryOrchestrationOnOverviewAsync(string variant) =>
+        ShootAsync(() =>
+        {
+            var view = Screen.Show(new DesignDelegationViewModel(), Theme(variant), 1180, 760);
+            Components.UI.Theme.Motion.SetIsReduced(view.Window, true);
+            Pump(view);
+            Assert.True(Save(view, $"delegation-overview-{variant}"));
+        });
+
     private Task ShootAsync(Action shoot)
     {
         Assert.SkipUnless(Folder is not null && HeadlessApp.Renders, $"Set {Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the following screens.");

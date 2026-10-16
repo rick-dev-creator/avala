@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             x:Class="Avala.Workbench.UI.OrchestrationView"
+             x:ClassModifier="internal"
+             x:DataType="overview:IOrchestrationViewModel">
+  <Design.DataContext>
+    <overview:DesignOrchestrationViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Frame">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderCardBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceWindowBrush}" />
+    </Style>
+    <Style Selector="Border#Head">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+    </Style>
+    <Style Selector="TextBlock#NeedsYou">
+      <Setter Property="Foreground" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="Button#Toggle Path.icon">
+      <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="ItemsControl#Children Border#Card">
+      <Setter Property="Width" Value="400" />
+    </Style>
+    <Style Selector="ContentControl#Root Button#Open">
+      <Setter Property="Width" Value="340" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Frame" BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" ClipToBounds="True">
+    <StackPanel>
+      <Button x:Name="Toggle"
+              Classes="bare"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Stretch"
+              AutomationProperties.Name="{Binding Title}"
+              Command="{Binding ToggleCommand}">
+        <Border x:Name="Head" Padding="16,10" BorderThickness="0,0,0,1">
+          <DockPanel>
+            <StackPanel x:Name="Totals" DockPanel.Dock="Right" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+              <TextBlock x:Name="Size" Classes="caption" Text="{Binding Size}" />
+              <TextBlock x:Name="NeedsYou" Classes="caption" Text="{Binding NeedsYou}" IsVisible="{Binding NeedsYou, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <TextBlock x:Name="Tokens" Classes="caption" Text="{Binding Tokens}" IsVisible="{Binding Tokens, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <TextBlock x:Name="Spent" Classes="caption" Text="{Binding Spent}" IsVisible="{Binding Spent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <Panel Width="10" Height="10" VerticalAlignment="Center">
+                <Path Classes="icon" Width="10" Height="10" Data="{StaticResource IconChevronDown}" IsVisible="{Binding !IsCollapsed}" />
+                <Path Classes="icon" Width="10" Height="10" Data="{StaticResource IconChevronRight}" IsVisible="{Binding IsCollapsed}" />
+              </Panel>
+              <TextBlock x:Name="Title" Classes="strong" Text="{Binding Title}" TextTrimming="CharacterEllipsis" MaxWidth="460" />
+              <TextBlock x:Name="Repository" Classes="caption" Text="{Binding Repository}" />
+            </StackPanel>
+          </DockPanel>
+        </Border>
+      </Button>
+      <StackPanel x:Name="Tree" Spacing="10" Margin="16,14" IsVisible="{Binding !IsCollapsed}">
+        <Grid ColumnDefinitions="Auto,Auto">
+          <ContentControl x:Name="Root"
+                          theme:Motion.Enter="Scale"
+                          Content="{Binding Root}"
+                          VerticalAlignment="Center" />
+          <ItemsControl x:Name="Children"
+                        Grid.Column="1"
+                        ItemsSource="{Binding Children}"
+                        VerticalAlignment="Center">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <graphs:TreeGraphPanel Lead="90" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </Grid>
+        <StackPanel x:Name="RefusedGroup" Spacing="6" IsVisible="{Binding !!Refused.Count}">
+          <TextBlock Classes="section" Text="Refused delegations" />
+          <ItemsControl x:Name="Refused" ItemsSource="{Binding Refused}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</UserControl>
