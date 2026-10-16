@@ -21,6 +21,7 @@ public sealed class ProjectsPlugin : IPlugin
             .AddSingleton<RepositoryProjects>()
             .AddForwarded<IStartupTask, RepositoryProjects>()
             .AddForwarded<IHandle<JobSubmitted>, RepositoryProjects>()
+            .AddForwarded<IHandle<ConversationRestored>, RepositoryProjects>()
             .AddSingleton<ArchiveReturns>()
             .AddForwarded<IHandle<JobProgressed>, ArchiveReturns>()
             .AddSingleton<ProjectsEntry>()

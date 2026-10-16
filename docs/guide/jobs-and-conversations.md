@@ -41,7 +41,7 @@ A job is one piece of work an agent does in its own worktree, and its conversati
 
 ## Good to know
 
-- **Projects**: a project you made can be deleted at any time, and its conversations return to their repository's project. A repository's project can be deleted once you moved its conversations elsewhere, and comes back when that repository runs a new job. Deleting a project never deletes a job.
+- **Projects**: a project you made can be deleted at any time, and its conversations return to their repository's project. A repository's project can be deleted once you moved its conversations elsewhere or archived them, and comes back when that repository runs a new job or you restore one of its archived conversations. Deleting a project never deletes a job.
 - A sub-agent's conversation moves with its parent, and a best-of-N contest stays in its repository's project.
 - Dragging a row onto a project is not built yet: use **Move to**.
 - **Archiving** changes where a conversation is listed, never the job: its transcript, records, usage and worktree stay as they are. A conversation that is working or needs you cannot be archived, and an archived one that works again, because you sent it a message, reopened, resumed or sent it back, returns to its project by itself. A sub-agent is archived with its parent and a contest as one row. Nothing is archived automatically, and there is no search in the Archived page yet.

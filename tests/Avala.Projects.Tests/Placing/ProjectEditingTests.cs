@@ -1,3 +1,4 @@
+using Avala.Jobs.Contracts;
 using Avala.Projects.Contracts;
 using Avala.Sdk;
 
@@ -57,6 +58,33 @@ public sealed class ProjectEditingTests
         Assert.Equal([ledger], projected.Store.Projects);
         Assert.Empty(projected.Store.Placements);
         Assert.Equal(ledger, projected.Entry.Current.Of(job, Samples.Ledger));
+    }
+
+    [Fact]
+    public async Task ARepositorysProjectHoldingOnlyArchivedConversationsIsDeletedStaysDeletedAfterARestartAndReturnsWhenOneIsRestoredAsync()
+    {
+        var store = new MemoryStore();
+        var catalog = new FakeCatalog();
+        JobId job;
+
+        await using (var projected = new Projected(store, catalog))
+        {
+            await projected.Repositories.RunAsync(Samples.Cancellation);
+            job = await projected.SubmitAsync(Samples.Ledger, status: JobStatus.AwaitingReview);
+            await projected.Entry.ArchiveAsync([job], Samples.Cancellation);
+
+            Assert.True((await projected.Entry.DeleteAsync(projected.Created[0].Project, Samples.Cancellation)).IsSuccess);
+        }
+
+        await using var restarted = new Projected(store, catalog);
+        await restarted.Repositories.RunAsync(Samples.Cancellation);
+        Assert.Empty(restarted.Entry.Current.Projects);
+
+        Assert.True((await restarted.Entry.RestoreAsync(job, Samples.Cancellation)).TryGetValue(out var restored, out _));
+        await restarted.Repositories.HandleAsync(restored, Samples.Cancellation);
+
+        Assert.Equal(["ledger"], restarted.Entry.Current.Projects.Select(project => project.Name));
+        Assert.Equal(restarted.Entry.Current.Projects[0], restarted.Entry.Current.Of(job, Samples.Ledger));
     }
 
     [Fact]
