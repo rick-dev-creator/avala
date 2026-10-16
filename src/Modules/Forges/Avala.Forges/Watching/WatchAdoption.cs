@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Avala.Forges.Contracts;
 using Avala.Forges.Policy;
 using Avala.Jobs.Contracts;
@@ -9,6 +10,25 @@ internal sealed record Delivered(JobId Job, PullRequestRules Rules, string Remot
 
 internal sealed class WatchAdoption(WatchBook book, PullRequestReader reader, TimeProvider clock)
 {
+    private ImmutableHashSet<JobId> delivering = [];
+
+    public async Task<TResult> DeliveringAsync<TResult>(JobId job, Func<Task<TResult>> delivery)
+    {
+        ImmutableInterlocked.Update(ref delivering, known => known.Add(job));
+
+        try
+        {
+            return await delivery();
+        }
+        finally
+        {
+            ImmutableInterlocked.Update(ref delivering, known => known.Remove(job));
+        }
+    }
+
+    public Task AdoptFoundAsync(Delivered found, CancellationToken cancellationToken) =>
+        Volatile.Read(ref delivering).Contains(found.Job) || book.Find(found.Job).IsSome ? Task.CompletedTask : AdoptAsync(found, cancellationToken);
+
     public Task RefusedAsync(JobId job, ForgeError error, CancellationToken cancellationToken) => book.RefusedAsync(job, error, cancellationToken);
 
     public async Task AdoptAsync(Delivered delivered, CancellationToken cancellationToken)

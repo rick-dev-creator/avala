@@ -57,6 +57,6 @@ internal sealed class PullRequestDiscovery(WatchBook book, JobPlaces places, Pul
             worktree => finder.FindAsync(integrationEvent.Job, worktree, cancellationToken),
             () => Task.FromResult(Option<Delivered>.None));
 
-        await found.Match(delivered => adoption.AdoptAsync(delivered, cancellationToken), () => Task.CompletedTask);
+        await found.Match(delivered => adoption.AdoptFoundAsync(delivered, cancellationToken), () => Task.CompletedTask);
     }
 }
