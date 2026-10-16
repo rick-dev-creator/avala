@@ -2,7 +2,6 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
-using Avala.Workbench.Board;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -25,15 +24,13 @@ internal sealed partial class DelegationToggleViewModel
     : IDelegationToggleViewModel, IRegionAware<JobId>, IActivatable, IPresentation, IRecipient<DelegationPaneChanged>, IDisposable
 {
     private readonly DelegationReader reader;
-    private readonly JobBoard board;
     private readonly LiveFeed feed;
     private readonly IMessenger messenger;
     private Option<JobId> job;
 
-    public DelegationToggleViewModel(DelegationReader reader, JobBoard board, LiveFeed feed, IMessenger messenger)
+    public DelegationToggleViewModel(DelegationReader reader, LiveFeed feed, IMessenger messenger)
     {
         this.reader = reader;
-        this.board = board;
         this.feed = feed;
         this.messenger = messenger;
         messenger.RegisterAll(this);
@@ -89,5 +86,5 @@ internal sealed partial class DelegationToggleViewModel
         }
     }
 
-    private bool Shows(JobId shown) => reader.InTree(shown) || SubagentViewModel.Of(board.Find(shown)).Count > 0;
+    private bool Shows(JobId shown) => reader.Offers(shown);
 }

@@ -1,8 +1,10 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Delegation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Spending;
+using Avala.Workbench.Timeline;
 
 namespace Avala.Workbench.Fleet;
 
@@ -49,6 +51,13 @@ internal sealed class DelegationReader(IJobCatalog catalog, IDelegations delegat
     public bool InTree(JobId job) =>
         board.Find(job).Match(found => found.Summary.Parent.IsSome, () => false)
         || board.Jobs.Values.Any(other => other.Summary.Parent == Option<JobId>.Some(job));
+
+    public bool Offers(JobId job) => InTree(job) || Subagents(job).Any();
+
+    public IReadOnlyList<string> Running(JobId job) => [.. Subagents(job).Where(tool => tool.Outcome.IsNone).Select(tool => tool.Key)];
+
+    private IEnumerable<ToolEntry> Subagents(JobId job) =>
+        board.Find(job).Match(found => found.Transcript.Entries.OfType<ToolEntry>().Where(tool => tool.Kind == ItemKind.Subagent), () => []);
 
     private IEnumerable<DelegationNode> Nodes(JobTree tree, int depth) =>
         tree.Children.SelectMany(child => Nodes(child, depth + 1)).Prepend(new DelegationNode(

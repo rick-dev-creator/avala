@@ -209,7 +209,7 @@ public sealed class StreamTests
     }
 
     [Fact]
-    public void ASubagentsTextGrowsItsOwnItemWhileItsToolsAreItemsOfTheirOwnAndItsPlanIsNotTheJobs()
+    public void ASubagentsTextGrowsItsOwnItemWhileItsToolsAreItemsUnderItAndItsPlanIsNotTheJobs()
     {
         var talk = new Talk().Begin().Receive(
             Cli.ToolUse("a1", "Agent", """{ "description": "Explore", "prompt": "Find the greeting", "subagent_type": "Explore" }"""),
@@ -225,13 +225,31 @@ public sealed class StreamTests
             Cli.ToolResult("a1", "The greeting is a heading."));
         var subagent = new ItemId("a1");
 
-        Assert.Equal([ItemKind.Subagent, ItemKind.Other], talk.Events.OfType<ItemStarted>().Select(started => started.Kind));
+        Assert.Equal(
+            [(ItemKind.Subagent, Option<ItemId>.None), (ItemKind.Other, Option<ItemId>.Some(subagent))],
+            talk.Events.OfType<ItemStarted>().Select(started => (started.Kind, started.Parent)));
         Assert.Equal(
             ["Reading the repository.", "\n\nThe greeting is a heading."],
             talk.Events.OfType<ItemProgressed>().Where(progressed => progressed.Item == subagent).Select(progressed => progressed.Text));
         Assert.Equal("# Hello", talk.Events.OfType<ItemProgressed>().Single(progressed => progressed.Item.Value == "r1").Text);
         Assert.Empty(talk.Events.OfType<PlanUpdated>());
         Assert.Equal([ItemOutcome.Succeeded, ItemOutcome.Succeeded], talk.Events.OfType<ItemCompleted>().Select(completed => completed.Outcome));
+    }
+
+    [Fact]
+    public void EachSubagentMessageReportsTheTokensItsConversationHasUsedWhenTheyChange()
+    {
+        var usage = Cli.Parse("""{ "input_tokens": 3, "cache_read_input_tokens": 9000, "cache_creation_input_tokens": 400, "output_tokens": 97 }""");
+        var said = Cli.Nested(Cli.Said("sub-1", "text", "Reading."), "a1");
+        said["message"]!["usage"] = usage.DeepClone();
+        var used = Cli.Nested(Cli.ToolUse("r1", "Read", """{ "file_path": "/work/GREETING.md" }"""), "a1");
+        used["message"]!["usage"] = usage.DeepClone();
+        var talk = new Talk().Begin().Receive(
+            Cli.ToolUse("a1", "Agent", """{ "description": "Explore", "prompt": "Find the greeting", "subagent_type": "Explore" }"""),
+            said,
+            used);
+
+        Assert.Equal([new ItemTokensReported(talk.Session, talk.Turn, new ItemId("a1"), 9_500)], talk.Events.OfType<ItemTokensReported>());
     }
 
     [Fact]

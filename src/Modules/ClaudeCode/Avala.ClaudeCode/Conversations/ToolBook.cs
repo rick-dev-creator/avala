@@ -30,6 +30,8 @@ internal sealed class TrackedTool(ToolUse use, ToolRole role)
 
     public bool Narrated { get; set; }
 
+    public long Tokens { get; set; }
+
     public string Drawn { get; set; } = string.Empty;
 }
 

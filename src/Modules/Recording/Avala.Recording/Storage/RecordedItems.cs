@@ -17,6 +17,7 @@ internal sealed class RecordedItems(Utf8JsonWriter json, Redaction redaction)
                 json.WriteString("kind", Enum(started.Kind));
                 Text("title", started.Title);
                 Optional("input", started.Input);
+                Optional("parent", started.Parent.Map(parent => parent.Value));
                 break;
             case ItemDrafted drafted:
                 Item(drafted.Item);
@@ -32,6 +33,10 @@ internal sealed class RecordedItems(Utf8JsonWriter json, Redaction redaction)
             case ItemProgressed progressed:
                 Item(progressed.Item);
                 Text("text", progressed.Text);
+                break;
+            case ItemTokensReported tokens:
+                Item(tokens.Item);
+                json.WriteNumber("tokens", tokens.Tokens);
                 break;
             case ItemCompleted completed:
                 Item(completed.Item);

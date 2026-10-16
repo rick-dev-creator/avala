@@ -101,7 +101,8 @@ internal sealed record Transcript
     {
         TurnStarted started => this with { Turns = Turns.SetItem(started.Turn, new TurnTally(now, default, [])), LiveSince = now, QuietSince = Option<DateTimeOffset>.None },
         ItemDrafted drafted => Drafted(drafted),
-        ItemStarted started => Begun(Opened(started, now)).Refused(started.Turn, started.Item),
+        ItemStarted started => started.Parent.Match(parent => Stepped(started, parent), () => Begun(Opened(started, now)).Refused(started.Turn, started.Item)),
+        ItemTokensReported reported => Change(EntryKeys.Item(reported.Turn, reported.Item), entry => entry is ToolEntry tool ? tool with { Tokens = reported.Tokens } : entry),
         CanvasStarted started => Add(new CanvasEntry(EntryKeys.Item(started.Turn, started.Item), started.Title, started.MediaType, string.Empty, CanvasStatus.Streaming)),
         ItemProgressed progressed => Change(EntryKeys.Item(progressed.Turn, progressed.Item), entry => Appended(entry, progressed.Text)),
         ItemCompleted completed => Change(EntryKeys.Item(completed.Turn, completed.Item), entry => Completed(entry, completed.Outcome, now)),
@@ -204,6 +205,9 @@ internal sealed record Transcript
             ? Put(new ToolEntry(key, drafted.Kind, drafted.Title, string.Empty, Option<ItemOutcome>.None) { Drafted = drafted.Received })
             : this;
     }
+
+    private Transcript Stepped(ItemStarted started, ItemId parent) =>
+        Change(EntryKeys.Item(started.Turn, parent), entry => entry is ToolEntry tool ? tool with { Steps = tool.Steps + 1, Doing = started.Title } : entry);
 
     private Transcript Begun(ITimelineEntry opened) =>
         Find(opened.Key).Match(entry => entry is ToolEntry { Drafted.IsSome: true }, () => false) ? Put(opened) : Add(opened);

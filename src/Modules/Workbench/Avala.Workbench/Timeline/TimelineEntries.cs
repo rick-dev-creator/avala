@@ -49,6 +49,12 @@ internal sealed record ToolEntry(string Key, ItemKind Kind, string Title, string
     public Option<JobId> WaitsFor { get; init; }
 
     public Option<DelegationRecord> Awaited { get; init; }
+
+    public int Steps { get; init; }
+
+    public string Doing { get; init; } = string.Empty;
+
+    public long Tokens { get; init; }
 }
 
 internal sealed record PlanEntry(string Key, IReadOnlyList<PlanStep> Steps) : ITimelineEntry
