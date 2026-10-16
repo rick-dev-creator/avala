@@ -196,6 +196,40 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         Assert.Equal((new ForgeName("local"), OnPullRequest.WatchOnly), (watch.Forge, watch.Policy));
     }
 
+    [Fact]
+    public async Task AFailedCheckOnTheJobsPullRequestShowsACardInItsConversationWhoseAskSendsTheAgentTheFailingChecksAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, LocalForge, [(".avala/permissions.json", Autonomous)]);
+        _ = await run.Repository.PublishAsync(Cancellation);
+        var opened = run.Watch<PullRequestOpened>();
+        var changes = run.Watch<PullRequestWatchChanged>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, SimulatedRun.Simulate("edit"))));
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        var workspace = Outcomes.Present(Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Summary.Workspace);
+        var worktree = Outcomes.Succeeds(await run.Get<IWorkspaces>().FindAsync(workspace, Cancellation));
+        _ = await run.Repository.GitInAsync(worktree.Path, Cancellation, "push", "--quiet", "origin", worktree.Branch);
+        _ = await new SimulatedForgeRemote(run.Repository.Remote).OpenPullRequestAsync(worktree.Branch, "main", "Edit the greeting", Cancellation, "ci-fails-once");
+        _ = Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, "Push your branch and open a pull request.", Cancellation));
+        _ = await opened.UntilAsync(found => found.Job == job);
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+        run.AdvanceTo(Outcomes.Present(Outcomes.Present(run.Get<IPullRequests>().Of(job)).NextPoll));
+        _ = await changes.UntilAsync(found => found.State.Job == job && found.State.Last.Match(last => last.Checks.Any(check => check.Status == CheckStatus.Failed), () => false));
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(job);
+
+        await workbench.ShowsAsync(() => conversation["Entries"].Items.Any(entry => entry.Kind == "CiViewModel" && entry["CanAsk"].Value<bool>()));
+        var card = await run.Ui.ReadAsync(() => conversation["Entries"].Items.Single(entry => entry.Kind == "CiViewModel"));
+        var (headline, request) = await run.Ui.ReadAsync(() => (card["Headline"].Text, card["Request"].Text));
+        var progress = run.Watch<JobProgressed>();
+        await run.Ui.InvokeAsync(() => card.Execute("AskCommand", request), Cancellation);
+        _ = await progress.UntilAsync(update => update.Job == job && update.Status == JobStatus.Running);
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(job));
+
+        Assert.Equal("CI failed: build", headline);
+        Assert.Contains($"- build: {FailingTest}", request, StringComparison.Ordinal);
+        Assert.Contains(request, Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(job, Cancellation)).Attempts[^1].Guidance.Match(guidance => guidance, () => string.Empty), StringComparison.Ordinal);
+    }
+
     private sealed class ForgeRun : IAsyncDisposable
     {
         private EventWatch<PullRequestWatchChanged> changes;

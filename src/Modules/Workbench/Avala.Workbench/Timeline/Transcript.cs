@@ -4,6 +4,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Delegation.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
@@ -84,6 +85,27 @@ internal sealed record Transcript
 
     public Transcript WithRestart(bool kept) =>
         Entries.IsEmpty || Positions.ContainsKey(EntryKeys.Restart) ? this : Add(new RestartEntry(EntryKeys.Restart, kept));
+
+    public Transcript WithCi(Option<PullRequestWatchState> watch, IReadOnlyList<WakeUpRecord> wakeUps) =>
+        watch.Bind(found => found.Last).Match(observed => WithCi(observed, wakeUps), () => this);
+
+    private Transcript WithCi(PullRequestState observed, IReadOnlyList<WakeUpRecord> wakeUps)
+    {
+        if (observed.Checks.Count == 0 || observed.Checks.Any(check => check.Status == CheckStatus.Pending))
+        {
+            return this;
+        }
+
+        var key = EntryKeys.Ci(observed.PullRequest.Number, observed.HeadCommit);
+        var woken = wakeUps.Any(wake => wake.PullRequest == observed.PullRequest.Number
+            && wake.Reason == WakeReason.ChecksFailed
+            && wake.Outcome == WakeOutcome.Woken
+            && wake.Key.EndsWith(observed.HeadCommit, StringComparison.Ordinal));
+
+        return Positions.TryGetValue(key, out var position) && Entries[position] is CiEntry kept && kept.Woken == woken && kept.Checks.SequenceEqual(observed.Checks)
+            ? this
+            : Put(new CiEntry(key, observed.PullRequest.Number, observed.HeadCommit, observed.Checks) { Woken = woken });
+    }
 
     public Transcript WithEarlierRestart(int number) => Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true));
 
