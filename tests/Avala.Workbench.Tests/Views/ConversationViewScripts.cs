@@ -914,6 +914,39 @@ public sealed class TurnEndViewScripts(HeadlessUi ui)
         }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task AnAttemptsCheckpointShowsUnderItsLastTurnAndRestoringAsksToConfirmFirstAsync() =>
+        ui.RunAsync(() =>
+        {
+            var restored = new List<int>();
+            var turn = new TurnEndViewModel(new TurnEndEntry("t", TurnOutcome.Finished, TimeSpan.FromSeconds(9), default, []));
+            turn.Mark(new JobCheckpoint(2, 4, [new Avala.Workspaces.Contracts.FileChange("minor.go", Avala.Workspaces.Contracts.ChangeKind.Modified, 1, 1)]), true, new CommunityToolkit.Mvvm.Input.AsyncRelayCommand<int>(attempt =>
+            {
+                restored.Add(attempt);
+
+                return Task.CompletedTask;
+            }));
+            var view = Screen.Show(turn);
+            var asked = (view.TextOf("Checkpoint"), view.Shows("AskRestore"), view.Shows("Confirm"));
+
+            view.Click("AskRestore");
+            var confirming = view.Shows("Confirm");
+            view.Click("Restore");
+
+            Assert.Equal(("Checkpoint · 1 file changed", true, false), asked);
+            Assert.True(confirming);
+            Assert.Equal([2], restored);
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task ATurnWithoutACheckpointShowsNoCheckpointRowAsync() =>
+        ui.RunAsync(() =>
+        {
+            var view = Screen.Show(new TurnEndViewModel(new TurnEndEntry("t", TurnOutcome.Finished, TimeSpan.FromSeconds(9), default, [])));
+
+            Assert.False(view.Shows("CheckpointRow"));
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task AFailedTurnSaysSoInTheFailureColorAsync() =>
         ui.RunAsync(() =>
         {

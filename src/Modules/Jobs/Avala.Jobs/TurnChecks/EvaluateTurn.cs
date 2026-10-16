@@ -53,7 +53,7 @@ internal sealed class EvaluateTurn(JobLedger ledger, IWorkspaces workspaces, Com
     {
         var attempt = job.Attempts[^1].Number.Value;
 
-        if ((await workspaces.CheckpointAsync(job, $"Attempt {attempt}", cancellationToken)).IsFailure
+        if ((await workspaces.CheckpointAsync(job, $"{Review.JobCheckpointDesk.AttemptLabel}{attempt}", cancellationToken)).IsFailure
             || !(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
         {
             return Option<GateVerdict>.None;

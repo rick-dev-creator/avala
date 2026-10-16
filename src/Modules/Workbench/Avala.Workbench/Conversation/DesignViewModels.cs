@@ -29,6 +29,8 @@ internal sealed partial class DesignComposerViewModel : IComposerViewModel
 
     public IRelayCommand RecallLaterCommand { get; } = new RelayCommand(() => { }, () => false);
 
+    public IAsyncRelayCommand<int> RestoreCommand { get; } = new AsyncRelayCommand<int>(_ => Task.CompletedTask);
+
     public DesignComposerViewModel()
         : this(JobStatus.Running)
     {
@@ -418,6 +420,22 @@ internal sealed class DesignTurnEndViewModel : ITurnEndViewModel
     public bool HasUsage => true;
 
     public string Breakdown => "Input: 1,204 tokens\nOutput: 6,882 tokens\nCache read: 38,410 tokens\nCache write: 1,714 tokens\nModel: claude-opus-5-5\nCost of the whole turn: 0.4120 USD";
+
+    public bool HasCheckpoint { get; init; } = true;
+
+    public string Checkpoint => "Checkpoint · 2 files changed";
+
+    public IReadOnlyList<string> Files { get; } = ["Changed internal/money/minor.go", "Added internal/money/minor_test.go"];
+
+    public int Attempt => 2;
+
+    public bool CanRestore { get; init; } = true;
+
+    public bool IsConfirming { get; init; }
+
+    public IRelayCommand AskRestoreCommand { get; } = new RelayCommand(() => { });
+
+    public IAsyncRelayCommand<int> RestoreCommand { get; } = new AsyncRelayCommand<int>(_ => Task.CompletedTask);
 }
 
 internal sealed class DesignRestartViewModel : IRestartViewModel

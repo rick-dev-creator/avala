@@ -13,6 +13,7 @@ internal sealed class JobBoard
     private ImmutableDictionary<JobId, BoardRemote> remotes = ImmutableDictionary<JobId, BoardRemote>.Empty;
     private ProjectMap projects = ProjectMap.Empty;
     private ImmutableHashSet<JobId> drafted = [];
+    private ImmutableDictionary<JobId, IReadOnlyList<JobCheckpoint>> checkpoints = ImmutableDictionary<JobId, IReadOnlyList<JobCheckpoint>>.Empty;
     private ImmutableList<ChannelWriter<bool>> watchers = [];
 
     public ImmutableDictionary<JobId, BoardJob> Jobs => Volatile.Read(ref jobs);
@@ -24,6 +25,8 @@ internal sealed class JobBoard
     public ProjectMap Projects => Volatile.Read(ref projects);
 
     public ImmutableHashSet<JobId> Drafted => Volatile.Read(ref drafted);
+
+    public ImmutableDictionary<JobId, IReadOnlyList<JobCheckpoint>> Checkpoints => Volatile.Read(ref checkpoints);
 
     public BoardRemote RemoteOf(JobId job) => Remotes.GetValueOrDefault(job, BoardRemote.None);
 
@@ -63,6 +66,12 @@ internal sealed class JobBoard
     public void Publish(ImmutableHashSet<JobId> next)
     {
         Volatile.Write(ref drafted, next);
+        Notify();
+    }
+
+    public void Publish(ImmutableDictionary<JobId, IReadOnlyList<JobCheckpoint>> next)
+    {
+        Volatile.Write(ref checkpoints, next);
         Notify();
     }
 

@@ -64,6 +64,8 @@ internal interface IComposerViewModel
     IRelayCommand RecallEarlierCommand { get; }
 
     IRelayCommand RecallLaterCommand { get; }
+
+    IAsyncRelayCommand<int> RestoreCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -74,6 +76,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
     private readonly AttachmentTrayViewModel attachments;
     private readonly MentionsViewModel mentions;
     private readonly DraftBook drafts;
+    private readonly IJobCheckpoints checkpoints;
 
     private readonly JobHarness harness;
     private List<string> said = [];
@@ -89,6 +92,7 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         attachments = tools.Attachments;
         mentions = tools.Mentions;
         drafts = tools.Drafts;
+        checkpoints = tools.Checkpoints;
         mentions.Chosen += (_, chosen) => Edit(chosen.Draft);
         SendsWithEnter = keys.WithEnter;
         harness.Loaded += (_, _) =>
@@ -221,6 +225,18 @@ internal sealed partial class ComposerViewModel : IComposerViewModel
         {
             said = spoken;
             RecallEarlierCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    [RelayCommand]
+    private async Task RestoreAsync(int attempt, CancellationToken cancellationToken)
+    {
+        var restored = await checkpoints.RestoreAsync(Job, attempt, cancellationToken);
+        Error = restored.Match(_ => string.Empty, ConversationPhrases.Rejection);
+
+        foreach (var done in restored.Match<CheckpointRestored[]>(found => [found], _ => []))
+        {
+            Edit(ConversationPhrases.Restored(done));
         }
     }
 

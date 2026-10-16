@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Sidebar;
 using Avala.Workbench.Steering;
@@ -126,6 +127,43 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         {
             prompt.CanEdit = prompt.IsFromPerson && composer.AcceptsMessages;
             prompt.CanResend = prompt.IsFromPerson && job.Status.AcceptsMessages;
+        }
+
+        Checkpoints(job);
+    }
+
+    private void Checkpoints(BoardJob job)
+    {
+        var restorable = job.Status is JobStatus.NeedsHelp or JobStatus.AwaitingReview;
+        var closing = new Dictionary<TurnEndViewModel, int>();
+        var attempt = 0;
+        TurnEndViewModel? last = null;
+
+        foreach (var item in Entries)
+        {
+            if (item is PromptViewModel prompt)
+            {
+                Close(closing, last, attempt);
+                (attempt, last) = (prompt.Attempt, null);
+            }
+
+            last = item as TurnEndViewModel ?? last;
+        }
+
+        Close(closing, last, attempt);
+
+        foreach (var end in Entries.OfType<TurnEndViewModel>())
+        {
+            var checkpoint = closing.TryGetValue(end, out var closed) ? job.Checkpoints.LastOrDefault(taken => taken.Attempt == closed).ToOption() : Option<JobCheckpoint>.None;
+            end.Mark(checkpoint, restorable, composer.RestoreCommand);
+        }
+    }
+
+    private static void Close(Dictionary<TurnEndViewModel, int> closing, TurnEndViewModel? end, int attempt)
+    {
+        if (end is not null && attempt > 0)
+        {
+            closing[end] = attempt;
         }
     }
 

@@ -124,7 +124,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
             _ = feed.Find(message.Job).Match(
                 job =>
                 {
-                    opened.Show(job);
+                    opened.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job) });
                     return true;
                 },
                 () => false);
@@ -226,7 +226,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     {
         if (Conversation is { } open && jobs.TryGetValue(open.Job, out var job))
         {
-            open.Show(job);
+            open.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job) });
             OpenReviewCommand.NotifyCanExecuteChanged();
         }
 

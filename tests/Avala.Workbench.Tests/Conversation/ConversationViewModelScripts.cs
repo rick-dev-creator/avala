@@ -12,6 +12,7 @@ using Avala.Workbench.Conversation;
 using Avala.Workbench.Replies;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Timeline;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Tests.Conversation;
 
@@ -321,6 +322,48 @@ public sealed class ConversationViewModelScripts
 
         Assert.Equal(notice, conversation.Notice);
     }
+
+    [Fact]
+    public async Task EachAttemptsCheckpointClosesItsLastTurnAndRestoringItPreparesAMessageForTheAgentAsync()
+    {
+        var jobs = new FakeJobs { Status = JobStatus.AwaitingReview };
+        var checkpoints = new FakeJobCheckpoints();
+        checkpoints.Listed.AddRange(
+        [
+            new JobCheckpoint(1, 1, [new FileChange("minor.go", ChangeKind.Modified, 3, 1)]),
+            new JobCheckpoint(2, 2, [new FileChange("total.go", ChangeKind.Added, 9, Option<int>.None)]),
+        ]);
+        var conversation = new Conversations(Composing.Of(new JobSteering(jobs, new QueuedMessages(jobs)), new SendKeys(), Composing.Parts(checkpoints)), new TimelineItems(Replying.With(new FakePermissionAnswers()), new FakeClipboard(), Tools.Viewing()), new TranscriptExport(new FakeClipboard(), new FakeFileSaver(), new FakeAppearance())).Open(JobId.New());
+        var second = TurnId.New();
+        var transcript = Job().WithPrompts("Fix the rounding", [Attempt(1, AttemptOrigin.Initial)]).Apply(new TurnStarted(session, turn), Now).Apply(new TurnCompleted(session, turn, TurnOutcome.Finished), Now)
+            .WithPrompts("Fix the rounding", [Attempt(1, AttemptOrigin.Initial), Attempt(2, AttemptOrigin.SendBack)]).Apply(new TurnStarted(session, second), Now).Apply(new TurnCompleted(session, second, TurnOutcome.Finished), Now);
+
+        conversation.Show(Board(transcript, JobStatus.AwaitingReview) with { Checkpoints = checkpoints.Listed });
+        var ends = conversation.Entries.OfType<TurnEndViewModel>().ToList();
+        var marked = ends.Select(end => (end.HasCheckpoint, end.Attempt, end.Checkpoint, end.CanRestore)).ToList();
+        ends[0].AskRestoreCommand.Execute(null);
+        await ends[0].RestoreCommand.ExecuteAsync(ends[0].Attempt);
+
+        Assert.Equal([(true, 1, "Checkpoint · 1 file changed", true), (true, 2, "Checkpoint · 1 file changed", true)], marked);
+        Assert.Equal(["Changed minor.go"], ends[0].Files);
+        Assert.Equal([(conversation.Job, 1)], checkpoints.Restored);
+        Assert.Equal("I restored the worktree to how it was at the end of attempt 1. These files changed back: total.go. Continue from there.", conversation.Composer.Draft);
+    }
+
+    [Fact]
+    public void ARunningJobOffersNoRestore()
+    {
+        var conversation = Open();
+        var transcript = Job().WithPrompts("Fix the rounding", []).Apply(new TurnStarted(session, turn), Now).Apply(new TurnCompleted(session, turn, TurnOutcome.Finished), Now);
+
+        conversation.Show(Board(transcript) with { Checkpoints = [new JobCheckpoint(1, 1, [])] });
+
+        var end = Assert.Single(conversation.Entries.OfType<TurnEndViewModel>());
+        Assert.Equal((true, false), (end.HasCheckpoint, end.CanRestore));
+    }
+
+    private static AttemptRecord Attempt(int number, AttemptOrigin origin) =>
+        new(number, origin, AttemptOutcome.Passed, origin == AttemptOrigin.Initial ? Option<string>.None : "Round once", Option<SessionId>.None);
 
     private Transcript Ran() =>
         Job().WithPrompts("Fix the failing test", []).Apply(new TurnStarted(session, turn), Now)

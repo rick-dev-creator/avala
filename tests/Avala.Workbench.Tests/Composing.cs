@@ -15,15 +15,19 @@ internal static class Composing
 {
     public static Composers Of(JobSteering steering, SendKeys keys) => new(steering, keys, Harnesses(new FakeJobs(), new FakeHandoffRequests(), new FakeConnections()), Parts());
 
+    public static Composers Of(JobSteering steering, SendKeys keys, ComposerParts parts) => new(steering, keys, Harnesses(new FakeJobs(), new FakeHandoffRequests(), new FakeConnections()), parts);
+
     public static AttachmentTrays Trays() => new(new FakeJobAttachments(), new FakeFilePicker(), new FakePictures());
 
-    public static ComposerParts Parts() => new(Trays(), Mentions(), Drafts());
+    public static ComposerParts Parts() => Parts(new FakeJobCheckpoints());
+
+    public static ComposerParts Parts(FakeJobCheckpoints checkpoints) => new(Trays(), Mentions(), Drafts(), checkpoints);
 
     public static DraftBook Drafts() => new(new FakeDraftStore(), new JobBoard(), TimeProvider.System);
 
     public static MentionSource Mentions() => new(Avala.Workbench.Tests.Tools.Files(), new FakeRepositoryIndex(), new JobBoard(), TimeProvider.System);
 
-    public static ComposerTools Tools(SendKeys keys, JobId job) => new(keys, Trays().Open(), new MentionsViewModel(job, Mentions()), Drafts());
+    public static ComposerTools Tools(SendKeys keys, JobId job) => new(keys, Trays().Open(), new MentionsViewModel(job, Mentions()), Drafts(), new FakeJobCheckpoints());
 
     public static MentionsViewModel Mentioning(Worktree worktree, params string[] files)
     {
@@ -61,6 +65,26 @@ internal sealed class FakeDraftStore : IDraftStore
         Writes++;
 
         return Task.CompletedTask;
+    }
+}
+
+internal sealed class FakeJobCheckpoints : IJobCheckpoints
+{
+    public List<JobCheckpoint> Listed { get; } = [];
+
+    public List<(JobId Job, int Attempt)> Restored { get; } = [];
+
+    public Option<JobRejection> Refusal { get; set; }
+
+    public ValueTask<IReadOnlyList<JobCheckpoint>> OfAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult<IReadOnlyList<JobCheckpoint>>(Listed);
+
+    public ValueTask<Result<CheckpointRestored, JobRejection>> RestoreAsync(JobId job, int attempt, CancellationToken cancellationToken)
+    {
+        Restored.Add((job, attempt));
+
+        return ValueTask.FromResult(Refusal.Match(
+            refused => Result<CheckpointRestored, JobRejection>.Failure(refused),
+            () => Result<CheckpointRestored, JobRejection>.Success(new CheckpointRestored(job, attempt, Listed.Where(checkpoint => checkpoint.Attempt > attempt).SelectMany(checkpoint => checkpoint.Files).ToList()))));
     }
 }
 

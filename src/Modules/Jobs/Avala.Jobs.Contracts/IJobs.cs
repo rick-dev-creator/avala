@@ -154,4 +154,6 @@ public enum JobRejection
     NeverStarted,
     NotRoot,
     NotRemoteControllable,
+    CannotRestore,
+    UnknownCheckpoint,
 }
