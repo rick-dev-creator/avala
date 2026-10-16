@@ -147,6 +147,7 @@ internal sealed class RecordingParser
         new(default, default, recorded.GetProperty("used").GetInt64(), recorded.GetProperty("window").GetInt64())
         {
             Compacted = recorded.GetProperty("compacted").GetBoolean(),
+            CompactsAt = Property(recorded, "compactsAt").Map(at => at.GetInt64()),
         };
 
     private IAgentEvent Event(JsonElement recorded)

@@ -12,7 +12,7 @@ internal sealed class Conversation
     private readonly StreamTranslator translator;
     private readonly ControlDesk desk;
     private readonly Commands commands = new();
-    private readonly ContextGauge context = new();
+    private readonly ContextGauge context;
     private readonly RemoteBridge remote;
     private readonly Option<string> effort;
     private Option<Stamp> live;
@@ -36,6 +36,7 @@ internal sealed class Conversation
         conversation = resumed.Map(mark => mark.Session);
         spent = resumed.Match(mark => mark.Spent, () => 0m);
         effort = ClaudeModels.Chosen(options).Effort;
+        context = new ContextGauge(CommandLine.CompactsAt(options.Connection));
     }
 
     public Option<TurnId> Live => live.Map(stamp => stamp.Turn);

@@ -93,12 +93,28 @@ public sealed class TreeOrderTests
     }
 
     [Fact]
+    public void ThePanesFooterSaysHowManyJobsEachConnectionRunsAndWhereItCompacts()
+    {
+        var root = Pages.Summary("Migrate payments", JobStatus.Running, "claude-work");
+        var compacting = Transcript.Empty.Apply(new TurnStarted(Session, Turn), DateTimeOffset.UnixEpoch).Apply(new ContextReported(Session, Turn, 10_000, 200_000) { CompactsAt = 250_000L }, DateTimeOffset.UnixEpoch);
+        var tree = new DelegationTree(
+            root,
+            [
+                Node("Port the keys", JobStatus.Running, 1, compacting, connection: "claude-work"),
+                Node("Update the scheduler", JobStatus.Running, 1, connection: "claude"),
+            ],
+            []);
+
+        Assert.Equal("claude-work · 2 jobs · compacts at 250k   claude · 1 job", DelegationPanePhrases.Footer(tree));
+    }
+
+    [Fact]
     public void ARowWhoseHarnessReportedNoContextShowsNone() =>
         Assert.False(new DelegationNodeViewModel(Node("Update call sites", JobStatus.Running, 1)).Context.IsShown);
 
-    private static DelegationNode Node(string instruction, JobStatus status, int depth, Transcript? transcript = null, TokenUsage tokens = default)
+    private static DelegationNode Node(string instruction, JobStatus status, int depth, Transcript? transcript = null, TokenUsage tokens = default, string? connection = null)
     {
-        var summary = Pages.Summary(instruction, status);
+        var summary = Pages.Summary(instruction, status, connection);
         var usage = tokens == default ? Option<UsageSummary>.None : new UsageSummary(tokens, [], 0, default, []);
 
         return new DelegationNode(summary, depth, Option<JobFact>.None, Option<DelegationRecord>.None, new JobSpend(Option<SessionSeen>.None, usage, Option<Budgets.Contracts.BudgetCaps>.None, Option<Budgets.Contracts.BudgetCarve>.None))

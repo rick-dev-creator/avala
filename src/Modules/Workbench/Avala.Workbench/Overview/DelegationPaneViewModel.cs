@@ -223,8 +223,13 @@ internal static class DelegationPanePhrases
     public static string Footer(DelegationTree tree) =>
         string.Join(
             "   ",
-            tree.Children.Select(node => node.Job.Connection.Match(name => name.Value, () => "not started"))
-                .Prepend(tree.Root.Connection.Match(name => name.Value, () => "default connection"))
-                .GroupBy(connection => connection, StringComparer.Ordinal)
-                .Select(group => $"{group.Key} · {OverviewPhrases.Count(group.Count(), "job")}"));
+            tree.Children.Select(node => (Connection: node.Job.Connection.Match(name => name.Value, () => "not started"), Context: AgentGlance.CompactsAt(node.Seen)))
+                .Prepend((Connection: tree.Root.Connection.Match(name => name.Value, () => "default connection"), Context: AgentGlance.CompactsAt(tree.RootJob)))
+                .GroupBy(job => job.Connection, StringComparer.Ordinal)
+                .Select(group => Connection(group.Key, group.Count(), group.Select(job => job.Context).FirstOrDefault(at => at.IsSome))));
+
+    private static string Connection(string name, int jobs, Option<long> compactsAt) =>
+        compactsAt.Match(
+            at => $"{name} · {OverviewPhrases.Count(jobs, "job")} · compacts at {AgentGlance.TokensText(at).Replace(" tokens", string.Empty, StringComparison.Ordinal)}",
+            () => $"{name} · {OverviewPhrases.Count(jobs, "job")}");
 }

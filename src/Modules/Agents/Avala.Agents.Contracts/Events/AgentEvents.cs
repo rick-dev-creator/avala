@@ -71,6 +71,8 @@ public sealed record LimitReported(SessionId Session, TurnId Turn, UsageLimit Li
 public sealed record ContextReported(SessionId Session, TurnId Turn, long Used, long Window) : IAgentEvent
 {
     public bool Compacted { get; init; }
+
+    public Option<long> CompactsAt { get; init; }
 }
 
 public sealed record ModelReported(SessionId Session, TurnId Turn, string Model) : IAgentEvent

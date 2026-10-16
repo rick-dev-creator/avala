@@ -13,7 +13,7 @@ public sealed class ContextTests
         var talk = new Talk().Begin().Receive(Said(6, 51_545, 7_755), Result());
 
         var reported = Assert.Single(talk.Events.OfType<ContextReported>());
-        Assert.Equal(new ContextReported(talk.Session, talk.Turn, 59_306, 1_000_000), reported);
+        Assert.Equal(new ContextReported(talk.Session, talk.Turn, 59_306, 1_000_000) { CompactsAt = 250_000L }, reported);
         Assert.True(talk.Events.IndexOf(reported) < talk.Events.FindIndex(happened => happened is TurnCompleted));
     }
 
@@ -36,6 +36,29 @@ public sealed class ContextTests
 
         var reported = Assert.Single(talk.Events.OfType<ContextReported>());
         Assert.Equal((31_004L, true), (reported.Used, reported.Compacted));
+    }
+
+    [Theory]
+    [InlineData("120000", "true", 120_000L)]
+    [InlineData(null, null, 250_000L)]
+    [InlineData("120000", "false", null)]
+    public void TheContextSaysWhereItsConnectionCompactsAndNowhereWhenAutoCompactionIsOff(string? compactAt, string? autoCompact, long? compactsAt)
+    {
+        var settings = new Dictionary<string, string>();
+
+        if (compactAt is not null)
+        {
+            settings["compactAt"] = compactAt;
+        }
+
+        if (autoCompact is not null)
+        {
+            settings["autoCompact"] = autoCompact;
+        }
+
+        var talk = new Talk(connection: new Avala.Agents.Contracts.Connections.ConnectionEnvironment { Settings = settings }).Begin().Receive(Said(6, 51_545, 7_755), Result());
+
+        Assert.Equal(compactsAt is { } at ? Avala.Sdk.Option<long>.Some(at) : Avala.Sdk.Option<long>.None, Assert.Single(talk.Events.OfType<ContextReported>()).CompactsAt);
     }
 
     [Fact]

@@ -39,6 +39,9 @@ internal static class AgentGlance
             },
             () => ContextGlance.None);
 
+    public static Option<long> CompactsAt(Option<BoardJob> job) =>
+        ContextReading.Of(job).Bind(reported => reported.CompactsAt);
+
     public static IReadOnlyList<IRecentActionViewModel> Recent(Option<BoardJob> job) =>
         job.Match<IReadOnlyList<IRecentActionViewModel>>(
             found => [.. found.Transcript.Entries.OfType<ToolEntry>()

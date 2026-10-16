@@ -253,6 +253,7 @@ internal sealed class RecordingFormat
                 json.WriteNumber("used", context.Used);
                 json.WriteNumber("window", context.Window);
                 json.WriteBoolean("compacted", context.Compacted);
+                Present(context.CompactsAt, at => json.WriteNumber("compactsAt", at));
                 break;
             case MessageQueued queued:
                 Text("text", queued.Text);

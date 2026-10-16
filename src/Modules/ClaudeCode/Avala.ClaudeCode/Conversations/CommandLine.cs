@@ -170,6 +170,9 @@ internal static class CommandLine
 
     private static string[] Settings(JsonObject settings) => settings.Count > 0 ? ["--settings", settings.ToJsonString()] : [];
 
+    public static Option<long> CompactsAt(ConnectionEnvironment connection) =>
+        Switch(connection, AutoCompactSetting, true) ? CompactAt(connection) : Option<long>.None;
+
     public static int CompactAt(ConnectionEnvironment connection) =>
         connection.Settings.TryGetValue(CompactAtSetting, out var value)
         && int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var tokens)
