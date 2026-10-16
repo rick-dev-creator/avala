@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using static Avala.Simulator.Scenarios.ScenarioCatalog;
 
@@ -33,5 +34,17 @@ internal static class FileScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Previews, ScratchFiles];
+    public static Scenario SiblingReads { get; } = new("sibling-reads",
+    [
+        [
+            Thought("The other repository ", "shows how it is done."),
+            new UseTool(new ItemId("sibling"), ItemKind.Other, "Read ../sibling/README.md", "../sibling/README.md", "../sibling/README.md", "# Sibling\n", AsksPermission: true) { Reads = "../sibling/README.md" },
+            new UseTool(new ItemId("secret"), ItemKind.Other, "Read ../../secrets.env", "../../secrets.env", "../../secrets.env", "TOKEN=1\n", AsksPermission: true) { Reads = "../../secrets.env" },
+            Message("Read the sibling repository."),
+            .. Bill(1_200, 90, 0.0060m, 0.08),
+            new Finish(),
+        ],
+    ]);
+
+    public static IReadOnlyList<Scenario> All { get; } = [Previews, ScratchFiles, SiblingReads];
 }

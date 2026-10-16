@@ -93,6 +93,17 @@ public sealed class ReadOnlyCommandTests
         Assert.Equal(PolicyAnswer.Deny, policy.Decide(Command("ls; cat README.md")).Answer);
     }
 
+    [Fact]
+    public void AReadOnlyLineReadingAReadableFolderIsAllowedWithoutAsking()
+    {
+        var line = new PermissionRequest(ItemKind.Command, "cat /projects/sibling/README.md", InsideWorkspace: false)
+        {
+            Locate = path => new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: false) { Readable = path.StartsWith("/projects/", StringComparison.Ordinal) },
+        };
+
+        Assert.Equal(PolicyAnswer.Allow, PermissionPolicy.BuiltIn.Decide(line).Answer);
+    }
+
     private static PermissionRequest Command(string line) =>
         new(ItemKind.Command, line, InsideWorkspace: false)
         {

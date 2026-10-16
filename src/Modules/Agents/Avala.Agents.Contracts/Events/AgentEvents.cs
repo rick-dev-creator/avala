@@ -23,7 +23,10 @@ public sealed record ItemTokensReported(SessionId Session, TurnId Turn, ItemId I
 
 public sealed record ItemCompleted(SessionId Session, TurnId Turn, ItemId Item, ItemOutcome Outcome) : IAgentEvent;
 
-public sealed record PermissionRequested(SessionId Session, TurnId Turn, ItemId Item, string Title, ItemKind Kind, string Target) : IAgentEvent;
+public sealed record PermissionRequested(SessionId Session, TurnId Turn, ItemId Item, string Title, ItemKind Kind, string Target) : IAgentEvent
+{
+    public Option<string> Reads { get; init; }
+}
 
 public sealed record PermissionResolved(SessionId Session, TurnId Turn, ItemId Item, PermissionAnswer Answer) : IAgentEvent;
 

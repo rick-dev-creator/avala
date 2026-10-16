@@ -8,23 +8,39 @@ internal static class RequestFacts
 {
     extension(PermissionRequested requested)
     {
-        public PermissionRequest Facts(Option<string> workingDirectory, IRealPaths paths) => requested.Facts(workingDirectory, Option<string>.None, paths);
+        public PermissionRequest Facts(Option<string> workingDirectory, IRealPaths paths) => requested.Facts(workingDirectory, Option<string>.None, [], paths);
 
-        public PermissionRequest Facts(Option<string> workingDirectory, Option<string> scratch, IRealPaths paths) => requested.Kind switch
+        public PermissionRequest Facts(Option<string> workingDirectory, Option<string> scratch, IReadOnlyList<string> readable, IRealPaths paths) => requested.Kind switch
         {
-            ItemKind.FileEdit => Edit(requested.Target, workingDirectory, scratch, paths),
+            ItemKind.FileEdit => Edit(requested.Target, workingDirectory, scratch, readable, paths),
             ItemKind.Command => new PermissionRequest(ItemKind.Command, requested.Target, InsideWorkspace: false)
             {
-                Locate = written => Edit(written, workingDirectory, scratch, paths),
+                Locate = written => Edit(written, workingDirectory, scratch, readable, paths),
             },
-            _ => new PermissionRequest(requested.Kind, requested.Target, InsideWorkspace: false),
+            _ => new PermissionRequest(requested.Kind, requested.Target, InsideWorkspace: false)
+            {
+                Readable = requested.Reads.Match(read => Readable(read, readable, paths), () => false),
+            },
         };
     }
 
-    private static PermissionRequest Edit(string target, Option<string> workingDirectory, Option<string> scratch, IRealPaths paths) =>
-        IsPath(target)
+    private static PermissionRequest Edit(string target, Option<string> workingDirectory, Option<string> scratch, IReadOnlyList<string> readable, IRealPaths paths)
+    {
+        var located = IsPath(target)
             ? workingDirectory.Match(root => Located(target, root, scratch, paths), () => Outside(target))
             : Outside(target);
+
+        return located.InsideWorkspace || !Readable(located.Target, readable, paths) ? located : located with { Readable = true };
+    }
+
+    private static bool Readable(string path, IReadOnlyList<string> readable, IRealPaths paths) =>
+        readable.Count > 0
+        && IsPath(path)
+        && Path.IsPathFullyQualified(path)
+        && paths.Resolve(Path.GetFullPath(path)).Match(
+            real => readable.Where(folder => IsPath(folder) && Path.IsPathFullyQualified(folder))
+                .Any(folder => paths.Resolve(Path.GetFullPath(folder)).Match(root => Contains(root, real), () => false)),
+            () => false);
 
     private static PermissionRequest Outside(string target) => new(ItemKind.FileEdit, target, InsideWorkspace: false);
 

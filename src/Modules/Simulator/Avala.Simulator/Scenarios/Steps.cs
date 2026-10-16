@@ -21,6 +21,8 @@ internal sealed record WriteThroughCommand(ItemId Item, string Command, string P
 internal sealed record UseTool(ItemId Item, ItemKind Kind, string Title, string Target, string Input, string Output, bool AsksPermission) : IStep
 {
     public Option<ItemId> Parent { get; init; }
+
+    public Option<string> Reads { get; init; }
 }
 
 internal sealed record StartSubagent(ItemId Item, string Name, string Prompt) : IStep;

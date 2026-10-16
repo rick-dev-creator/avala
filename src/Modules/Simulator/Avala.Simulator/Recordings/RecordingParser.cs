@@ -53,7 +53,7 @@ internal sealed class RecordingParser
                 Item(recorded),
                 Text(recorded.GetProperty("title")),
                 Enum<ItemKind>(recorded.GetProperty("kind")),
-                Text(recorded.GetProperty("target"))),
+                Text(recorded.GetProperty("target"))) { Reads = Optional(recorded, "reads") },
             ["permissionResolved"] = recorded => new PermissionResolved(default, default, Item(recorded), Enum<PermissionAnswer>(recorded.GetProperty("answer"))),
             ["formRequested"] = recorded => new FormRequested(default, default, Item(recorded), Form(recorded.GetProperty("form"))),
             ["formAnswered"] = recorded => new FormAnswered(default, default, Item(recorded), Answer(recorded.GetProperty("answer"))),

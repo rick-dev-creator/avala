@@ -97,7 +97,7 @@ public sealed class StreamTests
             talk.Events.OfType<ItemStarted>().Single());
         Assert.Equal(
             new PermissionRequested(talk.Session, talk.Turn, new ItemId("t1"), title, kind, HostPaths.Rooted(target)),
-            talk.Events.OfType<PermissionRequested>().Single());
+            talk.Events.OfType<PermissionRequested>().Single() with { Reads = Option<string>.None });
     }
 
     [Fact]

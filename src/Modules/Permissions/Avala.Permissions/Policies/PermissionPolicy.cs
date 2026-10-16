@@ -17,10 +17,13 @@ internal sealed record PermissionPolicy(IReadOnlyList<PolicyRule> Repository, Au
 
     public const string ReadOnlyAllowed = "read-only allowed";
 
+    public const string ReadableAllowed = "reads-in-readable-folders";
+
     public static IReadOnlyList<PolicyRule> Defaults { get; } =
     [
         new(RuleOrigin.BuiltIn, "edits-inside-the-workspace", ItemKind.FileEdit, Option<string>.None, RuleScope.Workspace, PolicyAnswer.Allow),
         new(RuleOrigin.BuiltIn, ReadOnlyAllowed, ItemKind.Command, Option<string>.None, RuleScope.ReadOnly, PolicyAnswer.Allow),
+        new(RuleOrigin.BuiltIn, ReadableAllowed, Option<ItemKind>.None, Option<string>.None, RuleScope.Readable, PolicyAnswer.Allow),
     ];
 
     public static IReadOnlyList<PolicyRule> Unattended { get; } =

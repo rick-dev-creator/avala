@@ -27,7 +27,7 @@ public sealed class PermissionResponderTests
     private readonly SessionGovernor governor;
 
     public PermissionResponderTests() =>
-        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(agents, new SymbolicLinks(), clock, []), bus);
+        governor = new SessionGovernor(book, new SessionTerms(new NoPolicyFiles(), []), new PermissionResponder(agents, new RequestPlaces(new SymbolicLinks(), new FixedReadableFolders([])), clock, []), bus);
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 

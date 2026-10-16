@@ -76,6 +76,27 @@ public sealed class PermissionPolicyTests
     }
 
     [Fact]
+    public void AReadInAReadableFolderIsAllowedEvenUnattendedWhileAnEditThereAndAReadElsewhereAreNot()
+    {
+        var policy = PermissionPolicy.BuiltIn with { Declared = Autonomy.Autonomous };
+
+        var verdicts = new[]
+        {
+            new PermissionRequest(ItemKind.Other, "/projects/sibling/README.md", InsideWorkspace: false) { Readable = true },
+            new PermissionRequest(ItemKind.Other, "/home/me/.ssh/id_rsa", InsideWorkspace: false),
+            new PermissionRequest(ItemKind.FileEdit, "/projects/sibling/README.md", InsideWorkspace: false) { Readable = true },
+        }.Select(request => policy.Decide(request));
+
+        Assert.Equal(
+            [
+                (PolicyAnswer.Allow, "reads-in-readable-folders"),
+                (PolicyAnswer.Deny, "autonomous-denies-the-rest"),
+                (PolicyAnswer.Deny, "edits-outside-the-workspace-go-to-a-human"),
+            ],
+            verdicts.Select(verdict => (verdict.Answer, Outcomes.Present(verdict.Rule).Name)));
+    }
+
+    [Fact]
     public void RepositoryRulesComeBeforeTheBuiltInDefaults()
     {
         var policy = PermissionPolicy.With([Rule("frozen", PolicyAnswer.Deny, kind: ItemKind.FileEdit)]);

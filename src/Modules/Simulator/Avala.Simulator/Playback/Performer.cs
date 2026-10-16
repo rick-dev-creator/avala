@@ -111,7 +111,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
             cancellationToken),
         UseTool use => ActAsync(
             cues,
-            new Deed(use.Item, use.Kind, use.Title, use.Title, use.Target, use.Input) { Parent = use.Parent },
+            new Deed(use.Item, use.Kind, use.Title, use.Title, use.Target, use.Input) { Parent = use.Parent, Reads = use.Reads.Map(read => Path.GetFullPath(read, options.WorkingDirectory)) },
             use.AsksPermission && options.Permissions != PermissionMode.AllowAll,
             _ => Task.FromResult(use.Output),
             cancellationToken),
@@ -169,7 +169,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
         if (asks)
         {
             var pending = await gates.Permissions.ExpectAsync(deed.Item, cancellationToken);
-            yield return cues.Asked(deed.Item, deed.Request, deed.Kind, deed.Target);
+            yield return cues.Asked(deed.Item, deed.Request, deed.Kind, deed.Target) with { Reads = deed.Reads };
 
             var decision = await gates.Permissions.AwaitAsync(deed.Item, pending, cancellationToken);
             yield return cues.Answered(deed.Item, decision.Answer);
@@ -265,5 +265,7 @@ internal sealed class Performer(SessionOptions options, Stagecraft craft, Gates 
     private sealed record Deed(ItemId Item, ItemKind Kind, string Title, string Request, string Target, string Input)
     {
         public Option<ItemId> Parent { get; init; }
+
+        public Option<string> Reads { get; init; }
     }
 }

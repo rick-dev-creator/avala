@@ -107,13 +107,29 @@ public sealed class RequestFactsTests
         Directory.CreateSymbolicLink(Path.Combine(scratch.Path, "out"), elsewhere.Path);
         var notes = Path.Combine(scratch.Path, "notes.txt");
 
-        var kept = Requested(ItemKind.FileEdit, notes).Facts(workspace.Path, scratch.Path, Links);
-        var written = Requested(ItemKind.Command, $"echo x > {notes}").Facts(workspace.Path, scratch.Path, Links).Locate(notes);
-        var escaping = Requested(ItemKind.FileEdit, Path.Combine(scratch.Path, "out", "x.txt")).Facts(workspace.Path, scratch.Path, Links);
+        var kept = Requested(ItemKind.FileEdit, notes).Facts(workspace.Path, scratch.Path, [], Links);
+        var written = Requested(ItemKind.Command, $"echo x > {notes}").Facts(workspace.Path, scratch.Path, [], Links).Locate(notes);
+        var escaping = Requested(ItemKind.FileEdit, Path.Combine(scratch.Path, "out", "x.txt")).Facts(workspace.Path, scratch.Path, [], Links);
 
         Assert.Equal(new PermissionRequest(ItemKind.FileEdit, notes, InsideWorkspace: true), kept);
         Assert.Equal(kept, written);
         Assert.False(escaping.InsideWorkspace);
+    }
+
+    [Fact]
+    public void AReadIsReadableOnlyWhenItsRealPathIsInsideAReadableFolder()
+    {
+        using var workspace = new TemporaryFolder();
+        using var projects = new TemporaryFolder();
+        using var elsewhere = new TemporaryFolder();
+        Directory.CreateSymbolicLink(Path.Combine(projects.Path, "out"), elsewhere.Path);
+        string[] readable = [projects.Path];
+
+        bool Reads(string path) => (Requested(ItemKind.Other, path) with { Reads = path }).Facts(workspace.Path, Option<string>.None, readable, Links).Readable;
+
+        Assert.Equal(
+            [true, false, false],
+            new[] { Path.Combine(projects.Path, "sibling", "README.md"), Path.Combine(projects.Path, "out", "secret.env"), Path.Combine(elsewhere.Path, "secret.env") }.Select(Reads));
     }
 
     private static PermissionRequested Requested(ItemKind kind, string target) =>

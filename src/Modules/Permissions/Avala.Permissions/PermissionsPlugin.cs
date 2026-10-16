@@ -33,6 +33,8 @@ public sealed class PermissionsPlugin : IPlugin
             .AddForwarded<IPolicyFiles, PolicyFileReader>()
             .AddForwarded<IRepositoryPolicies, PolicyFileReader>()
             .AddSingleton<IRealPaths, SymbolicLinks>()
+            .AddSingleton<IReadableFolders, ReadableFolders>()
+            .AddSingleton<RequestPlaces>()
             .AddSingleton<PermissionResponder>()
             .AddSingleton<IRepositoryRuleFiles, RepositoryRuleWriter>()
             .AddSingleton<AnswerLedger>()

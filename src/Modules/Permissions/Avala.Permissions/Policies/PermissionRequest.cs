@@ -9,6 +9,8 @@ internal sealed record PermissionRequest(ItemKind Kind, string Target, bool Insi
     public Func<string, PermissionRequest> Locate { get; init; } = path => new PermissionRequest(ItemKind.FileEdit, path, InsideWorkspace: false);
 
     public bool ReadOnly { get; init; }
+
+    public bool Readable { get; init; }
 }
 
 internal sealed record Verdict(PolicyAnswer Answer, Option<PolicyRule> Rule);
