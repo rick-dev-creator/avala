@@ -61,6 +61,7 @@ public sealed class TranscriptTests
 
         var row = Assert.IsType<ToolEntry>(Assert.Single(transcript.Entries));
         Assert.Equal((2, "Run dotnet build", 3_600L, string.Empty), (row.Steps, row.Doing, row.Tokens, row.Output));
+        Assert.Equal(["Search greeting", "Run dotnet build"], row.Trail);
     }
 
     [Fact]

@@ -516,6 +516,12 @@ public sealed class DelegationNodeViewScripts(HeadlessUi ui)
         public bool IsOpen => false;
 
         public IRelayCommand ToggleCommand { get; } = new RelayCommand(Toggle);
+
+        public IPeekViewModel? Peek => null;
+
+        public bool IsPeeking => false;
+
+        public IRelayCommand PeekCommand => design.PeekCommand;
     }
 }
 

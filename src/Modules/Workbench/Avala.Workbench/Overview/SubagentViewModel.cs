@@ -3,6 +3,8 @@ using Avala.Sdk;
 using Avala.Workbench.Board;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Timeline;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Avala.Workbench.Overview;
 
@@ -25,9 +27,18 @@ internal interface ISubagentViewModel
     SubagentState State { get; }
 
     string StateText { get; }
+
+    IReadOnlyList<string> Trail { get; }
+
+    bool HasTrail { get; }
+
+    bool IsOpen { get; }
+
+    IRelayCommand ToggleCommand { get; }
 }
 
-internal sealed class SubagentViewModel(ToolEntry entry, bool waiting) : ISubagentViewModel
+[INotifyPropertyChanged]
+internal sealed partial class SubagentViewModel(ToolEntry entry, bool waiting) : ISubagentViewModel
 {
     public const int Shown = 5;
 
@@ -42,6 +53,16 @@ internal sealed class SubagentViewModel(ToolEntry entry, bool waiting) : ISubage
     public string Activity { get; } = entry.Outcome.IsNone && entry.Doing.Length > 0 ? Shortened(entry.Doing) : Latest(entry.Output);
 
     public string Meter { get; } = Metered(entry);
+
+    public IReadOnlyList<string> Trail { get; } = [.. entry.Trail.AsEnumerable().Reverse()];
+
+    public bool HasTrail => Trail.Count > 0;
+
+    [ObservableProperty]
+    public partial bool IsOpen { get; set; }
+
+    [RelayCommand(CanExecute = nameof(HasTrail))]
+    private void Toggle() => IsOpen = !IsOpen;
 
     public string StateText => State switch
     {
@@ -71,10 +92,22 @@ internal sealed class SubagentViewModel(ToolEntry entry, bool waiting) : ISubage
     public static int Count(Option<BoardJob> job) =>
         job.Match(found => found.Transcript.Entries.OfType<ToolEntry>().Count(tool => tool.Kind == ItemKind.Subagent), () => 0);
 
-    public static IReadOnlyList<ISubagentViewModel> Kept(IReadOnlyList<ISubagentViewModel> current, IReadOnlyList<ISubagentViewModel> next) =>
-        current.Select(Seen).SequenceEqual(next.Select(Seen)) ? current : next;
+    public static IReadOnlyList<ISubagentViewModel> Kept(IReadOnlyList<ISubagentViewModel> current, IReadOnlyList<ISubagentViewModel> next)
+    {
+        if (current.Select(Seen).SequenceEqual(next.Select(Seen)))
+        {
+            return current;
+        }
 
-    private static (string Name, SubagentState State, string Activity, string Meter) Seen(ISubagentViewModel subagent) => (subagent.Name, subagent.State, subagent.Activity, subagent.Meter);
+        foreach (var agent in next.OfType<SubagentViewModel>())
+        {
+            agent.IsOpen = current.Any(shown => shown.Name == agent.Name && shown.IsOpen);
+        }
+
+        return next;
+    }
+
+    private static (string Name, SubagentState State, string Activity, string Meter, int Trail) Seen(ISubagentViewModel subagent) => (subagent.Name, subagent.State, subagent.Activity, subagent.Meter, subagent.Trail.Count);
 
     private static string Metered(ToolEntry entry) =>
         string.Join(

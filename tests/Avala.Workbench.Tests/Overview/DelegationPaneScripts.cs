@@ -117,6 +117,56 @@ public sealed class DelegationPaneViewModelScripts : IDisposable
         Assert.False(await bench.Ui.ReadAsync(() => pane.IsOpen));
     }
 
+    [Fact]
+    public async Task PeekingAtAnOpenChildFollowsItsLatestRowsAndSendsItAMessageAsync()
+    {
+        using var pane = bench.Pane(bench.Screen.Job);
+        await bench.Ui.InvokeAsync(() => bench.Messenger.Send(new DelegationPaneRequested(bench.Screen.Job)), Cancellation);
+        await bench.Ui.PresentedAsync(pane, () => pane.Children.Count == 2, () => $"{pane.Children.Count} children");
+        var row = await bench.Ui.ReadAsync(() => pane.Children.OfType<DelegationNodeViewModel>().Single(child => child.Title == "Refunds screen"));
+
+        await bench.Ui.InvokeAsync(
+            () =>
+            {
+                row.ToggleCommand.Execute(null);
+                row.PeekNowCommand.Execute(null);
+            },
+            Cancellation);
+        var before = await bench.Ui.ReadAsync(() => (row.IsPeeking, row.Peek?.Latest.Count));
+        bench.Runs(bench.Screen, "test", "pnpm test refunds");
+        await bench.Ui.PresentedAsync(pane, () => row.Peek?.Latest.Count > before.Item2, () => $"{row.Peek?.Latest.Count} rows");
+        await bench.Ui.InvokeAsync(() => row.Peek!.Composer.Draft = "Keep the old endpoint too", Cancellation);
+        var sending = await bench.Ui.ReadAsync(() => ((Avala.Workbench.Conversation.ComposerViewModel)row.Peek!.Composer).SendCommand.ExecuteAsync(null));
+        await sending;
+
+        Assert.Equal((true, 0), before);
+        Assert.Equal("Run pnpm test refunds", await bench.Ui.ReadAsync(() => row.Doing));
+        Assert.Equal(bench.Screen.Job, ((Avala.Workbench.Conversation.ComposerViewModel)row.Peek!.Composer).Job);
+        Assert.Equal("Keep the old endpoint too", bench.Jobs.Messages[^1].Text);
+    }
+
+    [Fact]
+    public async Task FoldingAPeekedChildStopsFollowingItAsync()
+    {
+        using var pane = bench.Pane(bench.Screen.Job);
+        await bench.Ui.InvokeAsync(() => bench.Messenger.Send(new DelegationPaneRequested(bench.Screen.Job)), Cancellation);
+        await bench.Ui.PresentedAsync(pane, () => pane.Children.Count == 2, () => $"{pane.Children.Count} children");
+        var row = await bench.Ui.ReadAsync(() => pane.Children.OfType<DelegationNodeViewModel>().Single(child => child.Title == "Refunds screen"));
+        await bench.Ui.InvokeAsync(
+            () =>
+            {
+                row.ToggleCommand.Execute(null);
+                row.PeekNowCommand.Execute(null);
+            },
+            Cancellation);
+
+        await bench.Ui.InvokeAsync(() => row.ToggleCommand.Execute(null), Cancellation);
+        bench.Runs(bench.Screen, "test", "pnpm test refunds");
+        await bench.Ui.PresentedAsync(pane, () => row.Doing == "Run pnpm test refunds", () => row.Doing);
+
+        Assert.Equal((false, false, true), await bench.Ui.ReadAsync(() => (row.IsOpen, row.IsPeeking, row.Peek is null)));
+    }
+
     public void Dispose() => bench.Dispose();
 }
 
@@ -178,6 +228,23 @@ public sealed class SubagentViewModelScripts
             .Then(agent => Assert.Equal(("Reading tests/Payments", "3 tool uses · 5,400 tokens"), (agent.Activity, agent.Meter)));
     }
 
+    [Fact]
+    public void ASubagentOpensOntoTheToolsItRanNewestFirstAndStaysOpenWhenItsRowRefreshes()
+    {
+        var agent = new SubagentViewModel(Running with { Trail = ["Search RefundParams", "Read refund.go"] }, waiting: false);
+        agent.ToggleCommand.Execute(null);
+
+        var refreshed = SubagentViewModel.Kept([agent], [new SubagentViewModel(Running with { Trail = ["Search RefundParams", "Read refund.go", "Run go test"], Doing = "Run go test" }, waiting: false)]);
+
+        Assert.True(agent.IsOpen);
+        Assert.Equal(["Read refund.go", "Search RefundParams"], agent.Trail);
+        Assert.True(Assert.Single(refreshed).IsOpen);
+    }
+
+    [Fact]
+    public void ASubagentThatRanNoToolHasNothingToOpen() =>
+        Assert.False(new SubagentViewModel(Running, waiting: false).ToggleCommand.CanExecute(null));
+
     [Theory]
     [InlineData(null, true, "waiting")]
     [InlineData(ItemOutcome.Succeeded, false, "done")]
@@ -234,6 +301,13 @@ internal sealed class TreeBench : IDisposable
         return alone;
     }
 
+    public void Runs(JobSummary job, string id, string command)
+    {
+        var shown = Board.Jobs[job.Job];
+        var ran = shown.Transcript.Apply(new TurnStarted(Session, Turn), DateTimeOffset.UnixEpoch).Apply(new ItemStarted(Session, Turn, new ItemId(id), ItemKind.Command, command), DateTimeOffset.UnixEpoch);
+        Board.Publish(Board.Jobs.SetItem(job.Job, shown with { Transcript = ran }));
+    }
+
     public void Starts(JobSummary job, string id, string name)
     {
         var shown = Board.Jobs[job.Job];
@@ -241,9 +315,11 @@ internal sealed class TreeBench : IDisposable
         Board.Publish(Board.Jobs.SetItem(job.Job, shown with { Transcript = started }));
     }
 
+    public FakeJobs Jobs { get; } = new() { Status = JobStatus.NeedsHelp };
+
     public DelegationPaneViewModel Pane(JobId shown)
     {
-        var pane = new DelegationPaneViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui), new JobFocus(new TestRegions(), Messenger), Messenger);
+        var pane = new DelegationPaneViewModel(Reader(), new LiveFeed(new Pulse(Board), Ui), Focusing.Actions(new JobFocus(new TestRegions(), Messenger), Jobs), Messenger);
         pane.OnRegionContextChanged(shown);
         pane.Activate();
 

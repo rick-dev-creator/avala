@@ -5,7 +5,6 @@ using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
-using Avala.Workbench.Navigation;
 using Avala.Workbench.Presenting;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -48,18 +47,18 @@ internal sealed partial class DelegationPaneViewModel
 {
     private readonly DelegationReader reader;
     private readonly LiveFeed feed;
-    private readonly JobFocus focus;
+    private readonly RowActions actions;
     private readonly IMessenger messenger;
     private readonly ObservableCollection<DelegationNodeViewModel> children = [];
     private readonly ObservableCollection<DelegationNodeViewModel> settled = [];
     private readonly HashSet<string> started = new(StringComparer.Ordinal);
     private Option<JobId> job;
 
-    public DelegationPaneViewModel(DelegationReader reader, LiveFeed feed, JobFocus focus, IMessenger messenger)
+    public DelegationPaneViewModel(DelegationReader reader, LiveFeed feed, RowActions actions, IMessenger messenger)
     {
         this.reader = reader;
         this.feed = feed;
-        this.focus = focus;
+        this.actions = actions;
         this.messenger = messenger;
         messenger.RegisterAll(this);
     }
@@ -131,7 +130,7 @@ internal sealed partial class DelegationPaneViewModel
     IRelayCommand IDelegationPaneViewModel.CloseCommand => CloseNowCommand;
 
     [RelayCommand]
-    private void Open(JobId opened) => focus.Select(opened);
+    private void Open(JobId opened) => actions.Open(opened);
 
     [RelayCommand]
     private void ToggleSettled() => ShowsSettled = !ShowsSettled;
@@ -199,6 +198,7 @@ internal sealed partial class DelegationPaneViewModel
             {
                 var row = new DelegationNodeViewModel(node) { OpenCommand = OpenCommand, IsViewing = viewing == Option<JobId>.Some(node.Job.Job) };
                 row.Toggled += (_, _) => TreeOrder.OneOpen(children.Concat(settled), row);
+                row.Peeked += (_, _) => actions.Peek(row);
 
                 return row;
             },
@@ -206,6 +206,7 @@ internal sealed partial class DelegationPaneViewModel
             {
                 child.Show(node);
                 child.IsViewing = viewing == Option<JobId>.Some(node.Job.Job);
+                actions.Peek(child);
             });
 }
 

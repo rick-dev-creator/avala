@@ -103,4 +103,14 @@ public sealed class SubagentViewScripts(HeadlessUi ui)
             Assert.Equal((true, true), (view.HasClass("Outline", "waiting"), view.HasClass("Dot", "waiting")));
             Assert.NotNull(view.Find<Rectangle>("Outline").StrokeDashArray);
         }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task AnOpenSubagentListsTheToolsItRanUnderItsPillAsync() =>
+        ui.RunAsync(() =>
+        {
+            var open = Screen.Show(new DesignSubagentViewModel("Find the refund call sites", "Run go test", SubagentState.Running) { Trail = ["Run go test", "Read refund.go"], IsOpen = true });
+            var closed = Screen.Show(new DesignSubagentViewModel("Find the refund call sites", "Run go test", SubagentState.Running) { Trail = ["Run go test"] });
+
+            Assert.Equal((true, 2, false), (open.Shows("Trail"), open.Find<ItemsControl>("Trail").ItemCount, closed.Shows("Trail")));
+        }, TestContext.Current.CancellationToken);
 }

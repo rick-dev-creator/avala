@@ -2,6 +2,7 @@ using Avala.Components.Privacy;
 using Avala.Components.Status;
 using Avala.Jobs.Contracts;
 using Avala.Sdk.Presentation;
+using Avala.Workbench.Conversation;
 using Avala.Workbench.Presenting;
 using Avala.Workbench.Usage;
 using CommunityToolkit.Mvvm.Input;
@@ -182,6 +183,14 @@ internal sealed record DesignSubagentViewModel(string Name, string Activity, Sub
 {
     public string Meter { get; init; } = string.Empty;
 
+    public IReadOnlyList<string> Trail { get; init; } = [];
+
+    public bool HasTrail => Trail.Count > 0;
+
+    public bool IsOpen { get; init; }
+
+    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+
     public string StateText => State.ToString().ToLowerInvariant();
 }
 
@@ -234,6 +243,12 @@ internal sealed record DesignDelegationNodeViewModel(JobId Job, string Title, in
     public bool IsOpen { get; init; }
 
     public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+
+    public IPeekViewModel? Peek { get; init; }
+
+    public bool IsPeeking => Peek is not null;
+
+    public IRelayCommand PeekCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed class DesignDelegationRefusalViewModel : IDelegationRefusalViewModel
@@ -364,4 +379,16 @@ internal sealed class DesignRecentActionViewModel : IRecentActionViewModel
     public DateTimeOffset Since => DateTimeOffset.UnixEpoch;
 
     public bool HasSince => false;
+}
+
+internal sealed class DesignPeekViewModel : IPeekViewModel
+{
+    public IReadOnlyList<object> Latest { get; } =
+    [
+        new DesignToolViewModel(Avala.Agents.Contracts.Events.ItemKind.FileEdit, "internal/webhooks/signature_test.go", "+40 −22"),
+        new DesignMessageViewModel("The v79 client signs with a timestamp tolerance, so the fixtures need regenerating.", false),
+        new Avala.Workbench.Cards.DesignPermissionCardViewModel(),
+    ];
+
+    public IComposerViewModel Composer { get; } = new DesignComposerViewModel(Avala.Jobs.Contracts.JobStatus.Running);
 }

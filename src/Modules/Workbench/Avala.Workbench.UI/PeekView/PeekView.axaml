@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:overview="using:Avala.Workbench.Overview"
+             xmlns:markdown="using:Avala.Components.UI.Markdown"
+             x:Class="Avala.Workbench.UI.PeekView"
+             x:ClassModifier="internal"
+             markdown:MarkdownStyles.AreShared="True"
+             x:DataType="overview:IPeekViewModel">
+  <Design.DataContext>
+    <overview:DesignPeekViewModel />
+  </Design.DataContext>
+  <Border x:Name="Well"
+          Background="{DynamicResource FillWellBrush}"
+          CornerRadius="{DynamicResource RadiusBlock}"
+          Padding="10">
+    <StackPanel Spacing="8">
+      <ItemsControl x:Name="Latest" ItemsSource="{Binding Latest}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+      <ContentControl x:Name="Composer" Content="{Binding Composer}" />
+    </StackPanel>
+  </Border>
+</UserControl>
