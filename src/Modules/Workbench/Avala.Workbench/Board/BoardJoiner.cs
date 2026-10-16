@@ -11,8 +11,11 @@ internal sealed class BoardJoiner(IVerifications verifications, TranscriptRecall
     public async Task<BoardJob> JoinedAsync(JobHistory history, bool restored, CancellationToken cancellationToken)
     {
         var verified = verifications.OfJob(history.Summary.Job);
+        var watch = pullRequests.Of(history.Summary.Job);
+        var wakeUps = pullRequests.WakeUpsOf(history.Summary.Job);
+        var recalled = await recall.RecalledAsync(history, restored, cancellationToken);
 
-        return new BoardJob(history.Summary, await recall.RecalledAsync(history, restored, cancellationToken))
+        return new BoardJob(history.Summary, recalled.WithCi(watch, wakeUps))
         {
             Handoffs = handoffs.OfJob(history.Summary.Job),
             Hold = history.Summary.Status == JobStatus.NeedsHelp ? history.Summary.Hold : Option<HoldReason>.None,
@@ -20,8 +23,8 @@ internal sealed class BoardJoiner(IVerifications verifications, TranscriptRecall
             Attempts = history.Attempts.Count,
             Verification = verified.Count > 0 ? verified[^1] : Option<VerificationReport>.None,
             Choice = history.Choice,
-            PullRequest = pullRequests.Of(history.Summary.Job),
-            WakeUps = pullRequests.WakeUpsOf(history.Summary.Job),
+            PullRequest = watch,
+            WakeUps = wakeUps,
         };
     }
 }

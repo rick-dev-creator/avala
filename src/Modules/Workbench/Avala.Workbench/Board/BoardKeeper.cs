@@ -213,10 +213,14 @@ internal sealed class BoardKeeper(IJobCatalog catalog, BoardJoiner joiner, JobBo
         ChangedAsync(integrationEvent.Wait.Job, job => Audited(job with { Wait = integrationEvent.Wait }));
 
     public ValueTask HandleAsync(PullRequestWatchChanged integrationEvent, CancellationToken cancellationToken) =>
-        ChangedAsync(integrationEvent.State.Job, job => Audited(job with { PullRequest = integrationEvent.State }));
+        ChangedAsync(integrationEvent.State.Job, job => Audited(job with { PullRequest = integrationEvent.State, Transcript = job.Transcript.WithCi(integrationEvent.State, job.WakeUps) }));
 
     public ValueTask HandleAsync(PullRequestWakeUp integrationEvent, CancellationToken cancellationToken) =>
-        ChangedAsync(integrationEvent.WakeUp.Job, job => Audited(job with { WakeUps = [.. job.WakeUps, integrationEvent.WakeUp] }));
+        ChangedAsync(integrationEvent.WakeUp.Job, job => Audited(job with
+        {
+            WakeUps = [.. job.WakeUps, integrationEvent.WakeUp],
+            Transcript = job.Transcript.WithCi(job.PullRequest, [.. job.WakeUps, integrationEvent.WakeUp]),
+        }));
 
     private static BoardJob Audited(BoardJob job) => job with { Revision = job.Revision + 1 };
 

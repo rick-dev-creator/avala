@@ -27,6 +27,7 @@ public sealed class TimelineItemsTests
         { "form", typeof(FormCardViewModel) },
         { "turn", typeof(TurnEndViewModel) },
         { "restart", typeof(RestartViewModel) },
+        { "ci", typeof(CiViewModel) },
     };
 
     [Theory]
@@ -46,6 +47,7 @@ public sealed class TimelineItemsTests
         "denied" => new Denying().Entry(),
         "form" => Asked.Form(),
         "turn" => new TurnEndEntry("turn", TurnOutcome.Finished, TimeSpan.FromSeconds(3), default, []),
+        "ci" => new CiEntry(EntryKeys.Ci(12, "4f2a9c1"), 12, "4f2a9c1", []),
         _ => new RestartEntry(EntryKeys.Restart, Kept: true),
     };
 }

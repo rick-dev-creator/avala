@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using Avala.Agents.Contracts.Events;
 using Avala.Canvas.Contracts;
 using Avala.Components.Canvases;
@@ -445,6 +446,34 @@ internal sealed class DesignTurnEndViewModel : ITurnEndViewModel
     public IRelayCommand AskRestoreCommand { get; } = new RelayCommand(() => { });
 
     public IAsyncRelayCommand<int> RestoreCommand { get; } = new AsyncRelayCommand<int>(_ => Task.CompletedTask);
+}
+
+internal sealed class DesignCiViewModel : ICiViewModel
+{
+    public string Headline { get; init; } = "CI failed: build (windows-latest)";
+
+    public bool IsFailed { get; init; } = true;
+
+    public IReadOnlyList<ICiCheck> Failing { get; init; } = [new DesignCiCheck()];
+
+    public string Note { get; init; } = string.Empty;
+
+    public bool CanAsk { get; init; } = true;
+
+    public string Request { get; init; } = "The checks of pull request #12 failed on 4f2a9c1:\n- build (windows-latest): 2 tests failed\nFix what makes them fail.";
+
+    public ICommand AskCommand { get; init; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignCiCheck : ICiCheck
+{
+    public string Name => "build (windows-latest)";
+
+    public string Summary => "2 tests failed";
+
+    public bool HasLog => true;
+
+    public IAsyncRelayCommand OpenLogCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 }
 
 internal sealed class DesignRestartViewModel : IRestartViewModel

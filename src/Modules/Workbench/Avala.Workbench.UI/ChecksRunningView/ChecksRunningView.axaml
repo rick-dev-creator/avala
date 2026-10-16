@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:inspector="using:Avala.Workbench.Inspector"
+             x:Class="Avala.Workbench.UI.ChecksRunningView"
+             x:ClassModifier="internal"
+             x:DataType="inspector:IChecksRunningViewModel"
+             IsVisible="{Binding IsShown}">
+  <Design.DataContext>
+    <inspector:DesignChecksRunningViewModel />
+  </Design.DataContext>
+  <Border x:Name="Chip" Classes="tag" VerticalAlignment="Center" AutomationProperties.Name="{Binding Text}">
+    <ToolTip.Tip>
+      <ItemsControl x:Name="Lines" ItemsSource="{Binding Lines}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Text="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ToolTip.Tip>
+    <StackPanel Orientation="Horizontal" Spacing="6">
+      <Ellipse Width="6" Height="6" Fill="{DynamicResource AttentionBrush}" VerticalAlignment="Center" />
+      <TextBlock x:Name="Text" Text="{Binding Text}" />
+    </StackPanel>
+  </Border>
+</UserControl>

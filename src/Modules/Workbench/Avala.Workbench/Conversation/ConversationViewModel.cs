@@ -130,6 +130,11 @@ internal sealed partial class ConversationViewModel : IConversationViewModel
         }
 
         Checkpoints(job);
+
+        foreach (var ci in Entries.OfType<CiViewModel>())
+        {
+            ci.Mark(composer.AcceptsMessages, composer.ResendCommand);
+        }
     }
 
     private void Checkpoints(BoardJob job)

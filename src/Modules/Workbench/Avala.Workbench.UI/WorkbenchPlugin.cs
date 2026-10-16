@@ -197,6 +197,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<ArchivedNoteViewModel>(WorkbenchRegions.JobHeader, 3)
             .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
             .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5)
+            .AddToRegion<ChecksRunningViewModel>(WorkbenchRegions.JobHeader, 6)
             .AddToRegion<DelegationPaneViewModel>(WorkbenchRegions.Preview, 10);
 
     private static void RegisterProjects(IServiceCollection services) =>
@@ -267,6 +268,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IInterjectionViewModel, InterjectionView>();
         views.Register<IChildAskingViewModel, ChildAskingView>();
         views.Register<IRestartViewModel, RestartView>();
+        views.Register<ICiViewModel, CiView>();
         views.Register<IMessageViewModel, MessageView>();
         views.Register<IWorkingViewModel, WorkingView>();
         views.Register<IReasoningViewModel, ReasoningView>();
@@ -474,6 +476,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<ResourceIndicatorViewModel>()
             .AddSingleton<UsageLeftViewModel>()
             .AddSingleton<ContextLeftViewModel>()
+            .AddSingleton<ChecksRunningViewModel>()
             .AddTransient<ModelPickerViewModel>()
             .AddSingleton<NewJobReadings>()
             .AddSingleton<NewJobViewModel>()
@@ -520,6 +523,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IConnectionMeterViewModel, ConnectionMeterView>();
         views.Register<IUsageLeftViewModel, UsageLeftView>();
         views.Register<IContextLeftViewModel, ContextLeftView>();
+        views.Register<IChecksRunningViewModel, ChecksRunningView>();
         views.Register<IArchivedViewModel, ArchivedView>();
         views.Register<IArchivedRowViewModel, ArchivedRowView>();
         views.Register<IArchivedEntryViewModel, ArchivedEntryView>();

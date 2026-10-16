@@ -3,6 +3,7 @@ using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Canvas.Contracts;
 using Avala.Delegation.Contracts;
+using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Permissions.Contracts;
@@ -23,6 +24,13 @@ internal sealed record PromptEntry(string Key, int Attempt, AttemptOrigin Origin
 }
 
 internal sealed record RestartEntry(string Key, bool Kept) : ITimelineEntry;
+
+internal sealed record CiEntry(string Key, int PullRequest, string Head, IReadOnlyList<CheckRun> Checks) : ITimelineEntry
+{
+    public bool Woken { get; init; }
+
+    public bool Failed => Checks.Any(check => check.Status == CheckStatus.Failed);
+}
 
 internal sealed record InterjectionEntry(string Key, string Text) : ITimelineEntry
 {

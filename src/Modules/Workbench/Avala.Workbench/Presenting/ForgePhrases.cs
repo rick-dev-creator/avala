@@ -95,6 +95,11 @@ internal static class ForgePhrases
                 CultureInfo.InvariantCulture,
                 $"{state.Checks.Count(check => check.Status == CheckStatus.Passed)} passed · {state.Checks.Count(check => check.Status == CheckStatus.Failed)} failed · {state.Checks.Count(check => check.Status == CheckStatus.Pending)} pending");
 
+    public static string Running(PullRequestState state) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"Checks running · {state.Checks.Count(check => check.Status != CheckStatus.Pending)} of {state.Checks.Count}");
+
     public static string Check(CheckRun check) =>
         $"{check.Status switch { CheckStatus.Passed => "passed", CheckStatus.Failed => "failed", CheckStatus.Pending => "pending", _ => "skipped" }} · {check.Name}{(check.Summary.Length > 0 ? $": {check.Summary}" : string.Empty)}";
 

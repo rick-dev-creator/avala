@@ -24,6 +24,7 @@ internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, 
         TurnEndEntry ended => new TurnEndViewModel(ended),
         ChildAskingEntry asked => new ChildAskingViewModel(asked),
         RestartEntry restart => new RestartViewModel(restart),
+        CiEntry ci => new CiViewModel(ci, files.Links),
         _ => new RestartViewModel(new RestartEntry(entry.Key, Kept: false)),
     };
 

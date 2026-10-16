@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.CiView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:ICiViewModel"
+             theme:Motion.Enter="Arrive"
+             Margin="0,10">
+  <Design.DataContext>
+    <conversation:DesignCiViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceFloatBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource FailureBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}" />
+      <Setter Property="Padding" Value="{DynamicResource PaddingCard}" />
+    </Style>
+  </UserControl.Styles>
+  <Panel>
+    <TextBlock x:Name="Passed"
+               Classes="hint"
+               HorizontalAlignment="Center"
+               Text="{Binding Headline}"
+               IsVisible="{Binding !IsFailed}" />
+    <Border x:Name="Card" IsVisible="{Binding IsFailed}">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+          <Ellipse Width="6" Height="6" Fill="{DynamicResource FailureBrush}" VerticalAlignment="Center" />
+          <TextBlock x:Name="Headline" Grid.Column="1" Classes="caption" TextWrapping="Wrap" Text="{Binding Headline}" />
+        </Grid>
+        <ItemsControl x:Name="Failing" ItemsSource="{Binding Failing}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="conversation:ICiCheck">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,2">
+                <StackPanel Spacing="2">
+                  <TextBlock Classes="body" TextWrapping="Wrap" Text="{Binding Name}" />
+                  <SelectableTextBlock Classes="hint" TextWrapping="Wrap" Text="{Binding Summary}" IsVisible="{Binding Summary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Classes="link"
+                        Content="Log"
+                        VerticalAlignment="Top"
+                        Command="{Binding OpenLogCommand}"
+                        IsVisible="{Binding HasLog}"
+                        AutomationProperties.Name="Open the check's log" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock x:Name="Note" Classes="caption" TextWrapping="Wrap" Text="{Binding Note}" IsVisible="{Binding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <Button x:Name="Ask"
+                Classes="accent"
+                HorizontalAlignment="Left"
+                Content="Ask the agent to fix it"
+                Command="{Binding AskCommand}"
+                CommandParameter="{Binding Request}"
+                IsVisible="{Binding CanAsk}" />
+      </StackPanel>
+    </Border>
+  </Panel>
+</UserControl>

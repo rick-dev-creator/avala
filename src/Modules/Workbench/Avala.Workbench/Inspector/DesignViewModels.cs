@@ -163,3 +163,12 @@ internal sealed class DesignContestSectionViewModel : IContestSectionViewModel
         "3. Candidate 1 · 0 exceptions · 1 attempt · 1 line changed · 0.015 USD · not verified",
     ];
 }
+
+internal sealed class DesignChecksRunningViewModel : IChecksRunningViewModel
+{
+    public bool IsShown { get; init; } = true;
+
+    public string Text { get; init; } = "Checks running · 2 of 3";
+
+    public IReadOnlyList<string> Lines { get; init; } = ["passed · build (ubuntu-latest)", "passed · build (macos-latest)", "pending · build (windows-latest)"];
+}

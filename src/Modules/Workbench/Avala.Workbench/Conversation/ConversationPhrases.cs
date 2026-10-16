@@ -157,6 +157,29 @@ internal static class ConversationPhrases
         return string.Join("\n", lines);
     }
 
+    public const string WokenForChecks = "Avala woke the agent to fix them";
+
+    public static string Ci(CiEntry ci)
+    {
+        var failing = ci.Checks.Where(check => check.Status == CheckStatus.Failed).ToList();
+
+        return failing.Count switch
+        {
+            0 => string.Create(CultureInfo.InvariantCulture, $"{(ci.Checks.Count == 1 ? "The check" : $"All {ci.Checks.Count} checks")} of pull request #{ci.PullRequest} passed"),
+            1 => $"CI failed: {failing[0].Name}",
+            _ => string.Create(CultureInfo.InvariantCulture, $"CI failed: {failing.Count} checks"),
+        };
+    }
+
+    public static string FixChecks(CiEntry ci)
+    {
+        var lines = ci.Checks
+            .Where(check => check.Status == CheckStatus.Failed)
+            .Select(check => $"- {check.Name}{(check.Summary.Length > 0 ? $": {check.Summary}" : string.Empty)}{check.Link.Match(link => $" ({link})", () => string.Empty)}");
+
+        return string.Create(CultureInfo.InvariantCulture, $"The checks of pull request #{ci.PullRequest} failed on {ci.Head[..Math.Min(7, ci.Head.Length)]}:\n{string.Join("\n", lines)}\nFix what makes them fail.");
+    }
+
     public static string Turn(TurnOutcome outcome, TimeSpan duration) => outcome switch
     {
         TurnOutcome.Finished => string.Create(CultureInfo.InvariantCulture, $"Worked for {Duration(duration)}"),

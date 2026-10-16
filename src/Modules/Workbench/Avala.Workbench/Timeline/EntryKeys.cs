@@ -23,5 +23,7 @@ internal static class EntryKeys
 
     public static string TurnEnd(TurnId turn) => $"turn:{turn.Value}";
 
+    public static string Ci(int pullRequest, string head) => string.Create(CultureInfo.InvariantCulture, $"ci:{pullRequest}:{head}");
+
     public static string ChildAsking(SessionId session, ItemId item) => $"child-asking:{session.Value}:{item.Value}";
 }
