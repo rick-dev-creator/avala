@@ -112,6 +112,31 @@ internal static class ConversationPhrases
         _ => "interrupted",
     };
 
+    public static bool Reported(TokenUsage tokens) => tokens != default;
+
+    public static string Breakdown(TokenUsage tokens, Option<string> model, IReadOnlyList<Cost> costs)
+    {
+        if (!Reported(tokens) && costs.Count == 0)
+        {
+            return "The harness reported no usage for this turn.";
+        }
+
+        var lines = new[]
+        {
+            ("Input", tokens.Input),
+            ("Output", tokens.Output),
+            ("Cache read", tokens.CacheRead),
+            ("Cache write", tokens.CacheWrite),
+            ("Reasoning", tokens.Reasoning),
+        }
+            .Where(line => line.Item2 > 0)
+            .Select(line => string.Create(CultureInfo.InvariantCulture, $"{line.Item1}: {line.Item2:N0} tokens"))
+            .Concat(model.Match<string[]>(name => [$"Model: {name}"], () => []))
+            .Concat(costs.Count > 0 ? [$"Cost of the whole turn: {Presenting.Amounts.Costs(costs)}"] : []);
+
+        return string.Join("\n", lines);
+    }
+
     public static string Turn(TurnOutcome outcome, TimeSpan duration) => outcome switch
     {
         TurnOutcome.Finished => string.Create(CultureInfo.InvariantCulture, $"Worked for {Duration(duration)}"),

@@ -252,7 +252,10 @@ internal sealed record Transcript
             _ => transcript,
         });
 
-        return (closed with { LiveSince = Option<DateTimeOffset>.None, QuietSince = now }).Add(new TurnEndEntry(EntryKeys.TurnEnd(completed.Turn), completed.Outcome, now - tally.Started, tally.Tokens, tally.Costs));
+        return (closed with { LiveSince = Option<DateTimeOffset>.None, QuietSince = now }).Add(new TurnEndEntry(EntryKeys.TurnEnd(completed.Turn), completed.Outcome, now - tally.Started, tally.Tokens, tally.Costs)
+        {
+            Model = Ran.Map(reported => reported.Model),
+        });
     }
 
     private Transcript Tally(TurnId turn, Func<TurnTally, TurnTally> change) =>
