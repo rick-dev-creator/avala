@@ -127,6 +127,8 @@ public sealed class WorkbenchPluginTests : IDisposable
             .AddSingleton<IBudgets>(audit)
             .AddSingleton<IResources>(sources)
             .AddSingleton<IDelegations>(sources)
+            .AddSingleton<Documentation.Contracts.IDocumentation>(new FakeDocumentation())
+            .AddSingleton<IRoleSettings>(new FakeRoles())
             .AddSingleton<IConnections>(new FakeConnections("claude-work"))
             .AddSingleton<IConnectionPreview>(new FakePreview())
             .AddSingleton<ISupervision>(new FakeSupervision())

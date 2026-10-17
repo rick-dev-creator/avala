@@ -169,6 +169,8 @@ internal sealed partial class DesignConnectionEditorViewModel : IConnectionEdito
 [INotifyPropertyChanged]
 internal sealed partial class DesignRepositorySettingsViewModel : IRepositorySettingsViewModel
 {
+    public IDocsSettingViewModel Docs { get; } = new DesignDocsSettingViewModel();
+
     public IReadOnlyList<string> Repositories { get; } = ["~/code/ledger-api", "~/code/web-console", "~/code/billing-worker", "~/code/mobile-sync"];
 
     public IRepositoryFieldViewModel RepositoryField { get; } = new DesignRepositoryFieldViewModel
@@ -410,4 +412,21 @@ internal sealed class DesignAppearanceViewModel : IAppearanceViewModel
     public IAsyncRelayCommand ToggleSendKeyCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
 
     public Task LoadAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+internal sealed class DesignDocsSettingViewModel : IDocsSettingViewModel
+{
+    public bool IsShown => true;
+
+    public bool IsOn { get; init; } = true;
+
+    public string Folder => "docs/features";
+
+    public string Writer => "research · haiku · low";
+
+    public string Note => DocsPhrases.Committed;
+
+    public string Error => string.Empty;
+
+    public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand SwitchCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
 }

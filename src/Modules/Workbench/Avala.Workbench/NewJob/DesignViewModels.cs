@@ -57,6 +57,8 @@ internal sealed partial class DesignNewJobViewModel : INewJobViewModel
 
     public IJobOptionsViewModel JobOptions { get; } = new DesignJobOptionsViewModel();
 
+    public IFeatureChipViewModel Feature { get; } = new DesignFeatureChipViewModel();
+
     public string Error => string.Empty;
 
     public string Submitted => "Submitted: Fix JPY rounding in invoice totals";
@@ -91,4 +93,34 @@ internal sealed partial class DesignJobOptionsViewModel : IJobOptionsViewModel
     public IRelayCommand MoreCommand { get; } = new RelayCommand(() => { });
 
     public IRelayCommand FewerCommand { get; } = new RelayCommand(() => { });
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DesignFeatureChipViewModel : IFeatureChipViewModel
+{
+    public bool IsShown => true;
+
+    public string Name => "Invoice PDF endpoint";
+
+    public string Fact => FeaturePhrases.New;
+
+    [ObservableProperty]
+    public partial bool IsOpen { get; set; }
+
+    public IReadOnlyList<IFeatureOptionViewModel> Options { get; } =
+    [
+        new DesignFeatureOptionViewModel("Invoice PDF endpoint", FeaturePhrases.Suggested, IsNew: true, IsNone: false, IsChosen: true),
+        new DesignFeatureOptionViewModel("Invoices", FeaturePhrases.Versions(3), IsNew: false, IsNone: false, IsChosen: false),
+        new DesignFeatureOptionViewModel(FeaturePhrases.DontDocument, string.Empty, IsNew: false, IsNone: true, IsChosen: false),
+    ];
+}
+
+internal sealed record DesignFeatureOptionViewModel(string Title, string Fact, bool IsNew, bool IsNone, bool IsChosen) : IFeatureOptionViewModel
+{
+    public DesignFeatureOptionViewModel()
+        : this("Invoices", FeaturePhrases.Versions(3), false, false, true)
+    {
+    }
+
+    public IRelayCommand ChooseCommand { get; } = new RelayCommand(() => { });
 }

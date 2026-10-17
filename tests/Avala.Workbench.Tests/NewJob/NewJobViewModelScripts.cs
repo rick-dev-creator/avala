@@ -21,6 +21,8 @@ public sealed class NewJobViewModelScripts
     private readonly IMessenger messenger = new StrongReferenceMessenger();
     private readonly FakeUsage usage = new();
     private readonly FakeContests contests = new();
+
+    private readonly FakeDocumentation documentation = new();
     private readonly FakeScratch scratch = new();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -197,6 +199,24 @@ public sealed class NewJobViewModelScripts
             ("/repositories/shop", "Add an endpoint", Option<ConnectionName>.Some(new ConnectionName("personal")), Option<Autonomy>.Some(Autonomy.Supervised)),
             (request.RepositoryPath, request.Instruction, request.Connection, request.Autonomy));
         Assert.Equal((string.Empty, "Submitted: Add an endpoint", string.Empty, true), (page.Instruction, page.Submitted, page.Error, page.LastSubmitted.IsSome));
+    }
+
+    [Fact]
+    public async Task InARepositoryWithDocsOnTheFeatureChipFollowsTheInstructionAndTheSubmittedJobKeepsItAsync()
+    {
+        documentation.Docs = new Documentation.Contracts.RepositoryDocs(true, "docs/features", []);
+        var page = Page();
+        await page.LoadAsync(Cancellation);
+        await page.FeaturesRead;
+        page.Repository = "/repositories/shop";
+        page.Instruction = "Add an endpoint";
+        var following = (page.Feature.IsShown, page.Feature.Name);
+
+        await page.SubmitCommand.ExecuteAsync(null);
+
+        Assert.Equal((true, "Add an endpoint"), following);
+        Assert.Equal(Option<JobId>.Some(Assert.Single(documentation.Chosen).Job), page.LastSubmitted);
+        Assert.Equal("Add an endpoint", Assert.Single(documentation.Chosen).Choice.Feature.Match(feature => feature.Title, () => string.Empty));
     }
 
     [Fact]
@@ -558,5 +578,5 @@ public sealed class NewJobViewModelScripts
     private NewJobViewModel Page(params JobSummary[] known) => Page(connections, known);
 
     private NewJobViewModel Page(FakeConnections machine, params JobSummary[] known) =>
-        new(Launching.Launch(jobs, machine, preview, policies, contests, scratch), new NewJobReadings(Pages.Readings(usage)), messenger, new NewJobFields(Choosing.Picker(Pages.Board(known)), Launching.Options(contests)));
+        new(Launching.Launch(jobs, machine, preview, policies, contests, scratch), new NewJobReadings(Pages.Readings(usage)), messenger, new NewJobFields(Choosing.Picker(Pages.Board(known)), Launching.Options(contests), Launching.Feature(documentation)));
 }

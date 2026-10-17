@@ -1,5 +1,7 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Avala.Documentation.Contracts;
 using Avala.Documentation.Writing;
 using Avala.Sdk;
@@ -7,7 +9,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Documentation.RepositoryFiles;
 
-internal sealed class DocsRulesReader(IBaseFiles files) : IDocsRules
+internal sealed class DocsRulesReader(IBaseFiles files, IWorkingFiles working) : IDocsRules
 {
     public const string JobFile = ".avala/jobs.json";
 
@@ -19,6 +21,8 @@ internal sealed class DocsRulesReader(IBaseFiles files) : IDocsRules
 
     private static readonly HashSet<string> Fields = ["enabled", "folder"];
 
+    private static readonly JsonSerializerOptions Written = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
     public async Task<Result<DocsRules, DocumentationError>> OfWorktreeAsync(string worktree, CancellationToken cancellationToken) =>
         (await files.ReadAsync(worktree, JobFile, cancellationToken)).Match(
             file => file.Content.Match(Parse, () => DocsRules.Off),
@@ -28,6 +32,41 @@ internal sealed class DocsRulesReader(IBaseFiles files) : IDocsRules
         (await files.ReadCurrentAsync(repository, JobFile, cancellationToken)).Match(
             file => file.Content.Match(Parse, () => DocsRules.Off),
             _ => DocumentationError.Unreadable);
+
+    public async Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken)
+    {
+        if (!(await working.ReadAsync(repository, JobFile, cancellationToken)).TryGetValue(out var current, out _))
+        {
+            return DocumentationError.Unreadable;
+        }
+
+        var switched = current.Match(text => Parse(text).Map(_ => text), () => Result<string, DocumentationError>.Success("{}")).Bind(text => Switched(text, enabled));
+
+        if (!switched.TryGetValue(out var written, out var error))
+        {
+            return error;
+        }
+
+        return (await working.WriteAsync(repository, JobFile, written, cancellationToken)).Match(_ => Parse(written), _ => DocumentationError.Unwritable);
+    }
+
+    public static Result<string, DocumentationError> Switched(string text, bool enabled)
+    {
+        if (JsonNode.Parse(text) is not JsonObject root)
+        {
+            return DocumentationError.Malformed;
+        }
+
+        if (root[Section] is not JsonObject section)
+        {
+            section = [];
+            root[Section] = section;
+        }
+
+        section["enabled"] = enabled;
+
+        return root.ToJsonString(Written) + "\n";
+    }
 
     public static Result<DocsRules, DocumentationError> Parse(string text) =>
         Encoding.UTF8.GetByteCount(text) > MaximumBytes ? DocumentationError.TooLarge

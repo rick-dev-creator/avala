@@ -204,6 +204,8 @@ internal sealed class Documented
         public Task<Result<DocsRules, DocumentationError>> OfWorktreeAsync(string worktree, CancellationToken cancellationToken) => Task.FromResult(Result<DocsRules, DocumentationError>.Success(rules));
 
         public Task<Result<DocsRules, DocumentationError>> OfRepositoryAsync(string repository, CancellationToken cancellationToken) => Task.FromResult(Result<DocsRules, DocumentationError>.Success(rules));
+
+        public Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     internal sealed class FixedRoles : IRoleSettings

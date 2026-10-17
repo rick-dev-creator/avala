@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\Resources\Avala.Resources.Contracts\Avala.Resources.Contracts.csproj" />
     <ProjectReference Include="..\..\Supervision\Avala.Supervision.Contracts\Avala.Supervision.Contracts.csproj" />
     <ProjectReference Include="..\..\Delegation\Avala.Delegation.Contracts\Avala.Delegation.Contracts.csproj" />
+    <ProjectReference Include="..\..\Documentation\Avala.Documentation.Contracts\Avala.Documentation.Contracts.csproj" />
     <ProjectReference Include="..\..\Transcripts\Avala.Transcripts.Contracts\Avala.Transcripts.Contracts.csproj" />
     <ProjectReference Include="..\..\Handoffs\Avala.Handoffs.Contracts\Avala.Handoffs.Contracts.csproj" />
     <ProjectReference Include="..\..\Triggers\Avala.Triggers.Contracts\Avala.Triggers.Contracts.csproj" />

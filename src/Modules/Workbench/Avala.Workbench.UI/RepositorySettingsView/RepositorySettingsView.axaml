@@ -144,6 +144,8 @@
         </Border>
       </StackPanel>
 
+      <ContentControl x:Name="Docs" Content="{Binding Docs}" />
+
       <StackPanel x:Name="JobsFile" Spacing="8" IsVisible="{Binding !!JobSections.Count}">
         <TextBlock Classes="section" Text="Jobs · .avala/jobs.json" />
         <Border Classes="grouped" Padding="16,10">

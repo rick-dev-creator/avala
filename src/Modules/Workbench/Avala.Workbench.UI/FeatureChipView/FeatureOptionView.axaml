@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:newJob="using:Avala.Workbench.NewJob"
+             x:Class="Avala.Workbench.UI.FeatureOptionView"
+             x:ClassModifier="internal"
+             x:DataType="newJob:IFeatureOptionViewModel">
+  <Design.DataContext>
+    <newJob:DesignFeatureOptionViewModel />
+  </Design.DataContext>
+  <StackPanel>
+    <Border Classes="separator" Margin="6,4" IsVisible="{Binding IsNone}" />
+    <Button x:Name="Option"
+            Classes="row"
+            Classes.selected="{Binding IsChosen}"
+            Command="{Binding ChooseCommand}"
+            AutomationProperties.Name="{Binding Title}">
+      <DockPanel>
+        <Path x:Name="OptionCheck"
+              DockPanel.Dock="Right"
+              Classes="icon small"
+              Margin="10,0,0,0"
+              Data="{StaticResource IconCheck}"
+              Stroke="{DynamicResource AccentBrush}"
+              VerticalAlignment="Center"
+              IsVisible="{Binding IsChosen}" />
+        <Panel DockPanel.Dock="Left" Width="16" Margin="0,0,10,0" VerticalAlignment="Center">
+          <Path Classes="icon small" Data="{StaticResource IconPlus}" Stroke="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding IsNew}" />
+          <Path Classes="icon small" Data="{StaticResource IconNone}" Stroke="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding IsNone}" />
+          <Path Classes="icon small" Data="{StaticResource IconDocument}" Stroke="{DynamicResource TextSecondaryBrush}">
+            <Path.IsVisible>
+              <MultiBinding Converter="{x:Static BoolConverters.And}">
+                <Binding Path="!IsNew" />
+                <Binding Path="!IsNone" />
+              </MultiBinding>
+            </Path.IsVisible>
+          </Path>
+        </Panel>
+        <StackPanel VerticalAlignment="Center" Spacing="1">
+          <TextBlock x:Name="OptionTitle" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="OptionFact"
+                     Classes="caption"
+                     Text="{Binding Fact}"
+                     TextTrimming="CharacterEllipsis"
+                     IsVisible="{Binding Fact, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+      </DockPanel>
+    </Button>
+  </StackPanel>
+</UserControl>

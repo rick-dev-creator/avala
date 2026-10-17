@@ -18,6 +18,7 @@ public enum DocumentationError
     Malformed,
     UnknownField,
     InvalidFolder,
+    Unwritable,
 }
 
 public sealed record Feature(string Slug, string Title);
@@ -26,7 +27,10 @@ public sealed record FeatureSuggestion(Feature Feature, bool IsNew);
 
 public sealed record RepositoryFeature(Feature Feature, int Versions);
 
-public sealed record FeatureOffer(bool Enabled, FeatureSuggestion Suggestion, IReadOnlyList<RepositoryFeature> Features);
+public sealed record RepositoryDocs(bool Enabled, string Folder, IReadOnlyList<RepositoryFeature> Features)
+{
+    public static RepositoryDocs Off { get; } = new(false, DocsRules.DefaultFolder, []);
+}
 
 public sealed record FeatureChoice(Option<Feature> Feature)
 {
@@ -64,7 +68,11 @@ public sealed record JobDocumentation(JobId Job, Feature Feature)
 
 public interface IDocumentation
 {
-    Task<FeatureOffer> OfferAsync(string repository, string instruction, CancellationToken cancellationToken);
+    Task<RepositoryDocs> OfRepositoryAsync(string repository, CancellationToken cancellationToken);
+
+    FeatureSuggestion Suggest(string instruction, IReadOnlyList<Feature> features);
+
+    Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken);
 
     Task ChooseAsync(JobId job, FeatureChoice choice, CancellationToken cancellationToken);
 

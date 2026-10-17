@@ -71,7 +71,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
             new RulesReader(rules, rules, rules, new CommittedFiles().Workspace(Repository)),
             new SettingsFiles(opener, new AvalaPaths("/data")),
             Choosing.Field(),
-            new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])));
+            new RepositorySettingsParts(new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])), new DocsSettingViewModel(new FakeDocumentation(), new FakeRoles())));
     }
 
     private static ViewScript Wide(object viewModel)
