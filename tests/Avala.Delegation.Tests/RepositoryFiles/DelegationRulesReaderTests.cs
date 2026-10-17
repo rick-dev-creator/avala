@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Policy;
 using Avala.Delegation.RepositoryFiles;
@@ -39,5 +40,20 @@ public sealed class DelegationRulesReaderTests
 
         Assert.Equal(DelegationError.Unreadable, Outcomes.FailsWith(await failing.OfWorktreeAsync(Worktree, Cancellation)));
         Assert.Equal(DelegationError.TooLarge, Outcomes.FailsWith(await large.OfWorktreeAsync(Worktree, Cancellation)));
+    }
+
+    [Fact]
+    public async Task ARolesModelEffortAndWindowAreOfferedFromTheRulesCommitAndUndeclaredOrUnreadableRulesOfferTheDefaultAsync()
+    {
+        var declared = new DelegationRulesReader(
+            new CommittedFiles().With(Worktree, DelegationRulesReader.JobFile, """{ "delegation": { "roles": { "research": { "model": "small", "effort": "low", "compactAt": 90000 } } } }"""),
+            new FixedMachine());
+        var undeclared = new DelegationRulesReader(new CommittedFiles().Workspace(Worktree), new FixedMachine());
+        var unreadable = new DelegationRulesReader(new CommittedFiles().Failing(Worktree, WorkspaceFailure.GitFailed), new FixedMachine());
+
+        Assert.Equal(new ModelChoice(Option<string>.Some("small"), Option<string>.Some("low")) { CompactAt = 90_000L }, await declared.OfRoleAsync(Worktree, ChildRole.Research, Cancellation));
+        Assert.Equal(ModelChoice.Default, await declared.OfRoleAsync(Worktree, ChildRole.Worker, Cancellation));
+        Assert.Equal(ModelChoice.Default, await undeclared.OfRoleAsync(Worktree, ChildRole.Research, Cancellation));
+        Assert.Equal(ModelChoice.Default, await unreadable.OfRoleAsync(Worktree, ChildRole.Research, Cancellation));
     }
 }
