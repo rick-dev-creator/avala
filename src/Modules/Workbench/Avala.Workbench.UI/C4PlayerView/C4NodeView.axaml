@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:docs="using:Avala.Workbench.Docs"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             x:Class="Avala.Workbench.UI.C4NodeView"
+             x:ClassModifier="internal"
+             x:DataType="docs:IC4NodeViewModel"
+             graphs:Graph.Key="{Binding Key}"
+             graphs:Graph.Frame="{Binding Frame}">
+  <Design.DataContext>
+    <docs:DesignC4NodeViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Border#Node">
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.4" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.3" />
+          <BrushTransition Property="Background" Duration="0:0:0.3" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border#Node.hidden">
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Border#Node.person">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+    </Style>
+    <Style Selector="Border#Node.external">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Border#Node.fresh">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Border#Node.changed">
+      <Setter Property="BorderBrush" Value="{DynamicResource AttentionBorderBrush}" />
+    </Style>
+    <Style Selector="Border#Node.removed">
+      <Setter Property="Opacity" Value="0.35" />
+      <Setter Property="BorderBrush" Value="{DynamicResource FailureBorderBrush}" />
+    </Style>
+    <Style Selector="Border#Node.focus">
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="Border#Node.reached">
+      <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Node"
+          Classes="node"
+          Classes.hidden="{Binding IsHidden}"
+          Classes.person="{Binding IsPerson}"
+          Classes.external="{Binding IsExternal}"
+          Classes.fresh="{Binding IsNew}"
+          Classes.changed="{Binding IsChanged}"
+          Classes.removed="{Binding IsRemoved}"
+          Classes.focus="{Binding IsFocus}"
+          Classes.reached="{Binding IsReached}"
+          MinWidth="170"
+          Padding="16,11">
+    <StackPanel Spacing="2">
+      <TextBlock x:Name="NodeLabel" Classes="strong" Text="{Binding Label}" />
+      <TextBlock x:Name="NodeKind" Classes="caption" Text="{Binding Kind}" />
+      <TextBlock x:Name="NodeTechnology"
+                 Classes="caption mono"
+                 Text="{Binding Technology}"
+                 IsVisible="{Binding Technology, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -37,6 +37,7 @@ using Avala.Workbench.ModelChoices;
 using Avala.Workbench.Conversation;
 using Avala.Workbench.Mentioning;
 using Avala.Workbench.Decisions;
+using Avala.Workbench.Docs;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using Avala.Workbench.Harnesses;
@@ -514,6 +515,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IFeatureChipViewModel, FeatureChipView>();
         views.Register<IFeatureOptionViewModel, FeatureOptionView>();
         views.Register<IDocsSettingViewModel, DocsSettingView>();
+        views.Register<IC4PlayerViewModel, C4PlayerView>();
+        views.Register<IC4NodeViewModel, C4NodeView>();
+        views.Register<IDocSectionViewModel, DocSectionView>();
     }
 
     private static void RegisterGlobalViews(IViewRegistrar views)

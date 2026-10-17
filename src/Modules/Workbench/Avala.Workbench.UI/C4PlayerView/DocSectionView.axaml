@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:docs="using:Avala.Workbench.Docs"
+             x:Class="Avala.Workbench.UI.DocSectionView"
+             x:ClassModifier="internal"
+             x:DataType="docs:IDocSectionViewModel">
+  <Design.DataContext>
+    <docs:DesignDocSectionViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#Section">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusRow}" />
+      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="Margin" Value="-12,0" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="Button#Section.active">
+      <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+    </Style>
+    <Style Selector="Ellipse.mark">
+      <Setter Property="Width" Value="7" />
+      <Setter Property="Height" Value="7" />
+      <Setter Property="Fill" Value="{DynamicResource TextTertiaryBrush}" />
+    </Style>
+    <Style Selector="Ellipse.mark.fresh">
+      <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Ellipse.mark.changed">
+      <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
+    </Style>
+    <Style Selector="Ellipse.mark.removed">
+      <Setter Property="Fill" Value="{DynamicResource FailureBrush}" />
+    </Style>
+    <Style Selector="Ellipse.mark.flow">
+      <Setter Property="Fill" Value="Transparent" />
+      <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="StrokeThickness" Value="1.5" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Section"
+          Classes.active="{Binding IsActive}"
+          Command="{Binding ChooseCommand}"
+          AutomationProperties.Name="{Binding Title}">
+    <StackPanel Spacing="4">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" IsVisible="{Binding Mark, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <Ellipse Classes="mark" Classes.fresh="{Binding IsNew}" Classes.changed="{Binding IsChanged}" Classes.removed="{Binding IsRemoved}" Classes.flow="{Binding IsFlow}" VerticalAlignment="Center" />
+          <TextBlock x:Name="SectionMark" Classes="caption" Text="{Binding Mark}" />
+        </StackPanel>
+        <TextBlock x:Name="SectionTitle" Classes="strong" Text="{Binding Title}" TextWrapping="Wrap" />
+      </DockPanel>
+      <TextBlock x:Name="SectionText" Classes="body secondary" Text="{Binding Text}" TextWrapping="Wrap" />
+    </StackPanel>
+  </Button>
+</UserControl>

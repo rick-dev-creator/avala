@@ -63,14 +63,14 @@
     </ResourceDictionary>
   </Styles.Resources>
 
-  <Style Selector="graphs|HubGraphPanel, graphs|TreeGraphPanel">
+  <Style Selector="graphs|HubGraphPanel, graphs|TreeGraphPanel, graphs|C4GraphPanel">
     <Setter Property="graphs:EdgeBrushes.Flowing" Value="{DynamicResource EdgeFlowingBrush}" />
     <Setter Property="graphs:EdgeBrushes.Attention" Value="{DynamicResource EdgeAttentionBrush}" />
     <Setter Property="graphs:EdgeBrushes.Waiting" Value="{DynamicResource EdgeWaitingBrush}" />
     <Setter Property="graphs:EdgeBrushes.Quiet" Value="{DynamicResource EdgeQuietBrush}" />
   </Style>
 
-  <Style Selector="graphs|HubGraphPanel[(theme|Motion.IsReduced)=False], graphs|TreeGraphPanel[(theme|Motion.IsReduced)=False]">
+  <Style Selector="graphs|HubGraphPanel[(theme|Motion.IsReduced)=False], graphs|TreeGraphPanel[(theme|Motion.IsReduced)=False], graphs|C4GraphPanel[(theme|Motion.IsReduced)=False]">
     <Style.Animations>
       <Animation Duration="0:0:1.4" IterationCount="INFINITE">
         <KeyFrame Cue="0%">
@@ -81,6 +81,13 @@
         </KeyFrame>
       </Animation>
     </Style.Animations>
+  </Style>
+
+  <Style Selector="graphs|C4GraphPanel">
+    <Setter Property="LabelBrush" Value="{DynamicResource TextTertiaryBrush}" />
+    <Setter Property="BadgeBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BadgeTextBrush" Value="{DynamicResource OnAccentBrush}" />
+    <Setter Property="graphs:EdgeBrushes.Flowing" Value="{DynamicResource AccentBrush}" />
   </Style>
 
   <Style Selector="Border.grouped">

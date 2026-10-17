@@ -21,11 +21,19 @@ public sealed class Graph
     public static readonly AttachedProperty<double> WeightProperty =
         AvaloniaProperty.RegisterAttached<Graph, Control, double>("Weight");
 
+    public static readonly AttachedProperty<string> KeyProperty =
+        AvaloniaProperty.RegisterAttached<Graph, Control, string>("Key", string.Empty);
+
+    public static readonly AttachedProperty<string> FrameProperty =
+        AvaloniaProperty.RegisterAttached<Graph, Control, string>("Frame", string.Empty);
+
     static Graph()
     {
         EdgeProperty.Changed.AddClassHandler<Control>((control, _) => Invalidate(control, false));
         DepthProperty.Changed.AddClassHandler<Control>((control, _) => Invalidate(control, true));
         WeightProperty.Changed.AddClassHandler<Control>((control, _) => Invalidate(control, true));
+        KeyProperty.Changed.AddClassHandler<Control>((control, _) => Invalidate(control, true));
+        FrameProperty.Changed.AddClassHandler<Control>((control, _) => Invalidate(control, true));
     }
 
     private Graph()
@@ -53,6 +61,14 @@ public sealed class Graph
 
     public static void SetDepth(Control control, int value) => control.SetValue(DepthProperty, value);
 
+    public static string GetKey(Control control) => control.GetValue(KeyProperty);
+
+    public static void SetKey(Control control, string value) => control.SetValue(KeyProperty, value);
+
+    public static string GetFrame(Control control) => control.GetValue(FrameProperty);
+
+    public static void SetFrame(Control control, string value) => control.SetValue(FrameProperty, value);
+
     public static double GetWeight(Control control) => control.GetValue(WeightProperty);
 
     public static void SetWeight(Control control, double value) => control.SetValue(WeightProperty, value);
@@ -62,7 +78,7 @@ public sealed class Graph
 
     private static void Invalidate(Control control, bool layout)
     {
-        foreach (var panel in control.GetVisualAncestors().OfType<Panel>().Where(panel => panel is HubGraphPanel or TreeGraphPanel or ShareBar))
+        foreach (var panel in control.GetVisualAncestors().OfType<Panel>().Where(panel => panel is HubGraphPanel or TreeGraphPanel or ShareBar or C4GraphPanel))
         {
             if (layout)
             {

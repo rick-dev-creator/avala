@@ -37,6 +37,8 @@
   <StreamGeometry x:Key="IconCommit">M1.5 8H5M11 8H14.5M5 8A3 3 0 1 1 11 8A3 3 0 1 1 5 8Z</StreamGeometry>
   <StreamGeometry x:Key="IconDocument">M9 2.5H4V13.5H12V5.5ZM9 2.5V5.5H12M6 8.5H10M6 10.8H9</StreamGeometry>
   <StreamGeometry x:Key="IconNone">M2.5 8A5.5 5.5 0 1 1 13.5 8A5.5 5.5 0 1 1 2.5 8ZM4.1 4.1L11.9 11.9</StreamGeometry>
+  <StreamGeometry x:Key="IconPause">M5.5 3.5V12.5M10.5 3.5V12.5</StreamGeometry>
+  <StreamGeometry x:Key="IconFlow">M2 6C4 4 6 4 8 6S12 8 14 6M2 10.5C4 8.5 6 8.5 8 10.5S12 12.5 14 10.5</StreamGeometry>
   <StreamGeometry x:Key="IconFolder">M2 4.5A1.5 1.5 0 0 1 3.5 3H6.2L7.7 4.5H12.5A1.5 1.5 0 0 1 14 6V11.5A1.5 1.5 0 0 1 12.5 13H3.5A1.5 1.5 0 0 1 2 11.5Z</StreamGeometry>
   <StreamGeometry x:Key="IconClone">M8 2.5V9.5M5 6.5L8 9.5L11 6.5M2.5 10.5V12.5A1 1 0 0 0 3.5 13.5H12.5A1 1 0 0 0 13.5 12.5V10.5</StreamGeometry>
   <StreamGeometry x:Key="IconRepositoryNew">M3.5 12.5V3.5A1.5 1.5 0 0 1 5 2H12.5V11H5A1.5 1.5 0 0 0 3.5 12.5A1.5 1.5 0 0 0 5 14H12.5V11M8 4.5V8.5M6 6.5H10</StreamGeometry>
