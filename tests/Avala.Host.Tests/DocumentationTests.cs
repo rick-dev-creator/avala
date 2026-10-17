@@ -31,7 +31,7 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
         Assert.Equal(Option<JobId>.Some(writer.Job), versions[0].Version.Writer);
         Assert.Contains("```mermaid\nC4Container", await File.ReadAllTextAsync(Path.Combine(worktree, folder, "v1-proposed.md"), Cancellation));
         Assert.Equal("# Plan v1\n\n1. Read the code\n2. Write the change\n3. Run the tests\n", await File.ReadAllTextAsync(Path.Combine(worktree, folder, "plans", "v1.md"), Cancellation));
-        Assert.Contains("## Evidence {#evidence}", await File.ReadAllTextAsync(Path.Combine(worktree, folder, "v2-as-built.md"), Cancellation));
+        Assert.Contains("## Evidence\n", await File.ReadAllTextAsync(Path.Combine(worktree, folder, "v2-as-built.md"), Cancellation));
         Assert.Contains("| v2 | As built | [v2-as-built.md](v2-as-built.md) |", await File.ReadAllTextAsync(Path.Combine(worktree, folder, "README.md"), Cancellation));
         Assert.Equal(JobStatus.Discarded, writer.Status);
     }

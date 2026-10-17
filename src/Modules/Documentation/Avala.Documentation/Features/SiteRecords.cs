@@ -33,7 +33,7 @@ internal static partial class SiteRecords
         decision.TrimEnd() + string.Create(CultureInfo.InvariantCulture, $"\n\n## Versions it shaped\n\n- [{feature} v{version}]({link})\n");
 
     public static string Explained(string document, DecisionRecord record, string link) =>
-        document.TrimEnd() + $"\n\n## Decisions {{#decisions}}\n\n- [{record.Name}: {record.Title}]({link})\n";
+        document.TrimEnd() + $"\n\n## Decisions\n\n- [{record.Name}: {record.Title}]({link})\n";
 
     public static string WhatsNew(string existing, string entry)
     {

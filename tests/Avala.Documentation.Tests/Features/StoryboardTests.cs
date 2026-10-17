@@ -88,6 +88,16 @@ public sealed class StoryboardTests
     }
 
     [Fact]
+    public void ASectionHeadedWithAnElementsLabelOrAFlowsTitleIsThatElementsOrFlowsStep()
+    {
+        var played = Storyboard.Play(1, VersionKind.Proposed, "v1-proposed.md", VersionReader.Read(Proposed.Replace(" {#payments}", string.Empty, StringComparison.Ordinal).Replace(" {#a-charge}", string.Empty, StringComparison.Ordinal).Replace("## Merchant {#merchant}", "## Ledger DB", StringComparison.Ordinal)), Option<C4Diagram>.None);
+
+        Assert.Equal(
+            [(StepKind.Base, "payments", "Payments"), (StepKind.Base, "ledger-db", "Ledger DB"), (StepKind.Flow, "flow-a-charge", "Flow: a charge"), (StepKind.Base, "merchant", "Merchant")],
+            played.Steps.Select(step => (step.Kind, step.Anchor, step.Title)));
+    }
+
+    [Fact]
     public void ALaterVersionShowsWhatIsNewChangedAndRemovedAgainstTheOneBefore()
     {
         var before = Storyboard.Structure(VersionReader.Read(Proposed));

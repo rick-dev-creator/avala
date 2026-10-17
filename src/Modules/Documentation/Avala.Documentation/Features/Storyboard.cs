@@ -25,7 +25,7 @@ internal static class Storyboard
     public static PlayedVersion Play(int number, VersionKind kind, string file, VersionDocument document, Option<C4Diagram> previous)
     {
         var structure = Structure(document);
-        var sections = document.Sections.ToDictionary(section => section.Anchor, StringComparer.Ordinal);
+        var sections = Sections(document, structure);
         var steps = previous.Match(
             earlier => Changes(Change(earlier, structure), sections),
             () => Elements(structure, sections));
@@ -36,6 +36,21 @@ internal static class Storyboard
         {
             Removed = previous.Match(earlier => Change(earlier, structure).Removed, () => []),
         };
+    }
+
+    private static Dictionary<string, DocSection> Sections(VersionDocument document, C4Diagram structure)
+    {
+        var sections = document.Sections.GroupBy(section => section.Anchor, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+        foreach (var element in structure.Elements.Where(element => !sections.ContainsKey(element.Alias)))
+        {
+            foreach (var named in document.Sections.Where(section => section.Anchor == FeatureNames.Slug(element.Label)).Take(1))
+            {
+                sections[element.Alias] = named;
+            }
+        }
+
+        return sections;
     }
 
     private static IEnumerable<PlayStep> Elements(C4Diagram structure, Dictionary<string, DocSection> sections) =>

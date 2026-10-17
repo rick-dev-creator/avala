@@ -21,7 +21,7 @@ public sealed class SiteRecordsTests
 
         Assert.Equal("../../", SiteRecords.Up("docs/features/refunds", "docs"));
         Assert.Equal("../../", SiteRecords.Up("docs/architecture/decisions", "docs"));
-        Assert.Equal("# v2\n\nBody.\n\n## Decisions {#decisions}\n\n- [ADR-0008: Keys in the ledger](../../architecture/decisions/0008-keys-in-the-ledger.md)\n", SiteRecords.Explained("# v2\n\nBody.\n", record, "../../architecture/decisions/0008-keys-in-the-ledger.md"));
+        Assert.Equal("# v2\n\nBody.\n\n## Decisions\n\n- [ADR-0008: Keys in the ledger](../../architecture/decisions/0008-keys-in-the-ledger.md)\n", SiteRecords.Explained("# v2\n\nBody.\n", record, "../../architecture/decisions/0008-keys-in-the-ledger.md"));
         Assert.Equal("# Keys in the ledger\n\n## Versions it shaped\n\n- [Refund webhooks v2](../../features/refunds/v2-deviation.md)\n", SiteRecords.Shaped("# Keys in the ledger\n", "Refund webhooks", 2, "../../features/refunds/v2-deviation.md"));
     }
 

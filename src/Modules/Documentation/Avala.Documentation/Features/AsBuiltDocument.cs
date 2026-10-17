@@ -19,7 +19,7 @@ internal static class AsBuiltDocument
         document.Append(CultureInfo.InvariantCulture, $"# {feature.Title}\n\n");
         document.Append(CultureInfo.InvariantCulture, $"As built: what attempt {evidence.Attempt} of the job delivered for review, from version {built}. Written by Avala from the job's evidence.\n\n");
         previous.Match(text => document.Append(Body(text)).Append("\n\n"), () => document);
-        document.Append("## Evidence {#evidence}\n\n");
+        document.Append("## Evidence\n\n");
         document.Append(evidence.Checks.Count == 0
             ? "- Checks: none declared\n"
             : "- Checks: " + string.Join(", ", evidence.Checks.Select(check => $"{check.Name} {check.Status.ToLowerInvariant()}")) + "\n");

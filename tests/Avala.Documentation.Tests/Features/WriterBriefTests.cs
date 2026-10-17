@@ -18,7 +18,7 @@ public sealed class WriterBriefTests
         Assert.Contains("Handle Stripe refund webhooks", brief);
         Assert.Contains("1. Add a Webhooks container\n2. Write the refund to the ledger\n", brief);
         Assert.Contains("Mermaid C4", brief);
-        Assert.Contains("{#alias}", brief);
+        Assert.Contains("whose heading is the element's label", brief);
         Assert.DoesNotContain("previous version", brief);
     }
 

@@ -23,11 +23,11 @@ internal static class DocumentationScenarios
           Rel(webhooks, payments, "Verified events")
         ```
 
-        ## Webhooks {#webhooks}
+        ## Webhooks
 
         A new container receives Stripe's events and checks their signature before handing them on.
 
-        ## Payments {#payments}
+        ## Payments
 
         Payments applies each verified refund to the ledger.
 
