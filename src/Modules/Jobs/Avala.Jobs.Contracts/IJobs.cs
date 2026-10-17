@@ -76,6 +76,8 @@ public sealed record JobRequest(string RepositoryPath, string Instruction, int A
     public ModelChoice Model { get; init; } = ModelChoice.Default;
 
     public IReadOnlyList<Attachment> Attachments { get; init; } = [];
+
+    public bool Companion { get; init; }
 }
 
 public sealed record JobMessage(string Text)

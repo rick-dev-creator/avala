@@ -1,12 +1,13 @@
 using System.Text;
 using System.Text.Json;
 using Avala.Documentation.Contracts;
+using Avala.Documentation.Writing;
 using Avala.Sdk;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Documentation.RepositoryFiles;
 
-internal sealed class DocsRulesReader(IBaseFiles files)
+internal sealed class DocsRulesReader(IBaseFiles files) : IDocsRules
 {
     public const string JobFile = ".avala/jobs.json";
 
@@ -20,6 +21,11 @@ internal sealed class DocsRulesReader(IBaseFiles files)
 
     public async Task<Result<DocsRules, DocumentationError>> OfWorktreeAsync(string worktree, CancellationToken cancellationToken) =>
         (await files.ReadAsync(worktree, JobFile, cancellationToken)).Match(
+            file => file.Content.Match(Parse, () => DocsRules.Off),
+            _ => DocumentationError.Unreadable);
+
+    public async Task<Result<DocsRules, DocumentationError>> OfRepositoryAsync(string repository, CancellationToken cancellationToken) =>
+        (await files.ReadCurrentAsync(repository, JobFile, cancellationToken)).Match(
             file => file.Content.Match(Parse, () => DocsRules.Off),
             _ => DocumentationError.Unreadable);
 
