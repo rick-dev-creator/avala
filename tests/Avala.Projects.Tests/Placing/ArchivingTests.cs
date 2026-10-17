@@ -77,6 +77,28 @@ public sealed class ArchivingTests
     }
 
     [Fact]
+    public async Task AHeldConversationIsArchivedAndStaysArchivedWhenHeldAgainAndAfterARestartAsync()
+    {
+        var store = new MemoryStore();
+        var catalog = new FakeCatalog();
+        JobId held;
+
+        await using (var projected = new Projected(store, catalog))
+        {
+            await projected.Repositories.RunAsync(Samples.Cancellation);
+            held = await projected.SubmitAsync(Samples.Ledger, status: JobStatus.NeedsHelp);
+            Assert.True((await projected.Entry.ArchiveAsync([held], Samples.Cancellation)).IsSuccess);
+            await projected.Returns.HandleAsync(new JobProgressed(held, JobStatus.NeedsHelp), Samples.Cancellation);
+        }
+
+        await using var restarted = new Projected(store, catalog);
+        await restarted.Repositories.RunAsync(Samples.Cancellation);
+
+        Assert.Equal([held], restarted.Entry.Current.Archived);
+        Assert.Equal([held], store.Archived);
+    }
+
+    [Fact]
     public async Task ArchivedConversationsStayArchivedAfterARestartUnlessTheyWorkedMeanwhileAsync()
     {
         var store = new MemoryStore();

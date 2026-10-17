@@ -56,10 +56,25 @@ public sealed class ArchiveTests(PublishedPlugins plugins)
         Assert.False(await run.Ui.ReadAsync(() => Listed(workbench, run.Job)));
     }
 
-    private static async Task<OpenWorkbench> ArchivedAsync(SimulatedRun run)
+    [Fact]
+    public async Task AHeldConversationIsArchivedFromNeedsYouAndStaysArchivedAfterARestartAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "reply", (".avala/checks.json", """{ "checks": [{ "arguments": ["build"] }] }"""));
+        await ArchivedAsync(run, JobStatus.NeedsHelp);
+
+        await run.RestartAsync();
+        var workbench = await OpenWorkbench.ActivateAsync(run);
+        var entry = workbench.Footer("ArchivedEntryViewModel");
+        await run.Ui.PresentedAsync(entry.Presentation, () => entry["Count"].Text == "1", () => entry["Count"].Text);
+
+        Assert.Contains(run.Job, run.Get<IProjects>().Current.Archived);
+        Assert.False(await run.Ui.ReadAsync(() => Listed(workbench, run.Job)));
+    }
+
+    private static async Task<OpenWorkbench> ArchivedAsync(SimulatedRun run, JobStatus settled = JobStatus.AwaitingReview)
     {
         var workbench = await OpenWorkbench.ActivateAsync(run);
-        Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
+        Assert.Equal(settled, await run.SettledAsync());
         await workbench.ShowsAsync(() => Listed(workbench, run.Job) && Row(workbench, run.Job)["CanArchive"].Value<bool>());
 
         await run.Ui.RunAsync(() => Row(workbench, run.Job).ExecuteAsync("ArchiveCommand"));
