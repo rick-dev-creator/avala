@@ -58,6 +58,16 @@ public sealed class DocsFeatureScreens(HeadlessUi ui)
             Assert.True(Save(view, $"docs-player-flow-{variant}"));
         });
 
+    [Theory]
+    [InlineData("dark")]
+    public Task TheDocsPaneAndTheSidebarsDocsAsync(string variant) =>
+        ShootAsync(() =>
+        {
+            using var pane = new Avala.Workbench.Docs.DesignDocsPaneViewModel();
+            Assert.True(Save(Show(pane, variant, 400, 900), $"docs-pane-{variant}"));
+            Assert.True(Save(Show(new Avala.Workbench.Sidebar.DesignProjectGroupViewModel(), variant, 280, 420), $"docs-sidebar-{variant}"));
+        });
+
     private Task ShootAsync(Action shoot)
     {
         Assert.SkipUnless(Folder is not null && HeadlessApp.Renders, $"Set {Gate} to a folder and AVALA_HEADLESS_RENDER=1 to capture the documentation screens.");

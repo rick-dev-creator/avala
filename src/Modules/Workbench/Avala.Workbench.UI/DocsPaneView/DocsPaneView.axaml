@@ -47,7 +47,7 @@
                 </StackPanel>
                 <TextBlock x:Name="Feature" Classes="strong" Text="{Binding Feature}" TextTrimming="CharacterEllipsis" />
               </DockPanel>
-              <ContentControl x:Name="Player" Height="320" Content="{Binding Player}" />
+              <ContentControl x:Name="Player" Height="440" Content="{Binding Player}" />
             </StackPanel>
           </Border>
           <StackPanel Spacing="4" IsVisible="{Binding !!Requests.Count}">
