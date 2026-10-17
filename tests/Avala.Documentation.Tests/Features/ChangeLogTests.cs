@@ -11,7 +11,7 @@ public sealed class ChangeLogTests
     private static readonly VersionFile[] Versions = [new(1, VersionKind.Proposed, "v1-proposed.md"), new(2, VersionKind.Deviation, "v2-deviation.md")];
 
     [Fact]
-    public void AJobsRequestsAreListedUnderItsInstructionWithTheVersionEachProduced()
+    public void AJobsRequestsAreListedUnderItsInstructionWithoutItsTagsWithTheVersionEachProduced()
     {
         var job = JobId.New();
         ChangeRequest[] requests =
@@ -20,7 +20,7 @@ public sealed class ChangeLogTests
             new(2, RequestKind.SendBack, "No new service:\nkeep the keys in the ledger", At.AddMinutes(40), 1),
         ];
 
-        var log = ChangeLog.Merge(string.Empty, job, "Handle Stripe refund webhooks", requests, Versions);
+        var log = ChangeLog.Merge(string.Empty, job, "[WIP] Handle Stripe refund webhooks", requests, Versions);
 
         Assert.Equal(
             $"# Change requests\n\nWhat people asked while the feature was built, and the version each request produced.\n\n<!-- avala:job {job.Value} -->\n## Handle Stripe refund webhooks\n\n### Change request 1 · steer · attempt 1\n\n> Make sure a refund never applies twice\n\nAsked 2026-10-17 10:31 UTC. Produced [v2](v2-deviation.md).\n\n### Change request 2 · sent back in review · attempt 1\n\n> No new service:\n> keep the keys in the ledger\n\nAsked 2026-10-17 11:11 UTC. No version yet.\n\n<!-- /avala:job {job.Value} -->\n",

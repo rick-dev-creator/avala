@@ -105,9 +105,10 @@ internal sealed class VersionKeeper(IWorkingFiles files, FeatureCatalog catalog,
     private async Task<bool> IndexAsync(Subject subject, IReadOnlyList<ChangeRequest> requests, CancellationToken cancellationToken)
     {
         var versions = await catalog.VersionsAsync(subject.Place.Worktree, subject.Folder, cancellationToken);
+        var asked = requests.Count > 0 || (await ReadAsync(subject.Place.Worktree, $"{subject.Folder.Path}/{ChangeLog.File}", cancellationToken)).IsSome;
 
-        return await WriteAsync(subject.Place.Worktree, subject.Folder.Readme, subject.Folder.Index(versions), cancellationToken)
-            && await WriteAsync(subject.Place.Worktree, subject.Folder.Toc, FeatureFolder.TableOfContents(versions), cancellationToken)
+        return await WriteAsync(subject.Place.Worktree, subject.Folder.Readme, subject.Folder.Index(versions, asked), cancellationToken)
+            && await WriteAsync(subject.Place.Worktree, subject.Folder.Toc, FeatureFolder.TableOfContents(versions, asked), cancellationToken)
             && (requests.Count == 0 || await ChangesAsync(subject, requests, versions, cancellationToken));
     }
 

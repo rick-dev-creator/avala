@@ -55,5 +55,5 @@ internal static class ChangeLog
     };
 
     private static string FirstLine(string instruction) =>
-        instruction.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? "A job";
+        FeatureNames.Untagged(instruction).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? "A job";
 }

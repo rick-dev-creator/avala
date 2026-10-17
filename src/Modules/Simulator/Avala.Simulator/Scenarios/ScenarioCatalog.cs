@@ -531,7 +531,8 @@ internal static class ScenarioCatalog
     public const string WaitChild = "wait_child";
 
     public static string NameIn(string firstMessage) =>
-        firstMessage.Contains(DocumentationDraft.Path, StringComparison.Ordinal) ? DocumentationScenarios.Document.Name
+        firstMessage.Contains(DocumentationDraft.Decision, StringComparison.Ordinal) ? DocumentationScenarios.DocumentDecision.Name
+        : firstMessage.Contains(DocumentationDraft.Path, StringComparison.Ordinal) ? DocumentationScenarios.Document.Name
         : Tagged(firstMessage, ReplayRequest.TimedTag).Match(
             recording => new ReplayRequest(recording, AsRecorded: true).Scenario,
             () => Tagged(firstMessage, ReplayRequest.CompressedTag).Match(

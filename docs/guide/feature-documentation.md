@@ -48,7 +48,7 @@ docs/
   template/public/            Avala's C4 player for the site
 ```
 
-It writes only the files that are missing, inside the docs folder, and starts a job that fills the overview, quickstart, architecture and configuration from the repository and records the decisions of features already documented. From then on, a deviation that shapes the structure, a key quality attribute or something hard to reverse adds an architecture decision record, linked both ways with its version, and each As built adds its entry to `whats-new.md`.
+It writes only the files that are missing, inside the docs folder, and starts a job that fills the overview, quickstart, architecture and configuration from the repository, records the decisions of features already documented and lists their As built versions in `whats-new.md`. From then on, a deviation that shapes the structure, a key quality attribute or something hard to reverse adds an architecture decision record, linked both ways with its version, and each As built adds its entry to `whats-new.md`.
 
 On the site each C4 diagram is Avala's player, `<avala-c4>`: the diagram laid out the way Avala lays it out, in the site's light or dark theme, with **Previous**, **Play**, **Next** and the speed. Playing it reveals the elements level by level, then walks each relation, a flow hop by hop with its number. Choosing an element scrolls to its section. Other Mermaid diagrams show as DocFX's Mermaid draws them.
 

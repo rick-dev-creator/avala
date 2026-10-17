@@ -70,7 +70,7 @@ internal static class FeatureNames
         return new Feature(Slug(title), char.ToUpperInvariant(title[0]) + title[1..]);
     }
 
-    private static string Untagged(string instruction)
+    public static string Untagged(string instruction)
     {
         var text = instruction.TrimStart();
 

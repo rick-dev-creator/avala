@@ -42,10 +42,19 @@ public sealed class FeatureFolderTests
 
         Assert.Equal(
             "# Refund webhooks\n\nWritten by Avala as the feature is built. Each version is a moment of the feature, with its C4 diagram.\n\n| Version | Kind | Document |\n| --- | --- | --- |\n| v1 | Proposed | [v1-proposed.md](v1-proposed.md) |\n| v2 | As built | [v2-as-built.md](v2-as-built.md) |\n",
-            Refunds.Index(versions));
+            Refunds.Index(versions, changes: false));
         Assert.Equal(
             "- name: Overview\n  href: README.md\n- name: v1 · Proposed\n  href: v1-proposed.md\n- name: v2 · As built\n  href: v2-as-built.md\n",
-            FeatureFolder.TableOfContents(versions));
+            FeatureFolder.TableOfContents(versions, changes: false));
+    }
+
+    [Fact]
+    public void WithChangeRequestsTheIndexAndTheTableOfContentsLinkThem()
+    {
+        VersionFile[] versions = [new(1, VersionKind.Proposed, "v1-proposed.md")];
+
+        Assert.EndsWith("\nWhat people asked while it was built: [Change requests](changes.md).\n", Refunds.Index(versions, changes: true));
+        Assert.EndsWith("- name: Change requests\n  href: changes.md\n", FeatureFolder.TableOfContents(versions, changes: true));
     }
 
     [Fact]

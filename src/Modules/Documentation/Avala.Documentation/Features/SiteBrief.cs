@@ -14,6 +14,8 @@ internal static class SiteBrief
 
         Then, for each feature already documented under {{root}}, write an architecture decision record in {{root}}/architecture/decisions/ for each decision that shaped its structure, a key quality attribute or something hard to reverse, numbered 0001-<slug>.md onward, with Status, Context, Decision, Alternatives and Consequences, and list them in its toc.yml.
 
+        Then add to {{root}}/whats-new.md, under its lead and newest first, one entry per feature already documented that has an As built version: a "## <feature title>" heading, one sentence of what it delivered, and a link to its last As built.
+
         Change nothing outside {{root}}.
         """;
 }
