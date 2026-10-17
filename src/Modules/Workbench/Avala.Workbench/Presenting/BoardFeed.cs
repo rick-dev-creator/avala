@@ -31,6 +31,9 @@ internal sealed class BoardFeed(JobBoard board, IUiDispatcher ui) : IPresentatio
 
     public IReadOnlyList<JobCheckpoint> CheckpointsOf(JobId job) => board.Checkpoints.GetValueOrDefault(job, []);
 
+    public Option<Documentation.Contracts.JobDocumentation> DocsOf(JobId job) =>
+        board.Docs.TryGetValue(job, out var found) ? found : Option<Documentation.Contracts.JobDocumentation>.None;
+
     public ImmutableDictionary<JobId, BoardRemote> Remotes => board.Remotes;
 
     public Option<BoardContest> ContestOf(JobId job) => board.ContestOf(job);

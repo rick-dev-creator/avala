@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:docs="using:Avala.Workbench.Docs"
+             x:Class="Avala.Workbench.UI.FeatureDocsView"
+             x:ClassModifier="internal"
+             x:DataType="docs:IFeatureDocsViewModel">
+  <Design.DataContext>
+    <docs:DesignFeatureDocsViewModel />
+  </Design.DataContext>
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="pageHeader">
+      <StackPanel VerticalAlignment="Center" Spacing="1">
+        <TextBlock x:Name="FeatureTitle" Classes="pageTitle" Text="{Binding Feature}" />
+        <TextBlock x:Name="FeatureWhere" Classes="caption" Text="{Binding Where}" />
+      </StackPanel>
+    </Border>
+    <ContentControl x:Name="Player" Content="{Binding Player}" />
+  </DockPanel>
+</UserControl>

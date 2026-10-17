@@ -23,11 +23,21 @@ internal sealed class TimelineItems(HumanReplies replies, IClipboard clipboard, 
         FormEntry form => new FormCardViewModel(form, replies),
         TurnEndEntry ended => new TurnEndViewModel(ended),
         ChildAskingEntry asked => new ChildAskingViewModel(asked),
-        RestartEntry restart => new RestartViewModel(restart),
-        CiEntry ci => new CiViewModel(ci, files.Links),
-        _ => new RestartViewModel(new RestartEntry(entry.Key, Kept: false)),
+        _ => QuietItems.Of(entry, files.Links),
     };
 
     private IReadOnlyList<IAttachmentChipViewModel> Chips(IReadOnlyList<Avala.Agents.Contracts.Sessions.Attachment> attachments) =>
         [.. attachments.Select(attachment => new AttachmentChipViewModel(attachment, files.Pictures, removable: false))];
+}
+
+internal static class QuietItems
+{
+    public static ITimelineItem Of(ITimelineEntry entry, Links links) => entry switch
+    {
+        RestartEntry restart => new RestartViewModel(restart),
+        CiEntry ci => new CiViewModel(ci, links),
+        DocsEntry docs => new DocsLineViewModel(docs),
+        ChangeEntry change => new ChangeLineViewModel(change),
+        _ => new RestartViewModel(new RestartEntry(entry.Key, Kept: false)),
+    };
 }

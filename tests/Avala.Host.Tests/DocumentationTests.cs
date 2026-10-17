@@ -37,6 +37,21 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
     }
 
     [Fact]
+    public async Task TheJobsConversationShowsAQuietLineForEachVersionWrittenAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var written = run.Watch<VersionWritten>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: plan-across-turns] Add the changelog")));
+        _ = await written.CollectUntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(job);
+        await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Count(kind => kind == "DocsLineViewModel") == 2);
+
+        Assert.Equal(2, await run.Ui.ReadAsync(() => OpenWorkbench.Kinds(conversation).Count(kind => kind == "DocsLineViewModel")));
+    }
+
+    [Fact]
     public async Task WithoutTheDocsSectionAJobsPlanStartsNoDocumentationChildAsync()
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "plan-across-turns");

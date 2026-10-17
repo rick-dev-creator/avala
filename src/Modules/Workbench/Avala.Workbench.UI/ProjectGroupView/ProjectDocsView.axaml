@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sidebar="using:Avala.Workbench.Sidebar"
+             x:Class="Avala.Workbench.UI.ProjectDocsView"
+             x:ClassModifier="internal"
+             x:DataType="sidebar:IProjectDocsViewModel">
+  <Design.DataContext>
+    <sidebar:DesignProjectDocsViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="1" IsVisible="{Binding IsShown}">
+    <Button x:Name="DocsToggle" Classes="row" Command="{Binding ToggleCommand}" AutomationProperties.Name="Docs">
+      <DockPanel>
+        <TextBlock x:Name="DocsCount" DockPanel.Dock="Right" Classes="caption" Text="{Binding Count}" VerticalAlignment="Center" />
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Panel VerticalAlignment="Center">
+            <Path Classes="icon chevron" Data="{StaticResource IconChevronDown}" IsVisible="{Binding IsOpen}" />
+            <Path Classes="icon chevron" Data="{StaticResource IconChevronRight}" IsVisible="{Binding !IsOpen}" />
+          </Panel>
+          <Path Classes="icon small" Data="{StaticResource IconDocument}" Stroke="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+          <TextBlock Text="Docs" VerticalAlignment="Center" />
+        </StackPanel>
+      </DockPanel>
+    </Button>
+    <ItemsControl x:Name="Features" ItemsSource="{Binding Features}" IsVisible="{Binding IsOpen}" />
+  </StackPanel>
+</UserControl>

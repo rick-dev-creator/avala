@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
+using Avala.Workbench.Timeline;
 using Avala.Workbench.Board;
 using Avala.Workbench.Contracts.Presentation;
 using Avala.Workbench.Conversation;
@@ -124,7 +125,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
             _ = feed.Find(message.Job).Match(
                 job =>
                 {
-                    opened.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job) });
+                    opened.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job), Transcript = job.Transcript.WithDocs(feed.DocsOf(job.Job)) });
                     return true;
                 },
                 () => false);
@@ -226,7 +227,7 @@ internal sealed partial class WorkbenchViewModel : IWorkbenchViewModel, IPage, I
     {
         if (Conversation is { } open && jobs.TryGetValue(open.Job, out var job))
         {
-            open.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job) });
+            open.Show(job with { Checkpoints = feed.CheckpointsOf(job.Job), Transcript = job.Transcript.WithDocs(feed.DocsOf(job.Job)) });
             OpenReviewCommand.NotifyCanExecuteChanged();
         }
 

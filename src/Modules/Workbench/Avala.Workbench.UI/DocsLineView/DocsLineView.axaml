@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.DocsLineView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IDocsLineViewModel"
+             theme:Motion.Enter="Fade"
+             Margin="0,2">
+  <Design.DataContext>
+    <conversation:DesignDocsLineViewModel />
+  </Design.DataContext>
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+      <Ellipse Classes="dot accent" IsVisible="{Binding IsDeviation}" VerticalAlignment="Center" />
+      <TextBlock x:Name="DocsFact" Classes="caption" Text="{Binding Fact}" />
+    </StackPanel>
+    <StackPanel Orientation="Horizontal" Spacing="10">
+      <Path Classes="icon small" Data="{StaticResource IconDocument}" Stroke="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+      <TextBlock x:Name="DocsFile" Classes="mono" Text="{Binding File}" VerticalAlignment="Center" />
+    </StackPanel>
+  </DockPanel>
+</UserControl>

@@ -1,12 +1,15 @@
 using System.Collections.Immutable;
+using Avala.Documentation.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Projects.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Appearance;
+using Avala.Workbench.Documenting;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Avala.Workbench.Projects;
 
-internal sealed class ProjectShelf(IProjects projects, IWindowLayout layout)
+internal sealed class ProjectShelf(IProjects projects, IWindowLayout layout, IDocumentation documentation, IMessenger messenger)
 {
     public const string NewProjectName = "New project";
 
@@ -32,6 +35,10 @@ internal sealed class ProjectShelf(IProjects projects, IWindowLayout layout)
 
     public async Task<Option<ProjectRejection>> RestoreAsync(JobId job, CancellationToken cancellationToken) =>
         Refusal(await projects.RestoreAsync(job, cancellationToken));
+
+    public Task<RepositoryDocs> DocsAsync(string repository, CancellationToken cancellationToken) => documentation.OfRepositoryAsync(repository, cancellationToken);
+
+    public void OpenFeature(string repository, Feature feature) => messenger.Send(new FeatureDocsRequested(repository, feature));
 
     public async Task<ImmutableHashSet<string>> CollapsedAsync(CancellationToken cancellationToken) =>
         [.. (await layout.ReadAsync(cancellationToken)).CollapsedGroups];

@@ -86,11 +86,17 @@ internal sealed class FakeDocumentation : Documentation.Contracts.IDocumentation
         return Task.CompletedTask;
     }
 
-    public Option<Documentation.Contracts.JobDocumentation> OfJob(JobId job) => Option<Documentation.Contracts.JobDocumentation>.None;
+    public Option<Documentation.Contracts.JobDocumentation> Documented { get; set; }
+
+    public Option<Documentation.Contracts.JobDocumentation> OfJob(JobId job) => Documented.Bind(found => found.Job == job ? found : Option<Documentation.Contracts.JobDocumentation>.None);
 
     public Result<Documentation.Contracts.DocsRules, Documentation.Contracts.DocumentationError> Switched { get; set; } = new Documentation.Contracts.DocsRules(true, "docs/features");
 
     public Option<Documentation.Contracts.FeatureStory> Story { get; set; }
+
+    public Option<Documentation.Contracts.JobDocs> Job { get; set; }
+
+    public Task<Option<Documentation.Contracts.JobDocs>> JobDocsAsync(JobId job, CancellationToken cancellationToken) => Task.FromResult(Job);
 
     public Task<Option<Documentation.Contracts.FeatureStory>> StoryAsync(string folder, Documentation.Contracts.Feature feature, CancellationToken cancellationToken) => Task.FromResult(Story);
 

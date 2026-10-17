@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:docs="using:Avala.Workbench.Docs"
+             x:Class="Avala.Workbench.UI.DocsToggleView"
+             x:ClassModifier="internal"
+             x:DataType="docs:IDocsToggleViewModel">
+  <Design.DataContext>
+    <docs:DesignDocsToggleViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+  </UserControl.Styles>
+  <Button x:Name="Docs"
+          Classes="glyph"
+          Classes.selected="{Binding IsOpen}"
+          IsVisible="{Binding IsShown}"
+          Command="{Binding ToggleCommand}"
+          ToolTip.Tip="Docs"
+          AutomationProperties.Name="Toggle the docs pane">
+    <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconDocument}" />
+  </Button>
+</UserControl>

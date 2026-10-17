@@ -55,6 +55,8 @@ internal interface IProjectGroupViewModel : ISidebarCommands
 
     bool CanDelete { get; }
 
+    IProjectDocsViewModel Docs { get; }
+
     IAsyncRelayCommand ToggleCommand { get; }
 
     IRelayCommand ToggleDoneCommand { get; }
@@ -89,6 +91,8 @@ internal sealed partial class ProjectGroupViewModel : IProjectGroupViewModel
         IsExpanded = heading.Expanded;
         Draft = heading.Name;
         Problem = string.Empty;
+        Documents = new ProjectDocsViewModel(shelf);
+        DocsRead = ReadAsync(heading.Project);
         open.CollectionChanged += Counted;
         done.CollectionChanged += Counted;
     }
@@ -98,6 +102,12 @@ internal sealed partial class ProjectGroupViewModel : IProjectGroupViewModel
     public Option<ProjectRecord> Project { get; private set; }
 
     public IRelayCommand<object> SelectCommand { get; }
+
+    public IProjectDocsViewModel Docs => Documents;
+
+    public ProjectDocsViewModel Documents { get; }
+
+    public Task DocsRead { get; private set; }
 
     public bool IsChats => Key == ChatsKey;
 
@@ -148,6 +158,7 @@ internal sealed partial class ProjectGroupViewModel : IProjectGroupViewModel
 
     public void Show(ProjectRecord project)
     {
+        DocsRead = Project.Bind(shown => shown.Repository) == project.Repository ? DocsRead : ReadAsync(project);
         Project = project;
         Name = project.Name;
         OnPropertyChanged(nameof(IsProject));
@@ -156,6 +167,9 @@ internal sealed partial class ProjectGroupViewModel : IProjectGroupViewModel
     }
 
     public void Expand(bool expanded) => IsExpanded = expanded;
+
+    private Task ReadAsync(Option<ProjectRecord> project) =>
+        project.Bind(found => found.Repository).Match(repository => Documents.ReadAsync(repository, CancellationToken.None), () => Task.CompletedTask);
 
     [RelayCommand]
     private Task ToggleAsync(CancellationToken cancellationToken)

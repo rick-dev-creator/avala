@@ -90,10 +90,14 @@ public interface IDocumentation
 
     Task<Option<FeatureStory>> StoryAsync(string folder, Feature feature, CancellationToken cancellationToken);
 
+    Task<Option<JobDocs>> JobDocsAsync(JobId job, CancellationToken cancellationToken);
+
     Task ChooseAsync(JobId job, FeatureChoice choice, CancellationToken cancellationToken);
 
     Option<JobDocumentation> OfJob(JobId job);
 }
+
+public sealed record JobDocs(JobDocumentation Documentation, string Repository, Option<FeatureStory> Story, RepositoryDocs Docs);
 
 public sealed record FeatureChosen(JobId Job, FeatureChoice Choice) : IIntegrationEvent;
 

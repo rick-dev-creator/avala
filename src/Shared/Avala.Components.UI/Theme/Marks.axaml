@@ -71,6 +71,9 @@
   <Style Selector="Ellipse.dot.attention">
     <Setter Property="Fill" Value="{DynamicResource AttentionBrush}" />
   </Style>
+  <Style Selector="Ellipse.dot.accent">
+    <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+  </Style>
   <Style Selector="Ellipse.dot.hollow">
     <Setter Property="Fill" Value="Transparent" />
     <Setter Property="Stroke" Value="{DynamicResource TextTertiaryBrush}" />

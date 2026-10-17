@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:docs="using:Avala.Workbench.Docs"
+             x:Class="Avala.Workbench.UI.DocsPaneView"
+             x:ClassModifier="internal"
+             x:DataType="docs:IDocsPaneViewModel">
+  <Design.DataContext>
+    <docs:DesignDocsPaneViewModel />
+  </Design.DataContext>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}" />
+  </UserControl.KeyBindings>
+  <UserControl.Styles>
+    <Style Selector="Button.glyph Path.icon">
+      <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=ContentPresenter, Tree=Visual}}" />
+    </Style>
+    <Style Selector="Border#Surface">
+      <Setter Property="Background" Value="{DynamicResource SurfacePanelBrush}" />
+    </Style>
+    <Style Selector="Border#PaneHeader">
+      <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border x:Name="Surface" IsVisible="{Binding IsOpen}">
+    <DockPanel>
+      <Border x:Name="PaneHeader" DockPanel.Dock="Top" BorderThickness="0,0,0,1" Padding="18,0,10,0" Height="44">
+        <DockPanel>
+          <Button x:Name="Close"
+                  DockPanel.Dock="Right"
+                  Classes="glyph"
+                  Command="{Binding CloseCommand}"
+                  ToolTip.Tip="Close"
+                  AutomationProperties.Name="Close the docs pane">
+            <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconCross}" />
+          </Button>
+          <TextBlock Classes="strong" Text="Docs" VerticalAlignment="Center" />
+        </DockPanel>
+      </Border>
+      <ScrollViewer>
+        <StackPanel Margin="12,12,12,20" Spacing="14">
+          <Border Classes="grouped" ClipToBounds="True">
+            <StackPanel>
+              <DockPanel Margin="14,12,14,4">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Ellipse Classes="dot accent" IsVisible="{Binding IsWriting}" />
+                  <TextBlock x:Name="State" Classes="caption" Text="{Binding State}" />
+                </StackPanel>
+                <TextBlock x:Name="Feature" Classes="strong" Text="{Binding Feature}" TextTrimming="CharacterEllipsis" />
+              </DockPanel>
+              <ContentControl x:Name="Player" Height="320" Content="{Binding Player}" />
+            </StackPanel>
+          </Border>
+          <StackPanel Spacing="4" IsVisible="{Binding !!Requests.Count}">
+            <TextBlock Classes="caption" Margin="4,0" Text="Changes you asked for" />
+            <ItemsControl x:Name="Requests" Margin="4,0" ItemsSource="{Binding Requests}" />
+          </StackPanel>
+          <StackPanel Spacing="4" IsVisible="{Binding !!Others.Count}">
+            <TextBlock Classes="caption" Margin="4,0" Text="In this repository" />
+            <ItemsControl x:Name="Others" ItemsSource="{Binding Others}" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>
