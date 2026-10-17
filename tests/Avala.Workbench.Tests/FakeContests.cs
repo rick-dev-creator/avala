@@ -90,6 +90,10 @@ internal sealed class FakeDocumentation : Documentation.Contracts.IDocumentation
 
     public Result<Documentation.Contracts.DocsRules, Documentation.Contracts.DocumentationError> Switched { get; set; } = new Documentation.Contracts.DocsRules(true, "docs/features");
 
+    public Option<Documentation.Contracts.FeatureStory> Story { get; set; }
+
+    public Task<Option<Documentation.Contracts.FeatureStory>> StoryAsync(string folder, Documentation.Contracts.Feature feature, CancellationToken cancellationToken) => Task.FromResult(Story);
+
     public Task<Result<Documentation.Contracts.DocsRules, Documentation.Contracts.DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken) =>
         Task.FromResult(Switched.Map(rules => rules with { Enabled = enabled }));
 }

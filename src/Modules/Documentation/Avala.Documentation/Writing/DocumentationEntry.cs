@@ -4,10 +4,11 @@ using Avala.Documentation.Features;
 using Avala.Documentation.Records;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Workspaces.Contracts;
 
 namespace Avala.Documentation.Writing;
 
-internal sealed class DocumentationEntry(IDocsRules rules, FeatureCatalog catalog, DocumentationBook book) : IDocumentation
+internal sealed class DocumentationEntry(IDocsRules rules, FeatureCatalog catalog, DocumentationBook book, IWorkingFiles files) : IDocumentation
 {
     public async Task<RepositoryDocs> OfRepositoryAsync(string repository, CancellationToken cancellationToken)
     {
@@ -20,6 +21,26 @@ internal sealed class DocumentationEntry(IDocsRules rules, FeatureCatalog catalo
 
     public Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken) =>
         rules.SwitchAsync(repository, enabled, cancellationToken);
+
+    public async Task<Option<FeatureStory>> StoryAsync(string folder, Feature feature, CancellationToken cancellationToken)
+    {
+        var declared = (await rules.OfRepositoryAsync(folder, cancellationToken)).Match(found => found, _ => DocsRules.Off);
+        var place = new FeatureFolder(declared.Folder, feature);
+        var versions = await catalog.VersionsAsync(folder, place, cancellationToken);
+        var played = new List<PlayedVersion>();
+        var previous = Option<C4Diagram>.None;
+
+        foreach (var version in versions)
+        {
+            var text = (await files.ReadAsync(folder, $"{place.Path}/{version.File}", cancellationToken)).Match(content => content.Match(found => found, () => string.Empty), _ => string.Empty);
+            var document = VersionReader.Read(text);
+            var shown = Storyboard.Play(version.Number, version.Kind, version.File, document, previous);
+            played.Add(shown);
+            previous = shown.Structure.Elements.Count > 0 ? shown.Structure : previous;
+        }
+
+        return played.Count == 0 ? Option<FeatureStory>.None : new FeatureStory(feature, played);
+    }
 
     public async Task ChooseAsync(JobId job, FeatureChoice choice, CancellationToken cancellationToken) =>
         await book.ChooseAsync(job, choice, cancellationToken);
