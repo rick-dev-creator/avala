@@ -24,6 +24,9 @@ internal sealed class FeatureCatalog(IRepositoryIndex index, IWorkingFiles files
         return features;
     }
 
+    public async Task<IReadOnlyList<string>> ListedAsync(string folder, CancellationToken cancellationToken) =>
+        await index.FilesAsync(folder, FileLimit, cancellationToken);
+
     public async Task<IReadOnlyList<VersionFile>> VersionsAsync(string folder, FeatureFolder feature, CancellationToken cancellationToken) =>
         feature.VersionsIn(await index.FilesAsync(folder, FileLimit, cancellationToken));
 

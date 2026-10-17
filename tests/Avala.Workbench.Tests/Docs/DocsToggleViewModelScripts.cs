@@ -19,7 +19,7 @@ public sealed class DocsToggleViewModelScripts
         messenger.Register<DocsPaneRequested>(asked, (list, message) => ((List<DocsPaneRequested>)list).Add(message));
         var board = new JobBoard();
         using var ui = new TestUiDispatcher();
-        using var toggle = new DocsToggleViewModel(new DocsReader(board, new FakeDocumentation()), new LiveFeed(new Pulse(board), ui), messenger);
+        using var toggle = new DocsToggleViewModel(new DocsReader(board, new FakeDocumentation(), new FakeSitePreviews()), new LiveFeed(new Pulse(board), ui), messenger);
         toggle.OnRegionContextChanged(job);
 
         toggle.ToggleCommand.Execute(null);

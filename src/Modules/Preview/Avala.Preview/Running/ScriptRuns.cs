@@ -70,7 +70,7 @@ internal sealed class ScriptRuns(IProcessTrees trees, RunBook runs)
 
         foreach (var argument in launch.Arguments)
         {
-            info.ArgumentList.Add(argument);
+            info.ArgumentList.Add(argument == Launch.Port ? port : argument);
         }
 
         info.Environment["PORT"] = port;

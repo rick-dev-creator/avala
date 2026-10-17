@@ -34,12 +34,15 @@ internal sealed class DocumentationReads(IDocsRules rules, FeatureCatalog catalo
         return played.Count == 0 ? Option<FeatureStory>.None : new FeatureStory(feature, played);
     }
 
-    public async Task<Option<JobDocs>> JobAsync(JobDocumentation documentation, CancellationToken cancellationToken) =>
+    public async Task<Option<JobDocs>> JobAsync(JobDocumentation documentation, Func<string, CancellationToken, Task<DocsSite>> site, CancellationToken cancellationToken) =>
         await (await places.OfAsync(documentation.Job, cancellationToken)).Match(
             async place => Option<JobDocs>.Some(new JobDocs(
                 documentation,
                 place.Repository,
                 await StoryAsync(place.Worktree, documentation.Feature, cancellationToken),
-                await RepositoryAsync(place.Repository, cancellationToken))),
+                await RepositoryAsync(place.Repository, cancellationToken))
+            {
+                Site = await site(place.Worktree, cancellationToken),
+            }),
             () => Task.FromResult(Option<JobDocs>.None));
 }

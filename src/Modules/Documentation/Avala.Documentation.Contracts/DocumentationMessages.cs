@@ -92,12 +92,31 @@ public interface IDocumentation
 
     Task<Option<JobDocs>> JobDocsAsync(JobId job, CancellationToken cancellationToken);
 
+    Task<DocsSite> SiteAsync(string folder, CancellationToken cancellationToken);
+
+    Task<Result<SiteCreated, DocumentationError>> CreateSiteAsync(string repository, CancellationToken cancellationToken);
+
     Task ChooseAsync(JobId job, FeatureChoice choice, CancellationToken cancellationToken);
 
     Option<JobDocumentation> OfJob(JobId job);
 }
 
-public sealed record JobDocs(JobDocumentation Documentation, string Repository, Option<FeatureStory> Story, RepositoryDocs Docs);
+public sealed record DocsSite(bool Exists, string Root, bool CanServe)
+{
+    public const string Install = "dotnet tool install -g docfx";
+
+    public string Config => $"{Root}/docfx.json";
+}
+
+public sealed record SiteCreated(string Root, IReadOnlyList<string> Written)
+{
+    public Option<JobId> Filler { get; init; }
+}
+
+public sealed record JobDocs(JobDocumentation Documentation, string Repository, Option<FeatureStory> Story, RepositoryDocs Docs)
+{
+    public DocsSite Site { get; init; } = new(false, "docs", false);
+}
 
 public sealed record FeatureChosen(JobId Job, FeatureChoice Choice) : IIntegrationEvent;
 
@@ -112,6 +131,8 @@ public sealed record VersionNotWritten(JobId Job, VersionKind Kind, VersionFailu
 public sealed record DocumentationDraft(string Content)
 {
     public const string Path = ".avala/docs/version.md";
+
+    public const string Decision = ".avala/docs/adr.md";
 }
 
 public enum C4Level

@@ -16,6 +16,11 @@ internal sealed class PreviewRunner(IJobWorktrees worktrees, IProjectLaunches la
             worktree => StartAsync(job, worktree, cancellationToken),
             () => Task.FromResult(Result<PreviewRun, PreviewError>.Failure(PreviewError.NoWorktree)));
 
+    public async ValueTask<Result<PreviewRun, PreviewError>> RunSiteAsync(JobId job, string config, CancellationToken cancellationToken) =>
+        await (await worktrees.FindAsync(job, cancellationToken)).Match(
+            worktree => scripts.StartAsync(job, worktree, Launch.Site(config), cancellationToken).AsTask(),
+            () => Task.FromResult(Result<PreviewRun, PreviewError>.Failure(PreviewError.NoWorktree)));
+
     public ValueTask StopAsync(Run run, CancellationToken cancellationToken) =>
         run.Tree.IsSome ? scripts.StopAsync(run, cancellationToken) : pages.StopAsync(run, cancellationToken);
 

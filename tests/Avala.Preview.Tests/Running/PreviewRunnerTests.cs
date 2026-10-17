@@ -33,6 +33,20 @@ public sealed class PreviewRunnerTests
     }
 
     [Fact]
+    public async Task ADocsSiteIsServedByDocfxOnTheJobsLeasedPortAsync()
+    {
+        await using var bench = new RunBench(Option<Launch>.None, RunBench.Leased);
+
+        var served = await bench.Previews.RunSiteAsync(bench.Job, "docs/docfx.json", Cancellation);
+
+        var started = Assert.Single(Assert.Single(bench.Trees.Opened).Requests);
+        Assert.Equal(OperatingSystem.IsWindows() ? "docfx.exe" : "docfx", started.FileName);
+        Assert.Equal(["docs/docfx.json", "--serve", "--hostname", "127.0.0.1", "--port", "24000"], started.ArgumentList);
+        Assert.Equal(bench.Worktree.Path, started.WorkingDirectory);
+        Assert.True(served.IsSuccess || Outcomes.FailsWith(served) == PreviewError.NotStarted);
+    }
+
+    [Fact]
     public async Task ARunEndsAndClosesItsTreeOnceItsScriptExitsAsync()
     {
         await using var bench = new RunBench(RunBench.Workload("work", "0"), RunBench.Leased);

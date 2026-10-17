@@ -45,4 +45,30 @@ public sealed class DocsSettingViewModelScripts
 
         Assert.Equal((false, DocsPhrases.NotSwitched(DocumentationError.Malformed)), (setting.IsOn, setting.Error));
     }
+
+    [Fact]
+    public async Task CreatingTheDocsSiteSaysWhatWasWrittenAndThatAJobFillsItAndThenOffersItNoMoreAsync()
+    {
+        var documentation = new FakeDocumentation { Docs = new RepositoryDocs(true, "docs/features", []) };
+        var setting = new DocsSettingViewModel(documentation, new FakeRoles());
+        await setting.ReadAsync(Repository, Cancellation);
+        var before = setting.CanCreateSite;
+
+        await setting.CreateSiteCommand.ExecuteAsync(null);
+
+        Assert.True(before);
+        Assert.Equal([Repository], documentation.Created);
+        Assert.False(setting.CanCreateSite);
+        Assert.Equal("In docs. Open it from a job's Docs. Wrote 1 file.", setting.Site);
+    }
+
+    [Fact]
+    public async Task AnExistingSiteThatDocfxCannotServeSaysHowToInstallItAsync()
+    {
+        var setting = new DocsSettingViewModel(new FakeDocumentation { Site = new DocsSite(true, "docs", false) }, new FakeRoles());
+
+        await setting.ReadAsync(Repository, Cancellation);
+
+        Assert.Equal(("In docs. To open it, install DocFX: dotnet tool install -g docfx", false), (setting.Site, setting.CanCreateSite));
+    }
 }

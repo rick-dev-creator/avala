@@ -38,6 +38,9 @@ public sealed class DocumentationPlugin : IPlugin
             .AddForwarded<IHandle<JobProgressed>, DocumentationDesk>()
             .AddForwarded<IHandle<StartupCompleted>, DocumentationDesk>()
             .AddSingleton<DocumentationReads>()
+            .AddSingleton<Docfx>()
+            .AddSingleton<SiteFiller>()
+            .AddSingleton<SiteDesk>()
             .AddSingleton<DocumentationEntry>()
             .AddForwarded<IDocumentation, DocumentationEntry>();
     }

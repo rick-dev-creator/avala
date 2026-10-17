@@ -96,6 +96,8 @@ internal sealed class FakePreviews(PreviewBook book) : IPreviews
     public ValueTask<Option<string>> ScriptAsync(JobId job, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Scripts.TryGetValue(job, out var script) ? Option<string>.Some(script) : Option<string>.None);
 
+    public ValueTask<Result<PreviewRun, PreviewError>> RunSiteAsync(JobId job, string config, CancellationToken cancellationToken) => RunAsync(job, cancellationToken);
+
     public ValueTask<Result<PreviewRun, PreviewError>> RunAsync(JobId job, CancellationToken cancellationToken) =>
         ValueTask.FromResult(Refusal.Match(
             Result<PreviewRun, PreviewError>.Failure,

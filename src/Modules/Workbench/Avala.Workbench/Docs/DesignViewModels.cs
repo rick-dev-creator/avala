@@ -204,6 +204,12 @@ internal sealed class DesignDocsPaneViewModel : IDocsPaneViewModel, IDisposable
 
     public IJobHistoryViewModel History { get; } = new DesignJobHistoryViewModel();
 
+    public bool CanOpenSite => true;
+
+    public string SiteHint => string.Empty;
+
+    public IAsyncRelayCommand OpenSiteCommand { get; } = new AsyncRelayCommand(() => Task.CompletedTask);
+
     public IReadOnlyList<Sidebar.IFeatureRowViewModel> Others { get; } = [new Sidebar.DesignFeatureRowViewModel("Payout scheduler", "1 version")];
 
     public IRelayCommand CloseCommand { get; } = new RelayCommand(() => { });

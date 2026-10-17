@@ -40,6 +40,19 @@
           </DockPanel>
           <Border Classes="separator" Margin="16,0" />
           <DockPanel Margin="16,12">
+            <Button x:Name="CreateSite" DockPanel.Dock="Right" Classes="small" Command="{Binding CreateSiteCommand}" IsVisible="{Binding CanCreateSite}" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Classes="icon small" Data="{StaticResource IconPlus}" />
+                <TextBlock Text="Create site" />
+              </StackPanel>
+            </Button>
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="Docs site" />
+              <TextBlock x:Name="DocsSite" Classes="caption" TextWrapping="Wrap" Text="{Binding Site}" />
+            </StackPanel>
+          </DockPanel>
+          <Border Classes="separator" Margin="16,0" />
+          <DockPanel Margin="16,12">
             <TextBlock x:Name="DocsWriter" DockPanel.Dock="Right" Classes="caption" Text="{Binding Writer}" VerticalAlignment="Center" />
             <StackPanel Spacing="2" VerticalAlignment="Center">
               <TextBlock Text="Written by" />

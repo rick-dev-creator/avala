@@ -33,6 +33,15 @@
                   AutomationProperties.Name="Close the docs pane">
             <Path Classes="icon" Width="13" Height="13" Data="{StaticResource IconCross}" />
           </Button>
+          <Button x:Name="OpenSite"
+                  DockPanel.Dock="Right"
+                  Classes="glyph"
+                  IsVisible="{Binding CanOpenSite}"
+                  Command="{Binding OpenSiteCommand}"
+                  ToolTip.Tip="Open the docs site"
+                  AutomationProperties.Name="Open the docs site">
+            <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconWeb}" />
+          </Button>
           <TextBlock Classes="strong" Text="Docs" VerticalAlignment="Center" />
         </DockPanel>
       </Border>
@@ -50,6 +59,7 @@
               <ContentControl x:Name="Player" Height="440" Content="{Binding Player}" />
             </StackPanel>
           </Border>
+          <TextBlock x:Name="SiteHint" Classes="caption" Margin="4,0" TextWrapping="Wrap" Text="{Binding SiteHint}" IsVisible="{Binding SiteHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
           <ContentControl x:Name="History" Content="{Binding History}" />
           <StackPanel Spacing="4" IsVisible="{Binding !!Others.Count}">
             <TextBlock Classes="caption" Margin="4,0" Text="In this repository" />

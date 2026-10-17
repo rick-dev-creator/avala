@@ -429,4 +429,10 @@ internal sealed class DesignDocsSettingViewModel : IDocsSettingViewModel
     public string Error => string.Empty;
 
     public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand SwitchCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
+
+    public string Site => "DocFX, laid out like Microsoft Learn, with the C4 player.";
+
+    public bool CanCreateSite => true;
+
+    public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand CreateSiteCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
 }
