@@ -105,9 +105,10 @@ internal sealed class FakeDocumentation : Documentation.Contracts.IDocumentation
     public Task<Result<Documentation.Contracts.SiteCreated, Documentation.Contracts.DocumentationError>> CreateSiteAsync(string repository, CancellationToken cancellationToken)
     {
         Created.Add(repository);
-        Site = Site with { Exists = true };
+        var job = JobId.New();
+        Site = Site with { Preparing = job };
 
-        return Task.FromResult(Result<Documentation.Contracts.SiteCreated, Documentation.Contracts.DocumentationError>.Success(new Documentation.Contracts.SiteCreated("docs", ["docs/docfx.json"])));
+        return Task.FromResult(Result<Documentation.Contracts.SiteCreated, Documentation.Contracts.DocumentationError>.Success(new Documentation.Contracts.SiteCreated("docs", job)));
     }
 
     public Task<Option<Documentation.Contracts.JobDocs>> JobDocsAsync(JobId job, CancellationToken cancellationToken) => Task.FromResult(Job);

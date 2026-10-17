@@ -438,5 +438,9 @@ internal sealed class DesignDocsSettingViewModel : IDocsSettingViewModel
 
     public bool CanCreateSite => true;
 
+    public bool IsSitePreparing { get; init; }
+
+    public CommunityToolkit.Mvvm.Input.IRelayCommand OpenSiteJobCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
+
     public CommunityToolkit.Mvvm.Input.IAsyncRelayCommand CreateSiteCommand { get; } = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(() => Task.CompletedTask);
 }

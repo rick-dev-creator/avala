@@ -11,6 +11,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 
+using Avala.Workbench.Tests.Settings;
+
 namespace Avala.Workbench.Tests.Views;
 
 public sealed class SettingsViewScripts(HeadlessUi ui)
@@ -71,7 +73,7 @@ public sealed class SettingsViewScripts(HeadlessUi ui)
             new RulesReader(rules, rules, rules, new CommittedFiles().Workspace(Repository)),
             new SettingsFiles(opener, new AvalaPaths("/data")),
             Choosing.Field(),
-            new RepositorySettingsParts(new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])), new DocsSettingViewModel(new FakeDocumentation(), new FakeRoles())));
+            new RepositorySettingsParts(new RuleFileEditorViewModel(new RuleFileEditing(working, [new BudgetLikeFormat()])), new DocsSettingViewModel(new FakeDocumentation(), new FakeRoles(), SiteJobs.Focus())));
     }
 
     private static ViewScript Wide(object viewModel)

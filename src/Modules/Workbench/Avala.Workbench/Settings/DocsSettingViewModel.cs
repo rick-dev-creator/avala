@@ -1,6 +1,9 @@
 using Avala.Agents.Contracts.Sessions;
 using Avala.Delegation.Contracts;
 using Avala.Documentation.Contracts;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
+using Avala.Workbench.Navigation;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -24,6 +27,10 @@ internal interface IDocsSettingViewModel
 
     bool CanCreateSite { get; }
 
+    bool IsSitePreparing { get; }
+
+    IRelayCommand OpenSiteJobCommand { get; }
+
     bool IsUncommitted { get; }
 
     IAsyncRelayCommand SwitchCommand { get; }
@@ -34,9 +41,10 @@ internal interface IDocsSettingViewModel
 }
 
 [INotifyPropertyChanged]
-internal sealed partial class DocsSettingViewModel(IDocumentation documentation, IRoleSettings roles) : IDocsSettingViewModel
+internal sealed partial class DocsSettingViewModel(IDocumentation documentation, IRoleSettings roles, JobFocus focus) : IDocsSettingViewModel
 {
     private string repository = string.Empty;
+    private Option<JobId> siteJob;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SwitchCommand))]
@@ -68,6 +76,10 @@ internal sealed partial class DocsSettingViewModel(IDocumentation documentation,
     [NotifyCanExecuteChangedFor(nameof(CreateSiteCommand))]
     public partial bool CanCreateSite { get; private set; }
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenSiteJobCommand))]
+    public partial bool IsSitePreparing { get; private set; }
+
     public async Task ReadAsync(string shown, CancellationToken cancellationToken)
     {
         repository = shown;
@@ -84,12 +96,22 @@ internal sealed partial class DocsSettingViewModel(IDocumentation documentation,
         var created = await documentation.CreateSiteAsync(repository, cancellationToken);
         Error = created.Match(_ => string.Empty, DocsPhrases.NotCreated);
         ShowSite(await documentation.SiteAsync(repository, cancellationToken));
-        Site = created.Match(done => DocsPhrases.Created(done, Site), _ => Site);
+    }
+
+    [RelayCommand(CanExecute = nameof(IsSitePreparing))]
+    private void OpenSiteJob()
+    {
+        foreach (var job in siteJob.Match<JobId[]>(found => [found], () => []))
+        {
+            focus.Select(job);
+        }
     }
 
     private void ShowSite(DocsSite site)
     {
-        CanCreateSite = !site.Exists;
+        siteJob = site.Preparing;
+        IsSitePreparing = site.Preparing.IsSome;
+        CanCreateSite = !site.Exists && site.Preparing.IsNone;
         Site = DocsPhrases.Site(site);
     }
 
@@ -151,14 +173,12 @@ internal static class DocsPhrases
             : "research" + research.Model.Match(model => $" · {model}", () => string.Empty) + research.Effort.Match(effort => $" · {effort}", () => string.Empty);
 
     public static string Site(DocsSite site) =>
-        !site.Exists ? "DocFX, laid out like Microsoft Learn, with the C4 player."
+        site.Preparing.IsSome ? "Being prepared by its job. Review it like any job: the site is here once it is merged."
+        : !site.Exists ? "DocFX, laid out like Microsoft Learn, with the C4 player."
         : site.CanServe ? $"In {site.Root}. Open it from a job's Docs."
         : $"In {site.Root}. To open it, install DocFX: {DocsSite.Install}";
 
-    public static string Created(SiteCreated created, string site) =>
-        $"{site} Wrote {(created.Written.Count == 1 ? "1 file" : $"{created.Written.Count} files")}." + created.Filler.Match(_ => " A job fills the overview, quickstart, architecture and configuration.", () => string.Empty);
-
-    public static string NotCreated(DocumentationError error) => error == DocumentationError.Unwritable ? "The site's files could not be written." : "The repository could not be read.";
+    public static string NotCreated(DocumentationError error) => error == DocumentationError.NotSubmitted ? "The site's job could not be submitted." : "The repository could not be read.";
 
     public static string NotSwitched(DocumentationError error) => error switch
     {
