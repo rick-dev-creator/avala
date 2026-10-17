@@ -100,6 +100,9 @@ internal sealed class Documented
         private readonly ConcurrentDictionary<JobId, JobHistory> histories = new();
         private readonly ConcurrentQueue<(JobId Job, JobRequest Request)> submitted = new();
         private readonly ConcurrentQueue<JobId> discarded = new();
+        private readonly ConcurrentQueue<(WorkspaceId Workspace, string Label)> checkpoints = new();
+
+        public IReadOnlyList<(WorkspaceId Workspace, string Label)> Checkpoints => [.. checkpoints];
 
         public IReadOnlyList<(JobId Job, JobRequest Request)> Submitted => [.. submitted];
 
@@ -192,7 +195,12 @@ internal sealed class Documented
 
         public ValueTask<Result<WorkspaceInfo, WorkspaceFailure>> PrepareAsync(WorkspaceRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public ValueTask<Result<CheckpointInfo, WorkspaceFailure>> CheckpointAsync(WorkspaceId workspace, string label, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<Result<CheckpointInfo, WorkspaceFailure>> CheckpointAsync(WorkspaceId workspace, string label, CancellationToken cancellationToken)
+        {
+            checkpoints.Enqueue((workspace, label));
+
+            return ValueTask.FromResult(Result<CheckpointInfo, WorkspaceFailure>.Failure(WorkspaceFailure.UnknownWorkspace));
+        }
 
         public ValueTask<Result<WorkspaceId, WorkspaceFailure>> RemoveAsync(WorkspaceId workspace, CancellationToken cancellationToken) => throw new NotSupportedException();
 

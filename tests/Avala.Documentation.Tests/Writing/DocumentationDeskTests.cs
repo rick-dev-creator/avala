@@ -3,6 +3,7 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Events;
 using Avala.Testing;
+using Avala.Workspaces.Contracts;
 using static Avala.Documentation.Tests.Writing.Documented;
 
 namespace Avala.Documentation.Tests.Writing;
@@ -64,6 +65,23 @@ public sealed class DocumentationDeskTests
 
         Assert.Equal(0, whilePlanning);
         Assert.All(new[] { started, ended }, documented => Assert.Contains("1. Create greet.py\n2. Create README.md\n", Assert.Single(documented.Jobs.Submitted).Request.Instruction));
+    }
+
+    [Fact]
+    public async Task AVersionWrittenWhileTheJobRunsWaitsForItsAttemptsCheckpointAndOneWrittenAtReviewIsCheckpointedAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        await documented.PlanAsync(session, "Add a Webhooks container");
+        var writer = documented.LastWriter;
+        documented.Files.Draft(FakeJobs.Worktree(writer), DocumentationDraft.Path, "# Handle Stripe refund webhooks\n");
+        await documented.ProgressAsync(writer, JobStatus.AwaitingReview);
+        var whileRunning = documented.Jobs.Checkpoints.Count;
+
+        await documented.ProgressAsync(job, JobStatus.AwaitingReview);
+
+        Assert.Equal(0, whileRunning);
+        Assert.Equal([(new WorkspaceId(job.Value), "Document Handle Stripe refund webhooks, version 2")], documented.Jobs.Checkpoints);
     }
 
     [Fact]

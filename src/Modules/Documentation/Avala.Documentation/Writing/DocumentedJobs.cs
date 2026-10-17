@@ -15,6 +15,8 @@ internal sealed class DocumentedJobs(JobPlaces places, IDocsRules rules, Feature
 
     public Task<IReadOnlyList<AttemptRecord>> AttemptsAsync(JobId job, CancellationToken cancellationToken) => places.AttemptsAsync(job, cancellationToken);
 
+    public Task CommitAsync(JobId job, string label, CancellationToken cancellationToken) => places.CommitAsync(job, label, cancellationToken);
+
     public Task<Option<JobStatus>> StatusAsync(JobId job, CancellationToken cancellationToken) => places.StatusAsync(job, cancellationToken);
 
     public async Task<Option<Subject>> OfAsync(JobId job, CancellationToken cancellationToken) =>
