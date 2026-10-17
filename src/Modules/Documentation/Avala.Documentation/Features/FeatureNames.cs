@@ -10,6 +10,10 @@ internal static class FeatureNames
 
     public const int TitleWords = 8;
 
+    private static readonly string[] ClauseEnds = [". ", ", ", "; ", ": ", "! ", "? ", "\n"];
+
+    private static readonly HashSet<string> Dangling = new(StringComparer.OrdinalIgnoreCase) { "a", "an", "the", "that", "which", "who", "to", "and", "or", "of", "for", "with", "in", "on", "from", "into", "by", "as" };
+
     private static readonly HashSet<string> Quiet = ["the", "and", "for", "with", "then", "from", "into", "when", "that", "this", "are", "its"];
 
     public static string Slug(string title)
@@ -49,11 +53,18 @@ internal static class FeatureNames
 
     public static Feature New(string instruction)
     {
-        var clauses = Untagged(instruction)
-            .Split(['.', ',', ';', ':', '!', '?', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(clause => clause.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        var clauses = (Untagged(instruction).TrimEnd('.', ',', ';', ':', '!', '?') + " ")
+            .ReplaceLineEndings("\n")
+            .Split(ClauseEnds, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(clause => clause.TrimEnd('.', ',', ';', ':', '!', '?').Split(' ', StringSplitOptions.RemoveEmptyEntries))
             .ToList();
         var words = (clauses.FirstOrDefault(clause => clause.Length >= 2) ?? clauses.FirstOrDefault() ?? []).Take(TitleWords).ToList();
+
+        while (words.Count > 1 && Dangling.Contains(words[^1]))
+        {
+            words.RemoveAt(words.Count - 1);
+        }
+
         var title = words.Count == 0 ? "Feature" : string.Join(' ', words);
 
         return new Feature(Slug(title), char.ToUpperInvariant(title[0]) + title[1..]);

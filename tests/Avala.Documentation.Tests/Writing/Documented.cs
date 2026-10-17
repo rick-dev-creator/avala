@@ -60,7 +60,13 @@ internal sealed class Documented
     }
 
     public async Task PlanAsync(SessionId session, params string[] steps) =>
+        await Desk.HandleAsync(new AgentActivity(new PlanUpdated(session, TurnId.New(), [.. steps.Select((step, index) => new PlanStep(step, index == 0 ? PlanStepStatus.InProgress : PlanStepStatus.Pending))])), Cancellation);
+
+    public async Task PlanningAsync(SessionId session, params string[] steps) =>
         await Desk.HandleAsync(new AgentActivity(new PlanUpdated(session, TurnId.New(), [.. steps.Select(step => new PlanStep(step, PlanStepStatus.Pending))])), Cancellation);
+
+    public async Task TurnEndsAsync(SessionId session) =>
+        await Desk.HandleAsync(new AgentActivity(new TurnCompleted(session, TurnId.New(), TurnOutcome.Finished)), Cancellation);
 
     public async Task ProgressAsync(JobId job, JobStatus status)
     {

@@ -38,7 +38,12 @@ internal static class AsBuiltDocument
         var lines = previous.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         var heading = Array.FindIndex(lines, line => line.StartsWith("# ", StringComparison.Ordinal));
 
-        return string.Join('\n', heading < 0 ? lines : lines[(heading + 1)..]).Trim();
+        var body = heading < 0 ? lines : lines[(heading + 1)..];
+        var changes = Array.FindIndex(body, line => line.StartsWith("## Changes from", StringComparison.Ordinal));
+        var end = changes < 0 ? -1 : Array.FindIndex(body, changes + 1, line => line.StartsWith("## ", StringComparison.Ordinal));
+        var kept = changes < 0 ? body : [.. body[..changes], .. end < 0 ? [] : body[end..]];
+
+        return string.Join('\n', kept).Trim();
     }
 
     private static string Lines(ChangedFile file) =>
