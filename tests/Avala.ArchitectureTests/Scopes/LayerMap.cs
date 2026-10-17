@@ -341,7 +341,12 @@ internal static class LayerMap
             [""] = Layer.None,
             ["Contracts"] = Layer.Contracts,
             ["Features"] = Layer.Domain,
+            ["Catalog"] = Layer.Application,
+            ["Records"] = Layer.Application,
+            ["Writing"] = Layer.Application,
             ["RepositoryFiles"] = Layer.Infrastructure,
+            ["Storage"] = Layer.Infrastructure,
+            ["Storage.Migrations"] = Layer.Infrastructure,
         }),
         .. Module("Avala.Projects", new()
         {
