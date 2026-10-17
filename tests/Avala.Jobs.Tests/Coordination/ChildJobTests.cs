@@ -42,6 +42,21 @@ public sealed class ChildJobTests
     }
 
     [Fact]
+    public async Task ACompanionIsAcceptedWhileItsParentWaitsForHelpOrReviewAndRefusedOnceItsParentEndedAsync()
+    {
+        var flow = JobFlow.With();
+        var held = await flow.HeldAsync(HoldReason.Stalled);
+        var reviewed = await flow.RunningAsync();
+        await flow.FinishTurnAsync(reviewed);
+        var discarded = await flow.RunningAsync();
+        Outcomes.Succeeds(await flow.Jobs.DiscardAsync(discarded.Id, Cancellation));
+
+        Assert.Equal(JobState.Preparing, (await flow.SubmittedAsync(ChildOf(held) with { Companion = true })).State);
+        Assert.Equal(JobState.Preparing, (await flow.SubmittedAsync(ChildOf(reviewed) with { Companion = true })).State);
+        Assert.Equal(JobRejection.ParentNotRunning, Outcomes.FailsWith(await flow.Submit.ExecuteAsync(ChildOf(discarded) with { Companion = true }, Cancellation)));
+    }
+
+    [Fact]
     public async Task AChildStartsWithoutAdmissionFromACheckpointOfItsParentWithItsParentsRulesAsync()
     {
         var flow = JobFlow.With();

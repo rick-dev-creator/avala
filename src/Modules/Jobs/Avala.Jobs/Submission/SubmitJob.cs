@@ -23,7 +23,7 @@ internal sealed class SubmitJob(JobLedger ledger, IEventBus bus, IConnections co
 
         if (!submitted.TryGetValue(out var job, out var rejection)
             || !(await UsableAsync(request.Connection, request.Model, cancellationToken)).TryGetValue(out _, out rejection)
-            || !(await ParentOfAsync(job, cancellationToken)).TryGetValue(out _, out rejection))
+            || !(await ParentOfAsync(job, request.Companion, cancellationToken)).TryGetValue(out _, out rejection))
         {
             return rejection;
         }
@@ -47,10 +47,10 @@ internal sealed class SubmitJob(JobLedger ledger, IEventBus bus, IConnections co
             refusal => Result<bool, JobRejection>.Failure(refusal == ModelRefusal.UnofferedModel ? JobRejection.UnofferedModel : JobRejection.UnofferedEffort),
             () => Result<bool, JobRejection>.Success(true));
 
-    private async Task<Result<bool, JobRejection>> ParentOfAsync(Job child, CancellationToken cancellationToken) =>
+    private async Task<Result<bool, JobRejection>> ParentOfAsync(Job child, bool companion, CancellationToken cancellationToken) =>
         await child.Parent.Match(
             async parent => (await ledger.SnapshotAsync(parent, cancellationToken)).Match(
-                found => found.State != JobState.Running ? JobRejection.ParentNotRunning
+                found => !(found.State == JobState.Running || (companion && found.State is JobState.Checking or JobState.NeedsHelp or JobState.AwaitingReview)) ? JobRejection.ParentNotRunning
                     : found.Repository != child.Repository ? JobRejection.InvalidRequest
                     : Result<bool, JobRejection>.Success(true),
                 () => JobRejection.UnknownParent),

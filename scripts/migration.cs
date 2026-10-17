@@ -16,6 +16,7 @@
 #:project ../src/Modules/Notifications/Avala.Notifications/Avala.Notifications.csproj
 #:project ../src/Modules/Contests/Avala.Contests/Avala.Contests.csproj
 #:project ../src/Modules/Projects/Avala.Projects/Avala.Projects.csproj
+#:project ../src/Modules/Documentation/Avala.Documentation/Avala.Documentation.csproj
 
 using System.Reflection;
 using System.Text.RegularExpressions;

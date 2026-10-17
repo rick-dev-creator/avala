@@ -79,7 +79,7 @@ public sealed record VersionWritten(JobId Job, Feature Feature, FeatureVersion V
 
 public sealed record VersionNotWritten(JobId Job, VersionKind Kind, VersionFailure Failure) : IIntegrationEvent;
 
-public static class DocumentationDraft
+public sealed record DocumentationDraft(string Content)
 {
     public const string Path = ".avala/docs/version.md";
 }
