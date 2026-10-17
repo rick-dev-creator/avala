@@ -1,5 +1,6 @@
 using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
+using Avala.Documentation.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Simulator.Scenarios;
@@ -518,7 +519,7 @@ internal static class ScenarioCatalog
     public static IReadOnlyList<Scenario> All { get; } =
     [
         Steer, Reply, Edit, Tools, PlanAcrossTurns, FixAfterFeedback, SpendOnFix, RewriteChecks, Permission, ScriptPermission, WaitingPermission, RepeatedPermission, Withdrawal, OutsideEdit, ChainedCommand, Trusting, Question, Governed, UnsharedThought, Fields, PlanApproval,
-        LargeContext, .. ConversationScenarios.All, Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All,
+        LargeContext, .. ConversationScenarios.All, Crash, LeftOpen, Hang, UnconfirmedInterrupt, Canvas, UnofferedCanvas, MermaidCanvas, Markdown, Processes, FollowUp, LimitHandoff, .. LimitScenarios.All, .. DelegationScenarios.All, .. ContestScenarios.All, .. FileScenarios.All, .. AnimationScenarios.All, .. DocumentationScenarios.All,
     ];
 
     public const string ProposeFollowUp = "propose_follow_up";
@@ -530,7 +531,8 @@ internal static class ScenarioCatalog
     public const string WaitChild = "wait_child";
 
     public static string NameIn(string firstMessage) =>
-        Tagged(firstMessage, ReplayRequest.TimedTag).Match(
+        firstMessage.Contains(DocumentationDraft.Path, StringComparison.Ordinal) ? DocumentationScenarios.Document.Name
+        : Tagged(firstMessage, ReplayRequest.TimedTag).Match(
             recording => new ReplayRequest(recording, AsRecorded: true).Scenario,
             () => Tagged(firstMessage, ReplayRequest.CompressedTag).Match(
                 recording => new ReplayRequest(recording, AsRecorded: false).Scenario,

@@ -19,3 +19,8 @@ public enum DocumentationError
 public sealed record Feature(string Slug, string Title);
 
 public sealed record FeatureSuggestion(Feature Feature, bool IsNew);
+
+public static class DocumentationDraft
+{
+    public const string Path = ".avala/docs/version.md";
+}
