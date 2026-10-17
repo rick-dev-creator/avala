@@ -11,6 +11,9 @@ internal sealed record JobPlace(JobId Job, string Repository, WorkspaceId Worksp
 
 internal sealed class JobPlaces(IJobCatalog catalog, IWorkspaces workspaces)
 {
+    public async Task<IReadOnlyList<AttemptRecord>> AttemptsAsync(JobId job, CancellationToken cancellationToken) =>
+        (await catalog.HistoryAsync(job, cancellationToken)).Match(history => history.Attempts, () => []);
+
     public async Task<Option<JobStatus>> StatusAsync(JobId job, CancellationToken cancellationToken) =>
         (await catalog.HistoryAsync(job, cancellationToken)).Map(history => history.Summary.Status);
 

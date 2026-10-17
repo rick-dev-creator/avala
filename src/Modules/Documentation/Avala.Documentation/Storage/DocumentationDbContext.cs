@@ -10,6 +10,8 @@ internal sealed class DocumentationDbContext(string database) : DbContext
 
     public DbSet<StoredWriter> Writers => Set<StoredWriter>();
 
+    public DbSet<StoredRequest> Requests => Set<StoredRequest>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.UseSqlite($"Data Source={database};Pooling=False");
 
@@ -29,6 +31,11 @@ internal sealed class DocumentationDbContext(string database) : DbContext
         {
             writer.ToTable("Writers");
             writer.HasKey(row => row.Writer);
+        });
+        modelBuilder.Entity<StoredRequest>(request =>
+        {
+            request.ToTable("Requests");
+            request.HasKey(row => new { row.Job, row.Number });
         });
     }
 }

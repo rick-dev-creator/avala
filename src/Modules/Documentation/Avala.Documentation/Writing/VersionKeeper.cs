@@ -21,7 +21,7 @@ internal sealed class VersionKeeper(IWorkingFiles files, FeatureCatalog catalog,
                 var plan = pending.Plan.Split('\n', StringSplitOptions.RemoveEmptyEntries);
                 var written = await WriteAsync(subject.Place.Worktree, path, text, cancellationToken)
                     && await WriteAsync(subject.Place.Worktree, subject.Folder.Plan(pending.Number), FeatureFolder.PlanDocument(pending.Number, plan), cancellationToken)
-                    && await IndexAsync(subject, cancellationToken);
+                    && await IndexAsync(subject, subject.Documented.Linked(new FeatureVersion(pending.Number, pending.Kind, path, default)), cancellationToken);
 
                 return written
                     ? Result<FeatureVersion, VersionFailure>.Success(new FeatureVersion(pending.Number, pending.Kind, path, default) { Writer = writer.Job })
@@ -42,7 +42,7 @@ internal sealed class VersionKeeper(IWorkingFiles files, FeatureCatalog catalog,
         var path = subject.Folder.Version(number, VersionKind.AsBuilt);
         var document = AsBuiltDocument.Compose(subject.Folder.Feature, last.Match(found => found.Number, () => number), previous, evidence);
 
-        return await WriteAsync(subject.Place.Worktree, path, document, cancellationToken) && await IndexAsync(subject, cancellationToken)
+        return await WriteAsync(subject.Place.Worktree, path, document, cancellationToken) && await IndexAsync(subject, subject.Documented.Requests, cancellationToken)
             ? new FeatureVersion(number, VersionKind.AsBuilt, path, default)
             : VersionFailure.Unwritable;
     }
@@ -59,12 +59,21 @@ internal sealed class VersionKeeper(IWorkingFiles files, FeatureCatalog catalog,
                 .Select(file => new ChangedFile(file.Path, file.Added, file.Removed))],
             _ => []);
 
-    private async Task<bool> IndexAsync(Subject subject, CancellationToken cancellationToken)
+    private async Task<bool> IndexAsync(Subject subject, IReadOnlyList<ChangeRequest> requests, CancellationToken cancellationToken)
     {
         var versions = await catalog.VersionsAsync(subject.Place.Worktree, subject.Folder, cancellationToken);
 
         return await WriteAsync(subject.Place.Worktree, subject.Folder.Readme, subject.Folder.Index(versions), cancellationToken)
-            && await WriteAsync(subject.Place.Worktree, subject.Folder.Toc, FeatureFolder.TableOfContents(versions), cancellationToken);
+            && await WriteAsync(subject.Place.Worktree, subject.Folder.Toc, FeatureFolder.TableOfContents(versions), cancellationToken)
+            && (requests.Count == 0 || await ChangesAsync(subject, requests, versions, cancellationToken));
+    }
+
+    private async Task<bool> ChangesAsync(Subject subject, IReadOnlyList<ChangeRequest> requests, IReadOnlyList<VersionFile> versions, CancellationToken cancellationToken)
+    {
+        var path = $"{subject.Folder.Path}/{ChangeLog.File}";
+        var existing = (await files.ReadAsync(subject.Place.Worktree, path, cancellationToken)).Match(content => content.Match(text => text, () => string.Empty), _ => string.Empty);
+
+        return await WriteAsync(subject.Place.Worktree, path, ChangeLog.Merge(existing, subject.Place.Job, subject.Place.Instruction, requests, versions), cancellationToken);
     }
 
     private async Task<bool> WriteAsync(string worktree, string path, string content, CancellationToken cancellationToken) =>

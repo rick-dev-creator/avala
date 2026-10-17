@@ -26,17 +26,29 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
 
     public async ValueTask HandleAsync(AgentActivity integrationEvent, CancellationToken cancellationToken)
     {
-        if (integrationEvent.Event is PlanUpdated { Steps.Count: > 0 } updated && sessions.TryGetValue(updated.Session, out var job))
+        switch (integrationEvent.Event)
         {
-            plans[job] = [.. updated.Steps.Select(step => step.Title)];
-            await WriteAsync(job, cancellationToken);
+            case PlanUpdated { Steps.Count: > 0 } updated when sessions.TryGetValue(updated.Session, out var job):
+                plans[job] = [.. updated.Steps.Select(step => step.Title)];
+                await WriteAsync(job, cancellationToken);
+                break;
+            case MessageQueued queued when sessions.TryGetValue(queued.Session, out var job) && queued.Text.Trim().Length > 0:
+                await (await subjects.OfAsync(job, cancellationToken)).Match(
+                    subject => book.RequestedAsync(job, RequestKind.Steer, queued.Text.Trim(), subject.Place.Attempt, cancellationToken),
+                    () => Task.CompletedTask);
+                break;
         }
     }
 
     public async ValueTask HandleAsync(JobProgressed integrationEvent, CancellationToken cancellationToken) =>
         await book.OfWriter(integrationEvent.Job).Match(
             documented => SettleAsync(documented, integrationEvent.Status, cancellationToken),
-            () => integrationEvent.Status == JobStatus.AwaitingReview ? AsBuiltAsync(integrationEvent.Job, cancellationToken) : Task.CompletedTask);
+            () => integrationEvent.Status switch
+            {
+                JobStatus.AwaitingReview => AsBuiltAsync(integrationEvent.Job, cancellationToken),
+                JobStatus.Running => AskedAsync(integrationEvent.Job, cancellationToken),
+                _ => Task.CompletedTask,
+            });
 
     public async ValueTask HandleAsync(StartupCompleted integrationEvent, CancellationToken cancellationToken)
     {
@@ -49,6 +61,32 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
                 () => Task.CompletedTask);
         }
     }
+
+    private async Task AskedAsync(JobId job, CancellationToken cancellationToken) =>
+        await (await subjects.OfAsync(job, cancellationToken)).Match(subject => AttemptsAskedAsync(subject, cancellationToken), () => Task.CompletedTask);
+
+    private async Task AttemptsAskedAsync(Subject subject, CancellationToken cancellationToken)
+    {
+        var job = subject.Place.Job;
+
+        foreach (var attempt in await subjects.AttemptsAsync(job, cancellationToken))
+        {
+            var asked = Requested(attempt.Origin);
+            var text = attempt.Guidance.Match(guidance => guidance.Trim(), () => string.Empty);
+
+            if (asked.IsSome && text.Length > 0 && !subject.Documented.Requests.Any(request => request.Kind != RequestKind.Steer && request.Attempt == attempt.Number))
+            {
+                await book.RequestedAsync(job, asked.Match(kind => kind, () => RequestKind.Message), text, attempt.Number, cancellationToken);
+            }
+        }
+    }
+
+    private static Option<RequestKind> Requested(AttemptOrigin origin) => origin switch
+    {
+        AttemptOrigin.SendBack => RequestKind.SendBack,
+        AttemptOrigin.Hint or AttemptOrigin.Device or AttemptOrigin.Reopen => RequestKind.Message,
+        _ => Option<RequestKind>.None,
+    };
 
     private async Task WriteAsync(JobId job, CancellationToken cancellationToken)
     {

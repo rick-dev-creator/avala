@@ -105,6 +105,15 @@ internal sealed class Documented
 
         public void Forget(JobId job) => histories.TryRemove(job, out _);
 
+        public void Attempt(JobId job, AttemptOrigin origin, string guidance)
+        {
+            var attempts = histories[job].Attempts;
+            histories[job] = histories[job] with
+            {
+                Attempts = [.. attempts, new AttemptRecord(attempts.Count + 1, origin, AttemptOutcome.Running, guidance.Length == 0 ? Option<string>.None : guidance, Option<SessionId>.None)],
+            };
+        }
+
         public ValueTask<Result<JobId, JobRejection>> SubmitAsync(JobRequest request, CancellationToken cancellationToken)
         {
             if (Rejection.IsSome)
@@ -243,7 +252,10 @@ internal sealed class Documented
         public Task WritingAsync(JobId job, PendingWriter writer, CancellationToken cancellationToken) => ChangeAsync(job, found => found with { Writer = writer });
 
         public Task WrittenAsync(JobId job, FeatureVersion version, string plan, CancellationToken cancellationToken) =>
-            ChangeAsync(job, found => found with { Versions = found.Versions.Add(version), Writer = Option<PendingWriter>.None, LastPlan = plan });
+            ChangeAsync(job, found => found with { Versions = found.Versions.Add(version), Writer = Option<PendingWriter>.None, LastPlan = plan, Requests = [.. found.Linked(version)] });
+
+        public Task RequestedAsync(JobId job, ChangeRequest request, CancellationToken cancellationToken) =>
+            ChangeAsync(job, found => found with { Requests = found.Requests.Add(request) });
 
         public Task ForgetAsync(JobId job, JobId writer, string plan, CancellationToken cancellationToken) =>
             ChangeAsync(job, found => found with { Writer = Option<PendingWriter>.None, LastPlan = plan });
