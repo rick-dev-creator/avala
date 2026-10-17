@@ -31,6 +31,8 @@ public sealed record ForgeInfo(string Id, string Name)
     public string Logo { get; init; } = string.Empty;
 
     public Option<Uri> SuggestedUrl { get; init; }
+
+    public string PullRequestSegment { get; init; } = "pulls";
 }
 
 public sealed record RepositoryAddress(string Host, string Owner, string Name);

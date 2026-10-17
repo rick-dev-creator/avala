@@ -52,3 +52,19 @@ public sealed class ReadinessAccountViewScripts(HeadlessUi ui)
             Assert.Equal(("oc•••••", "gh", true), (account.TextOf("Login"), account.TextOf("Tool"), account.Shows("Connect")));
         }, Cancellation);
 }
+
+public sealed class AgentPullRequestNoteViewScripts(HeadlessUi ui)
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public Task TheNoteShowsItsTextWithOpenSettingsAndHidesWhenNothingWasMentionedAsync() =>
+        ui.RunAsync(() =>
+        {
+            var shown = Screen.Show(new DesignAgentPullRequestNoteViewModel());
+            var hidden = Screen.Show(new DesignAgentPullRequestNoteViewModel { IsShown = false });
+
+            Assert.Equal(("Pull request #123 was opened by the agent. Connect github.com in Settings to follow its checks.", true), (shown.TextOf("Text"), shown.Shows("OpenSettings")));
+            Assert.False(hidden.Shows("Note"));
+        }, Cancellation);
+}

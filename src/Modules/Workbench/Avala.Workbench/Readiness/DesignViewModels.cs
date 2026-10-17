@@ -42,3 +42,12 @@ internal sealed class DesignReadinessCardViewModel : IReadinessCardViewModel
         new DesignReadinessItemViewModel { Need = ReadinessNeed.Checks, Text = new PersonalPhrase("Checks declared in .avala/checks.json"), Action = string.Empty, IsDone = true },
     ];
 }
+
+internal sealed class DesignAgentPullRequestNoteViewModel : IAgentPullRequestNoteViewModel
+{
+    public bool IsShown { get; init; } = true;
+
+    public string Text { get; init; } = "Pull request #123 was opened by the agent. Connect github.com in Settings to follow its checks.";
+
+    public IRelayCommand OpenSettingsCommand { get; } = new RelayCommand(() => { });
+}

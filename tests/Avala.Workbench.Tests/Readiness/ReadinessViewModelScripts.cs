@@ -111,3 +111,21 @@ public sealed class ReadinessAccountViewModelScripts
         Assert.Equal(("oc•••••", "gh", 1), (account.Login.ToString(), account.Tool, connected));
     }
 }
+
+public sealed class AgentPullRequestNoteViewModelScripts
+{
+    [Fact]
+    public void TheNoteNamesThePullRequestAndItsHostAndOpensSettings()
+    {
+        var links = new FakeReadinessLinks();
+        var board = new Avala.Workbench.Board.JobBoard();
+        using var ui = new TestUiDispatcher();
+        using var note = new AgentPullRequestNoteViewModel(new AgentPullRequests(board, new FakeMentions()), new Avala.Workbench.Following.LiveFeed(new Avala.Workbench.Following.Pulse(board), ui), links);
+
+        note.OpenSettingsCommand.Execute(null);
+
+        Assert.Equal(
+            ("Pull request #123 was opened by the agent. Connect github.com in Settings to follow its checks.", 1),
+            (AgentPullRequestNoteViewModel.Phrase(new MentionedPullRequest(123, new Uri("https://github.com/ada/shop/pull/123"))), links.SettingsOpened));
+    }
+}

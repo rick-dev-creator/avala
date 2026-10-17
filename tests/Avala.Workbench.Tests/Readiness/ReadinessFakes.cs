@@ -34,3 +34,17 @@ internal sealed class FakeDeliveryPlans : IDeliveryPlans
 
     public ValueTask<Result<DeliveryPlan, JobRejection>> PlanAsync(JobId job, CancellationToken cancellationToken) => ValueTask.FromResult(Plan);
 }
+
+internal sealed class FakeMentions : IMentionedPullRequests
+{
+    public Option<MentionedPullRequest> Mentioned { get; set; }
+
+    public List<string> Read { get; } = [];
+
+    public ValueTask<Option<MentionedPullRequest>> UnfollowedAsync(JobId job, string text, CancellationToken cancellationToken)
+    {
+        Read.Add(text);
+
+        return ValueTask.FromResult(Mentioned);
+    }
+}

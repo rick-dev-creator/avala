@@ -15,13 +15,22 @@ internal sealed class PullRequestFinder(EffectiveRules rules, IGitRemote git, Fo
     {
         if (!(await rules.OfWorktreeAsync(worktree.Path, cancellationToken)).TryGetValue(out var declared, out _)
             || !(await git.UrlAsync(worktree.Path, declared.Remote, cancellationToken)).TryGetValue(out var remote, out _)
-            || !(await connections.ResolveAsync(declared.Forge, remote, cancellationToken)).TryGetValue(out var forge, out _)
-            || !(await forge.Forge.FindAsync(forge.Context, worktree.Branch, cancellationToken)).TryGetValue(out var found, out _))
+            || !(await connections.ResolveAsync(declared.Forge, remote, cancellationToken)).TryGetValue(out var forge, out _))
         {
             return Option<Delivered>.None;
         }
 
-        return found.Map(pullRequest => new Delivered(job, declared, remote, pullRequest, pullRequest.Head));
+        IReadOnlyList<string> branches = [worktree.Branch, .. (await git.CheckedOutAsync(worktree.Path, cancellationToken)).Where(branch => branch != worktree.Branch)];
+
+        foreach (var branch in branches)
+        {
+            if ((await forge.Forge.FindAsync(forge.Context, branch, cancellationToken)).TryGetValue(out var found, out _) && found.IsSome)
+            {
+                return found.Map(pullRequest => new Delivered(job, declared, remote, pullRequest, pullRequest.Head));
+            }
+        }
+
+        return Option<Delivered>.None;
     }
 }
 
