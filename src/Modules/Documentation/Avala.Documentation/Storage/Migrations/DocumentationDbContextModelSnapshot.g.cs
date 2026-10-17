@@ -80,6 +80,9 @@ namespace Avala.Documentation.Storage.Migrations
                     b.Property<DateTimeOffset>("At")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Attempt")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("TEXT");

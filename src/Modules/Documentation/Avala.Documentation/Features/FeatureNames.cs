@@ -49,11 +49,26 @@ internal static class FeatureNames
 
     public static Feature New(string instruction)
     {
-        var clause = instruction.Split(['.', ',', ';', ':', '!', '?', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? string.Empty;
-        var words = clause.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(TitleWords).ToList();
+        var clauses = Untagged(instruction)
+            .Split(['.', ',', ';', ':', '!', '?', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(clause => clause.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            .ToList();
+        var words = (clauses.FirstOrDefault(clause => clause.Length >= 2) ?? clauses.FirstOrDefault() ?? []).Take(TitleWords).ToList();
         var title = words.Count == 0 ? "Feature" : string.Join(' ', words);
 
         return new Feature(Slug(title), char.ToUpperInvariant(title[0]) + title[1..]);
+    }
+
+    private static string Untagged(string instruction)
+    {
+        var text = instruction.TrimStart();
+
+        while (text.StartsWith('[') && text.IndexOf(']', StringComparison.Ordinal) is > 0 and var end)
+        {
+            text = text[(end + 1)..].TrimStart();
+        }
+
+        return text;
     }
 
     private static IEnumerable<string> Significant(string text) =>

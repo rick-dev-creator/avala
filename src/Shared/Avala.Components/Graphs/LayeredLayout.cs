@@ -179,9 +179,9 @@ public static class LayeredLayout
         }
 
         var left = members.Min(rect => rect.X) - spacing.GroupPadding;
-        var top = members.Min(rect => rect.Y) - spacing.GroupPadding - spacing.GroupLabel;
+        var top = members.Min(rect => rect.Y) - spacing.GroupPadding;
 
-        return new GraphRect(left, top, members.Max(rect => rect.Right) + spacing.GroupPadding - left, members.Max(rect => rect.Bottom) + spacing.GroupPadding - top);
+        return new GraphRect(left, top, members.Max(rect => rect.Right) + spacing.GroupPadding - left, members.Max(rect => rect.Bottom) + spacing.GroupPadding + spacing.GroupLabel - top);
     }
 }
 

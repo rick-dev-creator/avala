@@ -8,6 +8,8 @@ namespace Avala.Host.Tests;
 
 public sealed class DocumentationTests(PublishedPlugins plugins)
 {
+    private const string Feedback = "Stripe sends a refund twice; apply it once.";
+
     private const string DocsOn = """{ "docs": { "enabled": true } }""";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -61,6 +63,73 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
 
         Assert.Empty(await run.Get<IJobCatalog>().ChildrenAsync(run.Job, Cancellation));
         Assert.Equal(Option<JobDocumentation>.None, run.Get<IDocumentation>().OfJob(run.Job));
+    }
+
+    [Fact]
+    public async Task ASendBackThatChangesThePlanIsRecordedAsAChangeRequestThatTheDeviationWrittenNextLinksInChangesAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+
+        var (job, versions) = await SentBackAsync(run);
+
+        var documented = Outcomes.Present(run.Get<IDocumentation>().OfJob(job));
+        var folder = Path.Combine(await WorktreeAsync(run, job), "docs", "features", documented.Feature.Slug);
+        Assert.Equal(
+            [(1, VersionKind.Proposed), (2, VersionKind.AsBuilt), (3, VersionKind.Deviation), (4, VersionKind.AsBuilt)],
+            versions.Select(version => (version.Number, version.Kind)));
+        var request = Assert.Single(documented.Requests);
+        Assert.Equal((RequestKind.SendBack, Feedback, 2, Option<int>.Some(3)), (request.Kind, request.Text, request.Attempt, request.Version));
+        var changes = await File.ReadAllTextAsync(Path.Combine(folder, "changes.md"), Cancellation);
+        Assert.Contains($"> {Feedback}\n", changes);
+        Assert.Contains("v3-deviation.md", changes);
+        Assert.Contains("1. Add a Webhooks container\n2. Keep idempotency keys in the ledger\n", await File.ReadAllTextAsync(Path.Combine(folder, "plans", "v3.md"), Cancellation));
+    }
+
+    [Fact]
+    public async Task AJobsVersionsAndChangeRequestsSurviveARestartAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var (job, _) = await SentBackAsync(run);
+        var before = Outcomes.Present(run.Get<IDocumentation>().OfJob(job));
+
+        await run.RestartAsync();
+        await run.StartedAsync();
+
+        var after = Outcomes.Present(run.Get<IDocumentation>().OfJob(job));
+        Assert.Equal(before.Feature, after.Feature);
+        Assert.Equal(before.Versions, after.Versions);
+        Assert.Equal(before.Requests, after.Requests);
+        Assert.Equal(Option<JobId>.None, after.Writing);
+        var docs = Outcomes.Present(await run.Get<IDocumentation>().JobDocsAsync(job, Cancellation));
+        Assert.Equal(4, Outcomes.Present(docs.Story).Versions.Count);
+    }
+
+    [Fact]
+    public async Task CreatingTheSiteWritesItIntoTheRepositoryWithAvalasPlayerAndAJobFillsItAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+        var documentation = run.Get<IDocumentation>();
+
+        var created = Outcomes.Succeeds(await documentation.CreateSiteAsync(run.Repository.Path, Cancellation));
+
+        var filler = Outcomes.Present(created.Filler);
+        Assert.Equal([JobStatus.AwaitingReview], await run.SettledAsync(filler));
+        Assert.Contains("\"template\": [ \"default\", \"modern\", \"template\" ]", await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "docs", "docfx.json"), Cancellation));
+        Assert.Contains("customElements.define(\"avala-c4\"", await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "docs", "template", "public", "avala-c4.js"), Cancellation));
+        Assert.True((await documentation.SiteAsync(run.Repository.Path, Cancellation)).Exists);
+        var history = Outcomes.Present(await run.Get<IJobCatalog>().HistoryAsync(filler, Cancellation));
+        Assert.Contains("docs/get-started/quickstart.md", history.Summary.Instruction);
+    }
+
+    private static async Task<(JobId Job, IReadOnlyList<FeatureVersion> Versions)> SentBackAsync(SimulatedRun run)
+    {
+        var written = run.Watch<VersionWritten>();
+        var job = Outcomes.Succeeds(await run.SubmitAsync(new JobRequest(string.Empty, "[simulate: plan-revised] Handle Stripe refund webhooks")));
+        var first = await written.CollectUntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+        Outcomes.Succeeds(await run.Get<IJobs>().SendBackAsync(job, Feedback, Cancellation));
+        var then = await written.CollectUntilAsync(version => version.Job == job && version.Version.Kind == VersionKind.AsBuilt);
+
+        return (job, [.. first.Concat(then).Where(version => version.Job == job).Select(version => version.Version)]);
     }
 
     private static async Task<string> WorktreeAsync(SimulatedRun run, JobId job)

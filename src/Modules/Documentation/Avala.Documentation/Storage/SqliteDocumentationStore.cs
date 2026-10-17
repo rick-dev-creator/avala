@@ -32,8 +32,10 @@ internal sealed class StoredVersion
 
     public Guid Writer { get; init; }
 
+    public int Attempt { get; init; }
+
     public FeatureVersion Read() =>
-        new(Number, Enum.Parse<VersionKind>(Kind), Path, At) { Writer = Writer == Guid.Empty ? Option<JobId>.None : new JobId(Writer) };
+        new(Number, Enum.Parse<VersionKind>(Kind), Path, At) { Writer = Writer == Guid.Empty ? Option<JobId>.None : new JobId(Writer), Attempt = Math.Max(1, Attempt) };
 }
 
 internal sealed class StoredWriter
@@ -135,6 +137,7 @@ internal sealed class SqliteDocumentationStore(AvalaPaths paths) : IDocumentatio
                         Path = version.Path,
                         At = version.At,
                         Writer = version.Writer.Match(writer => writer.Value, () => Guid.Empty),
+                        Attempt = version.Attempt,
                     },
                     cancellationToken);
 

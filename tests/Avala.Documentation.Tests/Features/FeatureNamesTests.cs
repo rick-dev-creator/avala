@@ -37,6 +37,14 @@ public sealed class FeatureNamesTests
         Assert.Equal((new Feature("add-dark-mode-to-the-settings-page", "Add dark mode to the settings page"), true), (suggestion.Feature, suggestion.IsNew));
     }
 
+    [Theory]
+    [InlineData("[WIP] Handle Stripe refund webhooks", "Handle Stripe refund webhooks")]
+    [InlineData("[simulate: plan-revised] [team] Handle Stripe refund webhooks", "Handle Stripe refund webhooks")]
+    [InlineData("Fix: the refund webhook drops events", "The refund webhook drops events")]
+    [InlineData("Refactor.", "Refactor")]
+    public void ANewFeaturesTitleSkipsLeadingTagsAndALoneWordBeforeAColon(string instruction, string title) =>
+        Assert.Equal(title, FeatureNames.New(instruction).Title);
+
     [Fact]
     public void AnExistingFeatureIsSuggestedOnlyWhenTheInstructionNamesMoreThanHalfItsTitle() =>
         Assert.True(FeatureNames.Suggest("Fix the scheduler of the nightly backup", [Payouts]).IsNew);
