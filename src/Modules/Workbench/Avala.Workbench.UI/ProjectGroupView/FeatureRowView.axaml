@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sidebar="using:Avala.Workbench.Sidebar"
+             x:Class="Avala.Workbench.UI.FeatureRowView"
+             x:ClassModifier="internal"
+             x:DataType="sidebar:IFeatureRowViewModel">
+  <Design.DataContext>
+    <sidebar:DesignFeatureRowViewModel />
+  </Design.DataContext>
+  <Button x:Name="Feature" Classes="row" Padding="40,5,10,5" Command="{Binding OpenCommand}" AutomationProperties.Name="{Binding Title}">
+    <StackPanel Spacing="1">
+      <TextBlock x:Name="FeatureTitle" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+      <TextBlock x:Name="FeatureFact" Classes="caption" Text="{Binding Fact}" />
+    </StackPanel>
+  </Button>
+</UserControl>

@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conversation="using:Avala.Workbench.Conversation"
+             x:Class="Avala.Workbench.UI.ChangeLineView"
+             x:ClassModifier="internal"
+             x:DataType="conversation:IChangeLineViewModel"
+             theme:Motion.Enter="Fade"
+             Margin="0,2">
+  <Design.DataContext>
+    <conversation:DesignChangeLineViewModel />
+  </Design.DataContext>
+  <DockPanel>
+    <TextBlock x:Name="ChangeFact" DockPanel.Dock="Right" Classes="caption" Text="{Binding Fact}" VerticalAlignment="Center" />
+    <StackPanel Orientation="Horizontal" Spacing="10">
+      <Path Classes="icon small" Data="{StaticResource IconRetry}" Stroke="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+      <TextBlock x:Name="ChangeText" Classes="secondary" Text="{Binding Text}" VerticalAlignment="Center" />
+    </StackPanel>
+  </DockPanel>
+</UserControl>

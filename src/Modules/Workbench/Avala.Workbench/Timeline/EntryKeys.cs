@@ -25,5 +25,9 @@ internal static class EntryKeys
 
     public static string Ci(int pullRequest, string head) => string.Create(CultureInfo.InvariantCulture, $"ci:{pullRequest}:{head}");
 
+    public static string Docs(int version) => string.Create(CultureInfo.InvariantCulture, $"docs:{version}");
+
+    public static string Change(int request) => string.Create(CultureInfo.InvariantCulture, $"change:{request}");
+
     public static string ChildAsking(SessionId session, ItemId item) => $"child-asking:{session.Value}:{item.Value}";
 }

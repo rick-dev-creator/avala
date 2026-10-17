@@ -1,0 +1,180 @@
+using System.Collections.ObjectModel;
+using Avala.Documentation.Contracts;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
+using Avala.Sdk.Presentation;
+using Avala.Sdk.Regions;
+using Avala.Workbench.Conversation;
+using Avala.Workbench.Documenting;
+using Avala.Workbench.Following;
+using Avala.Workbench.Sidebar;
+using Avala.Workbench.Timeline;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+
+namespace Avala.Workbench.Docs;
+
+internal interface IDocsPaneViewModel
+{
+    bool IsOpen { get; }
+
+    string Feature { get; }
+
+    string State { get; }
+
+    bool IsWriting { get; }
+
+    IC4PlayerViewModel Player { get; }
+
+    IReadOnlyList<IChangeLineViewModel> Requests { get; }
+
+    IReadOnlyList<IFeatureRowViewModel> Others { get; }
+
+    IRelayCommand CloseCommand { get; }
+}
+
+[INotifyPropertyChanged]
+internal sealed partial class DocsPaneViewModel
+    : IDocsPaneViewModel, IPane, IRegionAware<JobId>, IActivatable, IPresentation, IRecipient<DocsPaneRequested>, IDisposable
+{
+    private readonly DocsReader reader;
+    private readonly LiveFeed feed;
+    private readonly IMessenger messenger;
+    private readonly C4PlayerViewModel player;
+    private readonly ObservableCollection<ChangeLineViewModel> requests = [];
+    private readonly ObservableCollection<FeatureRowViewModel> others = [];
+    private Option<JobId> job;
+    private string played = string.Empty;
+
+    public DocsPaneViewModel(DocsReader reader, LiveFeed feed, IMessenger messenger, C4PlayerViewModel player)
+    {
+        this.reader = reader;
+        this.feed = feed;
+        this.messenger = messenger;
+        this.player = player;
+        player.IsCompact = true;
+        messenger.RegisterAll(this);
+    }
+
+    public event EventHandler<Presented>? Presented
+    {
+        add => feed.Presented += value;
+        remove => feed.Presented -= value;
+    }
+
+    public long Revision => feed.Revision;
+
+    public Task Following => feed.Following;
+
+    public IC4PlayerViewModel Player => player;
+
+    public IReadOnlyList<IChangeLineViewModel> Requests => requests;
+
+    public IReadOnlyList<IFeatureRowViewModel> Others => others;
+
+    [ObservableProperty]
+    public partial bool IsOpen { get; private set; }
+
+    [ObservableProperty]
+    public partial string Feature { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string State { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool IsWriting { get; private set; }
+
+    public void Activate() => feed.Start(ReadAsync, Show);
+
+    public void Deactivate() => feed.Stop();
+
+    public void Dispose()
+    {
+        feed.Dispose();
+        player.Dispose();
+        messenger.UnregisterAll(this);
+    }
+
+    public void OnRegionContextChanged(Option<JobId> context)
+    {
+        job = context;
+        Toggle(IsOpen && job.Match(reader.Offers, () => false));
+        feed.Refresh();
+    }
+
+    public void Receive(DocsPaneRequested message)
+    {
+        if (job == Option<JobId>.Some(message.Job))
+        {
+            Toggle(!IsOpen);
+            feed.Refresh();
+        }
+    }
+
+    public void Close() => Toggle(false);
+
+    [RelayCommand]
+    private void CloseNow() => Toggle(false);
+
+    IRelayCommand IDocsPaneViewModel.CloseCommand => CloseNowCommand;
+
+    private async ValueTask<Option<JobDocs>> ReadAsync(CancellationToken cancellationToken) =>
+        IsOpen && job.Match<JobId?>(found => found, () => null) is { } viewing ? await reader.JobAsync(viewing, cancellationToken) : Option<JobDocs>.None;
+
+    private void Show(Option<JobDocs> read)
+    {
+        foreach (var docs in read.Match<JobDocs[]>(found => [found], () => []))
+        {
+            var documented = docs.Documentation;
+            Feature = documented.Feature.Title;
+            IsWriting = documented.Writing.IsSome;
+            State = DocsPanePhrases.State(documented);
+            var story = docs.Story.Match(found => string.Join(',', found.Versions.Select(version => version.File)), () => string.Empty);
+
+            if (story != played)
+            {
+                played = story;
+                player.Show(docs.Story);
+            }
+
+            requests.Clear();
+
+            foreach (var request in documented.Requests)
+            {
+                requests.Add(new ChangeLineViewModel(new ChangeEntry(EntryKeys.Change(request.Number), request)));
+            }
+
+            others.Clear();
+
+            foreach (var listed in docs.Docs.Features.Where(listed => listed.Feature.Slug != documented.Feature.Slug))
+            {
+                others.Add(new FeatureRowViewModel(listed, () => messenger.Send(new FeatureDocsRequested(docs.Repository, listed.Feature))));
+            }
+        }
+    }
+
+    private void Toggle(bool open)
+    {
+        if (IsOpen == open)
+        {
+            return;
+        }
+
+        IsOpen = open;
+
+        foreach (var current in job.Match<JobId[]>(found => [found], () => []))
+        {
+            messenger.Send(new DocsPaneChanged(current, open));
+        }
+    }
+}
+
+internal static class DocsPanePhrases
+{
+    public static string State(JobDocumentation documented) =>
+        documented.Writing.IsSome ? "writing"
+        : documented.Versions.Count == 0 ? "waiting for a plan"
+        : documented.Versions.Count == 1 ? "1 version"
+        : $"{documented.Versions.Count} versions";
+}

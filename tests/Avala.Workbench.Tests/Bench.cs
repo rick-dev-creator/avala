@@ -103,7 +103,9 @@ internal sealed class Bench : IDisposable
 
     public RememberedLayout Layout { get; } = new();
 
-    public ProjectShelf Shelf => new(ProjectBook, Layout);
+    public FakeDocumentation Documentation { get; } = new();
+
+    public ProjectShelf Shelf => new(ProjectBook, Layout, Documentation, new StrongReferenceMessenger());
 
     public SidebarViewModel Sidebar() => new(Feed(), Focus, ScratchFolders, Shelf);
 

@@ -37,6 +37,7 @@ public sealed class DocumentationPlugin : IPlugin
             .AddForwarded<IHandle<AgentActivity>, DocumentationDesk>()
             .AddForwarded<IHandle<JobProgressed>, DocumentationDesk>()
             .AddForwarded<IHandle<StartupCompleted>, DocumentationDesk>()
+            .AddSingleton<DocumentationReads>()
             .AddSingleton<DocumentationEntry>()
             .AddForwarded<IDocumentation, DocumentationEntry>();
     }

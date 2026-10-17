@@ -107,6 +107,9 @@ internal sealed record Transcript
             : Put(new CiEntry(key, observed.PullRequest.Number, observed.HeadCommit, observed.Checks) { Woken = woken });
     }
 
+    public Transcript Kept(ITimelineEntry entry) =>
+        Positions.TryGetValue(entry.Key, out var position) && Equals(Entries[position], entry) ? this : Put(entry);
+
     public Transcript WithEarlierRestart(int number) => Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true));
 
     public Transcript Stopped(DateTimeOffset at) =>

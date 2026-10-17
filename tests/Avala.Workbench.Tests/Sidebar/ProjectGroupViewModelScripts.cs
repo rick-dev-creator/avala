@@ -110,13 +110,13 @@ public sealed class ProjectGroupViewModelScripts
     [Fact]
     public void ChatsCanBeFoldedButNeitherRenamedNorDeleted()
     {
-        var chats = new ProjectGroupViewModel(new ProjectShelf(book, layout), new RelayCommand<object>(_ => { }), new GroupHeading(ProjectGroupViewModel.ChatsKey, "Chats", Option<ProjectRecord>.None, true));
+        var chats = new ProjectGroupViewModel(new ProjectShelf(book, layout, new FakeDocumentation(), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new RelayCommand<object>(_ => { }), new GroupHeading(ProjectGroupViewModel.ChatsKey, "Chats", Option<ProjectRecord>.None, true));
 
         Assert.Equal((true, false, false, false), (chats.IsChats, chats.IsProject, chats.StartRenameCommand.CanExecute(null), chats.CanDelete));
     }
 
     private ProjectGroupViewModel Group(ProjectRecord project) =>
-        new(new ProjectShelf(book, layout), new RelayCommand<object>(_ => { }), new GroupHeading(project.Project.Value.ToString(), project.Name, project, true));
+        new(new ProjectShelf(book, layout, new FakeDocumentation(), new CommunityToolkit.Mvvm.Messaging.StrongReferenceMessenger()), new RelayCommand<object>(_ => { }), new GroupHeading(project.Project.Value.ToString(), project.Name, project, true));
 
     private static DesignJobRowViewModel Row(string title) =>
         new(JobId.New(), title, JobStatus.Running, "working", StatusKind.Working, 0);

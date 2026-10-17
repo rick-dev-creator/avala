@@ -38,6 +38,7 @@ using Avala.Workbench.Conversation;
 using Avala.Workbench.Mentioning;
 using Avala.Workbench.Decisions;
 using Avala.Workbench.Docs;
+using Avala.Workbench.Documenting;
 using Avala.Workbench.Fleet;
 using Avala.Workbench.Following;
 using Avala.Workbench.Harnesses;
@@ -199,7 +200,9 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<ContextLeftViewModel>(WorkbenchRegions.JobHeader, 4)
             .AddToRegion<UsageLeftViewModel>(WorkbenchRegions.JobHeader, 5)
             .AddToRegion<ChecksRunningViewModel>(WorkbenchRegions.JobHeader, 6)
-            .AddToRegion<DelegationPaneViewModel>(WorkbenchRegions.Preview, 10);
+            .AddToRegion<DelegationPaneViewModel>(WorkbenchRegions.Preview, 10)
+            .AddToRegion<DocsToggleViewModel>(WorkbenchRegions.JobHeader, 0)
+            .AddToRegion<DocsPaneViewModel>(WorkbenchRegions.Preview, 20);
 
     private static void RegisterProjects(IServiceCollection services) =>
         services
@@ -491,6 +494,19 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<SettingsViewModel>()
             .AddSingleton<TriggersViewModel>()
             .AddForwarded<IPage, NewJobViewModel>()
+            .AddTransient<C4PlayerViewModel>()
+            .AddSingleton<DocsReader>()
+            .AddSingleton<DocsToggleViewModel>()
+            .AddSingleton<DocsPaneViewModel>()
+            .AddSingleton<DocsKeeper>()
+            .AddForwarded<IHandle<Documentation.Contracts.FeatureChosen>, DocsKeeper>()
+            .AddForwarded<IHandle<Documentation.Contracts.VersionWriting>, DocsKeeper>()
+            .AddForwarded<IHandle<Documentation.Contracts.VersionWritten>, DocsKeeper>()
+            .AddForwarded<IHandle<Documentation.Contracts.VersionNotWritten>, DocsKeeper>()
+            .AddForwarded<IHandle<Documentation.Contracts.ChangeRequested>, DocsKeeper>()
+            .AddForwarded<IHandle<StartupCompleted>, DocsKeeper>()
+            .AddSingleton<FeatureDocsViewModel>()
+            .AddForwarded<IPage, FeatureDocsViewModel>()
             .AddForwarded<IPage, OverviewViewModel>()
             .AddForwarded<IPage, UsageViewModel>()
             .AddForwarded<IPage, ResourcesViewModel>()
@@ -518,6 +534,13 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IC4PlayerViewModel, C4PlayerView>();
         views.Register<IC4NodeViewModel, C4NodeView>();
         views.Register<IDocSectionViewModel, DocSectionView>();
+        views.Register<IProjectDocsViewModel, ProjectDocsView>();
+        views.Register<IFeatureRowViewModel, FeatureRowView>();
+        views.Register<IFeatureDocsViewModel, FeatureDocsView>();
+        views.Register<IDocsLineViewModel, DocsLineView>();
+        views.Register<IDocsToggleViewModel, DocsToggleView>();
+        views.Register<IDocsPaneViewModel, DocsPaneView>();
+        views.Register<IChangeLineViewModel, ChangeLineView>();
     }
 
     private static void RegisterGlobalViews(IViewRegistrar views)

@@ -12,6 +12,8 @@ internal interface IC4PlayerViewModel
 {
     bool IsShown { get; }
 
+    bool IsCompact { get; }
+
     string Title { get; }
 
     string Lead { get; }
@@ -79,6 +81,9 @@ internal sealed partial class C4PlayerViewModel(TimeProvider time, IUiDispatcher
 
     [ObservableProperty]
     public partial bool IsShown { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsCompact { get; set; }
 
     [ObservableProperty]
     public partial string Title { get; private set; } = string.Empty;

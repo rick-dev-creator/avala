@@ -130,6 +130,8 @@ internal sealed class DesignProjectGroupViewModel : IProjectGroupViewModel
 {
     public string Key { get; init; } = "design";
 
+    public IProjectDocsViewModel Docs { get; init; } = new DesignProjectDocsViewModel();
+
     public string Name { get; init; } = "acme-dashboard";
 
     public bool IsChats { get; init; }
@@ -251,4 +253,31 @@ internal sealed class DesignToolbarViewModel : IToolbarViewModel
     public IRelayCommand CloseDecisionsCommand { get; } = new RelayCommand(() => { });
 
     public IRelayCommand NewJobCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignProjectDocsViewModel : IProjectDocsViewModel
+{
+    public bool IsShown { get; init; } = true;
+
+    public int Count => Features.Count;
+
+    public bool IsOpen { get; init; } = true;
+
+    public IReadOnlyList<IFeatureRowViewModel> Features { get; init; } =
+    [
+        new DesignFeatureRowViewModel("Payments on stripe-go v79", "3 versions"),
+        new DesignFeatureRowViewModel("Refund webhooks", "2 versions"),
+    ];
+
+    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed record DesignFeatureRowViewModel(string Title, string Fact) : IFeatureRowViewModel
+{
+    public DesignFeatureRowViewModel()
+        : this("Payments on stripe-go v79", "3 versions")
+    {
+    }
+
+    public IRelayCommand OpenCommand { get; } = new RelayCommand(() => { });
 }

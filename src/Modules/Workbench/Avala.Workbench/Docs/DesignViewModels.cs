@@ -57,6 +57,8 @@ internal sealed class DesignC4PlayerViewModel : IC4PlayerViewModel, IDisposable
 
     public bool IsShown => player.IsShown;
 
+    public bool IsCompact { get; init; }
+
     public string Title => player.Title;
 
     public string Lead => player.Lead;
@@ -160,4 +162,51 @@ internal sealed record DesignDocSectionViewModel(string Anchor, string Title, st
     public bool IsActive { get; init; } = true;
 
     public IRelayCommand ChooseCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignFeatureDocsViewModel : IFeatureDocsViewModel, IDisposable
+{
+    private readonly DesignC4PlayerViewModel player = new();
+
+    public string Title => "Docs";
+
+    public string Feature => "Payments on stripe-go v79";
+
+    public string Where => "ledger-api · payments-on-stripe-go-v79";
+
+    public IC4PlayerViewModel Player => player;
+
+    public void Dispose() => player.Dispose();
+}
+
+internal sealed class DesignDocsToggleViewModel : IDocsToggleViewModel
+{
+    public bool IsShown => true;
+
+    public bool IsOpen { get; init; } = true;
+
+    public IRelayCommand ToggleCommand { get; } = new RelayCommand(() => { });
+}
+
+internal sealed class DesignDocsPaneViewModel : IDocsPaneViewModel, IDisposable
+{
+    private readonly DesignC4PlayerViewModel player = new() { IsCompact = true };
+
+    public bool IsOpen => true;
+
+    public string Feature => "Payments on stripe-go v79";
+
+    public string State => "writing";
+
+    public bool IsWriting => true;
+
+    public IC4PlayerViewModel Player => player;
+
+    public IReadOnlyList<Conversation.IChangeLineViewModel> Requests { get; } = [new Conversation.DesignChangeLineViewModel("Change request #1 recorded", "steer → v2")];
+
+    public IReadOnlyList<Sidebar.IFeatureRowViewModel> Others { get; } = [new Sidebar.DesignFeatureRowViewModel("Payout scheduler", "1 version")];
+
+    public IRelayCommand CloseCommand { get; } = new RelayCommand(() => { });
+
+    public void Dispose() => player.Dispose();
 }

@@ -17,7 +17,7 @@ public sealed class FeatureStoryTests
         var documented = Documented.With();
         documented.Files.Draft(Repository, "docs/features/refund-webhooks/v1-proposed.md", "# Refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n```\n");
         documented.Files.Draft(Repository, "docs/features/refund-webhooks/v2-deviation.md", "# Refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n  ContainerDb(keys, \"Idempotency\", \"Redis\")\n```\n");
-        var entry = new DocumentationEntry(documented.Rules, new FeatureCatalog(documented.Files, documented.Files), documented.Book, documented.Files);
+        var entry = new DocumentationEntry(documented.Rules, documented.Book, new DocumentationReads(documented.Rules, new FeatureCatalog(documented.Files, documented.Files), documented.Files, new JobPlaces(documented.Jobs, documented.Jobs)));
 
         var story = Outcomes.Present(await entry.StoryAsync(Repository, Refunds, Documented.Cancellation));
 
@@ -27,10 +27,28 @@ public sealed class FeatureStoryTests
     }
 
     [Fact]
+    public async Task AJobsDocsTellItsFeatureItsStoryFromItsWorktreeAndTheRepositorysFeaturesAsync()
+    {
+        var documented = Documented.With();
+        var (job, session) = await documented.RunningAsync();
+        await documented.PlanAsync(session, "Add a Webhooks container");
+        documented.Files.Draft(Documented.FakeJobs.Worktree(documented.LastWriter), DocumentationDraft.Path, "# Handle Stripe refund webhooks\n\n```mermaid\nC4Container\n  Container(webhooks, \"Webhooks\", \"Go\")\n```\n");
+        await documented.ProgressAsync(documented.LastWriter, Jobs.Contracts.JobStatus.AwaitingReview);
+        documented.Files.Draft(Documented.Repository, "docs/features/payouts/README.md", "# Payout scheduler\n");
+        var entry = new DocumentationEntry(documented.Rules, documented.Book, new DocumentationReads(documented.Rules, new FeatureCatalog(documented.Files, documented.Files), documented.Files, new JobPlaces(documented.Jobs, documented.Jobs)));
+
+        var docs = Outcomes.Present(await entry.JobDocsAsync(job, Documented.Cancellation));
+
+        Assert.Equal(("Handle Stripe refund webhooks", Documented.Repository), (docs.Documentation.Feature.Title, docs.Repository));
+        Assert.Equal([1], Outcomes.Present(docs.Story).Versions.Select(version => version.Number));
+        Assert.Equal(["Payout scheduler"], docs.Docs.Features.Select(listed => listed.Feature.Title));
+    }
+
+    [Fact]
     public async Task AFeatureWithoutVersionsHasNoStoryAsync()
     {
         var documented = Documented.With();
-        var entry = new DocumentationEntry(documented.Rules, new FeatureCatalog(documented.Files, documented.Files), documented.Book, documented.Files);
+        var entry = new DocumentationEntry(documented.Rules, documented.Book, new DocumentationReads(documented.Rules, new FeatureCatalog(documented.Files, documented.Files), documented.Files, new JobPlaces(documented.Jobs, documented.Jobs)));
 
         Assert.True((await entry.StoryAsync(Repository, Refunds, Documented.Cancellation)).IsNone);
     }
