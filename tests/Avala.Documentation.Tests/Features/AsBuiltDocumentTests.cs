@@ -19,7 +19,7 @@ public sealed class AsBuiltDocumentTests
         var document = AsBuiltDocument.Compose(Refunds, 3, "# Refund webhooks\n\nThe C4 and its sections.\n", evidence);
 
         Assert.Equal(
-            "# Refund webhooks\n\nAs built: what attempt 2 of the job delivered for review, from version 3. Written by Avala from the job's evidence.\n\nThe C4 and its sections.\n\n## Evidence {#evidence}\n\n- Checks: tests passed, lint skipped\n- Files changed: 2, +84 −2\n  - `internal/webhooks/handler.go` +84 −2\n  - `assets/logo.png`\n",
+            "# Refund webhooks\n\nAs built: what attempt 2 of the job delivered for review, from version 3. Written by Avala from the job's evidence.\n\nThe C4 and its sections.\n\n## Evidence\n\n- Checks: tests passed, lint skipped\n- Files changed: 2, +84 −2\n  - `internal/webhooks/handler.go` +84 −2\n  - `assets/logo.png`\n",
             document);
     }
 
