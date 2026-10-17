@@ -45,6 +45,43 @@ internal static class DocumentationScenarios
         ],
     ]);
 
+    public const string Decision = """
+        # Keep idempotency keys in the ledger
+
+        ## Status
+
+        Accepted
+
+        ## Context
+
+        Stripe can send the same refund event more than once.
+
+        ## Decision
+
+        The ledger keeps each event's key and applies a refund only for a key it has not seen.
+
+        ## Alternatives
+
+        A separate deduplication service, ruled out as one more thing to run.
+
+        ## Consequences
+
+        The ledger's schema gains a keys table.
+
+        """;
+
+    public static Scenario DocumentDecision { get; } = new("document-decision",
+    [
+        [
+            Thought("The plan changed where refunds are deduplicated, ", "which is hard to reverse."),
+            new WriteFile(new ItemId("version"), DocumentationDraft.Path, Version),
+            new WriteFile(new ItemId("decision"), DocumentationDraft.Decision, Decision),
+            Message("Wrote the version ", "and its decision record."),
+            .. Bill(1_300, 520, 0.0024m, 0.09),
+            new Finish(),
+        ],
+    ]);
+
     public static Scenario PlanRevised { get; } = new("plan-revised",
     [
         [
@@ -63,5 +100,5 @@ internal static class DocumentationScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Document, PlanRevised];
+    public static IReadOnlyList<Scenario> All { get; } = [Document, DocumentDecision, PlanRevised];
 }

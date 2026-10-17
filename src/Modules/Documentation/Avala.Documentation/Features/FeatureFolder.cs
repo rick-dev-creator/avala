@@ -49,7 +49,7 @@ internal sealed partial record FeatureFolder(string Root, Feature Feature)
             ? heading[2..].Trim()
             : Option<string>.None;
 
-    public string Index(IReadOnlyList<VersionFile> versions)
+    public string Index(IReadOnlyList<VersionFile> versions, bool changes)
     {
         var index = new StringBuilder();
         index.Append(CultureInfo.InvariantCulture, $"# {Feature.Title}\n\n");
@@ -61,10 +61,10 @@ internal sealed partial record FeatureFolder(string Root, Feature Feature)
             index.Append(CultureInfo.InvariantCulture, $"| v{version.Number} | {Label(version.Kind)} | [{version.File}]({version.File}) |\n");
         }
 
-        return index.ToString();
+        return changes ? index.Append(CultureInfo.InvariantCulture, $"\nWhat people asked while it was built: [Change requests]({ChangeLog.File}).\n").ToString() : index.ToString();
     }
 
-    public static string TableOfContents(IReadOnlyList<VersionFile> versions)
+    public static string TableOfContents(IReadOnlyList<VersionFile> versions, bool changes)
     {
         var toc = new StringBuilder("- name: Overview\n  href: README.md\n");
 
@@ -73,7 +73,7 @@ internal sealed partial record FeatureFolder(string Root, Feature Feature)
             toc.Append(CultureInfo.InvariantCulture, $"- name: v{version.Number} · {Label(version.Kind)}\n  href: {version.File}\n");
         }
 
-        return toc.ToString();
+        return changes ? toc.Append(CultureInfo.InvariantCulture, $"- name: Change requests\n  href: {ChangeLog.File}\n").ToString() : toc.ToString();
     }
 
     public static string PlanDocument(int number, IReadOnlyList<string> steps) =>

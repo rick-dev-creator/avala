@@ -25,6 +25,7 @@ public sealed class SiteDeskTests
         var (filler, request) = Assert.Single(documented.Jobs.Submitted);
         Assert.Equal(created.Filler, Sdk.Option<Jobs.Contracts.JobId>.Some(filler));
         Assert.Contains("docs/get-started/quickstart.md", request.Instruction);
+        Assert.Contains("docs/whats-new.md, under its lead and newest first", request.Instruction);
     }
 
     [Fact]

@@ -66,7 +66,7 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
         var slug = Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Feature.Slug;
         var delivered = (await run.Get<IDocumentation>().OfRepositoryAsync(run.Repository.Path, Cancellation)).Features.Single(listed => listed.Feature.Slug == slug);
         Assert.Equal(4, delivered.Versions);
-        Assert.Contains("## Evidence\n", await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "docs", "features", slug, "v4-as-built.md"), Cancellation));
+        Assert.Contains("## Evidence\n", (await File.ReadAllTextAsync(Path.Combine(run.Repository.Path, "docs", "features", slug, "v4-as-built.md"), Cancellation)).ReplaceLineEndings("\n"));
     }
 
     [Fact]
@@ -90,6 +90,28 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
             delegation["IsShown"].Value<bool>()));
         Assert.Equal((0, false), shown);
         Assert.Single(await run.Get<IJobCatalog>().ChildrenAsync(job, Cancellation), child => child.Companion);
+    }
+
+    [Fact]
+    public async Task AMessageWrittenWhileTheAgentWorksIsRecordedAsASteerAndShownInTheConversationAsync()
+    {
+        const string Steering = "Keep the old folder name in the changelog.";
+        await using var run = await SimulatedRun.StartAsync(plugins, "steer", (".avala/jobs.json", DocsOn));
+        var requested = run.Watch<ChangeRequested>();
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        await workbench.ShowsAsync(() => conversation["Composer"]["Placeholder"].Text == "Message the agent while it works…");
+
+        await run.Ui.RunAsync(() =>
+        {
+            conversation["Composer"].Set("Draft", Steering);
+
+            return conversation["Composer"].ExecuteAsync("SendCommand");
+        });
+
+        var request = (await requested.UntilAsync(asked => asked.Job == run.Job)).Request;
+        Assert.Equal((RequestKind.Steer, Steering, 1), (request.Kind, request.Text, request.Attempt));
+        await workbench.ShowsAsync(() => OpenWorkbench.Kinds(conversation).Contains("ChangeLineViewModel"));
     }
 
     [Fact]
@@ -122,6 +144,21 @@ public sealed class DocumentationTests(PublishedPlugins plugins)
         Assert.Contains($"> {Feedback}\n", changes);
         Assert.Contains("v3-deviation.md", changes);
         Assert.Contains("1. Add a Webhooks container\n2. Keep idempotency keys in the ledger\n", await File.ReadAllTextAsync(Path.Combine(folder, "plans", "v3.md"), Cancellation));
+    }
+
+    [Fact]
+    public async Task ADeviationThatShapesTheStructureGetsANumberedDecisionRecordLinkedBothWaysWithItsVersionAsync()
+    {
+        await using var run = await SimulatedRun.PreparedAsync(plugins, (".avala/jobs.json", DocsOn));
+
+        var (job, _) = await SentBackAsync(run);
+
+        var slug = Outcomes.Present(run.Get<IDocumentation>().OfJob(job)).Feature.Slug;
+        var docs = Path.Combine(await WorktreeAsync(run, job), "docs");
+        var record = Assert.Single(Directory.GetFiles(Path.Combine(docs, "architecture", "decisions"), "0*.md"));
+        Assert.Equal("0001-keep-idempotency-keys-in-the-ledger.md", Path.GetFileName(record));
+        Assert.Contains($"features/{slug}/v3-deviation.md", (await File.ReadAllTextAsync(record, Cancellation)).ReplaceLineEndings("\n"));
+        Assert.Contains("architecture/decisions/0001-keep-idempotency-keys-in-the-ledger.md", await File.ReadAllTextAsync(Path.Combine(docs, "features", slug, "v3-deviation.md"), Cancellation));
     }
 
     [Fact]
