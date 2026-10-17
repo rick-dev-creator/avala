@@ -36,6 +36,7 @@ internal sealed class FakeWorkspaces : IWorkspaces
         var info = new WorkspaceInfo(id, $"/worktrees/{id.Value:N}", $"avala/{id.Value:N}", new string('0', 40))
         {
             RulesCommit = request.Rules.Match(rules => rules, () => new string('0', 40)),
+            BaseBranch = "main",
         };
         prepared[id] = info;
 

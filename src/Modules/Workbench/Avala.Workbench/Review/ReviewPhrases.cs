@@ -1,6 +1,7 @@
 using ForgeError = Avala.Forges.Contracts.ForgeError;
 using PullRequestDelivery = Avala.Forges.Contracts.PullRequestDelivery;
 using PullRequestOffer = Avala.Forges.Contracts.PullRequestOffer;
+using ForgeReadinessKind = Avala.Forges.Contracts.ForgeReadinessKind;
 using System.Globalization;
 using Avala.Agents.Contracts.Events;
 using Avala.Autopilot.Contracts;
@@ -32,6 +33,10 @@ internal static class ReviewPhrases
         "Fix .avala/checks.json and commit it, then resubmit the job. Continuing it would check it against the old file again: a job keeps the rules commit it was prepared with.";
 
     private const int TailLines = 12;
+
+    private const string Keep = "keep";
+
+    private const string Merge = "merge";
 
     public static string NotResubmitted(JobRejection rejection) => $"The job was not resubmitted. {NewJob.NewJobPhrases.Rejection(rejection)}";
 
@@ -120,8 +125,33 @@ internal static class ReviewPhrases
         delivery.Strategy == PullRequestDelivery.Strategy
             ? $"Pushed {delivery.Branch} and opened its pull request; the inspector follows its checks"
             : delivery.Commit.Match(
-            commit => $"Merged into {delivery.Branch} as {commit[..Math.Min(7, commit.Length)]}",
-            () => $"Approved: the branch {delivery.Branch} is ready");
+            commit => $"Merged into {delivery.Branch} as {commit[..Math.Min(7, commit.Length)]}.",
+            () => $"Branch {delivery.Branch} kept. Merge it when you are ready.");
+
+    public static string Approve(DeliveryFacts facts) =>
+        facts.Plan.Match(
+            plan => plan switch
+            {
+                { IntoParent: true } => "Merge into the parent job",
+                { Strategy: Merge } => plan.Base.Match(target => $"Merge into {target}", () => "Merge"),
+                { Strategy: PullRequestDelivery.Strategy } => facts.PullRequest.Match(offer => $"Open pull request on {offer.Forge.Value}", () => "Open pull request"),
+                { Strategy: Keep } => $"Keep branch {plan.Branch}",
+                _ => $"Approve through {plan.Strategy}",
+            },
+            () => "Approve");
+
+    public static string PullRequestAction(DeliveryFacts facts) =>
+        facts.PullRequest.Match(
+            offer => facts.Plan.Match(plan => plan.IntoParent || plan.Strategy == PullRequestDelivery.Strategy, () => false) ? string.Empty : $"Open pull request on {offer.Forge.Value}",
+            () => string.Empty);
+
+    public static bool PullRequestFirst(DeliveryFacts facts) =>
+        facts.PullRequest.IsSome && facts.Plan.Match(plan => !plan.IntoParent && plan.Strategy == Keep, () => false);
+
+    public static string ForgeGap(DeliveryFacts facts) =>
+        facts.Forge.Match(
+            forge => forge.Kind is ForgeReadinessKind.Connectable or ForgeReadinessKind.SignInNeeded ? $"Connect {forge.Host} in Settings to open and follow pull requests" : string.Empty,
+            () => string.Empty);
 
     public static string Conflicted(IReadOnlyList<string> conflicts) =>
         conflicts.Count > 0

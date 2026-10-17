@@ -67,6 +67,16 @@ internal interface IReviewViewModel
 
     string PullRequestOffer { get; }
 
+    string ApproveLabel { get; }
+
+    string PullRequestAction { get; }
+
+    bool PullRequestFirst { get; }
+
+    string ForgeGap { get; }
+
+    IRelayCommand OpenSettingsCommand { get; }
+
     IAsyncRelayCommand ApproveCommand { get; }
 
     IAsyncRelayCommand OpenPullRequestCommand { get; }
@@ -225,6 +235,18 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     public partial string PullRequestOffer { get; private set; } = string.Empty;
 
     [ObservableProperty]
+    public partial string ApproveLabel { get; private set; } = "Approve";
+
+    [ObservableProperty]
+    public partial string PullRequestAction { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool PullRequestFirst { get; private set; }
+
+    [ObservableProperty]
+    public partial string ForgeGap { get; private set; } = string.Empty;
+
+    [ObservableProperty]
     public partial IReadOnlyList<string> Conflicts { get; private set; }
 
     [ObservableProperty]
@@ -265,13 +287,13 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
     private async Task LoadAsync(int revision, CancellationToken cancellationToken)
     {
         var facts = await reader.ReadAsync(Job, cancellationToken);
-        var offer = await desk.PullRequestOfferAsync(Job, cancellationToken);
+        var offer = await desk.OfferAsync(Job, cancellationToken);
         await ui.InvokeAsync(
             () =>
             {
                 if (!cancellationToken.IsCancellationRequested && revision == Requested)
                 {
-                    PullRequestOffer = offer.Match(ReviewPhrases.Offer, () => string.Empty);
+                    ShowDelivery(offer);
                     Show(facts);
                     Revision++;
                     Presented?.Invoke(this, new Presented(Revision));
@@ -299,6 +321,18 @@ internal sealed partial class ReviewViewModel : IReviewViewModel, IPresentation
             _ => []));
         IsLoaded = true;
     }
+
+    private void ShowDelivery(DeliveryFacts offer)
+    {
+        ApproveLabel = ReviewPhrases.Approve(offer);
+        PullRequestAction = ReviewPhrases.PullRequestAction(offer);
+        PullRequestOffer = PullRequestAction.Length > 0 ? offer.PullRequest.Match(ReviewPhrases.Offer, () => string.Empty) : string.Empty;
+        PullRequestFirst = ReviewPhrases.PullRequestFirst(offer);
+        ForgeGap = ReviewPhrases.ForgeGap(offer);
+    }
+
+    [RelayCommand]
+    private void OpenSettings() => desk.OpenSettings();
 
     private void ShowExceptions(IReadOnlyList<IReviewException> found)
     {

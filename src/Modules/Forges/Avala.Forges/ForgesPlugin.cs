@@ -42,6 +42,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddSingleton<ForgeConnections>()
             .AddForwarded<IForgeCatalog, ForgeConnections>()
             .AddSingleton<IPullRequestRules, PullRequestRulesReader>()
+            .AddSingleton<EffectiveRules>()
             .AddSingleton<IGitRemote, GitRemote>()
             .AddSingleton<JobPlaces>()
             .AddSingleton<PullRequestReader>()

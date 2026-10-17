@@ -34,7 +34,9 @@ internal static class CardPhrases
     };
 
     public static string WhyDenied(PolicyDecision decision) =>
-        decision.Scope.Bind(scope => scope.Rule).IsSome
+        decision.Rule.Match(rule => rule.Scope == RuleScope.OutsideWorkspace && decision.Kind == ItemKind.FileEdit, () => false)
+            ? $"{decision.Target} is outside the job's worktree, and writing there needs you."
+            : decision.Scope.Bind(scope => scope.Rule).IsSome
             ? "Nobody was watching, so the policy denied it."
             : "A guard keeps this for a person, so it can't be allowed while the job runs on its own.";
 

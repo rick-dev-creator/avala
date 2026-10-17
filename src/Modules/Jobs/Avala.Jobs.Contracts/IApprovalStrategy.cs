@@ -18,3 +18,13 @@ public sealed record ApprovalDelivery(string Strategy, string Branch, Option<str
 public sealed record JobApproval(JobId Job, ApprovalDelivery Delivery);
 
 public sealed record JobApproved(JobApproval Approval) : IIntegrationEvent;
+
+public sealed record DeliveryPlan(string Strategy, string Branch, Option<string> Base, string Worktree)
+{
+    public bool IntoParent { get; init; }
+}
+
+public interface IDeliveryPlans
+{
+    ValueTask<Result<DeliveryPlan, JobRejection>> PlanAsync(JobId job, CancellationToken cancellationToken);
+}

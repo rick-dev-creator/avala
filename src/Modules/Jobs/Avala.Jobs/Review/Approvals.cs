@@ -26,6 +26,22 @@ internal sealed class Approvals(IWorkspaces workspaces, IRepositoryDefaults defa
                 () => ThroughRepositoryStrategyAsync(request, cancellationToken)));
     }
 
+    public async Task<Result<DeliveryPlan, JobRejection>> PlanAsync(Job job, CancellationToken cancellationToken)
+    {
+        if (!(await workspaces.FindAsync(job, cancellationToken)).TryGetValue(out var workspace, out _))
+        {
+            return JobRejection.WorkspaceUnavailable;
+        }
+
+        if (job.Parent.IsSome)
+        {
+            return new DeliveryPlan(MergeStrategy.Merge, workspace.Branch, workspace.BaseBranch, workspace.Path) { IntoParent = true };
+        }
+
+        return (await defaults.ApprovalAsync(workspace.Path, cancellationToken)).Map(named =>
+            new DeliveryPlan(named.Match(declared => declared, () => KeepStrategy.Keep), workspace.Branch, workspace.BaseBranch, workspace.Path));
+    }
+
     private async Task<Result<ApprovalDelivery, JobRejection>> ThroughRepositoryStrategyAsync(ApprovalRequest request, CancellationToken cancellationToken)
     {
         if (!(await defaults.ApprovalAsync(request.Workspace.Path, cancellationToken)).TryGetValue(out var named, out var rejection))
@@ -59,4 +75,12 @@ internal sealed class Approvals(IWorkspaces workspaces, IRepositoryDefaults defa
         await strategies.FirstOrDefault(strategy => strategy.Name == name).ToOption().Match(
             strategy => strategy.DeliverAsync(request, cancellationToken).AsTask(),
             () => Task.FromResult(Result<ApprovalDelivery, JobRejection>.Failure(JobRejection.UnknownApprovalStrategy)));
+}
+
+internal sealed class DeliveryPlans(JobLedger ledger, Approvals approvals) : IDeliveryPlans
+{
+    public async ValueTask<Result<DeliveryPlan, JobRejection>> PlanAsync(JobId job, CancellationToken cancellationToken) =>
+        await ledger.FindAsync(job, cancellationToken).MatchAsync(
+            found => approvals.PlanAsync(found, cancellationToken),
+            () => Task.FromResult(Result<DeliveryPlan, JobRejection>.Failure(JobRejection.UnknownJob)));
 }

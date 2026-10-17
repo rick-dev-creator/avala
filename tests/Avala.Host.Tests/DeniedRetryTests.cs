@@ -29,4 +29,19 @@ public sealed class DeniedRetryTests(PublishedPlugins plugins)
         Assert.Equal(("https://example.com/style", PolicyAnswer.Allow, "always example.com in this job"), (retried.Target, retried.Answer, Outcomes.Present(retried.Rule).Name));
         Assert.Equal(["always example.com in this job"], run.Get<IPermissionAudit>().JobRulesOf(run.Job).Select(rule => rule.Name));
     }
+
+    [Fact]
+    public async Task ADeniedWriteOutsideTheWorktreeNamesThePathAndSaysWritingThereNeedsThePersonAsync()
+    {
+        await using var run = await SimulatedRun.StartAsync(plugins, "outside-edit", (".avala/permissions.json", Autonomous));
+        var workbench = await run.WorkbenchAsync();
+        var conversation = await workbench.SelectAsync(run.Job);
+        var denied = (await run.DecisionsAsync(count: 2))[1];
+
+        await workbench.ShowsAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel") is not null);
+
+        Assert.Equal(
+            ($"Edit {denied.Target}", $"{denied.Target} is outside the job's worktree, and writing there needs you."),
+            await run.Ui.ReadAsync(() => OpenWorkbench.Entry(conversation, "DeniedCardViewModel") is { } card ? (card["What"].Text, card["Why"].Text) : default));
+    }
 }

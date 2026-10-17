@@ -329,13 +329,13 @@ public sealed class ComposerViewScripts(HeadlessUi ui)
         }, Cancellation);
 
     [Fact]
-    public Task AnEndedJobOffersNoButtonsAndSaysItEndedAsync() =>
+    public Task ADoneJobOffersNoButtonsAndSaysItIsDoneAsync() =>
         ui.RunAsync(() =>
         {
             var view = Screen.Show(new DesignComposerViewModel(JobStatus.Approved));
 
             Assert.Equal((false, false), (view.Shows("Send"), view.Shows("Interrupt")));
-            Assert.Equal("This job has ended", view.Find<TextBox>("Draft").PlaceholderText);
+            Assert.Equal("This job is done", view.Find<TextBox>("Draft").PlaceholderText);
         }, Cancellation);
 
     [Theory]

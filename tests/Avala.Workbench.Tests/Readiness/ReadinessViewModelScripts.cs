@@ -74,16 +74,11 @@ public sealed class ReadinessCardViewModelScripts
         var files = new CommittedFiles().With("/repo", ".avala/checks.json", """{ "checks": [] }""");
         var card = new ReadinessCardViewModel(
             new RepositoryReadiness(new FirstJobs(catalog, Scratching.Folders(scratch)), readiness, files, new FakeRules()),
-            new ReadinessActions(forges.Source, new FakeDocumentation(), new NoLinks()));
+            new ReadinessActions(forges.Source, new FakeDocumentation(), new FakeReadinessLinks()));
         card.OnRegionContextChanged(job);
         await card.Loading;
 
         return card;
-    }
-
-    private sealed class NoLinks : IReadinessLinks
-    {
-        public Task DeclareChecksAsync(string repository) => Task.CompletedTask;
     }
 }
 

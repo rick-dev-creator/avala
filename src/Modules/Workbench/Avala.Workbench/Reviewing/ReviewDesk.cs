@@ -1,6 +1,7 @@
 using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
+using Avala.Workbench.Readying;
 using Avala.Workbench.Steering;
 using Avala.Workbench.Submitting;
 using Avala.Workspaces.Contracts;
@@ -12,8 +13,32 @@ internal sealed record ApprovalAttempt(Result<ApprovalDelivery, JobRejection> Ou
     public Option<ForgeError> ForgeRefusal { get; init; }
 }
 
-internal sealed class ReviewDesk(IJobs jobs, ConflictFinder conflicts, QueuedMessages queue, ForgeDesk forge)
+internal sealed record DeliveryFacts(Option<DeliveryPlan> Plan, Option<PullRequestOffer> PullRequest, Option<ForgeReadiness> Forge);
+
+internal sealed class DeliveryOffers(IDeliveryPlans plans, ForgeDesk forge, IForgeReadiness readiness, IReadinessLinks links)
 {
+    public ForgeDesk Forge => forge;
+
+    public async Task<DeliveryFacts> OfAsync(JobId job, CancellationToken cancellationToken)
+    {
+        var plan = (await plans.PlanAsync(job, cancellationToken)).Match(Option<DeliveryPlan>.Some, _ => Option<DeliveryPlan>.None);
+        var offer = await forge.OfferAsync(job, cancellationToken);
+        var gap = offer.IsSome || plan.Match(found => found.IntoParent, () => true)
+            ? Option<ForgeReadiness>.None
+            : await plan.Match(
+                async found => Option<ForgeReadiness>.Some(await readiness.OfAsync(found.Worktree, cancellationToken)),
+                () => Task.FromResult(Option<ForgeReadiness>.None));
+
+        return new DeliveryFacts(plan, offer, gap);
+    }
+
+    public void OpenSettings() => links.OpenSettings();
+}
+
+internal sealed class ReviewDesk(IJobs jobs, ConflictFinder conflicts, QueuedMessages queue, DeliveryOffers offers)
+{
+    private ForgeDesk Forge => offers.Forge;
+
     public Option<string> Queued(JobId job) => queue.Find(job);
 
     public async Task<Result<JobId, JobRejection>> SendBackQueuedAsync(JobId job, CancellationToken cancellationToken) =>
@@ -26,17 +51,19 @@ internal sealed class ReviewDesk(IJobs jobs, ConflictFinder conflicts, QueuedMes
 
         return new ApprovalAttempt(outcome, conflicted ? await conflicts.OfAsync(job, cancellationToken) : [])
         {
-            ForgeRefusal = outcome.IsSuccess ? Option<ForgeError>.None : forge.RefusalOf(job),
+            ForgeRefusal = outcome.IsSuccess ? Option<ForgeError>.None : Forge.RefusalOf(job),
         };
     }
 
-    public ValueTask<Option<PullRequestOffer>> PullRequestOfferAsync(JobId job, CancellationToken cancellationToken) => forge.OfferAsync(job, cancellationToken);
+    public Task<DeliveryFacts> OfferAsync(JobId job, CancellationToken cancellationToken) => offers.OfAsync(job, cancellationToken);
+
+    public void OpenSettings() => offers.OpenSettings();
 
     public async Task<ApprovalAttempt> OpenPullRequestAsync(JobId job, CancellationToken cancellationToken)
     {
-        var outcome = await forge.OpenAsync(job, cancellationToken);
+        var outcome = await Forge.OpenAsync(job, cancellationToken);
 
-        return new ApprovalAttempt(outcome, []) { ForgeRefusal = outcome.IsSuccess ? Option<ForgeError>.None : forge.RefusalOf(job) };
+        return new ApprovalAttempt(outcome, []) { ForgeRefusal = outcome.IsSuccess ? Option<ForgeError>.None : Forge.RefusalOf(job) };
     }
 
     public async Task<Result<JobId, JobRejection>> SendBackAsync(JobId job, string feedback, CancellationToken cancellationToken) =>
