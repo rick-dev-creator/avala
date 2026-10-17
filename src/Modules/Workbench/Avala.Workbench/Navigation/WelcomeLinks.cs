@@ -35,6 +35,8 @@ internal sealed class SettingsLink(SettingsViewModel settings, JobFocus focus)
 internal sealed class ReadinessLinks(Func<SettingsLink> settings) : IReadinessLinks
 {
     public Task DeclareChecksAsync(string repository) => settings().DeclareChecksAsync(repository);
+
+    public void OpenSettings() => settings().Open();
 }
 
 internal sealed class WelcomeLinks(JobFocus focus, SettingsLink settings, NewJobViewModel newJob) : IWelcomeLinks

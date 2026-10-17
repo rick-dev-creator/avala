@@ -56,6 +56,7 @@ public sealed class JobsPlugin : IPlugin
             .AddSingleton<IApprovalStrategy, KeepStrategy>()
             .AddSingleton<IApprovalStrategy, MergeStrategy>()
             .AddSingleton<Approvals>()
+            .AddSingleton<IDeliveryPlans, DeliveryPlans>()
             .AddSingleton<ReviewJob>()
             .AddSingleton<JobsEntry>()
             .AddForwarded<IJobs, JobsEntry>()

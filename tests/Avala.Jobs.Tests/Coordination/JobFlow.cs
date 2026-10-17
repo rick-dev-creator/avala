@@ -39,11 +39,13 @@ internal sealed class JobFlow
         Hold = new HoldJob(ledger, agents, Bus, journal);
         var start = new StartJob(ledger, launcher, Hold, Logs);
         Launches = new JobLaunches(Queues, start);
+        var approvals = new Approvals(workspaces, Defaults, Strategies, Queues);
         Jobs = new JobsEntry(
             Submit,
             new JobControls(Hold, new ChooseModel(ledger, agents, Connections), journal, new ControlRemotely(ledger, Connections)),
-            new ReviewJob(ledger, launcher, new Approvals(workspaces, Defaults, Strategies, Queues), new ResumeJob(deferred, launcher, Hold)),
+            new ReviewJob(ledger, launcher, approvals, new ResumeJob(deferred, launcher, Hold)),
             Queues);
+        Plans = new DeliveryPlans(ledger, approvals);
         Prepare = new PrepareJob(Queues, start, Admissions);
         var evaluate = new EvaluateTurn(ledger, workspaces, new CompletionGates(gates), new NextRound(Routers, launcher, Hold));
         Check = new CheckTurn(ledger, Queues, evaluate, Hold);
@@ -54,6 +56,8 @@ internal sealed class JobFlow
     }
 
     public IJobCatalog Catalog { get; }
+
+    public IDeliveryPlans Plans { get; }
 
     public IJobLaunches Launches { get; }
 

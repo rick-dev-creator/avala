@@ -295,7 +295,7 @@ public sealed class ReviewViewScripts(HeadlessUi ui)
 
             Assert.Equal((false, false), during);
             Assert.Equal(["approve"], bench.Jobs.Calls);
-            Assert.Equal(("Approved", "Approved: the branch avala/fix-the-test is ready", true), (view.TextOf("Heading"), view.TextOf("Outcome"), view.Find<Button>("BackToConversations").IsFocused));
+            Assert.Equal(("Approved", "Branch avala/fix-the-test kept. Merge it when you are ready.", true), (view.TextOf("Heading"), view.TextOf("Outcome"), view.Find<Button>("BackToConversations").IsFocused));
         }, Cancellation);
 
     [Fact]
@@ -460,6 +460,18 @@ public sealed class ReviewExceptionViewScripts(HeadlessUi ui)
             Assert.Equal((true, true), (offered.Shows("OpenPullRequest"), offered.Shows("Approve")));
             Assert.Equal("Open pull request on github (GitHub, origin)", ToolTip.GetTip(offered.Find("OpenPullRequest")));
             Assert.Equal((false, true), (none.Shows("OpenPullRequest"), none.Shows("Approve")));
+        }, Cancellation);
+
+    [Fact]
+    public Task TheReviewNamesWhatApprovingDoesMakesTheFirstActionPrimaryAndTellsAForgeGapWithOpenSettingsAsync() =>
+        ui.RunAsync(() =>
+        {
+            var first = Screen.Show(new DesignReviewViewModel());
+            var gap = Screen.Show(new DesignReviewViewModel { PullRequestOffer = string.Empty, PullRequestAction = string.Empty, PullRequestFirst = false, ForgeGap = "Connect github.com in Settings to open and follow pull requests" });
+
+            Assert.Equal(("Keep branch avala/fix-the-test", "Open pull request on github"), (first.Find<Button>("Approve").Content, first.Find<Button>("OpenPullRequest").Content));
+            Assert.Equal((false, true, false), (first.HasClass("Approve", "primary"), first.HasClass("OpenPullRequest", "primary"), first.Shows("ForgeGapNote")));
+            Assert.Equal((true, true, "Connect github.com in Settings to open and follow pull requests"), (gap.HasClass("Approve", "primary"), gap.Shows("OpenSettings"), gap.TextOf("ForgeGap")));
         }, Cancellation);
 }
 

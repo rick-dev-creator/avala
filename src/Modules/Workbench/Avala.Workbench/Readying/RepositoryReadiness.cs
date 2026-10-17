@@ -15,6 +15,8 @@ internal sealed record ReadinessFacts(string Repository, ForgeReadiness Forge, b
 internal interface IReadinessLinks
 {
     Task DeclareChecksAsync(string repository);
+
+    void OpenSettings();
 }
 
 internal sealed class FirstJobs(IJobCatalog catalog, ScratchFolders scratch)
