@@ -126,7 +126,8 @@ public sealed class C4GraphPanel : Panel
             if (frame.Width > 0)
             {
                 context.DrawRectangle(null, quiet, new RoundedRect(new Rect(frame.X, frame.Y, frame.Width, frame.Height), 12));
-                context.DrawText(Text(Frames[index].Label, 11), new Point(frame.X + 12, frame.Y + 6));
+                var label = Text(Frames[index].Label, 11);
+                context.DrawText(label, new Point(frame.X + 12, frame.Bottom - label.Height - 6));
             }
         }
 

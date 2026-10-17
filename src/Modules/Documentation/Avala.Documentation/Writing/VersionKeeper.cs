@@ -26,7 +26,7 @@ internal sealed class VersionKeeper(IWorkingFiles files, FeatureCatalog catalog,
                     && await IndexAsync(subject, subject.Documented.Linked(new FeatureVersion(pending.Number, pending.Kind, path, default)), cancellationToken);
 
                 return written
-                    ? Result<FeatureVersion, VersionFailure>.Success(new FeatureVersion(pending.Number, pending.Kind, path, default) { Writer = writer.Job })
+                    ? Result<FeatureVersion, VersionFailure>.Success(new FeatureVersion(pending.Number, pending.Kind, path, default) { Writer = writer.Job, Attempt = subject.Place.Attempt })
                     : VersionFailure.Unwritable;
             },
             () => Task.FromResult(Result<FeatureVersion, VersionFailure>.Failure(VersionFailure.NoDraft)));
@@ -46,7 +46,7 @@ internal sealed class VersionKeeper(IWorkingFiles files, FeatureCatalog catalog,
 
         return await WriteAsync(subject.Place.Worktree, path, document, cancellationToken) && await IndexAsync(subject, subject.Documented.Requests, cancellationToken)
             && await NewsAsync(subject, path, previous, cancellationToken)
-            ? new FeatureVersion(number, VersionKind.AsBuilt, path, default)
+            ? new FeatureVersion(number, VersionKind.AsBuilt, path, default) { Attempt = subject.Place.Attempt }
             : VersionFailure.Unwritable;
     }
 

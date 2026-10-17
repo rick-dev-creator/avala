@@ -31,7 +31,7 @@ public sealed class LayeredLayoutTests
         var layout = LayeredLayout.Arrange([Node(), Node(group: 0), Node(group: 0)], [new(0, 1), new(0, 2)], 1, Spacing);
 
         var frame = layout.Groups[0];
-        Assert.All(layout.Nodes.Skip(1), node => Assert.True(node.X >= frame.X && node.Right <= frame.Right && node.Y >= frame.Y + 20 && node.Bottom <= frame.Bottom));
+        Assert.All(layout.Nodes.Skip(1), node => Assert.True(node.X >= frame.X && node.Right <= frame.Right && node.Y >= frame.Y && node.Bottom <= frame.Bottom - 20));
         Assert.True(layout.Nodes.Concat(layout.Groups).All(rect => rect.X >= 0 && rect.Y >= 0));
     }
 

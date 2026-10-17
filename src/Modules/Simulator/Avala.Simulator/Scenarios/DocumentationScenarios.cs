@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Events;
 using Avala.Agents.Contracts.Sessions;
 using Avala.Documentation.Contracts;
 using static Avala.Simulator.Scenarios.ScenarioCatalog;
@@ -44,5 +45,23 @@ internal static class DocumentationScenarios
         ],
     ]);
 
-    public static IReadOnlyList<Scenario> All { get; } = [Document];
+    public static Scenario PlanRevised { get; } = new("plan-revised",
+    [
+        [
+            new UpdatePlan([new PlanStep("Add a Webhooks container", PlanStepStatus.Done), new PlanStep("Apply the refund in Payments", PlanStepStatus.Done)]),
+            new WriteFile(new ItemId("edit"), "WEBHOOKS.md", "# Webhooks\n"),
+            Message("Added the webhooks."),
+            .. Bill(2_400, 180, 0.0120m, 0.18),
+            new Finish(),
+        ],
+        [
+            new UpdatePlan([new PlanStep("Add a Webhooks container", PlanStepStatus.Done), new PlanStep("Keep idempotency keys in the ledger", PlanStepStatus.Done), new PlanStep("Apply the refund in Payments", PlanStepStatus.Done)]),
+            new WriteFile(new ItemId("keys"), "WEBHOOKS.md", "# Webhooks\n\nIdempotent.\n"),
+            Message("A refund Stripe sends twice ", "is now applied once."),
+            .. Bill(2_100, 160, 0.0100m, 0.20),
+            new Finish(),
+        ],
+    ]);
+
+    public static IReadOnlyList<Scenario> All { get; } = [Document, PlanRevised];
 }

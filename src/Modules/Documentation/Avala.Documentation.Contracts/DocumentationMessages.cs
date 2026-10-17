@@ -49,6 +49,8 @@ public enum VersionKind
 public sealed record FeatureVersion(int Number, VersionKind Kind, string Path, DateTimeOffset At)
 {
     public Option<JobId> Writer { get; init; }
+
+    public int Attempt { get; init; } = 1;
 }
 
 public enum RequestKind

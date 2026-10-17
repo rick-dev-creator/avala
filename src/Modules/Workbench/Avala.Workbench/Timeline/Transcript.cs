@@ -110,6 +110,9 @@ internal sealed record Transcript
     public Transcript Kept(ITimelineEntry entry) =>
         Positions.TryGetValue(entry.Key, out var position) && Equals(Entries[position], entry) ? this : Put(entry);
 
+    public Transcript KeptIn(int attempt, ITimelineEntry entry) =>
+        Positions.ContainsKey(entry.Key) || !Positions.TryGetValue(EntryKeys.Attempt(attempt + 1), out var next) ? Kept(entry) : Inserted(next, entry);
+
     public Transcript WithEarlierRestart(int number) => Add(new RestartEntry(EntryKeys.EarlierRestart(number), Kept: true));
 
     public Transcript Stopped(DateTimeOffset at) =>
@@ -295,6 +298,13 @@ internal sealed record Transcript
         Positions.ContainsKey(entry.Key)
             ? this
             : this with { Entries = Entries.Add(entry), Positions = Positions.Add(entry.Key, Entries.Count) };
+
+    private Transcript Inserted(int position, ITimelineEntry entry)
+    {
+        var entries = Entries.Insert(position, entry);
+
+        return this with { Entries = entries, Positions = entries.Select((kept, index) => (kept.Key, index)).ToImmutableDictionary(pair => pair.Key, pair => pair.index) };
+    }
 
     private Transcript Put(ITimelineEntry entry) =>
         Positions.TryGetValue(entry.Key, out var position)
