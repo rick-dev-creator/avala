@@ -27,6 +27,7 @@ public sealed class WorkspacesPlugin : IPlugin
             .AddSingleton<IWorkspaces, WorkspaceService>()
             .AddSingleton<IBaseFiles, BaseFileReader>()
             .AddSingleton<IWorkingFiles, WorkingFileStore>()
+            .AddSingleton<IWorkingCommits, WorkingCommitter>()
             .AddSingleton<GitRepositories>()
             .AddForwarded<IRepositories, GitRepositories>()
             .AddSingleton(provider => new ScratchSettings(provider.GetRequiredService<AvalaPaths>().Folder("scratch")))

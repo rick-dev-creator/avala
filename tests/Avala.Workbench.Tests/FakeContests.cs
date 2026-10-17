@@ -114,8 +114,40 @@ internal sealed class FakeDocumentation : Documentation.Contracts.IDocumentation
 
     public Task<Option<Documentation.Contracts.FeatureStory>> StoryAsync(string folder, Documentation.Contracts.Feature feature, CancellationToken cancellationToken) => Task.FromResult(Story);
 
-    public Task<Result<Documentation.Contracts.DocsRules, Documentation.Contracts.DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken) =>
-        Task.FromResult(Switched.Map(rules => rules with { Enabled = enabled }));
+    public Task<Result<Documentation.Contracts.DocsRules, Documentation.Contracts.DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken)
+    {
+        var switched = Switched.Map(rules => rules with { Enabled = enabled });
+        Working = switched.Match(rules => Option<Documentation.Contracts.DocsRules>.Some(rules), _ => Working);
+
+        return Task.FromResult(switched);
+    }
+
+    public Option<Documentation.Contracts.DocsRules> Working { get; set; }
+
+    public Option<Documentation.Contracts.DocumentationError> CommitRefusal { get; set; }
+
+    public List<string> Committed { get; } = [];
+
+    public Task<Documentation.Contracts.DocsRulesState> RulesAsync(string repository, CancellationToken cancellationToken)
+    {
+        var committed = new Documentation.Contracts.DocsRules(Docs.Enabled, Docs.Folder);
+
+        return Task.FromResult(new Documentation.Contracts.DocsRulesState(Working.Match(rules => rules, () => committed), committed));
+    }
+
+    public Task<Result<Documentation.Contracts.DocsCommit, Documentation.Contracts.DocumentationError>> CommitRulesAsync(string repository, CancellationToken cancellationToken)
+    {
+        if (CommitRefusal.IsSome)
+        {
+            return Task.FromResult(Result<Documentation.Contracts.DocsCommit, Documentation.Contracts.DocumentationError>.Failure(CommitRefusal.Match(error => error, () => Documentation.Contracts.DocumentationError.NotCommitted)));
+        }
+
+        Committed.Add(repository);
+        Working.Match(rules => Docs = Docs with { Enabled = rules.Enabled, Folder = rules.Folder }, () => Docs);
+        Working = Option<Documentation.Contracts.DocsRules>.None;
+
+        return Task.FromResult(Result<Documentation.Contracts.DocsCommit, Documentation.Contracts.DocumentationError>.Success(new Documentation.Contracts.DocsCommit("3f9a1c2d4e5f60718293a4b5c6d7e8f901234567", "main")));
+    }
 }
 
 internal sealed class FakeRoles : Delegation.Contracts.IRoleSettings

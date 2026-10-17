@@ -19,6 +19,10 @@ public enum DocumentationError
     UnknownField,
     InvalidFolder,
     Unwritable,
+    NotOnABranch,
+    NoGitIdentity,
+    NothingToCommit,
+    NotCommitted,
 }
 
 public sealed record Feature(string Slug, string Title);
@@ -82,6 +86,10 @@ public sealed record JobDocumentation(JobId Job, Feature Feature)
     public IReadOnlyList<ChangeRequest> Requests { get; init; } = [];
 }
 
+public sealed record DocsRulesState(DocsRules Working, DocsRules Committed);
+
+public sealed record DocsCommit(string Commit, string Branch);
+
 public interface IDocumentation
 {
     Task<RepositoryDocs> OfRepositoryAsync(string repository, CancellationToken cancellationToken);
@@ -89,6 +97,10 @@ public interface IDocumentation
     FeatureSuggestion Suggest(string instruction, IReadOnlyList<Feature> features);
 
     Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken);
+
+    Task<DocsRulesState> RulesAsync(string repository, CancellationToken cancellationToken);
+
+    Task<Result<DocsCommit, DocumentationError>> CommitRulesAsync(string repository, CancellationToken cancellationToken);
 
     Task<Option<FeatureStory>> StoryAsync(string folder, Feature feature, CancellationToken cancellationToken);
 
