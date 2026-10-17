@@ -1,3 +1,4 @@
+using Avala.Testing;
 using Avala.Testing.UI;
 using Avala.Workbench.NewJob;
 using Avala.Workbench.Settings;
@@ -38,6 +39,23 @@ public sealed class DocsFeatureScreens(HeadlessUi ui)
         {
             var view = Show(new DesignDocsSettingViewModel(), variant, 760, 360);
             Assert.True(Save(view, $"docs-settings-{variant}"));
+        });
+
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    public Task TheC4PlayerAtRestAndMidFlowAsync(string variant) =>
+        ShootAsync(() =>
+        {
+            using var player = new Avala.Workbench.Docs.C4PlayerViewModel(TimeProvider.System, new InlineUiDispatcher());
+            player.Show(Avala.Workbench.Docs.DesignStories.Ledger());
+            var view = Show(player, variant, 1240, 720);
+            Save(view, $"docs-player-{variant}");
+            player.Version = 0;
+            player.GoTo("a-charge");
+            player.NextCommand.Execute(null);
+            Pump(view);
+            Assert.True(Save(view, $"docs-player-flow-{variant}"));
         });
 
     private Task ShootAsync(Action shoot)

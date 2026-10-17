@@ -1,0 +1,125 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:docs="using:Avala.Workbench.Docs"
+             xmlns:graphs="using:Avala.Components.UI.Graphs"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             x:Class="Avala.Workbench.UI.C4PlayerView"
+             x:ClassModifier="internal"
+             x:DataType="docs:IC4PlayerViewModel">
+  <Design.DataContext>
+    <docs:DesignC4PlayerViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ListBox#Versions">
+      <Setter Property="Background" Value="{DynamicResource FillQuietBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusChoice}" />
+      <Setter Property="Padding" Value="2" />
+    </Style>
+    <Style Selector="ListBox#Versions ListBoxItem">
+      <Setter Property="Padding" Value="11,3" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusControl}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+    </Style>
+    <Style Selector="ListBox#Versions ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceSelectedTabBrush}" />
+    </Style>
+    <Style Selector="ListBox#Versions ListBoxItem:selected">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="Border#Hud">
+      <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Padding" Value="5" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowPopover}" />
+    </Style>
+    <Style Selector="Button.hud">
+      <Setter Property="Width" Value="32" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.hud.play">
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+    </Style>
+    <Style Selector="Border#Caption">
+      <Setter Property="Background" Value="{DynamicResource SurfacePopoverBrush}" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}" />
+      <Setter Property="Padding" Value="12,5" />
+      <Setter Property="BoxShadow" Value="{DynamicResource ShadowPopover}" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="*,380" IsVisible="{Binding IsShown}">
+    <Panel>
+      <DockPanel>
+        <DockPanel DockPanel.Dock="Top" Margin="18,14,18,0">
+          <ListBox x:Name="Versions"
+                   DockPanel.Dock="Right"
+                   ItemsSource="{Binding Versions}"
+                   SelectedIndex="{Binding Version}"
+                   AutomationProperties.Name="Versions">
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="2" />
+              </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+          </ListBox>
+          <TextBlock x:Name="Position" Classes="caption" Text="{Binding Position}" VerticalAlignment="Center" />
+        </DockPanel>
+        <ItemsControl x:Name="Unread" DockPanel.Dock="Top" Margin="20,20" ItemsSource="{Binding Unread}" IsVisible="{Binding !IsDrawn}" />
+        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Margin="20,56,20,80" IsVisible="{Binding IsDrawn}">
+          <ItemsControl x:Name="Diagram" ItemsSource="{Binding Nodes}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <graphs:C4GraphPanel x:Name="Graph" Links="{Binding Links}" Structure="{Binding Structure}" Frames="{Binding Frames}" x:DataType="docs:IC4PlayerViewModel" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+        </Viewbox>
+      </DockPanel>
+      <Border x:Name="Caption"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Top"
+              Margin="0,52,0,0"
+              theme:Motion.Enter="Fade"
+              IsVisible="{Binding Caption, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock x:Name="CaptionText" Text="{Binding Caption}" />
+      </Border>
+      <Border x:Name="Hud" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,18" IsVisible="{Binding IsDrawn}">
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Button x:Name="Back" Classes="hud ghost" Command="{Binding BackCommand}" AutomationProperties.Name="Previous step" ToolTip.Tip="Previous step">
+            <Path Classes="icon small" Data="{StaticResource IconBack}" />
+          </Button>
+          <Button x:Name="Play" Classes="hud play" Command="{Binding PlayCommand}" AutomationProperties.Name="Play" ToolTip.Tip="Play">
+            <Panel>
+              <Path Classes="icon small" Data="{StaticResource IconPlay}" Stroke="{DynamicResource OnAccentBrush}" IsVisible="{Binding !IsPlaying}" />
+              <Path Classes="icon small" Data="{StaticResource IconPause}" Stroke="{DynamicResource OnAccentBrush}" IsVisible="{Binding IsPlaying}" />
+            </Panel>
+          </Button>
+          <Button x:Name="Next" Classes="hud ghost" Command="{Binding NextCommand}" AutomationProperties.Name="Next step" ToolTip.Tip="Next step">
+            <Path Classes="icon small" Data="{StaticResource IconChevronRight}" />
+          </Button>
+          <Border Classes="separator" Width="1" Height="18" Margin="4,0" />
+          <Button x:Name="Speed" Classes="hud ghost" Width="40" Command="{Binding SpeedCommand}" AutomationProperties.Name="Speed" ToolTip.Tip="Speed">
+            <TextBlock Classes="caption mono" Text="{Binding Speed}" />
+          </Button>
+          <Button x:Name="Stop" Classes="hud ghost" Command="{Binding StopCommand}" AutomationProperties.Name="Back to the start" ToolTip.Tip="Back to the start">
+            <Path Classes="icon small" Data="{StaticResource IconRetry}" />
+          </Button>
+        </StackPanel>
+      </Border>
+    </Panel>
+    <Border Grid.Column="1" BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="1,0,0,0">
+      <ScrollViewer x:Name="Document">
+        <StackPanel Margin="22,20,22,40" Spacing="4">
+          <TextBlock x:Name="DocumentPath" Classes="caption mono" Text="{Binding Path}" />
+          <TextBlock x:Name="DocumentTitle" Classes="heading" Text="{Binding Title}" TextWrapping="Wrap" Margin="0,4,0,0" />
+          <TextBlock x:Name="DocumentLead" Classes="body secondary" Text="{Binding Lead}" TextWrapping="Wrap" Margin="0,6,0,10" />
+          <ItemsControl x:Name="Sections" ItemsSource="{Binding Sections}" />
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>
