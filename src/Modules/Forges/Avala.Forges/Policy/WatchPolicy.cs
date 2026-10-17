@@ -13,6 +13,7 @@ internal enum Verdict
     Wake,
     HoldForPerson,
     End,
+    Green,
 }
 
 internal sealed record WatchDecision(Verdict Verdict, Option<Trigger> Trigger, Option<WatchEnd> End)
@@ -20,6 +21,8 @@ internal sealed record WatchDecision(Verdict Verdict, Option<Trigger> Trigger, O
     public static WatchDecision Ending(WatchEnd end) => new(Verdict.End, Option<Trigger>.None, end);
 
     public static WatchDecision Waiting { get; } = new(Verdict.WaitForJob, Option<Trigger>.None, Option<WatchEnd>.None);
+
+    public static WatchDecision Passing { get; } = new(Verdict.Green, Option<Trigger>.None, Option<WatchEnd>.None);
 
     public static WatchDecision Watching(Option<Trigger> seen) => new(Verdict.KeepWatching, seen, Option<WatchEnd>.None);
 }
@@ -47,7 +50,7 @@ internal static class WatchPolicy
 
         return trigger.Match(
             found => Acting(watch, handled, found),
-            () => IsGreen(observed, watch.Policy) ? WatchDecision.Ending(WatchEnd.Green) : WatchDecision.Watching(Option<Trigger>.None));
+            () => IsGreen(observed, watch.Policy) ? WatchDecision.Passing : WatchDecision.Watching(Option<Trigger>.None));
     }
 
     public static Option<Trigger> TriggerOf(PullRequestState observed, OnPullRequest policy)

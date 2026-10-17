@@ -27,12 +27,12 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         var opened = await forge.ApprovedAsync();
         var wakeUp = await forge.PollUntilWokenAsync();
         var redelivered = await forge.RedeliveredAsync();
-        var ended = await forge.PollUntilAsync(state => state.Status == WatchStatus.Ended);
+        var green = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
 
         Assert.Equal((WakeReason.ChecksFailed, WakeOutcome.Woken, Option<ContinuedIn>.Some(ContinuedIn.ResumedConversation)), (wakeUp.Reason, wakeUp.Outcome, wakeUp.Conversation));
         Assert.Contains($"- build: {FailingTest}", wakeUp.Feedback, StringComparison.Ordinal);
         Assert.Equal(opened.PullRequest.Number, redelivered.PullRequest.Number);
-        Assert.Equal((Option<WatchEnd>.Some(WatchEnd.Green), 1), (ended.Ended, ended.WakeUps));
+        Assert.Equal((Option<WatchEnd>.None, 1), (green.Ended, green.WakeUps));
         Assert.Equal(JobStatus.Approved, await forge.StatusAsync());
         var history = Outcomes.Present(await forge.Run.Get<IJobCatalog>().HistoryAsync(forge.Job, Cancellation));
         Assert.Equal([AttemptOrigin.Initial, AttemptOrigin.Reopen], history.Attempts.Select(attempt => attempt.Origin));
@@ -48,11 +48,11 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         _ = await forge.ApprovedAsync();
         var wakeUp = await forge.PollUntilWokenAsync();
         _ = await forge.RedeliveredAsync();
-        var ended = await forge.PollUntilAsync(state => state.Status == WatchStatus.Ended);
+        var green = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
 
         Assert.Equal(WakeReason.ChangesRequested, wakeUp.Reason);
         Assert.Contains("reviewer: Please greet the team by name.\n- GREETING.md:1: Name the team here.", wakeUp.Feedback, StringComparison.Ordinal);
-        Assert.Equal(Option<WatchEnd>.Some(WatchEnd.Green), ended.Ended);
+        Assert.Equal(Option<WatchEnd>.None, green.Ended);
     }
 
     [Fact]
@@ -63,11 +63,11 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         _ = await forge.ApprovedAsync();
         var wakeUp = await forge.PollUntilWokenAsync();
         _ = await forge.RedeliveredAsync();
-        var ended = await forge.PollUntilAsync(state => state.Status == WatchStatus.Ended);
+        var green = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
 
         Assert.Equal(WakeReason.Conflict, wakeUp.Reason);
         Assert.Contains("Avala fetched origin/main: merge it into your branch and resolve the conflicts.", wakeUp.Feedback, StringComparison.Ordinal);
-        Assert.Equal(Option<WatchEnd>.Some(WatchEnd.Green), ended.Ended);
+        Assert.Equal(Option<WatchEnd>.None, green.Ended);
     }
 
     [Fact]
@@ -98,10 +98,10 @@ public sealed class ForgeTests(PublishedPlugins plugins)
         _ = await forge.ProgressedAsync(JobStatus.AwaitingReview);
         var approval = Outcomes.Succeeds(await forge.Run.Get<IOpenDeliveries>().ApproveThroughAsync(forge.Job, PullRequestDelivery.Strategy, Cancellation));
         var redelivered = await forge.RedeliveredAsync();
-        var ended = await forge.PollUntilAsync(state => state.Status == WatchStatus.Ended);
+        var green = await forge.PollUntilAsync(state => state.Status == WatchStatus.Green);
 
         Assert.Equal((PullRequestDelivery.Strategy, opened.PullRequest.Number), (approval.Delivery.Strategy, redelivered.PullRequest.Number));
-        Assert.Equal((Redelivery.Review, Option<WatchEnd>.Some(WatchEnd.Green)), (ended.Redelivery, ended.Ended));
+        Assert.Equal((Redelivery.Review, Option<WatchEnd>.None), (green.Redelivery, green.Ended));
     }
 
     [Fact]

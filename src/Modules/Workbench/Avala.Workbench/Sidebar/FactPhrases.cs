@@ -43,6 +43,11 @@ internal static class FactPhrases
         FactKind.Verified => fact.Attempt > 1
             ? string.Create(CultureInfo.InvariantCulture, $"verified on attempt {fact.Attempt}")
             : "verified",
+        FactKind.Delivered => fact.Total > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"delivered · #{fact.PullRequest} · checks {fact.Done} of {fact.Total}")
+            : string.Create(CultureInfo.InvariantCulture, $"delivered · #{fact.PullRequest}"),
+        FactKind.PullRequestMerged => string.Create(CultureInfo.InvariantCulture, $"merged · #{fact.PullRequest}"),
+        FactKind.PullRequestClosed => string.Create(CultureInfo.InvariantCulture, $"closed · #{fact.PullRequest}"),
         FactKind.Approved => fact.Strategy.Match(strategy => strategy == "merge" ? "merged" : "approved", () => "approved"),
         _ => Plain.GetValueOrDefault(fact.Kind, "starting"),
     };
@@ -52,6 +57,7 @@ internal static class FactPhrases
         JobGroup.NeedsYou => job.PendingDecisions == 0 && job.Hold.IsSome ? StatusKind.Held : StatusKind.NeedsYou,
         JobGroup.Waiting => StatusKind.Held,
         JobGroup.ReadyForReview => StatusKind.ReadyForReview,
+        JobGroup.Delivered => StatusKind.Working,
         JobGroup.Done => job.Status == JobStatus.Failed ? StatusKind.Failed : StatusKind.Done,
         _ when job.Fact.Kind == FactKind.WaitsForParent => StatusKind.Held,
         _ => job.Status == JobStatus.Checking ? StatusKind.Checking : StatusKind.Working,

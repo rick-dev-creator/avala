@@ -12,7 +12,7 @@ internal static partial class ForgeScenario
 
     public const string FailingTest = "1 test failed: CalculatorTests.AddsTwoNumbers";
 
-    public static IReadOnlyList<string> Names { get; } = [Green, "ci-fails-once", "ci-always-fails", "changes-requested-once", "conflict-once", "pending", "merged"];
+    public static IReadOnlyList<string> Names { get; } = [Green, "ci-fails-once", "ci-always-fails", "changes-requested-once", "conflict-once", "pending", "merged", "closed"];
 
     public static string NameIn(string text) =>
         Tag().Match(text) is { Success: true } found && Names.Contains(found.Groups["name"].Value) ? found.Groups["name"].Value : Green;
@@ -25,6 +25,7 @@ internal static partial class ForgeScenario
         "conflict-once" => Facts(Build(CheckStatus.Passed)) with { Mergeability = head == 0 ? Mergeability.Conflicting : Mergeability.Mergeable },
         "pending" => Facts(Build(CheckStatus.Pending)),
         "merged" => Facts(Build(CheckStatus.Passed)) with { Lifecycle = PullRequestLifecycle.Merged },
+        "closed" => Facts(Build(CheckStatus.Passed)) with { Lifecycle = PullRequestLifecycle.Closed },
         _ => Facts(Build(CheckStatus.Passed)),
     };
 

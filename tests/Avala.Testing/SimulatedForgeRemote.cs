@@ -55,6 +55,9 @@ public sealed class SimulatedForgeRemote(string remote)
         return number;
     }
 
+    public Task SetScenarioAsync(int pullRequest, string scenario, CancellationToken cancellationToken) =>
+        ChangeAsync(state => List(state, "Pulls").OfType<JsonObject>().Single(pull => (int?)pull["Number"] == pullRequest)["Scenario"] = scenario, cancellationToken);
+
     public Task LabelAsync(int issue, string label, string actor, CancellationToken cancellationToken) =>
         ChangeAsync(state => Happened(state, "labeled", issue, actor)["Label"] = label, cancellationToken);
 
