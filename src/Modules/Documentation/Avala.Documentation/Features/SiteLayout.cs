@@ -19,7 +19,9 @@ internal static class SiteLayout
     public static string FeaturesFolder(string root, string folder) =>
         folder.StartsWith(root + "/", StringComparison.Ordinal) ? folder[(root.Length + 1)..] : "features";
 
-    public static IReadOnlyList<SiteFile> Files(string root, string folder, string name, IReadOnlyList<(string Slug, string Title)> features)
+    public const string Template = "template";
+
+    public static IReadOnlyList<SiteFile> Files(string root, string folder, string name, IReadOnlyList<(string Slug, string Title)> features, IReadOnlyList<SiteFile> template)
     {
         var featured = FeaturesFolder(root, folder);
 
@@ -40,6 +42,7 @@ internal static class SiteLayout
             new($"{root}/whats-new.md", Page("What's new", "whats-new", "What each feature delivered, newest first.")),
             new($"{root}/media/.gitkeep", string.Empty),
             new($"{root}/includes/.gitkeep", string.Empty),
+            .. template.Select(file => new SiteFile($"{root}/{Template}/{file.Path}", file.Content)),
         ];
     }
 
@@ -50,10 +53,10 @@ internal static class SiteLayout
         string.Create(CultureInfo.InvariantCulture, $$"""
             {
               "build": {
-                "content": [ { "files": [ "**/*.{md,yml}" ], "exclude": [ "_site/**" ] } ],
+                "content": [ { "files": [ "**/*.{md,yml}" ], "exclude": [ "_site/**", "{{Template}}/**" ] } ],
                 "resource": [ { "files": [ "media/**" ] } ],
                 "output": "_site",
-                "template": [ "default", "modern" ],
+                "template": [ "default", "modern", "{{Template}}" ],
                 "globalMetadata": { "_appName": "{{name}}", "_appTitle": "{{name}}", "_enableSearch": true }
               }
             }

@@ -334,7 +334,7 @@ The simulator, the simulated forge and Recording exist only to develop and test 
 
 The rules are code, and a failing rule explains itself.
 
-- **Architecture tests** in `tests/Avala.ArchitectureTests` enforce the module boundaries, the layer map, the domain's purity, the view rules, the absence of comments, type and component size limits, the concurrency and timing rules, and that every script is C#. Each rule runs against the production code, a compliant fixture module and a violating fixture module, so it can never pass vacuously.
+- **Architecture tests** in `tests/Avala.ArchitectureTests` enforce the module boundaries, the layer map, the domain's purity, the view rules, the absence of comments, type and component size limits, the concurrency and timing rules, and that every script is C#. The one exception is the docs site's template in `src/Modules/Documentation/Avala.Documentation/SiteTemplate/public/`: the `<avala-c4>` player runs in the reader's browser, where only JavaScript runs, so that folder alone may hold `.js` files; they are embedded in the Documentation module and written into a repository's docs site by **Create site**. Each rule runs against the production code, a compliant fixture module and a violating fixture module, so it can never pass vacuously.
 - **Analyzers** run on every project as errors: banned symbols for blocking calls, timed waits and coordination primitives, the threading analyzers, SonarAnalyzer.CSharp and the .NET code metrics rules, with their limits in `SonarLint.xml` and `CodeMetricsConfig.txt`.
 - **CI** builds and tests on Linux, Windows and macOS on every push to `main` and every pull request, using only `dotnet` steps.
 

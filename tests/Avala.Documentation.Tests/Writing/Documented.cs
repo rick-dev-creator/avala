@@ -76,7 +76,7 @@ internal sealed class Documented
     {
         var reads = new DocumentationReads(Rules, new FeatureCatalog(Files, Files), Files, new JobPlaces(Jobs, Jobs));
 
-        return new DocumentationEntry(Rules, Book, reads, new SiteDesk(reads, Files, new Docfx(Docfx), new SiteFiller(Jobs, new FixedRoles())));
+        return new DocumentationEntry(Rules, Book, reads, new SiteDesk(reads, Files, new Docfx(Docfx, new Avala.Documentation.RepositoryFiles.EmbeddedSiteTemplate()), new SiteFiller(Jobs, new FixedRoles())));
     }
 
     internal sealed class Installed : Sdk.Processes.IProcessRunner
