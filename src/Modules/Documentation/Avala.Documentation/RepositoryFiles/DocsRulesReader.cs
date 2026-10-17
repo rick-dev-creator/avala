@@ -65,7 +65,7 @@ internal sealed class DocsRulesReader(IBaseFiles files, IWorkingFiles working) :
 
         section["enabled"] = enabled;
 
-        return root.ToJsonString(Written) + "\n";
+        return root.ToJsonString(Written).ReplaceLineEndings("\n") + "\n";
     }
 
     public static Result<DocsRules, DocumentationError> Parse(string text) =>
