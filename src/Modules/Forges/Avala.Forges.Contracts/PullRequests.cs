@@ -1,3 +1,4 @@
+using Avala.Jobs.Contracts;
 using Avala.Sdk;
 
 namespace Avala.Forges.Contracts;
@@ -52,6 +53,13 @@ public sealed record PullRequestState(PullRequestRef PullRequest, PullRequestLif
 }
 
 public sealed record CommentRef(string Id, Option<Uri> Link);
+
+public sealed record MentionedPullRequest(int Number, Uri Link);
+
+public interface IMentionedPullRequests
+{
+    ValueTask<Option<MentionedPullRequest>> UnfollowedAsync(JobId job, string text, CancellationToken cancellationToken);
+}
 
 public enum ForgeError
 {

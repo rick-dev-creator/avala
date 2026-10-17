@@ -3,9 +3,11 @@ using Avala.Forges.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Verification.Contracts;
+using Avala.Workbench.Board;
 using Avala.Workbench.Machine;
 using Avala.Workbench.RepositoryRules;
 using Avala.Workbench.Submitting;
+using Avala.Workbench.Timeline;
 using Avala.Workspaces.Contracts;
 
 namespace Avala.Workbench.Readying;
@@ -69,4 +71,25 @@ internal sealed class ReadinessActions(SourceControl source, IDocumentation docu
         documentation.CommitRulesAsync(repository, cancellationToken);
 
     public Task DeclareChecksAsync(string repository) => links.DeclareChecksAsync(repository);
+}
+
+internal sealed class AgentPullRequests(JobBoard board, IMentionedPullRequests mentions)
+{
+    public async ValueTask<Option<MentionedPullRequest>> OfAsync(Option<JobId> job, CancellationToken cancellationToken)
+    {
+        var said = job.Bind(board.Find).Match(
+            found => found.PullRequest.IsSome ? string.Empty : string.Join('\n', found.Transcript.Entries.Select(Said).Where(text => text.Contains("://", StringComparison.Ordinal))),
+            () => string.Empty);
+
+        return said.Length == 0
+            ? Option<MentionedPullRequest>.None
+            : await job.Match(found => mentions.UnfollowedAsync(found, said, cancellationToken).AsTask(), () => Task.FromResult(Option<MentionedPullRequest>.None));
+    }
+
+    private static string Said(ITimelineEntry entry) => entry switch
+    {
+        MessageEntry message => message.Text,
+        ToolEntry tool => tool.Output,
+        _ => string.Empty,
+    };
 }

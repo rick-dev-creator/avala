@@ -205,7 +205,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddToRegion<DelegationPaneViewModel>(WorkbenchRegions.Preview, 10)
             .AddToRegion<DocsToggleViewModel>(WorkbenchRegions.JobHeader, 0)
             .AddToRegion<DocsPaneViewModel>(WorkbenchRegions.Preview, 20)
-            .AddToRegion<ReadinessCardViewModel>(WorkbenchRegions.Conversation, 0);
+            .AddToRegion<ReadinessCardViewModel>(WorkbenchRegions.Conversation, 0)
+            .AddToRegion<AgentPullRequestNoteViewModel>(WorkbenchRegions.Conversation, 10);
 
     private static void RegisterProjects(IServiceCollection services) =>
         services
@@ -538,13 +539,16 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<FirstJobs>()
             .AddSingleton<RepositoryReadiness>()
             .AddSingleton<ReadinessActions>()
-            .AddSingleton<ReadinessCardViewModel>();
+            .AddSingleton<ReadinessCardViewModel>()
+            .AddSingleton<AgentPullRequests>()
+            .AddSingleton<AgentPullRequestNoteViewModel>();
 
     private static void RegisterReadinessViews(IViewRegistrar views)
     {
         views.Register<IReadinessCardViewModel, ReadinessCardView>();
         views.Register<IReadinessItemViewModel, ReadinessItemView>();
         views.Register<IReadinessAccountViewModel, ReadinessAccountView>();
+        views.Register<IAgentPullRequestNoteViewModel, AgentPullRequestNoteView>();
     }
 
     private static void RegisterDocumentationViews(IViewRegistrar views)

@@ -57,6 +57,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddForwarded<IHandle<JobProgressed>, PullRequestDiscovery>()
             .AddSingleton<PullRequestOffers>()
             .AddSingleton<IPullRequests, PullRequestDesk>()
+            .AddSingleton<IMentionedPullRequests, MentionedPullRequests>()
             .AddSingleton<IApprovalStrategy, PullRequestStrategy>()
             .AddSingleton<EventBook>()
             .AddForwarded<IStartupTask, EventBook>()

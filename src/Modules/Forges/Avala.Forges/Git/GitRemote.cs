@@ -25,6 +25,19 @@ internal sealed class GitRemote(IProcessRunner processes) : IGitRemote
     public async ValueTask<Result<string, ForgeError>> FetchAsync(string worktree, string remote, string branch, CancellationToken cancellationToken) =>
         await GitAsync(worktree, ["fetch", "--quiet", remote, $"refs/heads/{branch}:refs/remotes/{remote}/{branch}"], cancellationToken);
 
+    public async ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken) =>
+        (await GitAsync(worktree, ["reflog", "show", "--format=%gs", "HEAD"], cancellationToken)).Match<IReadOnlyList<string>>(
+            output => [.. output.ReplaceLineEndings("\n").Split('\n').Select(Moved).OfType<string>().Distinct(StringComparer.Ordinal)],
+            _ => []);
+
+    private static string? Moved(string subject)
+    {
+        const string Checkout = "checkout: moving from ";
+        var to = subject.LastIndexOf(" to ", StringComparison.Ordinal);
+
+        return subject.StartsWith(Checkout, StringComparison.Ordinal) && to > Checkout.Length ? subject[(to + 4)..].Trim() : null;
+    }
+
     private async Task<Result<string, ForgeError>> GitAsync(string worktree, IReadOnlyList<string> arguments, CancellationToken cancellationToken) =>
         (await processes.RunAsync(new ProcessRequest("git", ["-C", worktree, .. arguments]), cancellationToken)).Match(
             outcome => outcome.Succeeded ? Result<string, ForgeError>.Success(outcome.Output.Trim()) : ForgeError.GitFailed,

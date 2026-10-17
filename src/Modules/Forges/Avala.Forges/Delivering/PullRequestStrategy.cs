@@ -19,6 +19,8 @@ internal interface IGitRemote
     ValueTask<Result<string, ForgeError>> PushAsync(string worktree, string remote, string branch, CancellationToken cancellationToken);
 
     ValueTask<Result<string, ForgeError>> FetchAsync(string worktree, string remote, string branch, CancellationToken cancellationToken);
+
+    ValueTask<IReadOnlyList<string>> CheckedOutAsync(string worktree, CancellationToken cancellationToken);
 }
 
 internal sealed class PullRequestStrategy(EffectiveRules rules, ForgeConnections connections, IGitRemote git, WatchAdoption watches) : IApprovalStrategy
