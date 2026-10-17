@@ -184,7 +184,7 @@ internal static class DogfoodAutomationScenarios
             await scene.UntilAsync<PullRequestOpened>(found => found.Job == job, "the fix pushed to the pull request", mark);
             await automation.PullRequestAsync(job, "redelivered", checkNow: true);
             await scene.UntilAsync<PullRequestWatchChanged>(found => found.State.Job == job && found.State.Status == WatchStatus.Ended, "the watch to end");
-            await automation.PullRequestAsync(job, "ended", checkNow: false, status: "Watch ended");
+            await automation.PullRequestAsync(job, "green", checkNow: false, status: "Checks passed");
             await scene.ReadAsync("forge", Path.Combine(scene.Place.Origin, "avala-forge.json"));
         },
         Checks =
@@ -205,10 +205,10 @@ internal static class DogfoodAutomationScenarios
 
                 return Expect(evidence, opened.Count >= 2 && opened.Select(found => found.PullRequest.Number).Distinct().Count() == 1 && heads >= 2, $"{opened.Count} deliveries to #{string.Join(", #", opened.Select(found => found.PullRequest.Number).Distinct())}, {heads} heads in avala-forge.json");
             }),
-            OfJob("The next poll ends the watch Green", "s10", (evidence, job) =>
-                DogfoodVerdict.Unless(evidence.First<PullRequestWatchChanged>(found => found.State.Job == job && found.State.Status == WatchStatus.Ended), "the watch never ended", found =>
-                    Expect(evidence, found.State.Ended == Option<WatchEnd>.Some(WatchEnd.Green), $"ended {found.State.Ended.Match(end => end.ToString(), () => "none")} after {found.State.WakeUps} wake-ups"))),
-            Fact("The inspector reads Watch ended: … with one wake-up Woken", "pull-request:ended", text => text.Contains("Watch ended:", StringComparison.Ordinal) && DogfoodChecks.Between(text, "WakeUps=[", "]").Length > 0),
+            OfJob("The next poll finds the pull request green and keeps watching it until it is merged or closed", "s10", (evidence, job) =>
+                DogfoodVerdict.Unless(evidence.First<PullRequestWatchChanged>(found => found.State.Job == job && found.State.Status == WatchStatus.Green), "the watch never went green", found =>
+                    Expect(evidence, found.State.Ended.IsNone, $"green after {found.State.WakeUps} wake-ups"))),
+            Fact("The inspector reads Checks passed · waiting for it to be merged, with one wake-up Woken", "pull-request:green", text => text.Contains("Checks passed · waiting for it to be merged", StringComparison.Ordinal) && DogfoodChecks.Between(text, "WakeUps=[", "]").Length > 0),
         ],
     };
 

@@ -42,6 +42,7 @@ internal static class ForgePhrases
             _ => $"The agent works on wake-up {Counted(state)}",
         },
         WatchStatus.NeedsPerson => $"Held for a person: {state.Pending.Match(Reason, () => "the wake-ups are spent")}",
+        WatchStatus.Green => $"Checks passed · waiting for it to be merged{Next(state)}",
         _ => $"Watch ended: {state.Ended.Match(End, () => "ended")}",
     };
 
@@ -58,6 +59,7 @@ internal static class ForgePhrases
             _ => "agent at work",
         },
         WatchStatus.NeedsPerson => "needs you",
+        WatchStatus.Green => "checks passed",
         _ => state.Ended.Match(End, () => "ended"),
     };
 

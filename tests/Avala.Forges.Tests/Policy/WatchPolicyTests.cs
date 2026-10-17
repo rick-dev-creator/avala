@@ -60,8 +60,8 @@ public sealed class WatchPolicyTests
 
     [Theory]
     [InlineData("WakeOnCiAndReviews", "Wake")]
-    [InlineData("WakeOnCi", "End")]
-    [InlineData("WatchOnly", "End")]
+    [InlineData("WakeOnCi", "Green")]
+    [InlineData("WatchOnly", "Green")]
     public void AReviewRequestingChangesWakesTheAgentOnlyWhenThePolicyWatchesReviews(string policy, string verdict)
     {
         var observed = Passing() with { Reviews = [new Review("80", "hubot", ReviewVerdict.ChangesRequested, "Rename it.", Head)] };
@@ -99,18 +99,17 @@ public sealed class WatchPolicyTests
         Assert.Equal(Enum.Parse<Verdict>(verdict), WatchPolicy.Decide(Watch(OnPullRequest.WakeOnCi), Nothing, Failing(), Enum.Parse<JobStatus>(job)).Verdict);
 
     [Theory]
-    [InlineData("WakeOnCi", false, "End")]
-    [InlineData("WatchOnly", false, "End")]
+    [InlineData("WakeOnCi", false, "Green")]
+    [InlineData("WatchOnly", false, "Green")]
     [InlineData("WakeOnCiAndReviews", false, "KeepWatching")]
-    [InlineData("WakeOnCiAndReviews", true, "End")]
-    public void PassedChecksOnAMergeablePullRequestEndTheWatchGreenAndUnderReviewsOnlyOnceApproved(string policy, bool approved, string verdict)
+    [InlineData("WakeOnCiAndReviews", true, "Green")]
+    public void PassedChecksOnAMergeablePullRequestAreGreenAndUnderReviewsOnlyOnceApprovedWhileTheWatchGoesOnUntilItIsMergedOrClosed(string policy, bool approved, string verdict)
     {
         var observed = Passing() with { Reviews = approved ? [new Review("82", "lisa", ReviewVerdict.Approved, "Nice.", Head)] : [] };
 
         var decision = WatchPolicy.Decide(Watch(Enum.Parse<OnPullRequest>(policy)), Nothing, observed, JobStatus.Approved);
 
-        Assert.Equal(Enum.Parse<Verdict>(verdict), decision.Verdict);
-        Assert.Equal(decision.Verdict == Verdict.End, decision.End == Option<WatchEnd>.Some(WatchEnd.Green));
+        Assert.Equal((Enum.Parse<Verdict>(verdict), Option<WatchEnd>.None), (decision.Verdict, decision.End));
     }
 
     [Fact]

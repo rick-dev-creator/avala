@@ -243,6 +243,7 @@ internal static class ConversationPhrases
             reason => job.PendingDecisions == 0 ? $"Held · {job.Wait.Match(HandoffPhrases.Until, () => Held(reason))}" : "Needs you",
             () => job.Wait.Match(wait => $"Held · {HandoffPhrases.Until(wait)}", () => "Needs you")),
         JobGroup.ReadyForReview => "Ready for review",
+        JobGroup.Delivered => "Delivered",
         JobGroup.Done => job.Status switch
         {
             JobStatus.Approved => "Approved",

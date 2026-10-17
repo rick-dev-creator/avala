@@ -28,6 +28,7 @@ public sealed class ForgePhrasesTests
         { Watch with { Status = WatchStatus.WaitingForJob, WakeUps = 1 }, JobStatus.Failed, "The job ended, the agent is not woken again" },
         { Watch with { Status = WatchStatus.NeedsPerson, Pending = WakeReason.Conflict }, JobStatus.Approved, "Held for a person: conflicts with its base" },
         { Watch with { Status = WatchStatus.NeedsPerson }, JobStatus.Approved, "Held for a person: the wake-ups are spent" },
+        { Watch with { Status = WatchStatus.Green, NextPoll = HalfPastTwo }, JobStatus.Approved, "Checks passed · waiting for it to be merged · next check 14:30" },
         { Watch with { Status = WatchStatus.Ended, Ended = WatchEnd.Green }, JobStatus.Approved, "Watch ended: checks passed" },
         { Watch with { Status = WatchStatus.Ended }, JobStatus.Approved, "Watch ended: ended" },
     };

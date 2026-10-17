@@ -1,4 +1,5 @@
 using Avala.Agents.Contracts.Events;
+using Avala.Forges.Contracts;
 using Avala.Handoffs.Contracts;
 using Avala.Jobs.Contracts;
 using Avala.Sdk;
@@ -13,6 +14,7 @@ internal enum JobGroup
     Running,
     Waiting,
     ReadyForReview,
+    Delivered,
     Done,
 }
 
@@ -34,6 +36,9 @@ internal enum FactKind
     NoChecks,
     ReadyForReview,
     Approved,
+    Delivered,
+    PullRequestMerged,
+    PullRequestClosed,
     Discarded,
     Failed,
 }
@@ -53,6 +58,8 @@ internal sealed record JobFact(FactKind Kind)
     public int Total { get; init; }
 
     public Option<string> Strategy { get; init; }
+
+    public int PullRequest { get; init; }
 }
 
 internal static class JobFacts
@@ -64,6 +71,7 @@ internal static class JobFacts
             {
                 JobStatus.NeedsHelp => ResumesOnItsOwn(job) ? JobGroup.Waiting : JobGroup.NeedsYou,
                 JobStatus.AwaitingReview => JobGroup.ReadyForReview,
+                JobStatus.Approved when IsDelivered(job) => JobGroup.Delivered,
                 JobStatus.Approved or JobStatus.Discarded or JobStatus.Failed => JobGroup.Done,
                 _ => JobGroup.Running,
             };
@@ -76,6 +84,23 @@ internal static class JobFacts
             _ when job.Transcript.Pending.Any() => new JobFact(FactKind.WaitsForParent),
             _ => Settled(job),
         };
+
+    private static bool IsDelivered(BoardJob job) => job.PullRequest.Match(watch => watch.Status != WatchStatus.Ended, () => false);
+
+    private static JobFact Delivered(BoardJob job, PullRequestWatchState watch) =>
+        watch.Status != WatchStatus.Ended
+            ? new JobFact(FactKind.Delivered)
+            {
+                PullRequest = watch.PullRequest.Number,
+                Done = watch.Last.Match(last => last.Checks.Count(check => check.Status is Avala.Forges.Contracts.CheckStatus.Passed or Avala.Forges.Contracts.CheckStatus.Skipped), () => 0),
+                Total = watch.Last.Match(last => last.Checks.Count, () => 0),
+            }
+            : watch.Ended.Match(end => end, () => WatchEnd.JobEnded) switch
+            {
+                WatchEnd.Merged => new JobFact(FactKind.PullRequestMerged) { PullRequest = watch.PullRequest.Number },
+                WatchEnd.Closed => new JobFact(FactKind.PullRequestClosed) { PullRequest = watch.PullRequest.Number },
+                _ => new JobFact(FactKind.Approved) { Strategy = job.Delivery.Map(delivery => delivery.Strategy) },
+            };
 
     private static bool ResumesOnItsOwn(BoardJob job) => job.Wait.Match(wait => wait.ResumesAt.IsSome, () => false);
 
@@ -98,7 +123,7 @@ internal static class JobFacts
             hold => new JobFact(FactKind.Held) { Hold = hold },
             () => new JobFact(FactKind.NeedsHelp)),
         JobStatus.AwaitingReview => job.Verification.Match(Reviewed, () => new JobFact(FactKind.ReadyForReview)),
-        JobStatus.Approved => new JobFact(FactKind.Approved) { Strategy = job.Delivery.Map(delivery => delivery.Strategy) },
+        JobStatus.Approved => job.PullRequest.Match(watch => Delivered(job, watch), () => new JobFact(FactKind.Approved) { Strategy = job.Delivery.Map(delivery => delivery.Strategy) }),
         JobStatus.Discarded => new JobFact(FactKind.Discarded),
         JobStatus.Failed => new JobFact(FactKind.Failed),
         _ => new JobFact(FactKind.Starting),
