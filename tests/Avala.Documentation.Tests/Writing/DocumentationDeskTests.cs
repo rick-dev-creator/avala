@@ -48,6 +48,25 @@ public sealed class DocumentationDeskTests
     }
 
     [Fact]
+    public async Task APlanStillBeingWrittenStartsNoWriterUntilAStepStartsOrTheTurnEndsAsync()
+    {
+        var started = Documented.With();
+        var (_, first) = await started.RunningAsync();
+        var ended = Documented.With();
+        var (_, second) = await ended.RunningAsync();
+
+        await started.PlanningAsync(first, "Create greet.py");
+        await started.PlanningAsync(first, "Create greet.py", "Create README.md");
+        var whilePlanning = started.Jobs.Submitted.Count;
+        await started.PlanAsync(first, "Create greet.py", "Create README.md");
+        await ended.PlanningAsync(second, "Create greet.py", "Create README.md");
+        await ended.TurnEndsAsync(second);
+
+        Assert.Equal(0, whilePlanning);
+        Assert.All(new[] { started, ended }, documented => Assert.Contains("1. Create greet.py\n2. Create README.md\n", Assert.Single(documented.Jobs.Submitted).Request.Instruction));
+    }
+
+    [Fact]
     public async Task ALaterJobOnAnExistingFeatureIsSuggestedItAndContinuesItsNumberingAsync()
     {
         var documented = Documented.With();

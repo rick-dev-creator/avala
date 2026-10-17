@@ -24,6 +24,12 @@ public sealed class AsBuiltDocumentTests
     }
 
     [Fact]
+    public void AsBuiltLeavesOutTheLastVersionsChangesBecauseItRecordsNoChangeOfItsOwn() =>
+        Assert.Equal(
+            "# Refund webhooks\n\nAs built: what attempt 1 of the job delivered for review, from version 2. Written by Avala from the job's evidence.\n\nThe C4.\n\n## Webhooks\n\nVerifies.\n\n## Evidence\n\n- Checks: none declared\n- Files changed: 0, +0 −0\n",
+            AsBuiltDocument.Compose(Refunds, 2, "# Refund webhooks\n\nThe C4.\n\n## Changes from version 1\n\n- Keys are kept.\n\n## Webhooks\n\nVerifies.\n", new BuildEvidence(1, [], [])));
+
+    [Fact]
     public void WithoutChecksAsBuiltSaysNoneWereDeclared() =>
         Assert.Contains("- Checks: none declared\n", AsBuiltDocument.Compose(Refunds, 1, Option<string>.None, new BuildEvidence(1, [], [])));
 }

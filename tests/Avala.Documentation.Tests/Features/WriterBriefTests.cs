@@ -19,6 +19,7 @@ public sealed class WriterBriefTests
         Assert.Contains("1. Add a Webhooks container\n2. Write the refund to the ledger\n", brief);
         Assert.Contains("Mermaid C4", brief);
         Assert.Contains("whose heading is the element's label", brief);
+        Assert.Contains("a checkpoint of the job's work in progress", brief);
         Assert.DoesNotContain("previous version", brief);
     }
 

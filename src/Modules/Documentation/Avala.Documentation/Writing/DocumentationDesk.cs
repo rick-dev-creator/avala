@@ -30,6 +30,14 @@ internal sealed class DocumentationDesk(DocumentedJobs subjects, WriterLauncher 
         {
             case PlanUpdated { Steps.Count: > 0 } updated when sessions.TryGetValue(updated.Session, out var job):
                 plans[job] = [.. updated.Steps.Select(step => step.Title)];
+
+                if (updated.Steps.Any(step => step.Status != PlanStepStatus.Pending))
+                {
+                    await WriteAsync(job, cancellationToken);
+                }
+
+                break;
+            case TurnCompleted completed when sessions.TryGetValue(completed.Session, out var job):
                 await WriteAsync(job, cancellationToken);
                 break;
             case MessageQueued queued when sessions.TryGetValue(queued.Session, out var job) && queued.Text.Trim().Length > 0:

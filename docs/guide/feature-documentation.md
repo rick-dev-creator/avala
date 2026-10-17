@@ -4,7 +4,7 @@ Let each job document the feature it builds: the plan it proposed, every change 
 
 ## What it does
 
-- **A version per moment that matters.** When a job's harness proposes a plan, a documentation companion, a small job on the repository's `research` role, writes **v1 Proposed**: the feature in Markdown with a Mermaid C4 diagram and one section per element. A new plan writes a **Deviation**. When the job is ready for review, Avala writes **As built** itself, from the last version and the job's evidence: its checks and the files it changed. The working agent never sees the companion, so its context stays on the work.
+- **A version per moment that matters.** When a job's harness has proposed its plan, once a step starts or the turn ends, a documentation companion, a small job on the repository's `research` role, writes **v1 Proposed**: the feature in Markdown with a Mermaid C4 diagram and one section per element. A new plan writes a **Deviation**. When the job is ready for review, Avala writes **As built** itself, from the last version and the job's evidence: its checks and the files it changed. The working agent never sees the companion, so its context stays on the work.
 - **Every change you ask for is recorded.** A steer, a send back or a message that starts a new attempt is a change request, with its text, time and attempt. The next version explains it and links it, and `changes.md` lists them.
 - **Committed in the job's branch**, under the docs folder, one folder per feature:
 

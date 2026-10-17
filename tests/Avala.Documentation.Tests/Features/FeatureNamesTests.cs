@@ -42,7 +42,10 @@ public sealed class FeatureNamesTests
     [InlineData("[simulate: plan-revised] [team] Handle Stripe refund webhooks", "Handle Stripe refund webhooks")]
     [InlineData("Fix: the refund webhook drops events", "The refund webhook drops events")]
     [InlineData("Refactor.", "Refactor")]
-    public void ANewFeaturesTitleSkipsLeadingTagsAndALoneWordBeforeAColon(string instruction, string title) =>
+    [InlineData("Create a tiny script greet.py that prints a greeting. Then document it.", "Create a tiny script greet.py that prints")]
+    [InlineData("Create a tiny command-line Python script greet.py that prints a greeting", "Create a tiny command-line Python script greet.py")]
+    [InlineData("Bump the version to 2.1.0, then tag it", "Bump the version to 2.1.0")]
+    public void ANewFeaturesTitleSkipsLeadingTagsAndALoneWordBeforeAColonAndEndsOnAWordThatCarriesMeaning(string instruction, string title) =>
         Assert.Equal(title, FeatureNames.New(instruction).Title);
 
     [Fact]
