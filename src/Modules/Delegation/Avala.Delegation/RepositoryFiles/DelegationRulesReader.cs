@@ -1,3 +1,4 @@
+using Avala.Agents.Contracts.Sessions;
 using System.Text;
 using Avala.Delegation.Contracts;
 using Avala.Delegation.Delegating;
@@ -8,7 +9,7 @@ using Avala.Workspaces.Contracts;
 
 namespace Avala.Delegation.RepositoryFiles;
 
-internal sealed class DelegationRulesReader(IBaseFiles files, IMachineDelegation machine) : IDelegationRules
+internal sealed class DelegationRulesReader(IBaseFiles files, IMachineDelegation machine) : IDelegationRules, IRoleSettings
 {
     public const string JobFile = ".avala/jobs.json";
 
@@ -25,4 +26,9 @@ internal sealed class DelegationRulesReader(IBaseFiles files, IMachineDelegation
 
         return declared.Map(found => found.Map(rules => rules with { Escalation = rules.Escalation.Over(defaults) }));
     }
+
+    public async ValueTask<ModelChoice> OfRoleAsync(string worktree, ChildRole role, CancellationToken cancellationToken) =>
+        (await OfWorktreeAsync(worktree, cancellationToken)).Match(
+            found => found.Match(rules => rules.Settings.Of(role), () => ModelChoice.Default),
+            _ => ModelChoice.Default);
 }
