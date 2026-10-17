@@ -126,6 +126,10 @@
     <Project Path="src/Modules/Contests/Avala.Contests.Contracts/Avala.Contests.Contracts.csproj" />
     <Project Path="src/Modules/Contests/Avala.Contests/Avala.Contests.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Documentation/">
+    <Project Path="src/Modules/Documentation/Avala.Documentation.Contracts/Avala.Documentation.Contracts.csproj" />
+    <Project Path="src/Modules/Documentation/Avala.Documentation/Avala.Documentation.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Projects/">
     <Project Path="src/Modules/Projects/Avala.Projects.Contracts/Avala.Projects.Contracts.csproj" />
     <Project Path="src/Modules/Projects/Avala.Projects/Avala.Projects.csproj" />
@@ -189,6 +193,7 @@
     <Project Path="tests/Avala.Triggers.Tests/Avala.Triggers.Tests.csproj" />
     <Project Path="tests/Avala.Notifications.Tests/Avala.Notifications.Tests.csproj" />
     <Project Path="tests/Avala.Contests.Tests/Avala.Contests.Tests.csproj" />
+    <Project Path="tests/Avala.Documentation.Tests/Avala.Documentation.Tests.csproj" />
     <Project Path="tests/Avala.Projects.Tests/Avala.Projects.Tests.csproj" />
     <Project Path="tests/Avala.Workbench.Tests/Avala.Workbench.Tests.csproj" />
     <Project Path="tests/Avala.Rendering.Tests/Avala.Rendering.Tests.csproj" />
