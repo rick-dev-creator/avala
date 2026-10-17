@@ -4,11 +4,9 @@ using Avala.Jobs.Contracts;
 using Avala.Sdk;
 using Avala.Sdk.Presentation;
 using Avala.Sdk.Regions;
-using Avala.Workbench.Conversation;
 using Avala.Workbench.Documenting;
 using Avala.Workbench.Following;
 using Avala.Workbench.Sidebar;
-using Avala.Workbench.Timeline;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -27,7 +25,7 @@ internal interface IDocsPaneViewModel
 
     IC4PlayerViewModel Player { get; }
 
-    IReadOnlyList<IChangeLineViewModel> Requests { get; }
+    IJobHistoryViewModel History { get; }
 
     IReadOnlyList<IFeatureRowViewModel> Others { get; }
 
@@ -42,10 +40,11 @@ internal sealed partial class DocsPaneViewModel
     private readonly LiveFeed feed;
     private readonly IMessenger messenger;
     private readonly C4PlayerViewModel player;
-    private readonly ObservableCollection<ChangeLineViewModel> requests = [];
+    private readonly JobHistoryViewModel history = new();
     private readonly ObservableCollection<FeatureRowViewModel> others = [];
     private Option<JobId> job;
     private string played = string.Empty;
+    private Option<FeatureStory> stories;
 
     public DocsPaneViewModel(DocsReader reader, LiveFeed feed, IMessenger messenger, C4PlayerViewModel player)
     {
@@ -54,6 +53,7 @@ internal sealed partial class DocsPaneViewModel
         this.messenger = messenger;
         this.player = player;
         player.IsCompact = true;
+        history.VersionChosen += (_, number) => player.Version = Index(number);
         messenger.RegisterAll(this);
     }
 
@@ -69,7 +69,7 @@ internal sealed partial class DocsPaneViewModel
 
     public IC4PlayerViewModel Player => player;
 
-    public IReadOnlyList<IChangeLineViewModel> Requests => requests;
+    public IJobHistoryViewModel History => history;
 
     public IReadOnlyList<IFeatureRowViewModel> Others => others;
 
@@ -138,12 +138,8 @@ internal sealed partial class DocsPaneViewModel
                 player.Show(docs.Story);
             }
 
-            requests.Clear();
-
-            foreach (var request in documented.Requests)
-            {
-                requests.Add(new ChangeLineViewModel(new ChangeEntry(EntryKeys.Change(request.Number), request)));
-            }
+            history.Show(docs);
+            stories = docs.Story;
 
             others.Clear();
 
@@ -153,6 +149,9 @@ internal sealed partial class DocsPaneViewModel
             }
         }
     }
+
+    private int Index(int number) =>
+        stories.Match(story => story.Versions.ToList().FindIndex(version => version.Number == number), () => -1) is var found and >= 0 ? found : player.Version;
 
     private void Toggle(bool open)
     {
