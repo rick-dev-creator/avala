@@ -240,7 +240,7 @@ internal sealed partial class SidebarViewModel : ISidebarViewModel, IActivatable
 
     private void Place(BoardJob job, ImmutableDictionary<JobId, BoardContest> contested)
     {
-        if (contested.ContainsKey(job.Job))
+        if (contested.ContainsKey(job.Job) || job.Summary.Companion)
         {
             Withdraw(job.Job);
 

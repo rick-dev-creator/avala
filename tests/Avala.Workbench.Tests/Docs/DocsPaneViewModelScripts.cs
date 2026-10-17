@@ -18,6 +18,7 @@ public sealed class DocsPaneViewModelScripts : IDisposable
     private static readonly Feature Payouts = new("payouts", "Payout scheduler");
 
     private readonly JobId job = JobId.New();
+    private readonly JobId writer = JobId.New();
     private readonly JobBoard board = new();
     private readonly TestUiDispatcher ui = new();
     private readonly StrongReferenceMessenger messenger = new();
@@ -96,12 +97,29 @@ public sealed class DocsPaneViewModelScripts : IDisposable
         Assert.Equal(("Plan v1 · proposed", "None. It is the plan the agent proposed.", 0, true), shown);
     }
 
+    [Fact]
+    public async Task AVersionsWriterOpensFromTheHistoryInItsOwnConversationAsync()
+    {
+        Document(writing: false);
+        var opened = new List<JobId>();
+        messenger.Register<Workbench.Contracts.Presentation.JobSelected>(this, (_, selected) => opened.Add(selected.Job));
+        using var pane = Pane();
+        await ui.InvokeAsync(() => messenger.Send(new DocsPaneRequested(job)), Cancellation);
+        await ui.PresentedAsync(pane, () => pane.History.HasWriter, () => "no writer");
+
+        await ui.InvokeAsync(() => pane.History.OpenWriterCommand.Execute(null), Cancellation);
+        await ui.InvokeAsync(() => pane.History.Steps[0].ChooseCommand.Execute(null), Cancellation);
+
+        Assert.Equal([writer], opened);
+        Assert.False(await ui.ReadAsync(() => pane.History.HasWriter));
+    }
+
     private void Document(bool writing, DocsSite? site = null)
     {
         var documented = new JobDocumentation(job, Payments)
         {
             Writing = writing ? JobId.New() : Option<JobId>.None,
-            Versions = [new FeatureVersion(1, VersionKind.Proposed, "docs/features/payments/v1-proposed.md", DateTimeOffset.UnixEpoch), new FeatureVersion(2, VersionKind.Deviation, "docs/features/payments/v2-deviation.md", DateTimeOffset.UnixEpoch)],
+            Versions = [new FeatureVersion(1, VersionKind.Proposed, "docs/features/payments/v1-proposed.md", DateTimeOffset.UnixEpoch), new FeatureVersion(2, VersionKind.Deviation, "docs/features/payments/v2-deviation.md", DateTimeOffset.UnixEpoch) { Writer = writer }],
             Requests = [new ChangeRequest(1, RequestKind.Steer, "Make sure a refund never applies twice", DateTimeOffset.UnixEpoch, 1) { Version = 2 }],
         };
         documentation.Job = new JobDocs(documented, "/repos/ledger", DesignStories.Ledger(), new RepositoryDocs(true, "docs/features", [new RepositoryFeature(Payments, 2), new RepositoryFeature(Payouts, 1)])) { Site = site ?? new DocsSite(false, "docs", true) };

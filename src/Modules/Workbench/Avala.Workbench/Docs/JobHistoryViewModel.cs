@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Avala.Documentation.Contracts;
+using Avala.Jobs.Contracts;
+using Avala.Sdk;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -21,6 +23,10 @@ internal interface IJobHistoryViewModel
     IReadOnlyList<string> Changed { get; }
 
     string Records { get; }
+
+    bool HasWriter { get; }
+
+    IRelayCommand OpenWriterCommand { get; }
 }
 
 [INotifyPropertyChanged]
@@ -28,8 +34,11 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
 {
     private readonly ObservableCollection<HistoryStepViewModel> steps = [];
     private JobDocs? shown;
+    private Option<JobId> writer;
 
     public event EventHandler<int>? VersionChosen;
+
+    public event EventHandler<JobId>? WriterOpened;
 
     public IReadOnlyList<IHistoryStepViewModel> Steps => steps;
 
@@ -52,6 +61,10 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
 
     [ObservableProperty]
     public partial string Records { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenWriterCommand))]
+    public partial bool HasWriter { get; private set; }
 
     public void Show(JobDocs docs)
     {
@@ -79,6 +92,15 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
         Summarize(chosen);
     }
 
+    [RelayCommand(CanExecute = nameof(HasWriter))]
+    private void OpenWriter()
+    {
+        foreach (var found in writer.Match<JobId[]>(job => [job], () => []))
+        {
+            WriterOpened?.Invoke(this, found);
+        }
+    }
+
     private void Choose(int number)
     {
         Summarize(number);
@@ -104,6 +126,8 @@ internal sealed partial class JobHistoryViewModel : IJobHistoryViewModel
         Why = HistoryPhrases.Why(version.Kind, asked);
         Changed = played is null ? [] : [.. played.Steps.Where(step => step.Kind is StepKind.Added or StepKind.Changed or StepKind.Removed).Select(HistoryPhrases.Change)];
         Records = string.Create(CultureInfo.InvariantCulture, $"{Path.GetFileName(version.Path)} · plans/v{version.Number}.md");
+        writer = version.Writer;
+        HasWriter = writer.IsSome;
     }
 }
 
@@ -160,7 +184,7 @@ internal static class HistoryPhrases
     public static string Heading(FeatureVersion version) => Title(version);
 
     public static string Why(VersionKind kind, IReadOnlyList<ChangeRequest> asked) =>
-        asked.Count > 0 ? string.Join(" ", asked.Select(request => $"You asked “{request.Text}”.")) + " The plan changed to do it."
+        asked.Count > 0 ? string.Join(" ", asked.Select(request => $"You asked “{request.Text.TrimEnd('.', '!', '?')}”.")) + " The plan changed to do it."
         : kind switch
         {
             VersionKind.Proposed => "None. It is the plan the agent proposed.",

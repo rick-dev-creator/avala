@@ -62,6 +62,11 @@ public sealed class DocumentationScreens(HeadlessUi ui, PublishedPlugins plugins
 
         await Camera.ShootAsync(run, "docs-app-04-change-request-dark");
         await Camera.ShootAsync(run, "docs-app-04-change-request-light", ThemeVariant.Light);
+
+        await run.Ui.InvokeAsync(() => pane["History"]["Steps"].Items.Single(step => step["Title"].Text == "Plan v3 · deviation").Execute("ChooseCommand"), Cancellation);
+        Assert.True(await run.Ui.ReadAsync(() => pane["History"]["HasWriter"].Value<bool>()));
+
+        await Camera.ShootAsync(run, "docs-app-05-writer-link-dark", window => FeatureCamera.ScrollTo(window, "Writer's conversation"));
     }
 
     private static async Task<Bound> OpenPaneAsync(SimulatedRun run, string state)

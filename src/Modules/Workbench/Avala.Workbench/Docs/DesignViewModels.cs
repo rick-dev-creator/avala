@@ -237,6 +237,10 @@ internal sealed class DesignJobHistoryViewModel : IJobHistoryViewModel
     public IReadOnlyList<string> Changed { get; } = ["+ Idempotency store", "~ Payments"];
 
     public string Records => "v2-deviation.md · plans/v2.md";
+
+    public bool HasWriter => true;
+
+    public IRelayCommand OpenWriterCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed record DesignHistoryStepViewModel(string Title, string Fact, bool IsVersion, bool IsChosen) : IHistoryStepViewModel

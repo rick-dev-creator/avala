@@ -48,6 +48,8 @@ internal sealed class Job : IAggregateRoot<JobId>
 
     public Option<JobId> Parent { get; private init; }
 
+    public bool Companion { get; private init; }
+
     public ModelChoice Model { get; private set; } = ModelChoice.Default;
 
     public Option<HoldReason> Held { get; private set; }
@@ -72,7 +74,8 @@ internal sealed class Job : IAggregateRoot<JobId>
         Option<ConnectionName> connection = default,
         Option<JobId> parent = default,
         Option<ModelChoice> model = default,
-        Option<IReadOnlyList<Attachment>> attachments = default) =>
+        Option<IReadOnlyList<Attachment>> attachments = default,
+        bool companion = false) =>
         new Job(id, instruction, budget, repository)
         {
             Attachments = attachments.Match(attached => attached, () => []),
@@ -80,6 +83,7 @@ internal sealed class Job : IAggregateRoot<JobId>
             Autonomy = autonomy,
             Connection = connection,
             Parent = parent,
+            Companion = companion && parent.IsSome,
             Model = model.Match(chosen => chosen, () => ModelChoice.Default),
         };
 
