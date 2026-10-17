@@ -1,5 +1,6 @@
 using Avala.Documentation.Contracts;
 using Avala.Documentation.RepositoryFiles;
+using Avala.Documentation.Tests.Writing;
 using Avala.Testing;
 
 namespace Avala.Documentation.Tests.RepositoryFiles;
@@ -7,6 +8,8 @@ namespace Avala.Documentation.Tests.RepositoryFiles;
 public sealed class DocsRulesTests
 {
     private const string Worktree = "/worktrees/job-1";
+
+    private const string Repository = "/repos/ledger";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -21,12 +24,12 @@ public sealed class DocsRulesTests
     {
         var files = new CommittedFiles().With(Worktree, DocsRulesReader.JobFile, text);
 
-        Assert.Equal(new DocsRules(enabled, folder), Outcomes.Succeeds(await new DocsRulesReader(files).OfWorktreeAsync(Worktree, Cancellation)));
+        Assert.Equal(new DocsRules(enabled, folder), Outcomes.Succeeds(await new DocsRulesReader(files, new Documented.Folders()).OfWorktreeAsync(Worktree, Cancellation)));
     }
 
     [Fact]
     public async Task WithoutAJobFileDocumentationIsOffAsync() =>
-        Assert.Equal(DocsRules.Off, Outcomes.Succeeds(await new DocsRulesReader(new CommittedFiles().Workspace(Worktree)).OfWorktreeAsync(Worktree, Cancellation)));
+        Assert.Equal(DocsRules.Off, Outcomes.Succeeds(await new DocsRulesReader(new CommittedFiles().Workspace(Worktree), new Documented.Folders()).OfWorktreeAsync(Worktree, Cancellation)));
 
     [Theory]
     [InlineData("not json", "Malformed")]
@@ -43,7 +46,7 @@ public sealed class DocsRulesTests
     {
         var files = new CommittedFiles().With(Worktree, DocsRulesReader.JobFile, text);
 
-        Assert.Equal(Enum.Parse<DocumentationError>(error), Outcomes.FailsWith(await new DocsRulesReader(files).OfWorktreeAsync(Worktree, Cancellation)));
+        Assert.Equal(Enum.Parse<DocumentationError>(error), Outcomes.FailsWith(await new DocsRulesReader(files, new Documented.Folders()).OfWorktreeAsync(Worktree, Cancellation)));
     }
 
     [Fact]
@@ -51,7 +54,32 @@ public sealed class DocsRulesTests
     {
         var large = new CommittedFiles().With(Worktree, DocsRulesReader.JobFile, $$"""{ "approval": "{{new string('a', DocsRulesReader.MaximumBytes)}}" }""");
 
-        Assert.Equal(DocumentationError.TooLarge, Outcomes.FailsWith(await new DocsRulesReader(large).OfWorktreeAsync(Worktree, Cancellation)));
-        Assert.Equal(DocumentationError.Unreadable, Outcomes.FailsWith(await new DocsRulesReader(new CommittedFiles()).OfWorktreeAsync(Worktree, Cancellation)));
+        Assert.Equal(DocumentationError.TooLarge, Outcomes.FailsWith(await new DocsRulesReader(large, new Documented.Folders()).OfWorktreeAsync(Worktree, Cancellation)));
+        Assert.Equal(DocumentationError.Unreadable, Outcomes.FailsWith(await new DocsRulesReader(new CommittedFiles(), new Documented.Folders()).OfWorktreeAsync(Worktree, Cancellation)));
+    }
+
+    [Fact]
+    public async Task SwitchingDocsOnWritesTheSectionAndKeepsTheRestOfTheJobFileAsync()
+    {
+        var empty = new Documented.Folders();
+        var declared = new Documented.Folders();
+        declared.Draft(Repository, DocsRulesReader.JobFile, """{ "approval": "merge", "docs": { "enabled": false, "folder": "notes" } }""");
+
+        var fresh = Outcomes.Succeeds(await new DocsRulesReader(new CommittedFiles(), empty).SwitchAsync(Repository, enabled: true, Cancellation));
+        var kept = Outcomes.Succeeds(await new DocsRulesReader(new CommittedFiles(), declared).SwitchAsync(Repository, enabled: true, Cancellation));
+
+        Assert.Equal((new DocsRules(true, "docs/features"), new DocsRules(true, "notes")), (fresh, kept));
+        Assert.Equal("{\n  \"docs\": {\n    \"enabled\": true\n  }\n}\n", empty[Repository, DocsRulesReader.JobFile]);
+        Assert.Equal("{\n  \"approval\": \"merge\",\n  \"docs\": {\n    \"enabled\": true,\n    \"folder\": \"notes\"\n  }\n}\n", declared[Repository, DocsRulesReader.JobFile]);
+    }
+
+    [Fact]
+    public async Task AJobFileThatDoesNotParseIsNotSwitchedAsync()
+    {
+        var broken = new Documented.Folders();
+        broken.Draft(Repository, DocsRulesReader.JobFile, "{ not json");
+
+        Assert.Equal(DocumentationError.Malformed, Outcomes.FailsWith(await new DocsRulesReader(new CommittedFiles(), broken).SwitchAsync(Repository, enabled: true, Cancellation)));
+        Assert.Equal("{ not json", broken[Repository, DocsRulesReader.JobFile]);
     }
 }

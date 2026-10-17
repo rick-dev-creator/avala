@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:newJob="using:Avala.Workbench.NewJob"
+             x:Class="Avala.Workbench.UI.FeatureChipView"
+             x:ClassModifier="internal"
+             x:DataType="newJob:IFeatureChipViewModel">
+  <Design.DataContext>
+    <newJob:DesignFeatureChipViewModel />
+  </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="ToggleButton#FeatureButton">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusButton}" />
+      <Setter Property="Padding" Value="6,4,9,4" />
+      <Setter Property="Height" Value="28" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="ToggleButton#FeatureButton:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton#FeatureButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillHoverBrush}" />
+    </Style>
+    <Style Selector="ToggleButton#FeatureButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource FillSelectedBrush}" />
+    </Style>
+    <Style Selector="Popup#FeatureMenu">
+      <Setter Property="Placement" Value="BottomEdgeAlignedLeft" />
+      <Setter Property="VerticalOffset" Value="6" />
+    </Style>
+  </UserControl.Styles>
+  <Panel IsVisible="{Binding IsShown}">
+    <ToggleButton x:Name="FeatureButton"
+                  IsChecked="{Binding IsOpen}"
+                  ToolTip.Tip="The feature this job documents"
+                  AutomationProperties.Name="Feature">
+      <StackPanel Orientation="Horizontal" Spacing="7">
+        <Path Classes="icon small" Data="{StaticResource IconDocument}" Stroke="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+        <TextBlock x:Name="FeatureName" Text="{Binding Name}" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center" MaxWidth="280" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="FeatureFact"
+                   Classes="caption"
+                   Text="{Binding Fact}"
+                   VerticalAlignment="Center"
+                   IsVisible="{Binding Fact, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <Path Classes="icon small" Data="{StaticResource IconChevronDown}" Stroke="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" />
+      </StackPanel>
+    </ToggleButton>
+    <Popup x:Name="FeatureMenu"
+           IsOpen="{Binding IsOpen}"
+           PlacementTarget="{Binding #FeatureButton}"
+           ShouldUseOverlayLayer="True"
+           IsLightDismissEnabled="True"
+           WindowManagerAddShadowHint="False">
+      <Border Classes="float" Padding="6" Width="360">
+        <StackPanel Spacing="1">
+          <TextBlock Classes="section" Margin="10,6,10,2" Text="Feature" />
+          <ItemsControl x:Name="FeatureOptions" ItemsSource="{Binding Options}" />
+        </StackPanel>
+      </Border>
+    </Popup>
+  </Panel>
+</UserControl>

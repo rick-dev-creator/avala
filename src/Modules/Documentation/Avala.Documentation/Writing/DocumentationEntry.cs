@@ -9,13 +9,17 @@ namespace Avala.Documentation.Writing;
 
 internal sealed class DocumentationEntry(IDocsRules rules, FeatureCatalog catalog, DocumentationBook book) : IDocumentation
 {
-    public async Task<FeatureOffer> OfferAsync(string repository, string instruction, CancellationToken cancellationToken)
+    public async Task<RepositoryDocs> OfRepositoryAsync(string repository, CancellationToken cancellationToken)
     {
         var declared = (await rules.OfRepositoryAsync(repository, cancellationToken)).Match(found => found, _ => DocsRules.Off);
-        var features = declared.Enabled ? await catalog.ListAsync(repository, declared.Folder, cancellationToken) : [];
 
-        return new FeatureOffer(declared.Enabled, FeatureNames.Suggest(instruction, [.. features.Select(listed => listed.Feature)]), features);
+        return declared.Enabled ? new RepositoryDocs(true, declared.Folder, await catalog.ListAsync(repository, declared.Folder, cancellationToken)) : RepositoryDocs.Off with { Folder = declared.Folder };
     }
+
+    public FeatureSuggestion Suggest(string instruction, IReadOnlyList<Feature> features) => FeatureNames.Suggest(instruction, features);
+
+    public Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken) =>
+        rules.SwitchAsync(repository, enabled, cancellationToken);
 
     public async Task ChooseAsync(JobId job, FeatureChoice choice, CancellationToken cancellationToken) =>
         await book.ChooseAsync(job, choice, cancellationToken);

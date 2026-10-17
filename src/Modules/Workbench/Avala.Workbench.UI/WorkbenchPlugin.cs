@@ -304,6 +304,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<IContestSectionViewModel, ContestSectionView>();
         views.Register<ICandidateSwitcherViewModel, CandidateSwitcherView>();
         RegisterGlobalViews(views);
+        RegisterDocumentationViews(views);
         RegisterFollowingViews(views);
     }
 
@@ -380,6 +381,7 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddTransient<RepositoryStarts>()
             .AddTransient<RepositoryFieldViewModel>()
             .AddTransient<RepositoryPickerViewModel>()
+            .AddTransient<FeatureChipViewModel>()
             .AddTransient<NewJobFields>();
     }
 
@@ -464,6 +466,8 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
             .AddSingleton<IDelegationViewModel, DelegationViewModel>()
             .AddSingleton<DelegationPaneViewModel>()
             .AddSingleton<DelegationToggleViewModel>()
+            .AddSingleton<DocsSettingViewModel>()
+            .AddSingleton<RepositorySettingsParts>()
             .AddSingleton<IRepositorySettingsViewModel, RepositorySettingsViewModel>()
             .AddSingleton<IDefaultConnectionViewModel, DefaultConnectionViewModel>()
             .AddSingleton<ConnectionEditorViewModel>()
@@ -503,6 +507,13 @@ public sealed class WorkbenchPlugin : IPlugin, IViewContributor
         views.Register<ISubagentViewModel, SubagentView>();
         views.Register<IDelegationPaneViewModel, DelegationPaneView>();
         views.Register<IDelegationToggleViewModel, DelegationToggleView>();
+    }
+
+    private static void RegisterDocumentationViews(IViewRegistrar views)
+    {
+        views.Register<IFeatureChipViewModel, FeatureChipView>();
+        views.Register<IFeatureOptionViewModel, FeatureOptionView>();
+        views.Register<IDocsSettingViewModel, DocsSettingView>();
     }
 
     private static void RegisterGlobalViews(IViewRegistrar views)

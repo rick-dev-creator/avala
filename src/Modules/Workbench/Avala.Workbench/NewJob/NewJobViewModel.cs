@@ -44,6 +44,8 @@ internal interface INewJobViewModel
 
     IJobOptionsViewModel JobOptions { get; }
 
+    IFeatureChipViewModel Feature { get; }
+
     string Error { get; }
 
     string Submitted { get; }
@@ -62,6 +64,7 @@ internal sealed partial class NewJobViewModel
     private readonly IMessenger messenger;
     private readonly JobOptionsViewModel choices;
     private readonly RepositoryPickerViewModel picker;
+    private readonly FeatureChipViewModel feature;
     private readonly ObservableCollection<string> connections = [NewJobPhrases.Auto];
     private readonly ObservableCollection<ConnectionOptionViewModel> options = [new(NewJobPhrases.Auto)];
     private readonly ObservableCollection<string> autonomies = [NewJobPhrases.RepositoryLevel(Option<RepositoryPolicy>.None)];
@@ -78,6 +81,7 @@ internal sealed partial class NewJobViewModel
         this.messenger = messenger;
         choices = fields.Options;
         picker = fields.Repository;
+        feature = fields.Feature;
         picker.PropertyChanged += (_, changed) =>
         {
             if (changed.PropertyName == nameof(RepositoryPickerViewModel.IsScratch))
@@ -143,6 +147,12 @@ internal sealed partial class NewJobViewModel
 
     public IJobOptionsViewModel JobOptions => choices;
 
+    public IFeatureChipViewModel Feature => feature;
+
+    public FeatureChipViewModel Features => feature;
+
+    public Task FeaturesRead { get; private set; } = Task.CompletedTask;
+
     public IModelPickerViewModel Models => choices.Models;
 
     public ModelPickerViewModel Picker => choices.Picker;
@@ -194,6 +204,8 @@ internal sealed partial class NewJobViewModel
 
     partial void OnAutonomyChanged(string value) => AutonomyNote = NewJobPhrases.AutonomyNote(policy, Supervised);
 
+    partial void OnInstructionChanged(string value) => feature.Follow(value);
+
     [RelayCommand(CanExecute = nameof(CanSubmit))]
     private Task SubmitAsync(CancellationToken cancellationToken) =>
         picker.IsScratch ? StartWithoutRepositoryAsync(cancellationToken) : StartAsync(Repository, string.Empty, cancellationToken);
@@ -227,6 +239,7 @@ internal sealed partial class NewJobViewModel
 
         if (submitted.TryGetValue(out var job, out _))
         {
+            await feature.KeepAsync(job, cancellationToken);
             Started(job, $"Submitted{where}: {Instruction.Trim()}");
         }
     }
@@ -296,6 +309,7 @@ internal sealed partial class NewJobViewModel
         if (ticket == previews)
         {
             OptionsRead = choices.ReadAsync(Repository, cancellationToken);
+            FeaturesRead = feature.ReadAsync(picker.IsScratch ? string.Empty : Repository, cancellationToken);
             preview = previewed;
             ShowRoute();
             ShowAutonomy(declared);

@@ -60,4 +60,44 @@ internal static class Launching
 
     public static JobOptionsViewModel Options(FakeContests? contests = null, params Cost[] caps) =>
         new(new ModelPickerViewModel(), new ContestReadings(contests ?? new FakeContests(), new CappedBudgets(caps)));
+
+    public static FeatureChipViewModel Feature(FakeDocumentation? documentation = null) => new(documentation ?? new FakeDocumentation());
+}
+
+internal sealed class FakeDocumentation : Documentation.Contracts.IDocumentation
+{
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(JobId Job, Documentation.Contracts.FeatureChoice Choice)> chosen = new();
+
+    public Documentation.Contracts.RepositoryDocs Docs { get; set; } = Documentation.Contracts.RepositoryDocs.Off;
+
+    public IReadOnlyList<(JobId Job, Documentation.Contracts.FeatureChoice Choice)> Chosen => [.. chosen];
+
+    public Task<Documentation.Contracts.RepositoryDocs> OfRepositoryAsync(string repository, CancellationToken cancellationToken) => Task.FromResult(Docs);
+
+    public Documentation.Contracts.FeatureSuggestion Suggest(string instruction, IReadOnlyList<Documentation.Contracts.Feature> features) =>
+        features.FirstOrDefault(feature => instruction.Contains(feature.Title, StringComparison.OrdinalIgnoreCase)) is { } named
+            ? new(named, false)
+            : new(new Documentation.Contracts.Feature("new-feature", instruction.Length == 0 ? "Feature" : instruction), true);
+
+    public Task ChooseAsync(JobId job, Documentation.Contracts.FeatureChoice choice, CancellationToken cancellationToken)
+    {
+        chosen.Enqueue((job, choice));
+
+        return Task.CompletedTask;
+    }
+
+    public Option<Documentation.Contracts.JobDocumentation> OfJob(JobId job) => Option<Documentation.Contracts.JobDocumentation>.None;
+
+    public Result<Documentation.Contracts.DocsRules, Documentation.Contracts.DocumentationError> Switched { get; set; } = new Documentation.Contracts.DocsRules(true, "docs/features");
+
+    public Task<Result<Documentation.Contracts.DocsRules, Documentation.Contracts.DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken) =>
+        Task.FromResult(Switched.Map(rules => rules with { Enabled = enabled }));
+}
+
+internal sealed class FakeRoles : Delegation.Contracts.IRoleSettings
+{
+    public Agents.Contracts.Sessions.ModelChoice Research { get; set; } = Agents.Contracts.Sessions.ModelChoice.Default;
+
+    public ValueTask<Agents.Contracts.Sessions.ModelChoice> OfRoleAsync(string worktree, Delegation.Contracts.ChildRole role, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(role == Delegation.Contracts.ChildRole.Research ? Research : Agents.Contracts.Sessions.ModelChoice.Default);
 }

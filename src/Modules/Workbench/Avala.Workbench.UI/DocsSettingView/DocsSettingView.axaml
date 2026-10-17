@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:settings="using:Avala.Workbench.Settings"
+             xmlns:theme="using:Avala.Components.UI.Theme"
+             x:Class="Avala.Workbench.UI.DocsSettingView"
+             x:ClassModifier="internal"
+             x:DataType="settings:IDocsSettingViewModel">
+  <Design.DataContext>
+    <settings:DesignDocsSettingViewModel />
+  </Design.DataContext>
+  <StackPanel Spacing="8" IsVisible="{Binding IsShown}">
+    <TextBlock Classes="section" Text="Feature documentation" />
+    <Border Classes="grouped">
+      <StackPanel>
+        <DockPanel Margin="16,12">
+          <ToggleSwitch x:Name="DocsSwitch"
+                        DockPanel.Dock="Right"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        IsChecked="{Binding IsOn, Mode=OneWay}"
+                        Command="{Binding SwitchCommand}"
+                        AutomationProperties.Name="Document features as they are built" />
+          <Border DockPanel.Dock="Left" Classes="mark round" Margin="0,0,12,0" VerticalAlignment="Center">
+            <Path Classes="icon small" Data="{StaticResource IconDocument}" Stroke="{DynamicResource AccentBrush}" />
+          </Border>
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock x:Name="DocsTitle" Text="Document features as they are built" />
+            <TextBlock Classes="caption" TextWrapping="Wrap" Text="Each plan becomes a version with its C4; every change you ask for is recorded." />
+          </StackPanel>
+        </DockPanel>
+        <StackPanel x:Name="DocsDetails" IsVisible="{Binding IsOn}" theme:Motion.Enter="Fold">
+          <Border Classes="separator" Margin="16,0" />
+          <DockPanel Margin="16,12">
+            <TextBlock x:Name="DocsFolder" DockPanel.Dock="Right" Classes="mono" Text="{Binding Folder}" VerticalAlignment="Center" />
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="Folder" />
+              <TextBlock Classes="caption" TextWrapping="Wrap" Text="One folder per feature, committed in the job's branch." />
+            </StackPanel>
+          </DockPanel>
+          <Border Classes="separator" Margin="16,0" />
+          <DockPanel Margin="16,12">
+            <TextBlock x:Name="DocsWriter" DockPanel.Dock="Right" Classes="caption" Text="{Binding Writer}" VerticalAlignment="Center" />
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <TextBlock Text="Written by" />
+              <TextBlock Classes="caption" TextWrapping="Wrap" Text="A read-only companion job on the research role of the delegation section." />
+            </StackPanel>
+          </DockPanel>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0">
+      <Ellipse Classes="dot" VerticalAlignment="Center" />
+      <TextBlock x:Name="DocsNote" Classes="caption" TextWrapping="Wrap" Text="{Binding Note}" />
+    </StackPanel>
+    <TextBlock x:Name="DocsError"
+               Classes="caption failure"
+               Margin="4,0"
+               TextWrapping="Wrap"
+               Text="{Binding Error}"
+               IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+  </StackPanel>
+</UserControl>

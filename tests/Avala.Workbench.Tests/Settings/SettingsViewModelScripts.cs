@@ -130,6 +130,8 @@ public sealed class SettingsViewModelScripts
 
         public IRuleFileViewModel? BudgetFile => repository.BudgetFile;
 
+        public IDocsSettingViewModel Docs => repository.Docs;
+
         public bool IsSilenceChanged => false;
 
         public double SilenceMinutes { get; set; } = 10;

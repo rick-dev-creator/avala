@@ -55,8 +55,12 @@ internal interface IRepositorySettingsViewModel
 
     IRuleFileViewModel? BudgetFile { get; }
 
+    IDocsSettingViewModel Docs { get; }
+
     Task LoadAsync(CancellationToken cancellationToken);
 }
+
+internal sealed record RepositorySettingsParts(RuleFileEditorViewModel Editor, DocsSettingViewModel Docs);
 
 [INotifyPropertyChanged]
 internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsViewModel
@@ -65,13 +69,15 @@ internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsV
     private readonly SettingsFiles files;
     private readonly RepositoryFieldViewModel chooser;
     private readonly RuleFileEditorViewModel editor;
+    private readonly DocsSettingViewModel docs;
 
-    public RepositorySettingsViewModel(RulesReader reader, SettingsFiles files, RepositoryFieldViewModel chooser, RuleFileEditorViewModel editor)
+    public RepositorySettingsViewModel(RulesReader reader, SettingsFiles files, RepositoryFieldViewModel chooser, RepositorySettingsParts parts)
     {
         this.reader = reader;
         this.files = files;
         this.chooser = chooser;
-        this.editor = editor;
+        editor = parts.Editor;
+        docs = parts.Docs;
         editor.Saved += (_, path) => Refreshing = RefreshAsync(path);
         chooser.PropertyChanged += (_, changed) =>
         {
@@ -84,6 +90,10 @@ internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsV
     }
 
     public IRuleFileEditorViewModel Editor => editor;
+
+    public IDocsSettingViewModel Docs => docs;
+
+    public DocsSettingViewModel Documentation => docs;
 
     public Task Refreshing { get; private set; } = Task.CompletedTask;
 
@@ -159,7 +169,11 @@ internal sealed partial class RepositorySettingsViewModel : IRepositorySettingsV
     }
 
     [RelayCommand(CanExecute = nameof(CanRead))]
-    private async Task ReadAsync(CancellationToken cancellationToken) => Show(await reader.ReadAsync(Repository.Trim(), cancellationToken));
+    private async Task ReadAsync(CancellationToken cancellationToken)
+    {
+        Show(await reader.ReadAsync(Repository.Trim(), cancellationToken));
+        await docs.ReadAsync(Shown, cancellationToken);
+    }
 
     [RelayCommand]
     private async Task OpenAsync(string? repository, CancellationToken cancellationToken)

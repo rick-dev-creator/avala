@@ -47,6 +47,7 @@
                     <KeyBinding Gesture="{x:Static copying:Hotkeys.CommandShiftEnter}" Command="{Binding StartWithoutRepositoryCommand}" />
                   </TextBox.KeyBindings>
                 </TextBox>
+                <ContentControl x:Name="Feature" Content="{Binding Feature}" HorizontalAlignment="Left" />
               </StackPanel>
               <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="6">
                 <StackPanel Spacing="6">
