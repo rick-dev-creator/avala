@@ -88,6 +88,8 @@ public interface IDocumentation
 
     Task<Result<DocsRules, DocumentationError>> SwitchAsync(string repository, bool enabled, CancellationToken cancellationToken);
 
+    Task<Option<FeatureStory>> StoryAsync(string folder, Feature feature, CancellationToken cancellationToken);
+
     Task ChooseAsync(JobId job, FeatureChoice choice, CancellationToken cancellationToken);
 
     Option<JobDocumentation> OfJob(JobId job);
@@ -107,3 +109,74 @@ public sealed record DocumentationDraft(string Content)
 {
     public const string Path = ".avala/docs/version.md";
 }
+
+public enum C4Level
+{
+    Context,
+    Container,
+    Component,
+    Dynamic,
+}
+
+public enum C4Shape
+{
+    Person,
+    System,
+    Container,
+    Component,
+    Database,
+    Queue,
+}
+
+public sealed record C4Element(string Alias, string Label, C4Shape Shape, bool External)
+{
+    public string Technology { get; init; } = string.Empty;
+
+    public string Description { get; init; } = string.Empty;
+
+    public Option<string> Boundary { get; init; }
+}
+
+public sealed record C4Boundary(string Alias, string Label)
+{
+    public Option<string> Parent { get; init; }
+}
+
+public sealed record C4Relation(string From, string To, string Label)
+{
+    public string Technology { get; init; } = string.Empty;
+
+    public Option<int> Index { get; init; }
+}
+
+public sealed record C4Diagram(C4Level Level, string Title, IReadOnlyList<C4Element> Elements, IReadOnlyList<C4Boundary> Boundaries, IReadOnlyList<C4Relation> Relations);
+
+public sealed record DocSection(string Anchor, string Title, string Text);
+
+public sealed record VersionDocument(string Title, string Lead, IReadOnlyList<C4Diagram> Diagrams, IReadOnlyList<DocSection> Sections)
+{
+    public IReadOnlyList<string> Unread { get; init; } = [];
+}
+
+public enum StepKind
+{
+    Base,
+    Added,
+    Changed,
+    Removed,
+    Flow,
+}
+
+public sealed record PlayStep(StepKind Kind, string Anchor, string Title, string Text)
+{
+    public IReadOnlyList<string> Elements { get; init; } = [];
+
+    public IReadOnlyList<C4Relation> Relations { get; init; } = [];
+}
+
+public sealed record PlayedVersion(int Number, VersionKind Kind, string File, VersionDocument Document, C4Diagram Structure, IReadOnlyList<PlayStep> Steps)
+{
+    public IReadOnlyList<C4Element> Removed { get; init; } = [];
+}
+
+public sealed record FeatureStory(Feature Feature, IReadOnlyList<PlayedVersion> Versions);
