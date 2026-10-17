@@ -23,6 +23,8 @@ public sealed class JobFileReaderTests
     [InlineData("""{ "approval": "merge", "delegation": { "connections": ["work", "personal"], "maxDepth": 2 } }""", "", "merge")]
     [InlineData("""{ "approval": "pull-request", "pullRequest": { "forge": "github", "maxWakeUps": 2 } }""", "", "pull-request")]
     [InlineData("""{ "approval": "merge", "bestOf": { "candidates": 3, "max": 4 } }""", "", "merge")]
+    [InlineData("""{ "approval": "merge", "delegation": { "maxDepth": 2, "roles": { "research": { "model": "small", "effort": "low", "compactAt": 90000 } } } }""", "", "merge")]
+    [InlineData("""{ "approval": "merge", "docs": { "enabled": true, "folder": "docs/features" } }""", "", "merge")]
     public async Task TheJobFileOfTheBaseCommitNamesTheRepositorysDefaultConnectionAndApprovalAsync(string text, string connection, string approval)
     {
         var committed = new CommittedFiles().With(Worktree, JobFileReader.JobFile, text, editedInWorktree: true);
@@ -66,6 +68,10 @@ public sealed class JobFileReaderTests
     [InlineData("""{ "pullRequest": "github" }""")]
     [InlineData("""{ "bestOf": 3 }""")]
     [InlineData("""{ "bestOf": { "candidates": [3] } }""")]
+    [InlineData("""{ "delegation": { "roles": { "research": { "model": { "name": "small" } } } } }""")]
+    [InlineData("""{ "delegation": { "roles": { "research": "small" } } }""")]
+    [InlineData("""{ "docs": { "folder": { "path": "docs" } } }""")]
+    [InlineData("""{ "docs": true }""")]
     public async Task AnInvalidJobFileMakesTheDefaultConnectionUnusableAndTheApprovalInvalidAsync(string text)
     {
         var reader = Reader(new CommittedFiles().With(Worktree, JobFileReader.JobFile, text));

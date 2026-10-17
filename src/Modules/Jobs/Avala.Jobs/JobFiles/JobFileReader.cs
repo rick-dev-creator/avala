@@ -32,6 +32,10 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private const string BestOfField = "bestOf";
 
+    private const string DocsField = "docs";
+
+    private const string RolesField = "roles";
+
     private const string ModelField = "model";
 
     private const string EffortField = "effort";
@@ -40,9 +44,10 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
 
     private static readonly string[] Names = [ConnectionField, ApprovalField, ModelField, EffortField];
 
-    private static readonly (string Field, bool ListsAllowed)[] Sections = [(AutopilotField, false), (DelegationField, true), (LimitsField, true), (PullRequestField, false), (BestOfField, false)];
+    private static readonly (string Field, bool ListsAllowed, string Grouped)[] Sections =
+        [(AutopilotField, false, ""), (DelegationField, true, RolesField), (LimitsField, true, ""), (PullRequestField, false, ""), (BestOfField, false, ""), (DocsField, false, "")];
 
-    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 3, AllowDuplicateProperties = false };
+    private static readonly JsonDocumentOptions Options = new() { MaxDepth = 4, AllowDuplicateProperties = false };
 
     public async ValueTask<Result<Option<ConnectionName>, JobRejection>> ConnectionAsync(string worktree, CancellationToken cancellationToken) =>
         (await DeclaredAsync(worktree, cancellationToken))
@@ -101,9 +106,9 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
             return Rejected("it has a field the format does not define");
         }
 
-        foreach (var (field, listsAllowed) in Sections)
+        foreach (var (field, listsAllowed, grouped) in Sections)
         {
-            if (root.TryGetProperty(field, out var section) && !IsSection(section, listsAllowed))
+            if (root.TryGetProperty(field, out var section) && !IsSection(section, listsAllowed, grouped))
             {
                 return Rejected(listsAllowed ? $"its {field} is not an object of plain values and lists of them" : $"its {field} is not an object of plain values");
             }
@@ -116,11 +121,11 @@ internal sealed partial class JobFileReader(IBaseFiles files, ILogger<JobFileRea
     private static Option<ConnectionName> Preferred(Declaration declared) =>
         declared.Connection.Bind(name => name == ByCapacity ? Option<ConnectionName>.None : new ConnectionName(name));
 
-    private static bool IsSection(JsonElement section, bool listsAllowed) =>
+    private static bool IsSection(JsonElement section, bool listsAllowed, string grouped) =>
         section.ValueKind == JsonValueKind.Object
         && section.EnumerateObject().All(field => field.Value.ValueKind switch
         {
-            JsonValueKind.Object => false,
+            JsonValueKind.Object => field.Name == grouped && field.Value.EnumerateObject().All(group => IsSection(group.Value, false, string.Empty)),
             JsonValueKind.Array => listsAllowed && field.Value.EnumerateArray().All(item => item.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array)),
             _ => true,
         });
