@@ -22,6 +22,7 @@
                    Text="{Binding Problem}"
                    IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
       </StackPanel>
+      <TextBlock x:Name="Purpose" Classes="caption" Text="{Binding Purpose}" TextWrapping="Wrap" />
     </StackPanel>
     <Border x:Name="SignIn"
             Grid.Column="2"

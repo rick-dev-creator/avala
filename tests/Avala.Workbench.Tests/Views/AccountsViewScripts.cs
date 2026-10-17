@@ -20,13 +20,14 @@ public sealed class AccountRowViewScripts(HeadlessUi ui)
         {
             var signedIn = Screen.Show(new DesignAccountRowViewModel());
             var attention = Screen.Show(new DesignAccountRowViewModel { State = AccountState.Attention, Problem = "Token not set" });
-            var detected = Screen.Show(new DesignAccountRowViewModel { State = AccountState.Detected });
+            var detected = Screen.Show(new DesignAccountRowViewModel { State = AccountState.Detected, Purpose = "Needed to open pull requests and follow their checks" });
 
             Assert.Equal(("oc•••••", "github.com", "gh"), (signedIn.TextOf("Login"), signedIn.TextOf("Host"), signedIn.Find<Border>("SignIn").Child is TextBlock chip ? chip.Text : null));
             Assert.NotNull(signedIn.Find<Avalonia.Controls.Shapes.Path>("Logo").Data);
             Assert.Equal((true, false, false), (signedIn.Shows("Status"), signedIn.HasClass("Status", "attention"), signedIn.Shows("Add")));
             Assert.Equal((true, "Token not set"), (attention.HasClass("Status", "attention"), attention.TextOf("Problem")));
             Assert.Equal((true, false), (detected.Shows("Add"), detected.Shows("Status")));
+            Assert.Equal(("Opens pull requests and follows their checks", "Needed to open pull requests and follow their checks"), (signedIn.TextOf("Purpose"), detected.TextOf("Purpose")));
         }, Cancellation);
 
 }

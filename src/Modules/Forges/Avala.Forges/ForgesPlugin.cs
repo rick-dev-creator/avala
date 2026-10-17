@@ -6,6 +6,7 @@ using Avala.Forges.Detection;
 using Avala.Forges.Git;
 using Avala.Forges.Polling;
 using Avala.Forges.Publishing;
+using Avala.Forges.Readiness;
 using Avala.Forges.RuleFiles;
 using Avala.Forges.Storage;
 using Avala.Forges.Transport;
@@ -71,6 +72,7 @@ public sealed class ForgesPlugin : IPlugin
             .AddSingleton<IForgeProbes, HttpForgeProbes>()
             .AddSingleton<ILoginDetection, LoginDetection>()
             .AddSingleton<CloneUrls>()
-            .AddSingleton<ISourceControlAccounts, SourceControlDesk>();
+            .AddSingleton<ISourceControlAccounts, SourceControlDesk>()
+            .AddSingleton<IForgeReadiness, ForgeReadinessDesk>();
     }
 }

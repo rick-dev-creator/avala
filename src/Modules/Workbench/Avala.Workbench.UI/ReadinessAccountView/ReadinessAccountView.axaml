@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:privacy="using:Avala.Components.UI.Privacy"
+             xmlns:readiness="using:Avala.Workbench.Readiness"
+             x:Class="Avala.Workbench.UI.ReadinessAccountView"
+             x:ClassModifier="internal"
+             x:DataType="readiness:IReadinessAccountViewModel">
+  <Design.DataContext>
+    <readiness:DesignReadinessAccountViewModel />
+  </Design.DataContext>
+  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,2">
+    <TextBlock x:Name="Login" privacy:PersonalDetails.Text="{Binding Login}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+    <Border Grid.Column="1" Classes="tag" VerticalAlignment="Center">
+      <TextBlock x:Name="Tool" Text="{Binding Tool}" />
+    </Border>
+    <Button x:Name="Connect"
+            Grid.Column="2"
+            Classes="primary"
+            Padding="12,3"
+            Content="Connect"
+            Command="{Binding ConnectCommand}" />
+  </Grid>
+</UserControl>
