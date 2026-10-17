@@ -16,13 +16,13 @@ public sealed class ConversationRestartTests(PublishedPlugins plugins)
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "edit", (".avala/permissions.json", ReviewTests.TestsPolicy));
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        var before = await ConversationAsync(run, entries => entries.Contains("TurnEndViewModel"));
+        var before = await ConversationAsync(run, entries => entries.Any(entry => entry.StartsWith("TurnEndViewModel | 1 | ", StringComparison.Ordinal)));
         await run.DeliveredAsync();
 
         await run.RestartAsync();
         await run.StartedAsync();
 
-        var after = await ConversationAsync(run, entries => entries.Contains("RestartViewModel"));
+        var after = await ConversationAsync(run, entries => entries.SequenceEqual([.. before, KeptNote]));
         Assert.Contains(before, entry => entry.StartsWith("ToolViewModel | ", StringComparison.Ordinal) && entry.Contains("Passed: 12, Failed: 0", StringComparison.Ordinal));
         Assert.Contains(before, entry => entry.StartsWith("PlanViewModel | ", StringComparison.Ordinal));
         Assert.Equal([.. before, KeptNote], after);
@@ -34,13 +34,13 @@ public sealed class ConversationRestartTests(PublishedPlugins plugins)
         await using var run = await SimulatedRun.StartAsync(plugins, "waiting-permission");
         Assert.Equal(DecisionDelivery.LeftToHuman, (await run.DecisionAsync()).Delivery);
         await run.ResumableAsync();
-        var before = await ConversationAsync(run, entries => entries.Contains("PermissionCardViewModel"));
+        var before = await ConversationAsync(run, entries => entries.Any(entry => Is(entry, "PermissionCardViewModel")));
         await run.DeliveredAsync();
 
         await run.RestartAsync();
 
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        var after = await ConversationAsync(run, entries => entries.Count(entry => entry == "TurnEndViewModel") == 1);
+        var after = await ConversationAsync(run, entries => entries.Count(entry => Is(entry, "TurnEndViewModel")) == 1);
         Assert.Contains(before, entry => entry.StartsWith("ReasoningViewModel | The schema changed, so the database needs a migration.", StringComparison.Ordinal));
         Assert.Equal([.. before, KeptNote], after.Take(before.Count + 1));
         Assert.Contains(after.Skip(before.Count + 1), entry => entry.StartsWith("MessageViewModel | I left the migration for you to run.", StringComparison.Ordinal));
@@ -51,7 +51,7 @@ public sealed class ConversationRestartTests(PublishedPlugins plugins)
     {
         await using var run = await SimulatedRun.StartAsync(plugins, "reply");
         Assert.Equal(JobStatus.AwaitingReview, await run.SettledAsync());
-        var before = await ConversationAsync(run, entries => entries.Contains("TurnEndViewModel"));
+        var before = await ConversationAsync(run, entries => entries.Any(entry => Is(entry, "TurnEndViewModel")));
         Outcomes.Succeeds(await run.Get<IJobs>().DiscardAsync(run.Job, TestContext.Current.CancellationToken));
         Assert.Equal(run.Job, (await run.ReclaimedAsync()).Job);
         await run.DeliveredAsync();
@@ -60,7 +60,7 @@ public sealed class ConversationRestartTests(PublishedPlugins plugins)
         await run.StartedAsync();
 
         var kept = await run.Get<ITranscripts>().EarlierRunsAsync(run.Job, TestContext.Current.CancellationToken);
-        var after = await ConversationAsync(run, entries => entries.Contains("RestartViewModel"));
+        var after = await ConversationAsync(run, entries => entries.Any(entry => Is(entry, "RestartViewModel")));
         Assert.Contains(before, entry => entry.StartsWith("MessageViewModel | ", StringComparison.Ordinal));
         Assert.Equal([new AttemptBegan(1)], kept.Select(fact => fact.Fact));
         Assert.Equal([before[0], KeptNote], after);
@@ -70,10 +70,13 @@ public sealed class ConversationRestartTests(PublishedPlugins plugins)
     {
         var workbench = await run.WorkbenchAsync();
         var conversation = await workbench.SelectAsync(run.Job);
-        await workbench.ShowsAsync(() => shown(OpenWorkbench.Kinds(conversation)));
+        await workbench.ShowsAsync(() => shown([.. conversation["Entries"].Items.Select(Describe)]));
 
         return await run.Ui.ReadAsync<IReadOnlyList<string>>(() => [.. conversation["Entries"].Items.Select(Describe)]);
     }
+
+    private static bool Is(string entry, string kind) =>
+        entry == kind || entry.StartsWith($"{kind} | ", StringComparison.Ordinal);
 
     private static string Describe(Bound entry) =>
         string.Join(" | ", [entry.Kind, .. Shown.Where(entry.Has).Select(property => entry[property].Text)]);

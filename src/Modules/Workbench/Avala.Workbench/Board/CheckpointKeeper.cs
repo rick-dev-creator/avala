@@ -5,7 +5,7 @@ using Avala.Sdk.Events;
 
 namespace Avala.Workbench.Board;
 
-internal sealed class CheckpointKeeper(IJobCheckpoints checkpoints, JobBoard board) : IHandle<JobProgressed>, IHandle<StartupCompleted>
+internal sealed class CheckpointKeeper(IJobCheckpoints checkpoints, IJobCatalog catalog, JobBoard board) : IHandle<JobProgressed>, IHandle<StartupCompleted>
 {
     private ImmutableDictionary<JobId, IReadOnlyList<JobCheckpoint>> kept = ImmutableDictionary<JobId, IReadOnlyList<JobCheckpoint>>.Empty;
 
@@ -19,7 +19,7 @@ internal sealed class CheckpointKeeper(IJobCheckpoints checkpoints, JobBoard boa
 
     public async ValueTask HandleAsync(StartupCompleted integrationEvent, CancellationToken cancellationToken)
     {
-        foreach (var job in board.Jobs.Values.Where(found => Restorable(found.Status)).Select(found => found.Job).ToList())
+        foreach (var job in (await catalog.ListAsync(cancellationToken)).Where(found => Restorable(found.Status)).Select(found => found.Job).ToList())
         {
             await KeepAsync(job, cancellationToken);
         }
